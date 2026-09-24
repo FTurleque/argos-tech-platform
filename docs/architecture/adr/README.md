@@ -28,5 +28,6 @@ Les ADR enregistrent les décisions architecturales importantes d’ARGOS.
 - [ADR-0006 — Collecteurs séparés](0006-collecteurs-separes.md)
 - [ADR-0007 — n8n périphérique](0007-n8n-peripherique.md)
 - [ADR-0008 — IAM OIDC](0008-iam-oidc.md)
+- [ADR-0009 — PolyForm Internal Use License 1.0.0](0009-licence-polyform-internal-use.md)
 
 Utiliser [`template.md`](template.md) pour toute nouvelle décision.
