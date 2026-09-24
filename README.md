@@ -10,9 +10,9 @@ Le nom **ARGOS** assume une double référence. Dans la mythologie grecque, **Ar
 
 **Phase : conception / cadrage architectural initial.**
 
-Au moment de cette mise à jour, le dépôt ne contient encore qu’un README initial. Aucune implémentation applicative, configuration, Dockerfile, pipeline CI/CD, schéma de données, API ni ADR n’est encore présent.
+Le dépôt contient désormais le README produit et une **documentation d’architecture initiale complète** sous `docs/architecture/`. Il ne contient pas encore d’implémentation applicative, manifest de dépendances, Dockerfile, pipeline CI/CD, schéma de données, API ou tests : les choix runtime restent donc à valider par ADR, POC et code réel.
 
-Les choix techniques décrits dans `docs/architecture/` sont donc classés comme :
+Les choix techniques décrits dans `docs/architecture/` sont classés comme :
 
 - **Décision proposée** lorsqu’un choix est recommandé mais pas encore implémenté ;
 - **Hypothèse à valider** lorsqu’une preuve dans le code ou l’environnement est encore nécessaire ;
@@ -64,7 +64,7 @@ flowchart LR
 - **ADR Markdown** pour conserver l’historique des décisions structurantes.
 - Approche **gratuit / self-hosted d’abord**, passage au payant uniquement lorsqu’un bénéfice concret est démontré.
 
-> Les technologies précises restent à confirmer par les premiers ADR et le POC. Voir la documentation d’architecture pour les hypothèses et critères de validation.
+> Les technologies précises restent à confirmer par les ADR proposés et les POC. Voir la documentation d’architecture pour les hypothèses et critères de validation.
 
 ## Documentation d’architecture
 
@@ -90,13 +90,13 @@ Il combine :
 
 ## Prochaines étapes
 
-1. Valider les objectifs métier et les parties prenantes.
-2. Créer les premiers ADR structurants.
-3. Prototyper le pipeline RSS → normalisation → stockage → restitution.
+1. Valider ou rejeter les ADR proposés (`ADR-0001` à `ADR-0004`, `ADR-0006` à `ADR-0008`).
+2. Choisir la stack de build backend et créer les frontières de modules.
+3. Prototyper le pipeline **RSS → normalisation → stockage → restitution**.
 4. Prototyper l’intégration GitHub/GitLab.
 5. Valider le modèle métier et les métriques projet.
 6. Valider l’intégration Claude, les règles de confidentialité et la maîtrise des coûts.
-7. Transformer les hypothèses d’architecture en décisions vérifiées par le code et les tests.
+7. Transformer progressivement les hypothèses d’architecture en décisions vérifiées par le code, les tests et les mesures.
 
 ## Licence
 
