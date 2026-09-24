@@ -100,4 +100,16 @@ Il combine :
 
 ## Licence
 
-**Non déterminé.** Une licence devra être choisie explicitement avant diffusion ou contribution externe.
+ARGOS est **source-available** sous la **PolyForm Internal Use License 1.0.0**.
+
+Cette licence permet notamment :
+
+- l’utilisation personnelle du logiciel ;
+- l’utilisation d’ARGOS pour les opérations internes d’une entreprise ;
+- les modifications et adaptations réalisées pour ces usages internes.
+
+Elle **n’autorise pas la distribution du logiciel**. ARGOS ne doit donc pas être redistribué ou revendu à des tiers sous cette licence.
+
+Le texte applicable est celui du fichier [`LICENSE`](LICENSE).
+
+> Cette licence n’est pas une licence Open Source au sens de l’OSI ; ARGOS doit être présenté comme un logiciel **source-available**.
