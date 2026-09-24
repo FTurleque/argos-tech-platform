@@ -14,6 +14,7 @@ Cette section indexe les ADR. Elle ne recopie pas leur contenu.
 | ADR-0006 | Maintenir FreshRSS et changedetection.io comme systèmes séparés | Proposé | 2026-09-24 | — |
 | ADR-0007 | Limiter n8n aux automatisations périphériques | Proposé | 2026-09-24 | — |
 | ADR-0008 | Utiliser l’IdP d’entreprise via OIDC en première intention | Proposé | 2026-09-24 | — |
+| ADR-0009 | Utiliser PolyForm Internal Use License 1.0.0 | Accepté | 2026-09-24 | — |
 
 ## 9.2 Règles de gouvernance
 
@@ -33,13 +34,13 @@ Cette section indexe les ADR. Elle ne recopie pas leur contenu.
 6. hébergement production : VM/containers/Kubernetes/OpenShift ;
 7. observabilité imposée ou stack dédiée ;
 8. source(s) CVE ;
-9. gestion des secrets ;
-10. licence du projet ARGOS.
+9. gestion des secrets.
 
 ## 9.4 Preuves
 
 - les ADR listés sont versionnés dans `docs/architecture/adr/` ;
-- seuls les choix explicitement validés par le cadrage peuvent être marqués Acceptés.
+- seuls les choix explicitement validés par le cadrage peuvent être marqués Acceptés ;
+- la licence acceptée est matérialisée par le fichier `LICENSE` à la racine et documentée dans le README.
 
 ## 9.5 Risque
 
