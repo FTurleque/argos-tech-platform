@@ -2,14 +2,14 @@
 
 Cette section indexe les ADR. Elle ne recopie pas leur contenu.
 
-> **Baseline v2.3 — 27 septembre 2026** : les ADR-0001 à ADR-0009 existaient déjà dans le dépôt avant l’intégration du dossier de proposition. Ils conservent leur numéro et leur historique. Les décisions supplémentaires issues du dossier v2.3 commencent donc à ADR-0010.
+> **Baseline active : v2.4 — 27 septembre 2026.** Les ADR-0001 à ADR-0009 conservent leur historique. Les décisions issues de la v2.3 occupent ADR-0010 à ADR-0018. La v2.4 ajoute ADR-0019 pour la stack applicative.
 
 ## 9.1 Index
 
 | ID | Titre | Statut | Date | Remplace |
 |---|---|---|---|---|
 | ADR-0001 | Adopter un monolithe modulaire pour la première version | Proposé | 2026-09-24 | — |
-| ADR-0002 | Utiliser PostgreSQL comme stockage principal | Proposé | 2026-09-24 | — |
+| ADR-0002 | Utiliser PostgreSQL comme stockage principal | Accepté | 2026-09-24 | — |
 | ADR-0003 | Introduire un modèle canonique d’événements | Proposé | 2026-09-24 | — |
 | ADR-0004 | Encapsuler Claude derrière un AI Gateway | Proposé | 2026-09-24 | — |
 | ADR-0005 | Utiliser Mermaid comme source des diagrammes d’architecture | Accepté | 2026-09-24 | — |
@@ -24,8 +24,9 @@ Cette section indexe les ADR. Elle ne recopie pas leur contenu.
 | ADR-0014 | Serveur MCP intégré, lecture seule, Streamable HTTP | Proposé | 2026-09-27 | — |
 | ADR-0015 | PostgreSQL FTS au MVP, pgvector différé | Proposé | 2026-09-27 | — |
 | ADR-0016 | Cloisonnement workspace avec RBAC + PostgreSQL RLS | Proposé | 2026-09-27 | — |
-| ADR-0017 | Déploiement POC/MVP conteneurisé sur VM | Proposé | 2026-09-27 | — |
+| ADR-0017 | POC local Docker puis VM interne | Proposé | 2026-09-27 | — |
 | ADR-0018 | Veille réglementaire intégrée avec validation MKP | Proposé | 2026-09-27 | — |
+| ADR-0019 | Java 17+ / Quarkus / Vue.js 3 / PostgreSQL | Accepté | 2026-09-27 | — |
 
 ## 9.2 Règles de gouvernance
 
@@ -37,11 +38,11 @@ Cette section indexe les ADR. Elle ne recopie pas leur contenu.
 - le dossier Word/PDF est une vue de proposition et de décision ; `docs/architecture/` reste la source d’architecture versionnée ;
 - tout changement architectural implémenté doit mettre à jour dans la même PR les ADR, arc42 et diagrammes concernés.
 
-## 9.3 Décisions encore à formaliser après la baseline v2.3
+## 9.3 Décisions encore à formaliser après la baseline v2.4
 
-1. choix frontend : React, Vue, Angular, rendu serveur ou autre ;
-2. mécanisme précis de scheduling/jobs ;
-3. ajout ou non d’un broker après mesure ;
+1. mécanisme précis de scheduling/jobs ;
+2. ajout ou non d’un broker après mesure ;
+3. Flyway ou Liquibase ;
 4. gestion des secrets et rotation ;
 5. stack d’observabilité réellement imposée par l’entreprise ;
 6. stratégie de sauvegarde/PRA entreprise ;
@@ -49,13 +50,15 @@ Cette section indexe les ADR. Elle ne recopie pas leur contenu.
 8. politique de rétention et suppression des données ;
 9. critères d’activation de pgvector/RAG après le MVP.
 
+Le frontend n’est plus une question ouverte : **Vue.js 3 est retenu**. Le backend/API est **Quarkus sur Java 17 minimum**.
+
 ## 9.4 Preuves
 
 - les ADR listés sont versionnés dans `docs/architecture/adr/` ;
-- seuls les choix explicitement validés par le cadrage peuvent être marqués Acceptés ;
-- la licence acceptée est matérialisée par le fichier `LICENSE` à la racine et documentée dans le README ;
-- les ADR-0010 à ADR-0018 représentent l’intégration documentaire du dossier ARGOS v2.3 et doivent encore être confirmés par la revue d’architecture et/ou le POC.
+- ADR-0002 et ADR-0019 matérialisent les choix de stack désormais acceptés ;
+- ADR-0017 documente la stratégie POC local puis VM ;
+- les ADR-0010 à ADR-0018 restent à confirmer par revue d’architecture et/ou preuve issue du POC.
 
 ## 9.5 Risque
 
-Le principal risque est de laisser des choix structurants s’installer dans le code sans ADR, ou de laisser diverger le dossier de proposition et la documentation versionnée. Un contrôle de revue/CI est recommandé pour maintenir l’index, les statuts, les liens arc42 et les sources Mermaid cohérents.
+Le principal risque est de laisser diverger le code, le dossier de proposition et la documentation versionnée. Un contrôle de revue/CI est recommandé pour maintenir l’index, les statuts, les liens arc42 et les sources Mermaid cohérents.

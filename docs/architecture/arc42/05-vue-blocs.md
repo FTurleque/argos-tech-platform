@@ -1,238 +1,129 @@
 # 5. Vue des blocs
 
-Cette section décrit les niveaux **C4 Container** puis **C4 Component**. Les noms définis ici doivent être réutilisés dans les scénarios d’exécution.
+Cette section décrit les niveaux **C4 Container** puis **C4 Component**. La stack est fixée par ADR-0019 : Java 17 minimum, Quarkus, Vue.js 3 et PostgreSQL.
 
 ## 5.1 C4 Container
-
-**Type : C4 Container. Portée : intérieur du système ARGOS.**
 
 ```mermaid
 flowchart LR
     USER["«Person»\nUtilisateur ARGOS"]
 
     subgraph ARGOS["«Software System» ARGOS"]
-        WEB["«Container»\nWeb Application\nInterface utilisateur"]
-        BACK["«Container»\nARGOS Backend\nAPI, métier, ingestion, IA"]
-        DB["«database»\nPostgreSQL\nDonnées métier, audit, recherche"]
+        WEB["«Container»\nVue.js 3 SPA\nInterface utilisateur"]
+        BACK["«Container»\nQuarkus Backend\nAPI, métier, ingestion, MCP, IA"]
+        DB["«database»\nPostgreSQL\nMétier, audit, recherche"]
     end
 
     EXT["«Software System»\nSources externes\nRSS, Web, GitHub, GitLab, CVE"]
     AI["«Software System»\nClaude / Anthropic"]
     IDP["«Software System»\nIdP entreprise"]
 
-    USER -->|utilise via HTTPS| WEB
-    WEB -->|appelle REST/HTTPS| BACK
-    BACK -->|lit et écrit via SQL/TLS| DB
-    BACK -->|collecte via HTTPS/webhooks| EXT
-    BACK -->|analyse via HTTPS| AI
-    WEB -->|redirige l’authentification| IDP
-    BACK -->|valide les identités OIDC| IDP
+    USER -->|HTTPS| WEB
+    WEB -->|REST/OpenAPI| BACK
+    BACK -->|SQL| DB
+    BACK -->|HTTPS/webhooks| EXT
+    BACK -->|via AI Gateway| AI
+    WEB -->|OIDC| IDP
+    BACK -->|valide les identités| IDP
 ```
 
-### Web Application
+### Vue.js 3 SPA
 
-- **Responsabilité** : navigation, tableaux de bord, recherche, administration fonctionnelle.
-- **Interfaces** : REST/OpenAPI vers `ARGOS Backend`, OIDC vers l’IdP.
-- **Technologie** : **Non déterminé** (React/Vue à comparer).
-- **Code source** : absent au moment de l’analyse.
+- navigation, tableaux de bord, recherche et préférences ;
+- socle de veille d’équipe + veille personnelle ;
+- aucune logique métier critique dans l’IHM.
 
-### ARGOS Backend
+### Quarkus Backend
 
-- **Responsabilité** : API, règles métier, ingestion, corrélation, analyses IA, alertes, orchestration.
-- **Interfaces** : REST, webhooks, APIs externes, SQL.
-- **Technologie proposée** : Java + Spring Boot.
-- **Code source** : absent au moment de l’analyse.
+- **Java 17 minimum** ;
+- API REST/OpenAPI ;
+- règles métier, ingestion, corrélation, alerting, AI Gateway et serveur MCP ;
+- monolithe modulaire proposé ;
+- aucune dépendance du domaine aux SDK externes.
 
 ### PostgreSQL
 
-- **Responsabilité** : persistance principale, audit, JSONB, FTS ; pgvector seulement si validé.
-- **Interface** : SQL.
-- **Code/configuration** : absent au moment de l’analyse.
+- persistance principale ;
+- JSONB, FTS et RLS ;
+- pgvector uniquement si besoin démontré.
 
-## 5.2 C4 Component — ARGOS Backend
-
-**Type : C4 Component. Portée : `ARGOS Backend`.**
+## 5.2 C4 Component — Quarkus Backend
 
 ```mermaid
 flowchart TB
-    API["«Component»\nAPI & Security\nExpose REST et webhooks"]
-    INGEST["«Component»\nIngestion\nOrchestre collecte et normalisation"]
-    TECH["«Component»\nTechnology Intelligence\nClasse et enrichit les signaux techno"]
-    PROJ["«Component»\nProject Intelligence\nCalcule activité et métriques factuelles"]
-    CORR["«Component»\nImpact Correlation\nRelie signaux, technologies et projets"]
-    AI["«Component»\nAI Gateway\nEncadre les appels Claude"]
-    SEARCH["«Component»\nSearch\nRecherche et navigation"]
-    ALERT["«Component»\nAlerting & Digest\nPrépare notifications et synthèses"]
-    CORE["«Component»\nWorkspace & Project Core\nGère workspaces, projets et technologies"]
-    JOBS["«Component»\nScheduler & Jobs\nPlanifie synchronisations et reprises"]
-    PORTS["«interface»\nApplication Ports"]
-    EXT["«adapter»\nExternal Adapters\nRSS, Web, GitHub, GitLab, CVE, Claude"]
-    PERSIST["«adapter»\nPersistence Adapter\nPostgreSQL"]
+    API["«Component»\nAPI & Security\nQuarkus REST/OpenAPI"]
+    WORK["«Component»\nWorkspace\nÉquipes, rôles, socle + veille perso"]
+    INGEST["«Component»\nsource-ingestion"]
+    CATALOG["«Component»\ncatalog"]
+    INVENTORY["«Component»\ninventory / SBOM"]
+    SIGNAL["«Component»\nsignal"]
+    VULN["«Component»\nvuln-intel"]
+    RELEASE["«Component»\nrelease-radar"]
+    REG["«Component»\nreg-intel"]
+    IMPACT["«Component»\nimpact-engine"]
+    ALERT["«Component»\nalerting"]
+    MCP["«Component»\nmcp-server\nlecture seule"]
+    AI["«Component»\nai-gateway"]
+    SCM["«adapter»\nscm-connector"]
+    AUDIT["«Component»\naudit"]
+    DB["«adapter»\nPostgreSQL"]
 
-    API -->|appelle| CORE
-    API -->|déclenche| INGEST
-    INGEST -->|produit des items| TECH
-    INGEST -->|produit des activités| PROJ
-    TECH -->|demande corrélation| CORR
-    PROJ -->|fournit contexte projet| CORR
-    CORR -->|demande analyse si nécessaire| AI
-    ALERT -->|lit résultats| TECH
-    ALERT -->|lit résultats| PROJ
-    SEARCH -->|interroge| PORTS
-    JOBS -->|planifie| INGEST
-
-    CORE -->|utilise| PORTS
-    INGEST -->|utilise| PORTS
-    TECH -->|utilise| PORTS
-    PROJ -->|utilise| PORTS
-    CORR -->|utilise| PORTS
-    AI -->|utilise| PORTS
-    ALERT -->|utilise| PORTS
-
-    EXT -->|implémente| PORTS
-    PERSIST -->|implémente| PORTS
+    API --> WORK
+    API --> SIGNAL
+    INGEST --> SIGNAL
+    SIGNAL --> VULN
+    SIGNAL --> RELEASE
+    SIGNAL --> REG
+    INVENTORY --> IMPACT
+    VULN --> IMPACT
+    RELEASE --> IMPACT
+    IMPACT --> ALERT
+    IMPACT --> MCP
+    REG --> AI
+    IMPACT --> AI
+    SCM --> INVENTORY
+    WORK --> ALERT
+    WORK --> MCP
+    WORK --> DB
+    SIGNAL --> DB
+    INVENTORY --> DB
+    IMPACT --> DB
+    AUDIT --> DB
 ```
 
 ## 5.3 Responsabilités et frontières
 
 | Composant | Responsabilité | Ne doit pas |
 |---|---|---|
-| API & Security | exposition REST/webhooks, authn/authz, validation | contenir les règles métier |
-| Ingestion | collecte, idempotence, normalisation, statut de traitement | connaître la présentation UI |
-| Technology Intelligence | classifier/enrichir signaux technologiques | appeler directement un SDK externe |
-| Project Intelligence | interpréter données projet factuelles | inventer un avancement subjectif |
-| Impact Correlation | relier techno ↔ projets ↔ impacts | devenir dépendant de GitHub/GitLab |
-| AI Gateway | prompts, modèles, quotas, structured output, audit | exposer Claude directement au domaine |
-| Search | requêtes de recherche et navigation | imposer un moteur externe prématurément |
-| Alerting & Digest | règles d’alerte et génération de digests | porter la logique de collecte |
-| Workspace & Project Core | modèle central et ownership | dépendre des adapters |
-| Scheduler & Jobs | orchestration temporelle/retry | devenir une plateforme workflow générale |
+| API & Security | REST/OpenAPI, authn/authz, validation | contenir les règles métier |
+| workspace | équipes, rôles, abonnements TEAM/PERSONAL, vues | confondre préférence de veille et autorisation |
+| source-ingestion | collecte, idempotence, normalisation | connaître la présentation UI |
+| catalog | technologies, standards, domaines métier | dépendre d’un fournisseur externe |
+| inventory | projets, dépôts, SBOM, PURL | calculer seul l’impact sécurité |
+| impact-engine | corrélation déterministe | déléguer la décision au LLM |
+| ai-gateway | prompts, modèles, quotas, structured output, audit | exposer Claude directement au domaine |
+| mcp-server | outils MCP lecture seule | modifier le domaine au MVP |
+| alerting | règles d’alerte et digests | accorder des droits d’accès |
+| scm-connector | GitLab/API/webhooks/SBOM | injecter les payloads fournisseurs dans le domaine |
 
-## 5.4 Modèle métier critique — UML-style classDiagram
+## 5.4 Personnalisation
 
-**Type : UML class diagram. Portée : noyau métier conceptuel.**
+Une `Subscription` possède un `scope` :
 
-```mermaid
-classDiagram
-    class Workspace {
-        <<aggregate>>
-        +UUID id
-        +String name
-    }
-    class Project {
-        <<aggregate>>
-        +UUID id
-        +String name
-        +ProjectStatus status
-    }
-    class Repository {
-        <<entity>>
-        +UUID id
-        +RepositoryProvider provider
-        +String externalId
-        +String url
-    }
-    class Technology {
-        <<entity>>
-        +UUID id
-        +String name
-        +String versionConstraint
-    }
-    class Source {
-        <<entity>>
-        +UUID id
-        +SourceType type
-        +String externalRef
-    }
-    class IntelligenceItem {
-        <<aggregate>>
-        +UUID id
-        +String title
-        +URI canonicalUrl
-        +Instant publishedAt
-        +ProcessingStatus status
-    }
-    class ProjectActivity {
-        <<entity>>
-        +UUID id
-        +ActivityType type
-        +Instant occurredAt
-        +String externalId
-    }
-    class ProjectImpact {
-        <<aggregate>>
-        +UUID id
-        +ImpactLevel level
-        +ImpactStatus status
-        +Decimal confidence
-    }
-    class Analysis {
-        <<entity>>
-        +UUID id
-        +AnalysisType type
-        +String model
-        +String promptVersion
-    }
-    class Alert {
-        <<entity>>
-        +UUID id
-        +AlertSeverity severity
-        +AlertStatus status
-    }
+- `TEAM` : socle d’équipe, éventuellement obligatoire ;
+- `PERSONAL` : veille ajoutée volontairement par l’utilisateur.
 
-    Workspace "1" --> "*" Project : contient
-    Workspace "1" --> "*" Source : configure
-    Project "1" --> "*" Repository : référence
-    Project "*" --> "*" Technology : utilise
-    Source "1" --> "*" IntelligenceItem : produit
-    Repository "1" --> "*" ProjectActivity : produit
-    IntelligenceItem "*" --> "*" Technology : concerne
-    Project "1" --> "*" ProjectImpact : reçoit
-    IntelligenceItem "1" --> "*" ProjectImpact : déclenche
-    ProjectImpact "1" --> "*" Analysis : est expliqué par
-    ProjectImpact "1" --> "*" Alert : peut générer
-```
+Le scope de veille n’accorde **aucun droit supplémentaire** sur les projets. RBAC/RLS reste la source d’autorisation.
 
-Le diagramme est conceptuel. Les attributs et cardinalités restent **Hypothèses à valider** jusqu’à création du modèle de données et du code.
-
-## 5.5 Règles de dépendance proposées
+## 5.5 Règles de dépendance
 
 1. le domaine ne dépend pas des SDK externes ;
 2. les adapters dépendent des ports, jamais l’inverse ;
-3. `Project Intelligence` ne dépend pas de `Technology Intelligence` ;
-4. `Impact Correlation` peut consommer les deux ;
-5. `AI Gateway` est le seul composant autorisé à appeler un fournisseur LLM ;
-6. les contrôleurs Web ne parlent pas directement à la base ;
-7. les événements externes sont normalisés avant usage métier.
+3. l’AI Gateway est le seul composant autorisé à appeler le fournisseur LLM ;
+4. les contrôleurs Quarkus ne parlent pas directement à la base ;
+5. les événements externes sont normalisés avant usage métier ;
+6. les préférences personnelles sont séparées des politiques d’autorisation.
 
 ## 5.6 C4 Code
 
-**Non pertinent à ce stade.** Aucun code n’existe encore. Un niveau Code ne devra être ajouté que pour une zone réellement complexe et stable, pas pour documenter chaque classe.
-
-## 5.7 Preuves, hypothèses et risques
-
-### Observé
-
-- absence de code ;
-- principes décrits dans le README.
-
-### Hypothèses à valider
-
-- existence de trois conteneurs principaux Web/Backend/PostgreSQL ;
-- découpage des composants backend ;
-- modèle de classes proposé.
-
-### Preuves nécessaires
-
-- packages/modules réels ;
-- tests d’architecture ;
-- spécification API ;
-- schéma de données ;
-- manifests de déploiement.
-
-### Risques
-
-- frontières de modules non respectées à l’implémentation ;
-- `AI Gateway` contourné ;
-- modèle canonique insuffisant ;
-- sur-modélisation précoce.
+**Non pertinent à ce stade.** Aucun code applicatif n’existe encore.
