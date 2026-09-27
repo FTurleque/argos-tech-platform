@@ -2,49 +2,58 @@
 
 Cette documentation constitue la **source d’architecture versionnée** du projet ARGOS.
 
-> **Baseline active : [v2.3 — 27 septembre 2026](baseline-v2.3.md)**
+> **Baseline active : [v2.4 — 27 septembre 2026](baseline-v2.4.md)**  
+> Baseline précédente : [v2.3](baseline-v2.3.md)
 
 ## Synthèse exécutive
 
-ARGOS est actuellement en **phase de conception / cadrage POC** : aucune implémentation applicative, manifest de dépendances, Dockerfile, pipeline CI/CD, schéma de données ni API n’existe encore dans le dépôt. La documentation décrit donc une **architecture cible proposée**, pas un état implémenté.
+ARGOS est actuellement en **phase de conception / cadrage POC** : aucune implémentation applicative n’est encore présente dans le dépôt. La documentation décrit donc une architecture cible.
 
-L’orientation retenue à ce stade est :
+La v2.4 fixe désormais la stack applicative :
 
-- plateforme de **Technology Intelligence + Project Intelligence** ;
+- **Java 17 minimum** ;
+- **Quarkus** pour le backend et les API ;
+- **Vue.js 3** pour l’IHM ;
+- **PostgreSQL** comme stockage principal ;
 - monolithe modulaire proposé pour limiter la complexité initiale ;
-- modèle canonique pour découpler ARGOS des formats GitHub/GitLab/RSS ;
-- PostgreSQL proposé comme stockage principal ;
+- modèle canonique pour découpler ARGOS des formats externes ;
 - Claude/Anthropic encapsulé derrière un **AI Gateway** ;
-- FreshRSS et changedetection.io consommés comme systèmes spécialisés séparés ;
+- FreshRSS et changedetection.io séparés ;
 - n8n limité aux automatisations périphériques ;
-- inventaire projet fondé sur des **SBOM CycloneDX** ;
-- corrélation signal ↔ projet **déterministe d’abord** ;
-- serveur **MCP lecture seule** pour les IDE ;
-- veille réglementaire intégrée avec **validation MKP obligatoire** ;
-- OIDC vers l’IdP d’entreprise en première intention ;
+- SBOM CycloneDX et corrélation déterministe ;
+- serveur **MCP lecture seule** ;
+- veille réglementaire avec **validation MKP obligatoire** ;
+- personnalisation à deux niveaux : **socle d’équipe + veille personnelle** ;
 - arc42 + C4 + ADR + Mermaid comme documentation-as-code.
 
-Les principaux risques concernent la confidentialité des données envoyées au LLM, les faux positifs/faux négatifs de corrélation, la couverture SBOM, l’injection indirecte via contenu externe, la dérive de complexité et la maîtrise des coûts IA.
+## POC v2.4
+
+Le POC représente **≈ 20–24 j.h de travail effectif**, soit environ un mois concentré. Une démonstration peut démarrer localement via **Docker Compose sur le poste de développement**. Si VM, proxy/SSO, sécurité et équipes pilotes sont sur le chemin critique, prévoir **6 à 10 semaines calendaires**.
+
+Le MVP est désormais estimé à **≈ 50–60 j.h cumulés**, avec une durée calendaire potentiellement plus longue à cause des dépendances inter-équipes et des urgences opérationnelles.
+
+## Personnalisation
+
+Un développeur hérite du socle de veille de son équipe et peut ajouter des technologies, thèmes ou sources à titre personnel pour apprendre ou préparer de futurs besoins. Ces préférences n’accordent aucun droit supplémentaire sur les projets ou données internes.
+
+## IA : deux budgets distincts
+
+- développement : ne pas dimensionner le projet sur un plan Claude Pro seul ; prévoir une capacité supérieure ou des crédits d’usage, puis mesurer ;
+- runtime ARGOS : Claude API/Console est facturée séparément et passe par l’AI Gateway avec quotas et plafond.
 
 ## État de la preuve
 
-Au 27 septembre 2026 :
+- **Observé** : artefact présent dans le dépôt ;
+- **Décision proposée** : ADR `Proposé` ;
+- **Hypothèse à valider** : preuve/mesure/environnement manquant ;
+- **Accepté** : ADR validé.
 
-- **Observé** : README, licence et documentation d’architecture présents dans le dépôt ;
-- **Décision proposée** : choix décrit par un ADR `Proposé`, à confirmer par revue/POC ;
-- **Hypothèse à valider** : proposition nécessitant une preuve, une mesure ou une information d’environnement ;
-- **Non déterminé** : information absente ;
-- **Accepté** : décision explicitement validée et versionnée comme telle dans un ADR.
+ADR acceptés structurants à ce stade :
 
-La baseline v2.3 réconcilie le dossier de proposition avec le dépôt sans renuméroter l’historique existant : **ADR-0001 à ADR-0009 sont conservés**, et les décisions complémentaires commencent à **ADR-0010**.
-
-## Référentiels utilisés
-
-- **arc42** : structure du dossier ;
-- **C4** : niveaux Context, Container et Component ;
-- **Mermaid** : unique langage source des diagrammes ;
-- **ADR** : décisions structurantes ;
-- notation UML-style dans Mermaid avec stéréotypes explicites.
+- ADR-0002 — PostgreSQL ;
+- ADR-0005 — Mermaid ;
+- ADR-0009 — licence PolyForm Internal Use ;
+- ADR-0019 — Java 17+ / Quarkus / Vue.js 3 / PostgreSQL.
 
 ## Navigation arc42
 
@@ -63,113 +72,34 @@ La baseline v2.3 réconcilie le dossier de proposition avec le dépôt sans renu
 
 ## Registres associés
 
-- [Baseline v2.3](baseline-v2.3.md)
+- [Baseline v2.4](baseline-v2.4.md)
 - [ADR](adr/README.md)
 - [Scénarios qualité](quality/scenarios.md)
 - [Registre des risques](risks/register.md)
 - [Inventaire des diagrammes](diagrams/README.md)
 
-## Checklist de complétude
+## Priorités avant le premier commit applicatif
 
-| Élément | État | Commentaire |
-|---|---|---|
-| arc42 sections 1 à 12 | ✅ Initialisé | à faire évoluer avec le code réel |
-| C4 Context | ✅ | Mermaid |
-| C4 Container | ✅ | Mermaid |
-| C4 Component | ✅ | backend proposé |
-| C4 Code | ⏳ Non pertinent | aucun code critique existant |
-| modèle métier | ✅ Conceptuel | à valider par code/migrations |
-| ADR structurants | ✅ 18 versionnés | 0005 et 0009 acceptés ; autres proposés |
-| baseline POC v2.3 | ✅ | chaîne verticale, preuves, critères go/no-go |
-| scénarios qualité | ✅ Initialisés | à aligner sur les KPI v2.3 |
-| registre des risques | ✅ Initialisé | à enrichir avec MCP/SBOM/réglementaire |
-| CI architecture/doc | ❌ | à créer |
-| manifests runtime | ❌ | non implémentés |
-| preuves de POC | ❌ | à produire |
+1. initialiser Maven/Quarkus en Java 17 ;
+2. initialiser l’IHM Vue.js 3 ;
+3. créer PostgreSQL local + migrations ;
+4. créer Docker Compose local ;
+5. mettre en place les frontières de modules et tests ArchUnit ;
+6. connecter OSV puis importer une SBOM CycloneDX ;
+7. produire la première corrélation et alerte ;
+8. prototyper deux outils MCP lecture seule ;
+9. engager en parallèle les demandes VM/proxy/SSO/RSSI/DPO ;
+10. mesurer charge, qualité et coûts IA avant le go/no-go MVP.
 
-## Plan de migration priorisé : documentation → implémentation
-
-### P0 — Fondation
-
-1. accepter/rejeter les ADR structurants nécessaires au POC ;
-2. confirmer la stack de build backend ;
-3. créer la structure de modules ;
-4. créer PostgreSQL local + migrations ;
-5. mettre en place les tests d’architecture ;
-6. créer une CI minimale.
-
-### P1 — Chaîne sécurité verticale
-
-1. connecter OSV ;
-2. normaliser un événement canonique ;
-3. importer une SBOM CycloneDX ;
-4. corréler PURL/version ;
-5. produire un impact et une alerte ciblée ;
-6. mesurer délai, précision et idempotence.
-
-### P2 — Portail / MCP / réglementation
-
-1. restitution minimale filtrable ;
-2. `check_dependency` et `get_security_alerts` via MCP ;
-3. collecte Légifrance pilote ;
-4. fiche réglementaire structurée via AI Gateway ;
-5. validation MKP avant diffusion.
-
-### P3 — Industrialisation MVP
-
-1. SSO/RBAC/RLS ;
-2. observabilité ;
-3. backup/restore ;
-4. tests sécurité/charge ;
-5. notifications Teams/e-mail ;
-6. revue RGPD/licences/SBOM ;
-7. runbooks.
-
-### Phase 3 produit — Project Intelligence
-
-Les métriques factuelles GitLab, jalons, pipelines, releases et synthèses d’avancement restent volontairement hors du cœur du POC/MVP initial. L’intégration SCM minimale reste toutefois requise dès le POC pour les dépôts, webhooks et SBOM.
-
-## Contrôles CI recommandés
-
-### Documentation
-
-- Markdown lint ;
-- validation des liens ;
-- rendu/lint de chaque bloc Mermaid ;
-- vérification de l’index ADR ;
-- contrôle qu’un ADR accepté n’est ni supprimé ni renuméroté ;
-- cohérence des références arc42 ↔ ADR ↔ diagrammes.
-
-### Architecture/code lorsque l’implémentation existe
-
-- tests de dépendances entre modules ;
-- compilation + tests unitaires/intégration ;
-- validation OpenAPI ;
-- migrations DB sur base éphémère ;
-- contract tests adapters ;
-- SAST, dependency/license scanning et secret scanning ;
-- génération SBOM ;
-- tests de sécurité webhooks/MCP ;
-- tests de politiques RBAC/RLS.
-
-### IA
-
-- prompts versionnés ;
-- validation des schémas de sortie ;
-- tests de politique de confidentialité ;
-- budget/token regression ;
-- tests adversariaux d’injection indirecte ;
-- fonctionnement dégradé sans modèle externe.
-
-## Questions structurantes encore ouvertes
+## Questions encore ouvertes
 
 1. Quel fournisseur d’identité OIDC/SAML est imposé ?
 2. Quelles classes de données peuvent être transmises à Claude/Anthropic ?
 3. FreshRSS et changedetection.io seront-ils hébergés par ARGOS ou consommés comme services existants ?
-4. Quel frontend sera retenu après comparaison ?
+4. Flyway ou Liquibase ?
 5. Quels SLO sont réellement nécessaires après le POC ?
-6. Docker Compose ou Podman est-il imposé pour la VM pilote ?
-7. Quelle politique de conservation des données de veille, d’audit et d’activité projet ?
-8. Quelle stack d’observabilité et quel coffre-fort de secrets sont déjà disponibles en interne ?
+6. Quelle stack d’observabilité et quel coffre-fort de secrets sont disponibles en interne ?
+7. Quel mécanisme Teams/e-mail est disponible ?
+8. Quelle politique de conservation des données de veille, d’audit et d’activité projet ?
 
-Toute réponse structurante doit être reflétée dans un ADR, une exigence qualité ou une contrainte selon sa nature.
+Toute réponse structurante doit être reflétée dans un ADR, une exigence qualité ou une contrainte.
