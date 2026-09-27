@@ -1,13 +1,13 @@
 # ADR-0002 — Utiliser PostgreSQL comme stockage principal
 
-- **Statut** : Proposé
+- **Statut** : Accepté
 - **Date** : 2026-09-24
-- **Décideurs** : Non déterminé
+- **Décideurs** : cadrage ARGOS v2.4
 - **Remplace** : —
 
 ## Contexte
 
-ARGOS doit stocker données relationnelles, payloads externes variables, historique, recherche et éventuellement vecteurs. Multiplier les moteurs de données au MVP augmenterait la charge d’exploitation.
+ARGOS doit stocker données relationnelles, payloads externes variables, historique, recherche et éventuellement vecteurs. Multiplier les moteurs de données au MVP augmenterait la charge d’exploitation. La baseline v2.4 confirme PostgreSQL comme élément de la stack cible.
 
 ## Critères
 
@@ -39,22 +39,19 @@ ARGOS doit stocker données relationnelles, payloads externes variables, histori
 
 ## Décision
 
-**Proposition : option A.** PostgreSQL porte le stockage métier, JSONB et FTS. `pgvector` n’est activé qu’après POC démontrant un besoin.
+**Option A acceptée.** PostgreSQL porte le stockage métier, JSONB et FTS. `pgvector` n’est activé qu’après POC démontrant un besoin.
 
 ## Conséquences positives
 
 - architecture initiale simple ;
 - transactions cohérentes ;
-- sauvegarde centralisée.
+- sauvegarde centralisée ;
+- cohérence avec Quarkus et la stack v2.4.
 
 ## Conséquences négatives
 
 - nécessité de surveiller taille/indexation ;
 - possible migration partielle si besoins de recherche massifs.
-
-## Conséquences neutres
-
-L’ajout d’un moteur spécialisé reste possible via un adapter/index secondaire.
 
 ## Validation
 
@@ -65,6 +62,7 @@ L’ajout d’un moteur spécialisé reste possible via un adapter/index seconda
 
 ## Traçabilité
 
+- `../baseline-v2.4.md`
 - `arc42/05-vue-blocs.md`
 - `arc42/08-concepts-transverses.md`
-- Q-03, Q-05
+- ADR-0019
