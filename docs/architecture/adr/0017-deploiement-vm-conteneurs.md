@@ -1,4 +1,4 @@
-# ADR-0017 — Déployer le POC/MVP en conteneurs sur une VM
+# ADR-0017 — Démarrer le POC localement puis migrer sur VM interne
 
 - **Statut** : Proposé
 - **Date** : 2026-09-27
@@ -8,50 +8,61 @@
 
 ## Contexte
 
-Le POC et le MVP doivent être simples à déployer sur l’infrastructure interne sans introduire un cluster orchestré avant d’en avoir besoin.
+La mise à disposition d’une VM, du réseau, du proxy, du SSO et des validations associées peut prendre plus de temps que la réalisation technique. Attendre l’infrastructure avant toute démonstration ferait peser un risque inutile sur le POC.
 
 ## Critères de décision
 
-1. Temps de mise en œuvre.
-2. Exploitabilité par les équipes internes.
-3. Sauvegarde et restauration maîtrisées.
-4. Trajectoire vers la haute disponibilité sans refonte applicative.
+1. Ne pas bloquer le développement sur le provisioning.
+2. Démontrer rapidement la chaîne verticale.
+3. Garder un environnement reproductible.
+4. Préparer sans refonte le passage vers l’infrastructure interne.
 
 ## Options considérées
 
-### Option A — Docker Compose ou Podman sur une VM Linux
+### Option A — Docker Compose local puis VM Linux interne
 
-- faible complexité ;
-- adapté au POC/MVP ;
-- composants isolés et reproductibles.
+- POC technique sur le poste de développement ;
+- démonstration locale reproductible ;
+- migration du même assemblage sur VM pour le POC partagé/MVP ;
+- permet d’engager en parallèle les demandes d’infrastructure.
 
-### Option B — Kubernetes/OpenShift dès le départ
+### Option B — Attendre la VM avant de commencer
+
+- environnement directement proche de la cible ;
+- risque de bloquer plusieurs semaines sur les délais organisationnels.
+
+### Option C — Kubernetes/OpenShift dès le départ
 
 - capacités d’orchestration avancées ;
-- coût d’exploitation et d’apprentissage prématurés.
+- coût et complexité prématurés.
 
 ## Décision
 
-Le POC/MVP cible **une VM Linux interne** avec services conteneurisés via **Docker Compose ou Podman**, reverse proxy TLS et volumes persistants. La cible entreprise pourra évoluer vers plusieurs nœuds si le besoin est validé.
+Le POC technique peut s’exécuter **localement avec Docker Compose** sur le poste de développement. Dès que la VM Linux interne est disponible, le même ensemble est déployé pour le POC partagé puis le MVP, avec reverse proxy TLS, volumes persistants et mécanismes d’entreprise.
+
+La durée de travail du POC est estimée à **20–24 j.h**, mais sa durée calendaire peut atteindre **6 à 10 semaines** si les dépendances inter-équipes sont sur le chemin critique.
 
 ## Conséquences positives
 
-- démarrage rapide ;
-- peu de pièces mobiles ;
-- déploiement reproductible.
+- progression technique immédiate ;
+- démo possible sans attendre la VM ;
+- déploiement reproductible ;
+- séparation claire entre charge effective et délai calendaire.
 
 ## Conséquences négatives
 
-- haute disponibilité non couverte au MVP ;
-- procédures de sauvegarde/restore indispensables.
+- nécessité de vérifier les écarts poste local / VM ;
+- certaines fonctions SSO/proxy/secrets ne seront validables que sur l’environnement entreprise.
 
 ## Méthode de validation
 
-Déploiement de recette, redémarrage complet, restauration PostgreSQL, mise à jour contrôlée et mesure des besoins de ressources.
+- démarrage complet local ;
+- export/import ou redéploiement sur VM ;
+- restauration PostgreSQL ;
+- validation réseau/SSO/proxy ;
+- mesure des besoins de ressources.
 
 ## Traçabilité
 
-- **Exigences** : objectifs d’exploitation et de sécurité
-- **Scénarios qualité** : RPO/RTO MVP, robustesse
-- **Tickets/PR** : PR d’alignement v2.3
-- **Fichiers source** : `arc42/07-vue-deploiement.md`
+- **Baseline** : `../baseline-v2.4.md`
+- **Fichiers source** : `../arc42/07-vue-deploiement.md`
