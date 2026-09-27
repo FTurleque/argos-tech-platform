@@ -24,14 +24,14 @@ Les ADR enregistrent les décisions architecturales importantes d’ARGOS.
 ### Baseline initiale
 
 - [ADR-0001 — Monolithe modulaire](0001-monolithe-modulaire.md)
-- [ADR-0002 — PostgreSQL comme stockage principal](0002-postgresql-stockage-principal.md)
+- [ADR-0002 — PostgreSQL comme stockage principal](0002-postgresql-stockage-principal.md) — **Accepté v2.4**
 - [ADR-0003 — Modèle canonique d’événements](0003-modele-canonique-evenements.md)
 - [ADR-0004 — AI Gateway Claude](0004-ai-gateway-claude.md)
-- [ADR-0005 — Mermaid pour les diagrammes](0005-mermaid-diagrammes.md)
+- [ADR-0005 — Mermaid pour les diagrammes](0005-mermaid-diagrammes.md) — **Accepté**
 - [ADR-0006 — Collecteurs séparés](0006-collecteurs-separes.md)
 - [ADR-0007 — n8n périphérique](0007-n8n-peripherique.md)
 - [ADR-0008 — IAM OIDC](0008-iam-oidc.md)
-- [ADR-0009 — PolyForm Internal Use License 1.0.0](0009-licence-polyform-internal-use.md)
+- [ADR-0009 — PolyForm Internal Use License 1.0.0](0009-licence-polyform-internal-use.md) — **Accepté**
 
 ### Compléments issus du dossier d’architecture v2.3
 
@@ -42,9 +42,13 @@ Les ADR enregistrent les décisions architecturales importantes d’ARGOS.
 - [ADR-0014 — MCP lecture seule / Streamable HTTP](0014-mcp-readonly-streamable-http.md)
 - [ADR-0015 — PostgreSQL FTS / pgvector différé](0015-postgresql-fts-pgvector.md)
 - [ADR-0016 — Workspaces RBAC + RLS](0016-workspace-rbac-rls.md)
-- [ADR-0017 — Déploiement POC/MVP sur VM conteneurisée](0017-deploiement-vm-conteneurs.md)
+- [ADR-0017 — POC local Docker puis VM interne](0017-deploiement-vm-conteneurs.md)
 - [ADR-0018 — Veille réglementaire et validation MKP](0018-veille-reglementaire-mkp.md)
 
-Les ADR-0010 à ADR-0018 sont créés avec le statut **Proposé** : leur acceptation dépend de la revue d’architecture et/ou des preuves produites pendant le POC.
+### Décisions v2.4
+
+- [ADR-0019 — Java 17+ / Quarkus / Vue.js 3 / PostgreSQL](0019-stack-java17-quarkus-vue3-postgresql.md) — **Accepté**
+
+Les ADR-0010 à ADR-0018 restent **Proposés** jusqu’à validation par revue d’architecture et/ou preuves produites pendant le POC.
 
 Utiliser [`template.md`](template.md) pour toute nouvelle décision.
