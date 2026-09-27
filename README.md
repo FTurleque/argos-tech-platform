@@ -2,114 +2,87 @@
 
 > **Observer. Corréler. Comprendre. Anticiper.**
 
-ARGOS est une plateforme de **Technology Intelligence** et **Project Intelligence** destinée à centraliser la veille technologique, les flux RSS/Atom, les changements de documentation, les releases, les vulnérabilités, les signaux GitHub/GitLab et les indicateurs factuels d’avancement des projets.
+ARGOS est une plateforme de **Technology Intelligence** et **Project Intelligence** destinée à centraliser la veille technologique, les changements de documentation, les releases, les vulnérabilités, les signaux GitHub/GitLab, la veille réglementaire et les indicateurs factuels d’avancement des projets.
 
-Le nom **ARGOS** assume une double référence. Dans la mythologie grecque, **Argos Panoptès** est le gardien aux multiples yeux, symbole d’une vigilance continue. Dans l’univers **Supergirl**, **Argo City** renvoie aux origines kryptoniennes de Kara Zor‑El. Cette double lecture correspond à l’ambition du projet : **surveiller de nombreuses sources, relier les signaux importants et donner une vision claire de l’écosystème technologique et des projets**.
+Le nom **ARGOS** assume une double référence : **Argos Panoptès**, gardien aux multiples yeux de la mythologie grecque, et **Argo City** dans l’univers de Supergirl. L’ambition est la même : surveiller de nombreuses sources, relier les signaux utiles et donner une vision claire de l’écosystème technologique et des projets.
 
 ## Statut
 
-**Phase : conception / cadrage architectural initial.**
+**Phase : conception / cadrage POC.**
 
-Le dépôt contient désormais le README produit et une **documentation d’architecture initiale complète** sous `docs/architecture/`. Il ne contient pas encore d’implémentation applicative, manifest de dépendances, Dockerfile, pipeline CI/CD, schéma de données, API ou tests : les choix runtime restent donc à valider par ADR, POC et code réel.
+Le dépôt contient la documentation d’architecture et la licence, mais pas encore l’implémentation applicative. La baseline active est **v2.4**.
 
-Les choix techniques décrits dans `docs/architecture/` sont classés comme :
+## Stack retenue
 
-- **Décision proposée** lorsqu’un choix est recommandé mais pas encore implémenté ;
-- **Hypothèse à valider** lorsqu’une preuve dans le code ou l’environnement est encore nécessaire ;
-- **Non déterminé** lorsque l’information manque réellement.
+- **Java 17 minimum** ;
+- **Quarkus** pour le backend et les API ;
+- **Vue.js 3** pour l’IHM ;
+- **PostgreSQL** comme stockage principal ;
+- **Docker Compose** pour le POC local, puis VM Linux interne pour le POC partagé/MVP.
+
+Voir [ADR-0019](docs/architecture/adr/0019-stack-java17-quarkus-vue3-postgresql.md).
 
 ## Mission
 
 ARGOS doit permettre de :
 
-- agréger des **flux RSS/Atom** et d’autres sources de veille ;
-- détecter les changements de pages et documentations techniques ;
-- surveiller releases, dépendances et vulnérabilités ;
-- collecter les signaux GitHub/GitLab : issues, milestones, PR/MR, pipelines, releases et déploiements ;
-- construire des métriques projet **factuelles et traçables** ;
-- corréler les événements externes avec les technologies et projets internes ;
-- utiliser **Claude / Anthropic** pour synthétiser, classifier et analyser les impacts, sans substituer l’IA aux données sources ;
-- produire des tableaux de bord, alertes et synthèses périodiques utiles aux équipes techniques et aux responsables.
+- agréger des flux RSS/Atom et des sources Web ;
+- surveiller releases, dépendances, vulnérabilités et fins de support ;
+- maintenir un inventaire projet par SBOM CycloneDX ;
+- corréler déterministiquement les signaux avec les projets ;
+- fournir un radar des versions et standards internes ;
+- surveiller les évolutions réglementaires utiles aux MKP ;
+- utiliser Claude derrière un **AI Gateway** pour synthétiser et expliquer, sans faire de l’IA la source de vérité ;
+- exposer un serveur **MCP en lecture seule** aux IDE ;
+- produire tableaux de bord, alertes et synthèses ;
+- permettre à chaque utilisateur de compléter le socle de veille de son équipe par une **veille personnelle** sans élargir ses droits d’accès.
 
-## Vision fonctionnelle
+## POC v2.4
 
-```mermaid
-flowchart LR
-    RSS["«Software System»\nFlux RSS / Atom"]
-    WEB["«Software System»\nSources Web"]
-    GIT["«Software System»\nGitHub / GitLab"]
-    SEC["«Software System»\nSources sécurité / CVE"]
-    ARGOS["«Software System»\nARGOS\nTechnology & Project Intelligence"]
-    CLAUDE["«Software System»\nClaude / Anthropic"]
-    USER["«Person»\nUtilisateur"]
+Le POC est estimé à **20–24 jours-homme de travail effectif**, soit environ un mois concentré. Une démonstration peut être réalisée localement avec Docker Compose sans attendre la VM.
 
-    RSS -->|publie des articles| ARGOS
-    WEB -->|expose des changements| ARGOS
-    GIT -->|publie l’activité projet| ARGOS
-    SEC -->|publie des vulnérabilités| ARGOS
-    ARGOS -->|soumet un contexte contrôlé| CLAUDE
-    CLAUDE -->|retourne une analyse structurée| ARGOS
-    USER -->|consulte, recherche et configure| ARGOS
-```
+En contexte entreprise, VM, proxy/SSO, RSSI/DPO, pilotes et urgences opérationnelles peuvent porter la durée à **6–10 semaines calendaires**. Le go/no-go intervient à l’issue du POC, pas à une date artificiellement fixe.
 
-## Principes d’architecture visés
+## IA : développement et runtime
 
-- **Monolithe modulaire** en première intention, plutôt que microservices prématurés.
-- **Modèle canonique d’événements** pour découpler ARGOS des formats GitHub, GitLab, RSS et autres sources externes.
-- **PostgreSQL** comme stockage principal ; JSONB, recherche plein texte et, si justifié, `pgvector`.
-- **API REST documentée avec OpenAPI**.
-- **Claude derrière un AI Gateway interne**, avec sorties structurées, budgets, audit et possibilité future de changer de fournisseur.
-- **Mermaid** comme source de vérité de tous les diagrammes.
-- **arc42** pour la documentation d’architecture.
-- **ADR Markdown** pour conserver l’historique des décisions structurantes.
-- Approche **gratuit / self-hosted d’abord**, passage au payant uniquement lorsqu’un bénéfice concret est démontré.
+Deux sujets sont séparés :
 
-> Les technologies précises restent à confirmer par les ADR proposés et les POC. Voir la documentation d’architecture pour les hypothèses et critères de validation.
+- pour le **développement intensif**, le projet ne doit pas être dimensionné sur un plan Claude Pro seul ; une capacité supérieure ou des crédits d’usage doivent être prévus et mesurés ;
+- pour le **runtime ARGOS**, Claude API/Console est facturée séparément et tous les appels passent par l’AI Gateway avec quotas et plafond.
+
+## Principes d’architecture
+
+- monolithe modulaire avant microservices ;
+- modèle canonique d’événements ;
+- PostgreSQL/JSONB/FTS, pgvector seulement si besoin démontré ;
+- REST + OpenAPI ;
+- déterministe d’abord, IA ensuite ;
+- Mermaid comme source de vérité des diagrammes ;
+- arc42 pour la documentation ;
+- ADR Markdown pour les décisions ;
+- gratuit/self-hosted d’abord lorsque pertinent.
 
 ## Documentation d’architecture
 
 Le dossier principal se trouve dans [`docs/architecture/`](docs/architecture/README.md).
 
-Il combine :
-
-- **arc42** pour la structure documentaire ;
-- **C4** pour les vues Context, Container et Component ;
-- **Mermaid** pour tous les diagrammes ;
-- une notation UML-style avec stéréotypes explicites ;
-- **ADR** pour les décisions ;
-- scénarios qualité mesurables ;
-- registre des risques et dette technique.
-
-## Conventions de preuve
-
-| Marqueur | Signification |
-|---|---|
-| **Observé** | preuve disponible dans le dépôt ou dans un artefact versionné |
-| **Hypothèse à valider** | proposition nécessitant une preuve, un POC ou une décision |
-| **Non déterminé** | information absente au moment de l’analyse |
+Il combine arc42, C4, Mermaid, ADR, scénarios qualité, registre des risques et baseline POC.
 
 ## Prochaines étapes
 
-1. Valider ou rejeter les ADR proposés (`ADR-0001` à `ADR-0004`, `ADR-0006` à `ADR-0008`).
-2. Choisir la stack de build backend et créer les frontières de modules.
-3. Prototyper le pipeline **RSS → normalisation → stockage → restitution**.
-4. Prototyper l’intégration GitHub/GitLab.
-5. Valider le modèle métier et les métriques projet.
-6. Valider l’intégration Claude, les règles de confidentialité et la maîtrise des coûts.
-7. Transformer progressivement les hypothèses d’architecture en décisions vérifiées par le code, les tests et les mesures.
+1. initialiser Maven/Quarkus en Java 17 ;
+2. initialiser Vue.js 3 ;
+3. créer PostgreSQL + migrations ;
+4. créer Docker Compose local ;
+5. mettre en place les frontières de modules et tests d’architecture ;
+6. connecter OSV et importer une première SBOM ;
+7. produire la première corrélation et alerte ;
+8. prototyper le MCP lecture seule ;
+9. engager en parallèle VM/proxy/SSO/RSSI/DPO ;
+10. mesurer les KPI et coûts avant le MVP.
 
 ## Licence
 
-ARGOS est **source-available** sous la **PolyForm Internal Use License 1.0.0**.
-
-Cette licence permet notamment :
-
-- l’utilisation personnelle du logiciel ;
-- l’utilisation d’ARGOS pour les opérations internes d’une entreprise ;
-- les modifications et adaptations réalisées pour ces usages internes.
-
-Elle **n’autorise pas la distribution du logiciel**. ARGOS ne doit donc pas être redistribué ou revendu à des tiers sous cette licence.
+ARGOS est **source-available** sous la **PolyForm Internal Use License 1.0.0**. L’utilisation personnelle et interne à une entreprise est autorisée ; la redistribution ou la revente à des tiers ne l’est pas sous cette licence.
 
 Le texte applicable est celui du fichier [`LICENSE`](LICENSE).
-
-> Cette licence n’est pas une licence Open Source au sens de l’OSI ; ARGOS doit être présenté comme un logiciel **source-available**.
