@@ -1,0 +1,154 @@
+# Fiche capacité : `abonnements-veille`
+
+| Élément | Valeur |
+|---|---|
+| Préfixe d'exigences | `ABO` |
+| Spec de référence | `/openspec/specs/abonnements-veille/spec.md` — absente : capacité non livrée |
+| Changement en cours | [`formaliser-chaine-securite-poc`](/openspec/changes/formaliser-chaine-securite-poc/specs/abonnements-veille/spec.md) — proposé, non archivé |
+| Statut de la capacité | **proposée** — aucune implémentation dans le dépôt |
+| Composants (arc42 §5) | `workspace`, `API & Security`, `alerting` (canal et fréquence) |
+
+Tout le contenu de cette fiche porte le statut [PROPOSITION] (changement `formaliser-chaine-securite-poc`) sauf mention contraire.
+
+## Objectif
+
+Donner à chaque utilisateur la veille utile à son équipe et lui permettre d'élargir sa veille à titre personnel, pour apprendre ou préparer un besoin futur, sans que cette personnalisation modifie ses droits. Source : baseline v2.4 §1 et §4 ; arc42 §8.2.
+
+## Acteurs
+
+| Acteur | Interaction | Statut |
+|---|---|---|
+| Utilisateur (développeur) | hérite du socle ; crée sa veille personnelle | [PROPOSITION] — baseline v2.4 §4 |
+| Administrateur d'espace (`WORKSPACE_ADMIN`) | définit le socle d'équipe — hypothèse | [QUESTION Q-5 du changement] |
+
+## Périmètre et exclusions
+
+- **Inclus** : portées `TEAM` / `PERSONAL`, attributs obligatoires, héritage du socle, veille personnelle libre, absence d'effet sur les droits.
+- **Exclu** : diffusion des alertes et digests (canal et fréquence sont enregistrés, leur exécution relève du lot 2), gestion des rôles (ADR-0016), désabonnement d'un abonnement `TEAM` obligatoire (Q-5).
+
+## Préconditions et déclencheurs
+
+- L'utilisateur est authentifié (ADR-0008, Proposé) et appartient à une équipe.
+- Déclencheurs : création d'un abonnement ; arrivée d'un utilisateur dans une équipe.
+
+## Entrées, sorties et validations
+
+| Entrée / sortie | Contenu | Validation ou contrainte | Statut |
+|---|---|---|---|
+| Entrée : demande d'abonnement | portée, propriétaire, filtres, canal, fréquence, obligatoire/facultatif | tous obligatoires (ABO-01, ABO-02) | [PROPOSITION] |
+| Sortie : abonnement | attributs, date de création, état | valeurs de l'état non définies [QUESTION Q-ABO-1] | [PROPOSITION] |
+| Sortie : veille de l'utilisateur | éléments filtrés par ses abonnements et par ses droits | ABO-05 | [PROPOSITION] |
+
+## Règles métier
+
+| Règle | Exigence(s) | Source | Statut |
+|---|---|---|---|
+| Portée unique `TEAM` ou `PERSONAL` | ABO-01 | baseline v2.4 §4 ; arc42 §8.2 | [PROPOSITION] |
+| Attributs minimaux obligatoires | ABO-02 | arc42 §8.2 | [PROPOSITION] |
+| Le socle d'équipe s'applique sans action | ABO-03 | baseline v2.4 §4 | [PROPOSITION] |
+| Veille personnelle libre de lien avec l'équipe | ABO-04 | baseline v2.4 §4 ; arc42 §8.2 (exemple RH / Rust) | [PROPOSITION] |
+| Un abonnement n'accorde aucun droit | ABO-05 | baseline v2.4 §4 ; arc42 §5.5 règle 6 | [PROPOSITION] |
+
+## Droits d'accès et restrictions
+
+La règle centrale de la capacité est une restriction : la veille est un **filtre de pertinence** appliqué à l'intérieur du périmètre autorisé, jamais une source d'autorisation (arc42 §5.4, §8.2). L'autorisation reste déterminée par RBAC + RLS (ADR-0016) et par les rôles `USER`, `PROJECT_MANAGER`, `WORKSPACE_ADMIN`, `PLATFORM_ADMIN`, `OPS` (arc42 §8.1).
+
+## Effets de bord observables
+
+- création d'un abonnement ;
+- modification du contenu de la veille de l'utilisateur ;
+- aucune modification des rôles ni des autorisations (ABO-05-S2).
+
+## Qualités mesurables
+
+Non applicable — aucune cible chiffrée n'est documentée pour cette capacité.
+
+## Diagrammes
+
+### DF-ABO-1 — Abonnements, équipes et autorisations
+
+- **Question** : comment les abonnements se rattachent-ils aux équipes et aux utilisateurs, et pourquoi n'influencent-ils pas l'autorisation ?
+- **Type** : UML classes (modèle conceptuel)
+- **Portée** : cible proposée
+- **Exigences** : ABO-01, ABO-02, ABO-03, ABO-05
+
+```mermaid
+classDiagram
+    class Subscription {
+        scope : TEAM ou PERSONAL
+        filtres
+        canal
+        frequence
+        obligatoire : booléen
+        dateCreation
+        etat
+    }
+    class Equipe
+    class Utilisateur
+    class Role {
+        USER, PROJECT_MANAGER, WORKSPACE_ADMIN, PLATFORM_ADMIN, OPS
+    }
+    class Workspace
+
+    Equipe "1" o-- "0..*" Subscription : socle TEAM
+    Utilisateur "1" o-- "0..*" Subscription : veille PERSONAL
+    Equipe "1" o-- "1..*" Utilisateur : membres
+    Utilisateur "1" -- "1..*" Role : détient, par espace
+    Role "0..*" --> "1" Workspace : s'applique à
+```
+
+Aucune relation ne relie `Subscription` à `Role` ou `Workspace` : c'est la traduction structurelle d'ABO-05. Le propriétaire d'un abonnement est soit une équipe (`TEAM`), soit un utilisateur (`PERSONAL`), jamais les deux. Le terme `Subscription` vient d'arc42 §5.4 ; `Equipe`, `Utilisateur` et `Role` sont des noms de travail. La relation entre équipe et espace n'est pas documentée [QUESTION Q-ABO-2].
+
+### DF-ABO-2 — Restitution de la veille d'un utilisateur
+
+- **Question** : dans quel ordre les droits et les abonnements s'appliquent-ils quand un utilisateur consulte sa veille ?
+- **Type** : UML séquence
+- **Portée** : cible proposée
+- **Exigences** : ABO-03, ABO-04, ABO-05, COR-08
+
+```mermaid
+sequenceDiagram
+    actor U as Utilisateur
+    participant API as API & Security
+    participant Work as workspace
+    participant DB as PostgreSQL (RLS)
+
+    U->>API: consulter ma veille
+    API->>API: authentifier, résoudre les rôles par espace
+    API->>Work: demander la veille de l'utilisateur
+    Work->>DB: lire les abonnements TEAM de son équipe et PERSONAL de l'utilisateur
+    Work->>DB: lire les éléments correspondant aux filtres, dans le périmètre autorisé
+    Note over DB: la RLS limite les données d'espace aux espaces autorisés, quel que soit le filtre
+    DB-->>Work: signaux externes publics et données des seuls espaces autorisés
+    Work-->>API: veille filtrée
+    API-->>U: afficher la veille
+```
+
+Le filtre d'abonnement réduit le résultat, la RLS borne le périmètre : un filtre visant un projet non autorisé ne produit aucune donnée interne de ce projet (ABO-05-S2).
+
+## Critères d'acceptation
+
+- Scénarios `ABO-01-S1` à `ABO-05-S2` de la spec.
+- Test automatisé inter-espaces demandé par ADR-0016 (méthode de validation).
+
+## Interprétations introduites par un changement
+
+- ABO-01-S1 et ABO-02-S2 : refus de création avec message nommant l'attribut manquant ;
+- ABO-05-S1 : un signal de sécurité public reste restitué à un abonné personnel, l'impact projet hors périmètre ne l'est pas.
+
+## Écarts constatés
+
+Aucun écart avec du code : aucun code n'existe.
+
+## Questions ouvertes
+
+| ID | Question | Impact | Destinataire |
+|---|---|---|---|
+| Q-5 (changement) | Qui crée un abonnement `TEAM` ? Peut-on se désabonner d'un `TEAM` obligatoire ? | ABO-03 | Product Owner |
+| Q-ABO-1 | Quelles valeurs pour l'état d'un abonnement ? | ABO-02 | Product Owner |
+| Q-ABO-2 | Une équipe correspond-elle à un espace (workspace) ? | DF-ABO-1, ABO-03 | architecte |
+| Q-ABO-3 | Un abonnement `PERSONAL` est-il visible d'autres utilisateurs ? | confidentialité | DPO / Product Owner |
+
+## Traçabilité
+
+Voir la matrice du changement : [`tasks.md`](/openspec/changes/formaliser-chaine-securite-poc/tasks.md#matrice-de-traçabilité). Aucun test n'existe à ce jour.

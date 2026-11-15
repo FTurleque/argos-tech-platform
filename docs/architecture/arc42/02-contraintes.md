@@ -12,19 +12,23 @@ Cette section distingue les **contraintes imposées** des **préférences d’ar
 | Décisions | ADR Markdown pour les choix structurants | Imposée par le cadrage | demande d’architecture du projet |
 | Langue | documentation d’architecture en français | Imposée par le cadrage | demande d’architecture du projet |
 | Exactitude | toute information non prouvée doit être marquée `Hypothèse à valider` ou `Non déterminé` | Imposée par le cadrage | demande d’architecture du projet |
+| JDK | Java 17 minimum | Décision de cadrage | ADR-0019 |
+| Backend/API | Quarkus | Décision de cadrage | ADR-0019 |
+| IHM | Vue.js 3 | Décision de cadrage | ADR-0019 |
+| Stockage | PostgreSQL | Décision de cadrage | ADR-0002 + ADR-0019 |
 
 ## 2.2 Contraintes techniques à confirmer
 
 | Sujet | État | Preuve nécessaire |
 |---|---|---|
-| Backend Java / Spring Boot | Hypothèse à valider | ADR + manifest de build (`pom.xml` ou équivalent) |
-| PostgreSQL | Hypothèse à valider | ADR + configuration datasource/migration |
-| Frontend React ou Vue | Non déterminé | ADR + manifest frontend |
+| Architecture monolithe modulaire Quarkus | Décision proposée | ADR-0001 + structure de modules + tests d’architecture |
+| Migrations SQL | Hypothèse à valider | choix Flyway/Liquibase + POC |
 | Claude / Anthropic comme fournisseur IA initial | Hypothèse à valider | ADR + configuration AI Gateway |
 | FreshRSS pour RSS/Atom | Hypothèse à valider | POC + configuration/connecteur |
 | changedetection.io pour surveillance Web | Hypothèse à valider | POC + configuration/connecteur |
 | n8n périphérique uniquement | Hypothèse à valider | ADR + workflow réel si adopté |
-| Docker/Podman pour POC/MVP | Hypothèse à valider | compose/container manifests |
+| Docker Compose pour le POC local | Décision proposée | ADR-0017 + compose manifest |
+| VM Linux interne pour POC partagé/MVP | Hypothèse d’environnement | disponibilité infrastructure + ADR-0017 |
 | Kubernetes/OpenShift en entreprise | Non déterminé | décision d’hébergement de l’organisation |
 
 ## 2.3 Contraintes réglementaires et sécurité
@@ -54,13 +58,16 @@ La politique d’envoi vers un LLM externe devra être validée avant mise en pr
 
 | Sujet | État |
 |---|---|
-| équipe de développement | Non déterminé |
-| DevOps disponible | Non déterminé |
-| équipe sécurité impliquée | Non déterminé |
-| hébergement interne/cloud | Non déterminé |
+| équipe de développement | disponible mais soumise aux urgences opérationnelles |
+| DevOps / VM | délai de mise à disposition à anticiper |
+| équipe sécurité / RSSI | à impliquer dès le POC |
+| DPO | à impliquer pour les flux IA et journaux |
+| hébergement interne | cible POC partagé/MVP |
 | IdP d’entreprise | Non déterminé |
 | outil de gestion de secrets | Non déterminé |
 | politique de sauvegarde/PRA | Non déterminé |
+
+La **durée calendaire** doit être distinguée de la charge : un POC de 20–24 j.h peut s’étaler sur 6 à 10 semaines lorsque VM, réseau, sécurité, pilotes et urgences du quotidien interviennent.
 
 ## 2.5 Préférences d’architecture proposées
 
@@ -74,9 +81,8 @@ Ces éléments ne sont **pas** des contraintes imposées :
 6. traitement asynchrone lorsque l’ingestion l’exige ;
 7. gratuit/self-hosted d’abord ;
 8. AI Gateway interne devant Claude ;
-9. observabilité standardisée via OpenTelemetry/Micrometer si stack Java confirmée.
-
-Chacune doit être confirmée par ADR ou POC.
+9. observabilité standardisée via OpenTelemetry/Micrometer ;
+10. socle de veille équipe complété par des abonnements personnels sans élargissement des droits.
 
 ## 2.6 Risques de contrainte
 
@@ -84,10 +90,12 @@ Chacune doit être confirmée par ADR ou POC.
 - une politique sécurité peut interdire l’envoi de code ou de données projet vers un LLM SaaS ;
 - GitHub/GitLab Enterprise peuvent imposer des limites d’API, SSO ou réseau particulières ;
 - la licence d’un composant peut empêcher l’usage envisagé ;
-- les objectifs RPO/RTO peuvent faire évoluer fortement l’architecture de déploiement.
+- les objectifs RPO/RTO peuvent faire évoluer fortement l’architecture de déploiement ;
+- les délais de VM/proxy/SSO peuvent dépasser le temps de réalisation technique.
 
 ## 2.7 Fichiers source concernés
 
 - `README.md`
-- futurs manifests de build, conteneurs, CI/CD et configuration ;
-- futurs ADR.
+- `baseline-v2.4.md`
+- `adr/0019-stack-java17-quarkus-vue3-postgresql.md`
+- futurs manifests de build, conteneurs, CI/CD et configuration.

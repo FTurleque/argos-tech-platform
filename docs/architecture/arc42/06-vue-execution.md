@@ -1,6 +1,22 @@
 # 6. Vue d’exécution
 
-Cette section décrit des scénarios dynamiques. Les noms des participants reprennent strictement les composants définis en section 5.
+Cette section décrit des scénarios dynamiques. Ses participants portent des noms de responsabilités qui ne coïncident pas tous avec les composants de la section 5 ; la table suivante donne la correspondance.
+
+| Participant (§6) | Composant(s) de la section 5 | Remarque |
+|---|---|---|
+| `API & Security` | `API & Security` | identique |
+| `Ingestion` | `source-ingestion` | — |
+| `Technology Intelligence` | `signal`, `vuln-intel`, `release-radar` | regroupement de plusieurs composants |
+| `Impact Correlation` | `impact-engine` | — |
+| `Workspace & Project Core` | `workspace`, `inventory` | regroupement |
+| `AI Gateway` | `ai-gateway` | — |
+| `Persistence Adapter` | adaptateur `PostgreSQL` | — |
+| `Alerting & Digest` | `alerting` | — |
+| `External Adapters` | `scm-connector` et adaptateurs des sources | seul `scm-connector` est nommé en §5 |
+| `Project Intelligence` | aucun | composant absent de §5 (Project Intelligence complet en phase 3, baseline v2.3 §2.4) |
+| `Scheduler & Jobs` | aucun | composant absent de §5 ; existence à valider (§6.5) |
+
+Les vues métier des fiches de [`docs/specifications/`](../../specifications/README.md) emploient les noms de la section 5.
 
 ## 6.1 Scénario nominal — signal technologique vers impact projet
 

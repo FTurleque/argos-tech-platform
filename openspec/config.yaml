@@ -1,0 +1,40 @@
+schema: detailed-uml
+
+# Project context: constraints an agent cannot infer by reading the repository.
+# Detailed structures live in openspec/schemas/detailed-uml/templates/.
+context: |
+  Rédiger tous les artefacts en français ; garder en anglais les marqueurs OpenSpec (## Why, ## What Changes, ## Capabilities, ## Purpose, ## ADDED/MODIFIED/REMOVED/RENAMED Requirements, ### Requirement:, #### Scenario:, GIVEN/WHEN/THEN/AND, MUST/SHALL, **Reason**, **Migration**, FROM/TO).
+  ARGOS est en phase de conception : le dépôt ne contient aucun code applicatif. Rien n'est [EXISTANT] sans preuve versionnée.
+  Architecture consolidée : docs/architecture/ (arc42, C4, Mermaid). ADR : docs/architecture/adr/ ; un ADR « Proposé » reste une proposition.
+  Fiches fonctionnelles durables : docs/specifications/<capability-path>.md ; index, préfixes d'identifiants et couverture : docs/specifications/README.md.
+  Stack acceptée (ADR-0019) : Java 17+, Quarkus, Vue.js 3, PostgreSQL ; API REST + OpenAPI.
+  Diagrammes : Mermaid uniquement (ADR-0005), versionnés dans le Markdown qui les explique.
+  Liens internes écrits depuis openspec/ : chemins depuis la racine du dépôt (/docs/...).
+
+# Per-artifact rules: short reminders; the templates carry the structure.
+rules:
+  proposal:
+    - Classer chaque fait avec [EXIGENCE], [EXISTANT], [DÉCISION], [PROPOSITION] ou [QUESTION] et citer sa source.
+    - Une valeur (seuil, délai, volumétrie) absente des sources devient une [QUESTION].
+  specs:
+    - Identifiants d'exigence PRÉFIXE-NN et de scénario PRÉFIXE-NN-Sn, préfixes déclarés dans docs/specifications/README.md.
+    - Chaque exigence porte une ligne Source et un Statut.
+    - Mettre à jour la fiche durable de la capacité et ses diagrammes métier.
+  design:
+    - Reprendre les noms de composants de docs/architecture/arc42/05-vue-blocs.md.
+    - Signaler les décisions candidates à un ADR sans les déclarer acceptées.
+  tasks:
+    - Inclure la mise à jour des fiches, des sections arc42, des diagrammes et de leur inventaire.
+    - Remplir la matrice de traçabilité avec des références réelles et les preuves manquantes.
+
+# Per-operation guidance for apply and archive.
+operations:
+  apply:
+    guidance:
+      - Ne pas adapter une exigence pour la rendre conforme au code ; consigner l'écart.
+      - Exécuter node scripts/verifier-docs.mjs avant de cocher une tâche de documentation.
+  archive:
+    guidance:
+      - N'archiver que sur demande explicite de l'utilisateur.
+      - Après archivage, vérifier le lien vers la fiche durable dans Purpose et basculer les statuts de la fiche selon les preuves.
+      - Après archivage, repointer les liens des fiches vers les specs principales, puis exécuter node scripts/verifier-docs.mjs.
