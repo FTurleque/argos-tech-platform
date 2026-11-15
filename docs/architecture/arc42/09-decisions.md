@@ -28,6 +28,7 @@ Cette section indexe les ADR. Elle ne recopie pas leur contenu.
 | ADR-0018 | Veille réglementaire intégrée avec validation MKP | Proposé | 2026-09-27 | — |
 | ADR-0019 | Java 17+ / Quarkus / Vue.js 3 / PostgreSQL | Accepté | 2026-09-27 | — |
 | ADR-0020 | Spécifier les exigences avec OpenSpec et le schéma `detailed-uml` | Proposé | 2026-11-15 | — |
+| ADR-0021 | Préserver la possibilité d'une double licence | Proposé | 2026-11-15 | — |
 
 ## 9.2 Règles de gouvernance
 
