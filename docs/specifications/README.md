@@ -39,6 +39,19 @@ Un préfixe n'est jamais réattribué ; un identifiant d'exigence retiré n'est 
 | `inventaire-sbom` | `INV` | [fiche](inventaire-sbom.md) | absente | `formaliser-chaine-securite-poc` | proposée |
 | `correlation-impact` | `COR` | [fiche](correlation-impact.md) | absente | `formaliser-chaine-securite-poc` | proposée |
 | `abonnements-veille` | `ABO` | [fiche](abonnements-veille.md) | absente | `formaliser-chaine-securite-poc` | proposée |
+| `affichage-personnalise` | `AFF` | [fiche](affichage-personnalise.md) | absente | `personnaliser-profils-et-affichage` | proposée |
+| `profils-veille` | `PRF` | [fiche](profils-veille.md) | absente | `personnaliser-profils-et-affichage` | proposée |
+| `comptes-acces` | `ACC` | [fiche](comptes-acces.md) | absente | `gerer-comptes-et-acces` | proposée |
+| `alertes-digests` | `ALR` | [fiche](alertes-digests.md) | absente | `diffuser-alertes-et-digests` | proposée |
+| `notifications-poste` | `NOT` | [fiche](notifications-poste.md) | absente | `notifier-sur-le-poste` | proposée |
+| `serveur-mcp` | `MCP` | [fiche](serveur-mcp.md) | absente | `exposer-serveur-mcp` | proposée |
+| `passerelle-ia` | `IAG` | [fiche](passerelle-ia.md) | absente | `encadrer-appels-ia` | proposée |
+| `veille-reglementaire` | `REG` | [fiche](veille-reglementaire.md) | absente | `suivre-veille-reglementaire` | proposée |
+| `radar-standards` | `RAD` | [fiche](radar-standards.md) | absente | `construire-radar-et-standards` | proposée |
+| `veille-rss-web` | `WEB` | [fiche](veille-rss-web.md) | absente | `collecter-veille-rss-web` | proposée |
+| `recherche-veille` | `RCH` | [fiche](recherche-veille.md) | absente | `rechercher-et-filtrer` | proposée |
+| `activite-projets` | `PIN` | [fiche](activite-projets.md) | absente | `mesurer-activite-projets` | proposée |
+| `profil-artiste` | `ART` | [fiche](profil-artiste.md) | absente | `ajouter-profil-artiste` | proposée |
 
 ## Inventaire des diagrammes métier
 
@@ -54,19 +67,33 @@ Un préfixe n'est jamais réattribué ; un identifiant d'exigence retiré n'est 
 | DF-COR-3 | organigramme | quel niveau porte un impact ? | [correlation-impact](correlation-impact.md#df-cor-3--détermination-du-niveau-dun-impact) |
 | DF-ABO-1 | UML classes | comment les abonnements se rattachent-ils sans toucher aux droits ? | [abonnements-veille](abonnements-veille.md#df-abo-1--abonnements-équipes-et-autorisations) |
 | DF-ABO-2 | UML séquence | dans quel ordre droits et abonnements s'appliquent-ils ? | [abonnements-veille](abonnements-veille.md#df-abo-2--restitution-de-la-veille-dun-utilisateur) |
+| DF-AFF-1 | organigramme | quelle mise en page s'affiche à l'ouverture ? | [affichage-personnalise](affichage-personnalise.md#df-aff-1--mise-en-page-appliquée-à-louverture) |
+| DF-PRF-1 | UML classes | de quoi un profil de veille est-il composé ? | [profils-veille](profils-veille.md#df-prf-1--ce-que-décrit-un-profil) |
+| DF-PRF-2 | organigramme | comment se compose la veille d'un utilisateur à plusieurs profils ? | [profils-veille](profils-veille.md#df-prf-2--veille-dun-utilisateur-à-plusieurs-profils) |
+| DF-ACC-1 | organigramme | que se passe-t-il lors de la première connexion d'une personne ? | [comptes-acces](comptes-acces.md#df-acc-1--première-visite-dun-utilisateur) |
+| DF-ALR-1 | organigramme | un élément part-il en alerte immédiate ou dans le résumé ? | [alertes-digests](alertes-digests.md#df-alr-1--alerte-immédiate-ou-résumé) |
+| DF-NOT-1 | organigramme | quand une alerte s'affiche-t-elle en notification système ? | [notifications-poste](notifications-poste.md#df-not-1--affichage-dune-alerte-sur-le-poste) |
+| DF-MCP-1 | organigramme | comment une question du développeur devient-elle une réponse sourcée ? | [serveur-mcp](serveur-mcp.md#df-mcp-1--une-question-posée-à-lassistant) |
+| DF-IAG-1 | organigramme | dans quels cas un élément reçoit-il un résumé produit par l'IA ? | [passerelle-ia](passerelle-ia.md#df-iag-1--un-résumé-est-il-produit-) |
+| DF-REG-1 | organigramme | quelles étapes un texte suit-il avant d'être diffusé ? | [veille-reglementaire](veille-reglementaire.md#df-reg-1--parcours-dun-texte-officiel) |
+| DF-RAD-1 | organigramme | que signifie chaque statut d'une technologie ? | [radar-standards](radar-standards.md#df-rad-1--statuts-du-référentiel) |
+| DF-WEB-1 | organigramme | quand une adresse proposée est-elle acceptée ? | [veille-rss-web](veille-rss-web.md#df-web-1--acceptation-dune-adresse) |
+| DF-RCH-1 | organigramme | dans quel ordre droits, mots et filtres s'appliquent-ils ? | [recherche-veille](recherche-veille.md#df-rch-1--une-recherche-filtrée) |
+| DF-PIN-1 | organigramme | quand un pourcentage d'avancement s'affiche-t-il ? | [activite-projets](activite-projets.md#df-pin-1--affichage-dun-avancement) |
+| DF-ART-1 | organigramme | à quelles conditions un appel est-il présenté comme une opportunité ? | [profil-artiste](profil-artiste.md#df-art-1--un-appel-est-il-proposé-à-lartiste-) |
 
 Les diagrammes d'architecture (D-01 à D-13) sont inventoriés dans [`/docs/architecture/diagrams/README.md`](../architecture/diagrams/README.md) ; les diagrammes de conception d'un changement (DC-*) restent dans son `design.md`.
 
 ## Bilan de couverture
 
-État au 2026-11-15.
+État au 2026-11-16.
 
 ### Inventaire OpenSpec
 
 | Élément | Nombre | Détail |
 |---|---:|---|
-| Specs de référence | 0 | aucune capacité livrée ; aucun code applicatif |
-| Changements actifs | 1 | `formaliser-chaine-securite-poc` (schéma `detailed-uml`) |
+| Specs de référence | 0 | aucune capacité livrée ; socle applicatif sans code métier |
+| Changements actifs | 13 | `formaliser-chaine-securite-poc`, `personnaliser-profils-et-affichage` et un changement par capacité des lots 2 à 5 (schéma `detailed-uml`) |
 | Changements archivés | 0 | — |
 
 Le dépôt ne contient aucune spec de référence ni aucun changement d'un autre schéma : aucun contenu n'est à préserver ni aucun changement à migrer.
@@ -83,21 +110,60 @@ Le dépôt ne contient aucune spec de référence ni aucun changement d'un autre
 
 Toutes les exigences sont au statut [PROPOSITION] : elles dérivent d'ADR « Proposé » ou de baselines « à valider ». Matrice détaillée : [`tasks.md` du changement](/openspec/changes/formaliser-chaine-securite-poc/tasks.md#matrice-de-traçabilité).
 
-### Capacités restant à spécifier
+### Couverture de `personnaliser-profils-et-affichage`
 
-Sources : baseline v2.3 §4 (matrice architecture → preuve) et arc42 §5.
+| Capacité | Exigences | Scénarios | Diagrammes métier | Questions ouvertes | Tests écrits |
+|---|---:|---:|---:|---:|---:|
+| `affichage-personnalise` | 5 | 8 | 1 | 1 | 0 |
+| `profils-veille` | 6 | 11 | 2 | 4 | 0 |
+| **Total** | **11** | **19** | **3** | **5** | **0** |
+
+Toutes les exigences sont au statut [PROPOSITION] : elles dérivent d'ADR-0023 et ADR-0024 (Proposés). Matrice détaillée : [`tasks.md` du changement](/openspec/changes/personnaliser-profils-et-affichage/tasks.md#matrice-de-traçabilité).
+
+### Couverture du lot 2
+
+| Changement | Capacité | Exigences | Scénarios | Diagrammes métier | Questions ouvertes | Tests écrits |
+|---|---|---|---|---|---|---|
+| [`gerer-comptes-et-acces`](/openspec/changes/gerer-comptes-et-acces/proposal.md) | `comptes-acces` | 6 | 11 | 1 | 4 | 0 |
+| [`diffuser-alertes-et-digests`](/openspec/changes/diffuser-alertes-et-digests/proposal.md) | `alertes-digests` | 6 | 9 | 1 | 4 | 0 |
+| [`notifier-sur-le-poste`](/openspec/changes/notifier-sur-le-poste/proposal.md) | `notifications-poste` | 6 | 7 | 1 | 2 | 0 |
+| **Total** | | **18** | **27** | **3** | **10** | **0** |
+
+### Couverture du lot 3
+
+| Changement | Capacité | Exigences | Scénarios | Diagrammes métier | Questions ouvertes | Tests écrits |
+|---|---|---|---|---|---|---|
+| [`exposer-serveur-mcp`](/openspec/changes/exposer-serveur-mcp/proposal.md) | `serveur-mcp` | 7 | 9 | 1 | 3 | 0 |
+| [`encadrer-appels-ia`](/openspec/changes/encadrer-appels-ia/proposal.md) | `passerelle-ia` | 5 | 6 | 1 | 4 | 0 |
+| [`suivre-veille-reglementaire`](/openspec/changes/suivre-veille-reglementaire/proposal.md) | `veille-reglementaire` | 8 | 13 | 1 | 4 | 0 |
+| **Total** | | **20** | **28** | **3** | **11** | **0** |
+
+### Couverture du lot 4
+
+| Changement | Capacité | Exigences | Scénarios | Diagrammes métier | Questions ouvertes | Tests écrits |
+|---|---|---|---|---|---|---|
+| [`construire-radar-et-standards`](/openspec/changes/construire-radar-et-standards/proposal.md) | `radar-standards` | 6 | 8 | 1 | 3 | 0 |
+| [`collecter-veille-rss-web`](/openspec/changes/collecter-veille-rss-web/proposal.md) | `veille-rss-web` | 6 | 8 | 1 | 3 | 0 |
+| [`rechercher-et-filtrer`](/openspec/changes/rechercher-et-filtrer/proposal.md) | `recherche-veille` | 5 | 7 | 1 | 2 | 0 |
+| **Total** | | **17** | **23** | **3** | **8** | **0** |
+
+### Couverture du lot 5
+
+| Changement | Capacité | Exigences | Scénarios | Diagrammes métier | Questions ouvertes | Tests écrits |
+|---|---|---|---|---|---|---|
+| [`mesurer-activite-projets`](/openspec/changes/mesurer-activite-projets/proposal.md) | `activite-projets` | 5 | 6 | 1 | 2 | 0 |
+| [`ajouter-profil-artiste`](/openspec/changes/ajouter-profil-artiste/proposal.md) | `profil-artiste` | 6 | 8 | 1 | 4 | 0 |
+| **Total** | | **11** | **14** | **2** | **6** | **0** |
+
+Toutes ces exigences sont au statut [PROPOSITION] ; la matrice de traçabilité de chaque changement est dans son `tasks.md`.
+
+### Capacités restant à spécifier
 
 | Lot | Capacité pressentie | Composant(s) | Sources disponibles | Manques principaux |
 |---|---|---|---|---|
-| 2 | alerte ciblée et digests | `alerting`, `workspace` | baseline v2.3 §4, §6 critère 1 ; arc42 §6.1 | canaux (question ouverte n° 7 de `/docs/architecture/README.md`), règles d'alerte, statut d'action |
-| 2 | contrôle d'accès par espace | `API & Security`, `workspace` | ADR-0008, ADR-0016 ; arc42 §8.1 | IdP, matrice rôles × actions |
-| 3 | serveur MCP lecture seule | `mcp-server` | ADR-0014 ; baseline v2.3 §4 (`check_dependency`, `get_security_alerts`) | schémas des outils, authentification IDE |
-| 3 | AI Gateway et politique de données | `ai-gateway` | ADR-0004 ; arc42 §8.3, §8.8 ; QS-02, QS-06, QS-15 | classes autorisées (question n° 2), budget |
-| 3 | veille réglementaire avec validation MKP | `reg-intel` | ADR-0018 ; baseline v2.3 §3 | workflow MKP, dictionnaire métier, source Légifrance |
-| 4 | radar versions / EOL et standards internes | `release-radar`, `catalog` | baseline v2.3 §4 | référentiel EOL, statuts ADOPT/HOLD |
-| 4 | veille RSS / Web | `source-ingestion` | ADR-0006 ; arc42 §3 | hébergement FreshRSS / changedetection.io (question n° 3) |
-| 4 | Project Intelligence | `scm-connector` | arc42 §6.2 ; baseline v2.3 §2.4 (phase 3) | métriques factuelles, RGPD (R-09) |
-| 4 | recherche | — | ADR-0015 ; QS-13 | p95 cible, périmètre |
+| 5 | profil `comedien` | `catalog`, `impact-engine` | ADR-0024 ; fiche `profils-veille` | rubriques et sources (castings, droits voisins) |
+| 5 | profil `politique` | `catalog`, `impact-engine` | ADR-0024 ; fiche `profils-veille` | sources officielles (Assemblée, Sénat, collectivités), neutralité |
+| — | version hébergée en ligne | exploitation | ADR-0026 (Synology d'abord) | décision reportée par le porteur |
 
 ### Écarts documentaires relevés
 
