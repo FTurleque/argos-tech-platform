@@ -1,0 +1,51 @@
+# ARGOS — même assemblage sur le PC (Docker Desktop) et sur le Synology (Container Manager).
+# ADR-0017 (POC local) et ADR-0026 (Synology).
+#
+#   docker compose up -d postgres     # développement : base seule, pour « mvn quarkus:dev »
+#   docker compose up -d --build      # Argos complet : http://localhost:8080
+#
+# Réglages dans un fichier .env à côté de ce fichier (modèle : .env.example).
+# Sur le NAS, changez au minimum ARGOS_DB_PASSWORD.
+name: argos
+
+services:
+  postgres:
+    image: postgres:18
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ${ARGOS_DB_NAME:-argos}
+      POSTGRES_USER: ${ARGOS_DB_USER:-argos}
+      POSTGRES_PASSWORD: ${ARGOS_DB_PASSWORD:-argos}
+    ports:
+      # Joignable seulement depuis la machine elle-même (outils de développement).
+      - "127.0.0.1:${ARGOS_DB_PORT:-5432}:5432"
+    volumes:
+      # À partir de PostgreSQL 18, l'image attend le volume sur /var/lib/postgresql.
+      - argos-pgdata:/var/lib/postgresql
+    mem_limit: ${ARGOS_DB_MEM_LIMIT:-512m}
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  argos:
+    build: .
+    image: argos:${ARGOS_VERSION:-local}
+    restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      ARGOS_DB_URL: jdbc:postgresql://postgres:5432/${ARGOS_DB_NAME:-argos}
+      ARGOS_DB_USER: ${ARGOS_DB_USER:-argos}
+      ARGOS_DB_PASSWORD: ${ARGOS_DB_PASSWORD:-argos}
+      TZ: ${TZ:-Europe/Paris}
+    ports:
+      # 127.0.0.1 par défaut : accès local, ou via le reverse proxy de DSM sur le NAS.
+      # ARGOS_BIND=0.0.0.0 pour un accès direct depuis le réseau local ou le VPN.
+      - "${ARGOS_BIND:-127.0.0.1}:${ARGOS_PORT:-8080}:8080"
+    mem_limit: ${ARGOS_MEM_LIMIT:-1g}
+
+volumes:
+  argos-pgdata:

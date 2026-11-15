@@ -1,0 +1,8 @@
+# Seuls argos-ui et argos-server entrent dans l'image.
+*
+!argos-ui/
+!argos-server/
+argos-ui/node_modules/
+argos-ui/dist/
+argos-server/target/
+**/.env

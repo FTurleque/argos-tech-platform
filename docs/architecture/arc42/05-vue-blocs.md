@@ -10,6 +10,7 @@ flowchart LR
 
     subgraph ARGOS["«Software System» ARGOS"]
         WEB["«Container»\nVue.js 3 SPA\nInterface utilisateur"]
+        DESK["«Container»\nClient desktop Electron\nemballe la SPA (ADR-0022, proposé)"]
         BACK["«Container»\nQuarkus Backend\nAPI, métier, ingestion, MCP, IA"]
         DB["«database»\nPostgreSQL\nMétier, audit, recherche"]
     end
@@ -19,6 +20,8 @@ flowchart LR
     IDP["«Software System»\nIdP entreprise"]
 
     USER -->|HTTPS| WEB
+    USER -->|poste de travail| DESK
+    DESK -->|REST/OpenAPI| BACK
     WEB -->|REST/OpenAPI| BACK
     BACK -->|SQL| DB
     BACK -->|HTTPS/webhooks| EXT
@@ -32,6 +35,12 @@ flowchart LR
 - navigation, tableaux de bord, recherche et préférences ;
 - socle de veille d’équipe + veille personnelle ;
 - aucune logique métier critique dans l’IHM.
+
+### Client desktop Electron (proposé, ADR-0022)
+
+- même build Vue.js 3 que la SPA, servi par un protocole interne (`app://argos`) ;
+- notifications natives et icône de zone de notification ;
+- ni base de données ni serveur embarqué : client de l’API REST uniquement.
 
 ### Quarkus Backend
 
@@ -126,7 +135,7 @@ Le scope de veille n’accorde **aucun droit supplémentaire** sur les projets. 
 
 ## 5.6 C4 Code
 
-**Non pertinent à ce stade.** Aucun code applicatif n’existe encore.
+Le socle `argos-server/` matérialise chaque composant de §5.2 par un paquet Java `io.argos.<module>` (par exemple `impact` pour `impact-engine`, `ingestion` pour `source-ingestion`). Les dépendances autorisées entre modules sont vérifiées par `argos-server/src/test/java/io/argos/architecture/ModuleBoundariesTest.java`. Les paquets ne contiennent encore aucun code métier.
 
 ## 5.7 Modèle métier conceptuel (D-05)
 

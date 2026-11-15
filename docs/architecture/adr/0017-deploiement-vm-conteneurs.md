@@ -1,10 +1,10 @@
 # ADR-0017 — Démarrer le POC localement puis migrer sur VM interne
 
-- **Statut** : Proposé
+- **Statut** : Remplacé pour la cible d’hébergement (VM interne) ; POC local toujours valable
 - **Date** : 2026-09-27
 - **Décideurs** : revue d’architecture ARGOS
 - **Remplace** : —
-- **Remplacé par** : —
+- **Remplacé par** : [ADR-0026](0026-hebergement-synology.md) (hébergement sur le Synology du porteur)
 
 ## Contexte
 

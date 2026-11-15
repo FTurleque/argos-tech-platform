@@ -4,7 +4,8 @@ schema: detailed-uml
 # Detailed structures live in openspec/schemas/detailed-uml/templates/.
 context: |
   Rédiger tous les artefacts en français ; garder en anglais les marqueurs OpenSpec (## Why, ## What Changes, ## Capabilities, ## Purpose, ## ADDED/MODIFIED/REMOVED/RENAMED Requirements, ### Requirement:, #### Scenario:, GIVEN/WHEN/THEN/AND, MUST/SHALL, **Reason**, **Migration**, FROM/TO).
-  ARGOS est en phase de conception : le dépôt ne contient aucun code applicatif. Rien n'est [EXISTANT] sans preuve versionnée.
+  ARGOS est en phase de conception. Le dépôt contient un socle applicatif sans fonctionnalité métier
+  (argos-server, argos-ui, argos-desktop). Rien n'est [EXISTANT] sans preuve versionnée.
   Architecture consolidée : docs/architecture/ (arc42, C4, Mermaid). ADR : docs/architecture/adr/ ; un ADR « Proposé » reste une proposition.
   Fiches fonctionnelles durables : docs/specifications/<capability-path>.md ; index, préfixes d'identifiants et couverture : docs/specifications/README.md.
   Stack acceptée (ADR-0019) : Java 17+, Quarkus, Vue.js 3, PostgreSQL ; API REST + OpenAPI.

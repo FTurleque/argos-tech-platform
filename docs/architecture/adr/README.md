@@ -42,7 +42,7 @@ Les ADR enregistrent les décisions architecturales importantes d’ARGOS.
 - [ADR-0014 — MCP lecture seule / Streamable HTTP](0014-mcp-readonly-streamable-http.md)
 - [ADR-0015 — PostgreSQL FTS / pgvector différé](0015-postgresql-fts-pgvector.md)
 - [ADR-0016 — Workspaces RBAC + RLS](0016-workspace-rbac-rls.md)
-- [ADR-0017 — POC local Docker puis VM interne](0017-deploiement-vm-conteneurs.md)
+- [ADR-0017 — POC local Docker puis VM interne](0017-deploiement-vm-conteneurs.md) — cible VM interne remplacée par ADR-0026
 - [ADR-0018 — Veille réglementaire et validation MKP](0018-veille-reglementaire-mkp.md)
 
 ### Décisions v2.4
@@ -56,6 +56,20 @@ Les ADR enregistrent les décisions architecturales importantes d’ARGOS.
 ### Licence
 
 - [ADR-0021 — Préserver la possibilité d'une double licence](0021-double-licence.md) — Proposé ; complète ADR-0009
+
+### Clients
+
+- [ADR-0022 — Client desktop Electron réutilisant l'IHM Vue.js 3](0022-client-desktop-electron.md) — Proposé
+
+### Personnalisation
+
+- [ADR-0023 — Mises en page sélectionnables par utilisateur](0023-mises-en-page-selectionnables.md) — Proposé
+- [ADR-0024 — Profils de veille extensibles et cumulables](0024-profils-de-veille-extensibles.md) — Proposé
+
+### Positionnement
+
+- [ADR-0025 — Produit ouvert à tous les publics, porté à titre personnel](0025-produit-ouvert-projet-personnel.md) — **Accepté** ; ADR-0008, ADR-0009 et ADR-0017 à revoir
+- [ADR-0026 — Hébergement sur le serveur Synology du porteur](0026-hebergement-synology.md) — **Accepté** (cible) ; remplace ADR-0017 pour la VM interne
 
 Les ADR-0010 à ADR-0018 restent **Proposés** jusqu’à validation par revue d’architecture et/ou preuves produites pendant le POC.
 
