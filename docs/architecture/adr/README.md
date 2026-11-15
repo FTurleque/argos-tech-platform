@@ -49,6 +49,10 @@ Les ADR enregistrent les décisions architecturales importantes d’ARGOS.
 
 - [ADR-0019 — Java 17+ / Quarkus / Vue.js 3 / PostgreSQL](0019-stack-java17-quarkus-vue3-postgresql.md) — **Accepté**
 
+### Gouvernance documentaire
+
+- [ADR-0020 — Spécifier les exigences avec OpenSpec et le schéma `detailed-uml`](0020-specifications-openspec-detailed-uml.md) — Proposé
+
 Les ADR-0010 à ADR-0018 restent **Proposés** jusqu’à validation par revue d’architecture et/ou preuves produites pendant le POC.
 
 Utiliser [`template.md`](template.md) pour toute nouvelle décision.

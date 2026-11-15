@@ -127,3 +127,42 @@ Le scope de veille n’accorde **aucun droit supplémentaire** sur les projets. 
 ## 5.6 C4 Code
 
 **Non pertinent à ce stade.** Aucun code applicatif n’existe encore.
+
+## 5.7 Modèle métier conceptuel (D-05)
+
+**Type : UML classDiagram. Portée : concepts du domaine nommés en §4.2 (P2), §5.4 et au glossaire (§12). Statut : Hypothèse à valider.**
+
+```mermaid
+classDiagram
+    class Workspace
+    class Project
+    class Repository
+    class Source
+    class IntelligenceItem
+    class SecuritySignal
+    class ReleaseSignal
+    class ProjectActivity
+    class ProjectImpact
+    class Subscription {
+        scope : TEAM ou PERSONAL
+    }
+
+    Workspace "1" o-- "0..*" Project : regroupe
+    Workspace "1" o-- "0..*" Source : regroupe
+    Project "1" -- "0..*" Repository : associé à
+    Source "1" --> "0..*" IntelligenceItem : produit
+    IntelligenceItem <|-- SecuritySignal
+    IntelligenceItem <|-- ReleaseSignal
+    Repository "1" --> "0..*" ProjectActivity : émet
+    ProjectImpact "0..*" --> "1" IntelligenceItem : élément source
+    ProjectImpact "0..*" --> "1" Project : projet affecté
+```
+
+Le diagramme ne représente que les concepts et relations écrits dans la documentation. Points non établis, à valider :
+
+- cardinalité `Project` ↔ `Repository` : le glossaire laisse ouverte la question « projet métier, dépôt ou agrégat de plusieurs dépôts » ;
+- spécialisation `SecuritySignal` / `ReleaseSignal` de `IntelligenceItem` : §4.2 les cite comme concepts distincts, la généralisation est une hypothèse de modélisation ;
+- `Source` rattachée à un `Workspace` selon le glossaire, alors qu’ADR-0016 indique que les signaux sont globaux ;
+- `Subscription` n’est reliée à aucune entité d’autorisation (§5.4) ; son propriétaire (équipe ou utilisateur) est détaillé dans la fiche [`abonnements-veille`](../../specifications/abonnements-veille.md).
+
+Les modèles détaillés par capacité sont maintenus dans les fiches de [`docs/specifications/`](../../specifications/README.md).

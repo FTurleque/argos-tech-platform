@@ -68,6 +68,8 @@ Le dossier principal se trouve dans [`docs/architecture/`](docs/architecture/REA
 
 Il combine arc42, C4, Mermaid, ADR, scénarios qualité, registre des risques et baseline POC.
 
+Les exigences fonctionnelles sont spécifiées avec OpenSpec (`openspec/`, schéma `detailed-uml`) ; les fiches par capacité et le suivi de couverture se trouvent dans [`docs/specifications/`](docs/specifications/README.md).
+
 ## Prochaines étapes
 
 1. initialiser Maven/Quarkus en Java 17 ;

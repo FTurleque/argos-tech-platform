@@ -77,6 +77,7 @@ ADR acceptés structurants à ce stade :
 - [Scénarios qualité](quality/scenarios.md)
 - [Registre des risques](risks/register.md)
 - [Inventaire des diagrammes](diagrams/README.md)
+- [Spécifications fonctionnelles et couverture des exigences](../specifications/README.md)
 
 ## Priorités avant le premier commit applicatif
 

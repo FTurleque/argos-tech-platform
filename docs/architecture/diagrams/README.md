@@ -25,15 +25,19 @@ Chaque relation doit porter une action et le protocole lorsqu’il est architect
 | D-02 | UML-style composants | style ports/adapters | `arc42/04-strategie-solution.md` |
 | D-03 | C4 Container | ARGOS | `arc42/05-vue-blocs.md` |
 | D-04 | C4 Component | ARGOS Backend | `arc42/05-vue-blocs.md` |
-| D-05 | UML classDiagram | modèle métier conceptuel | `arc42/05-vue-blocs.md` |
+| D-05 | UML classDiagram | modèle métier conceptuel | `arc42/05-vue-blocs.md` §5.7 |
 | D-06 | UML sequenceDiagram | signal techno → impact projet | `arc42/06-vue-execution.md` |
 | D-07 | UML sequenceDiagram | webhook projet | `arc42/06-vue-execution.md` |
 | D-08 | UML sequenceDiagram | erreur API/retry | `arc42/06-vue-execution.md` |
 | D-09 | UML sequenceDiagram | redémarrage/reprise | `arc42/06-vue-execution.md` |
-| D-10 | UML-style deployment | POC/MVP | `arc42/07-vue-deploiement.md` |
-| D-11 | UML-style deployment | cible entreprise | `arc42/07-vue-deploiement.md` |
-| D-12 | UML-style trust boundaries | sécurité | `arc42/08-concepts-transverses.md` |
-| D-13 | Mermaid erDiagram | modèle physique conceptuel | `arc42/08-concepts-transverses.md` |
+| D-10 | UML-style deployment | POC/MVP : deux vues, POC local et POC partagé sur VM | `arc42/07-vue-deploiement.md` §7.2 et §7.3 |
+| D-11 | UML-style deployment | cible entreprise | **manquant** : `arc42/07-vue-deploiement.md` §7.4 ne contient pas de diagramme |
+| D-12 | UML-style trust boundaries | sécurité | **manquant** : annoncé pour `arc42/08-concepts-transverses.md`, absent du fichier |
+| D-13 | Mermaid erDiagram | modèle physique conceptuel | **manquant** : annoncé pour `arc42/08-concepts-transverses.md`, absent du fichier |
+
+D-06 à D-09 emploient des noms de participants différents des composants de la section 5 ; la correspondance figure en tête de `arc42/06-vue-execution.md`.
+
+Les diagrammes métier par capacité (`DF-*`) sont inventoriés dans [`../../specifications/README.md`](../../specifications/README.md#inventaire-des-diagrammes-métier) ; les diagrammes de conception propres à un changement OpenSpec (`DC-*`) restent dans son `design.md`.
 
 ## Diagrammes à ajouter lorsque l’implémentation existe
 
