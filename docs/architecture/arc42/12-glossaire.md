@@ -22,6 +22,8 @@
 | **Mise en page** | présentation de l’IHM choisie par l’utilisateur (`classique`, `journal`, `fantaisie`, `gazette`) ; change la forme, jamais le contenu ni les mentions (ADR-0023) |
 | **Alerte** | message immédiat adressé à un utilisateur sur un canal quand un impact exact ou probable satisfait une de ses règles ; une seule par signal, utilisateur et canal (capacité `alertes-digests`) |
 | **Résumé périodique** | message quotidien ou hebdomadaire listant les éléments non alertés immédiatement ; jamais envoyé vide (en anglais : *digest*) |
+| **Vue enregistrée** | recherche nommée d’un utilisateur (mots et filtres), visible de lui seul et rejouée sous ses droits courants ; n’accorde aucun droit (capacité `recherche-veille`) |
+| **Horizon** | filtre de recherche retenant les éléments des N derniers jours, d’après leur date de publication, sinon de modification ou de réception (capacité `recherche-veille`) |
 | **Canal de diffusion** | moyen d’acheminement d’une alerte ou d’un résumé : `EMAIL` (relais SMTP du Synology) ou `DESKTOP` (client desktop) |
 | **Alerte ouverte** | alerte immédiate reçue par le client desktop et pas encore consultée dans l’application ; leur nombre s’affiche dans la zone de notification (capacité `notifications-poste`) |
 | **Réglages du poste** | réglages propres à un client desktop, gardés sur le poste : notifications du poste (actives par défaut) et démarrage avec la session (désactivé par défaut) ; sans effet sur les autres canaux |

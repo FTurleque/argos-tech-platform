@@ -49,6 +49,27 @@ public class SignalQueries {
             Map.entry("go", Set.of("go")), Map.entry(".net", Set.of("nuget")), Map.entry("php", Set.of("packagist")),
             Map.entry("ruby", Set.of("rubygems")));
 
+    /**
+     * Écosystèmes de paquets associés à une technologie (minuscules), selon la même correspondance
+     * que les filtres de veille ; la technologie elle-même à défaut.
+     */
+    public static Set<String> ecosystemsOf(String technology) {
+        String tech = technology.toLowerCase(Locale.ROOT).trim();
+        return TECHNOLOGY_ECOSYSTEMS.getOrDefault(tech, Set.of(tech));
+    }
+
+    /**
+     * Termes comparés au type de PURL et au nom des paquets affectés pour une technologie
+     * (minuscules) : la technologie et, si c'est un écosystème connu, son type de PURL.
+     */
+    public static Set<String> technologyTerms(String technology) {
+        String tech = technology.toLowerCase(Locale.ROOT).trim();
+        Set<String> terms = new java.util.LinkedHashSet<>();
+        terms.add(tech);
+        PackageKey.typeOfEcosystem(tech).ifPresent(terms::add);
+        return terms;
+    }
+
     /** Signal et sa provenance (COL-02-S1). */
     public record SignalView(UUID id, String source, String externalId, String title, String summary, String severity,
             Instant publishedAt, Instant modifiedAt, Instant collectedAt, UUID currentVersionId, List<String> aliases,
