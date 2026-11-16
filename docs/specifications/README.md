@@ -125,27 +125,31 @@ Toutes les exigences sont au statut [PROPOSITION] : elles dérivent d'ADR « Pro
 | Changement | Capacité | Exigences | Scénarios | Diagrammes métier | Questions ouvertes | Tests écrits |
 |---|---|---|---|---|---|---|
 | [`gerer-comptes-et-acces`](/openspec/changes/gerer-comptes-et-acces/proposal.md) | `comptes-acces` | 6 | 11 | 1 | 0 | 33 |
-| [`diffuser-alertes-et-digests`](/openspec/changes/diffuser-alertes-et-digests/proposal.md) | `alertes-digests` | 6 | 9 | 1 | 4 | 0 |
+| [`diffuser-alertes-et-digests`](/openspec/changes/diffuser-alertes-et-digests/proposal.md) | `alertes-digests` | 6 | 9 | 1 | 2 | 26 |
 | [`notifier-sur-le-poste`](/openspec/changes/notifier-sur-le-poste/proposal.md) | `notifications-poste` | 6 | 7 | 1 | 2 | 0 |
-| **Total** | | **18** | **27** | **3** | **6** | **33** |
+| **Total** | | **18** | **27** | **3** | **4** | **59** |
+
+Dans ce tableau, « Tests écrits » compte les méthodes de test qui passent : `comptes-acces` (11 scénarios couverts) et `alertes-digests` (9 scénarios couverts, classes `AlertesTest`, `EchecSmtpTest`, `RelaisMuetTest` et `RegleAlerteTest`).
 
 ### Couverture du lot 3
 
 | Changement | Capacité | Exigences | Scénarios | Diagrammes métier | Questions ouvertes | Tests écrits |
 |---|---|---|---|---|---|---|
-| [`exposer-serveur-mcp`](/openspec/changes/exposer-serveur-mcp/proposal.md) | `serveur-mcp` | 7 | 9 | 1 | 3 | 0 |
+| [`exposer-serveur-mcp`](/openspec/changes/exposer-serveur-mcp/proposal.md) | `serveur-mcp` | 7 | 9 | 1 | 0 | 9 |
 | [`encadrer-appels-ia`](/openspec/changes/encadrer-appels-ia/proposal.md) | `passerelle-ia` | 5 | 6 | 1 | 4 | 0 |
 | [`suivre-veille-reglementaire`](/openspec/changes/suivre-veille-reglementaire/proposal.md) | `veille-reglementaire` | 8 | 13 | 1 | 4 | 0 |
-| **Total** | | **20** | **28** | **3** | **11** | **0** |
+| **Total** | | **20** | **28** | **3** | **8** | **9** |
+
+Pour `exposer-serveur-mcp`, « Tests écrits » compte les scénarios MCP-01-S1 à MCP-07-S1 couverts par un test qui passe (`argos-server/src/test/java/io/argos/mcp/`) ; MCP-02-S1 et MCP-07-S1 s'appuient sur des implémentations simulées du référentiel des standards et des fiches réglementaires, non encore livrés. Matrice détaillée : [`tasks.md` du changement](/openspec/changes/exposer-serveur-mcp/tasks.md#matrice-de-traçabilité).
 
 ### Couverture du lot 4
 
 | Changement | Capacité | Exigences | Scénarios | Diagrammes métier | Questions ouvertes | Tests écrits |
 |---|---|---|---|---|---|---|
 | [`construire-radar-et-standards`](/openspec/changes/construire-radar-et-standards/proposal.md) | `radar-standards` | 6 | 8 | 1 | 3 | 0 |
-| [`collecter-veille-rss-web`](/openspec/changes/collecter-veille-rss-web/proposal.md) | `veille-rss-web` | 6 | 8 | 1 | 3 | 0 |
+| [`collecter-veille-rss-web`](/openspec/changes/collecter-veille-rss-web/proposal.md) | `veille-rss-web` | 6 | 8 | 1 | 0 | 8 |
 | [`rechercher-et-filtrer`](/openspec/changes/rechercher-et-filtrer/proposal.md) | `recherche-veille` | 5 | 7 | 1 | 2 | 0 |
-| **Total** | | **17** | **23** | **3** | **8** | **0** |
+| **Total** | | **17** | **23** | **3** | **5** | **8** |
 
 ### Couverture du lot 5
 

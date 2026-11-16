@@ -37,9 +37,15 @@ public class TestDb {
     @Inject
     SimulatedAnalysis analysis;
 
+    @Inject
+    SimulatedResumeIa resumeIa;
+
+    @Inject
+    jakarta.enterprise.inject.Instance<io.quarkus.mailer.MockMailbox> mailbox;
+
     public void reset() {
         exec("""
-                TRUNCATE subscription_opt_out, subscription, refus_acces, project_impact, inventory_import_failure,
+                TRUNCATE actualite_impact, actualite_source, actualite, source_web, resume_element, alerte, subscription_opt_out, subscription, refus_acces, mcp_appel, project_impact, inventory_import_failure,
                          component, inventory, project, enrichment, signal_package, signal_alias,
                          signal_version, signal, ops_event, ingestion_failure, sync_attempt, sync_run, sync_cursor CASCADE
                 """);
@@ -52,7 +58,12 @@ public class TestDb {
         certFr.invalidate();
         sleeper.reset();
         analysis.configure(SimulatedAnalysis.Mode.AVAILABLE, java.util.List.of());
+        resumeIa.configure(SimulatedResumeIa.Mode.AVAILABLE);
+        if (mailbox.isResolvable()) {
+            mailbox.get().clear();
+        }
         StubServer.reset();
+        ReferentielsSimules.vider();
     }
 
     public void exec(String sql) {

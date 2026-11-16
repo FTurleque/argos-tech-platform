@@ -28,7 +28,7 @@ Les ADR enregistrent les décisions architecturales importantes d’ARGOS.
 - [ADR-0003 — Modèle canonique d’événements](0003-modele-canonique-evenements.md)
 - [ADR-0004 — AI Gateway Claude](0004-ai-gateway-claude.md)
 - [ADR-0005 — Mermaid pour les diagrammes](0005-mermaid-diagrammes.md) — **Accepté**
-- [ADR-0006 — Collecteurs séparés](0006-collecteurs-separes.md)
+- [ADR-0006 — Collecteurs séparés](0006-collecteurs-separes.md) — remplacement proposé par ADR-0028
 - [ADR-0007 — n8n périphérique](0007-n8n-peripherique.md)
 - [ADR-0008 — IAM OIDC](0008-iam-oidc.md)
 - [ADR-0009 — PolyForm Internal Use License 1.0.0](0009-licence-polyform-internal-use.md) — **Accepté**
@@ -74,6 +74,10 @@ Les ADR enregistrent les décisions architecturales importantes d’ARGOS.
 ### Identité
 
 - [ADR-0027 — Keycloak auto-hébergé comme fournisseur d'identité](0027-keycloak-idp-auto-heberge.md) — Proposé ; complète ADR-0008
+
+### Collecte
+
+- [ADR-0028 — Collecteur RSS/Atom et pages surveillées intégré au serveur](0028-collecteur-veille-web-integre.md) — Proposé ; remplacerait ADR-0006 à son acceptation
 
 Les ADR-0010 à ADR-0018 restent **Proposés** jusqu’à validation par revue d’architecture et/ou preuves produites pendant le POC.
 

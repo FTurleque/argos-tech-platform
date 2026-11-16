@@ -62,6 +62,33 @@
       ]
     },
     {
+      "clientId": "argos-mcp",
+      "enabled": true,
+      "publicClient": true,
+      "standardFlowEnabled": false,
+      "directAccessGrantsEnabled": false,
+      "implicitFlowEnabled": false,
+      "serviceAccountsEnabled": false,
+      "protocol": "openid-connect",
+      "attributes": {
+        "oauth2.device.authorization.grant.enabled": "true",
+        "oauth2.device.code.lifespan": "600"
+      },
+      "protocolMappers": [
+        {
+          "name": "audience-argos-server",
+          "protocol": "openid-connect",
+          "protocolMapper": "oidc-audience-mapper",
+          "consentRequired": false,
+          "config": {
+            "included.custom.audience": "argos-server",
+            "access.token.claim": "true",
+            "id.token.claim": "false"
+          }
+        }
+      ]
+    },
+    {
       "clientId": "autre-application",
       "enabled": true,
       "publicClient": false,

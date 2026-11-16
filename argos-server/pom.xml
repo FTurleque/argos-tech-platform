@@ -20,6 +20,9 @@
     <quarkus.platform.artifact-id>quarkus-bom</quarkus.platform.artifact-id>
     <quarkus.platform.version>3.40.1.2</quarkus.platform.version>
     <archunit.version>1.5.1</archunit.version>
+    <quarkus-mcp-server.version>2.0.4</quarkus-mcp-server.version>
+    <rome.version>2.1.0</rome.version>
+    <jsoup.version>1.22.1</jsoup.version>
     <compiler-plugin.version>3.14.0</compiler-plugin.version>
     <surefire-plugin.version>3.5.3</surefire-plugin.version>
     <skipITs>true</skipITs>
@@ -77,6 +80,43 @@
     <dependency>
       <groupId>io.quarkus</groupId>
       <artifactId>quarkus-oidc</artifactId>
+    </dependency>
+
+    <!-- Alertes et résumés (changement diffuser-alertes-et-digests) : envoi des e-mails par le relais
+         SMTP du Synology (Q-1). Extension Quarkus, licence Apache-2.0 (ADR-0021 point 6). -->
+    <dependency>
+      <groupId>io.quarkus</groupId>
+      <artifactId>quarkus-mailer</artifactId>
+    </dependency>
+    <!-- Planification des résumés et des nouvelles tentatives d'envoi (diffuser-alertes-et-digests)
+         et de la collecte horaire de la veille web (ADR-0028). Apache-2.0. -->
+    <dependency>
+      <groupId>io.quarkus</groupId>
+      <artifactId>quarkus-scheduler</artifactId>
+    </dependency>
+
+    <!-- Serveur MCP en lecture seule, transport Streamable HTTP (ADR-0014, changement
+         exposer-serveur-mcp). Extension Quarkiverse, licence Apache-2.0 (ADR-0021 point 6). -->
+    <dependency>
+      <groupId>io.quarkiverse.mcp</groupId>
+      <artifactId>quarkus-mcp-server-http</artifactId>
+      <version>${quarkus-mcp-server.version}</version>
+    </dependency>
+
+    <!-- Veille RSS/Atom et pages surveillées (ADR-0028, collecteur intégré) : licences enregistrées
+         à l'introduction (ADR-0021 point 6). -->
+    <!-- Lecture RSS 0.9x/1.0/2.0 et Atom. Apache-2.0 ; dépendances transitives : rome-utils
+         (Apache-2.0), jdom2 (licence JDOM, de type Apache/BSD), slf4j-api (MIT). -->
+    <dependency>
+      <groupId>com.rometools</groupId>
+      <artifactId>rome</artifactId>
+      <version>${rome.version}</version>
+    </dependency>
+    <!-- Extraction du texte des pages HTML et nettoyage du contenu des flux. MIT. -->
+    <dependency>
+      <groupId>org.jsoup</groupId>
+      <artifactId>jsoup</artifactId>
+      <version>${jsoup.version}</version>
     </dependency>
 
     <!-- Tests -->

@@ -36,8 +36,11 @@ Chaque relation doit porter une action et le protocole lorsqu’il est architect
 | D-13 | Mermaid erDiagram | modèle physique conceptuel | **manquant** : annoncé pour `arc42/08-concepts-transverses.md`, absent du fichier |
 | D-14 | UML sequenceDiagram | authentification OIDC, autorisation et cloisonnement d’une requête | `arc42/08-concepts-transverses.md` §8.1 |
 | D-15 | C4 Component | préférences d’affichage et de veille, couches contenu et mise en page de l’IHM | `arc42/05-vue-blocs.md` §5.4.1 |
+| D-16 | UML sequenceDiagram | impact → alerte immédiate ou résumé périodique, e-mail et client desktop | `arc42/06-vue-execution.md` §6.1.1 |
 
 D-06 à D-09 emploient des noms de participants différents des composants de la section 5 ; la correspondance figure en tête de `arc42/06-vue-execution.md`.
+
+Le collecteur RSS/Atom et web intégré (ADR-0028) n'ajoute aucun diagramme d'architecture : DF-WEB-1 ([`veille-rss-web`](../../specifications/veille-rss-web.md#df-web-1--acceptation-dune-adresse)) et DC-1 du changement `collecter-veille-rss-web` décrivent l'acceptation d'une adresse et la collecte.
 
 Les diagrammes métier par capacité (`DF-*`) sont inventoriés dans [`../../specifications/README.md`](../../specifications/README.md#inventaire-des-diagrammes-métier) ; les diagrammes de conception propres à un changement OpenSpec (`DC-*`) restent dans son `design.md`.
 

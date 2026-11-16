@@ -14,7 +14,9 @@ Cette section décrit des scénarios dynamiques. Ses participants portent des no
 | `Alerting & Digest` | `alerting` | — |
 | `External Adapters` | `scm-connector` et adaptateurs des sources | seul `scm-connector` est nommé en §5 |
 | `Project Intelligence` | aucun | composant absent de §5 (Project Intelligence complet en phase 3, baseline v2.3 §2.4) |
-| `Scheduler & Jobs` | aucun | composant absent de §5 ; existence à valider (§6.5) |
+| `Relais SMTP (Synology)` | aucun | système externe : serveur d’e-mails du NAS (§6.1.1) |
+| `Client desktop` | aucun | conteneur `argos-desktop` (ADR-0022), hors du backend (§6.1.1) |
+| `Scheduler & Jobs` | aucun | composant absent de §5 ; tâches planifiées Quarkus Scheduler dans les modules qui les portent (`alerting` §6.1.1, collecte de la veille web) ; aucun conteneur séparé (§6.5) |
 
 Les vues métier des fiches de [`docs/specifications/`](../../specifications/README.md) emploient les noms de la section 5.
 
@@ -66,6 +68,41 @@ sequenceDiagram
 - toute analyse LLM doit être associée à la version du prompt/modèle ;
 - la politique de confidentialité doit être évaluée avant l’appel à `AI Gateway` ;
 - l’opération doit être idempotente sur la source + l’identifiant externe.
+
+### 6.1.1 Alerte immédiate et résumé périodique
+
+**Type : UML sequence diagram. Portée : comportement implémenté (capacité [`alertes-digests`](../../specifications/alertes-digests.md)).**
+
+```mermaid
+sequenceDiagram
+    participant Corr as Impact Correlation
+    participant Alert as Alerting & Digest
+    participant Core as Workspace & Project Core
+    participant IA as Point d'extension ResumeIa
+    participant Persist as Persistence Adapter
+    participant Mail as Relais SMTP (Synology)
+    actor Desk as Client desktop
+
+    Corr->>Alert: ImpactsRecorded (après validation des impacts)
+    Alert->>Core: membres des espaces touchés et leurs abonnements actifs
+    Alert->>Persist: relire les impacts sous le compte du destinataire (RLS)
+    alt règle immédiate satisfaite et impact exact ou probable
+        opt implémentation de ResumeIa présente (aucune livrée : état INDISPONIBLE)
+            Alert->>IA: résumé du signal (délai de 10 s, demande expirée annulée)
+        end
+        Alert->>Persist: alerte unique (signal, destinataire, canal)
+        Alert->>Mail: e-mail (délai d'envoi de 10 s, nouvelles tentatives bornées, puis EN_ECHEC)
+        Desk->>Alert: GET /api/v1/alertes puis POST /remise
+    else autre élément concerné
+        Alert->>Persist: élément du prochain résumé
+    end
+    Note over Alert: 08:00 quotidien, lundi 08:00 hebdomadaire (Europe/Paris)
+    Alert->>Persist: composer les résumés non vides, hors éléments déjà alertés
+    Alert->>Mail: résumé par e-mail
+    Desk->>Alert: résumé sur le canal DESKTOP : GET /api/v1/alertes puis POST /remise
+```
+
+L’indisponibilité de l’IA ou du serveur d’e-mails ne bloque ni les impacts ni l’enregistrement des alertes ; une alerte en échec d’envoi reste consultable dans Argos. L’évaluation est synchrone dans le fil de la corrélation : chaque signal qui produit une alerte attend au plus le délai du résumé IA (10 s) puis, par alerte e-mail, le délai d’envoi SMTP (`quarkus.mailer.timeout`, 10 s). Aucun verrou ni aucune transaction n’est tenu pendant l’envoi ; chaque tentative est comptée, quelle que soit la cause de l’échec. Le module `alerting` ne dépend pas d’`ai-gateway` (`ModuleBoundariesTest`) : le résumé passe par l’interface `ResumeIa`, sans implémentation livrée.
 
 ## 6.2 Scénario nominal — activité GitHub/GitLab vers Project Intelligence
 

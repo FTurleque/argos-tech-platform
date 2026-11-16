@@ -38,9 +38,15 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 @ApplicationScoped
 public class SubscriptionService {
 
-    /** Types de critères acceptés. */
+    /**
+     * Types de critères acceptés. {@code SEVERITY} porte la gravité minimale d'une règle d'alerte
+     * immédiate (ALR-01, changement {@code diffuser-alertes-et-digests}).
+     */
     public static final Set<String> FILTER_TYPES = Set.of("TECHNOLOGY", "PACKAGE", "VENDOR", "THEME", "DOMAIN",
-            "SOURCE", "PROJECT");
+            "SOURCE", "PROJECT", "SEVERITY");
+
+    /** Valeurs acceptées pour un critère {@code SEVERITY}. */
+    public static final Set<String> SEVERITIES = Set.of("LOW", "MODERATE", "MEDIUM", "HIGH", "CRITICAL");
 
     private static final ObjectMapper MAPPER = new ObjectMapper();
     private static final TypeReference<List<SubscriptionRequest.Filter>> FILTERS = new TypeReference<>() {
@@ -199,7 +205,14 @@ public class SubscriptionService {
             if (!FILTER_TYPES.contains(type)) {
                 throw new SubscriptionRejectedException("filters", "type de filtre inconnu : " + f.type());
             }
-            filters.add(new SubscriptionRequest.Filter(type, f.value().strip()));
+            String value = f.value().strip();
+            if (type.equals("SEVERITY")) {
+                value = value.toUpperCase(Locale.ROOT);
+                if (!SEVERITIES.contains(value)) {
+                    throw new SubscriptionRejectedException("filters", "gravité inconnue : " + f.value());
+                }
+            }
+            filters.add(new SubscriptionRequest.Filter(type, value));
         }
         if (blank(r.channel())) {
             throw new SubscriptionRejectedException("channel", "attribut manquant : canal");

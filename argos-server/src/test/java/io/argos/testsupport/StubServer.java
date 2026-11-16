@@ -68,7 +68,11 @@ public class StubServer implements QuarkusTestResourceLifecycleManager {
                 Map.entry("argos.sources.certfr.base-url", base + "/certfr/"),
                 Map.entry("argos.scm.gitlab.url", base + "/gitlab"),
                 Map.entry("argos.scm.github.url", base + "/github"),
-                Map.entry("argos.sources.http-timeout", "PT1S"));
+                Map.entry("argos.sources.http-timeout", "PT1S"),
+                // Veille web : seule l'adresse exacte du serveur simulé est exemptée du refus des
+                // adresses locales ; toute autre adresse locale reste refusée (WEB-03).
+                Map.entry("argos.veille-web.exceptions", "localhost:" + server.getAddress().getPort()),
+                Map.entry("argos.veille-web.delai", "PT1S"));
     }
 
     @Override
@@ -76,6 +80,11 @@ public class StubServer implements QuarkusTestResourceLifecycleManager {
         if (server != null) {
             server.stop(0);
         }
+    }
+
+    /** Adresse de base du serveur simulé, par exemple {@code http://localhost:41234}. */
+    public static String base() {
+        return "http://localhost:" + server.getAddress().getPort();
     }
 
     public static void reset() {

@@ -35,6 +35,7 @@ Cette section indexe les ADR. Elle ne recopie pas leur contenu.
 | ADR-0025 | Produit ouvert à tous les publics, porté à titre personnel | Accepté | 2026-11-16 | — |
 | ADR-0026 | Hébergement sur le serveur Synology du porteur | Accepté (cible) | 2026-11-16 | ADR-0017 (cible VM) |
 | ADR-0027 | Authentifier les utilisateurs avec un Keycloak auto-hébergé | Proposé | 2026-11-16 | — (complète ADR-0008) |
+| ADR-0028 | Collecter les flux RSS/Atom et les pages surveillées dans le serveur Argos | Proposé | 2026-11-16 | ADR-0006 (à l'acceptation) |
 
 ## 9.2 Règles de gouvernance
 

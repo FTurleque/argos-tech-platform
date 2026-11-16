@@ -120,14 +120,14 @@ Non applicable — aucune donnée ni aucun contrat existants.
 - **Compromis** : une résolution de plus par récupération
 - **ADR** : non : décision locale
 
-### D2 — Collecteur à trancher
+### D2 — Collecteur intégré au serveur
 
-- **Statut** : [PROPOSITION]
-- **Choix** : services séparés (ADR-0006) ou collecteur intégré (Q-1)
-- **Justification** : AGPL de FreshRSS et produit ouvert
-- **Alternatives écartées** : —
-- **Compromis** : choix bloquant pour l'implémentation
-- **ADR** : candidat ADR (Proposé)
+- **Statut** : [DÉCISION] — Q-1 répondue le 2026-11-16
+- **Choix** : collecteur intégré au serveur, bibliothèques sous licence permissive (ROME Apache-2.0, jsoup MIT, quarkus-scheduler Apache-2.0)
+- **Justification** : AGPL de FreshRSS (ADR-0021) et produit ouvert ; aucun service supplémentaire sur le Synology
+- **Alternatives écartées** : FreshRSS et changedetection.io en services séparés (ADR-0006)
+- **Compromis** : code de collecte à maintenir ; pas de rendu JavaScript des pages
+- **ADR** : [ADR-0028](/docs/architecture/adr/0028-collecteur-veille-web-integre.md) (Proposé)
 
 ## Risques
 

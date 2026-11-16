@@ -20,6 +20,9 @@
 | **Keycloak** | fournisseur d’identité OIDC open source (Apache-2.0) auto-hébergé, retenu par ADR-0027 (Proposé) |
 | **Profil de veille** | type de veille qu’un utilisateur active (`developpeur`, `expert-metier`…) : sources, rubriques, stratégies de rapprochement et garde-fous décrits par un manifeste du catalogue ; cumulable, sans effet sur les droits ; à ne pas confondre avec un rôle (ADR-0024) |
 | **Mise en page** | présentation de l’IHM choisie par l’utilisateur (`classique`, `journal`, `fantaisie`, `gazette`) ; change la forme, jamais le contenu ni les mentions (ADR-0023) |
+| **Alerte** | message immédiat adressé à un utilisateur sur un canal quand un impact exact ou probable satisfait une de ses règles ; une seule par signal, utilisateur et canal (capacité `alertes-digests`) |
+| **Résumé périodique** | message quotidien ou hebdomadaire listant les éléments non alertés immédiatement ; jamais envoyé vide (en anglais : *digest*) |
+| **Canal de diffusion** | moyen d’acheminement d’une alerte ou d’un résumé : `EMAIL` (relais SMTP du Synology) ou `DESKTOP` (client desktop) |
 | **C4** | modèle de visualisation d’architecture par niveaux Context, Container, Component et Code |
 | **arc42** | structure de documentation d’architecture en douze sections |
 | **ADR** | Architecture Decision Record ; enregistrement versionné d’une décision structurante |
@@ -56,6 +59,12 @@
 | **Inventaire** | liste de référence des composants d'un projet, issue de la SBOM CycloneDX de la branche principale ou, à défaut, des manifestes, avec son origine et sa date (INV-01, INV-04) |
 | **Composant** | élément d'un inventaire identifié par son PURL et sa version, direct ou transitif (INV-01, INV-02) |
 | **Niveau d'impact** | confiance d'un impact : `exact`, `probable` ou `à vérifier` (COR-02) ; distinct du cycle de traitement d'un impact |
+| **MCP** | Model Context Protocol ; protocole par lequel un assistant IA appelle les outils d'un serveur. Argos expose huit outils en lecture seule, en protocole sans état (MCP-01 à MCP-07) |
+| **Contenu externe** | texte issu d'une source tierce (avis, calendrier, texte officiel), renvoyé par le serveur MCP dans un champ `TexteExterne` marqué `CONTENU_EXTERNE_NON_FIABLE` et tronqué, à part des champs produits par Argos (MCP-05) |
+| **Flux d'appareil** | OAuth 2.0 Device Authorization Grant (RFC 8628) : un outil sans navigateur intégré, comme un IDE, obtient un jeton après que l'utilisateur s'est connecté sur une page de vérification (Q-3 du changement `exposer-serveur-mcp`) |
+| **Source web** | flux RSS/Atom ou page surveillée, d'un espace (créée par ses administrateurs) ou personnelle, dont l'adresse a passé le contrôle SSRF ; état `ACTIVE` ou `EN_ERREUR` avec le motif du dernier échec (WEB-01 à WEB-03, ADR-0028) |
+| **Actualité** | élément de veille issu d'une source web : article d'un flux ou changement d'une page surveillée, dédupliqué par empreinte et cité avec toutes ses sources ; son contenu est une citation externe non fiable (WEB-04, WEB-05) |
+| **Rapprochement par nom** | association d'une actualité à un projet dont un composant porte le nom de technologie mentionné ; toujours au niveau `à vérifier`, sans impact projet ni alerte (WEB-06) |
 | **OTLP** | OpenTelemetry Protocol |
 | **POC** | Proof of Concept |
 | **MVP** | Minimum Viable Product |

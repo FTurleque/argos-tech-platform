@@ -74,6 +74,6 @@ Complète : entrées non fiables fournies par des tiers et exposition aux risque
 
 | ID | Question | Bloquante ? | Destinataire |
 |---|---|---|---|
-| Q-1 | Utiliser FreshRSS et changedetection.io en services séparés (AGPL pour FreshRSS) ou un collecteur intégré ? | oui pour l'implémentation | porteur du projet |
-| Q-2 | À quelle fréquence collecter ? | non : paramétrable | Product Owner |
-| Q-3 | Combien de sources personnelles par utilisateur au maximum ? | non | porteur du projet |
+| Q-1 | Utiliser FreshRSS et changedetection.io en services séparés (AGPL pour FreshRSS) ou un collecteur intégré ? | **Répondue le 2026-11-16** : collecteur intégré au serveur, à bibliothèques sous licence permissive ; ni FreshRSS (AGPL) ni changedetection.io [DÉCISION] | porteur du projet |
+| Q-2 | À quelle fréquence collecter ? | **Répondue le 2026-11-16** : toutes les heures, paramétrable [DÉCISION] | Product Owner |
+| Q-3 | Combien de sources personnelles par utilisateur au maximum ? | **Répondue le 2026-11-16** : 50 sources personnelles par utilisateur, paramétrable [DÉCISION] | porteur du projet |
