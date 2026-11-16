@@ -45,7 +45,7 @@ Le parcours s'arrête à l'API : `argos-ui` n'a pas d'écran du radar (écart co
 
 ## Matrice de traçabilité
 
-État au 2026-11-16 : toutes les tâches réalisées. Commande : `mvn -B -f argos-server/pom.xml test -Dtest=RadarStandardsTest,ParcoursRadarTest,OutilsConsultationMcpTest,ModuleBoundariesTest` — 38 tests, 0 échec après correction ; `RadarStandardsTest` seul : 11 tests, 0 échec.
+État au 2026-11-16 : toutes les tâches réalisées. Commande : `mvn -B -f argos-server/pom.xml test -Dtest=RadarStandardsTest,ParcoursRadarTest,OutilsConsultationMcpTest,ModuleBoundariesTest` — 38 tests, 0 échec après correction ; `RadarStandardsTest` seul : 11 tests, 0 échec. Suite complète `mvn -B -f argos-server/pom.xml verify` : 317 tests, 0 échec, BUILD SUCCESS.
 
 | Exigence | Scénario | Conception / diagramme | Tâche | Test ou preuve | État de la preuve |
 |---|---|---|---|---|---|
