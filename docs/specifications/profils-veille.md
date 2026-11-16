@@ -4,8 +4,8 @@
 |---|---|
 | Préfixe d'exigences | `PRF` |
 | Spec de référence | `/openspec/specs/profils-veille/spec.md` — absente tant qu'aucun changement n'est archivé |
-| Changements en cours | [`personnaliser-profils-et-affichage`](/openspec/changes/personnaliser-profils-et-affichage/proposal.md) (proposé) |
-| Statut de la capacité | proposée |
+| Changements en cours | [`personnaliser-profils-et-affichage`](/openspec/changes/personnaliser-profils-et-affichage/proposal.md) (en cours d'implémentation) |
+| Statut de la capacité | proposée ; catalogue des profils et profils actifs implémentés |
 | Composants (arc42 §5) | `catalog`, `workspace`, `impact-engine`, `signal`, `API & Security`, `mcp-server` |
 
 ## Objectif
@@ -35,6 +35,23 @@ Inclus : catalogue, profils actifs, union des veilles, deux profils initiaux, aj
 | `developpeur` | OSV, NVD, KEV, EPSS, CERT-FR, éditeurs, endoflife.date | projets, composants (SBOM, PURL) | PURL + plage de versions, déterministe | IA sans décision d'impact | [PROPOSITION] — ADR-0010 à ADR-0013 |
 | `expert-metier` | Légifrance, net-entreprises, BOSS, DGCL, DGAFP, caisses de retraite | domaines métier, modules produits | nature, NOR, codes modifiés, dictionnaire métier | validation par l'expert avant diffusion ; aucun avis juridique | [PROPOSITION] — ADR-0018 |
 
+### Manifeste de profil
+
+[EXISTANT — `argos-server/src/main/java/io/argos/catalog/profil/`] Un profil est décrit par un manifeste JSON `catalog/profils/<identifiant>.json`, au format 1 :
+
+| Champ | Contenu | Contrôle au démarrage |
+|---|---|---|
+| `formatManifeste` | version du format | vaut 1 |
+| `identifiant` | minuscules, chiffres et tirets | égal au nom du fichier, unique |
+| `version`, `libelle`, `description` | version du pack, textes affichés | renseignés |
+| `categoriesSources`, `connecteurs` | sources surveillées et connecteurs de collecte | non vides |
+| `rubriques` | `identifiant` et `libelle` de chaque rubrique | au moins une, sans doublon |
+| `typesObjetsSuivis` | objets auxquels les signaux sont rapprochés | non vide |
+| `strategies` | `identifiant` et `deterministe` | au moins une, toutes déterministes (ADR-0013) |
+| `gardeFous` | `type` et `description` | type parmi `VALIDATION_HUMAINE`, `IA_SANS_DECISION`, `AUCUN_AVIS_JURIDIQUE` |
+
+Les manifestes publiés sont listés par `argos.catalogue.profils.manifestes` ; un profil listé dans `argos.catalogue.profils.retires` n'est plus publié. Un manifeste invalide empêche le serveur de démarrer. La confrontation des connecteurs et des stratégies au code attend leur implémentation (tâche 3.3).
+
 ### Exemples de profils futurs (non engagés)
 
 | Profil | Sources possibles | Objets suivis | Rapprochement pressenti | Garde-fous pressentis |
@@ -53,17 +70,18 @@ Utilisateur authentifié ; profil publié au catalogue.
 
 | Entrée / sortie | Contenu | Validation ou contrainte | Statut |
 |---|---|---|---|
-| Activation / désactivation | identifiant de profil | publié au catalogue ; au moins un profil reste actif (PRF-01) | [PROPOSITION] |
+| Activation / désactivation | `PUT /api/v1/preferences/profils` `{"profilsActifs": [...]}` : remplace l'ensemble | publié au catalogue, sinon refus 400 `PROFIL_INCONNU` ; ensemble vide refusé, 400 `AU_MOINS_UN_PROFIL` (PRF-01) | [EXISTANT] — `PreferencesResource`, `PreferencesResourceTest` |
+| Catalogue | `GET /api/v1/catalogue/profils` : identifiant, nom, description, version, rubriques, garde-fous | seuls les profils publiés | [EXISTANT] — `CatalogueResourceTest` |
 | Veille restituée | éléments des profils actifs | union sans doublon, rubriques de chaque profil (PRF-02) | [PROPOSITION] |
-| Manifeste de profil | sources, rubriques, objets suivis, stratégies, garde-fous | ne déclare que des connecteurs et stratégies existants | [PROPOSITION] |
+| Manifeste de profil | sources, rubriques, objets suivis, stratégies, garde-fous | format 1 validé au démarrage (voir « Manifeste de profil ») ; confrontation des connecteurs et stratégies au code à venir | [EXISTANT] partiel — `ValidateurManifeste`, `CatalogueProfilsTest` |
 
 ## Règles métier
 
 | Règle | Exigence(s) | Source | Statut |
 |---|---|---|---|
-| Au moins un profil actif, cumul possible | PRF-01 | ADR-0024 | [PROPOSITION] |
+| Au moins un profil actif, cumul possible | PRF-01 | ADR-0024 | [EXISTANT] — service, contrainte en base et tests PRF-01-S1 à S3 |
 | Union des profils actifs, sans doublon | PRF-02 | ADR-0024 | [PROPOSITION] |
-| Profils initiaux `developpeur` et `expert-metier` | PRF-03 | ADR-0024 ; ADR-0013 ; ADR-0018 | [PROPOSITION] |
+| Profils initiaux `developpeur` et `expert-metier` | PRF-03 | ADR-0024 ; ADR-0013 ; ADR-0018 | [EXISTANT] au catalogue (PRF-03-S1) ; rapprochement à venir (PRF-03-S2) |
 | Ajout d'un profil sans effet sur les autres | PRF-04 | ADR-0024 | [PROPOSITION] |
 | Aucun droit accordé | PRF-05 | ADR-0024 ; ADR-0016 ; ABO-05 | [PROPOSITION] |
 | Garde-fous appliqués avant diffusion, partout | PRF-06 | ADR-0024 ; ADR-0018 | [PROPOSITION] |
@@ -141,7 +159,8 @@ Scénarios PRF-01-S1 à PRF-06-S2 du changement.
 ## Interprétations introduites par un changement
 
 - « Au moins un profil actif » (PRF-01, décision D3) : non exprimé par la demande, à faire valider.
-- Profils proposés par l'équipe : repris de la logique du socle d'équipe (ABO-03), à faire valider (Q-2).
+- Profils proposés par l'équipe : repris de la logique du socle d'équipe (ABO-03) ; désactivables tant qu'un profil reste actif (Q-2, décidé le 2026-11-16). Non implémentés : ils supposent les équipes du module `workspace`.
+- Profils appliqués à un utilisateur qui n'a jamais choisi, ou dont tous les profils ont été retirés : profils par défaut de la plateforme (`argos.preferences.profils-par-defaut`, `developpeur` aujourd'hui). Non exprimé par la demande, à faire valider ; remplacé par les profils proposés par l'équipe quand ils existeront.
 
 ## Écarts constatés
 
@@ -160,9 +179,9 @@ La taxonomie des signaux du dossier v2.4 §8.2 est fermée ; ce changement la ve
 
 | Exigence | Scénarios | Conception / diagramme | Tâche | Test ou preuve |
 |---|---|---|---|---|
-| PRF-01 | PRF-01-S1 à PRF-01-S3 | DC-1, DF-PRF-1 | 3.2 | à écrire |
+| PRF-01 | PRF-01-S1 à PRF-01-S3 | DC-1, DF-PRF-1 | 3.2 | `argos-server/src/test/java/io/argos/api/preference/PreferencesResourceTest.java` — passe |
 | PRF-02 | PRF-02-S1, PRF-02-S2 | DC-2, DF-PRF-2 | 3.4 | à écrire |
-| PRF-03 | PRF-03-S1, PRF-03-S2 | DC-1, DF-PRF-1 | 3.1, 3.3 | à écrire |
-| PRF-04 | PRF-04-S1 | DF-PRF-1 | 3.5 | à écrire |
-| PRF-05 | PRF-05-S1 | DC-1, DF-PRF-1, DF-PRF-2 | 3.6 | à écrire |
+| PRF-03 | PRF-03-S1, PRF-03-S2 | DC-1, DF-PRF-1 | 3.1, 3.3 | S1 : `CatalogueResourceTest.java`, `CatalogueProfilsTest.java` — passent ; S2 : à écrire |
+| PRF-04 | PRF-04-S1 | DF-PRF-1 | 3.5 | partie catalogue : `ProfilDemonstrationTest.java` — passe ; veille inchangée : à écrire |
+| PRF-05 | PRF-05-S1 | DC-1, DF-PRF-1, DF-PRF-2 | 3.6 | règle ArchUnit `PreferencesIsolationTest.java` — passe ; tests inter-espaces à écrire |
 | PRF-06 | PRF-06-S1, PRF-06-S2 | DC-2, DF-PRF-2 | 3.7 | à écrire |

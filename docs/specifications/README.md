@@ -114,11 +114,11 @@ Toutes les exigences sont au statut [PROPOSITION] : elles dérivent d'ADR « Pro
 
 | Capacité | Exigences | Scénarios | Diagrammes métier | Questions ouvertes | Tests écrits |
 |---|---:|---:|---:|---:|---:|
-| `affichage-personnalise` | 5 | 8 | 1 | 1 | 0 |
-| `profils-veille` | 6 | 11 | 2 | 4 | 0 |
-| **Total** | **11** | **19** | **3** | **5** | **0** |
+| `affichage-personnalise` | 5 | 8 | 1 | 1 | 4 |
+| `profils-veille` | 6 | 11 | 2 | 4 | 4 |
+| **Total** | **11** | **19** | **3** | **5** | **8** |
 
-Toutes les exigences sont au statut [PROPOSITION] : elles dérivent d'ADR-0023 et ADR-0024 (Proposés). Matrice détaillée : [`tasks.md` du changement](/openspec/changes/personnaliser-profils-et-affichage/tasks.md#matrice-de-traçabilité).
+« Tests écrits » compte les scénarios couverts par un test qui passe (AFF-01-S1, AFF-01-S2, AFF-04-S1, AFF-04-S2, PRF-01-S1 à PRF-01-S3, PRF-03-S1). Les exigences dérivent d'ADR-0023 et ADR-0024 (Proposés) ; les règles dont le code et les tests existent sont marquées [EXISTANT] dans les fiches. Matrice détaillée : [`tasks.md` du changement](/openspec/changes/personnaliser-profils-et-affichage/tasks.md#matrice-de-traçabilité).
 
 ### Couverture du lot 2
 

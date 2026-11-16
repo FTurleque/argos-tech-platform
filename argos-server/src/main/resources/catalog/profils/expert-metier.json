@@ -1,0 +1,21 @@
+{
+  "formatManifeste": 1,
+  "identifiant": "expert-metier",
+  "version": "1.0.0",
+  "libelle": "Expert métier",
+  "description": "Textes officiels et normes déclaratives rapprochés des domaines métier et des modules produits.",
+  "categoriesSources": ["textes-officiels", "normes-declaratives"],
+  "connecteurs": ["legifrance", "net-entreprises", "boss", "dgcl", "dgafp", "caisses-retraite"],
+  "rubriques": [
+    { "identifiant": "reglementation", "libelle": "Réglementation" },
+    { "identifiant": "normes-declaratives", "libelle": "Normes déclaratives" }
+  ],
+  "typesObjetsSuivis": ["domaine-metier", "module-produit"],
+  "strategies": [
+    { "identifiant": "domaine-metier-nor", "deterministe": true }
+  ],
+  "gardeFous": [
+    { "type": "VALIDATION_HUMAINE", "description": "Une fiche n'est diffusée qu'après validation par l'expert métier référent (ADR-0018)." },
+    { "type": "AUCUN_AVIS_JURIDIQUE", "description": "Les fiches informent ; elles ne constituent pas un avis juridique (ADR-0018)." }
+  ]
+}

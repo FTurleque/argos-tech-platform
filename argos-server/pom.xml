@@ -51,6 +51,12 @@
       <groupId>io.quarkus</groupId>
       <artifactId>quarkus-smallrye-health</artifactId>
     </dependency>
+    <!-- Identité de l'utilisateur courant (@Authenticated, SecurityIdentity). Le mécanisme
+         d'authentification lui-même (OIDC, ADR-0008) est hors de ce socle. Apache-2.0. -->
+    <dependency>
+      <groupId>io.quarkus</groupId>
+      <artifactId>quarkus-security</artifactId>
+    </dependency>
 
     <!-- PostgreSQL (ADR-0002). Flyway : choix provisoire, ADR à rédiger (arc42 §9.3 point 3). -->
     <dependency>
@@ -88,6 +94,12 @@
     <dependency>
       <groupId>io.quarkus</groupId>
       <artifactId>quarkus-test-keycloak-server</artifactId>
+      <scope>test</scope>
+    </dependency>
+    <!-- @TestSecurity : utilisateur simulé dans les tests d'API. Apache-2.0. -->
+    <dependency>
+      <groupId>io.quarkus</groupId>
+      <artifactId>quarkus-test-security</artifactId>
       <scope>test</scope>
     </dependency>
     <dependency>

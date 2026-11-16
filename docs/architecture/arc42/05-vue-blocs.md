@@ -124,6 +124,42 @@ Une `Subscription` possède un `scope` :
 
 Le scope de veille n’accorde **aucun droit supplémentaire** sur les projets. RBAC/RLS reste la source d’autorisation.
 
+### 5.4.1 Profils de veille et mise en page (ADR-0023, ADR-0024 — proposés)
+
+Un utilisateur choisit sa **mise en page** et un ou plusieurs **profils de veille**. Ces préférences décident de ce qu’il voit parmi ce qu’il a le droit de voir, et de la façon dont il le voit ; elles ne décident jamais d’un droit.
+
+| Composant | Responsabilité | Ne doit pas | Code |
+|---|---|---|---|
+| catalog | publier les manifestes de profils (format 1, validés au démarrage) et la liste des mises en page ; retirer un élément du catalogue | connaître les préférences d’un utilisateur | `io.argos.catalog.profil`, `io.argos.catalog.miseenpage` |
+| workspace | enregistrer la mise en page et les profils actifs de chaque utilisateur ; au moins un profil actif | accorder un droit ; lire le catalogue | `io.argos.workspace.preference` |
+| API & Security | confronter les préférences au catalogue (défaut `classique`, profils par défaut) et les exposer avec le catalogue | appliquer une règle d’affichage | `io.argos.api.preference`, `io.argos.api.catalogue` |
+| IHM — couche contenu | appeler l’API et construire les modèles de vue avec leurs mentions obligatoires | dépendre d’une mise en page | `argos-ui/src/contenu`, `argos-ui/src/views` |
+| IHM — couche mise en page | présenter les modèles de vue selon le style choisi | appeler l’API, filtrer un élément ou omettre une mention | `argos-ui/src/mises-en-page` |
+
+Les préférences ne sont lues que par `api` et `mcp` (`PreferencesIsolationTest`) ; une mise en page n’importe ni le client API ni le reste de la couche contenu (`argos-ui/tests/architecture.test.mjs`).
+
+**D-15 — Type : C4 Component. Portée : préférences d’affichage et de veille, du serveur à l’IHM. Statut : implémenté pour le catalogue, les préférences et les couches de l’IHM ; restitution de la veille par profils à venir.**
+
+```mermaid
+flowchart LR
+    subgraph UI["«Container» argos-ui"]
+        CONTENU["«Component»\ncouche contenu\nappels API, modèles de vue,\nmentions obligatoires"]
+        MEP["«Component»\ncouche mise en page\nclassique, journal,\nfantaisie, gazette"]
+    end
+    subgraph BACK["«Container» Quarkus Backend"]
+        API["«Component»\nAPI & Security\n/api/v1/preferences\n/api/v1/catalogue"]
+        CAT["«Component»\ncatalog\nmanifestes de profils,\nmises en page"]
+        PREF["«Component»\nworkspace.preference\nmise en page, profils actifs"]
+    end
+    DB["«database»\nPostgreSQL\nworkspace_preference_utilisateur"]
+
+    CONTENU -->|REST/OpenAPI| API
+    CONTENU -->|modèles de vue| MEP
+    API -->|lit les publiés| CAT
+    API -->|lit et remplace| PREF
+    PREF -->|SQL| DB
+```
+
 ## 5.5 Règles de dépendance
 
 1. le domaine ne dépend pas des SDK externes ;
@@ -135,7 +171,7 @@ Le scope de veille n’accorde **aucun droit supplémentaire** sur les projets. 
 
 ## 5.6 C4 Code
 
-Le socle `argos-server/` matérialise chaque composant de §5.2 par un paquet Java `io.argos.<module>` (par exemple `impact` pour `impact-engine`, `ingestion` pour `source-ingestion`). Les dépendances autorisées entre modules sont vérifiées par `argos-server/src/test/java/io/argos/architecture/ModuleBoundariesTest.java`. Les paquets `ingestion`, `signal`, `vulnintel`, `scm`, `inventory`, `impact`, `workspace`, `audit` et `api` portent la chaîne sécurité du POC (changement `formaliser-chaine-securite-poc`) ; les autres ne contiennent encore aucun code métier.
+Le socle `argos-server/` matérialise chaque composant de §5.2 par un paquet Java `io.argos.<module>` (par exemple `impact` pour `impact-engine`, `ingestion` pour `source-ingestion`). Les dépendances autorisées entre modules sont vérifiées par `argos-server/src/test/java/io/argos/architecture/ModuleBoundariesTest.java`. Les paquets `ingestion`, `signal`, `vulnintel`, `scm`, `inventory`, `impact`, `workspace`, `audit` et `api` portent la chaîne sécurité du POC (changement `formaliser-chaine-securite-poc`) ainsi que les comptes, les espaces et les rôles (changement `gerer-comptes-et-acces`) ; `catalog`, `workspace.preference` et `api` portent le catalogue des profils et des mises en page et les préférences utilisateur (§5.4.1) ; les autres paquets ne contiennent aucun code métier.
 
 ## 5.7 Modèle métier conceptuel (D-05)
 
