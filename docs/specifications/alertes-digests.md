@@ -83,7 +83,7 @@ Une alerte ne cite que les projets que le destinataire est autorisé à voir (AC
 
 ## Qualités mesurables
 
-[QUESTION] La cible « alerte en moins d'une heure » (Q-4) n'est pas validée. Le parcours de test mesure le délai entre la collecte et l'envoi (de l'ordre de quelques centaines de millisecondes avec les services de test) ; en exploitation, la diffusion des messages en attente a lieu toutes les minutes.
+[QUESTION] La cible « alerte en moins d'une heure » (Q-4) n'est pas validée. Le parcours de test mesure le délai entre la collecte et l'envoi (moins d'une seconde avec les services de test) ; en exploitation, la diffusion des messages en attente a lieu toutes les minutes.
 
 ## Diagrammes
 

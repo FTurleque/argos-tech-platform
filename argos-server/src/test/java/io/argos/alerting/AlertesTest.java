@@ -243,7 +243,7 @@ class AlertesTest {
     @Test
     void cloisonnementLesProjetsCitesSontCeuxDesEspacesDuDestinataire() {
         UUID spaceB = Api.nouvelEspace("jules", "Espace B");
-        Api.ajouterMembre("alice", spaceA.toString(), "bob", "LECTEUR");
+        Api.ajouterMembre("alice", spaceA.toString(), "karim", "LECTEUR");
         projet(spaceA, "projet-a", LIB + "@1.2.0");
         projet(spaceB, "projet-b", LIB + "@1.1.0");
         // Socle TEAM obligatoire de l'espace A : ses membres en héritent (ABO-03).
@@ -255,9 +255,9 @@ class AlertesTest {
 
         publier("GHSA-CLOIS", LIB, "HIGH");
 
-        String bob = mailbox.getMailsSentTo("bob@argos.test").get(0).getText();
-        assertTrue(bob.contains("projet-a"));
-        assertFalse(bob.contains("projet-b"), "aucune donnée d'un espace non autorisé (ACC-04)");
+        String karim = mailbox.getMailsSentTo("karim@argos.test").get(0).getText();
+        assertTrue(karim.contains("projet-a"));
+        assertFalse(karim.contains("projet-b"), "aucune donnée d'un espace non autorisé (ACC-04)");
         String jules = mailbox.getMailsSentTo("jules@argos.test").get(0).getText();
         assertTrue(jules.contains("projet-b"));
         assertFalse(jules.contains("projet-a"));
