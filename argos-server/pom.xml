@@ -79,6 +79,18 @@
       <artifactId>quarkus-oidc</artifactId>
     </dependency>
 
+    <!-- Alertes et résumés (changement diffuser-alertes-et-digests) : envoi des e-mails par le relais
+         SMTP du Synology (Q-1) et planification des résumés et des nouvelles tentatives.
+         Extensions Quarkus, licence Apache-2.0 (ADR-0021 point 6). -->
+    <dependency>
+      <groupId>io.quarkus</groupId>
+      <artifactId>quarkus-mailer</artifactId>
+    </dependency>
+    <dependency>
+      <groupId>io.quarkus</groupId>
+      <artifactId>quarkus-scheduler</artifactId>
+    </dependency>
+
     <!-- Tests -->
     <dependency>
       <groupId>io.quarkus</groupId>

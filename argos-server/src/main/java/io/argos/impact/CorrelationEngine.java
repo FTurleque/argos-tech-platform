@@ -16,6 +16,7 @@ import java.util.UUID;
 import javax.sql.DataSource;
 
 import jakarta.enterprise.context.ApplicationScoped;
+import jakarta.enterprise.event.Event;
 import jakarta.enterprise.event.Observes;
 import jakarta.enterprise.event.TransactionPhase;
 import jakarta.enterprise.inject.Instance;
@@ -53,7 +54,8 @@ public class CorrelationEngine {
             String analysis, List<ComplementaryAnalysis.Suggestion> suggestions) {
     }
 
-    private record Deterministic(int created, int updated, int removed, List<UUID> impactIds) {
+    private record Deterministic(int created, int updated, int removed, List<UUID> impactIds,
+            ImpactsRecorded recorded) {
     }
 
     @Inject
@@ -67,6 +69,9 @@ public class CorrelationEngine {
 
     @Inject
     Instance<ComplementaryAnalysis> analysis;
+
+    @Inject
+    Event<ImpactsRecorded> impactsRecorded;
 
     void onSignalChanged(@Observes(during = TransactionPhase.AFTER_SUCCESS) SignalChanged event) {
         try {
@@ -98,6 +103,7 @@ public class CorrelationEngine {
     /** Corrèle un signal avec tous les projets, ou avec un seul projet. */
     public CorrelationReport correlate(UUID signalId, Optional<UUID> projectId) {
         Deterministic d = QuarkusTransaction.requiringNew().call(() -> deterministic(signalId, projectId));
+        publish(d.recorded());
         String status = "NONE";
         List<ComplementaryAnalysis.Suggestion> suggestions = List.of();
         if (analysis.isResolvable()) {
@@ -118,6 +124,21 @@ public class CorrelationEngine {
         return new CorrelationReport(signalId, d.created(), d.updated(), d.removed(), d.impactIds(), status, suggestions);
     }
 
+    /**
+     * Publie les impacts enregistrés, après la validation de leur transaction et avant l'analyse
+     * complémentaire : un échec du traitement des alertes n'affecte ni les impacts ni la corrélation.
+     */
+    private void publish(ImpactsRecorded recorded) {
+        if (recorded.impacts().isEmpty()) {
+            return;
+        }
+        try {
+            impactsRecorded.fire(recorded);
+        } catch (RuntimeException e) {
+            LOG.errorf(e, "publication des impacts du signal %s en échec", recorded.signalId());
+        }
+    }
+
     private Deterministic deterministic(UUID signalId, Optional<UUID> projectId) throws SQLException {
         SignalQueries.SignalView signal = signals.find(signalId)
                 .orElseThrow(() -> new IllegalArgumentException("signal inconnu : " + signalId));
@@ -128,6 +149,7 @@ public class CorrelationEngine {
         int created = 0;
         int updated = 0;
         List<UUID> kept = new ArrayList<>();
+        List<ImpactsRecorded.Item> items = new ArrayList<>();
         try (Connection c = dataSource.getConnection()) {
             // Traitement technique, hors rôle applicatif. Le verrou par signal sérialise une corrélation
             // globale et une corrélation par projet du même signal : la suppression des impacts devenus
@@ -172,6 +194,8 @@ public class CorrelationEngine {
                     try (ResultSet rs = ps.executeQuery()) {
                         rs.next();
                         kept.add(rs.getObject(1, UUID.class));
+                        items.add(new ImpactsRecorded.Item(rs.getObject(1, UUID.class), m.projectId(), m.workspaceId(),
+                                best.get().level().name(), m.packageKey()));
                         if (rs.getBoolean(2)) {
                             created++;
                         } else {
@@ -191,7 +215,8 @@ public class CorrelationEngine {
                 ps.setArray(4, c.createArrayOf("uuid", kept.toArray()));
                 removed = ps.executeUpdate();
             }
-            return new Deterministic(created, updated, removed, List.copyOf(kept));
+            return new Deterministic(created, updated, removed, List.copyOf(kept), new ImpactsRecorded(signalId,
+                    signal.title(), signal.severity(), signal.source(), signal.externalId(), items));
         }
     }
 
