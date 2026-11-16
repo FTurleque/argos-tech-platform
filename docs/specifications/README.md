@@ -125,9 +125,9 @@ Toutes les exigences sont au statut [PROPOSITION] : elles dérivent d'ADR « Pro
 | Changement | Capacité | Exigences | Scénarios | Diagrammes métier | Questions ouvertes | Tests écrits |
 |---|---|---|---|---|---|---|
 | [`gerer-comptes-et-acces`](/openspec/changes/gerer-comptes-et-acces/proposal.md) | `comptes-acces` | 6 | 11 | 1 | 0 | 33 |
-| [`diffuser-alertes-et-digests`](/openspec/changes/diffuser-alertes-et-digests/proposal.md) | `alertes-digests` | 6 | 9 | 1 | 4 | 0 |
+| [`diffuser-alertes-et-digests`](/openspec/changes/diffuser-alertes-et-digests/proposal.md) | `alertes-digests` | 6 | 9 | 1 | 1 | 9 |
 | [`notifier-sur-le-poste`](/openspec/changes/notifier-sur-le-poste/proposal.md) | `notifications-poste` | 6 | 7 | 1 | 2 | 0 |
-| **Total** | | **18** | **27** | **3** | **6** | **33** |
+| **Total** | | **18** | **27** | **3** | **3** | **42** |
 
 ### Couverture du lot 3
 

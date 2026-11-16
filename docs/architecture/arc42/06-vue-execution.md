@@ -14,6 +14,8 @@ Cette section décrit des scénarios dynamiques. Ses participants portent des no
 | `Alerting & Digest` | `alerting` | — |
 | `External Adapters` | `scm-connector` et adaptateurs des sources | seul `scm-connector` est nommé en §5 |
 | `Project Intelligence` | aucun | composant absent de §5 (Project Intelligence complet en phase 3, baseline v2.3 §2.4) |
+| `Relais SMTP (Synology)` | aucun | système externe : serveur d’e-mails du NAS (§6.1.1) |
+| `Client desktop` | aucun | conteneur `argos-desktop` (ADR-0022), hors du backend (§6.1.1) |
 | `Scheduler & Jobs` | aucun | composant absent de §5 ; existence à valider (§6.5) |
 
 Les vues métier des fiches de [`docs/specifications/`](../../specifications/README.md) emploient les noms de la section 5.
@@ -66,6 +68,38 @@ sequenceDiagram
 - toute analyse LLM doit être associée à la version du prompt/modèle ;
 - la politique de confidentialité doit être évaluée avant l’appel à `AI Gateway` ;
 - l’opération doit être idempotente sur la source + l’identifiant externe.
+
+### 6.1.1 Alerte immédiate et résumé périodique
+
+**Type : UML sequence diagram. Portée : comportement implémenté (capacité [`alertes-digests`](../../specifications/alertes-digests.md)).**
+
+```mermaid
+sequenceDiagram
+    participant Corr as Impact Correlation
+    participant Alert as Alerting & Digest
+    participant Core as Workspace & Project Core
+    participant AI as AI Gateway
+    participant Persist as Persistence Adapter
+    participant Mail as Relais SMTP (Synology)
+    actor Desk as Client desktop
+
+    Corr->>Alert: ImpactsRecorded (après validation des impacts)
+    Alert->>Core: membres des espaces touchés et leurs abonnements actifs
+    Alert->>Persist: relire les impacts sous le compte du destinataire (RLS)
+    alt règle immédiate satisfaite et impact exact ou probable
+        Alert->>AI: résumé du signal (délai borné, facultatif)
+        Alert->>Persist: alerte unique (signal, destinataire, canal)
+        Alert->>Mail: e-mail (nouvelles tentatives bornées, puis EN_ECHEC)
+        Desk->>Alert: GET /api/v1/alertes puis POST /remise
+    else autre élément concerné
+        Alert->>Persist: élément du prochain résumé
+    end
+    Note over Alert: 08:00 quotidien, lundi 08:00 hebdomadaire (Europe/Paris)
+    Alert->>Persist: composer les résumés non vides, hors éléments déjà alertés
+    Alert->>Mail: résumé par e-mail
+```
+
+L’indisponibilité de l’IA ou du serveur d’e-mails ne bloque ni les impacts ni l’enregistrement des alertes ; une alerte en échec d’envoi reste consultable dans Argos.
 
 ## 6.2 Scénario nominal — activité GitHub/GitLab vers Project Intelligence
 
