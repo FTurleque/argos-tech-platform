@@ -7,8 +7,8 @@ Maintenir pour chaque projet suivi un inventaire de ses composants, directs et t
 ## ADDED Requirements
 
 ### Requirement: INV-01 SBOM CycloneDX de la branche principale comme référence
-Le système DOIT (MUST) constituer l'inventaire de référence d'un projet à partir de la dernière SBOM CycloneDX produite par la CI de sa branche principale, chaque composant étant identifié par son PURL et sa version.
-Source : ADR-0011 (Proposé) ; baseline v2.3 §4. Statut : [PROPOSITION].
+Le système DOIT (MUST) constituer l'inventaire de référence d'un projet à partir de la dernière SBOM CycloneDX produite par la CI de sa branche principale, chaque composant étant identifié par son PURL et sa version. Les SBOM acceptées sont au format JSON, schéma CycloneDX 1.5 ou 1.6.
+Source : ADR-0011 (Proposé) ; baseline v2.3 §4 ; décision du 2026-11-16 (question Q-7). Statut : [PROPOSITION].
 
 #### Scenario: INV-01-S1 Import d'une SBOM valide
 - **GIVEN** un projet suivi dont la CI de la branche principale a produit une SBOM CycloneDX valide
@@ -33,8 +33,8 @@ Source : ADR-0011 (Proposé, critère 2) ; baseline v2.3 §4 et §6 critère 2. 
 - **AND** B est indiqué comme dépendance transitive
 
 ### Requirement: INV-03 Âge de l'inventaire visible
-Le système DOIT (MUST) afficher pour chaque projet l'âge de la SBOM à l'origine de son inventaire, et signaler un projet suivi qui ne dispose d'aucune SBOM.
-Source : ADR-0011 (Proposé, conséquences neutres) ; baseline v2.3 §6 critère 2. Statut : [PROPOSITION].
+Le système DOIT (MUST) afficher pour chaque projet l'âge de la SBOM à l'origine de son inventaire, signaler une SBOM obsolète, c'est-à-dire générée depuis plus de 30 jours, et signaler un projet suivi qui ne dispose d'aucune SBOM.
+Source : ADR-0011 (Proposé, conséquences neutres) ; baseline v2.3 §6 critère 2 ; décision du 2026-11-16 (question Q-3). Statut : [PROPOSITION].
 
 #### Scenario: INV-03-S1 Projet avec SBOM
 - **GIVEN** un projet dont l'inventaire provient d'une SBOM produite à une date connue
@@ -45,6 +45,11 @@ Source : ADR-0011 (Proposé, conséquences neutres) ; baseline v2.3 §6 critère
 - **GIVEN** un projet suivi pour lequel aucune SBOM n'a été importée
 - **WHEN** un utilisateur autorisé consulte le projet
 - **THEN** l'absence de SBOM est signalée
+
+#### Scenario: INV-03-S3 SBOM obsolète
+- **GIVEN** un projet dont l'inventaire provient d'une SBOM générée il y a 31 jours
+- **WHEN** un utilisateur autorisé consulte le projet
+- **THEN** l'âge de la SBOM est affiché et la SBOM est signalée obsolète
 
 ### Requirement: INV-04 Repli sur les manifestes
 Le système DOIT (MUST), lorsqu'aucune SBOM n'est disponible pour un projet, constituer un inventaire de repli à partir de la lecture de ses manifestes de dépendances, et indiquer que l'inventaire provient de ce repli.

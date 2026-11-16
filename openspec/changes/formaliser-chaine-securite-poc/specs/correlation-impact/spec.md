@@ -34,13 +34,24 @@ Source : ADR-0013 (Proposé) ; ADR-0011 (Proposé) ; baseline v2.3 §4. Statut :
 - **THEN** aucun impact n'est créé pour ce projet
 
 ### Requirement: COR-02 Niveau de chaque impact
-Le système DOIT (MUST) attribuer à chaque impact exactement un niveau parmi `exact`, `probable` et `à vérifier`, et afficher ce niveau avec l'impact.
-Source : ADR-0013 (Proposé). Statut : [PROPOSITION] ; règles de `probable` et `à vérifier` non définies (fiche, question Q-2).
+Le système DOIT (MUST) attribuer à chaque impact exactement un niveau, affiché avec l'impact : `exact` (PURL déclaré et version dans la plage, SBOM non obsolète), `probable` (même correspondance, inventaire de repli ou SBOM obsolète) ou `à vérifier` (correspondance sans PURL, version inconnue ou plage non interprétable).
+Source : ADR-0013 (Proposé) ; décision du porteur du projet du 2026-11-16 (question Q-2). Statut : [PROPOSITION].
 
 #### Scenario: COR-02-S1 Correspondance PURL et version établie
 - **GIVEN** un impact créé selon COR-01 à partir d'une SBOM CycloneDX non obsolète
 - **WHEN** un utilisateur autorisé consulte l'impact
 - **THEN** l'impact porte le niveau `exact`
+
+#### Scenario: COR-02-S2 Correspondance sur un inventaire de repli ou une SBOM obsolète
+- **GIVEN** un projet dont l'inventaire provient des manifestes ou d'une SBOM générée il y a plus de 30 jours
+- **AND** un signal dont le PURL et la plage correspondent à un composant de cet inventaire
+- **WHEN** la corrélation de ce signal s'exécute
+- **THEN** l'impact porte le niveau `probable`
+
+#### Scenario: COR-02-S3 Correspondance sans PURL ou version inconnue
+- **GIVEN** un signal dont le paquet affecté n'est identifié que par son nom, ou un composant dont la version est inconnue
+- **WHEN** la corrélation de ce signal s'exécute
+- **THEN** l'impact porte le niveau `à vérifier`
 
 ### Requirement: COR-03 Provenance de chaque impact
 Le système DOIT (MUST) associer à chaque impact le signal source, le projet, le composant rapproché, l'inventaire utilisé avec sa date, la méthode d'analyse et sa provenance ; aucun impact NE DOIT (MUST NOT) exister sans cette provenance.
@@ -82,8 +93,8 @@ Source : baseline v2.3 §6 critère 6 ; QS-10 ; ADR-0013 (Proposé). Statut : [P
 - **AND** aucun appel au fournisseur d'IA n'est effectué
 
 ### Requirement: COR-06 Confiance réduite sans SBOM à jour
-Le système DOIT (MUST) attribuer un niveau autre que `exact` à un impact calculé à partir d'un inventaire de repli ou d'une SBOM obsolète.
-Source : ADR-0011 (Proposé, conséquences neutres). Statut : [PROPOSITION] ; seuil d'obsolescence non défini (fiche, question Q-3).
+Le système DOIT (MUST) attribuer un niveau autre que `exact` à un impact calculé à partir d'un inventaire de repli ou d'une SBOM obsolète. Une SBOM est obsolète 30 jours après sa date de génération.
+Source : ADR-0011 (Proposé, conséquences neutres) ; décision du 2026-11-16 (question Q-3). Statut : [PROPOSITION].
 
 #### Scenario: COR-06-S1 Inventaire issu des manifestes
 - **GIVEN** un projet dont l'inventaire provient du repli sur les manifestes

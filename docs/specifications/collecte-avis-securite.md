@@ -5,7 +5,7 @@
 | Préfixe d'exigences | `COL` |
 | Spec de référence | `/openspec/specs/collecte-avis-securite/spec.md` — absente : capacité non livrée |
 | Changement en cours | [`formaliser-chaine-securite-poc`](/openspec/changes/formaliser-chaine-securite-poc/specs/collecte-avis-securite/spec.md) — proposé, non archivé |
-| Statut de la capacité | **proposée** — aucune implémentation dans le dépôt |
+| Statut de la capacité | **proposée**, implémentée dans `argos-server` (changement non archivé) : paquets `io.argos.ingestion`, `io.argos.signal`, `io.argos.vulnintel` |
 | Composants (arc42 §5) | `source-ingestion`, `signal`, `vuln-intel`, `audit`, adaptateur PostgreSQL |
 
 Tout le contenu de cette fiche porte le statut [PROPOSITION] (changement `formaliser-chaine-securite-poc`) sauf mention contraire.
@@ -174,7 +174,7 @@ stateDiagram-v2
     Degraded --> Nominale: synchronisation réussie (COL-07-S2)
 ```
 
-Le seuil d'échec et le nombre maximal de tentatives ne sont pas définis [QUESTION Q-4 du changement]. Le retour de `DEGRADED` à `Nominale` sur succès est une interprétation de ce changement.
+Seuils décidés le 2026-11-16 (Q-4) [DÉCISION] : 5 tentatives par synchronisation avec attente exponentielle ; `DEGRADED` après 3 synchronisations consécutives en échec. Ce sont les valeurs par défaut de `argos.ingestion.max-attempts` et `argos.ingestion.degraded-threshold`. Le retour de `DEGRADED` à `Nominale` sur succès est une interprétation de ce changement. Dans le code, `Nominale` vaut `NOMINAL` et `En échec` vaut `FAILING`.
 
 ## Critères d'acceptation
 
@@ -207,4 +207,4 @@ Aucun écart avec du code : aucun code n'existe. Les noms de §6 (`Ingestion`, `
 
 ## Traçabilité
 
-Voir la matrice du changement : [`tasks.md`](/openspec/changes/formaliser-chaine-securite-poc/tasks.md#matrice-de-traçabilité). Aucun test n'existe à ce jour : toutes les preuves sont à produire.
+Voir la matrice du changement : [`tasks.md`](/openspec/changes/formaliser-chaine-securite-poc/tasks.md#matrice-de-traçabilité). Les scénarios COL-01-S1 à COL-08-S1 sont vérifiés par `argos-server/src/test/java/io/argos/chain/CollecteTest.java`, `ResilienceTest.java`, `EnrichmentTest.java` et `DocumentParsingTest.java` (contrat sur une réponse OSV réelle enregistrée) ; les sources externes y sont simulées.

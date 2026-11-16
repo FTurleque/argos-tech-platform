@@ -5,7 +5,7 @@
 | Préfixe d'exigences | `ABO` |
 | Spec de référence | `/openspec/specs/abonnements-veille/spec.md` — absente : capacité non livrée |
 | Changement en cours | [`formaliser-chaine-securite-poc`](/openspec/changes/formaliser-chaine-securite-poc/specs/abonnements-veille/spec.md) — proposé, non archivé |
-| Statut de la capacité | **proposée** — aucune implémentation dans le dépôt |
+| Statut de la capacité | **proposée**, implémentée dans `argos-server` (changement non archivé) : paquet `io.argos.workspace.subscription`, autorisations dans `io.argos.api` |
 | Composants (arc42 §5) | `workspace`, `API & Security`, `alerting` (canal et fréquence) |
 
 Tout le contenu de cette fiche porte le statut [PROPOSITION] (changement `formaliser-chaine-securite-poc`) sauf mention contraire.
@@ -19,12 +19,12 @@ Donner à chaque utilisateur la veille utile à son équipe et lui permettre d'�
 | Acteur | Interaction | Statut |
 |---|---|---|
 | Utilisateur (développeur) | hérite du socle ; crée sa veille personnelle | [PROPOSITION] — baseline v2.4 §4 |
-| Administrateur d'espace (`WORKSPACE_ADMIN`) | définit le socle d'équipe — hypothèse | [QUESTION Q-5 du changement] |
+| Administrateur d'espace (`WORKSPACE_ADMIN`) | seul à créer un abonnement `TEAM` (ABO-06) | [DÉCISION] — Q-5, 2026-11-16 |
 
 ## Périmètre et exclusions
 
 - **Inclus** : portées `TEAM` / `PERSONAL`, attributs obligatoires, héritage du socle, veille personnelle libre, absence d'effet sur les droits.
-- **Exclu** : diffusion des alertes et digests (canal et fréquence sont enregistrés, leur exécution relève du lot 2), gestion des rôles (ADR-0016), désabonnement d'un abonnement `TEAM` obligatoire (Q-5).
+- **Exclu** : diffusion des alertes et digests (canal et fréquence sont enregistrés, leur exécution relève du lot 2), gestion des rôles (ADR-0016).
 
 ## Préconditions et déclencheurs
 
@@ -46,6 +46,7 @@ Donner à chaque utilisateur la veille utile à son équipe et lui permettre d'�
 | Portée unique `TEAM` ou `PERSONAL` | ABO-01 | baseline v2.4 §4 ; arc42 §8.2 | [PROPOSITION] |
 | Attributs minimaux obligatoires | ABO-02 | arc42 §8.2 | [PROPOSITION] |
 | Le socle d'équipe s'applique sans action | ABO-03 | baseline v2.4 §4 | [PROPOSITION] |
+| Seul un administrateur de l'espace crée un `TEAM` ; un `TEAM` obligatoire ne peut pas être quitté, un `TEAM` facultatif peut l'être | ABO-06 | décision du 2026-11-16 (Q-5) | [PROPOSITION] |
 | Veille personnelle libre de lien avec l'équipe | ABO-04 | baseline v2.4 §4 ; arc42 §8.2 (exemple RH / Rust) | [PROPOSITION] |
 | Un abonnement n'accorde aucun droit | ABO-05 | baseline v2.4 §4 ; arc42 §5.5 règle 6 | [PROPOSITION] |
 
@@ -128,7 +129,7 @@ Le filtre d'abonnement réduit le résultat, la RLS borne le périmètre : un fi
 
 ## Critères d'acceptation
 
-- Scénarios `ABO-01-S1` à `ABO-05-S2` de la spec.
+- Scénarios `ABO-01-S1` à `ABO-06-S3` de la spec.
 - Test automatisé inter-espaces demandé par ADR-0016 (méthode de validation).
 
 ## Interprétations introduites par un changement
@@ -153,4 +154,4 @@ Aucun écart avec du code : aucun code n'existe.
 
 ## Traçabilité
 
-Voir la matrice du changement : [`tasks.md`](/openspec/changes/formaliser-chaine-securite-poc/tasks.md#matrice-de-traçabilité). Aucun test n'existe à ce jour.
+Voir la matrice du changement : [`tasks.md`](/openspec/changes/formaliser-chaine-securite-poc/tasks.md#matrice-de-traçabilité). Les scénarios ABO-01-S1 à ABO-06-S3 sont vérifiés par `argos-server/src/test/java/io/argos/chain/SubscriptionTest.java` ; l'invariant INV-D7 par `argos-server/src/test/java/io/argos/architecture/SubscriptionIsolationTest.java`. Dans le code, une équipe est un espace (ADR-0016, « espace d'équipe ») et l'état d'un abonnement vaut `ACTIVE` ou `INACTIVE` ; ces deux choix restent soumis à Q-ABO-1 et Q-ABO-2.

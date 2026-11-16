@@ -66,3 +66,25 @@ Source : baseline v2.4 §4 ; arc42 §5.4, §5.5 (règle 6), §8.2 ; ADR-0016 (Pr
 - **WHEN** il crée un abonnement `PERSONAL` dont le filtre désigne le projet P
 - **THEN** aucune donnée interne du projet P ne lui est restituée par cet abonnement
 - **AND** ses rôles et autorisations sont inchangés
+
+### Requirement: ABO-06 Socle d'équipe administré et obligatoire ou facultatif
+Le système DOIT (MUST) réserver la création d'un abonnement `TEAM` à un administrateur de l'espace de l'équipe, refuser qu'un utilisateur quitte un abonnement `TEAM` obligatoire, et permettre à un utilisateur de quitter un abonnement `TEAM` facultatif sans effet sur les autres membres.
+Source : décision du porteur du projet du 2026-11-16 (question Q-5) ; ADR-0016 (Proposé). Statut : [PROPOSITION].
+
+#### Scenario: ABO-06-S1 Création d'un abonnement TEAM par un non-administrateur
+- **GIVEN** un membre de l'espace qui n'en est pas administrateur
+- **WHEN** il demande la création d'un abonnement `TEAM` pour cet espace
+- **THEN** la demande est refusée et le refus est journalisé
+- **AND** aucun abonnement n'est créé
+
+#### Scenario: ABO-06-S2 Abonnement TEAM obligatoire
+- **GIVEN** un abonnement `TEAM` obligatoire de l'équipe d'un utilisateur
+- **WHEN** l'utilisateur demande à le quitter
+- **THEN** la demande est refusée
+- **AND** sa veille inclut toujours les éléments de cet abonnement
+
+#### Scenario: ABO-06-S3 Abonnement TEAM facultatif
+- **GIVEN** un abonnement `TEAM` facultatif de l'équipe d'un utilisateur
+- **WHEN** l'utilisateur demande à le quitter
+- **THEN** l'abonnement ne s'applique plus à cet utilisateur
+- **AND** il s'applique toujours aux autres membres de l'équipe
