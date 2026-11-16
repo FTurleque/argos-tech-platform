@@ -48,7 +48,8 @@ Inclus : catalogue, profils actifs, union des veilles, deux profils initiaux, aj
 | `rubriques` | `identifiant` et `libelle` de chaque rubrique | au moins une, sans doublon |
 | `typesObjetsSuivis` | objets auxquels les signaux sont rapprochés | non vide |
 | `strategies` | `identifiant` et `deterministe` | au moins une, toutes déterministes (ADR-0013) |
-| `gardeFous` | `type` et `description` | type parmi `VALIDATION_HUMAINE`, `IA_SANS_DECISION`, `AUCUN_AVIS_JURIDIQUE` |
+| `gardeFous` | `type` et `description` | type parmi `VALIDATION_HUMAINE`, `IA_SANS_DECISION`, `AUCUN_AVIS_JURIDIQUE`, `AUCUN_AVIS_ELIGIBILITE`, `SOURCES_VERIFIEES` |
+| `listes` (facultatif) | listes fermées des valeurs suivies : `typeObjet` et `valeurs` (`identifiant`, `libelle`) | type déclaré dans `typesObjetsSuivis`, une liste par type, non vide, valeurs sans doublon |
 
 Les manifestes publiés sont listés par `argos.catalogue.profils.manifestes` ; un profil listé dans `argos.catalogue.profils.retires` n'est plus publié. Un manifeste invalide empêche le serveur de démarrer. La confrontation des connecteurs et des stratégies au code attend leur implémentation (tâche 3.3).
 
@@ -56,7 +57,7 @@ Les manifestes publiés sont listés par `argos.catalogue.profils.manifestes` ; 
 
 | Profil | Sources possibles | Objets suivis | Rapprochement pressenti | Garde-fous pressentis |
 |---|---|---|---|---|
-| `artiste` | appels à projets et résidences, aides publiques à la création, sociétés de gestion des droits, régime social des artistes-auteurs | discipline, territoire, échéances | discipline + territoire + date limite de candidature | sources officielles ou des organismes eux-mêmes |
+| `artiste` (publié, fiche [`profil-artiste`](profil-artiste.md)) | data.culture.gouv.fr (Licence Ouverte Etalab) et flux RSS/Atom publics d'organismes | discipline, territoire, échéances | discipline + territoire + date limite de candidature | sources aux conditions d'usage vérifiées ; aucun avis d'éligibilité |
 | `comedien` | annonces de casting, convention collective et règles de l'intermittence, festivals, offres de formation | spécialités, région, agenda | spécialité + région + date | sources publiques ; aucune donnée personnelle de tiers |
 | `politique` | agenda et textes des assemblées, Journal officiel, rapports publics, consultations | thèmes, commissions, territoires | thème + institution + étape de procédure | sources institutionnelles, pluralité, aucune recommandation ni classement partisan par l'IA |
 

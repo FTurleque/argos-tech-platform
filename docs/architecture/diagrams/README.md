@@ -46,6 +46,8 @@ Le collecteur RSS/Atom et web intégré (ADR-0028) n'ajoute aucun diagramme d'ar
 
 La recherche plein texte et les vues enregistrées (changement `rechercher-et-filtrer`) n'ajoutent aucun diagramme d'architecture : DF-RCH-1 ([`recherche-veille`](../../specifications/recherche-veille.md#df-rch-1--une-recherche-filtrée)) décrit l'ordre des droits, des mots et des filtres.
 
+Le profil de veille `artiste` (changement `ajouter-profil-artiste`) n'ajoute aucun diagramme d'architecture : ses composants sont décrits par le tableau de `arc42/05-vue-blocs.md` §5.4.2, DF-ART-1 ([`profil-artiste`](../../specifications/profil-artiste.md#df-art-1--un-appel-est-il-proposé-à-lartiste-)) et DC-1 du changement décrivent le rapprochement d'un appel.
+
 Les diagrammes métier par capacité (`DF-*`) sont inventoriés dans [`../../specifications/README.md`](../../specifications/README.md#inventaire-des-diagrammes-métier) ; les diagrammes de conception propres à un changement OpenSpec (`DC-*`) restent dans son `design.md`.
 
 ## Diagrammes à ajouter lorsque l’implémentation existe
