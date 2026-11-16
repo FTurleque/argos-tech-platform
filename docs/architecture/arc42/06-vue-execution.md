@@ -15,7 +15,7 @@ Cette section décrit des scénarios dynamiques. Ses participants portent des no
 | `External Adapters` | `scm-connector` et adaptateurs des sources | seul `scm-connector` est nommé en §5 |
 | `Project Intelligence` | aucun | composant absent de §5 (Project Intelligence complet en phase 3, baseline v2.3 §2.4) |
 | `Relais SMTP (Synology)` | aucun | système externe : serveur d’e-mails du NAS (§6.1.1) |
-| `Client desktop` | aucun | conteneur `argos-desktop` (ADR-0022), hors du backend (§6.1.1) |
+| `Client desktop` | aucun | conteneur `argos-desktop` (ADR-0022), hors du backend (§6.1.1, §6.1.2) |
 | `Scheduler & Jobs` | aucun | composant absent de §5 ; tâches planifiées Quarkus Scheduler dans les modules qui les portent (`alerting` §6.1.1, collecte de la veille web) ; aucun conteneur séparé (§6.5) |
 
 Les vues métier des fiches de [`docs/specifications/`](../../specifications/README.md) emploient les noms de la section 5.
@@ -103,6 +103,34 @@ sequenceDiagram
 ```
 
 L’indisponibilité de l’IA ou du serveur d’e-mails ne bloque ni les impacts ni l’enregistrement des alertes ; une alerte en échec d’envoi reste consultable dans Argos. L’évaluation est synchrone dans le fil de la corrélation : chaque signal qui produit une alerte attend au plus le délai du résumé IA (10 s) puis, par alerte e-mail, le délai d’envoi SMTP (`quarkus.mailer.timeout`, 10 s). Aucun verrou ni aucune transaction n’est tenu pendant l’envoi ; chaque tentative est comptée, quelle que soit la cause de l’échec. Le module `alerting` ne dépend pas d’`ai-gateway` (`ModuleBoundariesTest`) : le résumé passe par l’interface `ResumeIa`, sans implémentation livrée.
+
+### 6.1.2 Alerte sur le poste, clic et reprise après coupure
+
+**Type : UML sequence diagram. Portée : comportement implémenté (capacité [`notifications-poste`](../../specifications/notifications-poste.md)).**
+
+```mermaid
+sequenceDiagram
+    participant Alert as Alerting & Digest
+    participant UI as Client desktop (IHM, couche contenu)
+    participant Main as Client desktop (processus principal)
+    actor U as Utilisateur
+
+    loop toutes les 30 s, fenêtre visible ou masquée
+        UI->>Alert: GET /api/v1/alertes?canal=DESKTOP&etat=EN_ATTENTE
+        Alert-->>UI: alertes de l'appelant (RLS)
+        UI->>Main: compteur d'alertes ouvertes
+        opt alerte immédiate pas encore traitée pendant la session
+            UI->>Main: identifiant, titre, gravité, nombre de projets
+            Main-->>U: notification système si le poste et le système l'autorisent
+        end
+        UI->>Alert: POST /api/v1/alertes/{id}/remise
+    end
+    U->>Main: clic sur la notification
+    Main->>UI: fenêtre au premier plan sur la vue de l'alerte
+    Note over UI,Alert: coupure : « Hors ligne », nouvelle tentative après 5 s puis attente doublée (5 min au plus), puis au retour les alertes restées EN_ATTENTE sont notifiées et leur nombre affiché
+```
+
+Une alerte non confirmée reste `EN_ATTENTE` côté serveur : elle revient à la lecture suivante, sans perte ; les identifiants déjà traités pendant la session évitent une seconde notification.
 
 ## 6.2 Scénario nominal — activité GitHub/GitLab vers Project Intelligence
 

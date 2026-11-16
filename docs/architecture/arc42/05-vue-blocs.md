@@ -40,7 +40,9 @@ flowchart LR
 
 - même build Vue.js 3 que la SPA, servi par un protocole interne (`app://argos`) ;
 - notifications natives et icône de zone de notification ;
-- ni base de données ni serveur embarqué : client de l’API REST uniquement.
+- ni base de données ni serveur embarqué : client de l’API REST uniquement ;
+- alertes du poste (capacité [`notifications-poste`](../../specifications/notifications-poste.md)) : la couche contenu de l’IHM lit les alertes `DESKTOP` en attente et confirme leur remise ; le processus principal affiche la notification (titre, gravité, nombre de projets), tient le compteur d’alertes ouvertes de la zone de notification et les réglages du poste (notifications du poste, démarrage avec la session désactivé par défaut) ; il n’appelle pas l’API ;
+- fenêtre fermée, l’application reste dans la zone de notification ; quittée, plus rien ne tourne (aucun service en arrière-plan).
 
 ### Quarkus Backend
 
