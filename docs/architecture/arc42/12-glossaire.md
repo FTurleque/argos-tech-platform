@@ -43,6 +43,10 @@
 | **SAST** | Static Application Security Testing |
 | **DAST** | Dynamic Application Security Testing |
 | **CVE** | Common Vulnerabilities and Exposures |
+| **Signal de sécurité** | avis de vulnérabilité normalisé, unique par source et identifiant externe, avec sa provenance et l'historique de ses versions (exigences COL-01 à COL-03) |
+| **Inventaire** | liste de référence des composants d'un projet, issue de la SBOM CycloneDX de la branche principale ou, à défaut, des manifestes, avec son origine et sa date (INV-01, INV-04) |
+| **Composant** | élément d'un inventaire identifié par son PURL et sa version, direct ou transitif (INV-01, INV-02) |
+| **Niveau d'impact** | confiance d'un impact : `exact`, `probable` ou `à vérifier` (COR-02) ; distinct du cycle de traitement d'un impact |
 | **OTLP** | OpenTelemetry Protocol |
 | **POC** | Proof of Concept |
 | **MVP** | Minimum Viable Product |

@@ -102,13 +102,13 @@ Le dépôt ne contient aucune spec de référence ni aucun changement d'un autre
 
 | Capacité | Exigences | Scénarios | Diagrammes métier | Questions ouvertes | Tests écrits |
 |---|---:|---:|---:|---:|---:|
-| `collecte-avis-securite` | 8 | 18 | 3 | 4 | 0 |
-| `inventaire-sbom` | 5 | 8 | 2 | 5 | 0 |
-| `correlation-impact` | 8 | 14 | 3 | 4 | 0 |
-| `abonnements-veille` | 5 | 7 | 2 | 4 | 0 |
-| **Total** | **26** | **47** | **10** | **17** | **0** |
+| `collecte-avis-securite` | 8 | 18 | 3 | 4 | 19 |
+| `inventaire-sbom` | 5 | 9 | 2 | 5 | 12 |
+| `correlation-impact` | 8 | 16 | 3 | 4 | 23 |
+| `abonnements-veille` | 6 | 10 | 2 | 4 | 10 |
+| **Total** | **27** | **53** | **10** | **17** | **64** |
 
-Toutes les exigences sont au statut [PROPOSITION] : elles dérivent d'ADR « Proposé » ou de baselines « à valider ». Matrice détaillée : [`tasks.md` du changement](/openspec/changes/formaliser-chaine-securite-poc/tasks.md#matrice-de-traçabilité).
+Toutes les exigences sont au statut [PROPOSITION] : elles dérivent d'ADR « Proposé » ou de baselines « à valider ». Les tests écrits sont ceux d'`argos-server/src/test/java/io/argos/chain/` et `architecture/SubscriptionIsolationTest.java`, exécutés par `mvn -B -f argos-server/pom.xml verify`. Matrice détaillée : [`tasks.md` du changement](/openspec/changes/formaliser-chaine-securite-poc/tasks.md#matrice-de-traçabilité).
 
 ### Couverture de `personnaliser-profils-et-affichage`
 

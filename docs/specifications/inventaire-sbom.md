@@ -5,7 +5,7 @@
 | Préfixe d'exigences | `INV` |
 | Spec de référence | `/openspec/specs/inventaire-sbom/spec.md` — absente : capacité non livrée |
 | Changement en cours | [`formaliser-chaine-securite-poc`](/openspec/changes/formaliser-chaine-securite-poc/specs/inventaire-sbom/spec.md) — proposé, non archivé |
-| Statut de la capacité | **proposée** — aucune implémentation dans le dépôt |
+| Statut de la capacité | **proposée**, implémentée dans `argos-server` (changement non archivé) : paquets `io.argos.scm`, `io.argos.inventory` |
 | Composants (arc42 §5) | `inventory`, `scm-connector`, adaptateur PostgreSQL |
 
 Tout le contenu de cette fiche porte le statut [PROPOSITION] (changement `formaliser-chaine-securite-poc`) sauf mention contraire.
@@ -36,7 +36,7 @@ Répondre de façon fiable à la question « quels composants, et dans quelles v
 
 | Entrée / sortie | Contenu | Validation ou contrainte | Statut |
 |---|---|---|---|
-| Entrée : SBOM CycloneDX | composants, PURL, versions, graphe de dépendances, date | document CycloneDX exploitable ; versions de schéma acceptées non définies (Q-7) | [PROPOSITION] |
+| Entrée : SBOM CycloneDX | composants, PURL, versions, graphe de dépendances, date | document CycloneDX JSON exploitable, schéma 1.5 ou 1.6 (décision du 2026-11-16, Q-7) | [PROPOSITION] |
 | Entrée : manifeste de dépendances | dépendances déclarées | utilisé seulement sans SBOM | [PROPOSITION] |
 | Sortie : inventaire du projet | composants, PURL, version, direct/transitif, origine (SBOM ou manifeste), date de la source | un inventaire de référence par projet | [PROPOSITION] |
 | Sortie : échec d'import | motif | consultable | [PROPOSITION] |
@@ -67,7 +67,7 @@ L'inventaire appartient au projet et suit le cloisonnement par espace (ADR-0016,
 |---|---|---|---|
 | Couverture SBOM des projets pilotes | 2 projets pilotes avec SBOM fraîche, transitives incluses | baseline v2.3 §6 critère 2 | [PROPOSITION] |
 | Réponse « projets touchés » | < 5 min | ADR-0011, traçabilité | [QUESTION] — cible non validée |
-| Seuil d'obsolescence d'une SBOM | non défini | ADR-0011 | [QUESTION Q-3 du changement] |
+| Seuil d'obsolescence d'une SBOM | 30 jours après la date de génération ; une SBOM sans date de génération est traitée comme obsolète | ADR-0011 ; décision du 2026-11-16 (Q-3) | [DÉCISION] |
 
 ## Diagrammes
 
@@ -111,7 +111,7 @@ L'envoi vers `impact-engine` est asynchrone et matérialise l'effet de bord « n
 ```mermaid
 flowchart TD
     P["Projet suivi"] --> S{"SBOM CycloneDX de la<br/>branche principale importée ?"}
-    S -- oui --> O{"SBOM obsolète ?<br/>(seuil non défini, Q-3)"}
+    S -- oui --> O{"SBOM générée depuis<br/>plus de 30 jours ? (Q-3)"}
     O -- non --> R1["Inventaire SBOM<br/>niveau exact possible (COR-02)"]
     O -- oui --> R2["Inventaire SBOM obsolète<br/>niveau autre que exact (COR-06)"]
     S -- non --> M{"Manifeste lisible ?"}
@@ -150,4 +150,4 @@ Aucun écart avec du code : aucun code n'existe.
 
 ## Traçabilité
 
-Voir la matrice du changement : [`tasks.md`](/openspec/changes/formaliser-chaine-securite-poc/tasks.md#matrice-de-traçabilité). Aucun test n'existe à ce jour.
+Voir la matrice du changement : [`tasks.md`](/openspec/changes/formaliser-chaine-securite-poc/tasks.md#matrice-de-traçabilité). Les scénarios INV-01-S1 à INV-05-S1 sont vérifiés par `argos-server/src/test/java/io/argos/chain/InventoryTest.java` et `DocumentParsingTest.java`. La récupération GitLab et GitHub n'est testée que sur des réponses simulées (tâche 3.2 ouverte).

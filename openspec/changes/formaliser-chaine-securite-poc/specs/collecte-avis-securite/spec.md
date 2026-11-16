@@ -95,8 +95,8 @@ Source : arc42 §6.3 (règles proposées) ; arc42 §10.2 Q-03 ; QS-03, QS-07. St
 - **AND** aucun avis enregistré avant l'arrêt n'est perdu ni dupliqué
 
 ### Requirement: COL-06 Nouvelles tentatives bornées
-Le système DOIT (MUST) distinguer les erreurs transitoires des erreurs permanentes d'une source, retenter les erreurs transitoires avec un délai croissant et un nombre maximal de tentatives configuré, et respecter le délai `Retry-After` indiqué par la source.
-Source : arc42 §6.3 ; arc42 §8.5 ; QS-03. Statut : [PROPOSITION].
+Le système DOIT (MUST) distinguer les erreurs transitoires des erreurs permanentes d'une source, retenter les erreurs transitoires avec un délai croissant et un nombre maximal de tentatives configuré, 5 par synchronisation par défaut, et respecter le délai `Retry-After` indiqué par la source.
+Source : arc42 §6.3 ; arc42 §8.5 ; QS-03 ; décision du 2026-11-16 (question Q-4). Statut : [PROPOSITION].
 
 #### Scenario: COL-06-S1 Limitation de débit avec Retry-After
 - **GIVEN** une source qui répond 429 avec un en-tête `Retry-After`
@@ -117,8 +117,8 @@ Source : arc42 §6.3 ; arc42 §8.5 ; QS-03. Statut : [PROPOSITION].
 - **AND** aucune nouvelle tentative automatique n'est planifiée pour cette erreur
 
 ### Requirement: COL-07 Source dégradée visible
-Le système DOIT (MUST) placer une source en état `DEGRADED` lorsque son seuil d'échec configuré est atteint, créer un événement d'exploitation et exposer cet état à l'exploitant.
-Source : arc42 §6.3 ; arc42 §8.6. Statut : [PROPOSITION].
+Le système DOIT (MUST) placer une source en état `DEGRADED` lorsque son seuil d'échec configuré est atteint, 3 synchronisations consécutives en échec par défaut, créer un événement d'exploitation et exposer cet état à l'exploitant.
+Source : arc42 §6.3 ; arc42 §8.6 ; décision du 2026-11-16 (question Q-4). Statut : [PROPOSITION].
 
 #### Scenario: COL-07-S1 Seuil d'échec atteint
 - **GIVEN** une source dont les synchronisations échouent
