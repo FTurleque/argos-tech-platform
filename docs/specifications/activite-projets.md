@@ -4,64 +4,76 @@
 |---|---|
 | Préfixe d'exigences | `PIN` |
 | Spec de référence | `/openspec/specs/activite-projets/spec.md` — absente tant qu'aucun changement n'est archivé |
-| Changements en cours | [`mesurer-activite-projets`](/openspec/changes/mesurer-activite-projets/proposal.md) (proposé) |
-| Statut de la capacité | proposée |
-| Composants (arc42 §5) | `project-intel`, `scm-connector`, `ai-gateway` |
+| Changements en cours | [`mesurer-activite-projets`](/openspec/changes/mesurer-activite-projets/proposal.md) (implémenté côté serveur, non archivé) |
+| Statut de la capacité | proposée ; implémentation et tests dans `argos-server`, aucun écran dans `argos-ui`, aucune implémentation de la synthèse IA dans `ai-gateway`, changement non archivé |
+| Composants (arc42 §5) | `project-intel`, `scm-connector`, `ai-gateway`, `API & Security` |
 
 ## Objectif
 
-[PROPOSITION — `mesurer-activite-projets`] Voir où en sont les projets à partir de faits vérifiables, sans pourcentage inventé et sans surveiller personne.
+[EXISTANT — `mesurer-activite-projets`] Voir où en sont les projets à partir de faits vérifiables, sans pourcentage inventé et sans surveiller personne.
 
 ## Acteurs
 
 | Acteur | Interaction | Statut |
 |---|---|---|
-| Utilisateur | consulte l'activité des projets de son espace | [PROPOSITION] — arc42 §6.2 |
-| GitHub / GitLab | fournissent les données d'activité | [PROPOSITION] — `scm-connector` |
+| Utilisateur | consulte l'activité et la synthèse des projets de ses espaces par l'API REST (`GET /api/v1/projects/{id}/activite`, `/activite/synthese`) | [EXISTANT] — `ActiviteProjetsTest`, `ParcoursActiviteTest` ; aucun écran dans `argos-ui` |
+| GitHub / GitLab | fournissent tickets, demandes de fusion, jalons, pipelines et versions par leurs API REST, lues en lecture seule | [EXISTANT] — `RepositoryActivity` (`io.argos.scm`), forges simulées par un serveur HTTP local dans les tests |
+| Passerelle IA | produit la synthèse à partir des indicateurs affichés, par le point d'extension `SyntheseIa` | [PROPOSITION] — aucune implémentation livrée ; capacité [`passerelle-ia`](passerelle-ia.md) |
 
 ## Périmètre et exclusions
 
 Inclus :
 
-- Indicateurs par projet et par jalon ; synthèse.
+- Compteurs par projet et par période : tickets ouverts et fermés, demandes de fusion ouvertes et fusionnées, pipelines réussis, échoués et autres, versions publiées.
+- Jalons ouverts, ou fermés pendant la fenêtre de collecte, avec leur avancement « fermés sur total ».
+- Synthèse marquée « produite par l'IA », fondée sur les seuls indicateurs affichés.
+- GitHub et GitLab dès la première version (décision du 2026-11-16, Q-1).
 
 Exclus :
 
-- Toute mesure de productivité individuelle.
+- Toute mesure de productivité individuelle, tout classement de personnes.
 - Les outils autres que GitHub et GitLab.
+- L'écran de l'activité dans le portail et le client desktop.
+- Les webhooks : la collecte est planifiée (*polling*) [PROPOSITION].
 
 ## Préconditions et déclencheurs
 
-Projet relié à un dépôt GitHub ou GitLab ; jeton en lecture seule fourni.
+Projet relié à un dépôt GitHub (`owner/repo`) ou GitLab (chemin ou identifiant). Jeton facultatif par forge (`ARGOS_GITHUB_TOKEN`, `ARGOS_GITLAB_TOKEN`), en lecture seule : GitLab `read_api`, GitHub jeton à granularité fine en lecture seule [PROPOSITION]. La collecte est déclenchée par le planificateur (`argos.activite.cadence`, 1 h) pour chaque projet dont la collecte est échue (une fois par 24 h) [PROPOSITION].
 
 ## Entrées, sorties et validations
 
 | Entrée / sortie | Contenu | Validation ou contrainte | Statut |
 |---|---|---|---|
-| Activité du dépôt | tickets, demandes de fusion, jalons, pipelines, versions | agrégée sans identité (PIN-03) | [PROPOSITION] |
-| Indicateur | compteur ou avancement avec dénominateur | dénominateur explicite (PIN-02) | [PROPOSITION] |
+| Activité du dépôt | dates de création, de fermeture, de fusion et de publication ; issue des pipelines ; jalons (titre, état, échéance, tickets fermés et total) | lue dans des structures sans champ d'identité ; titres de jalons nettoyés des caractères de contrôle et tronqués à 200 caractères ; réponses de 5 Mio au plus, 10 pages de 100 éléments par liste et 50 jalons au plus (collecte marquée incomplète au-delà) | [EXISTANT] — `AgregationEtIdentiteTest`, `ActiviteProjetsTest.contratGitlab` |
+| Compteurs | somme des compteurs quotidiens sur la période demandée | `jours` de 1 à 397, 30 par défaut ; sinon 400 `PERIODE_INVALIDE` | [EXISTANT] — `ActiviteProjetsTest.pin01S1ProjetReliéGithubIndicateursSur30Jours` |
+| Avancement d'un jalon | « 27 sur 30 (90 %) » | dénominateur strictement positif ; pourcentage arrondi à l'entier inférieur [PROPOSITION] | [EXISTANT] — `AvancementTest` |
+| Fraîcheur | état de la collecte, date de dernière mise à jour, prochaine collecte, complétude, premier jour couvert, motif | motif sans jeton | [EXISTANT] — `ActiviteProjetsTest.pin05S1QuotaEpuiseCollecteReporteeEtAgeAffiche` |
+| Synthèse | état, texte, mention « produite par l'IA », période, indicateurs dont elle découle | texte brut de 2 000 caractères au plus ; refusée si elle cite un nombre absent des indicateurs affichés | [EXISTANT] — `ActiviteProjetsTest.pin04S1SyntheseMarqueeEtFondeeSurLesIndicateurs` |
 
 ## Règles métier
 
 | Règle | Exigence(s) | Source | Statut |
 |---|---|---|---|
-| Indicateurs factuels par projet | PIN-01 | baseline v2.3 §2.4  | [PROPOSITION] |
-| Pourcentage avec dénominateur explicite | PIN-02 | risque R-02  | [PROPOSITION] |
-| Aucune mesure individuelle | PIN-03 | risque R-09 | [PROPOSITION] |
-| Synthèse IA marquée | PIN-04 | IAG-05  | [PROPOSITION] |
-| Connexion en lecture seule et quotas | PIN-05 | risque R-14  | [PROPOSITION] |
+| Indicateurs factuels par projet, avec leur période | PIN-01 | baseline v2.3 §2.4 | [EXISTANT] — `ActiviteProjetsTest`, `ParcoursActiviteTest` |
+| Pourcentage seulement avec un dénominateur explicite ; aucun indicateur calculé par l'IA | PIN-02 | risque R-02 | [EXISTANT] — `AvancementTest`, `AgregationEtIdentiteTest.syntheseRefuseUnChiffreAbsentDesIndicateurs` |
+| Aucune mesure individuelle : agrégation par jour avant stockage, aucune colonne ni aucun champ d'identité | PIN-03 | risque R-09 ; décision D1 | [EXISTANT] — `ActiviteProjetsTest.pin03S1AucunIndicateurParPersonne`, `AgregationEtIdentiteTest.pin03S1AucuneIdentiteDansLesStructuresDeLActivite` |
+| Synthèse marquée « produite par l'IA », renvoyant aux indicateurs | PIN-04 | IAG-05 | [EXISTANT] — avec une synthèse simulée ; aucune implémentation réelle |
+| Lecture seule (`GET` uniquement, aucune redirection suivie) ; quota épuisé : collecte reportée après la réinitialisation annoncée, âge des données affiché | PIN-05 | risque R-14 | [EXISTANT] — `ActiviteProjetsTest.pin05S1QuotaEpuiseCollecteReporteeEtAgeAffiche`, `contratGithubLectureSeuleSansRedirectionNiJeton` |
+| Historique conservé 13 mois puis supprimé chaque jour | — | décision du 2026-11-16 (Q-2) | [EXISTANT] — `ActiviteProjetsTest.purgeDeLHistoriqueAuDelaDeTreizeMois` |
+
+Un quota épuisé est reconnu à une réponse 429, ou 403 avec `x-ratelimit-remaining: 0` ; la reprise vient de `Retry-After`, de `x-ratelimit-reset` (GitHub) ou de `RateLimit-Reset` (GitLab), bornée à 24 heures, 1 heure par défaut. Les projets suivants de la même forge sont reportés à la même date sans appel [PROPOSITION].
 
 ## Droits d'accès et restrictions
 
-Indicateurs visibles des membres de l'espace du projet.
+Activité et synthèse visibles des seuls membres de l'espace du projet, quel que soit leur rôle. Un non-membre reçoit 404 sans révéler l'existence du projet et le refus est journalisé (`refus_acces`). Sous `argos_app`, la RLS des tables `activite_*` ne laisse lire que les projets des espaces du compte courant (ADR-0016) [EXISTANT — `ActiviteProjetsTest.cloisonnementSousArgosAppEtRefusJournalise`]. Les demandes de synthèse sont limitées à 10 par minute et par compte (`LimiteurDebit`) [PROPOSITION].
 
 ## Effets de bord observables
 
-Agrégats enregistrés ; aucune écriture dans les dépôts.
+Compteurs quotidiens, jalons et état de collecte enregistrés (`activite_compteur`, `activite_jalon`, `activite_collecte`) ; aucune écriture dans les dépôts. Une collecte rejouée sur la même fenêtre produit le même résultat.
 
 ## Qualités mesurables
 
-[QUESTION] Aucune cible chiffrée dans les sources ; voir les questions ouvertes.
+[QUESTION] Aucune cible chiffrée dans les sources ; la cible de consultation de arc42 §10 (Q-05) s'applique quand elle est pertinente.
 
 ## Diagrammes
 
@@ -69,7 +81,7 @@ Agrégats enregistrés ; aucune écriture dans les dépôts.
 
 - **Question** : quand un pourcentage d'avancement s'affiche-t-il ?
 - **Type** : organigramme
-- **Portée** : cible proposée
+- **Portée** : comportement implémenté (`Avancement`, `ActiviteResource`)
 - **Exigences** : PIN-02, PIN-03
 
 ```mermaid
@@ -81,19 +93,21 @@ flowchart TD
     C -- "oui" --> E["« 27 sur 30 (90 %) »"]
 ```
 
-Un pourcentage n'apparaît qu'avec son dénominateur, et jamais pour une personne.
+Un pourcentage n'apparaît qu'avec son dénominateur, et jamais pour une personne : l'API n'a ni paramètre ni opération par personne.
 
 ## Critères d'acceptation
 
-Scénarios PIN-01-S1 à PIN-05-S1 du changement ; aucun scénario qualité transverse supplémentaire.
+Scénarios PIN-01-S1 à PIN-05-S1 du changement ; parcours de bout en bout `ParcoursActiviteTest`.
 
 ## Interprétations introduites par un changement
 
-- Aucune donnée d'identité conservée, même temporairement (décision D1) : à faire valider.
+- Aucune donnée d'identité conservée, même temporairement (décision D1) : les réponses des forges sont lues dans des structures qui ne déclarent aucun champ d'identité [PROPOSITION] : à faire valider.
+- Les compteurs « ouverts » et « fermés » comptent les tickets créés et fermés pendant la période, non les tickets ouverts à une date [PROPOSITION].
+- Un jalon GitHub compte les tickets et les pull requests qui lui sont rattachés, comme l'API GitHub ; un jalon GitLab compte les tickets de même titre (`issues_statistics`) [PROPOSITION].
 
 ## Écarts constatés
 
-Aucun écart constaté.
+- PIN-04 : la synthèse n'est produite que si une implémentation de `SyntheseIa` existe ; aucune n'est livrée tant que la capacité [`passerelle-ia`](passerelle-ia.md) n'est pas implémentée. Sans elle, l'état vaut `INDISPONIBLE` et les indicateurs restent affichés. La passerelle emploie un modèle local Ollama (MIT), sans API payante (décision Q-1 de `encadrer-appels-ia`) ; `project-intel` n'appelle aucun fournisseur directement.
 
 ## Questions ouvertes
 
@@ -106,8 +120,8 @@ Aucun écart constaté.
 
 | Exigence | Scénarios | Conception / diagramme | Tâche | Test ou preuve |
 |---|---|---|---|---|
-| PIN-01 | PIN-01-S1 | Composants | 1.2 | à écrire |
-| PIN-02 | PIN-02-S1, PIN-02-S2 | Composants | 2.1 | à écrire |
-| PIN-03 | PIN-03-S1 | Composants | 1.2 | à écrire |
-| PIN-04 | PIN-04-S1 | Composants | 2.2 | à écrire |
-| PIN-05 | PIN-05-S1 | Composants | 1.1 | à écrire |
+| PIN-01 | PIN-01-S1 | Composants, D1 | 1.2 | `ActiviteProjetsTest.pin01S1ProjetReliéGithubIndicateursSur30Jours`, `contratGitlab`, `ParcoursActiviteTest` |
+| PIN-02 | PIN-02-S1, PIN-02-S2 | Composants, D3, DF-PIN-1 | 2.1 | `AvancementTest`, `ActiviteProjetsTest.pin02S1EtS2AvancementAvecDenominateurSeulement` |
+| PIN-03 | PIN-03-S1 | Persistance, D1 | 1.2 | `ActiviteProjetsTest.pin03S1AucunIndicateurParPersonne`, `AgregationEtIdentiteTest.pin03S1AucuneIdentiteDansLesStructuresDeLActivite` |
+| PIN-04 | PIN-04-S1 | Composants, D4 | 2.2 | `ActiviteProjetsTest.pin04S1SyntheseMarqueeEtFondeeSurLesIndicateurs` (synthèse simulée) |
+| PIN-05 | PIN-05-S1 | Gestion des erreurs, D2 | 1.1 | `ActiviteProjetsTest.pin05S1QuotaEpuiseCollecteReporteeEtAgeAffiche`, `contratGithubLectureSeuleSansRedirectionNiJeton` |

@@ -76,6 +76,7 @@ flowchart TB
     MCP["«Component»\nmcp-server\nlecture seule"]
     AI["«Component»\nai-gateway"]
     SCM["«adapter»\nscm-connector"]
+    PROJ["«Component»\nproject-intel"]
     AUDIT["«Component»\naudit"]
     DB["«adapter»\nPostgreSQL"]
 
@@ -93,6 +94,10 @@ flowchart TB
     REG --> AI
     IMPACT --> AI
     SCM --> INVENTORY
+    SCM --> PROJ
+    INVENTORY --> PROJ
+    API --> PROJ
+    PROJ --> DB
     WORK --> ALERT
     WORK --> MCP
     WORK --> DB
@@ -116,7 +121,8 @@ flowchart TB
 | ai-gateway | prompts, modèles, quotas, structured output, audit | exposer Claude directement au domaine |
 | mcp-server | huit outils MCP en lecture seule sur `POST /mcp` (Streamable HTTP sans état) ; appelant établi par `api.security`, limitation de débit, journal des appels (`audit`), contenu externe balisé et tronqué (`io.argos.mcp`, fiche [`serveur-mcp`](../../specifications/serveur-mcp.md)) | modifier le domaine ; dépendre de `api` hors `api.security` |
 | alerting | règles d’alerte et digests ; rappels d’échéance et annonces de standard du radar (`RappelsRadar`) | accorder des droits d’accès |
-| scm-connector | GitLab/API/webhooks/SBOM | injecter les payloads fournisseurs dans le domaine |
+| scm-connector | GitLab/API/webhooks/SBOM ; activité GitHub et GitLab en lecture seule, sans identité, quotas (`RepositoryActivity`, `QuotaEpuise`) | injecter les payloads fournisseurs dans le domaine ; écrire dans un dépôt |
+| project-intel | collecte planifiée et agrégation par jour de l'activité des dépôts, avancement des jalons avec dénominateur, synthèse IA marquée par le point d'extension `SyntheseIa`, purge à 13 mois (`io.argos.projectintel`, fiche [`activite-projets`](../../specifications/activite-projets.md)) | stocker ou restituer une identité de personne ; laisser l'IA calculer un indicateur |
 
 ## 5.4 Personnalisation
 
@@ -174,7 +180,7 @@ flowchart LR
 
 ## 5.6 C4 Code
 
-Le socle `argos-server/` matérialise chaque composant de §5.2 par un paquet Java `io.argos.<module>` (par exemple `impact` pour `impact-engine`, `ingestion` pour `source-ingestion`). Les dépendances autorisées entre modules sont vérifiées par `argos-server/src/test/java/io/argos/architecture/ModuleBoundariesTest.java`. Les paquets `ingestion`, `signal`, `vulnintel`, `scm`, `inventory`, `impact`, `workspace`, `audit` et `api` portent la chaîne sécurité du POC (changement `formaliser-chaine-securite-poc`) ainsi que les comptes, les espaces et les rôles (changement `gerer-comptes-et-acces`) ; `catalog`, `workspace.preference` et `api` portent le catalogue des profils et des mises en page et les préférences utilisateur (§5.4.1) ; `mcp` porte le serveur MCP (changement `exposer-serveur-mcp`), qui lit le référentiel des standards, le calendrier des sorties et les fiches réglementaires par les points d'extension `catalog.standard`, `releaseradar` et `regintel` ; `ingestion.web`, `signal.web` et `impact` portent la veille RSS/Atom et les pages surveillées (changement `collecter-veille-rss-web`, ADR-0028) ; `signal` n'emprunte à `workspace` que le contexte RLS `ContexteBase` et les erreurs communes `DonneeInvalide` et `RegleViolee` (règle `signalNEmprunteQueRlsEtErreurs`) ; `alerting` porte les alertes et les résumés (changement `diffuser-alertes-et-digests`) ; `impact` (`RechercheVeille`), `api.recherche` et `workspace.vue` portent la recherche plein texte, ses filtres et les vues enregistrées, et l'outil MCP `search_signals` emploie la même requête (changement `rechercher-et-filtrer`) ; `catalog.standard`, `releaseradar`, `impact` (`RadarProjets`) et `alerting` (`RappelsRadar`) portent le référentiel des standards et le radar des sorties (changement `construire-radar-et-standards`, §8.15) ; `catalog` n’emprunte à `workspace` que `ContexteBase` et les erreurs communes, dans le seul paquet `catalog.standard` (règle `catalogNEmprunteQueRlsEtErreurs`), et `impact` lit le référentiel de `catalog` pour la dette de version et les annonces ; les autres paquets ne contiennent aucun code métier.
+Le socle `argos-server/` matérialise chaque composant de §5.2 par un paquet Java `io.argos.<module>` (par exemple `impact` pour `impact-engine`, `ingestion` pour `source-ingestion`). Les dépendances autorisées entre modules sont vérifiées par `argos-server/src/test/java/io/argos/architecture/ModuleBoundariesTest.java`. Les paquets `ingestion`, `signal`, `vulnintel`, `scm`, `inventory`, `impact`, `workspace`, `audit` et `api` portent la chaîne sécurité du POC (changement `formaliser-chaine-securite-poc`) ainsi que les comptes, les espaces et les rôles (changement `gerer-comptes-et-acces`) ; `catalog`, `workspace.preference` et `api` portent le catalogue des profils et des mises en page et les préférences utilisateur (§5.4.1) ; `mcp` porte le serveur MCP (changement `exposer-serveur-mcp`), qui lit le référentiel des standards, le calendrier des sorties et les fiches réglementaires par les points d'extension `catalog.standard`, `releaseradar` et `regintel` ; `ingestion.web`, `signal.web` et `impact` portent la veille RSS/Atom et les pages surveillées (changement `collecter-veille-rss-web`, ADR-0028) ; `signal` n'emprunte à `workspace` que le contexte RLS `ContexteBase` et les erreurs communes `DonneeInvalide` et `RegleViolee` (règle `signalNEmprunteQueRlsEtErreurs`) ; `alerting` porte les alertes et les résumés (changement `diffuser-alertes-et-digests`) ; `impact` (`RechercheVeille`), `api.recherche` et `workspace.vue` portent la recherche plein texte, ses filtres et les vues enregistrées, et l'outil MCP `search_signals` emploie la même requête (changement `rechercher-et-filtrer`) ; `catalog.standard`, `releaseradar`, `impact` (`RadarProjets`) et `alerting` (`RappelsRadar`) portent le référentiel des standards et le radar des sorties (changement `construire-radar-et-standards`, §8.15) ; `catalog` n’emprunte à `workspace` que `ContexteBase` et les erreurs communes, dans le seul paquet `catalog.standard` (règle `catalogNEmprunteQueRlsEtErreurs`), et `impact` lit le référentiel de `catalog` pour la dette de version et les annonces ; `projectintel`, `scm` et `api` portent l'activité des projets (changement `mesurer-activite-projets`), et `projectintel` n'emprunte à `workspace` que `ContexteBase` et `DonneeInvalide` (règle `projectintelNEmprunteQueRlsEtErreurs`) ; les autres paquets ne contiennent aucun code métier.
 
 ## 5.7 Modèle métier conceptuel (D-05)
 

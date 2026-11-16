@@ -50,7 +50,7 @@ Un préfixe n'est jamais réattribué ; un identifiant d'exigence retiré n'est 
 | `radar-standards` | `RAD` | [fiche](radar-standards.md) | [spec](/openspec/specs/radar-standards/spec.md) | `2026-11-16-construire-radar-et-standards` (archivé) | livrée |
 | `veille-rss-web` | `WEB` | [fiche](veille-rss-web.md) | [spec](/openspec/specs/veille-rss-web/spec.md) | `2026-11-16-collecter-veille-rss-web` (archivé) | livrée |
 | `recherche-veille` | `RCH` | [fiche](recherche-veille.md) | absente | `rechercher-et-filtrer` | proposée |
-| `activite-projets` | `PIN` | [fiche](activite-projets.md) | absente | `mesurer-activite-projets` | proposée |
+| `activite-projets` | `PIN` | [fiche](activite-projets.md) | absente | `mesurer-activite-projets` | implémentée côté serveur, non archivée |
 | `profil-artiste` | `ART` | [fiche](profil-artiste.md) | absente | `ajouter-profil-artiste` | proposée |
 
 ## Inventaire des diagrammes métier
@@ -157,7 +157,7 @@ Pour `rechercher-et-filtrer`, « Tests écrits » compte les scénarios RCH-01-S
 
 | Changement | Capacité | Exigences | Scénarios | Diagrammes métier | Questions ouvertes | Tests écrits |
 |---|---|---|---|---|---|---|
-| [`mesurer-activite-projets`](/openspec/changes/mesurer-activite-projets/proposal.md) | `activite-projets` | 5 | 6 | 1 | 2 | 0 |
+| [`mesurer-activite-projets`](/openspec/changes/mesurer-activite-projets/proposal.md) | `activite-projets` | 5 | 6 | 1 | 0 | 6 |
 | [`ajouter-profil-artiste`](/openspec/changes/ajouter-profil-artiste/proposal.md) | `profil-artiste` | 6 | 8 | 1 | 4 | 0 |
 | **Total** | | **11** | **14** | **2** | **6** | **0** |
 

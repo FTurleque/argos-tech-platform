@@ -27,7 +27,7 @@ Chaque relation doit porter une action et le protocole lorsqu’il est architect
 | D-04 | C4 Component | ARGOS Backend | `arc42/05-vue-blocs.md` |
 | D-05 | UML classDiagram | modèle métier conceptuel | `arc42/05-vue-blocs.md` §5.7 |
 | D-06 | UML sequenceDiagram | signal techno → impact projet | `arc42/06-vue-execution.md` |
-| D-07 | UML sequenceDiagram | webhook projet | `arc42/06-vue-execution.md` |
+| D-07 | UML sequenceDiagram | collecte planifiée de l’activité d’un projet GitHub/GitLab, report sur quota, consultation sous RLS | `arc42/06-vue-execution.md` §6.2 |
 | D-08 | UML sequenceDiagram | erreur API/retry | `arc42/06-vue-execution.md` |
 | D-09 | UML sequenceDiagram | redémarrage/reprise | `arc42/06-vue-execution.md` |
 | D-10 | UML-style deployment | POC/MVP : deux vues, POC local et POC partagé sur VM | `arc42/07-vue-deploiement.md` §7.2 et §7.3 |

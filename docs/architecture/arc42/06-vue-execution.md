@@ -13,10 +13,10 @@ Cette section décrit des scénarios dynamiques. Ses participants portent des no
 | `Persistence Adapter` | adaptateur `PostgreSQL` | — |
 | `Alerting & Digest` | `alerting` | — |
 | `External Adapters` | `scm-connector` et adaptateurs des sources | seul `scm-connector` est nommé en §5 |
-| `Project Intelligence` | aucun | composant absent de §5 (Project Intelligence complet en phase 3, baseline v2.3 §2.4) |
+| `Project Intelligence` | `project-intel` | activité factuelle des projets (§6.2, fiche [`activite-projets`](../../specifications/activite-projets.md)) |
 | `Relais SMTP (Synology)` | aucun | système externe : serveur d’e-mails du NAS (§6.1.1) |
 | `Client desktop` | aucun | conteneur `argos-desktop` (ADR-0022), hors du backend (§6.1.1, §6.1.2) |
-| `Scheduler & Jobs` | aucun | composant absent de §5 ; tâches planifiées Quarkus Scheduler dans les modules qui les portent (`alerting` §6.1.1, collecte de la veille web) ; aucun conteneur séparé (§6.5) |
+| `Scheduler & Jobs` | aucun | composant absent de §5 ; tâches planifiées Quarkus Scheduler dans les modules qui les portent (`alerting` §6.1.1, collecte de la veille web, collecte de l’activité des projets §6.2) ; aucun conteneur séparé (§6.5) |
 
 Les vues métier des fiches de [`docs/specifications/`](../../specifications/README.md) emploient les noms de la section 5.
 
@@ -134,34 +134,42 @@ Une alerte non confirmée reste `EN_ATTENTE` côté serveur : elle revient à la
 
 ## 6.2 Scénario nominal — activité GitHub/GitLab vers Project Intelligence
 
-**Type : UML sequence diagram. Portée : réception d’un webhook projet.**
+**Type : UML sequence diagram. Portée : collecte planifiée de l’activité d’un projet relié à un dépôt, puis consultation (changement `mesurer-activite-projets`).**
 
 ```mermaid
 sequenceDiagram
-    participant Ext as «Software System» GitHub/GitLab
-    participant API as API & Security
-    participant Ingestion as Ingestion
+    actor User as Utilisateur ARGOS
+    participant Sched as Scheduler & Jobs
     participant Proj as Project Intelligence
     participant Core as Workspace & Project Core
+    participant Ext as External Adapters
+    participant Forge as «Software System» GitHub/GitLab
+    participant API as API & Security
     participant Persist as Persistence Adapter
-    participant Alert as Alerting & Digest
 
-    Ext->>API: webhook HTTPS signé
-    API->>API: vérifier signature, horodatage et taille
-    API->>Ingestion: transmettre événement accepté
-    Ingestion->>Persist: vérifier idempotence
-    Persist-->>Ingestion: événement inconnu
-    Ingestion->>Ingestion: normaliser en ProjectActivity
-    Ingestion->>Persist: enregistrer payload/provenance
-    Ingestion->>Proj: traiter ProjectActivity
-    Proj->>Core: résoudre Repository vers Project
-    Core->>Persist: charger configuration projet
-    Persist-->>Core: retourner projet
-    Core-->>Proj: retourner contexte
-    Proj->>Proj: recalculer métriques factuelles concernées
-    Proj->>Persist: enregistrer métriques et signaux
-    Proj->>Alert: évaluer risques/blocages configurés
+    Sched->>Proj: cadence horaire : chercher les projets échus
+    Proj->>Core: projets reliés à un dépôt
+    Core-->>Proj: projets et références de dépôt
+    Proj->>Ext: activité depuis le début de la fenêtre (30 jours)
+    Ext->>Forge: requêtes GET en lecture seule, pagination bornée
+    alt quota épuisé (429 ou 403 avec x-ratelimit-remaining à 0)
+        Forge-->>Ext: date de réinitialisation
+        Ext-->>Proj: quota épuisé
+        Proj->>Persist: collecte REPORTEE_QUOTA jusqu’à la réinitialisation, données conservées
+    else réponse lue
+        Forge-->>Ext: tickets, demandes de fusion, jalons, pipelines, versions
+        Ext-->>Proj: dates et états, sans identité de personne
+        Proj->>Proj: agréger par jour et par type
+        Proj->>Persist: remplacer les compteurs de la fenêtre et les jalons, collecte A_JOUR
+    end
+    User->>API: GET /api/v1/projects/{id}/activite?jours=30
+    API->>Proj: membre de l’espace du projet
+    Proj->>Persist: lire sous argos_app (RLS)
+    Persist-->>Proj: compteurs, jalons, fraîcheur
+    Proj-->>API: indicateurs, avancement « fermés sur total », date de dernière mise à jour
 ```
+
+La collecte remplace les compteurs des jours de sa fenêtre : rejouée, elle produit le même résultat. Aucune donnée d’identité n’est conservée ; l’historique est supprimé au-delà de 13 mois par une tâche quotidienne.
 
 ## 6.3 Scénario d’erreur — API externe indisponible
 
