@@ -41,6 +41,8 @@ public class CanalEmail implements CanalDiffusion {
         String prefixe = switch (m.nature()) {
             case "DAILY" -> "[Argos] Résumé quotidien";
             case "WEEKLY" -> "[Argos] Résumé hebdomadaire";
+            case "RAPPEL" -> "[Argos] Rappel d'échéance";
+            case "ANNONCE" -> "[Argos] Standard modifié";
             default -> "[Argos] Alerte" + (m.gravite() == null ? "" : " " + m.gravite());
         };
         // Le titre vient d'une source externe : aucun retour à la ligne ne doit atteindre l'en-tête.
@@ -51,6 +53,8 @@ public class CanalEmail implements CanalDiffusion {
     static String corps(MessageAlerte m) {
         StringBuilder b = new StringBuilder();
         ContenuAlerte c = m.contenu();
+        // Rappels et annonces du radar : aucune gravité, projets cités avec la version utilisée.
+        boolean radar = "RAPPEL".equals(m.nature()) || "ANNONCE".equals(m.nature());
         if ("IMMEDIATE".equals(m.nature())) {
             if (c.resumeIa() != null) {
                 b.append("Résumé (produit par IA, à vérifier sur les sources) :\n").append(c.resumeIa()).append("\n\n");
@@ -60,7 +64,9 @@ public class CanalEmail implements CanalDiffusion {
         }
         for (ContenuAlerte.Element e : c.elements()) {
             b.append("• ").append(e.titre()).append('\n');
-            b.append("  Gravité : ").append(e.gravite() == null ? "non précisée" : e.gravite()).append('\n');
+            if (e.gravite() != null || !radar) {
+                b.append("  Gravité : ").append(e.gravite() == null ? "non précisée" : e.gravite()).append('\n');
+            }
             b.append("  Projets : ").append(e.projets().stream()
                     .map(p -> p.nom() + " (" + p.niveau() + ")").collect(Collectors.joining(", "))).append('\n');
             b.append("  Sources : ").append(e.sources().stream()

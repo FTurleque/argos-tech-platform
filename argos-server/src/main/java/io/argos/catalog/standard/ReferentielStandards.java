@@ -9,14 +9,17 @@ import java.util.UUID;
  * arc42 §5 ; capacité {@code radar-standards}).
  *
  * <p>Point d'extension en lecture seule utilisé par le serveur MCP ({@code get_technology_standard},
- * {@code check_dependency}). Le référentiel lui-même (saisie, validation, historique) relève du
- * changement {@code construire-radar-et-standards} ; tant qu'il n'est pas livré, l'implémentation
- * par défaut {@link ReferentielStandardsNonRenseigne} ne connaît aucun standard.
+ * {@code check_dependency}). Implémentation : {@link ReferentielStandardsEnBase}, qui lit le
+ * référentiel tenu par chaque espace ({@link ReferentielEspace}).
  */
 public interface ReferentielStandards {
 
-    /** Statut d'une technologie au référentiel d'un espace. */
-    enum Statut { ADOPTE, A_ESSAYER, A_EVALUER, A_EVITER }
+    /**
+     * Statut d'une technologie au référentiel (RAD-01), selon le principe d'un radar technologique :
+     * {@code ASSESS} à étudier, {@code TRIAL} projets pilotes, {@code ADOPT} standard recommandé,
+     * {@code HOLD} ne plus introduire.
+     */
+    enum Statut { ADOPT, TRIAL, ASSESS, HOLD }
 
     /**
      * Standard d'une technologie dans un espace.
@@ -25,7 +28,7 @@ public interface ReferentielStandards {
      * @param cle                 clé de paquet (PURL sans version, {@code io.argos.catalog.PackageKey})
      * @param statut              statut au référentiel
      * @param versionRecommandee  version recommandée, absente si l'espace n'en fixe pas
-     * @param justification       justification saisie par l'espace, absente sinon
+     * @param justification       justification saisie par l'espace
      */
     record Standard(UUID espaceId, String cle, Statut statut, String versionRecommandee, String justification) {
     }

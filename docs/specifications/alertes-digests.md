@@ -3,9 +3,9 @@
 | Élément | Valeur |
 |---|---|
 | Préfixe d'exigences | `ALR` |
-| Spec de référence | `/openspec/specs/alertes-digests/spec.md` — absente tant qu'aucun changement n'est archivé |
-| Changements en cours | [`diffuser-alertes-et-digests`](/openspec/changes/diffuser-alertes-et-digests/proposal.md) (implémenté, non archivé) |
-| Statut de la capacité | proposée ; implémentation et tests dans `argos-server`, changement non archivé |
+| Spec de référence | [`/openspec/specs/alertes-digests/spec.md`](/openspec/specs/alertes-digests/spec.md) |
+| Changements archivés | [`2026-11-16-diffuser-alertes-et-digests`](/openspec/changes/archive/2026-11-16-diffuser-alertes-et-digests/proposal.md) |
+| Statut de la capacité | livrée ; implémentation et tests dans `argos-server` |
 | Composants (arc42 §5) | `alerting`, `workspace`, `impact-engine` |
 
 ## Objectif
@@ -155,4 +155,4 @@ Interprétations du changement `diffuser-alertes-et-digests`, à faire valider [
 | ALR-05 | ALR-05-S1 | DC-1 | 2.4 | `AlertesTest.alr05S1…`, `qs10…` |
 | ALR-06 | ALR-06-S1, ALR-06-S2 | DC-1 | 1.1, 3.2, 3.3 | `AlertesTest.alr01S1EtAlr06S1…`, `EchecSmtpTest`, `RelaisMuetTest`, `AlertesTest.contrat…`, `rls…`, `cloisonnement…` |
 
-Tests : `argos-server/src/test/java/io/argos/alerting/`. Matrice détaillée : [`tasks.md`](/openspec/changes/diffuser-alertes-et-digests/tasks.md#matrice-de-traçabilité).
+Tests : `argos-server/src/test/java/io/argos/alerting/`. Matrice détaillée : [`tasks.md`](/openspec/changes/archive/2026-11-16-diffuser-alertes-et-digests/tasks.md#matrice-de-traçabilité).

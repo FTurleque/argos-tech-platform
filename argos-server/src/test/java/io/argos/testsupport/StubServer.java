@@ -72,7 +72,10 @@ public class StubServer implements QuarkusTestResourceLifecycleManager {
                 // Veille web : seule l'adresse exacte du serveur simulé est exemptée du refus des
                 // adresses locales ; toute autre adresse locale reste refusée (WEB-03).
                 Map.entry("argos.veille-web.exceptions", "localhost:" + server.getAddress().getPort()),
-                Map.entry("argos.veille-web.delai", "PT1S"));
+                Map.entry("argos.veille-web.delai", "PT1S"),
+                // Calendrier endoflife.date : réponses enregistrées servies sous /endoflife.
+                Map.entry("argos.radar.endoflife.url", base + "/endoflife"),
+                Map.entry("argos.radar.endoflife.delai", "PT1S"));
     }
 
     @Override

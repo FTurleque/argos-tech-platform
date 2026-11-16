@@ -1,0 +1,318 @@
+package io.argos.impact;
+
+import java.sql.Connection;
+import java.sql.PreparedStatement;
+import java.sql.ResultSet;
+import java.sql.SQLException;
+import java.time.Instant;
+import java.time.LocalDate;
+import java.time.OffsetDateTime;
+import java.time.ZoneOffset;
+import java.util.ArrayList;
+import java.util.Comparator;
+import java.util.HashMap;
+import java.util.LinkedHashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.Optional;
+import java.util.Set;
+import java.util.UUID;
+import java.util.stream.Collectors;
+
+import javax.sql.DataSource;
+
+import jakarta.enterprise.context.ApplicationScoped;
+import jakarta.enterprise.event.Event;
+import jakarta.enterprise.event.Observes;
+import jakarta.inject.Inject;
+
+import org.jboss.logging.Logger;
+
+import io.argos.catalog.standard.ReferentielStandardsEnBase;
+import io.argos.catalog.standard.ReferentielStandardsEnBase.TechnologieSuivie;
+import io.argos.catalog.standard.StandardModifie;
+import io.argos.inventory.InventoryQueries;
+import io.argos.releaseradar.CalendrierEndoflife;
+import io.argos.releaseradar.CalendrierSorties;
+import io.argos.releaseradar.CyclesDeVie;
+
+/**
+ * Radar appliqué aux projets (DC-1) : confronte le calendrier public aux versions réellement utilisées
+ * dans les inventaires, sans IA (ADR-0013).
+ *
+ * <ul>
+ *   <li>{@link #actualiser} synchronise les produits suivis puis crée les impacts « dette de version »
+ *       (RAD-05) : composant d'un projet dont la version a atteint sa fin de support, avec la version
+ *       standard de l'espace ;</li>
+ *   <li>{@link #echeancesTouchant} donne les échéances d'un jour qui touchent au moins un projet de
+ *       l'espace, pour les rappels (RAD-04) ;</li>
+ *   <li>un changement de standard ({@link StandardModifie}) qui touche au moins un projet est relayé
+ *       par {@link AnnonceStandard} (RAD-06).</li>
+ * </ul>
+ * Une technologie n'entre dans le radar que si le référentiel de l'espace la relie à un produit
+ * endoflife.date ; seuls les projets de cet espace sont concernés.
+ */
+@ApplicationScoped
+public class RadarProjets {
+
+    private static final Logger LOG = Logger.getLogger(RadarProjets.class);
+
+    /** Projet concerné et version utilisée de la technologie. */
+    public record ProjetConcerne(UUID id, String nom, String version) {
+    }
+
+    /**
+     * Échéance qui touche des projets d'un espace.
+     *
+     * @param nature {@code SORTIE} ou {@code FIN_DE_SUPPORT}
+     * @param version version ou branche concernée par l'échéance
+     */
+    public record EcheanceProjets(UUID espaceId, String libelle, String cle, String version, String nature, LocalDate date,
+            String source, List<ProjetConcerne> projets) {
+
+        public EcheanceProjets {
+            projets = List.copyOf(projets);
+        }
+    }
+
+    /** Impact « dette de version » tel que le voit un membre de l'espace. */
+    public record DetteVersion(UUID id, UUID projetId, String projet, String cle, String version, String cycle,
+            LocalDate finSupport, String versionStandard, String source, Instant creeLe) {
+    }
+
+    /** Bilan d'une actualisation : état de chaque produit synchronisé et nombre de dettes créées. */
+    public record Bilan(Map<String, String> produits, int dettesCreees) {
+    }
+
+    @Inject
+    DataSource dataSource;
+
+    @Inject
+    ReferentielStandardsEnBase referentiel;
+
+    @Inject
+    CalendrierSorties calendrier;
+
+    @Inject
+    CyclesDeVie cycles;
+
+    @Inject
+    InventoryQueries inventaires;
+
+    @Inject
+    Event<AnnonceStandard> annonces;
+
+    /** Synchronise le calendrier des produits suivis puis enregistre les dettes de version du jour. */
+    public Bilan actualiser(LocalDate aujourdhui, Instant maintenant) {
+        Map<String, String> produits;
+        try {
+            produits = cycles.synchroniser(referentiel.produitsSuivis(), maintenant);
+        } catch (RuntimeException e) {
+            // La dette se calcule alors sur le calendrier déjà connu.
+            LOG.errorf(e, "synchronisation du calendrier en échec");
+            produits = Map.of();
+        }
+        return new Bilan(produits, enregistrerDettes(aujourdhui, maintenant));
+    }
+
+    /**
+     * Crée les impacts « dette de version » manquants ; un impact existant n'est pas dupliqué. Une erreur
+     * sur un espace est journalisée et n'interrompt pas les autres espaces.
+     */
+    public int enregistrerDettes(LocalDate aujourdhui, Instant maintenant) {
+        int creees = 0;
+        List<UUID> espaces;
+        try {
+            espaces = referentiel.espacesSuivis();
+        } catch (RuntimeException e) {
+            LOG.errorf(e, "lecture des espaces suivis par le radar impossible");
+            return 0;
+        }
+        for (UUID espace : espaces) {
+            try {
+                creees += enregistrerDettes(espace, aujourdhui, maintenant);
+            } catch (RuntimeException e) {
+                LOG.errorf(e, "dettes de version de l'espace %s en échec", espace);
+            }
+        }
+        return creees;
+    }
+
+    private int enregistrerDettes(UUID espace, LocalDate aujourdhui, Instant maintenant) {
+        int creees = 0;
+        Map<String, TechnologieSuivie> parCle = technologies(espace);
+        for (InventoryQueries.ComponentMatch m : composants(espace, parCle)) {
+            if (m.version() == null) {
+                continue;
+            }
+            Optional<CalendrierSorties.Echeance> fin = calendrier.finDeSupport(m.packageKey(), m.version(), Set.of(espace));
+            if (fin.isPresent() && !fin.get().date().isAfter(aujourdhui)) {
+                creees += enregistrerDette(m, fin.get(), parCle.get(m.packageKey()).versionRecommandee(), maintenant);
+            }
+        }
+        return creees;
+    }
+
+    /** Échéances (sortie, fin de support) datées du jour donné qui touchent au moins un projet de l'espace. */
+    public List<EcheanceProjets> echeancesTouchant(UUID espace, LocalDate jour) {
+        Map<String, TechnologieSuivie> parCle = technologies(espace);
+        if (parCle.isEmpty()) {
+            return List.of();
+        }
+        List<CalendrierSorties.Echeance> echeances = calendrier.echeances(parCle.keySet(), Set.of(espace), jour, jour)
+                .stream().filter(e -> e.nature() != CalendrierSorties.Nature.CORRECTIF).toList();
+        if (echeances.isEmpty()) {
+            return List.of();
+        }
+        List<InventoryQueries.ComponentMatch> composants = composants(espace, parCle);
+        Map<UUID, String> noms = nomsProjets(composants);
+        List<EcheanceProjets> resultat = new ArrayList<>();
+        for (CalendrierSorties.Echeance e : echeances) {
+            List<ProjetConcerne> projets = concernes(composants, noms, e.cle(),
+                    e.nature() == CalendrierSorties.Nature.FIN_DE_SUPPORT ? e.version() : null);
+            if (!projets.isEmpty()) {
+                resultat.add(new EcheanceProjets(espace, parCle.get(e.cle()).libelle(), e.cle(), e.version(),
+                        e.nature().name(), e.date(), e.source(), projets));
+            }
+        }
+        return resultat;
+    }
+
+    /** Espaces dont le référentiel relie au moins une technologie au calendrier. */
+    public List<UUID> espacesSuivis() {
+        return referentiel.espacesSuivis();
+    }
+
+    /** Relaie un changement de standard aux projets de l'espace qui utilisent la technologie (RAD-06). */
+    void surStandardModifie(@Observes StandardModifie changement) {
+        try {
+            List<InventoryQueries.ComponentMatch> composants = inventaires
+                    .componentsMatching(List.of(changement.cle()), Optional.empty()).stream()
+                    .filter(m -> changement.espaceId().equals(m.workspaceId())).toList();
+            List<ProjetConcerne> projets = concernes(composants, nomsProjets(composants), changement.cle(), null);
+            if (!projets.isEmpty()) {
+                annonces.fire(new AnnonceStandard(changement.espaceId(), changement.cle(), changement.libelle(),
+                        changement.ancienStatut().name(), changement.ancienneVersion(), changement.statut().name(),
+                        changement.versionRecommandee(), changement.justification(), projets, changement.historiqueId()));
+            }
+        } catch (RuntimeException e) {
+            LOG.errorf(e, "annonce du changement de standard %s en échec", changement.cle());
+        }
+    }
+
+    /** Dettes de version de l'espace visibles du compte (RLS, ADR-0016). */
+    public List<DetteVersion> dettes(UUID compteId, UUID espaceId) {
+        try (Connection c = dataSource.getConnection()) {
+            boolean autoCommit = c.getAutoCommit();
+            c.setAutoCommit(false);
+            try {
+                RlsSession.account(c, compteId);
+                List<DetteVersion> liste = new ArrayList<>();
+                try (PreparedStatement ps = c.prepareStatement("""
+                        SELECT d.id, d.project_id, p.name, d.cle, d.version, d.cycle, d.fin_support_le, d.version_standard,
+                               d.source, d.cree_le
+                        FROM dette_version d JOIN project p ON p.id = d.project_id
+                        WHERE d.workspace_id = ? ORDER BY d.fin_support_le, p.name, d.cle
+                        """)) {
+                    ps.setObject(1, espaceId);
+                    try (ResultSet rs = ps.executeQuery()) {
+                        while (rs.next()) {
+                            liste.add(new DetteVersion(rs.getObject(1, UUID.class), rs.getObject(2, UUID.class),
+                                    rs.getString(3), rs.getString(4), rs.getString(5), rs.getString(6),
+                                    rs.getObject(7, LocalDate.class), rs.getString(8), rs.getString(9),
+                                    rs.getObject(10, OffsetDateTime.class).toInstant()));
+                        }
+                    }
+                }
+                c.commit();
+                return liste;
+            } catch (SQLException | RuntimeException e) {
+                c.rollback();
+                throw e;
+            } finally {
+                c.setAutoCommit(autoCommit);
+            }
+        } catch (SQLException e) {
+            throw new IllegalStateException("lecture des dettes de version impossible", e);
+        }
+    }
+
+    // ------------------------------------------------------------------ interne
+
+    private Map<String, TechnologieSuivie> technologies(UUID espace) {
+        Map<String, TechnologieSuivie> parCle = new LinkedHashMap<>();
+        referentiel.technologies(List.of(espace), true).forEach(t -> parCle.put(t.cle(), t));
+        return parCle;
+    }
+
+    private List<InventoryQueries.ComponentMatch> composants(UUID espace, Map<String, TechnologieSuivie> parCle) {
+        if (parCle.isEmpty()) {
+            return List.of();
+        }
+        return inventaires.componentsMatching(parCle.keySet(), Optional.empty()).stream()
+                .filter(m -> espace.equals(m.workspaceId())).toList();
+    }
+
+    /** Projets qui utilisent la clé ; pour une fin de support, seulement ceux dont la version est du cycle. */
+    private static List<ProjetConcerne> concernes(List<InventoryQueries.ComponentMatch> composants, Map<UUID, String> noms,
+            String cle, String cycle) {
+        Map<UUID, ProjetConcerne> parProjet = new LinkedHashMap<>();
+        for (InventoryQueries.ComponentMatch m : composants) {
+            if (!m.packageKey().equals(cle)) {
+                continue;
+            }
+            if (cycle != null && (m.version() == null || !CalendrierEndoflife.appartient(m.version(), cycle))) {
+                continue;
+            }
+            parProjet.putIfAbsent(m.projectId(), new ProjetConcerne(m.projectId(), noms.getOrDefault(m.projectId(), "?"),
+                    m.version()));
+        }
+        return parProjet.values().stream().sorted(Comparator.comparing(ProjetConcerne::nom)).toList();
+    }
+
+    private Map<UUID, String> nomsProjets(List<InventoryQueries.ComponentMatch> composants) {
+        Map<UUID, String> noms = new HashMap<>();
+        List<UUID> ids = composants.stream().map(InventoryQueries.ComponentMatch::projectId).distinct()
+                .collect(Collectors.toList());
+        if (ids.isEmpty()) {
+            return noms;
+        }
+        try (Connection c = dataSource.getConnection();
+                PreparedStatement ps = c.prepareStatement("SELECT id, name FROM project WHERE id = ANY (?)")) {
+            ps.setArray(1, c.createArrayOf("uuid", ids.toArray()));
+            try (ResultSet rs = ps.executeQuery()) {
+                while (rs.next()) {
+                    noms.put(rs.getObject(1, UUID.class), rs.getString(2));
+                }
+            }
+        } catch (SQLException e) {
+            throw new IllegalStateException("lecture des projets impossible", e);
+        }
+        return noms;
+    }
+
+    private int enregistrerDette(InventoryQueries.ComponentMatch m, CalendrierSorties.Echeance fin, String versionStandard,
+            Instant maintenant) {
+        try (Connection c = dataSource.getConnection(); PreparedStatement ps = c.prepareStatement("""
+                INSERT INTO dette_version (id, project_id, workspace_id, component_id, cle, version, cycle, fin_support_le,
+                    version_standard, source, cree_le)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                ON CONFLICT (project_id, component_id) DO NOTHING
+                """)) {
+            ps.setObject(1, UUID.randomUUID());
+            ps.setObject(2, m.projectId());
+            ps.setObject(3, m.workspaceId());
+            ps.setObject(4, m.componentId());
+            ps.setString(5, m.packageKey());
+            ps.setString(6, m.version());
+            ps.setString(7, fin.version());
+            ps.setObject(8, fin.date());
+            ps.setString(9, versionStandard);
+            ps.setString(10, fin.source());
+            ps.setObject(11, maintenant.atOffset(ZoneOffset.UTC));
+            return ps.executeUpdate();
+        } catch (SQLException e) {
+            throw new IllegalStateException("enregistrement de la dette de version impossible", e);
+        }
+    }
+}

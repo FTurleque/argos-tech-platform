@@ -143,6 +143,8 @@ Aucun broker n’est imposé au MVP. Une file/broker ne sera introduite qu’apr
 
 Cibles initiales : API/MCP p95 < 500 ms hors appels externes/IA, pagination des collections, ingestion découplée de l’affichage et aucun appel LLM bloquant pour une page standard.
 
+Recherche de veille (changement `rechercher-et-filtrer`, ADR-0015) : recherche plein texte PostgreSQL native, vecteurs `tsvector` bilingues (`french`, `english`, plus `simple` pour les identifiants) indexés en GIN sur `signal` et `actualite`, sans moteur externe. Les opérateurs plein texte n'étant pas « leakproof », la sélection passe par la fonction `argos_rechercher_veille` (migration V11), qui applique explicitement les règles de visibilité de la RLS, puis chaque élément restitué est relu sous le rôle `argos_app`. Résultats paginés (100 par page au plus). Mesure QS-13 du 2026-11-16 sur 120 000 éléments visibles : p95 = 250 ms pour une campagne de recherches filtrées ; un mot présent dans tous les éléments reste hors cible ([rapport](../quality/mesure-qs13-recherche.md)).
+
 ## 8.11 Tests
 
 - unitaires domaine ;
@@ -176,3 +178,46 @@ POC local Docker Compose, puis VM Linux interne pour le POC partagé/MVP. Voir A
 - ajouter un profil ajoute des rubriques sans modifier le noyau ni les rubriques des autres profils (PRF-04).
 
 Un manifeste ne déclare que des briques existantes : connecteurs, stratégies de rapprochement déterministes (ADR-0013) et garde-fous parmi `VALIDATION_HUMAINE`, `IA_SANS_DECISION` et `AUCUN_AVIS_JURIDIQUE`. Un manifeste invalide empêche le serveur de démarrer. Les rubriques existent aujourd’hui dans les manifestes ; leur rattachement aux signaux attend le modèle de signal (changement `formaliser-chaine-securite-poc`).
+
+## 8.15 Référentiel des standards et radar des sorties
+
+**Statut : implémenté, changement `construire-radar-et-standards` non archivé.** Fiche : [`radar-standards`](../../specifications/radar-standards.md).
+
+- **Statuts du référentiel** (dossier v2.4 §8.3) : `ASSESS` à étudier, `TRIAL` projets pilotes, `ADOPT` standard recommandé (version recommandée obligatoire), `HOLD` ne plus introduire. Chaque entrée porte un responsable, une justification et une date de revue ; chaque création ou modification est historisée.
+- **Gouvernance** : chaque espace tient son référentiel (ADR-0025, aucun référentiel modèle) ; seuls ses administrateurs le modifient (API puis RLS de la migration `V12`) ; une suggestion de l’IA reste en attente jusqu’à la décision d’un administrateur.
+- **Calendrier** : API publique et gratuite endoflife.date, seule source ; un administrateur relie une technologie à un produit endoflife.date. Adresse fixée par la configuration, identifiant contrôlé, aucune redirection, délai et taille bornés ; un échec conserve les cycles connus et passe le produit `EN_ERREUR`.
+- **Rappels** (dossier v2.4 §6.4) : J-30, J-7 et J0 par défaut, paramétrables par espace ; une échéance ne produit un rappel que si elle touche un projet de l’espace. Rappels et annonces de standard sont des messages `RAPPEL` et `ANNONCE` du module `alerting`, idempotents : la clé d'un rappel désigne l'échéance et le jour de rappel, celle d'une annonce l'entrée d'historique du changement ; une clé de plus de 600 caractères est abrégée avec l'empreinte SHA-256 de la clé complète, sans collision.
+- **Dette de version** : impact créé lorsqu’une version d’un inventaire a atteint sa fin de support, avec la version recommandée de l’espace ; calcul déterministe, sans IA (ADR-0013).
+- **Robustesse de la tâche quotidienne** : une erreur sur un produit (source ou base) passe ce produit `EN_ERREUR` sans interrompre les autres ; une erreur de dette sur un espace n’interrompt pas les autres espaces ; une actualisation en échec n’empêche pas les rappels, calculés sur le calendrier déjà connu. Les jours du radar REST et des rappels se comptent dans le même fuseau (`argos.alerting.fuseau`).
+
+### D-18 — Tâche quotidienne du radar
+
+**Type : UML séquence. Portée : tâche quotidienne telle qu’implémentée. Statut : implémenté.**
+
+```mermaid
+sequenceDiagram
+    participant S as Planificateur (alerting.RappelsRadar)
+    participant I as impact.RadarProjets
+    participant C as catalog (référentiel)
+    participant R as release-radar
+    participant E as endoflife.date
+    participant INV as inventory
+    participant DB as PostgreSQL
+    S->>I: actualiser(jour)
+    I->>C: produits endoflife.date suivis
+    I->>R: synchroniser les produits
+    R->>E: GET /api/v1/products/{produit}
+    E-->>R: cycles (sortie, correctif, fin de support)
+    R->>DB: cycle_vie, cycle_vie_produit
+    I->>INV: composants des projets des espaces suivis
+    I->>DB: dette_version (fin de support atteinte)
+    loop chaque espace suivi, chaque jour de rappel
+        S->>I: échéances du jour + N touchant un projet
+        I-->>S: échéances et projets concernés
+        S->>DB: alerte RAPPEL par membre (clé d'idempotence)
+    end
+    S->>S: diffusion (EnvoiAlertes)
+```
+
+La tâche est portée par `alerting` parce que les règles de modules (§5.6) interdisent à `release-radar` d’appeler `inventory` ou `alerting` : `release-radar` ne connaît ni les inventaires ni les messages, `impact` confronte le calendrier aux inventaires, `alerting` émet les messages.
+

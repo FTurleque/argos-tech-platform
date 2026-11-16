@@ -96,12 +96,12 @@ Option A, **proposée** : choix du porteur du projet, qui privilégie l'homogén
 - test d'une notification système déclenchée depuis l'IHM ;
 - mesure de la taille de l'installeur et de la mémoire au repos sur un poste Windows représentatif ;
 - revue sécurité selon la liste de contrôle officielle d'Electron (isolation, bac à sable, CSP, navigation) ;
-- `npm run check` : tests du protocole interne (sortie du dossier de l'IHM, CSP) ;
+- `npm run check` : tests du protocole interne (sortie du dossier de l'IHM, CSP) ; tests des notifications d'alerte, du compteur et des réglages du poste (`notifier-sur-le-poste`, 22 tests au vert le 2026-11-16) ;
 - vérification des licences des dépendances livrées (ADR-0021 point 6).
 
 ## Traçabilité
 
-- **Exigences** : aucune exigence OpenSpec ne couvre encore le desktop ; un changement OpenSpec dédié est à créer avant l'implémentation des notifications
+- **Exigences** : NOT-01 à NOT-06 (changement [`notifier-sur-le-poste`](/openspec/changes/notifier-sur-le-poste/proposal.md), fiche [`notifications-poste`](/docs/specifications/notifications-poste.md)) ; le pont `window.argosDesktop` y expose, en plus des notifications, le compteur de la zone de notification et les réglages du poste, sans autre capacité native
 - **Scénarios qualité** : —
 - **Diagrammes** : arc42 §5.1 (C4 Container) et §7.2
 - **Tickets/PR** : Non déterminé

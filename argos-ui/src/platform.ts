@@ -19,3 +19,42 @@ export async function notify(title: string, body: string): Promise<boolean> {
   new Notification(title, { body })
   return true
 }
+
+/** Alerte transmise au poste : le processus principal construit lui-même le texte (NOT-05). */
+export interface AlerteNotifiable {
+  id: string
+  gravite: string | null
+  projets: number
+}
+
+export type ReglagesPoste = ArgosReglagesPoste
+
+/** Notification système d'une alerte ; hors du desktop, aucune notification (canal DESKTOP). */
+export async function notifierAlerte(alerte: AlerteNotifiable): Promise<boolean> {
+  if (!window.argosDesktop) return false
+  return window.argosDesktop.notifyAlert(alerte)
+}
+
+/** Compteur d'alertes ouvertes dans la zone de notification (NOT-03). */
+export function afficherCompteur(n: number): void {
+  void window.argosDesktop?.setAlertCount(n)
+}
+
+/** Clic sur la notification d'une alerte (NOT-02) ; renvoie de quoi se désabonner. */
+export function surOuvertureAlerte(callback: (id: string) => void): () => void {
+  return window.argosDesktop?.onOpenAlert(callback) ?? (() => {})
+}
+
+export async function lireReglagesPoste(): Promise<ReglagesPoste | null> {
+  return window.argosDesktop ? window.argosDesktop.getSettings() : null
+}
+
+export async function changerReglagesPoste(
+  reglages: Partial<Pick<ReglagesPoste, 'notificationsPoste' | 'demarrageSession'>>,
+): Promise<ReglagesPoste | null> {
+  return window.argosDesktop ? window.argosDesktop.setSettings(reglages) : null
+}
+
+export function surChangementReglages(callback: (reglages: ReglagesPoste) => void): () => void {
+  return window.argosDesktop?.onSettingsChanged(callback) ?? (() => {})
+}

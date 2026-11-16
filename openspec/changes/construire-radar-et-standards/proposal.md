@@ -74,6 +74,6 @@ Allégée : modules existants, une source externe déjà prévue, pas de nouveau
 
 | ID | Question | Bloquante ? | Destinataire |
 |---|---|---|---|
-| Q-1 | Les rappels J-30, J-7, J0 sont-ils fixes ou paramétrables par espace ? | non | Product Owner |
-| Q-2 | Quelles sources de calendrier en plus d'endoflife.date ? | non | porteur du projet |
-| Q-3 | Un espace peut-il partir d'un référentiel modèle publié par Argos ? | non | Product Owner |
+| Q-1 | Les rappels J-30, J-7, J0 sont-ils fixes ou paramétrables par espace ? | **Répondue le 2026-11-16** : paramétrables par espace, J-30, J-7 et J0 par défaut [DÉCISION] | Product Owner |
+| Q-2 | Quelles sources de calendrier en plus d'endoflife.date ? | **Répondue le 2026-11-16** : endoflife.date seulement (API publique gratuite) ; d'autres sources plus tard [DÉCISION] | porteur du projet |
+| Q-3 | Un espace peut-il partir d'un référentiel modèle publié par Argos ? | **Répondue le 2026-11-16** : non pour l'instant : chaque espace construit son référentiel [DÉCISION] | Product Owner |

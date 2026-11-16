@@ -1,0 +1,148 @@
+package io.argos.api.recherche;
+
+import java.time.Duration;
+import java.time.Instant;
+import java.util.LinkedHashSet;
+import java.util.List;
+import java.util.Locale;
+import java.util.Optional;
+import java.util.Set;
+import java.util.UUID;
+
+import jakarta.enterprise.context.ApplicationScoped;
+import jakarta.inject.Inject;
+
+import io.argos.alerting.Gravite;
+import io.argos.api.security.Caller;
+import io.argos.catalog.profil.CatalogueProfils;
+import io.argos.catalog.profil.ManifesteProfil;
+import io.argos.impact.RechercheVeille;
+import io.argos.inventory.InventoryQueries;
+import io.argos.workspace.AccesRefuse;
+import io.argos.workspace.DonneeInvalide;
+import io.argos.workspace.Introuvable;
+import io.argos.workspace.MotifRefus;
+
+/**
+ * Validation des mots et filtres saisis (entrées non fiables) et traduction en critères de
+ * {@link RechercheVeille}. Un filtre inconnu ou mal formé est refusé (400) ; un projet d'un autre
+ * espace est refusé sans être révélé (404 journalisé, ACC-06).
+ */
+@ApplicationScoped
+public class TraductionCriteres {
+
+    static final int TEXTE_MAX = 500;
+    static final int VALEURS_MAX = 20;
+    static final int TECHNOLOGIE_MAX = 100;
+    static final int HORIZON_MAX = 3650;
+
+    @Inject
+    CatalogueProfils profils;
+
+    @Inject
+    InventoryQueries inventaires;
+
+    @Inject
+    RechercheVeille recherche;
+
+    /** Recherche commune au point d'accès {@code /api/v1/recherche} et au rappel d'une vue enregistrée. */
+    public RechercheVeille.Resultats executer(CriteresRecherche criteres, Caller appelant, boolean verifierProjets,
+            int page, int taille) {
+        if (page < 0 || taille < 1 || taille > 100) {
+            throw invalide("taille", "page ≥ 0 et taille comprise entre 1 et 100.");
+        }
+        RechercheVeille.Criteres k = traduire(criteres, appelant, verifierProjets);
+        return recherche.rechercher(k, appelant.accountId(), appelant.memberWorkspaces(), page, taille);
+    }
+
+    /**
+     * Critères validés. Avec {@code verifierProjets}, chaque projet doit appartenir à un espace de
+     * l'appelant ; sans, un projet devenu invisible ne fait que restreindre les résultats (rappel d'une
+     * vue enregistrée : la requête n'expose de toute façon que le périmètre courant).
+     */
+    public RechercheVeille.Criteres traduire(CriteresRecherche c, Caller appelant, boolean verifierProjets) {
+        CriteresRecherche k = c == null ? new CriteresRecherche(null, null, null, null, null, null, null) : c;
+        String texte = k.texte() == null || k.texte().isBlank() ? null : k.texte().strip();
+        if (texte != null && texte.length() > TEXTE_MAX) {
+            throw invalide("texte", "Le texte recherché compte au plus " + TEXTE_MAX + " caractères.");
+        }
+        Set<UUID> projets = new LinkedHashSet<>(liste("projets", k.projets()));
+        if (verifierProjets) {
+            projets.forEach(p -> exigerProjetVisible(appelant, p));
+        }
+        Set<String> technologies = new LinkedHashSet<>();
+        for (String t : liste("technologies", k.technologies())) {
+            if (t == null || t.isBlank() || t.strip().length() > TECHNOLOGIE_MAX) {
+                throw invalide("technologies", "Chaque technologie compte de 1 à " + TECHNOLOGIE_MAX + " caractères.");
+            }
+            technologies.add(t.strip());
+        }
+        Set<String> types = null;
+        if (!liste("types", k.types()).isEmpty()) {
+            types = new LinkedHashSet<>();
+            for (String t : k.types()) {
+                String type = t == null ? "" : t.strip().toUpperCase(Locale.ROOT);
+                if (!RechercheVeille.TYPES.contains(type)) {
+                    throw invalide("types", "Type inconnu ; types admis : " + String.join(", ", RechercheVeille.TYPES) + ".");
+                }
+                types.add(type);
+            }
+        }
+        if (!liste("profils", k.profils()).isEmpty()) {
+            Set<String> categories = new LinkedHashSet<>();
+            for (String identifiant : k.profils()) {
+                ManifesteProfil profil = Optional.ofNullable(identifiant).map(String::strip).flatMap(profils::trouver)
+                        .orElseThrow(() -> invalide("profils", "Profil de veille inconnu ou retiré du catalogue."));
+                categories.addAll(profil.categoriesSources());
+            }
+            Set<String> duProfil = RechercheVeille.typesDesCategories(categories);
+            if (types == null) {
+                types = duProfil;
+            } else {
+                types.retainAll(duProfil);
+            }
+        }
+        Set<String> gravites = null;
+        if (k.gravite() != null && !k.gravite().isBlank()) {
+            if (!Gravite.reconnue(k.gravite())) {
+                throw invalide("gravite", "Gravité inconnue ; gravités admises : " + String.join(", ", Gravite.GRADUEES) + ".");
+            }
+            gravites = Gravite.auMoins(k.gravite());
+        }
+        Instant depuis = null;
+        if (k.horizonJours() != null) {
+            if (k.horizonJours() < 1 || k.horizonJours() > HORIZON_MAX) {
+                throw invalide("horizonJours", "L'horizon est compris entre 1 et " + HORIZON_MAX + " jours.");
+            }
+            depuis = Instant.now().minus(Duration.ofDays(k.horizonJours()));
+        }
+        return new RechercheVeille.Criteres(texte, types, projets, technologies, gravites, depuis, null, null);
+    }
+
+    private void exigerProjetVisible(Caller appelant, UUID projet) {
+        Optional<UUID> espace = inventaires.workspaceOf(projet);
+        if (espace.isEmpty()) {
+            throw new Introuvable("Ressource introuvable.");
+        }
+        if (!appelant.memberOf(espace.get())) {
+            throw new AccesRefuse(MotifRefus.NON_MEMBRE);
+        }
+    }
+
+    private static <T> List<T> liste(String attribut, List<T> valeurs) {
+        if (valeurs == null) {
+            return List.of();
+        }
+        if (valeurs.size() > VALEURS_MAX) {
+            throw invalide(attribut, VALEURS_MAX + " valeurs au plus.");
+        }
+        if (valeurs.stream().anyMatch(v -> v == null)) {
+            throw invalide(attribut, "Valeur absente.");
+        }
+        return valeurs;
+    }
+
+    private static DonneeInvalide invalide(String attribut, String message) {
+        return new DonneeInvalide("CRITERE_INVALIDE", message, attribut);
+    }
+}

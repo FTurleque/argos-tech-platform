@@ -32,9 +32,10 @@ Les modules `catalog` et `releaseradar` ne contiennent qu'un `package-info.java`
 
 | Composant | Responsabilité dans ce changement | Ne doit pas | Statut |
 |---|---|---|---|
-| `catalog` | référentiel et historique des statuts | être modifié par l'IA | modifié |
-| `release-radar` | échéances, rappels, dette de version | décider d'un statut | modifié |
-| `alerting` | envoyer rappels et annonces | — | existant (proposé) |
+| `catalog` | référentiel et historique des statuts (`catalog.standard`) | être modifié par l'IA | modifié |
+| `release-radar` | copie du calendrier endoflife.date et fraîcheur des produits (`CyclesDeVie`, `CalendrierEndoflife`) | décider d'un statut ; connaître les inventaires ou les messages | modifié |
+| `impact-engine` | échéances touchant un projet, dette de version, relais des changements de standard (`RadarProjets`) | émettre un message | modifié |
+| `alerting` | tâche quotidienne, rappels et annonces (`RappelsRadar`, natures `RAPPEL` et `ANNONCE`) | — | modifié |
 
 ## Modèle de domaine et invariants
 
@@ -46,26 +47,30 @@ Non applicable — conception allégée ; à préciser avec les tâches d'implé
 
 - **Question** : comment les échéances deviennent-elles rappels et dette de version ?
 - **Type** : UML séquence
-- **Portée** : cible proposée
+- **Portée** : comportement implémenté (détail : arc42 §8.15, D-18)
 - **Exigences** : RAD-03, RAD-04, RAD-05
 
 ```mermaid
 sequenceDiagram
-    participant E as endoflife.date
-    participant R as release-radar
+    participant AL as alerting (RappelsRadar)
+    participant I as impact (RadarProjets)
     participant C as catalog
+    participant R as release-radar
+    participant E as endoflife.date
     participant INV as inventory
-    participant AL as alerting
+    AL->>I: actualiser (tâche quotidienne)
+    I->>C: produits suivis des espaces
+    I->>R: synchroniser
     R->>E: cycles de vie des produits suivis
     E-->>R: sorties et fins de support
-    R->>C: technologies des espaces
-    R->>INV: versions utilisées par projet
-    R->>R: échéances par horizon
-    alt échéance à J-30, J-7 ou J0
-        R->>AL: rappel aux projets concernés
-    end
+    I->>INV: versions utilisées par projet
     alt fin de support atteinte pour une version utilisée
-        R->>R: impact dette de version
+        I->>I: impact dette de version
+    end
+    loop chaque jour de rappel de l'espace (J-30, J-7, J0 par défaut)
+        AL->>I: échéances du jour + N touchant un projet
+        I-->>AL: échéances et projets concernés
+        AL->>AL: rappel à chaque membre de l'espace
     end
 ```
 

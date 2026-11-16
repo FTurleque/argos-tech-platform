@@ -16,7 +16,7 @@ Ce registre complète arc42 section 10. Les seuils sont **Hypothèses à valider
 | QS-10 | Résilience | Claude indisponible | prod | ingestion continue ; analyse différée ou mode dégradé | aucune perte d’item | test panne fournisseur | Backend |
 | QS-11 | Données | suppression d’un workspace | prod | données supprimées/archivées selon politique et embeddings associés traités | 100 % conforme politique | test rétention | DPO/Backend |
 | QS-12 | Sécurité | webhook avec signature invalide | prod | rejet avant traitement métier | 100 % rejetés | test sécurité | Sécurité |
-| QS-13 | Recherche | requête plein texte standard | prod | résultats pertinents et paginés | p95 cible à définir | benchmark | Backend |
+| QS-13 | Recherche | requête plein texte standard | prod | résultats pertinents et paginés | cible Q-05 : API p95 < 500 ms ; mesuré le 2026-11-16 : p95 = 250 ms sur 120 000 éléments visibles ([rapport](mesure-qs13-recherche.md)) | benchmark `MesurePerformanceRechercheTest` | Backend |
 | QS-14 | PRA | corruption/perte instance DB | prod | restauration depuis sauvegarde | RPO/RTO validés | exercice restore | Ops |
 | QS-15 | IA | structured output invalide | prod | réponse refusée ou réparée de façon contrôlée | 0 donnée métier persistée sans validation | tests contract IA | Backend |
 

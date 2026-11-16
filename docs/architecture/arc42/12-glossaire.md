@@ -8,6 +8,10 @@
 | **IntelligenceItem** | élément de veille normalisé provenant d’une source externe |
 | **ProjectActivity** | événement projet normalisé : issue, PR/MR, pipeline, release, déploiement, etc. |
 | **ProjectImpact** | relation argumentée entre un `IntelligenceItem` et un projet potentiellement affecté |
+| **Référentiel des standards** | technologies d’un espace avec leur statut (`ADOPT`, `TRIAL`, `ASSESS`, `HOLD`), version recommandée, responsable, justification et date de revue ; tenu par les administrateurs de l’espace (§8.15) |
+| **Radar des sorties** | échéances (sortie, correctif, fin de support) des technologies d’un espace sur 30 jours, 6 mois ou 1 an, issues d’endoflife.date |
+| **Rappel d’échéance** | message envoyé aux membres d’un espace, aux jours de rappel de l’espace (J-30, J-7, J0 par défaut), pour une échéance qui touche un de ses projets |
+| **Dette de version** | impact d’un projet dont une version de l’inventaire a atteint sa fin de support, avec la version recommandée de l’espace |
 | **Source** | configuration permettant de collecter une origine de veille |
 | **Repository** | dépôt GitHub/GitLab associé à un projet |
 | **Workspace** | frontière organisationnelle et d’autorisation regroupant projets et sources |
@@ -22,7 +26,11 @@
 | **Mise en page** | présentation de l’IHM choisie par l’utilisateur (`classique`, `journal`, `fantaisie`, `gazette`) ; change la forme, jamais le contenu ni les mentions (ADR-0023) |
 | **Alerte** | message immédiat adressé à un utilisateur sur un canal quand un impact exact ou probable satisfait une de ses règles ; une seule par signal, utilisateur et canal (capacité `alertes-digests`) |
 | **Résumé périodique** | message quotidien ou hebdomadaire listant les éléments non alertés immédiatement ; jamais envoyé vide (en anglais : *digest*) |
+| **Vue enregistrée** | recherche nommée d’un utilisateur (mots et filtres), visible de lui seul et rejouée sous ses droits courants ; n’accorde aucun droit (capacité `recherche-veille`) |
+| **Horizon** | filtre de recherche retenant les éléments des N derniers jours, d’après leur date de publication, sinon de modification ou de réception (capacité `recherche-veille`) |
 | **Canal de diffusion** | moyen d’acheminement d’une alerte ou d’un résumé : `EMAIL` (relais SMTP du Synology) ou `DESKTOP` (client desktop) |
+| **Alerte ouverte** | alerte immédiate reçue par le client desktop et pas encore consultée dans l’application ; leur nombre s’affiche dans la zone de notification (capacité `notifications-poste`) |
+| **Réglages du poste** | réglages propres à un client desktop, gardés sur le poste : notifications du poste (actives par défaut) et démarrage avec la session (désactivé par défaut) ; sans effet sur les autres canaux |
 | **C4** | modèle de visualisation d’architecture par niveaux Context, Container, Component et Code |
 | **arc42** | structure de documentation d’architecture en douze sections |
 | **ADR** | Architecture Decision Record ; enregistrement versionné d’une décision structurante |
