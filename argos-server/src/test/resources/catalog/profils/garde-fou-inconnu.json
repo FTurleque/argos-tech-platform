@@ -1,0 +1,13 @@
+{
+  "formatManifeste": 1,
+  "identifiant": "garde-fou-inconnu",
+  "version": "1.0.0",
+  "libelle": "Garde-fou inconnu",
+  "description": "Manifeste de test déclarant un garde-fou que le serveur ne sait pas appliquer.",
+  "categoriesSources": ["c"],
+  "connecteurs": ["k"],
+  "rubriques": [{ "identifiant": "r", "libelle": "R" }],
+  "typesObjetsSuivis": ["o"],
+  "strategies": [{ "identifiant": "s", "deterministe": true }],
+  "gardeFous": [{ "type": "NEUTRALITE_INVENTEE", "description": "Type absent du code." }]
+}

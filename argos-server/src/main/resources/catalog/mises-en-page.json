@@ -1,0 +1,22 @@
+[
+  {
+    "identifiant": "classique",
+    "libelle": "Classique",
+    "description": "Application de travail : menu latéral, filtres et listes."
+  },
+  {
+    "identifiant": "journal",
+    "libelle": "Journal",
+    "description": "Quotidien contemporain : une, rubriques et colonnes."
+  },
+  {
+    "identifiant": "fantaisie",
+    "libelle": "Fantaisie",
+    "description": "Magazine décalé et coloré."
+  },
+  {
+    "identifiant": "gazette",
+    "libelle": "Gazette",
+    "description": "Presse imprimée du XIXe siècle : papier vieilli et avis de recherche."
+  }
+]

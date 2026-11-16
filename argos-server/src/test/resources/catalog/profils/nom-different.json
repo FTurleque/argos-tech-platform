@@ -1,0 +1,13 @@
+{
+  "formatManifeste": 1,
+  "identifiant": "autre-nom",
+  "version": "1.0.0",
+  "libelle": "Autre nom",
+  "description": "Manifeste de test dont l'identifiant diffère du nom de fichier.",
+  "categoriesSources": ["c"],
+  "connecteurs": ["k"],
+  "rubriques": [{ "identifiant": "r", "libelle": "R" }],
+  "typesObjetsSuivis": ["o"],
+  "strategies": [{ "identifiant": "s", "deterministe": true }],
+  "gardeFous": []
+}

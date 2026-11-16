@@ -1,0 +1,13 @@
+{
+  "formatManifeste": 1,
+  "identifiant": "demonstration",
+  "version": "0.1.0",
+  "libelle": "Démonstration",
+  "description": "Profil de démonstration publié par les tests pour vérifier PRF-04.",
+  "categoriesSources": ["demonstration"],
+  "connecteurs": ["osv"],
+  "rubriques": [{ "identifiant": "demonstration", "libelle": "Démonstration" }],
+  "typesObjetsSuivis": ["projet"],
+  "strategies": [{ "identifiant": "purl-plage-versions", "deterministe": true }],
+  "gardeFous": []
+}
