@@ -1,0 +1,62 @@
+{
+  "formatManifeste": 1,
+  "identifiant": "artiste",
+  "version": "1.0.0",
+  "libelle": "Artiste",
+  "description": "Appels à projets, aides, droits et événements rapprochés de vos disciplines et territoires, avec leurs dates limites (France).",
+  "categoriesSources": ["donnees-publiques-culture", "flux-organismes"],
+  "connecteurs": ["data-culture", "flux-rss"],
+  "rubriques": [
+    { "identifiant": "appels-residences", "libelle": "Appels à projets et résidences" },
+    { "identifiant": "aides-creation", "libelle": "Aides à la création" },
+    { "identifiant": "droits-remunerations", "libelle": "Droits et rémunérations" },
+    { "identifiant": "statut-social-fiscal", "libelle": "Statut social et fiscal" },
+    { "identifiant": "evenements", "libelle": "Événements" }
+  ],
+  "typesObjetsSuivis": ["discipline", "territoire", "echeance"],
+  "strategies": [
+    { "identifiant": "discipline-territoire-date-limite", "deterministe": true }
+  ],
+  "gardeFous": [
+    { "type": "IA_SANS_DECISION", "description": "Le rapprochement compare la discipline, le territoire et la date limite ; aucune IA ne décide de la pertinence d'un appel (ADR-0013)." },
+    { "type": "AUCUN_AVIS_ELIGIBILITE", "description": "Argos ne se prononce pas sur votre éligibilité : les critères sont présentés tels qu'énoncés et renvoient au texte officiel." },
+    { "type": "SOURCES_VERIFIEES", "description": "Une source n'est collectée qu'après vérification et enregistrement de ses conditions d'usage par l'administrateur plateforme." }
+  ],
+  "listes": [
+    {
+      "typeObjet": "discipline",
+      "valeurs": [
+        { "identifiant": "arts-visuels", "libelle": "Arts visuels" },
+        { "identifiant": "musique", "libelle": "Musique" },
+        { "identifiant": "spectacle-vivant", "libelle": "Spectacle vivant" },
+        { "identifiant": "litterature", "libelle": "Littérature" },
+        { "identifiant": "cinema-audiovisuel", "libelle": "Cinéma et audiovisuel" },
+        { "identifiant": "design-metiers-art", "libelle": "Design et métiers d'art" }
+      ]
+    },
+    {
+      "typeObjet": "territoire",
+      "valeurs": [
+        { "identifiant": "france", "libelle": "France entière" },
+        { "identifiant": "auvergne-rhone-alpes", "libelle": "Auvergne-Rhône-Alpes" },
+        { "identifiant": "bourgogne-franche-comte", "libelle": "Bourgogne-Franche-Comté" },
+        { "identifiant": "bretagne", "libelle": "Bretagne" },
+        { "identifiant": "centre-val-de-loire", "libelle": "Centre-Val de Loire" },
+        { "identifiant": "corse", "libelle": "Corse" },
+        { "identifiant": "grand-est", "libelle": "Grand Est" },
+        { "identifiant": "hauts-de-france", "libelle": "Hauts-de-France" },
+        { "identifiant": "ile-de-france", "libelle": "Île-de-France" },
+        { "identifiant": "normandie", "libelle": "Normandie" },
+        { "identifiant": "nouvelle-aquitaine", "libelle": "Nouvelle-Aquitaine" },
+        { "identifiant": "occitanie", "libelle": "Occitanie" },
+        { "identifiant": "pays-de-la-loire", "libelle": "Pays de la Loire" },
+        { "identifiant": "provence-alpes-cote-d-azur", "libelle": "Provence-Alpes-Côte d'Azur" },
+        { "identifiant": "guadeloupe", "libelle": "Guadeloupe" },
+        { "identifiant": "martinique", "libelle": "Martinique" },
+        { "identifiant": "guyane", "libelle": "Guyane" },
+        { "identifiant": "la-reunion", "libelle": "La Réunion" },
+        { "identifiant": "mayotte", "libelle": "Mayotte" }
+      ]
+    }
+  ]
+}

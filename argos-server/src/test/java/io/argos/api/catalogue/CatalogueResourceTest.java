@@ -18,12 +18,12 @@ class CatalogueResourceTest {
 
     @Test
     @TestSecurity(user = "catalogue-lecteur")
-    void prf03S1LeCatalogueInitialListeDeveloppeurEtExpertMetier() {
+    void prf03S1LeCatalogueListeDeveloppeurExpertMetierEtArtiste() {
         given()
             .when().get("/api/v1/catalogue/profils")
             .then()
             .statusCode(200)
-            .body("identifiant", contains("developpeur", "expert-metier"))
+            .body("identifiant", contains("developpeur", "expert-metier", "artiste"))
             .body("libelle", everyItem(not(emptyOrNullString())))
             .body("description", everyItem(not(emptyOrNullString())))
             .body("find { it.identifiant == 'expert-metier' }.gardeFous", hasItem(

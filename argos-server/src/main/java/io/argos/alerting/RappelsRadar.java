@@ -247,7 +247,12 @@ public class RappelsRadar {
         return crees;
     }
 
-    private Optional<UUID> creer(String nature, UUID compte, String canal, String cle, String titre, ContenuAlerte contenu,
+    /**
+     * Enregistre un rappel ou une annonce pour un destinataire et un canal ; vide si la clé
+     * d'idempotence a déjà produit un message. Partagé avec les rappels de date limite
+     * ({@link RappelsOpportunites}).
+     */
+    Optional<UUID> creer(String nature, UUID compte, String canal, String cle, String titre, ContenuAlerte contenu,
             Instant maintenant) {
         try (Connection c = dataSource.getConnection(); PreparedStatement ps = c.prepareStatement("""
                 INSERT INTO alerte (id, nature, compte_id, canal, cle_radar, titre, contenu, etat_resume_ia, etat, cree_le)
