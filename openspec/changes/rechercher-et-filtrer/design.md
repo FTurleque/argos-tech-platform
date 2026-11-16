@@ -1,6 +1,6 @@
 # Conception : rechercher et filtrer la veille, et enregistrer des vues
 
-<!-- Statuts : [EXIGENCE] [EXISTANT] [DÉCISION] [PROPOSITION] [QUESTION] (légende dans proposal.md). -->
+<!-- Statuts : [EXIGENCE] [EXISTANT] [DÉCISION] [PROPOSITION] [QUESTION] (légende : /docs/specifications/README.md#statuts-des-informations). -->
 
 **Niveau de conception** : Allégée : recherche sur la base existante, sans nouvelle dépendance.
 

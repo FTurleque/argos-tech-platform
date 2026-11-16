@@ -1,6 +1,6 @@
 # Conception : suivre les évolutions réglementaires avec validation par un expert
 
-<!-- Statuts : [EXIGENCE] [EXISTANT] [DÉCISION] [PROPOSITION] [QUESTION] (légende dans proposal.md). -->
+<!-- Statuts : [EXIGENCE] [EXISTANT] [DÉCISION] [PROPOSITION] [QUESTION] (légende : /docs/specifications/README.md#statuts-des-informations). -->
 
 **Niveau de conception** : Complète : nouveau cycle de vie (fiche), source externe à conditions d'usage, dépendance à la passerelle IA.
 

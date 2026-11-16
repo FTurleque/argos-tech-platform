@@ -1,6 +1,6 @@
 # Proposition : gérer les comptes, les espaces et le contrôle d'accès
 
-<!-- Statuts : [EXIGENCE] [EXISTANT] [DÉCISION] [PROPOSITION] [QUESTION] — légende dans le modèle du schéma detailed-uml. -->
+<!-- Statuts : [EXIGENCE] [EXISTANT] [DÉCISION] [PROPOSITION] [QUESTION] — légende : /docs/specifications/README.md#statuts-des-informations. -->
 
 ## Why — Pourquoi
 

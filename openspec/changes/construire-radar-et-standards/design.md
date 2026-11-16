@@ -1,6 +1,6 @@
 # Conception : tenir le référentiel des standards et le radar des sorties
 
-<!-- Statuts : [EXIGENCE] [EXISTANT] [DÉCISION] [PROPOSITION] [QUESTION] (légende dans proposal.md). -->
+<!-- Statuts : [EXIGENCE] [EXISTANT] [DÉCISION] [PROPOSITION] [QUESTION] (légende : /docs/specifications/README.md#statuts-des-informations). -->
 
 **Niveau de conception** : Allégée : modules existants, une source externe déjà prévue, pas de nouveau cycle de vie complexe.
 

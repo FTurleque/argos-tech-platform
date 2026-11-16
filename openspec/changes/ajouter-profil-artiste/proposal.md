@@ -1,6 +1,6 @@
 # Proposition : ajouter le profil de veille « artiste »
 
-<!-- Statuts : [EXIGENCE] [EXISTANT] [DÉCISION] [PROPOSITION] [QUESTION] — légende dans le modèle du schéma detailed-uml. -->
+<!-- Statuts : [EXIGENCE] [EXISTANT] [DÉCISION] [PROPOSITION] [QUESTION] — légende : /docs/specifications/README.md#statuts-des-informations. -->
 
 ## Why — Pourquoi
 

@@ -1,6 +1,6 @@
 # Proposition : encadrer tous les appels aux modèles d'IA par une passerelle unique
 
-<!-- Statuts : [EXIGENCE] [EXISTANT] [DÉCISION] [PROPOSITION] [QUESTION] — légende dans le modèle du schéma detailed-uml. -->
+<!-- Statuts : [EXIGENCE] [EXISTANT] [DÉCISION] [PROPOSITION] [QUESTION] — légende : /docs/specifications/README.md#statuts-des-informations. -->
 
 ## Why — Pourquoi
 

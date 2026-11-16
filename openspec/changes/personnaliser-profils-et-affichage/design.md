@@ -1,6 +1,6 @@
 # Conception : personnaliser les profils de veille et la mise en page
 
-<!-- Statuts : [EXIGENCE] [EXISTANT] [DÉCISION] [PROPOSITION] [QUESTION] (légende dans proposal.md). -->
+<!-- Statuts : [EXIGENCE] [EXISTANT] [DÉCISION] [PROPOSITION] [QUESTION] (légende : /docs/specifications/README.md#statuts-des-informations). -->
 
 **Niveau de conception** : allégée — règles fonctionnelles et responsabilités fixées ; schéma de données et API détaillés à concevoir avec les premières tâches d'implémentation.
 

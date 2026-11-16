@@ -1,6 +1,6 @@
 # Conception : collecter la veille RSS/Atom et les pages web surveillées
 
-<!-- Statuts : [EXIGENCE] [EXISTANT] [DÉCISION] [PROPOSITION] [QUESTION] (légende dans proposal.md). -->
+<!-- Statuts : [EXIGENCE] [EXISTANT] [DÉCISION] [PROPOSITION] [QUESTION] (légende : /docs/specifications/README.md#statuts-des-informations). -->
 
 **Niveau de conception** : Complète : entrées non fiables fournies par des tiers et exposition aux risques R-11 et R-12.
 

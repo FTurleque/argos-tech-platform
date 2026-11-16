@@ -1,6 +1,6 @@
 # Conception : exposer Argos aux assistants IA par un serveur MCP en lecture seule
 
-<!-- Statuts : [EXIGENCE] [EXISTANT] [DÉCISION] [PROPOSITION] [QUESTION] (légende dans proposal.md). -->
+<!-- Statuts : [EXIGENCE] [EXISTANT] [DÉCISION] [PROPOSITION] [QUESTION] (légende : /docs/specifications/README.md#statuts-des-informations). -->
 
 **Niveau de conception** : Complète : nouvelle interface externe exposée aux assistants IA, avec des enjeux d'authentification et d'injection d'instructions.
 

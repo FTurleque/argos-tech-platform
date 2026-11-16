@@ -1,6 +1,6 @@
 # Conception : notifier les alertes sur le poste de travail
 
-<!-- Statuts : [EXIGENCE] [EXISTANT] [DÉCISION] [PROPOSITION] [QUESTION] (légende dans proposal.md). -->
+<!-- Statuts : [EXIGENCE] [EXISTANT] [DÉCISION] [PROPOSITION] [QUESTION] (légende : /docs/specifications/README.md#statuts-des-informations). -->
 
 **Niveau de conception** : Allégée : comportement local au client desktop, sur un contrat d'alertes défini par un autre change.
 

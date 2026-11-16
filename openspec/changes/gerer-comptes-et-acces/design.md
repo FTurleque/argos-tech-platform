@@ -1,6 +1,6 @@
 # Conception : gérer les comptes, les espaces et le contrôle d'accès
 
-<!-- Statuts : [EXIGENCE] [EXISTANT] [DÉCISION] [PROPOSITION] [QUESTION] (légende dans proposal.md). -->
+<!-- Statuts : [EXIGENCE] [EXISTANT] [DÉCISION] [PROPOSITION] [QUESTION] (légende : /docs/specifications/README.md#statuts-des-informations). -->
 
 **Niveau de conception** : Complète : le changement porte la sécurité de toute l'application et introduit le modèle des comptes et des espaces.
 

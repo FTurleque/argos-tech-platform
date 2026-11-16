@@ -1,6 +1,6 @@
 # Conception : encadrer tous les appels aux modèles d'IA par une passerelle unique
 
-<!-- Statuts : [EXIGENCE] [EXISTANT] [DÉCISION] [PROPOSITION] [QUESTION] (légende dans proposal.md). -->
+<!-- Statuts : [EXIGENCE] [EXISTANT] [DÉCISION] [PROPOSITION] [QUESTION] (légende : /docs/specifications/README.md#statuts-des-informations). -->
 
 **Niveau de conception** : Complète : composant transverse, dépendance externe payante, enjeux de confidentialité et de coût.
 
