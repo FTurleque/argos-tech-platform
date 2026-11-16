@@ -55,6 +55,19 @@ public final class MatchRules {
         return Optional.of(inventoryFromFreshSbom ? Level.EXACT : Level.PROBABLE);
     }
 
+    /**
+     * Version affectée par le paquet : vrai si elle est dans une plage ou une version énumérée,
+     * faux si elle est hors de toutes les plages, vide si les plages ne permettent pas de conclure
+     * (version inconnue, plage GIT ou non interprétable). Même règle que la corrélation (COR-01).
+     */
+    public static Optional<Boolean> versionAffected(AffectedPackage affected, String version) {
+        return switch (inRange(affected, version)) {
+            case IN_RANGE -> Optional.of(true);
+            case OUT_OF_RANGE -> Optional.of(false);
+            case UNKNOWN -> Optional.empty();
+        };
+    }
+
     static RangeResult inRange(AffectedPackage affected, String version) {
         if (version == null || version.isBlank()) {
             return RangeResult.UNKNOWN;

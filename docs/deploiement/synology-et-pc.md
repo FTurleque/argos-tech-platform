@@ -100,7 +100,41 @@ Les migrations de base s'appliquent au démarrage d'Argos. Faites une sauvegarde
 
 Le client desktop (ADR-0022) se connecte à un serveur Argos. Pour viser le NAS, construisez l'IHM avec l'adresse du serveur : `VITE_ARGOS_API_URL=http://adresse-du-nas:8080`, puis `npm run dist` dans `argos-desktop`.
 
+## Connecter un assistant IA (MCP)
+
+Argos expose un serveur MCP en lecture seule sur `POST /mcp` (fiche [`serveur-mcp`](../specifications/serveur-mcp.md)), en protocole sans état 2026-07-28. Chaque appel porte un jeton d'accès Keycloak de l'utilisateur ; Argos ne stocke aucun jeton.
+
+1. **Client Keycloak** : dans le royaume d'Argos, un client public `argos-mcp` avec le flux d'appareil activé (« OAuth 2.0 Device Authorization Grant ») et le mappeur d'audience `argos-server`. Le royaume de test (`argos-server/src/test/resources/keycloak/argos-realm.json`) en donne la définition.
+2. **Obtenir un jeton par le flux d'appareil** (RFC 8628) :
+
+   ```bash
+   KC=https://keycloak.votre-domaine/realms/argos
+   curl -s -d client_id=argos-mcp -d scope=openid "$KC/protocol/openid-connect/auth/device"
+   # Ouvrez verification_uri_complete dans un navigateur et connectez-vous, puis :
+   curl -s -d client_id=argos-mcp -d grant_type=urn:ietf:params:oauth:grant-type:device_code \
+        -d device_code=<device_code> "$KC/protocol/openid-connect/token"
+   export ARGOS_MCP_TOKEN=<access_token>
+   ```
+
+   Le jeton expire selon la durée de vie fixée dans Keycloak ; le `refresh_token` reçu en délivre un nouveau (`grant_type=refresh_token`). Ces jetons restent sur le poste du développeur.
+3. **Configurer l'assistant** : fichier `.mcp.json` du projet, par exemple pour Claude Code :
+
+   ```json
+   {
+     "mcpServers": {
+       "argos": {
+         "type": "http",
+         "url": "https://argos.votre-domaine/mcp",
+         "headers": { "Authorization": "Bearer ${ARGOS_MCP_TOKEN}" }
+       }
+     }
+   }
+   ```
+
+Limites : 60 appels par minute et par utilisateur (`argos.mcp.debit.requetes-par-minute`) ; texte externe tronqué à 2 000 caractères (`argos.mcp.contenu-externe.longueur-max`).
+
 ## État de vérification
 
 - `compose.yaml` validé par `docker compose config` ; script de sauvegarde contrôlé par `sh -n`.
+- Serveur MCP : protocole, authentification et outils vérifiés par les tests `io.argos.mcp` ; **non vérifié** : la connexion réelle d'un assistant IA configuré par `.mcp.json`.
 - **Non vérifié** : la construction de l'image (dépendances Maven inaccessibles depuis l'environnement de préparation) et le démarrage réel sur le NAS. Premier essai à faire sur le PC avec `docker compose up -d --build`.

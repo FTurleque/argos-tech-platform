@@ -133,10 +133,12 @@ Toutes les exigences sont au statut [PROPOSITION] : elles dérivent d'ADR « Pro
 
 | Changement | Capacité | Exigences | Scénarios | Diagrammes métier | Questions ouvertes | Tests écrits |
 |---|---|---|---|---|---|---|
-| [`exposer-serveur-mcp`](/openspec/changes/exposer-serveur-mcp/proposal.md) | `serveur-mcp` | 7 | 9 | 1 | 3 | 0 |
+| [`exposer-serveur-mcp`](/openspec/changes/exposer-serveur-mcp/proposal.md) | `serveur-mcp` | 7 | 9 | 1 | 0 | 9 |
 | [`encadrer-appels-ia`](/openspec/changes/encadrer-appels-ia/proposal.md) | `passerelle-ia` | 5 | 6 | 1 | 4 | 0 |
 | [`suivre-veille-reglementaire`](/openspec/changes/suivre-veille-reglementaire/proposal.md) | `veille-reglementaire` | 8 | 13 | 1 | 4 | 0 |
-| **Total** | | **20** | **28** | **3** | **11** | **0** |
+| **Total** | | **20** | **28** | **3** | **8** | **9** |
+
+Pour `exposer-serveur-mcp`, « Tests écrits » compte les scénarios MCP-01-S1 à MCP-07-S1 couverts par un test qui passe (`argos-server/src/test/java/io/argos/mcp/`) ; MCP-02-S1 et MCP-07-S1 s'appuient sur des implémentations simulées du référentiel des standards et des fiches réglementaires, non encore livrés. Matrice détaillée : [`tasks.md` du changement](/openspec/changes/exposer-serveur-mcp/tasks.md#matrice-de-traçabilité).
 
 ### Couverture du lot 4
 

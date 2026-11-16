@@ -45,6 +45,10 @@ public class InventoryQueries {
             String specVersion, Instant importedAt, List<ComponentView> components) {
     }
 
+    /** Projet lisible par un compte : identifiant, espace et nom. */
+    public record ProjectSummary(UUID id, UUID workspaceId, String name) {
+    }
+
     /** Import refusé (INV-05). */
     public record ImportFailure(UUID id, String reason, String sourceRef, Instant receivedAt) {
     }
@@ -81,6 +85,25 @@ public class InventoryQueries {
         } catch (SQLException e) {
             throw new IllegalStateException("lecture de l'inventaire impossible", e);
         }
+    }
+
+    /** Projets lisibles par le compte (RLS sous {@code argos_app}), par nom. */
+    @Transactional
+    public List<ProjectSummary> visibleProjects(UUID accountId) {
+        List<ProjectSummary> projects = new ArrayList<>();
+        String sql = "SELECT id, workspace_id, name FROM project ORDER BY name, id";
+        try (Connection c = dataSource.getConnection()) {
+            ContexteBase.appliquer(c, new ContexteBase.Contexte(accountId, null, null));
+            try (PreparedStatement ps = c.prepareStatement(sql); ResultSet rs = ps.executeQuery()) {
+                while (rs.next()) {
+                    projects.add(new ProjectSummary(rs.getObject(1, UUID.class), rs.getObject(2, UUID.class),
+                            rs.getString(3)));
+                }
+            }
+        } catch (SQLException e) {
+            throw new IllegalStateException("lecture des projets impossible", e);
+        }
+        return projects;
     }
 
     @Transactional

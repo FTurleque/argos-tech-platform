@@ -20,6 +20,7 @@
     <quarkus.platform.artifact-id>quarkus-bom</quarkus.platform.artifact-id>
     <quarkus.platform.version>3.40.1.2</quarkus.platform.version>
     <archunit.version>1.5.1</archunit.version>
+    <quarkus-mcp-server.version>2.0.4</quarkus-mcp-server.version>
     <compiler-plugin.version>3.14.0</compiler-plugin.version>
     <surefire-plugin.version>3.5.3</surefire-plugin.version>
     <skipITs>true</skipITs>
@@ -77,6 +78,14 @@
     <dependency>
       <groupId>io.quarkus</groupId>
       <artifactId>quarkus-oidc</artifactId>
+    </dependency>
+
+    <!-- Serveur MCP en lecture seule, transport Streamable HTTP (ADR-0014, changement
+         exposer-serveur-mcp). Extension Quarkiverse, licence Apache-2.0 (ADR-0021 point 6). -->
+    <dependency>
+      <groupId>io.quarkiverse.mcp</groupId>
+      <artifactId>quarkus-mcp-server-http</artifactId>
+      <version>${quarkus-mcp-server.version}</version>
     </dependency>
 
     <!-- Tests -->

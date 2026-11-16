@@ -163,6 +163,31 @@ public class ImpactQueries {
         return items;
     }
 
+    /** Impacts les plus récents des espaces donnés (serveur MCP, {@code get_security_alerts}). */
+    @Transactional
+    public List<ImpactView> forWorkspaces(UUID accountId, Set<UUID> workspaces, int limit) {
+        List<ImpactView> items = new ArrayList<>();
+        if (workspaces.isEmpty()) {
+            return items;
+        }
+        try (Connection c = dataSource.getConnection()) {
+            RlsSession.account(c, accountId);
+            try (PreparedStatement ps = c.prepareStatement(SELECT
+                    + " WHERE i.workspace_id = ANY (?) ORDER BY i.updated_at DESC, i.id LIMIT ?")) {
+                ps.setArray(1, uuids(c, workspaces));
+                ps.setInt(2, Math.min(Math.max(limit, 1), 200));
+                try (ResultSet rs = ps.executeQuery()) {
+                    while (rs.next()) {
+                        items.add(view(rs));
+                    }
+                }
+            }
+        } catch (SQLException e) {
+            throw new IllegalStateException("lecture des impacts impossible", e);
+        }
+        return items;
+    }
+
     /**
      * Espace d'un impact, lu hors rôle applicatif pour décider d'un refus à journaliser ;
      * jamais restitué à l'appelant.
