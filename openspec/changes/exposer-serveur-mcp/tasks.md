@@ -36,7 +36,7 @@
 | 2.1 | `argos-server/pom.xml` : `io.quarkiverse.mcp:quarkus-mcp-server-http` 2.0.4, licence Apache-2.0 consignée (dépendances transitives `quarkus-mcp-server-core`, `quarkus-mcp-server-sse-client`, `org.mcpjava:mcp-server-api` 1.0.0, `com.github.victools:jsonschema-generator` 4.38.0, `jsonschema-module-jackson`, `jsonschema-module-jakarta-validation`, `jsonschema-module-swagger-2` : Apache-2.0) ; `application.properties` : `quarkus.mcp.server.supported-protocol-versions=2026-07-28` ; `ContratOutilsMcpTest` (liste, schémas, transport sans état, découverte) | passe |
 | 2.2 | `GardeAppels` (appelant par `CallerResolver`, refus journalisés) ; `AuthentificationMcpTest`, `CloisonnementMcpTest` (dont RLS sous `argos_app`) ; règle `ModuleBoundariesTest.mcpNeLitQueLaSecuriteDeLApi` | passe |
 | 2.3 | `BalisageExterne`, `TexteExterne` ; `ContenuExterneMcpTest` | passe |
-| 2.4 | `LimiteurDebit`, `audit.JournalAppelsMcp`, migration `V9__journal_appels_mcp.sql` ; `LimiteDebitMcpTest` (profil de test à 3 appels par minute) | passe |
+| 2.4 | `api.security.LimiteurDebit` (commun avec la veille web), `audit.JournalAppelsMcp`, migration `V9__journal_appels_mcp.sql` ; `LimiteDebitMcpTest` (profil de test à 3 appels par minute), `LimiteurDebitTest` | passe |
 | 3.1 | `OutilsSecurite.checkDependency` ; `OutilsConsultationMcpTest` (MCP-02-S1 avec référentiel et calendrier simulés, MCP-02-S2, paramètres invalides) | passe |
 | 3.2 | `OutilsSecurite`, `OutilsProjets`, `OutilsReferentiel` ; `OutilsConsultationMcpTest`, `CloisonnementMcpTest`, `ContratOutilsMcpTest.chaqueOutilPublieSesSchemas` | passe |
 | 3.3 | `OutilsReglementaires` ; `ReglementaireMcpTest` (fiches simulées) | passe |

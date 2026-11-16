@@ -16,7 +16,9 @@ import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.inject.Inject;
 
 import org.eclipse.microprofile.config.inject.ConfigProperty;
+import org.jboss.logging.Logger;
 
+import io.argos.ingestion.web.GardeAdresses;
 import io.argos.ingestion.web.LecteurFlux;
 import io.argos.ingestion.web.LecteurPage;
 import io.argos.ingestion.web.RecuperateurWeb;
@@ -37,7 +39,13 @@ import io.argos.workspace.ContexteBase.Contexte;
  *
  * <p>Une adresse n'est enregistrée qu'après sa récupération réussie : adresse publique, redirections
  * vérifiées, contenu qui est bien un flux (WEB-01-S2) ou une page HTML. Aucune source n'est créée
- * sinon.
+ * sinon. L'adresse est enregistrée sous sa forme canonique (schéma et hôte en minuscules, port par
+ * défaut et fragment retirés) : deux écritures d'une même adresse ne contournent pas l'unicité.
+ *
+ * <p>La source est insérée puis sa première collecte intégrée sous son verrou de collecte, pris
+ * avant l'insertion : le planificateur ne la collecte pas en même temps. Si l'intégration échoue,
+ * la source reste enregistrée à l'état {@code EN_ERREUR} avec son motif et le planificateur la
+ * reprend après l'attente d'un échec.
  */
 @ApplicationScoped
 public class SourcesWeb {
@@ -45,6 +53,8 @@ public class SourcesWeb {
     /** Demande de création ; {@code espaceId} n'est renseigné que pour une source d'espace. */
     public record Demande(String portee, UUID espaceId, String type, String adresse, String libelle) {
     }
+
+    private static final Logger LOG = Logger.getLogger(SourcesWeb.class);
 
     private static final String COLONNES = """
             id, portee, espace_id, proprietaire_id, type, adresse, libelle, etat, echecs_consecutifs, derniere_erreur,
@@ -65,6 +75,9 @@ public class SourcesWeb {
     @Inject
     CollecteWeb collecte;
 
+    @Inject
+    StockActualites stock;
+
     @ConfigProperty(name = "argos.veille-web.sources-personnelles-max", defaultValue = "50")
     int sourcesPersonnellesMax;
 
@@ -77,18 +90,30 @@ public class SourcesWeb {
         }
         RecuperateurWeb.Contenu contenu;
         String titre;
+        String adresse;
         try {
-            contenu = recuperateur.recuperer(d.adresse());
+            adresse = normaliser(d.adresse());
+            contenu = recuperateur.recuperer(adresse);
             titre = SourceWeb.FLUX.equals(d.type()) ? lecteurFlux.lire(contenu.octets()).titre()
                     : lecteurPage.lire(contenu.octets(), contenu.typeContenu(), contenu.adresseFinale().toString()).titre();
         } catch (RecuperationRefusee e) {
-            throw new DonneeInvalide(e.motif().name(), e.getMessage(), "adresse");
+            LOG.infof("ajout de source web refusé pour le compte %s : %s (%s)", compteId, e.motif(), e.getMessage());
+            throw new DonneeInvalide(e.motif().name(), e.message(), "adresse");
         }
-        String adresse = normaliser(d.adresse());
         String libelle = d.libelle() != null ? d.libelle()
                 : !titre.isBlank() ? titre : contenu.adresseFinale().getHost();
         UUID id = UUID.randomUUID();
         UUID espace = personnelle ? null : d.espaceId();
+        try (StockActualites.Verrou verrou = stock.verrouiller(id).orElseThrow(
+                () -> new IllegalStateException("verrou de la source " + id + " indisponible"))) {
+            inserer(d, compteId, personnelle, adresse, libelle, id, espace);
+            collecte.premiereCollecte(id, contenu);
+        }
+        return trouver(id, compteId).orElseThrow();
+    }
+
+    private void inserer(Demande d, UUID compteId, boolean personnelle, String adresse, String libelle, UUID id,
+            UUID espace) {
         base.executer(new Contexte(compteId, null, espace), c -> {
             if (personnelle) {
                 try (PreparedStatement ps = c.prepareStatement("SELECT pg_advisory_xact_lock(hashtext(?))")) {
@@ -119,8 +144,6 @@ public class SourcesWeb {
             }
             return null;
         });
-        collecte.premiereCollecte(id, contenu);
-        return trouver(id, compteId).orElseThrow();
     }
 
     /** Sources visibles du compte : les siennes et celles des espaces dont il est membre. */
@@ -187,8 +210,12 @@ public class SourcesWeb {
         return new Demande(portee, d.espaceId(), type, d.adresse(), libelle);
     }
 
-    private static String normaliser(String adresse) {
-        return java.net.URI.create(adresse.strip()).normalize().toString();
+    /**
+     * Forme canonique de l'adresse saisie, après son contrôle syntaxique (schéma http(s), hôte,
+     * absence d'identifiants, longueur) ; une adresse refusée lève {@code ADRESSE_INVALIDE}.
+     */
+    static String normaliser(String adresse) {
+        return Deduplication.adresse(GardeAdresses.analyser(adresse).toString());
     }
 
     private static List<SourceWeb> lire(Connection c, String sql, Object... parametres) throws SQLException {

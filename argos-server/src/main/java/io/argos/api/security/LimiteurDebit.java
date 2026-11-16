@@ -1,4 +1,4 @@
-package io.argos.mcp;
+package io.argos.api.security;
 
 import java.time.Duration;
 import java.util.ArrayDeque;
@@ -9,20 +9,16 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.function.LongSupplier;
 
-import jakarta.enterprise.context.ApplicationScoped;
-
-import org.eclipse.microprofile.config.inject.ConfigProperty;
-
 /**
- * Limite le nombre d'appels d'outils MCP par compte sur une fenêtre glissante (MCP-06). Valeur par
- * défaut : 60 requêtes par minute et par utilisateur (décision du 2026-11-16, Q-1), paramétrable par
- * {@code argos.mcp.debit.requetes-par-minute}.
+ * Limite le nombre de requêtes par compte sur une fenêtre glissante d'une minute. Mécanisme commun
+ * au serveur MCP (MCP-06, {@code argos.mcp.debit.requetes-par-minute}) et aux requêtes de la veille
+ * web qui déclenchent une récupération externe ({@code argos.veille-web.debit.requetes-par-minute}) ;
+ * chaque usage tient sa propre instance, donc ses propres compteurs.
  *
  * <p>Le compteur est tenu en mémoire de l'instance : Argos est déployé en une seule instance
  * (ADR-0017, ADR-0026). Aucune donnée n'est conservée au-delà de la fenêtre.
  */
-@ApplicationScoped
-public class LimiteurDebit {
+public final class LimiteurDebit {
 
     private static final Duration FENETRE = Duration.ofMinutes(1);
 
@@ -31,12 +27,22 @@ public class LimiteurDebit {
 
     private final Map<UUID, Deque<Long>> appels = new ConcurrentHashMap<>();
     private final AtomicLong compteur = new AtomicLong();
+    private final int requetesParMinute;
+    private final LongSupplier horloge;
 
-    @ConfigProperty(name = "argos.mcp.debit.requetes-par-minute", defaultValue = "60")
-    int requetesParMinute;
+    /** Limiteur de {@code requetesParMinute} requêtes par minute et par compte. */
+    public LimiteurDebit(int requetesParMinute) {
+        this(requetesParMinute, System::currentTimeMillis);
+    }
 
-    /** Horloge en millisecondes, remplaçable par les tests unitaires. */
-    LongSupplier horloge = System::currentTimeMillis;
+    /** Limiteur avec une horloge en millisecondes, remplaçable par les tests unitaires. */
+    public LimiteurDebit(int requetesParMinute, LongSupplier horloge) {
+        if (requetesParMinute < 1) {
+            throw new IllegalArgumentException("limite de débit invalide : " + requetesParMinute);
+        }
+        this.requetesParMinute = requetesParMinute;
+        this.horloge = horloge;
+    }
 
     /** Vrai si l'appel est admis, et il est alors compté ; faux si la limite est atteinte. */
     public boolean admettre(UUID compte) {
@@ -68,8 +74,8 @@ public class LimiteurDebit {
         });
     }
 
-    /** Nombre de comptes suivis (tests). */
-    int comptesSuivis() {
+    /** Nombre de comptes suivis. */
+    public int comptesSuivis() {
         return appels.size();
     }
 }

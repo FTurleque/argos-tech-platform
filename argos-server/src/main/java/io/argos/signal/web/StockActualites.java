@@ -18,6 +18,9 @@ import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.enterprise.event.Event;
 import jakarta.inject.Inject;
 import jakarta.transaction.Transactional;
+import jakarta.transaction.Transactional.TxType;
+
+import org.jboss.logging.Logger;
 
 import io.argos.ingestion.web.LecteurFlux.ElementFlux;
 import io.argos.ingestion.web.LecteurPage;
@@ -28,16 +31,67 @@ import io.argos.ingestion.web.LecteurPage.Instantane;
  * collectes (protocole de la migration V2) : actualités dédupliquées par empreinte (WEB-05),
  * citations par source, instantané des pages surveillées (WEB-02) et état des sources (WEB-03-S2).
  *
- * <p>L'insertion conditionnelle sur l'empreinte unique laisse la base arbitrer deux collectes
- * concurrentes du même article ; la citation (actualité, source) est elle aussi unique.
+ * <p>Une actualité appartient au périmètre de la source qui la reçoit : l'espace d'une source
+ * d'espace, le propriétaire d'une source personnelle. La déduplication se fait dans ce périmètre
+ * seulement : une source ne fixe jamais le titre, le texte ni le lien vus dans un autre périmètre,
+ * et l'insertion d'une actualité ne révèle rien de ceux-ci. L'insertion conditionnelle sur
+ * (périmètre, empreinte) laisse la base arbitrer deux collectes concurrentes du même article ; la
+ * citation (actualité, source) est elle aussi unique.
+ *
+ * <p>La collecte d'une source est sérialisée par un verrou consultatif de session PostgreSQL
+ * ({@link #verrouiller(UUID)}) : la collecte à la demande, la première collecte et le planificateur
+ * ne traitent jamais la même source en même temps.
  */
 @ApplicationScoped
 public class StockActualites {
 
     /** Ce dont la collecte a besoin pour une source. */
     public record SourceACollecter(UUID id, String type, String adresse, String libelle, UUID espaceId,
-            String pageEmpreinte, String pageTexte) {
+            UUID proprietaireId, String pageEmpreinte, String pageTexte) {
     }
+
+    /**
+     * Verrou consultatif de session sur une source, tenu par une connexion dédiée hors transaction ;
+     * sa fermeture libère le verrou et rend la connexion.
+     */
+    public static final class Verrou implements AutoCloseable {
+
+        private final Connection connexion;
+        private final UUID sourceId;
+
+        private Verrou(Connection connexion, UUID sourceId) {
+            this.connexion = connexion;
+            this.sourceId = sourceId;
+        }
+
+        @Override
+        public void close() {
+            try (Connection c = connexion; PreparedStatement ps = c.prepareStatement(
+                    DEVERROUILLER)) {
+                ps.setString(1, sourceId.toString());
+                ps.execute();
+            } catch (SQLException e) {
+                LOG.errorf(e, "libération du verrou de collecte de la source %s impossible", sourceId);
+            }
+        }
+    }
+
+    private static final Logger LOG = Logger.getLogger(StockActualites.class);
+
+    // Clé du verrou consultatif d'une source : espace de clés propre à la collecte web, identifiant lié.
+    private static final String VERROUILLER = "SELECT pg_try_advisory_lock(hashtext('collecte_web'), hashtext(?))";
+    private static final String DEVERROUILLER = "SELECT pg_advisory_unlock(hashtext('collecte_web'), hashtext(?))";
+
+    // Requêtes par périmètre : l'index unique partiel visé dépend du périmètre de la source.
+    private static final String INSERER_ACTUALITE = """
+            INSERT INTO actualite (id, espace_id, proprietaire_id, empreinte, type, titre, lien, texte, publie_le, recu_le)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, now())
+            """;
+    private static final String CONFLIT_ESPACE = "ON CONFLICT (espace_id, empreinte) WHERE espace_id IS NOT NULL DO NOTHING";
+    private static final String CONFLIT_PROPRIETAIRE =
+            "ON CONFLICT (proprietaire_id, empreinte) WHERE proprietaire_id IS NOT NULL DO NOTHING";
+    private static final String ACTUALITE_ESPACE = "SELECT id FROM actualite WHERE espace_id = ? AND empreinte = ?";
+    private static final String ACTUALITE_PROPRIETAIRE = "SELECT id FROM actualite WHERE proprietaire_id = ? AND empreinte = ?";
 
     @Inject
     DataSource dataSource;
@@ -48,17 +102,70 @@ public class StockActualites {
     @Transactional
     public Optional<SourceACollecter> source(UUID id) {
         try (Connection c = dataSource.getConnection(); PreparedStatement ps = c.prepareStatement(
-                "SELECT id, type, adresse, libelle, espace_id, page_empreinte, page_texte FROM source_web WHERE id = ?")) {
+                "SELECT id, type, adresse, libelle, espace_id, proprietaire_id, page_empreinte, page_texte FROM source_web WHERE id = ?")) {
             ps.setObject(1, id);
             try (ResultSet rs = ps.executeQuery()) {
                 if (!rs.next()) {
                     return Optional.empty();
                 }
                 return Optional.of(new SourceACollecter(rs.getObject(1, UUID.class), rs.getString(2), rs.getString(3),
-                        rs.getString(4), rs.getObject(5, UUID.class), rs.getString(6), rs.getString(7)));
+                        rs.getString(4), rs.getObject(5, UUID.class), rs.getObject(6, UUID.class), rs.getString(7),
+                        rs.getString(8)));
             }
         } catch (SQLException e) {
             throw new IllegalStateException("lecture de la source " + id + " impossible", e);
+        }
+    }
+
+    /**
+     * Prend sans attendre le verrou de collecte d'une source. La connexion qui le porte est obtenue
+     * hors de toute transaction JTA et reste ouverte jusqu'à {@link Verrou#close()}.
+     *
+     * @return le verrou, ou vide si une autre collecte de cette source est en cours
+     */
+    @Transactional(TxType.NOT_SUPPORTED)
+    public Optional<Verrou> verrouiller(UUID sourceId) {
+        Connection c = null;
+        try {
+            c = dataSource.getConnection();
+            c.setAutoCommit(true);
+            try (PreparedStatement ps = c.prepareStatement(VERROUILLER)) {
+                ps.setString(1, sourceId.toString());
+                try (ResultSet rs = ps.executeQuery()) {
+                    rs.next();
+                    if (!rs.getBoolean(1)) {
+                        return Optional.empty();
+                    }
+                }
+            }
+            Verrou verrou = new Verrou(c, sourceId);
+            c = null;
+            return Optional.of(verrou);
+        } catch (SQLException e) {
+            throw new IllegalStateException("verrouillage de la source " + sourceId + " impossible", e);
+        } finally {
+            if (c != null) {
+                try {
+                    c.close();
+                } catch (SQLException e) {
+                    // Échec de fermeture d'une connexion sans verrou : rien à libérer, seule la trace compte.
+                    LOG.debugf(e, "fermeture de la connexion de verrouillage de la source %s impossible", sourceId);
+                }
+            }
+        }
+    }
+
+    /** Vrai si la prochaine collecte de la source est échue. */
+    @Transactional
+    public boolean echue(UUID sourceId) {
+        try (Connection c = dataSource.getConnection(); PreparedStatement ps = c.prepareStatement(
+                "SELECT 1 FROM source_web WHERE id = ? AND prochaine_collecte_le <= now()")) {
+            ps.setObject(1, sourceId);
+            try (ResultSet rs = ps.executeQuery()) {
+                return rs.next();
+            }
+        } catch (SQLException e) {
+            throw new IllegalStateException("lecture de la source " + sourceId + " impossible", e);
         }
     }
 
@@ -82,19 +189,19 @@ public class StockActualites {
 
     /** Enregistre les éléments d'un flux ; renvoie le nombre de citations nouvelles pour cette source. */
     @Transactional
-    public int integrerFlux(UUID sourceId, UUID espaceId, List<ElementFlux> elements) {
+    public int integrerFlux(SourceACollecter source, List<ElementFlux> elements) {
         int nouvelles = 0;
         try (Connection c = dataSource.getConnection()) {
             for (ElementFlux e : elements) {
-                UUID actualite = actualite(c, Deduplication.article(e), "ARTICLE", e.titre(), e.lien(), e.texte(),
-                        e.publieLe());
-                if (citer(c, actualite, sourceId, e.lien())) {
+                UUID actualite = actualite(c, source, Deduplication.article(e), "ARTICLE", e.titre(), e.lien(),
+                        e.texte(), e.publieLe());
+                if (citer(c, actualite, source.id(), e.lien())) {
                     nouvelles++;
-                    evenements.fire(new ActualiteRecue(actualite, sourceId, espaceId));
+                    evenements.fire(new ActualiteRecue(actualite, source.id(), source.espaceId()));
                 }
             }
         } catch (SQLException e) {
-            throw new IllegalStateException("enregistrement des actualités de la source " + sourceId + " impossible", e);
+            throw new IllegalStateException("enregistrement des actualités de la source " + source.id() + " impossible", e);
         }
         return nouvelles;
     }
@@ -113,7 +220,7 @@ public class StockActualites {
             if (change) {
                 String titre = "Modification de la page « " + source.libelle() + " »";
                 String apercu = LecteurPage.apercu(source.pageTexte(), instantane.texte());
-                UUID actualite = actualite(c, Deduplication.changementPage(source.adresse(), instantane.empreinte()),
+                UUID actualite = actualite(c, source, Deduplication.changementPage(source.adresse(), instantane.empreinte()),
                         "CHANGEMENT_PAGE", titre, source.adresse(), apercu, Instant.now());
                 citee = citer(c, actualite, source.id(), source.adresse());
                 if (citee) {
@@ -172,24 +279,30 @@ public class StockActualites {
                 """, couper(motif, 1000), Instant.now().plus(attente).atOffset(ZoneOffset.UTC), sourceId);
     }
 
-    private static UUID actualite(Connection c, String empreinte, String type, String titre, String lien, String texte,
-            Instant publieLe) throws SQLException {
-        try (PreparedStatement ps = c.prepareStatement("""
-                INSERT INTO actualite (id, empreinte, type, titre, lien, texte, publie_le, recu_le)
-                VALUES (?, ?, ?, ?, ?, ?, ?, now())
-                ON CONFLICT (empreinte) DO NOTHING
-                """)) {
+    /**
+     * Actualité du périmètre de la source pour cette empreinte, créée si elle n'existe pas. Le contenu
+     * d'une actualité existante n'est jamais modifié ; seules les actualités de ce périmètre sont lues.
+     */
+    private static UUID actualite(Connection c, SourceACollecter source, String empreinte, String type, String titre,
+            String lien, String texte, Instant publieLe) throws SQLException {
+        boolean espace = source.espaceId() != null;
+        UUID perimetre = espace ? source.espaceId() : source.proprietaireId();
+        try (PreparedStatement ps = c.prepareStatement(
+                INSERER_ACTUALITE + (espace ? CONFLIT_ESPACE : CONFLIT_PROPRIETAIRE))) {
             ps.setObject(1, UUID.randomUUID());
-            ps.setString(2, empreinte);
-            ps.setString(3, type);
-            ps.setString(4, couper(titre, 1000));
-            ps.setString(5, lien);
-            ps.setString(6, texte == null ? "" : texte);
-            ps.setObject(7, publieLe == null ? null : publieLe.atOffset(ZoneOffset.UTC));
+            ps.setObject(2, espace ? perimetre : null);
+            ps.setObject(3, espace ? null : perimetre);
+            ps.setString(4, empreinte);
+            ps.setString(5, type);
+            ps.setString(6, couper(titre, 1000));
+            ps.setString(7, lien);
+            ps.setString(8, texte == null ? "" : texte);
+            ps.setObject(9, publieLe == null ? null : publieLe.atOffset(ZoneOffset.UTC));
             ps.executeUpdate();
         }
-        try (PreparedStatement ps = c.prepareStatement("SELECT id FROM actualite WHERE empreinte = ?")) {
-            ps.setString(1, empreinte);
+        try (PreparedStatement ps = c.prepareStatement(espace ? ACTUALITE_ESPACE : ACTUALITE_PROPRIETAIRE)) {
+            ps.setObject(1, perimetre);
+            ps.setString(2, empreinte);
             try (ResultSet rs = ps.executeQuery()) {
                 rs.next();
                 return rs.getObject(1, UUID.class);

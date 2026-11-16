@@ -7,6 +7,7 @@ import jakarta.ws.rs.core.Response.Status;
 import org.jboss.resteasy.reactive.RestResponse;
 import org.jboss.resteasy.reactive.server.ServerExceptionMapper;
 
+import io.argos.api.security.LimiteDebitAtteinte;
 import io.argos.audit.JournalRefus;
 import io.argos.workspace.AccesRefuse;
 import io.argos.workspace.Compte;
@@ -23,7 +24,8 @@ import io.argos.workspace.subscription.SubscriptionRejectedException;
  * <ul>
  *   <li>non-membre ou ressource inexistante : 404, qui ne révèle pas l'existence de la ressource (Q-4) ;</li>
  *   <li>membre au rôle insuffisant : 403 (ACC-03-S2) ;</li>
- *   <li>chaque refus d'accès est journalisé dans {@code audit} (ACC-06).</li>
+ *   <li>limite de débit atteinte : 429 avec l'en-tête {@code Retry-After} ;</li>
+ *   <li>chaque refus d'accès et chaque refus pour limite de débit est journalisé dans {@code audit} (ACC-06).</li>
  * </ul>
  */
 public class GestionErreurs {
@@ -71,6 +73,15 @@ public class GestionErreurs {
     @ServerExceptionMapper
     public RestResponse<Erreur> donneeInvalide(DonneeInvalide e) {
         return RestResponse.status(Status.BAD_REQUEST, new Erreur(e.code(), e.getMessage(), e.attribut()));
+    }
+
+    /** Limite de débit atteinte : refus journalisé (motif {@code LIMITE_DEBIT}), réponse 429. */
+    @ServerExceptionMapper
+    public RestResponse<Erreur> limiteDebit(LimiteDebitAtteinte e, ContainerRequestContext requete) {
+        journal.enregistrer(utilisateur.compteResolu().map(Compte::id).orElse(null), utilisateur.sujet(),
+                ressource(requete), "LIMITE_DEBIT");
+        return RestResponse.ResponseBuilder.create(Status.TOO_MANY_REQUESTS, new Erreur("LIMITE_DEBIT", e.getMessage()))
+                .header("Retry-After", "60").build();
     }
 
     /** Méthode et chemin seulement : ni paramètre de requête ni corps (ACC-06). */

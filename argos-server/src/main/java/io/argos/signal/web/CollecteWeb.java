@@ -2,8 +2,12 @@ package io.argos.signal.web;
 
 import java.net.URI;
 import java.time.Duration;
+import java.time.Instant;
+import java.util.ArrayList;
 import java.util.List;
+import java.util.Optional;
 import java.util.UUID;
+import java.util.function.Supplier;
 
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.inject.Inject;
@@ -15,6 +19,7 @@ import io.argos.ingestion.web.LecteurFlux;
 import io.argos.ingestion.web.LecteurPage;
 import io.argos.ingestion.web.RecuperateurWeb;
 import io.argos.ingestion.web.RecuperationRefusee;
+import io.argos.workspace.RegleViolee;
 import io.quarkus.scheduler.Scheduled;
 
 /**
@@ -24,7 +29,17 @@ import io.quarkus.scheduler.Scheduled;
  * source est collectée toutes les {@code argos.veille-web.frequence} (une heure par défaut, Q-2),
  * avec des tentatives espacées après un échec.
  *
- * <p>La récupération se fait hors transaction ; seules les écritures sont transactionnelles.
+ * <p>Un passage du planificateur traite au plus {@code argos.veille-web.sources-par-passage}
+ * sources, une à une, et n'en commence plus après {@code argos.veille-web.duree-max-passage} ; les
+ * sources restantes, toujours échues, sont reprises au passage suivant.
+ *
+ * <p>La collecte d'une source se fait sous son verrou de collecte ({@link StockActualites#verrouiller}) :
+ * une collecte à la demande et le planificateur ne traitent jamais la même source en même temps, et
+ * l'instantané d'une page est relu sous ce verrou.
+ *
+ * <p>La récupération se fait hors transaction ; seules les écritures sont transactionnelles. Le
+ * motif enregistré pour un échec est le motif générique du refus ; le détail (hôte, adresse,
+ * statut) n'est écrit que dans le journal applicatif.
  */
 @ApplicationScoped
 public class CollecteWeb {
@@ -56,8 +71,14 @@ public class CollecteWeb {
     @ConfigProperty(name = "argos.veille-web.sources-par-passage", defaultValue = "200")
     int sourcesParPassage;
 
+    @ConfigProperty(name = "argos.veille-web.duree-max-passage", defaultValue = "PT4M")
+    Duration dureeMaxPassage;
+
     @ConfigProperty(name = "argos.veille-web.elements-max", defaultValue = "100")
     int elementsMax;
+
+    /** Horloge du planificateur, remplaçable par les tests. */
+    Supplier<Instant> horloge = Instant::now;
 
     @Scheduled(identity = "collecte-veille-web", every = "{argos.veille-web.cadence}",
             concurrentExecution = Scheduled.ConcurrentExecution.SKIP)
@@ -67,49 +88,101 @@ public class CollecteWeb {
         }
     }
 
-    /** Collecte les sources dont l'échéance est passée. */
+    /**
+     * Collecte les sources dont l'échéance est passée, dans la limite du nombre de sources et de la
+     * durée d'un passage. Une source en cours de collecte ailleurs, ou qui n'est plus échue une fois
+     * son verrou pris, est laissée de côté.
+     */
     public List<Rapport> collecterSourcesEchues() {
-        return stock.echues(sourcesParPassage).stream().map(this::collecter).toList();
+        Instant fin = horloge.get().plus(dureeMaxPassage);
+        List<Rapport> rapports = new ArrayList<>();
+        for (UUID id : stock.echues(sourcesParPassage)) {
+            if (!horloge.get().isBefore(fin)) {
+                LOG.infof("passage de collecte web arrêté après %s : sources restantes reprises au passage suivant",
+                        dureeMaxPassage);
+                break;
+            }
+            Optional<StockActualites.Verrou> verrou = stock.verrouiller(id);
+            if (verrou.isEmpty()) {
+                continue;
+            }
+            try (StockActualites.Verrou v = verrou.get()) {
+                if (stock.echue(id)) {
+                    stock.source(id).map(this::collecterSousVerrou).ifPresent(rapports::add);
+                }
+            }
+        }
+        return rapports;
     }
 
-    /** Collecte une source ; un échec la fait passer {@code EN_ERREUR} avec son motif. */
+    /**
+     * Collecte une source à la demande ; un échec la fait passer {@code EN_ERREUR} avec son motif.
+     *
+     * @throws RegleViolee {@code COLLECTE_EN_COURS} si une autre collecte de la source est en cours
+     */
     public Rapport collecter(UUID sourceId) {
-        StockActualites.SourceACollecter source = stock.source(sourceId)
-                .orElseThrow(() -> new IllegalArgumentException("source web inconnue : " + sourceId));
+        try (StockActualites.Verrou v = stock.verrouiller(sourceId).orElseThrow(() -> new RegleViolee(
+                "COLLECTE_EN_COURS", "Une collecte de cette source est déjà en cours."))) {
+            StockActualites.SourceACollecter source = stock.source(sourceId)
+                    .orElseThrow(() -> new IllegalArgumentException("source web inconnue : " + sourceId));
+            return collecterSousVerrou(source);
+        }
+    }
+
+    private Rapport collecterSousVerrou(StockActualites.SourceACollecter source) {
+        UUID sourceId = source.id();
         try {
             RecuperateurWeb.Contenu contenu = recuperateur.recuperer(URI.create(source.adresse()));
             int nouvelles = integrer(source, contenu);
             stock.succes(sourceId, frequence);
             return new Rapport(sourceId, "ACTIVE", nouvelles, null);
         } catch (RecuperationRefusee e) {
-            String motif = e.motif().name() + " : " + e.getMessage();
-            LOG.infof("collecte de la source web %s en échec : %s", sourceId, motif);
-            stock.echec(sourceId, motif, frequence);
-            return new Rapport(sourceId, "EN_ERREUR", 0, motif);
+            return echec(sourceId, e);
         } catch (RuntimeException e) {
-            String motif = "ERREUR_INTERNE : " + e.getClass().getSimpleName();
-            LOG.errorf(e, "collecte de la source web %s interrompue", sourceId);
-            stock.echec(sourceId, motif, frequence);
-            return new Rapport(sourceId, "EN_ERREUR", 0, motif);
+            return echecInterne(sourceId, e);
         }
     }
 
-    /** Enregistre un contenu déjà récupéré (première collecte, à la création de la source). */
+    /** Enregistre un contenu déjà récupéré. */
     int integrer(StockActualites.SourceACollecter source, RecuperateurWeb.Contenu contenu) {
         if (SourceWeb.FLUX.equals(source.type())) {
             List<LecteurFlux.ElementFlux> elements = lecteurFlux.lire(contenu.octets()).elements();
-            return stock.integrerFlux(source.id(), source.espaceId(),
-                    elements.size() > elementsMax ? elements.subList(0, elementsMax) : elements);
+            return stock.integrerFlux(source, elements.size() > elementsMax ? elements.subList(0, elementsMax) : elements);
         }
         LecteurPage.Instantane instantane = lecteurPage.lire(contenu.octets(), contenu.typeContenu(),
                 contenu.adresseFinale().toString());
         return stock.integrerPage(source, instantane) ? 1 : 0;
     }
 
-    /** Première collecte d'une source tout juste créée, avec le contenu lu pour la valider. */
-    public void premiereCollecte(UUID sourceId, RecuperateurWeb.Contenu contenu) {
-        StockActualites.SourceACollecter source = stock.source(sourceId).orElseThrow();
-        integrer(source, contenu);
-        stock.succes(sourceId, frequence);
+    /**
+     * Première collecte d'une source tout juste créée, avec le contenu lu pour la valider ; l'appelant
+     * tient le verrou de collecte de la source. Un échec laisse la source {@code EN_ERREUR} avec son
+     * motif, reprise par le planificateur après l'attente d'un échec.
+     */
+    Rapport premiereCollecte(UUID sourceId, RecuperateurWeb.Contenu contenu) {
+        try {
+            StockActualites.SourceACollecter source = stock.source(sourceId).orElseThrow();
+            int nouvelles = integrer(source, contenu);
+            stock.succes(sourceId, frequence);
+            return new Rapport(sourceId, "ACTIVE", nouvelles, null);
+        } catch (RecuperationRefusee e) {
+            return echec(sourceId, e);
+        } catch (RuntimeException e) {
+            return echecInterne(sourceId, e);
+        }
+    }
+
+    private Rapport echec(UUID sourceId, RecuperationRefusee e) {
+        String motif = e.motifPublic();
+        LOG.infof("collecte de la source web %s en échec : %s (%s)", sourceId, e.motif(), e.getMessage());
+        stock.echec(sourceId, motif, frequence);
+        return new Rapport(sourceId, "EN_ERREUR", 0, motif);
+    }
+
+    private Rapport echecInterne(UUID sourceId, RuntimeException e) {
+        String motif = "ERREUR_INTERNE : la collecte a été interrompue.";
+        LOG.errorf(e, "collecte de la source web %s interrompue", sourceId);
+        stock.echec(sourceId, motif, frequence);
+        return new Rapport(sourceId, "EN_ERREUR", 0, motif);
     }
 }

@@ -6,9 +6,11 @@ import java.util.Optional;
 import java.util.UUID;
 import java.util.function.Function;
 
+import jakarta.annotation.PostConstruct;
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.inject.Inject;
 
+import org.eclipse.microprofile.config.inject.ConfigProperty;
 import org.eclipse.microprofile.jwt.JsonWebToken;
 import org.jboss.logging.Logger;
 
@@ -17,6 +19,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 
 import io.argos.api.security.Caller;
 import io.argos.api.security.CallerResolver;
+import io.argos.api.security.LimiteurDebit;
 import io.argos.audit.JournalAppelsMcp;
 import io.argos.audit.JournalAppelsMcp.Issue;
 import io.argos.audit.JournalRefus;
@@ -51,7 +54,10 @@ public class GardeAppels {
     @Inject
     CallerResolver appelants;
 
-    @Inject
+    @ConfigProperty(name = "argos.mcp.debit.requetes-par-minute", defaultValue = "60")
+    int requetesParMinute;
+
+    /** Limite de débit des appels d'outils, par compte (MCP-06). */
     LimiteurDebit limiteur;
 
     @Inject
@@ -62,6 +68,11 @@ public class GardeAppels {
 
     @Inject
     JsonWebToken jeton;
+
+    @PostConstruct
+    void initialiser() {
+        limiteur = new LimiteurDebit(requetesParMinute);
+    }
 
     /**
      * Exécute un outil pour l'appelant courant.

@@ -36,7 +36,11 @@ import io.quarkus.narayana.jta.QuarkusTransaction;
  *
  * <p>Seules les actualités citées par une source d'espace sont rapprochées, et seulement des
  * projets de cet espace : une source personnelle ne révèle rien aux autres membres
- * ([PROPOSITION] du changement {@code collecter-veille-rss-web}). Le nom d'une technologie est
+ * ([PROPOSITION] du changement {@code collecter-veille-rss-web}). Le contenu lu est celui de
+ * l'actualité de cet espace, alimentée par ses seules sources : une source d'un autre périmètre ne
+ * peut ni fixer ce contenu ni provoquer un rapprochement dans l'espace. La clé composée
+ * {@code actualite_impact (actualite_id, workspace_id) → actualite (id, espace_id)} de la migration
+ * V10 l'impose aussi en base. Le nom d'une technologie est
  * déduit de la clé de paquet des composants inventoriés ({@link #terme(String)}) et recherché comme
  * mot entier, sans tenir compte de la casse, dans le titre et le texte de l'actualité.
  */
@@ -72,8 +76,10 @@ public class RapprochementActualites {
     public int rapprocher(UUID actualiteId, UUID espaceId) {
         try (Connection c = dataSource.getConnection()) {
             String contenu;
-            try (PreparedStatement ps = c.prepareStatement("SELECT titre || ' ' || texte FROM actualite WHERE id = ?")) {
+            try (PreparedStatement ps = c.prepareStatement(
+                    "SELECT titre || ' ' || texte FROM actualite WHERE id = ? AND espace_id = ?")) {
                 ps.setObject(1, actualiteId);
+                ps.setObject(2, espaceId);
                 try (ResultSet rs = ps.executeQuery()) {
                     if (!rs.next()) {
                         return 0;
@@ -124,8 +130,10 @@ public class RapprochementActualites {
     }
 
     /**
-     * Rapprochements d'une actualité visibles du compte (RLS sous {@code argos_app} : espaces dont
-     * il est membre, actualité citée par une source qu'il voit).
+     * Rapprochements visibles du compte pour une actualité et pour les actualités de même empreinte
+     * des autres périmètres qu'il voit (RLS sous {@code argos_app} : espaces dont il est membre,
+     * actualités de son périmètre citées par une source qu'il voit) : un article restitué une fois
+     * montre les rapprochements de tous ses espaces visibles.
      */
     public List<Rapprochement> pour(UUID actualiteId, UUID compteId) {
         List<Rapprochement> resultat = new ArrayList<>();
@@ -138,7 +146,9 @@ public class RapprochementActualites {
                         SELECT i.id, i.actualite_id, i.project_id, p.name, i.workspace_id, i.technologie, i.niveau, i.methode,
                                i.cree_le
                         FROM actualite_impact i JOIN project p ON p.id = i.project_id
-                        WHERE i.actualite_id = ? ORDER BY p.name, i.technologie
+                        WHERE i.actualite_id IN (
+                            SELECT b.id FROM actualite a JOIN actualite b ON b.empreinte = a.empreinte WHERE a.id = ?)
+                        ORDER BY p.name, i.technologie
                         """)) {
                     ps.setObject(1, actualiteId);
                     try (ResultSet rs = ps.executeQuery()) {

@@ -40,14 +40,30 @@ final class Deduplication {
         return LecteurPage.empreinte("page:" + normaliser(adressePage) + "\n" + empreinteContenu);
     }
 
+    /**
+     * Forme canonique d'une adresse http(s), sans changer la ressource désignée : schéma et hôte en
+     * minuscules, port par défaut du schéma retiré, chemin vide remplacé par {@code /}, fragment
+     * retiré ; chemin et paramètres conservés tels quels. Sert à l'unicité des sources.
+     *
+     * @throws IllegalArgumentException si l'adresse est mal formée
+     */
+    static String adresse(String adresse) {
+        try {
+            URI u = new URI(adresse.strip()).normalize();
+            return base(u) + chemin(u) + (u.getRawQuery() == null ? "" : "?" + u.getRawQuery());
+        } catch (URISyntaxException e) {
+            throw new IllegalArgumentException("adresse mal formée", e);
+        }
+    }
+
+    /**
+     * Lien normalisé pour l'empreinte : forme canonique de {@link #adresse(String)}, barre oblique
+     * finale ignorée et paramètres {@code utm_*} retirés.
+     */
     static String normaliser(String lien) {
         try {
             URI u = new URI(lien.strip()).normalize();
-            String schema = u.getScheme() == null ? "" : u.getScheme().toLowerCase(Locale.ROOT);
-            String hote = u.getHost() == null ? "" : u.getHost().toLowerCase(Locale.ROOT);
-            int port = u.getPort();
-            boolean parDefaut = port < 0 || (port == 80 && "http".equals(schema)) || (port == 443 && "https".equals(schema));
-            String chemin = u.getRawPath() == null || u.getRawPath().isEmpty() ? "/" : u.getRawPath();
+            String chemin = chemin(u);
             if (chemin.length() > 1 && chemin.endsWith("/")) {
                 chemin = chemin.substring(0, chemin.length() - 1);
             }
@@ -59,10 +75,22 @@ final class Deduplication {
                     }
                 }
             }
-            return schema + "://" + hote + (parDefaut ? "" : ":" + port) + chemin
-                    + (parametres.isEmpty() ? "" : "?" + String.join("&", parametres));
+            return base(u) + chemin + (parametres.isEmpty() ? "" : "?" + String.join("&", parametres));
         } catch (URISyntaxException e) {
             return lien.strip();
         }
+    }
+
+    /** Schéma, hôte en minuscules et port s'il n'est pas celui du schéma. */
+    private static String base(URI u) {
+        String schema = u.getScheme() == null ? "" : u.getScheme().toLowerCase(Locale.ROOT);
+        String hote = u.getHost() == null ? "" : u.getHost().toLowerCase(Locale.ROOT);
+        int port = u.getPort();
+        boolean parDefaut = port < 0 || (port == 80 && "http".equals(schema)) || (port == 443 && "https".equals(schema));
+        return schema + "://" + hote + (parDefaut ? "" : ":" + port);
+    }
+
+    private static String chemin(URI u) {
+        return u.getRawPath() == null || u.getRawPath().isEmpty() ? "/" : u.getRawPath();
     }
 }

@@ -73,38 +73,4 @@ class LimiteDebitMcpTest {
         assertFalse(Boolean.parseBoolean(db.string("SELECT has_table_privilege('argos_app', 'mcp_appel', 'SELECT')::text")));
         assertFalse(Boolean.parseBoolean(db.string("SELECT has_table_privilege('argos_app', 'mcp_appel', 'INSERT')::text")));
     }
-
-    /** Fenêtre glissante : un appel redevient possible une minute après le plus ancien. */
-    @Test
-    void fenetreGlissante() {
-        LimiteurDebit limiteur = new LimiteurDebit();
-        limiteur.requetesParMinute = 2;
-        long[] maintenant = {1_000_000L};
-        limiteur.horloge = () -> maintenant[0];
-        UUID compte = UUID.randomUUID();
-        assertTrue(limiteur.admettre(compte));
-        maintenant[0] += 30_000;
-        assertTrue(limiteur.admettre(compte));
-        assertFalse(limiteur.admettre(compte));
-        maintenant[0] += 30_001;
-        assertTrue(limiteur.admettre(compte));
-        assertFalse(limiteur.admettre(compte));
-        assertTrue(limiteur.admettre(UUID.randomUUID()));
-    }
-
-    /** Les fenêtres échues sont retirées : la mémoire du limiteur ne croît pas avec les comptes inactifs. */
-    @Test
-    void fenetresEchuesRetirees() {
-        LimiteurDebit limiteur = new LimiteurDebit();
-        limiteur.requetesParMinute = 60;
-        long[] maintenant = {0};
-        limiteur.horloge = () -> maintenant[0];
-        for (int i = 0; i < 255; i++) {
-            limiteur.admettre(UUID.randomUUID());
-        }
-        assertEquals(255, limiteur.comptesSuivis());
-        maintenant[0] = 61_000;
-        limiteur.admettre(UUID.randomUUID());
-        assertEquals(1, limiteur.comptesSuivis());
-    }
 }

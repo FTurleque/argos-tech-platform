@@ -6,6 +6,7 @@ import static org.hamcrest.Matchers.hasItem;
 import static org.hamcrest.Matchers.hasSize;
 import static org.hamcrest.Matchers.notNullValue;
 import static org.hamcrest.Matchers.not;
+import static org.hamcrest.Matchers.startsWith;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
@@ -23,6 +24,7 @@ import jakarta.inject.Inject;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
+import io.argos.impact.RapprochementActualites;
 import io.argos.inventory.InventoryService;
 import io.argos.inventory.ProjectDirectory;
 import io.argos.signal.web.CollecteWeb;
@@ -63,6 +65,9 @@ class VeilleWebTest {
 
     @Inject
     InventoryService inventories;
+
+    @Inject
+    RapprochementActualites rapprochements;
 
     @BeforeEach
     void reset() {
@@ -410,6 +415,124 @@ class VeilleWebTest {
         });
         assertEquals(0, supprimees);
         assertEquals(1, sources());
+    }
+
+    // ------------------------------------------------------------------ cloisonnement des actualités
+
+    /**
+     * Un même lien reçu par les sources personnelles de deux comptes : chacun voit le contenu de sa
+     * propre source, quel que soit l'ordre des collectes ; aucun ne peut modifier ce que voit l'autre
+     * ni déduire l'existence de son actualité.
+     */
+    @Test
+    void contenuDUneSourcePersonnelleCloisonneParCompte() {
+        String lien = "https://blog.exemple.test/annonce";
+        StubServer.on("/bob.xml", contenu(ATOM, atom("Flux Bob", entree("Annonce officielle", lien, "Texte de Bob."))));
+        String sourceBob = ajouterFlux("bob", "PERSONNELLE", null, "/bob.xml");
+        UUID alice = Api.compte("alice");
+        UUID bob = Api.compte("bob");
+        String idBob = actualites("bob").body("", hasSize(1)).extract().path("[0].id");
+
+        // alice publie le même lien avec un contenu falsifié : il ne remplace pas celui de bob.
+        StubServer.on("/alice.xml", contenu(ATOM, atom("Flux Alice", entree("Titre falsifié", lien, "Texte d'Alice."))));
+        String sourceAlice = ajouter("alice", source("PERSONNELLE", null, "FLUX", StubServer.base() + "/alice.xml"))
+                .statusCode(201).extract().path("id");
+        actualites("alice").body("", hasSize(1))
+                .body("[0].titre", equalTo("Titre falsifié"))
+                .body("[0].id", not(equalTo(idBob)))
+                .body("[0].sources", hasSize(1));
+        actualites("bob").body("", hasSize(1))
+                .body("[0].id", equalTo(idBob))
+                .body("[0].titre", equalTo("Annonce officielle"))
+                .body("[0].contenu.texte", equalTo("Texte de Bob."))
+                .body("[0].sources", hasSize(1));
+        assertEquals(2, db.count("SELECT count(*) FROM actualite"));
+
+        // Une nouvelle collecte de chaque côté ne change rien : rien n'est révélé ni remplacé.
+        Api.en("alice").when().post("/api/v1/veille-web/sources/" + sourceAlice + "/collectes").then()
+                .statusCode(200).body("nouvelles", equalTo(0));
+        Api.en("bob").when().post("/api/v1/veille-web/sources/" + sourceBob + "/collectes").then()
+                .statusCode(200).body("nouvelles", equalTo(0));
+        actualites("bob").body("[0].titre", equalTo("Annonce officielle"));
+
+        // Sous argos_app, chaque compte ne voit que l'actualité de son périmètre.
+        assertEquals(1, compterSousArgosApp(alice, "SELECT count(*) FROM actualite"));
+        assertEquals(1, compterSousArgosApp(bob, "SELECT count(*) FROM actualite"));
+        assertEquals(0, compterSousArgosApp(alice, "SELECT count(*) FROM actualite WHERE id = '" + idBob + "'"));
+        assertEquals(0, compterSousArgosApp(alice, "SELECT count(*) FROM actualite WHERE titre = 'Annonce officielle'"));
+        Api.en("alice").when().get("/api/v1/veille-web/actualites/" + idBob).then().statusCode(404);
+    }
+
+    /**
+     * Une source personnelle d'un non-membre ne fixe pas le contenu de l'actualité d'un espace et ne
+     * crée aucun rapprochement dans cet espace, ni par la collecte, ni par un appel direct, ni en base.
+     */
+    @Test
+    void sourcePersonnelleNInjecteRienDansUnEspace() {
+        UUID espace = Api.nouvelEspace("karim", "Équipe Cloison");
+        UUID projet = projectWith(espace, "Cloison", "@angular/core", "17.0.0");
+        String lien = "https://blog.exemple.test/note-123";
+
+        // oscar, non membre, reçoit le premier le lien avec un texte qui nomme Angular.
+        Api.assurerCompte("oscar");
+        StubServer.on("/oscar.xml", contenu(ATOM, atom("Flux Oscar", entree("Faille Angular critique", lien,
+                "Angular est touché."))));
+        ajouterFlux("oscar", "PERSONNELLE", null, "/oscar.xml");
+        String idOscar = actualites("oscar").extract().path("[0].id");
+
+        // L'espace reçoit ensuite le même lien avec son propre contenu, sans rapport avec Angular.
+        StubServer.on("/espace.xml", contenu(ATOM, atom("Flux espace", entree("Note de version Rust", lien,
+                "Rust 2.0 est sorti."))));
+        ajouterFlux("karim", "ESPACE", espace, "/espace.xml");
+        actualites("karim").body("", hasSize(1))
+                .body("[0].titre", equalTo("Note de version Rust"))
+                .body("[0].contenu.texte", equalTo("Rust 2.0 est sorti."));
+        assertEquals(0, db.count("SELECT count(*) FROM actualite_impact"));
+
+        // Appel direct du rapprochement avec l'actualité d'oscar et l'espace : rien n'est créé.
+        assertEquals(0, rapprochements.rapprocher(UUID.fromString(idOscar), espace));
+        // En base, un rapprochement ne peut pas viser une actualité d'un autre périmètre.
+        IllegalStateException refus = assertThrows(IllegalStateException.class, () -> db.exec("""
+                INSERT INTO actualite_impact (id, actualite_id, project_id, workspace_id, technologie, niveau, methode, cree_le)
+                VALUES (gen_random_uuid(), '%s', '%s', '%s', 'angular', 'A_VERIFIER', 'NOM_TECHNOLOGIE_V1', now())
+                """.formatted(idOscar, projet, espace)));
+        assertEquals("23503", ((SQLException) refus.getCause()).getSQLState());
+        assertEquals(0, db.count("SELECT count(*) FROM actualite_impact"));
+    }
+
+    /**
+     * Comme les autres données personnelles (préférences, alertes, résumés), les sources et les
+     * actualités personnelles disparaissent avec le compte de leur propriétaire.
+     */
+    @Test
+    void donneesPersonnellesSupprimeesAvecLeCompte() {
+        assertEquals(2, db.count("""
+                SELECT count(*) FROM pg_constraint
+                WHERE contype = 'f' AND confdeltype = 'c' AND confrelid = 'compte'::regclass
+                  AND ((conrelid = 'source_web'::regclass AND conkey = ARRAY[(SELECT attnum FROM pg_attribute
+                          WHERE attrelid = 'source_web'::regclass AND attname = 'proprietaire_id')])
+                    OR (conrelid = 'actualite'::regclass AND conkey = ARRAY[(SELECT attnum FROM pg_attribute
+                          WHERE attrelid = 'actualite'::regclass AND attname = 'proprietaire_id')]))
+                """));
+    }
+
+    /** Les refus ne renvoient ni l'hôte ni l'adresse IP en cause ; l'état d'une source non plus. */
+    @Test
+    void refusSansIndiceReseau() {
+        String message = ajouter("alice", source("PERSONNELLE", null, "FLUX", "http://192.168.1.1/flux"))
+                .statusCode(400).body("code", equalTo("ADRESSE_INTERDITE")).extract().path("message");
+        assertTrue(!message.contains("192.168"), message);
+        ajouter("alice", source("PERSONNELLE", null, "FLUX", "http://localhost:8443/flux"))
+                .statusCode(400).body("code", equalTo("ADRESSE_INTERDITE")).body("message", equalTo(message));
+
+        StubServer.on("/r.xml", contenu(ATOM, atom("R", entree("R", "https://exemple.test/r", "r"))));
+        String id = ajouterFlux("alice", "PERSONNELLE", null, "/r.xml");
+        StubServer.on("/r.xml", new Stub(302, "", Map.of("Location", "http://10.20.30.40/interne"), 0));
+        Api.en("alice").when().post("/api/v1/veille-web/sources/" + id + "/collectes").then().statusCode(200)
+                .body("erreur", startsWith("REDIRECTION_INTERDITE : "))
+                .body("erreur", not(containsString("10.20.30.40")));
+        Api.en("alice").when().get("/api/v1/veille-web/sources").then().statusCode(200)
+                .body("find { it.id == '" + id + "' }.derniereErreur", not(containsString("10.20.30.40")));
     }
 
     // ------------------------------------------------------------------ outils
