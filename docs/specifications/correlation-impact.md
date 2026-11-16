@@ -5,7 +5,7 @@
 | Préfixe d'exigences | `COR` |
 | Spec de référence | `/openspec/specs/correlation-impact/spec.md` — absente : capacité non livrée |
 | Changement en cours | [`formaliser-chaine-securite-poc`](/openspec/changes/formaliser-chaine-securite-poc/specs/correlation-impact/spec.md) — proposé, non archivé |
-| Statut de la capacité | **proposée** — aucune implémentation dans le dépôt |
+| Statut de la capacité | **proposée**, implémentée dans `argos-server` (changement non archivé) : paquet `io.argos.impact` |
 | Composants (arc42 §5) | `impact-engine`, `inventory`, `vuln-intel`, `workspace`, `ai-gateway` (facultatif), `audit` |
 
 Tout le contenu de cette fiche porte le statut [PROPOSITION] (changement `formaliser-chaine-securite-poc`) sauf mention contraire.
@@ -46,7 +46,7 @@ Désigner automatiquement, et seulement eux, les projets concernés par un signa
 | Règle | Exigence(s) | Source | Statut |
 |---|---|---|---|
 | Impact si PURL identique et version dans la plage ; aucun sinon | COR-01 | ADR-0013 | [PROPOSITION] |
-| Un niveau parmi `exact`, `probable`, `à vérifier` | COR-02 | ADR-0013 | [PROPOSITION] ; définitions de `probable` / `à vérifier` : [QUESTION Q-2] |
+| Un niveau parmi `exact`, `probable`, `à vérifier` : `exact` = PURL déclaré et version dans la plage sur SBOM non obsolète ; `probable` = même correspondance sur inventaire de repli ou SBOM obsolète ; `à vérifier` = correspondance sans PURL, version inconnue ou plage non interprétable | COR-02 | ADR-0013 ; décision du 2026-11-16 (Q-2) | [PROPOSITION] |
 | Provenance complète, aucun impact orphelin | COR-03 | arc42 §10.2 Q-01 | [PROPOSITION] |
 | L'IA ne déclenche jamais seule une alerte critique | COR-04 | ADR-0013 | [PROPOSITION] |
 | Corrélation déterministe sans IA (panne ou plafond) | COR-05 | baseline v2.3 §6 critère 6 ; QS-10 | [PROPOSITION] |
@@ -164,18 +164,19 @@ L'analyse IA intervient après l'enregistrement des impacts déterministes : son
 
 - **Question** : quel niveau porte un impact selon la qualité de l'inventaire ?
 - **Type** : organigramme (flowchart)
-- **Portée** : cible proposée, partielle : les règles de `probable` et `à vérifier` ne sont pas définies (Q-2)
+- **Portée** : cible proposée ; règles décidées le 2026-11-16 (Q-2, Q-3) et implémentées par `io.argos.impact.MatchRules`
 - **Exigences** : COR-02, COR-06
 
 ```mermaid
 flowchart TD
     A["Composant : PURL identique<br/>et version dans la plage"] --> B{"Inventaire issu d'une SBOM<br/>non obsolète ?"}
     B -- oui --> E["Niveau exact (COR-02-S1)"]
-    B -- non --> X["Niveau probable ou à vérifier<br/>règle de choix non définie (Q-2)"]
-    S["Suggestion IA sans correspondance<br/>déterministe"] --> N["Aucune alerte critique (COR-04)<br/>niveau éventuel non défini (Q-2)"]
+    B -- non --> P["Niveau probable (COR-02-S2, COR-06)"]
+    V["Correspondance sans PURL, version inconnue<br/>ou plage non interprétable"] --> W["Niveau à vérifier (COR-02-S3)"]
+    S["Suggestion IA sans correspondance<br/>déterministe"] --> N["Aucun impact créé,<br/>donc aucune alerte critique (COR-04)"]
 ```
 
-La seule règle établie est négative : un inventaire de repli ou obsolète exclut `exact`. Le choix entre `probable` et `à vérifier` doit être tranché avant l'implémentation.
+Une SBOM est obsolète 30 jours après sa date de génération (Q-3). Le niveau le plus fort l'emporte quand plusieurs entrées de l'avis visent le même paquet.
 
 ## Critères d'acceptation
 
@@ -185,6 +186,8 @@ La seule règle établie est négative : un inventaire de repli ou obsolète exc
 
 ## Interprétations introduites par un changement
 
+Interprétations validées par le porteur du projet le 2026-11-16 [DÉCISION].
+
 - COR-01-S3 : un impact sur dépendance transitive indique son caractère transitif ;
 - COR-02-S1 : correspondance PURL + version sur SBOM non obsolète ⇒ niveau `exact` (interprétation de ADR-0013) ;
 - COR-08-S2 : le refus ne révèle pas le contenu de l'impact.
@@ -192,17 +195,21 @@ La seule règle établie est négative : un inventaire de repli ou obsolète exc
 ## Écarts constatés
 
 - arc42 §6.1 nomme `Impact Correlation`, `Technology Intelligence` et `Workspace & Project Core` ; ces participants correspondent à `impact-engine`, `signal`/`vuln-intel` et `workspace`/`inventory` de §5. DF-COR-2 utilise les noms de §5.
+- Le code de `argos-server` implémente les règles de cette fiche (`io.argos.impact`). La consultation des impacts s'exécute sous le rôle applicatif `argos_app` avec le compte de l'appelant : la RLS de `project_impact` (fonction `argos_espace_lisible`, migration V2) masque les impacts des espaces dont il n'est pas membre, même si le filtre explicite de la couche API était erroné (`CorrelationTest#rlsAppliqueeSurLeCheminApplicatif`). La corrélation écrit sous l'utilisateur de connexion, propriétaire des tables.
+- Les refus sont journalisés dans le journal unique des refus d'accès (`refus_acces`, module `audit`) : compte, méthode et chemin, motif `NON_MEMBRE` (réponse 404) ou `ROLE_INSUFFISANT` (réponse 403).
+- Un avis retiré par sa source (OSV `withdrawn`) ne produit aucun impact et retire ceux qu'il portait.
+- Les niveaux sont calculés à la corrélation et enregistrés ; le vieillissement d'une SBOM au-delà de 30 jours ne les fait pas recalculer sans nouvelle corrélation (aucune planification, tâche 6.3).
 - Le glossaire distingue « impact probable, confirmé et résolu », alors qu'ADR-0013 définit les niveaux `exact`, `probable`, `à vérifier` : deux notions (confiance et cycle de traitement) à séparer [QUESTION Q-COR-2].
 
 ## Questions ouvertes
 
 | ID | Question | Impact | Destinataire |
 |---|---|---|---|
-| Q-2 (changement) | Règles des niveaux `probable` et `à vérifier` ? | COR-02, COR-06 | architecte / sécurité |
+| Q-2 (changement) | Règles des niveaux `probable` et `à vérifier` ? | répondue le 2026-11-16 : `exact` : PURL et version dans la plage affectée, SBOM non obsolète ; `probable` : même correspondance, mais inventaire de repli ou SBOM obsolète ; `à vérifier` : correspondance sans PURL (nom ou CPE seul), version inconnue ou plage non interprétable [DÉCISION] | architecte / sécurité |
 | Q-COR-1 | Quand une analyse IA est-elle « autorisée et nécessaire » ? | DF-COR-2, AI Gateway | architecte / sécurité |
 | Q-COR-2 | Quel cycle de vie de traitement pour un impact (confirmé, résolu…) ? | futur stateDiagram `ProjectImpact` | Product Owner |
 | Q-COR-3 | Comment traiter une plage de versions non interprétable pour un écosystème ? | COR-01 | backend |
 
 ## Traçabilité
 
-Voir la matrice du changement : [`tasks.md`](/openspec/changes/formaliser-chaine-securite-poc/tasks.md#matrice-de-traçabilité). Aucun test n'existe à ce jour.
+Voir la matrice du changement : [`tasks.md`](/openspec/changes/formaliser-chaine-securite-poc/tasks.md#matrice-de-traçabilité). Les scénarios COR-01-S1 à COR-08-S2 sont vérifiés par `argos-server/src/test/java/io/argos/chain/MatchRulesTest.java` et `CorrelationTest.java` (RLS vérifiée sur le chemin applicatif, sous le rôle non super-utilisateur `argos_app`). Le jeu de référence annoté et la mesure de précision et de rappel restent à produire (tâche 4.7).

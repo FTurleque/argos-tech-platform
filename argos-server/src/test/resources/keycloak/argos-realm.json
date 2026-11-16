@@ -1,0 +1,316 @@
+{
+  "realm": "argos",
+  "enabled": true,
+  "registrationAllowed": false,
+  "loginWithEmailAllowed": true,
+  "sslRequired": "none",
+  "accessTokenLifespan": 600,
+  "clients": [
+    {
+      "clientId": "argos-server",
+      "enabled": true,
+      "publicClient": false,
+      "secret": "secret-de-test",
+      "standardFlowEnabled": false,
+      "directAccessGrantsEnabled": true,
+      "serviceAccountsEnabled": false,
+      "protocol": "openid-connect",
+      "protocolMappers": [
+        {
+          "name": "audience-argos-server",
+          "protocol": "openid-connect",
+          "protocolMapper": "oidc-audience-mapper",
+          "consentRequired": false,
+          "config": {
+            "included.custom.audience": "argos-server",
+            "access.token.claim": "true",
+            "id.token.claim": "false"
+          }
+        }
+      ]
+    },
+    {
+      "clientId": "argos-ui",
+      "enabled": true,
+      "publicClient": true,
+      "standardFlowEnabled": true,
+      "directAccessGrantsEnabled": false,
+      "protocol": "openid-connect",
+      "redirectUris": [
+        "http://localhost:5173/*",
+        "app://argos/*"
+      ],
+      "webOrigins": [
+        "http://localhost:5173",
+        "app://argos"
+      ],
+      "attributes": {
+        "pkce.code.challenge.method": "S256"
+      },
+      "protocolMappers": [
+        {
+          "name": "audience-argos-server",
+          "protocol": "openid-connect",
+          "protocolMapper": "oidc-audience-mapper",
+          "consentRequired": false,
+          "config": {
+            "included.custom.audience": "argos-server",
+            "access.token.claim": "true",
+            "id.token.claim": "false"
+          }
+        }
+      ]
+    },
+    {
+      "clientId": "autre-application",
+      "enabled": true,
+      "publicClient": false,
+      "secret": "secret-autre",
+      "standardFlowEnabled": false,
+      "directAccessGrantsEnabled": true,
+      "protocol": "openid-connect"
+    }
+  ],
+  "users": [
+    {
+      "username": "alice",
+      "enabled": true,
+      "email": "alice@argos.test",
+      "emailVerified": true,
+      "firstName": "Alice",
+      "lastName": "Martin",
+      "credentials": [
+        {
+          "type": "password",
+          "value": "alice",
+          "temporary": false
+        }
+      ]
+    },
+    {
+      "username": "bob",
+      "enabled": true,
+      "email": "bob@argos.test",
+      "emailVerified": true,
+      "firstName": "Bob",
+      "lastName": "Durand",
+      "credentials": [
+        {
+          "type": "password",
+          "value": "bob",
+          "temporary": false
+        }
+      ]
+    },
+    {
+      "username": "carla",
+      "enabled": true,
+      "email": "carla@argos.test",
+      "emailVerified": true,
+      "firstName": "Carla",
+      "lastName": "Petit",
+      "credentials": [
+        {
+          "type": "password",
+          "value": "carla",
+          "temporary": false
+        }
+      ]
+    },
+    {
+      "username": "dave",
+      "enabled": true,
+      "email": "dave@argos.test",
+      "emailVerified": true,
+      "firstName": "Dave",
+      "lastName": "Moreau",
+      "credentials": [
+        {
+          "type": "password",
+          "value": "dave",
+          "temporary": false
+        }
+      ]
+    },
+    {
+      "username": "erin",
+      "enabled": true,
+      "email": "erin@argos.test",
+      "emailVerified": true,
+      "firstName": "Erin",
+      "lastName": "Leroy",
+      "credentials": [
+        {
+          "type": "password",
+          "value": "erin",
+          "temporary": false
+        }
+      ]
+    },
+    {
+      "username": "frank",
+      "enabled": true,
+      "email": "frank@argos.test",
+      "emailVerified": true,
+      "firstName": "Frank",
+      "lastName": "Roux",
+      "credentials": [
+        {
+          "type": "password",
+          "value": "frank",
+          "temporary": false
+        }
+      ]
+    },
+    {
+      "username": "gina",
+      "enabled": true,
+      "email": "gina@argos.test",
+      "emailVerified": true,
+      "firstName": "Gina",
+      "lastName": "Faure",
+      "credentials": [
+        {
+          "type": "password",
+          "value": "gina",
+          "temporary": false
+        }
+      ]
+    },
+    {
+      "username": "hugo",
+      "enabled": true,
+      "email": "hugo@argos.test",
+      "emailVerified": true,
+      "firstName": "Hugo",
+      "lastName": "Blanc",
+      "credentials": [
+        {
+          "type": "password",
+          "value": "hugo",
+          "temporary": false
+        }
+      ]
+    },
+    {
+      "username": "ines",
+      "enabled": true,
+      "email": "ines@argos.test",
+      "emailVerified": true,
+      "firstName": "Ines",
+      "lastName": "Morel",
+      "credentials": [
+        {
+          "type": "password",
+          "value": "ines",
+          "temporary": false
+        }
+      ]
+    },
+    {
+      "username": "jules",
+      "enabled": true,
+      "email": "jules@argos.test",
+      "emailVerified": true,
+      "firstName": "Jules",
+      "lastName": "Petit",
+      "credentials": [
+        {
+          "type": "password",
+          "value": "jules",
+          "temporary": false
+        }
+      ]
+    },
+    {
+      "username": "karim",
+      "enabled": true,
+      "email": "karim@argos.test",
+      "emailVerified": true,
+      "firstName": "Karim",
+      "lastName": "Haddad",
+      "credentials": [
+        {
+          "type": "password",
+          "value": "karim",
+          "temporary": false
+        }
+      ]
+    },
+    {
+      "username": "lina",
+      "enabled": true,
+      "email": "lina@argos.test",
+      "emailVerified": true,
+      "firstName": "Lina",
+      "lastName": "Roux",
+      "credentials": [
+        {
+          "type": "password",
+          "value": "lina",
+          "temporary": false
+        }
+      ]
+    },
+    {
+      "username": "marc",
+      "enabled": true,
+      "email": "marc@argos.test",
+      "emailVerified": true,
+      "firstName": "Marc",
+      "lastName": "Faure",
+      "credentials": [
+        {
+          "type": "password",
+          "value": "marc",
+          "temporary": false
+        }
+      ]
+    },
+    {
+      "username": "nina",
+      "enabled": true,
+      "email": "nina@argos.test",
+      "emailVerified": true,
+      "firstName": "Nina",
+      "lastName": "Girard",
+      "credentials": [
+        {
+          "type": "password",
+          "value": "nina",
+          "temporary": false
+        }
+      ]
+    },
+    {
+      "username": "oscar",
+      "enabled": true,
+      "email": "oscar@argos.test",
+      "emailVerified": true,
+      "firstName": "Oscar",
+      "lastName": "Lambert",
+      "credentials": [
+        {
+          "type": "password",
+          "value": "oscar",
+          "temporary": false
+        }
+      ]
+    },
+    {
+      "username": "paul",
+      "enabled": true,
+      "email": "paul@argos.test",
+      "emailVerified": true,
+      "firstName": "Paul",
+      "lastName": "Mercier",
+      "credentials": [
+        {
+          "type": "password",
+          "value": "paul",
+          "temporary": false
+        }
+      ]
+    }
+  ]
+}

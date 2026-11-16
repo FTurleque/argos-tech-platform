@@ -4,11 +4,15 @@
   "private": true,
   "description": "IHM Vue.js 3 d'ARGOS, partagée par le portail web et le client desktop Electron (ADR-0019, ADR-0022)",
   "type": "module",
+  "engines": {
+    "node": "^22.18.0 || >=23.6.0"
+  },
   "scripts": {
     "dev": "vite",
     "build": "vue-tsc --noEmit && vite build",
     "preview": "vite preview",
-    "typecheck": "vue-tsc --noEmit"
+    "typecheck": "vue-tsc --noEmit",
+    "test": "node --test \"tests/**/*.test.mjs\""
   },
   "dependencies": {
     "vue": "^3.5.45",

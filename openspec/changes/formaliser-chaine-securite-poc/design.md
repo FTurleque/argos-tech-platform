@@ -6,7 +6,7 @@
 
 ## Contexte technique
 
-- [EXISTANT] Aucun code applicatif, manifest de build, schéma SQL, API ni test dans le dépôt (`README.md` §Statut ; baseline v2.3 §1).
+- [EXISTANT] Le socle `argos-server/` (Quarkus 3.40, Flyway provisoire) porte l'implémentation de ce lot : migrations `V3__collecte_avis_securite.sql` à `V6__abonnements_veille.sql` (après `V2__comptes_et_acces.sql` du changement gerer-comptes-et-acces, qui crée les tables `compte`, `espace` et `refus_acces`), paquets `io.argos.<module>` et tests d'intégration sur PostgreSQL réel (voir tasks.md, matrice de traçabilité).
 - [DÉCISION] Java 17+, Quarkus, Vue.js 3, PostgreSQL (ADR-0019, ADR-0002 acceptés) ; REST + OpenAPI.
 - [PROPOSITION] Monolithe modulaire aux frontières vérifiées par ArchUnit (ADR-0001) ; modèle canonique (ADR-0003) ; aucun broker au MVP (arc42 §8.9).
 - Motivation : voir proposal.md, « Why — Pourquoi ».
@@ -146,11 +146,11 @@ stateDiagram-v2
     FAILED --> [*]
 ```
 
-Au redémarrage, les traitements `RUNNING` expirés sont reclassés `RETRYABLE` (arc42 §6.4) et reprennent depuis le curseur persisté, ce qui garantit COL-05-S2. La durée d'expiration n'est pas définie [QUESTION].
+Au redémarrage, les traitements `RUNNING` expirés sont reclassés `RETRYABLE` (arc42 §6.4) et reprennent depuis le curseur persisté, ce qui garantit COL-05-S2. La durée d'expiration est le paramètre d'exploitation `argos.ingestion.running-expiry` (30 minutes par défaut).
 
 ## Contrats d'interface
 
-Aucun contrat exécutable n'existe [EXISTANT]. Le contrat REST sera décrit en OpenAPI générée par Quarkus (ADR-0019) ; cette conception ne fixe ni chemins ni noms de champs. Opérations nécessaires aux scénarios [PROPOSITION] :
+Le contrat REST est décrit en OpenAPI générée par Quarkus (ADR-0019), sous `/api/v1`. Opérations réalisées [PROPOSITION] :
 
 | Opération | Autorisation | Erreurs observables exigées | Exigences |
 |---|---|---|---|
@@ -159,10 +159,10 @@ Aucun contrat exécutable n'existe [EXISTANT]. Le contrat REST sera décrit en O
 | Consulter l'inventaire d'un projet et son âge | utilisateur autorisé sur le projet | — | INV-02-S1, INV-03 |
 | Consulter les impacts d'un signal (liste paginée, arc42 §8.10) | filtrée par espace | — | COR-08-S1 |
 | Consulter un impact | utilisateur autorisé sur le projet | refus sans divulgation, journalisé | COR-03-S1, COR-08-S2 |
-| Créer un abonnement | propriétaire ; `TEAM` : à définir (Q-5) | refus nommant l'attribut manquant | ABO-01-S1, ABO-02 |
+| Créer un abonnement | `PERSONAL` : l'appelant ; `TEAM` : administrateur de l'espace (Q-5, ABO-06) | refus nommant l'attribut manquant (400) ; refus journalisé (403) | ABO-01-S1, ABO-02, ABO-06 |
 | Consulter sa veille | utilisateur authentifié | — | ABO-03, ABO-04, ABO-05 |
 
-Les codes HTTP précis (400, 403 ou 404 pour un accès hors périmètre) sont à fixer dans l'OpenAPI ; COR-08-S2 exige seulement l'absence de divulgation [QUESTION Q-D1].
+Un accès à une ressource d'un autre espace reçoit la même réponse 404 qu'une ressource inexistante, sans contenu, et il est journalisé (COR-08-S2) ; ce choix répond provisoirement à Q-D1. L'appelant est établi depuis le jeton OIDC et les appartenances aux espaces du changement gerer-comptes-et-acces (`OidcCallerResolver`) ; sans jeton valide, toute consultation reçoit 401. Les refus sont journalisés dans la table unique `refus_acces`.
 
 ## Persistance et intégrité
 
@@ -240,9 +240,9 @@ Contraintes proposées : unicité (source, external_id) pour INV-D1 et (signal_i
 ## Sécurité et isolation
 
 - Signaux globaux ; impacts, inventaires, abonnements et vues rattachés à un espace (ADR-0016).
-- Double contrôle : vérification d'espace dans les services, RLS en base comme garde-fou ; traitements batch sous compte technique explicitement autorisé (ADR-0016, conséquences négatives).
+- Double contrôle : vérification d'espace dans les services, RLS en base comme garde-fou ; traitements batch (collecte, import, corrélation, contrôle d'intégrité) sous l'utilisateur de connexion, propriétaire des tables, les consultations sous le rôle applicatif `argos_app` avec le compte de l'appelant (ADR-0016, conséquences négatives ; arc42 §8.1).
 - Abonnements : le module `workspace` ne lit ni n'écrit les rôles (INV-D7) ; la restitution passe par les mêmes requêtes RLS que les autres consultations (DF-ABO-2).
-- Entrées externes (avis, SBOM, manifestes) traitées comme données non fiables : validation de structure, taille maximale [QUESTION], aucun suivi d'URL issue d'un avis (risque SSRF R-12).
+- Entrées externes (avis, SBOM, manifestes) traitées comme données non fiables : validation de structure, taille maximale configurable (`argos.inventory.max-document-bytes`, 20 Mio par défaut), aucune redirection ni URL issue d'un avis ou d'un flux suivie (risque SSRF R-12).
 - Aucun appel IA dans ce lot ; toute analyse future passe par `ai-gateway` et sa politique de classification (arc42 §8.3).
 
 ## Gestion des erreurs et reprise
@@ -304,7 +304,6 @@ Non applicable — aucune donnée ni aucun contrat existant à migrer. Le retour
 
 ## Risques
 
-- Règles `probable` / `à vérifier` non définies → implémentation arbitraire de COR-02 ; atténuation : tâche bloquante 1.1.
 - Plages de versions hétérogènes selon les écosystèmes → faux positifs/négatifs ; atténuation : jeu de référence (baseline v2.3 §6 critère 3), registre R-15.
 - Rate limit des sources → retard de collecte ; atténuation : `Retry-After`, delta par curseur (R-14).
 - Fuite inter-espaces par une requête oubliant le filtre → RLS en garde-fou, tests inter-espaces (R-17 pour la partie RAG, ADR-0016).
@@ -312,7 +311,7 @@ Non applicable — aucune donnée ni aucun contrat existant à migrer. Le retour
 
 ## Écarts code / tests / specs / documentation
 
-- Aucun code ni test : rien à comparer.
+- Code et tests alignés sur les scénarios : voir tasks.md, matrice de traçabilité.
 - arc42 §6 / §5 : noms de participants divergents — table de correspondance ajoutée en arc42 §6 ; renommage des diagrammes D-06 à D-09 non effectué.
 - Inventaire des diagrammes : D-05, D-11, D-12, D-13 annoncés mais absents — D-05 ajouté en arc42 §5.7 ; D-11, D-12 et D-13 marqués manquants.
 - `F01`–`F16` cités par les ADR sans définition dans le dépôt (proposal.md, Q-1).
@@ -338,8 +337,8 @@ Non applicable — aucune donnée ni aucun contrat existant à migrer. Le retour
 
 ## Questions ouvertes
 
-- Q-D1 : code HTTP d'un accès hors périmètre (403 ou 404) — n'affecte pas COR-08-S2.
-- Durée d'expiration d'un traitement `RUNNING` — paramètre d'exploitation.
-- Taille maximale d'un avis ou d'une SBOM acceptée — paramètre de sécurité.
+- Q-D1 : code HTTP d'un accès hors périmètre — 404 sans contenu retenu provisoirement, à confirmer.
+- Durée d'expiration d'un traitement `RUNNING` — paramètre d'exploitation, 30 minutes par défaut, à valider.
+- Taille maximale d'une SBOM ou d'un manifeste acceptée — paramètre de sécurité, 20 Mio par défaut, à valider.
 
 Les questions qui changent ce qui sera construit (Q-2, Q-3, Q-4, Q-5, Q-7 de la proposition) sont traitées par le groupe 1 des tâches avant toute implémentation.

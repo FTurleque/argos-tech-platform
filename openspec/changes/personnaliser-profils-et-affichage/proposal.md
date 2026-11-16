@@ -90,7 +90,7 @@ Allégée : le changement fixe des règles fonctionnelles et le découpage des r
 | ID | Question | Bloquante ? | Destinataire |
 |---|---|---|---|
 | Q-1 | Argos reste-t-il un outil interne, ou deviendra-t-il un produit ouvert à d'autres publics ? | **Répondue le 2026-11-16** : produit ouvert, porté à titre personnel (ADR-0025, accepté) | porteur du projet |
-| Q-2 | Un utilisateur peut-il désactiver un profil proposé par défaut par son équipe ? | oui pour PRF-01 (implémentation) | Product Owner |
-| Q-3 | Un abonnement `PERSONAL` (ABO-04) peut-il porter sur une source qui n'appartient à aucun de ses profils actifs ? | oui pour l'articulation avec `abonnements-veille` | Product Owner |
-| Q-4 | Quel référentiel d'accessibilité s'impose aux mises en page (RGAA, WCAG 2.1 AA) ? | oui pour AFF-05 | RSSI / référent accessibilité |
+| Q-2 | Un utilisateur peut-il désactiver un profil proposé par défaut par son équipe ? | **Répondue le 2026-11-16** : oui, tant qu'un profil reste actif (PRF-01) [DÉCISION] | Product Owner |
+| Q-3 | Un abonnement `PERSONAL` (ABO-04) peut-il porter sur une source qui n'appartient à aucun de ses profils actifs ? | **Répondue le 2026-11-16** : oui, dans la limite de ses droits ; la source s'ajoute à l'union des profils actifs [DÉCISION] | Product Owner |
+| Q-4 | Quel référentiel d'accessibilité s'impose aux mises en page (RGAA, WCAG 2.1 AA) ? | **Répondue le 2026-11-16** : RGAA 4.1.2 (aligné sur WCAG 2.1 AA) [DÉCISION] | RSSI / référent accessibilité |
 | Q-5 | Qui publie un nouveau profil au catalogue, et après quelle revue ? | non pour les profils initiaux | Product Owner / architecte |

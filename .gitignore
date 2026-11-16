@@ -16,3 +16,6 @@ argos-desktop/release/
 # Environnement local et sauvegardes
 .env
 sauvegardes/
+
+# Worktrees des sessions Claude Code
+/.claude/worktrees/

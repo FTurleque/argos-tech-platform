@@ -1,0 +1,295 @@
+package io.argos.ingestion;
+
+import java.sql.Connection;
+import java.sql.PreparedStatement;
+import java.sql.ResultSet;
+import java.sql.SQLException;
+import java.time.Duration;
+import java.time.Instant;
+import java.time.OffsetDateTime;
+import java.time.ZoneOffset;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Optional;
+import java.util.UUID;
+
+import javax.sql.DataSource;
+
+import jakarta.enterprise.context.ApplicationScoped;
+import jakarta.inject.Inject;
+import jakarta.transaction.Transactional;
+
+import org.eclipse.microprofile.config.inject.ConfigProperty;
+
+/**
+ * Persistance de l'état de collecte : curseurs, traitements de synchronisation, tentatives,
+ * état des sources, zone d'échec et événements d'exploitation (COL-05 à COL-08, DC-3).
+ */
+@ApplicationScoped
+public class SyncStore {
+
+    /** État d'une source exposé à l'exploitant (DF-COL-3). */
+    public record SourceState(String sourceId, String label, String state, int consecutiveFailures,
+            Instant lastSuccessAt, Instant lastFailureAt, String lastError, String cursor) {
+    }
+
+    /** Avis mis à l'écart (COL-08). */
+    public record Failure(UUID id, String sourceId, String externalId, String reason, Instant receivedAt) {
+    }
+
+    /** Événement d'exploitation daté (COL-07-S1). */
+    public record OpsEvent(UUID id, String kind, String sourceId, String detail, Instant occurredAt) {
+    }
+
+    @Inject
+    DataSource dataSource;
+
+    /** Durée sans activité après laquelle un traitement {@code RUNNING} est considéré comme interrompu. */
+    @ConfigProperty(name = "argos.ingestion.running-expiry", defaultValue = "PT30M")
+    Duration runningExpiry;
+
+    @Transactional
+    public Optional<String> cursor(String sourceId) {
+        return queryString("SELECT position FROM sync_cursor WHERE source_id = ?", sourceId);
+    }
+
+    /** Avance le curseur ; appelé dans la transaction qui enregistre l'avis correspondant (INV-D5). */
+    @Transactional(Transactional.TxType.MANDATORY)
+    public void advanceCursor(String sourceId, String position, UUID runId) {
+        update("""
+                INSERT INTO sync_cursor(source_id, position, updated_at) VALUES (?, ?, now())
+                ON CONFLICT (source_id) DO UPDATE SET position = excluded.position, updated_at = excluded.updated_at
+                """, sourceId, position);
+        update("UPDATE sync_run SET heartbeat_at = now() WHERE id = ?", runId);
+    }
+
+    @Transactional(Transactional.TxType.MANDATORY)
+    public void recordFailure(String sourceId, UUID runId, String externalId, String reason, String raw) {
+        update("""
+                INSERT INTO ingestion_failure(id, source_id, external_id, reason, raw_content, received_at, run_id)
+                VALUES (?, ?, ?, ?, ?, now(), ?)
+                """, UUID.randomUUID(), sourceId, externalId, truncate(reason), raw, runId);
+    }
+
+    /**
+     * Démarre un traitement ou reprend le traitement {@code RETRYABLE} de la source (DC-3).
+     * Renvoie vide si un traitement {@code RUNNING} non expiré existe déjà.
+     */
+    @Transactional
+    public Optional<UUID> startOrResume(String sourceId) {
+        update("SELECT id FROM source WHERE id = ? FOR UPDATE", sourceId);
+        update("""
+                UPDATE sync_run SET state = 'RETRYABLE', last_error = 'traitement interrompu, repris au prochain lancement'
+                WHERE source_id = ? AND state = 'RUNNING' AND heartbeat_at <= ?
+                """, sourceId, utc(Instant.now().minus(runningExpiry)));
+        if (queryString("SELECT id::text FROM sync_run WHERE source_id = ? AND state = 'RUNNING'", sourceId).isPresent()) {
+            return Optional.empty();
+        }
+        Optional<String> retryable = queryString(
+                "SELECT id::text FROM sync_run WHERE source_id = ? AND state = 'RETRYABLE' ORDER BY started_at LIMIT 1",
+                sourceId);
+        if (retryable.isPresent()) {
+            UUID id = UUID.fromString(retryable.get());
+            resume(id);
+            return Optional.of(id);
+        }
+        UUID id = UUID.randomUUID();
+        update("""
+                INSERT INTO sync_run(id, source_id, state, attempts, started_at, heartbeat_at)
+                VALUES (?, ?, 'RUNNING', 0, now(), now())
+                """, id, sourceId);
+        return Optional.of(id);
+    }
+
+    @Transactional
+    public int attempts(UUID runId) {
+        return queryString("SELECT attempts::text FROM sync_run WHERE id = ?", runId).map(Integer::parseInt).orElse(0);
+    }
+
+    @Transactional
+    public void resume(UUID runId) {
+        update("UPDATE sync_run SET state = 'RUNNING', heartbeat_at = now(), next_attempt_at = NULL WHERE id = ?", runId);
+    }
+
+    @Transactional
+    public void recordAttempt(UUID runId, int attempt, SourceException error) {
+        update("""
+                INSERT INTO sync_attempt(id, run_id, attempt_no, occurred_at, http_status, error_kind, error, retry_after_seconds)
+                VALUES (?, ?, ?, now(), ?, ?, ?, ?)
+                """, UUID.randomUUID(), runId, attempt, error.httpStatus().orElse(null), error.kind().name(),
+                truncate(error.getMessage()), error.retryAfter().map(Duration::getSeconds).orElse(null));
+    }
+
+    @Transactional
+    public void markRetryable(UUID runId, int attempts, Instant nextAttemptAt, String error) {
+        update("""
+                UPDATE sync_run SET state = 'RETRYABLE', attempts = ?, next_attempt_at = ?, error_kind = 'TRANSIENT',
+                       last_error = ?, heartbeat_at = now() WHERE id = ?
+                """, attempts, utc(nextAttemptAt), truncate(error), runId);
+    }
+
+    @Transactional
+    public void succeed(UUID runId, int attempts) {
+        update("""
+                UPDATE sync_run SET state = 'SUCCEEDED', attempts = ?, finished_at = now(), heartbeat_at = now()
+                WHERE id = ?
+                """, attempts, runId);
+    }
+
+    @Transactional
+    public void fail(UUID runId, int attempts, String errorKind, String error) {
+        update("""
+                UPDATE sync_run SET state = 'FAILED', attempts = ?, error_kind = ?, last_error = ?, finished_at = now(),
+                       heartbeat_at = now() WHERE id = ?
+                """, attempts, errorKind, truncate(error), runId);
+    }
+
+    /** Synchronisation réussie : la source redevient nominale (COL-07-S2). */
+    @Transactional
+    public void sourceSucceeded(String sourceId) {
+        Optional<String> previous = queryString("SELECT state FROM source WHERE id = ? FOR UPDATE", sourceId);
+        update("""
+                UPDATE source SET state = 'NOMINAL', consecutive_failures = 0, last_success_at = now(), last_error = NULL
+                WHERE id = ?
+                """, sourceId);
+        if (previous.filter("DEGRADED"::equals).isPresent()) {
+            event("SOURCE_RECOVERED", sourceId, "synchronisation réussie");
+        }
+    }
+
+    /**
+     * Synchronisation en échec : compteur incrémenté, état {@code DEGRADED} et événement
+     * d'exploitation quand le seuil est atteint (COL-07-S1).
+     */
+    @Transactional
+    public void sourceFailed(String sourceId, String error, int threshold, boolean permanent) {
+        String previous = queryString("SELECT state FROM source WHERE id = ? FOR UPDATE", sourceId).orElseThrow();
+        update("""
+                UPDATE source SET consecutive_failures = consecutive_failures + 1, last_failure_at = now(), last_error = ?,
+                       state = CASE WHEN consecutive_failures + 1 >= ? THEN 'DEGRADED' ELSE 'FAILING' END
+                WHERE id = ?
+                """, truncate(error), threshold, sourceId);
+        if (permanent) {
+            event("SYNC_PERMANENT_ERROR", sourceId, error);
+        }
+        String current = queryString("SELECT state FROM source WHERE id = ?", sourceId).orElseThrow();
+        if ("DEGRADED".equals(current) && !"DEGRADED".equals(previous)) {
+            event("SOURCE_DEGRADED", sourceId, error);
+        }
+    }
+
+    /** Reclasse {@code RETRYABLE} les traitements {@code RUNNING} expirés (arc42 §6.4, COL-05-S2). */
+    @Transactional
+    public int recoverExpired(Duration expiry) {
+        return update("""
+                UPDATE sync_run SET state = 'RETRYABLE', last_error = 'traitement interrompu, repris au prochain lancement'
+                WHERE state = 'RUNNING' AND heartbeat_at <= ?
+                """, utc(Instant.now().minus(expiry)));
+    }
+
+    @Transactional
+    public List<SourceState> sourceStates() {
+        List<SourceState> states = new ArrayList<>();
+        String sql = """
+                SELECT s.id, s.label, s.state, s.consecutive_failures, s.last_success_at, s.last_failure_at, s.last_error,
+                       c.position
+                FROM source s LEFT JOIN sync_cursor c ON c.source_id = s.id ORDER BY s.id
+                """;
+        try (Connection c = dataSource.getConnection(); PreparedStatement ps = c.prepareStatement(sql);
+                ResultSet rs = ps.executeQuery()) {
+            while (rs.next()) {
+                states.add(new SourceState(rs.getString(1), rs.getString(2), rs.getString(3), rs.getInt(4),
+                        instant(rs, 5), instant(rs, 6), rs.getString(7), rs.getString(8)));
+            }
+        } catch (SQLException e) {
+            throw new IllegalStateException("lecture de l'état des sources impossible", e);
+        }
+        return states;
+    }
+
+    @Transactional
+    public List<Failure> failures(String sourceId) {
+        List<Failure> failures = new ArrayList<>();
+        String sql = """
+                SELECT id, source_id, external_id, reason, received_at FROM ingestion_failure
+                WHERE source_id = ? ORDER BY received_at
+                """;
+        try (Connection c = dataSource.getConnection(); PreparedStatement ps = c.prepareStatement(sql)) {
+            ps.setString(1, sourceId);
+            try (ResultSet rs = ps.executeQuery()) {
+                while (rs.next()) {
+                    failures.add(new Failure(rs.getObject(1, UUID.class), rs.getString(2), rs.getString(3),
+                            rs.getString(4), instant(rs, 5)));
+                }
+            }
+        } catch (SQLException e) {
+            throw new IllegalStateException("lecture de la zone d'échec impossible", e);
+        }
+        return failures;
+    }
+
+    @Transactional
+    public List<OpsEvent> events(String sourceId) {
+        List<OpsEvent> events = new ArrayList<>();
+        String sql = "SELECT id, kind, source_id, detail, occurred_at FROM ops_event WHERE source_id = ? ORDER BY occurred_at";
+        try (Connection c = dataSource.getConnection(); PreparedStatement ps = c.prepareStatement(sql)) {
+            ps.setString(1, sourceId);
+            try (ResultSet rs = ps.executeQuery()) {
+                while (rs.next()) {
+                    events.add(new OpsEvent(rs.getObject(1, UUID.class), rs.getString(2), rs.getString(3),
+                            rs.getString(4), instant(rs, 5)));
+                }
+            }
+        } catch (SQLException e) {
+            throw new IllegalStateException("lecture des événements d'exploitation impossible", e);
+        }
+        return events;
+    }
+
+    private void event(String kind, String sourceId, String detail) {
+        update("INSERT INTO ops_event(id, kind, source_id, detail, occurred_at) VALUES (?, ?, ?, ?, now())",
+                UUID.randomUUID(), kind, sourceId, truncate(detail));
+    }
+
+    private Optional<String> queryString(String sql, Object... params) {
+        try (Connection c = dataSource.getConnection(); PreparedStatement ps = c.prepareStatement(sql)) {
+            bind(ps, params);
+            try (ResultSet rs = ps.executeQuery()) {
+                return rs.next() ? Optional.ofNullable(rs.getString(1)) : Optional.empty();
+            }
+        } catch (SQLException e) {
+            throw new IllegalStateException("requête de collecte en échec", e);
+        }
+    }
+
+    private int update(String sql, Object... params) {
+        try (Connection c = dataSource.getConnection(); PreparedStatement ps = c.prepareStatement(sql)) {
+            bind(ps, params);
+            return ps.execute() ? 0 : ps.getUpdateCount();
+        } catch (SQLException e) {
+            throw new IllegalStateException("écriture de collecte en échec", e);
+        }
+    }
+
+    private static void bind(PreparedStatement ps, Object... params) throws SQLException {
+        for (int i = 0; i < params.length; i++) {
+            ps.setObject(i + 1, params[i]);
+        }
+    }
+
+    private static Instant instant(ResultSet rs, int column) throws SQLException {
+        OffsetDateTime value = rs.getObject(column, OffsetDateTime.class);
+        return value == null ? null : value.toInstant();
+    }
+
+    private static OffsetDateTime utc(Instant instant) {
+        return instant.atOffset(ZoneOffset.UTC);
+    }
+
+    private static String truncate(String value) {
+        if (value == null) {
+            return null;
+        }
+        return value.length() <= 1000 ? value : value.substring(0, 1000);
+    }
+}

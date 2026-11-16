@@ -51,6 +51,12 @@
       <groupId>io.quarkus</groupId>
       <artifactId>quarkus-smallrye-health</artifactId>
     </dependency>
+    <!-- Identité de l'utilisateur courant (@Authenticated, SecurityIdentity). Le mécanisme
+         d'authentification lui-même (OIDC, ADR-0008) est hors de ce socle. Apache-2.0. -->
+    <dependency>
+      <groupId>io.quarkus</groupId>
+      <artifactId>quarkus-security</artifactId>
+    </dependency>
 
     <!-- PostgreSQL (ADR-0002). Flyway : choix provisoire, ADR à rédiger (arc42 §9.3 point 3). -->
     <dependency>
@@ -66,6 +72,13 @@
       <artifactId>flyway-database-postgresql</artifactId>
     </dependency>
 
+    <!-- Authentification OIDC (ADR-0008, ADR-0027) : validation des jetons du fournisseur
+         d'identité Keycloak. Licence Apache-2.0 (ADR-0021 point 6). -->
+    <dependency>
+      <groupId>io.quarkus</groupId>
+      <artifactId>quarkus-oidc</artifactId>
+    </dependency>
+
     <!-- Tests -->
     <dependency>
       <groupId>io.quarkus</groupId>
@@ -75,6 +88,18 @@
     <dependency>
       <groupId>io.rest-assured</groupId>
       <artifactId>rest-assured</artifactId>
+      <scope>test</scope>
+    </dependency>
+    <!-- Jetons de test émis par le Keycloak des Dev Services. Licence Apache-2.0. -->
+    <dependency>
+      <groupId>io.quarkus</groupId>
+      <artifactId>quarkus-test-keycloak-server</artifactId>
+      <scope>test</scope>
+    </dependency>
+    <!-- @TestSecurity : utilisateur simulé dans les tests d'API. Apache-2.0. -->
+    <dependency>
+      <groupId>io.quarkus</groupId>
+      <artifactId>quarkus-test-security</artifactId>
       <scope>test</scope>
     </dependency>
     <dependency>

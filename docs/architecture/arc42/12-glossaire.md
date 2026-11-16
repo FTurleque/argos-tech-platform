@@ -11,6 +11,15 @@
 | **Source** | configuration permettant de collecter une origine de veille |
 | **Repository** | dépôt GitHub/GitLab associé à un projet |
 | **Workspace** | frontière organisationnelle et d’autorisation regroupant projets et sources |
+| **Espace** | nom de l’IHM et de l’API (`/api/v1/espaces`) pour un workspace ; ses membres y ont un rôle (capacité `comptes-acces`) |
+| **Compte** | identité Argos d’une personne, créée à sa première connexion OIDC et reliée au sujet du jeton |
+| **Appartenance** | lien entre un compte et un espace, portant le rôle `LECTEUR`, `CONTRIBUTEUR` ou `ADMINISTRATEUR` |
+| **Invitation** | proposition, émise par un administrateur d’espace, de rejoindre l’espace avec un rôle ; adressée à un e-mail, valable 14 jours par défaut |
+| **Administrateur plateforme** | attribut d’un compte pour l’exploitation et les catalogues, sans accès implicite aux espaces |
+| **Espace courant** | espace transmis à PostgreSQL dans chaque transaction (`argos.espace_courant`) pour la RLS |
+| **Keycloak** | fournisseur d’identité OIDC open source (Apache-2.0) auto-hébergé, retenu par ADR-0027 (Proposé) |
+| **Profil de veille** | type de veille qu’un utilisateur active (`developpeur`, `expert-metier`…) : sources, rubriques, stratégies de rapprochement et garde-fous décrits par un manifeste du catalogue ; cumulable, sans effet sur les droits ; à ne pas confondre avec un rôle (ADR-0024) |
+| **Mise en page** | présentation de l’IHM choisie par l’utilisateur (`classique`, `journal`, `fantaisie`, `gazette`) ; change la forme, jamais le contenu ni les mentions (ADR-0023) |
 | **C4** | modèle de visualisation d’architecture par niveaux Context, Container, Component et Code |
 | **arc42** | structure de documentation d’architecture en douze sections |
 | **ADR** | Architecture Decision Record ; enregistrement versionné d’une décision structurante |
@@ -43,6 +52,10 @@
 | **SAST** | Static Application Security Testing |
 | **DAST** | Dynamic Application Security Testing |
 | **CVE** | Common Vulnerabilities and Exposures |
+| **Signal de sécurité** | avis de vulnérabilité normalisé, unique par source et identifiant externe, avec sa provenance et l'historique de ses versions (exigences COL-01 à COL-03) |
+| **Inventaire** | liste de référence des composants d'un projet, issue de la SBOM CycloneDX de la branche principale ou, à défaut, des manifestes, avec son origine et sa date (INV-01, INV-04) |
+| **Composant** | élément d'un inventaire identifié par son PURL et sa version, direct ou transitif (INV-01, INV-02) |
+| **Niveau d'impact** | confiance d'un impact : `exact`, `probable` ou `à vérifier` (COR-02) ; distinct du cycle de traitement d'un impact |
 | **OTLP** | OpenTelemetry Protocol |
 | **POC** | Proof of Concept |
 | **MVP** | Minimum Viable Product |

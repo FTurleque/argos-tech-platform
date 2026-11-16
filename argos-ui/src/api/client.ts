@@ -52,3 +52,70 @@ async function getJson<T>(path: string, timeoutMs = 5000): Promise<T> {
 export function fetchSystemInfo(): Promise<SystemInfo> {
   return getJson<SystemInfo>('/api/v1/system/info')
 }
+
+// --- Préférences et catalogue (AFF-01, AFF-03, PRF-01) ---------------------
+
+/** Réponse de `GET /api/v1/preferences` (schéma OpenAPI `PreferencesEffectives`). */
+export interface PreferencesEffectives {
+  miseEnPage: string
+  miseEnPageChoisie: string | null
+  miseEnPageIndisponible: boolean
+  message: string | null
+  profilsActifs: string[]
+  profilsParDefaut: boolean
+  profilsIndisponibles: string[]
+}
+
+/** Élément de `GET /api/v1/catalogue/mises-en-page` (schéma `MiseEnPageCatalogue`). */
+export interface MiseEnPageCatalogue {
+  identifiant: string
+  libelle: string
+  description: string
+  parDefaut: boolean
+}
+
+/** Corps d'une demande refusée (schéma `Erreur`). */
+interface ErreurApi {
+  code: string
+  message: string
+}
+
+async function putJson<T>(path: string, body: unknown, timeoutMs = 5000): Promise<T> {
+  const controller = new AbortController()
+  const timer = setTimeout(() => controller.abort(), timeoutMs)
+  try {
+    const response = await fetch(`${apiBaseUrl}${path}`, {
+      method: 'PUT',
+      headers: { Accept: 'application/json', 'Content-Type': 'application/json' },
+      body: JSON.stringify(body),
+      signal: controller.signal,
+    })
+    if (!response.ok) {
+      let message = `Le serveur a répondu ${response.status}`
+      try {
+        message = ((await response.json()) as ErreurApi).message ?? message
+      } catch {
+        // corps absent ou non JSON : message générique
+      }
+      throw new ApiError(message, response.status)
+    }
+    return (await response.json()) as T
+  } catch (error) {
+    if (error instanceof ApiError) throw error
+    throw new ApiError(`Serveur ARGOS injoignable à ${apiBaseUrl}`)
+  } finally {
+    clearTimeout(timer)
+  }
+}
+
+export function fetchPreferences(): Promise<PreferencesEffectives> {
+  return getJson<PreferencesEffectives>('/api/v1/preferences')
+}
+
+export function fetchMisesEnPage(): Promise<MiseEnPageCatalogue[]> {
+  return getJson<MiseEnPageCatalogue[]>('/api/v1/catalogue/mises-en-page')
+}
+
+export function choisirMiseEnPage(miseEnPage: string): Promise<PreferencesEffectives> {
+  return putJson<PreferencesEffectives>('/api/v1/preferences/mise-en-page', { miseEnPage })
+}

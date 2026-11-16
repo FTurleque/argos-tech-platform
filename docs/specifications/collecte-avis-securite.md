@@ -5,7 +5,7 @@
 | Préfixe d'exigences | `COL` |
 | Spec de référence | `/openspec/specs/collecte-avis-securite/spec.md` — absente : capacité non livrée |
 | Changement en cours | [`formaliser-chaine-securite-poc`](/openspec/changes/formaliser-chaine-securite-poc/specs/collecte-avis-securite/spec.md) — proposé, non archivé |
-| Statut de la capacité | **proposée** — aucune implémentation dans le dépôt |
+| Statut de la capacité | **proposée**, implémentée dans `argos-server` (changement non archivé) : paquets `io.argos.ingestion`, `io.argos.signal`, `io.argos.vulnintel` |
 | Composants (arc42 §5) | `source-ingestion`, `signal`, `vuln-intel`, `audit`, adaptateur PostgreSQL |
 
 Tout le contenu de cette fiche porte le statut [PROPOSITION] (changement `formaliser-chaine-securite-poc`) sauf mention contraire.
@@ -83,7 +83,7 @@ Les signaux de sécurité sont globaux, non rattachés à un espace (ADR-0016, c
 
 - **Question** : comment un avis OSV devient-il un signal enrichi, et que se passe-t-il quand une source répond en erreur ?
 - **Type** : UML séquence
-- **Portée** : cible proposée (aucune implémentation)
+- **Portée** : implémenté dans `argos-server` (`io.argos.ingestion.SourceSynchronizer`, `SyncStore`, `RetryPolicy`, `io.argos.ingestion.osv`, `io.argos.vulnintel`) ; la planification automatique n'existe pas : une synchronisation se lance par `POST /api/v1/ops/sources/{id}/synchronizations`
 - **Exigences** : COL-01, COL-03, COL-04, COL-05, COL-06
 
 ```mermaid
@@ -174,7 +174,7 @@ stateDiagram-v2
     Degraded --> Nominale: synchronisation réussie (COL-07-S2)
 ```
 
-Le seuil d'échec et le nombre maximal de tentatives ne sont pas définis [QUESTION Q-4 du changement]. Le retour de `DEGRADED` à `Nominale` sur succès est une interprétation de ce changement.
+Seuils décidés le 2026-11-16 (Q-4) [DÉCISION] : 5 tentatives par synchronisation avec attente exponentielle ; `DEGRADED` après 3 synchronisations consécutives en échec. Ce sont les valeurs par défaut de `argos.ingestion.max-attempts` et `argos.ingestion.degraded-threshold`. Le retour de `DEGRADED` à `Nominale` sur succès est une interprétation de ce changement. Dans le code, `Nominale` vaut `NOMINAL` et `En échec` vaut `FAILING`.
 
 ## Critères d'acceptation
 
@@ -184,7 +184,9 @@ Le seuil d'échec et le nombre maximal de tentatives ne sont pas définis [QUEST
 
 ## Interprétations introduites par un changement
 
-Comportements absents des sources, ajoutés pour rendre les règles testables (changement `formaliser-chaine-securite-poc`, à valider) :
+Interprétations validées par le porteur du projet le 2026-11-16 [DÉCISION].
+
+Comportements absents des sources, ajoutés pour rendre les règles testables (changement `formaliser-chaine-securite-poc`) :
 
 - COL-03-S3 : collectes concurrentes du même avis → un seul signal ;
 - COL-06-S3 : une erreur permanente n'est pas retentée automatiquement ;
@@ -192,7 +194,11 @@ Comportements absents des sources, ajoutés pour rendre les règles testables (c
 
 ## Écarts constatés
 
-Aucun écart avec du code : aucun code n'existe. Les noms de §6 (`Ingestion`, `External Adapters`, `Scheduler & Jobs`) diffèrent des composants de §5 ; voir la table de correspondance de arc42 §6.
+- Le code de `argos-server` implémente les règles de cette fiche (tests `argos-server/src/test/java/io/argos/chain/CollecteTest.java`, `EnrichmentTest.java`, `ResilienceTest.java`). Toute erreur inattendue pendant une synchronisation (et pas seulement une erreur de source) termine le traitement en échec permanent et fait changer l'état de la source ; un traitement `RUNNING` sans activité depuis `argos.ingestion.running-expiry` (30 minutes) est repris au lancement suivant.
+- Le délai imposé par `Retry-After` est borné par le délai maximal des tentatives (`argos.ingestion.backoff-max`, 5 minutes).
+- Un avis OSV retiré (champ `withdrawn`) reste historisé comme signal, mais ne déclare plus aucun paquet affecté : il ne produit aucun impact.
+- Aucune planification automatique des synchronisations n'est installée (tâche 6.3 du changement) ; la première synchronisation OSV sans curseur énumère tout l'index `modified_id.csv` des écosystèmes configurés, dans la requête d'exploitation, sans borne de volume.
+- Les noms de §6 (`Ingestion`, `External Adapters`, `Scheduler & Jobs`) diffèrent des composants de §5 ; voir la table de correspondance de arc42 §6.
 
 ## Questions ouvertes
 
@@ -201,8 +207,8 @@ Aucun écart avec du code : aucun code n'existe. Les noms de §6 (`Ingestion`, `
 | Q-COL-1 | Fréquence de synchronisation de chaque source ? | délai source → signal | sécurité / exploitation |
 | Q-COL-2 | Qu'est-ce qu'un avis « modifié » : contenu différent ou date de modification de l'avis ? | COL-03 | backend |
 | Q-COL-3 | Quels écosystèmes (Maven, npm, PyPI…) le POC doit-il couvrir ? | périmètre COL-01 | Tech Lead |
-| Q-4 (changement) | Nombre maximal de tentatives et seuil d'échec ? | COL-06, COL-07 | backend / exploitation |
+| Q-4 (changement) | Nombre maximal de tentatives et seuil d'échec ? | répondue le 2026-11-16 : 5 tentatives par synchronisation, avec attente exponentielle ; `DEGRADED` après 3 synchronisations consécutives en échec [DÉCISION] | backend / exploitation |
 
 ## Traçabilité
 
-Voir la matrice du changement : [`tasks.md`](/openspec/changes/formaliser-chaine-securite-poc/tasks.md#matrice-de-traçabilité). Aucun test n'existe à ce jour : toutes les preuves sont à produire.
+Voir la matrice du changement : [`tasks.md`](/openspec/changes/formaliser-chaine-securite-poc/tasks.md#matrice-de-traçabilité). Les scénarios COL-01-S1 à COL-08-S1 sont vérifiés par `argos-server/src/test/java/io/argos/chain/CollecteTest.java`, `ResilienceTest.java`, `EnrichmentTest.java` et `DocumentParsingTest.java` (contrat sur une réponse OSV réelle enregistrée) ; les sources externes y sont simulées.

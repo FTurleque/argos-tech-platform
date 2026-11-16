@@ -25,6 +25,9 @@ body { margin: 0; }
 .brand { display: flex; align-items: baseline; gap: 0.75rem; }
 .brand-name { font-weight: 700; font-size: 1.25rem; letter-spacing: 0.08em; }
 .brand-motto { font-size: 0.85rem; opacity: 0.8; }
+.nav { display: flex; gap: 1rem; }
+.nav a { color: #fff; text-decoration: none; opacity: 0.85; }
+.nav a.router-link-exact-active { opacity: 1; text-decoration: underline; }
 .badge {
   font-size: 0.75rem; padding: 0.2rem 0.6rem; border-radius: 999px;
   background: rgba(255, 255, 255, 0.15);
@@ -46,7 +49,7 @@ code { background: #eef1f5; padding: 0.05rem 0.3rem; border-radius: 4px; font-si
 .status-down { border-left-color: var(--ko); }
 .status-down strong { color: var(--ko); }
 
-.actions { display: flex; gap: 0.5rem; margin-top: 1rem; }
+.actions { display: flex; flex-wrap: wrap; gap: 0.5rem; margin-top: 1rem; }
 button {
   font: inherit; cursor: pointer; border: 1px solid var(--teal); border-radius: 6px;
   padding: 0.45rem 0.9rem; background: var(--teal); color: #fff;

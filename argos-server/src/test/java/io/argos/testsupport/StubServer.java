@@ -1,0 +1,129 @@
+package io.argos.testsupport;
+
+import java.io.IOException;
+import java.io.OutputStream;
+import java.net.InetSocketAddress;
+import java.nio.charset.StandardCharsets;
+import java.time.Instant;
+import java.util.ArrayDeque;
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.Deque;
+import java.util.List;
+import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.Executors;
+
+import com.sun.net.httpserver.HttpExchange;
+import com.sun.net.httpserver.HttpServer;
+
+import io.quarkus.test.common.QuarkusTestResourceLifecycleManager;
+
+/**
+ * Serveur HTTP local qui simule toutes les sources externes (OSV, NVD, KEV, EPSS, CERT-FR,
+ * GitLab, GitHub) : aucun test n'appelle de service externe. Les réponses sont programmées par
+ * chemin (avec ou sans requête) ; la dernière réponse d'une file reste active.
+ */
+public class StubServer implements QuarkusTestResourceLifecycleManager {
+
+    /** Réponse programmée. */
+    public record Stub(int status, String body, Map<String, String> headers, long delayMillis) {
+
+        public static Stub ok(String body) {
+            return new Stub(200, body, Map.of(), 0);
+        }
+
+        public static Stub status(int status) {
+            return new Stub(status, "", Map.of(), 0);
+        }
+    }
+
+    /** Requête reçue. */
+    public record Received(String pathAndQuery, Map<String, List<String>> headers, Instant at) {
+    }
+
+    private static final Map<String, Deque<Stub>> ROUTES = new ConcurrentHashMap<>();
+    private static final List<Received> RECEIVED = Collections.synchronizedList(new ArrayList<>());
+    private static HttpServer server;
+
+    @Override
+    public Map<String, String> start() {
+        try {
+            server = HttpServer.create(new InetSocketAddress("localhost", 0), 0);
+        } catch (IOException e) {
+            throw new IllegalStateException(e);
+        }
+        server.createContext("/", StubServer::handle);
+        server.setExecutor(Executors.newCachedThreadPool());
+        server.start();
+        String base = "http://localhost:" + server.getAddress().getPort();
+        return Map.ofEntries(
+                Map.entry("argos.sources.osv.export-url", base + "/osv-export"),
+                Map.entry("argos.sources.osv.api-url", base + "/osv-api"),
+                Map.entry("argos.sources.osv.ecosystems", "Maven"),
+                Map.entry("argos.sources.nvd.url", base + "/nvd"),
+                Map.entry("argos.sources.kev.url", base + "/kev.json"),
+                Map.entry("argos.sources.epss.url", base + "/epss"),
+                Map.entry("argos.sources.certfr.feed-url", base + "/certfr/feed/"),
+                Map.entry("argos.sources.certfr.base-url", base + "/certfr/"),
+                Map.entry("argos.scm.gitlab.url", base + "/gitlab"),
+                Map.entry("argos.scm.github.url", base + "/github"),
+                Map.entry("argos.sources.http-timeout", "PT1S"));
+    }
+
+    @Override
+    public void stop() {
+        if (server != null) {
+            server.stop(0);
+        }
+    }
+
+    public static void reset() {
+        ROUTES.clear();
+        RECEIVED.clear();
+    }
+
+    /** Programme les réponses successives d'un chemin (ex. {@code /epss?cve=CVE-1}). */
+    public static void on(String pathAndQuery, Stub... responses) {
+        Deque<Stub> queue = new ArrayDeque<>(List.of(responses));
+        ROUTES.put(pathAndQuery, queue);
+    }
+
+    public static List<Received> received(String prefix) {
+        synchronized (RECEIVED) {
+            return RECEIVED.stream().filter(r -> r.pathAndQuery().startsWith(prefix)).toList();
+        }
+    }
+
+    private static void handle(HttpExchange exchange) throws IOException {
+        String path = exchange.getRequestURI().getRawPath();
+        String query = exchange.getRequestURI().getRawQuery();
+        String full = query == null ? path : path + "?" + query;
+        RECEIVED.add(new Received(full, Map.copyOf(exchange.getRequestHeaders()), Instant.now()));
+        Deque<Stub> queue = ROUTES.getOrDefault(full, ROUTES.get(path));
+        Stub stub;
+        if (queue == null) {
+            stub = Stub.status(404);
+        } else {
+            synchronized (queue) {
+                stub = queue.size() > 1 ? queue.poll() : queue.peek();
+            }
+        }
+        if (stub.delayMillis() > 0) {
+            try {
+                Thread.sleep(stub.delayMillis());
+            } catch (InterruptedException e) {
+                Thread.currentThread().interrupt();
+            }
+        }
+        stub.headers().forEach((k, v) -> exchange.getResponseHeaders().add(k, v));
+        byte[] body = stub.body().getBytes(StandardCharsets.UTF_8);
+        exchange.sendResponseHeaders(stub.status(), body.length == 0 ? -1 : body.length);
+        if (body.length > 0) {
+            try (OutputStream out = exchange.getResponseBody()) {
+                out.write(body);
+            }
+        }
+        exchange.close();
+    }
+}

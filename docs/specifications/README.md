@@ -92,7 +92,7 @@ Les diagrammes d'architecture (D-01 à D-13) sont inventoriés dans [`/docs/arch
 
 | Élément | Nombre | Détail |
 |---|---:|---|
-| Specs de référence | 0 | aucune capacité livrée ; socle applicatif sans code métier |
+| Specs de référence | 0 | aucune capacité livrée ; le code des changements du lot 1 (`formaliser-chaine-securite-poc`, `gerer-comptes-et-acces`, `personnaliser-profils-et-affichage`) est présent dans `argos-server` et `argos-ui`, changements non archivés |
 | Changements actifs | 13 | `formaliser-chaine-securite-poc`, `personnaliser-profils-et-affichage` et un changement par capacité des lots 2 à 5 (schéma `detailed-uml`) |
 | Changements archivés | 0 | — |
 
@@ -102,32 +102,32 @@ Le dépôt ne contient aucune spec de référence ni aucun changement d'un autre
 
 | Capacité | Exigences | Scénarios | Diagrammes métier | Questions ouvertes | Tests écrits |
 |---|---:|---:|---:|---:|---:|
-| `collecte-avis-securite` | 8 | 18 | 3 | 4 | 0 |
-| `inventaire-sbom` | 5 | 8 | 2 | 5 | 0 |
-| `correlation-impact` | 8 | 14 | 3 | 4 | 0 |
-| `abonnements-veille` | 5 | 7 | 2 | 4 | 0 |
-| **Total** | **26** | **47** | **10** | **17** | **0** |
+| `collecte-avis-securite` | 8 | 18 | 3 | 4 | 22 |
+| `inventaire-sbom` | 5 | 9 | 2 | 5 | 12 |
+| `correlation-impact` | 8 | 16 | 3 | 4 | 27 |
+| `abonnements-veille` | 6 | 10 | 2 | 4 | 10 |
+| **Total** | **27** | **53** | **10** | **17** | **71** |
 
-Toutes les exigences sont au statut [PROPOSITION] : elles dérivent d'ADR « Proposé » ou de baselines « à valider ». Matrice détaillée : [`tasks.md` du changement](/openspec/changes/formaliser-chaine-securite-poc/tasks.md#matrice-de-traçabilité).
+Toutes les exigences sont au statut [PROPOSITION] : elles dérivent d'ADR « Proposé » ou de baselines « à valider ». Les tests écrits sont ceux d'`argos-server/src/test/java/io/argos/chain/` (hors `ProfilsDeVeilleTest`) et `architecture/SubscriptionIsolationTest.java`, exécutés par `mvn -B -f argos-server/pom.xml verify` avec des jetons réels du Keycloak des Dev Services et la RLS appliquée sous le rôle `argos_app`. Matrice détaillée : [`tasks.md` du changement](/openspec/changes/formaliser-chaine-securite-poc/tasks.md#matrice-de-traçabilité).
 
 ### Couverture de `personnaliser-profils-et-affichage`
 
 | Capacité | Exigences | Scénarios | Diagrammes métier | Questions ouvertes | Tests écrits |
 |---|---:|---:|---:|---:|---:|
-| `affichage-personnalise` | 5 | 8 | 1 | 1 | 0 |
-| `profils-veille` | 6 | 11 | 2 | 4 | 0 |
-| **Total** | **11** | **19** | **3** | **5** | **0** |
+| `affichage-personnalise` | 5 | 8 | 1 | 1 | 4 |
+| `profils-veille` | 6 | 11 | 2 | 4 | 6 |
+| **Total** | **11** | **19** | **3** | **5** | **10** |
 
-Toutes les exigences sont au statut [PROPOSITION] : elles dérivent d'ADR-0023 et ADR-0024 (Proposés). Matrice détaillée : [`tasks.md` du changement](/openspec/changes/personnaliser-profils-et-affichage/tasks.md#matrice-de-traçabilité).
+« Tests écrits » compte les scénarios couverts par un test qui passe (AFF-01-S1, AFF-01-S2, AFF-04-S1, AFF-04-S2, PRF-01-S1 à PRF-01-S3, PRF-03-S1, PRF-03-S2, PRF-05-S1). Les exigences dérivent d'ADR-0023 et ADR-0024 (Proposés) ; les règles dont le code et les tests existent sont marquées [EXISTANT] dans les fiches. Matrice détaillée : [`tasks.md` du changement](/openspec/changes/personnaliser-profils-et-affichage/tasks.md#matrice-de-traçabilité).
 
 ### Couverture du lot 2
 
 | Changement | Capacité | Exigences | Scénarios | Diagrammes métier | Questions ouvertes | Tests écrits |
 |---|---|---|---|---|---|---|
-| [`gerer-comptes-et-acces`](/openspec/changes/gerer-comptes-et-acces/proposal.md) | `comptes-acces` | 6 | 11 | 1 | 4 | 0 |
+| [`gerer-comptes-et-acces`](/openspec/changes/gerer-comptes-et-acces/proposal.md) | `comptes-acces` | 6 | 11 | 1 | 0 | 33 |
 | [`diffuser-alertes-et-digests`](/openspec/changes/diffuser-alertes-et-digests/proposal.md) | `alertes-digests` | 6 | 9 | 1 | 4 | 0 |
 | [`notifier-sur-le-poste`](/openspec/changes/notifier-sur-le-poste/proposal.md) | `notifications-poste` | 6 | 7 | 1 | 2 | 0 |
-| **Total** | | **18** | **27** | **3** | **10** | **0** |
+| **Total** | | **18** | **27** | **3** | **6** | **33** |
 
 ### Couverture du lot 3
 

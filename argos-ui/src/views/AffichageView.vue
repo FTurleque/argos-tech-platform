@@ -1,0 +1,93 @@
+<script setup lang="ts">
+// Choix de la mise en page (AFF-01, AFF-03, AFF-04). Vue de la couche contenu : elle lit la
+// préférence sur le serveur, la confronte aux mises en page connues de l'IHM et transmet des
+// modèles de vue à la couche mise en page.
+import { computed, onMounted, ref } from 'vue'
+import {
+  ApiError,
+  choisirMiseEnPage,
+  fetchMisesEnPage,
+  fetchPreferences,
+  type MiseEnPageCatalogue,
+  type PreferencesEffectives,
+} from '../api/client'
+import { ELEMENTS_APERCU } from '../contenu/apercu'
+import { resoudreMiseEnPage } from '../contenu/resolution'
+import { IDENTIFIANTS_MISES_EN_PAGE, MISES_EN_PAGE } from '../mises-en-page/registre'
+
+const preferences = ref<PreferencesEffectives | null>(null)
+const catalogue = ref<MiseEnPageCatalogue[]>([])
+const erreur = ref('')
+const enCours = ref(false)
+
+const resolue = computed(() => resoudreMiseEnPage(preferences.value, IDENTIFIANTS_MISES_EN_PAGE))
+const composant = computed(() => MISES_EN_PAGE[resolue.value.identifiant])
+const choix = computed(() => catalogue.value.filter((m) => IDENTIFIANTS_MISES_EN_PAGE.includes(m.identifiant)))
+
+function message(e: unknown): string {
+  if (e instanceof ApiError && e.status === 401) {
+    return 'Connectez-vous pour enregistrer votre mise en page. La mise en page « classique » s’applique.'
+  }
+  return e instanceof ApiError ? e.message : 'Erreur inattendue'
+}
+
+async function charger(): Promise<void> {
+  erreur.value = ''
+  try {
+    const [prefs, misesEnPage] = await Promise.all([fetchPreferences(), fetchMisesEnPage()])
+    preferences.value = prefs
+    catalogue.value = misesEnPage
+  } catch (e) {
+    preferences.value = null
+    erreur.value = message(e)
+  }
+}
+
+async function choisir(identifiant: string): Promise<void> {
+  enCours.value = true
+  erreur.value = ''
+  try {
+    preferences.value = await choisirMiseEnPage(identifiant)
+  } catch (e) {
+    erreur.value = message(e)
+  } finally {
+    enCours.value = false
+  }
+}
+
+onMounted(charger)
+</script>
+
+<template>
+  <section class="card">
+    <h1>Mise en page</h1>
+    <p class="muted">
+      La mise en page change la présentation, jamais le contenu : les mêmes éléments et les mêmes mentions
+      s’affichent dans chacune. Votre choix est enregistré sur le serveur et vaut pour le portail web comme pour
+      l’application desktop.
+    </p>
+    <p v-if="resolue.message" class="status status-down" role="status">{{ resolue.message }}</p>
+    <p v-if="erreur" class="status status-down" role="alert">{{ erreur }}</p>
+
+    <div v-if="choix.length" class="actions" role="radiogroup" aria-label="Mises en page disponibles">
+      <button
+        v-for="m in choix"
+        :key="m.identifiant"
+        type="button"
+        role="radio"
+        :aria-checked="m.identifiant === resolue.identifiant"
+        :class="{ secondary: m.identifiant !== resolue.identifiant }"
+        :disabled="enCours"
+        :title="m.description"
+        @click="choisir(m.identifiant)"
+      >
+        {{ m.libelle }}
+      </button>
+    </div>
+  </section>
+
+  <section class="card">
+    <h2>Aperçu — données d’exemple</h2>
+    <component :is="composant" :elements="ELEMENTS_APERCU" />
+  </section>
+</template>

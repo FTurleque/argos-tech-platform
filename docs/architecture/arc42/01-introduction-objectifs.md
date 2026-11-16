@@ -11,7 +11,7 @@ ARGOS est une plateforme de **Technology Intelligence** et **Project Intelligenc
 - la synthèse et l’analyse assistées par Claude/Anthropic ;
 - la restitution via tableaux de bord, recherche, alertes et digests.
 
-**État : Hypothèse à valider.** Cette mission est issue du cadrage du projet et du README ; aucune implémentation n’est encore présente.
+**État : Hypothèse à valider.** Cette mission est issue du cadrage du projet et du README ; seules les capacités du lot 1 sont implémentées (changements OpenSpec non archivés).
 
 ## 1.2 Objectifs métier
 

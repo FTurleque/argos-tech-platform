@@ -4,13 +4,13 @@
 |---|---|
 | Préfixe d'exigences | `ACC` |
 | Spec de référence | `/openspec/specs/comptes-acces/spec.md` — absente tant qu'aucun changement n'est archivé |
-| Changements en cours | [`gerer-comptes-et-acces`](/openspec/changes/gerer-comptes-et-acces/proposal.md) (proposé) |
-| Statut de la capacité | proposée |
+| Changements en cours | [`gerer-comptes-et-acces`](/openspec/changes/gerer-comptes-et-acces/proposal.md) (implémenté, non archivé) |
+| Statut de la capacité | proposée ; implémentation et tests dans `argos-server`, changement non archivé |
 | Composants (arc42 §5) | `API & Security`, `workspace`, `audit` |
 
 ## Objectif
 
-[PROPOSITION — `gerer-comptes-et-acces`] Permettre à toute personne de se connecter à Argos, de créer son espace et d'y inviter d'autres utilisateurs, chacun ne voyant que ce que ses rôles autorisent.
+[PROPOSITION — `gerer-comptes-et-acces`] Permettre à toute personne invitée de se connecter à Argos, de créer son espace et d'y inviter d'autres utilisateurs, chacun ne voyant que ce que ses rôles autorisent.
 
 ## Acteurs
 
@@ -19,50 +19,57 @@
 | Utilisateur | se connecte, crée son espace, rejoint un espace sur invitation | [PROPOSITION] — ADR-0025 (Accepté) |
 | Administrateur d'espace | invite, attribue et révoque les rôles de son espace | [PROPOSITION] — ADR-0016 (Proposé) |
 | Administrateur plateforme | gère les catalogues et l'exploitation, sans accès implicite aux données des espaces | [PROPOSITION] — arc42 §8.1 |
-| Fournisseur d'identité OIDC | authentifie les utilisateurs | [PROPOSITION] — ADR-0008 (Proposé), ADR-0026 (Accepté) |
+| Fournisseur d'identité OIDC (Keycloak) | authentifie les utilisateurs | [DÉCISION] Q-1 — ADR-0008, ADR-0027 (Proposés), ADR-0026 (Accepté) |
 
 ## Périmètre et exclusions
 
 Inclus :
 
-- Connexion, déconnexion, création de compte, espaces, rôles, invitations, révocation.
+- Connexion, création de compte, espaces, rôles, invitations, révocation.
 - Contrôle d'accès de l'API REST ; le serveur MCP réutilise ces règles (change `exposer-serveur-mcp`).
 
 Exclus :
 
-- Le choix du fournisseur d'identité (question Q-1).
+- L'écran de connexion et de déconnexion de l'IHM et du client desktop (Authorization Code + PKCE) : à réaliser dans `argos-ui` et `argos-desktop`.
+- Le déploiement de Keycloak sur le Synology.
 - La facturation et les offres payantes : aucune décision (ADR-0021).
 - La suppression de compte et l'export des données (RGPD) : changement dédié à créer.
 
 ## Préconditions et déclencheurs
 
-Fournisseur d'identité OIDC configuré (ADR-0026).
+Royaume Keycloak `argos` configuré, inscription libre désactivée ; `ARGOS_OIDC_URL` renseignée (ADR-0026, ADR-0027). Premier administrateur plateforme désigné par `ARGOS_ADMIN_EMAIL`.
 
 ## Entrées, sorties et validations
 
 | Entrée / sortie | Contenu | Validation ou contrainte | Statut |
 |---|---|---|---|
-| Jeton OIDC | identité de l'utilisateur | signature, émetteur, audience, expiration (ACC-01) | [PROPOSITION] |
-| Invitation | espace, destinataire, rôle | émise par un administrateur d'espace (ACC-05) | [PROPOSITION] |
+| Jeton OIDC | identité de l'utilisateur (sujet, nom, e-mail vérifié) | signature, émetteur, audience `argos-server`, expiration (ACC-01) | [EXISTANT] — `AuthentificationTest` |
+| Invitation | espace, e-mail du destinataire, rôle, expiration (14 jours par défaut) | émise par un administrateur d'espace ; acceptée par le titulaire de l'e-mail vérifié (ACC-05) | [EXISTANT] — `InvitationsTest` |
+| Entrée du journal des refus | compte, méthode et chemin, motif, horodatage | aucune donnée de la ressource (ACC-06) | [EXISTANT] — `JournalRefusTest` |
+
+API : `/api/v1/moi`, `/api/v1/espaces`, `/api/v1/espaces/{espaceId}/membres`, `/api/v1/espaces/{espaceId}/invitations`, `/api/v1/invitations` ; contrat publié sur `/q/openapi` (`ContratOpenApiTest`).
 
 ## Règles métier
 
 | Règle | Exigence(s) | Source | Statut |
 |---|---|---|---|
-| Authentification obligatoire | ACC-01 | ADR-0008 (Proposé)  | [PROPOSITION] |
-| Création du compte à la première connexion | ACC-02 | ADR-0025 (Accepté)  | [PROPOSITION] |
-| Espaces et rôles | ACC-03 | ADR-0016 (Proposé)  | [PROPOSITION] |
-| Cloisonnement par espace | ACC-04 | ADR-0016 (Proposé)  | [PROPOSITION] |
-| Invitations et révocation | ACC-05 | ADR-0016 (Proposé) | [PROPOSITION] |
-| Journal des refus d'accès | ACC-06 | ADR-0016 (Proposé)  | [PROPOSITION] |
+| Authentification obligatoire | ACC-01 | ADR-0008, ADR-0027 (Proposés) | [PROPOSITION] — implémentée |
+| Création du compte à la première connexion | ACC-02 | ADR-0025 (Accepté) | [PROPOSITION] — implémentée |
+| Inscription sur invitation : compte créé seulement pour un e-mail vérifié destinataire d'une invitation en attente, ou pour l'administrateur plateforme initial | ACC-02 | Q-2 (2026-11-16) | [DÉCISION] — implémentée |
+| Profil de veille `developpeur` activé à la création du compte | ACC-02, PRF-01 | Q-3 (2026-11-16) | [DÉCISION] — implémentée : l'événement `CompteCree` active le profil dans les préférences du compte (`io.argos.api.preference.ActivationProfilParDefaut`) |
+| Espaces et rôles ; un espace garde au moins un administrateur, y compris en cas de changements concurrents (verrou de la ligne de l'espace) | ACC-03 | ADR-0016 (Proposé) | [PROPOSITION] — implémentée |
+| Cloisonnement par espace, dans le service et par la RLS | ACC-04 | ADR-0016 (Proposé) | [PROPOSITION] — implémentée |
+| Accès refusé à un autre espace : « introuvable » (404) | ACC-04 | Q-4 (2026-11-16) | [DÉCISION] — implémentée |
+| Invitations et révocation, effective dès la requête suivante | ACC-05 | ADR-0016 (Proposé) | [PROPOSITION] — implémentée |
+| Journal des refus d'accès, unique pour toute l'API (espaces, impacts, inventaires, abonnements, exploitation) | ACC-06, COR-08 | ADR-0016 (Proposé) | [PROPOSITION] — implémentée |
 
 ## Droits d'accès et restrictions
 
-Quatre rôles : lecteur, contributeur, administrateur d'espace, administrateur plateforme. Les préférences (abonnements, profils, mise en page) ne donnent aucun droit (ABO-05, PRF-05).
+Trois rôles d'espace : lecteur, contributeur, administrateur d'espace. L'administrateur plateforme est un attribut du compte, sans accès implicite aux espaces. Les préférences (abonnements, profils, mise en page) ne donnent aucun droit (ABO-05, PRF-05). Réponses : non authentifié 401, non-membre ou ressource inexistante 404, rôle insuffisant 403, inscription sans invitation 403.
 
 ## Effets de bord observables
 
-Création de comptes, d'espaces, d'appartenances et d'entrées de journal des refus.
+Création de comptes, d'espaces, d'appartenances, d'invitations et d'entrées de journal des refus (table `refus_acces`). La création d'un compte enregistre aussi le profil `developpeur` dans ses préférences (table `workspace_preference_utilisateur`, capacité `profils-veille`).
 
 ## Qualités mesurables
 
@@ -83,43 +90,55 @@ flowchart TD
     B -- "non" --> C["Connexion auprès du<br/>fournisseur d'identité"]
     C -- "refusée" --> D["Message d'échec<br/>aucun compte créé"]
     C -- "acceptée" --> E{"Compte Argos<br/>existant ?"}
-    E -- "non" --> F["Création du compte<br/>sans espace"]
+    E -- "non" --> I{"Invitation en attente<br/>pour son e-mail vérifié ?"}
+    I -- "non" --> J["Refus explicite<br/>aucun compte créé"]
+    I -- "oui" --> F["Création du compte<br/>sans espace"]
     E -- "oui" --> G["Espaces dont la personne<br/>est membre"]
     F --> H["Créer son espace<br/>ou accepter une invitation"]
     B -- "oui" --> G
 ```
 
-Une première connexion crée un compte sans aucun accès : la personne crée son propre espace ou rejoint celui qui l'a invitée.
+Une première connexion crée un compte sans aucun accès : la personne crée son propre espace ou rejoint celui qui l'a invitée. Sans invitation, la personne authentifiée reçoit un refus explicite et aucun compte n'est créé.
 
 ## Critères d'acceptation
 
-Scénarios ACC-01-S1 à ACC-06-S1 du changement ; QS-02 (sécurité) pour le cloisonnement.
+Scénarios ACC-01-S1 à ACC-06-S1 du changement, couverts par les tests de `argos-server/src/test/java/io/argos/api/comptes/`.
 
 ## Interprétations introduites par un changement
 
 - Aucun espace accessible par défaut (ACC-02) : déduit d'ADR-0025, à faire valider.
-- Révocation effective dès la requête suivante (ACC-05) : à faire valider.
+- Révocation effective dès la requête suivante (ACC-05) : l'appartenance est relue à chaque requête, sans cache.
+- Inscription sur invitation (Q-2) : appliquée dans Keycloak (inscription libre désactivée) et dans Argos (invitation en attente exigée à la création du compte).
+- Une invitation est rapprochée de l'e-mail vérifié du jeton ; un e-mail non vérifié ne permet ni l'inscription ni l'acceptation.
 
 ## Écarts constatés
 
-- ADR-0008 vise l'IdP d'une entreprise ; ADR-0025 et ADR-0026 imposent un IdP auto-hébergé : ADR-0008 est à compléter ou remplacer (tâche 4.2).
+- ACC-04-S2 : la RLS est vérifiée sous le rôle non super-utilisateur `argos_app` sur les tables de cette capacité (`CloisonnementTest`, `DefenseEnProfondeurTest`) et sur les impacts (`argos-server/src/test/java/io/argos/chain/CorrelationTest.java`, `rlsGardeFouEnBase` et `rlsAppliqueeSurLeCheminApplicatif`). Le serveur MCP, cité par ACC-04, n'existe pas encore.
+- Sans espace courant, la RLS expose encore au compte courant ses propres appartenances et les espaces dont il est membre ou créateur, ainsi que les invitations adressées à son e-mail vérifié : c'est ce qui permet de lister « mes espaces » et « mes invitations ». Les autres lignes d'un espace exigent l'espace courant.
+- Moindre privilège : `argos_app` ne lit que son compte et les comptes qui partagent un espace avec lui (ou l'auteur d'une invitation qui le concerne), n'a aucun droit sur le journal des refus, et ne peut modifier que les colonnes que l'application modifie (`invitation.etat`, `invitation.destinataire_id`, `appartenance.role`, `espace.nom`). Le destinataire d'une invitation ne peut que la faire passer à l'état accepté, à son nom, et n'entre dans l'espace qu'avec le rôle de l'invitation.
+- Une invitation déjà acceptée ou révoquée répond 409 (`INVITATION_INACTIVE`) ; une invitation inconnue ou adressée à une autre personne répond 404 sans être journalisée comme refus d'accès à un espace.
+- ACC-02-S2 (« message explicite ») : le refus de Keycloak est vérifié, mais aucun écran de connexion d'argos-ui ou du client desktop ne produit encore ce message.
+- Parcours réel d'invitation : Argos n'envoie aucun e-mail et ne crée aucun compte Keycloak ; tant que l'inscription libre est désactivée dans Keycloak, l'administrateur Keycloak crée le compte de la personne invitée (e-mail vérifié) avant sa première connexion.
+- La tâche 3.3 du changement cite QS-02, qui porte sur la confidentialité des appels LLM et non sur le cloisonnement ; aucun scénario du registre qualité ne couvre l'accès inter-espaces.
 
 ## Questions ouvertes
 
 | ID | Question | Impact | Destinataire |
 |---|---|---|---|
-| Q-1 | Quel fournisseur d'identité : SSO Server de DSM, Keycloak ou Authentik ? | oui pour l'implémentation | porteur du projet |
-| Q-2 | L'inscription est-elle ouverte à tous ou sur invitation au démarrage ? | oui pour ACC-02 | porteur du projet |
-| Q-3 | Quel profil de veille est activé à la création d'un compte (PRF-01 impose au moins un profil) ? | oui pour ACC-02 | Product Owner |
-| Q-4 | Un accès refusé à une ressource d'un autre espace répond-il « interdit » ou « introuvable » ? | non : choix de conception | architecte / sécurité |
+| Q-1 | Quel fournisseur d'identité : SSO Server de DSM, Keycloak ou Authentik ? | répondue le 2026-11-16 : Keycloak (gratuit, Apache-2.0, Dev Services Quarkus) [DÉCISION] ; ADR-0027 | porteur du projet |
+| Q-2 | L'inscription est-elle ouverte à tous ou sur invitation au démarrage ? | répondue le 2026-11-16 : sur invitation [DÉCISION] | porteur du projet |
+| Q-3 | Quel profil de veille est activé à la création d'un compte (PRF-01 impose au moins un profil) ? | répondue le 2026-11-16 : profil `developpeur` [DÉCISION] | Product Owner |
+| Q-4 | Un accès refusé à une ressource d'un autre espace répond-il « interdit » ou « introuvable » ? | répondue le 2026-11-16 : « introuvable » (HTTP 404), qui ne révèle pas l'existence de la ressource [DÉCISION] | architecte / sécurité |
 
 ## Traçabilité
 
 | Exigence | Scénarios | Conception / diagramme | Tâche | Test ou preuve |
 |---|---|---|---|---|
-| ACC-01 | ACC-01-S1, ACC-01-S2 | DC-1 | 1.1, 2.1 | à écrire |
-| ACC-02 | ACC-02-S1, ACC-02-S2 | DC-1 | 1.1, 1.2, 2.2 | à écrire |
-| ACC-03 | ACC-03-S1, ACC-03-S2 | DC-1 | 3.1, 3.2 | à écrire |
-| ACC-04 | ACC-04-S1, ACC-04-S2 | DC-1, DC-2 | 3.3 | à écrire |
-| ACC-05 | ACC-05-S1, ACC-05-S2 | DC-1 | 3.1, 3.2 | à écrire |
-| ACC-06 | ACC-06-S1 | DC-2 | 3.4 | à écrire |
+| ACC-01 | ACC-01-S1, ACC-01-S2 | DC-1 | 1.1, 2.1 | `AuthentificationTest` |
+| ACC-02 | ACC-02-S1, ACC-02-S2 | DC-1 | 1.1, 1.2, 2.2 | `PremiereConnexionTest` |
+| ACC-03 | ACC-03-S1, ACC-03-S2 | DC-1 | 3.1, 3.2 | `EspacesEtRolesTest`, `ContratOpenApiTest` |
+| ACC-04 | ACC-04-S1, ACC-04-S2 | DC-1, DC-2 | 3.3 | `CloisonnementTest` |
+| ACC-05 | ACC-05-S1, ACC-05-S2 | DC-1 | 3.1, 3.2 | `InvitationsTest`, `ContratOpenApiTest` |
+| ACC-06 | ACC-06-S1 | DC-2 | 3.4 | `JournalRefusTest` |
+
+Tests dans [`argos-server/src/test/java/io/argos/api/comptes/`](/argos-server/src/test/java/io/argos/api/comptes/) ; parcours de bout en bout : `ParcoursComptesEtAccesTest`.
