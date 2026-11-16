@@ -118,19 +118,19 @@ sequenceDiagram
     loop toutes les 30 s, fenêtre visible ou masquée
         UI->>Alert: GET /api/v1/alertes?canal=DESKTOP&etat=EN_ATTENTE
         Alert-->>UI: alertes de l'appelant (RLS)
-        UI->>Main: compteur d'alertes ouvertes
-        opt alerte immédiate pas encore traitée pendant la session
-            UI->>Main: identifiant, titre, gravité, nombre de projets
-            Main-->>U: notification système si le poste et le système l'autorisent
+        opt alerte immédiate pas encore traitée sur ce poste
+            UI->>Main: identifiant, gravité, nombre de projets
+            Main-->>U: notification système (titre générique) si le poste et le système l'autorisent
         end
         UI->>Alert: POST /api/v1/alertes/{id}/remise
+        UI->>Main: compteur d'alertes ouvertes
     end
     U->>Main: clic sur la notification
     Main->>UI: fenêtre au premier plan sur la vue de l'alerte
     Note over UI,Alert: coupure : « Hors ligne », nouvelle tentative après 5 s puis attente doublée (5 min au plus), puis au retour les alertes restées EN_ATTENTE sont notifiées et leur nombre affiché
 ```
 
-Une alerte non confirmée reste `EN_ATTENTE` côté serveur : elle revient à la lecture suivante, sans perte ; les identifiants déjà traités pendant la session évitent une seconde notification.
+Une alerte non confirmée reste `EN_ATTENTE` côté serveur : elle revient à la lecture suivante, sans perte ; les identifiants déjà traités, gardés dans la mémoire locale de l'IHM, évitent une seconde notification, y compris après un rechargement de la fenêtre. La fenêtre masquée garde ses minuteries (`backgroundThrottling` désactivé).
 
 ## 6.2 Scénario nominal — activité GitHub/GitLab vers Project Intelligence
 

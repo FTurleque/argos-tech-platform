@@ -92,6 +92,9 @@ function createWindow() {
       contextIsolation: true,
       nodeIntegration: false,
       sandbox: true,
+      // La lecture périodique des alertes tourne dans la page, même fenêtre masquée : sans cela,
+      // Chromium espace les minuteries d'une page cachée et le délai de 30 s n'est plus tenu.
+      backgroundThrottling: false,
     },
   });
 
@@ -164,6 +167,7 @@ const poste = creerPoste({
     app.setBadgeCount(poste.compteur()); // macOS et Linux (Unity) ; sans effet ailleurs
   },
   ouvrirAlerte,
+  demarrageDisponible: DEMARRAGE_DISPONIBLE,
 });
 
 function construireMenu() {
@@ -213,7 +217,8 @@ ipcMain.handle('argos:notify', (event, payload) => {
   return true;
 });
 
-// Alerte reçue par l'IHM : notification limitée au titre, à la gravité et au nombre de projets.
+// Alerte reçue par l'IHM : notification limitée à un titre générique, à la gravité et au nombre
+// de projets.
 ipcMain.handle('argos:alert', (event, payload) => {
   if (!depuisFenetrePrincipale(event)) return false;
   return poste.alerte(payload).affichee;
@@ -243,6 +248,7 @@ app.whenReady().then(() => {
   app.setAppUserModelId(APP_ID); // nécessaire aux notifications sous Windows
   fichierReglages = path.join(app.getPath('userData'), 'reglages-poste.json');
   reglages = preferences.lire(fs, fichierReglages);
+  if (!DEMARRAGE_DISPONIBLE) reglages = { ...reglages, demarrageSession: false };
   appliquerDemarrage(); // désactivé par défaut (Q-2)
   session.defaultSession.setPermissionRequestHandler((_wc, permission, callback) => {
     callback(permission === 'notifications');

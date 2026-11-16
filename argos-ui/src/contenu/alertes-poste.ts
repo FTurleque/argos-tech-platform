@@ -4,8 +4,14 @@
 // Contrat serveur (`alertes-digests`, `AlertesResource`) : le client lit les alertes du canal
 // DESKTOP à l'état EN_ATTENTE, les présente, puis confirme leur remise (POST .../remise). Une alerte
 // non confirmée reste EN_ATTENTE côté serveur : après une coupure, la lecture suivante la
-// renvoie, sans perte. Les identifiants déjà traités pendant la session évitent toute double
-// notification si la confirmation échoue (NOT-06-S1).
+// renvoie, sans perte. Les identifiants déjà traités (500 derniers au plus, gardés dans la mémoire
+// locale de l'IHM) évitent une double notification si la confirmation échoue, y compris après un
+// rechargement de la fenêtre (NOT-06-S1). Seul un arrêt de l'application entre la notification et
+// l'enregistrement de cet identifiant peut encore produire un doublon.
+//
+// Le texte de la notification ne reprend pas le titre de l'alerte : le titre public d'un signal
+// nomme souvent le composant touché, et une notification ne nomme aucun projet ni composant
+// (NOT-05-S1). Seuls l'identifiant, la gravité et le nombre de projets sont transmis au poste.
 
 /** Élément d'une alerte tel que le renvoie le serveur (schéma `ContenuAlerte.Element`), réduit. */
 export interface ElementAlerte {
@@ -27,7 +33,6 @@ export interface AlerteRecue {
 /** Ce qui est transmis au poste pour une notification : rien d'autre (NOT-05). */
 export interface AlertePoste {
   readonly id: string
-  readonly titre: string
   readonly gravite: string | null
   readonly projets: number
 }
@@ -39,11 +44,14 @@ export interface EtatSuivi {
   readonly connexion: Connexion
   /** Alertes ouvertes : reçues sur ce poste et pas encore consultées dans l'application (NOT-03). */
   readonly ouvertes: number
-  /** Alertes arrivées à la reconnexion qui suit une coupure (NOT-06), sinon 0. */
+  /**
+   * Alertes immédiates arrivées à la reconnexion qui suit une coupure (NOT-06), sinon 0. La
+   * première connexion de la session n'est pas une reprise après coupure.
+   */
   readonly recuesPendantCoupure: number
 }
 
-/** Mémoire des alertes ouvertes : identifiants seulement, jamais leur contenu. */
+/** Mémoire locale d'une liste d'identifiants d'alertes, jamais leur contenu. */
 export interface StockageOuvertes {
   lire(): string[]
   ecrire(ids: string[]): void
@@ -60,7 +68,10 @@ export interface DependancesSuivi {
   compteur(n: number): void
   /** Reçoit chaque changement d'état. */
   surEtat(etat: EtatSuivi): void
+  /** Alertes ouvertes (NOT-03). */
   stockage?: StockageOuvertes
+  /** Alertes déjà traitées : évite une seconde notification après un rechargement (NOT-06). */
+  stockageTraitees?: StockageOuvertes
   /** Planifie `fn` dans `ms` millisecondes ; renvoie de quoi l'annuler. */
   planifier?(fn: () => void, ms: number): () => void
 }
@@ -73,6 +84,8 @@ export const REPRISE_INITIALE_MS = 5_000
 export const REPRISE_MAX_MS = 300_000
 /** Nombre maximal d'alertes ouvertes mémorisées. */
 export const OUVERTES_MAX = 500
+/** Nombre maximal d'identifiants d'alertes traitées mémorisés. */
+export const TRAITEES_MAX = 500
 
 /** Attente avant la prochaine tentative après `echecs` échecs consécutifs (attente croissante). */
 export function delaiReprise(echecs: number): number {
@@ -80,37 +93,16 @@ export function delaiReprise(echecs: number): number {
   return Math.min(REPRISE_INITIALE_MS * 2 ** Math.min(echecs - 1, 20), REPRISE_MAX_MS)
 }
 
-function echapperRegex(texte: string): string {
-  return texte.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
-}
-
-/**
- * Titre sans le nom des projets cités par l'alerte : une notification ne nomme aucun projet
- * (NOT-05), même si le titre public du signal en reprend un.
- */
-export function titreSansProjets(titre: string, noms: ReadonlyArray<string>): string {
-  let resultat = titre
-  for (const nom of noms) {
-    const propre = nom.trim()
-    if (propre.length < 2) continue
-    resultat = resultat.replace(new RegExp(echapperRegex(propre), 'gi'), '…')
-  }
-  return resultat
-}
-
 /** Réduction d'une alerte reçue à ce que le poste a le droit d'afficher (NOT-05). */
 export function alertePoste(alerte: AlerteRecue): AlertePoste {
   const ids = new Set<string>()
-  const noms: string[] = []
   for (const element of alerte.contenu?.elements ?? []) {
     for (const projet of element.projets ?? []) {
       ids.add(projet.id ?? projet.nom ?? '')
-      if (typeof projet.nom === 'string') noms.push(projet.nom)
     }
   }
   return {
     id: alerte.id,
-    titre: titreSansProjets(alerte.titre, noms),
     gravite: alerte.gravite,
     projets: ids.size,
   }
@@ -124,16 +116,36 @@ function statut(erreur: unknown): number | undefined {
   return undefined
 }
 
+/** Identifiants mémorisés ; stockage absent, illisible ou invalide : liste vide. */
+function lireIds(stockage: StockageOuvertes | undefined, max: number): string[] {
+  try {
+    const ids = stockage?.lire() ?? []
+    return Array.isArray(ids) ? ids.filter((i) => typeof i === 'string').slice(-max) : []
+  } catch {
+    return []
+  }
+}
+
+function ecrireIds(stockage: StockageOuvertes | undefined, ids: string[]): void {
+  try {
+    stockage?.ecrire(ids)
+  } catch {
+    // stockage indisponible : la liste reste juste pour la session
+  }
+}
+
 /**
  * Suivi des alertes du poste : lecture périodique, notification, confirmation de remise, compteur
  * des alertes ouvertes et reprise après une coupure.
  */
 export class SuiviAlertesPoste {
   private readonly d: DependancesSuivi
-  /** Alertes déjà traitées pendant la session (notifiées ou comptées), confirmées ou non. */
-  private readonly traitees = new Set<string>()
+  /** Alertes déjà traitées (notifiées ou remises), confirmées ou non, dans l'ordre d'arrivée. */
+  private traitees: string[]
   private ouvertes: string[]
   private connexion: Connexion = 'INCONNUE'
+  /** Vrai dès qu'une lecture a réussi pendant la session. */
+  private dejaConnecte = false
   private echecs = 0
   private recuesPendantCoupure = 0
   private annuler: (() => void) | null = null
@@ -141,7 +153,8 @@ export class SuiviAlertesPoste {
 
   constructor(dependances: DependancesSuivi) {
     this.d = dependances
-    this.ouvertes = this.lireOuvertes()
+    this.ouvertes = lireIds(this.d.stockage, OUVERTES_MAX)
+    this.traitees = lireIds(this.d.stockageTraitees, TRAITEES_MAX)
   }
 
   get etat(): EtatSuivi {
@@ -182,7 +195,9 @@ export class SuiviAlertesPoste {
       this.publier()
       return delaiReprise(this.echecs)
     }
-    const apresCoupure = this.connexion === 'HORS_LIGNE' || this.connexion === 'NON_AUTORISE'
+    // Reprise après coupure : une lecture réussie après un échec, une fois la session connectée.
+    const apresCoupure = this.dejaConnecte && (this.connexion === 'HORS_LIGNE' || this.connexion === 'NON_AUTORISE')
+    this.dejaConnecte = true
     this.connexion = 'CONNECTE'
     this.echecs = 0
     let nouvelles = 0
@@ -190,11 +205,11 @@ export class SuiviAlertesPoste {
       .filter((a) => a.canal === 'DESKTOP' && a.etat === 'EN_ATTENTE')
       .sort((a, b) => String(a.creeLe ?? '').localeCompare(String(b.creeLe ?? '')))
     for (const alerte of aTraiter) {
-      if (!this.traitees.has(alerte.id)) {
-        this.traitees.add(alerte.id)
-        nouvelles += 1
+      if (!this.traitees.includes(alerte.id)) {
+        this.ajouterTraitee(alerte.id)
         // Seules les alertes immédiates sont notifiées et comptées ; un résumé est seulement remis.
         if (alerte.nature === 'IMMEDIATE') {
+          nouvelles += 1
           this.ajouterOuverte(alerte.id)
           try {
             await this.d.notifier(alertePoste(alerte))
@@ -220,7 +235,7 @@ export class SuiviAlertesPoste {
     const avant = this.ouvertes.length
     this.ouvertes = this.ouvertes.filter((o) => o !== id)
     if (this.ouvertes.length !== avant) {
-      this.ecrireOuvertes()
+      ecrireIds(this.d.stockage, this.ouvertes)
       this.publier()
     }
   }
@@ -246,24 +261,12 @@ export class SuiviAlertesPoste {
   private ajouterOuverte(id: string): void {
     if (this.ouvertes.includes(id)) return
     this.ouvertes = [...this.ouvertes, id].slice(-OUVERTES_MAX)
-    this.ecrireOuvertes()
+    ecrireIds(this.d.stockage, this.ouvertes)
   }
 
-  private lireOuvertes(): string[] {
-    try {
-      const ids = this.d.stockage?.lire() ?? []
-      return Array.isArray(ids) ? ids.filter((i) => typeof i === 'string').slice(-OUVERTES_MAX) : []
-    } catch {
-      return []
-    }
-  }
-
-  private ecrireOuvertes(): void {
-    try {
-      this.d.stockage?.ecrire(this.ouvertes)
-    } catch {
-      // stockage indisponible : le compteur reste juste pour la session
-    }
+  private ajouterTraitee(id: string): void {
+    this.traitees = [...this.traitees, id].slice(-TRAITEES_MAX)
+    ecrireIds(this.d.stockageTraitees, this.traitees)
   }
 
   private publier(): void {

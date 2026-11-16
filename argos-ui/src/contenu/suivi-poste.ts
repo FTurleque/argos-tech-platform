@@ -5,17 +5,17 @@ import { confirmerRemise, fetchAlertesPosteEnAttente } from '../api/client'
 import { afficherCompteur, isDesktop, notifierAlerte } from '../platform'
 import { SuiviAlertesPoste, type EtatSuivi, type StockageOuvertes } from './alertes-poste'
 
-const CLE_OUVERTES = 'argos.alertes-ouvertes'
-
-/** Mémoire locale de l'IHM : identifiants des alertes ouvertes seulement, jamais leur contenu. */
-const stockageLocal: StockageOuvertes = {
-  lire() {
-    const brut = window.localStorage.getItem(CLE_OUVERTES)
-    return brut ? (JSON.parse(brut) as string[]) : []
-  },
-  ecrire(ids) {
-    window.localStorage.setItem(CLE_OUVERTES, JSON.stringify(ids))
-  },
+/** Mémoire locale de l'IHM : identifiants d'alertes seulement, jamais leur contenu. */
+function stockageLocal(cle: string): StockageOuvertes {
+  return {
+    lire() {
+      const brut = window.localStorage.getItem(cle)
+      return brut ? (JSON.parse(brut) as string[]) : []
+    },
+    ecrire(ids) {
+      window.localStorage.setItem(cle, JSON.stringify(ids))
+    },
+  }
 }
 
 export const etatPoste = reactive<EtatSuivi>({ connexion: 'INCONNUE', ouvertes: 0, recuesPendantCoupure: 0 })
@@ -31,7 +31,8 @@ export function demarrerSuiviPoste(): void {
     notifier: notifierAlerte,
     compteur: afficherCompteur,
     surEtat: (etat) => Object.assign(etatPoste, etat),
-    stockage: stockageLocal,
+    stockage: stockageLocal('argos.alertes-ouvertes'),
+    stockageTraitees: stockageLocal('argos.alertes-traitees'),
   })
   suivi.demarrer()
 }

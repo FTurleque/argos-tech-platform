@@ -17,6 +17,7 @@ const { fusionner } = require('./preferences');
  * @param {(reglages: object) => void} d.enregistrerReglages persiste et applique les réglages
  * @param {(n: number) => void} d.afficherCompteur met à jour la zone de notification
  * @param {(id: string) => void} d.ouvrirAlerte remet la fenêtre au premier plan sur l'alerte
+ * @param {boolean} [d.demarrageDisponible] faux là où le démarrage avec la session n'existe pas
  */
 function creerPoste(d) {
   let compteur = 0;
@@ -57,8 +58,15 @@ function creerPoste(d) {
 
   /** Modification des réglages du poste ; renvoie les réglages appliqués, ou null si refusée. */
   function changerReglages(demande) {
-    const nouveaux = fusionner(d.reglages(), demande);
+    let filtree = demande;
+    if (d.demarrageDisponible === false && demande && typeof demande === 'object') {
+      // Option indisponible sur ce système : la clé est ignorée et le réglage reste désactivé.
+      const { demarrageSession: _ignore, ...reste } = demande;
+      filtree = reste;
+    }
+    const nouveaux = fusionner(d.reglages(), filtree);
     if (!nouveaux) return null;
+    if (d.demarrageDisponible === false) nouveaux.demarrageSession = false;
     d.enregistrerReglages(nouveaux);
     return nouveaux;
   }

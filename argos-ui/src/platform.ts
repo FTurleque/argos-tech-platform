@@ -23,7 +23,6 @@ export async function notify(title: string, body: string): Promise<boolean> {
 /** Alerte transmise au poste : le processus principal construit lui-même le texte (NOT-05). */
 export interface AlerteNotifiable {
   id: string
-  titre: string
   gravite: string | null
   projets: number
 }

@@ -10,7 +10,6 @@ import {
   SuiviAlertesPoste,
   alertePoste,
   delaiReprise,
-  titreSansProjets,
 } from '../src/contenu/alertes-poste.ts'
 
 let sequence = 0
@@ -56,7 +55,7 @@ function serveur() {
 }
 
 function suivi(s, options = {}) {
-  const poste = { notifications: [], compteurs: [], etats: [], memoire: options.memoire ?? [] }
+  const poste = { notifications: [], compteurs: [], etats: [], memoire: options.memoire ?? [], traitees: options.traitees ?? [] }
   const suiviAlertes = new SuiviAlertesPoste({
     lister: s.lister,
     remettre: s.remettre,
@@ -67,6 +66,7 @@ function suivi(s, options = {}) {
     compteur: (n) => poste.compteurs.push(n),
     surEtat: (e) => poste.etats.push(e),
     stockage: { lire: () => [...poste.memoire], ecrire: (ids) => { poste.memoire = [...ids] } },
+    stockageTraitees: { lire: () => [...poste.traitees], ecrire: (ids) => { poste.traitees = [...ids] } },
     planifier: () => () => {},
   })
   return { suiviAlertes, poste }
@@ -78,7 +78,7 @@ test('NOT-01 : une alerte immédiate en attente est notifiée puis sa remise est
   s.alertes.push(a)
   const { suiviAlertes, poste } = suivi(s)
   assert.equal(await suiviAlertes.cycle(), INTERVALLE_MS)
-  assert.deepEqual(poste.notifications, [{ id: a.id, titre: a.titre, gravite: 'CRITICAL', projets: 3 }])
+  assert.deepEqual(poste.notifications, [{ id: a.id, gravite: 'CRITICAL', projets: 3 }])
   assert.deepEqual(s.remises, [a.id])
   assert.equal(suiviAlertes.etat.connexion, 'CONNECTE')
 })
@@ -179,13 +179,47 @@ test('un résumé DESKTOP est remis sans notification ni compteur ; les autres c
   assert.deepEqual(s.remises, [resume.id])
 })
 
-test('NOT-05 : la notification ne nomme aucun projet, même si le titre en reprend un', () => {
-  const a = alerte(['Portail RH', 'paie', 'paie'], { titre: 'Faille critique touchant portail rh' })
+test('NOT-05-S1 : le poste ne reçoit ni titre, ni nom de projet, ni composant', () => {
+  const a = alerte(['Portail RH', 'paie', 'paie'], { titre: 'Prototype pollution in lodash (portail rh)' })
   const p = alertePoste(a)
-  assert.deepEqual(Object.keys(p).sort(), ['gravite', 'id', 'projets', 'titre'])
-  assert.equal(p.titre, 'Faille critique touchant …')
+  assert.deepEqual(Object.keys(p).sort(), ['gravite', 'id', 'projets'])
   assert.equal(p.projets, 3)
-  assert.equal(titreSansProjets('a+b (x)', ['a+b']), '… (x)')
+  const transmis = JSON.stringify(p)
+  for (const interdit of ['lodash', 'Portail', 'paie', 'Prototype']) assert.ok(!transmis.includes(interdit), interdit)
+})
+
+test('NOT-06 : un rechargement de la fenêtre ne renotifie pas une alerte dont la remise a échoué', async () => {
+  const s = serveur()
+  const a = alerte()
+  s.alertes.push(a)
+  s.remiseEnEchec = true
+  const premier = suivi(s)
+  await premier.suiviAlertes.cycle()
+  assert.equal(premier.poste.notifications.length, 1)
+  s.remiseEnEchec = false
+  const second = suivi(s, { memoire: premier.poste.memoire, traitees: premier.poste.traitees })
+  await second.suiviAlertes.cycle()
+  assert.equal(second.poste.notifications.length, 0)
+  assert.equal(a.etat, 'ENVOYEE')
+})
+
+test('NOT-06 : la première connexion n’est pas une reprise ; les résumés ne comptent pas', async () => {
+  const s = serveur()
+  s.joignable = false
+  s.statut = 401
+  const { suiviAlertes } = suivi(s)
+  await suiviAlertes.cycle()
+  s.joignable = true
+  s.alertes.push(alerte(), alerte([], { nature: 'DAILY' }))
+  await suiviAlertes.cycle()
+  assert.equal(suiviAlertes.etat.recuesPendantCoupure, 0)
+  s.joignable = false
+  s.statut = undefined
+  await suiviAlertes.cycle()
+  s.alertes.push(alerte(), alerte([], { nature: 'WEEKLY' }))
+  s.joignable = true
+  await suiviAlertes.cycle()
+  assert.equal(suiviAlertes.etat.recuesPendantCoupure, 1)
 })
 
 test('attente croissante après des échecs, bornée à cinq minutes', () => {

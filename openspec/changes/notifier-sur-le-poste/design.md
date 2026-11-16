@@ -57,19 +57,20 @@ sequenceDiagram
     actor U as Utilisateur
     UI->>AL: alertes DESKTOP EN_ATTENTE (toutes les 30 s)
     AL-->>UI: alertes de l'appelant
-    UI->>D: notifier (identifiant, titre, gravité, nombre de projets) et mettre à jour le compteur
+    UI->>D: notifier (identifiant, gravité, nombre de projets)
     alt notifications du poste actives et autorisées
-        D-->>U: notification système
+        D-->>U: notification système (titre générique)
     else coupées ou refusées
-        D->>D: compteur seulement
+        D->>D: aucune notification
     end
+    UI->>D: mettre à jour le compteur en fin de lecture
     U->>D: clic sur la notification
     D->>UI: afficher l'alerte
     UI->>AL: confirmer la remise
     Note over UI,AL: coupure : les alertes non confirmées restent EN_ATTENTE et reviennent à la reconnexion
 ```
 
-L'état `EN_ATTENTE` tient lieu de curseur : une alerte non confirmée revient à la lecture suivante, sans perte ; les identifiants déjà traités pendant la session évitent les doublons.
+L'état `EN_ATTENTE` tient lieu de curseur : une alerte non confirmée revient à la lecture suivante, sans perte ; les identifiants déjà traités (500 au plus, mémoire locale de l'IHM) évitent les doublons, y compris après un rechargement de la fenêtre ; seul un arrêt de l'application entre la notification et l'enregistrement de l'identifiant peut en produire un.
 
 
 ## États et transitions
@@ -78,11 +79,11 @@ Non applicable — conception allégée ; à préciser avec les tâches d'implé
 
 ## Contrats d'interface
 
-Alertes : lecture périodique de `GET /api/v1/alertes?canal=DESKTOP&etat=EN_ATTENTE` puis `POST /api/v1/alertes/{id}/remise` (contrat existant, aucun changement côté serveur). Pont `window.argosDesktop` étendu de `notifyAlert` (identifiant, titre, gravité, nombre de projets), `setAlertCount`, `onOpenAlert`, `getSettings`, `setSettings` et `onSettingsChanged`.
+Alertes : lecture périodique de `GET /api/v1/alertes?canal=DESKTOP&etat=EN_ATTENTE` puis `POST /api/v1/alertes/{id}/remise` (contrat existant, aucun changement côté serveur). Pont `window.argosDesktop` étendu de `notifyAlert` (identifiant, gravité, nombre de projets), `setAlertCount`, `onOpenAlert`, `getSettings`, `setSettings` et `onSettingsChanged`.
 
 ## Persistance et intégrité
 
-Aucune migration. Réglages du poste dans `reglages-poste.json` (dossier de données de l'application, écriture par fichier temporaire renommé) ; identifiants des alertes ouvertes dans la mémoire locale de l'IHM (500 au plus, sans contenu).
+Aucune migration. Réglages du poste dans `reglages-poste.json` (dossier de données de l'application, écriture par fichier temporaire renommé) ; identifiants des alertes ouvertes et des alertes déjà traitées dans la mémoire locale de l'IHM (500 au plus chacune, sans contenu).
 
 ## Transactions, concurrence et idempotence
 
@@ -116,7 +117,7 @@ Non applicable — aucune donnée ni aucun contrat existants.
 - **Choix** : lecture des alertes `DESKTOP` `EN_ATTENTE` toutes les 30 s, puis confirmation de remise ; l'état `EN_ATTENTE` tient lieu de curseur
 - **Justification** : le contrat de `diffuser-alertes-et-digests` existe déjà et garantit la reprise sans perte ; aucune modification du serveur ni connexion longue à maintenir derrière le reverse proxy
 - **Alternatives écartées** : Server-Sent Events — nouveau contrat serveur et connexion longue pour un gain de délai non exigé ; WebSocket — inutilement bidirectionnel
-- **Compromis** : délai de 30 s au plus entre l'enregistrement d'une alerte et sa notification ; une requête toutes les 30 s par poste
+- **Compromis** : délai visé de 30 s entre l'enregistrement d'une alerte et sa notification (la boucle tourne dans la page ; `backgroundThrottling` est désactivé pour que la fenêtre masquée garde ses minuteries) ; une requête toutes les 30 s par poste
 - **ADR** : non : décision locale
 
 ### D3 — Réglages gardés sur le poste
@@ -131,9 +132,9 @@ Non applicable — aucune donnée ni aucun contrat existants.
 ### D2 — Contenu minimal
 
 - **Statut** : [PROPOSITION]
-- **Choix** : titre, gravité, nombre de projets
-- **Justification** : écran verrouillé visible par des tiers
-- **Alternatives écartées** : détail complet — fuite possible
+- **Choix** : titre générique fixe (« Nouvelle alerte ARGOS »), gravité, nombre de projets ; le processus principal ne reçoit que l'identifiant, la gravité et le nombre de projets
+- **Justification** : écran verrouillé visible par des tiers ; le titre public d'un signal nomme souvent le composant touché (« Prototype pollution in lodash ») et l'alerte ne porte aucun champ composant qui permettrait de le masquer : NOT-05-S1 exige qu'aucun projet ni composant ne soit nommé
+- **Alternatives écartées** : détail complet — fuite possible ; titre du signal avec masquage des noms de projets — le composant reste nommé, et le masquage abîme les mots qui contiennent un nom court
 - **Compromis** : un clic de plus pour le détail
 - **ADR** : non : décision locale
 

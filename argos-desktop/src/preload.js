@@ -19,12 +19,11 @@ contextBridge.exposeInMainWorld('argosDesktop', {
   /** Affiche une notification système. Renvoie true si elle a pu être affichée. */
   notify: (title, body) => ipcRenderer.invoke('argos:notify', { title, body }),
   /**
-   * Notifie une alerte : seuls son identifiant, son titre, sa gravité et son nombre de projets sont
-   * transmis ; le processus principal construit le texte affiché (NOT-05).
+   * Notifie une alerte : seuls son identifiant, sa gravité et son nombre de projets sont transmis ;
+   * le processus principal construit le texte affiché, sous un titre générique (NOT-05).
    */
   notifyAlert: (alerte) => ipcRenderer.invoke('argos:alert', {
     id: String(alerte?.id ?? ''),
-    titre: String(alerte?.titre ?? ''),
     gravite: alerte?.gravite == null ? null : String(alerte.gravite),
     projets: Number(alerte?.projets),
   }),

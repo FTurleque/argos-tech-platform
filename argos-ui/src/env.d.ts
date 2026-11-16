@@ -8,8 +8,8 @@ interface ImportMetaEnv {
 interface ArgosDesktopBridge {
   readonly platform: string
   notify(title: string, body: string): Promise<boolean>
-  /** Notifie une alerte : identifiant, titre, gravité et nombre de projets seulement (NOT-05). */
-  notifyAlert(alerte: { id: string; titre: string; gravite: string | null; projets: number }): Promise<boolean>
+  /** Notifie une alerte : identifiant, gravité et nombre de projets seulement (NOT-05). */
+  notifyAlert(alerte: { id: string; gravite: string | null; projets: number }): Promise<boolean>
   /** Nombre d'alertes ouvertes affiché dans la zone de notification (NOT-03). */
   setAlertCount(n: number): Promise<boolean>
   /** Abonnement aux clics sur les notifications d'alerte (NOT-02) ; renvoie de quoi se désabonner. */

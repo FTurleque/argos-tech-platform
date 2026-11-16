@@ -42,8 +42,8 @@ Client desktop lancé (fenêtre visible ou masquée) ; utilisateur authentifié 
 |---|---|---|---|
 | Alertes en attente | `GET /api/v1/alertes?canal=DESKTOP&etat=EN_ATTENTE&limite=200` | alertes de l'appelant seulement (RLS, `alertes-digests`) | [EXISTANT] — `fetchAlertesPosteEnAttente` |
 | Confirmation de remise | `POST /api/v1/alertes/{id}/remise` | l'alerte passe `ENVOYEE` ; une alerte non confirmée revient à la lecture suivante | [EXISTANT] — `confirmerRemise` |
-| Pont vers le poste | identifiant (UUID), titre, gravité, nombre de projets | tout autre champ est ignoré ; titre ramené à une ligne sans caractère de contrôle, 120 caractères au plus ; alerte invalide rejetée | [EXISTANT] — `preload.js`, `notifications.js` |
-| Notification | titre de l'alerte ; « Gravité critique · 3 projets » | contenu minimal (NOT-05) ; noms de projets cités par l'alerte masqués dans le titre | [EXISTANT] — `texteNotification`, `alertePoste` |
+| Pont vers le poste | identifiant (UUID), gravité, nombre de projets | tout autre champ (titre, noms, liens) est ignoré ; alerte invalide rejetée | [EXISTANT] — `preload.js`, `notifications.js` |
+| Notification | titre fixe « Nouvelle alerte ARGOS » ; « Gravité critique · 3 projets » | contenu minimal (NOT-05) : ni le titre du signal, qui nomme souvent le composant, ni un nom de projet | [EXISTANT] — `texteNotification`, `alertePoste` |
 | Compteur | nombre d'alertes ouvertes, de 0 à 9 999 | infobulle « ARGOS — 3 alertes ouvertes » et ligne du menu de la zone de notification | [EXISTANT] — `poste.js` |
 | Réglages du poste | `notificationsPoste` (défaut : vrai), `demarrageSession` (défaut : faux) | booléens seulement ; fichier `reglages-poste.json` dans le dossier de données de l'application | [EXISTANT] — `preferences.js` |
 
@@ -56,13 +56,13 @@ Client desktop lancé (fenêtre visible ou masquée) ; utilisateur authentifié 
 | Le clic sur une notification remet la fenêtre au premier plan sur la vue de l'alerte (`#/alertes/{id}`) | NOT-02 | ADR-0022 (Proposé) | [EXISTANT] |
 | Le compteur indique les alertes ouvertes : reçues sur le poste et pas encore consultées dans l'application | NOT-03 | ADR-0022 (Proposé) | [EXISTANT] |
 | « Notifications du poste » coupées : aucune notification système, compteur et vue inchangés ; aucun autre canal modifié | NOT-04 | ABO-02 (canal) | [EXISTANT] |
-| Une notification n'affiche que le titre, la gravité et le nombre de projets | NOT-05 | interprétation de ce change (écran verrouillé) ; ACC-04 | [EXISTANT] |
-| Perte de connexion signalée (« Hors ligne ») ; au retour, les alertes émises pendant la coupure sont notifiées et leur nombre affiché, sans perte ni doublon | NOT-06 | ADR-0022 (Proposé) ; arc42 §8.5 | [EXISTANT] |
-| Démarrage avec la session : option désactivée par défaut, activable dans les réglages du poste ou le menu de la zone de notification ; lancée ainsi, l'application démarre masquée | — | [DÉCISION] du 2026-11-16 (Q-2) | [EXISTANT] |
+| Une notification n'affiche qu'un titre générique, la gravité et le nombre de projets ; aucun nom de projet ni de composant | NOT-05 | interprétation de ce change (écran verrouillé) ; ACC-04 | [EXISTANT] |
+| Perte de connexion signalée (« Hors ligne ») ; au retour, les alertes immédiates émises pendant la coupure sont notifiées et leur nombre affiché, sans perte ; aucun doublon, y compris après un rechargement de la fenêtre (seul un arrêt de l'application entre la notification et l'enregistrement de son identifiant peut en produire un) | NOT-06 | ADR-0022 (Proposé) ; arc42 §8.5 | [EXISTANT] |
+| Démarrage avec la session : option désactivée par défaut, activable dans les réglages du poste ou le menu de la zone de notification ; lancée ainsi, l'application démarre masquée ; sous Linux, l'option est indisponible et toute demande de l'activer est ignorée | — | [DÉCISION] du 2026-11-16 (Q-2) | [EXISTANT] |
 
 ## Droits d'accès et restrictions
 
-Le client ne lit que les alertes de l'utilisateur connecté : le serveur filtre sur le compte et la RLS de `alerte` sert de garde-fou (`alertes-digests`). Le processus principal d'Electron n'appelle pas l'API et ne reçoit de l'IHM que l'identifiant, le titre, la gravité et le nombre de projets d'une alerte ; seuls les messages de la fenêtre principale sont acceptés. Le pont `window.argosDesktop` reste limité aux notifications, au compteur et aux réglages du poste (`contextIsolation`, `sandbox`, sans `nodeIntegration`, CSP du protocole `app://argos`, ADR-0022). La mémoire locale de l'IHM ne contient que les identifiants des alertes ouvertes (500 au plus), jamais leur contenu.
+Le client ne lit que les alertes de l'utilisateur connecté : le serveur filtre sur le compte et la RLS de `alerte` sert de garde-fou (`alertes-digests`). Le processus principal d'Electron n'appelle pas l'API et ne reçoit de l'IHM que l'identifiant, la gravité et le nombre de projets d'une alerte ; seuls les messages de la fenêtre principale sont acceptés. Le pont `window.argosDesktop` reste limité aux notifications, au compteur et aux réglages du poste (`contextIsolation`, `sandbox`, sans `nodeIntegration`, CSP du protocole `app://argos`, ADR-0022). La mémoire locale de l'IHM ne contient que des identifiants d'alertes (alertes ouvertes et alertes déjà traitées, 500 au plus chacune), jamais leur contenu.
 
 ## Effets de bord observables
 
@@ -74,7 +74,7 @@ Le client ne lit que les alertes de l'utilisateur connecté : le serveur filtre 
 
 ## Qualités mesurables
 
-[QUESTION] Aucune cible chiffrée dans les sources. Délai entre l'enregistrement d'une alerte et sa notification : 30 s au plus, connexion établie. Après un échec, nouvelle tentative au bout de 5 s, attente doublée à chaque échec, plafonnée à 5 minutes.
+[QUESTION] Aucune cible chiffrée dans les sources. Délai visé entre l'enregistrement d'une alerte et sa notification : 30 s, connexion établie ; la fenêtre masquée garde ses minuteries (`backgroundThrottling` désactivé), mais le délai n'est pas mesuré de bout en bout. Après un échec, nouvelle tentative au bout de 5 s, attente doublée à chaque échec, plafonnée à 5 minutes.
 
 ## Diagrammes
 
@@ -87,14 +87,14 @@ Le client ne lit que les alertes de l'utilisateur connecté : le serveur filtre 
 
 ```mermaid
 flowchart TD
-    A["Alerte immédiate DESKTOP<br/>lue en attente"] --> K{"Déjà traitée<br/>pendant la session ?"}
+    A["Alerte immédiate DESKTOP<br/>lue en attente"] --> K{"Déjà traitée<br/>sur ce poste ?"}
     K -- "oui" --> R["Confirmation de remise<br/>seulement"]
     K -- "non" --> B["Compteur mis à jour"]
     B --> C{"Notifications du poste<br/>actives dans Argos ?"}
     C -- "non" --> E["Pas de notification"]
     C -- "oui" --> D{"Autorisées par<br/>le système ?"}
     D -- "non" --> E
-    D -- "oui" --> F["Notification système<br/>titre, gravité, nombre de projets"]
+    D -- "oui" --> F["Notification système<br/>titre générique, gravité,<br/>nombre de projets"]
     E --> R
     F --> R
 ```
@@ -109,9 +109,10 @@ Scénarios NOT-01-S1 à NOT-06-S1 du changement ; aucun scénario qualité trans
 
 Interprétations du changement `notifier-sur-le-poste`, à faire valider [PROPOSITION] :
 
-- contenu minimal pour l'écran verrouillé (NOT-05) ; le titre affiché est le titre public du signal, dont sont masqués les noms des projets cités par l'alerte ;
+- contenu minimal pour l'écran verrouillé (NOT-05) : le « titre » de NOT-05-S1 est celui de la notification, fixe (« Nouvelle alerte ARGOS ») ; le titre public du signal, qui nomme souvent le composant touché, n'est affiché que dans l'application ;
 - lecture périodique (30 s) du contrat existant `GET /api/v1/alertes` puis confirmation de remise, à la place d'un flux Server-Sent Events : l'état `EN_ATTENTE` tient lieu de curseur de reprise, sans modification du serveur ;
-- « alerte ouverte » : alerte immédiate reçue sur le poste et pas encore consultée dans l'application ; les identifiants sont gardés dans la mémoire locale de l'IHM ;
+- « alerte ouverte » : alerte immédiate reçue sur le poste et pas encore consultée dans l'application ; les identifiants sont gardés dans la mémoire locale de l'IHM, comme ceux des alertes déjà traitées ;
+- « alertes émises pendant la coupure » : alertes immédiates lues à la première lecture réussie qui suit un échec, une fois la session déjà connectée ; la première connexion n'en annonce aucune ;
 - un résumé `DESKTOP` (quotidien, hebdomadaire) est remis et visible dans la vue des alertes, sans notification ni compteur ;
 - le réglage « notifications du poste » est propre au poste et reste sur lui ; il ne touche à aucun abonnement ni canal côté serveur ;
 - démarrage avec la session proposé sous Windows et macOS seulement (API d'Electron), désactivé sous Linux ;
@@ -138,7 +139,7 @@ Interprétations du changement `notifier-sur-le-poste`, à faire valider [PROPOS
 | NOT-02 | NOT-02-S1 | DC-1 | 1.2 | `argos-desktop/test/poste.test.js` (`NOT-02-S1…`) |
 | NOT-03 | NOT-03-S1 | DC-1 | 1.2 | `argos-desktop/test/poste.test.js` (`NOT-03-S1…`), `argos-desktop/test/notifications.test.js` (`NOT-03…`), `argos-ui/tests/alertes-poste.test.mjs` (`NOT-03-S1…`, `NOT-03…`) |
 | NOT-04 | NOT-04-S1 | DC-1 | 1.4 | `argos-desktop/test/poste.test.js` (`NOT-04-S1…`), `argos-desktop/test/preferences.test.js` (`NOT-04…`) ; e-mail : `AlertesTest` (`alertes-digests`), canal indépendant |
-| NOT-05 | NOT-05-S1 | DC-1 | 1.3 | `argos-desktop/test/notifications.test.js` (`NOT-05-S1…`), `argos-ui/tests/alertes-poste.test.mjs` (`NOT-05…`) |
+| NOT-05 | NOT-05-S1 | DC-1 | 1.3 | `argos-desktop/test/notifications.test.js` (`NOT-05-S1…`), `argos-ui/tests/alertes-poste.test.mjs` (`NOT-05-S1…`) |
 | NOT-06 | NOT-06-S1 | DC-1 | 1.1 | `argos-ui/tests/alertes-poste.test.mjs` (`NOT-06-S1…`, `NOT-06…`) |
 
 Matrice détaillée : [`tasks.md`](/openspec/changes/notifier-sur-le-poste/tasks.md#matrice-de-traçabilité).

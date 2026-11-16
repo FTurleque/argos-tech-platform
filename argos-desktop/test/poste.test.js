@@ -7,9 +7,9 @@ const { creerPoste } = require('../src/poste');
 const preferences = require('../src/preferences');
 
 const ID = '3f2b8c1e-4d5a-4b6c-8d7e-9f0a1b2c3d4e';
-const ALERTE = { id: ID, titre: 'Exécution de code à distance', gravite: 'CRITICAL', projets: 3 };
+const ALERTE = { id: ID, gravite: 'CRITICAL', projets: 3 };
 
-function doublures({ supportees = true, reglages = { ...preferences.DEFAUTS } } = {}) {
+function doublures({ supportees = true, reglages = { ...preferences.DEFAUTS }, demarrageDisponible } = {}) {
   const etat = { notifications: [], compteurs: [], ouvertures: [], enregistres: [], reglages };
   class NotificationFactice {
     constructor(options) {
@@ -29,6 +29,7 @@ function doublures({ supportees = true, reglages = { ...preferences.DEFAUTS } } 
     enregistrerReglages: (r) => { etat.reglages = r; etat.enregistres.push(r); },
     afficherCompteur: (n) => etat.compteurs.push(n),
     ouvrirAlerte: (id) => etat.ouvertures.push(id),
+    demarrageDisponible,
   });
   return { poste, etat };
 }
@@ -39,7 +40,7 @@ test('NOT-01-S1 : une alerte reçue, fenêtre masquée, affiche une notification
   assert.equal(etat.notifications.length, 1);
   assert.ok(etat.notifications[0].affichee);
   assert.deepEqual(etat.notifications[0].options, {
-    title: 'Exécution de code à distance',
+    title: 'Nouvelle alerte ARGOS',
     body: 'Gravité critique · 3 projets',
   });
 });
@@ -93,6 +94,17 @@ test('Q-2 : le démarrage avec la session s’active à la demande, sans toucher
   poste.changerReglages({ demarrageSession: true });
   assert.deepEqual(etat.reglages, { notificationsPoste: true, demarrageSession: true });
   assert.equal(poste.changerReglages({ inconnu: true }), null);
+});
+
+test('Q-2 : là où l’option est indisponible (Linux), le démarrage avec la session reste désactivé', () => {
+  const { poste, etat } = doublures({ demarrageDisponible: false });
+  assert.equal(poste.changerReglages({ demarrageSession: true }), null);
+  assert.deepEqual(etat.enregistres, []);
+  assert.deepEqual(poste.changerReglages({ notificationsPoste: false, demarrageSession: true }), {
+    notificationsPoste: false,
+    demarrageSession: false,
+  });
+  assert.equal(etat.reglages.demarrageSession, false);
 });
 
 test('NOT-05 : une alerte malformée n’affiche rien', () => {
