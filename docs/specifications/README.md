@@ -148,8 +148,10 @@ Pour `exposer-serveur-mcp`, « Tests écrits » compte les scénarios MCP-01-S1 
 |---|---|---|---|---|---|---|
 | [`construire-radar-et-standards`](/openspec/changes/construire-radar-et-standards/proposal.md) | `radar-standards` | 6 | 8 | 1 | 3 | 0 |
 | [`collecter-veille-rss-web`](/openspec/changes/archive/2026-11-16-collecter-veille-rss-web/proposal.md) (archivé) | `veille-rss-web` | 6 | 8 | 1 | 0 | 8 |
-| [`rechercher-et-filtrer`](/openspec/changes/rechercher-et-filtrer/proposal.md) | `recherche-veille` | 5 | 7 | 1 | 2 | 0 |
-| **Total** | | **17** | **23** | **3** | **5** | **8** |
+| [`rechercher-et-filtrer`](/openspec/changes/rechercher-et-filtrer/proposal.md) | `recherche-veille` | 5 | 7 | 1 | 0 | 7 |
+| **Total** | | **17** | **23** | **3** | **3** | **15** |
+
+Pour `rechercher-et-filtrer`, « Tests écrits » compte les scénarios RCH-01-S1 à RCH-05-S1 couverts par un test qui passe (`argos-server/src/test/java/io/argos/api/recherche/`, `argos-server/src/test/java/io/argos/mcp/RechercheMcpTest.java`) ; RCH-05-S1 l'est par la mesure à la demande `MesurePerformanceRechercheTest`. Matrice détaillée : [`tasks.md` du changement](/openspec/changes/rechercher-et-filtrer/tasks.md#matrice-de-traçabilité).
 
 ### Couverture du lot 5
 

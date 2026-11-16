@@ -132,8 +132,10 @@ public class RechercheVeille {
             RlsSession.account(c, compteId);
             List<Candidat> candidats = new ArrayList<>();
             long total = 0;
-            try (PreparedStatement ps = c.prepareStatement("SELECT r.type, r.id, r.rang, count(*) OVER () "
-                    + selection() + " ORDER BY r.rang DESC, r.date_ref DESC NULLS LAST, r.id LIMIT ? OFFSET ?")) {
+            // Sélection matérialisée une fois : le total la compte, la page en garde les meilleurs (tri partiel).
+            try (PreparedStatement ps = c.prepareStatement("WITH r AS MATERIALIZED (SELECT * " + selection() + ")"
+                    + " SELECT r.type, r.id, r.rang, (SELECT count(*) FROM r) FROM r"
+                    + " ORDER BY r.rang DESC, r.date_ref DESC NULLS LAST, r.id LIMIT ? OFFSET ?")) {
                 int n = parametres(c, ps, criteres);
                 ps.setInt(n, t);
                 ps.setLong(n + 1, (long) p * t);

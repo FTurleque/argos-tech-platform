@@ -32,6 +32,10 @@ AS $$
 $$;
 
 -- Index plein texte des éléments de veille (module signal) : signaux de sécurité et actualités web.
+-- toast_tuple_target = 256 : le vecteur et les textes longs sont rangés hors de la ligne (TOAST), pour que
+-- les parcours de la recherche (filtres sans mots, dédoublonnage) lisent des lignes étroites.
+ALTER TABLE signal SET (toast_tuple_target = 256);
+ALTER TABLE actualite SET (toast_tuple_target = 256);
 ALTER TABLE signal ADD COLUMN recherche tsvector
     GENERATED ALWAYS AS (argos_vecteur_recherche(external_id || ' ' || coalesce(title, ''), summary)) STORED;
 CREATE INDEX signal_recherche ON signal USING gin (recherche);
@@ -109,9 +113,8 @@ BEGIN
                                          WHERE p.workspace_id = ANY ($11)
                                            AND argos_vecteur_recherche(p.name, NULL) @@ $1)))
           AND ($2 IS NULL OR coalesce(s.published_at, s.modified_at) >= $2)
-          AND ($4 IS NULL OR EXISTS (
-                SELECT 1 FROM project_impact i
-                WHERE i.signal_id = s.id AND i.project_id = ANY ($4) AND i.workspace_id = ANY ($11)))
+          AND ($4 IS NULL OR s.id IN (
+                SELECT i.signal_id FROM project_impact i WHERE i.project_id = ANY ($4) AND i.workspace_id = ANY ($11)))
           AND ($5 IS NULL
                OR s.recherche @@ $5
                OR EXISTS (SELECT 1 FROM signal_package sp
@@ -132,7 +135,8 @@ BEGIN
        AND (p_types IS NULL OR 'ARTICLE' = ANY (p_types) OR 'CHANGEMENT_PAGE' = ANY (p_types)) THEN
         RETURN QUERY EXECUTE $q$
         WITH visibles AS (
-            SELECT DISTINCT ON (a.empreinte) a.id, a.recherche, coalesce(a.publie_le, a.recu_le) AS date_ref, a.type
+            SELECT a.id, a.empreinte, a.espace_id, a.recu_le, a.type, coalesce(a.publie_le, a.recu_le) AS date_ref,
+                   CASE WHEN $1 IS NULL THEN 0::real ELSE ts_rank(a.recherche, $1) END AS rang
             FROM actualite a
             WHERE (a.proprietaire_id = $12 OR a.espace_id = ANY ($11))
               AND EXISTS (SELECT 1 FROM actualite_source x JOIN source_web sw ON sw.id = x.source_id
@@ -149,18 +153,18 @@ BEGIN
                                                 AND argos_vecteur_recherche(p.name, NULL) @@ $1)))
               AND ($3 IS NULL OR a.type = ANY ($3))
               AND ($2 IS NULL OR coalesce(a.publie_le, a.recu_le) >= $2)
-              AND ($4 IS NULL OR EXISTS (
-                    SELECT 1 FROM actualite_impact ai
-                    WHERE ai.actualite_id = a.id AND ai.project_id = ANY ($4) AND ai.workspace_id = ANY ($11)))
+              AND ($4 IS NULL OR a.id IN (
+                    SELECT ai.actualite_id FROM actualite_impact ai
+                    WHERE ai.project_id = ANY ($4) AND ai.workspace_id = ANY ($11)))
               AND ($5 IS NULL
                    OR a.recherche @@ $5
                    OR EXISTS (SELECT 1 FROM actualite_impact ai
                               WHERE ai.actualite_id = a.id AND ai.workspace_id = ANY ($11)
                                 AND lower(ai.technologie) = ANY ($6)))
-            ORDER BY a.empreinte, (a.espace_id IS NULL), a.recu_le, a.id
         )
-        SELECT v.type, v.id, CASE WHEN $1 IS NULL THEN 0::real ELSE ts_rank(v.recherche, $1) END, v.date_ref
+        SELECT DISTINCT ON (v.empreinte) v.type, v.id, v.rang, v.date_ref
         FROM visibles v
+        ORDER BY v.empreinte, (v.espace_id IS NULL), v.recu_le, v.id
         $q$ USING p_requete, p_depuis, p_types, p_projets, p_techno_requete, p_techno_termes, p_techno_ecosystemes,
                   p_gravites, p_paquets, p_sources, v_espaces, v_compte;
     END IF;
