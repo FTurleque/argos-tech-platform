@@ -47,7 +47,7 @@ Un préfixe n'est jamais réattribué ; un identifiant d'exigence retiré n'est 
 | `serveur-mcp` | `MCP` | [fiche](serveur-mcp.md) | absente | `exposer-serveur-mcp` | proposée |
 | `passerelle-ia` | `IAG` | [fiche](passerelle-ia.md) | absente | `encadrer-appels-ia` | proposée |
 | `veille-reglementaire` | `REG` | [fiche](veille-reglementaire.md) | absente | `suivre-veille-reglementaire` | proposée |
-| `radar-standards` | `RAD` | [fiche](radar-standards.md) | absente | `construire-radar-et-standards` | proposée ; implémentée dans `argos-server`, changement non archivé |
+| `radar-standards` | `RAD` | [fiche](radar-standards.md) | [spec](/openspec/specs/radar-standards/spec.md) | `2026-11-16-construire-radar-et-standards` (archivé) | livrée |
 | `veille-rss-web` | `WEB` | [fiche](veille-rss-web.md) | [spec](/openspec/specs/veille-rss-web/spec.md) | `2026-11-16-collecter-veille-rss-web` (archivé) | livrée |
 | `recherche-veille` | `RCH` | [fiche](recherche-veille.md) | absente | `rechercher-et-filtrer` | proposée |
 | `activite-projets` | `PIN` | [fiche](activite-projets.md) | absente | `mesurer-activite-projets` | proposée |
@@ -92,9 +92,9 @@ Les diagrammes d'architecture (D-01 à D-13) sont inventoriés dans [`/docs/arch
 
 | Élément | Nombre | Détail |
 |---|---:|---|
-| Specs de référence | 2 | `alertes-digests`, `veille-rss-web` ; le code des changements actifs des lots 1 et 2 est présent dans `argos-server` et `argos-ui` |
-| Changements actifs | 11 | `formaliser-chaine-securite-poc`, `personnaliser-profils-et-affichage` et un changement par capacité restante des lots 2 à 5 (schéma `detailed-uml`) |
-| Changements archivés | 2 | `2026-11-16-diffuser-alertes-et-digests`, `2026-11-16-collecter-veille-rss-web` |
+| Specs de référence | 3 | `alertes-digests`, `veille-rss-web`, `radar-standards` ; le code des changements actifs des lots 1 à 3 est présent dans `argos-server`, `argos-ui` et `argos-desktop` |
+| Changements actifs | 10 | `formaliser-chaine-securite-poc`, `personnaliser-profils-et-affichage` et un changement par capacité restante des lots 2 à 5 (schéma `detailed-uml`) |
+| Changements archivés | 3 | `2026-11-16-diffuser-alertes-et-digests`, `2026-11-16-collecter-veille-rss-web`, `2026-11-16-construire-radar-et-standards` |
 
 Tous les changements utilisent le schéma `detailed-uml` : aucun changement d'un autre schéma n'est à migrer.
 
@@ -146,7 +146,7 @@ Pour `exposer-serveur-mcp`, « Tests écrits » compte les scénarios MCP-01-S1 
 
 | Changement | Capacité | Exigences | Scénarios | Diagrammes métier | Questions ouvertes | Tests écrits |
 |---|---|---|---|---|---|---|
-| [`construire-radar-et-standards`](/openspec/changes/construire-radar-et-standards/proposal.md) | `radar-standards` | 6 | 8 | 1 | 3 | 8 |
+| [`construire-radar-et-standards`](/openspec/changes/archive/2026-11-16-construire-radar-et-standards/proposal.md) (archivé) | `radar-standards` | 6 | 8 | 1 | 3 | 8 |
 | [`collecter-veille-rss-web`](/openspec/changes/archive/2026-11-16-collecter-veille-rss-web/proposal.md) (archivé) | `veille-rss-web` | 6 | 8 | 1 | 0 | 8 |
 | [`rechercher-et-filtrer`](/openspec/changes/rechercher-et-filtrer/proposal.md) | `recherche-veille` | 5 | 7 | 1 | 0 | 7 |
 | **Total** | | **17** | **23** | **3** | **3** | **23** |
