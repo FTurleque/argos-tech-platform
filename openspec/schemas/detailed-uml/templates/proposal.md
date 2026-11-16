@@ -1,7 +1,7 @@
 # Proposition : <!-- titre du changement -->
 
 <!--
-Statuts à appliquer à chaque information factuelle (même légende dans tous les artefacts) :
+Statuts à appliquer à chaque information factuelle (légende durable : /docs/specifications/README.md#statuts-des-informations) :
   [EXIGENCE]     comportement attendu issu d'une exigence validée ou d'un ADR accepté
   [EXISTANT]     comportement existant vérifié — preuve obligatoire (fichier, test, commande)
   [DÉCISION]     décision de conception prise (ADR accepté ou décision tracée de ce changement)

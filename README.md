@@ -8,9 +8,9 @@ Le nom **ARGOS** assume une double référence : **Argos Panoptès**, gardien au
 
 ## Statut
 
-**Phase : conception / cadrage POC.**
+**Phase : conception / cadrage POC — socle applicatif initialisé.**
 
-Le dépôt contient la documentation d’architecture et la licence, mais pas encore l’implémentation applicative. La baseline active est **v2.4**.
+Le dépôt contient la documentation d’architecture, les spécifications OpenSpec et un **socle applicatif sans fonctionnalité métier** : serveur Quarkus, IHM Vue.js 3, client desktop Electron et base PostgreSQL locale. La baseline active est **v2.4**.
 
 ## Stack retenue
 
@@ -18,9 +18,60 @@ Le dépôt contient la documentation d’architecture et la licence, mais pas en
 - **Quarkus** pour le backend et les API ;
 - **Vue.js 3** pour l’IHM ;
 - **PostgreSQL** comme stockage principal ;
-- **Docker Compose** pour le POC local, puis VM Linux interne pour le POC partagé/MVP.
+- **Docker Compose** sur le PC et sur le serveur Synology du porteur (ADR-0026) ; hébergement en ligne plus tard ;
+- **Electron** pour le client desktop, qui réutilise l’IHM Vue.js 3 (proposé).
 
-Voir [ADR-0019](docs/architecture/adr/0019-stack-java17-quarkus-vue3-postgresql.md).
+Voir [ADR-0019](docs/architecture/adr/0019-stack-java17-quarkus-vue3-postgresql.md) et [ADR-0022](docs/architecture/adr/0022-client-desktop-electron.md).
+
+> Quarkus 3.40 est la dernière LTS compatible Java 17 (support jusqu’au 30/09/2027). Quarkus 4 exigera Java 21.
+
+## Arborescence applicative
+
+| Dossier | Contenu |
+|---|---|
+| [`argos-server/`](argos-server/) | Monolithe modulaire Quarkus (Java 17) : un paquet par module d’arc42 §5, frontières vérifiées par ArchUnit, Flyway, OpenAPI, santé |
+| [`argos-ui/`](argos-ui/) | IHM Vue.js 3 + Vite + TypeScript, partagée par le portail web et le desktop |
+| [`argos-desktop/`](argos-desktop/) | Client desktop Electron : emballe `argos-ui`, notifications système, icône de zone de notification |
+| [`compose.yaml`](compose.yaml) | PostgreSQL 18 et Argos complet, sur le PC comme sur le Synology |
+| [`Dockerfile`](Dockerfile) | image unique IHM + API (x86-64) |
+| [`docs/deploiement/`](docs/deploiement/synology-et-pc.md) | guide de déploiement Synology DS1522+ et PC, sauvegardes |
+
+## Démarrage local
+
+Prérequis : JDK 17 ou plus, Maven 3.9, Node.js 22.12 ou plus, Docker.
+
+```bash
+# 1. Base de données
+docker compose up -d postgres
+
+# 2. Serveur (http://localhost:8080, OpenAPI sur /q/openapi, santé sur /q/health)
+cd argos-server
+mvn quarkus:dev          # tests : mvn verify (Docker requis : base jetable)
+
+# 3a. Portail web (http://localhost:5173)
+cd argos-ui
+npm install
+npm run dev
+
+# 3b. ou client desktop Electron
+npm --prefix argos-ui install
+cd argos-desktop
+npm install
+npm run start            # construit l'IHM puis ouvre le desktop
+npm run dev              # variante : recharge à chaud, avec « npm run dev » lancé dans argos-ui
+npm run dist             # installeurs (Windows NSIS, Linux AppImage) dans argos-desktop/release/
+```
+
+L’URL du serveur se règle avec `VITE_ARGOS_API_URL` (voir `argos-ui/.env.example`).
+
+### Argos complet sous Docker (PC ou Synology)
+
+```bash
+cp .env.example .env
+docker compose up -d --build   # http://localhost:8080
+```
+
+Détails, accès distant et sauvegardes : [guide de déploiement](docs/deploiement/synology-et-pc.md).
 
 ## Mission
 
@@ -72,11 +123,11 @@ Les exigences fonctionnelles sont spécifiées avec OpenSpec (`openspec/`, sché
 
 ## Prochaines étapes
 
-1. initialiser Maven/Quarkus en Java 17 ;
-2. initialiser Vue.js 3 ;
-3. créer PostgreSQL + migrations ;
-4. créer Docker Compose local ;
-5. mettre en place les frontières de modules et tests d’architecture ;
+1. ~~initialiser Maven/Quarkus en Java 17~~ (socle `argos-server/`) ;
+2. ~~initialiser Vue.js 3~~ (`argos-ui/`) ;
+3. ~~créer PostgreSQL + migrations~~ (socle Flyway ; outil de migration à confirmer par ADR, arc42 §9.3) ;
+4. ~~créer Docker Compose local~~ (`compose.yaml`) ;
+5. ~~mettre en place les frontières de modules et tests d’architecture~~ (`ModuleBoundariesTest`) ;
 6. connecter OSV et importer une première SBOM ;
 7. produire la première corrélation et alerte ;
 8. prototyper le MCP lecture seule ;

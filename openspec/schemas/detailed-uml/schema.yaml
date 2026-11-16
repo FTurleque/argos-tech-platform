@@ -142,7 +142,7 @@ artifacts:
       Purpose (nouvelle capacité uniquement) : première section du delta, une ou
       deux phrases (50 caractères au moins), terminées par le lien vers la fiche
       durable écrit depuis la racine du dépôt :
-      `[Fiche](/docs/specifications/<capability-path>.md)`. L'archivage copie
+      `Fiche : [/docs/specifications/<capability-path>.md](/docs/specifications/<capability-path>.md)`. L'archivage copie
       Purpose dans la spec principale ; il ignore Purpose pour une capacité
       existante, dont la spec principale se modifie directement sous
       `<planningHome.root>/openspec/specs/<capability-path>/spec.md`.

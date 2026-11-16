@@ -1,0 +1,56 @@
+{
+  "name": "argos-desktop",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Client desktop ARGOS : emballe l'IHM argos-ui avec Electron (ADR-0022)",
+  "license": "SEE LICENSE IN ../LICENSE",
+  "main": "src/main.js",
+  "type": "commonjs",
+  "scripts": {
+    "dev": "electron . --dev",
+    "start": "npm --prefix ../argos-ui run build && electron .",
+    "check": "npm run check:syntax && npm test",
+    "check:syntax": "node --check src/main.js && node --check src/preload.js && node --check src/ui-protocol.js",
+    "test": "node --test test/ui-protocol.test.js",
+    "dist": "npm --prefix ../argos-ui run build && electron-builder"
+  },
+  "devDependencies": {
+    "electron": "^45.3.2",
+    "electron-builder": "^26.18.0"
+  },
+  "build": {
+    "appId": "io.argos.desktop",
+    "productName": "ARGOS",
+    "directories": {
+      "output": "release"
+    },
+    "files": [
+      "src/**",
+      "assets/**",
+      "package.json"
+    ],
+    "extraResources": [
+      {
+        "from": "../argos-ui/dist",
+        "to": "ui"
+      }
+    ],
+    "win": {
+      "target": "nsis",
+      "icon": "assets/icon.ico"
+    },
+    "nsis": {
+      "oneClick": false,
+      "perMachine": false
+    },
+    "linux": {
+      "target": "AppImage",
+      "icon": "assets/icon.png",
+      "category": "Development"
+    },
+    "mac": {
+      "target": "dmg",
+      "icon": "assets/icon.png"
+    }
+  }
+}

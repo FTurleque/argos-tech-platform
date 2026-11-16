@@ -24,11 +24,16 @@ Cette section indexe les ADR. Elle ne recopie pas leur contenu.
 | ADR-0014 | Serveur MCP intégré, lecture seule, Streamable HTTP | Proposé | 2026-09-27 | — |
 | ADR-0015 | PostgreSQL FTS au MVP, pgvector différé | Proposé | 2026-09-27 | — |
 | ADR-0016 | Cloisonnement workspace avec RBAC + PostgreSQL RLS | Proposé | 2026-09-27 | — |
-| ADR-0017 | POC local Docker puis VM interne | Proposé | 2026-09-27 | — |
+| ADR-0017 | POC local Docker puis VM interne | Remplacé (cible VM) par ADR-0026 | 2026-09-27 | — |
 | ADR-0018 | Veille réglementaire intégrée avec validation MKP | Proposé | 2026-09-27 | — |
 | ADR-0019 | Java 17+ / Quarkus / Vue.js 3 / PostgreSQL | Accepté | 2026-09-27 | — |
 | ADR-0020 | Spécifier les exigences avec OpenSpec et le schéma `detailed-uml` | Proposé | 2026-11-15 | — |
 | ADR-0021 | Préserver la possibilité d'une double licence | Proposé | 2026-11-15 | — |
+| ADR-0022 | Client desktop Electron réutilisant l'IHM Vue.js 3 | Proposé | 2026-11-15 | — |
+| ADR-0023 | Mises en page sélectionnables par utilisateur | Proposé | 2026-11-15 | — |
+| ADR-0024 | Profils de veille extensibles et cumulables | Proposé | 2026-11-15 | — |
+| ADR-0025 | Produit ouvert à tous les publics, porté à titre personnel | Accepté | 2026-11-16 | — |
+| ADR-0026 | Hébergement sur le serveur Synology du porteur | Accepté (cible) | 2026-11-16 | ADR-0017 (cible VM) |
 
 ## 9.2 Règles de gouvernance
 

@@ -1,6 +1,6 @@
 # Proposition : formaliser la chaîne sécurité du POC et la personnalisation de la veille
 
-<!-- Statuts : [EXIGENCE] [EXISTANT] [DÉCISION] [PROPOSITION] [QUESTION] — légende dans le modèle du schéma detailed-uml. -->
+<!-- Statuts : [EXIGENCE] [EXISTANT] [DÉCISION] [PROPOSITION] [QUESTION] — légende : /docs/specifications/README.md#statuts-des-informations. -->
 
 ## Why — Pourquoi
 

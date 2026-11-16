@@ -33,7 +33,7 @@ des vérifications d'intégration.
 
 | Exigence | Scénario | Conception / diagramme | Tâche | Test ou preuve | État de la preuve |
 |---|---|---|---|---|---|
-| <!-- PRÉFIXE-NN --> | <!-- PRÉFIXE-NN-S1 --> | <!-- design.md § / D-… --> | <!-- 2.1 --> | <!-- chemin du test ou commande --> | <!-- à écrire / exécuté le … --> |
+| <!-- PRÉFIXE-NN --> | <!-- PRÉFIXE-NN-S1 --> | <!-- design.md § / DC-n --> | <!-- 2.1 --> | <!-- chemin du test ou commande --> | <!-- à écrire / exécuté le … --> |
 
 ## Workflow follow-up
 
