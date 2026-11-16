@@ -4,7 +4,7 @@
 
 ## 1. Arbitrages
 
-- [ ] 1.1 Faire choisir le serveur d'envoi d'e-mails (Q-1) — couvre ALR-06 — vérification : choix inscrit dans la fiche `alertes-digests`
+- [x] 1.1 Faire choisir le serveur d'envoi d'e-mails (Q-1) — couvre ALR-06 — vérification : choix inscrit dans la fiche `alertes-digests` (décidé le 2026-11-16)
 
 ## 2. Alertes immédiates
 

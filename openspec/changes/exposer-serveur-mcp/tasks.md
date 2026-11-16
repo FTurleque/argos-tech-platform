@@ -4,7 +4,7 @@
 
 ## 1. Arbitrages
 
-- [ ] 1.1 Faire choisir le mode d'obtention du jeton par les IDE (Q-3) — couvre MCP-03 — vérification : choix inscrit dans la fiche `serveur-mcp`
+- [x] 1.1 Faire choisir le mode d'obtention du jeton par les IDE (Q-3) — couvre MCP-03 — vérification : choix inscrit dans la fiche `serveur-mcp` (décidé le 2026-11-16)
 
 ## 2. Serveur et sécurité
 

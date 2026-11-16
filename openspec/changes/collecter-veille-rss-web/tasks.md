@@ -4,7 +4,7 @@
 
 ## 1. Arbitrages
 
-- [ ] 1.1 Faire trancher services séparés ou collecteur intégré (Q-1) — couvre WEB-01, WEB-02 — vérification : choix inscrit dans la fiche `veille-rss-web` et ADR rédigé
+- [x] 1.1 Faire trancher services séparés ou collecteur intégré (Q-1) — couvre WEB-01, WEB-02 — vérification : choix inscrit dans la fiche `veille-rss-web` et ADR rédigé (décidé le 2026-11-16)
 
 ## 2. Sources et sécurité
 

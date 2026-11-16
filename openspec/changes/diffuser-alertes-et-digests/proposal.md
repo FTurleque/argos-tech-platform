@@ -76,7 +76,7 @@ Allégée : traitement asynchrone dans un module existant, sans nouvelle dépend
 
 | ID | Question | Bloquante ? | Destinataire |
 |---|---|---|---|
-| Q-1 | Quel serveur d'envoi d'e-mails : relais du Synology ou service externe ? | oui pour ALR-06 | porteur du projet |
-| Q-2 | Faut-il un canal de messagerie d'équipe (Teams, Slack, Matrix) ? | non | porteur du projet |
-| Q-3 | À quelle heure et quel jour partent les résumés ? | non : paramétrable | Product Owner |
+| Q-1 | Quel serveur d'envoi d'e-mails : relais du Synology ou service externe ? | **Répondue le 2026-11-16** : relais SMTP du Synology (DSM), configuré par variables d'environnement ; aucun service externe payant [DÉCISION] | porteur du projet |
+| Q-2 | Faut-il un canal de messagerie d'équipe (Teams, Slack, Matrix) ? | **Répondue le 2026-11-16** : non : aucun canal de messagerie d'équipe pour l'instant [DÉCISION] | porteur du projet |
+| Q-3 | À quelle heure et quel jour partent les résumés ? | **Répondue le 2026-11-16** : résumé quotidien à 08:00 et hebdomadaire le lundi à 08:00 (Europe/Paris), paramétrables [DÉCISION] | Product Owner |
 | Q-4 | La cible « alerte en moins d'une heure » est-elle validée ? | non : cible qualité | Product Owner |

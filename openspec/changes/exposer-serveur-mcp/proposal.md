@@ -74,6 +74,6 @@ Complète : nouvelle interface externe exposée aux assistants IA, avec des enje
 
 | ID | Question | Bloquante ? | Destinataire |
 |---|---|---|---|
-| Q-1 | Quelle limite de débit par utilisateur ? | non : paramétrable | porteur du projet |
-| Q-2 | Quelle longueur maximale pour un texte externe renvoyé ? | non : paramétrable | architecte |
-| Q-3 | Comment un IDE obtient-il son jeton (flux d'appareil OAuth, jeton personnel) ? | oui pour MCP-03 | architecte / sécurité |
+| Q-1 | Quelle limite de débit par utilisateur ? | **Répondue le 2026-11-16** : 60 requêtes par minute et par utilisateur, paramétrable [DÉCISION] | porteur du projet |
+| Q-2 | Quelle longueur maximale pour un texte externe renvoyé ? | **Répondue le 2026-11-16** : 2 000 caractères, paramétrable [DÉCISION] | architecte |
+| Q-3 | Comment un IDE obtient-il son jeton (flux d'appareil OAuth, jeton personnel) ? | **Répondue le 2026-11-16** : flux d'appareil OAuth 2.0 (RFC 8628) de Keycloak ; Argos ne stocke aucun jeton personnel [DÉCISION] | architecte / sécurité |
