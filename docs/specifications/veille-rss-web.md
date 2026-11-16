@@ -58,7 +58,7 @@ API : `POST|GET /api/v1/veille-web/sources`, `DELETE /api/v1/veille-web/sources/
 | Une adresse est enregistrée seulement si elle renvoie un flux valide (type `FLUX`) ou une page HTML (type `PAGE`) ; sinon refus `FLUX_INVALIDE` ou `PAGE_INVALIDE`, aucune source créée | WEB-01 | ADR-0028 (Proposé) | [EXISTANT] |
 | La première collecte suit l'ajout ; chaque source est ensuite collectée toutes les heures (`argos.veille-web.frequence`) | WEB-01 | Q-2 | [EXISTANT] |
 | Une page surveillée garde un instantané (texte par blocs, empreinte SHA-256) ; un contenu différent crée une actualité datée dont le texte est l'aperçu des blocs ajoutés, à défaut retirés | WEB-02 | ADR-0028 (Proposé) | [EXISTANT] |
-| Adresse refusée (`ADRESSE_INTERDITE`) si une adresse IP de l'hôte, après résolution DNS, est privée, locale, de lien local ou réservée ; contrôle refait à chaque redirection (5 au plus) ; 10 s et 2 Mio par récupération | WEB-03 | risque R-12 ; arc42 §8.3 | [EXISTANT] |
+| Adresse refusée (`ADRESSE_INTERDITE`) si une adresse IP de l'hôte, après résolution DNS, est privée, locale, de lien local ou réservée ; contrôle refait à chaque redirection (5 au plus) ; 10 s et 2 Mio par récupération, lecture du contenu comprise (un serveur qui se tait après ses en-têtes est coupé à l'échéance) | WEB-03 | risque R-12 ; arc42 §8.3 | [EXISTANT] |
 | Une collecte en échec fait passer la source `EN_ERREUR` avec son motif ; la tentative suivante attend fréquence × 2^(échecs − 1), au plus × 8 | WEB-03 | conception, gestion des erreurs | [EXISTANT] |
 | Le contenu collecté est réduit à du texte brut et restitué comme citation non fiable ; le résumé est un extrait déterministe ; aucun lien collecté n'est récupéré | WEB-04 | risque R-11 | [EXISTANT] |
 | Un article reçu par plusieurs sources a une seule empreinte (lien normalisé, à défaut identifiant, à défaut titre et texte) et est restitué une fois avec toutes ses sources visibles | WEB-05 | arc42 §6.1 | [EXISTANT] |
@@ -110,6 +110,7 @@ Scénarios WEB-01-S1 à WEB-06-S1 du changement, couverts par `argos-server/src/
 - Résumé d'un article (WEB-04) : extrait déterministe des premières phrases, 280 caractères au plus, sans IA [PROPOSITION].
 - Nom de technologie (WEB-06) : portée d'un paquet npm à portée (`@angular/core` → `angular`), sinon nom du paquet, 3 caractères au moins, recherché comme mot entier [PROPOSITION].
 - Sources d'espace sans limite de nombre ; leur création est réservée aux administrateurs [PROPOSITION].
+- Les refus d'une demande de source réutilisent les erreurs communes du domaine : `DonneeInvalide` (HTTP 400, code du motif de refus ou `DONNEE_INVALIDE`, attribut en cause) et `RegleViolee` (HTTP 409, `LIMITE_SOURCES`, `SOURCE_EXISTANTE`) ; la RLS est appliquée par `ContexteBase`, seul mécanisme de contexte de cloisonnement du module `workspace` emprunté par `signal` [PROPOSITION].
 
 ## Écarts constatés
 

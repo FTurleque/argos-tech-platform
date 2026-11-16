@@ -72,4 +72,11 @@ class RegleAlerteTest {
         assertEquals(Duration.ofMinutes(16), envoi.delai(5));
         assertEquals(Duration.ofMinutes(30), envoi.delai(9));
     }
+
+    @Test
+    void sujetSansRetourALaLigneVenuDuTitreExterne() {
+        MessageAlerte m = new MessageAlerte(UUID.randomUUID(), "IMMEDIATE", UUID.randomUUID(), "a@argos.test", "EMAIL",
+                "Faille\r\nBcc: intrus@exemple.test", "CRITICAL", new ContenuAlerte(List.of(), null, "SANS_OBJET"));
+        assertEquals("[Argos] Alerte CRITICAL : Faille Bcc: intrus@exemple.test", CanalEmail.sujet(m));
+    }
 }

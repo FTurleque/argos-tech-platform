@@ -34,7 +34,8 @@ import io.quarkiverse.mcp.server.ToolCallException;
  *       jeton valide reçoit 401 sans atteindre l'outil (MCP-03-S1). L'appelant et ses espaces sont
  *       établis par le même {@link CallerResolver} que l'API REST (ADR-0014, ADR-0016).</li>
  *   <li>Une limite atteinte refuse l'appel avec l'erreur {@code LIMITE_DEBIT}, journalisée dans le
- *       journal des refus et dans celui des appels (MCP-06-S1).</li>
+ *       journal des refus et dans celui des appels (MCP-06-S1). La limite s'applique après
+ *       l'établissement de l'appelant, car le refus est journalisé avec son compte.</li>
  *   <li>Une ressource d'un autre espace est refusée comme introuvable, sans rien révéler, et le refus
  *       est journalisé (MCP-04, ACC-06).</li>
  *   <li>Une erreur inattendue ne renvoie aucune donnée partielle.</li>
@@ -99,7 +100,7 @@ public class GardeAppels {
             throw new ToolCallException("INTROUVABLE : ressource introuvable dans votre périmètre.");
         } catch (Introuvable e) {
             // Ressource inexistante : même réponse qu'un refus, sans entrée au journal des refus.
-            journalAppels.enregistrer(compte, null, outil, parametresJson, ms(debut), Issue.PARAMETRES_INVALIDES);
+            journalAppels.enregistrer(compte, null, outil, parametresJson, ms(debut), Issue.INTROUVABLE);
             throw new ToolCallException("INTROUVABLE : ressource introuvable dans votre périmètre.");
         } catch (RuntimeException e) {
             LOG.errorf(e, "Échec de l'outil MCP %s", outil);
@@ -121,11 +122,16 @@ public class GardeAppels {
         return (System.nanoTime() - debutNanos) / 1_000_000;
     }
 
-    /** Paramètres sérialisés en JSON, bornés à 2 000 caractères. */
+    /**
+     * Paramètres sérialisés en JSON, bornés à 2 000 caractères. Chaque texte est tronqué avant la
+     * sérialisation : le coût reste borné quelle que soit la taille reçue.
+     */
     static String json(Map<String, ?> parametres) {
         Map<String, Object> copie = new LinkedHashMap<>();
         parametres.forEach((k, v) -> {
-            if (v != null) {
+            if (v instanceof CharSequence texte && texte.length() > LONGUEUR_MAX_PARAMETRES) {
+                copie.put(k, texte.subSequence(0, LONGUEUR_MAX_PARAMETRES).toString());
+            } else if (v != null) {
                 copie.put(k, v);
             }
         });

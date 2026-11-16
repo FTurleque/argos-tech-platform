@@ -284,14 +284,18 @@ public class OutilsSecurite {
             ImpactQueries.Page page = impacts.forSignal(id, appelant.accountId(), appelant.memberWorkspaces(), 0, 50);
             List<ProjetConcerne> projets = page.items().stream()
                     .map(i -> new ProjetConcerne(i.projectId(), i.projectName(), i.componentPurl(), i.level())).toList();
-            return new ExplicationChangement(s.id(), s.source(), s.externalId(), explication(s, versions, page.total()),
+            return new ExplicationChangement(s.id(), s.source(), s.externalId(), explication(versions, page.total()),
                     versions, page.total(), projets, balisage.baliser(s.source(), s.title()),
                     balisage.baliser(s.source(), s.summary()));
         });
     }
 
-    private static String explication(SignalQueries.SignalView s, List<VersionSignal> versions, long impactsVisibles) {
-        StringBuilder e = new StringBuilder("Avis ").append(s.externalId()).append(" de la source ").append(s.source());
+    /**
+     * Explication produite par Argos, sans aucun texte venu de la source (MCP-05) : l'identifiant et la
+     * source de l'avis restent dans leurs champs propres.
+     */
+    private static String explication(List<VersionSignal> versions, long impactsVisibles) {
+        StringBuilder e = new StringBuilder("Avis désigné par les champs source et identifiant");
         if (versions.size() <= 1) {
             e.append(" : une seule version collectée");
         } else {

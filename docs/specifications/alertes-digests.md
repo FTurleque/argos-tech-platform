@@ -123,7 +123,11 @@ Interprétations du changement `diffuser-alertes-et-digests`, à faire valider [
 - canaux `EMAIL` et `DESKTOP` seulement ; tout autre canal d'abonnement (`IN_APP`, par exemple) ne déclenche aucune diffusion ;
 - le résumé IA porte sur le seul signal ; sans implémentation de `ResumeIa` (aucune n'est livrée), l'état est `INDISPONIBLE` ;
 - le lien vers l'élément vise `<ARGOS_PUBLIC_URL>/signaux/<id>` ; la page correspondante de l'IHM reste à créer ;
-- cinq tentatives au plus, délai initial d'une minute doublé à chaque échec, plafonné à 30 minutes ; une adresse e-mail absente est un échec définitif.
+- cinq tentatives au plus, délai initial d'une minute doublé à chaque échec, plafonné à 30 minutes ; une adresse e-mail absente est un échec définitif ;
+- chaque envoi dure au plus 10 s (`quarkus.mailer.timeout`, variable `ARGOS_SMTP_TIMEOUT`) ; toute erreur, y compris un contenu illisible ou un relais qui ne répond pas, compte comme une tentative ; aucun verrou n'est tenu pendant l'envoi ;
+- STARTTLS exigé par défaut (`ARGOS_SMTP_STARTTLS=REQUIRED`) : les identifiants SMTP ne circulent jamais en clair ; un avertissement est journalisé au démarrage en exploitation si `ARGOS_PUBLIC_URL` n'est pas défini ;
+- l'évaluation des règles est synchrone dans le fil de la corrélation : un signal alerté attend au plus 10 s le résumé IA, puis 10 s par envoi d'e-mail ;
+- « l'actualité » du scénario ALR-04-S1 désigne les éléments de veille ayant un impact de sécurité ; les actualités de la veille web (`veille-rss-web`) n'entrent dans aucun résumé (Q-5).
 
 ## Écarts constatés
 
@@ -138,6 +142,7 @@ Interprétations du changement `diffuser-alertes-et-digests`, à faire valider [
 | Q-2 | Faut-il un canal de messagerie d'équipe (Teams, Slack, Matrix) ? | répondue le 2026-11-16 : non : aucun canal de messagerie d'équipe pour l'instant [DÉCISION] | porteur du projet |
 | Q-3 | À quelle heure et quel jour partent les résumés ? | répondue le 2026-11-16 : résumé quotidien à 08:00 et hebdomadaire le lundi à 08:00 (Europe/Paris), paramétrables [DÉCISION] | Product Owner |
 | Q-4 | La cible « alerte en moins d'une heure » est-elle validée ? | non : cible qualité | Product Owner |
+| Q-5 | Les résumés doivent-ils reprendre les actualités de la veille web (ALR-04-S1 « résumé hebdomadaire de l'actualité ») ? | ouverte : aujourd'hui seuls les éléments ayant un impact de sécurité sont diffusés [PROPOSITION] | Product Owner |
 
 ## Traçabilité
 
@@ -146,8 +151,8 @@ Interprétations du changement `diffuser-alertes-et-digests`, à faire valider [
 | ALR-01 | ALR-01-S1, ALR-01-S2 | DC-1 | 2.2 | `AlertesTest` (`alr01S1EtAlr06S1…`, `alr01S2…`), `RegleAlerteTest` |
 | ALR-02 | ALR-02-S1 | DC-1 | 2.2 | `AlertesTest.alr02S1…` |
 | ALR-03 | ALR-03-S1 | DC-1 | 2.1, 2.3 | `AlertesTest.alr03S1…`, `AlertesTest.cleDIdempotence…` |
-| ALR-04 | ALR-04-S1, ALR-04-S2 | DC-1 | 3.1 | `AlertesTest.alr04S1…`, `alr04S2…`, `horairesDesResumes…` |
+| ALR-04 | ALR-04-S1, ALR-04-S2 | DC-1 | 3.1 | `AlertesTest.alr04S1…`, `alr04S2…`, `horairesDesResumes…` (signaux de sécurité ; Q-5) |
 | ALR-05 | ALR-05-S1 | DC-1 | 2.4 | `AlertesTest.alr05S1…`, `qs10…` |
-| ALR-06 | ALR-06-S1, ALR-06-S2 | DC-1 | 1.1, 3.2, 3.3 | `AlertesTest.alr01S1EtAlr06S1…`, `EchecSmtpTest`, `AlertesTest.contrat…`, `rls…`, `cloisonnement…` |
+| ALR-06 | ALR-06-S1, ALR-06-S2 | DC-1 | 1.1, 3.2, 3.3 | `AlertesTest.alr01S1EtAlr06S1…`, `EchecSmtpTest`, `RelaisMuetTest`, `AlertesTest.contrat…`, `rls…`, `cloisonnement…` |
 
 Tests : `argos-server/src/test/java/io/argos/alerting/`. Matrice détaillée : [`tasks.md`](/openspec/changes/diffuser-alertes-et-digests/tasks.md#matrice-de-traçabilité).

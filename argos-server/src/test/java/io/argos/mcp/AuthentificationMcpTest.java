@@ -86,4 +86,31 @@ class AuthentificationMcpTest {
         assertEquals(400, attente.statusCode(), attente.asString());
         assertEquals("authorization_pending", attente.path("error"));
     }
+
+    /**
+     * Q-3, MCP-03 : un jeton obtenu par le flux d'appareil complet du client {@code argos-mcp}
+     * (demande, connexion de l'utilisateur sur la page de vérification, échange du code d'appareil)
+     * porte l'audience {@code argos-server} et ouvre les outils MCP.
+     */
+    @Test
+    void jetonDuFluxAppareilAccepteSurMcp() throws Exception {
+        Api.nouvelEspace("alice", "Espace MCP");
+        ExtractableResponse<Response> demande = given().contentType("application/x-www-form-urlencoded")
+                .formParam("client_id", "argos-mcp").formParam("scope", "openid")
+                .when().post(Api.urlFournisseur() + "/protocol/openid-connect/auth/device").then().extract();
+        assertEquals(200, demande.statusCode(), demande.asString());
+
+        String parcours = FluxAppareil.approuver(demande.path("verification_uri_complete"), "alice", "alice");
+
+        ExtractableResponse<Response> jeton = given().contentType("application/x-www-form-urlencoded")
+                .formParam("client_id", "argos-mcp").formParam("device_code", (String) demande.path("device_code"))
+                .formParam("grant_type", "urn:ietf:params:oauth:grant-type:device_code")
+                .when().post(Api.urlFournisseur() + "/protocol/openid-connect/token").then().extract();
+        assertEquals(200, jeton.statusCode(), jeton.asString() + "\n" + parcours);
+
+        ExtractableResponse<Response> r = Mcp.appelerAvecJeton(jeton.path("access_token"), "get_project_context", Map.of());
+        assertEquals(200, r.statusCode(), r.asString());
+        assertEquals(Boolean.FALSE, r.path("result.isError"), r.asString());
+        assertEquals(1, db.count("SELECT count(*) FROM mcp_appel WHERE issue = 'SUCCES'"));
+    }
 }

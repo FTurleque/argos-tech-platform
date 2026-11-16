@@ -16,7 +16,11 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
 import java.util.UUID;
-import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ArrayBlockingQueue;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Future;
+import java.util.concurrent.RejectedExecutionException;
+import java.util.concurrent.ThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
 
@@ -35,6 +39,8 @@ import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 
 import io.quarkus.narayana.jta.QuarkusTransaction;
+import io.quarkus.runtime.LaunchMode;
+import io.quarkus.runtime.StartupEvent;
 
 import io.argos.impact.ImpactQueries;
 import io.argos.impact.ImpactsRecorded;
@@ -61,6 +67,17 @@ public class MoteurAlertes {
 
     private static final Logger LOG = Logger.getLogger(MoteurAlertes.class);
     static final ObjectMapper JSON = new ObjectMapper();
+
+    /**
+     * Exécuteur dédié aux demandes de résumé IA : deux fils au plus et une file bornée, hors du pool
+     * commun. Une demande expirée est annulée (interruption) ; une file pleine vaut résumé indisponible.
+     */
+    private static final ExecutorService EXECUTEUR_IA = new ThreadPoolExecutor(2, 2, 60, TimeUnit.SECONDS,
+            new ArrayBlockingQueue<>(16), r -> {
+                Thread t = new Thread(r, "argos-resume-ia");
+                t.setDaemon(true);
+                return t;
+            }, new ThreadPoolExecutor.AbortPolicy());
 
     @Inject
     DataSource dataSource;
@@ -95,6 +112,13 @@ public class MoteurAlertes {
 
     private record Plan(Destinataires.Destinataire destinataire, Map<String, Map<UUID, ImpactQueries.ImpactView>> immediates,
             Set<String> resumes) {
+    }
+
+    /** Avertit au démarrage en exploitation si les liens des messages visent encore le poste local. */
+    void verifierLienBase(@Observes StartupEvent demarrage) {
+        if (LaunchMode.current() == LaunchMode.NORMAL && lienBase.contains("://localhost")) {
+            LOG.warnf("ARGOS_PUBLIC_URL n'est pas défini : les liens des alertes visent %s", lienBase);
+        }
     }
 
     void surImpacts(@Observes ImpactsRecorded evenement) {
@@ -226,14 +250,22 @@ public class MoteurAlertes {
         if (!ia.budgetDisponible()) {
             return new String[] {null, "PLAFOND_ATTEINT"};
         }
+        Future<String> demande;
         try {
-            String texte = CompletableFuture.supplyAsync(() -> ia.resumer(e.signalId(), e.signalTitle()))
-                    .get(delaiResumeIa.toMillis(), TimeUnit.MILLISECONDS);
+            demande = EXECUTEUR_IA.submit(() -> ia.resumer(e.signalId(), e.signalTitle()));
+        } catch (RejectedExecutionException ex) {
+            LOG.infof("résumé IA indisponible pour le signal %s : file d'attente pleine", e.signalId());
+            return new String[] {null, "INDISPONIBLE"};
+        }
+        try {
+            String texte = demande.get(delaiResumeIa.toMillis(), TimeUnit.MILLISECONDS);
             return texte == null || texte.isBlank() ? new String[] {null, "REFUSE"} : new String[] {texte, "DISPONIBLE"};
         } catch (InterruptedException ex) {
+            demande.cancel(true);
             Thread.currentThread().interrupt();
             return new String[] {null, "INDISPONIBLE"};
         } catch (Exception ex) {
+            demande.cancel(true);
             LOG.infof("résumé IA indisponible pour le signal %s : %s", e.signalId(), ex.toString());
             return new String[] {null, "INDISPONIBLE"};
         }

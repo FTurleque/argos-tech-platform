@@ -13,8 +13,8 @@ CREATE TABLE mcp_appel (
     outil       varchar(100) NOT NULL,
     parametres  jsonb        NOT NULL,
     duree_ms    integer      NOT NULL CHECK (duree_ms >= 0),
-    issue       varchar(32)  NOT NULL CHECK (issue IN ('SUCCES', 'PARAMETRES_INVALIDES', 'REFUS_ACCES',
-                                                       'REFUS_LIMITE', 'ERREUR')),
+    issue       varchar(32)  NOT NULL CHECK (issue IN ('SUCCES', 'PARAMETRES_INVALIDES', 'INTROUVABLE',
+                                                       'REFUS_ACCES', 'REFUS_LIMITE', 'ERREUR')),
     horodatage  timestamptz  NOT NULL DEFAULT now()
 );
 CREATE INDEX mcp_appel_horodatage_idx ON mcp_appel (horodatage);

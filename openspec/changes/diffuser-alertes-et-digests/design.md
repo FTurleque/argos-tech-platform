@@ -143,10 +143,10 @@ Non applicable — aucune donnée ni aucun contrat existants.
 ### D4 — Évaluation synchrone après la corrélation, diffusion découplée
 
 - **Statut** : [PROPOSITION]
-- **Choix** : `impact-engine` publie `ImpactsRecorded` après la validation des impacts ; `alerting` l'observe, relit les impacts sous le compte de chaque destinataire (RLS), enregistre les alertes, publie `AlerteEmise`, puis tente l'envoi ; une tâche planifiée (chaque minute) reprend les envois en attente ; le résumé IA passe par le point d'extension `ResumeIa` avec un délai borné (10 s)
+- **Choix** : `impact-engine` publie `ImpactsRecorded` après la validation des impacts ; `alerting` l'observe, relit les impacts sous le compte de chaque destinataire (RLS), enregistre les alertes, publie `AlerteEmise`, puis tente l'envoi ; une tâche planifiée (chaque minute) reprend les envois en attente ; le résumé IA passe par le point d'extension `ResumeIa` avec un délai borné (10 s), sur un exécuteur dédié (deux fils, file bornée) qui annule la demande expirée ; chaque tentative d'envoi réserve le message et compte la tentative dans une transaction courte, envoie hors transaction avec un délai SMTP de 10 s (`quarkus.mailer.timeout`), puis enregistre l'issue ; toute exception compte comme un échec
 - **Justification** : aucune nouvelle dépendance de module (`alerting` → `impact`, `workspace`) ; un échec d'alerte n'affecte jamais la corrélation
 - **Alternatives écartées** : file de messages — infrastructure supplémentaire ; appel direct de `ai-gateway` — interdit par les frontières de modules
-- **Compromis** : une alerte perdue si le processus s'arrête entre la corrélation et l'enregistrement de l'alerte ; une nouvelle corrélation la rattrape
+- **Compromis** : une alerte perdue si le processus s'arrête entre la corrélation et l'enregistrement de l'alerte ; une nouvelle corrélation la rattrape. La collecte attend l'évaluation : au plus 10 s de résumé IA par signal alerté, puis au plus 10 s d'envoi SMTP par alerte e-mail ; un relais injoignable ralentit donc une collecte de nombreux signaux alertés. Un arrêt pendant un envoi laisse la tentative comptée ; le message est repris après un bail de 5 min
 - **ADR** : non : décision locale
 
 ### D5 — Contrat desktop par lecture et confirmation de remise
@@ -174,9 +174,9 @@ Aucun écart constaté.
 | ALR-01-S1, ALR-01-S2 | intégration | règles et impacts de test | passe |
 | ALR-02-S1 | intégration | impact à vérifier | passe |
 | ALR-03-S1 | intégration | trois projets, une alerte | passe |
-| ALR-04-S1, ALR-04-S2 | intégration | horloge simulée | passe |
+| ALR-04-S1, ALR-04-S2 | intégration | horloge simulée ; signaux de sécurité seulement (les actualités de la veille web n'entrent pas dans les résumés, [PROPOSITION]) | passe |
 | ALR-05-S1 | intégration | ai-gateway simulé au plafond ; QS-10 | passe |
-| ALR-06-S1, ALR-06-S2 | intégration | serveur SMTP de test | passe |
+| ALR-06-S1, ALR-06-S2 | intégration | serveur SMTP de test ; port fermé ; relais muet (délai d'envoi) ; contenu illisible | passe |
 
 ## Documentation durable impactée
 

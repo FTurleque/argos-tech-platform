@@ -33,7 +33,8 @@ class ModuleBoundariesTest {
             Map.entry("workspace", Set.of("audit")),
             Map.entry("catalog", Set.of("audit")),
             Map.entry("inventory", Set.of("workspace", "catalog", "scm")),
-            Map.entry("signal", Set.of("ingestion", "catalog")),
+            // signal n'emprunte à workspace que le contexte RLS et les erreurs du domaine : voir signalNEmprunteQueRlsEtErreurs.
+            Map.entry("signal", Set.of("ingestion", "catalog", "workspace")),
             Map.entry("vulnintel", Set.of("signal", "catalog")),
             Map.entry("releaseradar", Set.of("signal", "catalog")),
             Map.entry("regintel", Set.of("signal", "catalog", "aigateway")),
@@ -87,6 +88,25 @@ class ModuleBoundariesTest {
                         (JavaClass c) -> c.getPackageName().startsWith(ROOT + ".api")
                                 && !c.getPackageName().startsWith(ROOT + ".api.security")))
                 .because("arc42 §5 : dans le module api, mcp ne dépend que de api.security")
+                .check(classes);
+    }
+
+    /**
+     * La veille web ({@code signal.web}) range des sources et des actualités cloisonnées par espace et
+     * par compte : elle applique la RLS par le mécanisme unique {@code workspace.ContexteBase} et signale
+     * ses refus par les erreurs communes du domaine ({@code DonneeInvalide}, {@code RegleViolee}). Elle
+     * n'emprunte rien d'autre au module {@code workspace} (ADR-0016).
+     */
+    @Test
+    void signalNEmprunteQueRlsEtErreurs() {
+        Set<String> autorisees = Set.of(ROOT + ".workspace.ContexteBase", ROOT + ".workspace.DonneeInvalide",
+                ROOT + ".workspace.RegleViolee");
+        noClasses().that().resideInAPackage(ROOT + ".signal..")
+                .should().dependOnClassesThat(DescribedPredicate.describe(
+                        "classes de workspace hors ContexteBase, DonneeInvalide et RegleViolee",
+                        (JavaClass c) -> c.getPackageName().startsWith(ROOT + ".workspace")
+                                && autorisees.stream().noneMatch(a -> c.getName().equals(a) || c.getName().startsWith(a + "$"))))
+                .because("arc42 §5 : dans le module workspace, signal ne dépend que de ContexteBase et des erreurs communes")
                 .check(classes);
     }
 }

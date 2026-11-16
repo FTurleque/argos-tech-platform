@@ -6,7 +6,6 @@ import java.util.UUID;
 import jakarta.inject.Inject;
 import jakarta.ws.rs.DefaultValue;
 import jakarta.ws.rs.GET;
-import jakarta.ws.rs.NotFoundException;
 import jakarta.ws.rs.POST;
 import jakarta.ws.rs.Path;
 import jakarta.ws.rs.PathParam;
@@ -21,6 +20,8 @@ import org.eclipse.microprofile.openapi.annotations.tags.Tag;
 import io.argos.alerting.ConsultationAlertes;
 import io.argos.api.security.Access;
 import io.argos.api.security.Caller;
+import io.argos.workspace.Introuvable;
+import io.argos.workspace.RegleViolee;
 
 /**
  * Alertes et résumés de l'appelant (ALR-06). Contrat du client desktop ({@code notifier-sur-le-poste}) :
@@ -62,15 +63,14 @@ public class AlertesResource {
         Caller caller = access.authenticated();
         return switch (alertes.remettre(caller.accountId(), id)) {
             case REMISE -> Response.ok(alertes.obtenir(caller.accountId(), id).orElseThrow()).build();
-            case CANAL_NON_DESKTOP -> Response.status(Response.Status.CONFLICT)
-                    .entity(new Erreur("CANAL_NON_DESKTOP", "seule une alerte du canal DESKTOP est remise au client desktop",
-                            "canal")).build();
+            case CANAL_NON_DESKTOP -> throw new RegleViolee("CANAL_NON_DESKTOP",
+                    "seule une alerte du canal DESKTOP est remise au client desktop");
             case INTROUVABLE -> throw introuvable(id);
         };
     }
 
     /** Alerte d'un autre compte : refus journalisé, réponse « introuvable » ; sinon simple 404. */
     private RuntimeException introuvable(UUID id) {
-        return alertes.existe(id) ? access.outOfScope() : new NotFoundException();
+        return alertes.existe(id) ? access.outOfScope() : new Introuvable("alerte inconnue");
     }
 }

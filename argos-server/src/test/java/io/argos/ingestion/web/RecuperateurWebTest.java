@@ -127,4 +127,36 @@ class RecuperateurWebTest {
         assertEquals(Motif.REPONSE_HTTP, assertThrows(RecuperationRefusee.class,
                 () -> recuperateur(absent, 1000).recuperer("https://flux.exemple.test/")).motif());
     }
+
+    /** Un serveur qui envoie ses en-têtes puis se tait : la lecture est interrompue à l'échéance. */
+    @Test
+    void corpsMuetInterrompuALEcheance() {
+        java.util.concurrent.CountDownLatch ferme = new java.util.concurrent.CountDownLatch(1);
+        InputStream muet = new InputStream() {
+            @Override
+            public int read() throws java.io.IOException {
+                try {
+                    // Comme le corps d'une réponse HttpClient : bloqué jusqu'à des données ou la fermeture.
+                    if (ferme.await(30, java.util.concurrent.TimeUnit.SECONDS)) {
+                        throw new java.io.IOException("flux fermé");
+                    }
+                    return -1;
+                } catch (InterruptedException e) {
+                    Thread.currentThread().interrupt();
+                    throw new java.io.IOException(e);
+                }
+            }
+
+            @Override
+            public void close() {
+                ferme.countDown();
+            }
+        };
+        TransportSimule silencieux = new TransportSimule(uri -> new RecuperateurWeb.Reponse(200, Optional.empty(),
+                Optional.of("application/atom+xml"), muet));
+        long debut = System.nanoTime();
+        assertEquals(Motif.DELAI_DEPASSE, assertThrows(RecuperationRefusee.class,
+                () -> recuperateur(silencieux, 1000).recuperer("https://flux.exemple.test/")).motif());
+        org.junit.jupiter.api.Assertions.assertTrue(System.nanoTime() - debut < 10_000_000_000L);
+    }
 }

@@ -64,7 +64,7 @@ Identiques au portail : l'appelant et ses espaces sont établis par le même `Ca
 
 ## Effets de bord observables
 
-- Une ligne par appel d'outil dans la table `mcp_appel` (migration V9, module `audit`) : compte ou sujet OIDC, outil, paramètres sérialisés et bornés à 2 000 caractères, durée, issue (`SUCCES`, `PARAMETRES_INVALIDES`, `REFUS_ACCES`, `REFUS_LIMITE`, `ERREUR`). Le résultat renvoyé n'y est jamais recopié. Le rôle `argos_app` n'a aucun droit sur cette table.
+- Une ligne par appel d'outil dans la table `mcp_appel` (migration V9, module `audit`) : compte ou sujet OIDC, outil, paramètres sérialisés et bornés à 2 000 caractères, durée, issue (`SUCCES`, `PARAMETRES_INVALIDES`, `INTROUVABLE`, `REFUS_ACCES`, `REFUS_LIMITE`, `ERREUR`). Le résultat renvoyé n'y est jamais recopié. Le rôle `argos_app` n'a aucun droit sur cette table.
 - Les refus d'accès, de limite et d'inscription sont aussi inscrits au journal unique des refus `refus_acces` avec la ressource `MCP tools/call <outil>`, sans paramètre (ACC-06).
 - Aucune donnée métier n'est modifiée.
 
@@ -104,8 +104,8 @@ Scénarios MCP-01-S1 à MCP-07-S1 du changement, couverts par les tests de `argo
 ## Interprétations introduites par un changement
 
 - [PROPOSITION] Le référentiel des standards, le calendrier des sorties et les fiches réglementaires sont lus par trois points d'extension en lecture : `io.argos.catalog.standard.ReferentielStandards`, `io.argos.releaseradar.CalendrierSorties`, `io.argos.regintel.FichesReglementaires`. Tant que `construire-radar-et-standards` et `suivre-veille-reglementaire` ne sont pas livrés, leurs implémentations par défaut ne connaissent aucune donnée : `get_technology_standard`, `upcoming_releases` et `get_regulatory_changes` répondent « aucune information connue », et `check_dependency` ne renvoie ni statut, ni version recommandée, ni fin de support. Les tests de MCP-02-S1 et MCP-07-S1 utilisent des implémentations simulées de ces points d'extension.
-- [PROPOSITION] Champs externes balisés : titre et résumé des signaux, notes du calendrier des sorties, titre officiel des textes réglementaires. Les identifiants (identifiant d'avis, alias, PURL, sévérité déclarée) ne sont pas balisés.
-- [PROPOSITION] `explain_change` explique l'évolution d'un signal : versions successives de l'avis, dates, impacts dans le périmètre de l'utilisateur ; explication produite par Argos, sans IA.
+- [PROPOSITION] Champs externes balisés : titre et résumé des signaux, notes du calendrier des sorties, titre officiel des textes réglementaires. Les identifiants (identifiant d'avis, alias, PURL, sévérité déclarée) ne sont pas balisés mais restent dans leurs champs propres : aucun texte d'une source n'entre dans un champ rédigé par Argos, comme l'explication d'`explain_change`. Le test MCP-05 couvre `search_signals` ; les identifiants libres d'une future source (veille web) devront être réexaminés.
+- [PROPOSITION] `explain_change` explique l'évolution d'un signal : versions successives de l'avis, dates, impacts dans le périmètre de l'utilisateur ; explication produite par Argos, sans IA et sans texte de la source.
 - [PROPOSITION] Seule la version de protocole 2026-07-28 (sans état) est admise : un client limité aux versions avec session est refusé. Paramétrable par `quarkus.mcp.server.supported-protocol-versions`.
 - [PROPOSITION] Le compteur de débit est tenu en mémoire de l'instance unique (ADR-0017, ADR-0026).
 - [PROPOSITION] Le module `mcp` dépend de `api.security` (établissement de l'appelant) et de lui seul dans `api` (`ModuleBoundariesTest.mcpNeLitQueLaSecuriteDeLApi`).
@@ -129,7 +129,7 @@ Scénarios MCP-01-S1 à MCP-07-S1 du changement, couverts par les tests de `argo
 |---|---|---|---|---|
 | MCP-01 | MCP-01-S1, MCP-01-S2 | D1 | 2.1, 3.2, 3.4 | `ContratOutilsMcpTest` |
 | MCP-02 | MCP-02-S1, MCP-02-S2 | DC-1 | 3.1 | `OutilsConsultationMcpTest` |
-| MCP-03 | MCP-03-S1 | DC-1 | 1.1, 2.2 | `AuthentificationMcpTest` |
+| MCP-03 | MCP-03-S1 | DC-1 | 1.1, 2.2 | `AuthentificationMcpTest` (dont `jetonDuFluxAppareilAccepteSurMcp`) |
 | MCP-04 | MCP-04-S1 | DC-1 | 2.2, 3.2 | `CloisonnementMcpTest` |
 | MCP-05 | MCP-05-S1 | DC-1 | 2.3 | `ContenuExterneMcpTest` |
 | MCP-06 | MCP-06-S1 | DC-1 | 2.4 | `LimiteDebitMcpTest` |

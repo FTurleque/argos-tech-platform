@@ -91,4 +91,20 @@ class LimiteDebitMcpTest {
         assertFalse(limiteur.admettre(compte));
         assertTrue(limiteur.admettre(UUID.randomUUID()));
     }
+
+    /** Les fenêtres échues sont retirées : la mémoire du limiteur ne croît pas avec les comptes inactifs. */
+    @Test
+    void fenetresEchuesRetirees() {
+        LimiteurDebit limiteur = new LimiteurDebit();
+        limiteur.requetesParMinute = 60;
+        long[] maintenant = {0};
+        limiteur.horloge = () -> maintenant[0];
+        for (int i = 0; i < 255; i++) {
+            limiteur.admettre(UUID.randomUUID());
+        }
+        assertEquals(255, limiteur.comptesSuivis());
+        maintenant[0] = 61_000;
+        limiteur.admettre(UUID.randomUUID());
+        assertEquals(1, limiteur.comptesSuivis());
+    }
 }

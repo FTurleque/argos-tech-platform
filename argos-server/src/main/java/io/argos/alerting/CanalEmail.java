@@ -43,7 +43,8 @@ public class CanalEmail implements CanalDiffusion {
             case "WEEKLY" -> "[Argos] Résumé hebdomadaire";
             default -> "[Argos] Alerte" + (m.gravite() == null ? "" : " " + m.gravite());
         };
-        return prefixe + " : " + m.titre();
+        // Le titre vient d'une source externe : aucun retour à la ligne ne doit atteindre l'en-tête.
+        return (prefixe + " : " + m.titre()).replaceAll("[\r\n\t]+", " ").strip();
     }
 
     /** Corps texte : pour chaque élément, titre, gravité, projets, sources et lien ; puis l'état du résumé IA. */

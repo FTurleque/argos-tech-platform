@@ -33,7 +33,7 @@
 
 | Tâche | Preuve | Résultat |
 |---|---|---|
-| 2.1 | `argos-server/pom.xml` : `io.quarkiverse.mcp:quarkus-mcp-server-http` 2.0.4, licence Apache-2.0 consignée (dépendances transitives `quarkus-mcp-server-core`, `quarkus-mcp-server-sse-client`, `org.mcpjava:mcp-server-api` 1.0.0, `com.github.victools:jsonschema-generator` 4.38.0 : Apache-2.0) ; `application.properties` : `quarkus.mcp.server.supported-protocol-versions=2026-07-28` ; `ContratOutilsMcpTest` (liste, schémas, transport sans état, découverte) | passe |
+| 2.1 | `argos-server/pom.xml` : `io.quarkiverse.mcp:quarkus-mcp-server-http` 2.0.4, licence Apache-2.0 consignée (dépendances transitives `quarkus-mcp-server-core`, `quarkus-mcp-server-sse-client`, `org.mcpjava:mcp-server-api` 1.0.0, `com.github.victools:jsonschema-generator` 4.38.0, `jsonschema-module-jackson`, `jsonschema-module-jakarta-validation`, `jsonschema-module-swagger-2` : Apache-2.0) ; `application.properties` : `quarkus.mcp.server.supported-protocol-versions=2026-07-28` ; `ContratOutilsMcpTest` (liste, schémas, transport sans état, découverte) | passe |
 | 2.2 | `GardeAppels` (appelant par `CallerResolver`, refus journalisés) ; `AuthentificationMcpTest`, `CloisonnementMcpTest` (dont RLS sous `argos_app`) ; règle `ModuleBoundariesTest.mcpNeLitQueLaSecuriteDeLApi` | passe |
 | 2.3 | `BalisageExterne`, `TexteExterne` ; `ContenuExterneMcpTest` | passe |
 | 2.4 | `LimiteurDebit`, `audit.JournalAppelsMcp`, migration `V9__journal_appels_mcp.sql` ; `LimiteDebitMcpTest` (profil de test à 3 appels par minute) | passe |
@@ -57,7 +57,7 @@ Suite complète : `mvn -B -f argos-server/pom.xml verify` — « Tests run: 193,
 | MCP-01 | MCP-01-S2 | D1 | 2.1, 3.4 | `ContratOutilsMcpTest.mcp01S2OutilInconnu` | passe |
 | MCP-02 | MCP-02-S1 | DC-1 | 3.1 | `OutilsConsultationMcpTest.mcp02S1VersionVulnerable` (référentiel simulé) | passe |
 | MCP-02 | MCP-02-S2 | DC-1 | 3.1 | `OutilsConsultationMcpTest.mcp02S2DependanceInconnue` | passe |
-| MCP-03 | MCP-03-S1 | DC-1 | 1.1, 2.2 | `AuthentificationMcpTest.mcp03S1AppelSansJeton`, `jetonInvalideOuAutreAudience`, `fluxAppareilDuClientMcp` | passe |
+| MCP-03 | MCP-03-S1 | DC-1 | 1.1, 2.2 | `AuthentificationMcpTest.mcp03S1AppelSansJeton`, `jetonInvalideOuAutreAudience`, `fluxAppareilDuClientMcp`, `jetonDuFluxAppareilAccepteSurMcp` (flux d'appareil complet du client `argos-mcp` : connexion sur la page de vérification du Keycloak de test, jeton accepté sur `POST /mcp`) | passe |
 | MCP-04 | MCP-04-S1 | DC-1 | 2.2, 3.2 | `CloisonnementMcpTest.mcp04S1ProjetDUnAutreEspace`, `rlsSousLeRoleApplicatif` | passe |
 | MCP-05 | MCP-05-S1 | DC-1 | 2.3 | `ContenuExterneMcpTest.mcp05S1TexteContenantUneConsigne` | passe |
 | MCP-06 | MCP-06-S1 | DC-1 | 2.4 | `LimiteDebitMcpTest.mcp06S1LimiteDepassee` | passe |

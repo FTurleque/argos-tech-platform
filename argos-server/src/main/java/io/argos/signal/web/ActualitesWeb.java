@@ -14,10 +14,11 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
 
-import javax.sql.DataSource;
-
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.inject.Inject;
+
+import io.argos.workspace.ContexteBase;
+import io.argos.workspace.ContexteBase.Contexte;
 
 /**
  * Restitution des actualités web (WEB-01-S1, WEB-04, WEB-05) sous le rôle {@code argos_app} avec le
@@ -61,12 +62,12 @@ public class ActualitesWeb {
     static final int RESUME_MAX = 280;
 
     @Inject
-    DataSource dataSource;
+    ContexteBase base;
 
     /** Actualités visibles du compte, les plus récentes d'abord ; filtrées sur un espace s'il est donné. */
     public List<Actualite> lister(UUID compteId, UUID espaceId, int limite) {
         int l = Math.min(Math.max(limite, 1), 200);
-        return SessionRls.executer(dataSource, compteId, null, c -> {
+        return base.executer(new Contexte(compteId, null, null), c -> {
             String filtre = espaceId == null ? "" : """
                      AND EXISTS (SELECT 1 FROM actualite_source x JOIN source_web w ON w.id = x.source_id
                                  WHERE x.actualite_id = a.id AND w.espace_id = ?)""";
@@ -84,7 +85,7 @@ public class ActualitesWeb {
     }
 
     public Optional<Detail> detail(UUID id, UUID compteId) {
-        return SessionRls.executer(dataSource, compteId, null, c -> {
+        return base.executer(new Contexte(compteId, null, null), c -> {
             try (PreparedStatement ps = c.prepareStatement(
                     "SELECT a.id, a.type, a.titre, a.lien, a.publie_le, a.recu_le, a.texte FROM actualite a WHERE a.id = ?")) {
                 ps.setObject(1, id);

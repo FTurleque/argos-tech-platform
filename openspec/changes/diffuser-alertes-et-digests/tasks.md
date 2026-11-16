@@ -15,7 +15,7 @@
 
 ## 3. Résumés et canaux
 
-- [x] 3.1 Planifier et composer les résumés quotidiens et hebdomadaires — couvre ALR-04-S1, ALR-04-S2 — vérification : tests avec horloge simulée passent
+- [x] 3.1 Planifier et composer les résumés quotidiens et hebdomadaires — couvre ALR-04-S1, ALR-04-S2 — vérification : tests avec horloge simulée passent (ALR-04-S1 prouvé pour les signaux de sécurité ; « l'actualité » du scénario est interprétée comme les éléments de veille ayant un impact de sécurité : les actualités de la veille web n'entrent dans aucun résumé, interprétation [PROPOSITION] à faire valider, question Q-5 de la fiche `alertes-digests`)
 - [x] 3.2 Envoyer par e-mail avec nouvelles tentatives et état d'échec — couvre ALR-06-S1, ALR-06-S2 — vérification : tests avec SMTP de test passent
 - [x] 3.3 Exposer les alertes au client desktop (contrat utilisé par `notifier-sur-le-poste`) — couvre ALR-06 — vérification : test de contrat passe
 
@@ -30,7 +30,7 @@
 
 ## Matrice de traçabilité
 
-État au 2026-11-16 : toutes les tâches sont réalisées et leurs vérifications réussissent. Commande : `mvn -B -f argos-server/pom.xml verify` (Docker requis pour le PostgreSQL et le Keycloak des Dev Services). Tests : `argos-server/src/test/java/io/argos/alerting/` (`AlertesTest`, `EchecSmtpTest`, `RegleAlerteTest`), règles d'architecture `ModuleBoundariesTest` et `SubscriptionIsolationTest`.
+État au 2026-11-16 : toutes les tâches sont réalisées et leurs vérifications réussissent. Commande : `mvn -B -f argos-server/pom.xml verify` (Docker requis pour le PostgreSQL et le Keycloak des Dev Services). Tests : `argos-server/src/test/java/io/argos/alerting/` (`AlertesTest`, `EchecSmtpTest`, `RelaisMuetTest`, `RegleAlerteTest`), règles d'architecture `ModuleBoundariesTest` et `SubscriptionIsolationTest`.
 
 | Exigence | Scénario | Conception / diagramme | Tâche | Test ou preuve | État de la preuve |
 |---|---|---|---|---|---|
@@ -38,11 +38,11 @@
 | ALR-01 | ALR-01-S2 | DC-1 | 2.2 | `AlertesTest.alr01S2GraviteInsuffisanteDansLeProchainResume`, `AlertesTest.graviteMinimaleInconnueRefuseeALaCreationDeLaRegle` | passe |
 | ALR-02 | ALR-02-S1 | DC-1 | 2.2 | `AlertesTest.alr02S1CorrespondanceAVerifierSansAlerteEtVisibleDansLeFil` | passe |
 | ALR-03 | ALR-03-S1 | DC-1 | 2.1, 2.3 | `AlertesTest.alr03S1SignalTouchantTroisProjetsUneSeuleAlerte` (deux règles et un rejeu), `AlertesTest.cleDIdempotenceUniqueParSignalCompteEtCanal` (SQLSTATE 23505) | passe |
-| ALR-04 | ALR-04-S1 | DC-1 | 3.1 | `AlertesTest.alr04S1ResumeHebdomadaireAvecSources`, `AlertesTest.horairesDesResumesConformesALaDecisionQ3` (horloge simulée) | passe |
+| ALR-04 | ALR-04-S1 | DC-1 | 3.1 | `AlertesTest.alr04S1ResumeHebdomadaireAvecSources`, `AlertesTest.horairesDesResumesConformesALaDecisionQ3` (interprétation des expressions cron ; le déclenchement réel par Quarkus Scheduler n'est pas exercé, tâches planifiées désactivées en test) | passe pour les signaux de sécurité ; actualités de la veille web non couvertes ([PROPOSITION], Q-5 de la fiche) |
 | ALR-04 | ALR-04-S2 | DC-1 | 3.1 | `AlertesTest.alr04S2RienDeNouveauAucunResume` | passe |
 | ALR-05 | ALR-05-S1 | DC-1 | 2.4 | `AlertesTest.alr05S1PlafondIaAtteintAlerteEnvoyeeSansResume` ; QS-10 : `AlertesTest.qs10IaIndisponibleRefuseeOuTropLenteNeRetientPasLAlerte` | passe |
 | ALR-06 | ALR-06-S1 | DC-1 | 1.1, 3.2, 3.3 | `AlertesTest.alr01S1EtAlr06S1FailleCritiqueSurUnProjetSuiviEnvoyeeParEmail`, `cloisonnementLesProjetsCitesSontCeuxDesEspacesDuDestinataire`, `contratDuClientDesktopListeRemiseEtCloisonnement`, `contratOpenApiDesAlertes`, `remiseRefuseePourUneAlerteEmail`, `rlsUnCompteNeVoitQueSesAlertes` (rôle `argos_app`) | passe |
-| ALR-06 | ALR-06-S2 | DC-1 | 1.1, 3.2, 3.3 | `EchecSmtpTest.alr06S2EnvoiRetenteMarqueEnEchecEtAlerteVisible` (client SMTP réel vers un port local fermé) ; `RegleAlerteTest.delaiDesNouvellesTentativesCroissantEtPlafonne` | passe |
+| ALR-06 | ALR-06-S2 | DC-1 | 1.1, 3.2, 3.3 | `EchecSmtpTest.alr06S2EnvoiRetenteMarqueEnEchecEtAlerteVisible` (client SMTP réel vers un port local fermé) ; `RelaisMuetTest.alr06S2RelaisMuetChaqueTentativeEstCompteePuisEnEchec` (connexion acceptée sans réponse, délai d'envoi de 2 s) ; `RelaisMuetTest.contenuIllisibleCompteUneTentativeEtPasseEnEchec` ; `RegleAlerteTest.delaiDesNouvellesTentativesCroissantEtPlafonne` | passe |
 
 Parcours 5.2 : `AlertesTest.parcoursFailleCritiqueAlerteEmailEtDesktopPuisResumeDuLendemainSansDoublon`. Faille critique de test, impact `EXACT`, alerte e-mail envoyée et alerte desktop en attente de remise 75 ms après le début de la collecte (exécution complète de `verify` du 2026-11-16, 187 tests au vert ; 321 ms en exécution isolée ; très en deçà de la cible d'une heure, Q-4 non validée) ; le résumé du lendemain (e-mail et desktop) cite l'élément non alerté et omet l'élément déjà alerté ; un second résumé et une nouvelle diffusion n'envoient rien de plus.
 
@@ -50,7 +50,7 @@ Vérifications documentaires : `node scripts/verifier-docs.mjs` sans erreur ; `o
 
 ## Workflow follow-up
 
-- Basculer dans la fiche durable les statuts [PROPOSITION] de ce changement en [EXIGENCE] ou [EXISTANT] selon les preuves obtenues.
+- À l'archivage, après validation des exigences : passer la capacité `alertes-digests` de « proposée » à « livrée » et les exigences de la spec de [PROPOSITION] à [EXIGENCE]. Les règles métier prouvées par un test sont déjà [EXISTANT] dans la fiche ; les décisions non validées restent [PROPOSITION].
 - Archiver le changement uniquement sur demande explicite, après revue (`openspec archive diffuser-alertes-et-digests`).
 - Après archivage, vérifier que la section Purpose de la spec principale contient le lien vers la fiche durable.
 - Après archivage, remplacer dans la fiche les liens vers `/openspec/changes/diffuser-alertes-et-digests/` par la spec principale ou le dossier d'archive, puis exécuter `node scripts/verifier-docs.mjs`.

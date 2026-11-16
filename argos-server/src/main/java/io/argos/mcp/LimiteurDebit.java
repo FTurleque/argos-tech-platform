@@ -6,6 +6,7 @@ import java.util.Deque;
 import java.util.Map;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.atomic.AtomicLong;
 import java.util.function.LongSupplier;
 
 import jakarta.enterprise.context.ApplicationScoped;
@@ -25,7 +26,11 @@ public class LimiteurDebit {
 
     private static final Duration FENETRE = Duration.ofMinutes(1);
 
+    /** Fréquence de retrait des fenêtres échues, en nombre d'appels. */
+    private static final int NETTOYAGE_TOUS_LES = 256;
+
     private final Map<UUID, Deque<Long>> appels = new ConcurrentHashMap<>();
+    private final AtomicLong compteur = new AtomicLong();
 
     @ConfigProperty(name = "argos.mcp.debit.requetes-par-minute", defaultValue = "60")
     int requetesParMinute;
@@ -37,6 +42,9 @@ public class LimiteurDebit {
     public boolean admettre(UUID compte) {
         long maintenant = horloge.getAsLong();
         long debutFenetre = maintenant - FENETRE.toMillis();
+        if (compteur.incrementAndGet() % NETTOYAGE_TOUS_LES == 0) {
+            nettoyer(debutFenetre);
+        }
         Deque<Long> fenetre = appels.computeIfAbsent(compte, c -> new ArrayDeque<>());
         synchronized (fenetre) {
             while (!fenetre.isEmpty() && fenetre.peekFirst() <= debutFenetre) {
@@ -48,5 +56,20 @@ public class LimiteurDebit {
             fenetre.addLast(maintenant);
             return true;
         }
+    }
+
+    /** Retire les fenêtres dont tous les appels sont échus : la mémoire suit les comptes actifs. */
+    private void nettoyer(long debutFenetre) {
+        appels.entrySet().removeIf(e -> {
+            Deque<Long> fenetre = e.getValue();
+            synchronized (fenetre) {
+                return fenetre.isEmpty() || fenetre.peekLast() <= debutFenetre;
+            }
+        });
+    }
+
+    /** Nombre de comptes suivis (tests). */
+    int comptesSuivis() {
+        return appels.size();
     }
 }

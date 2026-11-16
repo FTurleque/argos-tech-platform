@@ -24,7 +24,7 @@ import org.jboss.logging.Logger;
 public class JournalAppelsMcp {
 
     /** Issue d'un appel. */
-    public enum Issue { SUCCES, PARAMETRES_INVALIDES, REFUS_ACCES, REFUS_LIMITE, ERREUR }
+    public enum Issue { SUCCES, PARAMETRES_INVALIDES, INTROUVABLE, REFUS_ACCES, REFUS_LIMITE, ERREUR }
 
     private static final Logger LOG = Logger.getLogger(JournalAppelsMcp.class);
     private static final int LONGUEUR_MAX_OUTIL = 100;

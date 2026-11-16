@@ -38,7 +38,7 @@
 | WEB-01 | WEB-01-S2 | DC-1, DF-WEB-1 | 1.1, 2.1 | `VeilleWebTest.adresseSansFluxRefuseeSansCreerDeSource` ; `LecteursTest.pageHtmlOuDoctypeRefusesCommeFlux` | passe |
 | WEB-02 | WEB-02-S1 | DC-1 | 1.1, 3.1 | `VeilleWebTest.pageSurveilleeModifieeCreeUnElementDateAvecApercu` ; `LecteursTest.pageLueParBlocsEtApercuDuChangement` | passe |
 | WEB-03 | WEB-03-S1 | DC-1, DF-WEB-1 | 2.1 | `VeilleWebTest.adressePriveeRefuseeSansRequete` ; `RecuperateurWebTest.adressePriveeRefuseeSansAucuneRequete` ; `GardeAdressesTest` (29 cas) | passe |
-| WEB-03 | WEB-03-S2 | DC-1 | 2.1 | `VeilleWebTest.redirectionVersAdresseLocaleMetLaSourceEnErreur` ; `RecuperateurWebTest.redirectionVersLaBoucleLocaleInterrompue` ; durée bornée : `VeilleWebTest.recuperationTropLongueInterrompue`, `RecuperateurWebTest.delaiEtTailleBornes` | passe |
+| WEB-03 | WEB-03-S2 | DC-1 | 2.1 | `VeilleWebTest.redirectionVersAdresseLocaleMetLaSourceEnErreur` ; `RecuperateurWebTest.redirectionVersLaBoucleLocaleInterrompue` ; durée bornée : `VeilleWebTest.recuperationTropLongueInterrompue`, `RecuperateurWebTest.delaiEtTailleBornes`, `RecuperateurWebTest.corpsMuetInterrompuALEcheance` (en-têtes reçus puis silence : corps fermé à l'échéance) | passe |
 | WEB-04 | WEB-04-S1 | DC-1 | 3.3 | `VeilleWebTest.articlePiegeCiteCommeDonneeSansEffetSurLesImpacts` (résumé extractif ; passerelle IA réelle absente, voir écart) | passe |
 | WEB-05 | WEB-05-S1 | DC-1 | 3.2 | `VeilleWebTest.memeArticleDansDeuxFluxRestitueUneFoisAvecSesDeuxSources` ; `ParcoursVeilleWebTest.parcoursVeilleWeb` | passe |
 | WEB-06 | WEB-06-S1 | DC-1 | 3.4 | `VeilleWebTest.articleSurUneTechnologieUtiliseeRapprocheAVerifierSansAlerte`, `sourcePersonnelleNeRapprocheAucunProjet` ; `TermesTechnologieTest` | passe |

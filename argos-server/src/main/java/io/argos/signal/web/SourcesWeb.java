@@ -12,8 +12,6 @@ import java.util.Locale;
 import java.util.Optional;
 import java.util.UUID;
 
-import javax.sql.DataSource;
-
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.inject.Inject;
 
@@ -23,13 +21,17 @@ import io.argos.ingestion.web.LecteurFlux;
 import io.argos.ingestion.web.LecteurPage;
 import io.argos.ingestion.web.RecuperateurWeb;
 import io.argos.ingestion.web.RecuperationRefusee;
+import io.argos.workspace.ContexteBase;
+import io.argos.workspace.DonneeInvalide;
+import io.argos.workspace.RegleViolee;
+import io.argos.workspace.ContexteBase.Contexte;
 
 /**
  * Sources de veille web d'un espace ou personnelles (WEB-01, WEB-02, WEB-03, Q-3).
  *
  * <p>Ce service ne décide d'aucune autorisation : la couche d'exposition vérifie qu'une source
  * d'espace est créée ou supprimée par un administrateur de l'espace. Chaque transaction s'exécute
- * sous le rôle {@code argos_app} avec le compte de l'appelant ({@link SessionRls}) : les politiques
+ * sous le rôle {@code argos_app} avec le compte de l'appelant ({@link ContexteBase}) : les politiques
  * de la migration V10 refont le contrôle (source personnelle visible de son seul propriétaire,
  * source d'espace visible de ses membres et créée par ses administrateurs).
  *
@@ -49,7 +51,7 @@ public class SourcesWeb {
             derniere_collecte_le, dernier_succes_le, prochaine_collecte_le, cree_le""";
 
     @Inject
-    DataSource dataSource;
+    ContexteBase base;
 
     @Inject
     RecuperateurWeb recuperateur;
@@ -80,14 +82,14 @@ public class SourcesWeb {
             titre = SourceWeb.FLUX.equals(d.type()) ? lecteurFlux.lire(contenu.octets()).titre()
                     : lecteurPage.lire(contenu.octets(), contenu.typeContenu(), contenu.adresseFinale().toString()).titre();
         } catch (RecuperationRefusee e) {
-            throw new SourceWebRefusee(e.motif().name(), e.getMessage(), "adresse");
+            throw new DonneeInvalide(e.motif().name(), e.getMessage(), "adresse");
         }
         String adresse = normaliser(d.adresse());
         String libelle = d.libelle() != null ? d.libelle()
                 : !titre.isBlank() ? titre : contenu.adresseFinale().getHost();
         UUID id = UUID.randomUUID();
         UUID espace = personnelle ? null : d.espaceId();
-        SessionRls.executer(dataSource, compteId, espace, c -> {
+        base.executer(new Contexte(compteId, null, espace), c -> {
             if (personnelle) {
                 try (PreparedStatement ps = c.prepareStatement("SELECT pg_advisory_xact_lock(hashtext(?))")) {
                     ps.setString(1, "source_web:" + compteId);
@@ -111,7 +113,7 @@ public class SourcesWeb {
                 ps.executeUpdate();
             } catch (SQLException e) {
                 if ("23505".equals(e.getSQLState())) {
-                    throw new RegleSourceWebViolee("SOURCE_EXISTANTE", "Cette adresse est déjà suivie.");
+                    throw new RegleViolee("SOURCE_EXISTANTE", "Cette adresse est déjà suivie.");
                 }
                 throw e;
             }
@@ -123,18 +125,18 @@ public class SourcesWeb {
 
     /** Sources visibles du compte : les siennes et celles des espaces dont il est membre. */
     public List<SourceWeb> visibles(UUID compteId) {
-        return SessionRls.executer(dataSource, compteId, null, c -> lire(c,
+        return base.executer(new Contexte(compteId, null, null), c -> lire(c,
                 "SELECT " + COLONNES + " FROM source_web ORDER BY portee, libelle, id"));
     }
 
     public Optional<SourceWeb> trouver(UUID id, UUID compteId) {
-        return SessionRls.executer(dataSource, compteId, null,
+        return base.executer(new Contexte(compteId, null, null),
                 c -> lire(c, "SELECT " + COLONNES + " FROM source_web WHERE id = ?", id)).stream().findFirst();
     }
 
     /** Supprime une source visible ; renvoie faux si la politique RLS l'a refusé. */
     public boolean supprimer(SourceWeb source, UUID compteId) {
-        return SessionRls.executer(dataSource, compteId, source.espaceId(), c -> {
+        return base.executer(new Contexte(compteId, null, source.espaceId()), c -> {
             try (PreparedStatement ps = c.prepareStatement("DELETE FROM source_web WHERE id = ?")) {
                 ps.setObject(1, source.id());
                 return ps.executeUpdate() == 1;
@@ -143,14 +145,14 @@ public class SourcesWeb {
     }
 
     private void verifierLimite(UUID compteId) {
-        long nombre = SessionRls.executer(dataSource, compteId, null, SourcesWeb::compterPersonnelles);
+        long nombre = base.executer(new Contexte(compteId, null, null), SourcesWeb::compterPersonnelles);
         if (nombre >= sourcesPersonnellesMax) {
             throw limite();
         }
     }
 
-    private RegleSourceWebViolee limite() {
-        return new RegleSourceWebViolee("LIMITE_SOURCES",
+    private RegleViolee limite() {
+        return new RegleViolee("LIMITE_SOURCES",
                 "Nombre maximal de sources personnelles atteint (" + sourcesPersonnellesMax + ").");
     }
 
@@ -165,21 +167,21 @@ public class SourcesWeb {
 
     static Demande valider(Demande d) {
         if (d == null) {
-            throw new SourceWebRefusee("DONNEE_INVALIDE", "Demande vide.", "adresse");
+            throw new DonneeInvalide("DONNEE_INVALIDE", "Demande vide.", "adresse");
         }
         String portee = d.portee() == null ? "" : d.portee().strip().toUpperCase(Locale.ROOT);
         if (!portee.equals(SourceWeb.ESPACE) && !portee.equals(SourceWeb.PERSONNELLE)) {
-            throw new SourceWebRefusee("DONNEE_INVALIDE", "Portée attendue : ESPACE ou PERSONNELLE.", "portee");
+            throw new DonneeInvalide("DONNEE_INVALIDE", "Portée attendue : ESPACE ou PERSONNELLE.", "portee");
         }
         if (portee.equals(SourceWeb.ESPACE) && d.espaceId() == null) {
-            throw new SourceWebRefusee("DONNEE_INVALIDE", "Espace obligatoire pour une source d'espace.", "espaceId");
+            throw new DonneeInvalide("DONNEE_INVALIDE", "Espace obligatoire pour une source d'espace.", "espaceId");
         }
         if (portee.equals(SourceWeb.PERSONNELLE) && d.espaceId() != null) {
-            throw new SourceWebRefusee("DONNEE_INVALIDE", "Une source personnelle n'a pas d'espace.", "espaceId");
+            throw new DonneeInvalide("DONNEE_INVALIDE", "Une source personnelle n'a pas d'espace.", "espaceId");
         }
         String type = d.type() == null ? SourceWeb.FLUX : d.type().strip().toUpperCase(Locale.ROOT);
         if (!type.equals(SourceWeb.FLUX) && !type.equals(SourceWeb.PAGE)) {
-            throw new SourceWebRefusee("DONNEE_INVALIDE", "Type attendu : FLUX ou PAGE.", "type");
+            throw new DonneeInvalide("DONNEE_INVALIDE", "Type attendu : FLUX ou PAGE.", "type");
         }
         String libelle = d.libelle() == null || d.libelle().isBlank() ? null : d.libelle().strip();
         return new Demande(portee, d.espaceId(), type, d.adresse(), libelle);
