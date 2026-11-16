@@ -68,7 +68,7 @@ Non applicable : une recherche n'a pas d'état ; une vue est créée puis suppri
 | `DELETE /api/v1/vues/{id}` | — | 204 | 401, 404 |
 | MCP `search_signals` | `query`, `technologies`, `packages`, `sources`, `project_ids`, `severity`, `horizon_days`, `limit` | `Signaux` : `nombre`, `signaux[]` (champs existants, plus `pertinence` et `projets`) | `PARAMETRES_INVALIDES`, `INTROUVABLE` |
 
-Les champs ajoutés à `search_signals` sont facultatifs : les appels existants (critères `technologies`, `packages`, `sources`) gardent leur résultat ; les critères se combinent désormais par ET.
+Les paramètres ajoutés à `search_signals` sont facultatifs, mais le contrat de l'outil change pour les appels existants : c'est une rupture assumée du contrat MCP (D6). Avant, `SignalQueries.search` combinait les critères `technologies`, `packages` et `sources` par OU et triait par date de modification décroissante ; désormais, tous les critères se combinent par ET, le tri se fait par pertinence puis par date (publication, sinon modification), et une technologie correspond aussi à un mot du titre ou du résumé. Un appel limité à `technologies` peut donc renvoyer d'autres signaux, et un appel qui combine `technologies` et `sources` en renvoie moins.
 
 ## Persistance et intégrité
 
@@ -105,7 +105,7 @@ Cible : celle de arc42 §10.2 Q-05 (API p95 < 500 ms). Mesure par la campagne `M
 
 ## Compatibilité, migration et retour arrière
 
-La migration ajoute des colonnes générées et réécrit `signal` et `actualite` ; aucun contrat REST existant ne change. Retour arrière : supprimer la table, les fonctions, les index et les colonnes de V11.
+La migration ajoute des colonnes générées et réécrit `signal` et `actualite` ; aucun contrat REST existant ne change. Le contrat de l'outil MCP `search_signals` change (combinaison par ET, tri par pertinence, voir Contrats d'interface et D6). Retour arrière : supprimer la table, les fonctions, les index et les colonnes de V11.
 
 ## Décisions, alternatives et compromis
 
@@ -148,8 +148,9 @@ La migration ajoute des colonnes générées et réécrit `signal` et `actualite
 ### D6 — `search_signals` restitue les signaux seulement
 
 - **Statut** : [PROPOSITION]
-- **Choix** : même requête, type fixé à `AVIS_SECURITE`
-- **Justification** : nom et contrat de l'outil ; les champs des actualités web (lien, identifiants libres) restent à réexaminer au regard de MCP-05
+- **Choix** : même requête, type fixé à `AVIS_SECURITE` ; les critères se combinent par ET et les résultats sont triés par pertinence, comme dans l'API REST
+- **Justification** : nom et contrat de l'outil ; les champs des actualités web (lien, identifiants libres) restent à réexaminer au regard de MCP-05 ; une seule sémantique de filtre pour l'API et le MCP
+- **Compromis** : rupture du contrat MCP pour les appels existants (ancienne combinaison par OU, tri par date de modification) ; les clients MCP qui combinaient plusieurs critères obtiennent moins de résultats
 
 ### D7 — 100 vues par utilisateur
 

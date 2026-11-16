@@ -52,7 +52,7 @@ Utilisateur authentifié par un jeton OIDC valide ; la recherche est déclenché
 | Recherche plein texte PostgreSQL dans le titre, le résumé ou le contenu, analysée par les configurations `french`, `english` et `simple` (identifiants d'avis, noms de projets) ; tri par pertinence (`ts_rank`), puis du plus récent au plus ancien ; liste vide accompagnée du message « Aucun élément ne correspond à votre recherche. » | RCH-01 | ADR-0015 (Proposé) ; Q-1 | [EXISTANT] — `RechercheVeilleTest.rch01S1MotTrouve`, `rch01RechercheBilingue`, `rch01S2AucunResultat` |
 | Filtres combinés par ET, valeurs d'un même filtre par OU : projet (impact ou rapprochement visible), technologie (mot du texte, écosystème ou paquet affecté, technologie rapprochée), type, gravité minimale (exclut les éléments sans gravité), horizon (éléments des N derniers jours), profil (types relevant des catégories de sources du profil) | RCH-02 | maquette « Fil de veille » ; PRF-02 | [EXISTANT] — `RechercheVeilleTest.rch02S1FiltresCombines` |
 | Un élément, un impact, un rapprochement ou un nom de projet d'un espace dont l'utilisateur n'est pas membre n'est jamais renvoyé ni ne fait correspondre un élément ; un projet d'un autre espace en filtre est refusé (404) et le refus journalisé | RCH-03 | ACC-04 ; risque R-17 | [EXISTANT] — `RechercheVeilleTest.rch03S1MotPresentDansUnAutreEspace`, `rch03CloisonnementSousArgosApp`, `RechercheMcpTest` |
-| Une vue n'est lue, rappelée et supprimée que par son auteur ; la vue d'un autre utilisateur est refusée (404) et le refus journalisé ; une vue rappelée est rejouée sous les droits courants | RCH-04 | maquette « Mes vues » ; arc42 §8.2 | [EXISTANT] — `RechercheVeilleTest.rch04S1VueRappelee`, `rch04S2VueDUnAutreUtilisateur` |
+| Une vue n'est lue, rappelée et supprimée que par son auteur ; la vue d'un autre utilisateur est refusée (404) et le refus journalisé, avec la même réponse qu'une vue inexistante (« Ressource introuvable. ») ; une vue rappelée est rejouée sous les droits courants | RCH-04 | maquette « Mes vues » ; arc42 §8.2 | [EXISTANT] — `RechercheVeilleTest.rch04S1VueRappelee`, `rch04S2VueDUnAutreUtilisateur` |
 | Latence API p95 sous la cible Q-05 (500 ms) pour une campagne de recherches filtrées sur le volume Q-2 | RCH-05 | arc42 §10.2 Q-05 ; QS-13 ; Q-2 | [EXISTANT] — mesure du 2026-11-16 : p95 = 250 ms ([rapport QS-13](../architecture/quality/mesure-qs13-recherche.md)) |
 | Un profil ne retient que les types d'éléments de ses catégories de sources : `avis-securite` pour les signaux ; les actualités web ne relèvent d'aucune catégorie publiée | RCH-02 | manifestes du catalogue | [PROPOSITION] |
 | L'horizon porte sur la date de l'élément (publication, sinon modification ou réception) : éléments des N derniers jours | RCH-02 | maquette « Fil de veille » | [PROPOSITION] |
@@ -102,10 +102,12 @@ Scénarios RCH-01-S1 à RCH-05-S1 du changement ; QS-13 (recherche).
 
 - Vues strictement personnelles, sans partage (RCH-04) : à faire valider.
 - `search_signals` ne restitue que les signaux de sécurité : les actualités web restent hors du serveur MCP tant que leurs champs n'ont pas été réexaminés au regard de MCP-05 [PROPOSITION].
+- `search_signals` combine tous ses critères par ET et trie par pertinence, comme l'API REST : rupture du contrat MCP antérieur, qui combinait `technologies`, `packages` et `sources` par OU et triait par date de modification [PROPOSITION].
 
 ## Écarts constatés
 
-- Parcours de bout en bout depuis le client desktop (tâche 4.2) non vérifiable : `argos-ui` n'a ni écran de recherche ni connexion OIDC ; seul le parcours par l'API REST est vérifié.
+- Parcours de bout en bout depuis le client desktop (tâche 4.2) non vérifiable : `argos-ui` n'a ni écran de recherche ni connexion OIDC ; seul le parcours par l'API REST est vérifié. L'écran de recherche de `argos-ui` relève d'un changement ultérieur ; la tâche 4.2 reste ouverte jusqu'à son existence.
+- La mesure QS-13 (`MesurePerformanceRechercheTest`) est lancée à la demande et non par `mvn verify` ; la cible n'est tenue que pour des recherches sélectives (un mot présent dans tous les éléments : environ 3,7 s, risque R-16).
 
 ## Questions ouvertes
 

@@ -33,7 +33,9 @@ import io.argos.workspace.RegleViolee;
  *
  * <p>Chaque opération s'exécute sous la RLS ({@link ContexteBase}) : la politique de
  * {@code workspace_vue} (migration V11) n'expose que les vues du compte courant. La vue d'un autre
- * compte est refusée et le refus journalisé ; une vue inexistante est seulement « introuvable ».
+ * compte est refusée et le refus journalisé ; une vue inexistante est seulement « introuvable ». Dans
+ * les deux cas, la réponse est identique (404, « Ressource introuvable. ») et ne révèle pas
+ * l'existence de la vue.
  */
 @ApplicationScoped
 public class VuesEnregistrees {
@@ -82,6 +84,11 @@ public class VuesEnregistrees {
         }
         UUID id = UUID.randomUUID();
         return base.executer(new Contexte(compteId, null, null), c -> {
+            // Créations concurrentes du même compte sérialisées : le plafond ne peut pas être dépassé.
+            try (PreparedStatement ps = c.prepareStatement("SELECT pg_advisory_xact_lock(hashtext(?))")) {
+                ps.setString(1, "workspace_vue:" + compteId);
+                ps.execute();
+            }
             try (PreparedStatement ps = c.prepareStatement("SELECT count(*), count(*) FILTER (WHERE nom = ?) FROM workspace_vue")) {
                 ps.setString(1, n);
                 try (ResultSet rs = ps.executeQuery()) {
@@ -152,7 +159,7 @@ public class VuesEnregistrees {
                 PreparedStatement ps = c.prepareStatement("SELECT 1 FROM workspace_vue WHERE id = ?")) {
             ps.setObject(1, id);
             try (ResultSet rs = ps.executeQuery()) {
-                return rs.next() ? new AccesRefuse(MotifRefus.NON_MEMBRE) : new Introuvable("Vue introuvable.");
+                return rs.next() ? new AccesRefuse(MotifRefus.NON_MEMBRE) : new Introuvable("Ressource introuvable.");
             }
         } catch (SQLException e) {
             throw new IllegalStateException("lecture de la vue impossible", e);

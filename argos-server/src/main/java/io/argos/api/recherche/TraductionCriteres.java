@@ -122,7 +122,7 @@ public class TraductionCriteres {
     private void exigerProjetVisible(Caller appelant, UUID projet) {
         Optional<UUID> espace = inventaires.workspaceOf(projet);
         if (espace.isEmpty()) {
-            throw new Introuvable("Projet introuvable.");
+            throw new Introuvable("Ressource introuvable.");
         }
         if (!appelant.memberOf(espace.get())) {
             throw new AccesRefuse(MotifRefus.NON_MEMBRE);

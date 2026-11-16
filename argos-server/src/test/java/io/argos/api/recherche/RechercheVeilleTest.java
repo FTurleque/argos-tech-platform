@@ -279,7 +279,8 @@ class RechercheVeilleTest {
                 .post("/api/v1/vues").then().statusCode(201).extract().path("id");
 
         long avant = db.count("SELECT count(*) FROM refus_acces WHERE motif = 'NON_MEMBRE' AND ressource LIKE '%/api/v1/vues/%'");
-        Api.en("marc").get("/api/v1/vues/" + id).then().statusCode(404).body("code", equalTo("INTROUVABLE"));
+        String refusee = Api.en("marc").get("/api/v1/vues/" + id).then().statusCode(404)
+                .body("code", equalTo("INTROUVABLE")).extract().asString();
         Api.en("marc").get("/api/v1/vues/" + id + "/resultats").then().statusCode(404);
         Api.en("marc").delete("/api/v1/vues/" + id).then().statusCode(404);
         assertEquals(avant + 3, db.count(
@@ -288,7 +289,10 @@ class RechercheVeilleTest {
         Api.en("oscar").get("/api/v1/vues/" + id).then().statusCode(200);
 
         // Une vue inexistante est seulement introuvable, sans refus journalisé.
-        Api.en("marc").get("/api/v1/vues/" + UUID.randomUUID()).then().statusCode(404);
+        String inexistante = Api.en("marc").get("/api/v1/vues/" + UUID.randomUUID()).then().statusCode(404)
+                .extract().asString();
+        // Même réponse dans les deux cas : l'existence de la vue n'est pas révélée.
+        assertEquals(refusee, inexistante);
         assertEquals(avant + 3, db.count(
                 "SELECT count(*) FROM refus_acces WHERE motif = 'NON_MEMBRE' AND ressource LIKE '%/api/v1/vues/%'"));
 
