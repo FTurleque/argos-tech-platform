@@ -85,6 +85,17 @@ Principes : deny-by-default, validation des entrées externes, secrets hors dép
 
 Classification minimale : `PUBLIC`, `INTERNAL`, `CONFIDENTIAL`, `RESTRICTED`. Les deux dernières classes ne sortent pas vers un LLM externe par défaut.
 
+### Veille RSS/Atom et pages surveillées (ADR-0028, Proposé)
+
+[PROPOSITION — `collecter-veille-rss-web`] Le collecteur web intégré (`source-ingestion`, paquet `io.argos.ingestion.web`) applique ces principes à toute adresse proposée par un utilisateur :
+
+- **contrôle SSRF (R-12)** : schéma `http` ou `https`, aucun identifiant dans l'adresse ; toutes les adresses IP de l'hôte, après résolution DNS, doivent être publiques (refus des réseaux privés, du bouclage, du lien local, du partage d'adresses, de la multidiffusion, des plages de documentation et réservées, y compris sous forme IPv6 embarquée) ; contrôle refait à chaque redirection, suivie une à une, 5 au plus ;
+- **bornes** : 10 s par récupération, 2 Mio de contenu, DOCTYPE refusés dans les flux ; une source en échec passe `EN_ERREUR` avec le motif, ses tentatives sont espacées ;
+- **contenu non fiable (R-11)** : texte brut extrait (balises et scripts retirés), restitué comme citation marquée `CITATION_EXTERNE`, `fiable = false` ; aucun lien d'un contenu collecté n'est récupéré ; aucun contenu n'est interprété comme une instruction ;
+- **abus** : 50 sources personnelles par utilisateur au plus ; sources d'espace réservées aux administrateurs.
+
+Risque résiduel : rebinding DNS entre le contrôle et la connexion ; un mandataire de sortie filtrant reste la parade complète.
+
 ## 8.4 Interfaces et versionnement
 
 - API REST/OpenAPI Quarkus ;

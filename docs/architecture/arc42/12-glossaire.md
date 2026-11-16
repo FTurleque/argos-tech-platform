@@ -56,6 +56,9 @@
 | **Inventaire** | liste de référence des composants d'un projet, issue de la SBOM CycloneDX de la branche principale ou, à défaut, des manifestes, avec son origine et sa date (INV-01, INV-04) |
 | **Composant** | élément d'un inventaire identifié par son PURL et sa version, direct ou transitif (INV-01, INV-02) |
 | **Niveau d'impact** | confiance d'un impact : `exact`, `probable` ou `à vérifier` (COR-02) ; distinct du cycle de traitement d'un impact |
+| **Source web** | flux RSS/Atom ou page surveillée, d'un espace (créée par ses administrateurs) ou personnelle, dont l'adresse a passé le contrôle SSRF ; état `ACTIVE` ou `EN_ERREUR` avec le motif du dernier échec (WEB-01 à WEB-03, ADR-0028) |
+| **Actualité** | élément de veille issu d'une source web : article d'un flux ou changement d'une page surveillée, dédupliqué par empreinte et cité avec toutes ses sources ; son contenu est une citation externe non fiable (WEB-04, WEB-05) |
+| **Rapprochement par nom** | association d'une actualité à un projet dont un composant porte le nom de technologie mentionné ; toujours au niveau `à vérifier`, sans impact projet ni alerte (WEB-06) |
 | **OTLP** | OpenTelemetry Protocol |
 | **POC** | Proof of Concept |
 | **MVP** | Minimum Viable Product |
