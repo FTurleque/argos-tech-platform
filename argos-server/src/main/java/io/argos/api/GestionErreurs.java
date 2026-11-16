@@ -8,6 +8,8 @@ import org.jboss.resteasy.reactive.RestResponse;
 import org.jboss.resteasy.reactive.server.ServerExceptionMapper;
 
 import io.argos.audit.JournalRefus;
+import io.argos.signal.web.RegleSourceWebViolee;
+import io.argos.signal.web.SourceWebRefusee;
 import io.argos.workspace.AccesRefuse;
 import io.argos.workspace.Compte;
 import io.argos.workspace.DonneeInvalide;
@@ -70,6 +72,18 @@ public class GestionErreurs {
     @ServerExceptionMapper
     public RestResponse<Erreur> donneeInvalide(DonneeInvalide e) {
         return RestResponse.status(Status.BAD_REQUEST, new Erreur("DONNEE_INVALIDE", e.getMessage()));
+    }
+
+    /** Source de veille web refusée : adresse interdite ou invalide, contenu qui n'est ni un flux ni une page (WEB-01-S2, WEB-03-S1). */
+    @ServerExceptionMapper
+    public RestResponse<Erreur> sourceWebRefusee(SourceWebRefusee e) {
+        return RestResponse.status(Status.BAD_REQUEST, new Erreur(e.code(), e.getMessage(), e.attribut()));
+    }
+
+    /** Limite de sources personnelles atteinte ou adresse déjà suivie (Q-3). */
+    @ServerExceptionMapper
+    public RestResponse<Erreur> regleSourceWeb(RegleSourceWebViolee e) {
+        return RestResponse.status(Status.CONFLICT, new Erreur(e.code(), e.getMessage()));
     }
 
     /** Méthode et chemin seulement : ni paramètre de requête ni corps (ACC-06). */

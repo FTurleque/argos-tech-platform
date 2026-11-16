@@ -145,9 +145,9 @@ Pour `exposer-serveur-mcp`, « Tests écrits » compte les scénarios MCP-01-S1 
 | Changement | Capacité | Exigences | Scénarios | Diagrammes métier | Questions ouvertes | Tests écrits |
 |---|---|---|---|---|---|---|
 | [`construire-radar-et-standards`](/openspec/changes/construire-radar-et-standards/proposal.md) | `radar-standards` | 6 | 8 | 1 | 3 | 0 |
-| [`collecter-veille-rss-web`](/openspec/changes/collecter-veille-rss-web/proposal.md) | `veille-rss-web` | 6 | 8 | 1 | 3 | 0 |
+| [`collecter-veille-rss-web`](/openspec/changes/collecter-veille-rss-web/proposal.md) | `veille-rss-web` | 6 | 8 | 1 | 0 | 8 |
 | [`rechercher-et-filtrer`](/openspec/changes/rechercher-et-filtrer/proposal.md) | `recherche-veille` | 5 | 7 | 1 | 2 | 0 |
-| **Total** | | **17** | **23** | **3** | **8** | **0** |
+| **Total** | | **17** | **23** | **3** | **5** | **8** |
 
 ### Couverture du lot 5
 

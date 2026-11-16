@@ -62,6 +62,9 @@
 | **MCP** | Model Context Protocol ; protocole par lequel un assistant IA appelle les outils d'un serveur. Argos expose huit outils en lecture seule, en protocole sans état (MCP-01 à MCP-07) |
 | **Contenu externe** | texte issu d'une source tierce (avis, calendrier, texte officiel), renvoyé par le serveur MCP dans un champ `TexteExterne` marqué `CONTENU_EXTERNE_NON_FIABLE` et tronqué, à part des champs produits par Argos (MCP-05) |
 | **Flux d'appareil** | OAuth 2.0 Device Authorization Grant (RFC 8628) : un outil sans navigateur intégré, comme un IDE, obtient un jeton après que l'utilisateur s'est connecté sur une page de vérification (Q-3 du changement `exposer-serveur-mcp`) |
+| **Source web** | flux RSS/Atom ou page surveillée, d'un espace (créée par ses administrateurs) ou personnelle, dont l'adresse a passé le contrôle SSRF ; état `ACTIVE` ou `EN_ERREUR` avec le motif du dernier échec (WEB-01 à WEB-03, ADR-0028) |
+| **Actualité** | élément de veille issu d'une source web : article d'un flux ou changement d'une page surveillée, dédupliqué par empreinte et cité avec toutes ses sources ; son contenu est une citation externe non fiable (WEB-04, WEB-05) |
+| **Rapprochement par nom** | association d'une actualité à un projet dont un composant porte le nom de technologie mentionné ; toujours au niveau `à vérifier`, sans impact projet ni alerte (WEB-06) |
 | **OTLP** | OpenTelemetry Protocol |
 | **POC** | Proof of Concept |
 | **MVP** | Minimum Viable Product |
