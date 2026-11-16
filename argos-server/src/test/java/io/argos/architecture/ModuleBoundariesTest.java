@@ -47,7 +47,8 @@ class ModuleBoundariesTest {
             // mcp réutilise l'établissement de l'appelant de l'API (api.security) : voir mcpNeLitQueLaSecuriteDeLApi.
             Map.entry("mcp", Set.of("workspace", "catalog", "inventory", "signal", "vulnintel", "releaseradar",
                     "regintel", "impact", "alerting", "projectintel", "audit", "api")),
-            Map.entry("projectintel", Set.of("inventory", "scm")),
+            // projectintel n'emprunte à workspace que le contexte RLS et une erreur : voir projectintelNEmprunteQueRlsEtErreurs.
+            Map.entry("projectintel", Set.of("inventory", "scm", "workspace")),
             Map.entry("ingestion", Set.of()),
             Map.entry("scm", Set.of()),
             Map.entry("aigateway", Set.of("audit")),
@@ -109,6 +110,23 @@ class ModuleBoundariesTest {
                         (JavaClass c) -> c.getPackageName().startsWith(ROOT + ".workspace")
                                 && autorisees.stream().noneMatch(a -> c.getName().equals(a) || c.getName().startsWith(a + "$"))))
                 .because("arc42 §5 : dans le module workspace, signal ne dépend que de ContexteBase et des erreurs communes")
+                .check(classes);
+    }
+
+    /**
+     * L'activité des projets ({@code projectintel}) est lue sous la RLS par le mécanisme unique
+     * {@code workspace.ContexteBase} et signale une période invalide par l'erreur commune
+     * {@code DonneeInvalide}. Elle n'emprunte rien d'autre au module {@code workspace} (ADR-0016).
+     */
+    @Test
+    void projectintelNEmprunteQueRlsEtErreurs() {
+        Set<String> autorisees = Set.of(ROOT + ".workspace.ContexteBase", ROOT + ".workspace.DonneeInvalide");
+        noClasses().that().resideInAPackage(ROOT + ".projectintel..")
+                .should().dependOnClassesThat(DescribedPredicate.describe(
+                        "classes de workspace hors ContexteBase et DonneeInvalide",
+                        (JavaClass c) -> c.getPackageName().startsWith(ROOT + ".workspace")
+                                && autorisees.stream().noneMatch(a -> c.getName().equals(a) || c.getName().startsWith(a + "$"))))
+                .because("arc42 §5 : dans le module workspace, projectintel ne dépend que de ContexteBase et DonneeInvalide")
                 .check(classes);
     }
 

@@ -1,11 +1,7 @@
 package io.argos.scm;
 
-import java.io.IOException;
 import java.net.URI;
 import java.net.URLEncoder;
-import java.net.http.HttpClient;
-import java.net.http.HttpRequest;
-import java.net.http.HttpResponse;
 import java.nio.charset.StandardCharsets;
 import java.time.Duration;
 import java.util.Locale;
@@ -32,8 +28,7 @@ import org.eclipse.microprofile.config.inject.ConfigProperty;
 @ApplicationScoped
 public class RepositoryFiles {
 
-    private final HttpClient client;
-    private final Duration timeout;
+    private final ForgeHttp http;
     private final String gitlabUrl;
     private final String githubUrl;
     private final Optional<String> gitlabToken;
@@ -47,9 +42,8 @@ public class RepositoryFiles {
             @ConfigProperty(name = "argos.scm.gitlab.token") Optional<String> gitlabToken,
             @ConfigProperty(name = "argos.scm.github.token") Optional<String> githubToken,
             @ConfigProperty(name = "argos.inventory.max-document-bytes") long maxBytes) {
-        this.timeout = timeout;
-        // Aucune redirection suivie : le jeton d'accès ne doit pas partir vers un autre hôte.
-        this.client = HttpClient.newBuilder().connectTimeout(timeout).followRedirects(HttpClient.Redirect.NEVER).build();
+        // Aucune redirection suivie : le jeton d'accès ne doit pas partir vers un autre hôte (ForgeHttp).
+        this.http = new ForgeHttp(timeout);
         this.gitlabUrl = trim(gitlabUrl);
         this.githubUrl = trim(githubUrl);
         this.gitlabToken = gitlabToken.filter(t -> !t.isBlank());
@@ -91,31 +85,14 @@ public class RepositoryFiles {
     }
 
     private Optional<byte[]> fetch(URI uri, Optional<String> token, boolean github) {
-        HttpRequest.Builder request = HttpRequest.newBuilder(uri).timeout(timeout).GET();
-        if (github) {
-            request.header("Accept", "application/vnd.github.raw+json");
-            token.ifPresent(t -> request.header("Authorization", "Bearer " + t));
-        } else {
-            token.ifPresent(t -> request.header("PRIVATE-TOKEN", t));
+        ForgeHttp.Reponse r = http.get(uri, token, github, github ? "application/vnd.github.raw+json" : null, maxBytes);
+        if (r.status() == 404) {
+            return Optional.empty();
         }
-        try {
-            HttpResponse<byte[]> r = client.send(request.build(), HttpResponse.BodyHandlers.ofByteArray());
-            if (r.statusCode() == 404) {
-                return Optional.empty();
-            }
-            if (r.statusCode() != 200) {
-                throw new ScmException("HTTP " + r.statusCode() + " de " + uri.getHost(), null);
-            }
-            if (r.body().length > maxBytes) {
-                throw new ScmException("document de " + r.body().length + " octets au-delà de la taille maximale", null);
-            }
-            return Optional.of(r.body());
-        } catch (IOException e) {
-            throw new ScmException("erreur réseau vers " + uri.getHost(), e);
-        } catch (InterruptedException e) {
-            Thread.currentThread().interrupt();
-            throw new ScmException("appel interrompu vers " + uri.getHost(), e);
+        if (r.status() != 200) {
+            throw new ScmException("HTTP " + r.status() + " de " + uri.getHost(), null);
         }
+        return Optional.of(r.corps());
     }
 
     private static String githubRepository(RepositoryRef ref) {

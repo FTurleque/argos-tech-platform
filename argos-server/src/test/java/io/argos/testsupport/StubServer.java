@@ -38,8 +38,8 @@ public class StubServer implements QuarkusTestResourceLifecycleManager {
         }
     }
 
-    /** Requête reçue. */
-    public record Received(String pathAndQuery, Map<String, List<String>> headers, Instant at) {
+    /** Requête reçue, avec sa méthode HTTP. */
+    public record Received(String pathAndQuery, Map<String, List<String>> headers, Instant at, String method) {
     }
 
     private static final Map<String, Deque<Stub>> ROUTES = new ConcurrentHashMap<>();
@@ -111,7 +111,7 @@ public class StubServer implements QuarkusTestResourceLifecycleManager {
         String path = exchange.getRequestURI().getRawPath();
         String query = exchange.getRequestURI().getRawQuery();
         String full = query == null ? path : path + "?" + query;
-        RECEIVED.add(new Received(full, Map.copyOf(exchange.getRequestHeaders()), Instant.now()));
+        RECEIVED.add(new Received(full, Map.copyOf(exchange.getRequestHeaders()), Instant.now(), exchange.getRequestMethod()));
         Deque<Stub> queue = ROUTES.getOrDefault(full, ROUTES.get(path));
         Stub stub;
         if (queue == null) {
