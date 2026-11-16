@@ -6,7 +6,7 @@
 
 ## Contexte technique
 
-Le module `mcp` ne contient qu'un `package-info.java`. L'extension `quarkus-mcp-server-http` 2.0.x (Apache-2.0) prend en charge la spécification MCP 2026-07-28 sans état ; elle n'est pas encore dans `argos-server/pom.xml`. Motivation : voir `proposal.md`.
+Le module `io.argos.mcp` porte le serveur ; l'extension `io.quarkiverse.mcp:quarkus-mcp-server-http` 2.0.4 (Apache-2.0, comme ses dépendances `quarkus-mcp-server-core`, `quarkus-mcp-server-sse-client`, `org.mcpjava:mcp-server-api` et `com.github.victools:jsonschema-generator`) prend en charge la spécification MCP 2026-07-28 sans état et s'exécute sur Quarkus 3.40.1.2 (extension déclarée pour Quarkus 3.33 et suivants). Le référentiel des standards, le calendrier des sorties et les fiches réglementaires ne sont pas encore livrés : le serveur les lit par trois points d'extension en lecture (`catalog.standard.ReferentielStandards`, `releaseradar.CalendrierSorties`, `regintel.FichesReglementaires`), vides par défaut [PROPOSITION]. Motivation : voir `proposal.md`.
 
 ## Exigences couvertes
 
@@ -146,13 +146,13 @@ Aucun écart constaté.
 
 | Exigence / scénario | Niveau de test | Moyen de preuve | État |
 |---|---|---|---|
-| MCP-01-S1, MCP-01-S2 | contrat MCP | liste et appel inconnu | à écrire |
-| MCP-02-S1, MCP-02-S2 | intégration | données de test | à écrire |
-| MCP-03-S1 | intégration | sans jeton | à écrire |
-| MCP-04-S1 | intégration | inter-espaces | à écrire |
-| MCP-05-S1 | intégration | texte piégé | à écrire |
-| MCP-06-S1 | intégration | limite basse de test | à écrire |
-| MCP-07-S1 | intégration | fiche non validée | à écrire |
+| MCP-01-S1, MCP-01-S2 | contrat MCP | liste et appel inconnu | `ContratOutilsMcpTest`, passe |
+| MCP-02-S1, MCP-02-S2 | intégration | données de test, référentiel simulé | `OutilsConsultationMcpTest`, passe |
+| MCP-03-S1 | intégration | sans jeton | `AuthentificationMcpTest`, passe |
+| MCP-04-S1 | intégration | inter-espaces, RLS sous `argos_app` | `CloisonnementMcpTest`, passe |
+| MCP-05-S1 | intégration | texte piégé | `ContenuExterneMcpTest`, passe |
+| MCP-06-S1 | intégration | limite basse de test | `LimiteDebitMcpTest`, passe |
+| MCP-07-S1 | intégration | fiche non validée, fiches simulées | `ReglementaireMcpTest`, passe |
 
 ## Documentation durable impactée
 
