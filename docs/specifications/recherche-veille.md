@@ -96,8 +96,8 @@ Aucun écart constaté.
 
 | ID | Question | Impact | Destinataire |
 |---|---|---|---|
-| Q-1 | Faut-il une recherche bilingue français et anglais (racines des mots) ? | non | Product Owner |
-| Q-2 | Quel volume d'éléments viser par espace pour mesurer la performance ? | non | porteur du projet |
+| Q-1 | Faut-il une recherche bilingue français et anglais (racines des mots) ? | répondue le 2026-11-16 : oui : recherche plein texte PostgreSQL avec les configurations `french` et `english`, sans moteur externe [DÉCISION] | Product Owner |
+| Q-2 | Quel volume d'éléments viser par espace pour mesurer la performance ? | répondue le 2026-11-16 : 100 000 éléments par espace pour la mesure de performance [DÉCISION] | porteur du projet |
 
 ## Traçabilité
 

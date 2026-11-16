@@ -73,5 +73,5 @@ Allégée : comportement local au client desktop, sur un contrat d'alertes défi
 
 | ID | Question | Bloquante ? | Destinataire |
 |---|---|---|---|
-| Q-1 | Faut-il recevoir les notifications quand l'application est entièrement fermée (service en arrière-plan) ? | non | porteur du projet |
-| Q-2 | L'application doit-elle démarrer avec la session de l'utilisateur ? | non | porteur du projet |
+| Q-1 | Faut-il recevoir les notifications quand l'application est entièrement fermée (service en arrière-plan) ? | **Répondue le 2026-11-16** : non : les notifications arrivent tant que l'application tourne, fenêtre fermée dans la zone de notification ; aucun service en arrière-plan [DÉCISION] | porteur du projet |
+| Q-2 | L'application doit-elle démarrer avec la session de l'utilisateur ? | **Répondue le 2026-11-16** : oui, en option désactivée par défaut et activable par l'utilisateur [DÉCISION] | porteur du projet |
