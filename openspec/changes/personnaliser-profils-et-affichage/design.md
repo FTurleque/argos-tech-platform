@@ -155,7 +155,7 @@ Non applicable — les cycles de vie de publication d'un profil ou d'une mise en
 
 ## Persistance et intégrité
 
-[EXISTANT] Les préférences sont la table `workspace_preference_utilisateur` (migration `V20261116_1__workspace_preferences_utilisateur.sql`) : une ligne par utilisateur, `mise_en_page` et `profils_actifs` à `NULL` tant qu'ils ne sont pas choisis, contrainte `workspace_preference_au_moins_un_profil` (INV-1). Aucune clé étrangère vers les comptes tant que leur table n'existe pas. Les manifestes de profils sont des ressources versionnées `catalog/profils/<identifiant>.json` du module `catalog`, validées au démarrage ; la liste des mises en page est la ressource `catalog/mises-en-page.json`. Les retraits sont des propriétés de configuration (`argos.catalogue.profils.retires`, `argos.catalogue.mises-en-page.retirees`).
+[EXISTANT] Les préférences sont la table `workspace_preference_utilisateur` (migration `V7__preferences_utilisateur.sql`) : une ligne par compte (`compte_id`, clé étrangère vers `compte`, identifiant relié au sujet OIDC), `mise_en_page` et `profils_actifs` à `NULL` tant qu'ils ne sont pas choisis, contrainte `workspace_preference_au_moins_un_profil` (INV-1). Sous le rôle applicatif `argos_app`, la RLS n'expose à un compte que ses propres préférences. La création d'un compte y enregistre le profil `developpeur` (événement `CompteCree`). Les manifestes de profils sont des ressources versionnées `catalog/profils/<identifiant>.json` du module `catalog`, validées au démarrage ; la liste des mises en page est la ressource `catalog/mises-en-page.json`. Les retraits sont des propriétés de configuration (`argos.catalogue.profils.retires`, `argos.catalogue.mises-en-page.retirees`).
 
 ## Transactions, concurrence et idempotence
 

@@ -141,7 +141,9 @@ Interprétations validées par le porteur du projet le 2026-11-16 [DÉCISION].
 
 ## Écarts constatés
 
-Aucun écart avec du code : aucun code n'existe.
+- Le code de `argos-server` implémente les règles de cette fiche (`io.argos.workspace.subscription`, `io.argos.api.SubscriptionResource`, `io.argos.api.WatchResource` ; tests `argos-server/src/test/java/io/argos/chain/SubscriptionTest.java` et `architecture/SubscriptionIsolationTest.java`), avec des comptes et des espaces réels (capacité `comptes-acces`) : le propriétaire d'un abonnement `TEAM` est un espace de la table `espace`, celui d'un abonnement `PERSONAL` un compte de la table `compte`.
+- Sous le rôle applicatif `argos_app`, la RLS de `subscription` n'expose un abonnement `PERSONAL` qu'à son propriétaire et un abonnement `TEAM` qu'aux membres de l'espace ; seul un administrateur de l'espace en crée un. Le module des abonnements ne lit aucune donnée d'autorisation : il transmet seulement le compte courant à la base.
+- Les critères `VENDOR`, `THEME` et `DOMAIN` sont acceptés mais ne sélectionnent encore aucun signal (aucune taxonomie des signaux de sécurité dans ce lot).
 
 ## Questions ouvertes
 

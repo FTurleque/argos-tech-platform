@@ -1,6 +1,6 @@
 # Tâches : personnaliser les profils de veille et la mise en page
 
-<!-- Les tâches non cochées qui touchent aux équipes, rôles, signaux, impacts, fiches réglementaires ou au serveur MCP supposent le code du changement formaliser-chaine-securite-poc (module workspace, signal, impact-engine) et l'authentification de gerer-comptes-et-acces. -->
+<!-- Le code de ce changement est intégré avec celui de formaliser-chaine-securite-poc (signal, impact-engine, inventaire, abonnements) et de gerer-comptes-et-acces (authentification OIDC, comptes, espaces, RLS). Les tâches non cochées attendent les fiches réglementaires (regintel), le serveur MCP, une IHM authentifiée, des E2E ou une revue humaine. -->
 
 ## 1. Arbitrages
 
@@ -23,10 +23,10 @@
 
 - [x] 3.1 Définir le format du manifeste de profil et le catalogue dans `catalog` ; publier `developpeur` et `expert-metier` — couvre PRF-03-S1 — vérification : test d'intégration du catalogue passe
 - [x] 3.2 Enregistrer les profils actifs dans `workspace`, avec au moins un profil actif — couvre PRF-01-S1 à PRF-01-S3 — vérification : tests d'intégration passent
-- [ ] 3.3 Brancher les stratégies de rapprochement des profils dans `impact-engine` — couvre PRF-03-S2 — vérification : tests unitaires des stratégies passent
+- [x] 3.3 Brancher les stratégies de rapprochement des profils dans `impact-engine` — couvre PRF-03-S2 — vérification : tests unitaires des stratégies passent
 - [ ] 3.4 Restituer l'union des profils actifs, sans doublon, avec rubriques — couvre PRF-02-S1, PRF-02-S2 — vérification : tests d'intégration passent
 - [ ] 3.5 Publier un profil de démonstration et vérifier l'absence d'effet sur les autres utilisateurs — couvre PRF-04-S1 — vérification : test d'intégration passe
-- [ ] 3.6 Vérifier qu'aucun profil n'élargit les données visibles — couvre PRF-05-S1 — vérification : tests inter-espaces passent ; règle ArchUnit : `workspace` ne lit pas les préférences pour décider d'une autorisation
+- [x] 3.6 Vérifier qu'aucun profil n'élargit les données visibles — couvre PRF-05-S1 — vérification : tests inter-espaces passent ; règle ArchUnit : `workspace` ne lit pas les préférences pour décider d'une autorisation
 - [ ] 3.7 Appliquer les garde-fous côté serveur, dans l'API et le serveur MCP — couvre PRF-06-S1, PRF-06-S2 — vérification : tests d'intégration et de contrat MCP passent
 - [x] 3.8 Mettre à jour la fiche `profils-veille` — vérification : `node scripts/verifier-docs.mjs` sans erreur
 
@@ -42,27 +42,27 @@
 
 ## Matrice de traçabilité
 
-État au 2026-11-16. Commandes de preuve : `mvn -f argos-server/pom.xml verify` (51 tests, 0 échec, PostgreSQL jetable par Quarkus Dev Services) et `npm --prefix argos-ui test` (7 tests, 0 échec). Chemins serveur relatifs à `argos-server/src/test/java/io/argos/`.
+État au 2026-11-16, code intégré avec `formaliser-chaine-securite-poc` et `gerer-comptes-et-acces`. Commandes de preuve : `mvn -B -f argos-server/pom.xml verify` (164 tests, 0 échec, PostgreSQL et Keycloak jetables par Quarkus Dev Services, jetons réels) et `npm --prefix argos-ui test` (10 tests, 0 échec). Chemins serveur relatifs à `argos-server/src/test/java/io/argos/`. La clé des préférences est l'identifiant du compte Argos relié au sujet OIDC (migration `V7__preferences_utilisateur.sql`).
 
 | Exigence | Scénario | Conception / diagramme | Tâche | Test ou preuve | État de la preuve |
 |---|---|---|---|---|---|
 | AFF-01 | AFF-01-S1 | DC-1 | 2.1, 2.2 | `api/preference/PreferencesResourceTest#aff01S1ChoixDUneMiseEnPagePubliee` ; contrat `api/OpenApiContractTest` | passe (serveur) ; affichage dans l'IHM non testé de bout en bout |
 | AFF-01 | AFF-01-S2 | DC-1 | 2.2 | `api/preference/PreferencesResourceTest#aff01S2MiseEnPageAbsenteDuCatalogue` | passe |
-| AFF-02 | AFF-02-S1 | DC-2, D1 | 2.3, 2.4 | `argos-ui/tests/architecture.test.mjs` (couche mise en page sans client API, mentions obligatoires dans chaque mise en page) | règle de couche : passe ; E2E quatre mises en page : à écrire |
+| AFF-02 | AFF-02-S1 | DC-2, D1 | 2.3, 2.4 | `argos-ui/tests/architecture.test.mjs` (couche mise en page sans client API, mentions obligatoires dans chaque mise en page) ; `argos-ui/tests/liens.test.mjs` (lien de source limité à `http`/`https`) | règle de couche : passe ; E2E quatre mises en page : à écrire |
 | AFF-02 | AFF-02-S2 | DC-2, D1 | 2.4 | E2E quatre mises en page | à écrire ; suppose la restitution de la veille sous droits |
-| AFF-03 | AFF-03-S1 | DC-1 | 2.5 | préférence lue sur le serveur : `PreferencesResourceTest#aff01S1ChoixDUneMiseEnPagePubliee` ; E2E web puis desktop | E2E à écrire ; suppose l'authentification |
+| AFF-03 | AFF-03-S1 | DC-1 | 2.5 | préférence lue sur le serveur, rattachée au compte : `PreferencesResourceTest#aff01S1ChoixDUneMiseEnPagePubliee` ; E2E web puis desktop | E2E à écrire ; l'API est authentifiée, mais argos-ui et le client desktop n'ont pas d'écran de connexion |
 | AFF-04 | AFF-04-S1 | DC-1, INV-2 | 2.2 | `api/preference/PreferencesResourceTest#aff04S1SansChoixLaMiseEnPageClassiqueSApplique` ; `argos-ui/tests/resolution.test.mjs` | passe |
 | AFF-04 | AFF-04-S2 | DC-1, INV-2 | 2.2 | `api/preference/MiseEnPageRetireeTest#aff04S2MiseEnPageRetireeClassiqueEtMessage` | passe |
 | AFF-05 | AFF-05-S1 | stratégie de vérification | 1.4, 2.6 | rapport d'audit RGAA 4.1.2 | à écrire ; référentiel fixé (RGAA 4.1.2) |
-| PRF-01 | PRF-01-S1 | DC-1, INV-1 | 3.2 | `api/preference/PreferencesResourceTest#prf01S1CumulDeDeuxProfils` | passe |
-| PRF-01 | PRF-01-S2 | DC-1, INV-1, D3 | 1.2, 3.2 | `api/preference/PreferencesResourceTest#prf01S2DesactivationDuDernierProfil` ; contrainte `workspace_preference_au_moins_un_profil` | passe |
+| PRF-01 | PRF-01-S1 | DC-1, INV-1 | 3.2 | `api/preference/PreferencesResourceTest#prf01S1CumulDeDeuxProfils` ; profil `developpeur` activé à la création d'un compte : `#laCreationDUnCompteActiveLeProfilDeveloppeur` | passe |
+| PRF-01 | PRF-01-S2 | DC-1, INV-1, D3 | 1.2, 3.2 | `api/preference/PreferencesResourceTest#prf01S2DesactivationDuDernierProfil` | passe ; la contrainte `workspace_preference_au_moins_un_profil` n'est exercée par aucun test (le service refuse l'ensemble vide avant la base) |
 | PRF-01 | PRF-01-S3 | DC-1, INV-2 | 3.2 | `api/preference/PreferencesResourceTest#prf01S3ProfilAbsentDuCatalogue` | passe |
-| PRF-02 | PRF-02-S1 | DC-2 | 1.3, 3.4 | test d'intégration | à écrire ; suppose signaux et impacts |
-| PRF-02 | PRF-02-S2 | DC-2 | 3.4 | test d'intégration | à écrire ; suppose signaux et impacts |
+| PRF-02 | PRF-02-S1 | DC-2 | 1.3, 3.4 | test d'intégration | à écrire ; aucun élément de veille ne relève d'`expert-metier` sans la capacité `regintel`, et la restitution (`GET /api/v1/me/watch`) ne dépend pas encore des profils |
+| PRF-02 | PRF-02-S2 | DC-2 | 3.4 | test d'intégration | à écrire ; même raison |
 | PRF-03 | PRF-03-S1 | DC-1, D2 | 3.1 | `api/catalogue/CatalogueResourceTest#prf03S1LeCatalogueInitialListeDeveloppeurEtExpertMetier` ; `catalog/profil/CatalogueProfilsTest` | passe |
-| PRF-03 | PRF-03-S2 | DC-2, D2 | 3.3 | tests unitaires des stratégies | à écrire ; suppose `impact-engine` et l'inventaire |
-| PRF-04 | PRF-04-S1 | D2 | 3.5 | `api/catalogue/ProfilDemonstrationTest` (profil publié, profils actifs inchangés) ; `catalog/profil/CatalogueProfilsTest#ajouterUnProfilNeModifiePasLesAutres` | partie catalogue : passe ; veille inchangée : à écrire |
-| PRF-05 | PRF-05-S1 | DC-1, INV-3 | 3.6 | règle ArchUnit `architecture/PreferencesIsolationTest` ; tests inter-espaces | règle : passe ; tests inter-espaces à écrire (RBAC + RLS absents) |
+| PRF-03 | PRF-03-S2 | DC-2, D2 | 3.3 | `chain/MatchRulesTest` (stratégie `purl-plage-versions` = règle PURL + plage de versions d'`impact-engine`) ; `chain/ProfilsDeVeilleTest#lesStrategiesDuProfilDeveloppeurSontImplementeesParLeMoteurDImpact`, `#prf03S2RapprochementPropreAuProfilSansIa` (IA indisponible, niveau `EXACT`, stratégie dans la provenance) | passe pour `developpeur` ; la stratégie `domaine-metier-nor` d'`expert-metier` n'a pas d'implémentation (`regintel` absent) |
+| PRF-04 | PRF-04-S1 | D2 | 3.5 | `api/catalogue/ProfilDemonstrationTest` (profil publié, profils actifs inchangés) ; `catalog/profil/CatalogueProfilsTest#ajouterUnProfilNeModifiePasLesAutres` | partie catalogue : passe ; veille inchangée : à écrire — la publication d'un profil se fait par configuration, donc par un redémarrage, et la restitution ne dépend pas encore des profils |
+| PRF-05 | PRF-05-S1 | DC-1, INV-3 | 3.6 | `chain/ProfilsDeVeilleTest#prf05S1ActivationDUnProfilSansDroitSurLesProjets` (jetons réels, RLS sous `argos_app` : aucun impact, inventaire ni espace B restitué après activation de `developpeur` puis `expert-metier` ; appartenances inchangées) ; règle ArchUnit `architecture/PreferencesIsolationTest` | passe |
 | PRF-06 | PRF-06-S1 | DC-2 | 3.7 | tests d'intégration et de contrat MCP | à écrire ; suppose fiches réglementaires et serveur MCP |
 | PRF-06 | PRF-06-S2 | DC-2 | 3.7 | tests d'intégration | à écrire |
 

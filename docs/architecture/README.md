@@ -7,7 +7,7 @@ Cette documentation constitue la **source d’architecture versionnée** du proj
 
 ## Synthèse exécutive
 
-ARGOS est actuellement en **phase de conception / cadrage POC** : aucune implémentation applicative n’est encore présente dans le dépôt. La documentation décrit donc une architecture cible.
+ARGOS est en **phase de POC** : le socle `argos-server` et `argos-ui` porte les capacités du lot 1 (collecte des avis, inventaire SBOM, corrélation, abonnements, comptes et accès, profils et mises en page), dont les changements OpenSpec ne sont pas archivés. Le reste de la documentation décrit l’architecture cible.
 
 La v2.4 fixe désormais la stack applicative :
 

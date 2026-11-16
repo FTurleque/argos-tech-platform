@@ -83,7 +83,7 @@ Les signaux de sécurité sont globaux, non rattachés à un espace (ADR-0016, c
 
 - **Question** : comment un avis OSV devient-il un signal enrichi, et que se passe-t-il quand une source répond en erreur ?
 - **Type** : UML séquence
-- **Portée** : cible proposée (aucune implémentation)
+- **Portée** : implémenté dans `argos-server` (`io.argos.ingestion.SourceSynchronizer`, `SyncStore`, `RetryPolicy`, `io.argos.ingestion.osv`, `io.argos.vulnintel`) ; la planification automatique n'existe pas : une synchronisation se lance par `POST /api/v1/ops/sources/{id}/synchronizations`
 - **Exigences** : COL-01, COL-03, COL-04, COL-05, COL-06
 
 ```mermaid
@@ -194,7 +194,11 @@ Comportements absents des sources, ajoutés pour rendre les règles testables (c
 
 ## Écarts constatés
 
-Aucun écart avec du code : aucun code n'existe. Les noms de §6 (`Ingestion`, `External Adapters`, `Scheduler & Jobs`) diffèrent des composants de §5 ; voir la table de correspondance de arc42 §6.
+- Le code de `argos-server` implémente les règles de cette fiche (tests `argos-server/src/test/java/io/argos/chain/CollecteTest.java`, `EnrichmentTest.java`, `ResilienceTest.java`). Toute erreur inattendue pendant une synchronisation (et pas seulement une erreur de source) termine le traitement en échec permanent et fait changer l'état de la source ; un traitement `RUNNING` sans activité depuis `argos.ingestion.running-expiry` (30 minutes) est repris au lancement suivant.
+- Le délai imposé par `Retry-After` est borné par le délai maximal des tentatives (`argos.ingestion.backoff-max`, 5 minutes).
+- Un avis OSV retiré (champ `withdrawn`) reste historisé comme signal, mais ne déclare plus aucun paquet affecté : il ne produit aucun impact.
+- Aucune planification automatique des synchronisations n'est installée (tâche 6.3 du changement) ; la première synchronisation OSV sans curseur énumère tout l'index `modified_id.csv` des écosystèmes configurés, dans la requête d'exploitation, sans borne de volume.
+- Les noms de §6 (`Ingestion`, `External Adapters`, `Scheduler & Jobs`) diffèrent des composants de §5 ; voir la table de correspondance de arc42 §6.
 
 ## Questions ouvertes
 

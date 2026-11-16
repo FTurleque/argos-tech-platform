@@ -56,12 +56,12 @@ API : `/api/v1/moi`, `/api/v1/espaces`, `/api/v1/espaces/{espaceId}/membres`, `/
 | Authentification obligatoire | ACC-01 | ADR-0008, ADR-0027 (Proposés) | [PROPOSITION] — implémentée |
 | Création du compte à la première connexion | ACC-02 | ADR-0025 (Accepté) | [PROPOSITION] — implémentée |
 | Inscription sur invitation : compte créé seulement pour un e-mail vérifié destinataire d'une invitation en attente, ou pour l'administrateur plateforme initial | ACC-02 | Q-2 (2026-11-16) | [DÉCISION] — implémentée |
-| Profil de veille `developpeur` activé à la création du compte | ACC-02, PRF-01 | Q-3 (2026-11-16) | [DÉCISION] — événement `CompteCree` émis ; activation par `profils-veille` |
-| Espaces et rôles ; un espace garde au moins un administrateur | ACC-03 | ADR-0016 (Proposé) | [PROPOSITION] — implémentée |
+| Profil de veille `developpeur` activé à la création du compte | ACC-02, PRF-01 | Q-3 (2026-11-16) | [DÉCISION] — implémentée : l'événement `CompteCree` active le profil dans les préférences du compte (`io.argos.api.preference.ActivationProfilParDefaut`) |
+| Espaces et rôles ; un espace garde au moins un administrateur, y compris en cas de changements concurrents (verrou de la ligne de l'espace) | ACC-03 | ADR-0016 (Proposé) | [PROPOSITION] — implémentée |
 | Cloisonnement par espace, dans le service et par la RLS | ACC-04 | ADR-0016 (Proposé) | [PROPOSITION] — implémentée |
 | Accès refusé à un autre espace : « introuvable » (404) | ACC-04 | Q-4 (2026-11-16) | [DÉCISION] — implémentée |
 | Invitations et révocation, effective dès la requête suivante | ACC-05 | ADR-0016 (Proposé) | [PROPOSITION] — implémentée |
-| Journal des refus d'accès | ACC-06 | ADR-0016 (Proposé) | [PROPOSITION] — implémentée |
+| Journal des refus d'accès, unique pour toute l'API (espaces, impacts, inventaires, abonnements, exploitation) | ACC-06, COR-08 | ADR-0016 (Proposé) | [PROPOSITION] — implémentée |
 
 ## Droits d'accès et restrictions
 
@@ -69,7 +69,7 @@ Trois rôles d'espace : lecteur, contributeur, administrateur d'espace. L'admini
 
 ## Effets de bord observables
 
-Création de comptes, d'espaces, d'appartenances, d'invitations et d'entrées de journal des refus (table `refus_acces`).
+Création de comptes, d'espaces, d'appartenances, d'invitations et d'entrées de journal des refus (table `refus_acces`). La création d'un compte enregistre aussi le profil `developpeur` dans ses préférences (table `workspace_preference_utilisateur`, capacité `profils-veille`).
 
 ## Qualités mesurables
 
@@ -113,7 +113,12 @@ Scénarios ACC-01-S1 à ACC-06-S1 du changement, couverts par les tests de `argo
 
 ## Écarts constatés
 
-- ACC-04-S2 cite les impacts : la table des impacts appartient au changement `formaliser-chaine-securite-poc`. La RLS est vérifiée sur les tables d'espace de cette capacité (`espace`, `appartenance`, `invitation`) ; les tables des autres capacités suivent la convention d'arc42 §8.1.
+- ACC-04-S2 : la RLS est vérifiée sous le rôle non super-utilisateur `argos_app` sur les tables de cette capacité (`CloisonnementTest`, `DefenseEnProfondeurTest`) et sur les impacts (`argos-server/src/test/java/io/argos/chain/CorrelationTest.java`, `rlsGardeFouEnBase` et `rlsAppliqueeSurLeCheminApplicatif`). Le serveur MCP, cité par ACC-04, n'existe pas encore.
+- Sans espace courant, la RLS expose encore au compte courant ses propres appartenances et les espaces dont il est membre ou créateur, ainsi que les invitations adressées à son e-mail vérifié : c'est ce qui permet de lister « mes espaces » et « mes invitations ». Les autres lignes d'un espace exigent l'espace courant.
+- Moindre privilège : `argos_app` ne lit que son compte et les comptes qui partagent un espace avec lui (ou l'auteur d'une invitation qui le concerne), n'a aucun droit sur le journal des refus, et ne peut modifier que les colonnes que l'application modifie (`invitation.etat`, `invitation.destinataire_id`, `appartenance.role`, `espace.nom`). Le destinataire d'une invitation ne peut que la faire passer à l'état accepté, à son nom, et n'entre dans l'espace qu'avec le rôle de l'invitation.
+- Une invitation déjà acceptée ou révoquée répond 409 (`INVITATION_INACTIVE`) ; une invitation inconnue ou adressée à une autre personne répond 404 sans être journalisée comme refus d'accès à un espace.
+- ACC-02-S2 (« message explicite ») : le refus de Keycloak est vérifié, mais aucun écran de connexion d'argos-ui ou du client desktop ne produit encore ce message.
+- Parcours réel d'invitation : Argos n'envoie aucun e-mail et ne crée aucun compte Keycloak ; tant que l'inscription libre est désactivée dans Keycloak, l'administrateur Keycloak crée le compte de la personne invitée (e-mail vérifié) avant sa première connexion.
 - La tâche 3.3 du changement cite QS-02, qui porte sur la confidentialité des appels LLM et non sur le cloisonnement ; aucun scénario du registre qualité ne couvre l'accès inter-espaces.
 
 ## Questions ouvertes

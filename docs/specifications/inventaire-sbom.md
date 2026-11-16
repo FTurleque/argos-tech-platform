@@ -67,7 +67,7 @@ L'inventaire appartient au projet et suit le cloisonnement par espace (ADR-0016,
 |---|---|---|---|
 | Couverture SBOM des projets pilotes | 2 projets pilotes avec SBOM fraîche, transitives incluses | baseline v2.3 §6 critère 2 | [PROPOSITION] |
 | Réponse « projets touchés » | < 5 min | ADR-0011, traçabilité | [QUESTION] — cible non validée |
-| Seuil d'obsolescence d'une SBOM | 30 jours après la date de génération ; une SBOM sans date de génération est traitée comme obsolète | ADR-0011 ; décision du 2026-11-16 (Q-3) | [DÉCISION] |
+| Seuil d'obsolescence d'une SBOM | 30 jours après la date de génération | ADR-0011 ; décision du 2026-11-16 (Q-3) | [DÉCISION] |
 
 ## Diagrammes
 
@@ -133,9 +133,16 @@ Interprétations validées par le porteur du projet le 2026-11-16 [DÉCISION].
 - INV-01-S2 : un composant absent de la nouvelle SBOM disparaît de l'inventaire de référence (remplacement complet) ;
 - INV-02 : la distinction direct/transitif est affichée — la source exige la couverture des transitives, pas l'affichage de la distinction.
 
+Interprétation introduite par l'implémentation, à valider [PROPOSITION] :
+
+- INV-03 : une SBOM sans date de génération est traitée comme obsolète, faute de pouvoir établir sa fraîcheur ; la corrélation lui attribue au mieux le niveau `probable`. La décision Q-3 ne fixe que le seuil de 30 jours après la date de génération.
+
 ## Écarts constatés
 
-Aucun écart avec du code : aucun code n'existe.
+- Le code de `argos-server` implémente les règles de cette fiche (`io.argos.inventory`, `io.argos.scm` ; tests `argos-server/src/test/java/io/argos/chain/InventoryTest.java` et `DocumentParsingTest.java`). La consultation de l'inventaire s'exécute sous le rôle applicatif `argos_app` : la RLS des tables `project`, `inventory`, `component` et `inventory_import_failure` limite la lecture aux membres de l'espace du projet.
+- L'indicateur `obsolete` de la consultation ne vaut vrai que pour une SBOM ; un inventaire de repli (manifestes) n'est pas une SBOM, mais la corrélation ne lui accorde jamais le niveau `exact`.
+- Les niveaux des impacts sont calculés à la corrélation et enregistrés : une SBOM qui dépasse ensuite les 30 jours ne fait pas recalculer les impacts existants tant qu'aucun nouveau signal ni inventaire ne déclenche de corrélation (aucune planification, tâche 6.3).
+- Les adaptateurs GitLab et GitHub ne sont testés que sur des réponses simulées (tâche 3.2).
 
 ## Questions ouvertes
 

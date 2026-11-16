@@ -61,7 +61,7 @@
 
 ## Matrice de traçabilité
 
-État au 2026-11-16 : preuves obtenues par `mvn -B -f argos-server/pom.xml verify` (82 tests, 0 échec) ; chemins de test relatifs à `argos-server/src/test/java/io/argos/`. « passe » signifie exécuté avec succès ce jour-là.
+État au 2026-11-16, code intégré avec `gerer-comptes-et-acces` et `personnaliser-profils-et-affichage` : preuves obtenues par `mvn -B -f argos-server/pom.xml verify` (164 tests, 0 échec), avec des jetons réels du Keycloak des Dev Services, des comptes et des espaces réels (tables `compte`, `espace`) et la RLS appliquée sous le rôle non super-utilisateur `argos_app`. Chemins de test relatifs à `argos-server/src/test/java/io/argos/`. « passe » signifie exécuté avec succès ce jour-là.
 
 | Exigence | Scénario | Conception / diagramme | Tâche | Test ou preuve | État de la preuve |
 |---|---|---|---|---|---|
@@ -69,8 +69,8 @@
 | COL-02 | COL-02-S1, COL-02-S2 | DF-COL-2, DC-2 | 2.1, 2.2, 2.6 | `chain/CollecteTest#col01S1EtCol02S1…` (REST : source, identifiant, date, contenu brut), `chain/DocumentParsingTest#col02S2…`, `chain/CollecteTest#col08S1EtCol02S2…` | passe |
 | COL-03 | COL-03-S1, COL-03-S2, COL-03-S3 | DF-COL-2, design « Transactions » | 2.1, 2.3 | `chain/CollecteTest#migrationImposeLUniciteSourceEtIdentifiantExterne`, `#col03S1EtS2…`, `#col03S3CollectesConcurrentesDuMemeAvis` (4 fils) | passe |
 | COL-04 | COL-04-S1, COL-04-S2, COL-04-S3 | DF-COL-1 | 2.4 | `chain/EnrichmentTest` (réponses NVD, KEV, EPSS, CERT-FR enregistrées ; EPSS 503 puis rattrapage) | passe |
-| COL-05 | COL-05-S1, COL-05-S2 | DF-COL-1, DC-3 | 2.5 | `chain/ResilienceTest#col05S1…`, `#col05S2ArretBrutalDuBackendPuisReprise` (QS-07 : arrêt simulé, reprise du même traitement depuis le curseur) ; QS-03 exécuté sur la source OSV simulée (429, 5xx, délai dépassé) | passe |
-| COL-06 | COL-06-S1, COL-06-S2, COL-06-S3 | DC-3 | 1.3, 2.5 | `chain/ResilienceTest#col06S1…` (Retry-After 7 s respecté), `#col06S2…` (5 tentatives, curseur inchangé), `#delaiDepasse…`, `#col06S3…` | passe |
+| COL-05 | COL-05-S1, COL-05-S2 | DF-COL-1, DC-3 | 2.5 | `chain/ResilienceTest#col05S1…`, `#col05S2ArretBrutalDuBackendPuisReprise` (QS-07 : arrêt simulé, reprise du même traitement depuis le curseur), `#traitementRunningExpireRepris`, `#erreurInattendueTermineLeTraitementEnEchec` (aucun traitement laissé `RUNNING`) ; QS-03 exécuté sur la source OSV simulée (429, 5xx, délai dépassé) | passe |
+| COL-06 | COL-06-S1, COL-06-S2, COL-06-S3 | DC-3 | 1.3, 2.5 | `chain/ResilienceTest#col06S1…` (Retry-After 7 s respecté), `#retryAfterBorneParLeDelaiMaximal` (Retry-After de 24 h borné à 5 min), `#col06S2…` (5 tentatives, curseur inchangé), `#delaiDepasse…`, `#col06S3…` | passe |
 | COL-07 | COL-07-S1, COL-07-S2 | DF-COL-3 | 1.3, 2.5 | `chain/ResilienceTest#col07S1EtS2…` (DEGRADED après 3 échecs, événement daté, REST exploitation) | passe |
 | COL-08 | COL-08-S1 | DF-COL-2 | 2.6 | `chain/CollecteTest#col08S1EtCol02S2…` | passe |
 | INV-01 | INV-01-S1, INV-01-S2 | DF-INV-1, DC-2 | 1.5, 3.1, 3.2, 3.3 | `chain/InventoryTest#inv01S1EtInv02S1…`, `#inv01S2…`, `#migrationIdentiteStableDesComposants`, `chain/DocumentParsingTest#sbomValideAvecTransitivite` | passe ; récupération GitLab/GitHub testée sur réponses simulées seulement (3.2) |
@@ -78,27 +78,29 @@
 | INV-03 | INV-03-S1, INV-03-S2, INV-03-S3 | DF-INV-2 | 1.2, 3.4 | `chain/InventoryTest#inv03S1EtS2…`, `#sbomDePlusDeTrenteJoursObsolete` | passe |
 | INV-04 | INV-04-S1, INV-04-S2 | DF-INV-2 | 3.2, 3.4 | `chain/InventoryTest#inv04S1EtS2…` (manifeste puis SBOM via GitLab simulé) | passe |
 | INV-05 | INV-05-S1 | DF-INV-1 | 3.3 | `chain/InventoryTest#inv05S1…`, `chain/DocumentParsingTest#sbomNonConformeRefuseeAvecMotif` | passe |
-| COR-01 | COR-01-S1 à COR-01-S4 | DF-COR-1, DF-COR-2 | 4.2, 4.7 | `chain/MatchRulesTest`, `chain/CorrelationTest#cor01S1EtS2EtS4…`, `#cor01S3DependanceTransitive` | passe ; jeu de référence annoté (4.7) absent |
+| COR-01 | COR-01-S1 à COR-01-S4 | DF-COR-1, DF-COR-2 | 4.2, 4.7 | `chain/MatchRulesTest` (dont `#postReleasesPyPi` et `#qualificatifInconnuNonClasseCommePreVersion`), `chain/CorrelationTest#avisRetireSansImpact` (avis OSV `withdrawn`), `chain/CorrelationTest#cor01S1EtS2EtS4…`, `#cor01S3DependanceTransitive` | passe ; jeu de référence annoté (4.7) absent |
 | COR-02 | COR-02-S1, COR-02-S2, COR-02-S3 | DF-COR-3 | 1.1, 4.3 | `chain/MatchRulesTest`, `chain/CorrelationTest#cor02S1EtCor06S1…`, `#aVerifierPourUnAvisSansPurl` | passe |
 | COR-03 | COR-03-S1, COR-03-S2 | DF-COR-1, DC-2 | 4.1, 4.4 | `chain/CorrelationTest#cor03S1EtS2…` (QS-01 : provenance par REST, contrôle d'intégrité) | passe |
 | COR-04 | COR-04-S1 | DF-COR-2, décision D3 | 4.5 | `chain/CorrelationTest#cor04S1…` (suggestion IA simulée sans impact créé) | passe ; règles d'alerte hors lot (alerting) |
 | COR-05 | COR-05-S1, COR-05-S2 | DF-COR-2, décision D3 | 4.5 | `chain/CorrelationTest#cor05S1…`, `#cor05S2…` (QS-10 : IA simulée indisponible ou plafonnée) | passe |
 | COR-06 | COR-06-S1 | DF-COR-3, DF-INV-2 | 1.2, 4.3 | `chain/CorrelationTest#cor02S1EtCor06S1…` (manifeste et SBOM de 40 jours : `probable`) | passe |
 | COR-07 | COR-07-S1 | DC-2, design « Transactions » | 4.1 | `chain/CorrelationTest#cor07S1…`, `#migrationUniciteDuTriplet` | passe |
-| COR-08 | COR-08-S1, COR-08-S2 | DF-ABO-2, design « Sécurité » | 4.1, 4.6 | `chain/CorrelationTest#cor08S1EtS2…` (REST, refus journalisé), `#rlsGardeFouEnBase` (rôle non super-utilisateur), `chain/InventoryTest#inventaireDUnAutreEspace…` | passe |
+| COR-08 | COR-08-S1, COR-08-S2 | DF-ABO-2, design « Sécurité » | 4.1, 4.6 | `chain/CorrelationTest#cor08S1EtS2…` (REST, refus journalisé dans `refus_acces`), `#rlsGardeFouEnBase` (politique sous `argos_app`), `#rlsAppliqueeSurLeCheminApplicatif` (requêtes de l'application exécutées sous `argos_app` : un périmètre erroné ne révèle rien), `chain/InventoryTest#inventaireDUnAutreEspace…` | passe |
 | ABO-01 | ABO-01-S1 | DF-ABO-1 | 5.1 | `chain/SubscriptionTest#abo01S1…` | passe |
 | ABO-02 | ABO-02-S1, ABO-02-S2 | DF-ABO-1, DC-2 | 5.1 | `chain/SubscriptionTest#abo02S1…`, `#abo02S2…` | passe |
 | ABO-03 | ABO-03-S1 | DF-ABO-1 | 1.4, 5.2 | `chain/SubscriptionTest#abo03S1…` | passe |
 | ABO-04 | ABO-04-S1 | DF-ABO-2 | 5.3 | `chain/SubscriptionTest#abo04S1…` | passe |
-| ABO-05 | ABO-05-S1, ABO-05-S2 | DF-ABO-1, DF-ABO-2 | 5.3, 5.4 | `chain/SubscriptionTest#abo05S1EtS2…`, `architecture/SubscriptionIsolationTest` (INV-D7) | passe |
+| ABO-05 | ABO-05-S1, ABO-05-S2 | DF-ABO-1, DF-ABO-2 | 5.3, 5.4 | `chain/SubscriptionTest#abo05S1EtS2…` (appartenances réelles, restitution et impacts lus sous `argos_app`), `architecture/SubscriptionIsolationTest` (INV-D7) | passe |
 | ABO-06 | ABO-06-S1, ABO-06-S2, ABO-06-S3 | DF-ABO-1 | 1.4, 5.1, 5.2 | `chain/SubscriptionTest#abo06Seul…`, `#abo06TeamObligatoire…` | passe |
+
+Limites connues, non couvertes par une tâche : les niveaux d'impact sont enregistrés à la corrélation et ne sont pas recalculés quand une SBOM dépasse 30 jours sans nouvelle corrélation ; la première synchronisation OSV sans curseur n'est pas bornée en volume (fiches `correlation-impact` et `collecte-avis-securite`, « Écarts constatés »).
 
 Tâches non réalisées et raison :
 
 - 3.2 : adapters GitLab et GitHub implémentés (`io.argos.scm.RepositoryFiles`) et testés sur réponses simulées (`chain/InventoryTest#contratGitLabEtGitHub`) ; aucune réponse réelle de forge n'est enregistrée faute de dépôt pilote accessible.
 - 4.7 : le jeu de référence annoté exige les inventaires des projets pilotes (baseline v2.3 §6 critère 3).
 - 6.1 : la décision de renommer ou d'annoter les participants de D-06 à D-09 n'est pas prise.
-- 6.2 : D-11 et D-12 relèvent du déploiement et des frontières de confiance, hors du code de ce lot ; D-13 reste à produire depuis les migrations V2 à V5.
+- 6.2 : D-11 et D-12 relèvent du déploiement et des frontières de confiance, hors du code de ce lot ; D-13 reste à produire depuis les migrations V2 à V7.
 - 6.3 : les ADR candidats (planification des traitements, outil de migration) ne sont pas rédigés ; Flyway reste le choix provisoire d'`argos-server/pom.xml` et aucune planification automatique n'est installée.
 - 7.1 : la chaîne de bout en bout sur les deux projets pilotes exige ces projets.
 

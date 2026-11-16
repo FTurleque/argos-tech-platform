@@ -6,7 +6,7 @@
 
 ## Contexte technique
 
-- [EXISTANT] Le socle `argos-server/` (Quarkus 3.40, Flyway provisoire) porte l'implémentation de ce lot : migrations V2 à V5, paquets `io.argos.<module>` et tests d'intégration sur PostgreSQL réel (voir tasks.md, matrice de traçabilité).
+- [EXISTANT] Le socle `argos-server/` (Quarkus 3.40, Flyway provisoire) porte l'implémentation de ce lot : migrations `V3__collecte_avis_securite.sql` à `V6__abonnements_veille.sql` (après `V2__comptes_et_acces.sql` du changement gerer-comptes-et-acces, qui crée les tables `compte`, `espace` et `refus_acces`), paquets `io.argos.<module>` et tests d'intégration sur PostgreSQL réel (voir tasks.md, matrice de traçabilité).
 - [DÉCISION] Java 17+, Quarkus, Vue.js 3, PostgreSQL (ADR-0019, ADR-0002 acceptés) ; REST + OpenAPI.
 - [PROPOSITION] Monolithe modulaire aux frontières vérifiées par ArchUnit (ADR-0001) ; modèle canonique (ADR-0003) ; aucun broker au MVP (arc42 §8.9).
 - Motivation : voir proposal.md, « Why — Pourquoi ».
@@ -162,7 +162,7 @@ Le contrat REST est décrit en OpenAPI générée par Quarkus (ADR-0019), sous `
 | Créer un abonnement | `PERSONAL` : l'appelant ; `TEAM` : administrateur de l'espace (Q-5, ABO-06) | refus nommant l'attribut manquant (400) ; refus journalisé (403) | ABO-01-S1, ABO-02, ABO-06 |
 | Consulter sa veille | utilisateur authentifié | — | ABO-03, ABO-04, ABO-05 |
 
-Un accès à une ressource d'un autre espace reçoit la même réponse 404 qu'une ressource inexistante, sans contenu, et il est journalisé (COR-08-S2) ; ce choix répond provisoirement à Q-D1. Tant que l'authentification OIDC (changement gerer-comptes-et-acces) n'est pas branchée, la résolution de l'appelant est fermée : toute consultation reçoit 401.
+Un accès à une ressource d'un autre espace reçoit la même réponse 404 qu'une ressource inexistante, sans contenu, et il est journalisé (COR-08-S2) ; ce choix répond provisoirement à Q-D1. L'appelant est établi depuis le jeton OIDC et les appartenances aux espaces du changement gerer-comptes-et-acces (`OidcCallerResolver`) ; sans jeton valide, toute consultation reçoit 401. Les refus sont journalisés dans la table unique `refus_acces`.
 
 ## Persistance et intégrité
 
@@ -240,7 +240,7 @@ Contraintes proposées : unicité (source, external_id) pour INV-D1 et (signal_i
 ## Sécurité et isolation
 
 - Signaux globaux ; impacts, inventaires, abonnements et vues rattachés à un espace (ADR-0016).
-- Double contrôle : vérification d'espace dans les services, RLS en base comme garde-fou ; traitements batch sous compte technique explicitement autorisé (ADR-0016, conséquences négatives).
+- Double contrôle : vérification d'espace dans les services, RLS en base comme garde-fou ; traitements batch (collecte, import, corrélation, contrôle d'intégrité) sous l'utilisateur de connexion, propriétaire des tables, les consultations sous le rôle applicatif `argos_app` avec le compte de l'appelant (ADR-0016, conséquences négatives ; arc42 §8.1).
 - Abonnements : le module `workspace` ne lit ni n'écrit les rôles (INV-D7) ; la restitution passe par les mêmes requêtes RLS que les autres consultations (DF-ABO-2).
 - Entrées externes (avis, SBOM, manifestes) traitées comme données non fiables : validation de structure, taille maximale configurable (`argos.inventory.max-document-bytes`, 20 Mio par défaut), aucune redirection ni URL issue d'un avis ou d'un flux suivie (risque SSRF R-12).
 - Aucun appel IA dans ce lot ; toute analyse future passe par `ai-gateway` et sa politique de classification (arc42 §8.3).
