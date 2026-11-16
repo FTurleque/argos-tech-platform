@@ -10,9 +10,10 @@ import java.util.UUID;
  * @param ancienStatut    statut avant le changement ({@code ADOPT}, {@code TRIAL}, {@code ASSESS}, {@code HOLD})
  * @param ancienneVersion version recommandée avant le changement, absente sinon
  * @param projets         projets de l'espace qui utilisent la technologie, avec la version utilisée
+ * @param historiqueId    entrée de l'historique du référentiel qui consigne le changement annoncé
  */
 public record AnnonceStandard(UUID espaceId, String cle, String libelle, String ancienStatut, String ancienneVersion,
-        String statut, String versionRecommandee, String justification, List<RadarProjets.ProjetConcerne> projets) {
+        String statut, String versionRecommandee, String justification, List<RadarProjets.ProjetConcerne> projets, UUID historiqueId) {
 
     public AnnonceStandard {
         projets = List.copyOf(projets);

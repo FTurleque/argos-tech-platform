@@ -259,12 +259,13 @@ public class ReferentielEspace {
                 ps.executeUpdate();
             }
         }
+        UUID historiqueId = UUID.randomUUID();
         try (PreparedStatement ps = c.prepareStatement("""
                 INSERT INTO standard_historique (id, standard_id, espace_id, statut, version_recommandee, responsable,
                     justification, date_revue, origine, modifie_par, modifie_le)
                 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, argos_compte_courant(), now())
                 """)) {
-            ps.setObject(1, UUID.randomUUID());
+            ps.setObject(1, historiqueId);
             ps.setObject(2, id);
             ps.setObject(3, espaceId);
             ps.setString(4, v.statut().name());
@@ -279,7 +280,7 @@ public class ReferentielEspace {
         Optional<StandardModifie> changement = avant
                 .filter(a -> a.statut() != apres.statut() || !Objects.equals(a.versionRecommandee(), apres.versionRecommandee()))
                 .map(a -> new StandardModifie(espaceId, apres.cle(), apres.libelle(), a.statut(), a.versionRecommandee(),
-                        apres.statut(), apres.versionRecommandee(), apres.justification(), compteId));
+                        apres.statut(), apres.versionRecommandee(), apres.justification(), compteId, historiqueId));
         return new Resultat(apres, changement);
     }
 

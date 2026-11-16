@@ -9,8 +9,9 @@ import java.util.UUID;
  *
  * @param ancienStatut    statut avant le changement
  * @param ancienneVersion version recommandée avant le changement, absente sinon
+ * @param historiqueId    entrée de l'historique qui consigne ce changement : identifie l'annonce
  */
 public record StandardModifie(UUID espaceId, String cle, String libelle, ReferentielStandards.Statut ancienStatut,
         String ancienneVersion, ReferentielStandards.Statut statut, String versionRecommandee, String justification,
-        UUID modifiePar) {
+        UUID modifiePar, UUID historiqueId) {
 }

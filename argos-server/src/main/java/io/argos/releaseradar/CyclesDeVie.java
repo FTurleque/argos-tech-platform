@@ -51,11 +51,25 @@ public class CyclesDeVie {
                 etats.put(produit, "A_JOUR");
             } catch (ClientEndoflife.SourceIndisponible e) {
                 LOG.warnf("synchronisation endoflife.date du produit %s en échec : %s", produit, e.getMessage());
-                marquerEchec(produit, e.getMessage(), maintenant);
+                echec(produit, e.getMessage(), maintenant);
+                etats.put(produit, "EN_ERREUR");
+            } catch (RuntimeException e) {
+                // Erreur de base ou réponse inattendue : le produit passe en erreur, les autres continuent.
+                LOG.errorf(e, "synchronisation du produit %s interrompue", produit);
+                echec(produit, "erreur interne de synchronisation", maintenant);
                 etats.put(produit, "EN_ERREUR");
             }
         }
         return etats;
+    }
+
+    /** Enregistre l'échec sans jamais interrompre la synchronisation des autres produits. */
+    private void echec(String produit, String motif, Instant maintenant) {
+        try {
+            marquerEchec(produit, motif == null ? "motif inconnu" : motif, maintenant);
+        } catch (RuntimeException e) {
+            LOG.errorf(e, "échec de synchronisation du produit %s non enregistré", produit);
+        }
     }
 
     /** Fraîcheur des produits demandés, connus d'Argos. */

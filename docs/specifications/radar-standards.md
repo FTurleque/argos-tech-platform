@@ -39,7 +39,7 @@ Exclus :
 
 - Inventaires des projets disponibles (`inventaire-sbom`) : la dette de version et les rappels ne portent que sur les versions présentes dans un inventaire.
 - Une technologie n'entre dans le radar que si son entrée du référentiel la relie à un produit endoflife.date (champ `produitCycleVie`, par exemple `postgresql`).
-- Tâche quotidienne (`argos.radar.tache.cron`, 06:00 par défaut, fuseau `argos.alerting.fuseau`) : synchronisation du calendrier, dettes de version, rappels.
+- Tâche quotidienne (`argos.radar.tache.cron`, 06:00 par défaut, fuseau `argos.alerting.fuseau`, le même que celui des horizons du radar REST) : synchronisation du calendrier, dettes de version, rappels. Une erreur sur un produit ou un espace est journalisée sans interrompre les autres, et une actualisation en échec n'empêche pas les rappels.
 
 ## Entrées, sorties et validations
 
@@ -74,7 +74,7 @@ Une version appartient à la branche la plus longue dont elle est égale ou qu'e
 
 ## Effets de bord observables
 
-- Messages `RAPPEL` et `ANNONCE` dans la table `alerte` (un par membre, canal `EMAIL` si le compte a une adresse, sinon `DESKTOP`), consultables par `/api/v1/alertes` et diffusés par `EnvoiAlertes` ; clé d'idempotence `cle_radar`.
+- Messages `RAPPEL` et `ANNONCE` dans la table `alerte` (un par membre, canal `EMAIL` si le compte a une adresse, sinon `DESKTOP`), consultables par `/api/v1/alertes` et diffusés par `EnvoiAlertes` ; clé d'idempotence `cle_radar` (rappel : échéance et jour de rappel ; annonce : entrée d'historique du changement ; au-delà de 600 caractères, début de la clé et empreinte SHA-256).
 - Impacts `dette_version` ; copie locale du calendrier (`cycle_vie`) et fraîcheur de chaque produit (`cycle_vie_produit` : `A_JOUR` ou `EN_ERREUR` avec le motif).
 
 ## Sécurité
@@ -121,6 +121,9 @@ Scénarios RAD-01-S1 à RAD-06-S1 du changement ; aucun scénario qualité trans
 
 - Les statuts du référentiel et les rappels ne figurent que dans le dossier de proposition v2.4, hors dépôt ; ils sont reportés en arc42 §8.15.
 - Pas d'écran du radar dans `argos-ui` : la tâche 4.2 est vérifiée par un parcours de bout en bout au niveau de l'API (`ParcoursRadarTest`).
+- Un rappel n'est calculé que pour le jour exact (aujourd'hui + N) : un jour où la tâche ne s'exécute pas, ses rappels ne sont pas rattrapés le lendemain.
+- L'annonce d'un changement de standard est diffusée dans le fil de la requête `PUT` qui l'a provoqué, après validation de la transaction : la durée de la requête dépend du serveur SMTP et du nombre de membres.
+- La lecture du corps d'une réponse endoflife.date est bornée en taille, pas en durée.
 
 ## Questions ouvertes
 

@@ -104,23 +104,50 @@ public class RadarProjets {
 
     /** Synchronise le calendrier des produits suivis puis enregistre les dettes de version du jour. */
     public Bilan actualiser(LocalDate aujourdhui, Instant maintenant) {
-        Map<String, String> produits = cycles.synchroniser(referentiel.produitsSuivis(), maintenant);
+        Map<String, String> produits;
+        try {
+            produits = cycles.synchroniser(referentiel.produitsSuivis(), maintenant);
+        } catch (RuntimeException e) {
+            // La dette se calcule alors sur le calendrier déjà connu.
+            LOG.errorf(e, "synchronisation du calendrier en échec");
+            produits = Map.of();
+        }
         return new Bilan(produits, enregistrerDettes(aujourdhui, maintenant));
     }
 
-    /** Crée les impacts « dette de version » manquants ; un impact existant n'est pas dupliqué. */
+    /**
+     * Crée les impacts « dette de version » manquants ; un impact existant n'est pas dupliqué. Une erreur
+     * sur un espace est journalisée et n'interrompt pas les autres espaces.
+     */
     public int enregistrerDettes(LocalDate aujourdhui, Instant maintenant) {
         int creees = 0;
-        for (UUID espace : referentiel.espacesSuivis()) {
-            Map<String, TechnologieSuivie> parCle = technologies(espace);
-            for (InventoryQueries.ComponentMatch m : composants(espace, parCle)) {
-                if (m.version() == null) {
-                    continue;
-                }
-                Optional<CalendrierSorties.Echeance> fin = calendrier.finDeSupport(m.packageKey(), m.version(), Set.of(espace));
-                if (fin.isPresent() && !fin.get().date().isAfter(aujourdhui)) {
-                    creees += enregistrerDette(m, fin.get(), parCle.get(m.packageKey()).versionRecommandee(), maintenant);
-                }
+        List<UUID> espaces;
+        try {
+            espaces = referentiel.espacesSuivis();
+        } catch (RuntimeException e) {
+            LOG.errorf(e, "lecture des espaces suivis par le radar impossible");
+            return 0;
+        }
+        for (UUID espace : espaces) {
+            try {
+                creees += enregistrerDettes(espace, aujourdhui, maintenant);
+            } catch (RuntimeException e) {
+                LOG.errorf(e, "dettes de version de l'espace %s en échec", espace);
+            }
+        }
+        return creees;
+    }
+
+    private int enregistrerDettes(UUID espace, LocalDate aujourdhui, Instant maintenant) {
+        int creees = 0;
+        Map<String, TechnologieSuivie> parCle = technologies(espace);
+        for (InventoryQueries.ComponentMatch m : composants(espace, parCle)) {
+            if (m.version() == null) {
+                continue;
+            }
+            Optional<CalendrierSorties.Echeance> fin = calendrier.finDeSupport(m.packageKey(), m.version(), Set.of(espace));
+            if (fin.isPresent() && !fin.get().date().isAfter(aujourdhui)) {
+                creees += enregistrerDette(m, fin.get(), parCle.get(m.packageKey()).versionRecommandee(), maintenant);
             }
         }
         return creees;
@@ -166,7 +193,7 @@ public class RadarProjets {
             if (!projets.isEmpty()) {
                 annonces.fire(new AnnonceStandard(changement.espaceId(), changement.cle(), changement.libelle(),
                         changement.ancienStatut().name(), changement.ancienneVersion(), changement.statut().name(),
-                        changement.versionRecommandee(), changement.justification(), projets));
+                        changement.versionRecommandee(), changement.justification(), projets, changement.historiqueId()));
             }
         } catch (RuntimeException e) {
             LOG.errorf(e, "annonce du changement de standard %s en échec", changement.cle());

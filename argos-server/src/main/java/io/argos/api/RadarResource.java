@@ -1,6 +1,7 @@
 package io.argos.api;
 
 import java.time.LocalDate;
+import java.time.ZoneId;
 import java.util.List;
 import java.util.Locale;
 import java.util.Set;
@@ -18,6 +19,7 @@ import jakarta.ws.rs.Produces;
 import jakarta.ws.rs.QueryParam;
 import jakarta.ws.rs.core.MediaType;
 
+import org.eclipse.microprofile.config.inject.ConfigProperty;
 import org.eclipse.microprofile.openapi.annotations.Operation;
 import org.eclipse.microprofile.openapi.annotations.responses.APIResponse;
 import org.eclipse.microprofile.openapi.annotations.tags.Tag;
@@ -78,6 +80,10 @@ public class RadarResource {
 
     @Inject
     RappelsRadar rappels;
+
+    /** Fuseau de la tâche quotidienne : le radar et les rappels comptent les jours de la même façon. */
+    @ConfigProperty(name = "argos.alerting.fuseau")
+    String fuseau;
 
     @GET
     @Path("/standards")
@@ -164,7 +170,7 @@ public class RadarResource {
     @APIResponse(responseCode = "404", description = "Espace inconnu ou dont l'appelant n'est pas membre")
     public Radar echeances(@PathParam("espaceId") UUID espaceId, @QueryParam("horizon") @DefaultValue("30j") String horizon) {
         Caller caller = membre(espaceId);
-        LocalDate depuis = LocalDate.now();
+        LocalDate depuis = LocalDate.now(ZoneId.of(fuseau));
         LocalDate jusqua = switch (horizon.strip().toLowerCase(Locale.ROOT)) {
             case "30j" -> depuis.plusDays(30);
             case "6m" -> depuis.plusMonths(6);

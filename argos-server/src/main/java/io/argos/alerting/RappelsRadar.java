@@ -46,7 +46,7 @@ import io.argos.workspace.DonneeInvalide;
  *
  * <p>Rappels et annonces ne dépendent pas des abonnements : ils partent sur le canal {@code EMAIL}
  * quand le compte a une adresse, sinon sur le canal {@code DESKTOP}, et restent consultables dans
- * Argos. Leur clé d'idempotence ({@code cle_radar}) empêche tout second message pour le même rappel.
+ * Argos. Leur clé d'idempotence ({@code cle_radar}) empêche tout second message pour le même rappel ou la même annonce.
  */
 @ApplicationScoped
 public class RappelsRadar {
@@ -55,6 +55,9 @@ public class RappelsRadar {
 
     /** Jours de rappel par défaut avant une échéance (Q-1). */
     public static final List<Integer> RAPPELS_PAR_DEFAUT = List.of(30, 7, 0);
+
+    /** Longueur de la colonne {@code alerte.cle_radar}. */
+    static final int CLE_MAX = 600;
 
     /** Bilan d'une exécution quotidienne. */
     public record Bilan(RadarProjets.Bilan radar, List<UUID> rappels) {
@@ -92,9 +95,23 @@ public class RappelsRadar {
 
     /** Tâche quotidienne du radar (DC-1) pour le jour donné. */
     public Bilan executer(LocalDate aujourdhui, Instant maintenant) {
-        RadarProjets.Bilan bilan = radar.actualiser(aujourdhui, maintenant);
+        RadarProjets.Bilan bilan;
+        try {
+            bilan = radar.actualiser(aujourdhui, maintenant);
+        } catch (RuntimeException e) {
+            // Les rappels partent quand même, sur le calendrier et les dettes déjà connus.
+            LOG.errorf(e, "actualisation du radar en échec");
+            bilan = new RadarProjets.Bilan(java.util.Map.of(), 0);
+        }
         List<UUID> crees = new ArrayList<>();
-        for (UUID espace : radar.espacesSuivis()) {
+        List<UUID> espaces;
+        try {
+            espaces = radar.espacesSuivis();
+        } catch (RuntimeException e) {
+            LOG.errorf(e, "lecture des espaces suivis par le radar impossible");
+            espaces = List.of();
+        }
+        for (UUID espace : espaces) {
             try {
                 for (int jours : parametresTechniques(espace)) {
                     for (RadarProjets.EcheanceProjets ep : radar.echeancesTouchant(espace, aujourdhui.plusDays(jours))) {
@@ -117,8 +134,8 @@ public class RappelsRadar {
             String titre = "Changement de standard : " + ch.libelle() + " passe de " + ch.ancienStatut()
                     + version(ch.ancienneVersion()) + " à " + ch.statut() + version(ch.versionRecommandee());
             String detail = titre + ". Justification : " + ch.justification();
-            String cle = "ANNONCE|" + ch.espaceId() + "|" + ch.cle() + "|" + ch.statut() + "|"
-                    + (ch.versionRecommandee() == null ? "" : ch.versionRecommandee()) + "|" + maintenant.toEpochMilli();
+            // L'entrée d'historique identifie le changement : relayé deux fois, il ne produit qu'un message.
+            String cle = "ANNONCE|" + ch.espaceId() + "|" + ch.historiqueId();
             List<UUID> crees = creerPourMembres("ANNONCE", annonce.espaceId(), cle, titre,
                     contenu(detail, annonce.projets(), "Référentiel de l'espace", ch.cle(), annonce.espaceId()), maintenant);
             envoi.envoyer(crees, maintenant);
@@ -242,7 +259,7 @@ public class RappelsRadar {
             ps.setString(2, nature);
             ps.setObject(3, compte);
             ps.setString(4, canal);
-            ps.setString(5, cle.length() > 600 ? cle.substring(0, 600) : cle);
+            ps.setString(5, cleBornee(cle));
             ps.setString(6, titre);
             ps.setString(7, MoteurAlertes.json(contenu));
             ps.setObject(8, maintenant.atOffset(ZoneOffset.UTC));
@@ -251,6 +268,24 @@ public class RappelsRadar {
             }
         } catch (SQLException e) {
             throw new IllegalStateException("enregistrement d'un message du radar impossible", e);
+        }
+    }
+
+    /**
+     * Clé d'idempotence tenue dans 600 caractères sans collision : au-delà, elle est remplacée par son
+     * début suivi de l'empreinte SHA-256 de la clé complète.
+     */
+    static String cleBornee(String cle) {
+        if (cle.length() <= CLE_MAX) {
+            return cle;
+        }
+        try {
+            byte[] empreinte = java.security.MessageDigest.getInstance("SHA-256")
+                    .digest(cle.getBytes(java.nio.charset.StandardCharsets.UTF_8));
+            String hex = java.util.HexFormat.of().formatHex(empreinte);
+            return cle.substring(0, CLE_MAX - hex.length() - 1) + "#" + hex;
+        } catch (java.security.NoSuchAlgorithmException e) {
+            throw new IllegalStateException("SHA-256 indisponible", e);
         }
     }
 

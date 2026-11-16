@@ -3,8 +3,9 @@ package io.argos.alerting;
 import java.util.UUID;
 
 /**
- * Message à diffuser : alerte immédiate ({@code IMMEDIATE}) ou résumé ({@code DAILY}, {@code WEEKLY})
- * pour un destinataire et un canal.
+ * Message à diffuser : alerte immédiate ({@code IMMEDIATE}), résumé ({@code DAILY}, {@code WEEKLY}),
+ * rappel d'échéance ({@code RAPPEL}) ou annonce de standard ({@code ANNONCE}) du radar, pour un
+ * destinataire et un canal.
  *
  * @param adresse e-mail du destinataire, absente si son compte n'en a pas
  */
