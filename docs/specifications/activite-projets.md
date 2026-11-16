@@ -99,8 +99,8 @@ Aucun écart constaté.
 
 | ID | Question | Impact | Destinataire |
 |---|---|---|---|
-| Q-1 | Faut-il prendre en charge GitHub et GitLab dès la première version ? | non | porteur du projet |
-| Q-2 | Combien de temps conserver l'historique des indicateurs ? | non | porteur du projet / DPO |
+| Q-1 | Faut-il prendre en charge GitHub et GitLab dès la première version ? | répondue le 2026-11-16 : oui : GitHub et GitLab dès la première version, par les adapters `scm` existants [DÉCISION] | porteur du projet |
+| Q-2 | Combien de temps conserver l'historique des indicateurs ? | répondue le 2026-11-16 : 13 mois, puis suppression [DÉCISION] | porteur du projet / DPO |
 
 ## Traçabilité
 

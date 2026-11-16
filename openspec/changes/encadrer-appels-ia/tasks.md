@@ -4,7 +4,7 @@
 
 ## 1. Arbitrages
 
-- [ ] 1.1 Faire fixer le plafond mensuel, le quota par espace et les classes transmissibles (Q-1, Q-2, Q-4) — couvre IAG-02, IAG-03 — vérification : valeurs inscrites dans la fiche `passerelle-ia`
+- [x] 1.1 Faire fixer le plafond mensuel, le quota par espace et les classes transmissibles (Q-1, Q-2, Q-4) — couvre IAG-02, IAG-03 — vérification : valeurs inscrites dans la fiche `passerelle-ia` (décidé le 2026-11-16)
 
 ## 2. Passerelle
 

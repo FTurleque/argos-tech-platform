@@ -4,7 +4,7 @@
 
 ## 1. Arbitrages
 
-- [ ] 1.1 Faire choisir les sources prioritaires, le périmètre géographique et les disciplines (Q-1 à Q-3) — couvre ART-02, ART-05 — vérification : choix inscrits dans la fiche `profil-artiste`
+- [x] 1.1 Faire choisir les sources prioritaires, le périmètre géographique et les disciplines (Q-1 à Q-3) — couvre ART-02, ART-05 — vérification : choix inscrits dans la fiche `profil-artiste` (décidé le 2026-11-16)
 
 ## 2. Pack et rapprochement
 

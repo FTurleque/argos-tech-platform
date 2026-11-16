@@ -103,10 +103,10 @@ Scénarios IAG-01-S1 à IAG-05-S1 du changement ; QS-08, QS-09, QS-15.
 
 | ID | Question | Impact | Destinataire |
 |---|---|---|---|
-| Q-1 | Quel plafond mensuel de dépense API ? | oui pour IAG-03 | porteur du projet |
-| Q-2 | Quel quota par espace pour un produit ouvert ? | oui pour IAG-03 | porteur du projet |
-| Q-3 | Quels modèles par tâche (classement, résumé, analyse) ? | non : configuration | porteur du projet |
-| Q-4 | Quelles classes de données peuvent sortir (question 2 de `/docs/architecture/README.md`) ? | oui pour IAG-02 | porteur du projet / DPO |
+| Q-1 | Quel plafond mensuel de dépense API ? | répondue le 2026-11-16 : 0 € : fournisseur local Ollama (MIT), sans API payante ; plafond de charge de 1 000 appels par jour pour toute l'instance, paramétrable [DÉCISION] | porteur du projet |
+| Q-2 | Quel quota par espace pour un produit ouvert ? | répondue le 2026-11-16 : 100 appels par jour et par espace, paramétrable [DÉCISION] | porteur du projet |
+| Q-3 | Quels modèles par tâche (classement, résumé, analyse) ? | répondue le 2026-11-16 : modèle par défaut `qwen2.5:1.5b` (Apache-2.0) pour toutes les tâches, remplaçable par tâche dans la configuration [DÉCISION] | porteur du projet |
+| Q-4 | Quelles classes de données peuvent sortir (question 2 de `/docs/architecture/README.md`) ? | répondue le 2026-11-16 : données publiques et internes (avis, métadonnées de composants, textes de veille) ; jamais de secrets, de jetons ni de données personnelles [DÉCISION] | porteur du projet / DPO |
 
 ## Traçabilité
 
