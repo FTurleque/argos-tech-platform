@@ -40,6 +40,10 @@ services:
       ARGOS_DB_URL: jdbc:postgresql://postgres:5432/${ARGOS_DB_NAME:-argos}
       ARGOS_DB_USER: ${ARGOS_DB_USER:-argos}
       ARGOS_DB_PASSWORD: ${ARGOS_DB_PASSWORD:-argos}
+      # Fournisseur d'identité OIDC (Keycloak, ADR-0027) : obligatoire, Argos refuse de démarrer sans.
+      ARGOS_OIDC_URL: ${ARGOS_OIDC_URL:-}
+      ARGOS_OIDC_CLIENT_ID: ${ARGOS_OIDC_CLIENT_ID:-argos-server}
+      ARGOS_ADMIN_EMAIL: ${ARGOS_ADMIN_EMAIL:-}
       TZ: ${TZ:-Europe/Paris}
     ports:
       # 127.0.0.1 par défaut : accès local, ou via le reverse proxy de DSM sur le NAS.

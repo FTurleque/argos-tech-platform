@@ -66,6 +66,13 @@
       <artifactId>flyway-database-postgresql</artifactId>
     </dependency>
 
+    <!-- Authentification OIDC (ADR-0008, ADR-0027) : validation des jetons du fournisseur
+         d'identité Keycloak. Licence Apache-2.0 (ADR-0021 point 6). -->
+    <dependency>
+      <groupId>io.quarkus</groupId>
+      <artifactId>quarkus-oidc</artifactId>
+    </dependency>
+
     <!-- Tests -->
     <dependency>
       <groupId>io.quarkus</groupId>
@@ -75,6 +82,12 @@
     <dependency>
       <groupId>io.rest-assured</groupId>
       <artifactId>rest-assured</artifactId>
+      <scope>test</scope>
+    </dependency>
+    <!-- Jetons de test émis par le Keycloak des Dev Services. Licence Apache-2.0. -->
+    <dependency>
+      <groupId>io.quarkus</groupId>
+      <artifactId>quarkus-test-keycloak-server</artifactId>
       <scope>test</scope>
     </dependency>
     <dependency>
