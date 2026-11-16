@@ -11,6 +11,13 @@
 | **Source** | configuration permettant de collecter une origine de veille |
 | **Repository** | dépôt GitHub/GitLab associé à un projet |
 | **Workspace** | frontière organisationnelle et d’autorisation regroupant projets et sources |
+| **Espace** | nom de l’IHM et de l’API (`/api/v1/espaces`) pour un workspace ; ses membres y ont un rôle (capacité `comptes-acces`) |
+| **Compte** | identité Argos d’une personne, créée à sa première connexion OIDC et reliée au sujet du jeton |
+| **Appartenance** | lien entre un compte et un espace, portant le rôle `LECTEUR`, `CONTRIBUTEUR` ou `ADMINISTRATEUR` |
+| **Invitation** | proposition, émise par un administrateur d’espace, de rejoindre l’espace avec un rôle ; adressée à un e-mail, valable 14 jours par défaut |
+| **Administrateur plateforme** | attribut d’un compte pour l’exploitation et les catalogues, sans accès implicite aux espaces |
+| **Espace courant** | espace transmis à PostgreSQL dans chaque transaction (`argos.espace_courant`) pour la RLS |
+| **Keycloak** | fournisseur d’identité OIDC open source (Apache-2.0) auto-hébergé, retenu par ADR-0027 (Proposé) |
 | **C4** | modèle de visualisation d’architecture par niveaux Context, Container, Component et Code |
 | **arc42** | structure de documentation d’architecture en douze sections |
 | **ADR** | Architecture Decision Record ; enregistrement versionné d’une décision structurante |

@@ -34,6 +34,7 @@ Chaque relation doit porter une action et le protocole lorsqu’il est architect
 | D-11 | UML-style deployment | cible entreprise | **manquant** : `arc42/07-vue-deploiement.md` §7.4 ne contient pas de diagramme |
 | D-12 | UML-style trust boundaries | sécurité | **manquant** : annoncé pour `arc42/08-concepts-transverses.md`, absent du fichier |
 | D-13 | Mermaid erDiagram | modèle physique conceptuel | **manquant** : annoncé pour `arc42/08-concepts-transverses.md`, absent du fichier |
+| D-14 | UML sequenceDiagram | authentification OIDC, autorisation et cloisonnement d’une requête | `arc42/08-concepts-transverses.md` §8.1 |
 
 D-06 à D-09 emploient des noms de participants différents des composants de la section 5 ; la correspondance figure en tête de `arc42/06-vue-execution.md`.
 
@@ -45,7 +46,6 @@ Les diagrammes métier par capacité (`DF-*`) sont inventoriés dans [`../../spe
 - C4 Component focalisé `AI Gateway` ;
 - `stateDiagram-v2` du cycle de vie `IntelligenceItem` ;
 - `stateDiagram-v2` du cycle de vie `ProjectImpact` ;
-- séquence authentification/autorisation OIDC ;
 - pipeline CI/CD réel ;
 - déploiement réel issu des manifests IaC ;
 - niveau C4 Code uniquement pour des zones critiques justifiées.

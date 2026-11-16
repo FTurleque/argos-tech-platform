@@ -71,6 +71,10 @@ Les ADR enregistrent les décisions architecturales importantes d’ARGOS.
 - [ADR-0025 — Produit ouvert à tous les publics, porté à titre personnel](0025-produit-ouvert-projet-personnel.md) — **Accepté** ; ADR-0008, ADR-0009 et ADR-0017 à revoir
 - [ADR-0026 — Hébergement sur le serveur Synology du porteur](0026-hebergement-synology.md) — **Accepté** (cible) ; remplace ADR-0017 pour la VM interne
 
+### Identité
+
+- [ADR-0027 — Keycloak auto-hébergé comme fournisseur d'identité](0027-keycloak-idp-auto-heberge.md) — Proposé ; complète ADR-0008
+
 Les ADR-0010 à ADR-0018 restent **Proposés** jusqu’à validation par revue d’architecture et/ou preuves produites pendant le POC.
 
 Utiliser [`template.md`](template.md) pour toute nouvelle décision.

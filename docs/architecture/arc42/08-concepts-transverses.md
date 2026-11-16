@@ -2,11 +2,54 @@
 
 ## 8.1 Identité et accès
 
-**Hypothèse à valider :** authentification fédérée via OIDC avec l’IdP d’entreprise.
+Capacité [`comptes-acces`](../../specifications/comptes-acces.md) (exigences ACC-01 à ACC-06, changement `gerer-comptes-et-acces`).
 
-Rôles proposés : `USER`, `PROJECT_MANAGER`, `WORKSPACE_ADMIN`, `PLATFORM_ADMIN`, `OPS`.
+**Authentification** (ADR-0008, ADR-0027, Proposés) : OIDC auprès d’un Keycloak auto-hébergé. L’IHM et le client desktop obtiennent un jeton par Authorization Code + PKCE ; `API & Security` (`quarkus-oidc`, mode `service`) vérifie à chaque requête la signature, l’émetteur, l’audience `argos-server` et l’expiration. Toutes les routes exigent un jeton, sauf `/api/v1/system/info` et `/q/health` (`application.properties`).
 
-L’autorisation est évaluée au niveau workspace/projet et reste indépendante des préférences de veille.
+**Comptes** : un compte Argos est créé à la première connexion réussie, sans aucun espace. L’inscription se fait sur invitation : sans invitation en attente pour son e-mail vérifié, une personne authentifiée reçoit un refus explicite (403) et aucun compte. Le profil de veille `developpeur` est activé à la création (événement `CompteCree`).
+
+**Rôles d’espace** (ADR-0016) : `LECTEUR`, `CONTRIBUTEUR`, `ADMINISTRATEUR`. Un espace garde toujours au moins un administrateur. L’administrateur plateforme est un attribut du compte, sans aucun accès implicite aux espaces. L’autorisation reste indépendante des préférences de veille (ABO-05, PRF-05).
+
+**Cloisonnement en deux temps** (ADR-0016) :
+
+1. le module `workspace` relit l’appartenance et le rôle à chaque requête ; une révocation s’applique donc dès la requête suivante ;
+2. chaque transaction applicative bascule sur le rôle PostgreSQL `argos_app` et transmet `argos.compte_courant`, `argos.email_courant` et `argos.espace_courant` ; les politiques RLS n’exposent que les lignes d’un espace courant dont le compte est membre. Sans contexte, aucune ligne d’espace n’est visible.
+
+Convention pour toute table portant un identifiant d’espace : `ENABLE ROW LEVEL SECURITY`, droits accordés à `argos_app`, politiques fondées sur `argos_espace_autorise(espace_id)`, et accès applicatif par `ContexteBase` (`io.argos.workspace`). La migration crée le rôle `argos_app` : l’utilisateur de migration doit être superutilisateur ou disposer de `CREATEROLE`.
+
+**Réponses de refus** : non authentifié 401 ; non-membre ou ressource inexistante 404, qui ne révèle pas l’existence de la ressource ; rôle insuffisant 403. Chaque refus d’accès est journalisé dans la table `refus_acces` du module `audit` (compte, méthode et chemin, motif, horodatage), sans donnée de la ressource.
+
+### D-14 — Contrôle d’une requête authentifiée
+
+```mermaid
+sequenceDiagram
+    actor U as Utilisateur
+    participant KC as Keycloak
+    participant API as API & Security
+    participant WS as workspace
+    participant DB as PostgreSQL (RLS)
+    participant AU as audit
+    U->>KC: connexion (Authorization Code + PKCE)
+    KC-->>U: jeton d'accès
+    U->>API: requête + jeton porteur
+    alt jeton absent, invalide, expiré ou d'une autre audience
+        API-->>U: 401
+    else jeton valide
+        API->>WS: compte courant (créé à la première connexion)
+        WS->>DB: appartenance et rôle (rôle argos_app, compte courant)
+        alt non membre
+            API->>AU: refus NON_MEMBRE
+            API-->>U: 404
+        else rôle insuffisant
+            API->>AU: refus ROLE_INSUFFISANT
+            API-->>U: 403
+        else autorisé
+            WS->>DB: requête avec espace courant
+            DB-->>WS: lignes de cet espace seulement
+            API-->>U: réponse
+        end
+    end
+```
 
 ## 8.2 Personnalisation équipe + utilisateur
 
@@ -93,7 +136,7 @@ POC local Docker Compose, puis VM Linux interne pour le POC partagé/MVP. Voir A
 
 ## 8.13 Questions ouvertes
 
-- IdP et coffre-fort imposés ?
+- coffre-fort imposé ? (IdP : Keycloak auto-hébergé, ADR-0027)
 - stack d’observabilité imposée ?
 - durées de conservation ?
 - mécanisme Teams/e-mail ?
