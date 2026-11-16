@@ -143,7 +143,7 @@ public class MoteurAlertes {
         }
         boolean nouvelleAlerte = plans.stream().anyMatch(p -> p.immediates().keySet().stream()
                 .anyMatch(canal -> !alerteExiste(e.signalId(), p.destinataire().compteId(), canal)));
-        String[] resume = nouvelleAlerte ? resumeIa(e) : new String[] {null, "SANS_OBJET"};
+        String[] resume = nouvelleAlerte ? resumeIa(e, espaces) : new String[] {null, "SANS_OBJET"};
 
         List<UUID> creees = new ArrayList<>();
         int elements = 0;
@@ -241,18 +241,19 @@ public class MoteurAlertes {
         return "OSV".equalsIgnoreCase(source) ? "https://osv.dev/vulnerability/" + externe : null;
     }
 
-    /** Résumé IA, demandé avec un délai borné : {résumé, état}. */
-    private String[] resumeIa(ImpactsRecorded e) {
+    /** Résumé IA, imputé à l'un des espaces concernés et demandé avec un délai borné : {résumé, état}. */
+    private String[] resumeIa(ImpactsRecorded e, Set<UUID> espaces) {
         if (!resumeIa.isResolvable()) {
             return new String[] {null, "INDISPONIBLE"};
         }
         ResumeIa ia = resumeIa.get();
-        if (!ia.budgetDisponible()) {
+        Set<UUID> concernes = espaces.stream().filter(java.util.Objects::nonNull).collect(Collectors.toUnmodifiableSet());
+        if (!ia.budgetDisponible(concernes)) {
             return new String[] {null, "PLAFOND_ATTEINT"};
         }
         Future<String> demande;
         try {
-            demande = EXECUTEUR_IA.submit(() -> ia.resumer(e.signalId(), e.signalTitle()));
+            demande = EXECUTEUR_IA.submit(() -> ia.resumer(e.signalId(), e.signalTitle(), concernes));
         } catch (RejectedExecutionException ex) {
             LOG.infof("résumé IA indisponible pour le signal %s : file d'attente pleine", e.signalId());
             return new String[] {null, "INDISPONIBLE"};

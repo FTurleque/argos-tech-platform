@@ -79,6 +79,10 @@ Les ADR enregistrent les décisions architecturales importantes d’ARGOS.
 
 - [ADR-0028 — Collecteur RSS/Atom et pages surveillées intégré au serveur](0028-collecteur-veille-web-integre.md) — Proposé ; remplacerait ADR-0006 à son acceptation
 
+### Intelligence artificielle
+
+- [ADR-0029 — Passerelle IA servie par un modèle local Ollama](0029-passerelle-ia-ollama-local.md) — Proposé ; remplacerait ADR-0004 à son acceptation
+
 Les ADR-0010 à ADR-0018 restent **Proposés** jusqu’à validation par revue d’architecture et/ou preuves produites pendant le POC.
 
 Utiliser [`template.md`](template.md) pour toute nouvelle décision.

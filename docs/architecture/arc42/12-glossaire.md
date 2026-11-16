@@ -39,6 +39,8 @@
 | **Claude** | famille de modèles d’Anthropic retenue comme fournisseur IA initial proposé |
 | **LLM** | Large Language Model |
 | **AI Gateway** | composant ARGOS encapsulant appels LLM, prompts, politiques, quotas, validation et audit |
+| **Ollama** | serveur de modèles d'IA local (licence MIT) appelé par la passerelle IA (ADR-0029, proposé) ; service facultatif du profil `ia` de `compose.yaml` |
+| **Quota IA** | nombre maximal d'appels transmis au modèle par jour : 1 000 pour l'instance, 100 par espace, paramétrables (IAG-03) |
 | **Structured output** | réponse LLM contrainte/validée selon une structure attendue, idéalement un schéma |
 | **RAG** | Retrieval-Augmented Generation ; enrichissement d’un appel LLM par des données retrouvées à la demande |
 | **Embedding** | représentation vectorielle utilisée pour similarité/recherche sémantique |

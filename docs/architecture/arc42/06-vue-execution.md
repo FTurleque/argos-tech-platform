@@ -102,7 +102,7 @@ sequenceDiagram
     Desk->>Alert: résumé sur le canal DESKTOP : GET /api/v1/alertes puis POST /remise
 ```
 
-L’indisponibilité de l’IA ou du serveur d’e-mails ne bloque ni les impacts ni l’enregistrement des alertes ; une alerte en échec d’envoi reste consultable dans Argos. L’évaluation est synchrone dans le fil de la corrélation : chaque signal qui produit une alerte attend au plus le délai du résumé IA (10 s) puis, par alerte e-mail, le délai d’envoi SMTP (`quarkus.mailer.timeout`, 10 s). Aucun verrou ni aucune transaction n’est tenu pendant l’envoi ; chaque tentative est comptée, quelle que soit la cause de l’échec. Le module `alerting` ne dépend pas d’`ai-gateway` (`ModuleBoundariesTest`) : le résumé passe par l’interface `ResumeIa`, sans implémentation livrée.
+L’indisponibilité de l’IA ou du serveur d’e-mails ne bloque ni les impacts ni l’enregistrement des alertes ; une alerte en échec d’envoi reste consultable dans Argos. L’évaluation est synchrone dans le fil de la corrélation : chaque signal qui produit une alerte attend au plus le délai du résumé IA (10 s) puis, par alerte e-mail, le délai d’envoi SMTP (`quarkus.mailer.timeout`, 10 s). Aucun verrou ni aucune transaction n’est tenu pendant l’envoi ; chaque tentative est comptée, quelle que soit la cause de l’échec. Le résumé passe par l’interface `ResumeIa`, implémentée par `ResumeIaPasserelle` sur le contrat d’`ai-gateway` (changement `encadrer-appels-ia`) : appel imputé au premier espace concerné dont le quota n’est pas épuisé, alerte envoyée sans résumé si le plafond ou les quotas sont atteints, si Ollama est injoignable ou si la sortie est rejetée.
 
 ### 6.1.2 Alerte sur le poste, clic et reprise après coupure
 
