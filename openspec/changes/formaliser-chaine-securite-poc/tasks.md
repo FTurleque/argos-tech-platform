@@ -4,12 +4,12 @@
 
 ## 1. Arbitrages bloquants
 
-- [ ] 1.1 Faire définir les règles des niveaux `probable` et `à vérifier` (Q-2) et les reporter dans COR-02 par un MODIFIED avant archivage — vérification : décision consignée dans la fiche `correlation-impact` et `openspec validate formaliser-chaine-securite-poc --strict` réussit
-- [ ] 1.2 Faire fixer le seuil d'obsolescence d'une SBOM (Q-3) — couvre INV-03, COR-06 — vérification : valeur et source inscrites dans la fiche `inventaire-sbom`
-- [ ] 1.3 Faire fixer le nombre maximal de tentatives et le seuil `DEGRADED` (Q-4) — couvre COL-06, COL-07 — vérification : valeurs inscrites dans la fiche `collecte-avis-securite`
-- [ ] 1.4 Faire décider qui crée un abonnement `TEAM` et si un `TEAM` obligatoire peut être quitté (Q-5) — couvre ABO-03 — vérification : décision inscrite dans la fiche `abonnements-veille` et, si elle crée une règle, exigence ajoutée au delta
-- [ ] 1.5 Faire fixer les versions de schéma CycloneDX acceptées (Q-7) — couvre INV-01, INV-05 — vérification : liste inscrite dans la fiche `inventaire-sbom`
-- [ ] 1.6 Faire valider ou rejeter les interprétations listées dans chaque fiche (« Interprétations introduites par un changement ») — vérification : chaque interprétation marquée validée ou retirée du delta
+- [x] 1.1 Faire définir les règles des niveaux `probable` et `à vérifier` (Q-2) et les reporter dans COR-02 par un MODIFIED avant archivage — vérification : décision consignée dans la fiche `correlation-impact` et `openspec validate formaliser-chaine-securite-poc --strict` réussit (décidé le 2026-11-16)
+- [x] 1.2 Faire fixer le seuil d'obsolescence d'une SBOM (Q-3) — couvre INV-03, COR-06 — vérification : valeur et source inscrites dans la fiche `inventaire-sbom` (décidé le 2026-11-16)
+- [x] 1.3 Faire fixer le nombre maximal de tentatives et le seuil `DEGRADED` (Q-4) — couvre COL-06, COL-07 — vérification : valeurs inscrites dans la fiche `collecte-avis-securite` (décidé le 2026-11-16)
+- [x] 1.4 Faire décider qui crée un abonnement `TEAM` et si un `TEAM` obligatoire peut être quitté (Q-5) — couvre ABO-03 — vérification : décision inscrite dans la fiche `abonnements-veille` et, si elle crée une règle, exigence ajoutée au delta (décidé le 2026-11-16)
+- [x] 1.5 Faire fixer les versions de schéma CycloneDX acceptées (Q-7) — couvre INV-01, INV-05 — vérification : liste inscrite dans la fiche `inventaire-sbom` (décidé le 2026-11-16)
+- [x] 1.6 Faire valider ou rejeter les interprétations listées dans chaque fiche (« Interprétations introduites par un changement ») — vérification : chaque interprétation marquée validée ou retirée du delta (décidé le 2026-11-16)
 
 ## 2. Collecte des avis de sécurité
 

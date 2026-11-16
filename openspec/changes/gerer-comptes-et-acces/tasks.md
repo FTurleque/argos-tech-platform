@@ -4,8 +4,8 @@
 
 ## 1. Arbitrages
 
-- [ ] 1.1 Faire choisir le fournisseur d'identité (Q-1) — couvre ACC-01, ACC-02 — vérification : choix inscrit dans la fiche `comptes-acces`
-- [ ] 1.2 Faire décider l'inscription ouverte ou sur invitation et le profil par défaut (Q-2, Q-3) — couvre ACC-02 — vérification : décisions inscrites dans la fiche
+- [x] 1.1 Faire choisir le fournisseur d'identité (Q-1) — couvre ACC-01, ACC-02 — vérification : choix inscrit dans la fiche `comptes-acces` (décidé le 2026-11-16)
+- [x] 1.2 Faire décider l'inscription ouverte ou sur invitation et le profil par défaut (Q-2, Q-3) — couvre ACC-02 — vérification : décisions inscrites dans la fiche (décidé le 2026-11-16)
 
 ## 2. Authentification et comptes
 

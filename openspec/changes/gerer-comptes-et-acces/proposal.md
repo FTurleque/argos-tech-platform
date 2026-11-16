@@ -80,7 +80,7 @@ Complète : le changement porte la sécurité de toute l'application et introdui
 
 | ID | Question | Bloquante ? | Destinataire |
 |---|---|---|---|
-| Q-1 | Quel fournisseur d'identité : SSO Server de DSM, Keycloak ou Authentik ? | oui pour l'implémentation | porteur du projet |
-| Q-2 | L'inscription est-elle ouverte à tous ou sur invitation au démarrage ? | oui pour ACC-02 | porteur du projet |
-| Q-3 | Quel profil de veille est activé à la création d'un compte (PRF-01 impose au moins un profil) ? | oui pour ACC-02 | Product Owner |
-| Q-4 | Un accès refusé à une ressource d'un autre espace répond-il « interdit » ou « introuvable » ? | non : choix de conception | architecte / sécurité |
+| Q-1 | Quel fournisseur d'identité : SSO Server de DSM, Keycloak ou Authentik ? | **Répondue le 2026-11-16** : Keycloak (gratuit, Apache-2.0, Dev Services Quarkus) [DÉCISION] | porteur du projet |
+| Q-2 | L'inscription est-elle ouverte à tous ou sur invitation au démarrage ? | **Répondue le 2026-11-16** : sur invitation [DÉCISION] | porteur du projet |
+| Q-3 | Quel profil de veille est activé à la création d'un compte (PRF-01 impose au moins un profil) ? | **Répondue le 2026-11-16** : profil `developpeur` [DÉCISION] | Product Owner |
+| Q-4 | Un accès refusé à une ressource d'un autre espace répond-il « interdit » ou « introuvable » ? | **Répondue le 2026-11-16** : « introuvable » (HTTP 404), qui ne révèle pas l'existence de la ressource [DÉCISION] | architecte / sécurité |

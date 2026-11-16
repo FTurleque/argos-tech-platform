@@ -5,9 +5,9 @@
 ## 1. Arbitrages
 
 - [x] 1.1 Faire trancher la portée d'Argos : outil interne ou produit ouvert à d'autres publics (Q-1) — couvre ADR-0024 point 8 — vérification : décision consignée dans la fiche `profils-veille` (produit ouvert, ADR-0025, 2026-11-16)
-- [ ] 1.2 Faire décider si un profil proposé par l'équipe peut être désactivé (Q-2) — couvre PRF-01 — vérification : décision inscrite dans la fiche `profils-veille` et, si elle crée une règle, exigence ajoutée au delta
-- [ ] 1.3 Faire décider l'articulation entre abonnements `PERSONAL` et profils actifs (Q-3) — couvre PRF-02, ABO-04 — vérification : décision inscrite dans les fiches `profils-veille` et `abonnements-veille`
-- [ ] 1.4 Faire fixer le référentiel d'accessibilité (Q-4) — couvre AFF-05 — vérification : référentiel inscrit dans la fiche `affichage-personnalise`
+- [x] 1.2 Faire décider si un profil proposé par l'équipe peut être désactivé (Q-2) — couvre PRF-01 — vérification : décision inscrite dans la fiche `profils-veille` et, si elle crée une règle, exigence ajoutée au delta (décidé le 2026-11-16)
+- [x] 1.3 Faire décider l'articulation entre abonnements `PERSONAL` et profils actifs (Q-3) — couvre PRF-02, ABO-04 — vérification : décision inscrite dans les fiches `profils-veille` et `abonnements-veille` (décidé le 2026-11-16)
+- [x] 1.4 Faire fixer le référentiel d'accessibilité (Q-4) — couvre AFF-05 — vérification : référentiel inscrit dans la fiche `affichage-personnalise` (décidé le 2026-11-16)
 
 ## 2. Préférences et mise en page
 

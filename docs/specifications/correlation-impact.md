@@ -185,6 +185,8 @@ La seule règle établie est négative : un inventaire de repli ou obsolète exc
 
 ## Interprétations introduites par un changement
 
+Interprétations validées par le porteur du projet le 2026-11-16 [DÉCISION].
+
 - COR-01-S3 : un impact sur dépendance transitive indique son caractère transitif ;
 - COR-02-S1 : correspondance PURL + version sur SBOM non obsolète ⇒ niveau `exact` (interprétation de ADR-0013) ;
 - COR-08-S2 : le refus ne révèle pas le contenu de l'impact.
@@ -198,7 +200,7 @@ La seule règle établie est négative : un inventaire de repli ou obsolète exc
 
 | ID | Question | Impact | Destinataire |
 |---|---|---|---|
-| Q-2 (changement) | Règles des niveaux `probable` et `à vérifier` ? | COR-02, COR-06 | architecte / sécurité |
+| Q-2 (changement) | Règles des niveaux `probable` et `à vérifier` ? | répondue le 2026-11-16 : `exact` : PURL et version dans la plage affectée, SBOM non obsolète ; `probable` : même correspondance, mais inventaire de repli ou SBOM obsolète ; `à vérifier` : correspondance sans PURL (nom ou CPE seul), version inconnue ou plage non interprétable [DÉCISION] | architecte / sécurité |
 | Q-COR-1 | Quand une analyse IA est-elle « autorisée et nécessaire » ? | DF-COR-2, AI Gateway | architecte / sécurité |
 | Q-COR-2 | Quel cycle de vie de traitement pour un impact (confirmé, résolu…) ? | futur stateDiagram `ProjectImpact` | Product Owner |
 | Q-COR-3 | Comment traiter une plage de versions non interprétable pour un écosystème ? | COR-01 | backend |

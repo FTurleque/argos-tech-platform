@@ -128,6 +128,8 @@ Le diagramme relie l'origine de l'inventaire au niveau d'impact défini par `cor
 
 ## Interprétations introduites par un changement
 
+Interprétations validées par le porteur du projet le 2026-11-16 [DÉCISION].
+
 - INV-01-S2 : un composant absent de la nouvelle SBOM disparaît de l'inventaire de référence (remplacement complet) ;
 - INV-02 : la distinction direct/transitif est affichée — la source exige la couverture des transitives, pas l'affichage de la distinction.
 
@@ -143,7 +145,8 @@ Aucun écart avec du code : aucun code n'existe.
 | Q-INV-2 | Un changement d'inventaire relance-t-il la corrélation des signaux existants ? | COR-01 | architecte |
 | Q-INV-3 | Après un import refusé, l'inventaire précédent reste-t-il la référence ? | INV-05 | Tech Lead |
 | Q-INV-4 | Quels formats de manifeste le repli doit-il lire ? | INV-04 | Tech Lead |
-| Q-7 (changement) | Versions du schéma CycloneDX acceptées ? | INV-01, INV-05 | Tech Lead |
+| Q-3 (changement) | Âge à partir duquel une SBOM est obsolète ? | répondue le 2026-11-16 : obsolète 30 jours après sa date de génération [DÉCISION] | sécurité / Tech Lead |
+| Q-7 (changement) | Versions du schéma CycloneDX acceptées ? | répondue le 2026-11-16 : CycloneDX 1.5 et 1.6, format JSON [DÉCISION] | Tech Lead |
 
 ## Traçabilité
 

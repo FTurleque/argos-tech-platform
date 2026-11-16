@@ -184,7 +184,9 @@ Le seuil d'échec et le nombre maximal de tentatives ne sont pas définis [QUEST
 
 ## Interprétations introduites par un changement
 
-Comportements absents des sources, ajoutés pour rendre les règles testables (changement `formaliser-chaine-securite-poc`, à valider) :
+Interprétations validées par le porteur du projet le 2026-11-16 [DÉCISION].
+
+Comportements absents des sources, ajoutés pour rendre les règles testables (changement `formaliser-chaine-securite-poc`) :
 
 - COL-03-S3 : collectes concurrentes du même avis → un seul signal ;
 - COL-06-S3 : une erreur permanente n'est pas retentée automatiquement ;
@@ -201,7 +203,7 @@ Aucun écart avec du code : aucun code n'existe. Les noms de §6 (`Ingestion`, `
 | Q-COL-1 | Fréquence de synchronisation de chaque source ? | délai source → signal | sécurité / exploitation |
 | Q-COL-2 | Qu'est-ce qu'un avis « modifié » : contenu différent ou date de modification de l'avis ? | COL-03 | backend |
 | Q-COL-3 | Quels écosystèmes (Maven, npm, PyPI…) le POC doit-il couvrir ? | périmètre COL-01 | Tech Lead |
-| Q-4 (changement) | Nombre maximal de tentatives et seuil d'échec ? | COL-06, COL-07 | backend / exploitation |
+| Q-4 (changement) | Nombre maximal de tentatives et seuil d'échec ? | répondue le 2026-11-16 : 5 tentatives par synchronisation, avec attente exponentielle ; `DEGRADED` après 3 synchronisations consécutives en échec [DÉCISION] | backend / exploitation |
 
 ## Traçabilité
 

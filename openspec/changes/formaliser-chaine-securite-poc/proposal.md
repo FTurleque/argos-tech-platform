@@ -93,9 +93,9 @@ Complète : le changement couvre plusieurs modules, introduit le modèle de donn
 | ID | Question | Bloquante ? | Destinataire |
 |---|---|---|---|
 | Q-1 | Où sont définies les exigences `F01`–`F16` citées par les ADR, et à quelles exigences `COL`/`INV`/`COR`/`ABO` correspondent-elles ? | non pour les specs ; oui pour la traçabilité avec le dossier v2.x | Product Owner / architecte |
-| Q-2 | Quelles règles distinguent les niveaux `probable` et `à vérifier` ? | oui pour l'implémentation de COR-02 | architecte / sécurité |
-| Q-3 | À partir de quel âge une SBOM est-elle obsolète ? | oui pour COR-06 et INV-04 | sécurité / Tech Lead |
-| Q-4 | Nombre maximal de tentatives et seuil d'échec qui place une source en `DEGRADED` ? | oui pour COL-06 et COL-07 | backend / exploitation |
-| Q-5 | Qui peut créer un abonnement `TEAM`, et un utilisateur peut-il se désabonner d'un abonnement `TEAM` obligatoire ? | oui pour l'implémentation d'ABO | Product Owner |
+| Q-2 | Quelles règles distinguent les niveaux `probable` et `à vérifier` ? | **Répondue le 2026-11-16** : `exact` : PURL et version dans la plage affectée, SBOM non obsolète ; `probable` : même correspondance, mais inventaire de repli ou SBOM obsolète ; `à vérifier` : correspondance sans PURL (nom ou CPE seul), version inconnue ou plage non interprétable [DÉCISION] | architecte / sécurité |
+| Q-3 | À partir de quel âge une SBOM est-elle obsolète ? | **Répondue le 2026-11-16** : obsolète 30 jours après sa date de génération [DÉCISION] | sécurité / Tech Lead |
+| Q-4 | Nombre maximal de tentatives et seuil d'échec qui place une source en `DEGRADED` ? | **Répondue le 2026-11-16** : 5 tentatives par synchronisation, avec attente exponentielle ; `DEGRADED` après 3 synchronisations consécutives en échec [DÉCISION] | backend / exploitation |
+| Q-5 | Qui peut créer un abonnement `TEAM`, et un utilisateur peut-il se désabonner d'un abonnement `TEAM` obligatoire ? | **Répondue le 2026-11-16** : seul un administrateur de l'espace crée un abonnement `TEAM` ; un `TEAM` obligatoire ne peut pas être quitté, un `TEAM` facultatif peut l'être [DÉCISION] | Product Owner |
 | Q-6 | Le délai cible source → signal (« alerte sécurité < 1 h », ADR-0010) est-il validé ? | non : cible qualité à valider | Product Owner / sécurité |
-| Q-7 | Quelles versions du schéma CycloneDX doivent être acceptées ? | non pour les specs ; oui pour l'implémentation d'INV-01 | Tech Lead |
+| Q-7 | Quelles versions du schéma CycloneDX doivent être acceptées ? | **Répondue le 2026-11-16** : CycloneDX 1.5 et 1.6, format JSON [DÉCISION] | Tech Lead |

@@ -104,7 +104,7 @@ Aucun écart constaté (comparaison avec ADR-0022, ADR-0023 et le dossier v2.4 �
 
 | ID | Question | Impact | Destinataire |
 |---|---|---|---|
-| Q-4 | Référentiel d'accessibilité (RGAA, WCAG 2.1 AA) ? | AFF-05 | RSSI / référent accessibilité |
+| Q-4 | Référentiel d'accessibilité (RGAA, WCAG 2.1 AA) ? | répondue le 2026-11-16 : RGAA 4.1.2 (aligné sur WCAG 2.1 AA) [DÉCISION] | RSSI / référent accessibilité |
 
 ## Traçabilité
 

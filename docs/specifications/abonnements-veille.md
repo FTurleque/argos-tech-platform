@@ -133,6 +133,8 @@ Le filtre d'abonnement réduit le résultat, la RLS borne le périmètre : un fi
 
 ## Interprétations introduites par un changement
 
+Interprétations validées par le porteur du projet le 2026-11-16 [DÉCISION].
+
 - ABO-01-S1 et ABO-02-S2 : refus de création avec message nommant l'attribut manquant ;
 - ABO-05-S1 : un signal de sécurité public reste restitué à un abonné personnel, l'impact projet hors périmètre ne l'est pas.
 
@@ -144,7 +146,7 @@ Aucun écart avec du code : aucun code n'existe.
 
 | ID | Question | Impact | Destinataire |
 |---|---|---|---|
-| Q-5 (changement) | Qui crée un abonnement `TEAM` ? Peut-on se désabonner d'un `TEAM` obligatoire ? | ABO-03 | Product Owner |
+| Q-5 (changement) | Qui crée un abonnement `TEAM` ? Peut-on se désabonner d'un `TEAM` obligatoire ? | répondue le 2026-11-16 : seul un administrateur de l'espace crée un abonnement `TEAM` ; un `TEAM` obligatoire ne peut pas être quitté, un `TEAM` facultatif peut l'être [DÉCISION] | Product Owner |
 | Q-ABO-1 | Quelles valeurs pour l'état d'un abonnement ? | ABO-02 | Product Owner |
 | Q-ABO-2 | Une équipe correspond-elle à un espace (workspace) ? | DF-ABO-1, ABO-03 | architecte |
 | Q-ABO-3 | Un abonnement `PERSONAL` est-il visible d'autres utilisateurs ? | confidentialité | DPO / Product Owner |

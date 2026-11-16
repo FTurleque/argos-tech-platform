@@ -152,8 +152,8 @@ La taxonomie des signaux du dossier v2.4 §8.2 est fermée ; ce changement la ve
 | ID | Question | Impact | Destinataire |
 |---|---|---|---|
 | Q-1 | Argos reste-t-il interne ou s'ouvre-t-il à d'autres publics ? | répondue le 2026-11-16 : produit ouvert (ADR-0025) | porteur du projet |
-| Q-2 | Un profil proposé par l'équipe peut-il être désactivé ? | PRF-01 | Product Owner |
-| Q-3 | Un abonnement `PERSONAL` peut-il viser une source hors de ses profils ? | PRF-02, ABO-04 | Product Owner |
+| Q-2 | Un profil proposé par l'équipe peut-il être désactivé ? | répondue le 2026-11-16 : oui, tant qu'un profil reste actif (PRF-01) [DÉCISION] | Product Owner |
+| Q-3 | Un abonnement `PERSONAL` peut-il viser une source hors de ses profils ? | répondue le 2026-11-16 : oui, dans la limite de ses droits ; la source s'ajoute à l'union des profils actifs [DÉCISION] | Product Owner |
 | Q-5 | Qui publie un profil au catalogue, après quelle revue ? | PRF-04 | Product Owner / architecte |
 
 ## Traçabilité
