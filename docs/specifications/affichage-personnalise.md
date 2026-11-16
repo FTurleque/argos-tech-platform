@@ -4,8 +4,8 @@
 |---|---|
 | Préfixe d'exigences | `AFF` |
 | Spec de référence | `/openspec/specs/affichage-personnalise/spec.md` — absente tant qu'aucun changement n'est archivé |
-| Changements en cours | [`personnaliser-profils-et-affichage`](/openspec/changes/personnaliser-profils-et-affichage/proposal.md) (proposé) |
-| Statut de la capacité | proposée |
+| Changements en cours | [`personnaliser-profils-et-affichage`](/openspec/changes/personnaliser-profils-et-affichage/proposal.md) (en cours d'implémentation) |
+| Statut de la capacité | proposée ; catalogue, préférence serveur et couches de l'IHM implémentés |
 | Composants (arc42 §5) | `workspace`, `catalog`, `API & Security`, IHM `argos-ui` (couches contenu et mise en page) |
 
 ## Objectif
@@ -42,17 +42,18 @@ Utilisateur authentifié ; mise en page publiée au catalogue.
 
 | Entrée / sortie | Contenu | Validation ou contrainte | Statut |
 |---|---|---|---|
-| Choix de mise en page | identifiant | doit être publié au catalogue (AFF-01) | [PROPOSITION] |
-| Préférence | identifiant de la mise en page de l'utilisateur | enregistrée côté serveur (AFF-03) | [PROPOSITION] |
+| Choix de mise en page | `PUT /api/v1/preferences/mise-en-page` `{"miseEnPage": "gazette"}` | doit être publié au catalogue, sinon refus 400 `MISE_EN_PAGE_INCONNUE` (AFF-01) | [EXISTANT] — `PreferencesResource`, `PreferencesResourceTest` |
+| Préférence | `GET /api/v1/preferences` : mise en page appliquée, mise en page choisie, indicateur et message de retrait | enregistrée côté serveur, table `workspace_preference_utilisateur` (AFF-03) | [EXISTANT] — `PreferencesRepository`, migration `V20261116_1` |
+| Catalogue | `GET /api/v1/catalogue/mises-en-page` : mises en page publiées, défaut signalé | une mise en page retirée (`argos.catalogue.mises-en-page.retirees`) n'est plus listée ni choisissable | [EXISTANT] — `CatalogueMisesEnPage`, `CatalogueResourceTest`, `MiseEnPageRetireeTest` |
 
 ## Règles métier
 
 | Règle | Exigence(s) | Source | Statut |
 |---|---|---|---|
-| Le choix se fait parmi le catalogue | AFF-01 | ADR-0023 | [PROPOSITION] |
-| Contenu, droits et mentions identiques dans toute mise en page | AFF-02 | ADR-0023 ; dossier v2.4 §A.3 | [PROPOSITION] |
-| Préférence partagée web / desktop | AFF-03 | ADR-0023 ; ADR-0022 | [PROPOSITION] |
-| `classique` par défaut et en repli | AFF-04 | ADR-0023 | [PROPOSITION] |
+| Le choix se fait parmi le catalogue | AFF-01 | ADR-0023 | [EXISTANT] — serveur ; tests AFF-01-S1, AFF-01-S2 |
+| Contenu, droits et mentions identiques dans toute mise en page | AFF-02 | ADR-0023 ; dossier v2.4 §A.3 | [PROPOSITION] — couches contenu et mise en page séparées et vérifiées par `argos-ui/tests/architecture.test.mjs` ; E2E à écrire |
+| Préférence partagée web / desktop | AFF-03 | ADR-0023 ; ADR-0022 | [PROPOSITION] — préférence serveur existante ; E2E desktop à écrire |
+| `classique` par défaut et en repli | AFF-04 | ADR-0023 | [EXISTANT] — serveur (`ResolutionPreferences`) et IHM (`resolution.ts`) ; tests AFF-04-S1, AFF-04-S2 |
 | Accessibilité vérifiée avant publication | AFF-05 | ADR-0023 | [PROPOSITION] |
 
 ## Droits d'accès et restrictions
@@ -65,7 +66,7 @@ Modification de la préférence de l'utilisateur ; aucune autre donnée.
 
 ## Qualités mesurables
 
-[QUESTION] Référentiel d'accessibilité à fixer (Q-4 du changement).
+[DÉCISION — 2026-11-16] Référentiel d'accessibilité : RGAA 4.1.2 (aligné sur WCAG 2.1 AA), vérifié sur les mêmes écrans de référence pour chaque mise en page (AFF-05). Aucun audit n'est encore réalisé.
 
 ## Diagrammes
 
@@ -110,8 +111,8 @@ Aucun écart constaté (comparaison avec ADR-0022, ADR-0023 et le dossier v2.4 �
 
 | Exigence | Scénarios | Conception / diagramme | Tâche | Test ou preuve |
 |---|---|---|---|---|
-| AFF-01 | AFF-01-S1, AFF-01-S2 | DC-1, DF-AFF-1 | 2.1, 2.2 | à écrire |
-| AFF-02 | AFF-02-S1, AFF-02-S2 | DC-2 | 2.3, 2.4 | à écrire |
-| AFF-03 | AFF-03-S1 | DC-1, DF-AFF-1 | 2.5 | à écrire |
-| AFF-04 | AFF-04-S1, AFF-04-S2 | DF-AFF-1 | 2.2 | à écrire |
+| AFF-01 | AFF-01-S1, AFF-01-S2 | DC-1, DF-AFF-1 | 2.1, 2.2 | `argos-server/src/test/java/io/argos/api/preference/PreferencesResourceTest.java`, `OpenApiContractTest.java` — passent |
+| AFF-02 | AFF-02-S1, AFF-02-S2 | DC-2 | 2.3, 2.4 | `argos-ui/tests/architecture.test.mjs` passe (2.3) ; E2E à écrire (2.4) |
+| AFF-03 | AFF-03-S1 | DC-1, DF-AFF-1 | 2.5 | préférence serveur testée ; E2E web puis desktop à écrire |
+| AFF-04 | AFF-04-S1, AFF-04-S2 | DF-AFF-1 | 2.2 | `PreferencesResourceTest.java`, `MiseEnPageRetireeTest.java`, `argos-ui/tests/resolution.test.mjs` — passent |
 | AFF-05 | AFF-05-S1 | — | 1.4, 2.6 | à écrire |

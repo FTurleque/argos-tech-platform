@@ -141,11 +141,21 @@ Non applicable — les cycles de vie de publication d'un profil ou d'une mise en
 
 ## Contrats d'interface
 
-Non applicable à ce stade — l'OpenAPI des préférences et du catalogue est à écrire (tâche 2.1). Opérations pressenties : lecture du catalogue des mises en page et des profils ; lecture et modification des préférences de l'utilisateur courant.
+[EXISTANT] Le contrat OpenAPI est généré par SmallRye OpenAPI (`/q/openapi`) et figé par `OpenApiContractTest`. Toutes les opérations exigent un utilisateur authentifié (401 sinon).
+
+| Opération | Corps | Réponse | Refus |
+|---|---|---|---|
+| `GET /api/v1/catalogue/mises-en-page` | — | `MiseEnPageCatalogue[]` : identifiant, libellé, description, défaut | — |
+| `GET /api/v1/catalogue/profils` | — | `ProfilCatalogue[]` : identifiant, libellé, description, version, rubriques, garde-fous | — |
+| `GET /api/v1/preferences` | — | `PreferencesEffectives` | — |
+| `PUT /api/v1/preferences/mise-en-page` | `ChoixMiseEnPage` | `PreferencesEffectives` | 400 `MISE_EN_PAGE_INCONNUE` |
+| `PUT /api/v1/preferences/profils` | `ChoixProfils` (ensemble complet) | `PreferencesEffectives` | 400 `PROFIL_INCONNU`, 400 `AU_MOINS_UN_PROFIL` |
+
+`PreferencesEffectives` donne la mise en page appliquée et la mise en page choisie, l'indicateur et le message de retrait (AFF-04-S2), les profils appliqués, l'indicateur « profils par défaut » et les profils enregistrés mais retirés. La confrontation au catalogue (INV-2) est faite par `api`, seul module autorisé à dépendre à la fois de `workspace` et de `catalog`.
 
 ## Persistance et intégrité
 
-Non applicable à ce stade — les préférences seront une table du module `workspace` ; les manifestes de profils, des ressources versionnées du module `catalog`. À concevoir avec les tâches 2.1 et 3.1.
+[EXISTANT] Les préférences sont la table `workspace_preference_utilisateur` (migration `V20261116_1__workspace_preferences_utilisateur.sql`) : une ligne par utilisateur, `mise_en_page` et `profils_actifs` à `NULL` tant qu'ils ne sont pas choisis, contrainte `workspace_preference_au_moins_un_profil` (INV-1). Aucune clé étrangère vers les comptes tant que leur table n'existe pas. Les manifestes de profils sont des ressources versionnées `catalog/profils/<identifiant>.json` du module `catalog`, validées au démarrage ; la liste des mises en page est la ressource `catalog/mises-en-page.json`. Les retraits sont des propriétés de configuration (`argos.catalogue.profils.retires`, `argos.catalogue.mises-en-page.retirees`).
 
 ## Transactions, concurrence et idempotence
 
