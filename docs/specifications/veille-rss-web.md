@@ -3,9 +3,9 @@
 | Élément | Valeur |
 |---|---|
 | Préfixe d'exigences | `WEB` |
-| Spec de référence | `/openspec/specs/veille-rss-web/spec.md` — absente tant qu'aucun changement n'est archivé |
-| Changements en cours | [`collecter-veille-rss-web`](/openspec/changes/collecter-veille-rss-web/proposal.md) (implémenté, non archivé) |
-| Statut de la capacité | proposée ; code et tests présents dans `argos-server` |
+| Spec de référence | [`/openspec/specs/veille-rss-web/spec.md`](/openspec/specs/veille-rss-web/spec.md) |
+| Changements archivés | [`2026-11-16-collecter-veille-rss-web`](/openspec/changes/archive/2026-11-16-collecter-veille-rss-web/proposal.md) |
+| Statut de la capacité | livrée ; code et tests dans `argos-server` |
 | Composants (arc42 §5) | `source-ingestion`, `signal`, `impact-engine` |
 | Décision | [ADR-0028](/docs/architecture/adr/0028-collecteur-veille-web-integre.md) (Proposé) : collecteur intégré au serveur |
 

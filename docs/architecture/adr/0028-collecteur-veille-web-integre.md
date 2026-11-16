@@ -11,7 +11,7 @@
 - [ADR-0006](0006-collecteurs-separes.md) (Proposé) prévoit FreshRSS et changedetection.io comme systèmes séparés. FreshRSS est sous AGPL-3.0 ; [ADR-0021](0021-double-licence.md) point 5 impose ses obligations à tout composant livré, ce qui gêne une future licence commerciale.
 - Argos est un produit ouvert ([ADR-0025](0025-produit-ouvert-projet-personnel.md), Accepté) hébergé sur le Synology du porteur ([ADR-0026](0026-hebergement-synology.md), Accepté) : chaque conteneur supplémentaire consomme une mémoire partagée et demande une sauvegarde.
 - N'importe quel utilisateur peut proposer une adresse : la protection contre la falsification de requête côté serveur (R-12) et l'injection d'instructions par contenu externe (R-11) doivent s'appliquer à toutes les sources, sans dépendre d'un service tiers.
-- Le porteur a tranché le 2026-11-16 (questions du changement [`collecter-veille-rss-web`](/openspec/changes/collecter-veille-rss-web/proposal.md)) : collecteur intégré au serveur, bibliothèques sous licence permissive seulement (Q-1) ; collecte toutes les heures, paramétrable (Q-2) ; 50 sources personnelles par utilisateur au plus, paramétrable (Q-3).
+- Le porteur a tranché le 2026-11-16 (questions du changement [`collecter-veille-rss-web`](/openspec/changes/archive/2026-11-16-collecter-veille-rss-web/proposal.md)) : collecteur intégré au serveur, bibliothèques sous licence permissive seulement (Q-1) ; collecte toutes les heures, paramétrable (Q-2) ; 50 sources personnelles par utilisateur au plus, paramétrable (Q-3).
 
 ## Critères de décision
 

@@ -42,13 +42,13 @@ Un préfixe n'est jamais réattribué ; un identifiant d'exigence retiré n'est 
 | `affichage-personnalise` | `AFF` | [fiche](affichage-personnalise.md) | absente | `personnaliser-profils-et-affichage` | proposée |
 | `profils-veille` | `PRF` | [fiche](profils-veille.md) | absente | `personnaliser-profils-et-affichage` | proposée |
 | `comptes-acces` | `ACC` | [fiche](comptes-acces.md) | absente | `gerer-comptes-et-acces` | proposée |
-| `alertes-digests` | `ALR` | [fiche](alertes-digests.md) | absente | `diffuser-alertes-et-digests` | proposée |
+| `alertes-digests` | `ALR` | [fiche](alertes-digests.md) | [spec](/openspec/specs/alertes-digests/spec.md) | `2026-11-16-diffuser-alertes-et-digests` (archivé) | livrée |
 | `notifications-poste` | `NOT` | [fiche](notifications-poste.md) | absente | `notifier-sur-le-poste` | proposée |
 | `serveur-mcp` | `MCP` | [fiche](serveur-mcp.md) | absente | `exposer-serveur-mcp` | proposée |
 | `passerelle-ia` | `IAG` | [fiche](passerelle-ia.md) | absente | `encadrer-appels-ia` | proposée |
 | `veille-reglementaire` | `REG` | [fiche](veille-reglementaire.md) | absente | `suivre-veille-reglementaire` | proposée |
 | `radar-standards` | `RAD` | [fiche](radar-standards.md) | absente | `construire-radar-et-standards` | proposée |
-| `veille-rss-web` | `WEB` | [fiche](veille-rss-web.md) | absente | `collecter-veille-rss-web` | proposée |
+| `veille-rss-web` | `WEB` | [fiche](veille-rss-web.md) | [spec](/openspec/specs/veille-rss-web/spec.md) | `2026-11-16-collecter-veille-rss-web` (archivé) | livrée |
 | `recherche-veille` | `RCH` | [fiche](recherche-veille.md) | absente | `rechercher-et-filtrer` | proposée |
 | `activite-projets` | `PIN` | [fiche](activite-projets.md) | absente | `mesurer-activite-projets` | proposée |
 | `profil-artiste` | `ART` | [fiche](profil-artiste.md) | absente | `ajouter-profil-artiste` | proposée |
@@ -92,11 +92,11 @@ Les diagrammes d'architecture (D-01 à D-13) sont inventoriés dans [`/docs/arch
 
 | Élément | Nombre | Détail |
 |---|---:|---|
-| Specs de référence | 0 | aucune capacité livrée ; le code des changements du lot 1 (`formaliser-chaine-securite-poc`, `gerer-comptes-et-acces`, `personnaliser-profils-et-affichage`) est présent dans `argos-server` et `argos-ui`, changements non archivés |
-| Changements actifs | 13 | `formaliser-chaine-securite-poc`, `personnaliser-profils-et-affichage` et un changement par capacité des lots 2 à 5 (schéma `detailed-uml`) |
-| Changements archivés | 0 | — |
+| Specs de référence | 2 | `alertes-digests`, `veille-rss-web` ; le code des changements actifs des lots 1 et 2 est présent dans `argos-server` et `argos-ui` |
+| Changements actifs | 11 | `formaliser-chaine-securite-poc`, `personnaliser-profils-et-affichage` et un changement par capacité restante des lots 2 à 5 (schéma `detailed-uml`) |
+| Changements archivés | 2 | `2026-11-16-diffuser-alertes-et-digests`, `2026-11-16-collecter-veille-rss-web` |
 
-Le dépôt ne contient aucune spec de référence ni aucun changement d'un autre schéma : aucun contenu n'est à préserver ni aucun changement à migrer.
+Tous les changements utilisent le schéma `detailed-uml` : aucun changement d'un autre schéma n'est à migrer.
 
 ### Couverture du lot 1 (`formaliser-chaine-securite-poc`)
 
@@ -125,7 +125,7 @@ Toutes les exigences sont au statut [PROPOSITION] : elles dérivent d'ADR « Pro
 | Changement | Capacité | Exigences | Scénarios | Diagrammes métier | Questions ouvertes | Tests écrits |
 |---|---|---|---|---|---|---|
 | [`gerer-comptes-et-acces`](/openspec/changes/gerer-comptes-et-acces/proposal.md) | `comptes-acces` | 6 | 11 | 1 | 0 | 33 |
-| [`diffuser-alertes-et-digests`](/openspec/changes/diffuser-alertes-et-digests/proposal.md) | `alertes-digests` | 6 | 9 | 1 | 2 | 26 |
+| [`diffuser-alertes-et-digests`](/openspec/changes/archive/2026-11-16-diffuser-alertes-et-digests/proposal.md) (archivé) | `alertes-digests` | 6 | 9 | 1 | 2 | 26 |
 | [`notifier-sur-le-poste`](/openspec/changes/notifier-sur-le-poste/proposal.md) | `notifications-poste` | 6 | 7 | 1 | 2 | 0 |
 | **Total** | | **18** | **27** | **3** | **4** | **59** |
 
@@ -147,7 +147,7 @@ Pour `exposer-serveur-mcp`, « Tests écrits » compte les scénarios MCP-01-S1 
 | Changement | Capacité | Exigences | Scénarios | Diagrammes métier | Questions ouvertes | Tests écrits |
 |---|---|---|---|---|---|---|
 | [`construire-radar-et-standards`](/openspec/changes/construire-radar-et-standards/proposal.md) | `radar-standards` | 6 | 8 | 1 | 3 | 0 |
-| [`collecter-veille-rss-web`](/openspec/changes/collecter-veille-rss-web/proposal.md) | `veille-rss-web` | 6 | 8 | 1 | 0 | 8 |
+| [`collecter-veille-rss-web`](/openspec/changes/archive/2026-11-16-collecter-veille-rss-web/proposal.md) (archivé) | `veille-rss-web` | 6 | 8 | 1 | 0 | 8 |
 | [`rechercher-et-filtrer`](/openspec/changes/rechercher-et-filtrer/proposal.md) | `recherche-veille` | 5 | 7 | 1 | 2 | 0 |
 | **Total** | | **17** | **23** | **3** | **5** | **8** |
 
