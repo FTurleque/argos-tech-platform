@@ -3,6 +3,7 @@ package io.argos.api.preference;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Set;
+import java.util.UUID;
 
 import jakarta.inject.Inject;
 import jakarta.ws.rs.Consumes;
@@ -13,12 +14,12 @@ import jakarta.ws.rs.Produces;
 import jakarta.ws.rs.core.MediaType;
 
 import io.argos.api.Erreur;
+import io.argos.api.UtilisateurCourant;
 import io.argos.catalog.miseenpage.CatalogueMisesEnPage;
 import io.argos.catalog.profil.CatalogueProfils;
 import io.argos.workspace.preference.AucunProfilActifException;
 import io.argos.workspace.preference.PreferencesService;
 import io.quarkus.security.Authenticated;
-import io.quarkus.security.identity.SecurityIdentity;
 import org.eclipse.microprofile.openapi.annotations.Operation;
 import org.eclipse.microprofile.openapi.annotations.media.Content;
 import org.eclipse.microprofile.openapi.annotations.media.Schema;
@@ -51,16 +52,16 @@ public class PreferencesResource {
     static final String PROFIL_INCONNU = "PROFIL_INCONNU";
     static final String AU_MOINS_UN_PROFIL = "AU_MOINS_UN_PROFIL";
 
-    private final SecurityIdentity identite;
+    private final UtilisateurCourant utilisateur;
     private final PreferencesService preferences;
     private final ResolutionPreferences resolution;
     private final CatalogueMisesEnPage misesEnPage;
     private final CatalogueProfils profils;
 
     @Inject
-    public PreferencesResource(SecurityIdentity identite, PreferencesService preferences,
+    public PreferencesResource(UtilisateurCourant utilisateur, PreferencesService preferences,
             ResolutionPreferences resolution, CatalogueMisesEnPage misesEnPage, CatalogueProfils profils) {
-        this.identite = identite;
+        this.utilisateur = utilisateur;
         this.preferences = preferences;
         this.resolution = resolution;
         this.misesEnPage = misesEnPage;
@@ -70,7 +71,7 @@ public class PreferencesResource {
     @GET
     @Operation(summary = "Préférences appliquées à l'utilisateur courant")
     public PreferencesEffectives lire() {
-        return resolution.resoudre(preferences.lire(utilisateur()));
+        return resolution.resoudre(preferences.lire(compte()));
     }
 
     @PUT
@@ -86,7 +87,7 @@ public class PreferencesResource {
             throw Erreur.demandeRefusee(MISE_EN_PAGE_INCONNUE,
                     "La mise en page « " + demandee + " » n'existe pas dans le catalogue.");
         }
-        return resolution.resoudre(preferences.choisirMiseEnPage(utilisateur(), demandee));
+        return resolution.resoudre(preferences.choisirMiseEnPage(compte(), demandee));
     }
 
     @PUT
@@ -106,13 +107,14 @@ public class PreferencesResource {
             }
         }
         try {
-            return resolution.resoudre(preferences.remplacerProfils(utilisateur(), demandes));
+            return resolution.resoudre(preferences.remplacerProfils(compte(), demandes));
         } catch (AucunProfilActifException e) {
             throw Erreur.demandeRefusee(AU_MOINS_UN_PROFIL, e.getMessage());
         }
     }
 
-    private String utilisateur() {
-        return identite.getPrincipal().getName();
+    /** Clé des préférences : identifiant stable du compte Argos, relié au sujet OIDC (jamais le nom du principal). */
+    private UUID compte() {
+        return utilisateur.compte().id();
     }
 }

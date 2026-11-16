@@ -97,7 +97,7 @@ public class InventoryService {
             if (sbom.isPresent()) {
                 return importSbom(projectId, sbom.get(), repo.provider() + ":" + repo.repository() + "@" + repo.branch());
             }
-            if (queries.inventory(projectId).filter(i -> "SBOM".equals(i.origin())).isPresent()) {
+            if (queries.origin(projectId).filter("SBOM"::equals).isPresent()) {
                 return new ImportResult("KEPT", "SBOM", 0, 0, "aucune nouvelle SBOM disponible");
             }
             Map<String, byte[]> manifests = new LinkedHashMap<>();

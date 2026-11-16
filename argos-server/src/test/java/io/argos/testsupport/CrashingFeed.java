@@ -34,6 +34,8 @@ public class CrashingFeed implements AdvisoryFeed {
     private final List<String> contents = Collections.synchronizedList(new ArrayList<>());
     private final List<String> fetched = Collections.synchronizedList(new ArrayList<>());
     private final AtomicInteger crashAfter = new AtomicInteger(-1);
+    private final java.util.concurrent.atomic.AtomicReference<RuntimeException> failure =
+            new java.util.concurrent.atomic.AtomicReference<>();
 
     public void configure(List<FeedEntry> feedEntries, List<String> rawContents, int crashAfterFetches) {
         entries.clear();
@@ -42,6 +44,12 @@ public class CrashingFeed implements AdvisoryFeed {
         entries.addAll(feedEntries);
         contents.addAll(rawContents);
         crashAfter.set(crashAfterFetches);
+        failure.set(null);
+    }
+
+    /** La prochaine lecture d'avis lève cette exception inattendue (bogue simulé), une seule fois. */
+    public void failOnceWith(RuntimeException unexpected) {
+        failure.set(unexpected);
     }
 
     public List<String> fetched() {
@@ -64,6 +72,10 @@ public class CrashingFeed implements AdvisoryFeed {
 
     @Override
     public RawAdvisory fetch(FeedEntry entry) {
+        RuntimeException unexpected = failure.getAndSet(null);
+        if (unexpected != null) {
+            throw unexpected;
+        }
         if (crashAfter.get() >= 0 && fetched.size() >= crashAfter.get()) {
             crashAfter.set(-1);
             throw new SimulatedCrash();

@@ -129,7 +129,13 @@ public class CorrelationEngine {
         int updated = 0;
         List<UUID> kept = new ArrayList<>();
         try (Connection c = dataSource.getConnection()) {
-            RlsSession.technical(c);
+            // Traitement technique, hors rôle applicatif. Le verrou par signal sérialise une corrélation
+            // globale et une corrélation par projet du même signal : la suppression des impacts devenus
+            // caducs ne peut pas retirer un impact validé entre-temps par l'autre traitement.
+            try (PreparedStatement lock = c.prepareStatement("SELECT pg_advisory_xact_lock(hashtext(?))")) {
+                lock.setString(1, "project_impact:" + signalId);
+                lock.execute();
+            }
             for (InventoryQueries.ComponentMatch m : inventories.componentsMatching(byKey.keySet(), projectId)) {
                 Optional<Match> best = best(byKey.get(m.packageKey()), m);
                 if (best.isEmpty()) {
@@ -219,6 +225,7 @@ public class CorrelationEngine {
         p.put("inventoryDate", m.inventoryDate() == null ? null : m.inventoryDate().toString());
         p.put("inventoryObsolete", m.inventoryObsolete());
         p.put("method", MatchRules.METHOD);
+        p.put("strategy", MatchRules.STRATEGY);
         return p;
     }
 }

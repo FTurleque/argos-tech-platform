@@ -14,7 +14,11 @@ import jakarta.inject.Inject;
 import io.argos.vulnintel.CertFrSource;
 import io.argos.vulnintel.KevSource;
 
-/** Remise à zéro des données entre deux tests et requêtes de vérification. */
+/**
+ * Remise à zéro des données de veille entre deux tests et requêtes de vérification, sous
+ * l'utilisateur de connexion (hors RLS). Les comptes et les espaces, créés par l'API avec des
+ * jetons réels, sont conservés : chaque test crée ses propres espaces.
+ */
 @ApplicationScoped
 public class TestDb {
 
@@ -35,8 +39,8 @@ public class TestDb {
 
     public void reset() {
         exec("""
-                TRUNCATE subscription_opt_out, subscription, access_refusal, project_impact, inventory_import_failure,
-                         component, inventory, project, workspace, enrichment, signal_package, signal_alias,
+                TRUNCATE subscription_opt_out, subscription, refus_acces, project_impact, inventory_import_failure,
+                         component, inventory, project, enrichment, signal_package, signal_alias,
                          signal_version, signal, ops_event, ingestion_failure, sync_attempt, sync_run, sync_cursor CASCADE
                 """);
         exec("DELETE FROM source WHERE id <> 'OSV'");

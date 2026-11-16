@@ -2,6 +2,7 @@ package io.argos.workspace.preference;
 
 import java.util.Objects;
 import java.util.Set;
+import java.util.UUID;
 
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.inject.Inject;
@@ -22,14 +23,14 @@ public class PreferencesService {
         this.repository = repository;
     }
 
-    public PreferencesUtilisateur lire(String utilisateur) {
-        return repository.lire(Objects.requireNonNull(utilisateur));
+    public PreferencesUtilisateur lire(UUID compte) {
+        return repository.lire(Objects.requireNonNull(compte));
     }
 
     /** Remplace la mise en page de l'utilisateur. */
-    public PreferencesUtilisateur choisirMiseEnPage(String utilisateur, String miseEnPage) {
-        repository.enregistrerMiseEnPage(Objects.requireNonNull(utilisateur), Objects.requireNonNull(miseEnPage));
-        return repository.lire(utilisateur);
+    public PreferencesUtilisateur choisirMiseEnPage(UUID compte, String miseEnPage) {
+        repository.enregistrerMiseEnPage(Objects.requireNonNull(compte), Objects.requireNonNull(miseEnPage));
+        return repository.lire(compte);
     }
 
     /**
@@ -37,12 +38,24 @@ public class PreferencesService {
      *
      * @throws AucunProfilActifException si l'ensemble est vide (PRF-01-S2)
      */
-    public PreferencesUtilisateur remplacerProfils(String utilisateur, Set<String> profilsActifs) {
-        Objects.requireNonNull(utilisateur);
+    public PreferencesUtilisateur remplacerProfils(UUID compte, Set<String> profilsActifs) {
+        Objects.requireNonNull(compte);
         if (profilsActifs == null || profilsActifs.isEmpty()) {
             throw new AucunProfilActifException();
         }
-        repository.enregistrerProfils(utilisateur, profilsActifs);
-        return repository.lire(utilisateur);
+        repository.enregistrerProfils(compte, profilsActifs);
+        return repository.lire(compte);
+    }
+
+    /**
+     * Active des profils pour un compte qui n'en a encore enregistré aucun (profil par défaut à la
+     * création du compte, PRF-01) ; sans effet si le compte a déjà choisi ses profils.
+     */
+    public void activerSiAucun(UUID compte, Set<String> profilsActifs) {
+        Objects.requireNonNull(compte);
+        if (profilsActifs == null || profilsActifs.isEmpty()) {
+            throw new AucunProfilActifException();
+        }
+        repository.enregistrerProfilsSiAucun(compte, profilsActifs);
     }
 }

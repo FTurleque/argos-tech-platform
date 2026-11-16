@@ -17,6 +17,7 @@ import java.time.temporal.ChronoUnit;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.Set;
 import java.util.UUID;
 
 import javax.sql.DataSource;
@@ -33,11 +34,10 @@ import io.argos.ingestion.SourceSynchronizer;
 import io.argos.inventory.InventoryService;
 import io.argos.inventory.ProjectDirectory;
 import io.argos.testsupport.Fixtures;
-import io.argos.testsupport.HeaderCallerResolver;
+import io.argos.testsupport.Api;
 import io.argos.testsupport.SimulatedAnalysis;
 import io.argos.testsupport.StubServer;
 import io.argos.testsupport.TestDb;
-import io.argos.workspace.WorkspaceDirectory;
 import io.quarkus.test.common.QuarkusTestResource;
 import io.quarkus.test.junit.QuarkusTest;
 
@@ -56,9 +56,6 @@ class CorrelationTest {
 
     @Inject
     DataSource dataSource;
-
-    @Inject
-    WorkspaceDirectory workspaces;
 
     @Inject
     ProjectDirectory projects;
@@ -84,8 +81,8 @@ class CorrelationTest {
     @BeforeEach
     void reset() {
         db.reset();
-        spaceA = workspaces.create("Espace A");
-        spaceB = workspaces.create("Espace B");
+        spaceA = Api.nouvelEspace("alice", "Espace A");
+        spaceB = Api.nouvelEspace("jules", "Espace B");
     }
 
     private UUID projectWithSbom(UUID workspace, String name, Instant generated, String... purls) {
@@ -180,7 +177,7 @@ class CorrelationTest {
         UUID signal = publish("GHSA-PROV", LIB, "0", "1.3.0");
         UUID impact = db.uuid("SELECT id FROM project_impact");
 
-        given().header(HeaderCallerResolver.USER, "alice").header(HeaderCallerResolver.WORKSPACES, spaceA.toString())
+        Api.en("alice")
                 .when().get("/api/v1/impacts/" + impact)
                 .then().statusCode(200)
                 .body("signalId", equalTo(signal.toString()))
@@ -198,10 +195,29 @@ class CorrelationTest {
         ImpactQueries.IntegrityReport report = impacts.integrity();
         assertEquals(1, report.impacts());
         assertTrue(report.intact());
-        given().header(HeaderCallerResolver.USER, "ops").header(HeaderCallerResolver.OPERATOR, "true")
+        Api.en("alice")
                 .when().get("/api/v1/ops/impacts/integrity")
                 .then().statusCode(200).body("withoutSignal", equalTo(0)).body("withoutMethod", equalTo(0))
                 .body("impacts", equalTo(1));
+    }
+
+    /** Un avis OSV retiré (« withdrawn ») ne produit plus d'impact ; son historique est conservé. */
+    @Test
+    void avisRetireSansImpact() {
+        UUID project = projectWithSbom(spaceA, "app", fresh(), LIB + "@1.2.0");
+        UUID signal = publish("GHSA-WITHDRAWN", LIB, "0", "1.3.0");
+        assertEquals(1, impactsOf(project));
+
+        String retire = Fixtures.osv("GHSA-WITHDRAWN", "2026-11-12T00:00:00Z", "Maven", "org.exemple:lib", LIB, "0", "1.3.0")
+                .replaceFirst("\\{", "{\"withdrawn\":\"2026-11-12T00:00:00Z\",");
+        Fixtures.stubOsv("GHSA-WITHDRAWN", "2026-11-12T00:00:00Z", retire);
+        synchronizer.synchronize("OSV");
+
+        assertEquals(0, impactsOf(project), "un avis retiré ne produit pas d'impact");
+        assertEquals(2, db.count("SELECT count(*) FROM signal_version WHERE signal_id = '" + signal + "'"));
+
+        UUID autre = projectWithSbom(spaceA, "tardif", fresh(), LIB + "@1.0.0");
+        assertEquals(0, impactsOf(autre), "ni pour un inventaire importé après le retrait");
     }
 
     @Test
@@ -290,22 +306,46 @@ class CorrelationTest {
         UUID signal = publish("GHSA-SPACES", LIB, "0", "1.3.0");
         UUID impactB = db.uuid("SELECT id FROM project_impact WHERE project_id = '" + b + "'");
 
-        given().header(HeaderCallerResolver.USER, "alice").header(HeaderCallerResolver.WORKSPACES, spaceA.toString())
+        Api.en("alice")
                 .when().get("/api/v1/signals/" + signal + "/impacts")
                 .then().statusCode(200).body("items", hasSize(1)).body("total", equalTo(1))
                 .body("items[0].projectId", equalTo(a.toString()));
 
-        String body = given().header(HeaderCallerResolver.USER, "alice").header(HeaderCallerResolver.WORKSPACES, spaceA.toString())
+        String body = Api.en("alice")
                 .when().get("/api/v1/impacts/" + impactB)
                 .then().statusCode(404).extract().asString();
         assertTrue(!body.contains(b.toString()) && !body.contains("GHSA-SPACES"), "le refus ne révèle rien de l'impact");
-        assertEquals(1, db.count("SELECT count(*) FROM access_refusal WHERE user_id = 'alice' AND resource_type = 'PROJECT_IMPACT' "
-                + "AND resource_id = '" + impactB + "' AND occurred_at IS NOT NULL"));
+        UUID alice = Api.compte("alice");
+        assertEquals(1, db.count("SELECT count(*) FROM refus_acces WHERE compte_id = '" + alice
+                + "' AND ressource = 'GET /api/v1/impacts/" + impactB + "' AND motif = 'NON_MEMBRE' AND horodatage IS NOT NULL"));
 
-        given().header(HeaderCallerResolver.USER, "alice").header(HeaderCallerResolver.WORKSPACES, spaceA.toString())
+        Api.en("alice")
                 .when().get("/api/v1/impacts/" + UUID.randomUUID()).then().statusCode(404);
-        assertEquals(1, db.count("SELECT count(*) FROM access_refusal"), "un impact inexistant n'est pas un refus");
+        assertEquals(1, db.count("SELECT count(*) FROM refus_acces"), "un impact inexistant n'est pas un refus");
         given().when().get("/api/v1/signals/" + signal + "/impacts").then().statusCode(401);
+    }
+
+    /**
+     * Le chemin applicatif s'exécute sous le rôle non super-utilisateur argos_app : même si le périmètre
+     * transmis par la couche API contenait un espace dont le compte n'est pas membre, la RLS masque ses impacts.
+     */
+    @Test
+    void rlsAppliqueeSurLeCheminApplicatif() {
+        UUID a = projectWithSbom(spaceA, "a", fresh(), LIB + "@1.2.0");
+        UUID b = projectWithSbom(spaceB, "b", fresh(), LIB + "@1.1.0");
+        UUID signal = publish("GHSA-RLS-APP", LIB, "0", "1.3.0");
+        UUID impactB = db.uuid("SELECT id FROM project_impact WHERE project_id = '" + b + "'");
+        UUID alice = Api.compte("alice");
+        Set<UUID> perimetreErrone = Set.of(spaceA, spaceB);
+
+        assertTrue(impacts.find(impactB, alice, perimetreErrone).isEmpty(), "impact d'un espace non membre masqué");
+        ImpactQueries.Page page = impacts.forSignal(signal, alice, perimetreErrone, 0, 50);
+        assertEquals(1, page.total());
+        assertEquals(a, page.items().get(0).projectId());
+        assertEquals(1, impacts.forSignals(List.of(signal), alice, perimetreErrone).size());
+        assertTrue(impacts.forProject(b, alice, perimetreErrone).isEmpty());
+        assertTrue(impacts.find(impactB, Api.compte("jules"), Set.of(spaceB)).isPresent(), "un membre de l'espace B le voit");
+        assertEquals("argos_app", rolePendantUneLecture(alice));
     }
 
     @Test
@@ -313,25 +353,35 @@ class CorrelationTest {
         projectWithSbom(spaceA, "a", fresh(), LIB + "@1.2.0");
         projectWithSbom(spaceB, "b", fresh(), LIB + "@1.1.0");
         publish("GHSA-RLS", LIB, "0", "1.3.0");
-        db.exec("""
-                DO $$ BEGIN
-                  IF NOT EXISTS (SELECT 1 FROM pg_roles WHERE rolname = 'argos_rls_probe') THEN
-                    CREATE ROLE argos_rls_probe NOLOGIN NOSUPERUSER;
-                  END IF;
-                END $$;
-                GRANT SELECT ON project_impact TO argos_rls_probe;
-                """);
+        UUID alice = Api.compte("alice");
         try (Connection c = dataSource.getConnection(); Statement s = c.createStatement()) {
             c.setAutoCommit(false);
-            s.execute("SET LOCAL ROLE argos_rls_probe");
-            assertEquals(0, count(s, "SELECT count(*) FROM project_impact"), "sans périmètre déclaré, aucune ligne");
-            s.execute("SELECT set_config('argos.workspaces', '" + spaceA + "', true)");
-            assertEquals(1, count(s, "SELECT count(*) FROM project_impact"));
+            s.execute("SET LOCAL ROLE argos_app");
+            assertEquals("f", string(s, "SELECT rolsuper::text FROM pg_roles WHERE rolname = current_user").substring(0, 1));
+            assertEquals(0, count(s, "SELECT count(*) FROM project_impact"), "sans contexte, aucune ligne");
+            s.execute("SELECT set_config('argos.compte_courant', '" + alice + "', true)");
+            assertEquals(1, count(s, "SELECT count(*) FROM project_impact"), "seulement les espaces dont le compte est membre");
             assertEquals(0, count(s, "SELECT count(*) FROM project_impact WHERE workspace_id = '" + spaceB + "'"));
-            s.execute("SELECT set_config('argos.technical', 'on', true)");
-            assertEquals(2, count(s, "SELECT count(*) FROM project_impact"));
+            s.execute("SELECT set_config('argos.espace_courant', '" + spaceB + "', true)");
+            assertEquals(0, count(s, "SELECT count(*) FROM project_impact"), "espace courant dont le compte n'est pas membre");
             c.rollback();
             c.setAutoCommit(true);
+        }
+    }
+
+    private String rolePendantUneLecture(UUID compte) {
+        return io.quarkus.narayana.jta.QuarkusTransaction.requiringNew().call(() -> {
+            impacts.forProject(UUID.randomUUID(), compte, Set.of(spaceA));
+            try (Connection c = dataSource.getConnection(); Statement s = c.createStatement()) {
+                return string(s, "SELECT current_user");
+            }
+        });
+    }
+
+    private static String string(Statement s, String sql) throws Exception {
+        try (ResultSet rs = s.executeQuery(sql)) {
+            rs.next();
+            return rs.getString(1);
         }
     }
 

@@ -1,0 +1,25 @@
+Réponses enregistrées utilisées comme données de test (contrats des adaptateurs de collecte)
+=========================================================================================
+
+osv/GHSA-jfh8-c2jp-5v3q.json
+  Source : OSV (https://osv.dev), avis issu de la GitHub Advisory Database
+  (https://github.com/advisories/GHSA-jfh8-c2jp-5v3q).
+  Licence : Creative Commons Attribution 4.0 International (CC-BY 4.0),
+  https://creativecommons.org/licenses/by/4.0/
+  Attribution : © GitHub, Inc. et les contributeurs de la GitHub Advisory Database ;
+  données diffusées par le projet OSV. Contenu reproduit sans modification.
+
+enrichment/nvd-CVE-2021-44228.json
+  Source : NIST National Vulnerability Database (https://nvd.nist.gov).
+  Ce produit utilise des données de l'API NVD, mais n'est ni approuvé ni certifié par la NVD.
+
+enrichment/kev-extrait.json
+  Source : CISA Known Exploited Vulnerabilities Catalog
+  (https://www.cisa.gov/known-exploited-vulnerabilities-catalog), extrait.
+
+enrichment/epss-CVE-2021-44228.json
+  Source : FIRST, Exploit Prediction Scoring System (https://www.first.org/epss).
+
+enrichment/CERTFR-2026-AVI-1500.json, enrichment/certfr-feed.xml
+  Source : CERT-FR / ANSSI (https://www.cert.cyber.gouv.fr), Licence Ouverte / Open Licence
+  version 2.0 (Etalab).

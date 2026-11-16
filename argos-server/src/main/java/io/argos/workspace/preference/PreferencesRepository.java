@@ -5,21 +5,26 @@ import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
+import java.sql.Statement;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Optional;
 import java.util.Set;
+import java.util.UUID;
 
 import javax.sql.DataSource;
 
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.inject.Inject;
+import jakarta.transaction.Transactional;
 
 /**
- * Accès à la table {@code workspace_preference_utilisateur}.
+ * Accès à la table {@code workspace_preference_utilisateur}, clé : identifiant du compte Argos.
  *
  * <p>Chaque écriture remplace la valeur précédente : l'opération est idempotente et la
  * dernière écriture l'emporte (conception, « Transactions, concurrence et idempotence »).
+ * Chaque transaction s'exécute sous le rôle {@code argos_app} avec le compte concerné comme compte
+ * courant (protocole de la migration V2) : la RLS n'expose que ses propres préférences.
  */
 @ApplicationScoped
 public class PreferencesRepository {
@@ -32,17 +37,21 @@ public class PreferencesRepository {
     }
 
     /** Préférences enregistrées ; {@link PreferencesUtilisateur#aucune} si rien n'est enregistré. */
-    public PreferencesUtilisateur lire(String utilisateur) {
-        String sql = "SELECT mise_en_page, profils_actifs FROM workspace_preference_utilisateur WHERE utilisateur = ?";
-        try (Connection c = dataSource.getConnection(); PreparedStatement ps = c.prepareStatement(sql)) {
-            ps.setString(1, utilisateur);
-            try (ResultSet rs = ps.executeQuery()) {
-                if (!rs.next()) {
-                    return PreferencesUtilisateur.aucune(utilisateur);
+    @Transactional
+    public PreferencesUtilisateur lire(UUID compte) {
+        String sql = "SELECT mise_en_page, profils_actifs FROM workspace_preference_utilisateur WHERE compte_id = ?";
+        try (Connection c = dataSource.getConnection()) {
+            session(c, compte);
+            try (PreparedStatement ps = c.prepareStatement(sql)) {
+                ps.setObject(1, compte);
+                try (ResultSet rs = ps.executeQuery()) {
+                    if (!rs.next()) {
+                        return PreferencesUtilisateur.aucune(compte);
+                    }
+                    Array profils = rs.getArray("profils_actifs");
+                    List<String> actifs = profils == null ? List.of() : Arrays.asList((String[]) profils.getArray());
+                    return new PreferencesUtilisateur(compte, Optional.ofNullable(rs.getString("mise_en_page")), actifs);
                 }
-                Array profils = rs.getArray("profils_actifs");
-                List<String> actifs = profils == null ? List.of() : Arrays.asList((String[]) profils.getArray());
-                return new PreferencesUtilisateur(utilisateur, Optional.ofNullable(rs.getString("mise_en_page")), actifs);
             }
         } catch (SQLException e) {
             throw new IllegalStateException("Lecture des préférences impossible", e);
@@ -50,36 +59,66 @@ public class PreferencesRepository {
     }
 
     /** Remplace la mise en page enregistrée. */
-    public void enregistrerMiseEnPage(String utilisateur, String miseEnPage) {
+    @Transactional
+    public void enregistrerMiseEnPage(UUID compte, String miseEnPage) {
         String sql = """
-                INSERT INTO workspace_preference_utilisateur (utilisateur, mise_en_page, modifie_le)
+                INSERT INTO workspace_preference_utilisateur (compte_id, mise_en_page, modifie_le)
                 VALUES (?, ?, now())
-                ON CONFLICT (utilisateur)
+                ON CONFLICT (compte_id)
                 DO UPDATE SET mise_en_page = EXCLUDED.mise_en_page, modifie_le = now()
                 """;
-        try (Connection c = dataSource.getConnection(); PreparedStatement ps = c.prepareStatement(sql)) {
-            ps.setString(1, utilisateur);
-            ps.setString(2, miseEnPage);
-            ps.executeUpdate();
+        try (Connection c = dataSource.getConnection()) {
+            session(c, compte);
+            try (PreparedStatement ps = c.prepareStatement(sql)) {
+                ps.setObject(1, compte);
+                ps.setString(2, miseEnPage);
+                ps.executeUpdate();
+            }
         } catch (SQLException e) {
             throw new IllegalStateException("Enregistrement de la mise en page impossible", e);
         }
     }
 
     /** Remplace l'ensemble des profils actifs ; l'ensemble ne peut pas être vide (contrainte en base). */
-    public void enregistrerProfils(String utilisateur, Set<String> profilsActifs) {
+    @Transactional
+    public void enregistrerProfils(UUID compte, Set<String> profilsActifs) {
+        enregistrerProfils(compte, profilsActifs, true);
+    }
+
+    /** Enregistre les profils actifs seulement si le compte n'en a encore enregistré aucun. */
+    @Transactional
+    public void enregistrerProfilsSiAucun(UUID compte, Set<String> profilsActifs) {
+        enregistrerProfils(compte, profilsActifs, false);
+    }
+
+    private void enregistrerProfils(UUID compte, Set<String> profilsActifs, boolean remplacer) {
         String sql = """
-                INSERT INTO workspace_preference_utilisateur (utilisateur, profils_actifs, modifie_le)
+                INSERT INTO workspace_preference_utilisateur (compte_id, profils_actifs, modifie_le)
                 VALUES (?, ?, now())
-                ON CONFLICT (utilisateur)
+                ON CONFLICT (compte_id)
                 DO UPDATE SET profils_actifs = EXCLUDED.profils_actifs, modifie_le = now()
-                """;
-        try (Connection c = dataSource.getConnection(); PreparedStatement ps = c.prepareStatement(sql)) {
-            ps.setString(1, utilisateur);
-            ps.setArray(2, c.createArrayOf("varchar", profilsActifs.stream().sorted().toArray()));
-            ps.executeUpdate();
+                """ + (remplacer ? "" : " WHERE workspace_preference_utilisateur.profils_actifs IS NULL");
+        try (Connection c = dataSource.getConnection()) {
+            session(c, compte);
+            try (PreparedStatement ps = c.prepareStatement(sql)) {
+                ps.setObject(1, compte);
+                ps.setArray(2, c.createArrayOf("varchar", profilsActifs.stream().sorted().toArray()));
+                ps.executeUpdate();
+            }
         } catch (SQLException e) {
             throw new IllegalStateException("Enregistrement des profils actifs impossible", e);
+        }
+    }
+
+    /** Rôle {@code argos_app} et compte courant pour la transaction en cours (protocole de la migration V2). */
+    private static void session(Connection c, UUID compte) throws SQLException {
+        try (Statement st = c.createStatement()) {
+            st.execute("SET LOCAL ROLE argos_app");
+        }
+        try (PreparedStatement ps = c.prepareStatement(
+                "SELECT set_config('argos.compte_courant', ?, true), set_config('argos.espace_courant', '', true)")) {
+            ps.setString(1, compte.toString());
+            ps.execute();
         }
     }
 }

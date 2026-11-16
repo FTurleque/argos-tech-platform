@@ -1,12 +1,13 @@
 package io.argos.api.comptes;
 
-import static io.argos.api.comptes.Api.en;
+import static io.argos.testsupport.Api.en;
 import static org.hamcrest.Matchers.hasKey;
 import static org.hamcrest.Matchers.notNullValue;
 
 import io.quarkus.test.junit.QuarkusTest;
 import io.restassured.response.ValidatableResponse;
 import org.junit.jupiter.api.Test;
+import io.argos.testsupport.Api;
 
 /** Contrat OpenAPI des comptes, espaces, membres et invitations (tâche 3.1). */
 @QuarkusTest

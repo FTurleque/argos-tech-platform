@@ -28,7 +28,7 @@ import io.argos.ingestion.osv.OsvNormalizer;
 import io.argos.signal.SignalQueries;
 import io.argos.signal.SignalRecorder;
 import io.argos.testsupport.Fixtures;
-import io.argos.testsupport.HeaderCallerResolver;
+import io.argos.testsupport.Api;
 import io.argos.testsupport.StubServer;
 import io.argos.testsupport.TestDb;
 import io.quarkus.narayana.jta.QuarkusTransaction;
@@ -94,7 +94,7 @@ class CollecteTest {
                 .anyMatch(p -> p.packageKey().equals("pkg:maven/org.apache.logging.log4j/log4j-core")
                         && p.ranges().stream().anyMatch(r -> "2.15.0".equals(r.fixed()))));
 
-        given().header(HeaderCallerResolver.USER, "alice")
+        Api.en("alice")
                 .when().get("/api/v1/signals/" + signal.id())
                 .then().statusCode(200)
                 .body("signal.source", equalTo("OSV"))
@@ -102,7 +102,7 @@ class CollecteTest {
                 .body("signal.collectedAt", notNullValue())
                 .body("signal.currentVersionId", equalTo(signal.currentVersionId().toString()))
                 .body("versions.versionNo", hasItem(1));
-        String body = given().header(HeaderCallerResolver.USER, "alice")
+        String body = Api.en("alice")
                 .when().get("/api/v1/signals/" + signal.id() + "/versions/" + signal.currentVersionId() + "/raw")
                 .then().statusCode(200).extract().asString();
         assertEquals(raw, body);
@@ -204,7 +204,7 @@ class CollecteTest {
         assertEquals("identifiant externe absent", db.string("SELECT reason FROM ingestion_failure WHERE external_id = 'GHSA-000B'"));
         assertEquals(b, db.string("SELECT raw_content FROM ingestion_failure"));
         assertEquals("OSV", db.string("SELECT source_id FROM ingestion_failure"));
-        given().header(HeaderCallerResolver.USER, "ops").header(HeaderCallerResolver.OPERATOR, "true")
+        Api.en("alice")
                 .when().get("/api/v1/ops/sources/OSV/rejected")
                 .then().statusCode(200).body("[0].externalId", equalTo("GHSA-000B"))
                 .body("[0].reason", equalTo("identifiant externe absent"));

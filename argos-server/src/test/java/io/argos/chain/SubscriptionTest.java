@@ -1,6 +1,5 @@
 package io.argos.chain;
 
-import static io.restassured.RestAssured.given;
 import static org.hamcrest.Matchers.empty;
 import static org.hamcrest.Matchers.equalTo;
 import static org.hamcrest.Matchers.hasItem;
@@ -23,26 +22,28 @@ import org.junit.jupiter.api.Test;
 import io.argos.ingestion.SourceSynchronizer;
 import io.argos.inventory.InventoryService;
 import io.argos.inventory.ProjectDirectory;
+import io.argos.testsupport.Api;
 import io.argos.testsupport.Fixtures;
-import io.argos.testsupport.HeaderCallerResolver;
 import io.argos.testsupport.StubServer;
 import io.argos.testsupport.TestDb;
-import io.argos.workspace.WorkspaceDirectory;
 import io.quarkus.test.common.QuarkusTestResource;
 import io.quarkus.test.junit.QuarkusTest;
 import io.restassured.http.ContentType;
 import io.restassured.specification.RequestSpecification;
 
-/** Abonnements de veille (tâches 5.1 à 5.3) : ABO-01 à ABO-06 par l'API REST. */
+/**
+ * Abonnements de veille (tâches 5.1 à 5.3) : ABO-01 à ABO-06 par l'API REST, avec des jetons réels
+ * et des appartenances réelles aux espaces (gerer-comptes-et-acces).
+ */
 @QuarkusTest
 @QuarkusTestResource(StubServer.class)
 class SubscriptionTest {
 
-    @Inject
-    TestDb db;
+    private static final String JAVA = "[{\"type\":\"TECHNOLOGY\",\"value\":\"java\"}]";
+    private static final String RUST = "[{\"type\":\"TECHNOLOGY\",\"value\":\"rust\"}]";
 
     @Inject
-    WorkspaceDirectory workspaces;
+    TestDb db;
 
     @Inject
     ProjectDirectory projects;
@@ -53,24 +54,25 @@ class SubscriptionTest {
     @Inject
     SourceSynchronizer synchronizer;
 
+    /** Espace administré par karim. */
     private UUID rh;
+    /** Espace administré par oscar. */
     private UUID paie;
 
     @BeforeEach
     void reset() {
         db.reset();
-        rh = workspaces.create("Équipe RH");
-        paie = workspaces.create("Équipe Paie");
+        rh = Api.nouvelEspace("karim", "Équipe RH");
+        paie = Api.nouvelEspace("oscar", "Équipe Paie");
     }
 
-    private static RequestSpecification as(String user, UUID... memberOf) {
-        return given().header(HeaderCallerResolver.USER, user)
-                .header(HeaderCallerResolver.WORKSPACES, String.join(",", java.util.Arrays.stream(memberOf).map(UUID::toString).toList()))
-                .contentType(ContentType.JSON);
+    private static RequestSpecification as(String user) {
+        return Api.en(user).contentType(ContentType.JSON);
     }
 
-    private static RequestSpecification admin(String user, UUID workspace) {
-        return as(user, workspace).header(HeaderCallerResolver.ADMIN, workspace.toString());
+    /** Fait de l'utilisateur un lecteur de l'espace, par invitation acceptée. */
+    private void membre(String user, UUID espace) {
+        Api.ajouterMembre(espace.equals(rh) ? "karim" : "oscar", espace.toString(), user, "LECTEUR");
     }
 
     private static String personal(String filters) {
@@ -90,20 +92,19 @@ class SubscriptionTest {
 
     @Test
     void abo01S1AbonnementSansPorteeRefuse() {
-        as("alice", rh).body("{\"filters\":[{\"type\":\"TECHNOLOGY\",\"value\":\"rust\"}],\"channel\":\"in_app\","
-                + "\"frequency\":\"daily\",\"mandatory\":false}")
+        as("alice").body("{\"filters\":" + RUST + ",\"channel\":\"in_app\",\"frequency\":\"daily\",\"mandatory\":false}")
                 .when().post("/api/v1/subscriptions")
-                .then().statusCode(400).body("attribute", equalTo("scope"));
+                .then().statusCode(400).body("attribut", equalTo("scope"));
         assertEquals(0, db.count("SELECT count(*) FROM subscription"));
     }
 
     @Test
     void abo02S1AbonnementComplet() {
-        as("alice", rh).body(personal("[{\"type\":\"TECHNOLOGY\",\"value\":\"rust\"}]"))
+        as("alice").body(personal(RUST))
                 .when().post("/api/v1/subscriptions")
                 .then().statusCode(201)
                 .body("scope", equalTo("PERSONAL"))
-                .body("ownerUserId", equalTo("alice"))
+                .body("ownerUserId", equalTo(Api.compte("alice").toString()))
                 .body("channel", equalTo("IN_APP"))
                 .body("frequency", equalTo("DAILY"))
                 .body("mandatory", equalTo(false))
@@ -113,87 +114,91 @@ class SubscriptionTest {
 
     @Test
     void abo02S2AttributManquant() {
-        as("alice", rh).body("{\"scope\":\"PERSONAL\",\"filters\":[],\"channel\":\"in_app\",\"frequency\":\"daily\",\"mandatory\":false}")
+        as("alice").body("{\"scope\":\"PERSONAL\",\"filters\":[],\"channel\":\"in_app\",\"frequency\":\"daily\",\"mandatory\":false}")
                 .when().post("/api/v1/subscriptions")
-                .then().statusCode(400).body("attribute", equalTo("filters"));
-        as("alice", rh).body("{\"scope\":\"PERSONAL\",\"filters\":[{\"type\":\"TECHNOLOGY\",\"value\":\"rust\"}],\"frequency\":\"daily\",\"mandatory\":false}")
+                .then().statusCode(400).body("attribut", equalTo("filters"));
+        as("alice").body("{\"scope\":\"PERSONAL\",\"filters\":" + RUST + ",\"frequency\":\"daily\",\"mandatory\":false}")
                 .when().post("/api/v1/subscriptions")
-                .then().statusCode(400).body("attribute", equalTo("channel"));
-        as("alice", rh).body("{\"scope\":\"PERSONAL\",\"filters\":[{\"type\":\"TECHNOLOGY\",\"value\":\"rust\"}],\"channel\":\"x\",\"frequency\":\"daily\"}")
+                .then().statusCode(400).body("attribut", equalTo("channel"));
+        as("alice").body("{\"scope\":\"PERSONAL\",\"filters\":" + RUST + ",\"channel\":\"x\",\"frequency\":\"daily\"}")
                 .when().post("/api/v1/subscriptions")
-                .then().statusCode(400).body("attribute", equalTo("mandatory"));
+                .then().statusCode(400).body("attribut", equalTo("mandatory"));
         assertEquals(0, db.count("SELECT count(*) FROM subscription"));
     }
 
     @Test
     void abo06SeulLAdministrateurDeLEspaceCreeUnAbonnementTeam() {
-        as("bob", rh).body(team(rh, "[{\"type\":\"TECHNOLOGY\",\"value\":\"java\"}]", true))
-                .when().post("/api/v1/subscriptions").then().statusCode(403);
-        assertEquals(1, db.count("SELECT count(*) FROM access_refusal WHERE user_id = 'bob'"));
-        admin("carole", rh).body(team(rh, "[{\"type\":\"TECHNOLOGY\",\"value\":\"java\"}]", true))
-                .when().post("/api/v1/subscriptions").then().statusCode(201).body("ownerWorkspaceId", equalTo(rh.toString()));
+        membre("jules", rh);
+        as("jules").body(team(rh, JAVA, true)).when().post("/api/v1/subscriptions").then().statusCode(403);
+        assertEquals(1, db.count("SELECT count(*) FROM refus_acces WHERE compte_id = '" + Api.compte("jules")
+                + "' AND ressource = 'POST /api/v1/subscriptions' AND motif = 'ROLE_INSUFFISANT'"));
+        as("karim").body(team(rh, JAVA, true)).when().post("/api/v1/subscriptions")
+                .then().statusCode(201).body("ownerWorkspaceId", equalTo(rh.toString()));
     }
 
     @Test
     void abo03S1NouveauMembreHeriteDuSocleTeam() {
         publish("GHSA-JAVA", "Maven", "org.exemple:lib", "pkg:maven/org.exemple/lib");
-        admin("carole", rh).body(team(rh, "[{\"type\":\"TECHNOLOGY\",\"value\":\"java\"}]", true))
-                .when().post("/api/v1/subscriptions").then().statusCode(201);
+        as("karim").body(team(rh, JAVA, true)).when().post("/api/v1/subscriptions").then().statusCode(201);
 
-        as("dave").when().get("/api/v1/me/watch").then().statusCode(200).body("$", empty());
-        as("dave", rh).when().get("/api/v1/me/watch").then().statusCode(200)
-                .body("externalId", hasItem("GHSA-JAVA"));
+        Api.compte("lina");
+        as("lina").when().get("/api/v1/me/watch").then().statusCode(200).body("$", empty());
+        membre("lina", rh);
+        as("lina").when().get("/api/v1/me/watch").then().statusCode(200).body("externalId", hasItem("GHSA-JAVA"));
     }
 
     @Test
     void abo04S1TechnologieHorsPerimetreDeLEquipe() {
         publish("GHSA-RUST", "crates.io", "hyper", "pkg:cargo/hyper");
-        as("erin", rh).body(personal("[{\"type\":\"TECHNOLOGY\",\"value\":\"Rust\"}]"))
+        membre("marc", rh);
+        as("marc").body(personal("[{\"type\":\"TECHNOLOGY\",\"value\":\"Rust\"}]"))
                 .when().post("/api/v1/subscriptions").then().statusCode(201);
 
-        as("erin", rh).when().get("/api/v1/me/watch").then().statusCode(200)
-                .body("externalId", hasItem("GHSA-RUST"));
+        as("marc").when().get("/api/v1/me/watch").then().statusCode(200).body("externalId", hasItem("GHSA-RUST"));
     }
 
     @Test
     void abo05S1EtS2AucunDroitAccordeParUnAbonnement() {
         UUID projetPaie = projects.create(paie, "paie", null, null);
         inventories.importSbom(projetPaie, Fixtures.cyclonedx("1.6", Instant.now().minus(1, ChronoUnit.DAYS).toString(),
-                java.util.Collections.singletonList(new String[] {"h", "pkg:cargo/hyper@0.14.0"}), List.of("h")).getBytes(StandardCharsets.UTF_8), "ci");
+                java.util.Collections.singletonList(new String[] {"h", "pkg:cargo/hyper@0.14.0"}), List.of("h"))
+                .getBytes(StandardCharsets.UTF_8), "ci");
         publish("GHSA-RUST2", "crates.io", "hyper", "pkg:cargo/hyper");
         assertEquals(1, db.count("SELECT count(*) FROM project_impact WHERE project_id = '" + projetPaie + "'"));
 
-        as("frank", rh).body(personal("[{\"type\":\"TECHNOLOGY\",\"value\":\"rust\"},{\"type\":\"PROJECT\",\"value\":\""
+        membre("nina", rh);
+        as("nina").body(personal("[{\"type\":\"TECHNOLOGY\",\"value\":\"rust\"},{\"type\":\"PROJECT\",\"value\":\""
                 + projetPaie + "\"}]")).when().post("/api/v1/subscriptions").then().statusCode(201);
 
-        as("frank", rh).when().get("/api/v1/me/watch").then().statusCode(200)
+        as("nina").when().get("/api/v1/me/watch").then().statusCode(200)
                 .body("externalId", hasItem("GHSA-RUST2"))
                 .body("find { it.externalId == 'GHSA-RUST2' }.impacts", hasSize(0));
-        // Les droits de frank sont inchangés : l'impact du projet de l'espace Paie reste inaccessible.
+        // Les droits de nina sont inchangés : l'impact du projet de l'espace Paie reste inaccessible.
         UUID impact = db.uuid("SELECT id FROM project_impact");
-        as("frank", rh).when().get("/api/v1/impacts/" + impact).then().statusCode(404);
-        as("frank", rh).when().get("/api/v1/projects/" + projetPaie + "/inventory").then().statusCode(404);
+        as("nina").when().get("/api/v1/impacts/" + impact).then().statusCode(404);
+        as("nina").when().get("/api/v1/projects/" + projetPaie + "/inventory").then().statusCode(404);
         // Un membre de l'espace Paie voit l'impact.
-        as("gina", paie).body(personal("[{\"type\":\"TECHNOLOGY\",\"value\":\"rust\"}]")).when().post("/api/v1/subscriptions")
-                .then().statusCode(201);
-        as("gina", paie).when().get("/api/v1/me/watch").then().statusCode(200)
+        as("oscar").body(personal(RUST)).when().post("/api/v1/subscriptions").then().statusCode(201);
+        as("oscar").when().get("/api/v1/me/watch").then().statusCode(200)
                 .body("find { it.externalId == 'GHSA-RUST2' }.impacts", hasSize(1));
     }
 
     @Test
     void abo06TeamObligatoireNonQuittableEtFacultatifQuittable() {
-        String mandatory = admin("carole", rh).body(team(rh, "[{\"type\":\"TECHNOLOGY\",\"value\":\"java\"}]", true))
+        String mandatory = as("karim").body(team(rh, JAVA, true))
                 .when().post("/api/v1/subscriptions").then().statusCode(201).extract().path("id");
-        String optional = admin("carole", rh).body(team(rh, "[{\"type\":\"TECHNOLOGY\",\"value\":\"python\"}]", false))
+        String optional = as("karim").body(team(rh, "[{\"type\":\"TECHNOLOGY\",\"value\":\"python\"}]", false))
                 .when().post("/api/v1/subscriptions").then().statusCode(201).extract().path("id");
+        membre("lina", rh);
+        membre("paul", paie);
 
-        as("dave", rh).when().post("/api/v1/subscriptions/" + mandatory + "/leave").then().statusCode(409)
-                .body("attribute", equalTo("mandatory"));
-        as("dave", rh).when().post("/api/v1/subscriptions/" + optional + "/leave").then().statusCode(204);
+        as("lina").when().post("/api/v1/subscriptions/" + mandatory + "/leave").then().statusCode(409)
+                .body("attribut", equalTo("mandatory"));
+        as("lina").when().post("/api/v1/subscriptions/" + optional + "/leave").then().statusCode(204);
 
-        as("dave", rh).when().get("/api/v1/subscriptions").then().statusCode(200)
+        as("lina").when().get("/api/v1/subscriptions").then().statusCode(200)
                 .body("id", hasItem(mandatory)).body("id", not(hasItem(optional)));
-        as("carole", rh).when().get("/api/v1/subscriptions").then().statusCode(200).body("id", hasItem(optional));
-        as("zoe", paie).when().post("/api/v1/subscriptions/" + optional + "/leave").then().statusCode(404);
+        as("karim").when().get("/api/v1/subscriptions").then().statusCode(200).body("id", hasItem(optional));
+        as("paul").when().post("/api/v1/subscriptions/" + optional + "/leave").then().statusCode(404);
     }
 }

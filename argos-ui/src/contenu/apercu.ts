@@ -1,6 +1,6 @@
 // Jeu d'exemple servant à prévisualiser une mise en page avant de la choisir.
-// Les éléments sont fictifs et affichés comme tels : la veille réelle arrivera avec la
-// restitution de la veille par le serveur (PRF-02).
+// Les éléments sont fictifs et affichés comme tels : l'aperçu ne lit pas la veille restituée
+// par le serveur (PRF-02), il montre seulement la forme de chaque mise en page.
 import type { ElementVeille } from './modeles'
 
 export const ELEMENTS_APERCU: readonly ElementVeille[] = [

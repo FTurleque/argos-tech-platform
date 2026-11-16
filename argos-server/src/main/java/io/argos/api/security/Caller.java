@@ -4,14 +4,15 @@ import java.util.Set;
 import java.util.UUID;
 
 /**
- * Appelant authentifié et son périmètre autorisé, déterminé uniquement par ses rôles (ABO-05).
+ * Appelant authentifié et son périmètre autorisé, déterminé uniquement par ses appartenances aux
+ * espaces et leurs rôles (ABO-05, ADR-0016).
  *
- * @param userId identifiant stable de l'utilisateur
+ * @param accountId identifiant stable du compte Argos, relié au sujet du jeton OIDC
  * @param memberWorkspaces espaces dont il est membre, quel que soit son rôle
  * @param adminWorkspaces espaces qu'il administre (sous-ensemble de {@code memberWorkspaces})
- * @param operator vrai pour le rôle d'exploitation (état des sources, contrôle d'intégrité)
+ * @param operator vrai pour l'administrateur plateforme (état des sources, contrôle d'intégrité)
  */
-public record Caller(String userId, Set<UUID> memberWorkspaces, Set<UUID> adminWorkspaces, boolean operator) {
+public record Caller(UUID accountId, Set<UUID> memberWorkspaces, Set<UUID> adminWorkspaces, boolean operator) {
 
     public Caller {
         memberWorkspaces = Set.copyOf(memberWorkspaces);

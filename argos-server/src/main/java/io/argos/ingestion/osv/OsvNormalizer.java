@@ -62,6 +62,12 @@ public final class OsvNormalizer {
         for (JsonNode a : affectedNode) {
             affected.add(affected(a));
         }
+        // Avis retiré (champ OSV « withdrawn ») : le signal et son historique sont conservés, mais il
+        // ne déclare plus aucun paquet affecté ; la corrélation retire donc les impacts qu'il portait.
+        JsonNode withdrawn = root.path("withdrawn");
+        if (!withdrawn.isMissingNode() && !withdrawn.isNull()) {
+            affected.clear();
+        }
 
         String summary = text(root, "summary");
         String details = text(root, "details");

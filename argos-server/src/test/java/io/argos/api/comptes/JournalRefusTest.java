@@ -1,6 +1,6 @@
 package io.argos.api.comptes;
 
-import static io.argos.api.comptes.Api.en;
+import static io.argos.testsupport.Api.en;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
@@ -20,6 +20,7 @@ import jakarta.inject.Inject;
 
 import io.quarkus.test.junit.QuarkusTest;
 import org.junit.jupiter.api.Test;
+import io.argos.testsupport.Api;
 
 /** ACC-06 : journal des refus d'accès. */
 @QuarkusTest

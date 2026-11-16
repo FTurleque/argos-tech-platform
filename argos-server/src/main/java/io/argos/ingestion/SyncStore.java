@@ -19,6 +19,8 @@ import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.inject.Inject;
 import jakarta.transaction.Transactional;
 
+import org.eclipse.microprofile.config.inject.ConfigProperty;
+
 /**
  * Persistance de l'état de collecte : curseurs, traitements de synchronisation, tentatives,
  * état des sources, zone d'échec et événements d'exploitation (COL-05 à COL-08, DC-3).
@@ -41,6 +43,10 @@ public class SyncStore {
 
     @Inject
     DataSource dataSource;
+
+    /** Durée sans activité après laquelle un traitement {@code RUNNING} est considéré comme interrompu. */
+    @ConfigProperty(name = "argos.ingestion.running-expiry", defaultValue = "PT30M")
+    Duration runningExpiry;
 
     @Transactional
     public Optional<String> cursor(String sourceId) {
@@ -72,6 +78,10 @@ public class SyncStore {
     @Transactional
     public Optional<UUID> startOrResume(String sourceId) {
         update("SELECT id FROM source WHERE id = ? FOR UPDATE", sourceId);
+        update("""
+                UPDATE sync_run SET state = 'RETRYABLE', last_error = 'traitement interrompu, repris au prochain lancement'
+                WHERE source_id = ? AND state = 'RUNNING' AND heartbeat_at <= ?
+                """, sourceId, utc(Instant.now().minus(runningExpiry)));
         if (queryString("SELECT id::text FROM sync_run WHERE source_id = ? AND state = 'RUNNING'", sourceId).isPresent()) {
             return Optional.empty();
         }

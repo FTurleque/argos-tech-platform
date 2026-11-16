@@ -40,8 +40,8 @@ public class InventoryResource {
     @GET
     @Operation(summary = "Inventaire de référence du projet, son origine et l'âge de la SBOM")
     public ProjectInventory inventory(@PathParam("projectId") UUID projectId) {
-        authorize(projectId);
-        return inventories.inventory(projectId)
+        Caller caller = authorize(projectId);
+        return inventories.inventory(projectId, caller.accountId())
                 .map(i -> new ProjectInventory(projectId, "AVAILABLE", i))
                 .orElseGet(() -> new ProjectInventory(projectId, "NO_SBOM", null));
     }
@@ -50,15 +50,16 @@ public class InventoryResource {
     @Path("/failures")
     @Operation(summary = "Imports de SBOM ou de manifestes refusés, avec leur motif")
     public List<InventoryQueries.ImportFailure> failures(@PathParam("projectId") UUID projectId) {
-        authorize(projectId);
-        return inventories.failures(projectId);
+        Caller caller = authorize(projectId);
+        return inventories.failures(projectId, caller.accountId());
     }
 
-    private void authorize(UUID projectId) {
+    private Caller authorize(UUID projectId) {
         Caller caller = access.authenticated();
         UUID workspace = inventories.workspaceOf(projectId).orElseThrow(NotFoundException::new);
         if (!caller.memberOf(workspace)) {
-            throw access.outOfScope(caller, "PROJECT_INVENTORY", projectId.toString());
+            throw access.outOfScope();
         }
+        return caller;
     }
 }

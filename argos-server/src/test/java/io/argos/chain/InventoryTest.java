@@ -25,11 +25,10 @@ import io.argos.inventory.ProjectDirectory;
 import io.argos.scm.RepositoryFiles;
 import io.argos.scm.RepositoryRef;
 import io.argos.testsupport.Fixtures;
-import io.argos.testsupport.HeaderCallerResolver;
+import io.argos.testsupport.Api;
 import io.argos.testsupport.StubServer;
 import io.argos.testsupport.StubServer.Stub;
 import io.argos.testsupport.TestDb;
-import io.argos.workspace.WorkspaceDirectory;
 import io.quarkus.test.common.QuarkusTestResource;
 import io.quarkus.test.junit.QuarkusTest;
 
@@ -45,9 +44,6 @@ class InventoryTest {
     TestDb db;
 
     @Inject
-    WorkspaceDirectory workspaces;
-
-    @Inject
     ProjectDirectory projects;
 
     @Inject
@@ -61,7 +57,7 @@ class InventoryTest {
     @BeforeEach
     void reset() {
         db.reset();
-        workspace = workspaces.create("Équipe A");
+        workspace = Api.nouvelEspace("alice", "Équipe A");
     }
 
     private static byte[] bytes(String s) {
@@ -69,7 +65,7 @@ class InventoryTest {
     }
 
     private io.restassured.specification.RequestSpecification member() {
-        return given().header(HeaderCallerResolver.USER, "alice").header(HeaderCallerResolver.WORKSPACES, workspace.toString());
+        return Api.en("alice");
     }
 
     @Test
@@ -197,10 +193,11 @@ class InventoryTest {
 
     @Test
     void inventaireDUnAutreEspaceRefuseEtJournalise() {
-        UUID other = workspaces.create("Équipe B");
+        UUID other = Api.nouvelEspace("jules", "Équipe B");
         UUID project = projects.create(other, "secret", null, null);
         member().when().get("/api/v1/projects/" + project + "/inventory").then().statusCode(404);
-        assertEquals(1, db.count("SELECT count(*) FROM access_refusal WHERE user_id = 'alice' AND resource_id = '" + project + "'"));
+        assertEquals(1, db.count("SELECT count(*) FROM refus_acces WHERE compte_id = '" + Api.compte("alice")
+                + "' AND ressource = 'GET /api/v1/projects/" + project + "/inventory' AND motif = 'NON_MEMBRE'"));
     }
 
     @Test

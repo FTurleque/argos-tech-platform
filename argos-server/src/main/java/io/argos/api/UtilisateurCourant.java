@@ -27,6 +27,12 @@ public class UtilisateurCourant {
 
     private Compte compte;
 
+    /** Vrai si la requête porte un jeton validé avec un sujet. */
+    public boolean authentifie() {
+        String sujet = jeton == null ? null : jeton.getSubject();
+        return sujet != null && !sujet.isBlank();
+    }
+
     public IdentiteOidc identite() {
         String nom = premier(jeton.getClaim("name"), jeton.getClaim("preferred_username"));
         Object verifie = jeton.getClaim("email_verified");

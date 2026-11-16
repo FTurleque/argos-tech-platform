@@ -1,7 +1,7 @@
 package io.argos.api.comptes;
 
-import static io.argos.api.comptes.Api.en;
-import static io.argos.api.comptes.Api.moi;
+import static io.argos.testsupport.Api.en;
+import static io.argos.testsupport.Api.moi;
 import static org.hamcrest.Matchers.empty;
 import static org.hamcrest.Matchers.equalTo;
 import static org.hamcrest.Matchers.hasSize;
@@ -19,6 +19,7 @@ import jakarta.inject.Inject;
 import io.quarkus.test.junit.QuarkusTest;
 import io.restassured.http.ContentType;
 import org.junit.jupiter.api.Test;
+import io.argos.testsupport.Api;
 
 /**
  * Parcours de bout en bout au niveau de l'API (tâche 5.2) : première connexion, création d'un

@@ -1,9 +1,9 @@
 package io.argos.api;
 
-import static io.restassured.RestAssured.given;
 import static org.hamcrest.Matchers.hasItems;
 import static org.hamcrest.Matchers.notNullValue;
 
+import io.argos.testsupport.Api;
 import io.quarkus.test.junit.QuarkusTest;
 import org.junit.jupiter.api.Test;
 
@@ -19,7 +19,7 @@ class OpenApiContractTest {
 
     @Test
     void lesOperationsDesPreferencesEtDuCatalogueSontPubliees() {
-        given().queryParam("format", "json")
+        Api.en("alice").queryParam("format", "json")
             .when().get("/q/openapi")
             .then()
             .statusCode(200)
@@ -32,7 +32,7 @@ class OpenApiContractTest {
 
     @Test
     void lesSchemasExposentLesChampsAttendus() {
-        given().queryParam("format", "json")
+        Api.en("alice").queryParam("format", "json")
             .when().get("/q/openapi")
             .then()
             .statusCode(200)

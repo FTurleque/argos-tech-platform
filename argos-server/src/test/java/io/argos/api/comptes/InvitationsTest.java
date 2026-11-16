@@ -1,19 +1,29 @@
 package io.argos.api.comptes;
 
-import static io.argos.api.comptes.Api.en;
+import static io.argos.testsupport.Api.en;
 import static org.hamcrest.Matchers.equalTo;
 import static org.hamcrest.Matchers.hasItem;
 import static org.hamcrest.Matchers.not;
 
+import static org.junit.jupiter.api.Assertions.assertEquals;
+
 import java.util.Map;
+
+import jakarta.inject.Inject;
+
+import io.argos.testsupport.TestDb;
 
 import io.quarkus.test.junit.QuarkusTest;
 import io.restassured.http.ContentType;
 import org.junit.jupiter.api.Test;
+import io.argos.testsupport.Api;
 
 /** ACC-05 : invitations et révocation. */
 @QuarkusTest
 class InvitationsTest {
+
+    @Inject
+    TestDb db;
 
     /** ACC-05-S1 : invité comme lecteur, l'utilisateur accepte et voit l'espace en lecture seule. */
     @Test
@@ -39,8 +49,9 @@ class InvitationsTest {
                 .when().post("/api/v1/espaces/" + atelier + "/invitations")
                 .then().statusCode(403);
         en("erin").when().get("/api/v1/espaces/" + atelier + "/invitations").then().statusCode(403);
-        // Une invitation ne sert qu'une fois.
-        en("erin").when().post("/api/v1/invitations/" + invitation + "/acceptation").then().statusCode(404);
+        // Une invitation ne sert qu'une fois : 409, conformément au contrat OpenAPI.
+        en("erin").when().post("/api/v1/invitations/" + invitation + "/acceptation").then().statusCode(409)
+                .body("code", equalTo("INVITATION_INACTIVE"));
         en("alice").when().get("/api/v1/espaces/" + atelier + "/invitations").then().statusCode(200)
                 .body("find { it.id == '" + invitation + "' }.etat", equalTo("ACCEPTEE"));
     }
@@ -68,7 +79,15 @@ class InvitationsTest {
         Api.ajouterMembre("alice", atelier, "erin", "LECTEUR");
         String pourUnTiers = Api.inviter("alice", atelier, "personne-inconnue@argos.test", "ADMINISTRATEUR");
 
+        String erin = Api.idCompte("erin");
+        long refusAvant = refus(erin);
         en("erin").when().post("/api/v1/invitations/" + pourUnTiers + "/acceptation").then().statusCode(404);
+        en("erin").when().post("/api/v1/invitations/" + java.util.UUID.randomUUID() + "/acceptation").then().statusCode(404);
+        assertEquals(refusAvant, refus(erin), "une invitation introuvable n'est pas un refus d'accès à un espace");
+    }
+
+    private long refus(String compte) {
+        return db.count("SELECT count(*) FROM refus_acces WHERE compte_id = '" + compte + "'");
     }
 
     /** Une invitation révoquée ne peut plus être acceptée. */
@@ -79,7 +98,8 @@ class InvitationsTest {
         String invitation = Api.inviter("alice", atelier, "erin@argos.test", "CONTRIBUTEUR");
         en("alice").when().delete("/api/v1/espaces/" + atelier + "/invitations/" + invitation).then().statusCode(204);
 
-        en("erin").when().post("/api/v1/invitations/" + invitation + "/acceptation").then().statusCode(404);
+        en("erin").when().post("/api/v1/invitations/" + invitation + "/acceptation").then().statusCode(409)
+                .body("code", equalTo("INVITATION_INACTIVE"));
         en("erin").when().get("/api/v1/espaces/" + atelier).then().statusCode(404);
     }
 }

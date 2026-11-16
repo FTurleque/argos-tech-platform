@@ -16,7 +16,7 @@ import org.junit.jupiter.api.Test;
 
 import io.argos.ingestion.SourceSynchronizer;
 import io.argos.testsupport.Fixtures;
-import io.argos.testsupport.HeaderCallerResolver;
+import io.argos.testsupport.Api;
 import io.argos.testsupport.StubServer;
 import io.argos.testsupport.StubServer.Stub;
 import io.argos.testsupport.TestDb;
@@ -61,7 +61,7 @@ class EnrichmentTest {
         UUID signal = collectLog4Shell();
 
         assertTrue(enricher.exploited(signal));
-        given().header(HeaderCallerResolver.USER, "alice").when().get("/api/v1/signals/" + signal)
+        Api.en("alice").when().get("/api/v1/signals/" + signal)
                 .then().statusCode(200)
                 .body("exploited", equalTo(true))
                 .body("enrichments.find { it.source == 'KEV' }.reference", equalTo("CVE-2021-44228"));
@@ -87,7 +87,7 @@ class EnrichmentTest {
 
         assertEquals(1, db.count("SELECT count(*) FROM signal"));
         assertEquals(0, db.count("SELECT count(*) FROM enrichment WHERE source = 'EPSS'"));
-        given().header(HeaderCallerResolver.USER, "alice").when().get("/api/v1/signals/" + signal)
+        Api.en("alice").when().get("/api/v1/signals/" + signal)
                 .then().statusCode(200).body("signal.externalId", equalTo(LOG4SHELL));
 
         // Au cycle suivant, la source répond : l'enrichissement manquant est rattrapé.
@@ -114,7 +114,7 @@ class EnrichmentTest {
         // Seules des adresses construites à partir des références sont appelées (R-12).
         assertTrue(StubServer.received("/certfr/").stream()
                 .allMatch(r -> r.pathAndQuery().equals("/certfr/feed/") || r.pathAndQuery().matches("/certfr/CERTFR-\\d{4}-AVI-\\d+/json/")));
-        given().header(HeaderCallerResolver.USER, "alice").when().get("/api/v1/signals/" + signal)
+        Api.en("alice").when().get("/api/v1/signals/" + signal)
                 .then().statusCode(200).body("enrichments.source", hasItem("CERTFR"));
     }
 }

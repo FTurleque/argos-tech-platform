@@ -67,7 +67,7 @@ public class WatchResource {
         Map<UUID, SignalQueries.SignalView> found = new LinkedHashMap<>();
         Map<UUID, Set<UUID>> matchedBy = new LinkedHashMap<>();
 
-        for (SubscriptionService.Subscription s : subscriptions.activeFor(caller.userId(), scope)) {
+        for (SubscriptionService.Subscription s : subscriptions.activeFor(caller.accountId(), scope)) {
             Set<String> technologies = new HashSet<>();
             Set<String> packages = new HashSet<>();
             Set<String> sources = new HashSet<>();
@@ -76,7 +76,7 @@ public class WatchResource {
                     case "TECHNOLOGY" -> technologies.add(f.value());
                     case "PACKAGE" -> packages.add(f.value());
                     case "SOURCE" -> sources.add(f.value());
-                    case "PROJECT" -> projectSignals(f.value(), scope).forEach(id -> signals.find(id).ifPresent(v -> {
+                    case "PROJECT" -> projectSignals(f.value(), caller).forEach(id -> signals.find(id).ifPresent(v -> {
                         found.putIfAbsent(v.id(), v);
                         matchedBy.computeIfAbsent(v.id(), k -> new LinkedHashSet<>()).add(s.id());
                     }));
@@ -96,7 +96,7 @@ public class WatchResource {
         }
 
         Map<UUID, List<WatchImpact>> visible = new LinkedHashMap<>();
-        for (ImpactQueries.ImpactView i : impacts.forSignals(found.keySet(), scope)) {
+        for (ImpactQueries.ImpactView i : impacts.forSignals(found.keySet(), caller.accountId(), scope)) {
             visible.computeIfAbsent(i.signalId(), k -> new ArrayList<>())
                     .add(new WatchImpact(i.id(), i.projectId(), i.projectName(), i.level()));
         }
@@ -109,13 +109,13 @@ public class WatchResource {
     }
 
     /** Signaux qui impactent un projet désigné par un filtre, seulement s'il est dans le périmètre. */
-    private List<UUID> projectSignals(String projectId, Set<UUID> scope) {
+    private List<UUID> projectSignals(String projectId, Caller caller) {
         UUID id;
         try {
             id = UUID.fromString(projectId);
         } catch (IllegalArgumentException e) {
             return List.of();
         }
-        return impacts.forProject(id, scope).stream().map(ImpactQueries.ImpactView::signalId).distinct().toList();
+        return impacts.forProject(id, caller.accountId(), caller.memberWorkspaces()).stream().map(ImpactQueries.ImpactView::signalId).distinct().toList();
     }
 }

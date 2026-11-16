@@ -25,6 +25,15 @@ public final class MatchRules {
     /** Méthode d'analyse enregistrée avec chaque impact (COR-03). */
     public static final String METHOD = "PURL_RANGE_V1";
 
+    /**
+     * Identifiant de cette stratégie de rapprochement dans les manifestes de profils (PRF-03-S2) :
+     * le profil {@code developpeur} la déclare ; elle est déterministe et n'appelle aucune IA.
+     */
+    public static final String STRATEGY = "purl-plage-versions";
+
+    /** Stratégies de rapprochement des profils que le moteur d'impact sait exécuter. */
+    public static final java.util.Set<String> IMPLEMENTED_STRATEGIES = java.util.Set.of(STRATEGY);
+
     /** Résultat de l'évaluation d'une version par rapport aux plages d'un paquet. */
     enum RangeResult { IN_RANGE, OUT_OF_RANGE, UNKNOWN }
 

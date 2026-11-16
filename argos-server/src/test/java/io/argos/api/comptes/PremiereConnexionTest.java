@@ -1,7 +1,7 @@
 package io.argos.api.comptes;
 
-import static io.argos.api.comptes.Api.en;
-import static io.argos.api.comptes.Api.moi;
+import static io.argos.testsupport.Api.en;
+import static io.argos.testsupport.Api.moi;
 import static io.restassured.RestAssured.given;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
@@ -26,6 +26,7 @@ import jakarta.inject.Singleton;
 import io.argos.workspace.CompteCree;
 import io.quarkus.test.junit.QuarkusTest;
 import org.junit.jupiter.api.Test;
+import io.argos.testsupport.Api;
 
 /** ACC-02 : création du compte à la première connexion, inscription sur invitation (Q-2). */
 @QuarkusTest

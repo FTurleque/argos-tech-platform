@@ -12,8 +12,10 @@ import io.argos.workspace.AccesRefuse;
 import io.argos.workspace.Compte;
 import io.argos.workspace.DonneeInvalide;
 import io.argos.workspace.InscriptionRefusee;
+import io.argos.workspace.Introuvable;
 import io.argos.workspace.MotifRefus;
 import io.argos.workspace.RegleViolee;
+import io.argos.workspace.subscription.SubscriptionRejectedException;
 
 /**
  * Traduction des refus et erreurs du domaine en réponses HTTP.
@@ -48,9 +50,21 @@ public class GestionErreurs {
         return RestResponse.status(Status.FORBIDDEN, new Erreur("INSCRIPTION_SUR_INVITATION", e.getMessage()));
     }
 
+    /** Ressource absente pour le compte courant, sans refus d'accès à un espace : non journalisée. */
+    @ServerExceptionMapper
+    public RestResponse<Erreur> introuvable(Introuvable e) {
+        return RestResponse.status(Status.NOT_FOUND, new Erreur("INTROUVABLE", e.getMessage()));
+    }
+
     @ServerExceptionMapper
     public RestResponse<Erreur> regleViolee(RegleViolee e) {
         return RestResponse.status(Status.CONFLICT, new Erreur(e.code(), e.getMessage()));
+    }
+
+    /** Demande d'abonnement refusée : attribut manquant ou invalide (ABO-01-S1, ABO-02-S2). */
+    @ServerExceptionMapper
+    public RestResponse<Erreur> abonnementRefuse(SubscriptionRejectedException e) {
+        return RestResponse.status(Status.BAD_REQUEST, new Erreur("ABONNEMENT_INVALIDE", e.getMessage(), e.attribute()));
     }
 
     @ServerExceptionMapper

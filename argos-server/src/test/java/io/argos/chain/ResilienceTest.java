@@ -22,7 +22,7 @@ import io.argos.ingestion.SourceSynchronizer;
 import io.argos.ingestion.SyncStore;
 import io.argos.testsupport.CrashingFeed;
 import io.argos.testsupport.Fixtures;
-import io.argos.testsupport.HeaderCallerResolver;
+import io.argos.testsupport.Api;
 import io.argos.testsupport.RecordingSleeper;
 import io.argos.testsupport.StubServer;
 import io.argos.testsupport.StubServer.Stub;
@@ -143,11 +143,12 @@ class ResilienceTest {
         assertEquals("DEGRADED", db.string("SELECT state FROM source WHERE id = 'OSV'"));
         assertEquals(1, db.count("SELECT count(*) FROM ops_event WHERE kind = 'SOURCE_DEGRADED' AND occurred_at IS NOT NULL"));
 
-        given().header(HeaderCallerResolver.USER, "ops").header(HeaderCallerResolver.OPERATOR, "true")
+        Api.en("alice")
                 .when().get("/api/v1/ops/sources")
                 .then().statusCode(200).body("find { it.sourceId == 'OSV' }.state", equalTo("DEGRADED"))
                 .body("find { it.sourceId == 'OSV' }.consecutiveFailures", equalTo(3));
-        given().header(HeaderCallerResolver.USER, "alice").when().get("/api/v1/ops/sources").then().statusCode(403);
+        Api.compte("jules");
+        Api.en("jules").when().get("/api/v1/ops/sources").then().statusCode(403);
 
         Fixtures.stubOsv("GHSA-R4", "2026-11-01T00:00:00Z", advisory("GHSA-R4", "2026-11-01T00:00:00Z"));
         SourceSynchronizer.SyncReport report = synchronizer.synchronize("OSV");
@@ -208,5 +209,58 @@ class ResilienceTest {
         assertEquals(4, db.count("SELECT count(*) FROM signal WHERE source = 'CRASHTEST'"));
         assertEquals(4, db.count("SELECT count(*) FROM signal_version v JOIN signal s ON s.id = v.signal_id WHERE s.source = 'CRASHTEST'"));
         assertEquals(List.of("GHSA-C1", "GHSA-C2", "GHSA-C3", "GHSA-C4"), crashingFeed.fetched());
+    }
+
+    /** Une exception autre qu'une erreur de source termine le traitement en échec, jamais RUNNING. */
+    @Test
+    void erreurInattendueTermineLeTraitementEnEchec() {
+        db.exec("INSERT INTO source(id, label) VALUES ('CRASHTEST', 'source de test')");
+        List<FeedEntry> entries = List.of(new FeedEntry("GHSA-U1", Instant.parse("2026-11-01T00:00:00Z")));
+        crashingFeed.configure(entries, entries.stream().map(e -> advisory(e.externalId(), e.modified().toString())).toList(), -1);
+        crashingFeed.failOnceWith(new IllegalStateException("bogue simulé d'un normaliseur"));
+
+        SourceSynchronizer.SyncReport failed = synchronizer.synchronize(CrashingFeed.SOURCE_ID);
+
+        assertEquals("FAILED", failed.state());
+        assertEquals(0, db.count("SELECT count(*) FROM sync_run WHERE source_id = 'CRASHTEST' AND state = 'RUNNING'"));
+        assertEquals("PERMANENT", db.string("SELECT error_kind FROM sync_run WHERE source_id = 'CRASHTEST'"));
+        assertEquals("FAILING", db.string("SELECT state FROM source WHERE id = 'CRASHTEST'"));
+        assertEquals(1, db.count("SELECT count(*) FROM sync_attempt a JOIN sync_run r ON r.id = a.run_id "
+                + "WHERE r.source_id = 'CRASHTEST' AND a.error_kind = 'PERMANENT'"));
+
+        // La source n'est pas bloquée : un nouveau lancement est accepté et réussit.
+        SourceSynchronizer.SyncReport retried = synchronizer.synchronize(CrashingFeed.SOURCE_ID);
+        assertEquals("SUCCEEDED", retried.state());
+        assertEquals("NOMINAL", db.string("SELECT state FROM source WHERE id = 'CRASHTEST'"));
+    }
+
+    /** Un traitement RUNNING sans activité depuis la durée d'expiration ne bloque pas un nouveau lancement. */
+    @Test
+    void traitementRunningExpireRepris() {
+        db.exec("INSERT INTO source(id, label) VALUES ('CRASHTEST', 'source de test')");
+        List<FeedEntry> entries = List.of(new FeedEntry("GHSA-E1", Instant.parse("2026-11-01T00:00:00Z")));
+        crashingFeed.configure(entries, entries.stream().map(e -> advisory(e.externalId(), e.modified().toString())).toList(), 0);
+        assertThrows(CrashingFeed.SimulatedCrash.class, () -> synchronizer.synchronize(CrashingFeed.SOURCE_ID));
+        assertEquals("RUNNING", synchronizer.synchronize(CrashingFeed.SOURCE_ID).state(), "traitement récent : toujours en cours");
+
+        db.exec("UPDATE sync_run SET heartbeat_at = now() - interval '2 hours' WHERE source_id = 'CRASHTEST'");
+        SourceSynchronizer.SyncReport report = synchronizer.synchronize(CrashingFeed.SOURCE_ID);
+
+        assertEquals("SUCCEEDED", report.state());
+        assertEquals(1, db.count("SELECT count(*) FROM signal WHERE source = 'CRASHTEST'"));
+    }
+
+    /** Un Retry-After lointain est borné par le délai maximal (argos.ingestion.backoff-max). */
+    @Test
+    void retryAfterBorneParLeDelaiMaximal() {
+        Fixtures.stubOsv("GHSA-R9", "2026-11-01T00:00:00Z", advisory("GHSA-R9", "2026-11-01T00:00:00Z"));
+        StubServer.on(CSV, new Stub(429, "", Map.of("Retry-After", "86400"), 0),
+                Stub.ok("2026-11-01T00:00:00Z,GHSA-R9"));
+
+        SourceSynchronizer.SyncReport report = synchronizer.synchronize("OSV");
+
+        assertEquals("SUCCEEDED", report.state());
+        assertEquals(List.of(Duration.ofMinutes(5)), sleeper.waits().stream().map(RecordingSleeper.Wait::duration).toList());
+        assertEquals(1, db.count("SELECT count(*) FROM sync_attempt WHERE http_status = 429 AND retry_after_seconds = 86400"));
     }
 }

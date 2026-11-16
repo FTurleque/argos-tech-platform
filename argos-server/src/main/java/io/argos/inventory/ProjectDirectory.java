@@ -16,9 +16,8 @@ import jakarta.inject.Inject;
 import jakarta.transaction.Transactional;
 
 import io.argos.scm.RepositoryRef;
-import io.argos.workspace.WorkspaceDirectory;
 
-/** Projets suivis, chacun rattaché à un seul espace et à au plus un dépôt. */
+/** Projets suivis, chacun rattaché à un seul espace (table {@code espace}) et à au plus un dépôt. */
 @ApplicationScoped
 public class ProjectDirectory {
 
@@ -33,14 +32,8 @@ public class ProjectDirectory {
     @Inject
     DataSource dataSource;
 
-    @Inject
-    WorkspaceDirectory workspaces;
-
     @Transactional
     public UUID create(UUID workspaceId, String name, RepositoryRef repository, List<String> manifestPaths) {
-        if (!workspaces.exists(workspaceId)) {
-            throw new IllegalArgumentException("espace inconnu : " + workspaceId);
-        }
         UUID id = UUID.randomUUID();
         String sql = """
                 INSERT INTO project(id, workspace_id, name, scm_provider, scm_repository, scm_branch, sbom_job, sbom_path,
@@ -59,6 +52,9 @@ public class ProjectDirectory {
             ps.setString(9, String.join(",", manifestPaths == null ? DEFAULT_MANIFESTS : manifestPaths));
             ps.executeUpdate();
         } catch (SQLException e) {
+            if ("23503".equals(e.getSQLState())) {
+                throw new IllegalArgumentException("espace inconnu : " + workspaceId, e);
+            }
             throw new IllegalStateException("création du projet impossible", e);
         }
         return id;

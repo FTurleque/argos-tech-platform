@@ -9,6 +9,7 @@ import java.util.Set;
 
 import jakarta.inject.Inject;
 
+import io.argos.testsupport.Api;
 import io.argos.workspace.preference.PreferencesRepository;
 import io.quarkus.test.junit.QuarkusTest;
 import io.quarkus.test.junit.QuarkusTestProfile;
@@ -38,16 +39,21 @@ class ProfilDemonstrationTest {
     PreferencesRepository repository;
 
     @Test
-    @TestSecurity(user = "prf04-developpeur")
-    void prf04S1LeProfilDeDemonstrationApparaitSansModifierLesProfilsActifs() {
-        repository.enregistrerProfils("prf04-developpeur", Set.of("developpeur"));
+    @TestSecurity(user = "catalogue-lecteur")
+    void prf04S1LeProfilDeDemonstrationApparaitAuCatalogue() {
 
         given().when().get("/api/v1/catalogue/profils")
             .then().statusCode(200)
             .body("identifiant", contains("developpeur", "expert-metier", "demonstration"))
             .body("find { it.identifiant == 'developpeur' }.version", equalTo("1.0.0"));
 
-        given().when().get("/api/v1/preferences")
+    }
+
+    @Test
+    void prf04S1LesProfilsActifsDesAutresUtilisateursSontInchanges() {
+        repository.enregistrerProfils(Api.compte("ines"), Set.of("developpeur"));
+
+        Api.en("ines").when().get("/api/v1/preferences")
             .then().statusCode(200)
             .body("profilsActifs", contains("developpeur"));
     }

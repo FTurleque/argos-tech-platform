@@ -3,10 +3,14 @@
 // Composant commun : chaque mise en page l'affiche tel quel et peut seulement l'habiller
 // par sa propre feuille de style (classes `mentions*`).
 import { computed } from 'vue'
+import { urlSure } from './liens'
 import type { MentionsElement } from './modeles'
 
 const props = defineProps<{ mentions: MentionsElement }>()
 
+// Seules les URL http et https deviennent un lien : une source externe ne peut pas injecter
+// de `javascript:` dans le portail ni dans le client desktop.
+const lienSource = computed(() => urlSure(props.mentions.source.url))
 const dateFormatee = computed(() => formater(props.mentions.publieLe))
 const validationFormatee = computed(() =>
   props.mentions.validation ? formater(props.mentions.validation.le) : '',
@@ -25,7 +29,7 @@ function formater(iso: string): string {
     <div class="mentions-ligne">
       <dt>Source</dt>
       <dd data-mention="source">
-        <a v-if="mentions.source.url" :href="mentions.source.url" rel="noopener noreferrer" target="_blank">{{
+        <a v-if="lienSource" :href="lienSource" rel="noopener noreferrer" target="_blank">{{
           mentions.source.nom
         }}</a>
         <span v-else>{{ mentions.source.nom }}</span>

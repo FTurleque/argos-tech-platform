@@ -1,6 +1,6 @@
 package io.argos.api.comptes;
 
-import static io.argos.api.comptes.Api.en;
+import static io.argos.testsupport.Api.en;
 import static org.hamcrest.Matchers.containsString;
 import static org.hamcrest.Matchers.equalTo;
 import static org.hamcrest.Matchers.hasItem;
@@ -11,6 +11,7 @@ import java.util.Map;
 import io.quarkus.test.junit.QuarkusTest;
 import io.restassured.http.ContentType;
 import org.junit.jupiter.api.Test;
+import io.argos.testsupport.Api;
 
 /** ACC-03 : espaces et rôles. */
 @QuarkusTest

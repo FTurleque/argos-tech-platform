@@ -21,7 +21,9 @@ import jakarta.transaction.Transactional;
 
 /**
  * Consultation des impacts, limitée aux espaces autorisés de l'appelant (COR-08, ADR-0016) :
- * filtre explicite dans chaque requête et politique RLS en garde-fou.
+ * filtre explicite dans chaque requête et, en garde-fou, politique RLS appliquée sous le rôle
+ * {@code argos_app} avec le compte de l'appelant ({@link RlsSession}). Le contrôle d'intégrité et
+ * la recherche de l'espace d'un impact sont des traitements techniques, hors rôle applicatif.
  */
 @ApplicationScoped
 public class ImpactQueries {
@@ -60,11 +62,11 @@ public class ImpactQueries {
     DataSource dataSource;
 
     @Transactional
-    public Page forSignal(UUID signalId, Set<UUID> workspaces, int page, int size) {
+    public Page forSignal(UUID signalId, UUID accountId, Set<UUID> workspaces, int page, int size) {
         int p = Math.max(page, 0);
         int s = Math.min(Math.max(size, 1), 200);
         try (Connection c = dataSource.getConnection()) {
-            RlsSession.workspaces(c, workspaces);
+            RlsSession.account(c, accountId);
             long total;
             try (PreparedStatement ps = c.prepareStatement(
                     "SELECT count(*) FROM project_impact WHERE signal_id = ? AND workspace_id = ANY (?)")) {
@@ -96,9 +98,9 @@ public class ImpactQueries {
 
     /** Impact, s'il appartient à l'un des espaces donnés. */
     @Transactional
-    public Optional<ImpactView> find(UUID impactId, Set<UUID> workspaces) {
+    public Optional<ImpactView> find(UUID impactId, UUID accountId, Set<UUID> workspaces) {
         try (Connection c = dataSource.getConnection()) {
-            RlsSession.workspaces(c, workspaces);
+            RlsSession.account(c, accountId);
             try (PreparedStatement ps = c.prepareStatement(SELECT + " WHERE i.id = ? AND i.workspace_id = ANY (?)")) {
                 ps.setObject(1, impactId);
                 ps.setArray(2, uuids(c, workspaces));
@@ -113,13 +115,13 @@ public class ImpactQueries {
 
     /** Impacts visibles dans les espaces donnés pour un ensemble de signaux (restitution de la veille). */
     @Transactional
-    public List<ImpactView> forSignals(Collection<UUID> signalIds, Set<UUID> workspaces) {
+    public List<ImpactView> forSignals(Collection<UUID> signalIds, UUID accountId, Set<UUID> workspaces) {
         List<ImpactView> items = new ArrayList<>();
         if (signalIds.isEmpty() || workspaces.isEmpty()) {
             return items;
         }
         try (Connection c = dataSource.getConnection()) {
-            RlsSession.workspaces(c, workspaces);
+            RlsSession.account(c, accountId);
             try (PreparedStatement ps = c.prepareStatement(SELECT
                     + " WHERE i.signal_id = ANY (?) AND i.workspace_id = ANY (?) ORDER BY i.created_at, i.id")) {
                 ps.setArray(1, c.createArrayOf("uuid", signalIds.toArray()));
@@ -138,13 +140,13 @@ public class ImpactQueries {
 
     /** Impacts d'un projet, vides si le projet n'appartient à aucun des espaces donnés. */
     @Transactional
-    public List<ImpactView> forProject(UUID projectId, Set<UUID> workspaces) {
+    public List<ImpactView> forProject(UUID projectId, UUID accountId, Set<UUID> workspaces) {
         List<ImpactView> items = new ArrayList<>();
         if (workspaces.isEmpty()) {
             return items;
         }
         try (Connection c = dataSource.getConnection()) {
-            RlsSession.workspaces(c, workspaces);
+            RlsSession.account(c, accountId);
             try (PreparedStatement ps = c.prepareStatement(SELECT
                     + " WHERE i.project_id = ? AND i.workspace_id = ANY (?) ORDER BY i.created_at, i.id")) {
                 ps.setObject(1, projectId);
@@ -162,13 +164,12 @@ public class ImpactQueries {
     }
 
     /**
-     * Espace d'un impact, lu en mode technique pour décider d'un refus à journaliser ;
+     * Espace d'un impact, lu hors rôle applicatif pour décider d'un refus à journaliser ;
      * jamais restitué à l'appelant.
      */
     @Transactional
     public Optional<UUID> workspaceOf(UUID impactId) {
         try (Connection c = dataSource.getConnection()) {
-            RlsSession.technical(c);
             try (PreparedStatement ps = c.prepareStatement("SELECT workspace_id FROM project_impact WHERE id = ?")) {
                 ps.setObject(1, impactId);
                 try (ResultSet rs = ps.executeQuery()) {
@@ -194,7 +195,6 @@ public class ImpactQueries {
                 FROM project_impact i
                 """;
         try (Connection c = dataSource.getConnection()) {
-            RlsSession.technical(c);
             try (PreparedStatement ps = c.prepareStatement(sql); ResultSet rs = ps.executeQuery()) {
                 rs.next();
                 return new IntegrityReport(rs.getLong(1), rs.getLong(2), rs.getLong(3), rs.getLong(4), rs.getLong(5),

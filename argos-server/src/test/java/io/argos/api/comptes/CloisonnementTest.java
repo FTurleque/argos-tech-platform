@@ -1,6 +1,6 @@
 package io.argos.api.comptes;
 
-import static io.argos.api.comptes.Api.en;
+import static io.argos.testsupport.Api.en;
 import static org.hamcrest.Matchers.equalTo;
 import static org.hamcrest.Matchers.hasItem;
 import static org.hamcrest.Matchers.not;
@@ -26,6 +26,7 @@ import io.argos.workspace.ContexteBase.Contexte;
 import io.quarkus.test.junit.QuarkusTest;
 import io.restassured.http.ContentType;
 import org.junit.jupiter.api.Test;
+import io.argos.testsupport.Api;
 
 /** ACC-04 : cloisonnement par espace, dans le service (API) et dans la base (RLS). */
 @QuarkusTest

@@ -52,7 +52,7 @@ public class ComptesService {
             throw new DonneeInvalide("Jeton sans sujet.");
         }
         String email = identite.emailVerifieNormalise();
-        Contexte contexte = new Contexte(null, email, null);
+        Contexte contexte = new Contexte(null, identite.sujet(), email, null);
         Optional<Compte> existant = base.executer(contexte, c -> parSujet(c, identite.sujet()));
         if (existant.isPresent()) {
             return existant.get();
@@ -85,7 +85,7 @@ public class ComptesService {
 
     /** Compte associé à un sujet OIDC, s'il existe. */
     public Optional<Compte> parSujet(String sujet) {
-        return base.executer(Contexte.aucun(), c -> parSujet(c, sujet));
+        return base.executer(new Contexte(null, sujet, null, null), c -> parSujet(c, sujet));
     }
 
     private record Creation(Compte compte, boolean nouveau) {

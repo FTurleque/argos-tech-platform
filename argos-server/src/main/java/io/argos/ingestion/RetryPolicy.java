@@ -49,11 +49,13 @@ public class RetryPolicy {
     /**
      * Délai avant la tentative qui suit la tentative {@code attempt} (à partir de 1) :
      * le {@code Retry-After} de la source s'il existe, sinon initial × 2^(attempt-1),
-     * augmenté d'une gigue de 0 à 20 % et borné par le délai maximal.
+     * augmenté d'une gigue de 0 à 20 %. Le délai est toujours borné par le délai maximal, y compris
+     * celui qu'impose la source : un {@code Retry-After} lointain ne bloque pas la synchronisation.
      */
     public Duration delayAfter(int attempt, Optional<Duration> retryAfter) {
         if (retryAfter.isPresent()) {
-            return retryAfter.get();
+            Duration imposed = retryAfter.get().isNegative() ? Duration.ZERO : retryAfter.get();
+            return imposed.compareTo(maxDelay) > 0 ? maxDelay : imposed;
         }
         long base = initialDelay.toMillis() << Math.min(attempt - 1, 20);
         long bounded = Math.min(base, maxDelay.toMillis());

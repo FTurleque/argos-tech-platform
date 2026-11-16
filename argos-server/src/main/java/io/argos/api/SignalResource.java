@@ -70,6 +70,6 @@ public class SignalResource {
             @QueryParam("size") @DefaultValue("50") int size) {
         Caller caller = access.authenticated();
         signals.find(id).orElseThrow(NotFoundException::new);
-        return impacts.forSignal(id, caller.memberWorkspaces(), page, size);
+        return impacts.forSignal(id, caller.accountId(), caller.memberWorkspaces(), page, size);
     }
 }

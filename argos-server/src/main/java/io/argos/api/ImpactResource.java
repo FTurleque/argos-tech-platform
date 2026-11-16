@@ -35,12 +35,12 @@ public class ImpactResource {
     @Operation(summary = "Impact, signal source, projet, composant, inventaire utilisé et méthode d'analyse")
     public ImpactQueries.ImpactView impact(@PathParam("id") UUID id) {
         Caller caller = access.authenticated();
-        Optional<ImpactQueries.ImpactView> view = impacts.find(id, caller.memberWorkspaces());
+        Optional<ImpactQueries.ImpactView> view = impacts.find(id, caller.accountId(), caller.memberWorkspaces());
         if (view.isPresent()) {
             return view.get();
         }
         if (impacts.workspaceOf(id).isPresent()) {
-            throw access.outOfScope(caller, "PROJECT_IMPACT", id.toString());
+            throw access.outOfScope();
         }
         throw new NotFoundException();
     }

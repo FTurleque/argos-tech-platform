@@ -3,32 +3,30 @@ package io.argos.impact;
 import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.SQLException;
-import java.util.Collection;
+import java.sql.Statement;
 import java.util.UUID;
-import java.util.stream.Collectors;
 
 /**
- * Déclare à PostgreSQL, pour la transaction courante, le périmètre utilisé par la politique RLS
- * de {@code project_impact} (ADR-0016) : liste d'espaces autorisés, ou traitement technique.
+ * Applique à la transaction courante le contexte de cloisonnement défini par la migration V2
+ * (ADR-0016) : rôle {@code argos_app}, compte courant, aucun espace courant. La politique RLS de
+ * {@code project_impact} n'expose alors que les impacts des espaces dont le compte est membre.
+ *
+ * <p>Même protocole que {@code io.argos.workspace.ContexteBase#appliquer}, que {@code impact} ne
+ * peut pas utiliser directement (ModuleBoundariesTest).
  */
 final class RlsSession {
 
     private RlsSession() {
     }
 
-    static void workspaces(Connection c, Collection<UUID> workspaceIds) throws SQLException {
-        set(c, "argos.technical", "off");
-        set(c, "argos.workspaces", workspaceIds.stream().map(UUID::toString).collect(Collectors.joining(",")));
-    }
-
-    static void technical(Connection c) throws SQLException {
-        set(c, "argos.technical", "on");
-    }
-
-    private static void set(Connection c, String name, String value) throws SQLException {
-        try (PreparedStatement ps = c.prepareStatement("SELECT set_config(?, ?, true)")) {
-            ps.setString(1, name);
-            ps.setString(2, value);
+    static void account(Connection c, UUID accountId) throws SQLException {
+        try (Statement st = c.createStatement()) {
+            st.execute("SET LOCAL ROLE argos_app");
+        }
+        try (PreparedStatement ps = c.prepareStatement(
+                "SELECT set_config('argos.compte_courant', ?, true), set_config('argos.sujet_courant', '', true),"
+                        + " set_config('argos.email_courant', '', true), set_config('argos.espace_courant', '', true)")) {
+            ps.setString(1, accountId == null ? "" : accountId.toString());
             ps.execute();
         }
     }

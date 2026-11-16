@@ -46,8 +46,8 @@ public class InvitationsResource {
     @Operation(summary = "Accepter une invitation et rejoindre l'espace")
     @APIResponse(responseCode = "200", description = "Espace rejoint, avec le rôle de l'invitation")
     @APIResponse(responseCode = "401", description = "Non authentifié")
-    @APIResponse(responseCode = "404", description = "Invitation introuvable ou adressée à quelqu'un d'autre")
-    @APIResponse(responseCode = "409", description = "Invitation expirée, déjà utilisée, ou utilisateur déjà membre")
+    @APIResponse(responseCode = "404", description = "Aucune invitation adressée à l'utilisateur avec cet identifiant (non journalisé)")
+    @APIResponse(responseCode = "409", description = "Invitation déjà acceptée ou révoquée (INVITATION_INACTIVE), expirée (INVITATION_EXPIREE), ou utilisateur déjà membre (DEJA_MEMBRE)")
     public EspaceDeCompte accepter(@PathParam("invitationId") UUID invitationId) {
         return espaces.accepter(utilisateur.compte(), utilisateur.emailVerifie(), invitationId);
     }

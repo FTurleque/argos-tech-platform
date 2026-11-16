@@ -16,16 +16,26 @@ import java.util.Optional;
  */
 public final class VersionComparator {
 
+    /**
+     * Rang des qualificatifs connus par rapport à la version publiée (rang 0) : négatif pour une
+     * pré-version (Maven, SemVer, PEP 440 {@code a}, {@code b}, {@code c}, {@code rc}, {@code dev}),
+     * positif pour une version postérieure (Maven {@code sp}, PEP 440 {@code post}, {@code rev}, {@code r}).
+     */
     private static final Map<String, Integer> QUALIFIERS = Map.ofEntries(
             Map.entry("alpha", -5), Map.entry("a", -5), Map.entry("beta", -4), Map.entry("b", -4),
             Map.entry("milestone", -3), Map.entry("m", -3), Map.entry("rc", -2), Map.entry("cr", -2),
-            Map.entry("pre", -2), Map.entry("preview", -2), Map.entry("snapshot", -1), Map.entry("dev", -6),
-            Map.entry("ga", 0), Map.entry("final", 0), Map.entry("release", 0), Map.entry("sp", 1));
+            Map.entry("c", -2), Map.entry("pre", -2), Map.entry("preview", -2), Map.entry("snapshot", -1),
+            Map.entry("dev", -6), Map.entry("ga", 0), Map.entry("final", 0), Map.entry("release", 0),
+            Map.entry("sp", 1), Map.entry("post", 1), Map.entry("rev", 1), Map.entry("r", 1));
 
     private VersionComparator() {
     }
 
-    /** Signe de {@code a - b}, ou vide si l'une des versions n'est pas interprétable. */
+    /**
+     * Signe de {@code a - b}, ou vide si l'une des versions n'est pas interprétable ou si l'ordre
+     * dépend d'un qualificatif inconnu : un qualificatif inconnu n'est classé ni avant ni après la
+     * version publiée, et le rapprochement retombe alors sur le niveau « à vérifier ».
+     */
     public static Optional<Integer> compare(String a, String b) {
         Optional<List<Object>> ta = tokens(a);
         Optional<List<Object>> tb = tokens(b);
@@ -38,7 +48,10 @@ public final class VersionComparator {
         for (int i = 0; i < n; i++) {
             Object p = i < x.size() ? x.get(i) : null;
             Object q = i < y.size() ? y.get(i) : null;
-            int c = compareToken(p, q);
+            Integer c = compareToken(p, q);
+            if (c == null) {
+                return Optional.empty();
+            }
             if (c != 0) {
                 return Optional.of(Integer.signum(c));
             }
@@ -50,12 +63,14 @@ public final class VersionComparator {
         return tokens(version).isPresent();
     }
 
-    private static int compareToken(Object p, Object q) {
+    /** Comparaison de deux segments ; {@code null} si l'ordre dépend d'un qualificatif inconnu. */
+    private static Integer compareToken(Object p, Object q) {
         if (p == null && q == null) {
             return 0;
         }
         if (p == null) {
-            return -sign(q);
+            Integer s = sign(q);
+            return s == null ? null : -s;
         }
         if (q == null) {
             return sign(p);
@@ -71,30 +86,27 @@ public final class VersionComparator {
         }
         String sp = (String) p;
         String sq = (String) q;
+        if (sp.equals(sq)) {
+            return 0;
+        }
         Integer rp = QUALIFIERS.get(sp);
         Integer rq = QUALIFIERS.get(sq);
-        if (rp != null && rq != null) {
-            return Integer.compare(rp, rq);
+        if (rp == null || rq == null) {
+            return null;
         }
-        if (rp != null) {
-            return rp < 0 ? -1 : 1;
-        }
-        if (rq != null) {
-            return rq < 0 ? 1 : -1;
-        }
-        return sp.compareTo(sq);
+        return Integer.compare(rp, rq);
     }
 
-    /** Position d'un segment absent : un segment numérique non nul ou un qualificatif « après » allonge la version. */
-    private static int sign(Object token) {
+    /**
+     * Position d'un segment face à un segment absent : un segment numérique non nul ou un
+     * qualificatif « après » allonge la version ; {@code null} pour un qualificatif inconnu.
+     */
+    private static Integer sign(Object token) {
         if (token instanceof Long l) {
             return l == 0 ? 0 : 1;
         }
         Integer rank = QUALIFIERS.get((String) token);
-        if (rank == null) {
-            return -1;
-        }
-        return Integer.signum(rank);
+        return rank == null ? null : Integer.signum(rank);
     }
 
     private static Optional<List<Object>> tokens(String version) {

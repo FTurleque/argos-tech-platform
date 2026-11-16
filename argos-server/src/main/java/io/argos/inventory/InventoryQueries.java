@@ -21,11 +21,17 @@ import jakarta.transaction.Transactional;
 
 import org.eclipse.microprofile.config.inject.ConfigProperty;
 
+import io.argos.workspace.ContexteBase;
+
 /**
  * Consultation des inventaires (INV-02, INV-03) et recherche des composants par clé de paquet
  * pour la corrélation. Le seuil d'obsolescence d'une SBOM vaut 30 jours après sa date de
  * génération (décision du 2026-11-16, Q-3) ; une SBOM sans date de génération est traitée
- * comme obsolète, faute de pouvoir établir sa fraîcheur.
+ * comme obsolète, faute de pouvoir établir sa fraîcheur ([PROPOSITION], fiche inventaire-sbom).
+ *
+ * <p>La consultation par un utilisateur s'exécute sous le rôle {@code argos_app} avec son compte :
+ * la RLS des tables d'inventaire sert de garde-fou (ADR-0016). La recherche de composants pour la
+ * corrélation est un traitement technique.
  */
 @ApplicationScoped
 public class InventoryQueries {
@@ -55,19 +61,22 @@ public class InventoryQueries {
     Duration sbomMaxAge;
 
     @Transactional
-    public Optional<InventoryView> inventory(UUID projectId) {
+    public Optional<InventoryView> inventory(UUID projectId, UUID accountId) {
         String sql = "SELECT origin, source_date, spec_version, imported_at FROM inventory WHERE project_id = ?";
-        try (Connection c = dataSource.getConnection(); PreparedStatement ps = c.prepareStatement(sql)) {
-            ps.setObject(1, projectId);
-            try (ResultSet rs = ps.executeQuery()) {
-                if (!rs.next()) {
-                    return Optional.empty();
+        try (Connection c = dataSource.getConnection()) {
+            ContexteBase.appliquer(c, new ContexteBase.Contexte(accountId, null, null));
+            try (PreparedStatement ps = c.prepareStatement(sql)) {
+                ps.setObject(1, projectId);
+                try (ResultSet rs = ps.executeQuery()) {
+                    if (!rs.next()) {
+                        return Optional.empty();
+                    }
+                    String origin = rs.getString(1);
+                    Instant sourceDate = instant(rs, 2);
+                    Long age = sourceDate == null ? null : Duration.between(sourceDate, Instant.now()).toDays();
+                    return Optional.of(new InventoryView(projectId, origin, sourceDate, age, sbomObsolete(origin, sourceDate),
+                            rs.getString(3), instant(rs, 4), components(c, projectId)));
                 }
-                String origin = rs.getString(1);
-                Instant sourceDate = instant(rs, 2);
-                Long age = sourceDate == null ? null : Duration.between(sourceDate, Instant.now()).toDays();
-                return Optional.of(new InventoryView(projectId, origin, sourceDate, age, obsolete(origin, sourceDate),
-                        rs.getString(3), instant(rs, 4), components(c, projectId)));
             }
         } catch (SQLException e) {
             throw new IllegalStateException("lecture de l'inventaire impossible", e);
@@ -75,15 +84,18 @@ public class InventoryQueries {
     }
 
     @Transactional
-    public List<ImportFailure> failures(UUID projectId) {
+    public List<ImportFailure> failures(UUID projectId, UUID accountId) {
         List<ImportFailure> failures = new ArrayList<>();
         String sql = "SELECT id, reason, source_ref, received_at FROM inventory_import_failure WHERE project_id = ? ORDER BY received_at";
-        try (Connection c = dataSource.getConnection(); PreparedStatement ps = c.prepareStatement(sql)) {
-            ps.setObject(1, projectId);
-            try (ResultSet rs = ps.executeQuery()) {
-                while (rs.next()) {
-                    failures.add(new ImportFailure(rs.getObject(1, UUID.class), rs.getString(2), rs.getString(3),
-                            instant(rs, 4)));
+        try (Connection c = dataSource.getConnection()) {
+            ContexteBase.appliquer(c, new ContexteBase.Contexte(accountId, null, null));
+            try (PreparedStatement ps = c.prepareStatement(sql)) {
+                ps.setObject(1, projectId);
+                try (ResultSet rs = ps.executeQuery()) {
+                    while (rs.next()) {
+                        failures.add(new ImportFailure(rs.getObject(1, UUID.class), rs.getString(2), rs.getString(3),
+                                instant(rs, 4)));
+                    }
                 }
             }
         } catch (SQLException e) {
@@ -115,7 +127,7 @@ public class InventoryQueries {
                     Instant date = instant(rs, 9);
                     matches.add(new ComponentMatch(rs.getObject(1, UUID.class), rs.getObject(2, UUID.class),
                             rs.getObject(3, UUID.class), rs.getString(4), rs.getString(5), rs.getString(6),
-                            (Boolean) rs.getObject(7), origin, date, obsolete(origin, date)));
+                            (Boolean) rs.getObject(7), origin, date, !"SBOM".equals(origin) || sbomObsolete(origin, date)));
                 }
             }
         } catch (SQLException e) {
@@ -142,6 +154,20 @@ public class InventoryQueries {
         return keys;
     }
 
+    /** Origine de l'inventaire de référence du projet (traitement technique), s'il existe. */
+    @Transactional
+    public Optional<String> origin(UUID projectId) {
+        try (Connection c = dataSource.getConnection();
+                PreparedStatement ps = c.prepareStatement("SELECT origin FROM inventory WHERE project_id = ?")) {
+            ps.setObject(1, projectId);
+            try (ResultSet rs = ps.executeQuery()) {
+                return rs.next() ? Optional.of(rs.getString(1)) : Optional.empty();
+            }
+        } catch (SQLException e) {
+            throw new IllegalStateException("lecture de l'inventaire impossible", e);
+        }
+    }
+
     /** Espace du projet, s'il existe. */
     @Transactional
     public Optional<UUID> workspaceOf(UUID projectId) {
@@ -156,8 +182,13 @@ public class InventoryQueries {
         }
     }
 
-    private boolean obsolete(String origin, Instant sourceDate) {
-        return !"SBOM".equals(origin) || sourceDate == null || sourceDate.plus(sbomMaxAge).isBefore(Instant.now());
+    /**
+     * SBOM obsolète : plus de 30 jours après sa génération, ou sans date de génération. Un inventaire
+     * de repli (manifestes) n'est pas une SBOM : l'indicateur restitué vaut faux, mais la corrélation
+     * ne le juge jamais assez fiable pour le niveau « exact » (COR-06).
+     */
+    private boolean sbomObsolete(String origin, Instant sourceDate) {
+        return "SBOM".equals(origin) && (sourceDate == null || sourceDate.plus(sbomMaxAge).isBefore(Instant.now()));
     }
 
     private static List<ComponentView> components(Connection c, UUID projectId) throws SQLException {

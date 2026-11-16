@@ -96,6 +96,35 @@ class MatchRulesTest {
         assertFalse(VersionComparator.interpretable("latest"));
     }
 
+    /** PEP 440 : une post-release suit la version publiée, ce n'est pas une pré-version. */
+    @Test
+    void postReleasesPyPi() {
+        assertTrue(VersionComparator.compare("1.0", "1.0.post1").orElseThrow() < 0);
+        assertTrue(VersionComparator.compare("2.0.post1", "2.0").orElseThrow() > 0);
+        assertTrue(VersionComparator.compare("1.0.post2", "1.0.post10").orElseThrow() < 0);
+        assertTrue(VersionComparator.compare("1.0rc1", "1.0").orElseThrow() < 0);
+        assertTrue(VersionComparator.compare("1.0c1", "1.0").orElseThrow() < 0);
+        AffectedPackage pkg = new AffectedPackage("pkg:pypi/exemple", true, "PyPI", "exemple",
+                List.of(new VersionRange("ECOSYSTEM", "0", "1.0.post1", null)), List.of());
+        assertEquals(Optional.of(Level.EXACT), MatchRules.evaluate(pkg, "1.0", true), "1.0 précède le correctif 1.0.post1");
+        assertEquals(Optional.empty(), MatchRules.evaluate(pkg, "1.0.post1", true));
+        AffectedPackage fixed20 = new AffectedPackage("pkg:pypi/exemple", true, "PyPI", "exemple",
+                List.of(new VersionRange("ECOSYSTEM", "0", "2.0", null)), List.of());
+        assertEquals(Optional.empty(), MatchRules.evaluate(fixed20, "2.0.post1", true), "2.0.post1 suit le correctif 2.0");
+    }
+
+    /** Un qualificatif inconnu n'est classé ni avant ni après la version publiée : niveau « à vérifier ». */
+    @Test
+    void qualificatifInconnuNonClasseCommePreVersion() {
+        assertTrue(VersionComparator.compare("1.0-foo", "1.0").isEmpty());
+        assertTrue(VersionComparator.compare("1.0", "1.0-foo").isEmpty());
+        assertEquals(Optional.of(0), VersionComparator.compare("32.1.3-jre", "32.1.3-jre"));
+        assertTrue(VersionComparator.compare("31.1-jre", "32.0.0-jre").orElseThrow() < 0, "décidé par les segments numériques");
+        AffectedPackage pkg = new AffectedPackage(KEY, true, "Maven", "org.exemple:lib",
+                List.of(new VersionRange("ECOSYSTEM", "0", "1.0", null)), List.of());
+        assertEquals(Optional.of(Level.A_VERIFIER), MatchRules.evaluate(pkg, "1.0-foo", true));
+    }
+
     @Test
     void clesDePaquet() {
         assertEquals("pkg:maven/org.exemple/lib", PackageKey.parse("pkg:maven/org.exemple/lib@1.2.0").orElseThrow().key());

@@ -52,19 +52,19 @@ public class SubscriptionResource {
         CreateSubscription b = body == null ? new CreateSubscription(null, null, null, null, null, null) : body;
         boolean team = b.scope() != null && "TEAM".equals(b.scope().strip().toUpperCase(Locale.ROOT));
         if (team && b.teamWorkspaceId() != null && !caller.adminOf(b.teamWorkspaceId())) {
-            throw access.forbidden(caller, "WORKSPACE", b.teamWorkspaceId().toString(),
-                    "création d'un abonnement TEAM réservée à l'administrateur de l'espace");
+            // Création d'un abonnement TEAM réservée à l'administrateur de l'espace (ABO-06).
+            throw access.forbidden();
         }
         SubscriptionRequest request = new SubscriptionRequest(b.scope(), team ? b.teamWorkspaceId() : null,
-                team ? null : caller.userId(), b.filters(), b.channel(), b.frequency(), b.mandatory());
-        return Response.status(Response.Status.CREATED).entity(subscriptions.create(request)).build();
+                team ? null : caller.accountId(), b.filters(), b.channel(), b.frequency(), b.mandatory());
+        return Response.status(Response.Status.CREATED).entity(subscriptions.create(request, caller.accountId())).build();
     }
 
     @GET
     @Operation(summary = "Abonnements qui s'appliquent à l'appelant : socle TEAM de ses espaces et abonnements PERSONAL")
     public List<SubscriptionService.Subscription> mine() {
         Caller caller = access.authenticated();
-        return subscriptions.activeFor(caller.userId(), caller.memberWorkspaces());
+        return subscriptions.activeFor(caller.accountId(), caller.memberWorkspaces());
     }
 
     @POST
@@ -72,10 +72,10 @@ public class SubscriptionResource {
     @Operation(summary = "Quitte un abonnement : refusé pour un abonnement TEAM obligatoire")
     public Response leave(@PathParam("id") UUID id) {
         Caller caller = access.authenticated();
-        return switch (subscriptions.leave(id, caller.userId(), caller.memberWorkspaces())) {
+        return switch (subscriptions.leave(id, caller.accountId(), caller.memberWorkspaces())) {
             case LEFT -> Response.noContent().build();
             case MANDATORY -> Response.status(Response.Status.CONFLICT)
-                    .entity(new ApiError("abonnement TEAM obligatoire : il ne peut pas être quitté", "mandatory")).build();
+                    .entity(new Erreur("ABONNEMENT_OBLIGATOIRE", "abonnement TEAM obligatoire : il ne peut pas être quitté", "mandatory")).build();
             case NOT_FOUND -> throw new NotFoundException();
         };
     }

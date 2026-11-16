@@ -138,6 +138,7 @@ public class EspacesService {
         }
         exiger(compte, espaceId, Role.ADMINISTRATEUR);
         return base.executer(new Contexte(compte.id(), null, espaceId), c -> {
+            verrouillerEspace(c, espaceId);
             Role actuel = roleDe(c, espaceId, cibleId);
             if (actuel == Role.ADMINISTRATEUR && nouveauRole != Role.ADMINISTRATEUR) {
                 verifierAutreAdministrateur(c, espaceId);
@@ -157,6 +158,7 @@ public class EspacesService {
     public void revoquer(Compte compte, UUID espaceId, UUID cibleId) {
         exiger(compte, espaceId, Role.ADMINISTRATEUR);
         base.executer(new Contexte(compte.id(), null, espaceId), c -> {
+            verrouillerEspace(c, espaceId);
             if (roleDe(c, espaceId, cibleId) == Role.ADMINISTRATEUR) {
                 verifierAutreAdministrateur(c, espaceId);
             }
@@ -229,15 +231,26 @@ public class EspacesService {
                         emailVerifie));
     }
 
-    /** Accepte une invitation adressée à l'e-mail vérifié du compte (ACC-05-S1). */
+    /**
+     * Accepte une invitation adressée à l'e-mail vérifié du compte (ACC-05-S1).
+     *
+     * @throws Introuvable si aucune invitation adressée à cet e-mail ne porte cet identifiant : ce
+     *                     n'est pas un refus d'accès à un espace, il n'est donc pas journalisé
+     * @throws RegleViolee {@code INVITATION_INACTIVE} si l'invitation est déjà acceptée ou révoquée,
+     *                     {@code INVITATION_EXPIREE} si elle a expiré, {@code DEJA_MEMBRE} si le compte
+     *                     est déjà membre de l'espace
+     */
     public EspaceDeCompte accepter(Compte compte, String emailVerifie, UUID invitationId) {
         if (emailVerifie == null) {
-            throw new AccesRefuse(MotifRefus.NON_MEMBRE);
+            throw new Introuvable("Aucune invitation ne vous est adressée avec cet identifiant.");
         }
         Contexte contexte = new Contexte(compte.id(), emailVerifie, null);
         Invitation invitation = base.executer(contexte, c -> lireInvitations(c, "i.id = ?", invitationId))
-                .stream().filter(i -> "EN_ATTENTE".equals(i.etat()) && emailVerifie.equalsIgnoreCase(i.email()))
-                .findFirst().orElseThrow(() -> new AccesRefuse(MotifRefus.NON_MEMBRE));
+                .stream().filter(i -> emailVerifie.equalsIgnoreCase(i.email()))
+                .findFirst().orElseThrow(() -> new Introuvable("Aucune invitation ne vous est adressée avec cet identifiant."));
+        if (!"EN_ATTENTE".equals(invitation.etat())) {
+            throw new RegleViolee("INVITATION_INACTIVE", "L'invitation a déjà été acceptée ou révoquée.");
+        }
         if (!invitation.expireLe().isAfter(OffsetDateTime.now())) {
             throw new RegleViolee("INVITATION_EXPIREE", "L'invitation a expiré.");
         }
@@ -333,6 +346,22 @@ public class EspacesService {
                     throw new RegleViolee("MEMBRE_INCONNU", "Ce compte n'est pas membre de l'espace.");
                 }
                 return Role.valueOf(rs.getString(1));
+            }
+        }
+    }
+
+    /**
+     * Verrouille la ligne de l'espace jusqu'à la fin de la transaction : deux changements de rôle ou
+     * retraits concurrents dans le même espace s'exécutent l'un après l'autre, et le second compte
+     * les administrateurs après la validation du premier (INV-1 sûr en concurrence).
+     */
+    private static void verrouillerEspace(Connection c, UUID espaceId) throws SQLException {
+        try (PreparedStatement ps = c.prepareStatement("SELECT 1 FROM espace WHERE id = ? FOR UPDATE")) {
+            ps.setObject(1, espaceId);
+            try (ResultSet rs = ps.executeQuery()) {
+                if (!rs.next()) {
+                    throw new AccesRefuse(MotifRefus.NON_MEMBRE);
+                }
             }
         }
     }

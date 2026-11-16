@@ -80,6 +80,19 @@ public class SourceSynchronizer {
                     return counters.report(sourceId, "RETRYABLE", attempts, "attente interrompue");
                 }
                 store.resume(runId);
+            } catch (RuntimeException unexpected) {
+                // Toute autre erreur (bogue d'un normaliseur, curseur illisible, base indisponible) termine
+                // le traitement en échec : il ne reste jamais RUNNING et la source change d'état (COL-07).
+                SourceException e = new SourceException(SourceException.Kind.PERMANENT, null, null,
+                        "erreur inattendue : " + unexpected.getClass().getSimpleName(), unexpected);
+                LOG.errorf(unexpected, "synchronisation %s, tentative %d interrompue par une erreur inattendue",
+                        sourceId, attempts);
+                try {
+                    store.recordAttempt(runId, attempts, e);
+                } catch (RuntimeException ignored) {
+                    LOG.warnf("tentative %d de la synchronisation %s non enregistrée", attempts, sourceId);
+                }
+                return failed(sourceId, runId, attempts, "PERMANENT", e, counters);
             }
         }
     }

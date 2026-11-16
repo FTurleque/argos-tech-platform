@@ -2,16 +2,16 @@ package io.argos.api.security;
 
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.inject.Inject;
-import jakarta.ws.rs.ForbiddenException;
 import jakarta.ws.rs.NotAuthorizedException;
-import jakarta.ws.rs.NotFoundException;
 
-import io.argos.audit.AccessRefusalLog;
+import io.argos.workspace.AccesRefuse;
+import io.argos.workspace.MotifRefus;
 
 /**
- * Contrôles d'accès communs aux ressources REST. Un accès à une ressource d'un autre espace est
- * refusé comme une ressource inexistante (404), sans en révéler le contenu ni l'existence, et
- * journalisé (COR-08-S2).
+ * Contrôles d'accès communs aux ressources REST de la veille. Les refus sont des
+ * {@link AccesRefuse} : la couche d'exposition les journalise dans le journal unique des refus
+ * (module {@code audit}) et répond 404 pour une ressource d'un autre espace, sans en révéler le
+ * contenu ni l'existence (COR-08-S2, ACC-06), ou 403 pour un rôle insuffisant.
  */
 @ApplicationScoped
 public class Access {
@@ -19,31 +19,26 @@ public class Access {
     @Inject
     CallerResolver resolver;
 
-    @Inject
-    AccessRefusalLog refusals;
-
     public Caller authenticated() {
         return resolver.current().orElseThrow(() -> new NotAuthorizedException("Bearer"));
     }
 
+    /** Administrateur plateforme (exploitation) ; refus journalisé sinon. */
     public Caller operator() {
         Caller caller = authenticated();
         if (!caller.operator()) {
-            refusals.record(caller.userId(), "OPERATIONS", "ops", "rôle d'exploitation requis");
-            throw new ForbiddenException();
+            throw new AccesRefuse(MotifRefus.ROLE_INSUFFISANT);
         }
         return caller;
     }
 
-    /** Journalise le refus puis répond comme pour une ressource inexistante. */
-    public NotFoundException outOfScope(Caller caller, String resourceType, String resourceId) {
-        refusals.record(caller.userId(), resourceType, resourceId, "hors du périmètre autorisé");
-        return new NotFoundException();
+    /** Ressource existante hors du périmètre de l'appelant : refus journalisé, réponse « introuvable ». */
+    public AccesRefuse outOfScope() {
+        return new AccesRefuse(MotifRefus.NON_MEMBRE);
     }
 
-    /** Refus explicite d'une action (droit insuffisant sur une ressource visible). */
-    public ForbiddenException forbidden(Caller caller, String resourceType, String resourceId, String reason) {
-        refusals.record(caller.userId(), resourceType, resourceId, reason);
-        return new ForbiddenException();
+    /** Action interdite sur une ressource visible : refus journalisé, réponse « interdit ». */
+    public AccesRefuse forbidden() {
+        return new AccesRefuse(MotifRefus.ROLE_INSUFFISANT);
     }
 }

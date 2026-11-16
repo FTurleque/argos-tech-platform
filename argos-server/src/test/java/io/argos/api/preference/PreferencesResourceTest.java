@@ -6,43 +6,85 @@ import static org.hamcrest.Matchers.containsInAnyOrder;
 import static org.hamcrest.Matchers.containsString;
 import static org.hamcrest.Matchers.equalTo;
 import static org.hamcrest.Matchers.nullValue;
-
 import static org.junit.jupiter.api.Assertions.assertEquals;
 
+import java.sql.Connection;
+import java.sql.ResultSet;
+import java.sql.Statement;
 import java.util.Optional;
+import java.util.Set;
+import java.util.UUID;
 
+import javax.sql.DataSource;
+
+import jakarta.enterprise.event.Event;
 import jakarta.inject.Inject;
 
-import io.argos.workspace.preference.PreferencesService;
-import io.quarkus.test.junit.QuarkusTest;
-import io.quarkus.test.security.TestSecurity;
-import io.restassured.http.ContentType;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
+import io.argos.testsupport.Api;
+import io.argos.testsupport.TestDb;
+import io.argos.workspace.Compte;
+import io.argos.workspace.CompteCree;
+import io.argos.workspace.ComptesService;
+import io.argos.workspace.preference.PreferencesService;
+import io.quarkus.test.junit.QuarkusTest;
+import io.restassured.http.ContentType;
+import io.restassured.specification.RequestSpecification;
+
 /**
- * Préférences de l'utilisateur courant (AFF-01, AFF-03, AFF-04, PRF-01).
+ * Préférences de l'utilisateur courant (AFF-01, AFF-03, AFF-04, PRF-01), avec des jetons réels :
+ * la clé des préférences est l'identifiant du compte Argos relié au sujet OIDC.
  *
- * <p>Chaque test utilise son propre utilisateur : la base est partagée entre les tests.
+ * <p>Les préférences d'ines et de jules sont effacées avant chaque test (base partagée).
  */
 @QuarkusTest
 class PreferencesResourceTest {
 
+    @Inject
+    TestDb db;
+
+    @Inject
+    DataSource dataSource;
+
+    @Inject
+    PreferencesService preferences;
+
+    @Inject
+    ComptesService comptes;
+
+    @Inject
+    Event<CompteCree> compteCree;
+
+    private UUID ines;
+
+    @BeforeEach
+    void reinitialiser() {
+        ines = Api.compte("ines");
+        UUID jules = Api.compte("jules");
+        db.exec("DELETE FROM workspace_preference_utilisateur WHERE compte_id IN ('" + ines + "', '" + jules + "')");
+    }
+
+    private static RequestSpecification ines() {
+        return Api.en("ines");
+    }
+
     private static void choisirMiseEnPage(String miseEnPage, int statut) {
-        given().contentType(ContentType.JSON).body("{\"miseEnPage\":\"" + miseEnPage + "\"}")
+        ines().contentType(ContentType.JSON).body("{\"miseEnPage\":\"" + miseEnPage + "\"}")
             .when().put("/api/v1/preferences/mise-en-page")
             .then().statusCode(statut);
     }
 
     private static void remplacerProfils(String json, int statut) {
-        given().contentType(ContentType.JSON).body("{\"profilsActifs\":" + json + "}")
+        ines().contentType(ContentType.JSON).body("{\"profilsActifs\":" + json + "}")
             .when().put("/api/v1/preferences/profils")
             .then().statusCode(statut);
     }
 
     @Test
-    @TestSecurity(user = "aff04-premier-acces")
     void aff04S1SansChoixLaMiseEnPageClassiqueSApplique() {
-        given()
+        ines()
             .when().get("/api/v1/preferences")
             .then()
             .statusCode(200)
@@ -53,10 +95,9 @@ class PreferencesResourceTest {
     }
 
     @Test
-    @TestSecurity(user = "aff01-choix")
     void aff01S1ChoixDUneMiseEnPagePubliee() {
         choisirMiseEnPage("classique", 200);
-        given()
+        ines()
             .contentType(ContentType.JSON).body("{\"miseEnPage\":\"gazette\"}")
             .when().put("/api/v1/preferences/mise-en-page")
             .then()
@@ -64,36 +105,35 @@ class PreferencesResourceTest {
             .body("miseEnPage", equalTo("gazette"))
             .body("miseEnPageChoisie", equalTo("gazette"));
         // AFF-03 : la préférence est lue sur le serveur, quel que soit le client qui la demande.
-        given().when().get("/api/v1/preferences").then().statusCode(200).body("miseEnPage", equalTo("gazette"));
+        ines().when().get("/api/v1/preferences").then().statusCode(200).body("miseEnPage", equalTo("gazette"));
+        assertEquals("gazette", db.string("SELECT mise_en_page FROM workspace_preference_utilisateur WHERE compte_id = '"
+                + ines + "'"), "clé des préférences : identifiant du compte Argos");
     }
 
     @Test
-    @TestSecurity(user = "aff01-inconnue")
     void aff01S2MiseEnPageAbsenteDuCatalogue() {
         choisirMiseEnPage("journal", 200);
-        given()
+        ines()
             .contentType(ContentType.JSON).body("{\"miseEnPage\":\"psychedelique\"}")
             .when().put("/api/v1/preferences/mise-en-page")
             .then()
             .statusCode(400)
             .body("code", equalTo("MISE_EN_PAGE_INCONNUE"))
             .body("message", containsString("n'existe pas"));
-        given().when().get("/api/v1/preferences").then().body("miseEnPage", equalTo("journal"));
+        ines().when().get("/api/v1/preferences").then().body("miseEnPage", equalTo("journal"));
     }
 
     @Test
-    @TestSecurity(user = "aff01-vide")
     void uneDemandeSansMiseEnPageEstRefusee() {
-        given().contentType(ContentType.JSON).body("{}")
+        ines().contentType(ContentType.JSON).body("{}")
             .when().put("/api/v1/preferences/mise-en-page")
             .then().statusCode(400).body("code", equalTo("MISE_EN_PAGE_INCONNUE"));
     }
 
     @Test
-    @TestSecurity(user = "prf01-cumul")
     void prf01S1CumulDeDeuxProfils() {
         remplacerProfils("[\"developpeur\"]", 200);
-        given()
+        ines()
             .contentType(ContentType.JSON).body("{\"profilsActifs\":[\"developpeur\",\"expert-metier\"]}")
             .when().put("/api/v1/preferences/profils")
             .then()
@@ -103,60 +143,93 @@ class PreferencesResourceTest {
     }
 
     @Test
-    @TestSecurity(user = "prf01-dernier")
     void prf01S2DesactivationDuDernierProfil() {
         remplacerProfils("[\"expert-metier\"]", 200);
-        given()
+        ines()
             .contentType(ContentType.JSON).body("{\"profilsActifs\":[]}")
             .when().put("/api/v1/preferences/profils")
             .then()
             .statusCode(400)
             .body("code", equalTo("AU_MOINS_UN_PROFIL"))
             .body("message", containsString("Au moins un profil"));
-        given().when().get("/api/v1/preferences").then().body("profilsActifs", contains("expert-metier"));
+        ines().when().get("/api/v1/preferences").then().body("profilsActifs", contains("expert-metier"));
     }
 
     @Test
-    @TestSecurity(user = "prf01-inconnu")
     void prf01S3ProfilAbsentDuCatalogue() {
         remplacerProfils("[\"developpeur\"]", 200);
-        given()
+        ines()
             .contentType(ContentType.JSON).body("{\"profilsActifs\":[\"developpeur\",\"astrologue\"]}")
             .when().put("/api/v1/preferences/profils")
             .then()
             .statusCode(400)
             .body("code", equalTo("PROFIL_INCONNU"))
             .body("message", containsString("n'existe pas"));
-        given().when().get("/api/v1/preferences").then().body("profilsActifs", contains("developpeur"));
+        ines().when().get("/api/v1/preferences").then().body("profilsActifs", contains("developpeur"));
     }
 
     @Test
-    @TestSecurity(user = "prf01-defaut")
     void sansChoixLesProfilsParDefautSAppliquent() {
-        given().when().get("/api/v1/preferences")
+        ines().when().get("/api/v1/preferences")
             .then().statusCode(200)
             .body("profilsActifs", contains("developpeur"))
             .body("profilsParDefaut", equalTo(true));
     }
 
     @Test
-    @TestSecurity(user = "idempotence")
     void remplacerDeuxFoisLaMemeValeurEstIdempotent() {
         remplacerProfils("[\"expert-metier\",\"developpeur\"]", 200);
         remplacerProfils("[\"developpeur\",\"expert-metier\"]", 200);
-        given().when().get("/api/v1/preferences")
+        ines().when().get("/api/v1/preferences")
             .then().body("profilsActifs", contains("developpeur", "expert-metier"));
     }
 
-    @Inject
-    PreferencesService preferences;
-
     @Test
-    @TestSecurity(user = "isolement-a")
     void lesPreferencesDUnUtilisateurNeTouchentPasUnAutre() {
         choisirMiseEnPage("fantaisie", 200);
-        assertEquals(Optional.of("fantaisie"), preferences.lire("isolement-a").miseEnPage());
-        assertEquals(Optional.empty(), preferences.lire("isolement-b").miseEnPage());
+        assertEquals(Optional.of("fantaisie"), preferences.lire(ines).miseEnPage());
+        assertEquals(Optional.empty(), preferences.lire(Api.compte("jules")).miseEnPage());
+        Api.en("jules").when().get("/api/v1/preferences").then().statusCode(200).body("miseEnPage", equalTo("classique"));
+    }
+
+    /** La RLS n'expose à argos_app que les préférences du compte courant (garde-fou en base). */
+    @Test
+    void laBaseNExposeQueLesPreferencesDuCompteCourant() throws Exception {
+        choisirMiseEnPage("fantaisie", 200);
+        UUID jules = Api.compte("jules");
+        try (Connection c = dataSource.getConnection(); Statement s = c.createStatement()) {
+            c.setAutoCommit(false);
+            s.execute("SET LOCAL ROLE argos_app");
+            s.execute("SELECT set_config('argos.compte_courant', '" + jules + "', true)");
+            assertEquals(0, s.executeUpdate("UPDATE workspace_preference_utilisateur SET mise_en_page = 'gazette' WHERE compte_id = '"
+                    + ines + "'"), "les préférences d'un autre compte ne sont pas modifiables");
+            try (ResultSet rs = s.executeQuery("SELECT count(*) FROM workspace_preference_utilisateur")) {
+                rs.next();
+                assertEquals(0, rs.getLong(1), "les préférences d'un autre compte ne sont pas visibles");
+            }
+            c.rollback();
+            c.setAutoCommit(true);
+        }
+        assertEquals("fantaisie", db.string("SELECT mise_en_page FROM workspace_preference_utilisateur WHERE compte_id = '"
+                + ines + "'"));
+    }
+
+    /** PRF-01, Q-3 : la création d'un compte active le profil developpeur dans ses préférences. */
+    @Test
+    void laCreationDUnCompteActiveLeProfilDeveloppeur() {
+        Compte compte = comptes.parSujet(db.string("SELECT sujet_oidc FROM compte WHERE id = '" + ines + "'")).orElseThrow();
+        compteCree.fire(new CompteCree(compte, "developpeur"));
+        assertEquals("{developpeur}", db.string(
+                "SELECT profils_actifs::text FROM workspace_preference_utilisateur WHERE compte_id = '" + ines + "'"));
+        ines().when().get("/api/v1/preferences").then().statusCode(200)
+            .body("profilsActifs", contains("developpeur")).body("profilsParDefaut", equalTo(false));
+
+        // Un compte qui a déjà choisi ses profils les conserve.
+        remplacerProfils("[\"expert-metier\"]", 200);
+        compteCree.fire(new CompteCree(compte, "developpeur"));
+        ines().when().get("/api/v1/preferences").then().body("profilsActifs", contains("expert-metier"));
+        preferences.activerSiAucun(ines, Set.of("developpeur"));
+        ines().when().get("/api/v1/preferences").then().body("profilsActifs", contains("expert-metier"));
     }
 
     @Test
