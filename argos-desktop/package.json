@@ -10,8 +10,8 @@
     "dev": "electron . --dev",
     "start": "npm --prefix ../argos-ui run build && electron .",
     "check": "npm run check:syntax && npm test",
-    "check:syntax": "node --check src/main.js && node --check src/preload.js && node --check src/ui-protocol.js",
-    "test": "node --test test/ui-protocol.test.js",
+    "check:syntax": "node --check src/main.js && node --check src/preload.js && node --check src/ui-protocol.js && node --check src/notifications.js && node --check src/preferences.js && node --check src/poste.js",
+    "test": "node --test \"test/*.test.js\"",
     "dist": "npm --prefix ../argos-ui run build && electron-builder"
   },
   "devDependencies": {

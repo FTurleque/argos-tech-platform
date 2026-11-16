@@ -8,6 +8,22 @@ interface ImportMetaEnv {
 interface ArgosDesktopBridge {
   readonly platform: string
   notify(title: string, body: string): Promise<boolean>
+  /** Notifie une alerte : identifiant, titre, gravité et nombre de projets seulement (NOT-05). */
+  notifyAlert(alerte: { id: string; titre: string; gravite: string | null; projets: number }): Promise<boolean>
+  /** Nombre d'alertes ouvertes affiché dans la zone de notification (NOT-03). */
+  setAlertCount(n: number): Promise<boolean>
+  /** Abonnement aux clics sur les notifications d'alerte (NOT-02) ; renvoie de quoi se désabonner. */
+  onOpenAlert(callback: (id: string) => void): () => void
+  getSettings(): Promise<ArgosReglagesPoste | null>
+  setSettings(reglages: Partial<Pick<ArgosReglagesPoste, 'notificationsPoste' | 'demarrageSession'>>): Promise<ArgosReglagesPoste | null>
+  onSettingsChanged(callback: (reglages: ArgosReglagesPoste) => void): () => void
+}
+
+/** Réglages du poste tenus par le client desktop (NOT-04, Q-2). */
+interface ArgosReglagesPoste {
+  readonly notificationsPoste: boolean
+  readonly demarrageSession: boolean
+  readonly demarrageSessionDisponible: boolean
 }
 
 interface Window {
