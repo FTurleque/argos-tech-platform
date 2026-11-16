@@ -45,7 +45,7 @@ public class TestDb {
 
     public void reset() {
         exec("""
-                TRUNCATE actualite_impact, actualite_source, actualite, source_web, resume_element, alerte, subscription_opt_out, subscription, refus_acces, mcp_appel, project_impact, inventory_import_failure,
+                TRUNCATE workspace_vue, actualite_impact, actualite_source, actualite, source_web, resume_element, alerte, subscription_opt_out, subscription, refus_acces, mcp_appel, project_impact, inventory_import_failure,
                          component, inventory, project, enrichment, signal_package, signal_alias,
                          signal_version, signal, ops_event, ingestion_failure, sync_attempt, sync_run, sync_cursor CASCADE
                 """);

@@ -1,9 +1,12 @@
 package io.argos.mcp;
 
+import java.time.Duration;
 import java.time.Instant;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
+import java.util.LinkedHashSet;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
@@ -11,10 +14,13 @@ import java.util.UUID;
 
 import jakarta.inject.Inject;
 
+import io.argos.alerting.Gravite;
 import io.argos.api.security.Caller;
+import io.argos.catalog.PackageKey;
 import io.argos.catalog.standard.ReferentielStandards;
 import io.argos.impact.ImpactQueries;
 import io.argos.impact.MatchRules;
+import io.argos.impact.RechercheVeille;
 import io.argos.inventory.InventoryQueries;
 import io.argos.releaseradar.CalendrierSorties;
 import io.argos.signal.AffectedPackage;
@@ -62,9 +68,17 @@ public class OutilsSecurite {
             List<StandardEspace> referentiel, String versionRecommandee, FinDeSupport finDeSupport) {
     }
 
-    /** Signal de sécurité résumé. */
+    /** Projet de l'appelant concerné par un signal trouvé. */
+    public record ProjetVise(UUID projetId, String projet) {
+    }
+
+    /**
+     * Signal de sécurité résumé ; {@code pertinence} vaut 0 sans mots recherchés, {@code projets} ne
+     * cite que les projets du périmètre de l'appelant.
+     */
     public record SignalResume(UUID signalId, String source, String identifiant, List<String> alias, String severite,
-            String publieLe, String modifieLe, List<String> paquets, TexteExterne titre, TexteExterne resume) {
+            String publieLe, String modifieLe, List<String> paquets, TexteExterne titre, TexteExterne resume,
+            double pertinence, List<ProjetVise> projets) {
     }
 
     /** Réponse de {@code search_signals}. */
@@ -118,6 +132,9 @@ public class OutilsSecurite {
 
     @Inject
     CalendrierSorties calendrier;
+
+    @Inject
+    RechercheVeille recherche;
 
     @Tool(name = "check_dependency", structuredContent = true,
             annotations = @Tool.Annotations(title = "Vérifier une dépendance", readOnlyHint = true, destructiveHint = false,
@@ -205,33 +222,65 @@ public class OutilsSecurite {
     @Tool(name = "search_signals", structuredContent = true,
             annotations = @Tool.Annotations(title = "Rechercher des signaux", readOnlyHint = true, destructiveHint = false,
                     idempotentHint = true, openWorldHint = false),
-            description = "Recherche les signaux de sécurité collectés par Argos par technologies (java, npm, python…),"
-                    + " paquets (PURL) ou sources (OSV…), du plus récent au plus ancien. Au moins un critère est requis."
+            description = "Recherche les signaux de sécurité collectés par Argos : mots en français ou en anglais"
+                    + " (syntaxe web : mots, \"expression\", or, -exclusion) dans le titre et le résumé, et filtres"
+                    + " combinables (technologies, paquets PURL, sources, projets de l'utilisateur, gravité minimale,"
+                    + " horizon en jours). Résultats du plus pertinent au moins pertinent, puis du plus récent ; seuls"
+                    + " les projets du périmètre de l'utilisateur sont cités. Au moins un mot ou un filtre est requis."
                     + AVERTISSEMENT)
     public Signaux searchSignals(
+            @ToolArg(name = "query", description = "Mots recherchés (500 caractères au plus).", required = false) String requete,
             @ToolArg(name = "technologies", description = "Technologies ou écosystèmes.", required = false) List<String> technologies,
             @ToolArg(name = "packages", description = "Paquets, en PURL (pkg:maven/groupe/artefact).", required = false) List<String> paquets,
             @ToolArg(name = "sources", description = "Sources des signaux (OSV…).", required = false) List<String> sources,
+            @ToolArg(name = "project_ids", description = "Projets de l'utilisateur (UUID) concernés par un impact.", required = false) List<String> projets,
+            @ToolArg(name = "severity", description = "Gravité minimale : LOW, MODERATE, MEDIUM, HIGH, CRITICAL.", required = false) String gravite,
+            @ToolArg(name = "horizon_days", description = "Signaux des N derniers jours (1 à 3650).", required = false) Integer horizon,
             @ToolArg(name = "limit", description = "Nombre maximal de signaux (1 à 50, 20 par défaut).", required = false) Integer limite) {
-        Map<String, Object> p = parametres("technologies", technologies, "packages", paquets, "sources", sources, "limit", limite);
+        Map<String, Object> p = parametres("query", requete, "technologies", technologies, "packages", paquets,
+                "sources", sources, "project_ids", projets, "severity", gravite, "horizon_days", horizon, "limit", limite);
         return garde.appeler("search_signals", p, appelant -> {
+            String texte = requete == null || requete.isBlank() ? null : Parametres.obligatoire("query", requete);
             List<String> t = Parametres.liste("technologies", technologies);
-            List<String> k = Parametres.liste("packages", paquets);
-            List<String> s = Parametres.liste("sources", sources);
-            int n = Parametres.borne("limit", limite, 20, 1, 50);
-            if (t.isEmpty() && k.isEmpty() && s.isEmpty()) {
-                throw new ParametreInvalide("technologies, packages ou sources : au moins un critère est requis.");
+            List<String> k = Parametres.liste("packages", paquets).stream()
+                    .map(v -> PackageKey.parse(v).map(PackageKey.Purl::key).orElse(v)).toList();
+            List<String> s = Parametres.liste("sources", sources).stream().map(v -> v.toUpperCase(Locale.ROOT)).toList();
+            Set<UUID> ids = new LinkedHashSet<>();
+            for (String projet : Parametres.liste("project_ids", projets)) {
+                ids.add(Parametres.identifiant("project_ids", projet));
             }
-            List<SignalResume> resultats = signaux.search(new SignalQueries.Criteria(Set.copyOf(t), Set.copyOf(k), Set.copyOf(s)), n)
-                    .stream().map(this::resume).toList();
+            Set<String> gravites = null;
+            if (gravite != null && !gravite.isBlank()) {
+                if (!Gravite.reconnue(gravite)) {
+                    throw new ParametreInvalide("severity : LOW, MODERATE, MEDIUM, HIGH ou CRITICAL attendu.");
+                }
+                gravites = Gravite.auMoins(gravite);
+            }
+            Instant depuis = horizon == null ? null
+                    : Instant.now().minus(Duration.ofDays(Parametres.borne("horizon_days", horizon, 30, 1, 3650)));
+            int n = Parametres.borne("limit", limite, 20, 1, 50);
+            if (texte == null && t.isEmpty() && k.isEmpty() && s.isEmpty() && ids.isEmpty() && gravites == null
+                    && depuis == null) {
+                throw new ParametreInvalide("query, technologies, packages, sources, project_ids, severity ou horizon_days :"
+                        + " au moins un mot ou un filtre est requis.");
+            }
+            ids.forEach(id -> exigerProjetVisible(appelant, id, inventaires));
+            RechercheVeille.Criteres criteres = new RechercheVeille.Criteres(texte, Set.of(RechercheVeille.AVIS_SECURITE),
+                    ids, Set.copyOf(t), gravites, depuis, Set.copyOf(k), Set.copyOf(s));
+            List<SignalResume> resultats = new ArrayList<>();
+            for (RechercheVeille.Element e : recherche.rechercher(criteres, appelant.accountId(),
+                    appelant.memberWorkspaces(), 0, n).elements()) {
+                signaux.find(e.id()).ifPresent(v -> resultats.add(resume(v, e)));
+            }
             return new Signaux(resultats.size(), resultats);
         });
     }
 
-    private SignalResume resume(SignalQueries.SignalView s) {
+    private SignalResume resume(SignalQueries.SignalView s, RechercheVeille.Element e) {
         return new SignalResume(s.id(), s.source(), s.externalId(), s.aliases(), s.severity(), texte(s.publishedAt()),
                 texte(s.modifiedAt()), s.affected().stream().map(AffectedPackage::packageKey).distinct().toList(),
-                balisage.baliser(s.source(), s.title()), balisage.baliser(s.source(), s.summary()));
+                balisage.baliser(s.source(), s.title()), balisage.baliser(s.source(), s.summary()), e.pertinence(),
+                e.projets().stream().map(p -> new ProjetVise(p.projetId(), p.projet())).toList());
     }
 
     @Tool(name = "get_security_alerts", structuredContent = true,
