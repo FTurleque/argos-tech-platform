@@ -23,6 +23,8 @@
 | **Alerte** | message immédiat adressé à un utilisateur sur un canal quand un impact exact ou probable satisfait une de ses règles ; une seule par signal, utilisateur et canal (capacité `alertes-digests`) |
 | **Résumé périodique** | message quotidien ou hebdomadaire listant les éléments non alertés immédiatement ; jamais envoyé vide (en anglais : *digest*) |
 | **Canal de diffusion** | moyen d’acheminement d’une alerte ou d’un résumé : `EMAIL` (relais SMTP du Synology) ou `DESKTOP` (client desktop) |
+| **Alerte ouverte** | alerte immédiate reçue par le client desktop et pas encore consultée dans l’application ; leur nombre s’affiche dans la zone de notification (capacité `notifications-poste`) |
+| **Réglages du poste** | réglages propres à un client desktop, gardés sur le poste : notifications du poste (actives par défaut) et démarrage avec la session (désactivé par défaut) ; sans effet sur les autres canaux |
 | **C4** | modèle de visualisation d’architecture par niveaux Context, Container, Component et Code |
 | **arc42** | structure de documentation d’architecture en douze sections |
 | **ADR** | Architecture Decision Record ; enregistrement versionné d’une décision structurante |

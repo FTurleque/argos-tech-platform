@@ -43,7 +43,7 @@ Un préfixe n'est jamais réattribué ; un identifiant d'exigence retiré n'est 
 | `profils-veille` | `PRF` | [fiche](profils-veille.md) | absente | `personnaliser-profils-et-affichage` | proposée |
 | `comptes-acces` | `ACC` | [fiche](comptes-acces.md) | absente | `gerer-comptes-et-acces` | proposée |
 | `alertes-digests` | `ALR` | [fiche](alertes-digests.md) | [spec](/openspec/specs/alertes-digests/spec.md) | `2026-11-16-diffuser-alertes-et-digests` (archivé) | livrée |
-| `notifications-poste` | `NOT` | [fiche](notifications-poste.md) | absente | `notifier-sur-le-poste` | proposée |
+| `notifications-poste` | `NOT` | [fiche](notifications-poste.md) | absente | `notifier-sur-le-poste` | implémentée, non archivée |
 | `serveur-mcp` | `MCP` | [fiche](serveur-mcp.md) | absente | `exposer-serveur-mcp` | proposée |
 | `passerelle-ia` | `IAG` | [fiche](passerelle-ia.md) | absente | `encadrer-appels-ia` | proposée |
 | `veille-reglementaire` | `REG` | [fiche](veille-reglementaire.md) | absente | `suivre-veille-reglementaire` | proposée |
@@ -126,10 +126,10 @@ Toutes les exigences sont au statut [PROPOSITION] : elles dérivent d'ADR « Pro
 |---|---|---|---|---|---|---|
 | [`gerer-comptes-et-acces`](/openspec/changes/gerer-comptes-et-acces/proposal.md) | `comptes-acces` | 6 | 11 | 1 | 0 | 33 |
 | [`diffuser-alertes-et-digests`](/openspec/changes/archive/2026-11-16-diffuser-alertes-et-digests/proposal.md) (archivé) | `alertes-digests` | 6 | 9 | 1 | 2 | 26 |
-| [`notifier-sur-le-poste`](/openspec/changes/notifier-sur-le-poste/proposal.md) | `notifications-poste` | 6 | 7 | 1 | 2 | 0 |
-| **Total** | | **18** | **27** | **3** | **4** | **59** |
+| [`notifier-sur-le-poste`](/openspec/changes/notifier-sur-le-poste/proposal.md) | `notifications-poste` | 6 | 7 | 1 | 0 | 26 |
+| **Total** | | **18** | **27** | **3** | **2** | **85** |
 
-Dans ce tableau, « Tests écrits » compte les méthodes de test qui passent : `comptes-acces` (11 scénarios couverts) et `alertes-digests` (9 scénarios couverts, classes `AlertesTest`, `EchecSmtpTest`, `RelaisMuetTest` et `RegleAlerteTest`).
+Dans ce tableau, « Tests écrits » compte les méthodes de test qui passent : `comptes-acces` (11 scénarios couverts), `alertes-digests` (9 scénarios couverts, classes `AlertesTest`, `EchecSmtpTest`, `RelaisMuetTest` et `RegleAlerteTest`) et `notifications-poste` (7 scénarios couverts par des tests unitaires et d'intégration simulée : `argos-desktop/test/` et `argos-ui/tests/alertes-poste.test.mjs` ; parcours Electron réel non exécuté).
 
 ### Couverture du lot 3
 

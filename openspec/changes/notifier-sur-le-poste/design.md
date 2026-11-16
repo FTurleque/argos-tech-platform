@@ -6,7 +6,7 @@
 
 ## Contexte technique
 
-`argos-desktop/src/main.js` crée l'icône de zone de notification, masque la fenêtre à la fermeture et affiche une notification via le canal `argos:notify` [EXISTANT, non exécuté]. `argos-ui/src/platform.ts` appelle ce canal [EXISTANT]. Motivation : voir `proposal.md`.
+`argos-desktop/src/main.js` crée l'icône de zone de notification, masque la fenêtre à la fermeture et affiche une notification via le canal `argos:notify` [EXISTANT, non exécuté]. `argos-ui/src/platform.ts` appelle ce canal [EXISTANT]. Le serveur met à disposition les alertes `DESKTOP` par `GET /api/v1/alertes` et enregistre leur remise par `POST /api/v1/alertes/{id}/remise` [EXISTANT — `AlertesResource`, `alertes-digests`]. Motivation : voir `proposal.md`.
 
 ## Exigences couvertes
 
@@ -34,7 +34,7 @@
 |---|---|---|---|
 | `argos-desktop` (processus principal) | notification système, compteur, ouverture au clic | appeler l'API ou filtrer des données | modifié |
 | IHM `argos-ui` — couche contenu | recevoir le flux d'alertes et demander les notifications | afficher plus que le contenu minimal | modifié |
-| `alerting` | fournir le flux d'alertes et la reprise depuis un curseur | — | défini par `diffuser-alertes-et-digests` |
+| `alerting` | fournir les alertes `DESKTOP` en attente et enregistrer leur remise | — | inchangé (contrat de `diffuser-alertes-et-digests`) |
 
 ## Modèle de domaine et invariants
 
@@ -55,9 +55,9 @@ sequenceDiagram
     participant UI as argos-ui couche contenu
     participant D as argos-desktop processus principal
     actor U as Utilisateur
-    UI->>AL: abonnement au flux depuis le dernier curseur
-    AL-->>UI: alerte (titre, gravité, nombre de projets)
-    UI->>D: notifier et mettre à jour le compteur
+    UI->>AL: alertes DESKTOP EN_ATTENTE (toutes les 30 s)
+    AL-->>UI: alertes de l'appelant
+    UI->>D: notifier (identifiant, titre, gravité, nombre de projets) et mettre à jour le compteur
     alt notifications du poste actives et autorisées
         D-->>U: notification système
     else coupées ou refusées
@@ -65,10 +65,11 @@ sequenceDiagram
     end
     U->>D: clic sur la notification
     D->>UI: afficher l'alerte
-    Note over UI,AL: coupure : reconnexion depuis le dernier curseur reçu
+    UI->>AL: confirmer la remise
+    Note over UI,AL: coupure : les alertes non confirmées restent EN_ATTENTE et reviennent à la reconnexion
 ```
 
-Le curseur du dernier événement reçu permet de reprendre sans perte ni doublon après une coupure.
+L'état `EN_ATTENTE` tient lieu de curseur : une alerte non confirmée revient à la lecture suivante, sans perte ; les identifiants déjà traités pendant la session évitent les doublons.
 
 
 ## États et transitions
@@ -77,11 +78,11 @@ Non applicable — conception allégée ; à préciser avec les tâches d'implé
 
 ## Contrats d'interface
 
-Flux d'alertes : diffusion serveur vers client (Server-Sent Events) avec curseur de reprise, défini avec `diffuser-alertes-et-digests` ; pont `window.argosDesktop.notify` étendu d'un identifiant d'élément et d'un compteur.
+Alertes : lecture périodique de `GET /api/v1/alertes?canal=DESKTOP&etat=EN_ATTENTE` puis `POST /api/v1/alertes/{id}/remise` (contrat existant, aucun changement côté serveur). Pont `window.argosDesktop` étendu de `notifyAlert` (identifiant, titre, gravité, nombre de projets), `setAlertCount`, `onOpenAlert`, `getSettings`, `setSettings` et `onSettingsChanged`.
 
 ## Persistance et intégrité
 
-Non applicable — conception allégée ; à préciser avec les tâches d'implémentation correspondantes.
+Aucune migration. Réglages du poste dans `reglages-poste.json` (dossier de données de l'application, écriture par fichier temporaire renommé) ; identifiants des alertes ouvertes dans la mémoire locale de l'IHM (500 au plus, sans contenu).
 
 ## Transactions, concurrence et idempotence
 
@@ -109,13 +110,22 @@ Non applicable — aucune donnée ni aucun contrat existants.
 
 ## Décisions, alternatives et compromis
 
-### D1 — Flux serveur avec curseur
+### D1 — Lecture périodique du contrat existant
 
 - **Statut** : [PROPOSITION]
-- **Choix** : Server-Sent Events et curseur du dernier événement
-- **Justification** : simple à traverser un reverse proxy, reprise native
-- **Alternatives écartées** : interrogation périodique — délai et charge ; WebSocket — inutilement bidirectionnel
-- **Compromis** : connexion longue à garder ouverte
+- **Choix** : lecture des alertes `DESKTOP` `EN_ATTENTE` toutes les 30 s, puis confirmation de remise ; l'état `EN_ATTENTE` tient lieu de curseur
+- **Justification** : le contrat de `diffuser-alertes-et-digests` existe déjà et garantit la reprise sans perte ; aucune modification du serveur ni connexion longue à maintenir derrière le reverse proxy
+- **Alternatives écartées** : Server-Sent Events — nouveau contrat serveur et connexion longue pour un gain de délai non exigé ; WebSocket — inutilement bidirectionnel
+- **Compromis** : délai de 30 s au plus entre l'enregistrement d'une alerte et sa notification ; une requête toutes les 30 s par poste
+- **ADR** : non : décision locale
+
+### D3 — Réglages gardés sur le poste
+
+- **Statut** : [PROPOSITION]
+- **Choix** : « notifications du poste » et « démarrage avec la session » dans un fichier du dossier de données de l'application, modifiables depuis la vue « Poste » de l'IHM et le menu de la zone de notification
+- **Justification** : le réglage concerne un poste et non un compte ; aucun canal côté serveur n'est touché (NOT-04) ; aucune migration
+- **Alternatives écartées** : préférence côté serveur — nouvelle table et nouveau contrat pour un réglage propre au poste
+- **Compromis** : un utilisateur avec deux postes règle chacun séparément
 - **ADR** : non : décision locale
 
 ### D2 — Contenu minimal
@@ -139,12 +149,13 @@ Aucun écart constaté.
 
 | Exigence / scénario | Niveau de test | Moyen de preuve | État |
 |---|---|---|---|
-| NOT-01-S1, NOT-01-S2 | E2E desktop | Electron piloté (Playwright) | à écrire |
-| NOT-02-S1 | E2E desktop | clic simulé | à écrire |
-| NOT-03-S1 | E2E desktop | compteur | à écrire |
-| NOT-04-S1 | intégration | préférence et canal e-mail | à écrire |
-| NOT-05-S1 | unitaire | construction du texte | à écrire |
-| NOT-06-S1 | E2E | serveur arrêté puis relancé | à écrire |
+| NOT-01-S1, NOT-01-S2 | intégration (doublures Electron et serveur simulé) | `argos-desktop/test/poste.test.js`, `argos-ui/tests/alertes-poste.test.mjs` | passe |
+| NOT-02-S1 | intégration (doublures Electron) | `argos-desktop/test/poste.test.js` | passe |
+| NOT-03-S1 | intégration | `argos-desktop/test/poste.test.js`, `argos-ui/tests/alertes-poste.test.mjs` | passe |
+| NOT-04-S1 | intégration | `argos-desktop/test/poste.test.js`, `argos-desktop/test/preferences.test.js` | passe |
+| NOT-05-S1 | unitaire | `argos-desktop/test/notifications.test.js`, `argos-ui/tests/alertes-poste.test.mjs` | passe |
+| NOT-06-S1 | intégration (serveur simulé : coupure puis retour) | `argos-ui/tests/alertes-poste.test.mjs` | passe |
+| parcours 3.2 | E2E Electron réel | client desktop lancé contre un serveur local | non exécuté (binaire Electron absent) |
 
 ## Documentation durable impactée
 
