@@ -154,7 +154,13 @@ export interface AlerteVue {
   etat: string
   titre: string
   gravite: string | null
-  contenu: { elements: ElementAlerteApi[]; resumeIa: string | null; etatResumeIa: string } | null
+  contenu: {
+    elements: ElementAlerteApi[]
+    resumeIa: string | null
+    etatResumeIa: string
+    /** « produit par l'IA » dès qu'un résumé est présent (IAG-05). */
+    mentionResumeIa?: string | null
+  } | null
   tentatives: number
   creeLe: string
   envoyeLe: string | null

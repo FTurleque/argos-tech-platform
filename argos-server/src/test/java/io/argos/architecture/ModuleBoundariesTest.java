@@ -35,13 +35,15 @@ class ModuleBoundariesTest {
             Map.entry("catalog", Set.of("audit", "workspace")),
             Map.entry("inventory", Set.of("workspace", "catalog", "scm")),
             // signal n'emprunte à workspace que le contexte RLS et les erreurs du domaine : voir signalNEmprunteQueRlsEtErreurs.
-            Map.entry("signal", Set.of("ingestion", "catalog", "workspace")),
+            // signal.web demande le résumé IA d'une actualité par le contrat de la passerelle (encadrer-appels-ia).
+            Map.entry("signal", Set.of("ingestion", "catalog", "workspace", "aigateway")),
             Map.entry("vulnintel", Set.of("signal", "catalog")),
             Map.entry("releaseradar", Set.of("signal", "catalog")),
             Map.entry("regintel", Set.of("signal", "catalog", "aigateway")),
             // impact lit le référentiel des standards pour la dette de version et les annonces (radar-standards).
             Map.entry("impact", Set.of("signal", "vulnintel", "releaseradar", "inventory", "aigateway", "catalog")),
-            Map.entry("alerting", Set.of("impact", "workspace")),
+            // alerting demande le résumé IA d'une alerte par le contrat de la passerelle (encadrer-appels-ia).
+            Map.entry("alerting", Set.of("impact", "workspace", "aigateway")),
             Map.entry("api", Set.of("workspace", "catalog", "inventory", "signal", "vulnintel", "releaseradar",
                     "regintel", "impact", "alerting", "projectintel", "audit")),
             // mcp réutilise l'établissement de l'appelant de l'API (api.security) : voir mcpNeLitQueLaSecuriteDeLApi.
@@ -90,6 +92,22 @@ class ModuleBoundariesTest {
                         (JavaClass c) -> c.getPackageName().startsWith(ROOT + ".api")
                                 && !c.getPackageName().startsWith(ROOT + ".api.security")))
                 .because("arc42 §5 : dans le module api, mcp ne dépend que de api.security")
+                .check(classes);
+    }
+
+    /**
+     * Seule la passerelle IA connaît le fournisseur de modèles (arc42 §5.5 règle 3, ADR-0004) : aucune
+     * classe hors de {@code aigateway} ne dépend de l'adaptateur Ollama ni du contrat du fournisseur ;
+     * les modules appelants n'utilisent que {@code PasserelleIa}, {@code DemandeIa} et {@code ReponseIa}.
+     */
+    @Test
+    void seuleLaPasserelleConnaitLeFournisseur() {
+        noClasses().that().resideOutsideOfPackage(ROOT + ".aigateway..")
+                .should().dependOnClassesThat(DescribedPredicate.describe("fournisseur de modèles",
+                        (JavaClass c) -> c.getPackageName().startsWith(ROOT + ".aigateway.ollama")
+                                || c.getName().startsWith(ROOT + ".aigateway.FournisseurModele")
+                                || c.getName().equals(ROOT + ".aigateway.QuotasIa")))
+                .because("arc42 §5.5 : seule l'AI Gateway appelle le fournisseur et tient les quotas")
                 .check(classes);
     }
 
