@@ -20,6 +20,8 @@
     <quarkus.platform.artifact-id>quarkus-bom</quarkus.platform.artifact-id>
     <quarkus.platform.version>3.40.1.2</quarkus.platform.version>
     <archunit.version>1.5.1</archunit.version>
+    <rome.version>2.1.0</rome.version>
+    <jsoup.version>1.22.1</jsoup.version>
     <compiler-plugin.version>3.14.0</compiler-plugin.version>
     <surefire-plugin.version>3.5.3</surefire-plugin.version>
     <skipITs>true</skipITs>
@@ -77,6 +79,27 @@
     <dependency>
       <groupId>io.quarkus</groupId>
       <artifactId>quarkus-oidc</artifactId>
+    </dependency>
+
+    <!-- Veille RSS/Atom et pages surveillées (ADR-0028, collecteur intégré) : licences enregistrées
+         à l'introduction (ADR-0021 point 6). -->
+    <!-- Planification de la collecte horaire. Apache-2.0. -->
+    <dependency>
+      <groupId>io.quarkus</groupId>
+      <artifactId>quarkus-scheduler</artifactId>
+    </dependency>
+    <!-- Lecture RSS 0.9x/1.0/2.0 et Atom. Apache-2.0 ; dépendances transitives : rome-utils
+         (Apache-2.0), jdom2 (licence JDOM, de type Apache/BSD), slf4j-api (MIT). -->
+    <dependency>
+      <groupId>com.rometools</groupId>
+      <artifactId>rome</artifactId>
+      <version>${rome.version}</version>
+    </dependency>
+    <!-- Extraction du texte des pages HTML et nettoyage du contenu des flux. MIT. -->
+    <dependency>
+      <groupId>org.jsoup</groupId>
+      <artifactId>jsoup</artifactId>
+      <version>${jsoup.version}</version>
     </dependency>
 
     <!-- Tests -->

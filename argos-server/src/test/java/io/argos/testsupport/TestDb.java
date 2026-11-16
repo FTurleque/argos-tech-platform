@@ -39,7 +39,7 @@ public class TestDb {
 
     public void reset() {
         exec("""
-                TRUNCATE subscription_opt_out, subscription, refus_acces, project_impact, inventory_import_failure,
+                TRUNCATE actualite_impact, actualite_source, actualite, source_web, subscription_opt_out, subscription, refus_acces, project_impact, inventory_import_failure,
                          component, inventory, project, enrichment, signal_package, signal_alias,
                          signal_version, signal, ops_event, ingestion_failure, sync_attempt, sync_run, sync_cursor CASCADE
                 """);
