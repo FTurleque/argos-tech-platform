@@ -48,6 +48,8 @@ La recherche plein texte et les vues enregistrées (changement `rechercher-et-fi
 
 La passerelle IA (changement `encadrer-appels-ia`, ADR-0029 proposé) n'ajoute aucun diagramme d'architecture : DC-1 du changement décrit les vérifications qui précèdent et suivent un appel, DF-IAG-1 ([`passerelle-ia`](../../specifications/passerelle-ia.md#df-iag-1--un-résumé-est-il-produit-)) les cas où un élément reçoit un résumé ; les flèches `alerting`, `signal` et `impact-engine` vers `ai-gateway` figurent en arc42 §5.2.
 
+Le profil de veille `artiste` (changement `ajouter-profil-artiste`) n'ajoute aucun diagramme d'architecture : ses composants sont décrits par le tableau de `arc42/05-vue-blocs.md` §5.4.2, DF-ART-1 ([`profil-artiste`](../../specifications/profil-artiste.md#df-art-1--un-appel-est-il-proposé-à-lartiste-)) et DC-1 du changement décrivent le rapprochement d'un appel.
+
 Les diagrammes métier par capacité (`DF-*`) sont inventoriés dans [`../../specifications/README.md`](../../specifications/README.md#inventaire-des-diagrammes-métier) ; les diagrammes de conception propres à un changement OpenSpec (`DC-*`) restent dans son `design.md`.
 
 ## Diagrammes à ajouter lorsque l’implémentation existe

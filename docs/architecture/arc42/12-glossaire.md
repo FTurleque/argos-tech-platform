@@ -26,6 +26,9 @@
 | **Espace courant** | espace transmis à PostgreSQL dans chaque transaction (`argos.espace_courant`) pour la RLS |
 | **Keycloak** | fournisseur d’identité OIDC open source (Apache-2.0) auto-hébergé, retenu par ADR-0027 (Proposé) |
 | **Profil de veille** | type de veille qu’un utilisateur active (`developpeur`, `expert-metier`…) : sources, rubriques, stratégies de rapprochement et garde-fous décrits par un manifeste du catalogue ; cumulable, sans effet sur les droits ; à ne pas confondre avec un rôle (ADR-0024) |
+| **Objet suivi** | valeur qu'un utilisateur suit pour un profil de veille, choisie dans une liste fermée du manifeste (par exemple discipline `arts-visuels`, territoire `occitanie` du profil `artiste`) ; visible de lui seul, sans effet sur les droits |
+| **Opportunité** | appel à projets, résidence, aide, information ou événement collecté par une source vérifiée du profil `artiste`, avec ses disciplines, ses territoires et sa date limite (absente : « date à confirmer ») ; restituée par la stratégie discipline + territoire + date limite (capacité `profil-artiste`) |
+| **Conditions d'usage** | licence et règles de réutilisation d'une source de profil, vérifiées et enregistrées par l'administrateur plateforme avant toute collecte (ART-05) |
 | **Mise en page** | présentation de l’IHM choisie par l’utilisateur (`classique`, `journal`, `fantaisie`, `gazette`) ; change la forme, jamais le contenu ni les mentions (ADR-0023) |
 | **Alerte** | message immédiat adressé à un utilisateur sur un canal quand un impact exact ou probable satisfait une de ses règles ; une seule par signal, utilisateur et canal (capacité `alertes-digests`) |
 | **Résumé périodique** | message quotidien ou hebdomadaire listant les éléments non alertés immédiatement ; jamais envoyé vide (en anglais : *digest*) |

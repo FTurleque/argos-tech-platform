@@ -12,5 +12,9 @@ public enum TypeGardeFou {
     /** L'IA résume, elle ne décide jamais d'un impact (ADR-0013). */
     IA_SANS_DECISION,
     /** Aucun contenu restitué ne constitue un avis juridique (ADR-0018). */
-    AUCUN_AVIS_JURIDIQUE
+    AUCUN_AVIS_JURIDIQUE,
+    /** Aucun contenu restitué ne se prononce sur l'éligibilité de l'utilisateur ; il renvoie au texte officiel (ART-06). */
+    AUCUN_AVIS_ELIGIBILITE,
+    /** Une source n'est collectée qu'après vérification et enregistrement de ses conditions d'usage (ART-05). */
+    SOURCES_VERIFIEES
 }

@@ -51,7 +51,7 @@ Un préfixe n'est jamais réattribué ; un identifiant d'exigence retiré n'est 
 | `veille-rss-web` | `WEB` | [fiche](veille-rss-web.md) | [spec](/openspec/specs/veille-rss-web/spec.md) | `2026-11-16-collecter-veille-rss-web` (archivé) | livrée |
 | `recherche-veille` | `RCH` | [fiche](recherche-veille.md) | absente | `rechercher-et-filtrer` | proposée |
 | `activite-projets` | `PIN` | [fiche](activite-projets.md) | absente | `mesurer-activite-projets` | implémentée côté serveur, non archivée |
-| `profil-artiste` | `ART` | [fiche](profil-artiste.md) | absente | `ajouter-profil-artiste` | proposée |
+| `profil-artiste` | `ART` | [fiche](profil-artiste.md) | absente | `ajouter-profil-artiste` | implémentée, non archivée |
 
 ## Inventaire des diagrammes métier
 
@@ -160,10 +160,10 @@ Pour `rechercher-et-filtrer`, « Tests écrits » compte les scénarios RCH-01-S
 | Changement | Capacité | Exigences | Scénarios | Diagrammes métier | Questions ouvertes | Tests écrits |
 |---|---|---|---|---|---|---|
 | [`mesurer-activite-projets`](/openspec/changes/mesurer-activite-projets/proposal.md) | `activite-projets` | 5 | 6 | 1 | 0 | 6 |
-| [`ajouter-profil-artiste`](/openspec/changes/ajouter-profil-artiste/proposal.md) | `profil-artiste` | 6 | 8 | 1 | 4 | 0 |
-| **Total** | | **11** | **14** | **2** | **6** | **0** |
+| [`ajouter-profil-artiste`](/openspec/changes/ajouter-profil-artiste/proposal.md) | `profil-artiste` | 6 | 8 | 1 | 4 | 8 |
+| **Total** | | **11** | **14** | **2** | **4** | **14** |
 
-Toutes ces exigences sont au statut [PROPOSITION] ; la matrice de traçabilité de chaque changement est dans son `tasks.md`.
+Toutes ces exigences sont au statut [PROPOSITION] ; la matrice de traçabilité de chaque changement est dans son `tasks.md`. Pour `ajouter-profil-artiste`, « Tests écrits » compte les scénarios ART-01-S1 à ART-06-S1 couverts par un test qui passe (`argos-server/src/test/java/io/argos/chain/ProfilArtisteTest.java`, `alerting/RappelsOpportunitesTest.java`, `impact/StrategieDisciplineTerritoireTest.java`) ; le parcours de la tâche 5.2 est `chain/ParcoursArtisteTest.java`. Matrice détaillée : [`tasks.md` du changement](/openspec/changes/ajouter-profil-artiste/tasks.md#matrice-de-traçabilité).
 
 ### Capacités restant à spécifier
 

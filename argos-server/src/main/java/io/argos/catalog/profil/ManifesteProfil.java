@@ -3,6 +3,7 @@ package io.argos.catalog.profil;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
+import java.util.Optional;
 
 /**
  * Manifeste d'un profil de veille : pack déclaratif publié au catalogue
@@ -23,6 +24,8 @@ import java.util.List;
  * @param typesObjetsSuivis types d'objets auxquels les signaux sont rapprochés
  * @param strategies        stratégies de rapprochement, toutes déterministes
  * @param gardeFous         garde-fous appliqués avant diffusion
+ * @param listes            listes fermées des valeurs suivies par type d'objet (facultatif), par exemple
+ *                          les disciplines et les territoires du profil {@code artiste}
  */
 public record ManifesteProfil(
         int formatManifeste,
@@ -35,7 +38,8 @@ public record ManifesteProfil(
         List<Rubrique> rubriques,
         List<String> typesObjetsSuivis,
         List<StrategieDeclaree> strategies,
-        List<GardeFou> gardeFous) {
+        List<GardeFou> gardeFous,
+        List<ListeObjets> listes) {
 
     /** Seule version de format acceptée. */
     public static final int FORMAT_COURANT = 1;
@@ -47,6 +51,25 @@ public record ManifesteProfil(
         typesObjetsSuivis = copie(typesObjetsSuivis);
         strategies = copie(strategies);
         gardeFous = copie(gardeFous);
+        listes = copie(listes);
+    }
+
+    /** Manifeste sans liste de valeurs suivies. */
+    public ManifesteProfil(int formatManifeste, String identifiant, String version, String libelle,
+            String description, List<String> categoriesSources, List<String> connecteurs, List<Rubrique> rubriques,
+            List<String> typesObjetsSuivis, List<StrategieDeclaree> strategies, List<GardeFou> gardeFous) {
+        this(formatManifeste, identifiant, version, libelle, description, categoriesSources, connecteurs, rubriques,
+                typesObjetsSuivis, strategies, gardeFous, List.of());
+    }
+
+    /** Liste des valeurs admises pour un type d'objet suivi. */
+    public Optional<ListeObjets> liste(String typeObjet) {
+        return listes.stream().filter(l -> l != null && typeObjet.equals(l.typeObjet())).findFirst();
+    }
+
+    /** Vrai si le profil déclare ce garde-fou. */
+    public boolean impose(TypeGardeFou type) {
+        return gardeFous.stream().anyMatch(g -> g != null && g.type() == type);
     }
 
     private static <T> List<T> copie(List<T> valeurs) {
