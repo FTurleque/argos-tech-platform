@@ -3,9 +3,9 @@
 <!--
 Niveau (repris de la proposition) : complète | allégée | non applicable.
 Une section sans objet porte « Non applicable — <raison> » ; ne pas la remplir de généralités.
-Statuts : [EXIGENCE] [EXISTANT] [DÉCISION] [PROPOSITION] [QUESTION] (légende dans proposal.md).
+Statuts : [EXIGENCE] [EXISTANT] [DÉCISION] [PROPOSITION] [QUESTION] (légende : /docs/specifications/README.md#statuts-des-informations).
 Noms de composants : ceux de /docs/architecture/arc42/05-vue-blocs.md ; termes : glossaire arc42 §12.
-Chaque diagramme Mermaid : question posée, type exact (UML, C4, entité-association, organigramme),
+Chaque diagramme Mermaid : identifiant DC-<n>, question posée, type exact (UML, C4, entité-association, organigramme),
 existant ou cible, exigences concernées, explication sous le diagramme.
 -->
 
@@ -19,7 +19,7 @@ existant ou cible, exigences concernées, explication sous le diagramme.
 
 | Exigence | Section(s) de conception | Diagramme(s) |
 |---|---|---|
-| <!-- PRÉFIXE-NN --> | <!-- § --> | <!-- D-… ou titre --> |
+| <!-- PRÉFIXE-NN --> | <!-- § --> | <!-- DC-n --> |
 
 ## Objectifs et non-objectifs
 
