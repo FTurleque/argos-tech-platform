@@ -7,6 +7,9 @@
 | **Project Intelligence** | consolidation factuelle de l’activité, des jalons, releases, pipelines et signaux projet |
 | **IntelligenceItem** | élément de veille normalisé provenant d’une source externe |
 | **ProjectActivity** | événement projet normalisé : issue, PR/MR, pipeline, release, déploiement, etc. |
+| **Compteur d’activité** | nombre d’événements d’un type (ticket ouvert ou fermé, demande de fusion ouverte ou fusionnée, pipeline, version) pour un projet et un jour ; seule forme conservée de l’activité d’un dépôt, sans identité de personne, supprimée après 13 mois (capacité `activite-projets`) |
+| **Avancement d’un jalon** | « fermés sur total » d’un jalon, avec un pourcentage arrondi à l’entier inférieur, affiché seulement quand le total est connu et positif (capacité `activite-projets`) |
+| **Fraîcheur** | état de la collecte d’activité d’un projet (`A_JOUR`, `REPORTEE_QUOTA`, `ECHEC`, `JAMAIS_COLLECTE`) et date de dernière mise à jour des indicateurs affichés (capacité `activite-projets`) |
 | **ProjectImpact** | relation argumentée entre un `IntelligenceItem` et un projet potentiellement affecté |
 | **Référentiel des standards** | technologies d’un espace avec leur statut (`ADOPT`, `TRIAL`, `ASSESS`, `HOLD`), version recommandée, responsable, justification et date de revue ; tenu par les administrateurs de l’espace (§8.15) |
 | **Radar des sorties** | échéances (sortie, correctif, fin de support) des technologies d’un espace sur 30 jours, 6 mois ou 1 an, issues d’endoflife.date |
