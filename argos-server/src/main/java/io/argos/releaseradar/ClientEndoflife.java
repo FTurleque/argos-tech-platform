@@ -1,0 +1,157 @@
+package io.argos.releaseradar;
+
+import java.io.IOException;
+import java.io.InputStream;
+import java.net.URI;
+import java.net.URLEncoder;
+import java.net.http.HttpClient;
+import java.net.http.HttpRequest;
+import java.net.http.HttpResponse;
+import java.nio.charset.StandardCharsets;
+import java.time.Duration;
+import java.time.LocalDate;
+import java.time.format.DateTimeParseException;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.regex.Pattern;
+
+import jakarta.annotation.PostConstruct;
+import jakarta.enterprise.context.ApplicationScoped;
+
+import org.eclipse.microprofile.config.inject.ConfigProperty;
+
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
+
+/**
+ * Connecteur de l'API publique et gratuite endoflife.date (Q-2), version 1 :
+ * {@code GET <base>/api/v1/products/<produit>}.
+ *
+ * <p>Protections : l'adresse de base vient de la configuration, jamais d'une saisie ; l'identifiant
+ * de produit est contrôlé ({@link #PRODUIT}) puis encodé ; aucune redirection n'est suivie ; la durée
+ * et la taille de la réponse sont bornées ; la réponse est traitée comme une donnée non fiable
+ * (chaque cycle mal formé est ignoré, les textes sont tronqués).
+ */
+@ApplicationScoped
+public class ClientEndoflife {
+
+    /** Identifiant de produit accepté : celui de la colonne {@code produit_cycle_vie} (V13). */
+    public static final Pattern PRODUIT = Pattern.compile("^[a-z0-9][a-z0-9._+-]{0,99}$");
+
+    /** Cycle de vie d'une branche d'un produit, tel que publié par la source. */
+    public record Cycle(String cycle, LocalDate sortie, LocalDate finSupport, boolean enFinSupport,
+            String derniereVersion, LocalDate derniereVersionLe) {
+    }
+
+    /** Source indisponible ou réponse inexploitable. */
+    public static class SourceIndisponible extends Exception {
+
+        private static final long serialVersionUID = 1L;
+
+        public SourceIndisponible(String message) {
+            super(message);
+        }
+    }
+
+    private static final int CYCLES_MAX = 500;
+    private static final ObjectMapper JSON = new ObjectMapper();
+
+    @ConfigProperty(name = "argos.radar.endoflife.url")
+    String base;
+
+    @ConfigProperty(name = "argos.radar.endoflife.delai")
+    Duration delai;
+
+    @ConfigProperty(name = "argos.radar.endoflife.taille-max-octets")
+    int tailleMax;
+
+    private HttpClient client;
+
+    @PostConstruct
+    void initialiser() {
+        client = HttpClient.newBuilder().connectTimeout(delai).followRedirects(HttpClient.Redirect.NEVER).build();
+    }
+
+    /** Cycles publiés pour le produit. */
+    public List<Cycle> cycles(String produit) throws SourceIndisponible {
+        if (produit == null || !PRODUIT.matcher(produit).matches()) {
+            throw new SourceIndisponible("identifiant de produit invalide");
+        }
+        URI uri = URI.create(base.replaceAll("/+$", "") + "/api/v1/products/"
+                + URLEncoder.encode(produit, StandardCharsets.UTF_8));
+        HttpRequest requete = HttpRequest.newBuilder(uri).timeout(delai).header("Accept", "application/json")
+                .header("User-Agent", "argos-server").GET().build();
+        byte[] corps;
+        try {
+            HttpResponse<InputStream> reponse = client.send(requete, HttpResponse.BodyHandlers.ofInputStream());
+            try (InputStream in = reponse.body()) {
+                if (reponse.statusCode() == 404) {
+                    throw new SourceIndisponible("produit inconnu d'endoflife.date");
+                }
+                if (reponse.statusCode() != 200) {
+                    throw new SourceIndisponible("réponse HTTP " + reponse.statusCode());
+                }
+                corps = in.readNBytes(tailleMax + 1);
+            }
+        } catch (IOException e) {
+            throw new SourceIndisponible("source injoignable : " + e.getClass().getSimpleName());
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+            throw new SourceIndisponible("synchronisation interrompue");
+        }
+        if (corps.length > tailleMax) {
+            throw new SourceIndisponible("réponse trop volumineuse");
+        }
+        return lire(corps);
+    }
+
+    /** Lecture tolérante de la réponse : un cycle mal formé est ignoré, pas la réponse entière. */
+    static List<Cycle> lire(byte[] corps) throws SourceIndisponible {
+        JsonNode racine;
+        try {
+            racine = JSON.readTree(corps);
+        } catch (IOException e) {
+            throw new SourceIndisponible("réponse illisible");
+        }
+        JsonNode releases = racine == null ? null : racine.path("result").path("releases");
+        if (releases == null || !releases.isArray()) {
+            throw new SourceIndisponible("réponse sans liste de cycles");
+        }
+        List<Cycle> cycles = new ArrayList<>();
+        for (JsonNode r : releases) {
+            if (cycles.size() >= CYCLES_MAX) {
+                break;
+            }
+            String nom = texte(r.path("name"), 100);
+            if (nom == null) {
+                continue;
+            }
+            JsonNode latest = r.path("latest");
+            LocalDate fin = date(r.path("eolFrom"));
+            boolean enFin = r.path("isEol").asBoolean(false);
+            cycles.add(new Cycle(nom, date(r.path("releaseDate")), fin, enFin, texte(latest.path("name"), 100),
+                    date(latest.path("date"))));
+        }
+        return cycles;
+    }
+
+    private static String texte(JsonNode n, int longueurMax) {
+        if (n == null || !n.isTextual() || n.asText().isBlank()) {
+            return null;
+        }
+        String t = n.asText().strip().replaceAll("\\p{Cntrl}", "");
+        return t.length() > longueurMax ? null : t;
+    }
+
+    private static LocalDate date(JsonNode n) {
+        String t = texte(n, 10);
+        if (t == null) {
+            return null;
+        }
+        try {
+            return LocalDate.parse(t);
+        } catch (DateTimeParseException e) {
+            return null;
+        }
+    }
+}
