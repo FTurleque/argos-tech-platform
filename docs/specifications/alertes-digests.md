@@ -121,7 +121,7 @@ Interprétations du changement `diffuser-alertes-et-digests`, à faire valider [
 - un élément alerté sur un canal n'est repris dans aucun résumé du même utilisateur ;
 - aucun résumé envoyé quand il est vide (ALR-04-S2) ;
 - canaux `EMAIL` et `DESKTOP` seulement ; tout autre canal d'abonnement (`IN_APP`, par exemple) ne déclenche aucune diffusion ;
-- le résumé IA porte sur le seul signal ; sans implémentation de `ResumeIa` (aucune n'est livrée), l'état est `INDISPONIBLE` ;
+- le résumé IA porte sur le seul signal ; il est produit par la passerelle IA (`ResumeIaPasserelle`, capacité [`passerelle-ia`](passerelle-ia.md)) et vaut `INDISPONIBLE` si Ollama est injoignable ;
 - le lien vers l'élément vise `<ARGOS_PUBLIC_URL>/signaux/<id>` ; la page correspondante de l'IHM reste à créer ;
 - cinq tentatives au plus, délai initial d'une minute doublé à chaque échec, plafonné à 30 minutes ; une adresse e-mail absente est un échec définitif ;
 - chaque envoi dure au plus 10 s (`quarkus.mailer.timeout`, variable `ARGOS_SMTP_TIMEOUT`) ; toute erreur, y compris un contenu illisible ou un relais qui ne répond pas, compte comme une tentative ; aucun verrou n'est tenu pendant l'envoi ;

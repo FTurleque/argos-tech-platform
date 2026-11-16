@@ -46,6 +46,8 @@ Le collecteur RSS/Atom et web intégré (ADR-0028) n'ajoute aucun diagramme d'ar
 
 La recherche plein texte et les vues enregistrées (changement `rechercher-et-filtrer`) n'ajoutent aucun diagramme d'architecture : DF-RCH-1 ([`recherche-veille`](../../specifications/recherche-veille.md#df-rch-1--une-recherche-filtrée)) décrit l'ordre des droits, des mots et des filtres.
 
+La passerelle IA (changement `encadrer-appels-ia`, ADR-0029 proposé) n'ajoute aucun diagramme d'architecture : DC-1 du changement décrit les vérifications qui précèdent et suivent un appel, DF-IAG-1 ([`passerelle-ia`](../../specifications/passerelle-ia.md#df-iag-1--un-résumé-est-il-produit-)) les cas où un élément reçoit un résumé ; les flèches `alerting`, `signal` et `impact-engine` vers `ai-gateway` figurent en arc42 §5.2.
+
 Les diagrammes métier par capacité (`DF-*`) sont inventoriés dans [`../../specifications/README.md`](../../specifications/README.md#inventaire-des-diagrammes-métier) ; les diagrammes de conception propres à un changement OpenSpec (`DC-*`) restent dans son `design.md`.
 
 ## Diagrammes à ajouter lorsque l’implémentation existe
