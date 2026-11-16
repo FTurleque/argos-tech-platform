@@ -7,7 +7,7 @@ Rapport de la tâche 2.2 du changement [`rechercher-et-filtrer`](/openspec/chang
 | Élément | Valeur |
 |---|---|
 | Test | `argos-server/src/test/java/io/argos/api/recherche/MesurePerformanceRechercheTest.java`, exécuté à la demande : `mvn -f argos-server/pom.xml test -Dtest=MesurePerformanceRechercheTest -Dargos.performance=true` |
-| Base | PostgreSQL des Dev Services Quarkus (conteneur jetable, configuration par défaut), migrations V1 à V12 |
+| Base | PostgreSQL des Dev Services Quarkus (conteneur jetable, configuration par défaut), migrations V1 à V11 |
 | Jeu (Q-2) | 100 000 actualités dans chacun de deux espaces, 20 000 signaux publics, 2 000 impacts par espace. L'utilisateur mesuré voit 120 000 éléments ; les 100 000 actualités de l'autre espace sont écartées par les règles de visibilité. Textes de 30 mots tirés d'un vocabulaire de 3 000 mots ; « Oracle » dans 1 % des titres, « Kubernetes » dans 5 %, « correctif » dans 10 % ; dates réparties sur un an |
 | Appel mesuré | `GET /api/v1/recherche` avec un jeton réel du Keycloak de test, client RestAssured sur le même poste ; durée de l'appel HTTP complet |
 | Campagne | 11 requêtes, 3 tours d'échauffement, puis 20 répétitions de chacune |
@@ -36,6 +36,6 @@ La campagne respecte la cible Q-05 : p95 = 250 ms < 500 ms.
 ## Lecture
 
 - Le coût dominant d'une recherche par mots est le classement (`ts_rank`) de tous les éléments correspondants : il croît avec leur nombre. Un mot présent dans tous les éléments (120 000 classés) dépasse la cible d'un facteur 7 ; c'est la limite connue du risque R-16, à surveiller avant tout moteur dédié.
-- Les opérateurs plein texte de PostgreSQL ne sont pas « leakproof » : sous la RLS, l'index GIN d'une table protégée serait inutilisable. La sélection passe donc par la fonction `argos_rechercher_veille` (migration V12), qui applique explicitement les règles de visibilité, puis la page est relue sous la RLS.
+- Les opérateurs plein texte de PostgreSQL ne sont pas « leakproof » : sous la RLS, l'index GIN d'une table protégée serait inutilisable. La sélection passe donc par la fonction `argos_rechercher_veille` (migration V11), qui applique explicitement les règles de visibilité, puis la page est relue sous la RLS.
 - `toast_tuple_target = 256` sur `signal` et `actualite` range le vecteur et les textes hors de la ligne : les parcours sans mots lisent des lignes étroites.
 - Mesure sur un poste partagé : les valeurs sont indicatives d'un ordre de grandeur, pas d'une capacité de production.

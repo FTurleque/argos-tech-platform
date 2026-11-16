@@ -59,7 +59,7 @@ Utilisateur authentifié par un jeton OIDC valide ; la recherche est déclenché
 
 ## Droits d'accès et restrictions
 
-- Sélection : la fonction `argos_rechercher_veille` (migration V12), exécutée par le rôle `argos_app` avec le compte courant, applique explicitement les règles de visibilité des politiques RLS (espaces lisibles, actualité de son périmètre citée par une source visible, impacts et rapprochements d'un espace lisible) ; sans compte courant, elle ne renvoie rien.
+- Sélection : la fonction `argos_rechercher_veille` (migration V11), exécutée par le rôle `argos_app` avec le compte courant, applique explicitement les règles de visibilité des politiques RLS (espaces lisibles, actualité de son périmètre citée par une source visible, impacts et rapprochements d'un espace lisible) ; sans compte courant, elle ne renvoie rien.
 - Restitution : chaque élément de la page est relu sous la RLS d'`argos_app` ; les projets cités sont limités, en plus, aux espaces de l'appelant.
 - Les mots saisis ne sont que des paramètres liés : aucune saisie n'est concaténée au SQL.
 

@@ -38,6 +38,7 @@ Chaque relation doit porter une action et le protocole lorsqu’il est architect
 | D-15 | C4 Component | préférences d’affichage et de veille, couches contenu et mise en page de l’IHM | `arc42/05-vue-blocs.md` §5.4.1 |
 | D-16 | UML sequenceDiagram | impact → alerte immédiate ou résumé périodique, e-mail et client desktop | `arc42/06-vue-execution.md` §6.1.1 |
 | D-17 | UML sequenceDiagram | alerte `DESKTOP` → notification système, clic, reprise après coupure | `arc42/06-vue-execution.md` §6.1.2 |
+| D-18 | UML sequenceDiagram | tâche quotidienne du radar : calendrier endoflife.date, dette de version, rappels | `arc42/08-concepts-transverses.md` §8.15 |
 
 D-06 à D-09 emploient des noms de participants différents des composants de la section 5 ; la correspondance figure en tête de `arc42/06-vue-execution.md`.
 

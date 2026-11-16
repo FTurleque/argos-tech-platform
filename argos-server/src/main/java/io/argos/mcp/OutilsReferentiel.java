@@ -55,8 +55,8 @@ public class OutilsReferentiel {
     @Tool(name = "get_technology_standard", structuredContent = true,
             annotations = @Tool.Annotations(title = "Standard d'une technologie", readOnlyHint = true,
                     destructiveHint = false, idempotentHint = true, openWorldHint = false),
-            description = "Statut d'une technologie au référentiel des standards des espaces de l'utilisateur (ADOPTE,"
-                    + " A_ESSAYER, A_EVALUER, A_EVITER), version recommandée et justification. Une technologie absente"
+            description = "Statut d'une technologie au référentiel des standards des espaces de l'utilisateur (ADOPT,"
+                    + " TRIAL, ASSESS, HOLD), version recommandée et justification. Une technologie absente"
                     + " du référentiel est signalée comme inconnue.")
     public StandardTechnologique getTechnologyStandard(
             @ToolArg(name = "ecosystem", description = "Écosystème : Maven, npm, PyPI…", required = false) String ecosysteme,
@@ -100,7 +100,7 @@ public class OutilsReferentiel {
                     LocalDate aujourdhui = LocalDate.now();
                     LocalDate jusqua = aujourdhui.plusDays(jours);
                     List<Echeance> echeances = cles.isEmpty() ? List.of()
-                            : calendrier.echeances(cles, aujourdhui, jusqua).stream()
+                            : calendrier.echeances(cles, appelant.memberWorkspaces(), aujourdhui, jusqua).stream()
                                     .map(e -> new Echeance(e.cle(), e.version(), e.nature().name(), e.date().toString(),
                                             e.source(), balisage.baliser(e.source(), e.note())))
                                     .toList();

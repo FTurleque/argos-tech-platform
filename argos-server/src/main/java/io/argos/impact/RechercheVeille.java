@@ -37,7 +37,7 @@ import io.argos.signal.SignalQueries;
  *
  * <p>Toute la recherche s'exécute sous le rôle {@code argos_app} avec le compte de l'appelant
  * ({@link RlsSession}). La sélection des candidats passe par la fonction
- * {@code argos_rechercher_veille} (migration V12), qui applique explicitement les règles de
+ * {@code argos_rechercher_veille} (migration V11), qui applique explicitement les règles de
  * visibilité des politiques RLS pour que l'index GIN reste utilisable ; chaque élément restitué est
  * ensuite relu sous la RLS, qui écarte tout élément que l'appelant ne voit pas. Les projets cités
  * sont limités, en plus, aux espaces de l'appelant.

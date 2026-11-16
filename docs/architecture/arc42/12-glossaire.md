@@ -8,6 +8,10 @@
 | **IntelligenceItem** | élément de veille normalisé provenant d’une source externe |
 | **ProjectActivity** | événement projet normalisé : issue, PR/MR, pipeline, release, déploiement, etc. |
 | **ProjectImpact** | relation argumentée entre un `IntelligenceItem` et un projet potentiellement affecté |
+| **Référentiel des standards** | technologies d’un espace avec leur statut (`ADOPT`, `TRIAL`, `ASSESS`, `HOLD`), version recommandée, responsable, justification et date de revue ; tenu par les administrateurs de l’espace (§8.15) |
+| **Radar des sorties** | échéances (sortie, correctif, fin de support) des technologies d’un espace sur 30 jours, 6 mois ou 1 an, issues d’endoflife.date |
+| **Rappel d’échéance** | message envoyé aux membres d’un espace, aux jours de rappel de l’espace (J-30, J-7, J0 par défaut), pour une échéance qui touche un de ses projets |
+| **Dette de version** | impact d’un projet dont une version de l’inventaire a atteint sa fin de support, avec la version recommandée de l’espace |
 | **Source** | configuration permettant de collecter une origine de veille |
 | **Repository** | dépôt GitHub/GitLab associé à un projet |
 | **Workspace** | frontière organisationnelle et d’autorisation regroupant projets et sources |

@@ -32,7 +32,7 @@ import io.argos.workspace.RegleViolee;
  * n'accorde aucun droit : elle est rejouée sous les droits courants de son auteur.
  *
  * <p>Chaque opération s'exécute sous la RLS ({@link ContexteBase}) : la politique de
- * {@code workspace_vue} (migration V12) n'expose que les vues du compte courant. La vue d'un autre
+ * {@code workspace_vue} (migration V11) n'expose que les vues du compte courant. La vue d'un autre
  * compte est refusée et le refus journalisé ; une vue inexistante est seulement « introuvable ».
  */
 @ApplicationScoped

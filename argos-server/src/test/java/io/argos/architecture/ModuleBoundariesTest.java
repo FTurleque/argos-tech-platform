@@ -31,14 +31,16 @@ class ModuleBoundariesTest {
     /** Module → modules dont il peut dépendre (paquets sous {@code io.argos}). */
     static final Map<String, Set<String>> ALLOWED = Map.ofEntries(
             Map.entry("workspace", Set.of("audit")),
-            Map.entry("catalog", Set.of("audit")),
+            // catalog n'emprunte à workspace que le contexte RLS et les erreurs du domaine : voir catalogNEmprunteQueRlsEtErreurs.
+            Map.entry("catalog", Set.of("audit", "workspace")),
             Map.entry("inventory", Set.of("workspace", "catalog", "scm")),
             // signal n'emprunte à workspace que le contexte RLS et les erreurs du domaine : voir signalNEmprunteQueRlsEtErreurs.
             Map.entry("signal", Set.of("ingestion", "catalog", "workspace")),
             Map.entry("vulnintel", Set.of("signal", "catalog")),
             Map.entry("releaseradar", Set.of("signal", "catalog")),
             Map.entry("regintel", Set.of("signal", "catalog", "aigateway")),
-            Map.entry("impact", Set.of("signal", "vulnintel", "releaseradar", "inventory", "aigateway")),
+            // impact lit le référentiel des standards pour la dette de version et les annonces (radar-standards).
+            Map.entry("impact", Set.of("signal", "vulnintel", "releaseradar", "inventory", "aigateway", "catalog")),
             Map.entry("alerting", Set.of("impact", "workspace")),
             Map.entry("api", Set.of("workspace", "catalog", "inventory", "signal", "vulnintel", "releaseradar",
                     "regintel", "impact", "alerting", "projectintel", "audit")),
@@ -107,6 +109,31 @@ class ModuleBoundariesTest {
                         (JavaClass c) -> c.getPackageName().startsWith(ROOT + ".workspace")
                                 && autorisees.stream().noneMatch(a -> c.getName().equals(a) || c.getName().startsWith(a + "$"))))
                 .because("arc42 §5 : dans le module workspace, signal ne dépend que de ContexteBase et des erreurs communes")
+                .check(classes);
+    }
+
+    /**
+     * Le référentiel des standards ({@code catalog.standard}) est cloisonné par espace : il applique la RLS
+     * par le mécanisme unique {@code workspace.ContexteBase} et signale ses refus par les erreurs communes
+     * du domaine ({@code DonneeInvalide}, {@code RegleViolee}, {@code Introuvable}). Il n'emprunte rien
+     * d'autre au module {@code workspace} (ADR-0016) ; le reste de {@code catalog} n'en emprunte rien.
+     */
+    @Test
+    void catalogNEmprunteQueRlsEtErreurs() {
+        Set<String> autorisees = Set.of(ROOT + ".workspace.ContexteBase", ROOT + ".workspace.DonneeInvalide",
+                ROOT + ".workspace.RegleViolee", ROOT + ".workspace.Introuvable");
+        noClasses().that().resideInAPackage(ROOT + ".catalog..")
+                .should().dependOnClassesThat(DescribedPredicate.describe(
+                        "classes de workspace hors ContexteBase, DonneeInvalide, RegleViolee et Introuvable",
+                        (JavaClass c) -> c.getPackageName().startsWith(ROOT + ".workspace")
+                                && autorisees.stream().noneMatch(a -> c.getName().equals(a) || c.getName().startsWith(a + "$"))))
+                .because("arc42 §5 : dans le module workspace, catalog ne dépend que de ContexteBase et des erreurs communes")
+                .check(classes);
+        noClasses().that().resideInAPackage(ROOT + ".catalog..")
+                .and().resideOutsideOfPackage(ROOT + ".catalog.standard..")
+                .should().dependOnClassesThat().resideInAPackage(ROOT + ".workspace..")
+                .because("arc42 §5 : seul le référentiel des standards de catalog utilise le contexte RLS")
+                .allowEmptyShould(true)
                 .check(classes);
     }
 }

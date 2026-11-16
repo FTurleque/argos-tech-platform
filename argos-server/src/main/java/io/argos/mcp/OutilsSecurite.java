@@ -165,7 +165,7 @@ public class OutilsSecurite {
         List<String> recommandees = standards.stream().map(StandardEspace::versionRecommandee)
                 .filter(v -> v != null && !v.isBlank()).distinct().toList();
         String recommandee = recommandees.size() == 1 ? recommandees.get(0) : null;
-        Optional<CalendrierSorties.Echeance> fin = calendrier.finDeSupport(cle, version);
+        Optional<CalendrierSorties.Echeance> fin = calendrier.finDeSupport(cle, version, appelant.memberWorkspaces());
         boolean connue = !signauxDuPaquet.isEmpty() || !standards.isEmpty() || fin.isPresent();
         return new VerificationDependance(cle, version, connue, constat(connue, failles, standards, recommandees), failles,
                 standards, recommandee, fin.map(e -> new FinDeSupport(e.date().toString(), e.source())).orElse(null));

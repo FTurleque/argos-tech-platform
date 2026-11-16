@@ -18,15 +18,13 @@ import jakarta.inject.Inject;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
-import io.argos.catalog.standard.ReferentielStandards;
 import io.argos.ingestion.SourceSynchronizer;
 import io.argos.inventory.InventoryService;
 import io.argos.inventory.ProjectDirectory;
-import io.argos.releaseradar.CalendrierSorties;
 import io.argos.testsupport.Api;
 import io.argos.testsupport.Fixtures;
 import io.argos.testsupport.Mcp;
-import io.argos.testsupport.ReferentielsSimules;
+import io.argos.testsupport.RadarFixtures;
 import io.argos.testsupport.StubServer;
 import io.argos.testsupport.TestDb;
 import io.quarkus.test.common.QuarkusTestResource;
@@ -37,8 +35,9 @@ import io.restassured.response.Response;
 /**
  * Outils de consultation (tâches 3.1 et 3.2) : {@code check_dependency} (MCP-02), puis contrat de
  * comportement de {@code search_signals}, {@code get_technology_standard}, {@code upcoming_releases}
- * et {@code get_project_context}. Le référentiel des standards et le calendrier sont simulés
- * ({@link ReferentielsSimules}) tant que leurs changements ne sont pas livrés.
+ * et {@code get_project_context}. Le référentiel des standards et le calendrier sont réels
+ * (changement {@code construire-radar-et-standards}) : entrées du référentiel et cycles endoflife.date
+ * insérés en base ({@link RadarFixtures}).
  */
 @QuarkusTest
 @QuarkusTestResource(StubServer.class)
@@ -82,12 +81,10 @@ class OutilsConsultationMcpTest {
     @Test
     void mcp02S1VersionVulnerable() {
         publier("GHSA-MCP2-0032", "0", "3.3.0");
-        ReferentielsSimules.StandardsSimules.ajouter(new ReferentielStandards.Standard(espace, BIBLIO,
-                ReferentielStandards.Statut.ADOPTE, "3.4.1", "Version validée par l'équipe socle."));
-        ReferentielsSimules.StandardsSimules.ajouter(new ReferentielStandards.Standard(espaceAutre, BIBLIO,
-                ReferentielStandards.Statut.A_EVITER, "9.9.9", "Standard d'un autre espace."));
-        ReferentielsSimules.CalendrierSimule.ajouter(new CalendrierSorties.Echeance(BIBLIO, "3.2",
-                CalendrierSorties.Nature.FIN_DE_SUPPORT, LocalDate.of(2026, 12, 31), "endoflife.date", null));
+        RadarFixtures.standard(db, espace, BIBLIO, "Biblio", "ADOPT", "3.4.1", "Version validée par l'équipe socle.", "biblio");
+        RadarFixtures.standard(db, espaceAutre, BIBLIO, "Biblio", "HOLD", "9.9.9", "Standard d'un autre espace.", "biblio-autre");
+        cycle("biblio", "3.2", null, LocalDate.of(2026, 12, 31), null, null);
+        cycle("biblio-autre", "3", null, LocalDate.of(2020, 1, 1), null, null);
 
         ExtractableResponse<Response> r = verifier("3.2");
         assertEquals(Boolean.FALSE, r.path("result.isError"), r.asString());
@@ -102,10 +99,11 @@ class OutilsConsultationMcpTest {
         assertEquals("GHSA-MCP2-0032", r.path(base + "failles[0].references[0].identifiant"));
         assertEquals(TexteExterne.NATURE, r.path(base + "failles[0].titre.nature"));
         assertEquals(1, (int) r.path(base + "referentiel.size()"));
-        assertEquals("ADOPTE", r.path(base + "referentiel[0].statut"));
+        assertEquals("ADOPT", r.path(base + "referentiel[0].statut"));
         assertEquals("3.4.1", r.path(base + "versionRecommandee"));
         assertEquals("2026-12-31", r.path(base + "finDeSupport.date"));
         assertFalse(r.asString().contains("9.9.9"), "standard d'un autre espace");
+        assertFalse(r.asString().contains("2020-01-01"), "correspondance de calendrier d'un autre espace");
 
         // La version recommandée n'est affectée par aucune faille connue.
         ExtractableResponse<Response> recommandee = verifier("3.4.1");
@@ -159,15 +157,13 @@ class OutilsConsultationMcpTest {
     /** {@code get_technology_standard} : standards des seuls espaces de l'appelant ; technologie inconnue signalée. */
     @Test
     void getTechnologyStandard() {
-        ReferentielsSimules.StandardsSimules.ajouter(new ReferentielStandards.Standard(espace, BIBLIO,
-                ReferentielStandards.Statut.A_ESSAYER, "3.4.1", null));
-        ReferentielsSimules.StandardsSimules.ajouter(new ReferentielStandards.Standard(espaceAutre, BIBLIO,
-                ReferentielStandards.Statut.A_EVITER, null, "Autre espace"));
+        RadarFixtures.standard(db, espace, BIBLIO, "Biblio", "TRIAL", "3.4.1", "Projet pilote", null);
+        RadarFixtures.standard(db, espaceAutre, BIBLIO, "Biblio", "HOLD", null, "Autre espace", null);
         ExtractableResponse<Response> r = Mcp.appeler("oscar", "get_technology_standard", Map.of("name", BIBLIO));
         String base = "result.structuredContent.";
         assertEquals(Boolean.TRUE, r.path(base + "connu"), r.asString());
         assertEquals(1, (int) r.path(base + "standards.size()"));
-        assertEquals("A_ESSAYER", r.path(base + "standards[0].statut"));
+        assertEquals("TRIAL", r.path(base + "standards[0].statut"));
         assertFalse(r.asString().contains("Autre espace"));
 
         ExtractableResponse<Response> inconnu = Mcp.appeler("oscar", "get_technology_standard",
@@ -182,23 +178,39 @@ class OutilsConsultationMcpTest {
         inventaires.importSbom(projet, Fixtures.cyclonedx("1.6", Instant.now().minus(1, ChronoUnit.DAYS).toString(),
                 List.<String[]>of(new String[] {"c0", BIBLIO + "@3.2"}), List.of("c0")).getBytes(StandardCharsets.UTF_8), "ci");
         LocalDate dans10Jours = LocalDate.now().plusDays(10);
-        ReferentielsSimules.CalendrierSimule.ajouter(new CalendrierSorties.Echeance(BIBLIO, "3.2",
-                CalendrierSorties.Nature.FIN_DE_SUPPORT, dans10Jours, "endoflife.date", "Fin de support communautaire."));
-        ReferentielsSimules.CalendrierSimule.ajouter(new CalendrierSorties.Echeance(BIBLIO, "4.0",
-                CalendrierSorties.Nature.SORTIE, LocalDate.now().plusDays(400), "endoflife.date", null));
+        RadarFixtures.standard(db, espace, BIBLIO, "Biblio", "ADOPT", "3.2.9", "Version courante", "biblio");
+        cycle("biblio", "3.2", LocalDate.of(2020, 1, 1), dans10Jours, "3.2.9", LocalDate.now().minusDays(5));
+        cycle("biblio", "4.0", LocalDate.now().plusDays(400), null, "4.0.1", LocalDate.now().plusDays(450));
 
         ExtractableResponse<Response> r = Mcp.appeler("oscar", "upcoming_releases", Map.of());
         String base = "result.structuredContent.";
         assertEquals(1, (int) r.path(base + "nombre"), r.asString());
         assertEquals("FIN_DE_SUPPORT", r.path(base + "echeances[0].nature"));
         assertEquals(dans10Jours.toString(), r.path(base + "echeances[0].date"));
-        assertEquals(TexteExterne.NATURE, r.path(base + "echeances[0].note.nature"));
+        assertNull(r.path(base + "echeances[0].note"));
 
         ExtractableResponse<Response> long_ = Mcp.appeler("oscar", "upcoming_releases",
                 Map.of("name", BIBLIO, "horizon_days", 500));
-        assertEquals(2, (int) long_.path(base + "nombre"), long_.asString());
+        assertEquals(3, (int) long_.path(base + "nombre"), long_.asString());
+        assertEquals("SORTIE", long_.path(base + "echeances[1].nature"));
+        assertEquals("CORRECTIF", long_.path(base + "echeances[2].nature"));
+        assertEquals("4.0.1", long_.path(base + "echeances[2].version"));
+        assertEquals(TexteExterne.NATURE, long_.path(base + "echeances[2].note.nature"));
         ExtractableResponse<Response> horsBornes = Mcp.appeler("oscar", "upcoming_releases", Map.of("horizon_days", 5000));
         assertTrue(((String) horsBornes.path("result.content[0].text")).startsWith("PARAMETRES_INVALIDES"));
+    }
+
+    /** Cycle endoflife.date inséré dans la copie locale du calendrier. */
+    private void cycle(String produit, String nom, LocalDate sortie, LocalDate fin, String derniere, LocalDate derniereLe) {
+        db.exec("INSERT INTO cycle_vie_produit (produit, etat, derniere_synchro_le, dernier_succes_le) VALUES ('" + produit
+                + "', 'A_JOUR', now(), now()) ON CONFLICT DO NOTHING");
+        db.exec("INSERT INTO cycle_vie (produit, cycle, sortie_le, fin_support_le, en_fin_support, derniere_version,"
+                + " derniere_version_le) VALUES ('" + produit + "', '" + nom + "', " + date(sortie) + ", " + date(fin)
+                + ", false, " + (derniere == null ? "NULL" : "'" + derniere + "'") + ", " + date(derniereLe) + ")");
+    }
+
+    private static String date(LocalDate d) {
+        return d == null ? "NULL" : "DATE '" + d + "'";
     }
 
     /** {@code get_project_context} : inventaire, alertes par niveau et composants d'un projet de l'appelant. */

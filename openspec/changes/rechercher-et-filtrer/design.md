@@ -72,7 +72,7 @@ Les champs ajoutés à `search_signals` sont facultatifs : les appels existants 
 
 ## Persistance et intégrité
 
-Migration `V12__recherche_veille.sql` :
+Migration `V11__recherche_veille.sql` :
 
 - fonctions `argos_vecteur_recherche` et `argos_requete_recherche` (IMMUTABLE) ;
 - colonnes générées `signal.recherche` et `actualite.recherche` (`tsvector` STORED), index GIN, index de date des signaux, index `project_impact (project_id)` et `actualite_impact (project_id)` ;
@@ -105,7 +105,7 @@ Cible : celle de arc42 §10.2 Q-05 (API p95 < 500 ms). Mesure par la campagne `M
 
 ## Compatibilité, migration et retour arrière
 
-La migration ajoute des colonnes générées et réécrit `signal` et `actualite` ; aucun contrat REST existant ne change. Retour arrière : supprimer la table, les fonctions, les index et les colonnes de V12.
+La migration ajoute des colonnes générées et réécrit `signal` et `actualite` ; aucun contrat REST existant ne change. Retour arrière : supprimer la table, les fonctions, les index et les colonnes de V11.
 
 ## Décisions, alternatives et compromis
 
