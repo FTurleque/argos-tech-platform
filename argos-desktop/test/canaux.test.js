@@ -13,13 +13,18 @@ const ID = '3f2b8c1e-4d5a-4b6c-8d7e-9f0a1b2c3d4e';
 function installer() {
   const bus = creerBus();
   const fenetre = creerFenetre(bus.webContents);
-  const etat = { alertes: [], compteurs: [], demandes: [], notifications: [] };
+  const etat = { alertes: [], compteurs: [], demandes: [], notifications: [], connexions: [] };
+  const connexion = {
+    preparer: async () => { etat.connexions.push('preparer'); return 'http://127.0.0.1:50123/argos/retour'; },
+    autoriser: async (url) => { etat.connexions.push(url); return '?code=c&state=s'; },
+  };
   const poste = {
     alerte: (p) => { etat.alertes.push(p); return { affichee: true }; },
     definirCompteur: (n) => { etat.compteurs.push(n); return Number.isInteger(n) && n >= 0; },
     changerReglages: (d) => { etat.demandes.push(d); return d?.notificationsPoste === false ? d : null; },
   };
   enregistrerCanaux(bus.ipcMain, {
+    connexion,
     fenetre: () => fenetre,
     poste,
     notifier: (n) => { etat.notifications.push(n); return true; },
@@ -28,11 +33,24 @@ function installer() {
   return { bus, fenetre, etat };
 }
 
-test('les cinq canaux d’appel de l’IHM sont déclarés', () => {
+test('les sept canaux d’appel de l’IHM sont déclarés', () => {
   const { bus } = installer();
   assert.deepEqual([...bus.gestionnaires.keys()].sort(), [
     CANAUX.ALERTE, CANAUX.COMPTEUR, CANAUX.NOTIFIER, CANAUX.REGLAGES_ECRIRE, CANAUX.REGLAGES_LIRE,
+    CANAUX.CONNEXION_PREPARER, CANAUX.CONNEXION_AUTORISER,
   ].sort());
+});
+
+test('ACC-10 : la connexion n’est ouverte que pour la fenêtre principale, avec une URL texte', async () => {
+  const { bus, etat } = installer();
+  const intrus = {};
+  assert.equal(await bus.invoquer(CANAUX.CONNEXION_PREPARER, undefined, intrus), null);
+  assert.equal(await bus.invoquer(CANAUX.CONNEXION_AUTORISER, 'http://kc/auth', intrus), null);
+  assert.equal(await bus.invoquer(CANAUX.CONNEXION_AUTORISER, { url: 'x' }), null);
+  assert.deepEqual(etat.connexions, []);
+  assert.equal(await bus.invoquer(CANAUX.CONNEXION_PREPARER), 'http://127.0.0.1:50123/argos/retour');
+  assert.equal(await bus.invoquer(CANAUX.CONNEXION_AUTORISER, 'http://kc/auth'), '?code=c&state=s');
+  assert.deepEqual(etat.connexions, ['preparer', 'http://kc/auth']);
 });
 
 test('un message qui ne vient pas de la fenêtre principale est refusé sans effet', async () => {
@@ -43,7 +61,7 @@ test('un message qui ne vient pas de la fenêtre principale est refusé sans eff
   assert.equal(await bus.invoquer(CANAUX.NOTIFIER, { title: 't' }, intrus), false);
   assert.equal(await bus.invoquer(CANAUX.REGLAGES_LIRE, undefined, intrus), null);
   assert.equal(await bus.invoquer(CANAUX.REGLAGES_ECRIRE, { notificationsPoste: false }, intrus), null);
-  assert.deepEqual(etat, { alertes: [], compteurs: [], demandes: [], notifications: [] });
+  assert.deepEqual(etat, { alertes: [], compteurs: [], demandes: [], notifications: [], connexions: [] });
 });
 
 test('sans fenêtre principale, aucun message n’est accepté', () => {

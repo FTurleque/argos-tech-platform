@@ -1,5 +1,7 @@
 // Client minimal de l'API REST ARGOS (/api/v1). Aucune règle métier ici (arc42 §5.1).
 
+import { classerRefus, entetesAvecJeton, type Refus } from './autorisation'
+
 const DEFAULT_API_URL = 'http://localhost:8080'
 
 /**
@@ -23,22 +25,60 @@ export interface SystemInfo {
 }
 
 export class ApiError extends Error {
-  constructor(message: string, readonly status?: number) {
+  constructor(message: string, readonly status?: number, readonly code?: string) {
     super(message)
     this.name = 'ApiError'
   }
 }
 
-async function getJson<T>(path: string, timeoutMs = 5000): Promise<T> {
+// --- Jeton porteur et refus (ACC-09) -----------------------------------------
+
+/** Branchement de la session : fournisseur du jeton et réaction aux refus. */
+export interface AutorisationClient {
+  jeton: () => string | null
+  surRefus: (refus: Refus, chemin: string) => void
+}
+
+let autorisation: AutorisationClient = { jeton: () => null, surRefus: () => {} }
+
+/** Branche le client sur la session de l'IHM (appelé une fois au démarrage). */
+export function configurerAutorisation(a: AutorisationClient): void {
+  autorisation = a
+}
+
+/** Corps d'une demande refusée (schéma `Erreur`). */
+interface ErreurApi {
+  code: string
+  message: string
+}
+
+/**
+ * Appel de l'API : jeton porteur sur tout /api/v1 sauf l'identité du serveur ; un 401 relance la
+ * connexion et un 403 affiche le refus, par le rappel de la session.
+ */
+async function requete<T>(methode: 'GET' | 'POST' | 'PUT', path: string, body?: unknown, timeoutMs = 5000): Promise<T> {
   const controller = new AbortController()
   const timer = setTimeout(() => controller.abort(), timeoutMs)
+  const entetes: Record<string, string> = { Accept: 'application/json' }
+  if (body !== undefined) entetes['Content-Type'] = 'application/json'
   try {
     const response = await fetch(`${apiBaseUrl}${path}`, {
-      headers: { Accept: 'application/json' },
+      method: methode,
+      headers: entetesAvecJeton(path, entetes, autorisation.jeton()),
+      body: body === undefined ? undefined : JSON.stringify(body),
       signal: controller.signal,
     })
     if (!response.ok) {
-      throw new ApiError(`Le serveur a répondu ${response.status}`, response.status)
+      let corps: Partial<ErreurApi> | null = null
+      try {
+        corps = (await response.json()) as Partial<ErreurApi>
+      } catch {
+        // corps absent ou non JSON : message générique
+      }
+      const refus = classerRefus(response.status, corps)
+      if (refus) autorisation.surRefus(refus, path)
+      const message = typeof corps?.message === 'string' ? corps.message : `Le serveur a répondu ${response.status}`
+      throw new ApiError(message, response.status, typeof corps?.code === 'string' ? corps.code : undefined)
     }
     return (await response.json()) as T
   } catch (error) {
@@ -49,8 +89,37 @@ async function getJson<T>(path: string, timeoutMs = 5000): Promise<T> {
   }
 }
 
+function getJson<T>(path: string): Promise<T> {
+  return requete<T>('GET', path)
+}
+
+function putJson<T>(path: string, body: unknown): Promise<T> {
+  return requete<T>('PUT', path, body)
+}
+
+function postJson<T>(path: string): Promise<T> {
+  return requete<T>('POST', path)
+}
+
+/** Identité du serveur : publique, appelée sans jeton (ACC-01-S2). */
 export function fetchSystemInfo(): Promise<SystemInfo> {
   return getJson<SystemInfo>('/api/v1/system/info')
+}
+
+// --- Compte courant (ACC-02) -------------------------------------------------
+
+/** Compte courant (schéma `CompteCourant` de `GET /api/v1/moi`). */
+export interface CompteCourant {
+  id: string
+  nomAffiche: string | null
+  email: string | null
+  adminPlateforme: boolean
+  creeLe: string
+}
+
+/** Compte de l'utilisateur connecté ; 403 `INSCRIPTION_SUR_INVITATION` quand aucun compte n'est créé. */
+export function fetchMoi(): Promise<CompteCourant> {
+  return getJson<CompteCourant>('/api/v1/moi')
 }
 
 // --- Préférences et catalogue (AFF-01, AFF-03, PRF-01) ---------------------
@@ -72,40 +141,6 @@ export interface MiseEnPageCatalogue {
   libelle: string
   description: string
   parDefaut: boolean
-}
-
-/** Corps d'une demande refusée (schéma `Erreur`). */
-interface ErreurApi {
-  code: string
-  message: string
-}
-
-async function putJson<T>(path: string, body: unknown, timeoutMs = 5000): Promise<T> {
-  const controller = new AbortController()
-  const timer = setTimeout(() => controller.abort(), timeoutMs)
-  try {
-    const response = await fetch(`${apiBaseUrl}${path}`, {
-      method: 'PUT',
-      headers: { Accept: 'application/json', 'Content-Type': 'application/json' },
-      body: JSON.stringify(body),
-      signal: controller.signal,
-    })
-    if (!response.ok) {
-      let message = `Le serveur a répondu ${response.status}`
-      try {
-        message = ((await response.json()) as ErreurApi).message ?? message
-      } catch {
-        // corps absent ou non JSON : message générique
-      }
-      throw new ApiError(message, response.status)
-    }
-    return (await response.json()) as T
-  } catch (error) {
-    if (error instanceof ApiError) throw error
-    throw new ApiError(`Serveur ARGOS injoignable à ${apiBaseUrl}`)
-  } finally {
-    clearTimeout(timer)
-  }
 }
 
 export function fetchPreferences(): Promise<PreferencesEffectives> {
@@ -164,27 +199,6 @@ export interface AlerteVue {
   tentatives: number
   creeLe: string
   envoyeLe: string | null
-}
-
-async function postJson<T>(path: string, timeoutMs = 5000): Promise<T> {
-  const controller = new AbortController()
-  const timer = setTimeout(() => controller.abort(), timeoutMs)
-  try {
-    const response = await fetch(`${apiBaseUrl}${path}`, {
-      method: 'POST',
-      headers: { Accept: 'application/json' },
-      signal: controller.signal,
-    })
-    if (!response.ok) {
-      throw new ApiError(`Le serveur a répondu ${response.status}`, response.status)
-    }
-    return (await response.json()) as T
-  } catch (error) {
-    if (error instanceof ApiError) throw error
-    throw new ApiError(`Serveur ARGOS injoignable à ${apiBaseUrl}`)
-  } finally {
-    clearTimeout(timer)
-  }
 }
 
 /** Alertes du canal DESKTOP encore à remettre au poste (au plus 200, contrat `AlertesResource`). */

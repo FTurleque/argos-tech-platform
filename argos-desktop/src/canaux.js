@@ -13,6 +13,8 @@ const CANAUX = Object.freeze({
   REGLAGES_ECRIRE: 'argos:settings-set',
   OUVRIR_ALERTE: 'argos:open-alert',
   REGLAGES_CHANGES: 'argos:settings',
+  CONNEXION_PREPARER: 'argos:login-prepare',
+  CONNEXION_AUTORISER: 'argos:login-authorize',
 });
 
 const TITRE_MAX = 120;
@@ -55,6 +57,7 @@ function ouvrirAlerte(fenetre, id) {
  * @param {ReturnType<import('./poste').creerPoste>} d.poste comportement du poste
  * @param {(n: {title: string, body: string}) => boolean} d.notifier notification libre déjà bornée
  * @param {() => object} d.vueReglages réglages présentés à l'IHM
+ * @param {ReturnType<import('./connexion').creerConnexion>} d.connexion connexion OIDC (ACC-10)
  */
 function enregistrerCanaux(ipcMain, d) {
   const garde = (refus, traitement) => (event, valeur) => (
@@ -72,6 +75,11 @@ function enregistrerCanaux(ipcMain, d) {
   ipcMain.handle(CANAUX.REGLAGES_LIRE, garde(null, () => d.vueReglages()));
   ipcMain.handle(CANAUX.REGLAGES_ECRIRE, garde(null, (demande) => (
     d.poste.changerReglages(demande) ? d.vueReglages() : null
+  )));
+  // Connexion OIDC (changement connecter-ihm-oidc, ACC-10) : écoute locale puis navigateur du système.
+  ipcMain.handle(CANAUX.CONNEXION_PREPARER, garde(null, () => d.connexion.preparer()));
+  ipcMain.handle(CANAUX.CONNEXION_AUTORISER, garde(null, (url) => (
+    typeof url === 'string' ? d.connexion.autoriser(url) : null
   )));
 }
 

@@ -35,17 +35,19 @@
       "publicClient": true,
       "standardFlowEnabled": true,
       "directAccessGrantsEnabled": false,
+      "implicitFlowEnabled": false,
       "protocol": "openid-connect",
       "redirectUris": [
         "http://localhost:5173/*",
-        "app://argos/*"
+        "http://127.0.0.1/argos/retour"
       ],
       "webOrigins": [
         "http://localhost:5173",
         "app://argos"
       ],
       "attributes": {
-        "pkce.code.challenge.method": "S256"
+        "pkce.code.challenge.method": "S256",
+        "post.logout.redirect.uris": "http://localhost:5173/*"
       },
       "protocolMappers": [
         {

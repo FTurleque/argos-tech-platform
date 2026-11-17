@@ -24,12 +24,12 @@ function rendu(reponse = true) {
   };
 }
 
-test('le pont expose seulement les notifications, le compteur et les réglages du poste', () => {
+test('le pont expose seulement les notifications, le compteur, les réglages du poste et la connexion', () => {
   const { argosDesktop, ...autres } = chargerPreload(rendu(), 'linux');
   assert.deepEqual(Object.keys(autres), [], 'un seul objet exposé');
   assert.deepEqual(Object.keys(argosDesktop).sort(), [
-    'getSettings', 'notify', 'notifyAlert', 'onOpenAlert', 'onSettingsChanged', 'platform',
-    'setAlertCount', 'setSettings',
+    'autoriserConnexion', 'getSettings', 'notify', 'notifyAlert', 'onOpenAlert', 'onSettingsChanged',
+    'platform', 'preparerConnexion', 'setAlertCount', 'setSettings',
   ]);
   assert.equal(argosDesktop.platform, 'linux');
 });
@@ -96,6 +96,19 @@ test('NOT-02-S1 : onOpenAlert reçoit l’identifiant de l’alerte cliquée et 
   // Un rappel qui n'est pas une fonction n'abonne rien.
   assert.equal(typeof argosDesktop.onOpenAlert('pas une fonction'), 'function');
   assert.equal(ipc.ecouteurs.get(CANAUX.OUVRIR_ALERTE).length, 0);
+});
+
+test('ACC-10 : la connexion ne transmet qu’une URL texte et ne renvoie que la réponse du processus principal', async () => {
+  const ipc = rendu('?code=c&state=s');
+  const { argosDesktop } = chargerPreload(ipc);
+  await argosDesktop.preparerConnexion('ignoré');
+  assert.equal(await argosDesktop.autoriserConnexion({ toString: () => 'http://kc/auth' }), '?code=c&state=s');
+  await argosDesktop.autoriserConnexion(undefined);
+  assert.deepEqual(ipc.appels, [
+    { canal: CANAUX.CONNEXION_PREPARER, valeur: undefined },
+    { canal: CANAUX.CONNEXION_AUTORISER, valeur: 'http://kc/auth' },
+    { canal: CANAUX.CONNEXION_AUTORISER, valeur: '' },
+  ]);
 });
 
 test('NOT-04 : setSettings ne transmet que les deux réglages du poste', async () => {

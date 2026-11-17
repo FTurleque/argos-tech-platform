@@ -40,6 +40,7 @@ Cette section indexe les ADR. Elle ne recopie pas leur contenu.
 | ADR-0030 | Veille réglementaire validée par l'expert métier, domaines par espace et données ouvertes JORF | Proposé | 2026-11-17 | ADR-0018 (à l'acceptation) |
 | ADR-0031 | Planifier les traitements périodiques avec quarkus-scheduler dans le serveur | Proposé | 2026-11-17 | — |
 | ADR-0032 | Versionner le schéma PostgreSQL par des migrations SQL Flyway appliquées au démarrage | Proposé | 2026-11-17 | — |
+| ADR-0033 | Tenir la session OIDC de l'IHM en mémoire et connecter le desktop par l'interface de bouclage | Proposé | 2026-11-17 | — (complète ADR-0027, précise ADR-0022 point 6) |
 
 ## 9.2 Règles de gouvernance
 

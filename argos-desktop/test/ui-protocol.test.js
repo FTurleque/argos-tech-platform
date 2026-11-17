@@ -39,6 +39,17 @@ test('la CSP n’autorise que le serveur ARGOS configuré', () => {
   assert.match(csp, /object-src 'none'/);
 });
 
+test('ACC-10-S4 : la CSP ajoute seulement l’origine du fournisseur d’identité configuré', () => {
+  const csp = contentSecurityPolicy('http://localhost:8080', 'http://localhost:8180/realms/argos');
+  assert.match(csp, /connect-src 'self' http:\/\/localhost:8080 http:\/\/localhost:8180;/);
+  assert.match(csp, /script-src 'self';/);
+  assert.match(csp, /default-src 'self';/);
+  assert.doesNotMatch(csp, /\*|unsafe-eval|realms/);
+  // Même origine : pas de doublon.
+  const meme = contentSecurityPolicy('https://argos.example', 'https://argos.example/auth/realms/argos');
+  assert.match(meme, /connect-src 'self' https:\/\/argos\.example;/);
+});
+
 test('types MIME', () => {
   assert.equal(mimeType('a/b.js'), 'text/javascript; charset=utf-8');
   assert.equal(mimeType('x.unknown'), 'application/octet-stream');

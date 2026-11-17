@@ -37,6 +37,12 @@ export function demarrerSuiviPoste(): void {
   suivi.demarrer()
 }
 
+/** Arrête le suivi (fin de session, changement connecter-ihm-oidc) ; il reprendra à la connexion suivante. */
+export function arreterSuiviPoste(): void {
+  suivi?.arreter()
+  suivi = null
+}
+
 /** L'alerte a été affichée dans l'application : elle n'est plus ouverte. */
 export function alerteConsultee(id: string): void {
   suivi?.marquerConsultee(id)

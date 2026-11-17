@@ -1,7 +1,8 @@
 'use strict';
 // Pont minimal entre l'IHM et le processus principal (ADR-0022, changement notifier-sur-le-poste).
 // L'IHM n'a pas accès à Node.js : elle ne voit que window.argosDesktop, limité aux notifications,
-// au compteur de la zone de notification et aux réglages du poste. Seules des valeurs simples
+// au compteur de la zone de notification, aux réglages du poste et à l'ouverture de la connexion
+// OIDC dans le navigateur du système (connecter-ihm-oidc). Seules des valeurs simples
 // traversent le pont ; aucun objet de l'IHM n'est transmis tel quel.
 // Preload sandboxé : seul le module electron peut être chargé ; les noms de canaux sont donc
 // écrits ici et doivent rester ceux de canaux.js (vérifié par test/preload.test.js).
@@ -44,4 +45,11 @@ contextBridge.exposeInMainWorld('argosDesktop', {
   }),
   /** Appelé quand les réglages changent depuis le menu de la zone de notification. */
   onSettingsChanged: (callback) => ecouter('argos:settings', callback),
+  /**
+   * Connexion OIDC (connecter-ihm-oidc, ACC-10) : ouvre l'écoute locale 127.0.0.1 et renvoie
+   * l'adresse de redirection, puis ouvre l'URL d'autorisation dans le navigateur du système et
+   * renvoie la chaîne de requête du retour. Aucun jeton ne traverse le pont.
+   */
+  preparerConnexion: () => ipcRenderer.invoke('argos:login-prepare'),
+  autoriserConnexion: (url) => ipcRenderer.invoke('argos:login-authorize', String(url ?? '')),
 });
