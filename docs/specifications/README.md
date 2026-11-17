@@ -174,7 +174,7 @@ Les exigences des deux changements archivés de ce lot sont au statut [EXIGENCE]
 |---|---|---|---|---|---|---|
 | [`connecter-ihm-oidc`](/openspec/changes/connecter-ihm-oidc/proposal.md) | `comptes-acces` (ACC-07 à ACC-10) | 4 | 18 | 1 | 2 | 18 |
 
-Pour `connecter-ihm-oidc`, « Tests écrits » compte les scénarios couverts par au moins un test qui passe : tests `node:test` d'`argos-ui/tests/` (`oidc`, `session`, `autorisation`, `garde`, `securite-session`) et d'`argos-desktop/test/` (`connexion`, `canaux`, `preload`, `ui-protocol`), et parcours réel du client `argos-ui` contre le Keycloak des Dev Services (`ClientIhmOidcTest`). Les tests de bout en bout dans un navigateur et dans Electron ne sont pas écrits. Matrice détaillée : [`tasks.md` du changement](/openspec/changes/connecter-ihm-oidc/tasks.md#matrice-de-traçabilité).
+Pour `connecter-ihm-oidc`, « Tests écrits » compte les scénarios couverts par au moins un test qui passe : tests `node:test` d'`argos-ui/tests/` (`oidc`, `session`, `autorisation`, `garde`, `securite-session`) et d'`argos-desktop/test/` (`connexion`, `canaux`, `preload`, `ui-protocol`), et parcours réel du client `argos-ui` contre le Keycloak des Dev Services (`ClientIhmOidcTest`). Les parcours de bout en bout du portail web (`e2e/tests/connexion.spec.ts`) et du client desktop Electron (`e2e/desktop/connexion.spec.ts`, ACC-10-S1, S2 et S4) passent avec `npm --prefix e2e test`. Matrice détaillée : [`tasks.md` du changement](/openspec/changes/connecter-ihm-oidc/tasks.md#matrice-de-traçabilité).
 
 ### Capacités restant à spécifier
 
