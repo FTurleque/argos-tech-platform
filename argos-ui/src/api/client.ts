@@ -23,23 +23,55 @@ export interface SystemInfo {
 }
 
 export class ApiError extends Error {
-  constructor(message: string, readonly status?: number) {
+  constructor(message: string, readonly status?: number, readonly code?: string) {
     super(message)
     this.name = 'ApiError'
   }
 }
 
-async function getJson<T>(path: string, timeoutMs = 5000): Promise<T> {
+/** Corps d'une demande refusée (schéma `Erreur`). */
+interface ErreurApi {
+  code?: string
+  message?: string
+  attribut?: string | null
+}
+
+/** Options d'un appel à l'API ARGOS. */
+export interface OptionsAppel {
+  methode?: 'GET' | 'POST' | 'PUT' | 'DELETE'
+  /** Corps JSON de la demande ; absent : aucun corps. */
+  corps?: unknown
+  delaiMs?: number
+}
+
+/**
+ * Point d'appel unique de l'API ARGOS : tous les appels de l'IHM y passent, de sorte que l'en-tête
+ * d'authentification ne s'ajoute qu'ici. Réponse 204 : `undefined`. Refus : `ApiError` avec le
+ * statut, et le message et le code du corps `Erreur` quand le serveur en renvoie un.
+ */
+export async function appelerApi<T>(chemin: string, options: OptionsAppel = {}): Promise<T> {
+  const { methode = 'GET', corps, delaiMs = 5000 } = options
   const controller = new AbortController()
-  const timer = setTimeout(() => controller.abort(), timeoutMs)
+  const timer = setTimeout(() => controller.abort(), delaiMs)
+  const headers: Record<string, string> = { Accept: 'application/json' }
+  if (corps !== undefined) headers['Content-Type'] = 'application/json'
   try {
-    const response = await fetch(`${apiBaseUrl}${path}`, {
-      headers: { Accept: 'application/json' },
+    const response = await fetch(`${apiBaseUrl}${chemin}`, {
+      method: methode,
+      headers,
+      body: corps === undefined ? undefined : JSON.stringify(corps),
       signal: controller.signal,
     })
     if (!response.ok) {
-      throw new ApiError(`Le serveur a répondu ${response.status}`, response.status)
+      let erreur: ErreurApi | null = null
+      try {
+        erreur = (await response.json()) as ErreurApi | null
+      } catch {
+        // corps absent ou non JSON : message générique
+      }
+      throw new ApiError(erreur?.message ?? `Le serveur a répondu ${response.status}`, response.status, erreur?.code)
     }
+    if (response.status === 204) return undefined as T
     return (await response.json()) as T
   } catch (error) {
     if (error instanceof ApiError) throw error
@@ -47,6 +79,10 @@ async function getJson<T>(path: string, timeoutMs = 5000): Promise<T> {
   } finally {
     clearTimeout(timer)
   }
+}
+
+function getJson<T>(path: string, timeoutMs = 5000): Promise<T> {
+  return appelerApi<T>(path, { delaiMs: timeoutMs })
 }
 
 export function fetchSystemInfo(): Promise<SystemInfo> {
@@ -74,38 +110,8 @@ export interface MiseEnPageCatalogue {
   parDefaut: boolean
 }
 
-/** Corps d'une demande refusée (schéma `Erreur`). */
-interface ErreurApi {
-  code: string
-  message: string
-}
-
-async function putJson<T>(path: string, body: unknown, timeoutMs = 5000): Promise<T> {
-  const controller = new AbortController()
-  const timer = setTimeout(() => controller.abort(), timeoutMs)
-  try {
-    const response = await fetch(`${apiBaseUrl}${path}`, {
-      method: 'PUT',
-      headers: { Accept: 'application/json', 'Content-Type': 'application/json' },
-      body: JSON.stringify(body),
-      signal: controller.signal,
-    })
-    if (!response.ok) {
-      let message = `Le serveur a répondu ${response.status}`
-      try {
-        message = ((await response.json()) as ErreurApi).message ?? message
-      } catch {
-        // corps absent ou non JSON : message générique
-      }
-      throw new ApiError(message, response.status)
-    }
-    return (await response.json()) as T
-  } catch (error) {
-    if (error instanceof ApiError) throw error
-    throw new ApiError(`Serveur ARGOS injoignable à ${apiBaseUrl}`)
-  } finally {
-    clearTimeout(timer)
-  }
+function putJson<T>(path: string, body: unknown, timeoutMs = 5000): Promise<T> {
+  return appelerApi<T>(path, { methode: 'PUT', corps: body, delaiMs: timeoutMs })
 }
 
 export function fetchPreferences(): Promise<PreferencesEffectives> {
@@ -166,25 +172,8 @@ export interface AlerteVue {
   envoyeLe: string | null
 }
 
-async function postJson<T>(path: string, timeoutMs = 5000): Promise<T> {
-  const controller = new AbortController()
-  const timer = setTimeout(() => controller.abort(), timeoutMs)
-  try {
-    const response = await fetch(`${apiBaseUrl}${path}`, {
-      method: 'POST',
-      headers: { Accept: 'application/json' },
-      signal: controller.signal,
-    })
-    if (!response.ok) {
-      throw new ApiError(`Le serveur a répondu ${response.status}`, response.status)
-    }
-    return (await response.json()) as T
-  } catch (error) {
-    if (error instanceof ApiError) throw error
-    throw new ApiError(`Serveur ARGOS injoignable à ${apiBaseUrl}`)
-  } finally {
-    clearTimeout(timer)
-  }
+function postJson<T>(path: string, timeoutMs = 5000): Promise<T> {
+  return appelerApi<T>(path, { methode: 'POST', delaiMs: timeoutMs })
 }
 
 /** Alertes du canal DESKTOP encore à remettre au poste (au plus 200, contrat `AlertesResource`). */
