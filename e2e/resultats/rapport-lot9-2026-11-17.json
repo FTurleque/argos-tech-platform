@@ -2,11 +2,11 @@
   "config": {
     "argv": [
       "C:\\Program Files\\nodejs\\node.exe",
-      "N:\\workspace-dev\\argos-tech-platform\\.claude\\worktrees\\wf_ad0dc069-b76-3\\e2e\\node_modules\\@playwright\\test\\cli.js",
+      "N:\\workspace-dev\\argos-tech-platform\\e2e\\node_modules\\@playwright\\test\\cli.js",
       "test"
     ],
-    "configFile": "N:\\workspace-dev\\argos-tech-platform\\.claude\\worktrees\\wf_ad0dc069-b76-3\\e2e\\playwright.config.ts",
-    "rootDir": "N:/workspace-dev/argos-tech-platform/.claude/worktrees/wf_ad0dc069-b76-3/e2e/tests",
+    "configFile": "N:\\workspace-dev\\argos-tech-platform\\e2e\\playwright.config.ts",
+    "rootDir": "N:/workspace-dev/argos-tech-platform/e2e/tests",
     "failOnFlakyTests": false,
     "forbidOnly": true,
     "fullyParallel": false,
@@ -22,7 +22,7 @@
     "preserveOutput": "always",
     "projects": [
       {
-        "outputDir": "N:/workspace-dev/argos-tech-platform/.claude/worktrees/wf_ad0dc069-b76-3/e2e/test-results",
+        "outputDir": "N:/workspace-dev/argos-tech-platform/e2e/test-results",
         "repeatEach": 1,
         "retries": 0,
         "metadata": {
@@ -30,7 +30,7 @@
         },
         "id": "preparation",
         "name": "preparation",
-        "testDir": "N:/workspace-dev/argos-tech-platform/.claude/worktrees/wf_ad0dc069-b76-3/e2e/tests",
+        "testDir": "N:/workspace-dev/argos-tech-platform/e2e/tests",
         "testIgnore": [],
         "testMatch": [
           "/preparation\\.setup\\.ts/"
@@ -38,7 +38,7 @@
         "timeout": 120000
       },
       {
-        "outputDir": "N:/workspace-dev/argos-tech-platform/.claude/worktrees/wf_ad0dc069-b76-3/e2e/test-results",
+        "outputDir": "N:/workspace-dev/argos-tech-platform/e2e/test-results",
         "repeatEach": 1,
         "retries": 0,
         "metadata": {
@@ -46,7 +46,7 @@
         },
         "id": "portail-web",
         "name": "portail-web",
-        "testDir": "N:/workspace-dev/argos-tech-platform/.claude/worktrees/wf_ad0dc069-b76-3/e2e/tests",
+        "testDir": "N:/workspace-dev/argos-tech-platform/e2e/tests",
         "testIgnore": [],
         "testMatch": [
           "/.*\\.spec\\.ts/"
@@ -54,7 +54,7 @@
         "timeout": 120000
       },
       {
-        "outputDir": "N:/workspace-dev/argos-tech-platform/.claude/worktrees/wf_ad0dc069-b76-3/e2e/test-results",
+        "outputDir": "N:/workspace-dev/argos-tech-platform/e2e/test-results",
         "repeatEach": 1,
         "retries": 0,
         "metadata": {
@@ -62,7 +62,7 @@
         },
         "id": "construction-desktop",
         "name": "construction-desktop",
-        "testDir": "N:/workspace-dev/argos-tech-platform/.claude/worktrees/wf_ad0dc069-b76-3/e2e/desktop",
+        "testDir": "N:/workspace-dev/argos-tech-platform/e2e/desktop",
         "testIgnore": [],
         "testMatch": [
           "/construction\\.setup\\.ts/"
@@ -70,7 +70,7 @@
         "timeout": 120000
       },
       {
-        "outputDir": "N:/workspace-dev/argos-tech-platform/.claude/worktrees/wf_ad0dc069-b76-3/e2e/test-results",
+        "outputDir": "N:/workspace-dev/argos-tech-platform/e2e/test-results",
         "repeatEach": 1,
         "retries": 0,
         "metadata": {
@@ -78,7 +78,7 @@
         },
         "id": "desktop",
         "name": "desktop",
-        "testDir": "N:/workspace-dev/argos-tech-platform/.claude/worktrees/wf_ad0dc069-b76-3/e2e/desktop",
+        "testDir": "N:/workspace-dev/argos-tech-platform/e2e/desktop",
         "testIgnore": [],
         "testMatch": [
           "/.*\\.spec\\.ts/"
@@ -134,12 +134,12 @@
                   "workerIndex": 0,
                   "parallelIndex": 0,
                   "status": "passed",
-                  "duration": 3093,
+                  "duration": 2962,
                   "errors": [],
                   "stdout": [],
                   "stderr": [],
                   "retry": 0,
-                  "startTime": "2026-11-17T21:59:32.736Z",
+                  "startTime": "2026-11-17T23:13:02.000Z",
                   "annotations": [],
                   "attachments": []
                 }
@@ -149,7 +149,7 @@
           ],
           "id": "db96b61d6a99633b145e-3585c80cd5980a6a079b",
           "file": "../desktop/construction.setup.ts",
-          "line": 13,
+          "line": 32,
           "column": 1
         }
       ]
@@ -176,12 +176,12 @@
                   "workerIndex": 1,
                   "parallelIndex": 0,
                   "status": "passed",
-                  "duration": 612,
+                  "duration": 801,
                   "errors": [],
                   "stdout": [],
                   "stderr": [],
                   "retry": 0,
-                  "startTime": "2026-11-17T21:59:36.258Z",
+                  "startTime": "2026-11-17T23:13:05.392Z",
                   "annotations": [],
                   "attachments": []
                 }
@@ -210,12 +210,12 @@
                   "workerIndex": 1,
                   "parallelIndex": 0,
                   "status": "passed",
-                  "duration": 1698,
+                  "duration": 3083,
                   "errors": [],
                   "stdout": [],
                   "stderr": [],
                   "retry": 0,
-                  "startTime": "2026-11-17T21:59:36.899Z",
+                  "startTime": "2026-11-17T23:13:06.223Z",
                   "annotations": [],
                   "attachments": []
                 }
@@ -252,12 +252,12 @@
                   "workerIndex": 2,
                   "parallelIndex": 0,
                   "status": "passed",
-                  "duration": 3587,
+                  "duration": 5541,
                   "errors": [],
                   "stdout": [],
                   "stderr": [],
                   "retry": 0,
-                  "startTime": "2026-11-17T21:59:39.018Z",
+                  "startTime": "2026-11-17T23:13:10.514Z",
                   "annotations": [],
                   "attachments": []
                 }
@@ -294,12 +294,12 @@
                   "workerIndex": 2,
                   "parallelIndex": 0,
                   "status": "passed",
-                  "duration": 521,
+                  "duration": 465,
                   "errors": [],
                   "stdout": [],
                   "stderr": [],
                   "retry": 0,
-                  "startTime": "2026-11-17T21:59:42.730Z",
+                  "startTime": "2026-11-17T23:13:16.273Z",
                   "annotations": [],
                   "attachments": []
                 }
@@ -328,12 +328,12 @@
                   "workerIndex": 2,
                   "parallelIndex": 0,
                   "status": "passed",
-                  "duration": 1921,
+                  "duration": 1744,
                   "errors": [],
                   "stdout": [],
                   "stderr": [],
                   "retry": 0,
-                  "startTime": "2026-11-17T21:59:43.268Z",
+                  "startTime": "2026-11-17T23:13:16.752Z",
                   "annotations": [],
                   "attachments": []
                 }
@@ -362,12 +362,12 @@
                   "workerIndex": 2,
                   "parallelIndex": 0,
                   "status": "passed",
-                  "duration": 827,
+                  "duration": 1074,
                   "errors": [],
                   "stdout": [],
                   "stderr": [],
                   "retry": 0,
-                  "startTime": "2026-11-17T21:59:45.205Z",
+                  "startTime": "2026-11-17T23:13:18.508Z",
                   "annotations": [],
                   "attachments": []
                 }
@@ -396,12 +396,12 @@
                   "workerIndex": 2,
                   "parallelIndex": 0,
                   "status": "passed",
-                  "duration": 2157,
+                  "duration": 2427,
                   "errors": [],
                   "stdout": [],
                   "stderr": [],
                   "retry": 0,
-                  "startTime": "2026-11-17T21:59:46.046Z",
+                  "startTime": "2026-11-17T23:13:19.595Z",
                   "annotations": [],
                   "attachments": []
                 }
@@ -430,12 +430,12 @@
                   "workerIndex": 2,
                   "parallelIndex": 0,
                   "status": "passed",
-                  "duration": 1726,
+                  "duration": 1741,
                   "errors": [],
                   "stdout": [],
                   "stderr": [],
                   "retry": 0,
-                  "startTime": "2026-11-17T21:59:48.219Z",
+                  "startTime": "2026-11-17T23:13:22.037Z",
                   "annotations": [],
                   "attachments": []
                 }
@@ -464,12 +464,12 @@
                   "workerIndex": 2,
                   "parallelIndex": 0,
                   "status": "passed",
-                  "duration": 2756,
+                  "duration": 3184,
                   "errors": [],
                   "stdout": [],
                   "stderr": [],
                   "retry": 0,
-                  "startTime": "2026-11-17T21:59:49.959Z",
+                  "startTime": "2026-11-17T23:13:23.794Z",
                   "annotations": [],
                   "attachments": []
                 }
@@ -506,18 +506,18 @@
                   "workerIndex": 2,
                   "parallelIndex": 0,
                   "status": "passed",
-                  "duration": 2999,
+                  "duration": 3455,
                   "errors": [],
                   "stdout": [],
                   "stderr": [],
                   "retry": 0,
-                  "startTime": "2026-11-17T21:59:52.751Z",
+                  "startTime": "2026-11-17T23:13:27.007Z",
                   "annotations": [],
                   "attachments": [
                     {
                       "name": "reponse-recherche-oracle-30j.json",
                       "contentType": "application/json",
-                      "body": "eyJlbGVtZW50cyI6W3sidHlwZSI6IkFWSVNfU0VDVVJJVEUiLCJpZCI6IjBlMmUwMDAwLTAwMDAtNDAwMC04MDAwLTAwMDAwMDAwMDBhMSIsInNvdXJjZSI6Ik9TViIsImlkZW50aWZpYW50IjoiRTJFLU9SQUNMRS0wMDAxIiwidGl0cmUiOiJPcmFjbGUgRGF0YWJhc2UgOiBmYWlsbGUgY29ycmlnw6llIiwiZXh0cmFpdCI6IkxlIGNvcnJlY3RpZiBPcmFjbGUgY29ycmlnZSB1bmUgZmFpbGxlIGRlIGxhIGJhc2UuIiwiZ3Jhdml0ZSI6IkhJR0giLCJkYXRlIjoiMjAyNi0xMS0xMlQyMTo1OTozNi44NjQ3NzBaIiwibGllbiI6bnVsbCwicGVydGluZW5jZSI6MC44MzQ0MzA2MywicHJvamV0cyI6W3sicHJvamV0SWQiOiIwZTJlMDAwMC0wMDAwLTQwMDAtODAwMC0wMDAwMDAwMDAwMDEiLCJwcm9qZXQiOiJQYWllIn1dfSx7InR5cGUiOiJBVklTX1NFQ1VSSVRFIiwiaWQiOiIwZTJlMDAwMC0wMDAwLTQwMDAtODAwMC0wMDAwMDAwMDAwYTMiLCJzb3VyY2UiOiJPU1YiLCJpZGVudGlmaWFudCI6IkUyRS1PUkFDTEUtMDAwMyIsInRpdHJlIjoiT3JhY2xlIEphdmEgOiBmYWlsbGUiLCJleHRyYWl0IjoiQ29ycmVjdGlmIE9yYWNsZSBwb3VyIEphdmEuIiwiZ3Jhdml0ZSI6IkhJR0giLCJkYXRlIjoiMjAyNi0xMS0xMlQyMTo1OTozNi44NjQ3NzBaIiwibGllbiI6bnVsbCwicGVydGluZW5jZSI6MC44MzQ0MzA2MywicHJvamV0cyI6W3sicHJvamV0SWQiOiIwZTJlMDAwMC0wMDAwLTQwMDAtODAwMC0wMDAwMDAwMDAwMDIiLCJwcm9qZXQiOiJDb21wdGFiaWxpdMOpIn1dfV0sInBhZ2UiOjAsInRhaWxsZSI6MjAsInRvdGFsIjoyLCJtZXNzYWdlIjpudWxsfQ=="
+                      "body": "eyJlbGVtZW50cyI6W3sidHlwZSI6IkFWSVNfU0VDVVJJVEUiLCJpZCI6IjBlMmUwMDAwLTAwMDAtNDAwMC04MDAwLTAwMDAwMDAwMDBhMSIsInNvdXJjZSI6Ik9TViIsImlkZW50aWZpYW50IjoiRTJFLU9SQUNMRS0wMDAxIiwidGl0cmUiOiJPcmFjbGUgRGF0YWJhc2UgOiBmYWlsbGUgY29ycmlnw6llIiwiZXh0cmFpdCI6IkxlIGNvcnJlY3RpZiBPcmFjbGUgY29ycmlnZSB1bmUgZmFpbGxlIGRlIGxhIGJhc2UuIiwiZ3Jhdml0ZSI6IkhJR0giLCJkYXRlIjoiMjAyNi0xMS0xMlQyMzoxMzowNi4xODQ5NjlaIiwibGllbiI6bnVsbCwicGVydGluZW5jZSI6MC44MzQ0MzA2MywicHJvamV0cyI6W3sicHJvamV0SWQiOiIwZTJlMDAwMC0wMDAwLTQwMDAtODAwMC0wMDAwMDAwMDAwMDEiLCJwcm9qZXQiOiJQYWllIn1dfSx7InR5cGUiOiJBVklTX1NFQ1VSSVRFIiwiaWQiOiIwZTJlMDAwMC0wMDAwLTQwMDAtODAwMC0wMDAwMDAwMDAwYTMiLCJzb3VyY2UiOiJPU1YiLCJpZGVudGlmaWFudCI6IkUyRS1PUkFDTEUtMDAwMyIsInRpdHJlIjoiT3JhY2xlIEphdmEgOiBmYWlsbGUiLCJleHRyYWl0IjoiQ29ycmVjdGlmIE9yYWNsZSBwb3VyIEphdmEuIiwiZ3Jhdml0ZSI6IkhJR0giLCJkYXRlIjoiMjAyNi0xMS0xMlQyMzoxMzowNi4xODQ5NjlaIiwibGllbiI6bnVsbCwicGVydGluZW5jZSI6MC44MzQ0MzA2MywicHJvamV0cyI6W3sicHJvamV0SWQiOiIwZTJlMDAwMC0wMDAwLTQwMDAtODAwMC0wMDAwMDAwMDAwMDIiLCJwcm9qZXQiOiJDb21wdGFiaWxpdMOpIn1dfV0sInBhZ2UiOjAsInRhaWxsZSI6MjAsInRvdGFsIjoyLCJtZXNzYWdlIjpudWxsfQ=="
                     }
                   ]
                 }
@@ -554,12 +554,12 @@
                   "workerIndex": 2,
                   "parallelIndex": 0,
                   "status": "passed",
-                  "duration": 2389,
+                  "duration": 2570,
                   "errors": [],
                   "stdout": [],
                   "stderr": [],
                   "retry": 0,
-                  "startTime": "2026-11-17T21:59:55.782Z",
+                  "startTime": "2026-11-17T23:13:30.494Z",
                   "annotations": [],
                   "attachments": []
                 }
@@ -588,12 +588,12 @@
                   "workerIndex": 2,
                   "parallelIndex": 0,
                   "status": "passed",
-                  "duration": 2160,
+                  "duration": 2440,
                   "errors": [],
                   "stdout": [],
                   "stderr": [],
                   "retry": 0,
-                  "startTime": "2026-11-17T21:59:58.188Z",
+                  "startTime": "2026-11-17T23:13:33.078Z",
                   "annotations": [],
                   "attachments": []
                 }
@@ -622,12 +622,12 @@
                   "workerIndex": 2,
                   "parallelIndex": 0,
                   "status": "passed",
-                  "duration": 3388,
+                  "duration": 4037,
                   "errors": [],
                   "stdout": [],
                   "stderr": [],
                   "retry": 0,
-                  "startTime": "2026-11-17T22:00:00.361Z",
+                  "startTime": "2026-11-17T23:13:35.533Z",
                   "annotations": [],
                   "attachments": []
                 }
@@ -656,12 +656,12 @@
                   "workerIndex": 2,
                   "parallelIndex": 0,
                   "status": "passed",
-                  "duration": 2920,
+                  "duration": 3383,
                   "errors": [],
                   "stdout": [],
                   "stderr": [],
                   "retry": 0,
-                  "startTime": "2026-11-17T22:00:03.765Z",
+                  "startTime": "2026-11-17T23:13:39.585Z",
                   "annotations": [],
                   "attachments": []
                 }
@@ -699,12 +699,12 @@
                   "workerIndex": 2,
                   "parallelIndex": 0,
                   "status": "passed",
-                  "duration": 2060,
+                  "duration": 2298,
                   "errors": [],
                   "stdout": [],
                   "stderr": [],
                   "retry": 0,
-                  "startTime": "2026-11-17T22:00:06.696Z",
+                  "startTime": "2026-11-17T23:13:42.983Z",
                   "annotations": [
                     {
                       "type": "contraste minimal",
@@ -751,12 +751,12 @@
                   "workerIndex": 2,
                   "parallelIndex": 0,
                   "status": "passed",
-                  "duration": 2089,
+                  "duration": 2637,
                   "errors": [],
                   "stdout": [],
                   "stderr": [],
                   "retry": 0,
-                  "startTime": "2026-11-17T22:00:08.770Z",
+                  "startTime": "2026-11-17T23:13:45.295Z",
                   "annotations": [
                     {
                       "type": "contraste minimal",
@@ -803,12 +803,12 @@
                   "workerIndex": 2,
                   "parallelIndex": 0,
                   "status": "passed",
-                  "duration": 2108,
+                  "duration": 2235,
                   "errors": [],
                   "stdout": [],
                   "stderr": [],
                   "retry": 0,
-                  "startTime": "2026-11-17T22:00:10.872Z",
+                  "startTime": "2026-11-17T23:13:47.946Z",
                   "annotations": [
                     {
                       "type": "contraste minimal",
@@ -855,12 +855,12 @@
                   "workerIndex": 2,
                   "parallelIndex": 0,
                   "status": "passed",
-                  "duration": 2176,
+                  "duration": 2340,
                   "errors": [],
                   "stdout": [],
                   "stderr": [],
                   "retry": 0,
-                  "startTime": "2026-11-17T22:00:12.994Z",
+                  "startTime": "2026-11-17T23:13:50.195Z",
                   "annotations": [
                     {
                       "type": "contraste minimal",
@@ -906,12 +906,12 @@
                   "workerIndex": 3,
                   "parallelIndex": 0,
                   "status": "passed",
-                  "duration": 3736,
+                  "duration": 4743,
                   "errors": [],
                   "stdout": [],
                   "stderr": [],
                   "retry": 0,
-                  "startTime": "2026-11-17T22:00:15.715Z",
+                  "startTime": "2026-11-17T23:13:53.209Z",
                   "annotations": [],
                   "attachments": []
                 }
@@ -940,12 +940,12 @@
                   "workerIndex": 3,
                   "parallelIndex": 0,
                   "status": "passed",
-                  "duration": 3659,
+                  "duration": 4300,
                   "errors": [],
                   "stdout": [],
                   "stderr": [],
                   "retry": 0,
-                  "startTime": "2026-11-17T22:00:19.558Z",
+                  "startTime": "2026-11-17T23:13:58.086Z",
                   "annotations": [],
                   "attachments": []
                 }
@@ -955,7 +955,7 @@
           ],
           "id": "96465f4c5e34d9fc123b-49fd6a73cc3247f198c5",
           "file": "../desktop/affichage.spec.ts",
-          "line": 69,
+          "line": 67,
           "column": 1
         }
       ]
@@ -982,12 +982,12 @@
                   "workerIndex": 3,
                   "parallelIndex": 0,
                   "status": "passed",
-                  "duration": 1726,
+                  "duration": 1749,
                   "errors": [],
                   "stdout": [],
                   "stderr": [],
                   "retry": 0,
-                  "startTime": "2026-11-17T22:00:23.254Z",
+                  "startTime": "2026-11-17T23:14:02.424Z",
                   "annotations": [],
                   "attachments": []
                 }
@@ -997,7 +997,151 @@
           ],
           "id": "79ed6df8864bd10a290d-15efe10602a3c747f4a9",
           "file": "../desktop/connexion.spec.ts",
-          "line": 33,
+          "line": 35,
+          "column": 1
+        }
+      ]
+    },
+    {
+      "title": "..\\desktop\\notifications.spec.ts",
+      "file": "../desktop/notifications.spec.ts",
+      "column": 0,
+      "line": 0,
+      "specs": [
+        {
+          "title": "NOT-01-S1, NOT-05-S1, NOT-03-S1, NOT-02-S1 : fenêtre masquée, notification, compteur, clic",
+          "ok": true,
+          "tags": [],
+          "tests": [
+            {
+              "timeout": 240000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "desktop",
+              "projectName": "desktop",
+              "results": [
+                {
+                  "workerIndex": 3,
+                  "parallelIndex": 0,
+                  "status": "passed",
+                  "duration": 63274,
+                  "errors": [],
+                  "stdout": [],
+                  "stderr": [],
+                  "retry": 0,
+                  "startTime": "2026-11-17T23:14:04.211Z",
+                  "annotations": [],
+                  "attachments": []
+                }
+              ],
+              "status": "expected"
+            }
+          ],
+          "id": "be7d0958780d1a4666e5-49dc0b37e2ce5aa4c1f5",
+          "file": "../desktop/notifications.spec.ts",
+          "line": 96,
+          "column": 1
+        },
+        {
+          "title": "NOT-04-S1 (partie poste) : notifications du poste coupées, alerte comptée et visible",
+          "ok": true,
+          "tags": [],
+          "tests": [
+            {
+              "timeout": 240000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "desktop",
+              "projectName": "desktop",
+              "results": [
+                {
+                  "workerIndex": 3,
+                  "parallelIndex": 0,
+                  "status": "passed",
+                  "duration": 33277,
+                  "errors": [],
+                  "stdout": [],
+                  "stderr": [],
+                  "retry": 0,
+                  "startTime": "2026-11-17T23:15:07.502Z",
+                  "annotations": [],
+                  "attachments": []
+                }
+              ],
+              "status": "expected"
+            }
+          ],
+          "id": "be7d0958780d1a4666e5-d353a0aab4023480b81c",
+          "file": "../desktop/notifications.spec.ts",
+          "line": 145,
+          "column": 1
+        },
+        {
+          "title": "NOT-01-S2 (partie application) : notifications refusées par le système, alertes comptées et visibles",
+          "ok": true,
+          "tags": [],
+          "tests": [
+            {
+              "timeout": 240000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "desktop",
+              "projectName": "desktop",
+              "results": [
+                {
+                  "workerIndex": 3,
+                  "parallelIndex": 0,
+                  "status": "passed",
+                  "duration": 62675,
+                  "errors": [],
+                  "stdout": [],
+                  "stderr": [],
+                  "retry": 0,
+                  "startTime": "2026-11-17T23:15:40.797Z",
+                  "annotations": [],
+                  "attachments": []
+                }
+              ],
+              "status": "expected"
+            }
+          ],
+          "id": "be7d0958780d1a4666e5-d257f0ad8a9fd515a50a",
+          "file": "../desktop/notifications.spec.ts",
+          "line": 177,
+          "column": 1
+        },
+        {
+          "title": "NOT-06-S1 : coupure du serveur, deux alertes émises pendant la coupure, reprise sans perte ni doublon",
+          "ok": true,
+          "tags": [],
+          "tests": [
+            {
+              "timeout": 240000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "desktop",
+              "projectName": "desktop",
+              "results": [
+                {
+                  "workerIndex": 3,
+                  "parallelIndex": 0,
+                  "status": "passed",
+                  "duration": 78542,
+                  "errors": [],
+                  "stdout": [],
+                  "stderr": [],
+                  "retry": 0,
+                  "startTime": "2026-11-17T23:16:43.491Z",
+                  "annotations": [],
+                  "attachments": []
+                }
+              ],
+              "status": "expected"
+            }
+          ],
+          "id": "be7d0958780d1a4666e5-9f4d91e78034749f2a97",
+          "file": "../desktop/notifications.spec.ts",
+          "line": 212,
           "column": 1
         }
       ]
@@ -1024,12 +1168,12 @@
                   "workerIndex": 3,
                   "parallelIndex": 0,
                   "status": "passed",
-                  "duration": 3616,
+                  "duration": 5794,
                   "errors": [],
                   "stdout": [],
                   "stderr": [],
                   "retry": 0,
-                  "startTime": "2026-11-17T22:00:25.022Z",
+                  "startTime": "2026-11-17T23:18:02.082Z",
                   "annotations": [],
                   "attachments": []
                 }
@@ -1047,9 +1191,9 @@
   ],
   "errors": [],
   "stats": {
-    "startTime": "2026-11-17T21:58:47.233Z",
-    "duration": 102082.54699999999,
-    "expected": 23,
+    "startTime": "2026-11-17T23:11:59.648Z",
+    "duration": 369545.114,
+    "expected": 27,
     "skipped": 0,
     "unexpected": 0,
     "flaky": 0
