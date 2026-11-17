@@ -87,6 +87,11 @@ Les ADR enregistrent les décisions architecturales importantes d’ARGOS.
 
 - [ADR-0030 — Veille réglementaire validée par l'expert métier, domaines par espace et données ouvertes JORF](0030-veille-reglementaire-expert-metier.md) — Proposé ; remplacerait ADR-0018 à son acceptation
 
+### Exploitation du serveur
+
+- [ADR-0031 — Planifier les traitements périodiques avec quarkus-scheduler dans le serveur](0031-planification-quarkus-scheduler.md) — Proposé
+- [ADR-0032 — Versionner le schéma PostgreSQL par des migrations SQL Flyway appliquées au démarrage](0032-migrations-flyway.md) — Proposé
+
 Les ADR-0010 à ADR-0018 restent **Proposés** jusqu’à validation par revue d’architecture et/ou preuves produites pendant le POC.
 
 Utiliser [`template.md`](template.md) pour toute nouvelle décision.

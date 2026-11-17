@@ -1,0 +1,58 @@
+{
+  "sbom": {
+    "SPDXID": "SPDXRef-DOCUMENT",
+    "spdxVersion": "SPDX-2.3",
+    "creationInfo": {
+      "created": "2026-11-15T07:30:02Z",
+      "creators": [
+        "Tool: GitHub.com-Dependency-Graph"
+      ]
+    },
+    "name": "com.github.org/app",
+    "dataLicense": "CC0-1.0",
+    "documentNamespace": "https://spdx.org/spdxdocs/protobom/0b9e7c4d-6a51-4f2e-8d3c-1a2b3c4d5e6f",
+    "packages": [
+      {
+        "name": "com.github.org/app",
+        "SPDXID": "SPDXRef-github-org-app-main-0b9e7c",
+        "versionInfo": "main",
+        "downloadLocation": "git+https://github.com/org/app",
+        "filesAnalyzed": false,
+        "externalRefs": [
+          {
+            "referenceCategory": "PACKAGE-MANAGER",
+            "referenceType": "purl",
+            "referenceLocator": "pkg:github/org/app@main"
+          }
+        ]
+      },
+      {
+        "name": "npm:lodash",
+        "SPDXID": "SPDXRef-npm-lodash-4.17.21-4d5e6f",
+        "versionInfo": "4.17.21",
+        "downloadLocation": "NOASSERTION",
+        "filesAnalyzed": false,
+        "licenseConcluded": "MIT",
+        "externalRefs": [
+          {
+            "referenceCategory": "PACKAGE-MANAGER",
+            "referenceType": "purl",
+            "referenceLocator": "pkg:npm/lodash@4.17.21"
+          }
+        ]
+      }
+    ],
+    "relationships": [
+      {
+        "relationshipType": "DEPENDS_ON",
+        "spdxElementId": "SPDXRef-github-org-app-main-0b9e7c",
+        "relatedSpdxElement": "SPDXRef-npm-lodash-4.17.21-4d5e6f"
+      },
+      {
+        "relationshipType": "DESCRIBES",
+        "spdxElementId": "SPDXRef-DOCUMENT",
+        "relatedSpdxElement": "SPDXRef-github-org-app-main-0b9e7c"
+      }
+    ]
+  }
+}

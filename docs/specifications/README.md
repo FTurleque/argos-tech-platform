@@ -181,7 +181,7 @@ Les exigences des deux changements archivés de ce lot sont au statut [EXIGENCE]
 |---|---|
 | Les ADR citent des exigences `F01`–`F16` absentes du dépôt | question Q-1 du changement ; aucune correspondance inventée |
 | arc42 §6 annonçait les noms de §5 mais utilise d'autres participants | table de correspondance ajoutée en arc42 §6 ; renommage à décider (tâche 6.1) |
-| Inventaire des diagrammes : D-05, D-11, D-12, D-13 annoncés, absents | D-05 ajouté en arc42 §5.7 ; D-11, D-12 et D-13 marqués manquants (tâche 6.2) |
+| Inventaire des diagrammes : D-05, D-11, D-12, D-13 annoncés, absents | D-05 ajouté en arc42 §5.7 ; D-11, D-12 et D-13 produits dans `docs/architecture/diagrams/` (tâche 6.2) |
 | Glossaire : « impact probable, confirmé, résolu » vs niveaux ADR-0013 | question Q-COR-2 |
 
 ## Vérification

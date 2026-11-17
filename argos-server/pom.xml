@@ -61,7 +61,7 @@
       <artifactId>quarkus-security</artifactId>
     </dependency>
 
-    <!-- PostgreSQL (ADR-0002). Flyway : choix provisoire, ADR à rédiger (arc42 §9.3 point 3). -->
+    <!-- PostgreSQL (ADR-0002). Migrations Flyway appliquées au démarrage (ADR-0032, proposé). -->
     <dependency>
       <groupId>io.quarkus</groupId>
       <artifactId>quarkus-jdbc-postgresql</artifactId>

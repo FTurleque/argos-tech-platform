@@ -69,6 +69,8 @@ flowchart TB
 - OIDC avec un fournisseur d’identité auto-hébergé ;
 - image x86-64 unique (NAS DS1522+ et PC), même `compose.yaml` partout ; guide : [`/docs/deploiement/synology-et-pc.md`](/docs/deploiement/synology-et-pc.md).
 
+Le détail de cette cible au niveau des conteneurs réellement décrits (Ollama facultatif, Keycloak, relais SMTP, sauvegarde, clients desktop et MCP) est D-11 : [`../diagrams/d-11-deploiement-cible.md`](../diagrams/d-11-deploiement-cible.md).
+
 ## 7.4 Hébergement en ligne (plus tard)
 
 La haute disponibilité, plusieurs nœuds applicatifs, PITR, coffre-fort de secrets et observabilité centralisée ne sont introduits qu’après validation du besoin.
