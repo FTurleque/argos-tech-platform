@@ -117,9 +117,14 @@ public record SbomDocument(byte[] contenu, Format format) {
         }
     }
 
+    /**
+     * Cherche {@code spdxVersion} parmi les {@value #CHAMPS_MAX} premiers champs de l'objet {@code sbom}.
+     * Sans résultat, l'objet est lu jusqu'à sa fin, pour que le parcours reprenne au premier niveau.
+     */
     private static boolean contientSpdx(JsonParser p) throws IOException {
-        for (int champs = 0; champs < CHAMPS_MAX && p.nextToken() == JsonToken.FIELD_NAME; champs++) {
-            if ("spdxVersion".equals(p.currentName())) {
+        int champs = 0;
+        while (p.nextToken() == JsonToken.FIELD_NAME) {
+            if (champs++ < CHAMPS_MAX && "spdxVersion".equals(p.currentName())) {
                 return true;
             }
             p.nextToken();

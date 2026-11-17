@@ -120,8 +120,12 @@ class ProfilDemonstrationTest {
         JsonPath jules = veille("jules");
         assertEquals(List.of(FICHE, AVIS), jules.getList("elements.identifiant"));
         for (JsonPath v : List.of(ines, oscar, jules)) {
-            assertFalse(v.prettify().contains("demonstration"), v.prettify());
-            assertFalse(v.prettify().contains("Mention de démonstration"), v.prettify());
+            assertFalse(v.getList("elements.profils.flatten()").isEmpty(), v.prettify());
+            assertFalse(v.getList("profilsActifs").contains("demonstration"), v.prettify());
+            assertFalse(v.getList("elements.profils.flatten()").contains("demonstration"), v.prettify());
+            assertFalse(v.getList("elements.rubriques.profil.flatten()").contains("demonstration"), v.prettify());
+            assertFalse(v.<String>getList("elements.gardeFous.flatten()").stream()
+                    .anyMatch(g -> g.startsWith("Mention de démonstration")), v.prettify());
         }
     }
 

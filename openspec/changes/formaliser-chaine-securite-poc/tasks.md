@@ -24,7 +24,7 @@
 ## 3. Inventaire SBOM
 
 - [x] 3.1 Créer les migrations `INVENTORY`, `COMPONENT` — couvre INV-01, INV-02 — vérification : test d'intégration PostgreSQL passe
-- [x] 3.2 Implémenter la récupération des SBOM et manifestes dans `scm-connector` — couvre INV-01, INV-04 — vérification : test de contrat GitLab/GitHub enregistré passe
+- [ ] 3.2 Implémenter la récupération des SBOM et manifestes dans `scm-connector` — couvre INV-01, INV-04 — vérification : test de contrat GitLab/GitHub enregistré passe
 - [x] 3.3 Implémenter validation et import CycloneDX, transitivité et remplacement — couvre INV-01-S1, INV-01-S2, INV-02-S1, INV-05-S1 — vérification : tests avec SBOM valides, transitives et invalides passent
 - [x] 3.4 Implémenter âge, absence de SBOM et repli manifestes — couvre INV-03-S1, INV-03-S2, INV-04-S1, INV-04-S2 — vérification : tests d'intégration passent
 - [x] 3.5 Mettre à jour la fiche `inventaire-sbom` et le glossaire (« Inventaire », « Composant ») — vérification : `node scripts/verifier-docs.mjs` sans erreur
@@ -94,6 +94,8 @@
 | ABO-06 | ABO-06-S1, ABO-06-S2, ABO-06-S3 | DF-ABO-1 | 1.4, 5.1, 5.2 | `chain/SubscriptionTest#abo06Seul…`, `#abo06TeamObligatoire…` | passe |
 
 Limites connues, non couvertes par une tâche : les niveaux d'impact sont enregistrés à la corrélation et ne sont pas recalculés quand une SBOM dépasse 30 jours sans nouvelle corrélation ; la première synchronisation OSV sans curseur n'est pas bornée en volume (fiches `correlation-impact` et `collecte-avis-securite`, « Écarts constatés »).
+
+Tâche 3.2 non cochée : la récupération est implémentée et `chain/ScmContractTest` (12 tests) et `scm/SbomDocumentTest` (3 tests) réussissent sur des forges simulées, mais les réponses de `fixtures/scm/` sont composées d'après les formats publiés : aucune réponse n'est enregistrée sur une forge réelle ni sur un dépôt pilote, alors que la vérification exige un « test de contrat GitLab/GitHub enregistré ». La case attend une capture sur un dépôt pilote, ou l'acceptation de cette interprétation par le porteur.
 
 Preuves des tâches documentaires, le 2026-11-17 :
 

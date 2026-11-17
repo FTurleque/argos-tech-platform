@@ -174,7 +174,7 @@ Scénarios PRF-01-S1 à PRF-06-S2 du changement.
 ## Écarts constatés
 
 - La taxonomie des signaux du dossier v2.4 §8.2 est fermée ; ce changement la veut extensible par profil (voir la proposition).
-- La restitution par abonnements (`GET /api/v1/me/watch`) ne dépend pas des profils actifs ; la veille par profils (`GET /api/v1/me/veille`) n'intègre pas les abonnements `PERSONAL` (décision Q-3 non implémentée). Ni `argos-ui` ni le client desktop n'affichent encore `GET /api/v1/me/veille`.
+- La restitution par abonnements (`GET /api/v1/me/watch`) ne dépend pas des profils actifs ; la veille par profils (`GET /api/v1/me/veille`) n'intègre pas les abonnements `PERSONAL` (décision Q-3 non implémentée, tâche 3.9 du changement). Ni `argos-ui` ni le client desktop n'affichent encore `GET /api/v1/me/veille`.
 - Le catalogue publié ne contient aucun élément qui relève à la fois de `developpeur` et d'`expert-metier` : PRF-02-S1 est prouvé avec ces deux manifestes sur un élément de deux catégories (`UnionProfilsTest`), et de bout en bout avec `developpeur` et le profil de test `demonstration`, qui rangent tous deux les avis de sécurité (`ProfilDemonstrationTest`).
 - La publication d'un profil passe par la configuration (`argos.catalogue.profils.manifestes`), donc par un redémarrage : PRF-04-S1 compare la veille restituée, catalogue enrichi, à celle que définissent les seuls profils actifs.
 - `PreferencesIsolationTest` prouve l'isolement des préférences vis-à-vis du reste de `workspace` ; `api` peut les lire. PRF-05 est prouvé par les tests inter-espaces, pas par cette seule règle.
