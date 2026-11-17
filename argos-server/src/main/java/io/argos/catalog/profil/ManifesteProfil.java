@@ -72,6 +72,17 @@ public record ManifesteProfil(
         return gardeFous.stream().anyMatch(g -> g != null && g.type() == type);
     }
 
+    /**
+     * Garde-fou {@link TypeGardeFou#VALIDATION_HUMAINE} (PRF-06) : vrai si un élément de ce profil peut
+     * être diffusé, c'est-à-dire si le profil n'impose pas de validation humaine ou si l'élément a été
+     * validé par un expert.
+     *
+     * @param valideParUnExpert vrai si l'élément a été validé par un expert
+     */
+    public boolean diffusable(boolean valideParUnExpert) {
+        return valideParUnExpert || !impose(TypeGardeFou.VALIDATION_HUMAINE);
+    }
+
     private static <T> List<T> copie(List<T> valeurs) {
         // List.copyOf refuse les éléments null : le validateur doit pouvoir les signaler.
         return valeurs == null ? List.of() : Collections.unmodifiableList(new ArrayList<>(valeurs));

@@ -173,8 +173,8 @@ Non applicable — aucune donnée ni aucun contrat existants.
 
 ## Écarts code / tests / specs / documentation
 
-- ACC-04-S2 cite les impacts, dont la table appartient à `formaliser-chaine-securite-poc` : la RLS est vérifiée sur `espace`, `appartenance` et `invitation` ; les autres tables d'espace suivent la convention d'arc42 §8.1.
-- La tâche 3.3 cite QS-02, qui porte sur la confidentialité des appels LLM et non sur le cloisonnement.
+- ACC-04-S2 cite les impacts, dont la table appartient à `formaliser-chaine-securite-poc` : la RLS est vérifiée sur `espace`, `appartenance` et `invitation`, sur les impacts, et sur toute table accessible à `argos_app` (`CouvertureRlsTest`), hors cinq données de référence globales sans espace ni compte.
+- La tâche 3.3 cite QS-02, qui porte sur la confidentialité des appels LLM et non sur le cloisonnement ; il est exécuté par les tests IAG-02 de la passerelle IA.
 
 ## Stratégie de vérification
 
@@ -183,7 +183,7 @@ Non applicable — aucune donnée ni aucun contrat existants.
 | ACC-01-S1, ACC-01-S2 | intégration API | tests avec et sans jeton (`AuthentificationTest`) | réussi |
 | ACC-02-S1, ACC-02-S2 | intégration | Keycloak des Dev Services (`PremiereConnexionTest`) | réussi |
 | ACC-03-S1, ACC-03-S2 | intégration API | tests de rôles (`EspacesEtRolesTest`) | réussi |
-| ACC-04-S1, ACC-04-S2 | intégration + base | tests inter-espaces, test RLS sans contexte (`CloisonnementTest`) | réussi |
+| ACC-04-S1, ACC-04-S2 | intégration + base | tests inter-espaces, test RLS sans contexte (`CloisonnementTest`), couverture RLS du schéma (`CouvertureRlsTest`) | réussi |
 | ACC-05-S1, ACC-05-S2 | intégration API | invitation puis révocation (`InvitationsTest`) | réussi |
 | ACC-06-S1 | intégration | lecture du journal (`JournalRefusTest`) | réussi |
 

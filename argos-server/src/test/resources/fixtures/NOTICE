@@ -29,3 +29,11 @@ jorf/*.xml, jorf/index.html
   l'information légale et administrative (DILA), diffusés sous Licence Ouverte / Open Licence 2.0
   (https://echanges.dila.gouv.fr/OPENDATA/JORF/). Les textes, numéros et identifiants sont fictifs
   (série JORFTEXT0000990000xx) ; aucun extrait de texte officiel n'est reproduit.
+
+scm/gitlab/*, scm/github/*
+  Réponses composées pour les tests de contrat de scm-connector selon les formats publiés par
+  l'API REST GitLab v4 (artefacts de job, fichiers bruts du dépôt, corps d'erreur 404), l'API REST
+  GitHub (contenu brut, corps d'erreur 404, quota épuisé en 403, export SPDX 2.3 du graphe de
+  dépendances) et les spécifications CycloneDX 1.5 / 1.6 (JSON, XML) et SPDX 2.3. Dépôts, projets,
+  identifiants et adresses (plage de documentation 203.0.113.0/24) sont fictifs ; aucune réponse
+  n'a été capturée sur une forge réelle.

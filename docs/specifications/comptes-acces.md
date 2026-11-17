@@ -3,9 +3,9 @@
 | Élément | Valeur |
 |---|---|
 | Préfixe d'exigences | `ACC` |
-| Spec de référence | `/openspec/specs/comptes-acces/spec.md` — absente tant qu'aucun changement n'est archivé |
-| Changements en cours | [`gerer-comptes-et-acces`](/openspec/changes/gerer-comptes-et-acces/proposal.md) (implémenté, non archivé) |
-| Statut de la capacité | proposée ; implémentation et tests dans `argos-server`, changement non archivé |
+| Spec de référence | [`/openspec/specs/comptes-acces/spec.md`](/openspec/specs/comptes-acces/spec.md) |
+| Changements archivés | [`2026-11-17-gerer-comptes-et-acces`](/openspec/changes/archive/2026-11-17-gerer-comptes-et-acces/proposal.md) |
+| Statut de la capacité | livrée |
 | Composants (arc42 §5) | `API & Security`, `workspace`, `audit` |
 
 ## Objectif
@@ -113,13 +113,14 @@ Scénarios ACC-01-S1 à ACC-06-S1 du changement, couverts par les tests de `argo
 
 ## Écarts constatés
 
-- ACC-04-S2 : la RLS est vérifiée sous le rôle non super-utilisateur `argos_app` sur les tables de cette capacité (`CloisonnementTest`, `DefenseEnProfondeurTest`) et sur les impacts (`argos-server/src/test/java/io/argos/chain/CorrelationTest.java`, `rlsGardeFouEnBase` et `rlsAppliqueeSurLeCheminApplicatif`). Le serveur MCP, cité par ACC-04, n'existe pas encore.
+- ACC-04-S2 : la RLS est vérifiée sous le rôle non super-utilisateur `argos_app` sur les tables de cette capacité (`CloisonnementTest`, `DefenseEnProfondeurTest`), sur les impacts (`argos-server/src/test/java/io/argos/chain/CorrelationTest.java`, `rlsGardeFouEnBase` et `rlsAppliqueeSurLeCheminApplicatif`) et sur l'ensemble du schéma (`CouvertureRlsTest`) : toute table accessible à `argos_app` est soumise à la RLS, sauf cinq données de référence globales sans espace ni compte (`signal`, `cycle_vie_produit`, `cycle_vie`, `texte_officiel`, `opportunite`) ; sans contexte, aucune table soumise à la RLS ne renvoie de ligne ; `argos_app` n'est ni super-utilisateur, ni `BYPASSRLS`, ni propriétaire d'un objet ; le rôle et l'espace courant transmis à la base sont locaux à la transaction. Le serveur MCP applique le même cloisonnement (`argos-server/src/test/java/io/argos/mcp/CloisonnementMcpTest.java`).
+- L'espace courant est transmis par le chemin de la requête (`/api/v1/espaces/{id}/…`) ; `ContexteBase` le pose dans `argos.espace_courant`, avec le rôle `argos_app`, par `SET LOCAL` au début de chaque transaction.
 - Sans espace courant, la RLS expose encore au compte courant ses propres appartenances et les espaces dont il est membre ou créateur, ainsi que les invitations adressées à son e-mail vérifié : c'est ce qui permet de lister « mes espaces » et « mes invitations ». Les autres lignes d'un espace exigent l'espace courant.
 - Moindre privilège : `argos_app` ne lit que son compte et les comptes qui partagent un espace avec lui (ou l'auteur d'une invitation qui le concerne), n'a aucun droit sur le journal des refus, et ne peut modifier que les colonnes que l'application modifie (`invitation.etat`, `invitation.destinataire_id`, `appartenance.role`, `espace.nom`). Le destinataire d'une invitation ne peut que la faire passer à l'état accepté, à son nom, et n'entre dans l'espace qu'avec le rôle de l'invitation.
 - Une invitation déjà acceptée ou révoquée répond 409 (`INVITATION_INACTIVE`) ; une invitation inconnue ou adressée à une autre personne répond 404 sans être journalisée comme refus d'accès à un espace.
 - ACC-02-S2 (« message explicite ») : le refus de Keycloak est vérifié, mais aucun écran de connexion d'argos-ui ou du client desktop ne produit encore ce message.
 - Parcours réel d'invitation : Argos n'envoie aucun e-mail et ne crée aucun compte Keycloak ; tant que l'inscription libre est désactivée dans Keycloak, l'administrateur Keycloak crée le compte de la personne invitée (e-mail vérifié) avant sa première connexion.
-- La tâche 3.3 du changement cite QS-02, qui porte sur la confidentialité des appels LLM et non sur le cloisonnement ; aucun scénario du registre qualité ne couvre l'accès inter-espaces.
+- La tâche 3.3 du changement cite QS-02, qui porte sur la confidentialité des appels LLM et non sur le cloisonnement ; QS-02 est exécuté au niveau des tests de la passerelle IA (`argos-server/src/test/java/io/argos/aigateway/PasserelleIaTest.java#iag02S1DonneeConfidentielleRefuseeSansEnvoiEtJournalisee`, `argos-server/src/test/java/io/argos/chain/ParcoursIaTest.java#iag02S1DonneeConfidentielleRefuseeEtJournalisee` : refus, aucun envoi au fournisseur simulé, refus journalisé dans `ia_appel` avec son espace, 0 violation). Aucun scénario du registre qualité ne couvre l'accès inter-espaces.
 
 ## Questions ouvertes
 
@@ -137,7 +138,7 @@ Scénarios ACC-01-S1 à ACC-06-S1 du changement, couverts par les tests de `argo
 | ACC-01 | ACC-01-S1, ACC-01-S2 | DC-1 | 1.1, 2.1 | `AuthentificationTest` |
 | ACC-02 | ACC-02-S1, ACC-02-S2 | DC-1 | 1.1, 1.2, 2.2 | `PremiereConnexionTest` |
 | ACC-03 | ACC-03-S1, ACC-03-S2 | DC-1 | 3.1, 3.2 | `EspacesEtRolesTest`, `ContratOpenApiTest` |
-| ACC-04 | ACC-04-S1, ACC-04-S2 | DC-1, DC-2 | 3.3 | `CloisonnementTest` |
+| ACC-04 | ACC-04-S1, ACC-04-S2 | DC-1, DC-2 | 3.3 | `CloisonnementTest`, `CouvertureRlsTest` |
 | ACC-05 | ACC-05-S1, ACC-05-S2 | DC-1 | 3.1, 3.2 | `InvitationsTest`, `ContratOpenApiTest` |
 | ACC-06 | ACC-06-S1 | DC-2 | 3.4 | `JournalRefusTest` |
 

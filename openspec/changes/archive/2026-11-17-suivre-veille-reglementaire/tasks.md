@@ -88,4 +88,4 @@
 - Basculer dans la fiche durable les statuts [PROPOSITION] de ce changement en [EXIGENCE] ou [EXISTANT] selon les preuves obtenues.
 - Archiver le changement uniquement sur demande explicite, après revue (`openspec archive suivre-veille-reglementaire`).
 - Après archivage, vérifier que la section Purpose de la spec principale contient le lien vers la fiche durable.
-- Après archivage, remplacer dans la fiche les liens vers `/openspec/changes/suivre-veille-reglementaire/` par la spec principale ou le dossier d'archive, puis exécuter `node scripts/verifier-docs.mjs`.
+- Après archivage, remplacer dans la fiche les liens vers `/openspec/changes/archive/2026-11-17-suivre-veille-reglementaire/` par la spec principale ou le dossier d'archive, puis exécuter `node scripts/verifier-docs.mjs`.

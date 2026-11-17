@@ -5,7 +5,7 @@
 | Préfixe d'exigences | `PRF` |
 | Spec de référence | `/openspec/specs/profils-veille/spec.md` — absente tant qu'aucun changement n'est archivé |
 | Changements en cours | [`personnaliser-profils-et-affichage`](/openspec/changes/personnaliser-profils-et-affichage/proposal.md) (en cours d'implémentation) |
-| Statut de la capacité | proposée ; catalogue des profils et profils actifs implémentés |
+| Statut de la capacité | proposée ; catalogue des profils, profils actifs, veille restituée par profils et garde-fous implémentés |
 | Composants (arc42 §5) | `catalog`, `workspace`, `impact-engine`, `signal`, `API & Security`, `mcp-server` |
 
 ## Objectif
@@ -45,7 +45,7 @@ Inclus : catalogue, profils actifs, union des veilles, deux profils initiaux, aj
 | `identifiant` | minuscules, chiffres et tirets | égal au nom du fichier, unique |
 | `version`, `libelle`, `description` | version du pack, textes affichés | renseignés |
 | `categoriesSources`, `connecteurs` | sources surveillées et connecteurs de collecte | non vides |
-| `rubriques` | `identifiant` et `libelle` de chaque rubrique | au moins une, sans doublon |
+| `rubriques` | `identifiant`, `libelle` et, facultatif, `categories` : catégories de sources que la rubrique range | au moins une, sans doublon ; chaque catégorie déclarée dans `categoriesSources` |
 | `typesObjetsSuivis` | objets auxquels les signaux sont rapprochés | non vide |
 | `strategies` | `identifiant` et `deterministe` | au moins une, toutes déterministes (ADR-0013) |
 | `gardeFous` | `type` et `description` | type parmi `VALIDATION_HUMAINE`, `IA_SANS_DECISION`, `AUCUN_AVIS_JURIDIQUE`, `AUCUN_AVIS_ELIGIBILITE`, `SOURCES_VERIFIEES` |
@@ -73,7 +73,8 @@ Utilisateur authentifié ; profil publié au catalogue.
 |---|---|---|---|
 | Activation / désactivation | `PUT /api/v1/preferences/profils` `{"profilsActifs": [...]}` : remplace l'ensemble | publié au catalogue, sinon refus 400 `PROFIL_INCONNU` ; ensemble vide refusé, 400 `AU_MOINS_UN_PROFIL` (PRF-01) | [EXISTANT] — `PreferencesResource`, `PreferencesResourceTest` |
 | Catalogue | `GET /api/v1/catalogue/profils` : identifiant, nom, description, version, rubriques, garde-fous | seuls les profils publiés | [EXISTANT] — `CatalogueResourceTest` |
-| Veille restituée | éléments des profils actifs | union sans doublon, rubriques de chaque profil (PRF-02) | [PROPOSITION] |
+| Veille restituée | `GET /api/v1/me/veille` : profils actifs et éléments (type, titre, date, profils, rubriques, garde-fous, mention de validation, projets visibles concernés) | union sans doublon, rubriques de chaque profil (PRF-02) ; garde-fous des profils actifs appliqués (PRF-06) ; lectures sous la RLS, limitées aux espaces de l'appelant (PRF-05) | [EXISTANT] — `io.argos.api.veille.VeilleProfilsResource`, `UnionProfils`, `VeilleProfilsTest`, `UnionProfilsTest` |
+| Fiche réglementaire par MCP | `get_regulatory_changes` : fiches validées seulement, avec `mentionValidation` | aucune fiche en attente ou rejetée, même pour l'expert qui la voit dans la file de relecture (PRF-06) | [EXISTANT] — `OutilsReglementaires`, `ReglementaireMcpTest`, `VeilleProfilsTest` |
 | Manifeste de profil | sources, rubriques, objets suivis, stratégies, garde-fous | format 1 validé au démarrage (voir « Manifeste de profil ») ; les stratégies de `developpeur` sont confrontées au moteur d'impact par un test, celles d'`expert-metier` n'ont pas d'implémentation | [EXISTANT] partiel — `ValidateurManifeste`, `CatalogueProfilsTest` |
 
 ## Règles métier
@@ -81,11 +82,11 @@ Utilisateur authentifié ; profil publié au catalogue.
 | Règle | Exigence(s) | Source | Statut |
 |---|---|---|---|
 | Au moins un profil actif, cumul possible | PRF-01 | ADR-0024 | [EXISTANT] — service, contrainte en base et tests PRF-01-S1 à S3 |
-| Union des profils actifs, sans doublon | PRF-02 | ADR-0024 | [PROPOSITION] |
+| Union des profils actifs, sans doublon | PRF-02 | ADR-0024 | [EXISTANT] — un élément relève d'un profil actif quand une rubrique du profil range l'une de ses catégories de sources ; il est restitué une fois, avec les rubriques de chacun de ces profils |
 | Profils initiaux `developpeur` et `expert-metier` | PRF-03 | ADR-0024 ; ADR-0013 ; ADR-0018 | [EXISTANT] au catalogue (PRF-03-S1) ; rapprochement de `developpeur` par la règle PURL + plage de versions du moteur d'impact, sans IA (PRF-03-S2) ; rapprochement d'`expert-metier` absent (pas de capacité `regintel`) |
-| Ajout d'un profil sans effet sur les autres | PRF-04 | ADR-0024 | [PROPOSITION] |
+| Ajout d'un profil sans effet sur les autres | PRF-04 | ADR-0024 | [EXISTANT] — la veille ne dépend que des profils actifs : un profil publié n'ajoute ni rubrique, ni élément, ni mention à qui ne l'active pas (`ProfilDemonstrationTest`) |
 | Aucun droit accordé | PRF-05 | ADR-0024 ; ADR-0016 ; ABO-05 | [EXISTANT] — tests inter-espaces avec RLS (`ProfilsDeVeilleTest`) et règle ArchUnit `PreferencesIsolationTest` |
-| Garde-fous appliqués avant diffusion, partout | PRF-06 | ADR-0024 ; ADR-0018 | [PROPOSITION] |
+| Garde-fous appliqués avant diffusion, partout | PRF-06 | ADR-0024 ; ADR-0018 | [EXISTANT] — par le serveur : veille (`/api/v1/me/veille`) et serveur MCP (`get_regulatory_changes`) ; une fiche réglementaire non validée n'est jamais candidate, et le garde-fou `VALIDATION_HUMAINE` d'un profil actif écarte tout élément non validé qu'il range |
 
 ## Droits d'accès et restrictions
 
@@ -164,11 +165,18 @@ Scénarios PRF-01-S1 à PRF-06-S2 du changement.
 - Profils appliqués à un utilisateur qui n'a jamais choisi, ou dont tous les profils ont été retirés : profils par défaut de la plateforme (`argos.preferences.profils-par-defaut`, `developpeur` aujourd'hui). Non exprimé par la demande, à faire valider. Les profils proposés par l'équipe n'existent pas ; ces profils par défaut en tiennent lieu.
 - Profil activé à la création d'un compte (Q-3 de `comptes-acces`) : l'événement `CompteCree` enregistre `developpeur` dans les préférences du compte s'il n'a encore aucun profil (`io.argos.api.preference.ActivationProfilParDefaut`).
 - Clé des préférences : identifiant du compte Argos (table `compte`), relié au sujet OIDC du jeton ; jamais le nom du principal, qui peut changer ou être réattribué. Sous le rôle applicatif `argos_app`, la RLS n'expose à un compte que ses propres préférences.
+- [PROPOSITION] « Élément qui relève d'un profil » (PRF-02) : une rubrique du profil range l'une des catégories de sources de l'élément (champ `categories` des rubriques). `developpeur` range `avis-securite` en `securite` ; `expert-metier` range `textes-officiels` en `reglementation`. Non exprimé par la demande, à faire valider.
+- [PROPOSITION] Catégories restituées par `GET /api/v1/me/veille` : avis de sécurité qui impactent un projet des espaces de l'appelant (`avis-securite`) et fiches réglementaires validées de ses espaces (`textes-officiels`). Les nouvelles versions, fins de support, normes déclaratives, actualités web et opportunités du profil `artiste` n'y figurent pas encore.
+- [PROPOSITION] Portée des garde-fous (PRF-06) : un élément non validé qui relève d'un profil actif imposant `VALIDATION_HUMAINE` n'est pas restitué, même s'il relève aussi d'un autre profil actif. Les garde-fous d'un profil que l'utilisateur n'active pas ne changent pas sa veille (PRF-04) ; la règle propre aux fiches réglementaires (aucune fiche non validée diffusée, ADR-0018) s'applique avant, quel que soit le profil.
+- [PROPOSITION] Serveur MCP : les outils répondent à une question explicite sur le périmètre autorisé et ne sont pas filtrés par les profils actifs ; les garde-fous s'y appliquent (`get_regulatory_changes` ne renvoie que des fiches validées, avec leur mention de validation).
+- [PROPOSITION] `GET /api/v1/me/watch` (abonnements, ABO) et `GET /api/v1/me/veille` (profils) restent deux restitutions distinctes : la décision Q-3 (une source d'abonnement `PERSONAL` s'ajoute à l'union des profils) n'est pas implémentée.
 
 ## Écarts constatés
 
 - La taxonomie des signaux du dossier v2.4 §8.2 est fermée ; ce changement la veut extensible par profil (voir la proposition).
-- La restitution de la veille (`GET /api/v1/me/watch`) ne dépend pas encore des profils actifs : elle suit les abonnements et les droits. Aucun élément de veille ne relève d'`expert-metier` tant que la capacité `regintel` n'existe pas : l'union des profils (PRF-02) et la comparaison de la veille avant et après publication d'un profil (PRF-04-S1) ne sont donc pas vérifiables.
+- La restitution par abonnements (`GET /api/v1/me/watch`) ne dépend pas des profils actifs ; la veille par profils (`GET /api/v1/me/veille`) n'intègre pas les abonnements `PERSONAL` (décision Q-3 non implémentée, tâche 3.9 du changement). Ni `argos-ui` ni le client desktop n'affichent encore `GET /api/v1/me/veille`.
+- Le catalogue publié ne contient aucun élément qui relève à la fois de `developpeur` et d'`expert-metier` : PRF-02-S1 est prouvé avec ces deux manifestes sur un élément de deux catégories (`UnionProfilsTest`), et de bout en bout avec `developpeur` et le profil de test `demonstration`, qui rangent tous deux les avis de sécurité (`ProfilDemonstrationTest`).
+- La publication d'un profil passe par la configuration (`argos.catalogue.profils.manifestes`), donc par un redémarrage : PRF-04-S1 compare la veille restituée, catalogue enrichi, à celle que définissent les seuls profils actifs.
 - `PreferencesIsolationTest` prouve l'isolement des préférences vis-à-vis du reste de `workspace` ; `api` peut les lire. PRF-05 est prouvé par les tests inter-espaces, pas par cette seule règle.
 
 ## Questions ouvertes
@@ -185,8 +193,8 @@ Scénarios PRF-01-S1 à PRF-06-S2 du changement.
 | Exigence | Scénarios | Conception / diagramme | Tâche | Test ou preuve |
 |---|---|---|---|---|
 | PRF-01 | PRF-01-S1 à PRF-01-S3 | DC-1, DF-PRF-1 | 3.2 | `argos-server/src/test/java/io/argos/api/preference/PreferencesResourceTest.java` — passe |
-| PRF-02 | PRF-02-S1, PRF-02-S2 | DC-2, DF-PRF-2 | 3.4 | à écrire |
+| PRF-02 | PRF-02-S1, PRF-02-S2 | DC-2, DF-PRF-2 | 3.4 | `argos-server/src/test/java/io/argos/api/veille/VeilleProfilsTest.java` (`prf02UnionDesDeuxProfilsSansDoublon`, `prf02S2ElementDUnProfilInactif`), `UnionProfilsTest.java`, `argos-server/src/test/java/io/argos/api/catalogue/ProfilDemonstrationTest.java#prf02S1ElementCommunADeuxProfilsActifs` — passent |
 | PRF-03 | PRF-03-S1, PRF-03-S2 | DC-1, DF-PRF-1 | 3.1, 3.3 | S1 : `CatalogueResourceTest.java`, `CatalogueProfilsTest.java` — passent ; S2 : `argos-server/src/test/java/io/argos/chain/ProfilsDeVeilleTest.java`, `MatchRulesTest.java` — passent |
-| PRF-04 | PRF-04-S1 | DF-PRF-1 | 3.5 | partie catalogue : `ProfilDemonstrationTest.java` — passe ; veille inchangée : à écrire |
+| PRF-04 | PRF-04-S1 | DF-PRF-1 | 3.5 | `ProfilDemonstrationTest.java` (catalogue, profils actifs et `prf04S1LaVeilleDesAutresUtilisateursEstInchangee`), `UnionProfilsTest#prf04SeulsLesProfilsActifsComptent` — passent |
 | PRF-05 | PRF-05-S1 | DC-1, DF-PRF-1, DF-PRF-2 | 3.6 | `argos-server/src/test/java/io/argos/chain/ProfilsDeVeilleTest.java#prf05S1ActivationDUnProfilSansDroitSurLesProjets`, règle ArchUnit `PreferencesIsolationTest.java` — passent |
-| PRF-06 | PRF-06-S1, PRF-06-S2 | DC-2, DF-PRF-2 | 3.7 | à écrire |
+| PRF-06 | PRF-06-S1, PRF-06-S2 | DC-2, DF-PRF-2 | 3.7 | `VeilleProfilsTest.java` (`prf06S1FicheNonValideeNiVeilleNiMcp`, `prf06S2FicheValidee`, `contratMcpMentionDeValidation`), `argos-server/src/test/java/io/argos/mcp/ReglementaireMcpTest.java`, `UnionProfilsTest.java` — passent |

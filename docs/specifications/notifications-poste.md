@@ -5,7 +5,7 @@
 | Préfixe d'exigences | `NOT` |
 | Spec de référence | `/openspec/specs/notifications-poste/spec.md` — absente tant qu'aucun changement n'est archivé |
 | Changements en cours | [`notifier-sur-le-poste`](/openspec/changes/notifier-sur-le-poste/proposal.md) (implémenté, non archivé) |
-| Statut de la capacité | implémentée dans `argos-desktop` et `argos-ui` ; tests unitaires et d'intégration simulée ; parcours Electron réel non exécuté |
+| Statut de la capacité | implémentée dans `argos-desktop` et `argos-ui` ; tests unitaires et d'intégration simulée (chaîne pont → canaux → poste avec doublures Electron, boucle de lecture sur horloge simulée) ; parcours Electron réel non exécuté |
 | Composants (arc42 §5) | `argos-desktop`, IHM `argos-ui` (couche contenu), `alerting` |
 
 ## Objectif
@@ -42,7 +42,7 @@ Client desktop lancé (fenêtre visible ou masquée) ; utilisateur authentifié 
 |---|---|---|---|
 | Alertes en attente | `GET /api/v1/alertes?canal=DESKTOP&etat=EN_ATTENTE&limite=200` | alertes de l'appelant seulement (RLS, `alertes-digests`) | [EXISTANT] — `fetchAlertesPosteEnAttente` |
 | Confirmation de remise | `POST /api/v1/alertes/{id}/remise` | l'alerte passe `ENVOYEE` ; une alerte non confirmée revient à la lecture suivante | [EXISTANT] — `confirmerRemise` |
-| Pont vers le poste | identifiant (UUID), gravité, nombre de projets | tout autre champ (titre, noms, liens) est ignoré ; alerte invalide rejetée | [EXISTANT] — `preload.js`, `notifications.js` |
+| Pont vers le poste | identifiant (UUID), gravité, nombre de projets | tout autre champ (titre, noms, liens) est ignoré ; alerte invalide rejetée | [EXISTANT] — `preload.js`, `canaux.js`, `notifications.js` |
 | Notification | titre fixe « Nouvelle alerte ARGOS » ; « Gravité critique · 3 projets » | contenu minimal (NOT-05) : ni le titre du signal, qui nomme souvent le composant, ni un nom de projet | [EXISTANT] — `texteNotification`, `alertePoste` |
 | Compteur | nombre d'alertes ouvertes, de 0 à 9 999 | infobulle « ARGOS — 3 alertes ouvertes » et ligne du menu de la zone de notification | [EXISTANT] — `poste.js` |
 | Réglages du poste | `notificationsPoste` (défaut : vrai), `demarrageSession` (défaut : faux) | booléens seulement ; fichier `reglages-poste.json` dans le dossier de données de l'application | [EXISTANT] — `preferences.js` |
@@ -135,11 +135,11 @@ Interprétations du changement `notifier-sur-le-poste`, à faire valider [PROPOS
 
 | Exigence | Scénarios | Conception / diagramme | Tâche | Test ou preuve |
 |---|---|---|---|---|
-| NOT-01 | NOT-01-S1, NOT-01-S2 | DC-1 | 1.1, 1.2 | `argos-desktop/test/poste.test.js` (`NOT-01-S1…`, `NOT-01-S2…`), `argos-ui/tests/alertes-poste.test.mjs` (`NOT-01…`, `NOT-01-S2…`) |
-| NOT-02 | NOT-02-S1 | DC-1 | 1.2 | `argos-desktop/test/poste.test.js` (`NOT-02-S1…`) |
-| NOT-03 | NOT-03-S1 | DC-1 | 1.2 | `argos-desktop/test/poste.test.js` (`NOT-03-S1…`), `argos-desktop/test/notifications.test.js` (`NOT-03…`), `argos-ui/tests/alertes-poste.test.mjs` (`NOT-03-S1…`, `NOT-03…`) |
+| NOT-01 | NOT-01-S1, NOT-01-S2 | DC-1 | 1.1, 1.2 | `argos-desktop/test/poste.test.js` (`NOT-01-S1…`, `NOT-01-S2…`), `argos-desktop/test/chaine-poste.test.js` (`NOT-01-S1…`, `NOT-01-S2…`), `argos-desktop/test/preload.test.js` (`NOT-01-S1 / NOT-05…`), `argos-ui/tests/alertes-poste.test.mjs` (`NOT-01…`, `NOT-01-S2…`) |
+| NOT-02 | NOT-02-S1 | DC-1 | 1.2 | `argos-desktop/test/poste.test.js` (`NOT-02-S1…`), `argos-desktop/test/chaine-poste.test.js` (`NOT-02-S1…`), `argos-desktop/test/canaux.test.js` (`NOT-02-S1…`), `argos-desktop/test/preload.test.js` (`NOT-02-S1…`) |
+| NOT-03 | NOT-03-S1 | DC-1 | 1.2 | `argos-desktop/test/poste.test.js` (`NOT-03-S1…`), `argos-desktop/test/chaine-poste.test.js` (`NOT-03-S1…`), `argos-desktop/test/preload.test.js` (`NOT-03-S1…`), `argos-desktop/test/notifications.test.js` (`NOT-03…`), `argos-ui/tests/alertes-poste.test.mjs` (`NOT-03-S1…`, `NOT-03…`) |
 | NOT-04 | NOT-04-S1 | DC-1 | 1.4 | `argos-desktop/test/poste.test.js` (`NOT-04-S1…`), `argos-desktop/test/preferences.test.js` (`NOT-04…`) ; e-mail : `AlertesTest` (`alertes-digests`), canal indépendant |
 | NOT-05 | NOT-05-S1 | DC-1 | 1.3 | `argos-desktop/test/notifications.test.js` (`NOT-05-S1…`), `argos-ui/tests/alertes-poste.test.mjs` (`NOT-05-S1…`) |
-| NOT-06 | NOT-06-S1 | DC-1 | 1.1 | `argos-ui/tests/alertes-poste.test.mjs` (`NOT-06-S1…`, `NOT-06…`) |
+| NOT-06 | NOT-06-S1 | DC-1 | 1.1 | `argos-ui/tests/alertes-poste.test.mjs` (`NOT-06-S1…`, `NOT-06…`), `argos-ui/tests/reprise-poste.test.mjs` (`NOT-06-S1…`, `NOT-06…`) |
 
 Matrice détaillée : [`tasks.md`](/openspec/changes/notifier-sur-le-poste/tasks.md#matrice-de-traçabilité).

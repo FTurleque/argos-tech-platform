@@ -51,8 +51,8 @@
 ## 6. Documentation d'architecture et décisions
 
 - [ ] 6.1 Renommer ou annoter les participants des diagrammes D-06 à D-09 selon la table de correspondance de arc42 §6, après décision — vérification : `node scripts/verifier-docs.mjs` sans erreur
-- [ ] 6.2 Produire D-11 (déploiement cible), D-12 (frontières de confiance) et D-13 (modèle physique) à partir du schéma réellement migré, ou les retirer de l'inventaire — vérification : inventaire `/docs/architecture/diagrams/README.md` conforme aux fichiers
-- [ ] 6.3 Rédiger les ADR candidats signalés en D4 (planification/jobs, outil de migration) au statut Proposé et les indexer en arc42 §9 — vérification : index ADR et arc42 §9 synchronisés
+- [x] 6.2 Produire D-11 (déploiement cible), D-12 (frontières de confiance) et D-13 (modèle physique) à partir du schéma réellement migré, ou les retirer de l'inventaire — vérification : inventaire `/docs/architecture/diagrams/README.md` conforme aux fichiers
+- [x] 6.3 Rédiger les ADR candidats signalés en D4 (planification/jobs, outil de migration) au statut Proposé et les indexer en arc42 §9 — vérification : index ADR et arc42 §9 synchronisés
 
 ## 7. Vérifications d'intégration
 
@@ -73,10 +73,10 @@
 | COL-06 | COL-06-S1, COL-06-S2, COL-06-S3 | DC-3 | 1.3, 2.5 | `chain/ResilienceTest#col06S1…` (Retry-After 7 s respecté), `#retryAfterBorneParLeDelaiMaximal` (Retry-After de 24 h borné à 5 min), `#col06S2…` (5 tentatives, curseur inchangé), `#delaiDepasse…`, `#col06S3…` | passe |
 | COL-07 | COL-07-S1, COL-07-S2 | DF-COL-3 | 1.3, 2.5 | `chain/ResilienceTest#col07S1EtS2…` (DEGRADED après 3 échecs, événement daté, REST exploitation) | passe |
 | COL-08 | COL-08-S1 | DF-COL-2 | 2.6 | `chain/CollecteTest#col08S1EtCol02S2…` | passe |
-| INV-01 | INV-01-S1, INV-01-S2 | DF-INV-1, DC-2 | 1.5, 3.1, 3.2, 3.3 | `chain/InventoryTest#inv01S1EtInv02S1…`, `#inv01S2…`, `#migrationIdentiteStableDesComposants`, `chain/DocumentParsingTest#sbomValideAvecTransitivite` | passe ; récupération GitLab/GitHub testée sur réponses simulées seulement (3.2) |
+| INV-01 | INV-01-S1, INV-01-S2 | DF-INV-1, DC-2 | 1.5, 3.1, 3.2, 3.3 | `chain/InventoryTest#inv01S1EtInv02S1…`, `#inv01S2…`, `#migrationIdentiteStableDesComposants`, `chain/DocumentParsingTest#sbomValideAvecTransitivite`, `chain/ScmContractTest#gitlabArtefactCycloneDxDuJobEtJetonPrivateToken`, `#githubContenuBrutAvecJetonBearer`, `#githubSpdxEtCycloneDxXmlReconnus`, `#inventaireDepuisGitlabAvecTransitivite`, `#sbomSpdxRefuseeAvecMotifEtInventaireConserve` (forges simulées par le serveur HTTP local, réponses de `fixtures/scm/`) | passe le 2026-11-17 ; réponses composées selon les formats publiés, aucune capture sur une forge réelle |
 | INV-02 | INV-02-S1 | DF-INV-1 | 3.3 | `chain/InventoryTest#inv01S1EtInv02S1…` (REST : transitif) | passe |
 | INV-03 | INV-03-S1, INV-03-S2, INV-03-S3 | DF-INV-2 | 1.2, 3.4 | `chain/InventoryTest#inv03S1EtS2…`, `#sbomDePlusDeTrenteJoursObsolete` | passe |
-| INV-04 | INV-04-S1, INV-04-S2 | DF-INV-2 | 3.2, 3.4 | `chain/InventoryTest#inv04S1EtS2…` (manifeste puis SBOM via GitLab simulé) | passe |
+| INV-04 | INV-04-S1, INV-04-S2 | DF-INV-2 | 3.2, 3.4 | `chain/InventoryTest#inv04S1EtS2…` (manifeste puis SBOM via GitLab simulé), `chain/ScmContractTest#gitlabFichierBrutEt404Absent`, `#github404AbsentEt403QuotaEpuise`, `#sbomSpdxRefuseeAvecMotifEtInventaireConserve` (repli sur `requirements.txt` GitHub), `#redirectionNonSuivieEtJetonAbsentDuMessage`, `#reponseAuDelaDeLaTailleMaximaleRefusee`, `#cheminsHostilesNeSortentPasDuDepot` | passe le 2026-11-17 |
 | INV-05 | INV-05-S1 | DF-INV-1 | 3.3 | `chain/InventoryTest#inv05S1…`, `chain/DocumentParsingTest#sbomNonConformeRefuseeAvecMotif` | passe |
 | COR-01 | COR-01-S1 à COR-01-S4 | DF-COR-1, DF-COR-2 | 4.2, 4.7 | `chain/MatchRulesTest` (dont `#postReleasesPyPi` et `#qualificatifInconnuNonClasseCommePreVersion`), `chain/CorrelationTest#avisRetireSansImpact` (avis OSV `withdrawn`), `chain/CorrelationTest#cor01S1EtS2EtS4…`, `#cor01S3DependanceTransitive` | passe ; jeu de référence annoté (4.7) absent |
 | COR-02 | COR-02-S1, COR-02-S2, COR-02-S3 | DF-COR-3 | 1.1, 4.3 | `chain/MatchRulesTest`, `chain/CorrelationTest#cor02S1EtCor06S1…`, `#aVerifierPourUnAvisSansPurl` | passe |
@@ -95,13 +95,17 @@
 
 Limites connues, non couvertes par une tâche : les niveaux d'impact sont enregistrés à la corrélation et ne sont pas recalculés quand une SBOM dépasse 30 jours sans nouvelle corrélation ; la première synchronisation OSV sans curseur n'est pas bornée en volume (fiches `correlation-impact` et `collecte-avis-securite`, « Écarts constatés »).
 
+Tâche 3.2 non cochée : la récupération est implémentée et `chain/ScmContractTest` (12 tests) et `scm/SbomDocumentTest` (3 tests) réussissent sur des forges simulées, mais les réponses de `fixtures/scm/` sont composées d'après les formats publiés : aucune réponse n'est enregistrée sur une forge réelle ni sur un dépôt pilote, alors que la vérification exige un « test de contrat GitLab/GitHub enregistré ». La case attend une capture sur un dépôt pilote, ou l'acceptation de cette interprétation par le porteur.
+
+Preuves des tâches documentaires, le 2026-11-17 :
+
+- 6.2 : D-11 (`docs/architecture/diagrams/d-11-deploiement-cible.md`, depuis `compose.yaml` et `Dockerfile`), D-12 (`d-12-frontieres-confiance.md`) et D-13 (`d-13-modele-physique.md`, cinq `erDiagram` relus sur les migrations V1 à V16) ; l'inventaire `docs/architecture/diagrams/README.md` pointe vers ces trois fichiers, cités en arc42 §7.3, §8.3 et §8.7 ; `node scripts/verifier-docs.mjs` sans erreur.
+- 6.3 : ADR-0031 (planification par `quarkus-scheduler`) et ADR-0032 (migrations Flyway), statut Proposé, indexés dans `docs/architecture/adr/README.md` et arc42 §9.1, renvoyés depuis arc42 §9.3 points 1 et 3.
+
 Tâches non réalisées et raison :
 
-- 3.2 : adapters GitLab et GitHub implémentés (`io.argos.scm.RepositoryFiles`) et testés sur réponses simulées (`chain/InventoryTest#contratGitLabEtGitHub`) ; aucune réponse réelle de forge n'est enregistrée faute de dépôt pilote accessible.
 - 4.7 : le jeu de référence annoté exige les inventaires des projets pilotes (baseline v2.3 §6 critère 3).
 - 6.1 : la décision de renommer ou d'annoter les participants de D-06 à D-09 n'est pas prise.
-- 6.2 : D-11 et D-12 relèvent du déploiement et des frontières de confiance, hors du code de ce lot ; D-13 reste à produire depuis les migrations V2 à V7.
-- 6.3 : les ADR candidats (planification des traitements, outil de migration) ne sont pas rédigés ; Flyway reste le choix provisoire d'`argos-server/pom.xml` et aucune planification automatique n'est installée.
 - 7.1 : la chaîne de bout en bout sur les deux projets pilotes exige ces projets.
 
 ## Workflow follow-up

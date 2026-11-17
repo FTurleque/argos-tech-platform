@@ -7,9 +7,9 @@
   "categoriesSources": ["avis-securite", "versions", "fins-de-support"],
   "connecteurs": ["osv", "nvd", "kev", "epss", "cert-fr", "editeurs", "endoflife-date"],
   "rubriques": [
-    { "identifiant": "securite", "libelle": "Sécurité" },
-    { "identifiant": "versions", "libelle": "Nouvelles versions" },
-    { "identifiant": "fins-de-support", "libelle": "Fins de support" }
+    { "identifiant": "securite", "libelle": "Sécurité", "categories": ["avis-securite"] },
+    { "identifiant": "versions", "libelle": "Nouvelles versions", "categories": ["versions"] },
+    { "identifiant": "fins-de-support", "libelle": "Fins de support", "categories": ["fins-de-support"] }
   ],
   "typesObjetsSuivis": ["projet", "composant"],
   "strategies": [

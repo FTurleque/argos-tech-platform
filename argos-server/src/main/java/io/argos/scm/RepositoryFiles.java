@@ -14,8 +14,11 @@ import org.eclipse.microprofile.config.inject.ConfigProperty;
 
 /**
  * Récupère la SBOM de la branche principale et les manifestes d'un dépôt (INV-01, INV-04).
- * Ne renvoie que des octets : aucun objet propre à GitLab ou GitHub ne sort de ce module
- * (arc42 §5, « scm-connector »).
+ * Ne renvoie que des octets, accompagnés pour une SBOM de son format reconnu (CycloneDX ou SPDX,
+ * {@link SbomDocument}) : aucun objet propre à GitLab ou GitHub ne sort de ce module
+ * (arc42 §5, « scm-connector »). Une réponse 404 signifie « absent » ; tout autre statut que 200,
+ * une redirection, un quota épuisé ({@link QuotaEpuise}) ou une réponse trop volumineuse lève
+ * {@link ScmException}.
  *
  * <ul>
  *   <li>GitLab : SBOM = artefact du dernier job réussi de la branche,
@@ -51,8 +54,8 @@ public class RepositoryFiles {
         this.maxBytes = maxBytes;
     }
 
-    /** Dernière SBOM produite pour la branche principale ; vide si aucune n'est disponible. */
-    public Optional<byte[]> latestSbom(RepositoryRef ref) {
+    /** Dernière SBOM produite pour la branche principale, avec son format ; vide si aucune n'est disponible. */
+    public Optional<SbomDocument> latestSbom(RepositoryRef ref) {
         if (ref.sbomPath() == null || ref.sbomPath().isBlank()) {
             return Optional.empty();
         }
@@ -62,9 +65,9 @@ public class RepositoryFiles {
                     yield Optional.empty();
                 }
                 yield fetch(gitlab(ref, "/jobs/artifacts/" + enc(ref.branch()) + "/raw/" + path(ref.sbomPath())
-                        + "?job=" + enc(ref.sbomJob())), gitlabToken, false);
+                        + "?job=" + enc(ref.sbomJob())), gitlabToken, false).map(SbomDocument::de);
             }
-            case "GITHUB" -> file(ref, ref.sbomPath());
+            case "GITHUB" -> file(ref, ref.sbomPath()).map(SbomDocument::de);
             default -> throw new ScmException("forge non prise en charge : " + ref.provider(), null);
         };
     }

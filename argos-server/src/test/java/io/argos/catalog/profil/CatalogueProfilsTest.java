@@ -93,6 +93,27 @@ class CatalogueProfilsTest {
                 () -> CatalogueProfils.lire(MAPPER, List.of("garde-fou-inconnu")));
     }
 
+    /** Une rubrique ne range que des catégories de sources déclarées par le profil (PRF-02). */
+    @Test
+    void uneRubriqueNeRangeQueDesCategoriesDuProfil() {
+        ManifesteProfil m = new ManifesteProfil(1, "rubriques", "1.0.0", "R", "Rubriques",
+                List.of("c"), List.of("k"), List.of(new Rubrique("r", "R", List.of("c", "autre"))), List.of("o"),
+                List.of(new StrategieDeclaree("s", true)), List.of());
+        List<String> erreurs = ValidateurManifeste.erreurs(m);
+        assertEquals(List.of("catégorie de la rubrique r absente de categoriesSources : autre"), erreurs);
+    }
+
+    /** Les rubriques des profils publiés rangent leurs catégories de sources : la veille par profils les utilise. */
+    @Test
+    void lesRubriquesInitialesRangentLesCategoriesDesProfils() {
+        CatalogueProfils catalogue = new CatalogueProfils(
+                CatalogueProfils.lire(MAPPER, List.of("developpeur", "expert-metier")), Set.of());
+        assertTrue(catalogue.trouver("developpeur").orElseThrow().rubriques().get(0).range("avis-securite"));
+        assertTrue(catalogue.trouver("expert-metier").orElseThrow().rubriques().get(0).range("textes-officiels"));
+        assertFalse(catalogue.trouver("expert-metier").orElseThrow().diffusable(false), "VALIDATION_HUMAINE");
+        assertTrue(catalogue.trouver("developpeur").orElseThrow().diffusable(false));
+    }
+
     @Test
     void unManifesteAbsentEstRefuse() {
         assertThrows(ManifesteInvalideException.class, () -> CatalogueProfils.lire(MAPPER, List.of("absent")));

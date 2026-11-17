@@ -245,7 +245,7 @@ public class FichesEnBase implements FichesReglementaires {
                 t.titre(), t.datePublication(), t.codes(), base + "/jorf/id/" + t.identifiant(),
                 base + "/loda/id/" + t.identifiant());
         String mentionValidation = switch (validation) {
-            case "VALIDEE" -> "validée par l'expert métier";
+            case "VALIDEE" -> FicheAnalyse.MENTION_VALIDEE;
             case "REJETEE" -> "rejetée par l'expert métier : non diffusée";
             default -> "en attente de validation par l'expert métier : non diffusée";
         };

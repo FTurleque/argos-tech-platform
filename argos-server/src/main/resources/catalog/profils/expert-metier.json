@@ -7,8 +7,8 @@
   "categoriesSources": ["textes-officiels", "normes-declaratives"],
   "connecteurs": ["legifrance", "net-entreprises", "boss", "dgcl", "dgafp", "caisses-retraite"],
   "rubriques": [
-    { "identifiant": "reglementation", "libelle": "Réglementation" },
-    { "identifiant": "normes-declaratives", "libelle": "Normes déclaratives" }
+    { "identifiant": "reglementation", "libelle": "Réglementation", "categories": ["textes-officiels"] },
+    { "identifiant": "normes-declaratives", "libelle": "Normes déclaratives", "categories": ["normes-declaratives"] }
   ],
   "typesObjetsSuivis": ["domaine-metier", "module-produit"],
   "strategies": [
