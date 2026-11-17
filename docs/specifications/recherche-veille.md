@@ -17,7 +17,7 @@
 | Acteur | Interaction | Statut |
 |---|---|---|
 | Utilisateur | recherche, filtre, enregistre des vues par l'API REST (portail et client desktop, clients de cette API) | [EXISTANT] — `RechercheVeilleTest` |
-| Utilisateur du portail ou du client desktop | recherche, filtre, enregistre, rappelle et supprime des vues dans l'écran « Recherche » de `argos-ui` (routes `/recherche` et `/recherche/vues/:id`) | [EXISTANT] — `argos-ui/tests/recherche.test.mjs` ; écran non exercé contre un serveur réel tant que l'IHM n'envoie pas de jeton OIDC |
+| Utilisateur du portail ou du client desktop | recherche, filtre, enregistre, rappelle et supprime des vues dans l'écran « Recherche » de `argos-ui` (routes `/recherche` et `/recherche/vues/:id`) | [EXISTANT] — `argos-ui/tests/recherche.test.mjs` ; E2E `e2e/tests/recherche.spec.ts` (portail) et `e2e/desktop/recherche.spec.ts` (vue enregistrée sur le portail, rappelée dans le client desktop) |
 | Assistant IA (client MCP) | recherche des signaux de sécurité par l'outil `search_signals` | [EXISTANT] — `RechercheMcpTest` |
 
 ## Périmètre et exclusions
@@ -108,7 +108,6 @@ Scénarios RCH-01-S1 à RCH-05-S1 du changement ; QS-13 (recherche).
 
 ## Écarts constatés
 
-- Parcours de bout en bout depuis le client desktop (tâche 4.2) non consigné : l'écran de recherche existe dans `argos-ui`, mais l'IHM n'envoie pas encore de jeton OIDC et l'API refuse tout appel non authentifié ; seul le parcours par l'API REST est vérifié.
 - Aucun point d'accès ne liste les projets visibles de l'utilisateur : le filtre projet de l'écran propose les projets cités par les résultats affichés ou par une vue rappelée, et accepte l'identifiant d'un projet [PROPOSITION — D8 de `rechercher-et-filtrer`].
 - La mesure QS-13 (`MesurePerformanceRechercheTest`) est lancée à la demande et non par `mvn verify` ; la cible n'est tenue que pour des recherches sélectives (un mot présent dans tous les éléments : environ 3,7 s, risque R-16).
 
@@ -126,5 +125,5 @@ Scénarios RCH-01-S1 à RCH-05-S1 du changement ; QS-13 (recherche).
 | RCH-01 | RCH-01-S1, RCH-01-S2 | Composants, DF-RCH-1, Écran de recherche | 1.1, 1.3, 5.1, 5.2 | `RechercheVeilleTest`, `RechercheMcpTest`, `argos-ui/tests/recherche.test.mjs` |
 | RCH-02 | RCH-02-S1 | Composants, DF-RCH-1, Écran de recherche | 1.2, 5.2 | `RechercheVeilleTest.rch02S1FiltresCombines`, `argos-ui/tests/recherche.test.mjs` |
 | RCH-03 | RCH-03-S1 | Sécurité et isolation | 1.1, 1.3 | `RechercheVeilleTest.rch03S1MotPresentDansUnAutreEspace`, `rch03CloisonnementSousArgosApp`, `RechercheMcpTest.rch03MotPresentDansUnAutreEspace` |
-| RCH-04 | RCH-04-S1, RCH-04-S2 | Composants, Écran de recherche | 2.1, 5.3, 4.2 (non réalisée) | `RechercheVeilleTest.rch04S1VueRappelee`, `rch04S2VueDUnAutreUtilisateur`, `argos-ui/tests/recherche.test.mjs` |
+| RCH-04 | RCH-04-S1, RCH-04-S2 | Composants, Écran de recherche | 2.1, 5.3, 4.2 | `RechercheVeilleTest.rch04S1VueRappelee`, `rch04S2VueDUnAutreUtilisateur`, `argos-ui/tests/recherche.test.mjs`, E2E `e2e/tests/recherche.spec.ts` (portail) et `e2e/desktop/recherche.spec.ts` (vue enregistrée sur le portail, rappelée dans le client desktop) |
 | RCH-05 | RCH-05-S1 | Performance | 2.2 | `MesurePerformanceRechercheTest`, [rapport QS-13](../architecture/quality/mesure-qs13-recherche.md) |

@@ -209,7 +209,6 @@ La migration ajoute des colonnes générées et réécrit `signal` et `actualite
 
 ## Écarts code / tests / specs / documentation
 
-- Parcours depuis le client desktop (tâche 4.2) non consigné : l'écran de recherche existe, mais `argos-ui` n'envoie pas encore de jeton OIDC, et l'API refuse tout appel non authentifié (401).
 - Aucun point d'accès ne liste les projets visibles de l'utilisateur : le filtre projet de l'écran repose sur les projets cités par les résultats ou sur la saisie d'un identifiant (D8).
 
 ## Stratégie de vérification
@@ -222,7 +221,7 @@ La migration ajoute des colonnes générées et réécrit `signal` et `actualite
 | RCH-04-S1, RCH-04-S2 | intégration API | `RechercheVeilleTest.rch04*` | passe |
 | RCH-05-S1 | charge | `MesurePerformanceRechercheTest`, QS-13 | passe (p95 = 250 ms) |
 | RCH-01, RCH-02, RCH-04 (écran) | unitaire et statique IHM | `argos-ui/tests/recherche.test.mjs` (paramètres, période, vues, sécurité de l'écran), `npm --prefix argos-ui run build` (contrôle de types) | passe |
-| RCH-04-S1 depuis le desktop | E2E | tâche 4.2 | non réalisé |
+| RCH-04-S1 depuis le desktop | E2E | `e2e/desktop/recherche.spec.ts` : vue enregistrée sur le portail web, rappelée dans l'application Electron connectée avec le même compte (tâche 4.2) | passe (2026-11-17) |
 
 ## Documentation durable impactée
 

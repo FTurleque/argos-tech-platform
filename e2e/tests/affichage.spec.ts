@@ -1,6 +1,6 @@
 // Préférence de mise en page sur le portail web (personnaliser-profils-et-affichage, tâche 2.5,
 // partie web ; AFF-01-S1, AFF-03-S1) : choix de « gazette », enregistré sur le serveur et retrouvé
-// dans une nouvelle session. La partie desktop exige le binaire Electron (e2e/README.md).
+// dans une nouvelle session. La partie desktop est dans desktop/affichage.spec.ts.
 import { api } from '../support/donnees'
 import { expect, seConnecterDepuis, test } from '../support/fixtures'
 
