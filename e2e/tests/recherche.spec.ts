@@ -1,22 +1,11 @@
 // Parcours de recherche du portail web (changement rechercher-et-filtrer, tâche 4.2, partie web) :
 // recherche « Oracle » filtrée sur le projet « Paie » et 30 jours, enregistrée en vue, rappelée dans
 // la même session puis dans une nouvelle session. Données : support/donnees.ts, donnees/recherche.sql.
-import { SIGNAL_ATTENDU, SIGNAUX_EXCLUS } from '../support/donnees'
+import { SIGNAL_ATTENDU } from '../support/donnees'
+import { resultats, verifierCriteresRappeles, verifierResultatUnique } from '../support/ecrans'
 import { expect, seConnecterDepuis, test } from '../support/fixtures'
-import type { Page } from '@playwright/test'
 
 const NOM_VUE = `Oracle Paie 30 jours ${Date.now()}`
-
-function resultats(page: Page) {
-  return page.locator('ol.resultats > li h3')
-}
-
-async function verifierResultatUnique(page: Page): Promise<void> {
-  await expect(resultats(page)).toHaveText([SIGNAL_ATTENDU])
-  await expect(page.locator('section p.muted', { hasText: /^1 résultat\.$/ })).toBeVisible()
-  await expect(page.locator('ol.resultats > li')).toContainText('Projets : Paie')
-  for (const exclu of SIGNAUX_EXCLUS) await expect(page.getByText(exclu, { exact: true })).toHaveCount(0)
-}
 
 test('RCH-01, RCH-02-S1, RCH-04-S1 : recherche « Oracle », projet Paie, 30 jours, vue enregistrée puis rappelée', async ({ page }) => {
   await seConnecterDepuis(page, '/recherche', 'alice')
@@ -58,10 +47,7 @@ test('RCH-01, RCH-02-S1, RCH-04-S1 : recherche « Oracle », projet Paie, 30 jou
   await lienVue.click()
   await expect(page).toHaveURL((url) => url.hash === adresseVue)
   await expect(page).toHaveURL(/#\/recherche\/vues\/[0-9a-f-]{36}$/)
-  await expect(page.getByText(`Vue rappelée : ${NOM_VUE}`)).toBeVisible()
-  await expect(page.getByLabel('Mots recherchés')).toHaveValue('Oracle')
-  await expect(page.getByLabel('Période')).toHaveValue('30')
-  await expect(page.getByRole('group', { name: 'Projets' }).getByLabel('Paie')).toBeChecked()
+  await verifierCriteresRappeles(page, NOM_VUE)
   await verifierResultatUnique(page)
 
   // 5. Rappel dans une nouvelle session (page rechargée : jetons oubliés, vue lue sur le serveur).

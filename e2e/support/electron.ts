@@ -248,3 +248,39 @@ export async function connecterCompte(
   await saisirIdentifiants(navigateur, utilisateur)
   return { urlAutorisation, retour: await retour }
 }
+
+/**
+ * Ouvre une vue protégée du desktop avec le compte donné : la vue demandée sans session mène à
+ * l'écran de connexion, la connexion passe par le navigateur du système (`connecterCompte`), puis
+ * la fenêtre revient sur la vue demandée avec la session ouverte.
+ */
+export async function ouvrirVueConnectee(
+  desktop: ApplicationDesktop,
+  navigateur: Page,
+  utilisateur: string,
+  vue: string,
+): Promise<void> {
+  const { fenetre } = desktop
+  await fenetre.evaluate((v) => { window.location.hash = `#${v}` }, vue)
+  await expect(fenetre).toHaveURL((url) => url.hash === `#/connexion?retour=${vue}`)
+  const { retour } = await connecterCompte(desktop, navigateur, utilisateur)
+  expect(retour.status()).toBe(200)
+  await expect(fenetre.getByRole('button', { name: 'Se déconnecter' })).toBeVisible()
+  await expect(fenetre).toHaveURL((url) => url.hash === `#${vue}`)
+}
+
+/** Vrai quand le journal contient une requête GET aboutie (200) sur ce chemin de l'API, avec le jeton porteur. */
+export async function appelApiAuthentifie(desktop: ApplicationDesktop, chemin: string | RegExp): Promise<boolean> {
+  return (await desktop.journal()).some((r) => {
+    if (r.methode !== 'GET' || !r.porteur || r.statut !== 200 || !r.adresse.startsWith(`${URL_API}/`)) return false
+    const relatif = r.adresse.slice(URL_API.length)
+    return typeof chemin === 'string' ? relatif === chemin : chemin.test(relatif)
+  })
+}
+
+/** Journal de la session : aucune requête vers un hôte hors de la boucle locale, aucun document hors de app://argos. */
+export async function verifierJournalLocal(desktop: ApplicationDesktop): Promise<void> {
+  const journal = await desktop.journal()
+  expect(journal.filter((r) => r.refusee).map((r) => r.adresse), 'hôtes hors de la boucle locale').toEqual([])
+  for (const r of journal.filter((x) => x.type === 'mainFrame' || x.type === 'subFrame')) expect(r.protocole, r.adresse).toBe('app:')
+}

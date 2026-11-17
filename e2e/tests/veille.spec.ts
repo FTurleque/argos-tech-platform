@@ -3,24 +3,24 @@
 // affichée dans la mise en page de sa préférence. Jeu de données : support/donnees.ts (preparerVeille) et
 // donnees/veille.sql. L'union, le dédoublonnage et les droits sont calculés par le serveur : les parcours
 // comparent ce que montre l'IHM à la réponse de l'API et vérifient qu'aucune mise en page n'en change les faits.
-import type { Locator, Page } from '@playwright/test'
+import type { Page } from '@playwright/test'
 import { api, fixerPreferences, VEILLE, veilleDe } from '../support/donnees'
+import {
+  article,
+  articles,
+  capture,
+  choisirMiseEnPage as choisirMiseEnPageDe,
+  DEUX_PROFILS,
+  JAMAIS_POUR_JULES,
+  miseEnPage,
+  MISES_EN_PAGE,
+  titres,
+  UNION_JULES,
+} from '../support/ecrans'
 import { expect, seConnecterDepuis, test } from '../support/fixtures'
 import { etatFocus, mesurerContrastes } from '../support/mesures'
 
-const MISES_EN_PAGE = ['classique', 'journal', 'fantaisie', 'gazette'] as const
-const DEUX_PROFILS = ['developpeur', 'expert-metier']
-/** Union attendue pour jules (developpeur + expert-metier + abonnement personnel), sans doublon. */
-const UNION_JULES = [VEILLE.avisCommun, VEILLE.avisAbonne, VEILLE.ficheIa, VEILLE.ficheExpert]
-/** Ce que jules n'a pas le droit de voir, ou qui n'est pas diffusé (fiche non validée). */
-const JAMAIS_POUR_JULES = [VEILLE.avisEspaceB, VEILLE.ficheEnAttente, VEILLE.projetB, VEILLE.idProjetB]
-
-const miseEnPage = (page: Page) => page.locator('[data-mise-en-page]')
-const articles = (page: Page) => page.locator('[data-mise-en-page] [data-element]')
-
-function article(page: Page, titre: string): Locator {
-  return articles(page).filter({ has: page.locator('[data-champ="titre"]', { hasText: titre }) })
-}
+const choisirMiseEnPage = (page: Page, id: string) => choisirMiseEnPageDe(page, 'jules', id)
 
 /** Ouvre « Ma veille » par la navigation (même session) et attend la mise en page donnée. */
 async function ouvrirMaVeille(page: Page, id: string): Promise<void> {
@@ -40,24 +40,6 @@ async function faits(page: Page): Promise<string[][]> {
       ...[...a.querySelectorAll('a[href]')].map((l) => `lien=${l.getAttribute('href')}`),
     ]),
   )
-}
-
-async function titres(page: Page): Promise<string[]> {
-  return page.locator('[data-mise-en-page] [data-element] [data-champ="titre"]').allTextContents().then((t) => t.map((x) => x.trim()))
-}
-
-/** Capture légère : JPEG de la fenêtre, mise en page en haut de l'écran. */
-async function capture(page: Page, nom: string): Promise<void> {
-  await miseEnPage(page).evaluate((el) => el.scrollIntoView({ block: 'start' }))
-  await page.screenshot({ path: `resultats/${nom}.jpg`, type: 'jpeg', quality: 60 })
-}
-
-async function choisirMiseEnPage(page: Page, id: string): Promise<void> {
-  await page.getByRole('navigation', { name: 'Navigation principale' }).getByRole('link', { name: 'Mise en page' }).click()
-  const radio = page.getByRole('radiogroup', { name: 'Mises en page disponibles' }).getByRole('radio', { name: new RegExp(id, 'i') })
-  await radio.click()
-  await expect(radio).toHaveAttribute('aria-checked', 'true')
-  await expect.poll(async () => (await api<{ miseEnPage: string }>('jules', '/api/v1/preferences')).miseEnPage).toBe(id)
 }
 
 test('3.4, 3.9 (PRF-02, PRF-02-S3) : deux profils actifs et un abonnement personnel, union sans doublon avec rubriques', async ({ page }) => {
