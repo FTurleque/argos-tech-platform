@@ -60,3 +60,12 @@ test('aucun journal dans la couche session ni dans le client REST', () => {
   assert.ok(concernes.length >= 5)
   assert.deepEqual(concernes.filter((s) => /\bconsole\./.test(s.texte)).map((s) => s.nom), [])
 })
+
+test('ACC-09 : le client REST est branché sur la session avant la reprise du retour du fournisseur', () => {
+  const main = sources.find((s) => s.nom === 'main.ts').texte
+  const installation = main.indexOf('installerSession(router)')
+  const reprise = main.indexOf('await demarrerSession()')
+  assert.ok(installation > 0 && reprise > 0, 'appels présents dans main.ts')
+  assert.ok(installation < reprise, 'installerSession doit précéder demarrerSession')
+  assert.ok(reprise < main.indexOf('createApp(App)'), 'retour traité avant la première navigation')
+})

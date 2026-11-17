@@ -167,3 +167,11 @@ test('ACC-08-S4 : URL de fin de session avec indice d’identité et retour éve
   assert.equal(desktop.searchParams.has('post_logout_redirect_uri'), false)
   assert.equal(construireUrlDeconnexion({ pointFinSession: null, clientId: 'x', jetonIdentite: null, retourApresDeconnexion: null }), null)
 })
+
+test('RFC 9207 : le paramètre iss du retour doit désigner l’émetteur attendu', () => {
+  const emetteur = 'http://kc.test/realms/argos'
+  assert.deepEqual(lireRetour(`?state=s1&code=c1&iss=${encodeURIComponent(emetteur)}`, 's1', emetteur), { type: 'code', code: 'c1' })
+  assert.deepEqual(lireRetour(`?state=s1&code=c1&iss=${encodeURIComponent(emetteur + '/')}`, 's1', emetteur), { type: 'code', code: 'c1' })
+  assert.deepEqual(lireRetour('?state=s1&code=c1', 's1', emetteur), { type: 'code', code: 'c1' })
+  assert.deepEqual(lireRetour('?state=s1&code=c1&iss=http%3A%2F%2Fautre.test', 's1', emetteur), { type: 'emetteur-invalide' })
+})

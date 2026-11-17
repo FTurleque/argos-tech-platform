@@ -85,6 +85,8 @@ export class GestionnaireSession {
   #minuterie: unknown = null
   #etat: EtatSession = 'ANONYME'
   #message: string | null = null
+  /** Numéro de la tentative de connexion en cours : une tentative relancée rend caduque la précédente. */
+  #tentative = 0
 
   constructor(d: DependancesSession) {
     this.#d = d
@@ -112,6 +114,8 @@ export class GestionnaireSession {
    * Renvoie la vue à afficher quand la connexion aboutit dans la même page (desktop), sinon null.
    */
   async seConnecter(retour: string): Promise<string | null> {
+    const tentative = ++this.#tentative
+    const caduque = (): boolean => tentative !== this.#tentative
     this.#changer('CONNEXION_EN_COURS', null)
     let demande: DemandeAutorisation
     let url: string
@@ -133,17 +137,19 @@ export class GestionnaireSession {
         defi: await defiPkce(verificateur, this.#crypto),
       })
     } catch {
-      this.#changer('ERREUR', 'Fournisseur d’identité injoignable. Réessayez plus tard.')
+      if (!caduque()) this.#changer('ERREUR', 'Fournisseur d’identité injoignable. Réessayez plus tard.')
       return null
     }
+    if (caduque()) return null
     let recherche: string | null
     try {
       recherche = await this.#d.transport.lancer(url, demande)
     } catch {
-      this.#changer('ERREUR', 'La connexion n’a pas pu être lancée.')
+      // Une connexion relancée entre-temps ferme l'écoute précédente : son échec n'est pas affiché.
+      if (!caduque()) this.#changer('ERREUR', 'La connexion n’a pas pu être lancée.')
       return null
     }
-    if (recherche === null) return null
+    if (recherche === null || caduque()) return null
     return this.terminer(recherche, demande)
   }
 
@@ -163,7 +169,7 @@ export class GestionnaireSession {
    * planifie le renouvellement. Renvoie la vue à afficher, ou null en cas d'échec.
    */
   async terminer(recherche: string, demande: DemandeAutorisation): Promise<string | null> {
-    const retour = lireRetour(recherche, demande.state)
+    const retour = lireRetour(recherche, demande.state, this.#decouverte?.issuer ?? this.#d.config.emetteur)
     if (retour.type === 'refus') {
       this.#changer('REFUSEE', messageRefus(retour.erreur))
       return null

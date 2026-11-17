@@ -61,6 +61,24 @@ const vueCourante = ref<VueEnregistree | null>(null)
 const nomVue = ref('')
 const erreurEnregistrement = ref('')
 const annonceVues = ref('')
+/** Vue dont la suppression attend une confirmation dans la page. */
+const vueASupprimer = ref<VueEnregistree | null>(null)
+
+/**
+ * Chargement en cours : un nouveau chargement (recherche, page, vue rappelée) annule le précédent,
+ * dont la réponse tardive ne peut plus écraser l'écran.
+ */
+let chargementCourant: AbortController | null = null
+
+function nouveauChargement(): AbortSignal {
+  chargementCourant?.abort()
+  chargementCourant = new AbortController()
+  return chargementCourant.signal
+}
+
+function estAnnule(e: unknown): boolean {
+  return e instanceof ApiError && e.motif === 'ANNULE'
+}
 
 const pages = computed(() => (resultats.value ? nombrePages(resultats.value.total, resultats.value.taille) : 0))
 const optionsProjets = computed(() =>
@@ -68,6 +86,9 @@ const optionsProjets = computed(() =>
 )
 
 function texteErreur(operation: Parameters<typeof messageErreur>[0], e: unknown): string {
+  if (e instanceof ApiError && e.motif === 'DELAI_DEPASSE') {
+    return "Le serveur ARGOS n'a pas répondu à temps. Précisez les mots ou les filtres, puis relancez."
+  }
   if (e instanceof ApiError) return messageErreur(operation, e.status, e.message)
   return 'Erreur inattendue.'
 }
@@ -76,26 +97,34 @@ function date(iso: string | null): string {
   return iso ? new Date(iso).toLocaleDateString('fr-FR') : ''
 }
 
-async function afficher(nouvelle: Source, page: number, deplacerFocus: boolean): Promise<void> {
+async function afficher(
+  nouvelle: Source,
+  page: number,
+  deplacerFocus: boolean,
+  signal: AbortSignal = nouveauChargement(),
+): Promise<void> {
   chargement.value = true
   erreur.value = ''
   annonce.value = 'Recherche en cours…'
   try {
     const r =
       nouvelle.nature === 'vue'
-        ? await resultatsVue(nouvelle.id, page, TAILLE_PAGE)
-        : await rechercher(nouvelle.criteres, page, TAILLE_PAGE)
+        ? await resultatsVue(nouvelle.id, page, TAILLE_PAGE, signal)
+        : await rechercher(nouvelle.criteres, page, TAILLE_PAGE, signal)
+    if (signal.aborted) return
     resultats.value = r
     source.value = nouvelle
     projets.value = projetsConnus(projets.value, r.elements.flatMap((e) => e.projets))
     annonce.value = annonceResultats(r.total, r.page, r.taille)
   } catch (e) {
+    if (signal.aborted || estAnnule(e)) return
     resultats.value = null
     erreur.value = texteErreur(nouvelle.nature === 'vue' ? 'vue' : 'recherche', e)
     annonce.value = ''
   } finally {
-    chargement.value = false
+    if (!signal.aborted) chargement.value = false
   }
+  if (signal.aborted) return
   if (deplacerFocus) {
     await nextTick()
     titreResultats.value?.focus()
@@ -163,13 +192,31 @@ async function enregistrer(): Promise<void> {
   }
 }
 
-async function supprimer(vue: VueEnregistree): Promise<void> {
-  if (!window.confirm(`Supprimer la vue « ${vue.nom} » ? Cette action est définitive.`)) return
+/** Vide les résultats affichés (vue supprimée, vue introuvable) et abandonne tout chargement. */
+function viderResultats(): void {
+  chargementCourant?.abort()
+  chargementCourant = null
+  chargement.value = false
+  resultats.value = null
+  source.value = null
+  annonce.value = ''
+}
+
+function demanderSuppression(vue: VueEnregistree): void {
   erreurVues.value = ''
   annonceVues.value = ''
+  vueASupprimer.value = vue
+}
+
+async function confirmerSuppression(): Promise<void> {
+  const vue = vueASupprimer.value
+  vueASupprimer.value = null
+  if (!vue) return
   try {
     await supprimerVue(vue.id)
     annonceVues.value = `Vue « ${vue.nom} » supprimée.`
+    const affichee = idVue.value === vue.id || (source.value?.nature === 'vue' && source.value.id === vue.id)
+    if (affichee) viderResultats()
     await chargerVues()
     if (idVue.value === vue.id) await router.push('/recherche')
   } catch (e) {
@@ -180,20 +227,23 @@ async function supprimer(vue: VueEnregistree): Promise<void> {
 async function rappeler(id: string): Promise<void> {
   vueCourante.value = null
   if (!estUuid(id)) {
-    resultats.value = null
+    viderResultats()
     erreur.value = 'Vue introuvable.'
     return
   }
+  const signal = nouveauChargement()
   try {
-    const vue = await lireVue(id)
+    const vue = await lireVue(id, signal)
+    if (signal.aborted) return
     vueCourante.value = vue
     formulaire.value = formulaireDesCriteres(vue.criteres)
   } catch (e) {
+    if (signal.aborted || estAnnule(e)) return
     resultats.value = null
     erreur.value = texteErreur('vue', e)
     return
   }
-  await afficher({ nature: 'vue', id }, 0, false)
+  await afficher({ nature: 'vue', id }, 0, false, signal)
 }
 
 watch(
@@ -401,11 +451,16 @@ onMounted(chargerVues)
           {{ vue.nom }}
         </RouterLink>
         <span class="muted"> · {{ libellePeriode(vue.criteres?.horizonJours) }}</span>
-        <button type="button" class="secondary" :aria-label="`Supprimer la vue ${vue.nom}`" @click="supprimer(vue)">
+        <button type="button" class="secondary" :aria-label="`Supprimer la vue ${vue.nom}`" @click="demanderSuppression(vue)">
           Supprimer
         </button>
       </li>
     </ul>
+    <div v-if="vueASupprimer" class="confirmation" role="alertdialog" aria-labelledby="confirmation-suppression">
+      <p id="confirmation-suppression">Supprimer la vue « {{ vueASupprimer.nom }} » ? Cette action est définitive.</p>
+      <button type="button" @click="confirmerSuppression">Supprimer définitivement</button>
+      <button type="button" class="secondary" @click="vueASupprimer = null">Annuler</button>
+    </div>
   </section>
 </template>
 
@@ -427,5 +482,7 @@ input:focus-visible, select:focus-visible, a:focus-visible, h2:focus-visible { o
 .enregistrement { display: flex; flex-wrap: wrap; align-items: center; gap: 0.5rem; margin-bottom: 0.75rem; }
 .enregistrement p { flex-basis: 100%; margin: 0; }
 .erreur { color: var(--ko); margin: 0; }
+.confirmation { display: flex; flex-wrap: wrap; align-items: center; gap: 0.5rem; margin-top: 0.75rem; }
+.confirmation p { flex-basis: 100%; margin: 0; }
 button:disabled { opacity: 0.6; cursor: default; }
 </style>

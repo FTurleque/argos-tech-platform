@@ -34,6 +34,7 @@ export type RetourAutorisation =
   | { type: 'code'; code: string }
   | { type: 'refus'; erreur: string }
   | { type: 'state-invalide' }
+  | { type: 'emetteur-invalide' }
   | { type: 'absent' }
 
 /** Paramètres de retour retirés de l'adresse une fois lus (ACC-07-S2). */
@@ -124,18 +125,32 @@ function egales(a: string, b: string): boolean {
   return difference === 0
 }
 
+function sansBarreFinale(adresse: string): string {
+  return adresse.endsWith('/') ? adresse.slice(0, -1) : adresse
+}
+
 /**
  * Lit le retour du fournisseur dans une chaîne de requête (`?code=…&state=…`).
  * Le state doit être exactement celui de la demande en cours (ACC-07-S3) ; un refus du
  * fournisseur n'est accepté qu'avec ce state, sinon il est traité comme un retour falsifié.
+ * Le paramètre `iss`, quand le fournisseur l'envoie, doit désigner l'émetteur attendu (RFC 9207).
  */
-export function lireRetour(recherche: string, stateAttendu: string | null): RetourAutorisation {
+export function lireRetour(
+  recherche: string,
+  stateAttendu: string | null,
+  emetteurAttendu?: string,
+): RetourAutorisation {
   const p = new URLSearchParams(recherche.startsWith('?') ? recherche.slice(1) : recherche)
   const code = p.get('code')
   const erreur = p.get('error')
   if (code === null && erreur === null) return { type: 'absent' }
   const state = p.get('state')
   if (!stateAttendu || state === null || !egales(state, stateAttendu)) return { type: 'state-invalide' }
+  // RFC 9207 : un émetteur annoncé dans le retour doit être celui qui a reçu la demande.
+  const iss = p.get('iss')
+  if (emetteurAttendu !== undefined && iss !== null && sansBarreFinale(iss) !== sansBarreFinale(emetteurAttendu)) {
+    return { type: 'emetteur-invalide' }
+  }
   if (erreur !== null) return { type: 'refus', erreur }
   return code ? { type: 'code', code } : { type: 'state-invalide' }
 }
@@ -165,9 +180,17 @@ export function urlNettoyee(href: string, route: string): string {
 export function cheminInterne(chemin: unknown): string {
   if (typeof chemin !== 'string') return '/'
   if (!chemin.startsWith('/') || chemin.startsWith('//') || chemin.includes('\\')) return '/'
-  // eslint-disable-next-line no-control-regex
-  if (/[\u0000-\u001f\u007f]/.test(chemin) || chemin.length > 512) return '/'
+  if (chemin.length > 512 || contientControle(chemin)) return '/'
   return chemin
+}
+
+/** Vrai si la chaîne contient un caractère de contrôle (U+0000 à U+001F, U+007F). */
+function contientControle(texte: string): boolean {
+  for (let i = 0; i < texte.length; i += 1) {
+    const c = texte.charCodeAt(i)
+    if (c < 0x20 || c === 0x7f) return true
+  }
+  return false
 }
 
 /** Corps du formulaire d'échange du code (RFC 6749 §4.1.3, RFC 7636 §4.5). */

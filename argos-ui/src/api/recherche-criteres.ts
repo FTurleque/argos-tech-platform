@@ -205,5 +205,7 @@ export function messageErreur(
     return 'Vue introuvable.'
   }
   if (status === 400 || status === 409) return message
+  if (status === 403) return 'Accès refusé : vos droits ne permettent pas cette opération.'
+  if (status === 429) return 'Trop de demandes en peu de temps : réessayez dans quelques instants.'
   return `Le serveur a répondu ${status}.`
 }

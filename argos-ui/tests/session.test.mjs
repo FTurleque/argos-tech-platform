@@ -250,3 +250,54 @@ test('l’instance n’expose aucun jeton par ses propriétés', async () => {
   assert.doesNotMatch(JSON.stringify(session), /acces-|renouv-|id-1/)
   assert.deepEqual(Object.keys(session), [])
 })
+
+test('desktop : une connexion relancée rend caduque la précédente sans afficher d’erreur', async () => {
+  const kc = fournisseur()
+  const attentes = []
+  const { session, etats } = installer({
+    transport: {
+      preparer: async () => {
+        // Comme le processus principal : une nouvelle écoute ferme la précédente (retour null).
+        attentes.splice(0).forEach((a) => a.resoudre(null))
+        return 'http://127.0.0.1:50123/argos/retour'
+      },
+      lancer: (url) => new Promise((resoudre) => attentes.push({ url, resoudre })),
+      reprendre: () => null,
+      retourApresDeconnexion: () => null,
+      deconnecter: () => {},
+    },
+    fetch: kc.fetch,
+  })
+  const enAttente = async () => {
+    for (let i = 0; i < 200 && attentes.length === 0; i += 1) await new Promise((r) => setTimeout(r, 1))
+    assert.equal(attentes.length, 1, 'une seule autorisation en attente')
+  }
+  const premiere = session.seConnecter('/alertes')
+  await enAttente()
+  const seconde = session.seConnecter('/recherche')
+  assert.equal(await premiere, null)
+  await enAttente()
+  assert.equal(session.etat, 'CONNEXION_EN_COURS')
+  assert.equal(etats.some((e) => e.etat === 'ERREUR'), false)
+  const courante = attentes.at(-1)
+  courante.resoudre(kc.autoriser(courante.url))
+  assert.equal(await seconde, '/recherche')
+  assert.equal(session.etat, 'CONNECTE')
+})
+
+test('RFC 9207 : un retour annonçant un autre émetteur n’échange aucun code', async () => {
+  const kc = fournisseur()
+  const { session } = installer({
+    transport: {
+      preparer: async () => 'http://127.0.0.1:50123/argos/retour',
+      lancer: async (url) => `${kc.autoriser(url)}&iss=${encodeURIComponent('http://autre.test/realms/argos')}`,
+      reprendre: () => null,
+      retourApresDeconnexion: () => null,
+      deconnecter: () => {},
+    },
+    fetch: kc.fetch,
+  })
+  assert.equal(await session.seConnecter('/'), null)
+  assert.equal(session.etat, 'ERREUR')
+  assert.equal(kc.appels.some((a) => a.url.endsWith('/token')), false)
+})

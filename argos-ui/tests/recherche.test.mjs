@@ -158,6 +158,9 @@ test('messages d’erreur : non connecté, projet ou vue introuvable, refus du s
   assert.equal(messageErreur('recherche', 400, 'Type inconnu.'), 'Type inconnu.')
   assert.equal(messageErreur('enregistrement', 409, 'Nom déjà utilisé.'), 'Nom déjà utilisé.')
   assert.equal(messageErreur('liste', 500, 'boom'), 'Le serveur a répondu 500.')
+  assert.equal(messageErreur('vue', 404, 'Message serveur'), 'Vue introuvable.')
+  assert.match(messageErreur('suppression', 403, 'x'), /Accès refusé/)
+  assert.match(messageErreur('recherche', 429, 'x'), /Trop de demandes/)
   assert.equal(messageErreur('liste', undefined, 'Serveur ARGOS injoignable'), 'Serveur ARGOS injoignable')
 })
 
@@ -192,4 +195,22 @@ test('écran de recherche : routes, lien de navigation, aucun v-html, liens sour
     assert.match(vue, new RegExp(`<label for="${id}">`), `libellé de ${id}`)
     assert.match(vue, new RegExp(`id="${id}"`), `champ ${id}`)
   }
+})
+
+test('recherche : délai propre aux recherches, annulation des chargements dépassés, confirmation dans la page', () => {
+  const recherche = source('../src/api/recherche.ts')
+  assert.match(recherche, /export const DELAI_RECHERCHE_MS = 20_000/)
+  assert.equal(recherche.match(/delaiMs: DELAI_RECHERCHE_MS/g)?.length, 2, 'recherche et résultats de vue')
+  const client = source('../src/api/client.ts')
+  assert.match(client, /'DELAI_DEPASSE'/)
+  assert.match(client, /'ANNULE'/)
+  const vue = source('../src/views/RechercheView.vue')
+  assert.match(vue, /e\.motif === 'DELAI_DEPASSE'/)
+  assert.match(vue, /chargementCourant\?\.abort\(\)/)
+  assert.match(vue, /if \(signal\.aborted\) return/)
+  // Suppression de la vue affichée : résultats et source vidés.
+  assert.match(vue, /if \(affichee\) viderResultats\(\)/)
+  assert.match(vue, /source\.value = null/)
+  assert.doesNotMatch(vue, /window\.(confirm|alert|prompt)/)
+  assert.match(vue, /role="alertdialog"/)
 })

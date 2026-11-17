@@ -31,9 +31,25 @@ const ENTETES_PAGE = {
   'X-Content-Type-Options': 'nosniff',
 };
 
+/** Vrai si `url` est sous l'émetteur : même origine, chemin sous le sien, sans identifiants. */
+function sousEmetteur(demande, racine) {
+  const prefixe = racine.pathname.replace(/\/+$/, '') + '/';
+  if (demande.origin !== racine.origin) return false;
+  if (demande.username || demande.password) return false;
+  return demande.pathname.startsWith(prefixe);
+}
+
+/** Vrai si les paramètres demandent un code d'autorisation avec PKCE S256 et un state. */
+function codeAvecPkce(p) {
+  const pkce = p.get('code_challenge_method') === 'S256' && Boolean(p.get('code_challenge'));
+  return p.get('response_type') === 'code' && pkce && Boolean(p.get('state'));
+}
+
 /**
  * Vrai si `url` est une demande d'autorisation acceptable : même origine et chemin sous l'émetteur
- * configuré, code d'autorisation avec PKCE S256, client et redirection attendus.
+ * configuré, code d'autorisation avec PKCE S256, state présent et redirection vers l'écoute locale
+ * en cours. L'identifiant du client n'est pas contrôlé ici : l'URL reste limitée à l'émetteur
+ * configuré, et le royaume n'accepte cette redirection que pour le client argos-ui.
  */
 function demandeAcceptable(url, { emetteur, redirectUri }) {
   if (typeof url !== 'string' || url.length > URL_MAX) return false;
@@ -45,15 +61,15 @@ function demandeAcceptable(url, { emetteur, redirectUri }) {
   } catch {
     return false;
   }
-  const prefixe = racine.pathname.replace(/\/+$/, '') + '/';
-  if (demande.origin !== racine.origin || !demande.pathname.startsWith(prefixe)) return false;
-  if (demande.username || demande.password) return false;
+  if (!sousEmetteur(demande, racine)) return false;
   const p = demande.searchParams;
-  return p.get('response_type') === 'code'
-    && p.get('code_challenge_method') === 'S256'
-    && Boolean(p.get('code_challenge'))
-    && Boolean(p.get('state'))
-    && p.get('redirect_uri') === redirectUri;
+  return codeAvecPkce(p) && p.get('redirect_uri') === redirectUri;
+}
+
+/** Vrai si la requête reçue est le retour attendu par l'écoute `courante`, encore active. */
+function retourAttendu(requete, url, courante, active) {
+  if (requete.method !== 'GET' || !url) return false;
+  return url.pathname === CHEMIN_RETOUR && active && Boolean(courante.resoudre);
 }
 
 /**
@@ -94,7 +110,7 @@ function creerConnexion(d) {
         } catch {
           url = null;
         }
-        if (requete.method !== 'GET' || !url || url.pathname !== CHEMIN_RETOUR || ecoute !== courante || !courante.resoudre) {
+        if (!retourAttendu(requete, url, courante, ecoute === courante)) {
           reponse.writeHead(404, { 'Content-Type': 'text/plain; charset=utf-8' });
           reponse.end('Introuvable');
           return;

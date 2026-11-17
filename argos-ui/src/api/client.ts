@@ -24,8 +24,16 @@ export interface SystemInfo {
   apiVersion: string
 }
 
+/** Échec d'un appel sans réponse du serveur : délai dépassé ou annulation par l'appelant. */
+export type MotifSansReponse = 'DELAI_DEPASSE' | 'ANNULE'
+
 export class ApiError extends Error {
-  constructor(message: string, readonly status?: number, readonly code?: string) {
+  constructor(
+    message: string,
+    readonly status?: number,
+    readonly code?: string,
+    readonly motif?: MotifSansReponse,
+  ) {
     super(message)
     this.name = 'ApiError'
   }
@@ -59,6 +67,8 @@ export interface OptionsAppel {
   /** Corps JSON de la demande ; absent : aucun corps. */
   corps?: unknown
   delaiMs?: number
+  /** Annulation par l'appelant (réponse devenue sans objet) : l'appel lève `ApiError` avec `annule`. */
+  signal?: AbortSignal
 }
 
 /**
@@ -68,12 +78,19 @@ export interface OptionsAppel {
  * le statut, et le message et le code du corps `Erreur` quand le serveur en renvoie un.
  */
 export async function appelerApi<T>(chemin: string, options: OptionsAppel = {}): Promise<T> {
-  const { methode = 'GET', corps, delaiMs = 5000 } = options
+  const { methode = 'GET', corps, delaiMs = 5000, signal } = options
   const controller = new AbortController()
-  const timer = setTimeout(() => controller.abort(), delaiMs)
+  let delaiDepasse = false
+  const timer = setTimeout(() => {
+    delaiDepasse = true
+    controller.abort()
+  }, delaiMs)
+  const annuler = (): void => controller.abort()
+  signal?.addEventListener('abort', annuler)
   const headers: Record<string, string> = { Accept: 'application/json' }
   if (corps !== undefined) headers['Content-Type'] = 'application/json'
   try {
+    if (signal?.aborted) controller.abort()
     const response = await fetch(`${apiBaseUrl}${chemin}`, {
       method: methode,
       headers: entetesAvecJeton(chemin, headers, autorisation.jeton()),
@@ -96,9 +113,14 @@ export async function appelerApi<T>(chemin: string, options: OptionsAppel = {}):
     return (await response.json()) as T
   } catch (error) {
     if (error instanceof ApiError) throw error
+    if (delaiDepasse) {
+      throw new ApiError(`Le serveur ARGOS n'a pas répondu dans le délai imparti (${apiBaseUrl}).`, undefined, undefined, 'DELAI_DEPASSE')
+    }
+    if (signal?.aborted) throw new ApiError('Appel annulé.', undefined, undefined, 'ANNULE')
     throw new ApiError(`Serveur ARGOS injoignable à ${apiBaseUrl}`)
   } finally {
     clearTimeout(timer)
+    signal?.removeEventListener('abort', annuler)
   }
 }
 
