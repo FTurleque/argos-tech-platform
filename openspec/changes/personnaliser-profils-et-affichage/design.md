@@ -135,6 +135,8 @@ sequenceDiagram
 
 Les droits s'appliquent avant les profils, et les garde-fous avant la fusion : la couche mise en page ne reçoit que des éléments déjà autorisés, déjà filtrés et accompagnés de leurs mentions. Elle ne peut donc ni montrer un élément de plus, ni en retirer une mention (AFF-02).
 
+[PROPOSITION] Décision Q-3 (PRF-02-S3, PRF-02-S4) : `API & Security` ajoute à la fusion les avis de sécurité retenus par les abonnements `PERSONAL` actifs de l'appelant (lus par `workspace`, critères interprétés comme pour `GET /api/v1/me/watch`), avec leurs projets concernés lus sous la RLS dans les seuls espaces de l'appelant. Un élément est restitué une fois ; il porte les rubriques des profils dont il relève et les abonnements qui l'ont retenu (champ `abonnements`). Les garde-fous des profils actifs qui rangent ses catégories s'appliquent aussi aux éléments des abonnements. Le socle `TEAM` n'entre pas dans cette veille.
+
 ## États et transitions
 
 Non applicable — les cycles de vie de publication d'un profil ou d'une mise en page (brouillon, publié, retiré) seront modélisés avec la tâche du catalogue ; seul l'état « retiré » est utilisé par AFF-04.
@@ -232,6 +234,7 @@ La taxonomie fermée du dossier v2.4 §8.2 n'est pas versionnée dans `docs/arch
 | AFF-05-S1 | revue | audit d'accessibilité par mise en page | à écrire |
 | PRF-01-S1 à PRF-01-S3 | intégration API | tests des préférences | à écrire |
 | PRF-02-S1, PRF-02-S2 | intégration | veille d'un utilisateur à deux profils | à écrire |
+| PRF-02-S3, PRF-02-S4 | intégration | abonnements `PERSONAL` ajoutés à la veille, deux espaces | `VeilleAbonnementsPersonnelsTest` |
 | PRF-03-S1, PRF-03-S2 | intégration | catalogue initial ; rapprochement `developpeur` | à écrire |
 | PRF-04-S1 | intégration | publication d'un profil de démonstration | à écrire |
 | PRF-05-S1 | intégration | tests inter-espaces | à écrire |

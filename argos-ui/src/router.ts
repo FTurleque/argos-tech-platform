@@ -5,7 +5,9 @@ import CompteNonCreeView from './views/CompteNonCreeView.vue'
 import ConnexionView from './views/ConnexionView.vue'
 import RechercheView from './views/RechercheView.vue'
 import ReglagesPosteView from './views/ReglagesPosteView.vue'
+import ProfilsVeilleView from './views/ProfilsVeilleView.vue'
 import StatusView from './views/StatusView.vue'
+import VeilleView from './views/VeilleView.vue'
 
 declare module 'vue-router' {
   interface RouteMeta {
@@ -28,5 +30,7 @@ export const router = createRouter({
     { path: '/poste', name: 'poste', component: ReglagesPosteView },
     { path: '/recherche', name: 'recherche', component: RechercheView },
     { path: '/recherche/vues/:id', name: 'vue-recherche', component: RechercheView },
+    { path: '/veille', name: 'veille', component: VeilleView },
+    { path: '/veille/profils', name: 'profils-veille', component: ProfilsVeilleView },
   ],
 })

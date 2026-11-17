@@ -28,8 +28,8 @@ Source : demande du porteur (2026-11-15) ; ADR-0024 (Proposé) point 2. Statut :
 - **AND** ses profils actifs sont inchangés
 
 ### Requirement: PRF-02 Veille restituée comme l'union des profils actifs
-Le système DOIT (MUST) restituer à un utilisateur l'union des éléments de veille relevant de ses profils actifs, chaque élément n'apparaissant qu'une fois, avec les rubriques de chacun des profils dont il relève.
-Source : ADR-0024 (Proposé) point 2. Statut : [PROPOSITION].
+Le système DOIT (MUST) restituer à un utilisateur l'union des éléments de veille relevant de ses profils actifs et des éléments retenus par ses abonnements `PERSONAL`, dans la limite de ses droits, chaque élément n'apparaissant qu'une fois, avec les rubriques de chacun des profils dont il relève.
+Source : ADR-0024 (Proposé) point 2 ; décision Q-3 du 2026-11-16 (abonnements `PERSONAL`, ABO-04). Statut : [PROPOSITION].
 
 #### Scenario: PRF-02-S1 Élément commun à deux profils
 - **GIVEN** un utilisateur dont les profils actifs sont `developpeur` et `expert-metier`
@@ -43,6 +43,19 @@ Source : ADR-0024 (Proposé) point 2. Statut : [PROPOSITION].
 - **AND** un élément de veille qui ne relève que du profil `expert-metier`
 - **WHEN** l'utilisateur consulte sa veille
 - **THEN** l'élément n'est pas restitué
+
+#### Scenario: PRF-02-S3 Source d'un abonnement personnel hors des profils actifs
+- **GIVEN** un utilisateur dont le seul profil actif est `expert-metier`
+- **AND** un abonnement `PERSONAL` de cet utilisateur qui retient un avis de sécurité
+- **WHEN** l'utilisateur consulte sa veille
+- **THEN** l'avis est restitué une seule fois, avec l'abonnement qui l'a retenu
+- **AND** les éléments de son profil actif restent restitués avec leurs rubriques
+
+#### Scenario: PRF-02-S4 Abonnement personnel dans la limite des droits
+- **GIVEN** un utilisateur membre du seul espace A
+- **AND** un abonnement `PERSONAL` de cet utilisateur qui vise un projet de l'espace B
+- **WHEN** l'utilisateur consulte sa veille
+- **THEN** aucun élément ni projet de l'espace B n'est restitué
 
 ### Requirement: PRF-03 Profils initiaux
 Le système DOIT (MUST) publier au catalogue les profils `developpeur`, qui rapproche les signaux des composants des projets, et `expert-metier`, qui rapproche les textes officiels des domaines et modules produits ; ces profils reprennent les règles de rapprochement proposées par ADR-0013 et ADR-0018.

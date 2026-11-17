@@ -8,12 +8,14 @@ import java.io.InputStream;
 import java.io.UncheckedIOException;
 import java.util.List;
 import java.util.Set;
+import java.util.UUID;
 
 import com.fasterxml.jackson.databind.DeserializationFeature;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.junit.jupiter.api.Test;
 
 import io.argos.api.veille.UnionProfils.Candidat;
+import io.argos.api.veille.UnionProfils.CandidatAbonnement;
 import io.argos.api.veille.UnionProfils.Retenu;
 import io.argos.api.veille.UnionProfils.RubriqueRetenue;
 import io.argos.catalog.profil.ManifesteProfil;
@@ -133,5 +135,66 @@ class UnionProfilsTest {
         assertEquals(List.of("developpeur", "demonstration"), avec.get(0).profils());
         assertEquals(List.of("securite", "demonstration"),
                 avec.get(0).rubriques().stream().map(RubriqueRetenue::identifiant).toList());
+    }
+
+    private static final UUID ABO_1 = UUID.fromString("00000000-0000-0000-0000-000000000001");
+    private static final UUID ABO_2 = UUID.fromString("00000000-0000-0000-0000-000000000002");
+
+    private static CandidatAbonnement<String> parAbonnement(String cle, boolean valide, Set<UUID> abonnements,
+            String... categories) {
+        return new CandidatAbonnement<>(candidat(cle, valide, categories), abonnements);
+    }
+
+    /**
+     * Q-3 : un élément retenu par un profil et par des abonnements PERSONAL est restitué une fois, avec la rubrique
+     * du profil et tous les abonnements ; un élément que seul un abonnement retient s'ajoute sans rubrique.
+     */
+    @Test
+    void q3UnionDesProfilsEtDesAbonnementsSansDoublon() {
+        List<Retenu<String>> retenus = UnionProfils.unir(List.of(EXPERT),
+                List.of(candidat("fiche", true, "textes-officiels")),
+                List.of(parAbonnement("avis", false, Set.of(ABO_2), "avis-securite"),
+                        parAbonnement("fiche", true, Set.of(ABO_1), "textes-officiels"),
+                        parAbonnement("avis", false, Set.of(ABO_1), "avis-securite")));
+
+        assertEquals(List.of("fiche", "avis"), retenus.stream().map(Retenu::cle).toList());
+        Retenu<String> fiche = retenus.get(0);
+        assertEquals(List.of("expert-metier"), fiche.profils());
+        assertEquals(List.of("reglementation"), fiche.rubriques().stream().map(RubriqueRetenue::identifiant).toList());
+        assertEquals(List.of(ABO_1), fiche.abonnements());
+        Retenu<String> avis = retenus.get(1);
+        assertEquals(List.of(), avis.profils());
+        assertEquals(List.of(), avis.rubriques());
+        assertEquals(List.of(), avis.gardeFous(), "aucun profil actif ne range les avis de sécurité");
+        assertEquals(List.of(ABO_1, ABO_2), avis.abonnements());
+    }
+
+    /** Sans abonnement, l'union est celle des seuls profils actifs, sans abonnement porté. */
+    @Test
+    void q3SansAbonnementLUnionDesProfilsEstInchangee() {
+        List<Candidat<String>> candidats = List.of(candidat("avis", false, "avis-securite"));
+        List<Retenu<String>> retenus = UnionProfils.unir(List.of(DEVELOPPEUR), candidats, List.of());
+        assertEquals(UnionProfils.unir(List.of(DEVELOPPEUR), candidats), retenus);
+        assertEquals(List.of(), retenus.get(0).abonnements());
+    }
+
+    /**
+     * Q-3 et PRF-06 : les garde-fous des profils actifs qui rangent un élément d'abonnement s'appliquent. Non
+     * validé, un élément rangé par expert-metier (VALIDATION_HUMAINE) n'est restitué par aucune voie ; un élément
+     * d'abonnement rangé par developpeur porte sa mention sans en prendre la rubrique.
+     */
+    @Test
+    void q3LesGardeFousDesProfilsActifsSAppliquentAuxAbonnements() {
+        assertTrue(UnionProfils.unir(List.of(EXPERT), List.of(),
+                List.of(parAbonnement("texte", false, Set.of(ABO_1), "textes-officiels"))).isEmpty());
+        assertTrue(UnionProfils.unir(List.of(DEVELOPPEUR, EXPERT), List.of(candidat("commun", true, "avis-securite")),
+                List.of(parAbonnement("commun", false, Set.of(ABO_1), "textes-officiels"))).isEmpty(),
+                "une occurrence non validée rangée par expert-metier écarte l'élément, même retenu par un profil");
+
+        List<Retenu<String>> retenus = UnionProfils.unir(List.of(DEVELOPPEUR), List.of(),
+                List.of(parAbonnement("avis", false, Set.of(ABO_1), "avis-securite")));
+        assertEquals(1, retenus.size());
+        assertEquals(List.of(), retenus.get(0).rubriques());
+        assertTrue(retenus.get(0).gardeFous().stream().anyMatch(g -> g.contains("ne décide jamais d'un impact")));
     }
 }

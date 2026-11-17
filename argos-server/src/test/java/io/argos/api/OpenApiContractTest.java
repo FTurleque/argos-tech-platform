@@ -31,7 +31,10 @@ class OpenApiContractTest {
             .body("paths.'/api/v1/me/veille'.get", notNullValue());
     }
 
-    /** Veille restituée par profils (PRF-02, PRF-06) : rubriques, garde-fous et mention de validation. */
+    /**
+     * Veille restituée par profils (PRF-02, PRF-06) : rubriques, garde-fous et mention de validation ; origine
+     * abonnement PERSONAL (décision Q-3, tâche 3.9).
+     */
     @Test
     void laVeilleParProfilsExposeSesChamps() {
         Api.en("alice").queryParam("format", "json")
@@ -40,7 +43,8 @@ class OpenApiContractTest {
             .statusCode(200)
             .body("components.schemas.VeilleProfils.properties.keySet()", hasItems("profilsActifs", "elements"))
             .body("components.schemas.ElementVeilleProfils.properties.keySet()", hasItems(
-                    "type", "id", "titre", "date", "profils", "rubriques", "gardeFous", "mentionValidation", "projets"))
+                    "type", "id", "titre", "date", "profils", "rubriques", "gardeFous", "mentionValidation", "projets",
+                    "abonnements"))
             .body("components.schemas.RubriqueElementVeille.properties.keySet()", hasItems(
                     "profil", "identifiant", "libelle"));
     }
