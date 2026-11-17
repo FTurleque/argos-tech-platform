@@ -4,7 +4,7 @@
 
 ## 1. Arbitrages
 
-- [ ] 1.1 Faire vérifier les conditions d'usage de l'API Légifrance pour un produit diffusé (Q-1) — couvre REG-01 — vérification : conclusion inscrite dans la fiche `veille-reglementaire`
+- [x] 1.1 Faire vérifier les conditions d'usage de l'API Légifrance pour un produit diffusé (Q-1) — couvre REG-01 — vérification : conclusion inscrite dans la fiche `veille-reglementaire` (décidé le 2026-11-17 : LEGI/JORF sous Licence Ouverte)
 
 ## 2. Collecte et qualification
 
