@@ -48,12 +48,17 @@ public class TestDb {
 
     public void reset() {
         exec("""
-                TRUNCATE dette_version, standard_historique, standard_suggestion, standard_technologie, radar_parametres,
+                TRUNCATE fiche_historique, fiche_domaine, fiche_reglementaire, texte_officiel, reg_collecte_jour,
+                         reg_parametres, regle_dictionnaire, expert_domaine, domaine_metier, dette_version, standard_historique, standard_suggestion, standard_technologie, radar_parametres,
                          cycle_vie, cycle_vie_produit, activite_compteur, activite_jalon, activite_collecte, workspace_vue, actualite_impact, actualite_source, actualite, source_web, resume_element, alerte, subscription_opt_out, subscription, refus_acces, mcp_appel, ia_appel, ia_quota_jour, project_impact, inventory_import_failure,
                          component, inventory, project, enrichment, signal_package, signal_alias,
                          signal_version, signal, ops_event, ingestion_failure, sync_attempt, sync_run, sync_cursor CASCADE
                 """);
         exec("DELETE FROM source WHERE id <> 'OSV'");
+        exec("""
+                UPDATE reg_source SET etat = 'NOMINAL', echecs_consecutifs = 0, dernier_succes_le = NULL,
+                       dernier_echec_le = NULL, derniere_erreur = NULL
+                """);
         exec("""
                 UPDATE source SET state = 'NOMINAL', consecutive_failures = 0, last_success_at = NULL,
                        last_failure_at = NULL, last_error = NULL
@@ -68,7 +73,6 @@ public class TestDb {
             mailbox.get().clear();
         }
         StubServer.reset();
-        ReferentielsSimules.vider();
     }
 
     public void exec(String sql) {

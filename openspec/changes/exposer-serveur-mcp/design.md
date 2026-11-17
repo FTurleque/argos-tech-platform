@@ -152,7 +152,7 @@ Aucun écart constaté.
 | MCP-04-S1 | intégration | inter-espaces, RLS sous `argos_app` | `CloisonnementMcpTest`, passe |
 | MCP-05-S1 | intégration | texte piégé | `ContenuExterneMcpTest`, passe |
 | MCP-06-S1 | intégration | limite basse de test | `LimiteDebitMcpTest`, passe |
-| MCP-07-S1 | intégration | fiche non validée, fiches simulées | `ReglementaireMcpTest`, passe |
+| MCP-07-S1 | intégration | fiche non validée, fiches réelles de `suivre-veille-reglementaire` | `ReglementaireMcpTest`, passe |
 
 ## Documentation durable impactée
 

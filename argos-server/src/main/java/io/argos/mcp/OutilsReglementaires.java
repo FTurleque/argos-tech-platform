@@ -33,8 +33,9 @@ public class OutilsReglementaires {
             "Les fiches informent ; elles ne constituent pas un avis juridique (ADR-0018).";
 
     /** Fiche réglementaire validée. */
-    public record FicheReglementaire(UUID ficheId, UUID espaceId, String domaine, String referenceOfficielle,
-            String publication, String effet, String source, String resumeValide, TexteExterne titreOfficiel) {
+    public record FicheReglementaire(UUID ficheId, UUID espaceId, String domaine, List<String> domaines,
+            String referenceOfficielle, String nor, String publication, String effet, String source, String lienOfficiel,
+            String resumeValide, TexteExterne titreOfficiel) {
     }
 
     /** Réponse de {@code get_regulatory_changes}. */
@@ -66,15 +67,16 @@ public class OutilsReglementaires {
             Optional<String> d = domaine == null || domaine.isBlank() ? Optional.empty()
                     : Optional.of(Parametres.obligatoire("domain", domaine));
             int n = Parametres.borne("limit", limite, 20, 1, 100);
-            List<FicheReglementaire> validees = fiches.fiches(appelant.memberWorkspaces(), d).stream()
+            List<FicheReglementaire> validees = fiches.fiches(appelant.accountId(), appelant.memberWorkspaces(), d).stream()
                     // Garde-fou VALIDATION_HUMAINE : aucune fiche non validée n'est diffusée (MCP-07-S1).
                     .filter(f -> f.etat() == FichesReglementaires.Etat.VALIDEE)
                     .filter(f -> appelant.memberOf(f.espaceId()))
                     .limit(n)
-                    .map(f -> new FicheReglementaire(f.id(), f.espaceId(), f.domaine(), f.referenceOfficielle(),
-                            f.publication() == null ? null : f.publication().toString(),
-                            f.effet() == null ? null : f.effet().toString(), f.source(), f.resume(),
-                            balisage.baliser(f.source(), f.titreOfficiel())))
+                    .map(f -> new FicheReglementaire(f.id(), f.espaceId(),
+                            d.orElse(f.domaines().isEmpty() ? null : f.domaines().get(0)), f.domaines(),
+                            f.referenceOfficielle(), f.nor(), f.publication() == null ? null : f.publication().toString(),
+                            f.effet() == null ? "date à confirmer" : f.effet().toString(), f.source(), f.lienOfficiel(),
+                            f.resume(), balisage.baliser(f.source(), f.titreOfficiel())))
                     .toList();
             return new ChangementsReglementaires(validees.size(), gardeFous(), validees);
         });

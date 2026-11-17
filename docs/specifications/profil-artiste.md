@@ -3,9 +3,9 @@
 | Élément | Valeur |
 |---|---|
 | Préfixe d'exigences | `ART` |
-| Spec de référence | `/openspec/specs/profil-artiste/spec.md` — absente tant qu'aucun changement n'est archivé |
-| Changements en cours | [`ajouter-profil-artiste`](/openspec/changes/ajouter-profil-artiste/proposal.md) (implémenté, non archivé) |
-| Statut de la capacité | implémentée dans `argos-server`, non archivée |
+| Spec de référence | [`/openspec/specs/profil-artiste/spec.md`](/openspec/specs/profil-artiste/spec.md) |
+| Changements archivés | [`2026-11-17-ajouter-profil-artiste`](/openspec/changes/archive/2026-11-17-ajouter-profil-artiste/proposal.md) |
+| Statut de la capacité | livrée |
 | Composants (arc42 §5) | `catalog` (pack), `workspace` (suivis sous RLS), `signal` (registre des sources et opportunités), `impact-engine` (stratégie), `source-ingestion`, `alerting`, `API & Security` |
 
 ## Objectif

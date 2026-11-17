@@ -76,7 +76,7 @@ Complète : nouveau cycle de vie (fiche), source externe à conditions d'usage, 
 
 | ID | Question | Bloquante ? | Destinataire |
 |---|---|---|---|
-| Q-1 | Les conditions d'usage de l'API Légifrance autorisent-elles un produit diffusé, éventuellement commercial ? | oui pour REG-01 | porteur du projet |
-| Q-2 | À quelles échéances envoyer les rappels avant une entrée en vigueur ? | non : paramétrable | Product Owner |
-| Q-3 | Quel outil de suivi externe relier (Jira, GitHub, GitLab) ? | non | porteur du projet |
-| Q-4 | Faut-il fournir des dictionnaires métier types à la création d'un espace ? | non | Product Owner |
+| Q-1 | Les conditions d'usage de l'API Légifrance autorisent-elles un produit diffusé, éventuellement commercial ? | **Répondue le 2026-11-17** : source principale : jeux de données LEGI et JORF de la DILA, publiés sur data.gouv.fr sous Licence Ouverte / Open Licence (réutilisation gratuite, commerciale comprise, avec mention de la source : https://www.data.gouv.fr/datasets/legi-codes-lois-et-reglements-consolides) ; l'API PISTE de Légifrance n'est pas utilisée tant que ses conditions d'usage ne sont pas vérifiées [DÉCISION] | porteur du projet |
+| Q-2 | À quelles échéances envoyer les rappels avant une entrée en vigueur ? | **Répondue le 2026-11-17** : J-90, J-30 et J-7 avant l'entrée en vigueur, paramétrables [DÉCISION] | Product Owner |
+| Q-3 | Quel outil de suivi externe relier (Jira, GitHub, GitLab) ? | **Répondue le 2026-11-17** : GitHub et GitLab, par les adapters `scm` existants ; pas de Jira [DÉCISION] | porteur du projet |
+| Q-4 | Faut-il fournir des dictionnaires métier types à la création d'un espace ? | **Répondue le 2026-11-17** : non pour l'instant : chaque espace construit son dictionnaire [DÉCISION] | Product Owner |

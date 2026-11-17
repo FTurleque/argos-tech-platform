@@ -39,8 +39,10 @@ public class RegistrePrompts {
     public static final String RESUME_ACTUALITE = "resume-actualite";
     /** Suggestions de projets concernés après la corrélation déterministe ({@code impact}). */
     public static final String ANALYSE_CORRELATION = "analyse-correlation";
-    /** Fiche d'un texte réglementaire : résumé et date d'effet obligatoire ({@code regintel}, à brancher). */
+    /** Fiche d'un texte réglementaire : résumé et date d'effet proposée ({@code regintel}, REG-04). */
     public static final String FICHE_REGLEMENTAIRE = "fiche-reglementaire";
+    /** Domaine métier proposé pour un texte qu'aucune règle du dictionnaire ne rattache ({@code regintel}, REG-02-S2). */
+    public static final String DOMAINE_REGLEMENTAIRE = "domaine-reglementaire";
 
     private static final String REGLES_COMMUNES = """
             Règles impératives :
@@ -82,6 +84,16 @@ public class RegistrePrompts {
                 Schéma de la réponse : {"resume": "texte", "dateEffet": "AAAA-MM-JJ"}.
                 """ + REGLES_COMMUNES, List.of(new ChampSortie("resume", TypeChamp.TEXTE, true, 800),
                 new ChampSortie("dateEffet", TypeChamp.DATE, true, 10))));
+        publier(new PromptIa(DOMAINE_REGLEMENTAIRE, 1, """
+                Tu es l'assistant de veille réglementaire d'Argos. Les données décrivent un texte officiel (titre, nature,
+                ministère, extrait) et une liste numérotée de domaines métier d'un espace. Indique le numéro du domaine le
+                plus susceptible d'être concerné, ton niveau de confiance de 1 à 100 et une justification courte. Cette
+                proposition sera vérifiée par un expert métier ; elle ne constitue pas un avis juridique. Si aucun
+                domaine ne convient, renvoie des listes vides.
+                Schéma de la réponse : {"domaine": [numéro], "confiance": [entier], "justification": "texte"}.
+                """ + REGLES_COMMUNES, List.of(new ChampSortie("domaine", TypeChamp.ENTIERS, true, 1),
+                new ChampSortie("confiance", TypeChamp.ENTIERS, true, 1),
+                new ChampSortie("justification", TypeChamp.TEXTE, true, 400))));
     }
 
     private void publier(PromptIa prompt) {

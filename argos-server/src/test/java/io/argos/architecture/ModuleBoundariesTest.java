@@ -39,11 +39,14 @@ class ModuleBoundariesTest {
             Map.entry("signal", Set.of("ingestion", "catalog", "workspace", "aigateway")),
             Map.entry("vulnintel", Set.of("signal", "catalog")),
             Map.entry("releaseradar", Set.of("signal", "catalog")),
-            Map.entry("regintel", Set.of("signal", "catalog", "aigateway")),
+            // regintel lit les archives JORF (ingestion.legi), reconnaît les demandes d'évolution GitHub et GitLab
+            // (scm) et n'emprunte à workspace que le contexte RLS et les erreurs : voir regintelNEmprunteQueRlsEtErreurs.
+            Map.entry("regintel", Set.of("signal", "catalog", "aigateway", "ingestion", "scm", "workspace")),
             // impact lit le référentiel des standards pour la dette de version et les annonces (radar-standards).
             Map.entry("impact", Set.of("signal", "vulnintel", "releaseradar", "inventory", "aigateway", "catalog")),
-            // alerting demande le résumé IA d'une alerte par le contrat de la passerelle (encadrer-appels-ia).
-            Map.entry("alerting", Set.of("impact", "workspace", "aigateway")),
+            // alerting demande le résumé IA d'une alerte par le contrat de la passerelle (encadrer-appels-ia)
+            // et rappelle les entrées en vigueur réglementaires (suivre-veille-reglementaire).
+            Map.entry("alerting", Set.of("impact", "workspace", "aigateway", "regintel")),
             Map.entry("api", Set.of("workspace", "catalog", "inventory", "signal", "vulnintel", "releaseradar",
                     "regintel", "impact", "alerting", "projectintel", "audit")),
             // mcp réutilise l'établissement de l'appelant de l'API (api.security) : voir mcpNeLitQueLaSecuriteDeLApi.
@@ -152,7 +155,8 @@ class ModuleBoundariesTest {
      * Le référentiel des standards ({@code catalog.standard}) est cloisonné par espace : il applique la RLS
      * par le mécanisme unique {@code workspace.ContexteBase} et signale ses refus par les erreurs communes
      * du domaine ({@code DonneeInvalide}, {@code RegleViolee}, {@code Introuvable}). Il n'emprunte rien
-     * d'autre au module {@code workspace} (ADR-0016) ; le reste de {@code catalog} n'en emprunte rien.
+     * d'autre au module {@code workspace} (ADR-0016) ; le dictionnaire métier ({@code catalog.dictionnaire})
+     * suit la même règle ; le reste de {@code catalog} n'en emprunte rien.
      */
     @Test
     void catalogNEmprunteQueRlsEtErreurs() {
@@ -167,9 +171,30 @@ class ModuleBoundariesTest {
                 .check(classes);
         noClasses().that().resideInAPackage(ROOT + ".catalog..")
                 .and().resideOutsideOfPackage(ROOT + ".catalog.standard..")
+                .and().resideOutsideOfPackage(ROOT + ".catalog.dictionnaire..")
                 .should().dependOnClassesThat().resideInAPackage(ROOT + ".workspace..")
-                .because("arc42 §5 : seul le référentiel des standards de catalog utilise le contexte RLS")
+                .because("arc42 §5 : seuls le référentiel des standards et le dictionnaire métier de catalog utilisent le contexte RLS")
                 .allowEmptyShould(true)
+                .check(classes);
+    }
+
+    /**
+     * La veille réglementaire ({@code regintel}) lit et modifie les fiches sous la RLS par le mécanisme
+     * unique {@code workspace.ContexteBase} et signale ses refus par les erreurs communes du domaine
+     * ({@code DonneeInvalide}, {@code RegleViolee}, {@code Introuvable}, {@code AccesRefuse} et son
+     * {@code MotifRefus}). Elle n'emprunte rien d'autre au module {@code workspace} (ADR-0016).
+     */
+    @Test
+    void regintelNEmprunteQueRlsEtErreurs() {
+        Set<String> autorisees = Set.of(ROOT + ".workspace.ContexteBase", ROOT + ".workspace.DonneeInvalide",
+                ROOT + ".workspace.RegleViolee", ROOT + ".workspace.Introuvable", ROOT + ".workspace.AccesRefuse",
+                ROOT + ".workspace.MotifRefus");
+        noClasses().that().resideInAPackage(ROOT + ".regintel..")
+                .should().dependOnClassesThat(DescribedPredicate.describe(
+                        "classes de workspace hors ContexteBase et erreurs communes",
+                        (JavaClass c) -> c.getPackageName().startsWith(ROOT + ".workspace")
+                                && autorisees.stream().noneMatch(a -> c.getName().equals(a) || c.getName().startsWith(a + "$"))))
+                .because("arc42 §5 : dans le module workspace, regintel ne dépend que de ContexteBase et des erreurs communes")
                 .check(classes);
     }
 }

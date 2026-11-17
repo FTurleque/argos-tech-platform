@@ -53,6 +53,32 @@ public class Destinataires {
         return result;
     }
 
+    /**
+     * Membres de l'espace dont les préférences enregistrées activent le profil donné, avec leur e-mail.
+     * Les préférences n'accordent aucun droit (PRF-05) : elles désignent seulement, parmi les membres, ceux
+     * qui suivent ce profil.
+     */
+    public List<Destinataire> membresAvecProfil(UUID espace, String profil) {
+        List<Destinataire> result = new ArrayList<>();
+        String sql = """
+                SELECT c.id, c.email FROM appartenance a JOIN compte c ON c.id = a.compte_id
+                JOIN workspace_preference_utilisateur p ON p.compte_id = c.id
+                WHERE a.espace_id = ? AND ? = ANY (p.profils_actifs) ORDER BY c.id
+                """;
+        try (Connection c = dataSource.getConnection(); PreparedStatement ps = c.prepareStatement(sql)) {
+            ps.setObject(1, espace);
+            ps.setString(2, profil);
+            try (ResultSet rs = ps.executeQuery()) {
+                while (rs.next()) {
+                    result.add(new Destinataire(rs.getObject(1, UUID.class), rs.getString(2)));
+                }
+            }
+        } catch (SQLException e) {
+            throw new IllegalStateException("lecture des destinataires impossible", e);
+        }
+        return result;
+    }
+
     /** Espaces dont le compte est membre, relus à chaque évaluation : une révocation s'applique aussitôt. */
     public Set<UUID> espacesDe(UUID compteId) {
         Set<UUID> result = new HashSet<>();

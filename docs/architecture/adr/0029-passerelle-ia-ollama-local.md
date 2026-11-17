@@ -9,7 +9,7 @@
 ## Contexte
 
 - [ADR-0004](0004-ai-gateway-claude.md) (Proposé) encapsule Claude, fournisseur payant, derrière une passerelle IA. Argos est un produit ouvert porté à titre personnel ([ADR-0025](0025-produit-ouvert-projet-personnel.md), Accepté) et hébergé sur le Synology du porteur ([ADR-0026](0026-hebergement-synology.md), Accepté) : tout budget d'API est personnel.
-- Le porteur a tranché le 2026-11-16 (changement [`encadrer-appels-ia`](/openspec/changes/encadrer-appels-ia/proposal.md)) : coût nul avec le fournisseur local Ollama (MIT) et un plafond de charge de 1 000 appels par jour pour l'instance (Q-1) ; 100 appels par jour et par espace (Q-2) ; modèle par défaut `qwen2.5:1.5b` (Apache-2.0), remplaçable par tâche (Q-3) ; seules les données publiques et internes sortent vers le modèle, jamais de secrets, de jetons ni de données personnelles (Q-4).
+- Le porteur a tranché le 2026-11-16 (changement [`encadrer-appels-ia`](/openspec/changes/archive/2026-11-17-encadrer-appels-ia/proposal.md)) : coût nul avec le fournisseur local Ollama (MIT) et un plafond de charge de 1 000 appels par jour pour l'instance (Q-1) ; 100 appels par jour et par espace (Q-2) ; modèle par défaut `qwen2.5:1.5b` (Apache-2.0), remplaçable par tâche (Q-3) ; seules les données publiques et internes sortent vers le modèle, jamais de secrets, de jetons ni de données personnelles (Q-4).
 - [ADR-0021](0021-double-licence.md) impose des composants gratuits sous licence permissive.
 - La passerelle elle-même (point d'appel unique, prompts versionnés, classes de données, quotas, validation des sorties, traçabilité) reste la décision d'ADR-0004 ; seul le fournisseur change.
 

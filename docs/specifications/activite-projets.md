@@ -3,9 +3,9 @@
 | Élément | Valeur |
 |---|---|
 | Préfixe d'exigences | `PIN` |
-| Spec de référence | `/openspec/specs/activite-projets/spec.md` — absente tant qu'aucun changement n'est archivé |
-| Changements en cours | [`mesurer-activite-projets`](/openspec/changes/mesurer-activite-projets/proposal.md) (implémenté côté serveur, non archivé) |
-| Statut de la capacité | implémentée côté serveur, non archivée ; aucun écran dans `argos-ui`, aucun adaptateur de la synthèse vers la passerelle IA |
+| Spec de référence | [`/openspec/specs/activite-projets/spec.md`](/openspec/specs/activite-projets/spec.md) |
+| Changements archivés | [`2026-11-17-mesurer-activite-projets`](/openspec/changes/archive/2026-11-17-mesurer-activite-projets/proposal.md) |
+| Statut de la capacité | livrée ; aucun écran dans `argos-ui`, aucun adaptateur de la synthèse vers la passerelle IA |
 | Composants (arc42 §5) | `project-intel`, `scm-connector`, `ai-gateway`, `API & Security` |
 
 ## Objectif

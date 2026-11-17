@@ -39,7 +39,7 @@
 | 2.4 | `api.security.LimiteurDebit` (commun avec la veille web), `audit.JournalAppelsMcp`, migration `V9__journal_appels_mcp.sql` ; `LimiteDebitMcpTest` (profil de test à 3 appels par minute), `LimiteurDebitTest` | passe |
 | 3.1 | `OutilsSecurite.checkDependency` ; `OutilsConsultationMcpTest` (MCP-02-S1 avec référentiel et calendrier simulés, MCP-02-S2, paramètres invalides) | passe |
 | 3.2 | `OutilsSecurite`, `OutilsProjets`, `OutilsReferentiel` ; `OutilsConsultationMcpTest`, `CloisonnementMcpTest`, `ContratOutilsMcpTest.chaqueOutilPublieSesSchemas` | passe |
-| 3.3 | `OutilsReglementaires` ; `ReglementaireMcpTest` (fiches simulées) | passe |
+| 3.3 | `OutilsReglementaires` ; `ReglementaireMcpTest` (fiches réelles de `suivre-veille-reglementaire`) | passe |
 | 3.4 | `ContratOutilsMcpTest.mcp01S2OutilInconnu` | passe |
 | 4.1 | fiche `docs/specifications/serveur-mcp.md`, arc42 §5.3 et §5.6, glossaire (MCP, contenu externe, flux d'appareil), guide de déploiement ; aucun nouveau diagramme d'architecture : l'inventaire `/docs/architecture/diagrams/README.md` reste exact (DC-1 demeure dans `design.md`) ; `node scripts/verifier-docs.mjs` | « Résultat : aucune erreur » |
 | 5.1 | `openspec validate exposer-serveur-mcp --strict` | « Change 'exposer-serveur-mcp' is valid » |
@@ -61,7 +61,7 @@ Suite complète : `mvn -B -f argos-server/pom.xml verify` — « Tests run: 193,
 | MCP-04 | MCP-04-S1 | DC-1 | 2.2, 3.2 | `CloisonnementMcpTest.mcp04S1ProjetDUnAutreEspace`, `rlsSousLeRoleApplicatif` | passe |
 | MCP-05 | MCP-05-S1 | DC-1 | 2.3 | `ContenuExterneMcpTest.mcp05S1TexteContenantUneConsigne` | passe |
 | MCP-06 | MCP-06-S1 | DC-1 | 2.4 | `LimiteDebitMcpTest.mcp06S1LimiteDepassee` | passe |
-| MCP-07 | MCP-07-S1 | DC-1 | 3.3 | `ReglementaireMcpTest.mcp07S1FicheNonValidee` (fiches simulées) | passe |
+| MCP-07 | MCP-07-S1 | DC-1 | 3.3 | `ReglementaireMcpTest.mcp07S1FicheNonValidee` (fiches réelles de `suivre-veille-reglementaire`) | passe |
 
 ## Workflow follow-up
 
