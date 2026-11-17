@@ -12,10 +12,10 @@ La base est PostgreSQL 18 (`compose.yaml`) [EXISTANT]. Les éléments de veille 
 
 | Exigence | Section(s) de conception | Diagramme(s) |
 |---|---|---|
-| RCH-01 | Composants, Contrats d'interface, D1 | DF-RCH-1 (fiche) |
-| RCH-02 | Contrats d'interface, D4, D5 | DF-RCH-1 (fiche) |
+| RCH-01 | Composants, Contrats d'interface, Écran de recherche, D1 | DF-RCH-1 (fiche) |
+| RCH-02 | Contrats d'interface, Écran de recherche, D4, D5, D8, D10 | DF-RCH-1 (fiche) |
 | RCH-03 | Sécurité et isolation, D2 | DF-RCH-1 (fiche) |
-| RCH-04 | Persistance et intégrité, Sécurité et isolation | — |
+| RCH-04 | Persistance et intégrité, Sécurité et isolation, Écran de recherche | — |
 | RCH-05 | Performance et stratégie de mesure | — |
 
 ## Objectifs et non-objectifs
@@ -23,10 +23,11 @@ La base est PostgreSQL 18 (`compose.yaml`) [EXISTANT]. Les éléments de veille 
 **Objectifs :**
 - recherche et filtres en une requête respectant la RLS
 - vues personnelles simples
+- écran de recherche dans `argos-ui`, commun au portail web et au client desktop
 
 **Non-objectifs :**
 - recherche sémantique (ADR-0015)
-- écran de recherche dans `argos-ui`
+- connexion OIDC de l'IHM (obtention du jeton) : changement `connecter-ihm-oidc` ; l'écran passe par le point d'appel commun du client REST, qui ajoute le jeton porteur, et ses routes sont protégées par la garde de session (D9)
 
 ## Composants impactés, responsabilités et frontières
 
@@ -38,6 +39,7 @@ La base est PostgreSQL 18 (`compose.yaml`) [EXISTANT]. Les éléments de veille 
 | `workspace` (`io.argos.workspace.vue`) | vues enregistrées sous RLS, refus journalisé d'une vue d'un autre compte | partager une vue sans décision explicite | modifié |
 | `mcp-server` | `search_signals` branché sur `RechercheVeille`, signaux seulement | restituer une actualité web | modifié [PROPOSITION — D6] |
 | `alerting` | rangs de gravité réutilisés par le filtre (`Gravite.auMoins`) | — | modifié |
+| IHM — couche contenu (`argos-ui/src/api/recherche.ts`, `argos-ui/src/api/recherche-criteres.ts`, `argos-ui/src/views/RechercheView.vue`) | saisie des mots et des filtres, appel de `/api/v1/recherche` et `/api/v1/vues`, affichage paginé des résultats et des vues | valider un filtre au-delà de son format, décider d'un droit, rendre un titre, un extrait ou un lien externe en HTML | modifié |
 
 ## Modèle de domaine et invariants
 
@@ -51,6 +53,19 @@ La base est PostgreSQL 18 (`compose.yaml`) [EXISTANT]. Les éléments de veille 
 2. `RechercheVeille` ouvre une transaction sous `argos_app` avec le compte de l'appelant, appelle `argos_rechercher_veille`, matérialise la sélection, en compte le total et en garde la page (tri par pertinence, puis date, puis identifiant).
 3. Les éléments de la page sont relus sous la RLS (signaux, actualités), avec les projets visibles des impacts et des rapprochements.
 4. Une vue rappelée repasse par les étapes 1 à 3 avec ses critères enregistrés, sous les droits courants.
+5. L'écran de recherche de `argos-ui` envoie les mots et les filtres saisis tels quels (rognés, dédoublonnés, filtres vides omis) et affiche la réponse ; un refus de l'API est affiché avec le message du serveur (400, 409) ou un message d'écran (401, 403, 404, 429, autres statuts) ; un délai dépassé a son propre message (D11).
+
+## Écran de recherche
+
+| Route (historique « hash ») | Contenu | Appels |
+|---|---|---|
+| `/recherche` | formulaire (mots, période, gravité minimale, technologies, type de contenu, projets), résultats paginés, vues de l'utilisateur, enregistrement de la saisie en vue | `GET /api/v1/recherche`, `GET /api/v1/vues`, `POST /api/v1/vues`, `DELETE /api/v1/vues/{id}` |
+| `/recherche/vues/:id` | même écran, formulaire prérempli avec les critères de la vue, résultats de la vue | `GET /api/v1/vues/{id}`, `GET /api/v1/vues/{id}/resultats` |
+
+- Le lien « Recherche » de la navigation principale ouvre l'écran dans le portail comme dans le client desktop (même build, ADR-0022).
+- Une saisie modifiée puis lancée depuis une vue rappelée quitte la vue : la recherche directe remplace ses résultats.
+- Les profils de veille d'une vue rappelée sont conservés et peuvent être retirés ; ils ne se saisissent pas dans l'écran.
+- Accessibilité : chaque champ a un libellé, les groupes de cases un `fieldset` et une légende ; le nombre de résultats est annoncé dans une zone `aria-live` ; le focus passe au titre des résultats après une recherche ou un changement de page ; les erreurs sont en `role="alert"`.
 
 ## États et transitions
 
@@ -90,6 +105,7 @@ La recherche est en lecture seule, dans une transaction par appel. Deux créatio
 - Mots saisis liés comme paramètres ; `websearch_to_tsquery` n'échoue sur aucune saisie ; le SQL dynamique de la fonction est un texte constant exécuté avec `EXECUTE … USING`.
 - Titre, extrait et lien sont des données externes ; seuls les liens `http` et `https` sont restitués (XSS) ; côté MCP, titre et résumé restent des `TexteExterne` (MCP-05).
 - Aucune requête réseau : la recherche ne lit que la base.
+- IHM : titre, extrait et nom de source sont interpolés comme texte (aucun `v-html`) ; un lien n'est cliquable qu'après `urlSure` (http et https seulement), ouvert avec `rel="noopener noreferrer"` ; seuls des identifiants UUID servent à construire l'URL d'une vue ou un filtre projet ; les mots sont encodés par `URLSearchParams` ; l'écran ne garde rien dans `localStorage`, `sessionStorage` ni un cookie. La CSP du client desktop est inchangée.
 
 ## Gestion des erreurs et reprise
 
@@ -157,6 +173,35 @@ La migration ajoute des colonnes générées et réécrit `signal` et `actualite
 - **Statut** : [PROPOSITION]
 - **Choix** : borne de stockage paramétrable (`argos.recherche.vues-max`)
 
+### D8 — Filtre projet de l'écran sans liste des projets
+
+- **Statut** : [PROPOSITION]
+- **Choix** : l'écran propose en cases à cocher les projets cités par les résultats déjà affichés et ceux d'une vue rappelée, et accepte la saisie de l'identifiant (UUID) d'un projet
+- **Justification** : aucun point d'accès de `/api/v1` ne liste les projets visibles de l'utilisateur (`EspacesResource` liste les espaces, sans leurs projets) ; l'écran n'invente pas d'API
+- **Alternatives écartées** : ajouter `GET /api/v1/projets` dans ce changement (contrat serveur hors du périmètre de l'écran) ; filtre projet absent (parcours « Oracle, projet, 30 jours » impossible)
+- **Compromis** : un projet jamais cité par un résultat ne se choisit que par son identifiant ; écart consigné ci-dessous
+
+### D9 — Point d'appel commun du client REST
+
+- **Statut** : [PROPOSITION]
+- **Choix** : `appelerApi` (`argos-ui/src/api/client.ts`) porte l'unique `fetch` de l'IHM (méthode, corps JSON, délai, réponse 204, corps `Erreur`) ; les fonctions existantes et celles de `recherche.ts` l'appellent
+- **Justification** : l'en-tête d'authentification OIDC ne s'ajoute qu'à un endroit ; le test `recherche.test.mjs` vérifie qu'il n'existe qu'un `fetch` dans `client.ts` et aucun dans `recherche.ts`
+- **Compromis** : un refus d'une lecture existante affiche désormais le message du corps `Erreur` quand le serveur en renvoie un
+- **Authentification** : `appelerApi` ajoute `Authorization: Bearer` sur tout `/api/v1` sauf `/api/v1/system/info` et transmet les 401 et 403 à la session (`connecter-ihm-oidc`, ACC-09)
+
+### D10 — Périodes proposées
+
+- **Statut** : [PROPOSITION]
+- **Choix** : toute période, 7, 30, 90 et 365 jours (`horizon` de l'API) ; une vue enregistrée avec un autre horizon l'affiche tel quel
+- **Justification** : le parcours de référence filtre sur 30 jours ; l'API admet de 1 à 3 650 jours
+
+### D11 — Délai, chargements concurrents et suppression
+
+- **Statut** : [PROPOSITION]
+- **Choix** : la recherche et les résultats d'une vue disposent d'un délai de 20 s (`DELAI_RECHERCHE_MS`), au-delà des 5 s des autres appels ; un délai dépassé affiche « le serveur n'a pas répondu à temps », distinct de « serveur injoignable ». Chaque chargement (recherche, page, vue rappelée) annule le précédent par un `AbortSignal`, dont la réponse tardive est ignorée. La suppression d'une vue se confirme dans la page ; supprimer la vue affichée vide les résultats et leur source.
+- **Justification** : un mot très fréquent demande plusieurs secondes au serveur (R-16, QS-13) ; une réponse ancienne ne doit pas écraser la vue courante ; une pagination sur une vue supprimée mènerait à « Vue introuvable »
+- **Alternatives écartées** : délai global allongé pour tous les appels (détection de coupure du desktop ralentie) ; `window.confirm` (dialogue bloquant, hors du style de l'IHM)
+
 ## Risques
 
 - Limites de PostgreSQL à grande échelle (R-16) → mesure QS-13 avant tout autre moteur ; un mot très fréquent dépasse déjà la cible.
@@ -164,7 +209,8 @@ La migration ajoute des colonnes générées et réécrit `signal` et `actualite
 
 ## Écarts code / tests / specs / documentation
 
-- Parcours depuis le client desktop (tâche 4.2) non vérifiable : `argos-ui` n'a ni écran de recherche ni connexion OIDC.
+- Parcours depuis le client desktop (tâche 4.2) non consigné : l'écran de recherche existe, mais `argos-ui` n'envoie pas encore de jeton OIDC, et l'API refuse tout appel non authentifié (401).
+- Aucun point d'accès ne liste les projets visibles de l'utilisateur : le filtre projet de l'écran repose sur les projets cités par les résultats ou sur la saisie d'un identifiant (D8).
 
 ## Stratégie de vérification
 
@@ -175,6 +221,8 @@ La migration ajoute des colonnes générées et réécrit `signal` et `actualite
 | RCH-03-S1 | intégration, sous `argos_app` | `RechercheVeilleTest.rch03*`, `RechercheMcpTest.rch03*` | passe |
 | RCH-04-S1, RCH-04-S2 | intégration API | `RechercheVeilleTest.rch04*` | passe |
 | RCH-05-S1 | charge | `MesurePerformanceRechercheTest`, QS-13 | passe (p95 = 250 ms) |
+| RCH-01, RCH-02, RCH-04 (écran) | unitaire et statique IHM | `argos-ui/tests/recherche.test.mjs` (paramètres, période, vues, sécurité de l'écran), `npm --prefix argos-ui run build` (contrôle de types) | passe |
+| RCH-04-S1 depuis le desktop | E2E | tâche 4.2 | non réalisé |
 
 ## Documentation durable impactée
 

@@ -1,0 +1,4 @@
+# Sorties de Playwright (traces, captures d'échec, rapport) : régénérées à chaque exécution.
+/test-results/
+/playwright-report/
+/blob-report/

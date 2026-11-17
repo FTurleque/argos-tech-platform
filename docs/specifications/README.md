@@ -41,7 +41,7 @@ Un préfixe n'est jamais réattribué ; un identifiant d'exigence retiré n'est 
 | `abonnements-veille` | `ABO` | [fiche](abonnements-veille.md) | absente | `formaliser-chaine-securite-poc` | proposée |
 | `affichage-personnalise` | `AFF` | [fiche](affichage-personnalise.md) | absente | `personnaliser-profils-et-affichage` | proposée |
 | `profils-veille` | `PRF` | [fiche](profils-veille.md) | absente | `personnaliser-profils-et-affichage` | proposée |
-| `comptes-acces` | `ACC` | [fiche](comptes-acces.md) | [spec](/openspec/specs/comptes-acces/spec.md) | `2026-11-17-gerer-comptes-et-acces` (archivé) | livrée |
+| `comptes-acces` | `ACC` | [fiche](comptes-acces.md) | [spec](/openspec/specs/comptes-acces/spec.md) | `2026-11-17-gerer-comptes-et-acces` (archivé) ; `connecter-ihm-oidc` (ACC-07 à ACC-10) | livrée ; ACC-07 à ACC-10 implémentées, non archivées |
 | `alertes-digests` | `ALR` | [fiche](alertes-digests.md) | [spec](/openspec/specs/alertes-digests/spec.md) | `2026-11-16-diffuser-alertes-et-digests` (archivé) | livrée |
 | `notifications-poste` | `NOT` | [fiche](notifications-poste.md) | absente | `notifier-sur-le-poste` | implémentée, non archivée |
 | `serveur-mcp` | `MCP` | [fiche](serveur-mcp.md) | absente | `exposer-serveur-mcp` | proposée |
@@ -71,6 +71,7 @@ Un préfixe n'est jamais réattribué ; un identifiant d'exigence retiré n'est 
 | DF-PRF-1 | UML classes | de quoi un profil de veille est-il composé ? | [profils-veille](profils-veille.md#df-prf-1--ce-que-décrit-un-profil) |
 | DF-PRF-2 | organigramme | comment se compose la veille d'un utilisateur à plusieurs profils ? | [profils-veille](profils-veille.md#df-prf-2--veille-dun-utilisateur-à-plusieurs-profils) |
 | DF-ACC-1 | organigramme | que se passe-t-il lors de la première connexion d'une personne ? | [comptes-acces](comptes-acces.md#df-acc-1--première-visite-dun-utilisateur) |
+| DF-ACC-2 | organigramme | que voit une personne qui ouvre une vue de l'IHM, selon sa session et la réponse de l'API ? | [comptes-acces](comptes-acces.md#df-acc-2--ouverture-dune-vue-de-lihm) |
 | DF-ALR-1 | organigramme | un élément part-il en alerte immédiate ou dans le résumé ? | [alertes-digests](alertes-digests.md#df-alr-1--alerte-immédiate-ou-résumé) |
 | DF-NOT-1 | organigramme | quand une alerte s'affiche-t-elle en notification système ? | [notifications-poste](notifications-poste.md#df-not-1--affichage-dune-alerte-sur-le-poste) |
 | DF-MCP-1 | organigramme | comment une question du développeur devient-elle une réponse sourcée ? | [serveur-mcp](serveur-mcp.md#df-mcp-1--une-question-posée-à-lassistant) |
@@ -93,7 +94,7 @@ Les diagrammes d'architecture (D-01 à D-13) sont inventoriés dans [`/docs/arch
 | Élément | Nombre | Détail |
 |---|---:|---|
 | Specs de référence | 8 | `comptes-acces`, `alertes-digests`, `veille-rss-web`, `radar-standards`, `passerelle-ia`, `activite-projets`, `profil-artiste`, `veille-reglementaire` ; le code des changements actifs est présent dans `argos-server`, `argos-ui` et `argos-desktop` |
-| Changements actifs | 5 | `formaliser-chaine-securite-poc`, `personnaliser-profils-et-affichage`, `notifier-sur-le-poste`, `exposer-serveur-mcp`, `rechercher-et-filtrer` (schéma `detailed-uml`) |
+| Changements actifs | 6 | `formaliser-chaine-securite-poc`, `personnaliser-profils-et-affichage`, `notifier-sur-le-poste`, `exposer-serveur-mcp`, `rechercher-et-filtrer`, `connecter-ihm-oidc` (schéma `detailed-uml`) |
 | Changements archivés | 8 | `2026-11-16-diffuser-alertes-et-digests`, `2026-11-16-collecter-veille-rss-web`, `2026-11-16-construire-radar-et-standards`, `2026-11-17-encadrer-appels-ia`, `2026-11-17-mesurer-activite-projets`, `2026-11-17-ajouter-profil-artiste`, `2026-11-17-suivre-veille-reglementaire`, `2026-11-17-gerer-comptes-et-acces` |
 
 Tous les changements utilisent le schéma `detailed-uml` : aucun changement d'un autre schéma n'est à migrer.
@@ -166,6 +167,14 @@ Pour `rechercher-et-filtrer`, « Tests écrits » compte les scénarios RCH-01-S
 | **Total** | | **11** | **14** | **2** | **4** | **14** |
 
 Les exigences des deux changements archivés de ce lot sont au statut [EXIGENCE] dans leur spec de référence ; la matrice de traçabilité de chaque changement est dans son `tasks.md`. Pour `ajouter-profil-artiste`, « Tests écrits » compte les scénarios ART-01-S1 à ART-06-S1 couverts par un test qui passe (`argos-server/src/test/java/io/argos/chain/ProfilArtisteTest.java`, `alerting/RappelsOpportunitesTest.java`, `impact/StrategieDisciplineTerritoireTest.java`) ; le parcours de la tâche 5.2 est `chain/ParcoursArtisteTest.java`. Matrice détaillée : [`tasks.md` du changement](/openspec/changes/archive/2026-11-17-ajouter-profil-artiste/tasks.md#matrice-de-traçabilité).
+
+### Couverture du lot 7
+
+| Changement | Capacité | Exigences | Scénarios | Diagrammes métier | Questions ouvertes | Tests écrits |
+|---|---|---|---|---|---|---|
+| [`connecter-ihm-oidc`](/openspec/changes/connecter-ihm-oidc/proposal.md) | `comptes-acces` (ACC-07 à ACC-10) | 4 | 18 | 1 | 2 | 18 |
+
+Pour `connecter-ihm-oidc`, « Tests écrits » compte les scénarios couverts par au moins un test qui passe : tests `node:test` d'`argos-ui/tests/` (`oidc`, `session`, `autorisation`, `garde`, `securite-session`) et d'`argos-desktop/test/` (`connexion`, `canaux`, `preload`, `ui-protocol`), et parcours réel du client `argos-ui` contre le Keycloak des Dev Services (`ClientIhmOidcTest`). Les tests de bout en bout dans un navigateur et dans Electron ne sont pas écrits. Matrice détaillée : [`tasks.md` du changement](/openspec/changes/connecter-ihm-oidc/tasks.md#matrice-de-traçabilité).
 
 ### Capacités restant à spécifier
 

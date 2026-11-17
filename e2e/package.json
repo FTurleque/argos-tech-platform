@@ -1,0 +1,19 @@
+{
+  "name": "argos-e2e",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Tests de bout en bout d'ARGOS : portail web argos-ui, API Quarkus, Keycloak et PostgreSQL de test (Playwright)",
+  "license": "SEE LICENSE IN ../LICENSE",
+  "type": "module",
+  "engines": {
+    "node": "^22.18.0 || >=23.6.0"
+  },
+  "scripts": {
+    "test": "node scripts/lancer.mjs",
+    "test:seul": "playwright test",
+    "installer-navigateur": "playwright install chromium"
+  },
+  "devDependencies": {
+    "@playwright/test": "1.61.1"
+  }
+}

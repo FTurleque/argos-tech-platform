@@ -56,7 +56,7 @@ Aucun écart constaté (comparaison avec les ADR et sections arc42 citées).
 
 ## Impact
 
-- **Composants** (arc42 §5) : `signal`, `API & Security`, `workspace`, `mcp-server`
+- **Composants** (arc42 §5) : `signal`, `API & Security`, `workspace`, `mcp-server`, IHM — couche contenu (écran de recherche de `argos-ui`)
 - **Contrats d'interface** : OpenAPI de recherche ; outil MCP `search_signals`
 - **Données et persistance** : index plein texte, vues enregistrées
 - **Sécurité, confidentialité, droits** : filtrage par droits avant restitution

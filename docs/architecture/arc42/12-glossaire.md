@@ -67,6 +67,8 @@
 | **DLQ** | Dead Letter Queue ; zone de mise à l’écart de messages/traitements en échec |
 | **Outbox** | pattern garantissant la cohérence entre transaction métier et publication d’événements |
 | **OIDC** | OpenID Connect, protocole d’identité au-dessus d’OAuth 2.0 |
+| **PKCE** | Proof Key for Code Exchange (RFC 7636) : le client public prouve, à l’échange du code d’autorisation, qu’il est l’auteur de la demande (vérificateur secret, défi S256) |
+| **Interface de bouclage** | adresse locale `127.0.0.1` sur laquelle une application native reçoit le retour d’une autorisation ouverte dans le navigateur du système (RFC 8252 §7.3) ; utilisée par le client desktop (ADR-0033, Proposé) |
 | **SAML** | protocole d’échange d’assertions d’identité, courant en entreprise |
 | **RBAC** | Role-Based Access Control |
 | **SSO** | Single Sign-On |

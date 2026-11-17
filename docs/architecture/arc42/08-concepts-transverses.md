@@ -6,6 +6,8 @@ Capacité [`comptes-acces`](../../specifications/comptes-acces.md) (exigences AC
 
 **Authentification** (ADR-0008, ADR-0027, Proposés) : OIDC auprès d’un Keycloak auto-hébergé. L’IHM et le client desktop obtiennent un jeton par Authorization Code + PKCE ; `API & Security` (`quarkus-oidc`, mode `service`) vérifie à chaque requête la signature, l’émetteur, l’audience `argos-server` et l’expiration. Toutes les routes exigent un jeton, sauf `/api/v1/system/info` et `/q/health` (`application.properties`).
 
+**Session de l’IHM** ([PROPOSITION], changement `connecter-ihm-oidc`, ADR-0033) : jetons en mémoire seulement, renouvelés avant expiration ; state vérifié et adresse nettoyée au retour ; un 401 de l’API ramène à l’écran de connexion (« session expirée »), un 403 `INSCRIPTION_SUR_INVITATION` ouvre l’écran « aucun compte ARGOS ». Le client desktop se connecte dans le navigateur du système, avec une redirection vers l’interface de bouclage `127.0.0.1` (RFC 8252).
+
 **Comptes** : un compte Argos est créé à la première connexion réussie, sans aucun espace. L’inscription se fait sur invitation : sans invitation en attente pour son e-mail vérifié, une personne authentifiée reçoit un refus explicite (403) et aucun compte. À la création, l’événement `CompteCree` enregistre le profil de veille `developpeur` dans les préférences du compte (`io.argos.api.preference.ActivationProfilParDefaut`). Les préférences sont rattachées au compte (`workspace_preference_utilisateur.compte_id`), jamais au nom du principal.
 
 **Rôles d’espace** (ADR-0016) : `LECTEUR`, `CONTRIBUTEUR`, `ADMINISTRATEUR`. Un espace garde toujours au moins un administrateur ; un changement de rôle ou un retrait verrouille la ligne de l’espace (`SELECT … FOR UPDATE`), si bien que deux retraits concurrents ne peuvent pas le laisser sans administrateur. L’administrateur plateforme est un attribut du compte, sans aucun accès implicite aux espaces. L’autorisation reste indépendante des préférences de veille (ABO-05, PRF-05).
@@ -157,7 +159,7 @@ Recherche de veille (changement `rechercher-et-filtrer`, ADR-0015) : recherche p
 - tests d’architecture Quarkus/ArchUnit ;
 - intégration PostgreSQL ;
 - contract tests adapters et MCP ;
-- E2E critiques ;
+- E2E critiques : parcours du portail web dans Chromium (Playwright, `e2e/`) contre le serveur de développement, le Keycloak de test des Dev Services et une base PostgreSQL jetable, sans requête hors du poste ([guide](../../../e2e/README.md)) ;
 - sécurité ;
 - résilience ;
 - tests IA avec jeu de référence.

@@ -10,17 +10,22 @@ const ORIGIN = `${SCHEME}://${HOST}`;
 
 /**
  * Politique de sécurité du contenu appliquée à l'IHM chargée par le desktop.
- * connect-src autorise uniquement l'URL du serveur ARGOS configurée.
+ * connect-src autorise uniquement l'origine du serveur ARGOS et, si elle est fournie, celle du
+ * fournisseur d'identité configuré (échange et renouvellement des jetons, ACC-10).
  */
-function contentSecurityPolicy(apiUrl) {
-  const api = new URL(apiUrl).origin;
+function contentSecurityPolicy(apiUrl, oidcUrl) {
+  const origines = [new URL(apiUrl).origin];
+  if (oidcUrl) {
+    const oidc = new URL(oidcUrl).origin;
+    if (!origines.includes(oidc)) origines.push(oidc);
+  }
   return [
     "default-src 'self'",
     "script-src 'self'",
     "style-src 'self' 'unsafe-inline'",
     "img-src 'self' data:",
     "font-src 'self'",
-    `connect-src 'self' ${api}`,
+    `connect-src 'self' ${origines.join(' ')}`,
     "object-src 'none'",
     "base-uri 'none'",
     "frame-ancestors 'none'",

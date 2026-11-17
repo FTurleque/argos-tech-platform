@@ -16,6 +16,8 @@ const { libelleCompteur } = require('./notifications');
 const preferences = require('./preferences');
 const { creerPoste } = require('./poste');
 const canaux = require('./canaux');
+const { creerConnexion } = require('./connexion');
+const http = require('node:http');
 
 const APP_ID = 'io.argos.desktop';
 const DEV = process.argv.includes('--dev');
@@ -23,6 +25,10 @@ const DEV_URL = process.env.ARGOS_UI_DEV_URL || 'http://localhost:5173';
 // URL du serveur ARGOS : sert uniquement à la politique de sécurité du contenu.
 // L'IHM lit la sienne au moment du build (VITE_ARGOS_API_URL).
 const API_URL = process.env.ARGOS_API_URL || 'http://localhost:8080';
+// Émetteur OIDC (royaume Keycloak) : origine ajoutée à la CSP et seule destination acceptée pour
+// l'autorisation ouverte dans le navigateur du système (changement connecter-ihm-oidc, ACC-10).
+// L'IHM lit le sien au moment du build (VITE_ARGOS_OIDC_ISSUER) ; les deux doivent coïncider.
+const OIDC_URL = process.env.ARGOS_OIDC_URL || 'http://localhost:8180/realms/argos';
 const UI_DIR = app.isPackaged
   ? path.join(process.resourcesPath, 'ui')
   : path.join(__dirname, '..', '..', 'argos-ui', 'dist');
@@ -61,7 +67,7 @@ function isExternalWebUrl(url) {
 }
 
 function registerUiProtocol() {
-  const csp = contentSecurityPolicy(API_URL);
+  const csp = contentSecurityPolicy(API_URL, OIDC_URL);
   protocol.handle(SCHEME, async (request) => {
     const file = resolveUiFile(request.url, UI_DIR);
     if (!file || !fs.existsSync(file)) {
@@ -198,8 +204,17 @@ function createTray() {
   tray.on('click', showMainWindow);
 }
 
+// Connexion OIDC : navigateur du système et redirection vers 127.0.0.1 (RFC 8252, ADR-0022 point 6).
+const connexion = creerConnexion({
+  http,
+  ouvrirNavigateur: (url) => shell.openExternal(url),
+  emetteur: OIDC_URL,
+  afficherFenetre: showMainWindow,
+});
+
 // Seule la fenêtre principale peut parler au processus principal (canaux.js).
 canaux.enregistrerCanaux(ipcMain, {
+  connexion,
   fenetre: () => mainWindow,
   poste,
   notifier: ({ title, body }) => {
@@ -213,7 +228,7 @@ canaux.enregistrerCanaux(ipcMain, {
 });
 
 app.on('second-instance', showMainWindow);
-app.on('before-quit', () => { quitting = true; });
+app.on('before-quit', () => { quitting = true; connexion.fermer(); });
 // La fenêtre se masque au lieu de se fermer : l'application reste dans la zone de notification.
 app.on('window-all-closed', () => {});
 
