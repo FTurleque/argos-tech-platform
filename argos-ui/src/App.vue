@@ -39,6 +39,7 @@ function deconnecter(): void {
       </div>
       <nav class="nav" aria-label="Navigation principale">
         <RouterLink to="/">État</RouterLink>
+        <RouterLink to="/recherche">Recherche</RouterLink>
         <RouterLink to="/affichage">Mise en page</RouterLink>
         <RouterLink v-if="isDesktop" to="/alertes">
           Alertes<template v-if="etatPoste.ouvertes > 0"> ({{ etatPoste.ouvertes }})</template>

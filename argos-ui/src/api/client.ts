@@ -41,45 +41,58 @@ export interface AutorisationClient {
 
 let autorisation: AutorisationClient = { jeton: () => null, surRefus: () => {} }
 
-/** Branche le client sur la session de l'IHM (appelé une fois au démarrage). */
+/** Branche le client sur la session de l'IHM (appelé une fois au démarrage, avant tout appel). */
 export function configurerAutorisation(a: AutorisationClient): void {
   autorisation = a
 }
 
 /** Corps d'une demande refusée (schéma `Erreur`). */
 interface ErreurApi {
-  code: string
-  message: string
+  code?: string
+  message?: string
+  attribut?: string | null
+}
+
+/** Options d'un appel à l'API ARGOS. */
+export interface OptionsAppel {
+  methode?: 'GET' | 'POST' | 'PUT' | 'DELETE'
+  /** Corps JSON de la demande ; absent : aucun corps. */
+  corps?: unknown
+  delaiMs?: number
 }
 
 /**
- * Appel de l'API : jeton porteur sur tout /api/v1 sauf l'identité du serveur ; un 401 relance la
- * connexion et un 403 affiche le refus, par le rappel de la session.
+ * Point d'appel unique de l'API ARGOS : tous les appels de l'IHM y passent. Le jeton porteur
+ * s'ajoute ici, sur tout /api/v1 sauf l'identité du serveur ; un 401 relance la connexion et un 403
+ * affiche le refus, par le rappel de la session. Réponse 204 : `undefined`. Refus : `ApiError` avec
+ * le statut, et le message et le code du corps `Erreur` quand le serveur en renvoie un.
  */
-async function requete<T>(methode: 'GET' | 'POST' | 'PUT', path: string, body?: unknown, timeoutMs = 5000): Promise<T> {
+export async function appelerApi<T>(chemin: string, options: OptionsAppel = {}): Promise<T> {
+  const { methode = 'GET', corps, delaiMs = 5000 } = options
   const controller = new AbortController()
-  const timer = setTimeout(() => controller.abort(), timeoutMs)
-  const entetes: Record<string, string> = { Accept: 'application/json' }
-  if (body !== undefined) entetes['Content-Type'] = 'application/json'
+  const timer = setTimeout(() => controller.abort(), delaiMs)
+  const headers: Record<string, string> = { Accept: 'application/json' }
+  if (corps !== undefined) headers['Content-Type'] = 'application/json'
   try {
-    const response = await fetch(`${apiBaseUrl}${path}`, {
+    const response = await fetch(`${apiBaseUrl}${chemin}`, {
       method: methode,
-      headers: entetesAvecJeton(path, entetes, autorisation.jeton()),
-      body: body === undefined ? undefined : JSON.stringify(body),
+      headers: entetesAvecJeton(chemin, headers, autorisation.jeton()),
+      body: corps === undefined ? undefined : JSON.stringify(corps),
       signal: controller.signal,
     })
     if (!response.ok) {
-      let corps: Partial<ErreurApi> | null = null
+      let erreur: ErreurApi | null = null
       try {
-        corps = (await response.json()) as Partial<ErreurApi>
+        erreur = (await response.json()) as ErreurApi | null
       } catch {
         // corps absent ou non JSON : message générique
       }
-      const refus = classerRefus(response.status, corps)
-      if (refus) autorisation.surRefus(refus, path)
-      const message = typeof corps?.message === 'string' ? corps.message : `Le serveur a répondu ${response.status}`
-      throw new ApiError(message, response.status, typeof corps?.code === 'string' ? corps.code : undefined)
+      const refus = classerRefus(response.status, erreur)
+      if (refus) autorisation.surRefus(refus, chemin)
+      const message = typeof erreur?.message === 'string' ? erreur.message : `Le serveur a répondu ${response.status}`
+      throw new ApiError(message, response.status, typeof erreur?.code === 'string' ? erreur.code : undefined)
     }
+    if (response.status === 204) return undefined as T
     return (await response.json()) as T
   } catch (error) {
     if (error instanceof ApiError) throw error
@@ -90,15 +103,15 @@ async function requete<T>(methode: 'GET' | 'POST' | 'PUT', path: string, body?: 
 }
 
 function getJson<T>(path: string): Promise<T> {
-  return requete<T>('GET', path)
+  return appelerApi<T>(path)
 }
 
 function putJson<T>(path: string, body: unknown): Promise<T> {
-  return requete<T>('PUT', path, body)
+  return appelerApi<T>(path, { methode: 'PUT', corps: body })
 }
 
 function postJson<T>(path: string): Promise<T> {
-  return requete<T>('POST', path)
+  return appelerApi<T>(path, { methode: 'POST' })
 }
 
 /** Identité du serveur : publique, appelée sans jeton (ACC-01-S2). */

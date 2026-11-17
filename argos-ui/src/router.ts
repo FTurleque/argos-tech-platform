@@ -3,6 +3,7 @@ import AffichageView from './views/AffichageView.vue'
 import AlertesView from './views/AlertesView.vue'
 import CompteNonCreeView from './views/CompteNonCreeView.vue'
 import ConnexionView from './views/ConnexionView.vue'
+import RechercheView from './views/RechercheView.vue'
 import ReglagesPosteView from './views/ReglagesPosteView.vue'
 import StatusView from './views/StatusView.vue'
 
@@ -25,5 +26,7 @@ export const router = createRouter({
     { path: '/alertes', name: 'alertes', component: AlertesView },
     { path: '/alertes/:id', name: 'alerte', component: AlertesView },
     { path: '/poste', name: 'poste', component: ReglagesPosteView },
+    { path: '/recherche', name: 'recherche', component: RechercheView },
+    { path: '/recherche/vues/:id', name: 'vue-recherche', component: RechercheView },
   ],
 })
