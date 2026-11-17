@@ -7,7 +7,7 @@ Rapport de la tâche 2.6 du changement [`personnaliser-profils-et-affichage`](/o
 | Élément | Valeur |
 |---|---|
 | Référentiel | RGAA 4.1.2, aligné sur WCAG 2.1 niveau AA (décision Q-4 du 2026-11-16, fiche [`affichage-personnalise`](/docs/specifications/affichage-personnalise.md)). Les seuils de contraste sont ceux du WCAG 2.1 et 2.2 AA : 4,5:1 pour le texte, 3:1 pour le grand texte (24 px, ou 18,66 px en gras) et les indicateurs non textuels |
-| Écran de référence | une mise en page affichant le jeu d'exemple `argos-ui/src/contenu/apercu.ts` : cinq éléments fictifs, chaque nature, un élément sans gravité, sans projet, sans lien ou sans date, deux résumés produits par l'IA, une validation humaine, un élément rangé dans deux rubriques. Le même jeu sert à l'aperçu de l'écran « Mise en page » et au banc d'essai `argos-ui/banc/index.html` |
+| Écran de référence | une mise en page affichant le jeu d'exemple `argos-ui/src/contenu/apercu.ts` : six éléments fictifs, chaque nature et chaque gravité de l'échelle, un élément sans gravité, sans projet, sans lien ou sans date, deux résumés produits par l'IA, une validation humaine avec garde-fou et mention de licence, un élément rangé dans deux rubriques, un élément sans rubrique retenu par un abonnement personnel. Le même jeu sert à l'aperçu de l'écran « Mise en page » et au banc d'essai `argos-ui/banc/index.html` |
 | Composants audités | `argos-ui/src/mises-en-page/*/MiseEnPage*.vue`, `MiseEnPage.vue`, `Titre.vue`, `argos-ui/src/contenu/MentionsObligatoires.vue` |
 | Hors périmètre | écrans de l'application autres que les mises en page (connexion, recherche, alertes) ; veille réelle restituée par `GET /api/v1/me/veille`, que les mises en page affichent avec les mêmes composants une fois l'écran de veille raccordé |
 | Date | 2026-11-17 |
@@ -30,11 +30,11 @@ Rapport de la tâche 2.6 du changement [`personnaliser-profils-et-affichage`](/o
 
 - polices embarquées chargées (`document.fonts`), aucune requête vers un autre hôte que `127.0.0.1` ;
 - contraste de **chaque nœud de texte visible**, décor compris, mesuré sur la couleur calculée et le fond effectif (composition des fonds des ancêtres), seuil selon la taille et la graisse rendues ;
-- ordre de tabulation identique à l'ordre des liens dans le document, contour de focus visible d'au moins 2 px ;
+- ordre de tabulation identique à l'ordre des liens dans le document, contour de focus visible d'au moins 2 px, de contraste au moins 3:1 sur le fond effectif du lien, mesuré dans le navigateur ;
 - largeur de 320 px : aucun défilement horizontal, aucun élément hors du cadre (RGAA 10.11, WCAG 1.4.10) ;
 - largeur de 375 px : éléments empilés sur une seule colonne ;
 - `prefers-reduced-motion: reduce` : aucune transition ni animation, survol compris ;
-- arbre d'accessibilité : région nommée, cinq articles, titres, liens nommés « … (nouvelle fenêtre) », décor absent de l'arbre, bandeau « Données d'exemple » présent.
+- arbre d'accessibilité : région nommée, six articles, titres, liens nommés « … (nouvelle fenêtre) », décor absent de l'arbre, bandeau « Données d'exemple » présent.
 
 Un dernier test compare les faits restitués (nature, gravité, titre, résumé, projets et niveaux, action, rubriques, mentions) par les quatre mises en page.
 
