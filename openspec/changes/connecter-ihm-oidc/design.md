@@ -80,7 +80,8 @@ Seule la session de l'IHM détient les jetons ; le processus principal du deskto
 
 Non applicable — aucun objet métier ; invariants de sécurité :
 
-- INV-1 : un code n'est échangé que si le state du retour est égal à celui de la demande en cours (ACC-07-S3).
+- INV-1 : un code n'est échangé que si le state du retour est égal à celui de la demande en cours (ACC-07-S3), et, quand le retour porte le paramètre `iss` (RFC 9207), que s'il désigne l'émetteur configuré.
+- INV-5 : au démarrage de l'IHM, le client REST et la garde des vues sont branchés sur la session avant la reprise d'un retour du fournisseur ; la lecture du compte qui suit la connexion porte donc le jeton (ACC-09-S1) et un compte non créé est détecté avant l'ouverture d'une vue protégée (ACC-09-S4).
 - INV-2 : aucun jeton n'est écrit dans `localStorage`, `sessionStorage`, un cookie, une adresse ou un journal (ACC-08-S1).
 - INV-3 : la seule écriture de stockage de la session est la demande transitoire du portail web (`argos.oidc.demande` : state, vérificateur, adresse de retour, vue), effacée au retour avant vérification.
 - INV-4 : le processus principal n'ouvre que des adresses d'autorisation de l'émetteur configuré, avec PKCE S256 et la redirection qu'il a préparée (ACC-10-S3).
@@ -220,6 +221,7 @@ Non applicable — aucune donnée serveur ; aucune migration (dernière : V16).
 ## Sécurité et isolation
 
 - PKCE S256 et state vérifié en temps constant ; le fournisseur refuse une demande sans défi (`pkceObligatoire`).
+- Paramètre `iss` du retour comparé à l'émetteur (RFC 9207) quand le fournisseur l'envoie. Aucun `nonce` n'est envoyé et l'`id_token` n'est pas validé : il ne sert que d'`id_token_hint` à la déconnexion (ADR-0033) ; PKCE S256 et un fournisseur unique couvrent l'injection de code.
 - Jetons dans un champ privé (`#jetons`) de `GestionnaireSession`, jamais dans l'état réactif de Vue ni dans un stockage ; la session n'écrit aucun journal (`tests/securite-session.test.mjs`).
 - Adresse nettoyée avant toute vérification ; vue de retour limitée à un chemin interne (`cheminInterne`) : aucune redirection ouverte.
 - Message d'un refus du fournisseur choisi dans une liste fixe : `error_description` n'est jamais affichée.
@@ -231,11 +233,12 @@ Non applicable — aucune donnée serveur ; aucune migration (dernière : V16).
 | Situation | Comportement |
 |---|---|
 | Fournisseur injoignable (découverte) | état `ERREUR`, message ; aucune redirection lancée |
-| State invalide, retour sans demande | état `ERREUR` ; aucun échange |
+| State invalide, émetteur `iss` différent, retour sans demande | état `ERREUR` ; aucun échange |
 | Échange refusé | état `ERREUR` ; jetons absents |
 | Renouvellement refusé | état `EXPIREE` |
 | API 401 | état `EXPIREE`, écran de connexion avec la vue courante en retour |
 | Desktop : navigateur fermé sans retour | écoute fermée au bout de cinq minutes ; état `ERREUR` ; « Relancer la connexion » |
+| Desktop : connexion relancée pendant une attente | l'écoute précédente est fermée ; la tentative précédente devient caduque sans changer l'état ; seule la nouvelle tentative est affichée |
 | Rechargement de la page (portail) | jetons perdus ; une vue protégée affiche l'écran de connexion ; la session du fournisseur évite une nouvelle saisie |
 
 ## Observabilité

@@ -51,7 +51,7 @@ Royaume Keycloak `argos` configuré, inscription libre désactivée ; `ARGOS_OID
 | Jeton OIDC | identité de l'utilisateur (sujet, nom, e-mail vérifié) | signature, émetteur, audience `argos-server`, expiration (ACC-01) | [EXISTANT] — `AuthentificationTest` |
 | Invitation | espace, e-mail du destinataire, rôle, expiration (14 jours par défaut) | émise par un administrateur d'espace ; acceptée par le titulaire de l'e-mail vérifié (ACC-05) | [EXISTANT] — `InvitationsTest` |
 | Entrée du journal des refus | compte, méthode et chemin, motif, horodatage | aucune donnée de la ressource (ACC-06) | [EXISTANT] — `JournalRefusTest` |
-| Retour du fournisseur dans l'IHM | `code`, `state` (ou `error`) | state égal à celui de la demande ; adresse nettoyée ; message de refus choisi dans une liste fixe (ACC-07) | [PROPOSITION — `connecter-ihm-oidc`] |
+| Retour du fournisseur dans l'IHM | `code`, `state` (ou `error`) | state égal à celui de la demande ; `iss`, s'il est présent, égal à l'émetteur (RFC 9207) ; adresse nettoyée ; message de refus choisi dans une liste fixe (ACC-07) | [PROPOSITION — `connecter-ihm-oidc`] |
 | Jetons de l'IHM | jeton d'accès, de renouvellement, d'identité | en mémoire seulement ; renouvelés avant expiration (ACC-08) | [PROPOSITION — `connecter-ihm-oidc`] |
 | Appel de l'API par l'IHM | `Authorization: Bearer` | sur tout `/api/v1` sauf `/api/v1/system/info` (ACC-09) | [PROPOSITION — `connecter-ihm-oidc`] |
 

@@ -32,7 +32,7 @@
 - [x] 4.1 Valider le changement — vérification : `openspec validate rechercher-et-filtrer --strict` réussit
 - [ ] 4.2 Parcours : recherche « Oracle » filtrée sur un projet et 30 jours, enregistrée en vue, rappelée depuis le desktop — vérification : scénario E2E consigné avec ses résultats
 
-Tâche 4.2 non réalisée : l'écran de recherche existe dans `argos-ui` (partagée par le client desktop), mais l'IHM n'envoie pas encore de jeton OIDC et l'API refuse tout appel non authentifié. Le même parcours par l'API REST, client du portail comme du desktop, est vérifié par `RechercheVeilleTest.rch04S1VueRappelee` (recherche « Oracle », projet, 30 jours, vue enregistrée puis rappelée : mêmes résultats que la recherche directe).
+Tâche 4.2 non réalisée : l'écran de recherche existe dans `argos-ui` (partagée par le client desktop) et passe par le client REST authentifié du changement `connecter-ihm-oidc`, mais le parcours n'a été exercé ni dans un navigateur ni dans le client desktop contre un serveur et un Keycloak réels. Le même parcours par l'API REST, client du portail comme du desktop, est vérifié par `RechercheVeilleTest.rch04S1VueRappelee` (recherche « Oracle », projet, 30 jours, vue enregistrée puis rappelée : mêmes résultats que la recherche directe).
 
 ## Preuves
 
@@ -41,6 +41,7 @@ Tâche 4.2 non réalisée : l'écran de recherche existe dans `argos-ui` (partag
 - `MesurePerformanceRechercheTest -Dargos.performance=true` du 2026-11-16 : campagne p95 = 250 ms (cible Q-05 : 500 ms) ; [rapport QS-13](/docs/architecture/quality/mesure-qs13-recherche.md).
 - `node scripts/verifier-docs.mjs` : aucune erreur ; `openspec validate rechercher-et-filtrer --strict` : valide.
 - Écran de recherche, 2026-11-17 : `npm --prefix argos-ui test` : 42 tests, 0 échec, dont les 14 de `argos-ui/tests/recherche.test.mjs` ; `npm --prefix argos-ui run build` (`vue-tsc --noEmit` puis `vite build`) réussit. L'écran n'a été exercé ni dans un navigateur ni dans le client desktop contre un serveur réel (tâche 4.2).
+- Intégration du lot 7 (`lot7/integration`, avec `connecter-ihm-oidc`), 2026-11-17 : `npm --prefix argos-ui test` : 87 tests, 0 échec, dont 15 dans `argos-ui/tests/recherche.test.mjs` (délai de recherche, annulation, suppression de la vue affichée, messages 403 et 429) ; `npm --prefix argos-ui run build` réussit ; `mvn -B -f argos-server/pom.xml verify` : BUILD SUCCESS, 494 tests, 1 ignoré ; `openspec validate --all --strict` valide. Affichage réel toujours non exercé (tâche 4.2).
 
 ## Matrice de traçabilité
 

@@ -29,8 +29,12 @@
 
 - [ ] 5.1 Test de bout en bout dans un navigateur : connexion réelle depuis le portail, retour sur la vue demandée, adresse nettoyée, déconnexion, compte non créé — couvre ACC-07-S1, ACC-07-S2, ACC-08-S4, ACC-09-S4 — vérification : à écrire (étape ultérieure du lot 7)
 - [ ] 5.2 Test de bout en bout du client desktop Electron : navigateur du système, retour sur `127.0.0.1`, fenêtre au premier plan, CSP — couvre ACC-10-S1, ACC-10-S2, ACC-10-S4 — vérification : à écrire (étape ultérieure du lot 7)
-- [x] 5.3 Valider le changement — vérification : `openspec validate connecter-ihm-oidc --strict` et `openspec validate --all --strict` réussissent (2026-11-17 : 494 tests serveur, 1 ignoré préexistant, BUILD SUCCESS ; 68 tests argos-ui ; build Vite ; 53 tests argos-desktop)
+- [x] 5.3 Valider le changement — vérification : `openspec validate connecter-ihm-oidc --strict` et `openspec validate --all --strict` réussissent (2026-11-17 : « Change 'connecter-ihm-oidc' is valid » ; validation de l'ensemble sans erreur)
 - [x] 5.4 Vérifications des modules — vérification : `mvn -B -f argos-server/pom.xml verify`, `npm --prefix argos-ui ci && npm --prefix argos-ui test && npm --prefix argos-ui run build`, `npm --prefix argos-desktop ci && npm --prefix argos-desktop test` réussissent (2026-11-17 : 494 tests serveur, 1 ignoré préexistant, BUILD SUCCESS ; 68 tests argos-ui ; build Vite ; 53 tests argos-desktop)
+
+## Preuves de l'intégration du lot 7
+
+- Branche `lot7/integration` (avec `rechercher-et-filtrer`), 2026-11-17 : `mvn -B -f argos-server/pom.xml verify` : BUILD SUCCESS, 494 tests, 0 échec, 1 ignoré préexistant ; `npm --prefix argos-ui ci && npm --prefix argos-ui test && npm --prefix argos-ui run build` : 87 tests, 0 échec, build Vite réussi ; `npm --prefix argos-desktop ci && npm --prefix argos-desktop test` : 53 tests, 0 échec ; `openspec validate --all --strict` : 14 éléments valides ; `node scripts/verifier-docs.mjs` : aucune erreur hors `docs/audit/`.
 
 ## Matrice de traçabilité
 
@@ -38,7 +42,7 @@
 |---|---|---|---|---|---|
 | ACC-07 | ACC-07-S1 | DC-2, DF-ACC-2 ; D5 | 2.4, 5.1 | `argos-ui/tests/garde.test.mjs` | unitaire exécuté le 2026-11-17 ; E2E à écrire |
 | ACC-07 | ACC-07-S2 | DC-2, DC-3, DC-4 ; D1, D4 | 1.1, 2.1, 2.2 | `argos-ui/tests/oidc.test.mjs`, `session.test.mjs` ; `ClientIhmOidcTest#portailWebObtientUnJetonAccepteParLApi` | exécuté le 2026-11-17 |
-| ACC-07 | ACC-07-S3 | DC-2, DC-4 ; INV-1 | 2.1, 2.2 | `argos-ui/tests/oidc.test.mjs`, `session.test.mjs` | exécuté le 2026-11-17 |
+| ACC-07 | ACC-07-S3 | DC-2, DC-4 ; INV-1 | 2.1, 2.2 | `argos-ui/tests/oidc.test.mjs`, `session.test.mjs` (dont l'émetteur `iss` différent, RFC 9207) | exécuté le 2026-11-17 |
 | ACC-07 | ACC-07-S4 | DC-2, DC-4 | 2.1, 2.2 | `argos-ui/tests/oidc.test.mjs`, `session.test.mjs` | exécuté le 2026-11-17 |
 | ACC-07 | ACC-07-S5 | DF-ACC-2 | 2.3, 2.4 | `argos-ui/tests/garde.test.mjs`, `autorisation.test.mjs` ; `AuthentificationTest#identiteDuServeurPublique` | exécuté le 2026-11-17 |
 | ACC-08 | ACC-08-S1 | INV-2, INV-3 ; D3, D4 | 2.2, 2.5 | `argos-ui/tests/securite-session.test.mjs`, `session.test.mjs` | exécuté le 2026-11-17 |
@@ -48,7 +52,7 @@
 | ACC-09 | ACC-09-S1 | DC-2 ; Contrats d'interface | 2.3 | `argos-ui/tests/autorisation.test.mjs` ; `ClientIhmOidcTest` (jeton de l'IHM accepté par `/api/v1/moi`) | exécuté le 2026-11-17 |
 | ACC-09 | ACC-09-S2 | Contrats d'interface | 2.3 | `argos-ui/tests/autorisation.test.mjs` | exécuté le 2026-11-17 |
 | ACC-09 | ACC-09-S3 | DC-4 ; D5 | 2.2, 2.3 | `argos-ui/tests/autorisation.test.mjs`, `session.test.mjs` | exécuté le 2026-11-17 |
-| ACC-09 | ACC-09-S4 | DC-2, DF-ACC-2 ; D5 | 2.3, 2.4, 5.1 | `argos-ui/tests/autorisation.test.mjs`, `garde.test.mjs` ; `ClientIhmOidcTest#personneSansInvitationRecoitLeRefusDedie` | exécuté le 2026-11-17 ; E2E à écrire |
+| ACC-09 | ACC-09-S4 | DC-2, DF-ACC-2 ; D5 ; INV-5 | 2.3, 2.4, 5.1 | `argos-ui/tests/autorisation.test.mjs`, `garde.test.mjs`, `securite-session.test.mjs` (branchement avant la reprise du retour) ; `ClientIhmOidcTest#personneSansInvitationRecoitLeRefusDedie` | exécuté le 2026-11-17 ; E2E à écrire |
 | ACC-09 | ACC-09-S5 | D5 | 2.3, 2.4 | `argos-ui/tests/autorisation.test.mjs` | exécuté le 2026-11-17 |
 | ACC-10 | ACC-10-S1 | DC-1, DC-3 ; D2 | 1.1, 3.1, 5.2 | `argos-desktop/test/connexion.test.js` ; `ClientIhmOidcTest#clientDesktopUtiliseLInterfaceDeBouclage` | exécuté le 2026-11-17 ; parcours Electron à écrire |
 | ACC-10 | ACC-10-S2 | DC-3 | 3.1, 3.2, 5.2 | `argos-desktop/test/connexion.test.js`, `canaux.test.js` | exécuté le 2026-11-17 ; parcours Electron à écrire |

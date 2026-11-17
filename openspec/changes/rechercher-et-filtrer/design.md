@@ -27,7 +27,7 @@ La base est PostgreSQL 18 (`compose.yaml`) [EXISTANT]. Les éléments de veille 
 
 **Non-objectifs :**
 - recherche sémantique (ADR-0015)
-- connexion OIDC de l'IHM (obtention et envoi du jeton) : hors de ce changement ; l'écran passe par le point d'appel commun du client REST qui porte l'en-tête d'authentification (D9)
+- connexion OIDC de l'IHM (obtention du jeton) : changement `connecter-ihm-oidc` ; l'écran passe par le point d'appel commun du client REST, qui ajoute le jeton porteur, et ses routes sont protégées par la garde de session (D9)
 
 ## Composants impactés, responsabilités et frontières
 
@@ -53,7 +53,7 @@ La base est PostgreSQL 18 (`compose.yaml`) [EXISTANT]. Les éléments de veille 
 2. `RechercheVeille` ouvre une transaction sous `argos_app` avec le compte de l'appelant, appelle `argos_rechercher_veille`, matérialise la sélection, en compte le total et en garde la page (tri par pertinence, puis date, puis identifiant).
 3. Les éléments de la page sont relus sous la RLS (signaux, actualités), avec les projets visibles des impacts et des rapprochements.
 4. Une vue rappelée repasse par les étapes 1 à 3 avec ses critères enregistrés, sous les droits courants.
-5. L'écran de recherche de `argos-ui` envoie les mots et les filtres saisis tels quels (rognés, dédoublonnés, filtres vides omis) et affiche la réponse ; un refus de l'API (400, 404, 409) est affiché avec le message du serveur ou un message d'écran (401, 404).
+5. L'écran de recherche de `argos-ui` envoie les mots et les filtres saisis tels quels (rognés, dédoublonnés, filtres vides omis) et affiche la réponse ; un refus de l'API est affiché avec le message du serveur (400, 409) ou un message d'écran (401, 403, 404, 429, autres statuts) ; un délai dépassé a son propre message (D11).
 
 ## Écran de recherche
 
@@ -187,12 +187,20 @@ La migration ajoute des colonnes générées et réécrit `signal` et `actualite
 - **Choix** : `appelerApi` (`argos-ui/src/api/client.ts`) porte l'unique `fetch` de l'IHM (méthode, corps JSON, délai, réponse 204, corps `Erreur`) ; les fonctions existantes et celles de `recherche.ts` l'appellent
 - **Justification** : l'en-tête d'authentification OIDC ne s'ajoute qu'à un endroit ; le test `recherche.test.mjs` vérifie qu'il n'existe qu'un `fetch` dans `client.ts` et aucun dans `recherche.ts`
 - **Compromis** : un refus d'une lecture existante affiche désormais le message du corps `Erreur` quand le serveur en renvoie un
+- **Authentification** : `appelerApi` ajoute `Authorization: Bearer` sur tout `/api/v1` sauf `/api/v1/system/info` et transmet les 401 et 403 à la session (`connecter-ihm-oidc`, ACC-09)
 
 ### D10 — Périodes proposées
 
 - **Statut** : [PROPOSITION]
 - **Choix** : toute période, 7, 30, 90 et 365 jours (`horizon` de l'API) ; une vue enregistrée avec un autre horizon l'affiche tel quel
 - **Justification** : le parcours de référence filtre sur 30 jours ; l'API admet de 1 à 3 650 jours
+
+### D11 — Délai, chargements concurrents et suppression
+
+- **Statut** : [PROPOSITION]
+- **Choix** : la recherche et les résultats d'une vue disposent d'un délai de 20 s (`DELAI_RECHERCHE_MS`), au-delà des 5 s des autres appels ; un délai dépassé affiche « le serveur n'a pas répondu à temps », distinct de « serveur injoignable ». Chaque chargement (recherche, page, vue rappelée) annule le précédent par un `AbortSignal`, dont la réponse tardive est ignorée. La suppression d'une vue se confirme dans la page ; supprimer la vue affichée vide les résultats et leur source.
+- **Justification** : un mot très fréquent demande plusieurs secondes au serveur (R-16, QS-13) ; une réponse ancienne ne doit pas écraser la vue courante ; une pagination sur une vue supprimée mènerait à « Vue introuvable »
+- **Alternatives écartées** : délai global allongé pour tous les appels (détection de coupure du desktop ralentie) ; `window.confirm` (dialogue bloquant, hors du style de l'IHM)
 
 ## Risques
 

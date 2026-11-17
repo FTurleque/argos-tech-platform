@@ -26,7 +26,7 @@ Inclus :
 
 - Éléments cherchés : signaux de sécurité (données publiques) et actualités web (articles de flux, changements de pages surveillées), cloisonnées par espace et par compte.
 - Recherche par l'API REST (`GET /api/v1/recherche`), vues enregistrées (`/api/v1/vues`) et outil MCP `search_signals`, qui ne restitue que les signaux de sécurité [PROPOSITION].
-- Écran de recherche de `argos-ui`, commun au portail et au client desktop : mots, période (dont « 30 derniers jours »), gravité minimale, technologies, type de contenu, projet, résultats paginés avec liens sources, vues enregistrées.
+- Écran de recherche de `argos-ui`, commun au portail et au client desktop : mots, période (dont « 30 derniers jours »), gravité minimale, technologies, type de contenu, projet, résultats paginés avec liens sources, vues enregistrées. L'écran exige une session ouverte (garde des vues) et appelle l'API avec le jeton porteur de l'utilisateur ; une recherche dispose d'un délai de 20 s et un nouveau chargement annule le précédent.
 
 Exclus :
 
