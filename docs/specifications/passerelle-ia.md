@@ -3,9 +3,9 @@
 | Élément | Valeur |
 |---|---|
 | Préfixe d'exigences | `IAG` |
-| Spec de référence | `/openspec/specs/passerelle-ia/spec.md` — absente tant qu'aucun changement n'est archivé |
-| Changements en cours | [`encadrer-appels-ia`](/openspec/changes/encadrer-appels-ia/proposal.md) (implémenté, non archivé) |
-| Statut de la capacité | implémentée, non archivée |
+| Spec de référence | [`/openspec/specs/passerelle-ia/spec.md`](/openspec/specs/passerelle-ia/spec.md) |
+| Changements archivés | [`2026-11-17-encadrer-appels-ia`](/openspec/changes/archive/2026-11-17-encadrer-appels-ia/proposal.md) |
+| Statut de la capacité | livrée |
 | Composants (arc42 §5) | `ai-gateway` (`io.argos.aigateway`), `audit` (`JournalAppelsIa`), modules appelants `alerting`, `signal.web`, `impact` |
 
 ## Objectif
@@ -100,7 +100,7 @@ flowchart TD
 
 ## Critères d'acceptation
 
-Scénarios IAG-01-S1 à IAG-05-S1 du changement ; QS-08, QS-09, QS-15. Preuves : matrice de [`tasks.md`](/openspec/changes/encadrer-appels-ia/tasks.md#matrice-de-traçabilité).
+Scénarios IAG-01-S1 à IAG-05-S1 du changement ; QS-08, QS-09, QS-15. Preuves : matrice de [`tasks.md`](/openspec/changes/archive/2026-11-17-encadrer-appels-ia/tasks.md#matrice-de-traçabilité).
 
 ## Interprétations introduites par un changement
 
