@@ -1,0 +1,23 @@
+# ARGOS — base PostgreSQL jetable des tests de bout en bout (e2e/README.md).
+# Image officielle postgres (PostgreSQL License). Données en mémoire (tmpfs) : chaque démarrage
+# repart d'une base vide, migrée par Flyway au lancement du serveur. Port 55432 sur la seule
+# boucle locale, distinct de la base de développement (compose.yaml à la racine, port 5432).
+# Le Keycloak de test est démarré par les Dev Services de Quarkus (quarkus:dev, port 8180).
+name: argos-e2e
+
+services:
+  postgres:
+    image: postgres:18
+    environment:
+      POSTGRES_DB: argos
+      POSTGRES_USER: argos
+      POSTGRES_PASSWORD: argos
+    ports:
+      - "127.0.0.1:55432:5432"
+    tmpfs:
+      - /var/lib/postgresql
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U argos -d argos"]
+      interval: 2s
+      timeout: 3s
+      retries: 30

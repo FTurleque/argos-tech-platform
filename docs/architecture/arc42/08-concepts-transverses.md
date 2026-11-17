@@ -159,7 +159,7 @@ Recherche de veille (changement `rechercher-et-filtrer`, ADR-0015) : recherche p
 - tests d’architecture Quarkus/ArchUnit ;
 - intégration PostgreSQL ;
 - contract tests adapters et MCP ;
-- E2E critiques ;
+- E2E critiques : parcours du portail web dans Chromium (Playwright, `e2e/`) contre le serveur de développement, le Keycloak de test des Dev Services et une base PostgreSQL jetable, sans requête hors du poste ([guide](../../../e2e/README.md)) ;
 - sécurité ;
 - résilience ;
 - tests IA avec jeu de référence.

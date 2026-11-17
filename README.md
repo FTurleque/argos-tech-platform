@@ -32,6 +32,7 @@ Voir [ADR-0019](docs/architecture/adr/0019-stack-java17-quarkus-vue3-postgresql.
 | [`argos-server/`](argos-server/) | Monolithe modulaire Quarkus (Java 17) : un paquet par module d’arc42 §5, frontières vérifiées par ArchUnit, Flyway, OpenAPI, santé |
 | [`argos-ui/`](argos-ui/) | IHM Vue.js 3 + Vite + TypeScript, partagée par le portail web et le desktop |
 | [`argos-desktop/`](argos-desktop/) | Client desktop Electron : emballe `argos-ui`, notifications système, icône de zone de notification |
+| [`e2e/`](e2e/README.md) | Tests de bout en bout du portail web (Playwright) |
 | [`compose.yaml`](compose.yaml) | PostgreSQL 18 et Argos complet, sur le PC comme sur le Synology |
 | [`Dockerfile`](Dockerfile) | image unique IHM + API (x86-64) |
 | [`docs/deploiement/`](docs/deploiement/synology-et-pc.md) | guide de déploiement Synology DS1522+ et PC, sauvegardes |
@@ -63,6 +64,8 @@ npm run dist             # installeurs (Windows NSIS, Linux AppImage) dans argos
 ```
 
 L’URL du serveur se règle avec `VITE_ARGOS_API_URL` (voir `argos-ui/.env.example`).
+
+Tests de bout en bout du portail web (Playwright, Keycloak et PostgreSQL de test) : `npm --prefix e2e ci` puis `npm --prefix e2e test` ; voir [`e2e/README.md`](e2e/README.md).
 
 ### Argos complet sous Docker (PC ou Synology)
 

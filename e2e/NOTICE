@@ -1,0 +1,21 @@
+Outillage des tests de bout en bout d'ARGOS (e2e/) — dépendances et licences
+==========================================================================
+
+Enregistrement des licences au moment de l'introduction des dépendances (ADR-0021, point 6).
+Outillage de test du dépôt : aucun de ces composants n'est livré avec ARGOS.
+
+Paquets npm (e2e/package-lock.json)
+  @playwright/test 1.61.1   Apache-2.0   https://github.com/microsoft/playwright
+  playwright 1.61.1         Apache-2.0   https://github.com/microsoft/playwright
+  playwright-core 1.61.1    Apache-2.0   https://github.com/microsoft/playwright
+  fsevents 2.3.2            MIT          dépendance facultative de playwright, macOS seulement
+
+Navigateur (téléchargé par « npx playwright install chromium », hors du dépôt)
+  Chromium révision 1228    licence BSD-3-Clause de Chromium et licences de ses composants
+                            tiers, livrées avec le navigateur
+
+Images de conteneur (tirées par Docker, hors du dépôt)
+  postgres:18                     PostgreSQL License   https://hub.docker.com/_/postgres
+  quay.io/keycloak/keycloak       Apache-2.0           démarrée par les Dev Services de Quarkus
+                                                       (version choisie par Quarkus)
+  testcontainers/ryuk             MIT                  nettoyage des conteneurs des Dev Services
