@@ -94,7 +94,12 @@ public class VeilleProfilsResource {
             List<RubriqueVue> rubriques, List<String> gardeFous, String mentionValidation, List<ProjetVue> projets,
             @Schema(description = "Abonnements PERSONAL de l'appelant qui ont retenu l'élément (décision Q-3) ; vide"
                     + " si l'élément ne vient que de ses profils actifs. Un élément sans profil vient seulement de"
-                    + " ces abonnements.") List<UUID> abonnements) {
+                    + " ces abonnements.") List<UUID> abonnements,
+            @Schema(description = "Mention « produit par l'IA » quand le résumé vient du modèle (ADR-0023) ; absente"
+                    + " sinon.") String mentionIa,
+            @Schema(description = "Mention de la source, de sa licence et de la date de dernière mise à jour des"
+                    + " données, quand la source l'exige (Licence Ouverte des textes officiels) ; absente sinon.")
+            String mentionSource) {
     }
 
     @Schema(name = "VeilleProfils")
@@ -157,7 +162,8 @@ public class VeilleProfilsResource {
                             e.gravite(), e.date(), e.dateEffet(), e.lien(), r.profils(),
                             r.rubriques().stream().map(x -> new RubriqueVue(x.profil(), x.identifiant(), x.libelle()))
                                     .toList(),
-                            r.gardeFous(), e.mentionValidation(), e.projets(), r.abonnements());
+                            r.gardeFous(), e.mentionValidation(), e.projets(), r.abonnements(), e.mentionIa(),
+                            e.mentionSource());
                 })
                 .sorted(Comparator.comparing(ElementVue::date, Comparator.nullsLast(Comparator.reverseOrder())))
                 .toList();
@@ -192,7 +198,7 @@ public class VeilleProfilsResource {
             ElementVue e = new ElementVue(AVIS_SECURITE, v.id(), v.source(), v.externalId(), v.title(), null,
                     v.severity(), v.publishedAt() != null ? v.publishedAt() : v.modifiedAt(), null, null, List.of(),
                     List.of(), List.of(), null, projets.getOrDefault(v.id(), List.of()).stream().distinct().toList(),
-                    List.of());
+                    List.of(), null, null);
             candidats.add(new UnionProfils.CandidatAbonnement<>(
                     new UnionProfils.Candidat<>(AVIS_SECURITE + ":" + v.id(), Set.of(CATEGORIE_AVIS), false, e),
                     retenus.retenusPar().getOrDefault(v.id(), Set.of())));
@@ -218,7 +224,7 @@ public class VeilleProfilsResource {
             ElementVue e = new ElementVue(AVIS_SECURITE, signalId, premier.signalSource(), premier.signalExternalId(),
                     premier.signalTitle(), null, s.map(SignalQueries.SignalView::severity).orElse(null),
                     s.map(v -> v.publishedAt() != null ? v.publishedAt() : v.modifiedAt()).orElse(premier.updatedAt()),
-                    null, null, List.of(), List.of(), List.of(), null, projets, List.of());
+                    null, null, List.of(), List.of(), List.of(), null, projets, List.of(), null, null);
             candidats.add(new UnionProfils.Candidat<>(AVIS_SECURITE + ":" + signalId, Set.of(CATEGORIE_AVIS), false, e));
         });
         return candidats;
@@ -236,7 +242,7 @@ public class VeilleProfilsResource {
                     f.titreOfficiel(), f.resume(), null,
                     f.publication() == null ? null : f.publication().atStartOfDay(ZoneOffset.UTC).toInstant(),
                     f.effet(), lienHttp(f.lienOfficiel()), List.of(), List.of(), List.of(), FicheAnalyse.MENTION_VALIDEE,
-                    List.of(), List.of());
+                    List.of(), List.of(), f.resume() == null ? null : f.mentionIa(), f.mentionSource());
             candidats.add(new UnionProfils.Candidat<>(FICHE_REGLEMENTAIRE + ":" + f.id(), Set.of(CATEGORIE_TEXTES), true, e));
         }
         return candidats;

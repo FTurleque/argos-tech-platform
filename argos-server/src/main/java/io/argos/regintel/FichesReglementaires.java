@@ -33,9 +33,13 @@ public interface FichesReglementaires {
      * @param effet               date d'entrée en vigueur, absente si elle reste à confirmer
      * @param source              source du texte (identifiant court, {@code JORF})
      * @param lienOfficiel        adresse du texte publié sur Légifrance
+     * @param mentionIa           « produit par l'IA » tant que le résumé vient du modèle, absente sinon (ADR-0023)
+     * @param mentionSource       mention de la source, de sa licence (Licence Ouverte) et de la date de dernière mise
+     *                            à jour des données
      */
     record Fiche(UUID id, UUID espaceId, List<String> domaines, Etat etat, String titreOfficiel, String referenceOfficielle,
-            String nor, String resume, LocalDate publication, LocalDate effet, String source, String lienOfficiel) {
+            String nor, String resume, LocalDate publication, LocalDate effet, String source, String lienOfficiel,
+            String mentionIa, String mentionSource) {
 
         public Fiche {
             domaines = List.copyOf(domaines);

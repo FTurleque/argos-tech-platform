@@ -2,6 +2,7 @@ package io.argos.api.veille;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.nio.charset.StandardCharsets;
@@ -18,6 +19,7 @@ import jakarta.inject.Inject;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
+import io.argos.aigateway.ReponseIa;
 import io.argos.ingestion.SourceSynchronizer;
 import io.argos.inventory.InventoryService;
 import io.argos.inventory.ProjectDirectory;
@@ -67,6 +69,7 @@ class VeilleProfilsTest {
 
     private UUID projet;
     private UUID ficheEnAttente;
+    private UUID ficheValidee;
 
     @BeforeEach
     void preparer() {
@@ -89,7 +92,7 @@ class VeilleProfilsTest {
         UUID oscar = Api.compte("oscar");
         reg.domaine(espace, "paie", "Paie", Api.compte("ines"));
         reg.expert(espace, "paie", oscar);
-        reg.fiche(reg.texte(VALIDEE, "Décret relatif à la paie", LocalDate.of(2026, 11, 2), LocalDate.of(2027, 1, 1)),
+        ficheValidee = reg.fiche(reg.texte(VALIDEE, "Décret relatif à la paie", LocalDate.of(2026, 11, 2), LocalDate.of(2027, 1, 1)),
                 espace, "paie", "VALIDEE", "Résumé relu par l'expert.", oscar);
         ficheEnAttente = reg.fiche(reg.texte(EN_ATTENTE, "Arrêté relatif à la paie", LocalDate.of(2026, 11, 3), null),
                 espace, "paie", "EN_ATTENTE_VALIDATION", "Résumé proposé.", oscar);
@@ -124,6 +127,7 @@ class VeilleProfilsTest {
         assertEquals(List.of(VALIDEE, AVIS), ids, "du plus récent au plus ancien : fiche publiée le 2026-11-02, avis"
                 + " publié le 2026-01-01 ; la fiche en attente n'est pas restituée");
 
+        assertTrue(identifiants(v).containsAll(List.of(VALIDEE, AVIS)), v.prettify());
         String avis = "elements.find { it.identifiant == '" + AVIS + "' }.";
         assertEquals("AVIS_SECURITE", v.getString(avis + "type"));
         assertEquals(List.of("developpeur"), v.getList(avis + "profils"));
@@ -135,6 +139,9 @@ class VeilleProfilsTest {
         assertEquals("FICHE_REGLEMENTAIRE", v.getString(fiche + "type"));
         assertEquals(List.of("expert-metier"), v.getList(fiche + "profils"));
         assertEquals(List.of("reglementation"), v.getList(fiche + "rubriques.identifiant"));
+        // ADR-0023 et Licence Ouverte : mention de paternité de la source ; résumé relu, sans mention IA.
+        assertTrue(v.getString(fiche + "mentionSource").startsWith(FicheAnalyse.SOURCE), v.prettify());
+        assertNull(v.getString(fiche + "mentionIa"), v.prettify());
         assertEquals("Réglementation", v.getString(fiche + "rubriques[0].libelle"));
         assertEquals(FicheAnalyse.MENTION_VALIDEE, v.getString(fiche + "mentionValidation"));
         assertEquals("2027-01-01", v.getString(fiche + "dateEffet"));
@@ -171,6 +178,24 @@ class VeilleProfilsTest {
             assertFalse(mcp.asString().contains(EN_ATTENTE), utilisateur + " : MCP");
             assertTrue(mcp.asString().contains(VALIDEE), utilisateur + " : MCP");
         }
+    }
+
+    /**
+     * ADR-0023 : une fiche validée dont le résumé vient encore du modèle porte la mention « produit par l'IA »
+     * dans la veille ; un avis de sécurité, sans résumé, n'en porte pas.
+     */
+    @Test
+    void ficheValideeAuResumeIaPorteLaMentionIa() {
+        reg.origineResume(ficheValidee, "IA");
+        activer("jules", "developpeur", "expert-metier");
+
+        JsonPath v = veille("jules");
+        String fiche = "elements.find { it.identifiant == '" + VALIDEE + "' }.";
+        assertEquals(ReponseIa.MENTION, v.getString(fiche + "mentionIa"), v.prettify());
+        assertTrue(v.getString(fiche + "mentionSource").startsWith(FicheAnalyse.SOURCE), v.prettify());
+        String avis = "elements.find { it.identifiant == '" + AVIS + "' }.";
+        assertNull(v.getString(avis + "mentionIa"), v.prettify());
+        assertNull(v.getString(avis + "mentionSource"), v.prettify());
     }
 
     /**

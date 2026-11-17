@@ -121,7 +121,8 @@ public class FichesEnBase implements FichesReglementaires {
                 .limit(LIMITE_MAX)
                 .map(f -> new Fiche(f.id(), f.espaceId(), f.domaines().stream().map(FicheAnalyse.DomaineRattache::code).toList(),
                         Etat.valueOf(f.etatValidation()), f.texte().titre(), f.texte().identifiant(), f.texte().nor(),
-                        f.resume(), f.texte().datePublication(), f.dateEffet(), "JORF", f.texte().lienPublie()))
+                        f.resume(), f.texte().datePublication(), f.dateEffet(), "JORF", f.texte().lienPublie(), f.mentionIa(),
+                        f.mentionSource()))
                 .toList();
     }
 

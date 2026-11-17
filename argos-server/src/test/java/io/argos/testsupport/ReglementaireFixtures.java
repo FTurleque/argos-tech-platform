@@ -168,6 +168,14 @@ public class ReglementaireFixtures {
         });
     }
 
+    /** Origine du résumé d'une fiche : {@code IA}, {@code EXPERT} ou {@code AUCUN}. */
+    public void origineResume(UUID fiche, String origine) {
+        executer("UPDATE fiche_reglementaire SET resume_origine = ? WHERE id = ?", ps -> {
+            ps.setString(1, origine);
+            ps.setObject(2, fiche);
+        });
+    }
+
     /** Fiche d'un texte pour un espace, dans l'état de validation donné, rattachée au domaine par une règle. */
     public UUID fiche(UUID texte, UUID espace, String domaine, String etatValidation, String resume, UUID decidePar) {
         UUID id = UUID.randomUUID();

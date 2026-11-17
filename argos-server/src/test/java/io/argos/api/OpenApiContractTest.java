@@ -44,7 +44,7 @@ class OpenApiContractTest {
             .body("components.schemas.VeilleProfils.properties.keySet()", hasItems("profilsActifs", "elements"))
             .body("components.schemas.ElementVeilleProfils.properties.keySet()", hasItems(
                     "type", "id", "titre", "date", "profils", "rubriques", "gardeFous", "mentionValidation", "projets",
-                    "abonnements"))
+                    "abonnements", "mentionIa", "mentionSource"))
             .body("components.schemas.RubriqueElementVeille.properties.keySet()", hasItems(
                     "profil", "identifiant", "libelle"));
     }
