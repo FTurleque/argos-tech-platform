@@ -2,7 +2,7 @@
 // Modules purs de la couche mise en page : src/mises-en-page/selection.ts et presentation.ts.
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
-import { MISE_EN_PAGE_DE_REPLI, choisirComposant, niveauTitre } from '../src/mises-en-page/selection.ts'
+import { MISE_EN_PAGE_DE_REPLI, choisirComposant, bornerNiveauTitre } from '../src/mises-en-page/selection.ts'
 import { cleRubrique, dateLongue, niveauSuivant, nombreElements, sommaire } from '../src/mises-en-page/presentation.ts'
 
 const REGISTRE = { classique: 'C', journal: 'J', fantaisie: 'F', gazette: 'G' }
@@ -31,11 +31,11 @@ test('registre sans mise en page de repli : erreur explicite', () => {
 })
 
 test('niveau du titre principal borné à [1, 5], 2 par défaut', () => {
-  assert.equal(niveauTitre(undefined), 2)
-  assert.equal(niveauTitre(Number.NaN), 2)
-  assert.equal(niveauTitre(0), 1)
-  assert.equal(niveauTitre(3.7), 3)
-  assert.equal(niveauTitre(9), 5)
+  assert.equal(bornerNiveauTitre(undefined), 2)
+  assert.equal(bornerNiveauTitre(Number.NaN), 2)
+  assert.equal(bornerNiveauTitre(0), 1)
+  assert.equal(bornerNiveauTitre(3.7), 3)
+  assert.equal(bornerNiveauTitre(9), 5)
   assert.equal(niveauSuivant(5), 6)
   assert.equal(niveauSuivant(6), 6)
 })

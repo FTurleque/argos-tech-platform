@@ -39,7 +39,7 @@ export function choisirComposant<T>(
 }
 
 /** Niveau de titre principal borné à [1, 5] ; 2 par défaut. */
-export function niveauTitre(niveau: number | null | undefined): number {
+export function bornerNiveauTitre(niveau: number | null | undefined): number {
   if (typeof niveau !== 'number' || !Number.isFinite(niveau)) return 2
   return Math.min(NIVEAU_TITRE_MAX, Math.max(NIVEAU_TITRE_MIN, Math.trunc(niveau)))
 }

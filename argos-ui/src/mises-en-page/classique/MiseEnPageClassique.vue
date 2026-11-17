@@ -11,14 +11,14 @@ import MentionsObligatoires from '../../contenu/MentionsObligatoires.vue'
 import { variablesCss } from '../contraste'
 import type { ProprietesMiseEnPage } from '../modele'
 import { cleRubrique, dateLongue, niveauSuivant, nombreElements, sommaire } from '../presentation'
-import { niveauTitre } from '../selection'
+import { bornerNiveauTitre } from '../selection'
 import Titre from '../Titre.vue'
 import { COULEURS } from './palette'
 
 const props = defineProps<ProprietesMiseEnPage>()
 const id = useId()
 const jetons = variablesCss(COULEURS)
-const niveau = computed(() => niveauTitre(props.niveauTitre))
+const niveau = computed(() => bornerNiveauTitre(props.niveauTitre))
 const niveauElement = computed(() => niveauSuivant(niveau.value))
 const rubriques = computed(() => sommaire(props.veille))
 </script>
