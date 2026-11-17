@@ -87,6 +87,8 @@ Principes : deny-by-default, validation des entrées externes, secrets hors dép
 
 Classification minimale : `PUBLIC`, `INTERNAL`, `CONFIDENTIAL`, `RESTRICTED`. Les deux dernières classes ne sortent pas vers un LLM externe par défaut.
 
+Les zones de confiance, les flux qui les franchissent et le contrôle appliqué à chacun sont D-12 : [`../diagrams/d-12-frontieres-confiance.md`](../diagrams/d-12-frontieres-confiance.md).
+
 ### Veille RSS/Atom et pages surveillées (ADR-0028, Proposé)
 
 [PROPOSITION — `collecter-veille-rss-web`] Le collecteur web intégré (`source-ingestion`, paquet `io.argos.ingestion.web`) applique ces principes à toute adresse proposée par un utilisateur :
@@ -128,6 +130,8 @@ Métriques clés : fraîcheur des sources, impacts détectés, couverture SBOM, 
 ## 8.7 Persistance
 
 PostgreSQL est **Accepté** comme stockage principal : relationnel, JSONB, FTS et RLS. `pgvector` n’est activé que si un besoin est démontré.
+
+Le schéma est versionné par des migrations SQL Flyway appliquées au démarrage (ADR-0032, Proposé) ; le modèle physique qu'elles produisent est D-13 : [`../diagrams/d-13-modele-physique.md`](../diagrams/d-13-modele-physique.md).
 
 ## 8.8 IA et coûts
 
