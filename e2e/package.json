@@ -11,7 +11,8 @@
   "scripts": {
     "test": "node scripts/lancer.mjs",
     "test:seul": "playwright test",
-    "installer-navigateur": "playwright install chromium"
+    "installer-navigateur": "playwright install chromium",
+    "test:accessibilite": "playwright test -c accessibilite.config.ts"
   },
   "devDependencies": {
     "@playwright/test": "1.61.1"

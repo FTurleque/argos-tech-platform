@@ -23,6 +23,7 @@ import org.eclipse.microprofile.openapi.annotations.Operation;
 import org.eclipse.microprofile.openapi.annotations.media.Schema;
 import org.eclipse.microprofile.openapi.annotations.tags.Tag;
 
+import io.argos.api.SignauxAbonnements;
 import io.argos.api.preference.ResolutionPreferences;
 import io.argos.api.security.Access;
 import io.argos.api.security.Caller;
@@ -34,6 +35,7 @@ import io.argos.regintel.FicheAnalyse;
 import io.argos.regintel.FichesReglementaires;
 import io.argos.signal.SignalQueries;
 import io.argos.workspace.preference.PreferencesService;
+import io.argos.workspace.subscription.SubscriptionService;
 import io.quarkus.security.Authenticated;
 
 /**
@@ -50,6 +52,11 @@ import io.quarkus.security.Authenticated;
  * réglementaires des espaces de l'appelant, validées par un expert métier, ADR-0018). Une fiche non validée
  * n'est jamais candidate, quel que soit le profil, et le garde-fou {@code VALIDATION_HUMAINE} d'un profil
  * s'applique en plus à tout élément qu'il range.
+ *
+ * <p>Les avis de sécurité retenus par les abonnements {@code PERSONAL} actifs de l'appelant s'ajoutent à cette
+ * union, dans la limite de ses droits (décision Q-3 de {@code profils-veille}, ABO-04) : un même avis est restitué
+ * une fois, avec ses rubriques de profil et les abonnements qui l'ont retenu ; un avis que seul un abonnement
+ * retient n'a pas de rubrique. Les projets concernés restent limités aux espaces de l'appelant.
  */
 @Path("/api/v1/me/veille")
 @Tag(name = "Veille")
@@ -84,7 +91,15 @@ public class VeilleProfilsResource {
     @Schema(name = "ElementVeilleProfils")
     public record ElementVue(String type, UUID id, String source, String identifiant, String titre, String resume,
             String gravite, Instant date, LocalDate dateEffet, String lien, List<String> profils,
-            List<RubriqueVue> rubriques, List<String> gardeFous, String mentionValidation, List<ProjetVue> projets) {
+            List<RubriqueVue> rubriques, List<String> gardeFous, String mentionValidation, List<ProjetVue> projets,
+            @Schema(description = "Abonnements PERSONAL de l'appelant qui ont retenu l'élément (décision Q-3) ; vide"
+                    + " si l'élément ne vient que de ses profils actifs. Un élément sans profil vient seulement de"
+                    + " ces abonnements.") List<UUID> abonnements,
+            @Schema(description = "Mention « produit par l'IA » quand le résumé vient du modèle (ADR-0023) ; absente"
+                    + " sinon.") String mentionIa,
+            @Schema(description = "Mention de la source, de sa licence et de la date de dernière mise à jour des"
+                    + " données, quand la source l'exige (Licence Ouverte des textes officiels) ; absente sinon.")
+            String mentionSource) {
     }
 
     @Schema(name = "VeilleProfils")
@@ -112,9 +127,15 @@ public class VeilleProfilsResource {
     @Inject
     FichesReglementaires fiches;
 
+    @Inject
+    SubscriptionService subscriptions;
+
+    @Inject
+    SignauxAbonnements signauxAbonnements;
+
     @GET
-    @Operation(summary = "Veille de l'appelant : union sans doublon des éléments de ses profils actifs, avec rubriques"
-            + " et garde-fous")
+    @Operation(summary = "Veille de l'appelant : union sans doublon des éléments de ses profils actifs et de ses"
+            + " abonnements PERSONAL, avec rubriques et garde-fous")
     public Veille veille() {
         Caller caller = access.authenticated();
         List<String> profilsActifs = resolution.resoudre(preferences.lire(caller.accountId())).profilsActifs();
@@ -134,17 +155,55 @@ public class VeilleProfilsResource {
         if (categories.contains(CATEGORIE_TEXTES)) {
             candidats.addAll(fichesValidees(caller));
         }
-        candidats.sort(Comparator.comparing((UnionProfils.Candidat<ElementVue> c) -> c.contenu().date(),
-                Comparator.nullsLast(Comparator.reverseOrder())));
-
-        List<ElementVue> elements = UnionProfils.unir(actifs, candidats).stream().map(r -> {
-            ElementVue e = r.contenu();
-            return new ElementVue(e.type(), e.id(), e.source(), e.identifiant(), e.titre(), e.resume(), e.gravite(),
-                    e.date(), e.dateEffet(), e.lien(), r.profils(),
-                    r.rubriques().stream().map(x -> new RubriqueVue(x.profil(), x.identifiant(), x.libelle())).toList(),
-                    r.gardeFous(), e.mentionValidation(), e.projets());
-        }).toList();
+        List<ElementVue> elements = UnionProfils.unir(actifs, candidats, avisDesAbonnementsPersonnels(caller)).stream()
+                .map(r -> {
+                    ElementVue e = r.contenu();
+                    return new ElementVue(e.type(), e.id(), e.source(), e.identifiant(), e.titre(), e.resume(),
+                            e.gravite(), e.date(), e.dateEffet(), e.lien(), r.profils(),
+                            r.rubriques().stream().map(x -> new RubriqueVue(x.profil(), x.identifiant(), x.libelle()))
+                                    .toList(),
+                            r.gardeFous(), e.mentionValidation(), e.projets(), r.abonnements(), e.mentionIa(),
+                            e.mentionSource());
+                })
+                .sorted(Comparator.comparing(ElementVue::date, Comparator.nullsLast(Comparator.reverseOrder())))
+                .toList();
         return new Veille(actifs.stream().map(ManifesteProfil::identifiant).toList(), elements);
+    }
+
+    /**
+     * Avis de sécurité retenus par les abonnements {@code PERSONAL} actifs de l'appelant (décision Q-3, ABO-04).
+     * Les avis sont des données publiques ; leurs projets concernés sont lus sous la RLS et limités aux espaces
+     * dont l'appelant est membre (ABO-05, PRF-05). Le socle {@code TEAM} reste restitué par
+     * {@code GET /api/v1/me/watch}.
+     */
+    private List<UnionProfils.CandidatAbonnement<ElementVue>> avisDesAbonnementsPersonnels(Caller caller) {
+        List<SubscriptionService.Subscription> personnels = subscriptions
+                .activeFor(caller.accountId(), caller.memberWorkspaces()).stream()
+                .filter(s -> "PERSONAL".equals(s.scope()) && caller.accountId().equals(s.ownerUserId()))
+                .toList();
+        if (personnels.isEmpty()) {
+            return List.of();
+        }
+        SignauxAbonnements.Correspondances retenus = signauxAbonnements.pour(personnels, caller);
+        Map<UUID, List<ProjetVue>> projets = new LinkedHashMap<>();
+        for (ImpactQueries.ImpactView i : impacts.forSignals(retenus.signaux().keySet(), caller.accountId(),
+                caller.memberWorkspaces())) {
+            if (caller.memberOf(i.workspaceId())) {
+                projets.computeIfAbsent(i.signalId(), k -> new ArrayList<>())
+                        .add(new ProjetVue(i.projectId(), i.projectName(), i.level()));
+            }
+        }
+        List<UnionProfils.CandidatAbonnement<ElementVue>> candidats = new ArrayList<>();
+        for (SignalQueries.SignalView v : retenus.signaux().values()) {
+            ElementVue e = new ElementVue(AVIS_SECURITE, v.id(), v.source(), v.externalId(), v.title(), null,
+                    v.severity(), v.publishedAt() != null ? v.publishedAt() : v.modifiedAt(), null, null, List.of(),
+                    List.of(), List.of(), null, projets.getOrDefault(v.id(), List.of()).stream().distinct().toList(),
+                    List.of(), null, null);
+            candidats.add(new UnionProfils.CandidatAbonnement<>(
+                    new UnionProfils.Candidat<>(AVIS_SECURITE + ":" + v.id(), Set.of(CATEGORIE_AVIS), false, e),
+                    retenus.retenusPar().getOrDefault(v.id(), Set.of())));
+        }
+        return candidats;
     }
 
     /** Avis de sécurité qui impactent un projet des espaces de l'appelant, avec ces seuls projets. */
@@ -165,7 +224,7 @@ public class VeilleProfilsResource {
             ElementVue e = new ElementVue(AVIS_SECURITE, signalId, premier.signalSource(), premier.signalExternalId(),
                     premier.signalTitle(), null, s.map(SignalQueries.SignalView::severity).orElse(null),
                     s.map(v -> v.publishedAt() != null ? v.publishedAt() : v.modifiedAt()).orElse(premier.updatedAt()),
-                    null, null, List.of(), List.of(), List.of(), null, projets);
+                    null, null, List.of(), List.of(), List.of(), null, projets, List.of(), null, null);
             candidats.add(new UnionProfils.Candidat<>(AVIS_SECURITE + ":" + signalId, Set.of(CATEGORIE_AVIS), false, e));
         });
         return candidats;
@@ -183,7 +242,7 @@ public class VeilleProfilsResource {
                     f.titreOfficiel(), f.resume(), null,
                     f.publication() == null ? null : f.publication().atStartOfDay(ZoneOffset.UTC).toInstant(),
                     f.effet(), lienHttp(f.lienOfficiel()), List.of(), List.of(), List.of(), FicheAnalyse.MENTION_VALIDEE,
-                    List.of());
+                    List.of(), List.of(), f.resume() == null ? null : f.mentionIa(), f.mentionSource());
             candidats.add(new UnionProfils.Candidat<>(FICHE_REGLEMENTAIRE + ":" + f.id(), Set.of(CATEGORIE_TEXTES), true, e));
         }
         return candidats;

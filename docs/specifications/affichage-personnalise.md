@@ -5,7 +5,7 @@
 | Préfixe d'exigences | `AFF` |
 | Spec de référence | `/openspec/specs/affichage-personnalise/spec.md` — absente tant qu'aucun changement n'est archivé |
 | Changements en cours | [`personnaliser-profils-et-affichage`](/openspec/changes/personnaliser-profils-et-affichage/proposal.md) (en cours d'implémentation) |
-| Statut de la capacité | proposée ; catalogue, préférence serveur et couches de l'IHM implémentés |
+| Statut de la capacité | proposée ; catalogue, préférence serveur, couches de l'IHM et quatre mises en page implémentés ; audit d'accessibilité réalisé |
 | Composants (arc42 §5) | `workspace`, `catalog`, `API & Security`, IHM `argos-ui` (couches contenu et mise en page) |
 
 ## Objectif
@@ -34,6 +34,12 @@ Mises en page initiales [PROPOSITION — ADR-0023] :
 
 Les maquettes se trouvent dans l'artefact « ARGOS desktop — maquettes des écrans ».
 
+[PROPOSITION — `personnaliser-profils-et-affichage`, tâche 2.4] Les quatre mises en page reçoivent un même modèle de données typé, `VeilleAffichee` (`argos-ui/src/mises-en-page/modele.ts`) : rubriques des profils actifs et éléments avec titre, nature, gravité, résumé, projets concernés et niveau de correspondance, action, rubriques et mentions obligatoires (source et lien, date, niveau de confiance, mention « résumé produit par l'IA », mention de paternité et de licence de la source, mention de validation humaine, textes des garde-fous des profils actifs, origine : profils et abonnements personnels). Elles n'en retirent ni n'en ajoutent aucun fait et ne réordonnent pas les éléments ; le décor est ignoré des technologies d'assistance et l'humour reste dans la forme. Le composant affiché est choisi par `MiseEnPage.vue` d'après l'identifiant de la préférence, avec repli `classique` pour un identifiant inconnu de l'IHM.
+
+[PROPOSITION — tâche 2.4] L'écran « Ma veille » (`#/veille`) affiche la veille restituée par `GET /api/v1/me/veille` dans la mise en page de la préférence de l'utilisateur. La couche contenu transpose la réponse vers `VeilleAffichee` (`argos-ui/src/contenu/veille-affichee.ts`) : un élément reçu donne un élément affiché, dans l'ordre reçu ; types et gravités du serveur deviennent des natures et gravités du modèle (un type inconnu garde son libellé sous la nature `actualite`, une gravité hors échelle garde son libellé sous `non-classee`) ; les rubriques du sommaire sont celles des profils actifs d'après le catalogue, puis celles que portent les éléments. Le catalogue des profils et la liste des abonnements ne servent qu'à nommer ; leur échec, comme celui de la lecture de la préférence, n'empêche pas l'affichage (mise en page `classique` par défaut).
+
+[PROPOSITION — tâche 2.4] Polices : celles des maquettes, toutes sous SIL Open Font License 1.1, embarquées par les paquets `@fontsource/*` (sous-ensemble latin) et servies par l'application ; aucun service de polices externe n'est appelé (CSP du desktop `font-src 'self'` inchangée). L'OFL est acceptée pour les seules polices : licence libre et gratuite, usage commercial permis, sans effet sur la licence du code (ADR-0021 point 4). Licences enregistrées dans `argos-ui/NOTICE`, avis livrés dans `argos-ui/public/licences-polices.txt`.
+
 ## Préconditions et déclencheurs
 
 Utilisateur authentifié ; mise en page publiée au catalogue.
@@ -51,10 +57,10 @@ Utilisateur authentifié ; mise en page publiée au catalogue.
 | Règle | Exigence(s) | Source | Statut |
 |---|---|---|---|
 | Le choix se fait parmi le catalogue | AFF-01 | ADR-0023 | [EXISTANT] — serveur ; tests AFF-01-S1, AFF-01-S2 |
-| Contenu, droits et mentions identiques dans toute mise en page | AFF-02 | ADR-0023 ; dossier v2.4 §A.3 | [PROPOSITION] — couches contenu et mise en page séparées et vérifiées par `argos-ui/tests/architecture.test.mjs` ; E2E à écrire |
+| Contenu, droits et mentions identiques dans toute mise en page | AFF-02 | ADR-0023 ; dossier v2.4 §A.3 | [PROPOSITION] — couches séparées (`argos-ui/tests/architecture.test.mjs`) ; mêmes faits, liens et mentions dans les quatre mises en page sur un même jeu (`argos-ui/tests/mises-en-page.test.mjs`, banc `e2e/accessibilite/`) ; veille réelle transposée rendue dans les quatre mises en page (`argos-ui/tests/veille-affichee.test.mjs`, `argos-ui/tests/mises-en-page.test.mjs`) ; E2E sur la veille réelle à écrire |
 | Préférence partagée web / desktop | AFF-03 | ADR-0023 ; ADR-0022 | [PROPOSITION] — préférence serveur existante ; E2E desktop à écrire |
 | `classique` par défaut et en repli | AFF-04 | ADR-0023 | [EXISTANT] — serveur (`ResolutionPreferences`) et IHM (`resolution.ts`) ; tests AFF-04-S1, AFF-04-S2 |
-| Accessibilité vérifiée avant publication | AFF-05 | ADR-0023 | [PROPOSITION] |
+| Accessibilité vérifiée avant publication | AFF-05 | ADR-0023 | [PROPOSITION] — audit des quatre mises en page du 2026-11-17 ([rapport](../architecture/quality/audit-accessibilite-mises-en-page.md)) ; un couple de couleurs sous le seuil fait échouer les tests de l'IHM |
 
 ## Droits d'accès et restrictions
 
@@ -66,7 +72,9 @@ Modification de la préférence de l'utilisateur ; aucune autre donnée.
 
 ## Qualités mesurables
 
-[DÉCISION — 2026-11-16] Référentiel d'accessibilité : RGAA 4.1.2 (aligné sur WCAG 2.1 AA), vérifié sur les mêmes écrans de référence pour chaque mise en page (AFF-05). Aucun audit n'est encore réalisé.
+[DÉCISION — 2026-11-16] Référentiel d'accessibilité : RGAA 4.1.2 (aligné sur WCAG 2.1 AA), vérifié sur les mêmes écrans de référence pour chaque mise en page (AFF-05).
+
+[EXISTANT] Audit du 2026-11-17 ([rapport](../architecture/quality/audit-accessibilite-mises-en-page.md)) : contraste minimal du texte rendu 4,97:1 (`fantaisie`) à 6,67:1 (`gazette`), lecture à 320 px sans défilement horizontal, tabulation et focus, mouvement réduit, structure et décor contrôlés ; restitution par lecteur d'écran non vérifiée.
 
 ## Diagrammes
 
@@ -99,7 +107,7 @@ Scénarios AFF-01-S1 à AFF-05-S1 du changement.
 
 ## Écarts constatés
 
-Aucun écart constaté (comparaison avec ADR-0022, ADR-0023 et le dossier v2.4 §A.3).
+Aucun écart avec ADR-0022, ADR-0023 et le dossier v2.4 §A.3. Écart avec les maquettes : la mise en page `fantaisie` fonce le sarcelle et le rouge de la maquette, qui n'atteignent pas 4,5:1 sur les cartes roses (écart E2 du [rapport d'audit](../architecture/quality/audit-accessibilite-mises-en-page.md)) ; les polices des maquettes sont embarquées au lieu d'être chargées depuis Google Fonts.
 
 ## Questions ouvertes
 
@@ -112,7 +120,7 @@ Aucun écart constaté (comparaison avec ADR-0022, ADR-0023 et le dossier v2.4 �
 | Exigence | Scénarios | Conception / diagramme | Tâche | Test ou preuve |
 |---|---|---|---|---|
 | AFF-01 | AFF-01-S1, AFF-01-S2 | DC-1, DF-AFF-1 | 2.1, 2.2 | `argos-server/src/test/java/io/argos/api/preference/PreferencesResourceTest.java`, `OpenApiContractTest.java` — passent |
-| AFF-02 | AFF-02-S1, AFF-02-S2 | DC-2 | 2.3, 2.4 | `argos-ui/tests/architecture.test.mjs` passe (2.3) ; E2E à écrire (2.4) |
+| AFF-02 | AFF-02-S1, AFF-02-S2 | DC-2 | 2.3, 2.4 | `argos-ui/tests/architecture.test.mjs`, `argos-ui/tests/mises-en-page.test.mjs` passent ; banc `e2e/accessibilite/mises-en-page.spec.ts` passe ; `argos-ui/tests/veille-affichee.test.mjs` passe ; E2E sur la veille réelle à écrire (2.4) |
 | AFF-03 | AFF-03-S1 | DC-1, DF-AFF-1 | 2.5 | préférence serveur testée ; E2E web puis desktop à écrire |
 | AFF-04 | AFF-04-S1, AFF-04-S2 | DF-AFF-1 | 2.2 | `PreferencesResourceTest.java`, `MiseEnPageRetireeTest.java`, `argos-ui/tests/resolution.test.mjs` — passent |
-| AFF-05 | AFF-05-S1 | — | 1.4, 2.6 | à écrire |
+| AFF-05 | AFF-05-S1 | — | 1.4, 2.6 | [rapport d'audit](../architecture/quality/audit-accessibilite-mises-en-page.md) ; `argos-ui/tests/contrastes.test.mjs`, `e2e/accessibilite/mises-en-page.spec.ts` passent |

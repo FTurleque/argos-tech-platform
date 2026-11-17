@@ -135,6 +135,8 @@ sequenceDiagram
 
 Les droits s'appliquent avant les profils, et les garde-fous avant la fusion : la couche mise en page ne reçoit que des éléments déjà autorisés, déjà filtrés et accompagnés de leurs mentions. Elle ne peut donc ni montrer un élément de plus, ni en retirer une mention (AFF-02).
 
+[PROPOSITION] Décision Q-3 (PRF-02-S3, PRF-02-S4) : `API & Security` ajoute à la fusion les avis de sécurité retenus par les abonnements `PERSONAL` actifs de l'appelant (lus par `workspace`, critères interprétés comme pour `GET /api/v1/me/watch`), avec leurs projets concernés lus sous la RLS dans les seuls espaces de l'appelant. Un élément est restitué une fois ; il porte les rubriques des profils dont il relève et les abonnements qui l'ont retenu (champ `abonnements`). Les garde-fous des profils actifs qui rangent ses catégories s'appliquent aussi aux éléments des abonnements. Le socle `TEAM` n'entre pas dans cette veille.
+
 ## États et transitions
 
 Non applicable — les cycles de vie de publication d'un profil ou d'une mise en page (brouillon, publié, retiré) seront modélisés avec la tâche du catalogue ; seul l'état « retiré » est utilisé par AFF-04.
@@ -212,6 +214,25 @@ Non applicable — aucune donnée existante.
 - **Compromis** : —
 - **ADR** : non : décision locale.
 
+### D4 — Modèle de données commun et polices embarquées
+
+- **Statut** : [PROPOSITION]
+- **Choix** : un modèle typé unique `VeilleAffichee` (`argos-ui/src/mises-en-page/modele.ts`) reçu par les quatre mises en page et choisi par un sélecteur central (`MiseEnPage.vue`, repli `classique`) ; polices des maquettes embarquées par les paquets `@fontsource/*` (SIL OFL 1.1, sous-ensemble latin, feuilles sous licence MIT), servies par l'application.
+- **Justification** : un seul contrat rend la comparaison des contenus automatique (AFF-02) ; l'absence de service de polices respecte la CSP du desktop (`font-src 'self'`) et le fonctionnement sans Internet (ADR-0022, ADR-0023 point 5). L'OFL est libre, gratuite et permet l'usage commercial ; elle ne s'applique qu'aux fichiers de police et ne touche pas la licence du code (ADR-0021 point 4).
+- **Alternatives écartées** : polices système seules — ne rendent pas les maquettes ; chargement depuis Google Fonts — bloqué par la CSP et indisponible hors ligne ; un modèle par mise en page — contenus divergents.
+- **Compromis** : environ 1,4 Mo de fichiers de police dans `dist/assets`, téléchargés seulement par la mise en page qui les emploie.
+- **ADR** : non : application d'ADR-0023 point 5 et d'ADR-0021 point 6 (licences enregistrées dans `argos-ui/NOTICE`).
+- **Raccordement de la veille réelle** : la couche contenu transpose la réponse de `GET /api/v1/me/veille` vers `VeilleAffichee` (`argos-ui/src/contenu/veille-affichee.ts`) ; chaque élément reçu donne un élément affiché, dans l'ordre reçu, avec toutes ses mentions (validation, garde-fous, « produit par l'IA », paternité de la source, origine profil ou abonnement personnel). L'union, le dédoublonnage, les garde-fous et les droits restent calculés par le serveur (arc42 §5.1).
+
+### D5 — Couleurs en jetons contrôlés
+
+- **Statut** : [PROPOSITION]
+- **Choix** : chaque mise en page déclare sa palette (`palette.ts`) et les couples texte/fond qu'elle emploie ; ses feuilles de style n'utilisent que ces jetons. Les tests de l'IHM calculent chaque contraste (4,5:1 ou 3:1) et un banc Playwright mesure le contraste réellement rendu.
+- **Justification** : AFF-05-S1 devient un contrôle exécuté à chaque construction : une palette sous le seuil fait échouer `npm --prefix argos-ui test`.
+- **Alternatives écartées** : axe-core — licence MPL-2.0 (ADR-0021) ; revue manuelle seule — non reproductible.
+- **Compromis** : la publication au catalogue du serveur reste une configuration distincte, non bloquée par ce contrôle.
+- **ADR** : non : décision locale.
+
 ## Risques
 
 - Multiplication des mises en page à maintenir → catalogue limité aux quatre initiales jusqu'à retour d'usage.
@@ -226,16 +247,17 @@ La taxonomie fermée du dossier v2.4 §8.2 n'est pas versionnée dans `docs/arch
 
 | Exigence / scénario | Niveau de test | Moyen de preuve | État |
 |---|---|---|---|
-| AFF-01-S1, AFF-01-S2, AFF-04-S1, AFF-04-S2 | intégration API | tests des préférences | à écrire |
-| AFF-02-S1, AFF-02-S2 | E2E IHM | même jeu de données affiché dans les quatre mises en page, contenu comparé | à écrire |
-| AFF-03-S1 | E2E | préférence modifiée sur le web, lue par le desktop | à écrire |
-| AFF-05-S1 | revue | audit d'accessibilité par mise en page | à écrire |
-| PRF-01-S1 à PRF-01-S3 | intégration API | tests des préférences | à écrire |
-| PRF-02-S1, PRF-02-S2 | intégration | veille d'un utilisateur à deux profils | à écrire |
-| PRF-03-S1, PRF-03-S2 | intégration | catalogue initial ; rapprochement `developpeur` | à écrire |
-| PRF-04-S1 | intégration | publication d'un profil de démonstration | à écrire |
-| PRF-05-S1 | intégration | tests inter-espaces | à écrire |
-| PRF-06-S1, PRF-06-S2 | intégration + contrat MCP | fiche non validée invisible partout | à écrire |
+| AFF-01-S1, AFF-01-S2, AFF-04-S1, AFF-04-S2 | intégration API | tests des préférences | `PreferencesResourceTest`, `MiseEnPageRetireeTest`, `argos-ui/tests/resolution.test.mjs` |
+| AFF-02-S1, AFF-02-S2 | E2E IHM | même jeu de données affiché dans les quatre mises en page, contenu comparé | rendu des quatre mises en page sur un même jeu comparé (`argos-ui/tests/mises-en-page.test.mjs`, banc `e2e/accessibilite/`) ; veille de `GET /api/v1/me/veille` transposée (`argos-ui/tests/veille-affichee.test.mjs`) ; E2E sur la veille réelle à écrire |
+| AFF-03-S1 | E2E | préférence modifiée sur le web, lue par le desktop | E2E web `e2e/tests/affichage.spec.ts` ; partie desktop à exécuter |
+| AFF-05-S1 | revue + tests IHM + navigateur | audit d'accessibilité par mise en page : palettes contrôlées (`argos-ui/tests/contrastes.test.mjs`), banc `e2e/accessibilite/` | réalisé le 2026-11-17 ([rapport](/docs/architecture/quality/audit-accessibilite-mises-en-page.md)) |
+| PRF-01-S1 à PRF-01-S3 | intégration API | tests des préférences | `PreferencesResourceTest` |
+| PRF-02-S1, PRF-02-S2 | intégration | veille d'un utilisateur à deux profils | `VeilleProfilsTest`, `UnionProfilsTest`, `ProfilDemonstrationTest` |
+| PRF-02-S3, PRF-02-S4 | intégration | abonnements `PERSONAL` ajoutés à la veille, deux espaces | `VeilleAbonnementsPersonnelsTest` |
+| PRF-03-S1, PRF-03-S2 | intégration | catalogue initial ; rapprochement `developpeur` | `CatalogueResourceTest`, `CatalogueProfilsTest`, `ProfilsDeVeilleTest`, `MatchRulesTest` |
+| PRF-04-S1 | intégration | publication d'un profil de démonstration | `ProfilDemonstrationTest` |
+| PRF-05-S1 | intégration | tests inter-espaces | `ProfilsDeVeilleTest#prf05S1ActivationDUnProfilSansDroitSurLesProjets`, `PreferencesIsolationTest` |
+| PRF-06-S1, PRF-06-S2 | intégration + contrat MCP | fiche non validée invisible partout | `VeilleProfilsTest`, `ReglementaireMcpTest`, `UnionProfilsTest` |
 
 ## Documentation durable impactée
 

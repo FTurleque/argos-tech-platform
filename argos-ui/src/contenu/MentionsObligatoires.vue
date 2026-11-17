@@ -4,7 +4,7 @@
 // par sa propre feuille de style (classes `mentions*`).
 import { computed } from 'vue'
 import { urlSure } from './liens'
-import type { MentionsElement } from './modeles'
+import type { MentionsElement } from '../mises-en-page/modele'
 
 const props = defineProps<{ mentions: MentionsElement }>()
 
@@ -12,15 +12,13 @@ const props = defineProps<{ mentions: MentionsElement }>()
 // de `javascript:` dans le portail ni dans le client desktop.
 const lienSource = computed(() => urlSure(props.mentions.source.url))
 const dateFormatee = computed(() => formater(props.mentions.publieLe))
-const validationFormatee = computed(() =>
-  props.mentions.validation ? formater(props.mentions.validation.le) : '',
-)
 
-function formater(iso: string): string {
+function formater(iso: string | null): string {
+  if (!iso) return 'non communiquée'
   const date = new Date(iso)
   return Number.isNaN(date.getTime())
     ? iso
-    : date.toLocaleDateString('fr-FR', { day: 'numeric', month: 'long', year: 'numeric' })
+    : date.toLocaleDateString('fr-FR', { day: 'numeric', month: 'long', year: 'numeric', timeZone: 'UTC' })
 }
 </script>
 
@@ -29,15 +27,18 @@ function formater(iso: string): string {
     <div class="mentions-ligne">
       <dt>Source</dt>
       <dd data-mention="source">
-        <a v-if="lienSource" :href="lienSource" rel="noopener noreferrer" target="_blank">{{
-          mentions.source.nom
-        }}</a>
+        <a v-if="lienSource" :href="lienSource" rel="noopener noreferrer" target="_blank"
+          >{{ mentions.source.nom }}<span class="mentions-hors-champ"> (nouvelle fenêtre)</span></a
+        >
         <span v-else>{{ mentions.source.nom }}</span>
       </dd>
     </div>
     <div class="mentions-ligne">
       <dt>Date</dt>
-      <dd data-mention="date"><time :datetime="mentions.publieLe">{{ dateFormatee }}</time></dd>
+      <dd data-mention="date">
+        <time v-if="mentions.publieLe" :datetime="mentions.publieLe">{{ dateFormatee }}</time>
+        <span v-else>{{ dateFormatee }}</span>
+      </dd>
     </div>
     <div v-if="mentions.niveauConfiance" class="mentions-ligne">
       <dt>Confiance</dt>
@@ -49,7 +50,23 @@ function formater(iso: string): string {
     </div>
     <div v-if="mentions.validation" class="mentions-ligne">
       <dt>Validation</dt>
-      <dd data-mention="validation">validé par {{ mentions.validation.par }} le {{ validationFormatee }}</dd>
+      <dd data-mention="validation">{{ mentions.validation }}</dd>
+    </div>
+    <div v-if="mentions.origines.length" class="mentions-ligne">
+      <dt>Origine</dt>
+      <dd data-mention="origine">{{ mentions.origines.join(' · ') }}</dd>
+    </div>
+    <div v-if="mentions.attribution" class="mentions-ligne mentions-pleine">
+      <dt>Licence</dt>
+      <dd data-mention="attribution">{{ mentions.attribution }}</dd>
+    </div>
+    <div v-if="mentions.gardeFous.length" class="mentions-ligne mentions-pleine">
+      <dt>À savoir</dt>
+      <dd>
+        <ul class="mentions-garde-fous">
+          <li v-for="(g, i) in mentions.gardeFous" :key="i" data-mention="garde-fou">{{ g }}</li>
+        </ul>
+      </dd>
     </div>
   </dl>
 </template>
@@ -67,7 +84,9 @@ function formater(iso: string): string {
   gap: 0.35rem;
 }
 .mentions dt {
+  flex: none;
   font-weight: 600;
+  white-space: nowrap;
 }
 .mentions dt::after {
   content: ' :';
@@ -77,5 +96,24 @@ function formater(iso: string): string {
 }
 .mentions-ia dd {
   font-style: italic;
+}
+.mentions-pleine {
+  flex-basis: 100%;
+}
+.mentions-garde-fous {
+  margin: 0;
+  padding-left: 1.1rem;
+}
+/* Annonce « nouvelle fenêtre » réservée aux technologies d'assistance (RGAA 13.2). */
+.mentions-hors-champ {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  margin: -1px;
+  padding: 0;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
 }
 </style>

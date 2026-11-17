@@ -102,12 +102,12 @@
                   "workerIndex": 0,
                   "parallelIndex": 0,
                   "status": "passed",
-                  "duration": 812,
+                  "duration": 720,
                   "errors": [],
                   "stdout": [],
                   "stderr": [],
                   "retry": 0,
-                  "startTime": "2026-11-17T17:51:54.560Z",
+                  "startTime": "2026-11-17T21:00:31.577Z",
                   "annotations": [],
                   "attachments": []
                 }
@@ -118,6 +118,40 @@
           "id": "3515345599ceb0dc4f54-d3ff6dea97e72c30a358",
           "file": "preparation.setup.ts",
           "line": 5,
+          "column": 1
+        },
+        {
+          "title": "jeu de données de « Ma veille »",
+          "ok": true,
+          "tags": [],
+          "tests": [
+            {
+              "timeout": 120000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "preparation",
+              "projectName": "preparation",
+              "results": [
+                {
+                  "workerIndex": 0,
+                  "parallelIndex": 0,
+                  "status": "passed",
+                  "duration": 2558,
+                  "errors": [],
+                  "stdout": [],
+                  "stderr": [],
+                  "retry": 0,
+                  "startTime": "2026-11-17T21:00:32.327Z",
+                  "annotations": [],
+                  "attachments": []
+                }
+              ],
+              "status": "expected"
+            }
+          ],
+          "id": "3515345599ceb0dc4f54-e8ea02ff6f1cdf0c4164",
+          "file": "preparation.setup.ts",
+          "line": 9,
           "column": 1
         }
       ]
@@ -144,12 +178,12 @@
                   "workerIndex": 1,
                   "parallelIndex": 0,
                   "status": "passed",
-                  "duration": 3598,
+                  "duration": 3640,
                   "errors": [],
                   "stdout": [],
                   "stderr": [],
                   "retry": 0,
-                  "startTime": "2026-11-17T17:51:55.885Z",
+                  "startTime": "2026-11-17T21:00:35.321Z",
                   "annotations": [],
                   "attachments": []
                 }
@@ -186,12 +220,12 @@
                   "workerIndex": 1,
                   "parallelIndex": 0,
                   "status": "passed",
-                  "duration": 409,
+                  "duration": 434,
                   "errors": [],
                   "stdout": [],
                   "stderr": [],
                   "retry": 0,
-                  "startTime": "2026-11-17T17:51:59.958Z",
+                  "startTime": "2026-11-17T21:00:39.085Z",
                   "annotations": [],
                   "attachments": []
                 }
@@ -220,12 +254,12 @@
                   "workerIndex": 1,
                   "parallelIndex": 0,
                   "status": "passed",
-                  "duration": 1956,
+                  "duration": 1708,
                   "errors": [],
                   "stdout": [],
                   "stderr": [],
                   "retry": 0,
-                  "startTime": "2026-11-17T17:52:00.380Z",
+                  "startTime": "2026-11-17T21:00:39.531Z",
                   "annotations": [],
                   "attachments": []
                 }
@@ -254,12 +288,12 @@
                   "workerIndex": 1,
                   "parallelIndex": 0,
                   "status": "passed",
-                  "duration": 749,
+                  "duration": 838,
                   "errors": [],
                   "stdout": [],
                   "stderr": [],
                   "retry": 0,
-                  "startTime": "2026-11-17T17:52:02.349Z",
+                  "startTime": "2026-11-17T21:00:41.250Z",
                   "annotations": [],
                   "attachments": []
                 }
@@ -288,12 +322,12 @@
                   "workerIndex": 1,
                   "parallelIndex": 0,
                   "status": "passed",
-                  "duration": 3429,
+                  "duration": 2213,
                   "errors": [],
                   "stdout": [],
                   "stderr": [],
                   "retry": 0,
-                  "startTime": "2026-11-17T17:52:03.111Z",
+                  "startTime": "2026-11-17T21:00:42.101Z",
                   "annotations": [],
                   "attachments": []
                 }
@@ -322,12 +356,12 @@
                   "workerIndex": 1,
                   "parallelIndex": 0,
                   "status": "passed",
-                  "duration": 1766,
+                  "duration": 1710,
                   "errors": [],
                   "stdout": [],
                   "stderr": [],
                   "retry": 0,
-                  "startTime": "2026-11-17T17:52:06.557Z",
+                  "startTime": "2026-11-17T21:00:44.327Z",
                   "annotations": [],
                   "attachments": []
                 }
@@ -356,12 +390,12 @@
                   "workerIndex": 1,
                   "parallelIndex": 0,
                   "status": "passed",
-                  "duration": 2946,
+                  "duration": 2790,
                   "errors": [],
                   "stdout": [],
                   "stderr": [],
                   "retry": 0,
-                  "startTime": "2026-11-17T17:52:08.337Z",
+                  "startTime": "2026-11-17T21:00:46.051Z",
                   "annotations": [],
                   "attachments": []
                 }
@@ -398,18 +432,18 @@
                   "workerIndex": 1,
                   "parallelIndex": 0,
                   "status": "passed",
-                  "duration": 3049,
+                  "duration": 3077,
                   "errors": [],
                   "stdout": [],
                   "stderr": [],
                   "retry": 0,
-                  "startTime": "2026-11-17T17:52:11.313Z",
+                  "startTime": "2026-11-17T21:00:48.871Z",
                   "annotations": [],
                   "attachments": [
                     {
                       "name": "reponse-recherche-oracle-30j.json",
                       "contentType": "application/json",
-                      "body": "eyJlbGVtZW50cyI6W3sidHlwZSI6IkFWSVNfU0VDVVJJVEUiLCJpZCI6IjBlMmUwMDAwLTAwMDAtNDAwMC04MDAwLTAwMDAwMDAwMDBhMSIsInNvdXJjZSI6Ik9TViIsImlkZW50aWZpYW50IjoiRTJFLU9SQUNMRS0wMDAxIiwidGl0cmUiOiJPcmFjbGUgRGF0YWJhc2UgOiBmYWlsbGUgY29ycmlnw6llIiwiZXh0cmFpdCI6IkxlIGNvcnJlY3RpZiBPcmFjbGUgY29ycmlnZSB1bmUgZmFpbGxlIGRlIGxhIGJhc2UuIiwiZ3Jhdml0ZSI6IkhJR0giLCJkYXRlIjoiMjAyNi0xMS0xMlQxNzo1MTo1NS4zNjkwNjZaIiwibGllbiI6bnVsbCwicGVydGluZW5jZSI6MC44MzQ0MzA2MywicHJvamV0cyI6W3sicHJvamV0SWQiOiIwZTJlMDAwMC0wMDAwLTQwMDAtODAwMC0wMDAwMDAwMDAwMDEiLCJwcm9qZXQiOiJQYWllIn1dfSx7InR5cGUiOiJBVklTX1NFQ1VSSVRFIiwiaWQiOiIwZTJlMDAwMC0wMDAwLTQwMDAtODAwMC0wMDAwMDAwMDAwYTMiLCJzb3VyY2UiOiJPU1YiLCJpZGVudGlmaWFudCI6IkUyRS1PUkFDTEUtMDAwMyIsInRpdHJlIjoiT3JhY2xlIEphdmEgOiBmYWlsbGUiLCJleHRyYWl0IjoiQ29ycmVjdGlmIE9yYWNsZSBwb3VyIEphdmEuIiwiZ3Jhdml0ZSI6IkhJR0giLCJkYXRlIjoiMjAyNi0xMS0xMlQxNzo1MTo1NS4zNjkwNjZaIiwibGllbiI6bnVsbCwicGVydGluZW5jZSI6MC44MzQ0MzA2MywicHJvamV0cyI6W3sicHJvamV0SWQiOiIwZTJlMDAwMC0wMDAwLTQwMDAtODAwMC0wMDAwMDAwMDAwMDIiLCJwcm9qZXQiOiJDb21wdGFiaWxpdMOpIn1dfV0sInBhZ2UiOjAsInRhaWxsZSI6MjAsInRvdGFsIjoyLCJtZXNzYWdlIjpudWxsfQ=="
+                      "body": "eyJlbGVtZW50cyI6W3sidHlwZSI6IkFWSVNfU0VDVVJJVEUiLCJpZCI6IjBlMmUwMDAwLTAwMDAtNDAwMC04MDAwLTAwMDAwMDAwMDBhMSIsInNvdXJjZSI6Ik9TViIsImlkZW50aWZpYW50IjoiRTJFLU9SQUNMRS0wMDAxIiwidGl0cmUiOiJPcmFjbGUgRGF0YWJhc2UgOiBmYWlsbGUgY29ycmlnw6llIiwiZXh0cmFpdCI6IkxlIGNvcnJlY3RpZiBPcmFjbGUgY29ycmlnZSB1bmUgZmFpbGxlIGRlIGxhIGJhc2UuIiwiZ3Jhdml0ZSI6IkhJR0giLCJkYXRlIjoiMjAyNi0xMS0xMlQyMTowMDozMi4yOTMwMDhaIiwibGllbiI6bnVsbCwicGVydGluZW5jZSI6MC44MzQ0MzA2MywicHJvamV0cyI6W3sicHJvamV0SWQiOiIwZTJlMDAwMC0wMDAwLTQwMDAtODAwMC0wMDAwMDAwMDAwMDEiLCJwcm9qZXQiOiJQYWllIn1dfSx7InR5cGUiOiJBVklTX1NFQ1VSSVRFIiwiaWQiOiIwZTJlMDAwMC0wMDAwLTQwMDAtODAwMC0wMDAwMDAwMDAwYTMiLCJzb3VyY2UiOiJPU1YiLCJpZGVudGlmaWFudCI6IkUyRS1PUkFDTEUtMDAwMyIsInRpdHJlIjoiT3JhY2xlIEphdmEgOiBmYWlsbGUiLCJleHRyYWl0IjoiQ29ycmVjdGlmIE9yYWNsZSBwb3VyIEphdmEuIiwiZ3Jhdml0ZSI6IkhJR0giLCJkYXRlIjoiMjAyNi0xMS0xMlQyMTowMDozMi4yOTMwMDhaIiwibGllbiI6bnVsbCwicGVydGluZW5jZSI6MC44MzQ0MzA2MywicHJvamV0cyI6W3sicHJvamV0SWQiOiIwZTJlMDAwMC0wMDAwLTQwMDAtODAwMC0wMDAwMDAwMDAwMDIiLCJwcm9qZXQiOiJDb21wdGFiaWxpdMOpIn1dfV0sInBhZ2UiOjAsInRhaWxsZSI6MjAsInRvdGFsIjoyLCJtZXNzYWdlIjpudWxsfQ=="
                     }
                   ]
                 }
@@ -423,13 +457,365 @@
           "column": 1
         }
       ]
+    },
+    {
+      "title": "veille.spec.ts",
+      "file": "veille.spec.ts",
+      "column": 0,
+      "line": 0,
+      "specs": [
+        {
+          "title": "3.4, 3.9 (PRF-02, PRF-02-S3) : deux profils actifs et un abonnement personnel, union sans doublon avec rubriques",
+          "ok": true,
+          "tags": [],
+          "tests": [
+            {
+              "timeout": 120000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "portail-web",
+              "projectName": "portail-web",
+              "results": [
+                {
+                  "workerIndex": 1,
+                  "parallelIndex": 0,
+                  "status": "passed",
+                  "duration": 2470,
+                  "errors": [],
+                  "stdout": [],
+                  "stderr": [],
+                  "retry": 0,
+                  "startTime": "2026-11-17T21:00:51.974Z",
+                  "annotations": [],
+                  "attachments": []
+                }
+              ],
+              "status": "expected"
+            }
+          ],
+          "id": "f14f44499e60edbd4ba2-9a1ccfb488e118ca0be5",
+          "file": "veille.spec.ts",
+          "line": 63,
+          "column": 1
+        },
+        {
+          "title": "3.9, AFF-02-S2 (PRF-02-S4) : un utilisateur d’un autre espace ne voit rien de plus que ses droits",
+          "ok": true,
+          "tags": [],
+          "tests": [
+            {
+              "timeout": 120000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "portail-web",
+              "projectName": "portail-web",
+              "results": [
+                {
+                  "workerIndex": 1,
+                  "parallelIndex": 0,
+                  "status": "passed",
+                  "duration": 2365,
+                  "errors": [],
+                  "stdout": [],
+                  "stderr": [],
+                  "retry": 0,
+                  "startTime": "2026-11-17T21:00:54.459Z",
+                  "annotations": [],
+                  "attachments": []
+                }
+              ],
+              "status": "expected"
+            }
+          ],
+          "id": "f14f44499e60edbd4ba2-134e78dec18b43cea412",
+          "file": "veille.spec.ts",
+          "line": 126,
+          "column": 1
+        },
+        {
+          "title": "2.4 (AFF-02-S1, AFF-02-S2) : la même veille réelle dans les quatre mises en page",
+          "ok": true,
+          "tags": [],
+          "tests": [
+            {
+              "timeout": 120000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "portail-web",
+              "projectName": "portail-web",
+              "results": [
+                {
+                  "workerIndex": 1,
+                  "parallelIndex": 0,
+                  "status": "passed",
+                  "duration": 3690,
+                  "errors": [],
+                  "stdout": [],
+                  "stderr": [],
+                  "retry": 0,
+                  "startTime": "2026-11-17T21:00:56.837Z",
+                  "annotations": [],
+                  "attachments": []
+                }
+              ],
+              "status": "expected"
+            }
+          ],
+          "id": "f14f44499e60edbd4ba2-a8701eb9deea8607fd34",
+          "file": "veille.spec.ts",
+          "line": 148,
+          "column": 1
+        },
+        {
+          "title": "5.2 (partie web) : « gazette » choisie sur le web, « Ma veille » affichée en gazette avec l’union des veilles",
+          "ok": true,
+          "tags": [],
+          "tests": [
+            {
+              "timeout": 120000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "portail-web",
+              "projectName": "portail-web",
+              "results": [
+                {
+                  "workerIndex": 1,
+                  "parallelIndex": 0,
+                  "status": "passed",
+                  "duration": 3157,
+                  "errors": [],
+                  "stdout": [],
+                  "stderr": [],
+                  "retry": 0,
+                  "startTime": "2026-11-17T21:01:00.538Z",
+                  "annotations": [],
+                  "attachments": []
+                }
+              ],
+              "status": "expected"
+            }
+          ],
+          "id": "f14f44499e60edbd4ba2-45a097555736c0805364",
+          "file": "veille.spec.ts",
+          "line": 185,
+          "column": 1
+        },
+        {
+          "title": "2.6 : accessibilité de « classique » sur la veille réelle (contrastes, tabulation, noms accessibles)",
+          "ok": true,
+          "tags": [],
+          "tests": [
+            {
+              "timeout": 120000,
+              "annotations": [
+                {
+                  "type": "contraste minimal",
+                  "description": "5.19"
+                },
+                {
+                  "type": "contraste minimal du focus",
+                  "description": "12.24"
+                }
+              ],
+              "expectedStatus": "passed",
+              "projectId": "portail-web",
+              "projectName": "portail-web",
+              "results": [
+                {
+                  "workerIndex": 1,
+                  "parallelIndex": 0,
+                  "status": "passed",
+                  "duration": 2189,
+                  "errors": [],
+                  "stdout": [],
+                  "stderr": [],
+                  "retry": 0,
+                  "startTime": "2026-11-17T21:01:03.707Z",
+                  "annotations": [
+                    {
+                      "type": "contraste minimal",
+                      "description": "5.19"
+                    },
+                    {
+                      "type": "contraste minimal du focus",
+                      "description": "12.24"
+                    }
+                  ],
+                  "attachments": []
+                }
+              ],
+              "status": "expected"
+            }
+          ],
+          "id": "f14f44499e60edbd4ba2-fec4c54ca419e0ac6883",
+          "file": "veille.spec.ts",
+          "line": 207,
+          "column": 3
+        },
+        {
+          "title": "2.6 : accessibilité de « journal » sur la veille réelle (contrastes, tabulation, noms accessibles)",
+          "ok": true,
+          "tags": [],
+          "tests": [
+            {
+              "timeout": 120000,
+              "annotations": [
+                {
+                  "type": "contraste minimal",
+                  "description": "5.08"
+                },
+                {
+                  "type": "contraste minimal du focus",
+                  "description": "6.59"
+                }
+              ],
+              "expectedStatus": "passed",
+              "projectId": "portail-web",
+              "projectName": "portail-web",
+              "results": [
+                {
+                  "workerIndex": 1,
+                  "parallelIndex": 0,
+                  "status": "passed",
+                  "duration": 2130,
+                  "errors": [],
+                  "stdout": [],
+                  "stderr": [],
+                  "retry": 0,
+                  "startTime": "2026-11-17T21:01:05.909Z",
+                  "annotations": [
+                    {
+                      "type": "contraste minimal",
+                      "description": "5.08"
+                    },
+                    {
+                      "type": "contraste minimal du focus",
+                      "description": "6.59"
+                    }
+                  ],
+                  "attachments": []
+                }
+              ],
+              "status": "expected"
+            }
+          ],
+          "id": "f14f44499e60edbd4ba2-76160b29a7c2c64c9374",
+          "file": "veille.spec.ts",
+          "line": 207,
+          "column": 3
+        },
+        {
+          "title": "2.6 : accessibilité de « fantaisie » sur la veille réelle (contrastes, tabulation, noms accessibles)",
+          "ok": true,
+          "tags": [],
+          "tests": [
+            {
+              "timeout": 120000,
+              "annotations": [
+                {
+                  "type": "contraste minimal",
+                  "description": "4.97"
+                },
+                {
+                  "type": "contraste minimal du focus",
+                  "description": "4.98"
+                }
+              ],
+              "expectedStatus": "passed",
+              "projectId": "portail-web",
+              "projectName": "portail-web",
+              "results": [
+                {
+                  "workerIndex": 1,
+                  "parallelIndex": 0,
+                  "status": "passed",
+                  "duration": 2193,
+                  "errors": [],
+                  "stdout": [],
+                  "stderr": [],
+                  "retry": 0,
+                  "startTime": "2026-11-17T21:01:08.052Z",
+                  "annotations": [
+                    {
+                      "type": "contraste minimal",
+                      "description": "4.97"
+                    },
+                    {
+                      "type": "contraste minimal du focus",
+                      "description": "4.98"
+                    }
+                  ],
+                  "attachments": []
+                }
+              ],
+              "status": "expected"
+            }
+          ],
+          "id": "f14f44499e60edbd4ba2-3f625cdfd96bd952f4c7",
+          "file": "veille.spec.ts",
+          "line": 207,
+          "column": 3
+        },
+        {
+          "title": "2.6 : accessibilité de « gazette » sur la veille réelle (contrastes, tabulation, noms accessibles)",
+          "ok": true,
+          "tags": [],
+          "tests": [
+            {
+              "timeout": 120000,
+              "annotations": [
+                {
+                  "type": "contraste minimal",
+                  "description": "6.67"
+                },
+                {
+                  "type": "contraste minimal du focus",
+                  "description": "6.67"
+                }
+              ],
+              "expectedStatus": "passed",
+              "projectId": "portail-web",
+              "projectName": "portail-web",
+              "results": [
+                {
+                  "workerIndex": 1,
+                  "parallelIndex": 0,
+                  "status": "passed",
+                  "duration": 2176,
+                  "errors": [],
+                  "stdout": [],
+                  "stderr": [],
+                  "retry": 0,
+                  "startTime": "2026-11-17T21:01:10.259Z",
+                  "annotations": [
+                    {
+                      "type": "contraste minimal",
+                      "description": "6.67"
+                    },
+                    {
+                      "type": "contraste minimal du focus",
+                      "description": "6.67"
+                    }
+                  ],
+                  "attachments": []
+                }
+              ],
+              "status": "expected"
+            }
+          ],
+          "id": "f14f44499e60edbd4ba2-40291ba042d8aef34361",
+          "file": "veille.spec.ts",
+          "line": 207,
+          "column": 3
+        }
+      ]
     }
   ],
   "errors": [],
   "stats": {
-    "startTime": "2026-11-17T17:51:02.532Z",
-    "duration": 72543.8,
-    "expected": 9,
+    "startTime": "2026-11-17T20:59:39.505Z",
+    "duration": 93562.40400000001,
+    "expected": 18,
     "skipped": 0,
     "unexpected": 0,
     "flaky": 0

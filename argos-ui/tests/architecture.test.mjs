@@ -2,11 +2,12 @@
 //
 // La couche mise en page (src/mises-en-page) ne fait aucun appel réseau et n'importe que :
 //   - 'vue' ;
-//   - ses propres fichiers ;
-//   - les modèles de vue (src/contenu/modeles.ts) et les mentions obligatoires
-//     (src/contenu/MentionsObligatoires.vue) de la couche contenu.
+//   - les feuilles de polices embarquées `@fontsource/<famille>/latin-<graisse>[-italic].css`
+//     (feuilles de style seulement, sans code ; licences dans argos-ui/NOTICE) ;
+//   - ses propres fichiers, dont le modèle de données commun (src/mises-en-page/modele.ts) ;
+//   - les mentions obligatoires (src/contenu/MentionsObligatoires.vue) de la couche contenu.
 // Tout le reste, à commencer par le client API (src/api), lui est interdit.
-// Chaque mise en page affiche chaque élément avec MentionsObligatoires.
+// Chaque mise en page (<dossier>/MiseEnPage*.vue) affiche chaque élément avec MentionsObligatoires.
 //
 // Exécution : npm test (node --test, aucune dépendance).
 import { test } from 'node:test'
@@ -18,7 +19,8 @@ import { fileURLToPath } from 'node:url'
 const RACINE = resolve(dirname(fileURLToPath(import.meta.url)), '..')
 const SRC = join(RACINE, 'src')
 const MISES_EN_PAGE = join(SRC, 'mises-en-page')
-const AUTORISES_CONTENU = new Set([join(SRC, 'contenu', 'modeles.ts'), join(SRC, 'contenu', 'MentionsObligatoires.vue')])
+const AUTORISES_CONTENU = new Set([join(SRC, 'contenu', 'MentionsObligatoires.vue')])
+const POLICE_EMBARQUEE = /^@fontsource\/[a-z0-9-]+\/latin-[1-9]00(-italic)?\.css$/
 const RESEAU = /\b(fetch\s*\(|XMLHttpRequest|WebSocket|EventSource|sendBeacon)/
 const IMPORT = /(?:import|export)\s[^'"`]*?from\s*['"]([^'"]+)['"]|import\s*['"]([^'"]+)['"]|import\s*\(\s*['"]([^'"]+)['"]\s*\)/g
 
@@ -40,9 +42,9 @@ export function violations(chemin, source) {
   const erreurs = []
   for (const correspondance of source.matchAll(IMPORT)) {
     const specificateur = correspondance[1] ?? correspondance[2] ?? correspondance[3]
-    if (specificateur === 'vue') continue
+    if (specificateur === 'vue' || POLICE_EMBARQUEE.test(specificateur)) continue
     if (!specificateur.startsWith('.')) {
-      erreurs.push(`${specificateur} : seul le paquet 'vue' est autorisé`)
+      erreurs.push(`${specificateur} : seuls 'vue' et les feuilles de polices @fontsource sont autorisés`)
       continue
     }
     const cible = avecExtension(resolve(dirname(chemin), specificateur))
@@ -70,6 +72,7 @@ test('la règle détecte un import du client API et un appel réseau', () => {
     "import { fetchPreferences } from '../../api/client'",
     "import { ELEMENTS_APERCU } from '../../contenu/apercu'",
     "import axios from 'axios'",
+    "import '@fontsource/inter/index.js'",
     "const x = await import('../../api/client')",
     "fetch('/api/v1/veille')",
   ].join('\n')
@@ -81,7 +84,9 @@ test('la règle détecte un import du client API et un appel réseau', () => {
 })
 
 test('chaque mise en page affiche chaque élément avec les mentions obligatoires', () => {
-  const composants = fichiers(MISES_EN_PAGE).filter((c) => c.endsWith('.vue'))
+  const composants = fichiers(MISES_EN_PAGE).filter(
+    (c) => dirname(c) !== MISES_EN_PAGE && /^MiseEnPage[A-Z]\w*\.vue$/.test(c.slice(dirname(c).length + 1)),
+  )
   assert.ok(composants.length >= 4, 'les quatre mises en page initiales existent')
   for (const chemin of composants) {
     const source = readFileSync(chemin, 'utf8')

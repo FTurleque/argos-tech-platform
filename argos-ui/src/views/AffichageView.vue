@@ -11,9 +11,10 @@ import {
   type MiseEnPageCatalogue,
   type PreferencesEffectives,
 } from '../api/client'
-import { ELEMENTS_APERCU } from '../contenu/apercu'
+import { VEILLE_APERCU } from '../contenu/apercu'
 import { resoudreMiseEnPage } from '../contenu/resolution'
-import { IDENTIFIANTS_MISES_EN_PAGE, MISES_EN_PAGE } from '../mises-en-page/registre'
+import MiseEnPage from '../mises-en-page/MiseEnPage.vue'
+import { IDENTIFIANTS_MISES_EN_PAGE } from '../mises-en-page/registre'
 
 const preferences = ref<PreferencesEffectives | null>(null)
 const catalogue = ref<MiseEnPageCatalogue[]>([])
@@ -21,7 +22,6 @@ const erreur = ref('')
 const enCours = ref(false)
 
 const resolue = computed(() => resoudreMiseEnPage(preferences.value, IDENTIFIANTS_MISES_EN_PAGE))
-const composant = computed(() => MISES_EN_PAGE[resolue.value.identifiant])
 const choix = computed(() => catalogue.value.filter((m) => IDENTIFIANTS_MISES_EN_PAGE.includes(m.identifiant)))
 
 function message(e: unknown): string {
@@ -86,8 +86,11 @@ onMounted(charger)
     </div>
   </section>
 
-  <section class="card">
-    <h2>Aperçu — données d’exemple</h2>
-    <component :is="composant" :elements="ELEMENTS_APERCU" />
+  <section class="card" aria-labelledby="titre-apercu">
+    <h2 id="titre-apercu">Aperçu — données d’exemple</h2>
+    <p class="muted">
+      Éléments fictifs, identiques dans les quatre mises en page : l’aperçu montre la forme, pas votre veille.
+    </p>
+    <MiseEnPage :identifiant="resolue.identifiant" :veille="VEILLE_APERCU" :niveau-titre="3" />
   </section>
 </template>

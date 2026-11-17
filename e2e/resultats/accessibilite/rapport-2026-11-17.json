@@ -1,0 +1,1154 @@
+{
+  "config": {
+    "argv": [
+      "C:\\Program Files\\nodejs\\node.exe",
+      "N:\\workspace-dev\\argos-tech-platform\\e2e\\node_modules\\@playwright\\test\\cli.js",
+      "test",
+      "-c",
+      "accessibilite.config.ts"
+    ],
+    "configFile": "N:\\workspace-dev\\argos-tech-platform\\e2e\\accessibilite.config.ts",
+    "rootDir": "N:/workspace-dev/argos-tech-platform/e2e/accessibilite",
+    "failOnFlakyTests": false,
+    "forbidOnly": true,
+    "fullyParallel": false,
+    "globalSetup": null,
+    "globalTeardown": null,
+    "globalTimeout": 0,
+    "grep": {},
+    "grepInvert": null,
+    "maxFailures": 0,
+    "metadata": {
+      "actualWorkers": 1
+    },
+    "preserveOutput": "always",
+    "projects": [
+      {
+        "outputDir": "N:/workspace-dev/argos-tech-platform/e2e/test-results/accessibilite",
+        "repeatEach": 1,
+        "retries": 0,
+        "metadata": {
+          "actualWorkers": 1
+        },
+        "id": "",
+        "name": "",
+        "testDir": "N:/workspace-dev/argos-tech-platform/e2e/accessibilite",
+        "testIgnore": [],
+        "testMatch": [
+          "**/*.@(spec|test).?(c|m)[jt]s?(x)"
+        ],
+        "timeout": 60000
+      }
+    ],
+    "quiet": false,
+    "reporter": [
+      [
+        "list",
+        null
+      ],
+      [
+        "json",
+        {
+          "outputFile": "./test-results/accessibilite.json"
+        }
+      ]
+    ],
+    "reportSlowTests": {
+      "max": 5,
+      "threshold": 300000
+    },
+    "shard": null,
+    "tags": [],
+    "updateSnapshots": "missing",
+    "updateSourceMethod": "patch",
+    "version": "1.61.1",
+    "workers": 1,
+    "webServer": {
+      "command": "npm --prefix ../argos-ui run dev -- --host 127.0.0.1 --port 5174 --strictPort",
+      "url": "http://127.0.0.1:5174/banc/index.html",
+      "timeout": 120000,
+      "reuseExistingServer": true,
+      "stdout": "ignore",
+      "stderr": "pipe"
+    }
+  },
+  "suites": [
+    {
+      "title": "mises-en-page.spec.ts",
+      "file": "mises-en-page.spec.ts",
+      "column": 0,
+      "line": 0,
+      "specs": [
+        {
+          "title": "AFF-02 (banc) : les quatre mises en page restituent les mêmes faits du même jeu de données",
+          "ok": true,
+          "tags": [],
+          "tests": [
+            {
+              "timeout": 60000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "",
+              "projectName": "",
+              "results": [
+                {
+                  "workerIndex": 0,
+                  "parallelIndex": 0,
+                  "status": "passed",
+                  "duration": 1175,
+                  "errors": [],
+                  "stdout": [],
+                  "stderr": [],
+                  "retry": 0,
+                  "startTime": "2026-11-17T20:41:23.402Z",
+                  "annotations": [],
+                  "attachments": []
+                }
+              ],
+              "status": "expected"
+            }
+          ],
+          "id": "e9a91eeaa5934d074eed-3afadcb758620b13e032",
+          "file": "mises-en-page.spec.ts",
+          "line": 223,
+          "column": 1
+        }
+      ],
+      "suites": [
+        {
+          "title": "mise en page « classique »",
+          "file": "mises-en-page.spec.ts",
+          "line": 91,
+          "column": 8,
+          "specs": [
+            {
+              "title": "polices embarquées chargées, aucune requête hors du poste",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 60000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "",
+                  "projectName": "",
+                  "results": [
+                    {
+                      "workerIndex": 0,
+                      "parallelIndex": 0,
+                      "status": "passed",
+                      "duration": 588,
+                      "errors": [],
+                      "stdout": [],
+                      "stderr": [],
+                      "retry": 0,
+                      "startTime": "2026-11-17T20:41:10.290Z",
+                      "annotations": [],
+                      "attachments": []
+                    }
+                  ],
+                  "status": "expected"
+                }
+              ],
+              "id": "e9a91eeaa5934d074eed-58021bef8ba0fefc6dfc",
+              "file": "mises-en-page.spec.ts",
+              "line": 92,
+              "column": 5
+            },
+            {
+              "title": "RGAA 3.2 : contraste de chaque texte rendu (4,5:1, ou 3:1 au-delà de 24 px ou 18,66 px gras)",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 60000,
+                  "annotations": [
+                    {
+                      "type": "contraste minimal",
+                      "description": "5.19"
+                    }
+                  ],
+                  "expectedStatus": "passed",
+                  "projectId": "",
+                  "projectName": "",
+                  "results": [
+                    {
+                      "workerIndex": 0,
+                      "parallelIndex": 0,
+                      "status": "passed",
+                      "duration": 390,
+                      "errors": [],
+                      "stdout": [],
+                      "stderr": [],
+                      "retry": 0,
+                      "startTime": "2026-11-17T20:41:10.989Z",
+                      "annotations": [
+                        {
+                          "type": "contraste minimal",
+                          "description": "5.19"
+                        }
+                      ],
+                      "attachments": []
+                    }
+                  ],
+                  "status": "expected"
+                }
+              ],
+              "id": "e9a91eeaa5934d074eed-b2e415f3a3629f254438",
+              "file": "mises-en-page.spec.ts",
+              "line": 103,
+              "column": 5
+            },
+            {
+              "title": "RGAA 12.8, 10.7 : ordre de tabulation dans l’ordre du document, focus visible et contrasté (3:1)",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 60000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "",
+                  "projectName": "",
+                  "results": [
+                    {
+                      "workerIndex": 0,
+                      "parallelIndex": 0,
+                      "status": "passed",
+                      "duration": 495,
+                      "errors": [],
+                      "stdout": [],
+                      "stderr": [],
+                      "retry": 0,
+                      "startTime": "2026-11-17T20:41:11.390Z",
+                      "annotations": [],
+                      "attachments": []
+                    }
+                  ],
+                  "status": "expected"
+                }
+              ],
+              "id": "e9a91eeaa5934d074eed-239c13f758f66c972041",
+              "file": "mises-en-page.spec.ts",
+              "line": 115,
+              "column": 5
+            },
+            {
+              "title": "RGAA 10.11 (WCAG 1.4.10) : lisible à 320 px de large, sans défilement horizontal",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 60000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "",
+                  "projectName": "",
+                  "results": [
+                    {
+                      "workerIndex": 0,
+                      "parallelIndex": 0,
+                      "status": "passed",
+                      "duration": 374,
+                      "errors": [],
+                      "stdout": [],
+                      "stderr": [],
+                      "retry": 0,
+                      "startTime": "2026-11-17T20:41:11.905Z",
+                      "annotations": [],
+                      "attachments": []
+                    }
+                  ],
+                  "status": "expected"
+                }
+              ],
+              "id": "e9a91eeaa5934d074eed-6b60252e4d85c57cbe10",
+              "file": "mises-en-page.spec.ts",
+              "line": 171,
+              "column": 5
+            },
+            {
+              "title": "à la largeur d’un téléphone (375 px), les colonnes s’empilent",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 60000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "",
+                  "projectName": "",
+                  "results": [
+                    {
+                      "workerIndex": 0,
+                      "parallelIndex": 0,
+                      "status": "passed",
+                      "duration": 449,
+                      "errors": [],
+                      "stdout": [],
+                      "stderr": [],
+                      "retry": 0,
+                      "startTime": "2026-11-17T20:41:12.293Z",
+                      "annotations": [],
+                      "attachments": []
+                    }
+                  ],
+                  "status": "expected"
+                }
+              ],
+              "id": "e9a91eeaa5934d074eed-b4eb2fda7fde282c9fa6",
+              "file": "mises-en-page.spec.ts",
+              "line": 182,
+              "column": 5
+            },
+            {
+              "title": "RGAA 13.8 : aucun mouvement quand l’utilisateur demande la réduction des animations",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 60000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "",
+                  "projectName": "",
+                  "results": [
+                    {
+                      "workerIndex": 0,
+                      "parallelIndex": 0,
+                      "status": "passed",
+                      "duration": 421,
+                      "errors": [],
+                      "stdout": [],
+                      "stderr": [],
+                      "retry": 0,
+                      "startTime": "2026-11-17T20:41:12.754Z",
+                      "annotations": [],
+                      "attachments": []
+                    }
+                  ],
+                  "status": "expected"
+                }
+              ],
+              "id": "e9a91eeaa5934d074eed-3e2936b1e5c1153e8ed7",
+              "file": "mises-en-page.spec.ts",
+              "line": 192,
+              "column": 5
+            },
+            {
+              "title": "arbre d’accessibilité : région, articles, titres et liens nommés ; décor ignoré",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 60000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "",
+                  "projectName": "",
+                  "results": [
+                    {
+                      "workerIndex": 0,
+                      "parallelIndex": 0,
+                      "status": "passed",
+                      "duration": 458,
+                      "errors": [],
+                      "stdout": [],
+                      "stderr": [],
+                      "retry": 0,
+                      "startTime": "2026-11-17T20:41:13.185Z",
+                      "annotations": [],
+                      "attachments": []
+                    }
+                  ],
+                  "status": "expected"
+                }
+              ],
+              "id": "e9a91eeaa5934d074eed-0f1de68d7c18cd68e642",
+              "file": "mises-en-page.spec.ts",
+              "line": 205,
+              "column": 5
+            }
+          ]
+        },
+        {
+          "title": "mise en page « journal »",
+          "file": "mises-en-page.spec.ts",
+          "line": 91,
+          "column": 8,
+          "specs": [
+            {
+              "title": "polices embarquées chargées, aucune requête hors du poste",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 60000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "",
+                  "projectName": "",
+                  "results": [
+                    {
+                      "workerIndex": 0,
+                      "parallelIndex": 0,
+                      "status": "passed",
+                      "duration": 506,
+                      "errors": [],
+                      "stdout": [],
+                      "stderr": [],
+                      "retry": 0,
+                      "startTime": "2026-11-17T20:41:13.653Z",
+                      "annotations": [],
+                      "attachments": []
+                    }
+                  ],
+                  "status": "expected"
+                }
+              ],
+              "id": "e9a91eeaa5934d074eed-4e8ba2d0f72b8cec9baf",
+              "file": "mises-en-page.spec.ts",
+              "line": 92,
+              "column": 5
+            },
+            {
+              "title": "RGAA 3.2 : contraste de chaque texte rendu (4,5:1, ou 3:1 au-delà de 24 px ou 18,66 px gras)",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 60000,
+                  "annotations": [
+                    {
+                      "type": "contraste minimal",
+                      "description": "5.08"
+                    }
+                  ],
+                  "expectedStatus": "passed",
+                  "projectId": "",
+                  "projectName": "",
+                  "results": [
+                    {
+                      "workerIndex": 0,
+                      "parallelIndex": 0,
+                      "status": "passed",
+                      "duration": 379,
+                      "errors": [],
+                      "stdout": [],
+                      "stderr": [],
+                      "retry": 0,
+                      "startTime": "2026-11-17T20:41:14.170Z",
+                      "annotations": [
+                        {
+                          "type": "contraste minimal",
+                          "description": "5.08"
+                        }
+                      ],
+                      "attachments": []
+                    }
+                  ],
+                  "status": "expected"
+                }
+              ],
+              "id": "e9a91eeaa5934d074eed-1e2df728d0386e860fcb",
+              "file": "mises-en-page.spec.ts",
+              "line": 103,
+              "column": 5
+            },
+            {
+              "title": "RGAA 12.8, 10.7 : ordre de tabulation dans l’ordre du document, focus visible et contrasté (3:1)",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 60000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "",
+                  "projectName": "",
+                  "results": [
+                    {
+                      "workerIndex": 0,
+                      "parallelIndex": 0,
+                      "status": "passed",
+                      "duration": 463,
+                      "errors": [],
+                      "stdout": [],
+                      "stderr": [],
+                      "retry": 0,
+                      "startTime": "2026-11-17T20:41:14.560Z",
+                      "annotations": [],
+                      "attachments": []
+                    }
+                  ],
+                  "status": "expected"
+                }
+              ],
+              "id": "e9a91eeaa5934d074eed-d654b8343c17c88bec1c",
+              "file": "mises-en-page.spec.ts",
+              "line": 115,
+              "column": 5
+            },
+            {
+              "title": "RGAA 10.11 (WCAG 1.4.10) : lisible à 320 px de large, sans défilement horizontal",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 60000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "",
+                  "projectName": "",
+                  "results": [
+                    {
+                      "workerIndex": 0,
+                      "parallelIndex": 0,
+                      "status": "passed",
+                      "duration": 380,
+                      "errors": [],
+                      "stdout": [],
+                      "stderr": [],
+                      "retry": 0,
+                      "startTime": "2026-11-17T20:41:15.034Z",
+                      "annotations": [],
+                      "attachments": []
+                    }
+                  ],
+                  "status": "expected"
+                }
+              ],
+              "id": "e9a91eeaa5934d074eed-eb3f09ba5f6356016fd7",
+              "file": "mises-en-page.spec.ts",
+              "line": 171,
+              "column": 5
+            },
+            {
+              "title": "à la largeur d’un téléphone (375 px), les colonnes s’empilent",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 60000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "",
+                  "projectName": "",
+                  "results": [
+                    {
+                      "workerIndex": 0,
+                      "parallelIndex": 0,
+                      "status": "passed",
+                      "duration": 405,
+                      "errors": [],
+                      "stdout": [],
+                      "stderr": [],
+                      "retry": 0,
+                      "startTime": "2026-11-17T20:41:15.424Z",
+                      "annotations": [],
+                      "attachments": []
+                    }
+                  ],
+                  "status": "expected"
+                }
+              ],
+              "id": "e9a91eeaa5934d074eed-dd0b8bfe3122988130d5",
+              "file": "mises-en-page.spec.ts",
+              "line": 182,
+              "column": 5
+            },
+            {
+              "title": "RGAA 13.8 : aucun mouvement quand l’utilisateur demande la réduction des animations",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 60000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "",
+                  "projectName": "",
+                  "results": [
+                    {
+                      "workerIndex": 0,
+                      "parallelIndex": 0,
+                      "status": "passed",
+                      "duration": 436,
+                      "errors": [],
+                      "stdout": [],
+                      "stderr": [],
+                      "retry": 0,
+                      "startTime": "2026-11-17T20:41:15.838Z",
+                      "annotations": [],
+                      "attachments": []
+                    }
+                  ],
+                  "status": "expected"
+                }
+              ],
+              "id": "e9a91eeaa5934d074eed-4e14bb6c500590ccd115",
+              "file": "mises-en-page.spec.ts",
+              "line": 192,
+              "column": 5
+            },
+            {
+              "title": "arbre d’accessibilité : région, articles, titres et liens nommés ; décor ignoré",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 60000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "",
+                  "projectName": "",
+                  "results": [
+                    {
+                      "workerIndex": 0,
+                      "parallelIndex": 0,
+                      "status": "passed",
+                      "duration": 474,
+                      "errors": [],
+                      "stdout": [],
+                      "stderr": [],
+                      "retry": 0,
+                      "startTime": "2026-11-17T20:41:16.285Z",
+                      "annotations": [],
+                      "attachments": []
+                    }
+                  ],
+                  "status": "expected"
+                }
+              ],
+              "id": "e9a91eeaa5934d074eed-cafaf08945d635d6aa76",
+              "file": "mises-en-page.spec.ts",
+              "line": 205,
+              "column": 5
+            }
+          ]
+        },
+        {
+          "title": "mise en page « fantaisie »",
+          "file": "mises-en-page.spec.ts",
+          "line": 91,
+          "column": 8,
+          "specs": [
+            {
+              "title": "polices embarquées chargées, aucune requête hors du poste",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 60000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "",
+                  "projectName": "",
+                  "results": [
+                    {
+                      "workerIndex": 0,
+                      "parallelIndex": 0,
+                      "status": "passed",
+                      "duration": 577,
+                      "errors": [],
+                      "stdout": [],
+                      "stderr": [],
+                      "retry": 0,
+                      "startTime": "2026-11-17T20:41:16.769Z",
+                      "annotations": [],
+                      "attachments": []
+                    }
+                  ],
+                  "status": "expected"
+                }
+              ],
+              "id": "e9a91eeaa5934d074eed-fb345fb873b8ad2c33bb",
+              "file": "mises-en-page.spec.ts",
+              "line": 92,
+              "column": 5
+            },
+            {
+              "title": "RGAA 3.2 : contraste de chaque texte rendu (4,5:1, ou 3:1 au-delà de 24 px ou 18,66 px gras)",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 60000,
+                  "annotations": [
+                    {
+                      "type": "contraste minimal",
+                      "description": "4.97"
+                    }
+                  ],
+                  "expectedStatus": "passed",
+                  "projectId": "",
+                  "projectName": "",
+                  "results": [
+                    {
+                      "workerIndex": 0,
+                      "parallelIndex": 0,
+                      "status": "passed",
+                      "duration": 406,
+                      "errors": [],
+                      "stdout": [],
+                      "stderr": [],
+                      "retry": 0,
+                      "startTime": "2026-11-17T20:41:17.356Z",
+                      "annotations": [
+                        {
+                          "type": "contraste minimal",
+                          "description": "4.97"
+                        }
+                      ],
+                      "attachments": []
+                    }
+                  ],
+                  "status": "expected"
+                }
+              ],
+              "id": "e9a91eeaa5934d074eed-ae8ef115b045789c101a",
+              "file": "mises-en-page.spec.ts",
+              "line": 103,
+              "column": 5
+            },
+            {
+              "title": "RGAA 12.8, 10.7 : ordre de tabulation dans l’ordre du document, focus visible et contrasté (3:1)",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 60000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "",
+                  "projectName": "",
+                  "results": [
+                    {
+                      "workerIndex": 0,
+                      "parallelIndex": 0,
+                      "status": "passed",
+                      "duration": 464,
+                      "errors": [],
+                      "stdout": [],
+                      "stderr": [],
+                      "retry": 0,
+                      "startTime": "2026-11-17T20:41:17.773Z",
+                      "annotations": [],
+                      "attachments": []
+                    }
+                  ],
+                  "status": "expected"
+                }
+              ],
+              "id": "e9a91eeaa5934d074eed-381e61f94f1a24ffd074",
+              "file": "mises-en-page.spec.ts",
+              "line": 115,
+              "column": 5
+            },
+            {
+              "title": "RGAA 10.11 (WCAG 1.4.10) : lisible à 320 px de large, sans défilement horizontal",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 60000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "",
+                  "projectName": "",
+                  "results": [
+                    {
+                      "workerIndex": 0,
+                      "parallelIndex": 0,
+                      "status": "passed",
+                      "duration": 397,
+                      "errors": [],
+                      "stdout": [],
+                      "stderr": [],
+                      "retry": 0,
+                      "startTime": "2026-11-17T20:41:18.248Z",
+                      "annotations": [],
+                      "attachments": []
+                    }
+                  ],
+                  "status": "expected"
+                }
+              ],
+              "id": "e9a91eeaa5934d074eed-a282442eabef6632aaf1",
+              "file": "mises-en-page.spec.ts",
+              "line": 171,
+              "column": 5
+            },
+            {
+              "title": "à la largeur d’un téléphone (375 px), les colonnes s’empilent",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 60000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "",
+                  "projectName": "",
+                  "results": [
+                    {
+                      "workerIndex": 0,
+                      "parallelIndex": 0,
+                      "status": "passed",
+                      "duration": 410,
+                      "errors": [],
+                      "stdout": [],
+                      "stderr": [],
+                      "retry": 0,
+                      "startTime": "2026-11-17T20:41:18.654Z",
+                      "annotations": [],
+                      "attachments": []
+                    }
+                  ],
+                  "status": "expected"
+                }
+              ],
+              "id": "e9a91eeaa5934d074eed-94f6f868d51a5cfa32d6",
+              "file": "mises-en-page.spec.ts",
+              "line": 182,
+              "column": 5
+            },
+            {
+              "title": "RGAA 13.8 : aucun mouvement quand l’utilisateur demande la réduction des animations",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 60000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "",
+                  "projectName": "",
+                  "results": [
+                    {
+                      "workerIndex": 0,
+                      "parallelIndex": 0,
+                      "status": "passed",
+                      "duration": 424,
+                      "errors": [],
+                      "stdout": [],
+                      "stderr": [],
+                      "retry": 0,
+                      "startTime": "2026-11-17T20:41:19.074Z",
+                      "annotations": [],
+                      "attachments": []
+                    }
+                  ],
+                  "status": "expected"
+                }
+              ],
+              "id": "e9a91eeaa5934d074eed-a35d086919e81741f7fb",
+              "file": "mises-en-page.spec.ts",
+              "line": 192,
+              "column": 5
+            },
+            {
+              "title": "arbre d’accessibilité : région, articles, titres et liens nommés ; décor ignoré",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 60000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "",
+                  "projectName": "",
+                  "results": [
+                    {
+                      "workerIndex": 0,
+                      "parallelIndex": 0,
+                      "status": "passed",
+                      "duration": 469,
+                      "errors": [],
+                      "stdout": [],
+                      "stderr": [],
+                      "retry": 0,
+                      "startTime": "2026-11-17T20:41:19.508Z",
+                      "annotations": [],
+                      "attachments": []
+                    }
+                  ],
+                  "status": "expected"
+                }
+              ],
+              "id": "e9a91eeaa5934d074eed-f410ff2f632c9422b1b9",
+              "file": "mises-en-page.spec.ts",
+              "line": 205,
+              "column": 5
+            }
+          ]
+        },
+        {
+          "title": "mise en page « gazette »",
+          "file": "mises-en-page.spec.ts",
+          "line": 91,
+          "column": 8,
+          "specs": [
+            {
+              "title": "polices embarquées chargées, aucune requête hors du poste",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 60000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "",
+                  "projectName": "",
+                  "results": [
+                    {
+                      "workerIndex": 0,
+                      "parallelIndex": 0,
+                      "status": "passed",
+                      "duration": 576,
+                      "errors": [],
+                      "stdout": [],
+                      "stderr": [],
+                      "retry": 0,
+                      "startTime": "2026-11-17T20:41:19.986Z",
+                      "annotations": [],
+                      "attachments": []
+                    }
+                  ],
+                  "status": "expected"
+                }
+              ],
+              "id": "e9a91eeaa5934d074eed-2dbc6fc8bdca499c5ae2",
+              "file": "mises-en-page.spec.ts",
+              "line": 92,
+              "column": 5
+            },
+            {
+              "title": "RGAA 3.2 : contraste de chaque texte rendu (4,5:1, ou 3:1 au-delà de 24 px ou 18,66 px gras)",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 60000,
+                  "annotations": [
+                    {
+                      "type": "contraste minimal",
+                      "description": "6.67"
+                    }
+                  ],
+                  "expectedStatus": "passed",
+                  "projectId": "",
+                  "projectName": "",
+                  "results": [
+                    {
+                      "workerIndex": 0,
+                      "parallelIndex": 0,
+                      "status": "passed",
+                      "duration": 421,
+                      "errors": [],
+                      "stdout": [],
+                      "stderr": [],
+                      "retry": 0,
+                      "startTime": "2026-11-17T20:41:20.572Z",
+                      "annotations": [
+                        {
+                          "type": "contraste minimal",
+                          "description": "6.67"
+                        }
+                      ],
+                      "attachments": []
+                    }
+                  ],
+                  "status": "expected"
+                }
+              ],
+              "id": "e9a91eeaa5934d074eed-8094a4d8f4b3f38c08dc",
+              "file": "mises-en-page.spec.ts",
+              "line": 103,
+              "column": 5
+            },
+            {
+              "title": "RGAA 12.8, 10.7 : ordre de tabulation dans l’ordre du document, focus visible et contrasté (3:1)",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 60000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "",
+                  "projectName": "",
+                  "results": [
+                    {
+                      "workerIndex": 0,
+                      "parallelIndex": 0,
+                      "status": "passed",
+                      "duration": 506,
+                      "errors": [],
+                      "stdout": [],
+                      "stderr": [],
+                      "retry": 0,
+                      "startTime": "2026-11-17T20:41:21.003Z",
+                      "annotations": [],
+                      "attachments": []
+                    }
+                  ],
+                  "status": "expected"
+                }
+              ],
+              "id": "e9a91eeaa5934d074eed-114d824c132453dd443a",
+              "file": "mises-en-page.spec.ts",
+              "line": 115,
+              "column": 5
+            },
+            {
+              "title": "RGAA 10.11 (WCAG 1.4.10) : lisible à 320 px de large, sans défilement horizontal",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 60000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "",
+                  "projectName": "",
+                  "results": [
+                    {
+                      "workerIndex": 0,
+                      "parallelIndex": 0,
+                      "status": "passed",
+                      "duration": 410,
+                      "errors": [],
+                      "stdout": [],
+                      "stderr": [],
+                      "retry": 0,
+                      "startTime": "2026-11-17T20:41:21.519Z",
+                      "annotations": [],
+                      "attachments": []
+                    }
+                  ],
+                  "status": "expected"
+                }
+              ],
+              "id": "e9a91eeaa5934d074eed-1b5fedb5779242be56f7",
+              "file": "mises-en-page.spec.ts",
+              "line": 171,
+              "column": 5
+            },
+            {
+              "title": "à la largeur d’un téléphone (375 px), les colonnes s’empilent",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 60000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "",
+                  "projectName": "",
+                  "results": [
+                    {
+                      "workerIndex": 0,
+                      "parallelIndex": 0,
+                      "status": "passed",
+                      "duration": 456,
+                      "errors": [],
+                      "stdout": [],
+                      "stderr": [],
+                      "retry": 0,
+                      "startTime": "2026-11-17T20:41:21.939Z",
+                      "annotations": [],
+                      "attachments": []
+                    }
+                  ],
+                  "status": "expected"
+                }
+              ],
+              "id": "e9a91eeaa5934d074eed-75f5ef8e0308884396cf",
+              "file": "mises-en-page.spec.ts",
+              "line": 182,
+              "column": 5
+            },
+            {
+              "title": "RGAA 13.8 : aucun mouvement quand l’utilisateur demande la réduction des animations",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 60000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "",
+                  "projectName": "",
+                  "results": [
+                    {
+                      "workerIndex": 0,
+                      "parallelIndex": 0,
+                      "status": "passed",
+                      "duration": 483,
+                      "errors": [],
+                      "stdout": [],
+                      "stderr": [],
+                      "retry": 0,
+                      "startTime": "2026-11-17T20:41:22.408Z",
+                      "annotations": [],
+                      "attachments": []
+                    }
+                  ],
+                  "status": "expected"
+                }
+              ],
+              "id": "e9a91eeaa5934d074eed-43c64c7baf4bd13b5bd6",
+              "file": "mises-en-page.spec.ts",
+              "line": 192,
+              "column": 5
+            },
+            {
+              "title": "arbre d’accessibilité : région, articles, titres et liens nommés ; décor ignoré",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 60000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "",
+                  "projectName": "",
+                  "results": [
+                    {
+                      "workerIndex": 0,
+                      "parallelIndex": 0,
+                      "status": "passed",
+                      "duration": 485,
+                      "errors": [],
+                      "stdout": [],
+                      "stderr": [],
+                      "retry": 0,
+                      "startTime": "2026-11-17T20:41:22.904Z",
+                      "annotations": [],
+                      "attachments": []
+                    }
+                  ],
+                  "status": "expected"
+                }
+              ],
+              "id": "e9a91eeaa5934d074eed-0c5da224b73340aa04b3",
+              "file": "mises-en-page.spec.ts",
+              "line": 205,
+              "column": 5
+            }
+          ]
+        }
+      ]
+    }
+  ],
+  "errors": [],
+  "stats": {
+    "startTime": "2026-11-17T20:41:08.705Z",
+    "duration": 16227.749999999998,
+    "expected": 29,
+    "skipped": 0,
+    "unexpected": 0,
+    "flaky": 0
+  }
+}
