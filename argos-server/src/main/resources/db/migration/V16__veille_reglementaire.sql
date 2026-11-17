@@ -94,12 +94,16 @@ CREATE TABLE reg_source (
 );
 INSERT INTO reg_source (id, libelle) VALUES ('JORF', 'Journal officiel — jeux de données JORF de la DILA (Licence Ouverte)');
 
--- Jour de publication collecté ou en échec : un jour en échec est repris à la collecte suivante.
+-- Jour de publication collecté, en échec ou abandonné. Un jour en échec est repris à la collecte suivante ;
+-- un jour collecté est relu tant qu'il reste dans la fenêtre de relecture, sans retélécharger les archives
+-- déjà lues (archives_lues). Un jour abandonné (échecs répétés de ses archives, ou sorti de la fenêtre de
+-- reprise) n'est plus repris automatiquement : l'administrateur plateforme peut le rejouer.
 CREATE TABLE reg_collecte_jour (
     jour            date          PRIMARY KEY,
-    etat            varchar(16)   NOT NULL CHECK (etat IN ('COLLECTE', 'EN_ECHEC')),
+    etat            varchar(16)   NOT NULL CHECK (etat IN ('COLLECTE', 'EN_ECHEC', 'ABANDONNE')),
     tentatives      integer       NOT NULL DEFAULT 1,
-    archives        integer       NOT NULL DEFAULT 0,
+    echecs          integer       NOT NULL DEFAULT 0,
+    archives_lues   varchar(64)[] NOT NULL DEFAULT '{}',
     textes          integer       NOT NULL DEFAULT 0,
     derniere_erreur varchar(1000),
     modifie_le      timestamptz   NOT NULL
@@ -281,11 +285,47 @@ CREATE POLICY fiche_reglementaire_expertise ON fiche_reglementaire FOR UPDATE TO
     USING (argos_espace_autorise(espace_id) AND argos_expert_fiche(id))
     WITH CHECK (argos_espace_autorise(espace_id) AND argos_expert_fiche(id) AND modifie_par = argos_compte_courant());
 
+-- Garde-fou de la base sous argos_app : une fiche décidée (validée ou rejetée) ne change plus ni de contenu
+-- ni de décision, seul son suivi évolue (état du cycle de vie, demande d'évolution) ; une décision est
+-- attribuée au compte courant. Les traitements de la plateforme (utilisateur de connexion) n'y sont pas soumis.
+CREATE FUNCTION argos_fiche_reglementaire_garde() RETURNS trigger
+    LANGUAGE plpgsql SET search_path = public
+AS $$
+BEGIN
+    IF current_user <> 'argos_app' THEN
+        RETURN NEW;
+    END IF;
+    IF OLD.etat_validation <> 'EN_ATTENTE_VALIDATION' AND (
+           NEW.etat_validation IS DISTINCT FROM OLD.etat_validation
+        OR NEW.resume IS DISTINCT FROM OLD.resume
+        OR NEW.resume_origine IS DISTINCT FROM OLD.resume_origine
+        OR NEW.date_effet IS DISTINCT FROM OLD.date_effet
+        OR NEW.date_effet_origine IS DISTINCT FROM OLD.date_effet_origine
+        OR NEW.articles_modifies IS DISTINCT FROM OLD.articles_modifies
+        OR NEW.decide_par IS DISTINCT FROM OLD.decide_par
+        OR NEW.decide_le IS DISTINCT FROM OLD.decide_le) THEN
+        RAISE EXCEPTION 'fiche réglementaire déjà décidée : contenu et décision non modifiables'
+            USING ERRCODE = 'insufficient_privilege';
+    END IF;
+    IF (NEW.decide_par IS DISTINCT FROM OLD.decide_par OR NEW.etat_validation IS DISTINCT FROM OLD.etat_validation)
+       AND NEW.decide_par IS DISTINCT FROM argos_compte_courant() THEN
+        RAISE EXCEPTION 'décision d''une fiche réglementaire attribuée à un autre compte que le compte courant'
+            USING ERRCODE = 'insufficient_privilege';
+    END IF;
+    RETURN NEW;
+END
+$$;
+CREATE TRIGGER fiche_reglementaire_garde BEFORE UPDATE ON fiche_reglementaire
+    FOR EACH ROW EXECUTE FUNCTION argos_fiche_reglementaire_garde();
+
 ALTER TABLE fiche_domaine ENABLE ROW LEVEL SECURITY;
 CREATE POLICY fiche_domaine_lecture ON fiche_domaine FOR SELECT TO argos_app
     USING (argos_fiche_lisible(fiche_id));
+-- Un domaine n'est ajouté à une fiche que par un expert de cette fiche : un expert d'un autre domaine de
+-- l'espace ne peut pas s'en rendre expert en y rattachant le sien.
 CREATE POLICY fiche_domaine_ajout ON fiche_domaine FOR INSERT TO argos_app
-    WITH CHECK (argos_espace_autorise(espace_id) AND argos_expert_espace(espace_id) AND origine = 'EXPERT');
+    WITH CHECK (argos_espace_autorise(espace_id) AND argos_expert_espace(espace_id) AND argos_expert_fiche(fiche_id)
+                AND origine = 'EXPERT');
 CREATE POLICY fiche_domaine_retrait ON fiche_domaine FOR DELETE TO argos_app
     USING (argos_espace_autorise(espace_id) AND argos_expert_fiche(fiche_id));
 

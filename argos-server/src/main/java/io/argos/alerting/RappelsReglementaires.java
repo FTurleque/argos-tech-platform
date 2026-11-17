@@ -25,12 +25,12 @@ import io.quarkus.scheduler.Scheduled;
  * par espace).
  *
  * <p>Tâche quotidienne ({@link #executer}) : chaque fiche validée dont l'entrée en vigueur tombe un jour
- * de rappel de son espace produit un rappel pour les utilisateurs du domaine : les experts de ses
- * domaines et les membres de l'espace dont le profil {@code expert-metier} est actif (PRF-06). Le rappel
- * porte la date d'effet, le lien vers le texte officiel et la mention « aucun avis juridique ». Il part
- * sur le canal {@code EMAIL} quand le compte a une adresse, sinon sur le canal {@code DESKTOP}, et reste
- * consultable dans Argos ; sa clé d'idempotence (fiche, date d'effet, jour de rappel) empêche tout second
- * message pour le même rappel.
+ * de rappel de son espace, ou dans les jours de rattrapage qui le suivent, produit un rappel pour les
+ * utilisateurs du domaine : les experts de ses domaines et les membres de l'espace dont le profil
+ * {@code expert-metier} est actif (PRF-06). Le rappel porte la date d'effet, le lien vers le texte officiel
+ * et la mention « aucun avis juridique ». Il part sur le canal {@code EMAIL} quand le compte a une adresse,
+ * sinon sur le canal {@code DESKTOP}, et reste consultable dans Argos ; sa clé d'idempotence (fiche, date
+ * d'effet, jour de rappel) empêche tout second message pour le même rappel.
  */
 @ApplicationScoped
 public class RappelsReglementaires {
@@ -54,9 +54,6 @@ public class RappelsReglementaires {
 
     @Inject
     Event<AlerteEmise> emises;
-
-    @ConfigProperty(name = "argos.alerting.lien-base")
-    String lienBase;
 
     @ConfigProperty(name = "argos.alerting.fuseau")
     String fuseau;
@@ -99,8 +96,10 @@ public class RappelsReglementaires {
         String quand = e.joursRestants() == 0 ? "aujourd'hui" : e.joursRestants() == 1 ? "demain"
                 : "dans " + e.joursRestants() + " jours";
         String titre = "Entrée en vigueur " + quand + " (" + e.dateEffet() + ") : " + borne(e.titre(), 300);
-        String cle = "REGLEMENTAIRE|" + e.ficheId() + "|" + e.dateEffet() + "|J-" + e.joursRestants();
-        String lien = lienBase.replaceAll("/+$", "") + "/reglementaire/fiches/" + e.ficheId();
+        String cle = "REGLEMENTAIRE|" + e.ficheId() + "|" + e.dateEffet() + "|J-" + e.jourRappel();
+        // L'IHM n'a pas encore d'écran réglementaire : le lien ouvre le texte officiel (comme les rappels
+        // d'opportunités) ; la fiche reste consultable par l'API.
+        String lien = e.lienOfficiel();
         ContenuAlerte contenu = new ContenuAlerte(List.of(new ContenuAlerte.Element(null,
                 titre + ". Domaines : " + String.join(", ", e.domaines()) + ". " + FicheAnalyse.AVIS_JURIDIQUE, null,
                 List.of(), List.of(new ContenuAlerte.Source("Journal officiel (DILA, Licence Ouverte)", e.identifiant(),

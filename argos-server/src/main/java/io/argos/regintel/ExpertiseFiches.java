@@ -265,15 +265,8 @@ public class ExpertiseFiches {
             throw new RegleViolee("EXPERT_DU_DOMAINE_REQUIS",
                     "Conservez au moins un domaine dont vous êtes expert : la fiche sortirait sinon de votre périmètre.");
         }
-        for (String d : avant) {
-            if (!apres.contains(d)) {
-                try (PreparedStatement ps = c.prepareStatement("DELETE FROM fiche_domaine WHERE fiche_id = ? AND domaine = ?")) {
-                    ps.setObject(1, f.id());
-                    ps.setString(2, d);
-                    ps.executeUpdate();
-                }
-            }
-        }
+        // Ajouts avant retraits : l'expert reste expert de la fiche pendant tout le remplacement (politique
+        // fiche_domaine_retrait réévaluée à chaque instruction) ; chaque ligne touchée est contrôlée.
         for (String d : apres) {
             if (!avant.contains(d)) {
                 try (PreparedStatement ps = c.prepareStatement("""
@@ -283,9 +276,26 @@ public class ExpertiseFiches {
                     ps.setObject(1, f.id());
                     ps.setObject(2, f.espaceId());
                     ps.setString(3, d);
-                    ps.executeUpdate();
+                    exigerUneLigne(ps.executeUpdate(), d);
                 }
             }
+        }
+        for (String d : avant) {
+            if (!apres.contains(d)) {
+                try (PreparedStatement ps = c.prepareStatement("DELETE FROM fiche_domaine WHERE fiche_id = ? AND domaine = ?")) {
+                    ps.setObject(1, f.id());
+                    ps.setString(2, d);
+                    exigerUneLigne(ps.executeUpdate(), d);
+                }
+            }
+        }
+    }
+
+    /** Une écriture de domaine ignorée par la base annule toute la correction (historique fidèle). */
+    private static void exigerUneLigne(int lignes, String domaine) {
+        if (lignes != 1) {
+            LOG.warnf("domaine %s de la fiche non modifié par la base : correction annulée", domaine);
+            throw new AccesRefuse(MotifRefus.ROLE_INSUFFISANT);
         }
     }
 

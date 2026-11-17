@@ -285,12 +285,12 @@ sequenceDiagram
     participant Alert as Alerting & Digest
     participant Persist as Persistence Adapter
 
-    Sched->>Reg: 06:30 : collecte du jour et des jours manqués
-    Reg->>Ingestion: archives du jour
+    Sched->>Reg: 06:30 : collecte des 3 derniers jours et des jours manqués
+    Reg->>Ingestion: archives non encore lues de chaque jour
     Ingestion->>DILA: GET index et archives (sans redirection, tailles bornées)
     alt source indisponible
         DILA--xIngestion: erreur HTTP ou délai dépassé
-        Reg->>Persist: jour EN_ECHEC, source DEGRADE ; repris à la collecte suivante
+        Reg->>Persist: jour EN_ECHEC, source DEGRADE ; repris à la collecte suivante, abandonné après 5 échecs de ses archives
     else archives lues
         DILA-->>Ingestion: JORF_AAAAMMJJ-HHMMSS.tar.gz
         Ingestion-->>Reg: textes lus (XML sans DTD ni entité externe)

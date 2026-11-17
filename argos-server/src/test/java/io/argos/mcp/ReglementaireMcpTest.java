@@ -93,4 +93,18 @@ class ReglementaireMcpTest {
         assertEquals(0, (int) r.path("result.structuredContent.nombre"), r.asString());
         assertFalse(r.asString().contains("JORFTEXT000099100005"));
     }
+
+    /** Les fiches en attente d'un expert n'occupent pas la limite de lecture : la fiche validée reste servie. */
+    @Test
+    void fichesEnAttenteNEvincentPasLesFichesValidees() {
+        reg.expert(espace, "paie", oscar);
+        for (int i = 0; i < 200; i++) {
+            fiche(espace, String.format("JORFTEXT0000992%05d", i), "EN_ATTENTE_VALIDATION");
+        }
+        fiche(espace, "JORFTEXT000099300001", "VALIDEE");
+
+        ExtractableResponse<Response> r = Mcp.appeler("oscar", "get_regulatory_changes", Map.of());
+        assertEquals(1, (int) r.path("result.structuredContent.nombre"), r.asString());
+        assertEquals("JORFTEXT000099300001", r.path("result.structuredContent.fiches[0].referenceOfficielle"));
+    }
 }

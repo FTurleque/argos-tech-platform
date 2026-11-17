@@ -58,7 +58,8 @@ Le statut et le texte d'ADR-0018 restent inchangés jusqu'à l'acceptation du pr
 
 ## Conséquences négatives
 
-- les archives JORF quotidiennes sont volumineuses et parfois publiées tard : la collecte relit le jour courant à chaque exécution ;
+- les archives JORF quotidiennes sont volumineuses et publiées en soirée, après le passage de la collecte du matin : chaque collecte relit les trois derniers jours (`argos.reglementaire.relecture-jours`) et ne télécharge que les archives encore non lues ; une archive publiée au-delà de cette fenêtre n'est lue que par un rejeu de l'administrateur plateforme ;
+- un jour dont les archives échouent cinq fois de suite (`argos.reglementaire.tentatives-max`) est abandonné pour ne pas bloquer les jours suivants ; il se rejoue à la demande ;
 - un espace sans dictionnaire ne reçoit aucune fiche ;
 - la qualité des propositions IA d'un petit modèle local reste à mesurer.
 
@@ -71,7 +72,7 @@ Le statut et le texte d'ADR-0018 restent inchangés jusqu'à l'acceptation du pr
 
 - tests de contrat sur des archives JORF composées au format DILA (`LecteurJorfTest`, `CollecteReglementaireTest`) ;
 - tests d'intégration de la qualification, de la fiche, de la validation, de la RLS et des rappels (`VeilleReglementaireTest`) et parcours de bout en bout (`ParcoursReglementaireTest`) ;
-- revue des conditions de la Licence Ouverte (mention de la source sur chaque fiche) ;
+- revue des conditions de la Licence Ouverte (mention de la source et de la date de dernière mise à jour des données sur chaque fiche) ;
 - mesure, sur le NAS, de la durée d'une collecte réelle (à réaliser).
 
 ## Traçabilité

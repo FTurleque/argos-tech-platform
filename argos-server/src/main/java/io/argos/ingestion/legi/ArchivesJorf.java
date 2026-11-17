@@ -13,6 +13,7 @@ import java.time.LocalDate;
 import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Set;
 import java.util.TreeSet;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
@@ -31,11 +32,13 @@ import io.argos.ingestion.SourceException;
  * (source : DILA, https://echanges.dila.gouv.fr/OPENDATA/JORF/). L'API PISTE de Légifrance n'est pas
  * utilisée (décision Q-1 du 2026-11-17).
  *
- * <p>Pour un jour de publication : lecture de l'index de l'adresse configurée, téléchargement de chaque
- * archive du jour (requêtes {@code GET} sans redirection, délai et taille bornés), lecture bornée des
- * fichiers XML ({@link ArchiveTar}, {@link LecteurJorf}). Un fichier XML refusé est ignoré et compté ;
- * l'index ou une archive injoignable lève une {@link SourceException} : le jour reste à collecter.
- * Ce module ne connaît ni les espaces ni les domaines.
+ * <p>Pour un jour de publication : lecture de l'index de l'adresse configurée ({@link #index()}, lu une
+ * fois par collecte), téléchargement de chaque archive du jour qui n'a pas déjà été lue (requêtes
+ * {@code GET} sans redirection, délai et taille bornés), lecture bornée des fichiers XML
+ * ({@link ArchiveTar}, {@link LecteurJorf}). Un fichier XML refusé est ignoré et compté. Une archive en
+ * erreur permanente (absente, trop volumineuse) est écartée et signalée sans bloquer le jour ; une erreur
+ * transitoire (source injoignable, archive illisible) lève une {@link SourceException} : le jour reste à
+ * collecter. Ce module ne connaît ni les espaces ni les domaines.
  */
 @ApplicationScoped
 public class ArchivesJorf {
@@ -45,11 +48,15 @@ public class ArchivesJorf {
     private static final DateTimeFormatter JOUR = DateTimeFormatter.BASIC_ISO_DATE;
     private static final long INDEX_MAX = 4L * 1024 * 1024;
 
-    /** Résultat de la lecture d'un jour : textes assemblés, archives lues et fichiers refusés. */
-    public record Lecture(List<TexteJorf> textes, List<String> archives, int fichiersRefuses) {
+    /**
+     * Résultat de la lecture d'un jour : textes assemblés, archives lues, fichiers refusés et archives
+     * écartées pour une erreur permanente ({@code nom : motif}), à relire tant que le jour reste relu.
+     */
+    public record Lecture(List<TexteJorf> textes, List<String> archives, int fichiersRefuses, List<String> archivesEcartees) {
         public Lecture {
             textes = List.copyOf(textes);
             archives = List.copyOf(archives);
+            archivesEcartees = List.copyOf(archivesEcartees);
         }
     }
 
@@ -72,27 +79,53 @@ public class ArchivesJorf {
         this.client = HttpClient.newBuilder().connectTimeout(delai).followRedirects(HttpClient.Redirect.NEVER).build();
     }
 
-    /** Noms des archives publiées pour le jour, dans l'ordre chronologique. */
-    public List<String> archivesDu(LocalDate jour) {
+    /** Noms de toutes les archives quotidiennes de l'index, dans l'ordre chronologique. */
+    public List<String> index() {
         String index = new String(get(URI.create(base + "/"), INDEX_MAX), StandardCharsets.UTF_8);
-        String cle = jour.format(JOUR);
         TreeSet<String> noms = new TreeSet<>();
         Matcher m = ARCHIVE.matcher(index);
         while (m.find()) {
-            if (m.group(1).equals(cle)) {
-                noms.add(m.group());
-            }
+            noms.add(m.group());
         }
         return List.copyOf(noms);
     }
 
-    /** Textes publiés le jour donné, lus dans toutes ses archives. */
+    /** Noms des archives de l'index publiées pour le jour, dans l'ordre chronologique. */
+    public static List<String> archivesDu(List<String> index, LocalDate jour) {
+        String prefixe = "JORF_" + jour.format(JOUR) + "-";
+        return index.stream().filter(n -> n.startsWith(prefixe)).sorted().toList();
+    }
+
+    /** Textes publiés le jour donné, lus dans toutes ses archives (index relu). */
     public Lecture lire(LocalDate jour) {
-        List<String> archives = archivesDu(jour);
+        return lire(jour, index(), Set.of());
+    }
+
+    /**
+     * Textes publiés le jour donné, lus dans les archives de l'index qui ne figurent pas parmi
+     * {@code dejaLues}.
+     */
+    public Lecture lire(LocalDate jour, List<String> index, Set<String> dejaLues) {
+        List<String> archives = new ArrayList<>();
+        List<String> ecartees = new ArrayList<>();
         List<LecteurJorf.Element> elements = new ArrayList<>();
         int[] refuses = {0};
-        for (String nom : archives) {
-            byte[] gz = get(URI.create(base + "/" + nom), tailleMax);
+        for (String nom : archivesDu(index, jour)) {
+            if (dejaLues.contains(nom)) {
+                continue;
+            }
+            byte[] gz;
+            try {
+                gz = get(URI.create(base + "/" + nom), tailleMax);
+            } catch (SourceException e) {
+                if (e.kind() != SourceException.Kind.PERMANENT) {
+                    throw e;
+                }
+                LOG.warnf("archive %s écartée : %s", nom, e.getMessage());
+                ecartees.add(nom + " : " + e.getMessage());
+                continue;
+            }
+            archives.add(nom);
             try (InputStream in = new ByteArrayInputStream(gz)) {
                 lecteurArchive.lire(in, (chemin, xml) -> {
                     try {
@@ -108,7 +141,7 @@ public class ArchivesJorf {
                 throw SourceException.transientError("archive " + nom + " illisible", e);
             }
         }
-        return new Lecture(LecteurJorf.assembler(elements), archives, refuses[0]);
+        return new Lecture(LecteurJorf.assembler(elements), archives, refuses[0], ecartees);
     }
 
     private byte[] get(URI uri, long max) {

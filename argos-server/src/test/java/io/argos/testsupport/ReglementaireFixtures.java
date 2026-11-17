@@ -197,6 +197,16 @@ public class ReglementaireFixtures {
         return id;
     }
 
+    /** Domaine supplémentaire rattaché à une fiche existante par une règle. */
+    public void rattacher(UUID fiche, UUID espace, String domaine) {
+        executer("INSERT INTO fiche_domaine (fiche_id, espace_id, domaine, origine, motif) VALUES (?, ?, ?, 'REGLE', 'test')",
+                ps -> {
+                    ps.setObject(1, fiche);
+                    ps.setObject(2, espace);
+                    ps.setString(3, domaine);
+                });
+    }
+
     @FunctionalInterface
     interface Parametrage {
         void appliquer(PreparedStatement ps) throws SQLException;

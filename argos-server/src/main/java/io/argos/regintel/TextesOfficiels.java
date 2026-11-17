@@ -92,6 +92,26 @@ public class TextesOfficiels {
         return liste;
     }
 
+    /** Identifiants internes des textes enregistrés depuis les archives désignées (rejeu d'un jour). */
+    public List<UUID> idsDesArchives(Collection<String> archives) {
+        List<UUID> ids = new ArrayList<>();
+        if (archives.isEmpty()) {
+            return ids;
+        }
+        try (Connection c = dataSource.getConnection(); PreparedStatement ps = c.prepareStatement(
+                "SELECT id FROM texte_officiel WHERE archive = ANY (?) ORDER BY date_publication, identifiant")) {
+            ps.setArray(1, c.createArrayOf("varchar", archives.toArray()));
+            try (ResultSet rs = ps.executeQuery()) {
+                while (rs.next()) {
+                    ids.add(rs.getObject(1, UUID.class));
+                }
+            }
+        } catch (SQLException e) {
+            throw new IllegalStateException("lecture des textes officiels impossible", e);
+        }
+        return ids;
+    }
+
     /** Texte connu par son identifiant officiel. */
     public Optional<TexteOfficiel> parIdentifiant(String identifiant) {
         try (Connection c = dataSource.getConnection(); PreparedStatement ps = c.prepareStatement(

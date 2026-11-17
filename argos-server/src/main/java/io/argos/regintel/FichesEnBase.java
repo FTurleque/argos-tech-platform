@@ -48,7 +48,8 @@ public class FichesEnBase implements FichesReglementaires {
             f.date_effet_origine, f.date_effet_ia, f.articles_modifies, f.demande_url, f.demande_forge, f.demande_etat,
             f.decide_le, argos_expert_fiche(f.id),
             t.id, t.identifiant, t.nature, t.numero, t.nor, t.ministere, t.titre, t.date_publication, t.date_signature,
-            t.date_effet, t.motif_date_effet, t.codes_ids, t.codes_libelles, t.articles_modifies, t.extrait""";
+            t.date_effet, t.motif_date_effet, t.codes_ids, t.codes_libelles, t.articles_modifies, t.extrait,
+            t.archive, t.collecte_le""";
 
     /** Critères d'une liste de fiches ; chaque critère est facultatif. */
     public record Criteres(UUID espace, String domaine, String etatValidation, LocalDate effetDepuis,
@@ -105,8 +106,19 @@ public class FichesEnBase implements FichesReglementaires {
         if (espaces.isEmpty()) {
             return List.of();
         }
-        List<FicheAnalyse> visibles = lister(compte, new Criteres(null, domaine.orElse(null), null, null, null, LIMITE_MAX));
+        // Fiches validées seulement, filtrées par la requête avant la limite : des fiches en attente ne
+        // peuvent pas évincer de la liste les fiches diffusables (garde-fou VALIDATION_HUMAINE, MCP-07).
+        List<FicheAnalyse> visibles = base.executer(new Contexte(compte, null, null), c -> {
+            List<FicheAnalyse> toutes = new ArrayList<>();
+            for (UUID espace : espaces) {
+                toutes.addAll(lister(c, new Criteres(espace, domaine.orElse(null), "VALIDEE", null, null, LIMITE_MAX), false));
+            }
+            return toutes;
+        });
         return visibles.stream().filter(f -> espaces.contains(f.espaceId()))
+                .sorted(java.util.Comparator.comparing((FicheAnalyse f) -> f.texte().datePublication()).reversed()
+                        .thenComparing(f -> f.texte().identifiant()))
+                .limit(LIMITE_MAX)
                 .map(f -> new Fiche(f.id(), f.espaceId(), f.domaines().stream().map(FicheAnalyse.DomaineRattache::code).toList(),
                         Etat.valueOf(f.etatValidation()), f.texte().titre(), f.texte().identifiant(), f.texte().nor(),
                         f.resume(), f.texte().datePublication(), f.dateEffet(), "JORF", f.texte().lienPublie()))
@@ -227,6 +239,7 @@ public class FichesEnBase implements FichesReglementaires {
         Timestamp decide = rs.getTimestamp(14);
         boolean expert = rs.getBoolean(15);
         TexteOfficiel t = TextesOfficiels.texte(rs, 16);
+        LocalDate miseAJour = FicheAnalyse.dateMiseAJour(rs.getString(31), instant(rs.getTimestamp(32)));
         String base = legifrance.replaceAll("/+$", "");
         FicheAnalyse.Texte texte = new FicheAnalyse.Texte(t.identifiant(), t.nature(), t.numero(), t.nor(), t.ministere(),
                 t.titre(), t.datePublication(), t.codes(), base + "/jorf/id/" + t.identifiant(),
@@ -243,7 +256,7 @@ public class FichesEnBase implements FichesReglementaires {
                 effet == null ? DatesTexte.DATE_A_CONFIRMER : effet.toString(), motif, effetIa, articles, domaines,
                 demandeUrl == null ? null : new FicheAnalyse.Demande(demandeUrl, demandeForge, demandeEtat),
                 decide == null ? null : decide.toInstant(), expert, mentionValidation, FicheAnalyse.AVIS_JURIDIQUE,
-                FicheAnalyse.SOURCE, historique);
+                FicheAnalyse.mentionSource(miseAJour), historique);
     }
 
     private static void date(PreparedStatement ps, int i, LocalDate d) throws SQLException {

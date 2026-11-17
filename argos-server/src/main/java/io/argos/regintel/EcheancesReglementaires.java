@@ -41,9 +41,14 @@ import io.argos.workspace.DonneeInvalide;
 @ApplicationScoped
 public class EcheancesReglementaires {
 
-    /** Échéance à rappeler aujourd'hui, avec les experts des domaines de la fiche. */
+    /**
+     * Échéance à rappeler aujourd'hui, avec les experts des domaines de la fiche.
+     *
+     * @param jourRappel    jour de rappel concerné (J-n) : il fonde la clé d'idempotence du rappel
+     * @param joursRestants jours restants avant l'entrée en vigueur, égal à {@code jourRappel} sauf rattrapage
+     */
     public record Echeance(UUID ficheId, UUID espaceId, List<String> domaines, String identifiant, String titre,
-            LocalDate dateEffet, int joursRestants, String lienOfficiel, List<Expert> experts) {
+            LocalDate dateEffet, int jourRappel, int joursRestants, String lienOfficiel, List<Expert> experts) {
         public Echeance {
             domaines = List.copyOf(domaines);
             experts = List.copyOf(experts);
@@ -68,6 +73,9 @@ public class EcheancesReglementaires {
 
     @ConfigProperty(name = "argos.reglementaire.legifrance.url")
     String legifrance;
+
+    @ConfigProperty(name = "argos.reglementaire.rappels.rattrapage-jours")
+    int rattrapageJours;
 
     /** Jours de rappel par défaut (Q-2). */
     public List<Integer> rappelsParDefaut() {
@@ -105,7 +113,13 @@ public class EcheancesReglementaires {
         });
     }
 
-    /** Échéances à rappeler aujourd'hui, tous espaces confondus (lecture technique pour la tâche planifiée). */
+    /**
+     * Échéances à rappeler aujourd'hui, tous espaces confondus (lecture technique pour la tâche planifiée).
+     * Un rappel J-n est dû du jour J-n jusqu'à {@code argos.reglementaire.rappels.rattrapage-jours} jours
+     * plus tard : un rappel que la tâche n'a pas envoyé le jour exact (arrêt, échec) part au passage suivant ;
+     * la clé d'idempotence empêche tout second message. Quand plusieurs rappels sont dus, seul le plus proche
+     * de l'échéance part.
+     */
     public List<Echeance> echeancesDuJour(LocalDate aujourdhui) {
         List<Echeance> liste = new ArrayList<>();
         String sql = """
@@ -140,13 +154,16 @@ public class EcheancesReglementaires {
         Map<String, List<Expert>> experts = new LinkedHashMap<>();
         for (Ligne l : lignes) {
             int restant = (int) ChronoUnit.DAYS.between(aujourdhui, l.effet());
-            if (!l.jours().contains(restant)) {
+            int rattrapage = Math.max(1, rattrapageJours);
+            Integer jour = l.jours().stream().filter(j -> restant <= j && restant > j - rattrapage)
+                    .min(Integer::compare).orElse(null);
+            if (jour == null) {
                 continue;
             }
             List<Expert> ex = experts.computeIfAbsent(l.espace() + "|" + l.domaines(),
                     k -> dictionnaire.experts(l.espace(), l.domaines()).stream()
                             .map(x -> new Expert(x.compteId(), x.email())).toList());
-            liste.add(new Echeance(l.fiche(), l.espace(), l.domaines(), l.identifiant(), l.titre(), l.effet(), restant,
+            liste.add(new Echeance(l.fiche(), l.espace(), l.domaines(), l.identifiant(), l.titre(), l.effet(), jour, restant,
                     racine + "/jorf/id/" + l.identifiant(), ex));
         }
         return liste;

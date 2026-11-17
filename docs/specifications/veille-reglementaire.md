@@ -40,42 +40,43 @@ Exclus :
 
 ## Préconditions et déclencheurs
 
-Domaines, règles et experts configurés dans l'espace (aucun dictionnaire type : Q-4). Collecte quotidienne à 06:30 (`argos.reglementaire.collecte.cron`), rappels à 07:15 (`argos.reglementaire.rappels.cron`), fuseau `argos.alerting.fuseau`.
+Domaines, règles et experts configurés dans l'espace (aucun dictionnaire type : Q-4). Collecte quotidienne à 06:30 (`argos.reglementaire.collecte.cron`) des trois derniers jours (`argos.reglementaire.relecture-jours`) et des jours manqués, rappels à 07:15 (`argos.reglementaire.rappels.cron`), fuseau `argos.alerting.fuseau`.
 
 ## Entrées, sorties et validations
 
 | Entrée / sortie | Contenu | Validation ou contrainte | Statut |
 |---|---|---|---|
-| Archive JORF | index et `JORF_AAAAMMJJ-HHMMSS.tar.gz` | `GET` sans redirection, délai et tailles bornés ; XML sans DTD ni entité externe (refus de tout `DOCTYPE`) | [EXISTANT] |
+| Archive JORF | index et `JORF_AAAAMMJJ-HHMMSS.tar.gz` | `GET` sans redirection, délai et tailles bornés ; XML sans DTD ni entité externe (refus de tout `DOCTYPE`) ; archive lue une seule fois (`reg_collecte_jour.archives_lues`) ; archive absente ou trop volumineuse écartée sans bloquer son jour | [EXISTANT] |
 | Texte officiel | identifiant `JORFTEXT…`, nature, NOR, ministère, titre, dates de publication et d'effet, codes et articles modifiés | enregistré une seule fois par identifiant (REG-01) ; données externes non fiables, texte brut borné | [EXISTANT] |
 | Règle du dictionnaire | type `NATURE`, `MINISTERE`, `NOR`, `CODE`, `MOT_CLE` et valeur | 200 règles au plus par domaine ; préfixe NOR en lettres | [EXISTANT] |
-| Fiche | résumé, articles modifiés, date d'effet (« date à confirmer » sinon), domaines et leur origine, liens vers le texte publié et sa version consolidée, mentions IA, validation, avis juridique et source | invisible des non-experts avant validation (REG-05) ; résumé obligatoire pour valider | [EXISTANT] |
+| Fiche | résumé, articles modifiés, date d'effet (« date à confirmer » sinon), domaines et leur origine, liens vers le texte publié et sa version consolidée, mentions IA, validation, avis juridique, source et date de dernière mise à jour des données (date de l'archive DILA) | invisible des non-experts avant validation (REG-05) ; résumé obligatoire pour valider | [EXISTANT] |
 | Demande d'évolution | adresse d'un ticket ou d'une demande de fusion GitHub ou GitLab | forge configurée seulement ; état lu en lecture seule ; demande inexistante refusée | [EXISTANT] |
 
 ## Règles métier
 
 | Règle | Exigence(s) | Source | Statut |
 |---|---|---|---|
-| Collecte quotidienne sans doublon ; reprise du jour manqué, source `DEGRADE` en cas d'échec | REG-01 | ADR-0030 (Proposé) | [EXISTANT] — `CollecteReglementaire` |
+| Collecte quotidienne sans doublon ; relecture des trois derniers jours (archives publiées après le passage de la collecte) ; reprise du jour manqué, source `DEGRADE` en cas d'échec ; jour abandonné après cinq échecs consécutifs de ses archives ou hors de la fenêtre de reprise de 31 jours, rejouable par l'administrateur plateforme ; le rejeu prépare les fiches manquantes | REG-01 | ADR-0030 (Proposé) | [EXISTANT] — `CollecteReglementaire` |
 | Qualification par les règles de l'espace ; proposition IA marquée avec sa confiance si aucune règle ne s'applique (natures `LOI`, `ORDONNANCE`, `DECRET`, `ARRETE`, 20 propositions au plus par espace et par collecte) | REG-02 | ADR-0013 (Proposé), ADR-0030 (Proposé) | [EXISTANT] — `Qualification`, `PreparationFiches` |
 | Date de publication et date d'effet distinctes ; « date à confirmer » sans date extraite ; date proposée par l'IA affichée comme proposition | REG-03 | ADR-0030 (Proposé) | [EXISTANT] — `DatesTexte` |
 | Fiche préparée et marquée « produit par l'IA » et « en attente de validation » ; sans IA, préparée sans résumé | REG-04 | IAG-04, ADR-0029 (Proposé) | [EXISTANT] — `AnalyseIa` |
 | Fiche visible des seuls experts de ses domaines avant validation ; corrections et décisions historisées | REG-05 | PRF-06 | [EXISTANT] — RLS V16, `ExpertiseFiches` |
 | Suivi nouveau → en analyse → sans impact / impact produit → spécifié → livré ; « spécifié » exige une demande d'évolution | REG-06 | ADR-0030 (Proposé) | [EXISTANT] — `CycleVie` |
-| Calendrier des fiches validées ; rappels J-90, J-30, J-7, réglables par espace | REG-07 | Q-2 | [EXISTANT] — `EcheancesReglementaires`, `RappelsReglementaires` |
+| Calendrier des fiches validées ; rappels J-90, J-30, J-7, réglables par espace ; un rappel manqué le jour exact part dans les trois jours suivants, une seule fois ; le lien du rappel ouvre le texte officiel | REG-07 | Q-2 | [EXISTANT] — `EcheancesReglementaires`, `RappelsReglementaires` |
 | Lien vers une demande d'évolution GitHub ou GitLab | REG-08 | Q-3 | [EXISTANT] — `DemandesEvolution` |
 
 ## Droits d'accès et restrictions
 
 - Configuration des domaines, règles, experts et rappels : administrateurs de l'espace (politiques `argos_administre`, migration V16).
-- Lecture, correction, validation, rejet, transitions et demande d'évolution d'une fiche en attente : experts d'un des domaines de la fiche, membres CONTRIBUTEUR ou ADMINISTRATEUR (fonction `argos_expert_fiche`).
+- Lecture, correction, validation, rejet, transitions et demande d'évolution d'une fiche en attente : experts d'un des domaines de la fiche, membres CONTRIBUTEUR ou ADMINISTRATEUR (fonction `argos_expert_fiche`). Seul un expert de la fiche lui rattache un domaine (politique `fiche_domaine_ajout`).
+- Une fiche validée ou rejetée ne change plus de contenu ni de décision sous `argos_app`, seul son suivi évolue ; une décision est attribuée au compte courant (déclencheur `fiche_reglementaire_garde`, migration V16).
 - Fiches validées et calendrier : tout membre de l'espace ; serveur MCP : fiches validées seulement (MCP-07).
 - Fiche hors périmètre : réponse 404 et refus journalisé ; action d'un non-expert sur une fiche visible : 403 journalisé.
 - Les profils n'accordent aucun droit (PRF-05) ; le profil `expert-metier` actif désigne seulement les destinataires des rappels.
 
 ## Effets de bord observables
 
-Textes et fiches enregistrés ; jours collectés et état de la source (`GET /api/v1/reglementaire/collecte`) ; historique des corrections et décisions ; rappels `RAPPEL` (clé `REGLEMENTAIRE|fiche|date|J-n`) sur le canal `EMAIL`, sinon `DESKTOP` ; appels IA tracés dans `ia_appel`.
+Textes et fiches enregistrés ; jours collectés, en échec et abandonnés, et état de la source (`GET /api/v1/reglementaire/collecte`) ; historique des corrections et décisions ; rappels `RAPPEL` (clé `REGLEMENTAIRE|fiche|date|J-n`) sur le canal `EMAIL`, sinon `DESKTOP` ; appels IA tracés dans `ia_appel`.
 
 ## Qualités mesurables
 
@@ -111,12 +112,16 @@ Scénarios REG-01-S1 à REG-08-S1 du changement, tous couverts par un test qui p
 - [DÉCISION] Domaines et dictionnaire métier propres à chaque espace (ADR-0025) ; expert désigné par un administrateur parmi les membres CONTRIBUTEUR ou ADMINISTRATEUR — ADR-0030 (Proposé).
 - [PROPOSITION] « Utilisateurs du domaine » destinataires des rappels : experts des domaines de la fiche et membres de l'espace dont le profil `expert-metier` est actif ; toute fiche validée est lisible de tous les membres de l'espace.
 - [PROPOSITION] Une fiche validée ou rejetée n'est plus corrigée ; une demande d'évolution ne s'associe qu'à un texte « impact produit » ou au-delà.
-- [PROPOSITION] La première collecte ne lit que le jour courant ; la reprise remonte au plus 31 jours.
+- [PROPOSITION] Chaque collecte relit les trois derniers jours, la première comprise ; la reprise remonte au plus 31 jours ; un jour est abandonné après cinq échecs consécutifs de ses archives (une source injoignable ne compte pas), et une archive en erreur permanente est écartée.
+- [PROPOSITION] Un rappel manqué le jour exact est rattrapé dans les trois jours suivants (`argos.reglementaire.rappels.rattrapage-jours`).
+- [PROPOSITION] Tant que l'IHM n'a pas d'écran réglementaire, le lien d'un rappel ouvre le texte officiel sur Légifrance.
+- [PROPOSITION] Date de dernière mise à jour des données exigée par la Licence Ouverte : date de l'archive DILA qui a apporté le texte, à défaut date de sa collecte.
 
 ## Écarts constatés
 
 - ADR-0018 nomme les MKP et les modules RH d'un éditeur ; ADR-0030 (Proposé) le met à jour (expert métier, domaines par espace, données ouvertes JORF).
-- Le titre de la tâche 2.1 parle d'un « connecteur Légifrance avec repli LEGI/JORF » : selon Q-1, le connecteur lit les seules archives JORF de la DILA, sans l'API PISTE.
+- Le connecteur lit les seules archives JORF de la DILA, sans l'API PISTE (Q-1) ; le titre de la tâche 2.1 le précise.
+- L'IHM (`argos-ui`) n'a pas d'écran réglementaire : fiches, validation et calendrier passent par l'API REST.
 
 ## Questions ouvertes
 
@@ -131,11 +136,11 @@ Scénarios REG-01-S1 à REG-08-S1 du changement, tous couverts par un test qui p
 
 | Exigence | Scénarios | Conception / diagramme | Tâche | Test ou preuve |
 |---|---|---|---|---|
-| REG-01 | REG-01-S1, REG-01-S2 | DC-1 | 1.1, 2.1 | `CollecteReglementaireTest` (`reg01S1RejeuSansDoublon`, `reg01S2SourceIndisponiblePuisRepriseDuJourManque`), `LecteurJorfTest` |
+| REG-01 | REG-01-S1, REG-01-S2 | DC-1 | 1.1, 2.1 | `CollecteReglementaireTest` (`reg01S1RejeuSansDoublon`, `reg01S2SourceIndisponiblePuisRepriseDuJourManque`, `archivePublieeApresLePassageDeLaCollecteLueAuPassageSuivant`, `archiveEnErreurPermanenteEcarteeSansBloquerLesJoursSuivants`, `jourEnEchecRepeteAbandonnePuisRejoue`, `jourEnEchecHorsDeLaFenetreDeRepriseAbandonne`), `LecteurJorfTest`, `VeilleReglementaireTest.rejeuDUnJourPrepareLesFichesManquantes` |
 | REG-02 | REG-02-S1, REG-02-S2 | DC-1 | 2.2, 2.3 | `QualificationEtDatesTest.reg02S1…`, `VeilleReglementaireTest.reg02S1Reg02S2Reg04S1…` |
 | REG-03 | REG-03-S1, REG-03-S2 | DC-1 | 2.4 | `QualificationEtDatesTest.reg03S1…`, `reg03S2…` ; `CollecteReglementaireTest` |
 | REG-04 | REG-04-S1 | DC-1 | 3.1 | `VeilleReglementaireTest.reg02S1Reg02S2Reg04S1…` |
-| REG-05 | REG-05-S1, REG-05-S2 | DC-1, DC-2 | 3.2 | `VeilleReglementaireTest.reg05S1Reg05S2…`, `rlsSousArgosApp` |
+| REG-05 | REG-05-S1, REG-05-S2 | DC-1, DC-2 | 3.2 | `VeilleReglementaireTest.reg05S1Reg05S2…`, `rlsSousArgosApp`, `correctionDesDomainesRetireAussiUnDomaineDontLExpertNEstPasExpert` ; `ReglementaireMcpTest.fichesEnAttenteNEvincentPasLesFichesValidees` |
 | REG-06 | REG-06-S1, REG-06-S2 | DC-2 | 3.3 | `QualificationEtDatesTest.reg06S1…`, `reg06S2…` ; `VeilleReglementaireTest.reg06Reg08S1…` |
 | REG-07 | REG-07-S1 | DC-1 | 3.4 | `VeilleReglementaireTest.reg07S1RappelAvantEcheanceEtCalendrier` |
 | REG-08 | REG-08-S1 | DC-2 | 3.4 | `VeilleReglementaireTest.reg06Reg08S1…`, `DemandesEvolutionTest` |

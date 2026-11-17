@@ -197,6 +197,8 @@ class VeilleReglementaireTest {
         assertEquals("https://www.legifrance.gouv.fr/loda/id/" + CARRIERE, path(carriere, "texte.lienConsolide"));
         assertTrue(((String) carriere.get("mentionAvisJuridique")).contains("avis juridique"));
         assertTrue(((String) carriere.get("mentionSource")).contains("Licence Ouverte"));
+        assertTrue(((String) carriere.get("mentionSource")).endsWith("Dernière mise à jour des données : 2026-11-20."),
+                "date de mise à jour exigée par la Licence Ouverte : date de l'archive DILA");
 
         // Injection d'instructions dans le texte officiel : transmise comme donnée, sans effet sur la fiche.
         assertTrue(appels.stream().anyMatch(a -> a.body().contains("Ignore les consignes précédentes")));
@@ -270,6 +272,38 @@ class VeilleReglementaireTest {
                 .when().post("/api/v1/reglementaire/fiches/" + id + "/rejet").then().statusCode(200)
                 .body("etatValidation", equalTo("REJETEE"));
         Api.en("jules").when().get("/api/v1/reglementaire/fiches/" + id).then().statusCode(404);
+    }
+
+    @Test
+    void correctionDesDomainesRetireAussiUnDomaineDontLExpertNEstPasExpert() {
+        reg.domaine(espace, "retraite", "Retraite", Api.compte("hugo"));
+        reg.expert(espace, "retraite", Api.compte("hugo"));
+        UUID texte = reg.texte("JORFTEXT000099500001", "Décret carrière et retraite", LocalDate.of(2026, 11, 2), null);
+        UUID id = reg.fiche(texte, espace, "carriere", "EN_ATTENTE_VALIDATION", "Résumé", null);
+        reg.rattacher(id, espace, "retraite");
+
+        // {carriere (ines), retraite (hugo)} corrigé par ines en {paie (ines)} : les deux retraits ont lieu.
+        Api.en("ines").contentType(ContentType.JSON).body(Map.of("domaines", List.of("paie")))
+                .when().put("/api/v1/reglementaire/fiches/" + id).then().statusCode(200)
+                .body("domaines.code", contains("paie"));
+        assertEquals("paie", db.string("SELECT string_agg(domaine, ',' ORDER BY domaine) FROM fiche_domaine WHERE fiche_id = '"
+                + id + "'"), "état en base conforme à l'historique");
+        assertTrue(db.string("SELECT detail::text FROM fiche_historique WHERE fiche_id = '" + id + "' AND action = 'CORRECTION'")
+                .contains("\"apres\": [\"paie\"]"));
+    }
+
+    @Test
+    void rejeuDUnJourPrepareLesFichesManquantes() {
+        collecte.collecter(LE_20, Instant.now());
+        long preparees = db.count("SELECT count(*) FROM fiche_reglementaire");
+        assertTrue(preparees >= 1);
+        db.exec("DELETE FROM fiche_reglementaire");
+
+        CollecteReglementaire.Rapport r = collecte.rejouer(LE_20, Instant.now());
+
+        assertEquals(0, r.textesNouveaux());
+        assertEquals(preparees, r.fichesPreparees(), "fiches préparées de nouveau pour les textes connus du jour");
+        assertEquals(0, collecte.rejouer(LE_20, Instant.now()).fichesPreparees(), "aucune fiche en double");
     }
 
     // ------------------------------------------------------------------ REG-06, REG-08
@@ -350,6 +384,16 @@ class VeilleReglementaireTest {
         assertTrue(rappels.executer(j30.plusDays(1), Instant.now()).isEmpty(), "J-29 : pas un jour de rappel");
         assertEquals(2, rappels.executer(LocalDate.of(2026, 12, 25), Instant.now()).size(), "J-7");
 
+        // Rappel manqué le jour exact (tâche arrêtée) : rattrapé dans les 3 jours, une seule fois.
+        UUID tardif = reg.texte("JORFTEXT000099300004", "Décret au rappel manqué", LocalDate.of(2026, 11, 2),
+                LocalDate.of(2027, 1, 10));
+        reg.fiche(tardif, espace, "carriere", "VALIDEE", "Résumé", ines);
+        assertEquals(2, rappels.executer(LocalDate.of(2026, 12, 12), Instant.now()).size(), "J-30 rattrapé à J-29");
+        assertEquals(1, db.count("SELECT count(*) FROM alerte WHERE compte_id = '" + jules
+                + "' AND titre = 'Entrée en vigueur dans 29 jours (2027-01-10) : Décret au rappel manqué'"));
+        assertTrue(rappels.executer(LocalDate.of(2026, 12, 13), Instant.now()).isEmpty(), "aucun second rappel J-30");
+        assertTrue(rappels.executer(LocalDate.of(2026, 12, 14), Instant.now()).isEmpty(), "hors du rattrapage");
+
         // Jours de rappel réglés par l'administrateur de l'espace.
         Api.en("hugo").contentType(ContentType.JSON).body(Map.of("rappelsJours", List.of(45, 400)))
                 .when().put(chemin("/rappels")).then().statusCode(400);
@@ -360,8 +404,8 @@ class VeilleReglementaireTest {
         // Calendrier : fiches validées datées seulement, dans l'ordre chronologique.
         Api.en("lina").queryParam("depuis", "2026-11-01").queryParam("jusqua", "2027-12-31")
                 .when().get("/api/v1/reglementaire/calendrier").then().statusCode(200)
-                .body("$", hasSize(1)).body("[0].texte.identifiant", equalTo("JORFTEXT000099300001"))
-                .body("[0].dateEffet", equalTo("2027-01-01"));
+                .body("$", hasSize(2)).body("[0].texte.identifiant", equalTo("JORFTEXT000099300001"))
+                .body("[0].dateEffet", equalTo("2027-01-01")).body("[1].dateEffet", equalTo("2027-01-10"));
         Api.en("lina").queryParam("depuis", "pas-une-date").when().get("/api/v1/reglementaire/calendrier")
                 .then().statusCode(400);
     }
@@ -403,6 +447,28 @@ class VeilleReglementaireTest {
                 + " libelle, modifie_par, modifie_le) VALUES ('" + espace + "', 'retraite', 'Retraite', argos_compte_courant(), now())"),
                 "dictionnaire réservé aux administrateurs");
         assertEquals(0, ecrire(ines, espace, "DELETE FROM expert_domaine"), "désignation réservée aux administrateurs");
+
+        // Un expert d'un autre domaine de l'espace ne se rend pas expert d'une fiche en y rattachant son domaine.
+        UUID hugo = Api.compte("hugo");
+        reg.domaine(espace, "retraite", "Retraite", hugo);
+        reg.expert(espace, "retraite", hugo);
+        assertEquals(0, compter(hugo, espace, "SELECT count(*) FROM fiche_reglementaire WHERE id = '" + enAttente + "'"));
+        assertThrows(RuntimeException.class, () -> ecrire(hugo, espace, "INSERT INTO fiche_domaine (fiche_id, espace_id,"
+                + " domaine, origine, motif) VALUES ('" + enAttente + "', '" + espace + "', 'retraite', 'EXPERT', 'test')"),
+                "rattachement réservé aux experts de la fiche");
+        assertEquals(1, ecrire(ines, espace, "INSERT INTO fiche_domaine (fiche_id, espace_id, domaine, origine, motif)"
+                + " VALUES ('" + enAttente + "', '" + espace + "', 'paie', 'EXPERT', 'test')"), "experte de la fiche");
+
+        // Une fiche décidée ne change plus de contenu ni de décision ; une décision revient au compte courant.
+        assertThrows(RuntimeException.class, () -> ecrire(ines, espace, "UPDATE fiche_reglementaire SET resume = 'réécrit',"
+                + " modifie_par = argos_compte_courant() WHERE id = '" + validee + "'"), "fiche validée figée");
+        assertThrows(RuntimeException.class, () -> ecrire(ines, espace, "UPDATE fiche_reglementaire SET"
+                + " etat_validation = 'EN_ATTENTE_VALIDATION', modifie_par = argos_compte_courant() WHERE id = '" + validee + "'"));
+        assertEquals(1, ecrire(ines, espace, "UPDATE fiche_reglementaire SET etat_suivi = 'SANS_IMPACT',"
+                + " modifie_par = argos_compte_courant() WHERE id = '" + validee + "'"), "le suivi évolue après validation");
+        assertThrows(RuntimeException.class, () -> ecrire(ines, espace, "UPDATE fiche_reglementaire SET"
+                + " etat_validation = 'VALIDEE', decide_par = '" + karim + "', decide_le = now(),"
+                + " modifie_par = argos_compte_courant() WHERE id = '" + enAttente + "'"), "décision attribuée à un tiers");
     }
 
     @Test

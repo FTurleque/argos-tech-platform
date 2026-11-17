@@ -8,7 +8,7 @@
 
 ## 2. Collecte et qualification
 
-- [x] 2.1 Créer le connecteur Légifrance avec repli LEGI/JORF et l'unicité par identifiant officiel — couvre REG-01-S1, REG-01-S2 — vérification : tests de contrat et de rejeu passent (connecteur des archives JORF de la DILA, sans API PISTE selon Q-1 : `LecteurJorfTest` 5 tests, `CollecteReglementaireTest` 3 tests)
+- [x] 2.1 Créer le connecteur des archives JORF de la DILA (sans API PISTE ni repli, selon Q-1) et l'unicité par identifiant officiel — couvre REG-01-S1, REG-01-S2 — vérification : tests de contrat et de rejeu passent (`LecteurJorfTest` 5 tests, `CollecteReglementaireTest` 7 tests)
 - [x] 2.2 Créer le dictionnaire métier par espace et la qualification déterministe — couvre REG-02-S1 — vérification : tests unitaires passent (`QualificationEtDatesTest`)
 - [x] 2.3 Proposer un domaine par l'IA en cas de doute, marqué — couvre REG-02-S2 — vérification : test d'intégration passe (`VeilleReglementaireTest.reg02S1Reg02S2Reg04S1QualificationPuisFichesPrepareesParLIa`)
 - [x] 2.4 Extraire les dates de publication et d'effet — couvre REG-03-S1, REG-03-S2 — vérification : tests unitaires passent (`QualificationEtDatesTest`)
@@ -36,18 +36,18 @@
 
 | Exigence | Scénario | Conception / diagramme | Tâche | Test ou preuve | État de la preuve |
 |---|---|---|---|---|---|
-| REG-01 | REG-01-S1 | DC-1 | 1.1, 2.1 | `regintel/CollecteReglementaireTest.reg01S1RejeuSansDoublon` ; `ingestion/legi/LecteurJorfTest` | passe |
-| REG-01 | REG-01-S2 | DC-1 | 1.1, 2.1 | `regintel/CollecteReglementaireTest.reg01S2SourceIndisponiblePuisRepriseDuJourManque` | passe |
+| REG-01 | REG-01-S1 | DC-1 | 1.1, 2.1 | `regintel/CollecteReglementaireTest.reg01S1RejeuSansDoublon`, `archivePublieeApresLePassageDeLaCollecteLueAuPassageSuivant` ; `ingestion/legi/LecteurJorfTest` ; `chain/VeilleReglementaireTest.rejeuDUnJourPrepareLesFichesManquantes` | passe |
+| REG-01 | REG-01-S2 | DC-1 | 1.1, 2.1 | `regintel/CollecteReglementaireTest.reg01S2SourceIndisponiblePuisRepriseDuJourManque`, `archiveEnErreurPermanenteEcarteeSansBloquerLesJoursSuivants`, `jourEnEchecRepeteAbandonnePuisRejoue`, `jourEnEchecHorsDeLaFenetreDeRepriseAbandonne` | passe |
 | REG-02 | REG-02-S1 | DC-1 | 2.2 | `regintel/QualificationEtDatesTest.reg02S1CodeSuiviModifieRattacheAuDomaineCarriere` ; `chain/VeilleReglementaireTest.reg02S1Reg02S2Reg04S1QualificationPuisFichesPrepareesParLIa` (aucun appel au modèle pour le domaine) | passe |
 | REG-02 | REG-02-S2 | DC-1 | 2.3 | `chain/VeilleReglementaireTest.reg02S1Reg02S2Reg04S1QualificationPuisFichesPrepareesParLIa` (origine `IA`, confiance 72, fiche en attente) | passe |
 | REG-03 | REG-03-S1 | DC-1 | 2.4 | `regintel/QualificationEtDatesTest.reg03S1DateExtraiteDistincteDeLaPublication` ; `CollecteReglementaireTest.reg01S1RejeuSansDoublon` | passe |
 | REG-03 | REG-03-S2 | DC-1 | 2.4 | `regintel/QualificationEtDatesTest.reg03S2DateAbsente` ; `VeilleReglementaireTest` (« date à confirmer ») | passe |
 | REG-04 | REG-04-S1 | DC-1 | 3.1 | `chain/VeilleReglementaireTest.reg02S1Reg02S2Reg04S1QualificationPuisFichesPrepareesParLIa` | passe |
 | REG-05 | REG-05-S1 | DC-1, DC-2 | 3.2 | `chain/VeilleReglementaireTest.reg05S1Reg05S2CorrectionValidationHistoriqueEtVisibilite` | passe |
-| REG-05 | REG-05-S2 | DC-1, DC-2 | 3.2 | `chain/VeilleReglementaireTest.reg05S1Reg05S2CorrectionValidationHistoriqueEtVisibilite`, `rlsSousArgosApp` ; `mcp/ReglementaireMcpTest` | passe |
+| REG-05 | REG-05-S2 | DC-1, DC-2 | 3.2 | `chain/VeilleReglementaireTest.reg05S1Reg05S2CorrectionValidationHistoriqueEtVisibilite`, `rlsSousArgosApp` (rattachement réservé aux experts de la fiche, fiche décidée figée, décision au compte courant), `correctionDesDomainesRetireAussiUnDomaineDontLExpertNEstPasExpert` ; `mcp/ReglementaireMcpTest` (dont `fichesEnAttenteNEvincentPasLesFichesValidees`) | passe |
 | REG-06 | REG-06-S1 | DC-2 | 3.3 | `regintel/QualificationEtDatesTest.reg06S1TransitionValide` ; `chain/VeilleReglementaireTest.reg06Reg08S1CycleDeVieEtDemandeDEvolution` | passe |
 | REG-06 | REG-06-S2 | DC-2 | 3.3 | `regintel/QualificationEtDatesTest.reg06S2TransitionInvalide` ; `chain/VeilleReglementaireTest.reg06Reg08S1CycleDeVieEtDemandeDEvolution` | passe |
-| REG-07 | REG-07-S1 | DC-1 | 3.4 | `chain/VeilleReglementaireTest.reg07S1RappelAvantEcheanceEtCalendrier` | passe |
+| REG-07 | REG-07-S1 | DC-1 | 3.4 | `chain/VeilleReglementaireTest.reg07S1RappelAvantEcheanceEtCalendrier` (dont rappel manqué rattrapé une fois) | passe |
 | REG-08 | REG-08-S1 | DC-2 | 3.4 | `chain/VeilleReglementaireTest.reg06Reg08S1CycleDeVieEtDemandeDEvolution` ; `scm/DemandesEvolutionTest` | passe |
 
 ### Parcours de bout en bout (tâche 5.2)
@@ -65,8 +65,10 @@
 
 | Commande | Résultat |
 |---|---|
-| `mvn -B -f argos-server/pom.xml verify` | BUILD SUCCESS : 444 tests, 0 échec, 0 erreur, 1 ignoré (ignoré avant ce changement) ; dont 29 tests propres au changement et `ModuleBoundariesTest` (22) |
+| `mvn -B -f argos-server/pom.xml verify` | BUILD SUCCESS : 451 tests, 0 échec, 0 erreur, 1 ignoré (ignoré avant ce changement) ; dont 36 tests propres au changement et `ModuleBoundariesTest` (22) |
 | `openspec validate --all --strict` | 13 éléments valides, 0 échec |
+| `npm --prefix argos-ui ci && npm --prefix argos-ui test && npm --prefix argos-ui run build` | 25 tests, 0 échec ; build réussi (IHM non modifiée) |
+| `npm --prefix argos-desktop ci && npm --prefix argos-desktop test` | 22 tests, 0 échec (desktop non modifié) |
 | `node scripts/verifier-docs.mjs` | « Résultat : aucune erreur » sur une copie des fichiers versionnés de la branche (56 blocs Mermaid) ; le dossier non versionné `docs/audit/2026-11-17/`, apparu dans le dépôt de travail pendant la session et étranger à ce changement, porte à lui seul 36 erreurs d'identifiants non définis |
 
 ### Décisions prises sans arbitrage ([PROPOSITION])
@@ -74,9 +76,11 @@
 - Expert métier : membre CONTRIBUTEUR ou ADMINISTRATEUR désigné par un administrateur pour un domaine (table `expert_domaine`) ; son statut cesse dès qu'il quitte l'espace ou devient lecteur.
 - Fiches validées lisibles de tous les membres de l'espace ; rappels adressés aux experts des domaines et aux membres dont le profil `expert-metier` est actif (« utilisateurs du domaine »).
 - Proposition IA d'un domaine limitée aux natures `LOI`, `ORDONNANCE`, `DECRET`, `ARRETE` et à 20 propositions par espace et par collecte (charge du modèle local).
-- Une fiche validée ou rejetée n'est plus corrigée ; la validation exige un résumé et au moins un domaine.
+- Une fiche validée ou rejetée n'est plus corrigée, ce que la base garantit aussi sous `argos_app` ; la validation exige un résumé et au moins un domaine.
 - Demande d'évolution associée seulement à un texte « impact produit » ou au-delà ; forge injoignable : lien enregistré, état non vérifié.
-- Première collecte limitée au jour courant ; reprise des jours manqués sur 31 jours au plus ; le jour courant est relu à chaque exécution.
+- Chaque collecte relit les trois derniers jours (première collecte comprise) et ne télécharge que les archives non lues ; reprise des jours manqués sur 31 jours au plus ; jour abandonné après cinq échecs consécutifs de ses archives (une source injoignable ne compte pas) ou hors de la fenêtre de reprise ; archive en erreur permanente écartée ; le rejeu d'un jour par l'administrateur plateforme prépare les fiches manquantes.
+- Rappel manqué le jour exact rattrapé dans les trois jours suivants, une seule fois ; lien du rappel vers le texte officiel tant que l'IHM n'a pas d'écran réglementaire.
+- Date de dernière mise à jour des données (Licence Ouverte) : date de l'archive DILA du texte, à défaut date de collecte.
 - Archives LEGI non lues : les liens « version consolidée » pointent vers Légifrance (`/loda/id/…`).
 
 ## Workflow follow-up

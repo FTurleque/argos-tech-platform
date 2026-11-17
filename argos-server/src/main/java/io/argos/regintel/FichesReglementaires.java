@@ -43,8 +43,9 @@ public interface FichesReglementaires {
     }
 
     /**
-     * Fiches visibles du compte dans les espaces donnés, et seulement ceux-là, éventuellement limitées à
-     * un domaine. Une fiche non validée n'est visible que des experts de ses domaines.
+     * Fiches validées visibles du compte dans les espaces donnés, et seulement ceux-là, éventuellement
+     * limitées à un domaine, des plus récentes aux plus anciennes publications. Aucune fiche en attente ou
+     * rejetée n'est renvoyée (PRF-06, MCP-07).
      */
     List<Fiche> fiches(UUID compte, Set<UUID> espaces, Optional<String> domaine);
 }
