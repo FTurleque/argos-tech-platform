@@ -19,10 +19,21 @@ public interface ResumeIa {
     boolean budgetDisponible();
 
     /**
-     * Résumé du signal. Un résultat vide vaut refus (état {@code REFUSE}) ; une exception vaut
+     * Résumé du signal. Un résultat vide vaut refus (état {@code REFUSE}) ; l'exception {@link
+     * PlafondAtteint} vaut plafond atteint (état {@code PLAFOND_ATTEINT}) ; toute autre exception vaut
      * indisponibilité (état {@code INDISPONIBLE}).
      */
     String resumer(UUID signalId, String titre);
+
+    /** Plafond ou quota atteint entre la vérification du budget et la demande : aucun appel effectué. */
+    final class PlafondAtteint extends RuntimeException {
+
+        private static final long serialVersionUID = 1L;
+
+        public PlafondAtteint(String message) {
+            super(message, null, false, false);
+        }
+    }
 
     /** Faux si le plafond de l'instance ou le quota de chacun des espaces concernés est atteint. */
     default boolean budgetDisponible(Set<UUID> espaces) {

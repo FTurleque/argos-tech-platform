@@ -1,9 +1,11 @@
 package io.argos.projectintel;
 
 /**
- * Point d'extension de la synthèse IA de l'activité d'un projet, fourni par {@code ai-gateway}
- * (ADR-0004, capacité {@code passerelle-ia}). Ce changement ne livre aucune implémentation : sans
- * implémentation, la synthèse a l'état {@code INDISPONIBLE} et les indicateurs restent affichés.
+ * Point d'extension de la synthèse IA de l'activité d'un projet (capacité {@code passerelle-ia}).
+ * Son implémentation prévue est un adaptateur situé dans {@code projectintel} qui appelle le seul
+ * contrat de la passerelle {@code ai-gateway}, comme {@code alerting.ResumeIaPasserelle} (décision D4) ;
+ * aucun n'est livré : sans implémentation, la synthèse a l'état {@code INDISPONIBLE} et les
+ * indicateurs restent affichés.
  *
  * <p>La demande est typée : elle ne contient que les indicateurs affichés à l'utilisateur
  * ({@link VueActivite}), jamais de donnée brute de la forge ni d'identité de personne. Les titres de
@@ -14,7 +16,7 @@ package io.argos.projectintel;
  */
 public interface SyntheseIa {
 
-    /** Faux si le plafond de coût est atteint : aucun appel n'est alors effectué (état {@code PLAFOND_ATTEINT}). */
+    /** Faux si le plafond d'appels ou le quota est atteint : aucun appel n'est alors effectué (état {@code PLAFOND_ATTEINT}). */
     boolean budgetDisponible();
 
     /**

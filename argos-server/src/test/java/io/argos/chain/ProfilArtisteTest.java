@@ -39,6 +39,7 @@ import io.argos.testsupport.StubServer.Stub;
 import io.argos.testsupport.TestDb;
 import io.argos.workspace.ContexteBase;
 import io.argos.workspace.ContexteBase.Contexte;
+import io.argos.workspace.suivi.SuivisProfil;
 import io.quarkus.test.common.QuarkusTestResource;
 import io.quarkus.test.junit.QuarkusTest;
 import io.restassured.http.ContentType;
@@ -59,6 +60,9 @@ class ProfilArtisteTest {
 
     @Inject
     ContexteBase base;
+
+    @Inject
+    SuivisProfil suivis;
 
     private LocalDate aujourdhui;
 
@@ -195,6 +199,34 @@ class ProfilArtisteTest {
             }
         });
         assertEquals(0L, modifies);
+    }
+
+    /** Deux remplacements simultanés des suivis d'un même compte s'appliquent l'un après l'autre, sans erreur. */
+    @Test
+    void deuxRemplacementsSimultanesDesSuivisNEchouentPas() throws Exception {
+        activer("hugo", "developpeur", "artiste");
+        suivre("hugo", List.of("arts-visuels"), List.of("occitanie"));
+        UUID hugo = Api.compte("hugo");
+        java.util.concurrent.ExecutorService pool = java.util.concurrent.Executors.newFixedThreadPool(8);
+        try {
+            java.util.concurrent.CountDownLatch depart = new java.util.concurrent.CountDownLatch(1);
+            List<java.util.concurrent.Future<SuivisProfil.Suivis>> resultats = new java.util.ArrayList<>();
+            for (int i = 0; i < 8; i++) {
+                String discipline = i % 2 == 0 ? "musique" : "arts-visuels";
+                resultats.add(pool.submit(() -> {
+                    depart.await();
+                    return suivis.remplacer(hugo, "artiste",
+                            Map.of("discipline", List.of(discipline), "territoire", List.of("france")));
+                }));
+            }
+            depart.countDown();
+            for (java.util.concurrent.Future<SuivisProfil.Suivis> r : resultats) {
+                assertEquals(List.of("france"), r.get(30, java.util.concurrent.TimeUnit.SECONDS).valeurs("territoire"));
+            }
+        } finally {
+            pool.shutdownNow();
+        }
+        assertEquals(1, suivis.lire(hugo, "artiste").valeurs("discipline").size());
     }
 
     // ------------------------------------------------------------------ ART-03

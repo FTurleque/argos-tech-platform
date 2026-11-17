@@ -265,6 +265,12 @@ public class MoteurAlertes {
             demande.cancel(true);
             Thread.currentThread().interrupt();
             return new String[] {null, "INDISPONIBLE"};
+        } catch (java.util.concurrent.ExecutionException ex) {
+            if (ex.getCause() instanceof ResumeIa.PlafondAtteint) {
+                return new String[] {null, "PLAFOND_ATTEINT"};
+            }
+            LOG.infof("résumé IA indisponible pour le signal %s : %s", e.signalId(), ex.getCause());
+            return new String[] {null, "INDISPONIBLE"};
         } catch (Exception ex) {
             demande.cancel(true);
             LOG.infof("résumé IA indisponible pour le signal %s : %s", e.signalId(), ex.toString());

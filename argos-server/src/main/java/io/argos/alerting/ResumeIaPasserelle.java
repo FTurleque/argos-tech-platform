@@ -62,6 +62,7 @@ public class ResumeIaPasserelle implements ResumeIa {
         return switch (r.issue()) {
             case PRODUIT -> r.champ("resume");
             case INDISPONIBLE, DESACTIVEE -> throw new IllegalStateException("passerelle IA : " + r.issue());
+            case PLAFOND_INSTANCE, QUOTA_ESPACE, QUOTA_COMPTE -> throw new PlafondAtteint("passerelle IA : " + r.issue());
             default -> "";
         };
     }

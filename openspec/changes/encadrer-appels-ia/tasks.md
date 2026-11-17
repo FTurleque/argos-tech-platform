@@ -29,12 +29,14 @@
 
 | Exigence | Scénario | Conception / diagramme | Tâche | Test ou preuve | État de la preuve |
 |---|---|---|---|---|---|
-| IAG-01 | IAG-01-S1 | DC-1 | 2.1, 4.2 | `PasserelleIaTest.iag01S1ResumeDAlerteTraceAvecModelePromptJetonsCoutEtEmpreinte` ; `ParcoursIaTest.iag01S1EtIag05S1AlerteAvecResumeIaTraceMentionEtSources` | passe |
+| IAG-01 | IAG-01-S1 | DC-1 | 2.1, 4.2 | `PasserelleIaTest.iag01S1ResumeDAlerteTraceAvecModelePromptJetonsCoutEtEmpreinte`, `empreinteCalculeeApresFiltrageSansDonneePersonnelleBrute` ; `ParcoursIaTest.iag01S1EtIag05S1AlerteAvecResumeIaTraceMentionEtSources` | passe |
 | IAG-02 | IAG-02-S1 | DC-1 | 1.1, 2.2, 4.2 | `PasserelleIaTest.iag02S1DonneeConfidentielleRefuseeSansEnvoiEtJournalisee` ; `ParcoursIaTest.iag02S1DonneeConfidentielleRefuseeEtJournalisee` ; `FiltreDonneesTest` | passe |
 | IAG-02 | IAG-02-S2 | DC-1 | 1.1, 2.2 | `PasserelleIaTest.iag02S2DonneesPubliquesTransmises` | passe |
-| IAG-03 | IAG-03-S1 | DC-1 | 1.1, 2.3, 4.2 | `PasserelleIaTest.iag03S1QuotaDEspaceEpuiseRefuseSansAppel`, `plafondDeLInstanceAtteintRefuseToutAppel` ; `ParcoursIaTest.iag03S1QuotaDEspaceEpuiseAlerteDiffuseeSansResume` | passe |
+| IAG-03 | IAG-03-S1 | DC-1 | 1.1, 2.3, 4.2 | `PasserelleIaTest.iag03S1QuotaDEspaceEpuiseRefuseSansAppel`, `plafondDeLInstanceAtteintRefuseToutAppel`, `quotaDuCompteDemandeurEpuiseRefuseSansAppel`, `reservationRendueQuandLeFournisseurNEstPasJoint` ; `ParcoursIaTest.iag03S1QuotaDEspaceEpuiseAlerteDiffuseeSansResume`, `resumeIaDUneActualiteSansIaOuAuDelaDuQuotaDuCompte` | passe |
 | IAG-04 | IAG-04-S1 | DC-1 | 2.4 | `PasserelleIaTest.iag04S1FicheSansDateDEffetRejeteeEtJournalisee`, `qs15SortiesNonConformesRejetees` | passe |
 | IAG-05 | IAG-05-S1 | DC-1 | 2.5 | `ParcoursIaTest.iag01S1EtIag05S1AlerteAvecResumeIaTraceMentionEtSources`, `iag05S1ResumeIaDUneActualiteWebAvecMentionEtSources` ; `argos-ui/tests/resume-ia.test.mjs` | passe (API et IHM unitaire ; MCP sans objet) |
+
+Intégration du lot 4 (branche `lot4/integration`) : IA désactivée par défaut (`argos.ia.active=false`, `ARGOS_IA_ACTIVE`), réservation rendue quand Ollama n'est pas joint, quota journalier par compte pour les résumés d'actualité (issue `QUOTA_COMPTE`, migration V13) et résumé d'actualité gardé en mémoire (`ParcoursIaTest.iag05S1ResumeIaDUneActualiteWebAvecMentionEtSources`), empreinte calculée après filtrage, mention de l'e-mail tirée de `mentionResumeIa` (`AlertesTest`, `ParcoursIaTest`), plafond atteint entre la vérification et la demande restitué `PLAFOND_ATTEINT`.
 
 Contrôles transverses : `PasserelleIaTest.roleApplicatifSansAucunDroitSurLesTablesDeLaPasserelle` (tables de la passerelle inaccessibles sous `argos_app`) ; `ModuleBoundariesTest` (règle `seuleLaPasserelleConnaitLeFournisseur`) passe.
 

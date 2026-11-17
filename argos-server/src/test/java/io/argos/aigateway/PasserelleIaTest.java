@@ -58,6 +58,9 @@ class PasserelleIaTest {
     RegistrePrompts registre;
 
     @Inject
+    QuotasIa quotas;
+
+    @Inject
     ResumeIaPasserelle resumeAlerte;
 
     @Inject
@@ -267,6 +270,54 @@ class PasserelleIaTest {
         assertEquals(3, appels("issue = 'INDISPONIBLE'"));
         assertThrows(IllegalStateException.class, () -> resumeAlerte.resumer(UUID.randomUUID(), "Avis"),
                 "le point d'extension des alertes signale l'indisponibilité");
+    }
+
+    @Test
+    void reservationRendueQuandLeFournisseurNEstPasJoint() {
+        assertTrue(PasserelleIa.nonTransmis(new java.net.ConnectException("refus")));
+        assertTrue(PasserelleIa.nonTransmis(new java.io.IOException(new java.nio.channels.UnresolvedAddressException())));
+        assertTrue(PasserelleIa.nonTransmis(new java.net.http.HttpConnectTimeoutException("délai de connexion")));
+        assertFalse(PasserelleIa.nonTransmis(new java.io.IOException("Ollama a répondu 500")));
+        assertFalse(PasserelleIa.nonTransmis(new java.net.http.HttpTimeoutException("réponse trop lente")));
+
+        UUID espace = UUID.randomUUID();
+        UUID compte = UUID.randomUUID();
+        quota("INSTANCE", 5);
+        quota(espace.toString(), 3);
+        quota(QuotasIa.porteeCompte(compte), 2);
+        quotas.liberer(espace, compte);
+        assertEquals(4, db.count("SELECT appels FROM ia_quota_jour WHERE portee = 'INSTANCE'"));
+        assertEquals(2, db.count("SELECT appels FROM ia_quota_jour WHERE portee = '" + espace + "'"));
+        assertEquals(1, db.count("SELECT appels FROM ia_quota_jour WHERE portee = '" + QuotasIa.porteeCompte(compte) + "'"));
+    }
+
+    @Test
+    void quotaDuCompteDemandeurEpuiseRefuseSansAppel() {
+        StubServer.on(CHAT, ollama("{\"resume\": \"Résumé.\"}"));
+        UUID compte = UUID.randomUUID();
+        quota(QuotasIa.porteeCompte(compte), 20);
+
+        ReponseIa r = passerelle.demander(new DemandeIa(RegistrePrompts.RESUME_ACTUALITE, null,
+                List.of(EntreeIa.publique("titre", "Avis")), List.of(), compte));
+
+        assertEquals(ReponseIa.Issue.QUOTA_COMPTE, r.issue());
+        assertTrue(r.plafondAtteint());
+        assertTrue(StubServer.received(CHAT).isEmpty());
+        assertEquals(1, appels("issue = 'QUOTA_COMPTE'"));
+        assertEquals(0, db.count("SELECT coalesce(sum(appels), 0) FROM ia_quota_jour WHERE portee = 'INSTANCE'"),
+                "la réservation de l'instance est annulée avec celle du compte");
+        assertTrue(passerelle.demander(new DemandeIa(RegistrePrompts.RESUME_ACTUALITE, null,
+                List.of(EntreeIa.publique("titre", "Avis")), List.of(), UUID.randomUUID())).produit(),
+                "un autre compte reste servi");
+    }
+
+    @Test
+    void empreinteCalculeeApresFiltrageSansDonneePersonnelleBrute() {
+        StubServer.on(CHAT, ollama("{\"resume\": \"Résumé.\"}"));
+        passerelle.demander(resume(null, EntreeIa.publique("texte", "Contact : alice@exemple.test")));
+        passerelle.demander(resume(null, EntreeIa.publique("texte", "Contact : bob@autre.test")));
+        assertEquals(1, db.count("SELECT count(DISTINCT empreinte_entrees) FROM ia_appel WHERE issue = 'PRODUIT'"),
+                "deux adresses différentes, masquées, donnent la même empreinte");
     }
 
     // ------------------------------------------------------------------ 2.4 IAG-04, QS-15

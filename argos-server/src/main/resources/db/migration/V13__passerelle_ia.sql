@@ -27,7 +27,7 @@ CREATE TABLE ia_appel (
     modele             varchar(200)  NOT NULL,
     espace_id          uuid,
     issue              varchar(32)   NOT NULL CHECK (issue IN ('PRODUIT', 'REFUS_CLASSE', 'REFUS_DONNEE_SENSIBLE',
-                                                               'PLAFOND_INSTANCE', 'QUOTA_ESPACE', 'SORTIE_INVALIDE',
+                                                               'PLAFOND_INSTANCE', 'QUOTA_ESPACE', 'QUOTA_COMPTE', 'SORTIE_INVALIDE',
                                                                'INDISPONIBLE')),
     jetons_entree      integer       NOT NULL DEFAULT 0 CHECK (jetons_entree >= 0),
     jetons_sortie      integer       NOT NULL DEFAULT 0 CHECK (jetons_sortie >= 0),
@@ -39,8 +39,10 @@ CREATE TABLE ia_appel (
 CREATE INDEX ia_appel_horodatage_idx ON ia_appel (horodatage);
 CREATE INDEX ia_appel_espace_idx ON ia_appel (espace_id, horodatage);
 
--- Compteurs journaliers d'appels transmis au fournisseur : portée INSTANCE ou identifiant d'espace.
--- La réservation d'un appel incrémente atomiquement le compteur tant qu'il est sous la limite.
+-- Compteurs journaliers d'appels transmis au fournisseur : portée INSTANCE, identifiant d'espace, ou
+-- « C » suivi des 32 chiffres hexadécimaux d'un compte pour ses demandes explicites.
+-- La réservation d'un appel incrémente atomiquement le compteur tant qu'il est sous la limite ; elle est
+-- rendue quand le fournisseur n'a pas pu être joint.
 CREATE TABLE ia_quota_jour (
     jour    date        NOT NULL,
     portee  varchar(36) NOT NULL,

@@ -46,9 +46,9 @@ services:
       ARGOS_OIDC_URL: ${ARGOS_OIDC_URL:-}
       ARGOS_OIDC_CLIENT_ID: ${ARGOS_OIDC_CLIENT_ID:-argos-server}
       ARGOS_ADMIN_EMAIL: ${ARGOS_ADMIN_EMAIL:-}
-      # Passerelle IA (encadrer-appels-ia) : facultative. Sans le service ollama (profil « ia »),
-      # chaque demande est refusée comme indisponible et Argos fonctionne en mode déterministe.
-      ARGOS_IA_ACTIVE: ${ARGOS_IA_ACTIVE:-true}
+      # Passerelle IA (encadrer-appels-ia) : facultative et désactivée par défaut. Avec le profil « ia »,
+      # ARGOS_IA_ACTIVE=true l'active ; sans IA, Argos fonctionne en mode déterministe.
+      ARGOS_IA_ACTIVE: ${ARGOS_IA_ACTIVE:-false}
       ARGOS_OLLAMA_URL: ${ARGOS_OLLAMA_URL:-http://ollama:11434}
       ARGOS_IA_MODELE: ${ARGOS_IA_MODELE:-qwen2.5:1.5b}
       TZ: ${TZ:-Europe/Paris}

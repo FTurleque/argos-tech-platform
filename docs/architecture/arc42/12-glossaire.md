@@ -46,7 +46,7 @@
 | **LLM** | Large Language Model |
 | **AI Gateway** | composant ARGOS encapsulant appels LLM, prompts, politiques, quotas, validation et audit |
 | **Ollama** | serveur de modèles d'IA local (licence MIT) appelé par la passerelle IA (ADR-0029, proposé) ; service facultatif du profil `ia` de `compose.yaml` |
-| **Quota IA** | nombre maximal d'appels transmis au modèle par jour : 1 000 pour l'instance, 100 par espace, paramétrables (IAG-03) |
+| **Quota IA** | nombre maximal d'appels transmis au modèle par jour : 1 000 pour l'instance, 100 par espace, 20 par compte pour ses demandes explicites, paramétrables (IAG-03) ; un appel qui n'a pas pu joindre le modèle est rendu |
 | **Structured output** | réponse LLM contrainte/validée selon une structure attendue, idéalement un schéma |
 | **RAG** | Retrieval-Augmented Generation ; enrichissement d’un appel LLM par des données retrouvées à la demande |
 | **Embedding** | représentation vectorielle utilisée pour similarité/recherche sémantique |

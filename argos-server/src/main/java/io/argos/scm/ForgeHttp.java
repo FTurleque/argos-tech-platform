@@ -18,6 +18,14 @@ import java.util.Optional;
  */
 final class ForgeHttp {
 
+    /**
+     * Vrai pour un dépôt GitHub de la forme {@code owner/repo} dont aucun segment n'est fait que de
+     * points : {@code ../..} ne peut pas faire sortir l'appel de {@code /repos/owner/repo}.
+     */
+    static boolean depotGithubValide(String depot) {
+        return depot != null && depot.matches("(?!\\.+/)[\\w.-]+/(?!\\.+$)[\\w.-]+");
+    }
+
     /** Réponse lue : statut, corps (au plus la taille maximale) et en-têtes. */
     record Reponse(int status, byte[] corps, HttpHeaders entetes) {
     }

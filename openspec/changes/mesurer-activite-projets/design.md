@@ -37,7 +37,7 @@ Le module `scm` lit les SBOM et les manifestes de GitHub et GitLab (`RepositoryF
 | `scm-connector` (`io.argos.scm`) | lire les API GitHub et GitLab en lecture seule (`RepositoryActivity`), client HTTP commun avec `RepositoryFiles` (`ForgeHttp`), quotas (`QuotaEpuise`) | écrire dans un dépôt ; laisser sortir un objet propre à une forge ou une identité | modifié |
 | `inventory` | lister les projets reliés à un dépôt (`ProjectDirectory.withRepository`) | — | modifié |
 | `API & Security` (`io.argos.api.ActiviteResource`) | exposer l'activité et la synthèse aux membres de l'espace ; limiter le débit des synthèses | contenir une règle de calcul | modifié |
-| `ai-gateway` | implémenter `SyntheseIa` | calculer un indicateur | existant (proposé), aucune implémentation livrée |
+| `ai-gateway` | produire la synthèse par la passerelle, appelée par un adaptateur de `SyntheseIa` situé dans `project-intel` | calculer un indicateur | existant ; aucun adaptateur de `SyntheseIa` livré |
 
 ## Modèle de domaine et invariants
 
@@ -130,10 +130,10 @@ Aucune donnée ni aucun contrat existants. Retour arrière : suppression des tro
 ### D4 — Synthèse par point d'extension et contrôle des nombres
 
 - **Statut** : [PROPOSITION]
-- **Choix** : `project-intel` déclare `SyntheseIa`, implémenté par `ai-gateway` (même schéma que `alerting.ResumeIa`) ; toute synthèse dont un nombre ne figure pas parmi les indicateurs affichés est refusée
-- **Justification** : l'IA ne calcule aucun indicateur (PIN-02) ; aucun appel direct à un fournisseur hors de la passerelle (ADR-0004)
-- **Alternatives écartées** : dépendance de `projectintel` vers `aigateway` — interdite par `ModuleBoundariesTest`, et la passerelle n'est pas implémentée
-- **Compromis** : une synthèse qui reformule un nombre (« une dizaine ») est acceptée si elle ne contient pas de chiffre ; une synthèse qui cite une date hors des indicateurs est refusée
+- **Choix** : `project-intel` déclare `SyntheseIa` ; son implémentation est un adaptateur placé dans `project-intel` qui appelle le seul contrat de la passerelle (`PasserelleIa`), sur le schéma de `alerting.ResumeIaPasserelle`, avec la dépendance `projectintel` → `aigateway` à déclarer dans `ModuleBoundariesTest` (`aigateway` ne dépend que de `audit` et ne peut pas implémenter un contrat de `projectintel`). Ce changement ne livre pas l'adaptateur [PROPOSITION]. Toute synthèse dont un chiffre ne figure pas parmi les indicateurs affichés est refusée
+- **Justification** : l'IA ne calcule aucun indicateur (PIN-02) ; aucun appel direct à un fournisseur hors de la passerelle (ADR-0004, ADR-0029 proposé)
+- **Alternatives écartées** : implémentation de `SyntheseIa` dans `ai-gateway` — contraire à la règle ArchUnit qui limite `aigateway` à `audit`
+- **Compromis** : le contrôle porte sur les chiffres et reste une heuristique. Une synthèse qui reformule un nombre en lettres (« une dizaine ») est acceptée ; les chiffres des titres de jalons, texte externe fixé par la forge, et les composantes des dates de la période sont admis, ce qui élargit les chiffres acceptés ; une synthèse qui cite une date hors des indicateurs est refusée
 - **ADR** : non
 
 ### D5 — RLS par le contexte commun
@@ -153,7 +153,8 @@ Aucune donnée ni aucun contrat existants. Retour arrière : suppression des tro
 
 ## Écarts code / tests / specs / documentation
 
-- PIN-04 : aucune implémentation réelle de `SyntheseIa` tant que `encadrer-appels-ia` n'est pas implémenté ; la synthèse vaut alors `INDISPONIBLE`.
+- PIN-04 : aucun adaptateur de `SyntheseIa` vers la passerelle n'est livré ; la synthèse vaut `INDISPONIBLE` hors des tests, qui emploient une synthèse simulée.
+- La synthèse s'exécute sur un exécuteur commun à l'instance (1 fil, 2 au plus, file de 8) : avec un modèle local lent, la plupart des demandes simultanées valent `INDISPONIBLE` ; une demande abandonnée au bout du délai n'interrompt pas un appel HTTP bloquant.
 - arc42 §6.2 décrivait une réception de webhooks ; la collecte implémentée est planifiée (D2) : §6.2 décrit désormais la collecte planifiée.
 
 ## Stratégie de vérification

@@ -101,6 +101,7 @@ flowchart TB
     INVENTORY --> PROJ
     API --> PROJ
     PROJ --> DB
+    PROJ -.->|SyntheseIa, adaptateur non livré| AI
     WORK --> ALERT
     WORK --> MCP
     WORK --> DB

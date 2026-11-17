@@ -28,7 +28,10 @@ import io.argos.workspace.ContexteBase.Contexte;
  *
  * <p>Les lectures et écritures d'un compte s'exécutent sous le rôle {@code argos_app} avec ce compte
  * comme compte courant ({@link ContexteBase}) : la RLS n'expose que ses propres suivis. Chaque écriture
- * remplace l'ensemble précédent pour le profil : l'opération est idempotente.
+ * remplace l'ensemble précédent pour le profil : l'opération est idempotente. Les remplacements d'un
+ * même compte et d'un même profil sont sérialisés par un verrou transactionnel
+ * ({@code pg_advisory_xact_lock}) : deux requêtes simultanées s'appliquent l'une après l'autre, la
+ * dernière l'emporte.
  *
  * <p>{@link #suiveurs} est une lecture technique, hors rôle applicatif, réservée aux traitements
  * planifiés (rappels) : elle sert seulement à savoir pour qui évaluer les rappels, comme
@@ -75,6 +78,7 @@ public class SuivisProfil {
     public Suivis remplacer(UUID compte, String profil, Map<String, List<String>> objets) {
         Objects.requireNonNull(compte);
         return base.executer(new Contexte(compte, null, null), c -> {
+            verrouiller(c, compte, profil);
             try (PreparedStatement ps = c.prepareStatement(
                     "DELETE FROM suivi_profil WHERE compte_id = argos_compte_courant() AND profil = ?")) {
                 ps.setString(1, profil);
@@ -149,6 +153,14 @@ public class SuivisProfil {
             throw new IllegalStateException("lecture des suiveurs du profil " + profil + " impossible", e);
         }
         return resultat;
+    }
+
+    /** Verrou transactionnel sur le couple compte et profil, libéré à la fin de la transaction. */
+    private static void verrouiller(Connection c, UUID compte, String profil) throws SQLException {
+        try (PreparedStatement ps = c.prepareStatement("SELECT pg_advisory_xact_lock(hashtextextended(?, 0))")) {
+            ps.setString(1, "suivi_profil:" + compte + ":" + profil);
+            ps.executeQuery().close();
+        }
     }
 
     private static Suivis lire(Connection c, UUID compte, String profil) throws SQLException {

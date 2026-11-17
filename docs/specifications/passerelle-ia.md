@@ -36,7 +36,7 @@ Exclus :
 
 ## Préconditions et déclencheurs
 
-[EXISTANT] Aucune clé d'API. L'IA est active par défaut (`argos.ia.active`) et appelle `argos.ia.ollama.url` (variable `ARGOS_OLLAMA_URL`, défaut `http://localhost:11434` ; `http://ollama:11434` dans `compose.yaml`). Sans Ollama joignable, chaque demande est refusée comme indisponible et Argos fonctionne en mode déterministe. Déclencheurs : création d'une alerte immédiate, `POST /api/v1/veille-web/actualites/{id}/resume-ia`, corrélation d'un signal (si `argos.ia.analyse-correlation.active=true`).
+[EXISTANT] Aucune clé d'API. L'IA est désactivée par défaut (`argos.ia.active=false`, variable `ARGOS_IA_ACTIVE`), comme le service `ollama` de `compose.yaml` (profil `ia`) ; activée, elle appelle `argos.ia.ollama.url` (variable `ARGOS_OLLAMA_URL`, défaut `http://localhost:11434` ; `http://ollama:11434` dans `compose.yaml`). Désactivée, aucune demande n'est tracée ni comptée. Activée sans Ollama joignable, chaque demande est refusée comme indisponible et tracée, sa réservation de quota est rendue, et Argos fonctionne en mode déterministe. Déclencheurs : création d'une alerte immédiate, `POST /api/v1/veille-web/actualites/{id}/resume-ia`, corrélation d'un signal (si `argos.ia.analyse-correlation.active=true`).
 
 ## Entrées, sorties et validations
 
@@ -46,13 +46,13 @@ Exclus :
 | Message au modèle | consignes système du prompt versionné ; entrées entre balises `<donnees>` dans le message utilisateur, chevrons neutralisés | le contenu externe ne peut ni fermer sa balise ni rejoindre les consignes (R-11) | [EXISTANT] |
 | Réponse (`ReponseIa`) | issue, champs validés, mention « produit par l'IA », sources, modèle, version du prompt | objet JSON conforme au schéma de la tâche, champs hors schéma ignorés (IAG-04) | [EXISTANT] |
 | Résumé d'actualité (API) | `etat`, `methode` (`IA_V1` ou `EXTRAIT_V1`), `texte`, `mention`, `sources` | sans résultat IA : extrait déterministe, sans mention | [EXISTANT] |
-| Contenu d'alerte (API, e-mail, IHM) | `resumeIa`, `etatResumeIa`, `mentionResumeIa` et les sources des éléments | mention présente dès qu'un résumé l'est (IAG-05) | [EXISTANT] |
+| Contenu d'alerte (API, e-mail, IHM) | `resumeIa`, `etatResumeIa`, `mentionResumeIa` et les sources des éléments ; l'e-mail écrit « Résumé (produit par l'IA, à vérifier sur les sources) » à partir de `mentionResumeIa` | mention présente dès qu'un résumé l'est (IAG-05) | [EXISTANT] |
 
 ## Règles métier
 
 | Règle | Exigence(s) | Source | Statut |
 |---|---|---|---|
-| Appel tracé par la passerelle : modèle, version du prompt, jetons, coût (0 €), empreinte SHA-256 des entrées, issue ; aucune copie des données | IAG-01 | ADR-0004 (Proposé) ; décision D2 | [EXISTANT] — `PasserelleIaTest` |
+| Appel tracé par la passerelle : modèle, version du prompt, jetons, coût (0 €), empreinte SHA-256 des entrées après filtrage (données personnelles masquées), issue ; aucune copie des données | IAG-01 | ADR-0004 (Proposé) ; décision D2 | [EXISTANT] — `PasserelleIaTest` |
 | Seules PUBLIC et INTERNAL sortent ; jamais de secrets, de jetons ni de données personnelles | IAG-02 | Q-4, répondue le 2026-11-16 | [EXISTANT] — `PasserelleIaTest`, `FiltreDonneesTest` |
 | Plafond de 1 000 appels par jour pour l'instance et de 100 par jour et par espace, paramétrables ; au-delà, aucun appel et traitement poursuivi sans IA | IAG-03 | Q-1, Q-2, répondues le 2026-11-16 | [EXISTANT] — `PasserelleIaTest`, `ParcoursIaTest` |
 | Modèle `qwen2.5:1.5b` par défaut, remplaçable par tâche (`argos.ia.modeles.<tâche>`) | IAG-01 | Q-3, répondue le 2026-11-16 | [EXISTANT] — `PasserelleIaTest` |
@@ -62,7 +62,7 @@ Exclus :
 
 ## Droits d'accès et restrictions
 
-[EXISTANT] Seuls les modules d'Argos appellent la passerelle, par son contrat (`PasserelleIa`, `DemandeIa`, `ReponseIa`) ; l'adaptateur Ollama et les quotas restent internes (règle ArchUnit `seuleLaPasserelleConnaitLeFournisseur`). Le résumé d'une actualité n'est produit que pour une actualité visible de l'appelant sous le rôle `argos_app` (404 et refus journalisé sinon) et partage la limite de débit de la veille web. Les tables `ia_appel`, `ia_quota_jour` et `ia_prompt` ne sont accessibles qu'à l'utilisateur de connexion : `argos_app` n'y a aucun droit (vérifié par `PasserelleIaTest`).
+[EXISTANT] Seuls les modules d'Argos appellent la passerelle, par son contrat (`PasserelleIa`, `DemandeIa`, `ReponseIa`) ; l'adaptateur Ollama et les quotas restent internes (règle ArchUnit `seuleLaPasserelleConnaitLeFournisseur`). Le résumé d'une actualité n'est produit que pour une actualité visible de l'appelant sous le rôle `argos_app` (404 et refus journalisé sinon), partage la limite de débit de la veille web et est imputé au quota journalier du compte demandeur (`argos.ia.quota-compte-jour`, 20 par défaut) ; un résumé produit est gardé en mémoire (500 au plus, 24 h) pour la même actualité, le même contenu, la même version de prompt et le même modèle, et sert sans nouvel appel tout compte qui voit l'actualité. Les tables `ia_appel`, `ia_quota_jour` et `ia_prompt` ne sont accessibles qu'à l'utilisateur de connexion : `argos_app` n'y a aucun droit (vérifié par `PasserelleIaTest`).
 
 ## Effets de bord observables
 
@@ -109,8 +109,14 @@ Scénarios IAG-01-S1 à IAG-05-S1 du changement ; QS-08, QS-09, QS-15. Preuves :
 - [PROPOSITION] Les secrets font refuser toute la demande ; les données personnelles (adresses électroniques, numéros de téléphone, IBAN) sont masquées, leur nombre seul étant tracé.
 - [PROPOSITION] L'analyse complémentaire de la corrélation, qui transmet des noms de projets (INTERNAL), est désactivée par défaut ; elle ne mêle jamais deux espaces dans un appel.
 - [PROPOSITION] Aucun nouvel essai automatique après une panne du modèle : l'élément reste sans résumé.
+- [PROPOSITION] L'IA est désactivée par défaut, comme le service `ollama` ; une réservation est rendue quand le fournisseur n'a pas pu être joint (connexion refusée ou impossible, adresse introuvable), pas quand il a répondu en erreur ou trop tard.
+- [PROPOSITION] Une demande explicite d'un utilisateur (résumé d'une actualité) est aussi imputée à un quota journalier par compte (20 par défaut, issue `QUOTA_COMPTE`), et un résumé d'actualité produit est gardé en mémoire : un compte ne peut pas épuiser seul le plafond de l'instance.
+- [PROPOSITION] L'empreinte des entrées est calculée après filtrage : deux entrées qui ne diffèrent que par une donnée personnelle masquée ont la même empreinte.
 
 ## Écarts constatés
 
 - Le mode dégradé, la mention et les sources sont vérifiés par l'API REST et des tests unitaires de l'IHM ; aucun test de navigateur ni de modèle réel n'est exécuté.
 - Aucun outil MCP ne restitue de contenu produit par l'IA : la mention via MCP (IAG-05-S1) est sans objet tant qu'aucun outil n'en renvoie.
+- Les suggestions de l'analyse complémentaire de la corrélation ne sont restituées ni par l'API ni par l'IHM, et ne portent pas la mention IAG-05 : activée, l'analyse consomme les quotas des espaces sans résultat visible. Ses appels se font à la suite, un par espace, dans le fil de la corrélation, chacun borné par `argos.ia.delai`.
+- L'alerte attend son résumé au plus `argos.alerting.resume-ia.delai-max` (10 s), alors qu'un appel à Ollama peut durer `argos.ia.delai` (60 s) et que le service traite une requête à la fois : sur un NAS, un résumé tardif est abandonné (état `INDISPONIBLE`) alors que l'appel, qui se poursuit, est compté et peut être tracé `PRODUIT`. La mesure sur le DS1522+ prévue par ADR-0029 fixera ces délais.
+- Les motifs de secrets (`token|secret|jeton` suivis de `:` ou `=`), de téléphone et d'IBAN peuvent refuser ou masquer un contenu public légitime ; le traitement continue alors sans IA.

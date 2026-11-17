@@ -38,7 +38,7 @@
 
 Parcours E2E (tâche 4.2) consigné le 2026-11-17 par `ParcoursActiviteTest` : projet relié au dépôt GitHub de test `demo/argos`, collecte planifiée (bilan 1 collecté, 0 reporté, 0 échec), `GET /activite?jours=30` avec un jeton Keycloak réel → période du 2026-10-19 au 2026-11-17, 3 tickets ouverts, 2 fermés, 1 fusion fusionnée, 1 pipeline réussi, 1 version, jalon « v1.0 » `27 sur 30 (90 %)`, fraîcheur `A_JOUR` ; `GET /activite/synthese` → `DISPONIBLE`, mention « produite par l'IA », renvoi aux indicateurs ; aucune identité de personne dans les réponses.
 
-Limite : PIN-04 est prouvé avec une synthèse simulée ; aucune implémentation réelle de `SyntheseIa` n'existe tant que la passerelle IA (`encadrer-appels-ia`, modèle local Ollama) n'est pas implémentée.
+Limite : PIN-04 est prouvé avec une synthèse simulée ; aucun adaptateur de `SyntheseIa` vers la passerelle IA (`encadrer-appels-ia`, modèle local Ollama) n'est livré (décision D4). La limite de débit des synthèses n'est pas couverte par un test.
 
 ## Workflow follow-up
 

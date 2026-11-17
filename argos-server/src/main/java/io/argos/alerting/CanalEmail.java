@@ -57,7 +57,8 @@ public class CanalEmail implements CanalDiffusion {
         boolean radar = "RAPPEL".equals(m.nature()) || "ANNONCE".equals(m.nature());
         if ("IMMEDIATE".equals(m.nature())) {
             if (c.resumeIa() != null) {
-                b.append("Résumé (produit par IA, à vérifier sur les sources) :\n").append(c.resumeIa()).append("\n\n");
+                b.append("Résumé (").append(c.mentionResumeIa()).append(", à vérifier sur les sources) :\n")
+                        .append(c.resumeIa()).append("\n\n");
             } else {
                 b.append("Résumé IA non disponible.\n\n");
             }

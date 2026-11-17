@@ -96,7 +96,7 @@ public class RepositoryFiles {
     }
 
     private static String githubRepository(RepositoryRef ref) {
-        if (ref.repository() == null || !ref.repository().matches("[\\w.-]+/[\\w.-]+")) {
+        if (!ForgeHttp.depotGithubValide(ref.repository())) {
             throw new ScmException("dépôt GitHub invalide : attendu owner/repo", null);
         }
         return ref.repository();

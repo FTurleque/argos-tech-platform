@@ -26,14 +26,16 @@ import io.argos.audit.JournalAppelsIa;
  *
  * <p>Pour chaque demande, dans cet ordre : refus de toute entrée CONFIDENTIAL ou RESTRICTED (IAG-02),
  * refus des secrets et masquage des données personnelles (Q-4), réservation sur le plafond de
- * l'instance et le quota de l'espace (IAG-03), appel du modèle de la tâche avec son prompt versionné,
+ * l'instance et les quotas de l'espace et du compte demandeur (IAG-03), rendue si le fournisseur n'a
+ * pas pu être joint, appel du modèle de la tâche avec son prompt versionné,
  * validation de la sortie par le schéma de la tâche (IAG-04), puis réponse marquée « produit par l'IA »
  * avec ses sources (IAG-05). Chaque appel et chaque refus est tracé dans {@code ia_appel} par le
  * module {@code audit}, sans copie des entrées ni de la sortie (décision D2).
  *
  * <p>La passerelle ne lève jamais d'exception vers l'appelant pour un refus ou une panne du
- * fournisseur : elle répond par un motif, et l'appelant poursuit sans IA. Sans Ollama joignable, tout
- * Argos fonctionne en mode déterministe.
+ * fournisseur : elle répond par un motif, et l'appelant poursuit sans IA. L'IA est désactivée par
+ * défaut ({@code argos.ia.active=false}) ; sans Ollama joignable, Argos fonctionne en mode
+ * déterministe et la réservation de chaque demande est rendue.
  */
 @ApplicationScoped
 public class PasserelleIa {
@@ -92,8 +94,7 @@ public class PasserelleIa {
             return ReponseIa.refus(Issue.DESACTIVEE, modele, prompt.version());
         }
         long debut = System.nanoTime();
-        String empreinte = empreinte(prompt, demande);
-        Trace trace = new Trace(prompt, modele, demande.espaceId(), empreinte, debut);
+        Trace trace = new Trace(prompt, modele, demande.espaceId(), debut);
 
         if (demande.entrees().stream().anyMatch(e -> !e.classe().transmissible())) {
             return trace.refus(Issue.REFUS_CLASSE, 0);
@@ -108,9 +109,10 @@ public class PasserelleIa {
             masquees += r.masquees();
             filtrees.add(new EntreeIa(e.nom(), borner(r.texte()), e.classe()));
         }
+        trace.empreinte = empreinte(prompt, filtrees);
         QuotasIa.Reservation reservation;
         try {
-            reservation = quotas.reserver(demande.espaceId());
+            reservation = quotas.reserver(demande.espaceId(), demande.compteId());
         } catch (RuntimeException e) {
             LOG.warnf("quotas IA indisponibles : %s", e.getMessage());
             return ReponseIa.refus(Issue.INDISPONIBLE, modele, prompt.version());
@@ -120,6 +122,9 @@ public class PasserelleIa {
         }
         if (reservation == QuotasIa.Reservation.QUOTA_ESPACE) {
             return trace.refus(Issue.QUOTA_ESPACE, masquees);
+        }
+        if (reservation == QuotasIa.Reservation.QUOTA_COMPTE) {
+            return trace.refus(Issue.QUOTA_COMPTE, masquees);
         }
 
         FournisseurModele.Reponse brute;
@@ -131,6 +136,13 @@ public class PasserelleIa {
             return trace.refus(Issue.INDISPONIBLE, masquees);
         } catch (Exception e) {
             LOG.infof("modèle %s indisponible pour la tâche %s : %s", modele, prompt.tache(), e.toString());
+            if (nonTransmis(e)) {
+                try {
+                    quotas.liberer(demande.espaceId(), demande.compteId());
+                } catch (RuntimeException r) {
+                    LOG.warnf("restitution du quota IA impossible : %s", r.getMessage());
+                }
+            }
             return trace.refus(Issue.INDISPONIBLE, masquees);
         }
         Optional<Map<String, String>> champs = ValidationSortie.valider(json, prompt, brute.texte());
@@ -180,10 +192,29 @@ public class PasserelleIa {
         return Map.of("type", "object", "properties", proprietes, "required", obligatoires);
     }
 
-    /** Empreinte SHA-256 de la tâche, de la version et des entrées telles que reçues : jamais leur copie. */
-    private static String empreinte(PromptIa prompt, DemandeIa demande) {
+    /**
+     * Vrai si la demande n'a pas atteint le fournisseur : connexion refusée ou impossible, adresse
+     * introuvable. La réservation est alors rendue ; une réponse en erreur ou trop lente reste comptée.
+     */
+    static boolean nonTransmis(Throwable e) {
+        for (Throwable t = e; t != null; t = t.getCause()) {
+            if (t instanceof java.net.ConnectException || t instanceof java.net.http.HttpConnectTimeoutException
+                    || t instanceof java.net.UnknownHostException
+                    || t instanceof java.nio.channels.UnresolvedAddressException) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    /**
+     * Empreinte SHA-256 de la tâche, de la version et des entrées après filtrage (secrets refusés,
+     * données personnelles masquées, valeurs bornées) : jamais leur copie, ni l'empreinte d'une donnée
+     * personnelle ou d'un secret. Une demande refusée avant filtrage n'a que l'empreinte de sa tâche.
+     */
+    private static String empreinte(PromptIa prompt, List<EntreeIa> entrees) {
         StringBuilder b = new StringBuilder(prompt.tache()).append('|').append(prompt.version());
-        demande.entrees().forEach(e -> b.append('|').append(e.nom()).append('=').append(e.classe()).append(':')
+        entrees.forEach(e -> b.append('|').append(e.nom()).append('=').append(e.classe()).append(':')
                 .append(e.valeur().length()).append(':').append(e.valeur()));
         return PromptIa.sha256(b.toString());
     }
@@ -194,15 +225,15 @@ public class PasserelleIa {
         private final PromptIa prompt;
         private final String modele;
         private final UUID espaceId;
-        private final String empreinte;
         private final long debut;
+        private String empreinte;
 
-        Trace(PromptIa prompt, String modele, UUID espaceId, String empreinte, long debut) {
+        Trace(PromptIa prompt, String modele, UUID espaceId, long debut) {
             this.prompt = prompt;
             this.modele = modele;
             this.espaceId = espaceId;
-            this.empreinte = empreinte;
             this.debut = debut;
+            this.empreinte = PromptIa.sha256(prompt.tache() + "|" + prompt.version());
         }
 
         ReponseIa refus(Issue issue, int masquees) {

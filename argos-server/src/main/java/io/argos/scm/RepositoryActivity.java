@@ -125,7 +125,7 @@ public class RepositoryActivity {
     }
 
     private ActiviteDepot github(RepositoryRef ref, Instant depuis) {
-        if (ref.repository() == null || !ref.repository().matches("[\\w.-]+/[\\w.-]+")) {
+        if (!ForgeHttp.depotGithubValide(ref.repository())) {
             throw new ScmException("dépôt GitHub invalide : attendu owner/repo", null);
         }
         String base = githubUrl + "/repos/" + ref.repository();

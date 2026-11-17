@@ -12,8 +12,11 @@ import org.junit.jupiter.api.Test;
 
 /**
  * Les objets suivis d'un profil ({@code workspace.suivi} : disciplines, territoires, jours de rappel)
- * n'accordent aucun droit (PRF-05, ADR-0024 point 6) : le paquetage ne lit ni rôles, ni appartenances,
- * ni préférences, et n'emprunte au reste de {@code workspace} que le contexte RLS.
+ * n'accordent aucun droit (PRF-05, ADR-0024 point 6) : le paquetage ne dépend d'aucune classe de rôles,
+ * d'appartenances ni de préférences, et n'emprunte au reste de {@code workspace} que le contexte RLS.
+ * Ce contrôle porte sur les dépendances Java : la lecture technique {@code SuivisProfil.suiveurs} lit
+ * en SQL la liste des profils actifs ({@code workspace_preference_utilisateur.profils_actifs}), hors
+ * RLS, comme {@code alerting.Destinataires}, sans aucune donnée d'autorisation.
  */
 class SuiviIsolationTest {
 

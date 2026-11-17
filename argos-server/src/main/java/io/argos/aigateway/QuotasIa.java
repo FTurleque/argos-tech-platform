@@ -7,6 +7,8 @@ import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.time.LocalDate;
 import java.time.ZoneId;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.UUID;
 
 import javax.sql.DataSource;
@@ -17,20 +19,22 @@ import jakarta.inject.Inject;
 import org.eclipse.microprofile.config.inject.ConfigProperty;
 
 /**
- * Plafond journalier de l'instance (Q-1 : 1 000 appels) et quota journalier par espace (Q-2 : 100
- * appels), paramétrables (IAG-03). Le jour est celui du fuseau commun d'Argos ({@code argos.ia.fuseau},
+ * Plafond journalier de l'instance (Q-1 : 1 000 appels), quota journalier par espace (Q-2 : 100
+ * appels) et quota journalier par compte pour les demandes explicites d'un utilisateur (20 appels),
+ * paramétrables (IAG-03). Le jour est celui du fuseau commun d'Argos ({@code argos.ia.fuseau},
  * par défaut celui des alertes).
  *
  * <p>Une réservation incrémente atomiquement, dans une seule transaction, le compteur de l'instance
- * et celui de l'espace imputé, chacun seulement s'il est sous sa limite : deux demandes simultanées ne
- * peuvent pas dépasser une limite. Seuls les appels transmis au fournisseur sont comptés ; un refus de
- * classification ne consomme rien.
+ * et ceux de l'espace et du compte imputés, chacun seulement s'il est sous sa limite : deux demandes
+ * simultanées ne peuvent pas dépasser une limite. Seuls les appels transmis au fournisseur sont
+ * comptés : un refus de classification ne consomme rien, et une réservation est rendue
+ * ({@link #liberer}) quand le fournisseur n'a pas pu être joint.
  */
 @ApplicationScoped
 public class QuotasIa {
 
     /** Résultat d'une réservation. */
-    enum Reservation { ACCORDEE, PLAFOND_INSTANCE, QUOTA_ESPACE }
+    enum Reservation { ACCORDEE, PLAFOND_INSTANCE, QUOTA_ESPACE, QUOTA_COMPTE }
 
     static final String INSTANCE = "INSTANCE";
 
@@ -42,6 +46,9 @@ public class QuotasIa {
 
     @ConfigProperty(name = "argos.ia.quota-espace-jour")
     int quotaEspace;
+
+    @ConfigProperty(name = "argos.ia.quota-compte-jour")
+    int quotaCompte;
 
     @ConfigProperty(name = "argos.ia.fuseau")
     ZoneId fuseau;
@@ -63,7 +70,16 @@ public class QuotasIa {
         }
     }
 
+    /** Portée du compteur d'un compte : « C » suivi des 32 chiffres hexadécimaux de l'identifiant. */
+    static String porteeCompte(UUID compteId) {
+        return "C" + compteId.toString().replace("-", "");
+    }
+
     Reservation reserver(UUID espaceId) {
+        return reserver(espaceId, null);
+    }
+
+    Reservation reserver(UUID espaceId, UUID compteId) {
         LocalDate jour = aujourdhui();
         try (Connection c = dataSource.getConnection()) {
             boolean autoCommit = c.getAutoCommit();
@@ -77,6 +93,10 @@ public class QuotasIa {
                     c.rollback();
                     return Reservation.QUOTA_ESPACE;
                 }
+                if (compteId != null && !incrementer(c, jour, porteeCompte(compteId), quotaCompte)) {
+                    c.rollback();
+                    return Reservation.QUOTA_COMPTE;
+                }
                 c.commit();
                 return Reservation.ACCORDEE;
             } catch (SQLException e) {
@@ -88,6 +108,35 @@ public class QuotasIa {
         } catch (SQLException e) {
             throw new IllegalStateException("réservation d'un appel IA impossible", e);
         }
+    }
+
+    /** Rend une réservation accordée dont l'appel n'a pas été transmis au fournisseur. */
+    void liberer(UUID espaceId, UUID compteId) {
+        LocalDate jour = aujourdhui();
+        try (Connection c = dataSource.getConnection();
+                PreparedStatement ps = c.prepareStatement(
+                        "UPDATE ia_quota_jour SET appels = appels - 1 WHERE jour = ? AND portee = ? AND appels > 0")) {
+            for (String portee : portees(espaceId, compteId)) {
+                ps.setDate(1, Date.valueOf(jour));
+                ps.setString(2, portee);
+                ps.addBatch();
+            }
+            ps.executeBatch();
+        } catch (SQLException e) {
+            throw new IllegalStateException("restitution d'un appel IA impossible", e);
+        }
+    }
+
+    private static List<String> portees(UUID espaceId, UUID compteId) {
+        List<String> portees = new ArrayList<>();
+        portees.add(INSTANCE);
+        if (espaceId != null) {
+            portees.add(espaceId.toString());
+        }
+        if (compteId != null) {
+            portees.add(porteeCompte(compteId));
+        }
+        return portees;
     }
 
     private static boolean incrementer(Connection c, LocalDate jour, String portee, int limite) throws SQLException {

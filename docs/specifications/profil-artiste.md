@@ -6,7 +6,7 @@
 | Spec de référence | `/openspec/specs/profil-artiste/spec.md` — absente tant qu'aucun changement n'est archivé |
 | Changements en cours | [`ajouter-profil-artiste`](/openspec/changes/ajouter-profil-artiste/proposal.md) (implémenté, non archivé) |
 | Statut de la capacité | implémentée dans `argos-server`, non archivée |
-| Composants (arc42 §5) | `catalog` (pack), `impact-engine` (stratégie), `source-ingestion`, `alerting` |
+| Composants (arc42 §5) | `catalog` (pack), `workspace` (suivis sous RLS), `signal` (registre des sources et opportunités), `impact-engine` (stratégie), `source-ingestion`, `alerting`, `API & Security` |
 
 ## Objectif
 
@@ -133,6 +133,9 @@ Scénarios ART-01-S1 à ART-06-S1 du changement ; aucun scénario qualité trans
 - Pas d'écran du profil artiste dans `argos-ui` : la tâche 5.2 est vérifiée par un parcours de bout en bout au niveau de l'API (`ParcoursArtisteTest`).
 - Un flux RSS/Atom ne porte pas de date limite structurée : ses éléments sont restitués « date à confirmer », sans rappel.
 - Un rappel n'est calculé que pour le jour exact (aujourd'hui + N), comme les rappels du radar : un jour sans exécution n'est pas rattrapé.
+- Un `PUT /suivis` sans `rappelsJours` conserve les jours déjà enregistrés ; aucun appel ne rétablit les jours par défaut, qu'il faut renvoyer explicitement (`[30, 7, 1]`).
+- La restriction d'hôte des sources `DATA_CULTURE` porte sur l'adresse initiale : une redirection vers un autre hôte public reste acceptée, sous le garde SSRF de la veille web.
+- ART-01-S1 est prouvé par `GET /api/v1/preferences/rubriques`, que ni `/api/v1/me/watch` ni `argos-ui` n'emploient ; les opportunités paraissent sous `/api/v1/profils/artiste/opportunites`, pas dans la veille principale.
 
 ## Questions ouvertes
 

@@ -30,6 +30,8 @@ public record ReponseIa(Issue issue, Map<String, String> champs, String mention,
         PLAFOND_INSTANCE,
         /** Quota journalier de l'espace atteint (IAG-03). */
         QUOTA_ESPACE,
+        /** Quota journalier du compte demandeur atteint (IAG-03). */
+        QUOTA_COMPTE,
         /** Sortie non conforme au schéma (IAG-04). */
         SORTIE_INVALIDE,
         /** Fournisseur injoignable, en erreur ou trop lent. */
@@ -51,9 +53,9 @@ public record ReponseIa(Issue issue, Map<String, String> champs, String mention,
         return issue == Issue.PRODUIT;
     }
 
-    /** Vrai si le refus tient au plafond de l'instance ou au quota de l'espace. */
+    /** Vrai si le refus tient au plafond de l'instance ou au quota de l'espace ou du compte. */
     public boolean plafondAtteint() {
-        return issue == Issue.PLAFOND_INSTANCE || issue == Issue.QUOTA_ESPACE;
+        return issue == Issue.PLAFOND_INSTANCE || issue == Issue.QUOTA_ESPACE || issue == Issue.QUOTA_COMPTE;
     }
 
     public String champ(String nom) {

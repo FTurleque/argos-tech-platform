@@ -157,7 +157,7 @@ class ParcoursIaTest {
                 .body("[0].contenu.elements[0].sources[0].identifiant", equalTo("GHSA-IA-OK"))
                 .body("[0].contenu.elements[0].sources[0].url", equalTo("https://osv.dev/vulnerability/GHSA-IA-OK"));
         String corps = mailbox.getMailsSentTo("alice@argos.test").get(0).getText();
-        assertTrue(corps.contains("Résumé (produit par IA, à vérifier sur les sources) :"), corps);
+        assertTrue(corps.contains("Résumé (produit par l'IA, à vérifier sur les sources) :"), corps);
         assertTrue(corps.contains("GHSA-IA-OK"), corps);
 
         assertEquals(1, StubServer.received(CHAT).size(), "un seul appel pour toutes les alertes du signal");
@@ -243,14 +243,46 @@ class ParcoursIaTest {
         assertEquals(refus + 1, db.count("SELECT count(*) FROM refus_acces"));
         assertEquals(1, StubServer.received(CHAT).size());
 
-        // Sans IA disponible, la réponse reprend l'extrait déterministe, sans mention.
+        // Le résumé produit est gardé : une nouvelle demande ne sollicite pas le modèle.
+        StubServer.on(CHAT, Stub.status(503));
+        Api.en("alice").when().post("/api/v1/veille-web/actualites/" + id + "/resume-ia")
+                .then().statusCode(200)
+                .body("etat", equalTo("DISPONIBLE"))
+                .body("texte", equalTo("Quarkus 3.40 est une version LTS."))
+                .body("mention", equalTo("produit par l'IA"));
+        assertEquals(1, StubServer.received(CHAT).size(), "résumé gardé en mémoire : aucun nouvel appel");
+        assertEquals(1, db.count("SELECT coalesce(sum(appels), 0) FROM ia_quota_jour WHERE portee = 'INSTANCE'"));
+    }
+
+    /** Sans IA disponible, ou au-delà du quota du compte, la réponse reprend l'extrait déterministe, sans mention. */
+    @Test
+    void resumeIaDUneActualiteSansIaOuAuDelaDuQuotaDuCompte() {
+        StubServer.on("/ia/atom2.xml", VeilleWebTest.contenu(VeilleWebTest.ATOM, VeilleWebTest.atom("Blog",
+                VeilleWebTest.entree("Quarkus 3.41", "https://blog.exemple.test/quarkus-341",
+                        "Quarkus 3.41 apporte des corrections."))));
+        VeilleWebTest.ajouterFlux("alice", "ESPACE", spaceA, "/ia/atom2.xml");
+        String id = VeilleWebTest.actualites("alice").extract().path("[0].id");
+
         StubServer.on(CHAT, Stub.status(503));
         Api.en("alice").when().post("/api/v1/veille-web/actualites/" + id + "/resume-ia")
                 .then().statusCode(200)
                 .body("etat", equalTo("INDISPONIBLE"))
                 .body("methode", equalTo("EXTRAIT_V1"))
                 .body("mention", nullValue())
-                .body("texte", startsWith("Quarkus 3.40 devient la version de support long."));
+                .body("texte", startsWith("Quarkus 3.41 apporte des corrections."));
+
+        UUID alice = Api.compte("alice");
+        db.exec("INSERT INTO ia_quota_jour (jour, portee, appels) VALUES ('" + LocalDate.now(fuseau) + "', 'C"
+                + alice.toString().replace("-", "") + "', 20) ON CONFLICT (jour, portee) DO UPDATE SET appels = 20");
+        StubServer.on(CHAT, ollama("{\"resume\": \"ne doit pas être demandé\"}"));
+        int recues = StubServer.received(CHAT).size();
+        Api.en("alice").when().post("/api/v1/veille-web/actualites/" + id + "/resume-ia")
+                .then().statusCode(200)
+                .body("etat", equalTo("PLAFOND_ATTEINT"))
+                .body("methode", equalTo("EXTRAIT_V1"))
+                .body("mention", nullValue());
+        assertEquals(recues, StubServer.received(CHAT).size(), "aucun appel au-delà du quota du compte");
+        assertEquals(1, db.count("SELECT count(*) FROM ia_appel WHERE tache = 'resume-actualite' AND issue = 'QUOTA_COMPTE'"));
     }
 
     // ------------------------------------------------------------------ analyse complémentaire de la corrélation

@@ -5,7 +5,7 @@
 | Préfixe d'exigences | `PIN` |
 | Spec de référence | `/openspec/specs/activite-projets/spec.md` — absente tant qu'aucun changement n'est archivé |
 | Changements en cours | [`mesurer-activite-projets`](/openspec/changes/mesurer-activite-projets/proposal.md) (implémenté côté serveur, non archivé) |
-| Statut de la capacité | proposée ; implémentation et tests dans `argos-server`, aucun écran dans `argos-ui`, aucune implémentation de la synthèse IA dans `ai-gateway`, changement non archivé |
+| Statut de la capacité | implémentée côté serveur, non archivée ; aucun écran dans `argos-ui`, aucun adaptateur de la synthèse vers la passerelle IA |
 | Composants (arc42 §5) | `project-intel`, `scm-connector`, `ai-gateway`, `API & Security` |
 
 ## Objectif
@@ -18,7 +18,7 @@
 |---|---|---|
 | Utilisateur | consulte l'activité et la synthèse des projets de ses espaces par l'API REST (`GET /api/v1/projects/{id}/activite`, `/activite/synthese`) | [EXISTANT] — `ActiviteProjetsTest`, `ParcoursActiviteTest` ; aucun écran dans `argos-ui` |
 | GitHub / GitLab | fournissent tickets, demandes de fusion, jalons, pipelines et versions par leurs API REST, lues en lecture seule | [EXISTANT] — `RepositoryActivity` (`io.argos.scm`), forges simulées par un serveur HTTP local dans les tests |
-| Passerelle IA | produit la synthèse à partir des indicateurs affichés, par le point d'extension `SyntheseIa` | [PROPOSITION] — aucune implémentation livrée ; capacité [`passerelle-ia`](passerelle-ia.md) |
+| Passerelle IA | produirait la synthèse à partir des indicateurs affichés, par un adaptateur de `SyntheseIa` situé dans `project-intel` | [PROPOSITION] — aucun adaptateur livré ; capacité [`passerelle-ia`](passerelle-ia.md) |
 
 ## Périmètre et exclusions
 
@@ -48,7 +48,7 @@ Projet relié à un dépôt GitHub (`owner/repo`) ou GitLab (chemin ou identifia
 | Compteurs | somme des compteurs quotidiens sur la période demandée | `jours` de 1 à 397, 30 par défaut ; sinon 400 `PERIODE_INVALIDE` | [EXISTANT] — `ActiviteProjetsTest.pin01S1ProjetReliéGithubIndicateursSur30Jours` |
 | Avancement d'un jalon | « 27 sur 30 (90 %) » | dénominateur strictement positif ; pourcentage arrondi à l'entier inférieur [PROPOSITION] | [EXISTANT] — `AvancementTest` |
 | Fraîcheur | état de la collecte, date de dernière mise à jour, prochaine collecte, complétude, premier jour couvert, motif | motif sans jeton | [EXISTANT] — `ActiviteProjetsTest.pin05S1QuotaEpuiseCollecteReporteeEtAgeAffiche` |
-| Synthèse | état, texte, mention « produite par l'IA », période, indicateurs dont elle découle | texte brut de 2 000 caractères au plus ; refusée si elle cite un nombre absent des indicateurs affichés | [EXISTANT] — `ActiviteProjetsTest.pin04S1SyntheseMarqueeEtFondeeSurLesIndicateurs` |
+| Synthèse | état, texte, mention « produite par l'IA », période, indicateurs dont elle découle | texte brut de 2 000 caractères au plus ; refusée si elle cite un chiffre absent des indicateurs affichés (heuristique, voir Écarts) | [EXISTANT] — `ActiviteProjetsTest.pin04S1SyntheseMarqueeEtFondeeSurLesIndicateurs` |
 
 ## Règles métier
 
@@ -107,7 +107,10 @@ Scénarios PIN-01-S1 à PIN-05-S1 du changement ; parcours de bout en bout `Parc
 
 ## Écarts constatés
 
-- PIN-04 : la synthèse n'est produite que si une implémentation de `SyntheseIa` existe ; aucune n'est livrée tant que la capacité [`passerelle-ia`](passerelle-ia.md) n'est pas implémentée. Sans elle, l'état vaut `INDISPONIBLE` et les indicateurs restent affichés. La passerelle emploie un modèle local Ollama (MIT), sans API payante (décision Q-1 de `encadrer-appels-ia`) ; `project-intel` n'appelle aucun fournisseur directement.
+- PIN-04 : la synthèse n'est produite que si une implémentation de `SyntheseIa` existe ; aucun adaptateur vers la passerelle [`passerelle-ia`](passerelle-ia.md) n'est livré. Sans lui, l'état vaut `INDISPONIBLE` et les indicateurs restent affichés. L'adaptateur prévu se situe dans `project-intel` et appelle le seul contrat de la passerelle, comme `alerting.ResumeIaPasserelle` (décision D4) ; la passerelle sert un modèle local Ollama (MIT), sans API payante (décision Q-1 de `encadrer-appels-ia`) ; `project-intel` n'appelle aucun fournisseur directement.
+- Le refus d'une synthèse porte sur les chiffres absents des indicateurs : c'est une heuristique. Un nombre écrit en lettres passe ; les chiffres des titres de jalons, texte externe, et les composantes des dates sont admis.
+- La limite de débit des synthèses (10 demandes par minute et par compte) n'est couverte par aucun test : le profil de test la relève à 100 000.
+- La synthèse s'exécute sur un exécuteur commun à l'instance (1 fil, 2 au plus, file de 8) : avec un modèle local lent, la plupart des demandes simultanées valent `INDISPONIBLE`.
 
 ## Questions ouvertes
 
