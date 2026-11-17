@@ -1,10 +1,10 @@
 # Tests de bout en bout d'ARGOS
 
-Parcours du portail web `argos-ui` exécutés dans Chromium par Playwright, contre un serveur ARGOS réel, son Keycloak de test et une base PostgreSQL jetable. Aucune requête ne quitte le poste : toute requête du navigateur vers un hôte autre que `localhost` fait échouer le parcours, et les tâches planifiées qui joindraient une source externe sont désactivées.
+Parcours du portail web `argos-ui` exécutés dans Chromium et du client desktop `argos-desktop` piloté dans Electron, par Playwright, contre un serveur ARGOS réel, son Keycloak de test et une base PostgreSQL jetable. Aucune requête ne quitte le poste : toute requête du navigateur ou de la session Electron vers un hôte hors de la boucle locale fait échouer le parcours, et les tâches planifiées qui joindraient une source externe sont désactivées.
 
 ## Lancer
 
-Prérequis : Docker démarré, JDK 17 ou plus, Maven 3.9, Node.js 22.18 ou plus, dépendances de `argos-ui` installées (`npm --prefix argos-ui ci`).
+Prérequis : Docker démarré, JDK 17 ou plus, Maven 3.9, Node.js 22.18 ou plus, dépendances de `argos-ui` installées (`npm --prefix argos-ui ci`), binaire Electron 45.3.2 de `argos-desktop` présent dans `argos-desktop/node_modules/electron/dist/` (script d’installation du paquet `electron`, voir « Client desktop »).
 
 ```bash
 npm --prefix e2e ci
@@ -18,7 +18,10 @@ npm --prefix e2e test                          # options de Playwright après «
 2. lance `playwright test`, qui démarre ou réutilise :
    - le serveur par `mvn quarkus:dev` sur le port 8090, base de test, Keycloak des Dev Services sur le port 8180 avec le royaume de test `argos-server/src/test/resources/keycloak/argos-realm.json` ;
    - le portail web par Vite sur le port 5173, `VITE_ARGOS_API_URL=http://localhost:8090` ;
+   puis exécute les projets `preparation` (données), `portail-web` (parcours du portail), `construction-desktop` et `desktop` (parcours Electron) ;
 3. arrête et efface la base à la fin. `ARGOS_E2E_GARDER_BASE=1` la conserve pour examen.
+
+Un seul projet : `npm --prefix e2e test -- --project=desktop` (ses dépendances `preparation` et `construction-desktop` s’exécutent aussi).
 
 Docker est appelé par un chemin absolu, pris parmi ses emplacements d’installation habituels (`e2e/support/docker.mjs`) : le `PATH` n’est pas consulté. `ARGOS_E2E_DOCKER` indique un autre emplacement.
 
@@ -37,6 +40,7 @@ Le serveur écoute sur 8090 et non sur 8080 : le port 8080 est souvent pris par 
 | `tests/connexion.spec.ts` | vue protégée sans session ; connexion réelle et retour sur la vue demandée, adresse nettoyée, jetons hors du stockage, jeton porteur ; state forgé ; déconnexion ; compte non créé ; renouvellement refusé | ACC-07-S1 à S3, ACC-08-S1, ACC-08-S3, ACC-08-S4, ACC-09-S1, ACC-09-S2, ACC-09-S4 |
 | `tests/recherche.spec.ts` | recherche « Oracle », projet « Paie », 30 jours, vue enregistrée, rappelée dans la même session puis dans une nouvelle session | RCH-01-S1, RCH-02-S1, RCH-04-S1 |
 | `tests/affichage.spec.ts` | mise en page « gazette » choisie sur le web et retrouvée dans une nouvelle session | AFF-01-S1, AFF-03-S1 (partie web) |
+| `desktop/connexion.spec.ts` | client desktop : écran de connexion, adresse d’autorisation reçue par le « navigateur du système », connexion sur Keycloak, redirection suivie vers `127.0.0.1:<port éphémère>/argos/retour`, page de retour statique (`default-src 'none'`, `no-store`), écoute fermée, fenêtre réduite ramenée au premier plan, session ouverte et `/api/v1/moi` accepté avec le jeton porteur, CSP lue et appliquée, journal de la session sans hôte non local ni page du fournisseur | ACC-10-S1, ACC-10-S2, ACC-10-S4 |
 | `tests/veille.spec.ts` | « Ma veille » : profils `developpeur` + `expert-metier` choisis dans l'IHM et abonnement personnel, union sans doublon avec rubriques ; utilisateur d'un autre espace limité à ses droits ; même veille réelle dans les quatre mises en page ; « gazette » choisie sur le web puis « Ma veille » en gazette ; contrastes, tabulation et noms accessibles des quatre mises en page sur la veille réelle | PRF-02 (union de deux profils), PRF-02-S3, PRF-02-S4, AFF-02-S1, AFF-02-S2, AFF-05-S1 ; tâche 5.2 (partie web) |
 
 ## Audit d'accessibilité des mises en page
@@ -50,9 +54,22 @@ Pour chacune des quatre mises en page : polices embarquées chargées et aucune 
 - `test-results/` (ignoré par Git) : rapport JSON, traces et captures des parcours en échec.
 - `resultats/` : rapport JSON et captures d'une exécution de référence, consignés dans les `tasks.md` des changements OpenSpec concernés ; `resultats/accessibilite/` pour l'audit des mises en page.
 
-## Limites
+## Client desktop
 
-Le client desktop n'est pas piloté : Playwright `_electron` exige le binaire Electron, que `npm ci` de `argos-desktop` ne télécharge pas tant que la politique npm `allow-scripts` bloque le script d'installation du paquet `electron`. Les parcours desktop (connexion par l'interface de bouclage, notifications, mise en page relue par le desktop) restent à écrire une fois ce binaire présent.
+Le projet `desktop` lance l’application `argos-desktop` telle qu’elle est livrée, hors paquet, par `_electron.launch` (API expérimentale de `@playwright/test`, sans dépendance ajoutée) :
+
+1. `desktop/construction.setup.ts` (projet `construction-desktop`) vérifie la présence du binaire Electron, puis construit l’IHM comme `npm --prefix argos-desktop start` : `npm --prefix argos-ui run build` avec `VITE_ARGOS_API_URL=http://localhost:8090` et `VITE_ARGOS_OIDC_ISSUER=http://localhost:8180/realms/argos`. Le build remplace `argos-ui/dist/` (ignoré par Git), que `main.js` charge hors paquet par le protocole interne `app://argos` avec sa CSP.
+2. `support/electron.ts` lance `argos-desktop/node_modules/electron/dist/electron.exe` (ou `electron` / `Electron.app` selon le système) sur le dossier `argos-desktop`, avec `ARGOS_API_URL=http://localhost:8090`, `ARGOS_OIDC_URL=http://localhost:8180/realms/argos` et un dossier de données propre au test (`--user-data-dir` dans `test-results/`) : le verrou d’instance unique et les réglages du poste ne touchent pas un ARGOS ouvert sur le poste. `ARGOS_E2E_ELECTRON` désigne un autre binaire de la même version (par exemple celui du dépôt principal depuis un worktree où `npm ci` n’a pas pu télécharger le binaire). Binaire absent : le projet échoue avec un message explicite, il n’est pas sauté.
+
+Aucun code de production n’est modifié pour les tests ; les doublures sont installées dans le processus principal par `electronApp.evaluate`, depuis le test :
+
+- **navigateur du système** : `shell.openExternal` enregistre l’adresse au lieu d’ouvrir le navigateur du poste ; le test l’ouvre dans une page Chromium de Playwright (soumise à la garde réseau des parcours web), s’y connecte sur Keycloak et suit la redirection jusqu’à l’écoute locale du desktop ;
+- **garde réseau** : `session.defaultSession.webRequest` annule toute requête vers un hôte hors de la boucle locale et tient un journal (adresse sans chaîne de requête, type, présence d’un jeton porteur sans sa valeur, statut) ;
+- **état de la fenêtre** : visibilité, réduction, focus, adresse et événements (`minimize`, `restore`, `focus`…) de la fenêtre principale.
+
+Fonctions réutilisables de `support/electron.ts` : `lancerDesktop` (lancement, doublures, rechargement pour un journal complet), `ApplicationDesktop.fenetre` (fenêtre principale), `journal`, `ouvertures`, `etatFenetre`, `fermer`, `reduireFenetre`, `attendreOuverture`, `connecterCompte` (connexion d’un compte du royaume de test depuis l’écran de connexion du desktop).
+
+Ce que le parcours ne couvre pas : le navigateur réellement installé sur le poste (remplacé par la doublure) et l’activation de la fenêtre par le gestionnaire de fenêtres du système au-delà de ce qu’Electron rapporte (`isFocused`, événements de la fenêtre).
 
 ## Dépendances
 

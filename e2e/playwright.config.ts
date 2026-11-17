@@ -1,7 +1,8 @@
 // Tests de bout en bout d'ARGOS (e2e/README.md). La base PostgreSQL jetable est démarrée par
 // scripts/lancer.mjs (e2e/compose.yaml) ; Playwright démarre le serveur (quarkus:dev, Keycloak des
 // Dev Services sur 8180 avec le royaume de test) et le portail web (Vite, port 5173), ou réutilise
-// ceux qui tournent déjà.
+// ceux qui tournent déjà. Le projet « desktop » pilote le client Electron argos-desktop
+// (support/electron.ts) contre la même pile.
 import { defineConfig, devices } from '@playwright/test'
 import { URL_API, URL_IHM } from './support/environnement'
 
@@ -40,6 +41,14 @@ export default defineConfig({
   projects: [
     { name: 'preparation', testMatch: /preparation\.setup\.ts/ },
     { name: 'portail-web', dependencies: ['preparation'], testMatch: /.*\.spec\.ts/ },
+    // Client desktop : IHM construite pour l'API et l'émetteur de test, puis parcours Electron.
+    { name: 'construction-desktop', testDir: './desktop', testMatch: /construction\.setup\.ts/ },
+    {
+      name: 'desktop',
+      testDir: './desktop',
+      testMatch: /.*\.spec\.ts/,
+      dependencies: ['preparation', 'construction-desktop'],
+    },
   ],
   webServer: [
     {
