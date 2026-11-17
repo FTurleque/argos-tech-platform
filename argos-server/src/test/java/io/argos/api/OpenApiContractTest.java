@@ -27,7 +27,22 @@ class OpenApiContractTest {
             .body("paths.'/api/v1/preferences/mise-en-page'.put.responses.'400'", notNullValue())
             .body("paths.'/api/v1/preferences/profils'.put.responses.'400'", notNullValue())
             .body("paths.'/api/v1/catalogue/mises-en-page'.get", notNullValue())
-            .body("paths.'/api/v1/catalogue/profils'.get", notNullValue());
+            .body("paths.'/api/v1/catalogue/profils'.get", notNullValue())
+            .body("paths.'/api/v1/me/veille'.get", notNullValue());
+    }
+
+    /** Veille restituée par profils (PRF-02, PRF-06) : rubriques, garde-fous et mention de validation. */
+    @Test
+    void laVeilleParProfilsExposeSesChamps() {
+        Api.en("alice").queryParam("format", "json")
+            .when().get("/q/openapi")
+            .then()
+            .statusCode(200)
+            .body("components.schemas.VeilleProfils.properties.keySet()", hasItems("profilsActifs", "elements"))
+            .body("components.schemas.ElementVeilleProfils.properties.keySet()", hasItems(
+                    "type", "id", "titre", "date", "profils", "rubriques", "gardeFous", "mentionValidation", "projets"))
+            .body("components.schemas.RubriqueElementVeille.properties.keySet()", hasItems(
+                    "profil", "identifiant", "libelle"));
     }
 
     @Test

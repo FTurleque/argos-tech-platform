@@ -3,11 +3,13 @@
   "identifiant": "demonstration",
   "version": "0.1.0",
   "libelle": "Démonstration",
-  "description": "Profil de démonstration publié par les tests pour vérifier PRF-04.",
-  "categoriesSources": ["demonstration"],
+  "description": "Profil de démonstration publié par les tests pour vérifier PRF-04 : il range les avis de sécurité, comme developpeur.",
+  "categoriesSources": ["avis-securite"],
   "connecteurs": ["osv"],
-  "rubriques": [{ "identifiant": "demonstration", "libelle": "Démonstration" }],
+  "rubriques": [{ "identifiant": "demonstration", "libelle": "Démonstration", "categories": ["avis-securite"] }],
   "typesObjetsSuivis": ["projet"],
   "strategies": [{ "identifiant": "purl-plage-versions", "deterministe": true }],
-  "gardeFous": []
+  "gardeFous": [
+    { "type": "AUCUN_AVIS_JURIDIQUE", "description": "Mention de démonstration : jamais restituée à qui n'active pas ce profil." }
+  ]
 }
