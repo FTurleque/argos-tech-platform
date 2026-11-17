@@ -1,0 +1,18 @@
+<!DOCTYPE html>
+<html lang="fr">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Banc d’essai des mises en page — ARGOS</title>
+  </head>
+  <body>
+    <!--
+      Banc d'essai de développement (audit d'accessibilité, e2e/accessibilite/) : affiche une mise en
+      page du registre sur le jeu d'exemple, sans serveur ARGOS ni session. Servi par « vite » seulement :
+      il n'est pas une entrée du build (index.html seul), donc absent de dist/.
+      Paramètre : ?mise-en-page=classique|journal|fantaisie|gazette
+    -->
+    <div id="app"></div>
+    <script type="module" src="./banc.ts"></script>
+  </body>
+</html>
