@@ -204,3 +204,56 @@ export interface ElementVeille {
 export async function veilleDe(utilisateur: string): Promise<{ profilsActifs: string[]; elements: ElementVeille[] }> {
   return api(utilisateur, '/api/v1/me/veille')
 }
+
+// ------------------------------------------------------------------ Alertes du poste
+// Parcours de notifier-sur-le-poste (tâches 1.1, 1.2, 3.2) : lina, compte créé sur invitation, reçoit
+// des alertes immédiates du canal DESKTOP écrites par donnees/alertes-poste.sql (textes fictifs).
+
+/** Destinataire des alertes du poste : aucun autre parcours ne lui écrit d'alerte. */
+export const COMPTE_POSTE = 'lina'
+
+/** Alerte de donnees/alertes-poste.sql : identifiant, titre du signal, gravité et projets cités. */
+export interface AlerteDeTest {
+  numero: string
+  id: string
+  titre: string
+  gravite: string
+  projets: string[]
+}
+
+function alerteDeTest(numero: string, titre: string, gravite: string, projets: string[]): AlerteDeTest {
+  return { numero, id: `0e2e0000-0000-4000-8000-0000000005${numero}`, titre, gravite, projets }
+}
+
+/** Mêmes valeurs que le tableau de donnees/alertes-poste.sql. */
+export const ALERTES_POSTE = {
+  '01': alerteDeTest('01', 'Bibliothèque e2e-journal : déni de service', 'HIGH', ['Paie E2E poste']),
+  '02': alerteDeTest('02', 'Pilote e2e-pdf : lecture hors limites', 'MEDIUM', ['Paie E2E poste', 'RH E2E poste']),
+  '03': alerteDeTest('03', 'Composant e2e-log4x : exécution de code à distance', 'CRITICAL',
+    ['Paie E2E poste', 'RH E2E poste', 'Achats E2E poste']),
+  '04': alerteDeTest('04', "Serveur e2e-mail : contournement d'authentification", 'CRITICAL', ['RH E2E poste']),
+  '05': alerteDeTest('05', "Bibliothèque e2e-xml : injection d'entité externe", 'CRITICAL', ['Paie E2E poste']),
+  '06': alerteDeTest('06', 'Cadriciel e2e-web : falsification de requête', 'CRITICAL', ['Achats E2E poste']),
+} as const
+
+export type NumeroAlertePoste = keyof typeof ALERTES_POSTE
+
+/** Compte de lina créé au besoin ; ses alertes DESKTOP sont effacées. Renvoie l'identifiant du compte. */
+export async function preparerAlertesPoste(): Promise<string> {
+  await api('alice', '/api/v1/moi')
+  await assurerCompte(COMPTE_POSTE)
+  const compte = await api<{ id: string }>(COMPTE_POSTE, '/api/v1/moi')
+  sql('purge-alertes-poste.sql', { compte: compte.id })
+  return compte.id
+}
+
+/** Émet (ou réémet) l'alerte immédiate DESKTOP `numero` pour le compte, à l'état EN_ATTENTE. */
+export function emettreAlertePoste(compte: string, numero: NumeroAlertePoste): AlerteDeTest {
+  sql('alertes-poste.sql', { compte, numero })
+  return ALERTES_POSTE[numero]
+}
+
+/** État d'envoi d'une alerte, lu par l'API sous son destinataire (EN_ATTENTE, ENVOYEE…). */
+export async function etatAlerte(id: string): Promise<string> {
+  return (await api<{ etat: string }>(COMPTE_POSTE, `/api/v1/alertes/${id}`)).etat
+}
