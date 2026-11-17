@@ -3,7 +3,7 @@
 ## 1. Royaume Keycloak et configuration
 
 - [x] 1.1 Déclarer pour le client `argos-ui` du royaume de test les redirections `http://localhost:5173/*` et `http://127.0.0.1/argos/retour`, les origines web `http://localhost:5173` et `app://argos`, `post.logout.redirect.uris`, flux implicite désactivé, PKCE S256 obligatoire ; retirer `app://argos/*` — couvre ACC-07-S2, ACC-09-S4, ACC-10-S1 — vérification : `argos-server/src/test/java/io/argos/api/comptes/ClientIhmOidcTest.java` (6 tests) passe
-- [ ] 1.2 Fixer le port du Keycloak de développement à 8180 (`%dev.quarkus.keycloak.devservices.port`) pour l'émetteur par défaut de l'IHM et du desktop — couvre D6 — vérification : `mvn quarkus:dev` puis `http://localhost:8180/realms/argos/.well-known/openid-configuration` répond (non exécuté : propriété ajoutée, profil `dev` non lancé)
+- [x] 1.2 Fixer le port du Keycloak de développement à 8180 (`%dev.quarkus.keycloak.devservices.port`) pour l'émetteur par défaut de l'IHM et du desktop — couvre D6 — vérification : `mvn quarkus:dev` puis `http://localhost:8180/realms/argos/.well-known/openid-configuration` répond (2026-11-17 : `mvn -B -f argos-server/pom.xml quarkus:dev` en profil `dev`, avec la base et le port HTTP remplacés par l'environnement — `_DEV_QUARKUS_DATASOURCE_JDBC_URL` vers la base de `e2e/compose.yaml`, `QUARKUS_HTTP_PORT=8090`, le port 8080 étant pris sur le poste — : « Dev Services for Keycloak started », conteneur publié sur 8180, découverte répondant avec `"issuer":"http://localhost:8180/realms/argos"` ; même démarrage à chaque exécution de `npm --prefix e2e test`)
 
 ## 2. Session OIDC de l'IHM (`argos-ui`)
 
@@ -27,8 +27,8 @@
 
 ## 5. Vérifications d'intégration
 
-- [ ] 5.1 Test de bout en bout dans un navigateur : connexion réelle depuis le portail, retour sur la vue demandée, adresse nettoyée, déconnexion, compte non créé — couvre ACC-07-S1, ACC-07-S2, ACC-08-S4, ACC-09-S4 — vérification : à écrire (étape ultérieure du lot 7)
-- [ ] 5.2 Test de bout en bout du client desktop Electron : navigateur du système, retour sur `127.0.0.1`, fenêtre au premier plan, CSP — couvre ACC-10-S1, ACC-10-S2, ACC-10-S4 — vérification : à écrire (étape ultérieure du lot 7)
+- [x] 5.1 Test de bout en bout dans un navigateur : connexion réelle depuis le portail, retour sur la vue demandée, adresse nettoyée, déconnexion, compte non créé — couvre ACC-07-S1, ACC-07-S2, ACC-08-S4, ACC-09-S4 — vérification : `e2e/tests/connexion.spec.ts` passe avec `npm --prefix e2e test` (2026-11-17 : 6 parcours de session sur 6 réussis dans Chromium contre `quarkus:dev`, le Keycloak de test et une base jetable ; 9 parcours sur 9 au total ; rapport [`e2e/resultats/rapport-2026-11-17.json`](/e2e/resultats/rapport-2026-11-17.json)). Deux défauts révélés puis corrigés : première vue après le retour du fournisseur, renouvellement refusé sans état « session expirée » (section « Preuves E2E du 2026-11-17 »)
+- [ ] 5.2 Test de bout en bout du client desktop Electron : navigateur du système, retour sur `127.0.0.1`, fenêtre au premier plan, CSP — couvre ACC-10-S1, ACC-10-S2, ACC-10-S4 — vérification : à écrire (non exécuté le 2026-11-17 : binaire Electron absent de `argos-desktop/node_modules/electron/dist`, le script d'installation du paquet `electron` étant bloqué par la politique npm `allow-scripts` du poste ; Playwright `_electron` ne peut pas lancer l'application. Il manque le binaire Electron 45.3.2, installé sur décision du porteur — par exemple `npm --prefix argos-desktop rebuild electron` avec ce script autorisé —, puis un parcours qui ouvre le navigateur du système et suit la redirection vers `127.0.0.1`)
 - [x] 5.3 Valider le changement — vérification : `openspec validate connecter-ihm-oidc --strict` et `openspec validate --all --strict` réussissent (2026-11-17 : « Change 'connecter-ihm-oidc' is valid » ; validation de l'ensemble sans erreur)
 - [x] 5.4 Vérifications des modules — vérification : `mvn -B -f argos-server/pom.xml verify`, `npm --prefix argos-ui ci && npm --prefix argos-ui test && npm --prefix argos-ui run build`, `npm --prefix argos-desktop ci && npm --prefix argos-desktop test` réussissent (2026-11-17 : 494 tests serveur, 1 ignoré préexistant, BUILD SUCCESS ; 68 tests argos-ui ; build Vite ; 53 tests argos-desktop)
 
@@ -36,23 +36,31 @@
 
 - Branche `lot7/integration` (avec `rechercher-et-filtrer`), 2026-11-17 : `mvn -B -f argos-server/pom.xml verify` : BUILD SUCCESS, 494 tests, 0 échec, 1 ignoré préexistant ; `npm --prefix argos-ui ci && npm --prefix argos-ui test && npm --prefix argos-ui run build` : 87 tests, 0 échec, build Vite réussi ; `npm --prefix argos-desktop ci && npm --prefix argos-desktop test` : 53 tests, 0 échec ; `openspec validate --all --strict` : 14 éléments valides ; `node scripts/verifier-docs.mjs` : aucune erreur hors `docs/audit/`.
 
+## Preuves E2E du 2026-11-17
+
+- Commande : `npm --prefix e2e ci && npm --prefix e2e test` (Playwright 1.61.1, Chromium 1228 ; `quarkus:dev` sur 8090, Keycloak des Dev Services sur 8180, PostgreSQL de `e2e/compose.yaml`, portail Vite sur 5173). Résultat : 9 parcours sur 9 réussis, aucune requête hors de la boucle locale ; rapport [`e2e/resultats/rapport-2026-11-17.json`](/e2e/resultats/rapport-2026-11-17.json). Sur six exécutions complètes du jour, la première a échoué sur le parcours de recherche (projets absents de la réponse, cause non reproduite) ; les cinq suivantes ont réussi.
+- Parcours de `e2e/tests/connexion.spec.ts` : ACC-07-S1 (vue protégée sans session, aucun appel de données) ; ACC-07-S2, ACC-08-S1, ACC-09-S1, ACC-09-S2 (connexion d'`alice`, retour sur `#/recherche`, adresse sans `code` ni `state`, aucun jeton dans les stockages ni les cookies, en-tête `Authorization: Bearer` sur `/api/v1` sauf `/api/v1/system/info`) ; ACC-07-S3 (retour au state forgé : « Retour de connexion invalide », aucun échange de code) ; ACC-08-S4 (déconnexion, fin de session du fournisseur, qui redemande les identifiants) ; ACC-09-S4 (`paul`, sans invitation : écran « aucun compte ARGOS », vues protégées inaccessibles) ; ACC-08-S3 (session du fournisseur close dans un autre onglet, horloge de la page avancée de 10 minutes : renouvellement refusé par Keycloak, écran de connexion « Session expirée », reconnexion vers la vue d'origine).
+- Défaut révélé : après le retour du fournisseur, l'accueil s'affichait au lieu de la vue demandée, et un retour en échec perdait son message. L'historique par « hash » mémorise l'adresse à la création du routeur, avant son nettoyage ; `argos-ui/src/main.ts` fixe la première vue par une navigation explicite. Test : `argos-ui/tests/securite-session.test.mjs`.
+- Vérifications après correction, 2026-11-17 : `mvn -B -f argos-server/pom.xml verify` : BUILD SUCCESS, 494 tests, 0 échec, 1 ignoré préexistant ; `npm --prefix argos-ui ci && npm --prefix argos-ui test && npm --prefix argos-ui run build` : 90 tests, 0 échec, build Vite réussi ; `npm --prefix argos-desktop ci && npm --prefix argos-desktop test` : 53 tests, 0 échec ; `openspec validate --all --strict` : 14 éléments valides ; `node scripts/verifier-docs.mjs` : aucune erreur hors `docs/audit/`.
+- Défaut révélé : un renouvellement refusé laissait la vue protégée affichée, sans l'état « session expirée » (ACC-08-S3). `installerSession` suit l'état de la session et applique `decisionExpiration` (`argos-ui/src/session/garde.ts`), aussi pour une réponse 401. Tests : `argos-ui/tests/garde.test.mjs`.
+
 ## Matrice de traçabilité
 
 | Exigence | Scénario | Conception / diagramme | Tâche | Test ou preuve | État de la preuve |
 |---|---|---|---|---|---|
-| ACC-07 | ACC-07-S1 | DC-2, DF-ACC-2 ; D5 | 2.4, 5.1 | `argos-ui/tests/garde.test.mjs` | unitaire exécuté le 2026-11-17 ; E2E à écrire |
-| ACC-07 | ACC-07-S2 | DC-2, DC-3, DC-4 ; D1, D4 | 1.1, 2.1, 2.2 | `argos-ui/tests/oidc.test.mjs`, `session.test.mjs` ; `ClientIhmOidcTest#portailWebObtientUnJetonAccepteParLApi` | exécuté le 2026-11-17 |
-| ACC-07 | ACC-07-S3 | DC-2, DC-4 ; INV-1 | 2.1, 2.2 | `argos-ui/tests/oidc.test.mjs`, `session.test.mjs` (dont l'émetteur `iss` différent, RFC 9207) | exécuté le 2026-11-17 |
+| ACC-07 | ACC-07-S1 | DC-2, DF-ACC-2 ; D5 | 2.4, 5.1 | `argos-ui/tests/garde.test.mjs` ; E2E `e2e/tests/connexion.spec.ts` | exécuté le 2026-11-17 (unitaire et E2E) |
+| ACC-07 | ACC-07-S2 | DC-2, DC-3, DC-4 ; D1, D4 | 1.1, 2.1, 2.2, 5.1 | `argos-ui/tests/oidc.test.mjs`, `session.test.mjs`, `securite-session.test.mjs` ; `ClientIhmOidcTest#portailWebObtientUnJetonAccepteParLApi` ; E2E `e2e/tests/connexion.spec.ts` | exécuté le 2026-11-17 (dont E2E) |
+| ACC-07 | ACC-07-S3 | DC-2, DC-4 ; INV-1 | 2.1, 2.2 | `argos-ui/tests/oidc.test.mjs`, `session.test.mjs` (dont l'émetteur `iss` différent, RFC 9207) ; E2E `e2e/tests/connexion.spec.ts` (state forgé) | exécuté le 2026-11-17 (dont E2E) |
 | ACC-07 | ACC-07-S4 | DC-2, DC-4 | 2.1, 2.2 | `argos-ui/tests/oidc.test.mjs`, `session.test.mjs` | exécuté le 2026-11-17 |
 | ACC-07 | ACC-07-S5 | DF-ACC-2 | 2.3, 2.4 | `argos-ui/tests/garde.test.mjs`, `autorisation.test.mjs` ; `AuthentificationTest#identiteDuServeurPublique` | exécuté le 2026-11-17 |
-| ACC-08 | ACC-08-S1 | INV-2, INV-3 ; D3, D4 | 2.2, 2.5 | `argos-ui/tests/securite-session.test.mjs`, `session.test.mjs` | exécuté le 2026-11-17 |
+| ACC-08 | ACC-08-S1 | INV-2, INV-3 ; D3, D4 | 2.2, 2.5 | `argos-ui/tests/securite-session.test.mjs`, `session.test.mjs` ; E2E `e2e/tests/connexion.spec.ts` (stockages et cookies inspectés) | exécuté le 2026-11-17 (dont E2E) |
 | ACC-08 | ACC-08-S2 | DC-4 | 2.1, 2.2 | `argos-ui/tests/oidc.test.mjs`, `session.test.mjs` ; renouvellement réel dans `ClientIhmOidcTest#portailWebObtientUnJetonAccepteParLApi` | exécuté le 2026-11-17 |
-| ACC-08 | ACC-08-S3 | DC-4 | 2.2, 2.4 | `argos-ui/tests/session.test.mjs` | exécuté le 2026-11-17 |
-| ACC-08 | ACC-08-S4 | DC-3, DC-4 | 2.1, 2.2, 5.1 | `argos-ui/tests/session.test.mjs`, `oidc.test.mjs` | exécuté le 2026-11-17 ; E2E à écrire |
-| ACC-09 | ACC-09-S1 | DC-2 ; Contrats d'interface | 2.3 | `argos-ui/tests/autorisation.test.mjs` ; `ClientIhmOidcTest` (jeton de l'IHM accepté par `/api/v1/moi`) | exécuté le 2026-11-17 |
-| ACC-09 | ACC-09-S2 | Contrats d'interface | 2.3 | `argos-ui/tests/autorisation.test.mjs` | exécuté le 2026-11-17 |
-| ACC-09 | ACC-09-S3 | DC-4 ; D5 | 2.2, 2.3 | `argos-ui/tests/autorisation.test.mjs`, `session.test.mjs` | exécuté le 2026-11-17 |
-| ACC-09 | ACC-09-S4 | DC-2, DF-ACC-2 ; D5 ; INV-5 | 2.3, 2.4, 5.1 | `argos-ui/tests/autorisation.test.mjs`, `garde.test.mjs`, `securite-session.test.mjs` (branchement avant la reprise du retour) ; `ClientIhmOidcTest#personneSansInvitationRecoitLeRefusDedie` | exécuté le 2026-11-17 ; E2E à écrire |
+| ACC-08 | ACC-08-S3 | DC-4 | 2.2, 2.4, 5.1 | `argos-ui/tests/session.test.mjs`, `garde.test.mjs` (`decisionExpiration`) ; E2E `e2e/tests/connexion.spec.ts` (renouvellement refusé par Keycloak) | exécuté le 2026-11-17 (dont E2E) |
+| ACC-08 | ACC-08-S4 | DC-3, DC-4 | 2.1, 2.2, 5.1 | `argos-ui/tests/session.test.mjs`, `oidc.test.mjs` ; E2E `e2e/tests/connexion.spec.ts` | exécuté le 2026-11-17 (dont E2E) |
+| ACC-09 | ACC-09-S1 | DC-2 ; Contrats d'interface | 2.3 | `argos-ui/tests/autorisation.test.mjs` ; `ClientIhmOidcTest` (jeton de l'IHM accepté par `/api/v1/moi`) ; E2E `e2e/tests/connexion.spec.ts` (en-têtes des requêtes) | exécuté le 2026-11-17 (dont E2E) |
+| ACC-09 | ACC-09-S2 | Contrats d'interface | 2.3 | `argos-ui/tests/autorisation.test.mjs` ; E2E `e2e/tests/connexion.spec.ts` | exécuté le 2026-11-17 (dont E2E) |
+| ACC-09 | ACC-09-S3 | DC-4 ; D5 | 2.2, 2.3 | `argos-ui/tests/autorisation.test.mjs`, `session.test.mjs`, `garde.test.mjs` (`decisionExpiration`) | exécuté le 2026-11-17 ; aucune réponse 401 réelle provoquée en E2E |
+| ACC-09 | ACC-09-S4 | DC-2, DF-ACC-2 ; D5 ; INV-5 | 2.3, 2.4, 5.1 | `argos-ui/tests/autorisation.test.mjs`, `garde.test.mjs`, `securite-session.test.mjs` (branchement avant la reprise du retour) ; `ClientIhmOidcTest#personneSansInvitationRecoitLeRefusDedie` ; E2E `e2e/tests/connexion.spec.ts` (`paul`) | exécuté le 2026-11-17 (dont E2E) |
 | ACC-09 | ACC-09-S5 | D5 | 2.3, 2.4 | `argos-ui/tests/autorisation.test.mjs` | exécuté le 2026-11-17 |
 | ACC-10 | ACC-10-S1 | DC-1, DC-3 ; D2 | 1.1, 3.1, 5.2 | `argos-desktop/test/connexion.test.js` ; `ClientIhmOidcTest#clientDesktopUtiliseLInterfaceDeBouclage` | exécuté le 2026-11-17 ; parcours Electron à écrire |
 | ACC-10 | ACC-10-S2 | DC-3 | 3.1, 3.2, 5.2 | `argos-desktop/test/connexion.test.js`, `canaux.test.js` | exécuté le 2026-11-17 ; parcours Electron à écrire |
@@ -61,7 +69,7 @@
 
 ## Workflow follow-up
 
-- Écrire les tests de bout en bout (tâches 5.1 et 5.2), puis compléter la matrice.
+- Écrire le parcours Electron (tâche 5.2) une fois le binaire Electron installé, puis compléter la matrice.
 - Basculer dans la fiche `comptes-acces` les statuts [PROPOSITION] de ce changement en [EXIGENCE] ou [EXISTANT] selon les preuves obtenues.
 - Archiver le changement uniquement sur demande explicite, après revue (`openspec archive connecter-ihm-oidc`).
 - Après archivage, remplacer dans les fiches et ADR-0033 les liens vers `/openspec/changes/connecter-ihm-oidc/` par la spec principale ou le dossier d'archive, puis exécuter `node scripts/verifier-docs.mjs`.
