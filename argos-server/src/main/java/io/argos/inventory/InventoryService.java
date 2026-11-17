@@ -14,6 +14,7 @@ import org.jboss.logging.Logger;
 
 import io.argos.scm.RepositoryFiles;
 import io.argos.scm.RepositoryRef;
+import io.argos.scm.SbomDocument;
 import io.argos.scm.ScmException;
 
 /**
@@ -93,9 +94,14 @@ public class InventoryService {
         RepositoryRef repo = project.repository()
                 .orElseThrow(() -> new IllegalStateException("aucun dépôt rattaché au projet " + projectId));
         try {
-            Optional<byte[]> sbom = repositoryFiles.latestSbom(repo);
+            Optional<SbomDocument> sbom = repositoryFiles.latestSbom(repo);
             if (sbom.isPresent()) {
-                return importSbom(projectId, sbom.get(), repo.provider() + ":" + repo.repository() + "@" + repo.branch());
+                String sourceRef = repo.provider() + ":" + repo.repository() + "@" + repo.branch();
+                SbomDocument.Format format = sbom.get().format();
+                if (format != SbomDocument.Format.CYCLONEDX_JSON && format != SbomDocument.Format.INCONNU) {
+                    return rejectFormat(projectId, format, sourceRef);
+                }
+                return importSbom(projectId, sbom.get().contenu(), sourceRef);
             }
             if (queries.origin(projectId).filter("SBOM"::equals).isPresent()) {
                 return new ImportResult("KEPT", "SBOM", 0, 0, "aucune nouvelle SBOM disponible");
@@ -114,6 +120,17 @@ public class InventoryService {
             LOG.warnf("rafraîchissement de l'inventaire du projet %s impossible : %s", projectId, e.getMessage());
             return new ImportResult("ERROR", null, 0, 0, e.getMessage());
         }
+    }
+
+    /**
+     * Refuse une SBOM reconnue dans un autre format que CycloneDX JSON (INV-01, INV-05) : le motif
+     * nomme le format reçu, l'inventaire en place est conservé.
+     */
+    private ImportResult rejectFormat(UUID projectId, SbomDocument.Format format, String sourceRef) {
+        String reason = "SBOM " + format.libelle() + " non acceptée : CycloneDX JSON 1.5 ou 1.6 attendu";
+        store.recordFailure(projectId, reason, sourceRef);
+        LOG.infof("SBOM refusée pour le projet %s : %s", projectId, reason);
+        return new ImportResult("REJECTED", null, 0, 0, reason);
     }
 
     private ProjectDirectory.Project requireProject(UUID projectId) {

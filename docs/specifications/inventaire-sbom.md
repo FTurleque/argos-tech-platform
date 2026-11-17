@@ -40,6 +40,7 @@ Répondre de façon fiable à la question « quels composants, et dans quelles v
 | Entrée : manifeste de dépendances | dépendances déclarées | utilisé seulement sans SBOM | [PROPOSITION] |
 | Sortie : inventaire du projet | composants, PURL, version, direct/transitif, origine (SBOM ou manifeste), date de la source | un inventaire de référence par projet | [PROPOSITION] |
 | Sortie : échec d'import | motif | consultable | [PROPOSITION] |
+| Entrée : SBOM récupérée sur la forge | octets et format reconnu à l'en-tête : CycloneDX JSON, CycloneDX XML, SPDX JSON (dont l'export du graphe de dépendances GitHub), SPDX étiquette-valeur, inconnu | seule une SBOM CycloneDX JSON (ou de format inconnu, alors soumise au contrôle CycloneDX) est importée ; un autre format reconnu est refusé avec un motif qui le nomme, l'inventaire en place est conservé | [EXISTANT] — `io.argos.scm.SbomDocument`, `InventoryService.refresh` ; [PROPOSITION] pour le refus nommé des formats SPDX et CycloneDX XML |
 
 ## Règles métier
 
@@ -136,13 +137,16 @@ Interprétations validées par le porteur du projet le 2026-11-16 [DÉCISION].
 Interprétation introduite par l'implémentation, à valider [PROPOSITION] :
 
 - INV-03 : une SBOM sans date de génération est traitée comme obsolète, faute de pouvoir établir sa fraîcheur ; la corrélation lui attribue au mieux le niveau `probable`. La décision Q-3 ne fixe que le seuil de 30 jours après la date de génération.
+- INV-01, INV-05 : une SBOM SPDX ou CycloneDX XML trouvée sur la forge est reconnue et refusée avec le motif « SBOM <format> non acceptée : CycloneDX JSON 1.5 ou 1.6 attendu » ; elle n'est ni convertie ni importée, conformément à la décision Q-7. L'import de SPDX demanderait de modifier INV-01.
 
 ## Écarts constatés
 
 - Le code de `argos-server` implémente les règles de cette fiche (`io.argos.inventory`, `io.argos.scm` ; tests `argos-server/src/test/java/io/argos/chain/InventoryTest.java` et `DocumentParsingTest.java`). La consultation de l'inventaire s'exécute sous le rôle applicatif `argos_app` : la RLS des tables `project`, `inventory`, `component` et `inventory_import_failure` limite la lecture aux membres de l'espace du projet.
 - L'indicateur `obsolete` de la consultation ne vaut vrai que pour une SBOM ; un inventaire de repli (manifestes) n'est pas une SBOM, mais la corrélation ne lui accorde jamais le niveau `exact`.
-- Les niveaux des impacts sont calculés à la corrélation et enregistrés : une SBOM qui dépasse ensuite les 30 jours ne fait pas recalculer les impacts existants tant qu'aucun nouveau signal ni inventaire ne déclenche de corrélation (aucune planification, tâche 6.3).
-- Les adaptateurs GitLab et GitHub ne sont testés que sur des réponses simulées (tâche 3.2).
+- Les niveaux des impacts sont calculés à la corrélation et enregistrés : une SBOM qui dépasse ensuite les 30 jours ne fait pas recalculer les impacts existants tant qu'aucun nouveau signal ni inventaire ne déclenche de corrélation (aucune tâche planifiée ne le fait, ADR-0031 proposé).
+- `scm-connector` (`io.argos.scm.RepositoryFiles`) récupère la SBOM et les manifestes en lecture seule : GitLab, SBOM = artefact du job désigné sur la branche principale, fichiers par l'API des fichiers bruts, jeton `PRIVATE-TOKEN` ; GitHub, SBOM et fichiers par l'API des contenus en média brut, jeton `Bearer`. Une réponse 404 signifie « absent » ; un autre statut, une redirection (jamais suivie), une réponse au-delà de `argos.inventory.max-document-bytes` ou un quota épuisé (`QuotaEpuise`) font échouer le rafraîchissement (`ERROR`) sans modifier l'inventaire. Les segments `.` et `..` sont retirés des chemins, un dépôt GitHub hors de la forme `owner/repo` est refusé, le jeton n'apparaît dans aucun message.
+- Le contrat de ces appels est vérifié sur les API des forges simulées par un serveur HTTP local, avec des réponses composées selon les formats publiés par GitLab et GitHub (`argos-server/src/test/resources/fixtures/scm/`, `chain/ScmContractTest`) ; aucune réponse n'a été capturée sur une forge réelle ni sur un dépôt pilote.
+- `InventoryService.refresh` n'a aucun déclencheur en production : ni tâche planifiée, ni point d'entrée REST (Q-INV-1).
 
 ## Questions ouvertes
 
@@ -157,4 +161,4 @@ Interprétation introduite par l'implémentation, à valider [PROPOSITION] :
 
 ## Traçabilité
 
-Voir la matrice du changement : [`tasks.md`](/openspec/changes/formaliser-chaine-securite-poc/tasks.md#matrice-de-traçabilité). Les scénarios INV-01-S1 à INV-05-S1 sont vérifiés par `argos-server/src/test/java/io/argos/chain/InventoryTest.java` et `DocumentParsingTest.java`. La récupération GitLab et GitHub n'est testée que sur des réponses simulées (tâche 3.2 ouverte).
+Voir la matrice du changement : [`tasks.md`](/openspec/changes/formaliser-chaine-securite-poc/tasks.md#matrice-de-traçabilité). Les scénarios INV-01-S1 à INV-05-S1 sont vérifiés par `argos-server/src/test/java/io/argos/chain/InventoryTest.java` et `DocumentParsingTest.java`. La récupération GitLab et GitHub est vérifiée par `argos-server/src/test/java/io/argos/chain/ScmContractTest.java` sur des forges simulées (tâche 3.2).

@@ -206,7 +206,7 @@ class InventoryTest {
         StubServer.on("/gitlab/api/v4/projects/groupe%2Fapi/jobs/artifacts/main/raw/reports/bom.json?job=cyclonedx",
                 Stub.ok("{\"bomFormat\":\"CycloneDX\"}"));
         assertEquals("{\"bomFormat\":\"CycloneDX\"}",
-                new String(repositoryFiles.latestSbom(gitlab).orElseThrow(), StandardCharsets.UTF_8));
+                new String(repositoryFiles.latestSbom(gitlab).orElseThrow().contenu(), StandardCharsets.UTF_8));
         assertTrue(repositoryFiles.file(gitlab, "package.json").isEmpty(), "404 : fichier absent");
 
         RepositoryRef github = new RepositoryRef("GITHUB", "org/app", "main", null, "sbom/bom.json");
