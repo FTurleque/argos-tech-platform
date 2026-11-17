@@ -23,3 +23,9 @@ enrichment/epss-CVE-2021-44228.json
 enrichment/CERTFR-2026-AVI-1500.json, enrichment/certfr-feed.xml
   Source : CERT-FR / ANSSI (https://www.cert.cyber.gouv.fr), Licence Ouverte / Open Licence
   version 2.0 (Etalab).
+
+jorf/*.xml, jorf/index.html
+  Fichiers composés pour les tests selon le format des jeux de données JORF de la Direction de
+  l'information légale et administrative (DILA), diffusés sous Licence Ouverte / Open Licence 2.0
+  (https://echanges.dila.gouv.fr/OPENDATA/JORF/). Les textes, numéros et identifiants sont fictifs
+  (série JORFTEXT0000990000xx) ; aucun extrait de texte officiel n'est reproduit.

@@ -10,10 +10,8 @@ import java.util.UUID;
  * Lecture des fiches réglementaires des espaces (module {@code reg-intel}, arc42 §5 ; capacité
  * {@code veille-reglementaire}, ADR-0018).
  *
- * <p>Point d'extension en lecture seule utilisé par le serveur MCP ({@code get_regulatory_changes}).
- * La collecte, la préparation et la validation des fiches relèvent du changement
- * {@code suivre-veille-reglementaire} ; tant qu'il n'est pas livré, l'implémentation par défaut
- * {@link FichesReglementairesNonRenseignees} ne connaît aucune fiche.
+ * <p>Point d'extension en lecture seule utilisé par le serveur MCP ({@code get_regulatory_changes}),
+ * implémenté par {@link FichesEnBase} : les fiches sont lues sous la RLS avec le compte de l'appelant.
  */
 public interface FichesReglementaires {
 
@@ -24,20 +22,29 @@ public interface FichesReglementaires {
      * Fiche réglementaire.
      *
      * @param id                  identifiant stable
-     * @param espaceId            espace dont le domaine métier est concerné
-     * @param domaine             domaine métier
+     * @param espaceId            espace dont les domaines métier sont concernés
+     * @param domaines            domaines métier rattachés
      * @param etat                état de validation par l'expert métier
      * @param titreOfficiel       titre du texte officiel, tel que publié par la source (contenu externe)
-     * @param referenceOfficielle identifiant officiel du texte (par exemple NOR)
-     * @param resume              résumé de la fiche, relu par l'expert métier
+     * @param referenceOfficielle identifiant officiel du texte ({@code JORFTEXT…})
+     * @param nor                 numéro NOR, absent si inconnu
+     * @param resume              résumé de la fiche, relu par l'expert métier, absent s'il reste à rédiger
      * @param publication         date de publication du texte
-     * @param effet               date d'entrée en vigueur, absente si inconnue
-     * @param source              source du texte (identifiant court, par exemple {@code legifrance})
+     * @param effet               date d'entrée en vigueur, absente si elle reste à confirmer
+     * @param source              source du texte (identifiant court, {@code JORF})
+     * @param lienOfficiel        adresse du texte publié sur Légifrance
      */
-    record Fiche(UUID id, UUID espaceId, String domaine, Etat etat, String titreOfficiel, String referenceOfficielle,
-            String resume, LocalDate publication, LocalDate effet, String source) {
+    record Fiche(UUID id, UUID espaceId, List<String> domaines, Etat etat, String titreOfficiel, String referenceOfficielle,
+            String nor, String resume, LocalDate publication, LocalDate effet, String source, String lienOfficiel) {
+
+        public Fiche {
+            domaines = List.copyOf(domaines);
+        }
     }
 
-    /** Fiches des espaces donnés, et seulement de ceux-là, éventuellement limitées à un domaine. */
-    List<Fiche> fiches(Set<UUID> espaces, Optional<String> domaine);
+    /**
+     * Fiches visibles du compte dans les espaces donnés, et seulement ceux-là, éventuellement limitées à
+     * un domaine. Une fiche non validée n'est visible que des experts de ses domaines.
+     */
+    List<Fiche> fiches(UUID compte, Set<UUID> espaces, Optional<String> domaine);
 }

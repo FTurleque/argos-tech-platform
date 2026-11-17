@@ -1,0 +1,38 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<TEXTE_VERSION>
+  <META>
+    <META_COMMUN>
+      <ID>JORFTEXT000099000001</ID>
+      <ANCIEN_ID/>
+      <ORIGINE>JORF</ORIGINE>
+      <URL>texte/version/JORF/TEXT/00/00/99/00/00/JORFTEXT000099000001.xml</URL>
+      <NATURE>DECRET</NATURE>
+    </META_COMMUN>
+    <META_SPEC>
+      <META_TEXTE_CHRONICLE>
+        <CID>JORFTEXT000099000001</CID>
+        <NUM>2026-1101</NUM>
+        <NUM_SEQUENCE>0</NUM_SEQUENCE>
+        <NOR>TFPF2631001D</NOR>
+        <DATE_PUBLI>2026-11-20</DATE_PUBLI>
+        <DATE_TEXTE>2026-11-18</DATE_TEXTE>
+      </META_TEXTE_CHRONICLE>
+      <META_TEXTE_VERSION>
+        <TITRE>Décret n° 2026-1101 du 18 novembre 2026 relatif aux règles d'avancement de test</TITRE>
+        <TITREFULL>Décret n° 2026-1101 du 18 novembre 2026 relatif aux règles d'avancement de grade des fonctionnaires (texte de test)</TITREFULL>
+        <ETAT/>
+        <DATE_DEBUT>2027-01-01</DATE_DEBUT>
+        <DATE_FIN>2999-01-01</DATE_FIN>
+        <AUTORITE/>
+        <MINISTERE>Ministère de la transformation et de la fonction publiques</MINISTERE>
+        <LIENS>
+          <LIEN cidtexte="LEGITEXT000044416551" datesignatexte="2021-11-24" id="LEGIARTI000099000101" naturetexte="CODE" nortexte="" num="L. 522-24" numtexte="" sens="cible" typelien="MODIFIE">Code général de la fonction publique - art. L522-24 (M)</LIEN>
+          <LIEN cidtexte="LEGITEXT000044416551" datesignatexte="2021-11-24" id="LEGIARTI000099000102" naturetexte="CODE" nortexte="" num="L. 522-25" numtexte="" sens="cible" typelien="MODIFIE">Code général de la fonction publique - art. L522-25 (M)</LIEN>
+          <LIEN cidtexte="JORFTEXT000044000000" naturetexte="DECRET" sens="source" typelien="CITATION">Décret cité</LIEN>
+        </LIENS>
+      </META_TEXTE_VERSION>
+    </META_SPEC>
+  </META>
+  <NOTICE><CONTENU><p>Publics concernés : fonctionnaires de l'État (texte de test).</p><p>Objet : règles d'avancement de grade.</p><p>Entrée en vigueur : le texte entre en vigueur le 1er janvier 2027.</p></CONTENU></NOTICE>
+  <VISAS><CONTENU><p>Vu le code général de la fonction publique ;</p></CONTENU></VISAS>
+</TEXTE_VERSION>

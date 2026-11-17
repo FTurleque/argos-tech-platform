@@ -28,7 +28,16 @@ import io.quarkus.test.common.QuarkusTestResourceLifecycleManager;
 public class StubServer implements QuarkusTestResourceLifecycleManager {
 
     /** Réponse programmée. */
-    public record Stub(int status, String body, Map<String, String> headers, long delayMillis) {
+    public record Stub(int status, String body, Map<String, String> headers, long delayMillis, byte[] octets) {
+
+        public Stub(int status, String body, Map<String, String> headers, long delayMillis) {
+            this(status, body, headers, delayMillis, null);
+        }
+
+        /** Réponse binaire (archive), servie telle quelle. */
+        public static Stub octets(byte[] corps) {
+            return new Stub(200, "", Map.of(), 0, corps);
+        }
 
         public static Stub ok(String body) {
             return new Stub(200, body, Map.of(), 0);
@@ -79,7 +88,10 @@ public class StubServer implements QuarkusTestResourceLifecycleManager {
                 Map.entry("argos.radar.endoflife.delai", "PT1S"),
                 // Passerelle IA : API Ollama simulée sous /ollama (réponses enregistrées), aucun modèle réel.
                 Map.entry("argos.ia.ollama.url", base + "/ollama"),
-                Map.entry("argos.ia.delai", "PT2S"));
+                Map.entry("argos.ia.delai", "PT2S"),
+                // Veille réglementaire : archives JORF enregistrées servies sous /jorf, aucun accès à la DILA.
+                Map.entry("argos.reglementaire.jorf.url", base + "/jorf"),
+                Map.entry("argos.reglementaire.jorf.delai", "PT2S"));
     }
 
     @Override
@@ -134,7 +146,7 @@ public class StubServer implements QuarkusTestResourceLifecycleManager {
             }
         }
         stub.headers().forEach((k, v) -> exchange.getResponseHeaders().add(k, v));
-        byte[] body = stub.body().getBytes(StandardCharsets.UTF_8);
+        byte[] body = stub.octets() != null ? stub.octets() : stub.body().getBytes(StandardCharsets.UTF_8);
         exchange.sendResponseHeaders(stub.status(), body.length == 0 ? -1 : body.length);
         if (body.length > 0) {
             try (OutputStream out = exchange.getResponseBody()) {

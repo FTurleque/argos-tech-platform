@@ -7,9 +7,10 @@
  * ({@link io.argos.alerting.EnvoiAlertes}) sur les canaux {@link io.argos.alerting.CanalDiffusion}
  * (capacité {@code alertes-digests}).
  *
- * <p>Résumé IA des alertes par la passerelle ({@link io.argos.alerting.ResumeIaPasserelle}).
+ * <p>Résumé IA des alertes par la passerelle ({@link io.argos.alerting.ResumeIaPasserelle}) ; rappels des
+ * entrées en vigueur réglementaires ({@link io.argos.alerting.RappelsReglementaires}).
  *
- * <p>Dépendances autorisées : {@code impact}, {@code workspace}, {@code aigateway}.
+ * <p>Dépendances autorisées : {@code impact}, {@code workspace}, {@code aigateway}, {@code regintel}.
  * Vérifiées par {@code ModuleBoundariesTest}.
  */
 package io.argos.alerting;
