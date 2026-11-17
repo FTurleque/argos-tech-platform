@@ -10,7 +10,7 @@
 
 - [ADR-0018](0018-veille-reglementaire-mkp.md) (Proposé) intègre la veille réglementaire dans un module `reg-intel` avec une validation obligatoire par un « MKP » et des domaines métier d'un éditeur de logiciels RH.
 - Depuis [ADR-0025](0025-produit-ouvert-projet-personnel.md) (Accepté), Argos est un produit ouvert à tous les publics : le rôle s'appelle « expert métier » et les domaines ne sont plus ceux d'un éditeur.
-- Le porteur a tranché le 2026-11-17 (changement [`suivre-veille-reglementaire`](/openspec/changes/suivre-veille-reglementaire/proposal.md)) : source principale = jeux de données LEGI et JORF de la DILA sous Licence Ouverte, sans l'API PISTE de Légifrance (Q-1) ; rappels J-90, J-30 et J-7 paramétrables (Q-2) ; suivi externe GitHub et GitLab par les adapters `scm`, sans Jira (Q-3) ; aucun dictionnaire type (Q-4).
+- Le porteur a tranché le 2026-11-17 (changement [`suivre-veille-reglementaire`](/openspec/changes/archive/2026-11-17-suivre-veille-reglementaire/proposal.md)) : source principale = jeux de données LEGI et JORF de la DILA sous Licence Ouverte, sans l'API PISTE de Légifrance (Q-1) ; rappels J-90, J-30 et J-7 paramétrables (Q-2) ; suivi externe GitHub et GitLab par les adapters `scm`, sans Jira (Q-3) ; aucun dictionnaire type (Q-4).
 - [ADR-0021](0021-double-licence.md) impose des composants gratuits sous licence permissive ; [ADR-0029](0029-passerelle-ia-ollama-local.md) (Proposé) rend l'IA facultative.
 
 ## Critères de décision

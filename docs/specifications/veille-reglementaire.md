@@ -3,9 +3,9 @@
 | Élément | Valeur |
 |---|---|
 | Préfixe d'exigences | `REG` |
-| Spec de référence | `/openspec/specs/veille-reglementaire/spec.md` — absente tant qu'aucun changement n'est archivé |
-| Changements en cours | [`suivre-veille-reglementaire`](/openspec/changes/suivre-veille-reglementaire/proposal.md) (implémenté, non archivé) |
-| Statut de la capacité | implémentée, non archivée |
+| Spec de référence | [`/openspec/specs/veille-reglementaire/spec.md`](/openspec/specs/veille-reglementaire/spec.md) |
+| Changements archivés | [`2026-11-17-suivre-veille-reglementaire`](/openspec/changes/archive/2026-11-17-suivre-veille-reglementaire/proposal.md) |
+| Statut de la capacité | livrée |
 | Composants (arc42 §5) | `reg-intel`, `source-ingestion`, `catalog`, `ai-gateway`, `scm-connector`, `alerting` (arc42 §5.4.3) |
 | Décision | [ADR-0030](../architecture/adr/0030-veille-reglementaire-expert-metier.md) (Proposé), mise à jour d'ADR-0018 (Proposé) |
 
