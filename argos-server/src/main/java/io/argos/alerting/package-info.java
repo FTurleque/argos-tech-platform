@@ -7,7 +7,9 @@
  * ({@link io.argos.alerting.EnvoiAlertes}) sur les canaux {@link io.argos.alerting.CanalDiffusion}
  * (capacité {@code alertes-digests}).
  *
- * <p>Dépendances autorisées : {@code impact}, {@code workspace}.
+ * <p>Résumé IA des alertes par la passerelle ({@link io.argos.alerting.ResumeIaPasserelle}).
+ *
+ * <p>Dépendances autorisées : {@code impact}, {@code workspace}, {@code aigateway}.
  * Vérifiées par {@code ModuleBoundariesTest}.
  */
 package io.argos.alerting;

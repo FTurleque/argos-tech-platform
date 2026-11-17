@@ -27,7 +27,7 @@ Chaque relation doit porter une action et le protocole lorsqu’il est architect
 | D-04 | C4 Component | ARGOS Backend | `arc42/05-vue-blocs.md` |
 | D-05 | UML classDiagram | modèle métier conceptuel | `arc42/05-vue-blocs.md` §5.7 |
 | D-06 | UML sequenceDiagram | signal techno → impact projet | `arc42/06-vue-execution.md` |
-| D-07 | UML sequenceDiagram | webhook projet | `arc42/06-vue-execution.md` |
+| D-07 | UML sequenceDiagram | collecte planifiée de l’activité d’un projet GitHub/GitLab, report sur quota, consultation sous RLS | `arc42/06-vue-execution.md` §6.2 |
 | D-08 | UML sequenceDiagram | erreur API/retry | `arc42/06-vue-execution.md` |
 | D-09 | UML sequenceDiagram | redémarrage/reprise | `arc42/06-vue-execution.md` |
 | D-10 | UML-style deployment | POC/MVP : deux vues, POC local et POC partagé sur VM | `arc42/07-vue-deploiement.md` §7.2 et §7.3 |
@@ -45,6 +45,10 @@ D-06 à D-09 emploient des noms de participants différents des composants de la
 Le collecteur RSS/Atom et web intégré (ADR-0028) n'ajoute aucun diagramme d'architecture : DF-WEB-1 ([`veille-rss-web`](../../specifications/veille-rss-web.md#df-web-1--acceptation-dune-adresse)) et DC-1 du changement `collecter-veille-rss-web` décrivent l'acceptation d'une adresse et la collecte.
 
 La recherche plein texte et les vues enregistrées (changement `rechercher-et-filtrer`) n'ajoutent aucun diagramme d'architecture : DF-RCH-1 ([`recherche-veille`](../../specifications/recherche-veille.md#df-rch-1--une-recherche-filtrée)) décrit l'ordre des droits, des mots et des filtres.
+
+La passerelle IA (changement `encadrer-appels-ia`, ADR-0029 proposé) n'ajoute aucun diagramme d'architecture : DC-1 du changement décrit les vérifications qui précèdent et suivent un appel, DF-IAG-1 ([`passerelle-ia`](../../specifications/passerelle-ia.md#df-iag-1--un-résumé-est-il-produit-)) les cas où un élément reçoit un résumé ; les flèches `alerting`, `signal` et `impact-engine` vers `ai-gateway` figurent en arc42 §5.2.
+
+Le profil de veille `artiste` (changement `ajouter-profil-artiste`) n'ajoute aucun diagramme d'architecture : ses composants sont décrits par le tableau de `arc42/05-vue-blocs.md` §5.4.2, DF-ART-1 ([`profil-artiste`](../../specifications/profil-artiste.md#df-art-1--un-appel-est-il-proposé-à-lartiste-)) et DC-1 du changement décrivent le rapprochement d'un appel.
 
 Les diagrammes métier par capacité (`DF-*`) sont inventoriés dans [`../../specifications/README.md`](../../specifications/README.md#inventaire-des-diagrammes-métier) ; les diagrammes de conception propres à un changement OpenSpec (`DC-*`) restent dans son `design.md`.
 

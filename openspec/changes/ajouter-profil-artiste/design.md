@@ -75,15 +75,22 @@ Non applicable — conception allégée ; à préciser avec les tâches d'implé
 
 ## Contrats d'interface
 
-Non applicable — conception allégée ; à préciser avec les tâches d'implémentation correspondantes.
+API REST sous `/api/v1/profils/artiste` (`ProfilArtisteResource`, OIDC obligatoire, erreurs au format commun `Erreur`) :
+
+- `GET /listes` : disciplines et territoires du pack ;
+- `GET /suivis`, `PUT /suivis` : suivis du compte (disciplines, territoires, `rappelsJours` facultatif) ; valeur hors liste `400` avec la liste disponible, profil inactif `409` ; `rappelsJours` absent conserve les jours déjà enregistrés ;
+- `GET /opportunites`, `GET /opportunites/{id}/resume` : appels ouverts rapprochés des suivis, résumé par gabarit ;
+- `GET /sources`, `POST /sources`, `PUT /sources/{id}/conditions-usage`, `POST /collectes` : registre des sources et collecte, réservés à l'administrateur plateforme (refus journalisé).
+
+`GET /api/v1/preferences/rubriques` (`RubriquesResource`) restitue les rubriques des profils actifs dans l'ordre du catalogue.
 
 ## Persistance et intégrité
 
-Non applicable — conception allégée ; à préciser avec les tâches d'implémentation correspondantes.
+Migration `V15__profil_artiste.sql` : `suivi_profil` et `suivi_rappels` (clé compte, profil, type ; RLS `USING` et `WITH CHECK` sur `argos_compte_courant()` sous `argos_app`) ; `source_profil` et `opportunite` (données publiques sans espace, dans `signal.opportunite`). Types `varchar` uniquement.
 
 ## Transactions, concurrence et idempotence
 
-Non applicable — conception allégée ; à préciser avec les tâches d'implémentation correspondantes.
+Le remplacement des suivis d'un compte (`SuivisProfil.remplacer`) supprime puis insère dans une transaction, sérialisée par un verrou transactionnel `pg_advisory_xact_lock` sur le couple compte et profil : deux `PUT /suivis` simultanés s'appliquent l'un après l'autre, la dernière requête l'emporte, sans violation de clé. Les rappels sont idempotents par (compte, canal, clé), comme ceux du radar. La collecte enregistre chaque opportunité en auto-commit : un échec en cours de lot laisse les opportunités déjà insérées et la source passe `EN_ERREUR`.
 
 ## Sécurité et isolation
 
@@ -123,18 +130,18 @@ Non applicable — aucune donnée ni aucun contrat existants.
 
 ## Écarts code / tests / specs / documentation
 
-Aucun écart constaté.
+Les écarts sont tenus dans la fiche [`profil-artiste`](/docs/specifications/profil-artiste.md#écarts-constatés) : correspondance des champs data.culture.gouv.fr à confirmer par jeu, aucun écran dans `argos-ui`, flux RSS sans date limite structurée, rappel calculé pour le jour exact. La restriction d'hôte des sources `DATA_CULTURE` ne porte que sur l'adresse initiale : une redirection vers un autre hôte public reste soumise au garde SSRF de la veille web.
 
 ## Stratégie de vérification
 
 | Exigence / scénario | Niveau de test | Moyen de preuve | État |
 |---|---|---|---|
-| ART-01-S1 | intégration | catalogue et activation | à écrire |
-| ART-02-S1, ART-02-S2 | intégration API | listes du pack | à écrire |
-| ART-03-S1, ART-03-S2 | unitaire | stratégie | à écrire |
-| ART-04-S1 | intégration | horloge simulée | à écrire |
-| ART-05-S1 | intégration | source non vérifiée | à écrire |
-| ART-06-S1 | revue + intégration | gabarit de résumé | à écrire |
+| ART-01-S1 | intégration | catalogue et activation | `ManifesteArtisteTest`, `ProfilArtisteTest` |
+| ART-02-S1, ART-02-S2 | intégration API | listes du pack | `ProfilArtisteTest` (RLS sous `argos_app`, remplacements simultanés) |
+| ART-03-S1, ART-03-S2 | unitaire | stratégie | `StrategieDisciplineTerritoireTest`, `ProfilArtisteTest` |
+| ART-04-S1 | intégration | horloge simulée | `RappelsOpportunitesTest` |
+| ART-05-S1 | intégration | source non vérifiée | `ProfilArtisteTest` |
+| ART-06-S1 | revue + intégration | gabarit de résumé | `ProfilArtisteTest`, `StrategieDisciplineTerritoireTest` |
 
 ## Documentation durable impactée
 

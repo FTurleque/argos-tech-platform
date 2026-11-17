@@ -76,6 +76,7 @@ flowchart TB
     MCP["«Component»\nmcp-server\nlecture seule"]
     AI["«Component»\nai-gateway"]
     SCM["«adapter»\nscm-connector"]
+    PROJ["«Component»\nproject-intel"]
     AUDIT["«Component»\naudit"]
     DB["«adapter»\nPostgreSQL"]
 
@@ -92,7 +93,15 @@ flowchart TB
     IMPACT --> MCP
     REG --> AI
     IMPACT --> AI
+    ALERT --> AI
+    SIGNAL --> AI
+    AI --> AUDIT
     SCM --> INVENTORY
+    SCM --> PROJ
+    INVENTORY --> PROJ
+    API --> PROJ
+    PROJ --> DB
+    PROJ -.->|SyntheseIa, adaptateur non livré| AI
     WORK --> ALERT
     WORK --> MCP
     WORK --> DB
@@ -113,10 +122,11 @@ flowchart TB
 | inventory | projets, dépôts, SBOM, PURL | calculer seul l’impact sécurité |
 | release-radar | calendrier public endoflife.date (copie locale, fraîcheur), échéances par technologie du référentiel (`io.argos.releaseradar`, fiche [`radar-standards`](../../specifications/radar-standards.md)) | décider d’un statut du référentiel ; utiliser la correspondance produit d’un autre espace |
 | impact-engine | corrélation déterministe ; dette de version et projets touchés par une échéance ou un changement de standard (`RadarProjets`) | déléguer la décision au LLM |
-| ai-gateway | prompts, modèles, quotas, structured output, audit | exposer Claude directement au domaine |
+| ai-gateway | point d'appel unique au modèle local Ollama : prompts versionnés, classes de données, plafond et quotas journaliers, sorties validées par schéma, mention IA, journal `ia_appel` via `audit` (`io.argos.aigateway`, fiche [`passerelle-ia`](../../specifications/passerelle-ia.md), ADR-0029 proposé) ; appelé par `alerting` (résumé d'alerte), `signal.web` (résumé d'actualité) et `impact` (analyse complémentaire, désactivée par défaut) | exposer le fournisseur au domaine ; décider d'un impact ; recevoir une donnée CONFIDENTIAL ou RESTRICTED |
 | mcp-server | huit outils MCP en lecture seule sur `POST /mcp` (Streamable HTTP sans état) ; appelant établi par `api.security`, limitation de débit, journal des appels (`audit`), contenu externe balisé et tronqué (`io.argos.mcp`, fiche [`serveur-mcp`](../../specifications/serveur-mcp.md)) | modifier le domaine ; dépendre de `api` hors `api.security` |
 | alerting | règles d’alerte et digests ; rappels d’échéance et annonces de standard du radar (`RappelsRadar`) | accorder des droits d’accès |
-| scm-connector | GitLab/API/webhooks/SBOM | injecter les payloads fournisseurs dans le domaine |
+| scm-connector | GitLab/API/webhooks/SBOM ; activité GitHub et GitLab en lecture seule, sans identité, quotas (`RepositoryActivity`, `QuotaEpuise`) | injecter les payloads fournisseurs dans le domaine ; écrire dans un dépôt |
+| project-intel | collecte planifiée et agrégation par jour de l'activité des dépôts, avancement des jalons avec dénominateur, synthèse IA marquée par le point d'extension `SyntheseIa`, purge à 13 mois (`io.argos.projectintel`, fiche [`activite-projets`](../../specifications/activite-projets.md)) | stocker ou restituer une identité de personne ; laisser l'IA calculer un indicateur |
 
 ## 5.4 Personnalisation
 
@@ -163,6 +173,22 @@ flowchart LR
     PREF -->|SQL| DB
 ```
 
+### 5.4.2 Profil de veille `artiste` (ADR-0024 — proposé)
+
+Le profil `artiste` est un pack du catalogue (changement `ajouter-profil-artiste`, fiche [`profil-artiste`](../../specifications/profil-artiste.md)). Il ajoute des listes fermées d'objets suivis au manifeste (disciplines, territoires) et une stratégie de rapprochement sans identifiant de composant.
+
+| Composant | Responsabilité | Ne doit pas | Code |
+|---|---|---|---|
+| catalog | publier le manifeste `artiste` : rubriques, listes de disciplines et de territoires, garde-fous `AUCUN_AVIS_ELIGIBILITE` et `SOURCES_VERIFIEES` | connaître les suivis d'un utilisateur | `io.argos.catalog.profil` (`artiste.json`) |
+| workspace | enregistrer les objets suivis et les jours de rappel de chaque compte, sous RLS | accorder un droit ; lire le catalogue | `io.argos.workspace.suivi` |
+| source-ingestion | lire une réponse de l'API data.culture.gouv.fr en texte brut ; récupérer par le collecteur de la veille web | récupérer une adresse lue dans un contenu | `io.argos.ingestion.culture`, `io.argos.ingestion.web` |
+| signal | registre des sources du profil et de leurs conditions d'usage ; collecte des seules sources vérifiées ; opportunités | collecter une source non vérifiée | `io.argos.signal.opportunite` |
+| impact-engine | stratégie discipline + territoire + date limite ; gabarit de résumé sans avis d'éligibilité | décider par l'IA ; lire les préférences | `io.argos.impact` (`StrategieDisciplineTerritoire`, `RapprochementOpportunites`, `ResumeOpportunite`) |
+| alerting | rappels de date limite aux jours de rappel du compte | accorder un droit | `io.argos.alerting.RappelsOpportunites` |
+| API & Security | vérifier que le profil est actif, confronter les suivis aux listes du pack, réserver le registre des sources à l'administrateur plateforme | appliquer la stratégie | `io.argos.api.artiste`, `io.argos.api.preference.RubriquesResource` |
+
+Le paquet `workspace.suivi` n'emprunte au reste de `workspace` que `ContexteBase` et ne lit aucune donnée d'autorisation (`SuiviIsolationTest`). Aucune dépendance de module n'est ajoutée à §5.6.
+
 ## 5.5 Règles de dépendance
 
 1. le domaine ne dépend pas des SDK externes ;
@@ -174,7 +200,7 @@ flowchart LR
 
 ## 5.6 C4 Code
 
-Le socle `argos-server/` matérialise chaque composant de §5.2 par un paquet Java `io.argos.<module>` (par exemple `impact` pour `impact-engine`, `ingestion` pour `source-ingestion`). Les dépendances autorisées entre modules sont vérifiées par `argos-server/src/test/java/io/argos/architecture/ModuleBoundariesTest.java`. Les paquets `ingestion`, `signal`, `vulnintel`, `scm`, `inventory`, `impact`, `workspace`, `audit` et `api` portent la chaîne sécurité du POC (changement `formaliser-chaine-securite-poc`) ainsi que les comptes, les espaces et les rôles (changement `gerer-comptes-et-acces`) ; `catalog`, `workspace.preference` et `api` portent le catalogue des profils et des mises en page et les préférences utilisateur (§5.4.1) ; `mcp` porte le serveur MCP (changement `exposer-serveur-mcp`), qui lit le référentiel des standards, le calendrier des sorties et les fiches réglementaires par les points d'extension `catalog.standard`, `releaseradar` et `regintel` ; `ingestion.web`, `signal.web` et `impact` portent la veille RSS/Atom et les pages surveillées (changement `collecter-veille-rss-web`, ADR-0028) ; `signal` n'emprunte à `workspace` que le contexte RLS `ContexteBase` et les erreurs communes `DonneeInvalide` et `RegleViolee` (règle `signalNEmprunteQueRlsEtErreurs`) ; `alerting` porte les alertes et les résumés (changement `diffuser-alertes-et-digests`) ; `impact` (`RechercheVeille`), `api.recherche` et `workspace.vue` portent la recherche plein texte, ses filtres et les vues enregistrées, et l'outil MCP `search_signals` emploie la même requête (changement `rechercher-et-filtrer`) ; `catalog.standard`, `releaseradar`, `impact` (`RadarProjets`) et `alerting` (`RappelsRadar`) portent le référentiel des standards et le radar des sorties (changement `construire-radar-et-standards`, §8.15) ; `catalog` n’emprunte à `workspace` que `ContexteBase` et les erreurs communes, dans le seul paquet `catalog.standard` (règle `catalogNEmprunteQueRlsEtErreurs`), et `impact` lit le référentiel de `catalog` pour la dette de version et les annonces ; les autres paquets ne contiennent aucun code métier.
+Le socle `argos-server/` matérialise chaque composant de §5.2 par un paquet Java `io.argos.<module>` (par exemple `impact` pour `impact-engine`, `ingestion` pour `source-ingestion`). Les dépendances autorisées entre modules sont vérifiées par `argos-server/src/test/java/io/argos/architecture/ModuleBoundariesTest.java`. Les paquets `ingestion`, `signal`, `vulnintel`, `scm`, `inventory`, `impact`, `workspace`, `audit` et `api` portent la chaîne sécurité du POC (changement `formaliser-chaine-securite-poc`) ainsi que les comptes, les espaces et les rôles (changement `gerer-comptes-et-acces`) ; `catalog`, `workspace.preference` et `api` portent le catalogue des profils et des mises en page et les préférences utilisateur (§5.4.1) ; `mcp` porte le serveur MCP (changement `exposer-serveur-mcp`), qui lit le référentiel des standards, le calendrier des sorties et les fiches réglementaires par les points d'extension `catalog.standard`, `releaseradar` et `regintel` ; `ingestion.web`, `signal.web` et `impact` portent la veille RSS/Atom et les pages surveillées (changement `collecter-veille-rss-web`, ADR-0028) ; `signal` n'emprunte à `workspace` que le contexte RLS `ContexteBase` et les erreurs communes `DonneeInvalide` et `RegleViolee` (règle `signalNEmprunteQueRlsEtErreurs`) ; `alerting` porte les alertes et les résumés (changement `diffuser-alertes-et-digests`) ; `impact` (`RechercheVeille`), `api.recherche` et `workspace.vue` portent la recherche plein texte, ses filtres et les vues enregistrées, et l'outil MCP `search_signals` emploie la même requête (changement `rechercher-et-filtrer`) ; `catalog.standard`, `releaseradar`, `impact` (`RadarProjets`) et `alerting` (`RappelsRadar`) portent le référentiel des standards et le radar des sorties (changement `construire-radar-et-standards`, §8.15) ; `catalog` n’emprunte à `workspace` que `ContexteBase` et les erreurs communes, dans le seul paquet `catalog.standard` (règle `catalogNEmprunteQueRlsEtErreurs`), et `impact` lit le référentiel de `catalog` pour la dette de version et les annonces ; `aigateway` porte la passerelle IA (changement `encadrer-appels-ia`), appelée par `alerting`, `signal.web` et `impact` par son seul contrat, l'adaptateur Ollama et les quotas restant internes (règle `seuleLaPasserelleConnaitLeFournisseur`) ; `projectintel`, `scm` et `api` portent l'activité des projets (changement `mesurer-activite-projets`), et `projectintel` n'emprunte à `workspace` que `ContexteBase` et `DonneeInvalide` (règle `projectintelNEmprunteQueRlsEtErreurs`) ; `catalog.profil`, `workspace.suivi`, `ingestion.culture`, `signal.opportunite`, `impact` et `alerting` (`RappelsOpportunites`) portent le profil de veille `artiste` (changement `ajouter-profil-artiste`, §5.4.2) ; les autres paquets ne contiennent aucun code métier.
 
 ## 5.7 Modèle métier conceptuel (D-05)
 

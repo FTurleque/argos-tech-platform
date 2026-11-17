@@ -21,7 +21,8 @@ import io.quarkus.test.common.QuarkusTestResourceLifecycleManager;
 
 /**
  * Serveur HTTP local qui simule toutes les sources externes (OSV, NVD, KEV, EPSS, CERT-FR,
- * GitLab, GitHub) : aucun test n'appelle de service externe. Les réponses sont programmées par
+ * GitLab, GitHub, endoflife.date) et l'API Ollama de la passerelle IA : aucun test n'appelle de
+ * service externe ni de modèle réel. Les réponses sont programmées par
  * chemin (avec ou sans requête) ; la dernière réponse d'une file reste active.
  */
 public class StubServer implements QuarkusTestResourceLifecycleManager {
@@ -38,8 +39,8 @@ public class StubServer implements QuarkusTestResourceLifecycleManager {
         }
     }
 
-    /** Requête reçue. */
-    public record Received(String pathAndQuery, Map<String, List<String>> headers, Instant at) {
+    /** Requête reçue, avec sa méthode HTTP et son corps (vide pour un GET). */
+    public record Received(String pathAndQuery, Map<String, List<String>> headers, Instant at, String method, String body) {
     }
 
     private static final Map<String, Deque<Stub>> ROUTES = new ConcurrentHashMap<>();
@@ -75,7 +76,10 @@ public class StubServer implements QuarkusTestResourceLifecycleManager {
                 Map.entry("argos.veille-web.delai", "PT1S"),
                 // Calendrier endoflife.date : réponses enregistrées servies sous /endoflife.
                 Map.entry("argos.radar.endoflife.url", base + "/endoflife"),
-                Map.entry("argos.radar.endoflife.delai", "PT1S"));
+                Map.entry("argos.radar.endoflife.delai", "PT1S"),
+                // Passerelle IA : API Ollama simulée sous /ollama (réponses enregistrées), aucun modèle réel.
+                Map.entry("argos.ia.ollama.url", base + "/ollama"),
+                Map.entry("argos.ia.delai", "PT2S"));
     }
 
     @Override
@@ -111,7 +115,8 @@ public class StubServer implements QuarkusTestResourceLifecycleManager {
         String path = exchange.getRequestURI().getRawPath();
         String query = exchange.getRequestURI().getRawQuery();
         String full = query == null ? path : path + "?" + query;
-        RECEIVED.add(new Received(full, Map.copyOf(exchange.getRequestHeaders()), Instant.now()));
+        String corps = new String(exchange.getRequestBody().readAllBytes(), StandardCharsets.UTF_8);
+        RECEIVED.add(new Received(full, Map.copyOf(exchange.getRequestHeaders()), Instant.now(), exchange.getRequestMethod(), corps));
         Deque<Stub> queue = ROUTES.getOrDefault(full, ROUTES.get(path));
         Stub stub;
         if (queue == null) {

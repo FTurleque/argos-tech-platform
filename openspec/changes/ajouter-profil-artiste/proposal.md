@@ -76,7 +76,7 @@ Allégée : premier pack sur le modèle d'ADR-0024 ; seule la stratégie de rapp
 
 | ID | Question | Bloquante ? | Destinataire |
 |---|---|---|---|
-| Q-1 | Quelles sources prioritaires (ministère de la Culture, centres nationaux, régions, sociétés de gestion) et leurs conditions d'usage ? | oui pour ART-05 | porteur du projet |
-| Q-2 | Quel périmètre géographique au démarrage (France, Europe) ? | oui pour ART-02 | porteur du projet |
-| Q-3 | Quelle liste de disciplines ? | oui pour ART-02 | porteur du projet |
-| Q-4 | À quelles échéances rappeler une date limite de candidature ? | non : paramétrable | Product Owner |
+| Q-1 | Quelles sources prioritaires (ministère de la Culture, centres nationaux, régions, sociétés de gestion) et leurs conditions d'usage ? | **Répondue le 2026-11-16** : data.culture.gouv.fr (Licence Ouverte Etalab) et flux RSS publics déclarés comme sources de la veille web ; toute autre source après vérification de ses conditions d'usage [DÉCISION] | porteur du projet |
+| Q-2 | Quel périmètre géographique au démarrage (France, Europe) ? | **Répondue le 2026-11-16** : France [DÉCISION] | porteur du projet |
+| Q-3 | Quelle liste de disciplines ? | **Répondue le 2026-11-16** : arts visuels, musique, spectacle vivant, littérature, cinéma et audiovisuel, design et métiers d'art [DÉCISION] | porteur du projet |
+| Q-4 | À quelles échéances rappeler une date limite de candidature ? | **Répondue le 2026-11-16** : J-30, J-7 et J-1, paramétrables [DÉCISION] | Product Owner |

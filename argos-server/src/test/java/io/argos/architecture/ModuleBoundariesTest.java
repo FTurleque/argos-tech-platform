@@ -35,19 +35,22 @@ class ModuleBoundariesTest {
             Map.entry("catalog", Set.of("audit", "workspace")),
             Map.entry("inventory", Set.of("workspace", "catalog", "scm")),
             // signal n'emprunte à workspace que le contexte RLS et les erreurs du domaine : voir signalNEmprunteQueRlsEtErreurs.
-            Map.entry("signal", Set.of("ingestion", "catalog", "workspace")),
+            // signal.web demande le résumé IA d'une actualité par le contrat de la passerelle (encadrer-appels-ia).
+            Map.entry("signal", Set.of("ingestion", "catalog", "workspace", "aigateway")),
             Map.entry("vulnintel", Set.of("signal", "catalog")),
             Map.entry("releaseradar", Set.of("signal", "catalog")),
             Map.entry("regintel", Set.of("signal", "catalog", "aigateway")),
             // impact lit le référentiel des standards pour la dette de version et les annonces (radar-standards).
             Map.entry("impact", Set.of("signal", "vulnintel", "releaseradar", "inventory", "aigateway", "catalog")),
-            Map.entry("alerting", Set.of("impact", "workspace")),
+            // alerting demande le résumé IA d'une alerte par le contrat de la passerelle (encadrer-appels-ia).
+            Map.entry("alerting", Set.of("impact", "workspace", "aigateway")),
             Map.entry("api", Set.of("workspace", "catalog", "inventory", "signal", "vulnintel", "releaseradar",
                     "regintel", "impact", "alerting", "projectintel", "audit")),
             // mcp réutilise l'établissement de l'appelant de l'API (api.security) : voir mcpNeLitQueLaSecuriteDeLApi.
             Map.entry("mcp", Set.of("workspace", "catalog", "inventory", "signal", "vulnintel", "releaseradar",
                     "regintel", "impact", "alerting", "projectintel", "audit", "api")),
-            Map.entry("projectintel", Set.of("inventory", "scm")),
+            // projectintel n'emprunte à workspace que le contexte RLS et une erreur : voir projectintelNEmprunteQueRlsEtErreurs.
+            Map.entry("projectintel", Set.of("inventory", "scm", "workspace")),
             Map.entry("ingestion", Set.of()),
             Map.entry("scm", Set.of()),
             Map.entry("aigateway", Set.of("audit")),
@@ -94,6 +97,22 @@ class ModuleBoundariesTest {
     }
 
     /**
+     * Seule la passerelle IA connaît le fournisseur de modèles (arc42 §5.5 règle 3, ADR-0004) : aucune
+     * classe hors de {@code aigateway} ne dépend de l'adaptateur Ollama ni du contrat du fournisseur ;
+     * les modules appelants n'utilisent que {@code PasserelleIa}, {@code DemandeIa} et {@code ReponseIa}.
+     */
+    @Test
+    void seuleLaPasserelleConnaitLeFournisseur() {
+        noClasses().that().resideOutsideOfPackage(ROOT + ".aigateway..")
+                .should().dependOnClassesThat(DescribedPredicate.describe("fournisseur de modèles",
+                        (JavaClass c) -> c.getPackageName().startsWith(ROOT + ".aigateway.ollama")
+                                || c.getName().startsWith(ROOT + ".aigateway.FournisseurModele")
+                                || c.getName().equals(ROOT + ".aigateway.QuotasIa")))
+                .because("arc42 §5.5 : seule l'AI Gateway appelle le fournisseur et tient les quotas")
+                .check(classes);
+    }
+
+    /**
      * La veille web ({@code signal.web}) range des sources et des actualités cloisonnées par espace et
      * par compte : elle applique la RLS par le mécanisme unique {@code workspace.ContexteBase} et signale
      * ses refus par les erreurs communes du domaine ({@code DonneeInvalide}, {@code RegleViolee}). Elle
@@ -109,6 +128,23 @@ class ModuleBoundariesTest {
                         (JavaClass c) -> c.getPackageName().startsWith(ROOT + ".workspace")
                                 && autorisees.stream().noneMatch(a -> c.getName().equals(a) || c.getName().startsWith(a + "$"))))
                 .because("arc42 §5 : dans le module workspace, signal ne dépend que de ContexteBase et des erreurs communes")
+                .check(classes);
+    }
+
+    /**
+     * L'activité des projets ({@code projectintel}) est lue sous la RLS par le mécanisme unique
+     * {@code workspace.ContexteBase} et signale une période invalide par l'erreur commune
+     * {@code DonneeInvalide}. Elle n'emprunte rien d'autre au module {@code workspace} (ADR-0016).
+     */
+    @Test
+    void projectintelNEmprunteQueRlsEtErreurs() {
+        Set<String> autorisees = Set.of(ROOT + ".workspace.ContexteBase", ROOT + ".workspace.DonneeInvalide");
+        noClasses().that().resideInAPackage(ROOT + ".projectintel..")
+                .should().dependOnClassesThat(DescribedPredicate.describe(
+                        "classes de workspace hors ContexteBase et DonneeInvalide",
+                        (JavaClass c) -> c.getPackageName().startsWith(ROOT + ".workspace")
+                                && autorisees.stream().noneMatch(a -> c.getName().equals(a) || c.getName().startsWith(a + "$"))))
+                .because("arc42 §5 : dans le module workspace, projectintel ne dépend que de ContexteBase et DonneeInvalide")
                 .check(classes);
     }
 

@@ -324,7 +324,7 @@ class AlertesTest {
         assertEquals("DISPONIBLE", etatIa("GHSA-OK"));
         assertEquals(4, alertes("etat = 'ENVOYEE'"));
         assertTrue(mailbox.getMailsSentTo("alice@argos.test").stream()
-                .anyMatch(m -> m.getText().contains("Résumé (produit par IA, à vérifier sur les sources)")));
+                .anyMatch(m -> m.getText().contains("Résumé (produit par l'IA, à vérifier sur les sources)")));
     }
 
     private String etatIa(String externe) {

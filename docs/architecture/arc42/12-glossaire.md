@@ -7,6 +7,9 @@
 | **Project Intelligence** | consolidation factuelle de l’activité, des jalons, releases, pipelines et signaux projet |
 | **IntelligenceItem** | élément de veille normalisé provenant d’une source externe |
 | **ProjectActivity** | événement projet normalisé : issue, PR/MR, pipeline, release, déploiement, etc. |
+| **Compteur d’activité** | nombre d’événements d’un type (ticket ouvert ou fermé, demande de fusion ouverte ou fusionnée, pipeline, version) pour un projet et un jour ; seule forme conservée de l’activité d’un dépôt, sans identité de personne, supprimée après 13 mois (capacité `activite-projets`) |
+| **Avancement d’un jalon** | « fermés sur total » d’un jalon, avec un pourcentage arrondi à l’entier inférieur, affiché seulement quand le total est connu et positif (capacité `activite-projets`) |
+| **Fraîcheur** | état de la collecte d’activité d’un projet (`A_JOUR`, `REPORTEE_QUOTA`, `ECHEC`, `JAMAIS_COLLECTE`) et date de dernière mise à jour des indicateurs affichés (capacité `activite-projets`) |
 | **ProjectImpact** | relation argumentée entre un `IntelligenceItem` et un projet potentiellement affecté |
 | **Référentiel des standards** | technologies d’un espace avec leur statut (`ADOPT`, `TRIAL`, `ASSESS`, `HOLD`), version recommandée, responsable, justification et date de revue ; tenu par les administrateurs de l’espace (§8.15) |
 | **Radar des sorties** | échéances (sortie, correctif, fin de support) des technologies d’un espace sur 30 jours, 6 mois ou 1 an, issues d’endoflife.date |
@@ -23,6 +26,9 @@
 | **Espace courant** | espace transmis à PostgreSQL dans chaque transaction (`argos.espace_courant`) pour la RLS |
 | **Keycloak** | fournisseur d’identité OIDC open source (Apache-2.0) auto-hébergé, retenu par ADR-0027 (Proposé) |
 | **Profil de veille** | type de veille qu’un utilisateur active (`developpeur`, `expert-metier`…) : sources, rubriques, stratégies de rapprochement et garde-fous décrits par un manifeste du catalogue ; cumulable, sans effet sur les droits ; à ne pas confondre avec un rôle (ADR-0024) |
+| **Objet suivi** | valeur qu'un utilisateur suit pour un profil de veille, choisie dans une liste fermée du manifeste (par exemple discipline `arts-visuels`, territoire `occitanie` du profil `artiste`) ; visible de lui seul, sans effet sur les droits |
+| **Opportunité** | appel à projets, résidence, aide, information ou événement collecté par une source vérifiée du profil `artiste`, avec ses disciplines, ses territoires et sa date limite (absente : « date à confirmer ») ; restituée par la stratégie discipline + territoire + date limite (capacité `profil-artiste`) |
+| **Conditions d'usage** | licence et règles de réutilisation d'une source de profil, vérifiées et enregistrées par l'administrateur plateforme avant toute collecte (ART-05) |
 | **Mise en page** | présentation de l’IHM choisie par l’utilisateur (`classique`, `journal`, `fantaisie`, `gazette`) ; change la forme, jamais le contenu ni les mentions (ADR-0023) |
 | **Alerte** | message immédiat adressé à un utilisateur sur un canal quand un impact exact ou probable satisfait une de ses règles ; une seule par signal, utilisateur et canal (capacité `alertes-digests`) |
 | **Résumé périodique** | message quotidien ou hebdomadaire listant les éléments non alertés immédiatement ; jamais envoyé vide (en anglais : *digest*) |
@@ -39,6 +45,8 @@
 | **Claude** | famille de modèles d’Anthropic retenue comme fournisseur IA initial proposé |
 | **LLM** | Large Language Model |
 | **AI Gateway** | composant ARGOS encapsulant appels LLM, prompts, politiques, quotas, validation et audit |
+| **Ollama** | serveur de modèles d'IA local (licence MIT) appelé par la passerelle IA (ADR-0029, proposé) ; service facultatif du profil `ia` de `compose.yaml` |
+| **Quota IA** | nombre maximal d'appels transmis au modèle par jour : 1 000 pour l'instance, 100 par espace, 20 par compte pour ses demandes explicites, paramétrables (IAG-03) ; un appel qui n'a pas pu joindre le modèle est rendu |
 | **Structured output** | réponse LLM contrainte/validée selon une structure attendue, idéalement un schéma |
 | **RAG** | Retrieval-Augmented Generation ; enrichissement d’un appel LLM par des données retrouvées à la demande |
 | **Embedding** | représentation vectorielle utilisée pour similarité/recherche sémantique |

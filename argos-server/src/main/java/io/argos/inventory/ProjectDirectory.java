@@ -4,6 +4,7 @@ import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Optional;
@@ -69,20 +70,39 @@ public class ProjectDirectory {
         try (Connection c = dataSource.getConnection(); PreparedStatement ps = c.prepareStatement(sql)) {
             ps.setObject(1, id);
             try (ResultSet rs = ps.executeQuery()) {
-                if (!rs.next()) {
-                    return Optional.empty();
-                }
-                Optional<RepositoryRef> repo = rs.getString(4) == null ? Optional.empty()
-                        : Optional.of(new RepositoryRef(rs.getString(4), rs.getString(5), rs.getString(6),
-                                rs.getString(7), rs.getString(8)));
-                String manifests = rs.getString(9);
-                List<String> paths = manifests == null || manifests.isBlank() ? List.of()
-                        : Arrays.stream(manifests.split(",")).map(String::strip).filter(s -> !s.isEmpty()).toList();
-                return Optional.of(new Project(rs.getObject(1, UUID.class), rs.getObject(2, UUID.class),
-                        rs.getString(3), repo, paths));
+                return rs.next() ? Optional.of(project(rs)) : Optional.empty();
             }
         } catch (SQLException e) {
             throw new IllegalStateException("lecture du projet impossible", e);
         }
+    }
+
+    /** Projets rattachés à un dépôt, pour les traitements techniques (collecte de l'activité). */
+    @Transactional
+    public List<Project> withRepository() {
+        String sql = """
+                SELECT id, workspace_id, name, scm_provider, scm_repository, scm_branch, sbom_job, sbom_path, manifest_paths
+                FROM project WHERE scm_provider IS NOT NULL AND scm_repository IS NOT NULL ORDER BY created_at, id
+                """;
+        try (Connection c = dataSource.getConnection(); PreparedStatement ps = c.prepareStatement(sql);
+                ResultSet rs = ps.executeQuery()) {
+            List<Project> projets = new ArrayList<>();
+            while (rs.next()) {
+                projets.add(project(rs));
+            }
+            return projets;
+        } catch (SQLException e) {
+            throw new IllegalStateException("lecture des projets impossible", e);
+        }
+    }
+
+    private static Project project(ResultSet rs) throws SQLException {
+        Optional<RepositoryRef> repo = rs.getString(4) == null ? Optional.empty()
+                : Optional.of(new RepositoryRef(rs.getString(4), rs.getString(5), rs.getString(6),
+                        rs.getString(7), rs.getString(8)));
+        String manifests = rs.getString(9);
+        List<String> paths = manifests == null || manifests.isBlank() ? List.of()
+                : Arrays.stream(manifests.split(",")).map(String::strip).filter(s -> !s.isEmpty()).toList();
+        return new Project(rs.getObject(1, UUID.class), rs.getObject(2, UUID.class), rs.getString(3), repo, paths);
     }
 }

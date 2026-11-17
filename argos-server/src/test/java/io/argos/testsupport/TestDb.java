@@ -41,12 +41,15 @@ public class TestDb {
     SimulatedResumeIa resumeIa;
 
     @Inject
+    SimulatedSyntheseIa syntheseIa;
+
+    @Inject
     jakarta.enterprise.inject.Instance<io.quarkus.mailer.MockMailbox> mailbox;
 
     public void reset() {
         exec("""
                 TRUNCATE dette_version, standard_historique, standard_suggestion, standard_technologie, radar_parametres,
-                         cycle_vie, cycle_vie_produit, workspace_vue, actualite_impact, actualite_source, actualite, source_web, resume_element, alerte, subscription_opt_out, subscription, refus_acces, mcp_appel, project_impact, inventory_import_failure,
+                         cycle_vie, cycle_vie_produit, activite_compteur, activite_jalon, activite_collecte, workspace_vue, actualite_impact, actualite_source, actualite, source_web, resume_element, alerte, subscription_opt_out, subscription, refus_acces, mcp_appel, ia_appel, ia_quota_jour, project_impact, inventory_import_failure,
                          component, inventory, project, enrichment, signal_package, signal_alias,
                          signal_version, signal, ops_event, ingestion_failure, sync_attempt, sync_run, sync_cursor CASCADE
                 """);
@@ -60,6 +63,7 @@ public class TestDb {
         sleeper.reset();
         analysis.configure(SimulatedAnalysis.Mode.AVAILABLE, java.util.List.of());
         resumeIa.configure(SimulatedResumeIa.Mode.AVAILABLE);
+        syntheseIa.configure(SimulatedSyntheseIa.Mode.FIDELE);
         if (mailbox.isResolvable()) {
             mailbox.get().clear();
         }

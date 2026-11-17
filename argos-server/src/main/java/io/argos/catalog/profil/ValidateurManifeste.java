@@ -57,6 +57,31 @@ public final class ValidateurManifeste {
                 erreurs.add("stratégie non déterministe refusée (ADR-0013) : " + s.identifiant());
             }
         }
+        Set<String> types = new HashSet<>();
+        for (ListeObjets l : m.listes()) {
+            if (l == null || l.typeObjet() == null || !m.typesObjetsSuivis().contains(l.typeObjet())) {
+                erreurs.add("liste d'un type d'objet non déclaré dans typesObjetsSuivis : "
+                        + (l == null ? null : l.typeObjet()));
+                continue;
+            }
+            if (!types.add(l.typeObjet())) {
+                erreurs.add("liste en double : " + l.typeObjet());
+            }
+            if (l.valeurs().isEmpty()) {
+                erreurs.add("liste vide : " + l.typeObjet());
+            }
+            Set<String> valeurs = new HashSet<>();
+            for (ValeurListe v : l.valeurs()) {
+                if (v == null || v.identifiant() == null || !IDENTIFIANT.matcher(v.identifiant()).matches()) {
+                    erreurs.add("valeur sans identifiant valide dans la liste " + l.typeObjet());
+                    continue;
+                }
+                if (!valeurs.add(v.identifiant())) {
+                    erreurs.add("valeur en double dans la liste " + l.typeObjet() + " : " + v.identifiant());
+                }
+                exigerTexte(erreurs, "libellé de la valeur " + v.identifiant(), v.libelle());
+            }
+        }
         for (GardeFou g : m.gardeFous()) {
             if (g == null || g.type() == null) {
                 erreurs.add("garde-fou sans type connu");

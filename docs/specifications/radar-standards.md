@@ -3,9 +3,9 @@
 | Élément | Valeur |
 |---|---|
 | Préfixe d'exigences | `RAD` |
-| Spec de référence | `/openspec/specs/radar-standards/spec.md` — absente tant qu'aucun changement n'est archivé |
-| Changements en cours | [`construire-radar-et-standards`](/openspec/changes/construire-radar-et-standards/proposal.md) (implémenté, non archivé) |
-| Statut de la capacité | proposée ; implémentation et tests dans `argos-server`, changement non archivé |
+| Spec de référence | [`/openspec/specs/radar-standards/spec.md`](/openspec/specs/radar-standards/spec.md) |
+| Changements archivés | [`2026-11-16-construire-radar-et-standards`](/openspec/changes/archive/2026-11-16-construire-radar-et-standards/proposal.md) |
+| Statut de la capacité | livrée ; implémentation et tests dans `argos-server` |
 | Composants (arc42 §5) | `catalog`, `release-radar`, `impact-engine`, `alerting` |
 
 ## Objectif

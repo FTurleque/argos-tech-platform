@@ -3,6 +3,8 @@
 #
 #   docker compose up -d postgres     # développement : base seule, pour « mvn quarkus:dev »
 #   docker compose up -d --build      # Argos complet : http://localhost:8080
+#   docker compose --profile ia up -d # Argos avec le modèle local Ollama (facultatif, ADR-0029 proposé)
+#   docker compose exec ollama ollama pull qwen2.5:1.5b   # une fois : télécharge le modèle par défaut
 #
 # Réglages dans un fichier .env à côté de ce fichier (modèle : .env.example).
 # Sur le NAS, changez au minimum ARGOS_DB_PASSWORD.
@@ -44,6 +46,11 @@ services:
       ARGOS_OIDC_URL: ${ARGOS_OIDC_URL:-}
       ARGOS_OIDC_CLIENT_ID: ${ARGOS_OIDC_CLIENT_ID:-argos-server}
       ARGOS_ADMIN_EMAIL: ${ARGOS_ADMIN_EMAIL:-}
+      # Passerelle IA (encadrer-appels-ia) : facultative et désactivée par défaut. Avec le profil « ia »,
+      # ARGOS_IA_ACTIVE=true l'active ; sans IA, Argos fonctionne en mode déterministe.
+      ARGOS_IA_ACTIVE: ${ARGOS_IA_ACTIVE:-false}
+      ARGOS_OLLAMA_URL: ${ARGOS_OLLAMA_URL:-http://ollama:11434}
+      ARGOS_IA_MODELE: ${ARGOS_IA_MODELE:-qwen2.5:1.5b}
       TZ: ${TZ:-Europe/Paris}
     ports:
       # 127.0.0.1 par défaut : accès local, ou via le reverse proxy de DSM sur le NAS.
@@ -51,5 +58,23 @@ services:
       - "${ARGOS_BIND:-127.0.0.1}:${ARGOS_PORT:-8080}:8080"
     mem_limit: ${ARGOS_MEM_LIMIT:-1g}
 
+  # Modèle d'IA local (image officielle ollama/ollama, licence MIT), désactivé par défaut : il ne
+  # démarre qu'avec le profil « ia ». Aucun port publié : seul Argos l'appelle, par le réseau du
+  # projet. Prévoir environ 2 Gio de mémoire pour qwen2.5:1.5b sur le processeur du DS1522+ (pas de
+  # GPU) ; un modèle plus gros dépasse vite la mémoire du NAS (ADR-0029).
+  ollama:
+    image: ollama/ollama:${ARGOS_OLLAMA_VERSION:-0.12.6}
+    profiles: ["ia"]
+    restart: unless-stopped
+    environment:
+      # Un seul modèle chargé et une requête à la fois : borne la mémoire et le processeur du NAS.
+      OLLAMA_MAX_LOADED_MODELS: "1"
+      OLLAMA_NUM_PARALLEL: "1"
+      OLLAMA_KEEP_ALIVE: ${ARGOS_OLLAMA_KEEP_ALIVE:-10m}
+    volumes:
+      - argos-ollama:/root/.ollama
+    mem_limit: ${ARGOS_OLLAMA_MEM_LIMIT:-3g}
+
 volumes:
   argos-pgdata:
+  argos-ollama:

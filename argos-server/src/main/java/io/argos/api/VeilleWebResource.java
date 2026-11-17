@@ -30,6 +30,7 @@ import io.argos.api.security.LimiteurDebit;
 import io.argos.impact.RapprochementActualites;
 import io.argos.signal.web.ActualitesWeb;
 import io.argos.signal.web.CollecteWeb;
+import io.argos.signal.web.ResumesIaActualites;
 import io.argos.signal.web.SourceWeb;
 import io.argos.signal.web.SourcesWeb;
 
@@ -42,7 +43,9 @@ import io.argos.signal.web.SourcesWeb;
  * <p>Les requêtes qui déclenchent une récupération externe ({@code POST /sources}, réussie ou
  * refusée, et {@code POST /sources/{id}/collectes}) sont limitées par compte à
  * {@code argos.veille-web.debit.requetes-par-minute} sur une fenêtre glissante d'une minute ; au-delà,
- * la requête reçoit 429 ({@code LIMITE_DEBIT}) et le refus est journalisé.
+ * la requête reçoit 429 ({@code LIMITE_DEBIT}) et le refus est journalisé. La demande d'un résumé IA
+ * ({@code POST /actualites/{id}/resume-ia}), qui sollicite le modèle par la passerelle IA, partage cette
+ * limite.
  */
 @Path("/api/v1/veille-web")
 @Tag(name = "Veille web")
@@ -72,6 +75,9 @@ public class VeilleWebResource {
 
     @Inject
     RapprochementActualites rapprochements;
+
+    @Inject
+    ResumesIaActualites resumesIa;
 
     @ConfigProperty(name = "argos.veille-web.debit.requetes-par-minute", defaultValue = "10")
     int requetesParMinute;
@@ -174,6 +180,20 @@ public class VeilleWebResource {
         Caller caller = access.authenticated();
         ActualitesWeb.Detail detail = actualites.detail(id, caller.accountId()).orElseThrow(access::outOfScope);
         return new DetailActualite(detail.actualite(), detail.resume(), rapprochements.pour(id, caller.accountId()));
+    }
+
+    @POST
+    @Path("/actualites/{id}/resume-ia")
+    @Operation(summary = "Résumé IA d'une actualité visible, marqué « produit par l'IA » avec ses sources ; "
+            + "sans IA disponible, résumé extractif déterministe")
+    @APIResponse(responseCode = "200", description = "Résumé IA (état DISPONIBLE) ou extrait déterministe et motif")
+    @APIResponse(responseCode = "401", description = "Non authentifié")
+    @APIResponse(responseCode = "404", description = "Actualité inconnue ou invisible pour l'appelant")
+    @APIResponse(responseCode = "429", description = "Limite de débit du compte atteinte")
+    public ResumesIaActualites.ResumeIaActualite resumeIa(@PathParam("id") UUID id) {
+        Caller caller = access.authenticated();
+        limiter(caller);
+        return resumesIa.resumer(id, caller.accountId()).orElseThrow(access::outOfScope);
     }
 
     private void limiter(Caller caller) {

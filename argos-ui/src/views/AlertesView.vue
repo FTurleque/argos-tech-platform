@@ -7,6 +7,7 @@ import { useRoute } from 'vue-router'
 import { ApiError, fetchAlerte, fetchAlertesPoste, type AlerteVue } from '../api/client'
 import { urlSure } from '../contenu/liens'
 import { alerteConsultee } from '../contenu/suivi-poste'
+import { resumeIaAffiche } from '../contenu/resume-ia'
 
 const GRAVITES: Record<string, string> = {
   CRITICAL: 'critique',
@@ -21,6 +22,8 @@ const id = computed(() => (typeof route.params.id === 'string' ? route.params.id
 const liste = ref<AlerteVue[]>([])
 const alerte = ref<AlerteVue | null>(null)
 const erreur = ref('')
+// Résumé IA du détail : toujours avec sa mention et après les sources sur lesquelles il s'appuie (IAG-05).
+const resumeIa = computed(() => resumeIaAffiche(alerte.value?.contenu))
 
 function gravite(code: string | null): string {
   return code ? (GRAVITES[code] ?? code) : 'non précisée'
@@ -77,7 +80,11 @@ watch(id, charger, { immediate: true })
             </li>
           </ul>
         </div>
-        <p v-if="alerte.contenu?.resumeIa">{{ alerte.contenu.resumeIa }}</p>
+        <div v-if="resumeIa" class="resume-ia">
+          <h2>Résumé</h2>
+          <p class="muted" data-mention="ia">{{ resumeIa.mention }}, à vérifier sur les sources ci-dessus</p>
+          <p>{{ resumeIa.texte }}</p>
+        </div>
       </article>
     </template>
     <template v-else>

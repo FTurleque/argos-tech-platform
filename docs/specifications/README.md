@@ -45,13 +45,13 @@ Un préfixe n'est jamais réattribué ; un identifiant d'exigence retiré n'est 
 | `alertes-digests` | `ALR` | [fiche](alertes-digests.md) | [spec](/openspec/specs/alertes-digests/spec.md) | `2026-11-16-diffuser-alertes-et-digests` (archivé) | livrée |
 | `notifications-poste` | `NOT` | [fiche](notifications-poste.md) | absente | `notifier-sur-le-poste` | implémentée, non archivée |
 | `serveur-mcp` | `MCP` | [fiche](serveur-mcp.md) | absente | `exposer-serveur-mcp` | proposée |
-| `passerelle-ia` | `IAG` | [fiche](passerelle-ia.md) | absente | `encadrer-appels-ia` | proposée |
+| `passerelle-ia` | `IAG` | [fiche](passerelle-ia.md) | absente | `encadrer-appels-ia` | implémentée, non archivée |
 | `veille-reglementaire` | `REG` | [fiche](veille-reglementaire.md) | absente | `suivre-veille-reglementaire` | proposée |
-| `radar-standards` | `RAD` | [fiche](radar-standards.md) | absente | `construire-radar-et-standards` | proposée ; implémentée dans `argos-server`, changement non archivé |
+| `radar-standards` | `RAD` | [fiche](radar-standards.md) | [spec](/openspec/specs/radar-standards/spec.md) | `2026-11-16-construire-radar-et-standards` (archivé) | livrée |
 | `veille-rss-web` | `WEB` | [fiche](veille-rss-web.md) | [spec](/openspec/specs/veille-rss-web/spec.md) | `2026-11-16-collecter-veille-rss-web` (archivé) | livrée |
 | `recherche-veille` | `RCH` | [fiche](recherche-veille.md) | absente | `rechercher-et-filtrer` | proposée |
-| `activite-projets` | `PIN` | [fiche](activite-projets.md) | absente | `mesurer-activite-projets` | proposée |
-| `profil-artiste` | `ART` | [fiche](profil-artiste.md) | absente | `ajouter-profil-artiste` | proposée |
+| `activite-projets` | `PIN` | [fiche](activite-projets.md) | absente | `mesurer-activite-projets` | implémentée côté serveur, non archivée |
+| `profil-artiste` | `ART` | [fiche](profil-artiste.md) | absente | `ajouter-profil-artiste` | implémentée, non archivée |
 
 ## Inventaire des diagrammes métier
 
@@ -92,9 +92,9 @@ Les diagrammes d'architecture (D-01 à D-13) sont inventoriés dans [`/docs/arch
 
 | Élément | Nombre | Détail |
 |---|---:|---|
-| Specs de référence | 2 | `alertes-digests`, `veille-rss-web` ; le code des changements actifs des lots 1 et 2 est présent dans `argos-server` et `argos-ui` |
-| Changements actifs | 11 | `formaliser-chaine-securite-poc`, `personnaliser-profils-et-affichage` et un changement par capacité restante des lots 2 à 5 (schéma `detailed-uml`) |
-| Changements archivés | 2 | `2026-11-16-diffuser-alertes-et-digests`, `2026-11-16-collecter-veille-rss-web` |
+| Specs de référence | 3 | `alertes-digests`, `veille-rss-web`, `radar-standards` ; le code des changements actifs des lots 1 à 3 est présent dans `argos-server`, `argos-ui` et `argos-desktop` |
+| Changements actifs | 10 | `formaliser-chaine-securite-poc`, `personnaliser-profils-et-affichage` et un changement par capacité restante des lots 2 à 5 (schéma `detailed-uml`) |
+| Changements archivés | 3 | `2026-11-16-diffuser-alertes-et-digests`, `2026-11-16-collecter-veille-rss-web`, `2026-11-16-construire-radar-et-standards` |
 
 Tous les changements utilisent le schéma `detailed-uml` : aucun changement d'un autre schéma n'est à migrer.
 
@@ -136,17 +136,19 @@ Dans ce tableau, « Tests écrits » compte les méthodes de test qui passent : 
 | Changement | Capacité | Exigences | Scénarios | Diagrammes métier | Questions ouvertes | Tests écrits |
 |---|---|---|---|---|---|---|
 | [`exposer-serveur-mcp`](/openspec/changes/exposer-serveur-mcp/proposal.md) | `serveur-mcp` | 7 | 9 | 1 | 0 | 9 |
-| [`encadrer-appels-ia`](/openspec/changes/encadrer-appels-ia/proposal.md) | `passerelle-ia` | 5 | 6 | 1 | 4 | 0 |
+| [`encadrer-appels-ia`](/openspec/changes/encadrer-appels-ia/proposal.md) | `passerelle-ia` | 5 | 6 | 1 | 0 | 6 |
 | [`suivre-veille-reglementaire`](/openspec/changes/suivre-veille-reglementaire/proposal.md) | `veille-reglementaire` | 8 | 13 | 1 | 4 | 0 |
-| **Total** | | **20** | **28** | **3** | **8** | **9** |
+| **Total** | | **20** | **28** | **3** | **4** | **15** |
 
 Pour `exposer-serveur-mcp`, « Tests écrits » compte les scénarios MCP-01-S1 à MCP-07-S1 couverts par un test qui passe (`argos-server/src/test/java/io/argos/mcp/`) ; MCP-02-S1 s'appuie sur le référentiel des standards et le calendrier réels (`construire-radar-et-standards`) ; MCP-07-S1 sur une implémentation simulée des fiches réglementaires, non encore livrées. Matrice détaillée : [`tasks.md` du changement](/openspec/changes/exposer-serveur-mcp/tasks.md#matrice-de-traçabilité).
+
+Pour `encadrer-appels-ia`, « Tests écrits » compte les scénarios IAG-01-S1 à IAG-05-S1 couverts par un test qui passe, avec l'API Ollama simulée par un serveur HTTP local (`PasserelleIaTest`, `ParcoursIaTest`, `argos-ui/tests/resume-ia.test.mjs`) ; aucun modèle réel n'est exécuté. Matrice détaillée : [`tasks.md` du changement](/openspec/changes/encadrer-appels-ia/tasks.md#matrice-de-traçabilité).
 
 ### Couverture du lot 4
 
 | Changement | Capacité | Exigences | Scénarios | Diagrammes métier | Questions ouvertes | Tests écrits |
 |---|---|---|---|---|---|---|
-| [`construire-radar-et-standards`](/openspec/changes/construire-radar-et-standards/proposal.md) | `radar-standards` | 6 | 8 | 1 | 3 | 8 |
+| [`construire-radar-et-standards`](/openspec/changes/archive/2026-11-16-construire-radar-et-standards/proposal.md) (archivé) | `radar-standards` | 6 | 8 | 1 | 3 | 8 |
 | [`collecter-veille-rss-web`](/openspec/changes/archive/2026-11-16-collecter-veille-rss-web/proposal.md) (archivé) | `veille-rss-web` | 6 | 8 | 1 | 0 | 8 |
 | [`rechercher-et-filtrer`](/openspec/changes/rechercher-et-filtrer/proposal.md) | `recherche-veille` | 5 | 7 | 1 | 0 | 7 |
 | **Total** | | **17** | **23** | **3** | **3** | **23** |
@@ -157,11 +159,11 @@ Pour `rechercher-et-filtrer`, « Tests écrits » compte les scénarios RCH-01-S
 
 | Changement | Capacité | Exigences | Scénarios | Diagrammes métier | Questions ouvertes | Tests écrits |
 |---|---|---|---|---|---|---|
-| [`mesurer-activite-projets`](/openspec/changes/mesurer-activite-projets/proposal.md) | `activite-projets` | 5 | 6 | 1 | 2 | 0 |
-| [`ajouter-profil-artiste`](/openspec/changes/ajouter-profil-artiste/proposal.md) | `profil-artiste` | 6 | 8 | 1 | 4 | 0 |
-| **Total** | | **11** | **14** | **2** | **6** | **0** |
+| [`mesurer-activite-projets`](/openspec/changes/mesurer-activite-projets/proposal.md) | `activite-projets` | 5 | 6 | 1 | 0 | 6 |
+| [`ajouter-profil-artiste`](/openspec/changes/ajouter-profil-artiste/proposal.md) | `profil-artiste` | 6 | 8 | 1 | 4 | 8 |
+| **Total** | | **11** | **14** | **2** | **4** | **14** |
 
-Toutes ces exigences sont au statut [PROPOSITION] ; la matrice de traçabilité de chaque changement est dans son `tasks.md`.
+Toutes ces exigences sont au statut [PROPOSITION] ; la matrice de traçabilité de chaque changement est dans son `tasks.md`. Pour `ajouter-profil-artiste`, « Tests écrits » compte les scénarios ART-01-S1 à ART-06-S1 couverts par un test qui passe (`argos-server/src/test/java/io/argos/chain/ProfilArtisteTest.java`, `alerting/RappelsOpportunitesTest.java`, `impact/StrategieDisciplineTerritoireTest.java`) ; le parcours de la tâche 5.2 est `chain/ParcoursArtisteTest.java`. Matrice détaillée : [`tasks.md` du changement](/openspec/changes/ajouter-profil-artiste/tasks.md#matrice-de-traçabilité).
 
 ### Capacités restant à spécifier
 

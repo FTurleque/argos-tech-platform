@@ -28,11 +28,11 @@ Source : arc42 §10.2 Q-02 ; QS-09 ; risque R-01. Statut : [PROPOSITION].
 - **THEN** l'appel est transmis au fournisseur
 
 ### Requirement: IAG-03 Plafond et quotas
-Le système DOIT (MUST) refuser tout appel au-delà du plafond mensuel global ou du quota de l'espace, le traitement demandeur se poursuivant sans résultat IA.
-Source : arc42 §10.2 Q-06 ; QS-08 ; baseline v2.3 §6. Statut : [PROPOSITION].
+Le système DOIT (MUST) refuser tout appel au-delà du plafond journalier de l'instance ou du quota journalier de l'espace, le traitement demandeur se poursuivant sans résultat IA.
+Source : arc42 §10.2 Q-06 ; QS-08 ; baseline v2.3 §6 ; Q-1 et Q-2 répondues le 2026-11-16 (1 000 appels par jour pour l'instance, 100 par jour et par espace, paramétrables). Statut : [PROPOSITION].
 
 #### Scenario: IAG-03-S1 Quota d'espace épuisé
-- **GIVEN** un espace dont le quota mensuel est épuisé
+- **GIVEN** un espace dont le quota journalier est épuisé
 - **WHEN** un résumé est demandé pour cet espace
 - **THEN** l'appel est refusé pour dépassement de quota
 - **AND** l'élément est diffusé sans résumé
