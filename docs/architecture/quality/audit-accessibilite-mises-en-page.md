@@ -9,7 +9,8 @@ Rapport de la tâche 2.6 du changement [`personnaliser-profils-et-affichage`](/o
 | Référentiel | RGAA 4.1.2, aligné sur WCAG 2.1 niveau AA (décision Q-4 du 2026-11-16, fiche [`affichage-personnalise`](/docs/specifications/affichage-personnalise.md)). Les seuils de contraste sont ceux du WCAG 2.1 et 2.2 AA : 4,5:1 pour le texte, 3:1 pour le grand texte (24 px, ou 18,66 px en gras) et les indicateurs non textuels |
 | Écran de référence | une mise en page affichant le jeu d'exemple `argos-ui/src/contenu/apercu.ts` : six éléments fictifs, chaque nature et chaque gravité de l'échelle, un élément sans gravité, sans projet, sans lien ou sans date, deux résumés produits par l'IA, une validation humaine avec garde-fou et mention de licence, un élément rangé dans deux rubriques, un élément sans rubrique retenu par un abonnement personnel. Le même jeu sert à l'aperçu de l'écran « Mise en page » et au banc d'essai `argos-ui/banc/index.html` |
 | Composants audités | `argos-ui/src/mises-en-page/*/MiseEnPage*.vue`, `MiseEnPage.vue`, `Titre.vue`, `argos-ui/src/contenu/MentionsObligatoires.vue` |
-| Hors périmètre | écrans de l'application autres que les mises en page (connexion, recherche, alertes) ; veille réelle restituée par `GET /api/v1/me/veille`, que les mises en page affichent avec les mêmes composants une fois l'écran de veille raccordé |
+| Écran complémentaire | « Ma veille » (`#/veille`) du portail web : veille réelle restituée par `GET /api/v1/me/veille` à un utilisateur de test (deux avis de sécurité, deux fiches réglementaires validées dont une au résumé produit par l'IA), affichée dans chacune des quatre mises en page |
+| Hors périmètre | écrans de l'application autres que les mises en page (connexion, recherche, alertes), y compris l'en-tête et la navigation qui entourent « Ma veille » |
 | Date | 2026-11-17 |
 | Moyens | contrôles scriptés sans axe-core (licence MPL-2.0 écartée, ADR-0021) : `node --test` et Playwright 1.61.1 (Chromium révision 1228) ; revue manuelle des rendus et des sources |
 
@@ -38,6 +39,14 @@ Rapport de la tâche 2.6 du changement [`personnaliser-profils-et-affichage`](/o
 
 Un dernier test compare les faits restitués (nature, gravité, titre, résumé, projets et niveaux, action, rubriques, mentions) par les quatre mises en page.
 
+### Contrôles sur la veille réelle, dans le navigateur (`npm --prefix e2e test`)
+
+`e2e/tests/veille.spec.ts`, parcours « 2.6 », sur la pile complète (serveur ARGOS en `quarkus:dev`, Keycloak du royaume de test, PostgreSQL jetable, portail web servi par Vite), sans requête hors de la boucle locale. `jules` se connecte, sa préférence désigne la mise en page, et « Ma veille » affiche sa veille réelle (jeu `e2e/donnees/veille.sql`). Les mesures sont celles du banc (`e2e/support/mesures.ts`) :
+
+- contraste de chaque nœud de texte visible de la mise en page sur son fond effectif ;
+- ordre de tabulation : depuis le début de la page, les liens de la mise en page reçoivent le focus dans l'ordre du document ; contour visible d'au moins 2 px, de contraste au moins 3:1 sur le fond effectif ;
+- arbre d'accessibilité : région nommée, un article par élément de la réponse de l'API, nommé par son titre, un titre par élément, liens nommés « … (nouvelle fenêtre) », aucune annonce « Données d'exemple ».
+
 ### Revue manuelle
 
 Revue des captures plein écran et téléphone de chaque mise en page, et des sources : ordre de lecture, langue (`lang="fr"` porté par `index.html`), pertinence des titres, distinction entre décor et information, mentions obligatoires visibles, humour limité à la forme, lisibilité des polices de titrage, lisibilité à 375 px. La revue est faite par l'équipe de développement, sans lecteur d'écran : elle reste à confirmer par le référent accessibilité (voir « Limites »).
@@ -54,6 +63,18 @@ Revue des captures plein écran et téléphone de chaque mise en page, et des so
 - `npm --prefix argos-ui test` : 135 tests, 0 échec.
 - `npm --prefix e2e run test:accessibilite` : 29 tests, 0 échec ; rapport [`e2e/resultats/accessibilite/rapport-2026-11-17.json`](/e2e/resultats/accessibilite/rapport-2026-11-17.json), captures à 375 px [`classique`](/e2e/resultats/accessibilite/classique-telephone.png), [`journal`](/e2e/resultats/accessibilite/journal-telephone.png), [`fantaisie`](/e2e/resultats/accessibilite/fantaisie-telephone.png), [`gazette`](/e2e/resultats/accessibilite/gazette-telephone.png).
 - Contrastes des indicateurs non textuels (contour de focus) : 4,97:1 au minimum (`fantaisie`, carte rose).
+
+### Veille réelle (`npm --prefix e2e test`, 2026-11-17)
+
+| Mise en page | Contraste minimal des textes | Contraste minimal du contour de focus | Tabulation | Noms accessibles (région, quatre articles, titres, liens) |
+|---|---|---|---|---|
+| `classique` | 5,19:1 | 12,24:1 | conforme | conforme |
+| `journal` | 5,08:1 | 6,59:1 | conforme | conforme |
+| `fantaisie` | 4,97:1 | 4,98:1 | conforme | conforme |
+| `gazette` | 6,67:1 | 6,67:1 | conforme | conforme |
+
+- Deux exécutions complètes consécutives de `npm --prefix e2e test` : 18 tests, 0 échec chacune ; rapport [`e2e/resultats/rapport-2026-11-17.json`](/e2e/resultats/rapport-2026-11-17.json) (annotations « contraste minimal » et « contraste minimal du focus »).
+- Aucun écart nouveau : les contrastes minimaux sont ceux du jeu d'exemple, les deux liens de source (fiches réglementaires) sont atteints au clavier dans l'ordre du document.
 
 ## Écarts trouvés et corrigés
 
@@ -79,7 +100,7 @@ Revue des captures plein écran et téléphone de chaque mise en page, et des so
 - **Espacement du texte et zoom** (RGAA 10.4, 10.12) : non contrôlés automatiquement ; la mise en page n'impose ni hauteur fixe ni texte tronqué, ce qui reste à confirmer par un essai à 200 % et avec l'espacement augmenté.
 - **Polices de titrage gothiques** (`UnifrakturMaguntia`, `UnifrakturCook`) : employées pour les manchettes et, dans la gazette, pour les titres des éléments. Le contraste est conforme, mais la lisibilité de ce style pour des personnes dyslexiques ou malvoyantes n'est pas mesurée par le référentiel ; la mise en page `classique` reste le défaut et le repli.
 - **Thèmes RGAA sans objet** dans les mises en page : cadres, multimédia, tableaux, formulaires, scripts de composants interactifs, consultation (aucune limite de temps, aucun contenu en mouvement).
-- **Veille réelle** : l'audit porte sur le jeu d'exemple. Un titre externe très long ou sans espace est replié (`overflow-wrap: anywhere`) mais n'a pas été essayé sur des données de production.
+- **Veille réelle** : les contrôles du navigateur sont repris sur une veille réelle de test (quatre éléments) ; largeurs de 320 et 375 px et mouvement réduit restent contrôlés sur le seul jeu d'exemple. Un titre externe très long ou sans espace est replié (`overflow-wrap: anywhere`) mais n'a pas été essayé sur des données de production.
 - **AFF-05-S1** : une mise en page entre au registre de l'IHM (`argos-ui/src/mises-en-page/registre.ts`) avec sa palette ; un couple sous le seuil fait échouer `npm --prefix argos-ui test`, donc la construction de l'IHM. La publication au catalogue du serveur (`catalog/mises-en-page.json`) reste une configuration distincte, que ce contrôle ne bloque pas.
 
 ## Conclusion
