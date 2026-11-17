@@ -12,9 +12,6 @@ const props = defineProps<{ mentions: MentionsElement }>()
 // de `javascript:` dans le portail ni dans le client desktop.
 const lienSource = computed(() => urlSure(props.mentions.source.url))
 const dateFormatee = computed(() => formater(props.mentions.publieLe))
-const validationFormatee = computed(() =>
-  props.mentions.validation ? formater(props.mentions.validation.le) : '',
-)
 
 function formater(iso: string | null): string {
   if (!iso) return 'non communiquée'
@@ -53,7 +50,23 @@ function formater(iso: string | null): string {
     </div>
     <div v-if="mentions.validation" class="mentions-ligne">
       <dt>Validation</dt>
-      <dd data-mention="validation">validé par {{ mentions.validation.par }} le {{ validationFormatee }}</dd>
+      <dd data-mention="validation">{{ mentions.validation }}</dd>
+    </div>
+    <div v-if="mentions.origines.length" class="mentions-ligne">
+      <dt>Origine</dt>
+      <dd data-mention="origine">{{ mentions.origines.join(' · ') }}</dd>
+    </div>
+    <div v-if="mentions.attribution" class="mentions-ligne mentions-pleine">
+      <dt>Licence</dt>
+      <dd data-mention="attribution">{{ mentions.attribution }}</dd>
+    </div>
+    <div v-if="mentions.gardeFous.length" class="mentions-ligne mentions-pleine">
+      <dt>À savoir</dt>
+      <dd>
+        <ul class="mentions-garde-fous">
+          <li v-for="(g, i) in mentions.gardeFous" :key="i" data-mention="garde-fou">{{ g }}</li>
+        </ul>
+      </dd>
     </div>
   </dl>
 </template>
@@ -83,6 +96,13 @@ function formater(iso: string | null): string {
 }
 .mentions-ia dd {
   font-style: italic;
+}
+.mentions-pleine {
+  flex-basis: 100%;
+}
+.mentions-garde-fous {
+  margin: 0;
+  padding-left: 1.1rem;
 }
 /* Annonce « nouvelle fenêtre » réservée aux technologies d'assistance (RGAA 13.2). */
 .mentions-hors-champ {

@@ -2,13 +2,13 @@
   "config": {
     "argv": [
       "C:\\Program Files\\nodejs\\node.exe",
-      "N:\\workspace-dev\\argos-tech-platform\\.claude\\worktrees\\wf_5b7cb4d3-6b0-2\\e2e\\node_modules\\@playwright\\test\\cli.js",
+      "N:\\workspace-dev\\argos-tech-platform\\e2e\\node_modules\\@playwright\\test\\cli.js",
       "test",
       "-c",
       "accessibilite.config.ts"
     ],
-    "configFile": "N:\\workspace-dev\\argos-tech-platform\\.claude\\worktrees\\wf_5b7cb4d3-6b0-2\\e2e\\accessibilite.config.ts",
-    "rootDir": "N:/workspace-dev/argos-tech-platform/.claude/worktrees/wf_5b7cb4d3-6b0-2/e2e/accessibilite",
+    "configFile": "N:\\workspace-dev\\argos-tech-platform\\e2e\\accessibilite.config.ts",
+    "rootDir": "N:/workspace-dev/argos-tech-platform/e2e/accessibilite",
     "failOnFlakyTests": false,
     "forbidOnly": true,
     "fullyParallel": false,
@@ -24,7 +24,7 @@
     "preserveOutput": "always",
     "projects": [
       {
-        "outputDir": "N:/workspace-dev/argos-tech-platform/.claude/worktrees/wf_5b7cb4d3-6b0-2/e2e/test-results/accessibilite",
+        "outputDir": "N:/workspace-dev/argos-tech-platform/e2e/test-results/accessibilite",
         "repeatEach": 1,
         "retries": 0,
         "metadata": {
@@ -32,7 +32,7 @@
         },
         "id": "",
         "name": "",
-        "testDir": "N:/workspace-dev/argos-tech-platform/.claude/worktrees/wf_5b7cb4d3-6b0-2/e2e/accessibilite",
+        "testDir": "N:/workspace-dev/argos-tech-platform/e2e/accessibilite",
         "testIgnore": [],
         "testMatch": [
           "**/*.@(spec|test).?(c|m)[jt]s?(x)"
@@ -95,12 +95,12 @@
                   "workerIndex": 0,
                   "parallelIndex": 0,
                   "status": "passed",
-                  "duration": 2092,
+                  "duration": 1175,
                   "errors": [],
                   "stdout": [],
                   "stderr": [],
                   "retry": 0,
-                  "startTime": "2026-11-17T20:08:31.975Z",
+                  "startTime": "2026-11-17T20:41:23.402Z",
                   "annotations": [],
                   "attachments": []
                 }
@@ -110,7 +110,7 @@
           ],
           "id": "e9a91eeaa5934d074eed-3afadcb758620b13e032",
           "file": "mises-en-page.spec.ts",
-          "line": 188,
+          "line": 223,
           "column": 1
         }
       ],
@@ -137,12 +137,12 @@
                       "workerIndex": 0,
                       "parallelIndex": 0,
                       "status": "passed",
-                      "duration": 991,
+                      "duration": 588,
                       "errors": [],
                       "stdout": [],
                       "stderr": [],
                       "retry": 0,
-                      "startTime": "2026-11-17T20:08:09.890Z",
+                      "startTime": "2026-11-17T20:41:10.290Z",
                       "annotations": [],
                       "attachments": []
                     }
@@ -176,12 +176,12 @@
                       "workerIndex": 0,
                       "parallelIndex": 0,
                       "status": "passed",
-                      "duration": 511,
+                      "duration": 390,
                       "errors": [],
                       "stdout": [],
                       "stderr": [],
                       "retry": 0,
-                      "startTime": "2026-11-17T20:08:11.038Z",
+                      "startTime": "2026-11-17T20:41:10.989Z",
                       "annotations": [
                         {
                           "type": "contraste minimal",
@@ -215,12 +215,12 @@
                       "workerIndex": 0,
                       "parallelIndex": 0,
                       "status": "passed",
-                      "duration": 964,
+                      "duration": 495,
                       "errors": [],
                       "stdout": [],
                       "stderr": [],
                       "retry": 0,
-                      "startTime": "2026-11-17T20:08:11.566Z",
+                      "startTime": "2026-11-17T20:41:11.390Z",
                       "annotations": [],
                       "attachments": []
                     }
@@ -249,12 +249,12 @@
                       "workerIndex": 0,
                       "parallelIndex": 0,
                       "status": "passed",
-                      "duration": 680,
+                      "duration": 374,
                       "errors": [],
                       "stdout": [],
                       "stderr": [],
                       "retry": 0,
-                      "startTime": "2026-11-17T20:08:12.546Z",
+                      "startTime": "2026-11-17T20:41:11.905Z",
                       "annotations": [],
                       "attachments": []
                     }
@@ -264,7 +264,7 @@
               ],
               "id": "e9a91eeaa5934d074eed-6b60252e4d85c57cbe10",
               "file": "mises-en-page.spec.ts",
-              "line": 136,
+              "line": 171,
               "column": 5
             },
             {
@@ -283,12 +283,12 @@
                       "workerIndex": 0,
                       "parallelIndex": 0,
                       "status": "passed",
-                      "duration": 756,
+                      "duration": 449,
                       "errors": [],
                       "stdout": [],
                       "stderr": [],
                       "retry": 0,
-                      "startTime": "2026-11-17T20:08:13.245Z",
+                      "startTime": "2026-11-17T20:41:12.293Z",
                       "annotations": [],
                       "attachments": []
                     }
@@ -298,7 +298,7 @@
               ],
               "id": "e9a91eeaa5934d074eed-b4eb2fda7fde282c9fa6",
               "file": "mises-en-page.spec.ts",
-              "line": 147,
+              "line": 182,
               "column": 5
             },
             {
@@ -317,12 +317,12 @@
                       "workerIndex": 0,
                       "parallelIndex": 0,
                       "status": "passed",
-                      "duration": 693,
+                      "duration": 421,
                       "errors": [],
                       "stdout": [],
                       "stderr": [],
                       "retry": 0,
-                      "startTime": "2026-11-17T20:08:14.020Z",
+                      "startTime": "2026-11-17T20:41:12.754Z",
                       "annotations": [],
                       "attachments": []
                     }
@@ -332,7 +332,7 @@
               ],
               "id": "e9a91eeaa5934d074eed-3e2936b1e5c1153e8ed7",
               "file": "mises-en-page.spec.ts",
-              "line": 157,
+              "line": 192,
               "column": 5
             },
             {
@@ -351,12 +351,12 @@
                       "workerIndex": 0,
                       "parallelIndex": 0,
                       "status": "passed",
-                      "duration": 651,
+                      "duration": 458,
                       "errors": [],
                       "stdout": [],
                       "stderr": [],
                       "retry": 0,
-                      "startTime": "2026-11-17T20:08:14.732Z",
+                      "startTime": "2026-11-17T20:41:13.185Z",
                       "annotations": [],
                       "attachments": []
                     }
@@ -366,7 +366,7 @@
               ],
               "id": "e9a91eeaa5934d074eed-0f1de68d7c18cd68e642",
               "file": "mises-en-page.spec.ts",
-              "line": 170,
+              "line": 205,
               "column": 5
             }
           ]
@@ -393,12 +393,12 @@
                       "workerIndex": 0,
                       "parallelIndex": 0,
                       "status": "passed",
-                      "duration": 883,
+                      "duration": 506,
                       "errors": [],
                       "stdout": [],
                       "stderr": [],
                       "retry": 0,
-                      "startTime": "2026-11-17T20:08:15.401Z",
+                      "startTime": "2026-11-17T20:41:13.653Z",
                       "annotations": [],
                       "attachments": []
                     }
@@ -432,12 +432,12 @@
                       "workerIndex": 0,
                       "parallelIndex": 0,
                       "status": "passed",
-                      "duration": 489,
+                      "duration": 379,
                       "errors": [],
                       "stdout": [],
                       "stderr": [],
                       "retry": 0,
-                      "startTime": "2026-11-17T20:08:16.308Z",
+                      "startTime": "2026-11-17T20:41:14.170Z",
                       "annotations": [
                         {
                           "type": "contraste minimal",
@@ -471,12 +471,12 @@
                       "workerIndex": 0,
                       "parallelIndex": 0,
                       "status": "passed",
-                      "duration": 676,
+                      "duration": 463,
                       "errors": [],
                       "stdout": [],
                       "stderr": [],
                       "retry": 0,
-                      "startTime": "2026-11-17T20:08:16.814Z",
+                      "startTime": "2026-11-17T20:41:14.560Z",
                       "annotations": [],
                       "attachments": []
                     }
@@ -505,12 +505,12 @@
                       "workerIndex": 0,
                       "parallelIndex": 0,
                       "status": "passed",
-                      "duration": 426,
+                      "duration": 380,
                       "errors": [],
                       "stdout": [],
                       "stderr": [],
                       "retry": 0,
-                      "startTime": "2026-11-17T20:08:17.507Z",
+                      "startTime": "2026-11-17T20:41:15.034Z",
                       "annotations": [],
                       "attachments": []
                     }
@@ -520,7 +520,7 @@
               ],
               "id": "e9a91eeaa5934d074eed-eb3f09ba5f6356016fd7",
               "file": "mises-en-page.spec.ts",
-              "line": 136,
+              "line": 171,
               "column": 5
             },
             {
@@ -539,12 +539,12 @@
                       "workerIndex": 0,
                       "parallelIndex": 0,
                       "status": "passed",
-                      "duration": 798,
+                      "duration": 405,
                       "errors": [],
                       "stdout": [],
                       "stderr": [],
                       "retry": 0,
-                      "startTime": "2026-11-17T20:08:17.947Z",
+                      "startTime": "2026-11-17T20:41:15.424Z",
                       "annotations": [],
                       "attachments": []
                     }
@@ -554,7 +554,7 @@
               ],
               "id": "e9a91eeaa5934d074eed-dd0b8bfe3122988130d5",
               "file": "mises-en-page.spec.ts",
-              "line": 147,
+              "line": 182,
               "column": 5
             },
             {
@@ -573,12 +573,12 @@
                       "workerIndex": 0,
                       "parallelIndex": 0,
                       "status": "passed",
-                      "duration": 800,
+                      "duration": 436,
                       "errors": [],
                       "stdout": [],
                       "stderr": [],
                       "retry": 0,
-                      "startTime": "2026-11-17T20:08:18.761Z",
+                      "startTime": "2026-11-17T20:41:15.838Z",
                       "annotations": [],
                       "attachments": []
                     }
@@ -588,7 +588,7 @@
               ],
               "id": "e9a91eeaa5934d074eed-4e14bb6c500590ccd115",
               "file": "mises-en-page.spec.ts",
-              "line": 157,
+              "line": 192,
               "column": 5
             },
             {
@@ -607,12 +607,12 @@
                       "workerIndex": 0,
                       "parallelIndex": 0,
                       "status": "passed",
-                      "duration": 983,
+                      "duration": 474,
                       "errors": [],
                       "stdout": [],
                       "stderr": [],
                       "retry": 0,
-                      "startTime": "2026-11-17T20:08:19.582Z",
+                      "startTime": "2026-11-17T20:41:16.285Z",
                       "annotations": [],
                       "attachments": []
                     }
@@ -622,7 +622,7 @@
               ],
               "id": "e9a91eeaa5934d074eed-cafaf08945d635d6aa76",
               "file": "mises-en-page.spec.ts",
-              "line": 170,
+              "line": 205,
               "column": 5
             }
           ]
@@ -649,12 +649,12 @@
                       "workerIndex": 0,
                       "parallelIndex": 0,
                       "status": "passed",
-                      "duration": 1227,
+                      "duration": 577,
                       "errors": [],
                       "stdout": [],
                       "stderr": [],
                       "retry": 0,
-                      "startTime": "2026-11-17T20:08:20.585Z",
+                      "startTime": "2026-11-17T20:41:16.769Z",
                       "annotations": [],
                       "attachments": []
                     }
@@ -688,12 +688,12 @@
                       "workerIndex": 0,
                       "parallelIndex": 0,
                       "status": "passed",
-                      "duration": 822,
+                      "duration": 406,
                       "errors": [],
                       "stdout": [],
                       "stderr": [],
                       "retry": 0,
-                      "startTime": "2026-11-17T20:08:21.834Z",
+                      "startTime": "2026-11-17T20:41:17.356Z",
                       "annotations": [
                         {
                           "type": "contraste minimal",
@@ -727,12 +727,12 @@
                       "workerIndex": 0,
                       "parallelIndex": 0,
                       "status": "passed",
-                      "duration": 873,
+                      "duration": 464,
                       "errors": [],
                       "stdout": [],
                       "stderr": [],
                       "retry": 0,
-                      "startTime": "2026-11-17T20:08:22.676Z",
+                      "startTime": "2026-11-17T20:41:17.773Z",
                       "annotations": [],
                       "attachments": []
                     }
@@ -761,12 +761,12 @@
                       "workerIndex": 0,
                       "parallelIndex": 0,
                       "status": "passed",
-                      "duration": 506,
+                      "duration": 397,
                       "errors": [],
                       "stdout": [],
                       "stderr": [],
                       "retry": 0,
-                      "startTime": "2026-11-17T20:08:23.566Z",
+                      "startTime": "2026-11-17T20:41:18.248Z",
                       "annotations": [],
                       "attachments": []
                     }
@@ -776,7 +776,7 @@
               ],
               "id": "e9a91eeaa5934d074eed-a282442eabef6632aaf1",
               "file": "mises-en-page.spec.ts",
-              "line": 136,
+              "line": 171,
               "column": 5
             },
             {
@@ -795,12 +795,12 @@
                       "workerIndex": 0,
                       "parallelIndex": 0,
                       "status": "passed",
-                      "duration": 492,
+                      "duration": 410,
                       "errors": [],
                       "stdout": [],
                       "stderr": [],
                       "retry": 0,
-                      "startTime": "2026-11-17T20:08:24.085Z",
+                      "startTime": "2026-11-17T20:41:18.654Z",
                       "annotations": [],
                       "attachments": []
                     }
@@ -810,7 +810,7 @@
               ],
               "id": "e9a91eeaa5934d074eed-94f6f868d51a5cfa32d6",
               "file": "mises-en-page.spec.ts",
-              "line": 147,
+              "line": 182,
               "column": 5
             },
             {
@@ -829,12 +829,12 @@
                       "workerIndex": 0,
                       "parallelIndex": 0,
                       "status": "passed",
-                      "duration": 614,
+                      "duration": 424,
                       "errors": [],
                       "stdout": [],
                       "stderr": [],
                       "retry": 0,
-                      "startTime": "2026-11-17T20:08:24.592Z",
+                      "startTime": "2026-11-17T20:41:19.074Z",
                       "annotations": [],
                       "attachments": []
                     }
@@ -844,7 +844,7 @@
               ],
               "id": "e9a91eeaa5934d074eed-a35d086919e81741f7fb",
               "file": "mises-en-page.spec.ts",
-              "line": 157,
+              "line": 192,
               "column": 5
             },
             {
@@ -863,12 +863,12 @@
                       "workerIndex": 0,
                       "parallelIndex": 0,
                       "status": "passed",
-                      "duration": 777,
+                      "duration": 469,
                       "errors": [],
                       "stdout": [],
                       "stderr": [],
                       "retry": 0,
-                      "startTime": "2026-11-17T20:08:25.223Z",
+                      "startTime": "2026-11-17T20:41:19.508Z",
                       "annotations": [],
                       "attachments": []
                     }
@@ -878,7 +878,7 @@
               ],
               "id": "e9a91eeaa5934d074eed-f410ff2f632c9422b1b9",
               "file": "mises-en-page.spec.ts",
-              "line": 170,
+              "line": 205,
               "column": 5
             }
           ]
@@ -905,12 +905,12 @@
                       "workerIndex": 0,
                       "parallelIndex": 0,
                       "status": "passed",
-                      "duration": 1016,
+                      "duration": 576,
                       "errors": [],
                       "stdout": [],
                       "stderr": [],
                       "retry": 0,
-                      "startTime": "2026-11-17T20:08:26.017Z",
+                      "startTime": "2026-11-17T20:41:19.986Z",
                       "annotations": [],
                       "attachments": []
                     }
@@ -944,12 +944,12 @@
                       "workerIndex": 0,
                       "parallelIndex": 0,
                       "status": "passed",
-                      "duration": 652,
+                      "duration": 421,
                       "errors": [],
                       "stdout": [],
                       "stderr": [],
                       "retry": 0,
-                      "startTime": "2026-11-17T20:08:27.048Z",
+                      "startTime": "2026-11-17T20:41:20.572Z",
                       "annotations": [
                         {
                           "type": "contraste minimal",
@@ -983,12 +983,12 @@
                       "workerIndex": 0,
                       "parallelIndex": 0,
                       "status": "passed",
-                      "duration": 856,
+                      "duration": 506,
                       "errors": [],
                       "stdout": [],
                       "stderr": [],
                       "retry": 0,
-                      "startTime": "2026-11-17T20:08:27.714Z",
+                      "startTime": "2026-11-17T20:41:21.003Z",
                       "annotations": [],
                       "attachments": []
                     }
@@ -1017,12 +1017,12 @@
                       "workerIndex": 0,
                       "parallelIndex": 0,
                       "status": "passed",
-                      "duration": 688,
+                      "duration": 410,
                       "errors": [],
                       "stdout": [],
                       "stderr": [],
                       "retry": 0,
-                      "startTime": "2026-11-17T20:08:28.589Z",
+                      "startTime": "2026-11-17T20:41:21.519Z",
                       "annotations": [],
                       "attachments": []
                     }
@@ -1032,7 +1032,7 @@
               ],
               "id": "e9a91eeaa5934d074eed-1b5fedb5779242be56f7",
               "file": "mises-en-page.spec.ts",
-              "line": 136,
+              "line": 171,
               "column": 5
             },
             {
@@ -1051,12 +1051,12 @@
                       "workerIndex": 0,
                       "parallelIndex": 0,
                       "status": "passed",
-                      "duration": 848,
+                      "duration": 456,
                       "errors": [],
                       "stdout": [],
                       "stderr": [],
                       "retry": 0,
-                      "startTime": "2026-11-17T20:08:29.298Z",
+                      "startTime": "2026-11-17T20:41:21.939Z",
                       "annotations": [],
                       "attachments": []
                     }
@@ -1066,7 +1066,7 @@
               ],
               "id": "e9a91eeaa5934d074eed-75f5ef8e0308884396cf",
               "file": "mises-en-page.spec.ts",
-              "line": 147,
+              "line": 182,
               "column": 5
             },
             {
@@ -1085,12 +1085,12 @@
                       "workerIndex": 0,
                       "parallelIndex": 0,
                       "status": "passed",
-                      "duration": 789,
+                      "duration": 483,
                       "errors": [],
                       "stdout": [],
                       "stderr": [],
                       "retry": 0,
-                      "startTime": "2026-11-17T20:08:30.166Z",
+                      "startTime": "2026-11-17T20:41:22.408Z",
                       "annotations": [],
                       "attachments": []
                     }
@@ -1100,7 +1100,7 @@
               ],
               "id": "e9a91eeaa5934d074eed-43c64c7baf4bd13b5bd6",
               "file": "mises-en-page.spec.ts",
-              "line": 157,
+              "line": 192,
               "column": 5
             },
             {
@@ -1119,12 +1119,12 @@
                       "workerIndex": 0,
                       "parallelIndex": 0,
                       "status": "passed",
-                      "duration": 981,
+                      "duration": 485,
                       "errors": [],
                       "stdout": [],
                       "stderr": [],
                       "retry": 0,
-                      "startTime": "2026-11-17T20:08:30.974Z",
+                      "startTime": "2026-11-17T20:41:22.904Z",
                       "annotations": [],
                       "attachments": []
                     }
@@ -1134,7 +1134,7 @@
               ],
               "id": "e9a91eeaa5934d074eed-0c5da224b73340aa04b3",
               "file": "mises-en-page.spec.ts",
-              "line": 170,
+              "line": 205,
               "column": 5
             }
           ]
@@ -1144,8 +1144,8 @@
   ],
   "errors": [],
   "stats": {
-    "startTime": "2026-11-17T20:08:07.249Z",
-    "duration": 27422.953,
+    "startTime": "2026-11-17T20:41:08.705Z",
+    "duration": 16227.749999999998,
     "expected": 29,
     "skipped": 0,
     "unexpected": 0,

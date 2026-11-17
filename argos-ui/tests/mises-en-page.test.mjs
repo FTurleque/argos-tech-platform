@@ -5,6 +5,7 @@
 // tabulation, largeur d'un téléphone, mouvement réduit) sont dans e2e/accessibilite/.
 import { after, before, test } from 'node:test'
 import assert from 'node:assert/strict'
+import { veilleAffichee } from '../src/contenu/veille-affichee.ts'
 import { ouvrirRendu } from './support/rendu-ssr.mjs'
 
 const IDENTIFIANTS = ['classique', 'journal', 'fantaisie', 'gazette']
@@ -52,9 +53,9 @@ function faitsAttendus(e) {
   const attendus = {
     'champ:type': [e.type.libelle],
     'champ:titre': [e.titre],
-    'champ:rubrique': e.rubriques.map((r) => r.libelle),
-    'mention:source': [e.mentions.source.nom + (e.mentions.source.url ? ' (nouvelle fenêtre)' : '')],
+    'mention:source': [e.mentions.source.nom + (/^https?:\/\//i.test(e.mentions.source.url ?? '') ? ' (nouvelle fenêtre)' : '')],
   }
+  if (e.rubriques.length) attendus['champ:rubrique'] = e.rubriques.map((r) => r.libelle)
   if (e.gravite) attendus['champ:gravite'] = [e.gravite.libelle]
   if (e.resume) attendus['champ:resume'] = [e.resume]
   if (e.action) attendus['champ:action'] = [e.action]
@@ -64,6 +65,10 @@ function faitsAttendus(e) {
   if (niveaux.length) attendus['champ:niveau'] = niveaux
   if (e.mentions.niveauConfiance) attendus['mention:confiance'] = [e.mentions.niveauConfiance.libelle]
   if (e.mentions.resumeProduitParIA) attendus['mention:ia'] = ["produit par l'IA, à vérifier à la source"]
+  if (e.mentions.validation) attendus['mention:validation'] = [e.mentions.validation]
+  if (e.mentions.origines.length) attendus['mention:origine'] = [e.mentions.origines.join(' · ')]
+  if (e.mentions.attribution) attendus['mention:attribution'] = [e.mentions.attribution]
+  if (e.mentions.gardeFous.length) attendus['mention:garde-fou'] = [...e.mentions.gardeFous]
   return attendus
 }
 
@@ -85,6 +90,44 @@ test('AFF-02 : mêmes faits, mêmes liens et mêmes mentions dans les quatre mis
   })
   for (const id of IDENTIFIANTS.slice(1)) {
     assert.deepEqual(articles(html[id]).map(faits), reference, `${id} diffère de classique`)
+  }
+})
+
+test('AFF-02 : la veille réelle de /me/veille, transposée, garde ses faits et ses mentions dans les quatre mises en page', async () => {
+  const fiche = {
+    type: 'FICHE_REGLEMENTAIRE', id: 'f1', source: 'JORF', identifiant: 'JORFTEXT000001', titre: 'Décret <b>relatif</b> à la paie',
+    resume: 'Résumé de la fiche.', gravite: null, date: '2026-11-02T00:00:00Z', dateEffet: '2027-01-01',
+    lien: 'javascript:alert(1)', profils: ['expert-metier'],
+    rubriques: [{ profil: 'expert-metier', identifiant: 'reglementation', libelle: 'Réglementation' }],
+    gardeFous: ['Les fiches informent ; elles ne constituent pas un avis juridique.'],
+    mentionValidation: "validée par l'expert métier", projets: [], abonnements: [],
+    mentionIa: "produit par l'IA", mentionSource: 'Source : DILA, Licence Ouverte 2.0.',
+  }
+  const avis = {
+    type: 'AVIS_SECURITE', id: 'a1', source: 'OSV', identifiant: 'GHSA-1', titre: 'Avis retenu par un abonnement',
+    resume: null, gravite: 'CRITICAL', date: '2026-11-10T00:00:00Z', dateEffet: null, lien: 'https://osv.dev/GHSA-1',
+    profils: [], rubriques: [], gardeFous: [], mentionValidation: null,
+    projets: [{ projetId: 'p1', projet: 'Paie', niveau: 'EXACT' }, { projetId: 'p2', projet: 'Paie', niveau: 'PROBABLE' }],
+    abonnements: ['abo'], mentionIa: null, mentionSource: null,
+  }
+  const veille = veilleAffichee({ profilsActifs: ['expert-metier'], elements: [fiche, avis] })
+  const pages = {}
+  for (const id of IDENTIFIANTS) pages[id] = await rendu.rendre(id, veille)
+  const reference = articles(pages.classique).map(faits)
+  veille.elements.forEach((e, i) => {
+    for (const [cle, valeurs] of Object.entries(faitsAttendus(e))) {
+      assert.deepEqual(reference[i][cle], valeurs, `classique, élément ${e.identifiant}, ${cle}`)
+    }
+  })
+  assert.deepEqual(reference[0]['mention:attribution'], ['Source : DILA, Licence Ouverte 2.0.'])
+  assert.deepEqual(reference[0]['mention:ia'], ["produit par l'IA, à vérifier à la source"])
+  assert.deepEqual(reference[1]['mention:origine'], ['Abonnement personnel'])
+  assert.deepEqual(reference[1]['champ:projet'], ['Paie', 'Paie'], 'deux projets de même nom restent affichés')
+  for (const id of IDENTIFIANTS) {
+    assert.deepEqual(articles(pages[id]).map(faits), reference, `${id} diffère de classique`)
+    assert.doesNotMatch(pages[id], /data-exemple/, id)
+    assert.doesNotMatch(pages[id], /<b>relatif/, `${id} : titre externe échappé`)
+    assert.doesNotMatch(pages[id], /href="javascript:/, `${id} : lien non http refusé`)
   }
 })
 

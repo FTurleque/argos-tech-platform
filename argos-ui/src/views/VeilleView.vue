@@ -1,36 +1,40 @@
 <script setup lang="ts">
-// « Ma veille » (PRF-02, décision Q-3) : veille de l'utilisateur restituée par le serveur comme l'union
-// sans doublon de ses profils actifs et de ses abonnements PERSONAL, sous ses droits. Vue de la couche
-// contenu, affichée en liste simple et accessible ; elle ne filtre, ne dédoublonne ni ne retire aucun
-// élément ni aucune mention (arc42 §5.1, AFF-02).
+// « Ma veille » (PRF-02, décision Q-3, AFF-01, AFF-02) : veille de l'utilisateur restituée par le serveur
+// comme l'union sans doublon de ses profils actifs et de ses abonnements PERSONAL, sous ses droits, affichée
+// dans la mise en page de sa préférence. Vue de la couche contenu : elle lit l'API, transpose la réponse vers
+// le modèle commun (`contenu/veille-affichee.ts`, conversion de forme seulement) et la transmet au sélecteur
+// central des mises en page. Elle ne filtre, ne dédoublonne ni ne retire aucun élément ni aucune mention
+// (arc42 §5.1).
 import { computed, onMounted, onUnmounted, ref } from 'vue'
 import { ApiError } from '../api/client'
 import {
   lireAbonnements,
   lireCatalogueProfils,
+  lirePreferences,
   lireVeille,
   type Abonnement,
+  type PreferencesEffectives,
   type ProfilCatalogue,
   type VeilleProfils,
 } from '../api/veille'
-import { urlSure } from '../contenu/liens'
-import {
-  dateLisible,
-  grouperParRubrique,
-  libelleGravite,
-  libelleProfil,
-  libelleType,
-  messageErreurVeille,
-  originesElement,
-} from '../contenu/veille-profils'
+import { resoudreMiseEnPage } from '../contenu/resolution'
+import { veilleAffichee } from '../contenu/veille-affichee'
+import { libelleProfil, messageErreurVeille } from '../contenu/veille-profils'
+import MiseEnPage from '../mises-en-page/MiseEnPage.vue'
+import { IDENTIFIANTS_MISES_EN_PAGE } from '../mises-en-page/registre'
 
 const veille = ref<VeilleProfils | null>(null)
 const catalogue = ref<ProfilCatalogue[]>([])
 const abonnements = ref<Abonnement[]>([])
+const preferences = ref<PreferencesEffectives | null>(null)
+const composeeLe = ref<string | null>(null)
 const chargement = ref(false)
 const erreur = ref('')
 
-const groupes = computed(() => grouperParRubrique(veille.value?.elements ?? [], catalogue.value))
+const miseEnPage = computed(() => resoudreMiseEnPage(preferences.value, IDENTIFIANTS_MISES_EN_PAGE))
+const affichee = computed(() =>
+  veille.value ? veilleAffichee(veille.value, catalogue.value, abonnements.value, composeeLe.value) : null,
+)
 const profilsActifs = computed(() =>
   (veille.value?.profilsActifs ?? []).map((p) => libelleProfil(p, catalogue.value)).join(', '),
 )
@@ -43,19 +47,23 @@ async function charger(): Promise<void> {
   chargementCourant = controleur
   chargement.value = true
   erreur.value = ''
-  // Le catalogue et les abonnements ne servent qu'à nommer profils et origines : leur échec n'empêche pas
-  // d'afficher la veille, dont les identifiants restent lisibles.
-  const [resultatVeille, resultatCatalogue, resultatAbonnements] = await Promise.allSettled([
+  // Le catalogue et les abonnements ne servent qu'à nommer profils et origines, la préférence qu'à choisir la
+  // mise en page : leur échec n'empêche pas d'afficher la veille (identifiants lisibles, mise en page
+  // « classique » par défaut, AFF-04).
+  const [resultatVeille, resultatCatalogue, resultatAbonnements, resultatPreferences] = await Promise.allSettled([
     lireVeille(controleur.signal),
     lireCatalogueProfils(controleur.signal),
     lireAbonnements(controleur.signal),
+    lirePreferences(controleur.signal),
   ])
   if (controleur.signal.aborted) return
   chargement.value = false
   catalogue.value = resultatCatalogue.status === 'fulfilled' ? resultatCatalogue.value : []
   abonnements.value = resultatAbonnements.status === 'fulfilled' ? resultatAbonnements.value : []
+  preferences.value = resultatPreferences.status === 'fulfilled' ? resultatPreferences.value : null
   if (resultatVeille.status === 'fulfilled') {
     veille.value = resultatVeille.value
+    composeeLe.value = new Date().toISOString()
   } else {
     veille.value = null
     const e = resultatVeille.reason
@@ -74,9 +82,11 @@ onUnmounted(() => chargementCourant?.abort())
     <p class="muted">
       Les éléments de vos profils actifs et de vos abonnements personnels, chacun une seule fois, dans la limite
       de vos droits.
-      <RouterLink to="/veille/profils">Choisir mes profils</RouterLink>
+      <RouterLink to="/veille/profils">Choisir mes profils</RouterLink> ·
+      <RouterLink to="/affichage">Changer de mise en page</RouterLink>
     </p>
     <p v-if="veille" class="muted">Profils actifs : {{ profilsActifs }}</p>
+    <p v-if="miseEnPage.message" class="status status-down" role="status">{{ miseEnPage.message }}</p>
     <p v-if="chargement" class="muted" role="status">Chargement de votre veille…</p>
     <p v-if="erreur" class="status status-down" role="alert">
       {{ erreur }}
@@ -88,111 +98,15 @@ onUnmounted(() => chargementCourant?.abort())
     </p>
   </section>
 
-  <section v-for="groupe in groupes" :key="groupe.cle" class="card" :aria-labelledby="`groupe-${groupe.cle}`">
-    <h2 :id="`groupe-${groupe.cle}`">
-      {{ groupe.titre }}<span v-if="groupe.profil" class="muted"> — profil {{ groupe.profil }}</span>
-      <span class="muted"> ({{ groupe.elements.length }})</span>
-    </h2>
-    <ul class="elements">
-      <li v-for="element in groupe.elements" :key="`${element.type}-${element.id}`" class="element" data-element>
-        <h3 class="titre">{{ element.titre ?? element.identifiant ?? element.id }}</h3>
-        <p class="meta">
-          <span>{{ libelleType(element.type) }}</span>
-          <span v-if="element.identifiant"> · {{ element.identifiant }}</span>
-          <span v-if="libelleGravite(element.gravite)"> · gravité {{ libelleGravite(element.gravite) }}</span>
-        </p>
-        <p v-if="element.resume">{{ element.resume }}</p>
-        <dl class="details">
-          <div>
-            <dt>Origine</dt>
-            <dd data-origine>{{ originesElement(element, catalogue, abonnements).join(' · ') }}</dd>
-          </div>
-          <div v-if="element.rubriques.length > 1">
-            <dt>Rubriques</dt>
-            <dd>{{ element.rubriques.map((r) => r.libelle).join(', ') }}</dd>
-          </div>
-          <div>
-            <dt>Source</dt>
-            <dd>
-              <a v-if="urlSure(element.lien)" :href="urlSure(element.lien)!" rel="noopener noreferrer" target="_blank">{{
-                element.source ?? 'source'
-              }}</a>
-              <span v-else>{{ element.source ?? 'non précisée' }}</span>
-            </dd>
-          </div>
-          <div v-if="element.date">
-            <dt>Publié le</dt>
-            <dd><time :datetime="element.date">{{ dateLisible(element.date) }}</time></dd>
-          </div>
-          <div v-if="element.dateEffet">
-            <dt>Entrée en vigueur</dt>
-            <dd><time :datetime="element.dateEffet">{{ dateLisible(element.dateEffet) }}</time></dd>
-          </div>
-          <div v-if="element.projets.length">
-            <dt>Projets concernés</dt>
-            <dd>{{ element.projets.map((p) => p.projet ?? p.projetId).join(', ') }}</dd>
-          </div>
-          <div v-if="element.mentionValidation">
-            <dt>Validation</dt>
-            <dd data-mention="validation">{{ element.mentionValidation }}</dd>
-          </div>
-        </dl>
-        <ul v-if="element.gardeFous.length" class="garde-fous" aria-label="Mentions obligatoires">
-          <li v-for="g in element.gardeFous" :key="g">{{ g }}</li>
-        </ul>
-      </li>
-    </ul>
-  </section>
+  <MiseEnPage
+    v-if="affichee && affichee.elements.length > 0"
+    :identifiant="miseEnPage.identifiant"
+    :veille="affichee"
+    :niveau-titre="2"
+  />
 </template>
 
 <style scoped>
-.elements {
-  list-style: none;
-  margin: 0;
-  padding: 0;
-  display: grid;
-  gap: 0.75rem;
-}
-.element {
-  border: 1px solid var(--border);
-  border-radius: 8px;
-  padding: 0.75rem 1rem;
-}
-.titre {
-  margin: 0 0 0.25rem;
-  font-size: 1.05rem;
-}
-.meta {
-  margin: 0 0 0.5rem;
-  color: var(--muted);
-  font-size: 0.9em;
-}
-.details {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 0.25rem 1.25rem;
-  margin: 0.5rem 0 0;
-  font-size: 0.9em;
-}
-.details div {
-  display: flex;
-  gap: 0.35rem;
-}
-.details dt {
-  font-weight: 600;
-}
-.details dt::after {
-  content: ' :';
-}
-.details dd {
-  margin: 0;
-}
-.garde-fous {
-  margin: 0.5rem 0 0;
-  padding-left: 1.1rem;
-  font-size: 0.85em;
-  color: var(--muted);
-}
 .vide {
   padding: 0.75rem 1rem;
   border: 1px dashed var(--border);

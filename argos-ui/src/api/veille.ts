@@ -45,6 +45,10 @@ export interface ElementVeilleProfils {
   projets: ProjetConcerne[]
   /** Abonnements PERSONAL de l'appelant qui ont retenu l'élément (décision Q-3). */
   abonnements?: string[]
+  /** Mention « produit par l'IA » quand le résumé vient du modèle (ADR-0023) ; absente sinon. */
+  mentionIa?: string | null
+  /** Mention de la source, de sa licence et de la date de mise à jour des données, si la source l'exige. */
+  mentionSource?: string | null
 }
 
 /** Réponse de `GET /api/v1/me/veille` (schéma `VeilleProfils`). */

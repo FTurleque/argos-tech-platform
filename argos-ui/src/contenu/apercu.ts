@@ -2,8 +2,10 @@
 // Les éléments sont fictifs et présentés comme tels (`exemple: true`, « exemple » dans chaque titre et
 // chaque source, adresses du domaine réservé example.org) : l'aperçu ne lit pas la veille restituée
 // par le serveur (PRF-02), il montre seulement la forme de chaque mise en page sur un même jeu.
-// Le jeu couvre chaque nature d'élément, un résumé produit par l'IA, une validation humaine, un
-// élément sans gravité, sans projet ou sans lien, et un élément rangé dans deux rubriques.
+// Le jeu couvre chaque nature d'élément et chaque gravité de l'échelle (hors `non-classee`), un résumé
+// produit par l'IA, une validation humaine avec garde-fou et mention de licence, un élément sans gravité,
+// sans projet ou sans lien, un élément rangé dans deux rubriques et un élément sans rubrique, retenu par
+// un seul abonnement personnel.
 import type { RubriqueAffichee, VeilleAffichee } from '../mises-en-page/modele'
 
 const SECURITE: RubriqueAffichee = { profil: 'developpeur', identifiant: 'securite', libelle: 'Sécurité' }
@@ -32,7 +34,10 @@ export const VEILLE_APERCU: VeilleAffichee = {
         publieLe: '2026-11-14T08:00:00Z',
         niveauConfiance: { code: 'confirme', libelle: 'confirmé' },
         resumeProduitParIA: true,
+        attribution: null,
         validation: null,
+        gardeFous: [],
+        origines: [],
       },
     },
     {
@@ -49,7 +54,10 @@ export const VEILLE_APERCU: VeilleAffichee = {
         publieLe: '2026-11-12T10:30:00Z',
         niveauConfiance: null,
         resumeProduitParIA: false,
+        attribution: null,
         validation: null,
+        gardeFous: [],
+        origines: [],
       },
     },
     {
@@ -66,7 +74,10 @@ export const VEILLE_APERCU: VeilleAffichee = {
         publieLe: '2026-11-10T09:00:00Z',
         niveauConfiance: { code: 'probable', libelle: 'probable' },
         resumeProduitParIA: true,
-        validation: { par: 'l’expert métier référent', le: '2026-11-11T16:00:00Z' },
+        attribution: 'Source : éditeur fictif de textes (exemple), licence fictive (exemple).',
+        validation: 'validée par l’expert métier (exemple)',
+        gardeFous: ['Les fiches informent ; elles ne constituent pas un avis juridique (exemple).'],
+        origines: ['Profil Expert métier (exemple)'],
       },
     },
     {
@@ -83,7 +94,10 @@ export const VEILLE_APERCU: VeilleAffichee = {
         publieLe: '2026-11-09T14:00:00Z',
         niveauConfiance: null,
         resumeProduitParIA: false,
+        attribution: null,
         validation: null,
+        gardeFous: [],
+        origines: [],
       },
     },
     {
@@ -100,7 +114,30 @@ export const VEILLE_APERCU: VeilleAffichee = {
         publieLe: null,
         niveauConfiance: null,
         resumeProduitParIA: false,
+        attribution: null,
         validation: null,
+        gardeFous: [],
+        origines: [],
+      },
+    },
+    {
+      identifiant: 'exemple-6',
+      titre: 'Exemple : annonce d’un éditeur suivie par un abonnement personnel',
+      resume: 'L’éditeur annonce un changement de licence pour sa prochaine version.',
+      type: { code: 'actualite', libelle: 'Actualité' },
+      gravite: { code: 'elevee', libelle: 'élevée' },
+      rubriques: [],
+      projets: [],
+      action: null,
+      mentions: {
+        source: { nom: 'Annonces éditeur (exemple)', url: 'https://example.org/annonces/exemple-6' },
+        publieLe: '2026-11-08T11:00:00Z',
+        niveauConfiance: null,
+        resumeProduitParIA: false,
+        attribution: null,
+        validation: null,
+        gardeFous: [],
+        origines: ['Abonnement personnel (exemple)'],
       },
     },
   ],

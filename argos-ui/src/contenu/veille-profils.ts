@@ -1,9 +1,9 @@
-// Présentation de la veille par profils (couche contenu, PRF-02, décision Q-3) et du choix des profils
-// (PRF-01). Module pur, sans appel réseau ni dépendance à Vue : testé directement par `node --test`.
+// Libellés de la veille par profils (couche contenu, PRF-02, décision Q-3) et du choix des profils
+// (PRF-01). La transposition vers le modèle des mises en page est faite par `veille-affichee.ts`. Module pur, sans appel réseau ni dépendance à Vue : testé directement par `node --test`.
 //
 // Aucune règle métier ici (arc42 §5.1) : les éléments reçus sont déjà autorisés, filtrés, dédoublonnés et
-// accompagnés de leurs mentions par le serveur. Ce module les range pour l'affichage, sans en retirer ni en
-// ajouter, et nomme leur origine.
+// accompagnés de leurs mentions par le serveur. Ce module les nomme (profils, abonnements, types, gravités),
+// sans en retirer ni en ajouter.
 import type {
   Abonnement,
   ElementVeilleProfils,
@@ -11,55 +11,9 @@ import type {
   ProfilCatalogue,
 } from '../api/veille'
 
-/** Clé du groupe des éléments que seuls des abonnements PERSONAL retiennent. */
-export const GROUPE_ABONNEMENTS = 'abonnements-personnels'
-
-/** Groupe d'affichage : une rubrique d'un profil actif, ou les abonnements personnels. */
-export interface GroupeVeille {
-  readonly cle: string
-  readonly titre: string
-  /** Libellé du profil de la rubrique ; null pour le groupe des abonnements personnels. */
-  readonly profil: string | null
-  readonly elements: readonly ElementVeilleProfils[]
-}
-
 /** Libellé d'un profil d'après le catalogue, ou son identifiant s'il n'y figure pas. */
 export function libelleProfil(identifiant: string, catalogue: readonly ProfilCatalogue[]): string {
   return catalogue.find((p) => p.identifiant === identifiant)?.libelle ?? identifiant
-}
-
-/**
- * Range les éléments par rubrique, dans l'ordre de première apparition des rubriques. Chaque élément
- * apparaît une seule fois, dans le groupe de sa première rubrique ; ses autres rubriques restent affichées
- * avec lui. Les éléments sans rubrique, que seuls des abonnements PERSONAL retiennent, forment le dernier
- * groupe. Aucun élément n'est omis : un élément sans rubrique ni abonnement, que le serveur ne restitue pas,
- * irait lui aussi dans ce dernier groupe.
- */
-export function grouperParRubrique(
-  elements: readonly ElementVeilleProfils[],
-  catalogue: readonly ProfilCatalogue[] = [],
-): GroupeVeille[] {
-  const groupes = new Map<string, { titre: string; profil: string | null; elements: ElementVeilleProfils[] }>()
-  const sansRubrique: ElementVeilleProfils[] = []
-  for (const element of elements) {
-    const premiere = element.rubriques?.[0]
-    if (!premiere) {
-      sansRubrique.push(element)
-      continue
-    }
-    const cle = `${premiere.profil}/${premiere.identifiant}`
-    let groupe = groupes.get(cle)
-    if (!groupe) {
-      groupe = { titre: premiere.libelle, profil: libelleProfil(premiere.profil, catalogue), elements: [] }
-      groupes.set(cle, groupe)
-    }
-    groupe.elements.push(element)
-  }
-  const resultat: GroupeVeille[] = [...groupes].map(([cle, g]) => ({ cle, ...g }))
-  if (sansRubrique.length > 0) {
-    resultat.push({ cle: GROUPE_ABONNEMENTS, titre: 'Abonnements personnels', profil: null, elements: sansRubrique })
-  }
-  return resultat
 }
 
 const TYPES_FILTRE: Readonly<Record<string, string>> = {

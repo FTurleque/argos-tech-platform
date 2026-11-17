@@ -105,7 +105,7 @@ const BANDEAUX: Readonly<Record<CodeNature, string>> = {
                 <div class="projets">
                   <span class="libelle">Aperçu chez :</span>
                   <ul v-if="element.projets.length" role="list" class="projets-liste">
-                    <li v-for="p in element.projets" :key="p.nom">
+                    <li v-for="(p, ip) in element.projets" :key="ip">
                       <span data-champ="projet">{{ p.nom }}</span
                       ><template v-if="p.niveau"> (<span data-champ="niveau">{{ p.niveau.libelle }}</span>)</template>
                     </li>
@@ -117,7 +117,7 @@ const BANDEAUX: Readonly<Record<CodeNature, string>> = {
                 </p>
               </div>
             </div>
-            <p class="rubriques">
+            <p v-if="element.rubriques.length" class="rubriques">
               <span class="libelle">Rubriques :</span>{{ ' ' }}
               <template v-for="(r, i) in element.rubriques" :key="cleRubrique(r)">
                 <span v-if="i > 0" aria-hidden="true"> — </span>

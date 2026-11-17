@@ -102,7 +102,7 @@ const TEINTES = ['carte', 'menthe', 'jaune', 'rose', 'lavande'] as const
               <ul v-if="element.projets.length" role="list" class="etiquettes">
                 <li
                   v-for="(p, i) in element.projets"
-                  :key="p.nom"
+                  :key="i"
                   :class="['etiquette', `penche-${i % 3}`, { probable: p.niveau?.code === 'PROBABLE' }]"
                 >
                   <span data-champ="projet">{{ p.nom }}</span
@@ -114,7 +114,7 @@ const TEINTES = ['carte', 'menthe', 'jaune', 'rose', 'lavande'] as const
             <p v-if="element.action" class="action">
               <strong>Que faire ?</strong> <span data-champ="action">{{ element.action }}</span>
             </p>
-            <p class="rubriques">
+            <p v-if="element.rubriques.length" class="rubriques">
               <span class="libelle">Rubriques :</span>
               <span v-for="r in element.rubriques" :key="cleRubrique(r)" class="rubrique" data-champ="rubrique">{{
                 r.libelle

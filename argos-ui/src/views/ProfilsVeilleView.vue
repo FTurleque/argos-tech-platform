@@ -38,6 +38,8 @@ async function charger(): Promise<void> {
   }
 }
 
+// Pendant l'enregistrement, le bouton reste focalisable (`aria-disabled`, pas `disabled`) : le focus clavier
+// ne retombe pas sur la page ; ce garde ignore les clics.
 async function basculer(identifiant: string): Promise<void> {
   if (!preferences.value || enCours.value) return
   enCours.value = true
@@ -80,7 +82,7 @@ onMounted(charger)
           class="profil"
           :class="{ actif: actifs.includes(p.identifiant) }"
           :aria-pressed="actifs.includes(p.identifiant)"
-          :disabled="enCours"
+          :aria-disabled="enCours"
           @click="basculer(p.identifiant)"
         >
           <span class="coche" aria-hidden="true">{{ actifs.includes(p.identifiant) ? '✓' : '' }}</span>
@@ -116,16 +118,19 @@ onMounted(charger)
   width: 100%;
   text-align: left;
   padding: 0.85rem 1rem;
-  border: 2px solid #c5ced9;
+  border: 2px solid var(--muted);
   border-radius: 8px;
-  background: #ffffff;
+  background: var(--card);
   color: var(--text);
   font: inherit;
   cursor: pointer;
 }
 .profil.actif {
   border-color: var(--teal);
-  background: #e6f2ef;
+  background: var(--teal-soft);
+}
+.profil[aria-disabled='true'] {
+  cursor: progress;
 }
 .profil:focus-visible {
   outline: 3px solid var(--navy);
@@ -140,8 +145,8 @@ onMounted(charger)
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  color: #ffffff;
-  background: #ffffff;
+  color: var(--card);
+  background: var(--card);
   font-weight: 700;
 }
 .profil.actif .coche {

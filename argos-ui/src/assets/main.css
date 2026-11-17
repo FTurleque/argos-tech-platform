@@ -8,6 +8,7 @@
   --ok: #1f7a4d;
   --ko: #b3261e;
   --border: #dde3ea;
+  --teal-soft: #e6f2ef;
   font-family: 'Segoe UI', system-ui, -apple-system, Roboto, sans-serif;
   color: var(--text);
   background: var(--bg);

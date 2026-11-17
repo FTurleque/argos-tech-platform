@@ -36,7 +36,10 @@ const rubriques = computed(() => sommaire(props.veille))
 
     <div class="tete">
       <Titre :id="`${id}-titre`" :niveau="niveau" class="titre">Fil de veille</Titre>
-      <p class="sous-titre">{{ nombreElements(veille.elements.length) }}, toutes rubriques de vos profils actifs</p>
+      <p class="sous-titre">
+        {{ nombreElements(veille.elements.length) }},
+        {{ veille.exemple ? 'jeu d’exemple' : 'issus de vos profils actifs et de vos abonnements personnels' }}
+      </p>
       <p v-if="veille.exemple" class="exemple" data-exemple>Données d’exemple : ces éléments sont fictifs.</p>
     </div>
 
@@ -67,7 +70,7 @@ const rubriques = computed(() => sommaire(props.veille))
             <div class="projets">
               <span class="libelle">Concerne :</span>
               <ul v-if="element.projets.length" role="list" class="puces">
-                <li v-for="p in element.projets" :key="p.nom" class="puce">
+                <li v-for="(p, ip) in element.projets" :key="ip" class="puce">
                   <span data-champ="projet">{{ p.nom }}</span
                   ><template v-if="p.niveau"> · <span data-champ="niveau">{{ p.niveau.libelle }}</span></template>
                 </li>
@@ -77,7 +80,7 @@ const rubriques = computed(() => sommaire(props.veille))
             <p v-if="element.action" class="action">
               <strong>À faire :</strong> <span data-champ="action">{{ element.action }}</span>
             </p>
-            <p class="rubriques">
+            <p v-if="element.rubriques.length" class="rubriques">
               <span class="libelle">Rubriques :</span>
               <span v-for="r in element.rubriques" :key="cleRubrique(r)" class="rubrique" data-champ="rubrique">{{
                 r.libelle

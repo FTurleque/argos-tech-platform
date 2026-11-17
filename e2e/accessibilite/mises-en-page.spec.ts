@@ -123,12 +123,47 @@ for (const id of MISES_EN_PAGE) {
           const el = document.activeElement as HTMLElement | null
           if (!el || el === document.body || !el.closest('[data-mise-en-page]')) return null
           const s = getComputedStyle(el)
-          return { href: el.getAttribute('href'), style: s.outlineStyle, largeur: parseFloat(s.outlineWidth), couleur: s.outlineColor }
+          // Contraste du contour de focus sur le fond effectif de l'élément (WCAG 1.4.11, RGAA 3.3).
+          const lire = (c: string): number[] => {
+            const m = c.match(/rgba?\(([^)]+)\)/)
+            if (!m) return [0, 0, 0, 0]
+            const p = m[1].split(/[\s,/]+/).filter(Boolean).map(Number)
+            return [p[0], p[1], p[2], p.length > 3 ? p[3] : 1]
+          }
+          const fusion = (dessus: number[], dessous: number[]): number[] => {
+            const a = dessus[3] + dessous[3] * (1 - dessus[3])
+            if (a === 0) return [0, 0, 0, 0]
+            const c = [0, 1, 2].map((i) => (dessus[i] * dessus[3] + dessous[i] * dessous[3] * (1 - dessus[3])) / a)
+            return [c[0], c[1], c[2], a]
+          }
+          const couches: number[][] = []
+          for (let e: Element | null = el; e; e = e.parentElement) {
+            const c = lire(getComputedStyle(e).backgroundColor)
+            if (c[3] > 0) couches.push(c)
+            if (c[3] >= 1) break
+          }
+          const fond = couches.reduceRight((dessous, dessus) => fusion(dessus, dessous), [255, 255, 255, 1])
+          const contour = fusion(lire(s.outlineColor), fond)
+          const lum = (c: number[]) => {
+            const f = (v: number) => {
+              const x = v / 255
+              return x <= 0.04045 ? x / 12.92 : ((x + 0.055) / 1.055) ** 2.4
+            }
+            return 0.2126 * f(c[0]) + 0.7152 * f(c[1]) + 0.0722 * f(c[2])
+          }
+          const [clair, sombre] = [lum(contour), lum(fond)].sort((x, y) => y - x)
+          return {
+            href: el.getAttribute('href'),
+            style: s.outlineStyle,
+            largeur: parseFloat(s.outlineWidth),
+            contraste: (clair + 0.05) / (sombre + 0.05),
+          }
         })
         if (!focus) break
         parcourus.push(focus.href ?? '')
         expect(focus.style, 'contour de focus').not.toBe('none')
         expect(focus.largeur).toBeGreaterThanOrEqual(2)
+        expect(focus.contraste, `contraste du contour de focus (${focus.href})`).toBeGreaterThanOrEqual(3)
       }
       expect(parcourus).toEqual(liens)
     })
@@ -171,8 +206,8 @@ for (const id of MISES_EN_PAGE) {
       await ouvrir(page, id)
       const racine = page.locator(`[data-mise-en-page="${id}"]`)
       await expect(racine).toHaveRole('region')
-      await expect(racine.getByRole('article')).toHaveCount(5)
-      await expect(racine.getByRole('heading', { level: 3 })).toHaveCount(6)
+      await expect(racine.getByRole('article')).toHaveCount(6)
+      await expect(racine.getByRole('heading', { level: 3 })).toHaveCount(7)
       for (const lien of await racine.getByRole('link').all()) {
         await expect(lien).toHaveAccessibleName(/\(nouvelle fenêtre\)$/)
       }
@@ -198,6 +233,6 @@ test('AFF-02 (banc) : les quatre mises en page restituent les mêmes faits du m�
     )
     await page.unrouteAll()
   }
-  expect(parMiseEnPage.classique).toHaveLength(5)
+  expect(parMiseEnPage.classique).toHaveLength(6)
   for (const id of MISES_EN_PAGE) expect(parMiseEnPage[id], id).toEqual(parMiseEnPage.classique)
 })

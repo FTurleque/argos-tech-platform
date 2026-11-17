@@ -5,10 +5,8 @@ import { test } from 'node:test'
 import assert from 'node:assert/strict'
 import { readFileSync } from 'node:fs'
 import {
-  GROUPE_ABONNEMENTS,
   basculerProfil,
   dateLisible,
-  grouperParRubrique,
   libelleAbonnement,
   libelleGravite,
   libelleProfil,
@@ -47,31 +45,9 @@ function element(id, rubriques, profils, abonnements = []) {
 }
 
 const SECURITE = { profil: 'developpeur', identifiant: 'securite', libelle: 'Sécurité' }
-const REGLEMENTATION = { profil: 'expert-metier', identifiant: 'reglementation', libelle: 'Réglementation' }
 
-test('les éléments sont rangés par rubrique, une seule fois chacun, abonnements personnels en dernier', () => {
-  const elements = [
-    element('a', [SECURITE], ['developpeur']),
-    element('seul-abonnement', [], [], [ABO]),
-    element('fiche', [REGLEMENTATION], ['expert-metier']),
-    element('commun', [SECURITE, REGLEMENTATION], ['developpeur', 'expert-metier'], [ABO]),
-  ]
-  const groupes = grouperParRubrique(elements, CATALOGUE)
-  assert.deepEqual(groupes.map((g) => g.cle), ['developpeur/securite', 'expert-metier/reglementation', GROUPE_ABONNEMENTS])
-  assert.deepEqual(groupes.map((g) => g.titre), ['Sécurité', 'Réglementation', 'Abonnements personnels'])
-  assert.deepEqual(groupes.map((g) => g.profil), ['Développeur', 'Expert métier', null])
-  assert.deepEqual(groupes[0].elements.map((e) => e.id), ['a', 'commun'], 'élément commun : groupe de sa première rubrique')
-  assert.deepEqual(groupes[2].elements.map((e) => e.id), ['seul-abonnement'])
-  const affiches = groupes.flatMap((g) => g.elements.map((e) => e.id))
-  assert.deepEqual([...affiches].sort(), elements.map((e) => e.id).sort(), 'aucun élément omis ni répété')
-})
-
-test('veille vide : aucun groupe', () => {
-  assert.deepEqual(grouperParRubrique([]), [])
-})
-
-test('sans catalogue, le profil d’une rubrique est nommé par son identifiant', () => {
-  assert.equal(grouperParRubrique([element('a', [SECURITE], ['developpeur'])])[0].profil, 'developpeur')
+test('un profil absent du catalogue est nommé par son identifiant', () => {
+  assert.equal(libelleProfil('expert-metier', CATALOGUE), 'Expert métier')
   assert.equal(libelleProfil('inconnu', CATALOGUE), 'inconnu')
 })
 
@@ -144,7 +120,7 @@ test('module API de la veille : appels par appelerApi, points d’accès existan
   }
 })
 
-test('écrans : routes, lien de navigation, aucun v-html, liens sources filtrés, aucune mise en page touchée', () => {
+test('écrans : routes, lien de navigation, aucun v-html, « Ma veille » dans la mise en page choisie', () => {
   const routeur = source('../src/router.ts')
   assert.match(routeur, /path: '\/veille', name: 'veille', component: VeilleView/)
   assert.match(routeur, /path: '\/veille\/profils', name: 'profils-veille', component: ProfilsVeilleView/)
@@ -154,13 +130,14 @@ test('écrans : routes, lien de navigation, aucun v-html, liens sources filtrés
     assert.doesNotMatch(vue, /v-html/, fichier)
     assert.doesNotMatch(vue, /\bfetch\s*\(/, fichier)
     assert.doesNotMatch(vue, /localStorage|sessionStorage|document\.cookie/, fichier)
-    assert.doesNotMatch(vue, /mises-en-page\//, `${fichier} : la mise en page est raccordée à l'intégration`)
   }
+  // « Ma veille » passe par le sélecteur central des mises en page ; les liens de source sont rendus par
+  // MentionsObligatoires (urlSure, rel="noopener noreferrer"), vérifié par tests/mises-en-page.test.mjs.
   const veille = source('../src/views/VeilleView.vue')
-  assert.doesNotMatch(veille, /:href="element\.lien"/)
-  assert.match(veille, /urlSure\(element\.lien\)/)
-  assert.match(veille, /rel="noopener noreferrer"/)
-  assert.match(veille, /data-origine/)
+  assert.match(veille, /import MiseEnPage from '\.\.\/mises-en-page\/MiseEnPage\.vue'/)
+  assert.match(veille, /<MiseEnPage\s/)
+  assert.match(veille, /veilleAffichee\(/)
+  assert.doesNotMatch(veille, /:href=/)
   assert.match(veille, /role="alert"/)
   const profils = source('../src/views/ProfilsVeilleView.vue')
   assert.match(profils, /:aria-pressed=/)

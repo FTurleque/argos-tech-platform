@@ -8,8 +8,11 @@
 //
 // Module de types seulement, sans import : utilisable par les tests `node --test`.
 
-/** Gravité d'un élément, fixée par la source ou par le moteur d'impact. */
-export type CodeGravite = 'critique' | 'elevee' | 'moyenne' | 'faible'
+/**
+ * Gravité d'un élément, fixée par la source ou par le moteur d'impact. `non-classee` porte une gravité
+ * que la source exprime hors de cette échelle : son libellé reste celui de la source.
+ */
+export type CodeGravite = 'critique' | 'elevee' | 'moyenne' | 'faible' | 'non-classee'
 
 /** Nature d'un élément de veille ; une mise en page peut s'en servir pour choisir un style. */
 export type CodeNature =
@@ -36,8 +39,20 @@ export interface MentionsElement {
   readonly niveauConfiance: Libelle | null
   /** Vrai si le résumé affiché a été produit par l'IA : la mention « résumé IA » est alors affichée. */
   readonly resumeProduitParIA: boolean
-  /** Validation humaine exigée par un garde-fou de profil (PRF-06-S2), si elle a eu lieu. */
-  readonly validation: { readonly par: string; readonly le: string } | null
+  /**
+   * Mention de paternité et de licence exigée par la source (par exemple la Licence Ouverte des textes
+   * de la DILA), telle que fournie par le serveur ; null si la source n'en exige pas.
+   */
+  readonly attribution: string | null
+  /** Mention de validation humaine exigée par un garde-fou de profil (PRF-06-S2), texte fourni par le serveur. */
+  readonly validation: string | null
+  /** Textes des garde-fous des profils actifs qui s'appliquent à l'élément (PRF-06), dans l'ordre reçu. */
+  readonly gardeFous: readonly string[]
+  /**
+   * Origine de l'élément : profils actifs dont il relève, puis abonnements personnels qui l'ont retenu
+   * (décision Q-3), sous forme de libellés prêts à afficher ; vide pour un jeu d'exemple sans origine.
+   */
+  readonly origines: readonly string[]
 }
 
 /** Rubrique d'un profil actif (PRF-02). */
