@@ -2,8 +2,9 @@
 // @playwright/test). L'application est lancée telle qu'elle est livrée, hors paquet : processus
 // principal de argos-desktop/src/main.js, IHM argos-ui construite dans argos-ui/dist et servie par
 // le protocole interne app://argos avec sa CSP. Aucun code de production n'est modifié pour les
-// tests : les doublures (navigateur du système, garde réseau) sont installées dans le processus
-// principal par `electronApp.evaluate`, depuis le test.
+// tests : les doublures (navigateur du système, garde réseau, coupure du serveur, observation des
+// notifications et de la zone de notification) sont installées dans le processus principal par
+// `electronApp.evaluate`, depuis le test.
 import { existsSync } from 'node:fs'
 import { dirname, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
@@ -54,7 +55,22 @@ export interface RequeteDesktop {
   statut: number | null
   /** Vrai si la garde a annulé la requête (hôte hors de la boucle locale). */
   refusee: boolean
+  /** Vrai si la requête a été annulée par une coupure simulée du serveur (`couper`). */
+  coupee: boolean
 }
+
+/** Notification système créée par le processus principal (objet `Notification` réel d'Electron). */
+export interface NotificationObservee {
+  titre: string
+  corps: string
+}
+
+/** Refus simulé des notifications par le système (`refuserNotificationsSysteme`). */
+export type RefusSysteme = 'non-supportees' | 'reglages-windows'
+
+/** Message de l'événement `failed` d'Electron sous Windows quand les réglages refusent la notification. */
+const REFUS_REGLAGES_WINDOWS =
+  'Notification failed - Settings prevent the notification from being delivered. (HRESULT: -2143420143)'
 
 /** État de la fenêtre principale lu dans le processus principal. */
 export interface EtatFenetre {
@@ -75,6 +91,31 @@ export interface ApplicationDesktop {
   /** Adresses que l'application a demandé d'ouvrir dans le navigateur du système. */
   ouvertures(): Promise<string[]>
   etatFenetre(): Promise<EtatFenetre>
+  /** Notifications affichées (`show`) depuis l'installation des doublures, dans l'ordre. */
+  notifications(): Promise<NotificationObservee[]>
+  /** Émet l'événement `click` de la notification `rang` (0 pour la première), comme le système au clic. */
+  cliquerNotification(rang: number): Promise<void>
+  /** Infobulles successives de l'icône de la zone de notification (`Tray.setToolTip`). */
+  infobulles(): Promise<string[]>
+  /** Émet l'événement `click` de l'icône de la zone de notification, comme le système au clic. */
+  cliquerZoneNotification(): Promise<void>
+  /**
+   * Refus simulé des notifications par le système : `non-supportees`, `Notification.isSupported`
+   * renvoie faux ; `reglages-windows`, l'appel au système est remplacé par l'événement `failed` que
+   * Windows fait émettre quand ses réglages refusent la notification.
+   */
+  refuserNotificationsSysteme(mode: RefusSysteme): Promise<void>
+  /** Fin du refus simulé : `isSupported` et `show` d'origine. */
+  accepterNotificationsSysteme(): Promise<void>
+  /** Notifications demandées puis refusées par les réglages de Windows simulés, dans l'ordre. */
+  notificationsRefusees(): Promise<NotificationObservee[]>
+  /**
+   * Coupure simulée : toute requête de la session vers `hote` (hôte et port, par exemple
+   * localhost:8090) est annulée, comme si le serveur était injoignable ; le serveur reste en marche.
+   */
+  couper(hote: string): Promise<void>
+  /** Fin de la coupure simulée. */
+  retablir(): Promise<void>
   fermer(): Promise<void>
 }
 
@@ -126,6 +167,33 @@ export async function lancerDesktop(options: OptionsLancement): Promise<Applicat
           evenements: [...(globalThis as unknown as DoubluresArgos).__argosE2E.evenements],
         }
       }),
+      notifications: () => app.evaluate(() => (globalThis as unknown as DoubluresArgos).__argosE2E.notifications
+        .map((n) => ({ titre: n.title, corps: n.body }))),
+      cliquerNotification: (rang) => app.evaluate((_electron, i) => {
+        const notification = (globalThis as unknown as DoubluresArgos).__argosE2E.notifications[i]
+        if (!notification) throw new Error(`notification ${i} absente`)
+        notification.emit('click')
+      }, rang),
+      infobulles: () => app.evaluate(() => [...(globalThis as unknown as DoubluresArgos).__argosE2E.infobulles]),
+      cliquerZoneNotification: () => app.evaluate(() => {
+        const icone = (globalThis as unknown as DoubluresArgos).__argosE2E.icone
+        if (!icone) throw new Error('icône de la zone de notification non observée')
+        icone.emit('click')
+      }),
+      refuserNotificationsSysteme: (mode) => app.evaluate((_electron, m) => {
+        (globalThis as unknown as DoubluresArgos).__argosE2E.refus = m
+      }, mode),
+      accepterNotificationsSysteme: () => app.evaluate(() => {
+        (globalThis as unknown as DoubluresArgos).__argosE2E.refus = null
+      }),
+      notificationsRefusees: () => app.evaluate(() => (globalThis as unknown as DoubluresArgos).__argosE2E.refusees
+        .map((n) => ({ titre: n.title, corps: n.body }))),
+      couper: (hote) => app.evaluate((_electron, h) => {
+        (globalThis as unknown as DoubluresArgos).__argosE2E.coupures.add(h)
+      }, hote),
+      retablir: () => app.evaluate(() => {
+        (globalThis as unknown as DoubluresArgos).__argosE2E.coupures.clear()
+      }),
       fermer: () => app.close(),
     }
   } catch (erreur) {
@@ -139,12 +207,30 @@ interface FenetreObservable {
   on(evenement: string, ecouteur: () => void): unknown
 }
 
+/** Partie de Notification utilisée par les doublures. */
+interface NotificationElectron {
+  title: string
+  body: string
+  emit(evenement: string, ...args: unknown[]): boolean
+}
+
 /** État partagé des doublures, dans le processus principal. */
 interface DoubluresArgos {
   __argosE2E: {
     journal: RequeteDesktop[]
     ouvertures: string[]
     evenements: string[]
+    /** Objets Notification affichés ; la référence gardée permet aussi d'émettre leur `click`. */
+    notifications: NotificationElectron[]
+    /** Notifications refusées par les réglages de Windows simulés (`failed` émis, système non appelé). */
+    refusees: NotificationElectron[]
+    /** Refus simulé en cours, ou null. */
+    refus: RefusSysteme | null
+    infobulles: string[]
+    /** Icône de la zone de notification, gardée au premier appel de `setToolTip` observé. */
+    icone: { emit(evenement: string): boolean } | null
+    /** Hôtes (avec port) dont les requêtes sont annulées : coupure simulée du serveur. */
+    coupures: Set<string>
     observerFenetre(fenetre: FenetreObservable): void
   }
 }
@@ -154,14 +240,30 @@ interface DoubluresArgos {
  * - navigateur du système : `shell.openExternal` enregistre l'adresse au lieu d'ouvrir le navigateur
  *   du poste ; le test l'ouvre dans une page Chromium pilotée par Playwright ;
  * - garde réseau : toute requête de la session vers un hôte hors de la boucle locale est annulée et
- *   journalisée ; les autres sont journalisées sans chaîne de requête ni valeur d'en-tête.
+ *   journalisée ; les autres sont journalisées sans chaîne de requête ni valeur d'en-tête ;
+ * - coupure du serveur : les requêtes vers un hôte coupé (`couper`) sont annulées, comme si le serveur
+ *   était injoignable ;
+ * - notifications : `Notification.prototype.show` est enveloppé pour garder chaque notification
+ *   affichée (titre, corps, objet réel), puis appelle le `show` d'origine : la notification système
+ *   est bien demandée au système ;
+ * - refus du système (`refuserNotificationsSysteme`) : `Notification.isSupported` enveloppé renvoie
+ *   faux en mode `non-supportees` ; en mode `reglages-windows`, `show` émet `failed` au lieu d'appeler
+ *   le système ;
+ * - zone de notification : `Tray.prototype.setToolTip` est enveloppé pour garder chaque infobulle,
+ *   puis appelle l'original (Electron ne permet pas de relire l'infobulle).
  */
 async function installerDoublures(app: ElectronApplication): Promise<void> {
-  await app.evaluate(({ session, shell }, hotesLocaux) => {
+  await app.evaluate(({ Notification, Tray, session, shell }, [hotesLocaux, refusWindows]) => {
     const etat = {
       journal: [] as RequeteDesktop[],
       ouvertures: [] as string[],
       evenements: [] as string[],
+      notifications: [] as NotificationElectron[],
+      refusees: [] as NotificationElectron[],
+      refus: null as RefusSysteme | null,
+      infobulles: [] as string[],
+      icone: null as { emit(evenement: string): boolean } | null,
+      coupures: new Set<string>(),
       observerFenetre(fenetre: FenetreObservable) {
         for (const nom of ['show', 'hide', 'minimize', 'restore', 'focus', 'blur'] as const) {
           fenetre.on(nom, () => etat.evenements.push(nom))
@@ -172,6 +274,25 @@ async function installerDoublures(app: ElectronApplication): Promise<void> {
     shell.openExternal = async (url: string) => {
       etat.ouvertures.push(url)
     }
+    const isSupported = Notification.isSupported
+    Notification.isSupported = () => etat.refus !== 'non-supportees' && isSupported.call(Notification)
+    const show = Notification.prototype.show
+    Notification.prototype.show = function (this: InstanceType<typeof Notification>) {
+      const notification = this as unknown as NotificationElectron
+      if (etat.refus === 'reglages-windows') {
+        etat.refusees.push(notification)
+        notification.emit('failed', { preventDefault() {} }, refusWindows)
+        return
+      }
+      etat.notifications.push(notification)
+      return show.call(this)
+    }
+    const setToolTip = Tray.prototype.setToolTip
+    Tray.prototype.setToolTip = function (this: InstanceType<typeof Tray>, texte: string) {
+      etat.infobulles.push(texte)
+      etat.icone = this as unknown as { emit(evenement: string): boolean }
+      return setToolTip.call(this, texte)
+    }
     const parId = new Map<number, RequeteDesktop>()
     const locaux = new Set(hotesLocaux)
     const web = session.defaultSession.webRequest
@@ -179,6 +300,7 @@ async function installerDoublures(app: ElectronApplication): Promise<void> {
       const url = new URL(details.url)
       const reseau = ['http:', 'https:', 'ws:', 'wss:'].includes(url.protocol)
       const refusee = reseau && !locaux.has(url.hostname)
+      const coupee = reseau && !refusee && etat.coupures.has(url.host)
       const requete: RequeteDesktop = {
         adresse: `${url.protocol}//${url.host}${url.pathname}`,
         protocole: url.protocol,
@@ -188,10 +310,11 @@ async function installerDoublures(app: ElectronApplication): Promise<void> {
         porteur: false,
         statut: null,
         refusee,
+        coupee,
       }
       parId.set(details.id, requete)
       etat.journal.push(requete)
-      callback({ cancel: refusee })
+      callback({ cancel: refusee || coupee })
     })
     web.onBeforeSendHeaders((details, callback) => {
       const requete = parId.get(details.id)
@@ -204,13 +327,22 @@ async function installerDoublures(app: ElectronApplication): Promise<void> {
       const requete = parId.get(details.id)
       if (requete) requete.statut = details.statusCode
     })
-  }, [...HOTES_LOCAUX])
+  }, [[...HOTES_LOCAUX], REFUS_REGLAGES_WINDOWS] as [string[], string])
 }
 
 /** Réduit la fenêtre principale, comme lorsque la personne passe dans son navigateur. */
 export async function reduireFenetre(desktop: ApplicationDesktop): Promise<void> {
   await desktop.app.evaluate(({ BrowserWindow }) => BrowserWindow.getAllWindows()[0].minimize())
   await expect.poll(async () => (await desktop.etatFenetre()).reduite).toBe(true)
+}
+
+/**
+ * Masque la fenêtre principale comme le bouton de fermeture : main.js la cache au lieu de la fermer,
+ * et l'application reste dans la zone de notification.
+ */
+export async function masquerFenetre(desktop: ApplicationDesktop): Promise<void> {
+  await desktop.app.evaluate(({ BrowserWindow }) => BrowserWindow.getAllWindows()[0].close())
+  await expect.poll(async () => (await desktop.etatFenetre()).visible).toBe(false)
 }
 
 /** Attend la prochaine adresse ouverte dans le « navigateur du système » et la renvoie. */
