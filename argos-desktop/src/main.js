@@ -15,6 +15,7 @@ const { SCHEME, ORIGIN, contentSecurityPolicy, resolveUiFile, mimeType } = requi
 const { libelleCompteur } = require('./notifications');
 const preferences = require('./preferences');
 const { creerPoste } = require('./poste');
+const canaux = require('./canaux');
 
 const APP_ID = 'io.argos.desktop';
 const DEV = process.argv.includes('--dev');
@@ -47,10 +48,7 @@ if (!app.requestSingleInstanceLock()) {
 }
 
 function showMainWindow() {
-  if (!mainWindow) return;
-  if (mainWindow.isMinimized()) mainWindow.restore();
-  mainWindow.show();
-  mainWindow.focus();
+  canaux.afficherFenetre(mainWindow);
 }
 
 function isExternalWebUrl(url) {
@@ -144,7 +142,7 @@ function enregistrerReglages(nouveaux) {
   }
   appliquerDemarrage();
   construireMenu();
-  if (mainWindow) mainWindow.webContents.send('argos:settings', vueReglages());
+  if (mainWindow) mainWindow.webContents.send(canaux.CANAUX.REGLAGES_CHANGES, vueReglages());
 }
 
 function vueReglages() {
@@ -152,8 +150,7 @@ function vueReglages() {
 }
 
 function ouvrirAlerte(id) {
-  showMainWindow();
-  if (mainWindow) mainWindow.webContents.send('argos:open-alert', id);
+  canaux.ouvrirAlerte(mainWindow, id);
 }
 
 const poste = creerPoste({
@@ -201,42 +198,18 @@ function createTray() {
   tray.on('click', showMainWindow);
 }
 
-/** Seule la fenêtre principale peut parler au processus principal. */
-function depuisFenetrePrincipale(event) {
-  return Boolean(mainWindow) && event.sender === mainWindow.webContents;
-}
-
-ipcMain.handle('argos:notify', (event, payload) => {
-  if (!depuisFenetrePrincipale(event)) return false;
-  const title = typeof payload?.title === 'string' ? payload.title.slice(0, 120) : '';
-  const body = typeof payload?.body === 'string' ? payload.body.slice(0, 400) : '';
-  if (!title || !Notification.isSupported()) return false;
-  const notification = new Notification({ title, body, icon: path.join(ASSETS, 'icon.png') });
-  notification.on('click', showMainWindow);
-  notification.show();
-  return true;
-});
-
-// Alerte reçue par l'IHM : notification limitée à un titre générique, à la gravité et au nombre
-// de projets.
-ipcMain.handle('argos:alert', (event, payload) => {
-  if (!depuisFenetrePrincipale(event)) return false;
-  return poste.alerte(payload).affichee;
-});
-
-ipcMain.handle('argos:alert-count', (event, n) => {
-  if (!depuisFenetrePrincipale(event)) return false;
-  return poste.definirCompteur(n);
-});
-
-ipcMain.handle('argos:settings-get', (event) => {
-  if (!depuisFenetrePrincipale(event)) return null;
-  return vueReglages();
-});
-
-ipcMain.handle('argos:settings-set', (event, demande) => {
-  if (!depuisFenetrePrincipale(event)) return null;
-  return poste.changerReglages(demande) ? vueReglages() : null;
+// Seule la fenêtre principale peut parler au processus principal (canaux.js).
+canaux.enregistrerCanaux(ipcMain, {
+  fenetre: () => mainWindow,
+  poste,
+  notifier: ({ title, body }) => {
+    if (!Notification.isSupported()) return false;
+    const notification = new Notification({ title, body, icon: path.join(ASSETS, 'icon.png') });
+    notification.on('click', showMainWindow);
+    notification.show();
+    return true;
+  },
+  vueReglages,
 });
 
 app.on('second-instance', showMainWindow);

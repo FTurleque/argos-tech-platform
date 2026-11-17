@@ -126,10 +126,10 @@ Toutes les exigences sont au statut [PROPOSITION] : elles dérivent d'ADR « Pro
 |---|---|---|---|---|---|---|
 | [`gerer-comptes-et-acces`](/openspec/changes/gerer-comptes-et-acces/proposal.md) | `comptes-acces` | 6 | 11 | 1 | 0 | 33 |
 | [`diffuser-alertes-et-digests`](/openspec/changes/archive/2026-11-16-diffuser-alertes-et-digests/proposal.md) (archivé) | `alertes-digests` | 6 | 9 | 1 | 2 | 26 |
-| [`notifier-sur-le-poste`](/openspec/changes/notifier-sur-le-poste/proposal.md) | `notifications-poste` | 6 | 7 | 1 | 0 | 28 |
+| [`notifier-sur-le-poste`](/openspec/changes/notifier-sur-le-poste/proposal.md) | `notifications-poste` | 6 | 7 | 1 | 0 | 52 |
 | **Total** | | **18** | **27** | **3** | **2** | **87** |
 
-Dans ce tableau, « Tests écrits » compte les méthodes de test qui passent : `comptes-acces` (11 scénarios couverts), `alertes-digests` (9 scénarios couverts, classes `AlertesTest`, `EchecSmtpTest`, `RelaisMuetTest` et `RegleAlerteTest`) et `notifications-poste` (7 scénarios couverts par des tests unitaires et d'intégration simulée : `argos-desktop/test/` et `argos-ui/tests/alertes-poste.test.mjs` ; parcours Electron réel non exécuté).
+Dans ce tableau, « Tests écrits » compte les méthodes de test qui passent : `comptes-acces` (11 scénarios couverts), `alertes-digests` (9 scénarios couverts, classes `AlertesTest`, `EchecSmtpTest`, `RelaisMuetTest` et `RegleAlerteTest`) et `notifications-poste` (7 scénarios couverts par des tests unitaires et d'intégration simulée : `argos-desktop/test/`, `argos-ui/tests/alertes-poste.test.mjs` et `argos-ui/tests/reprise-poste.test.mjs` ; parcours Electron réel non exécuté).
 
 ### Couverture du lot 3
 
