@@ -101,11 +101,11 @@ class ScmContractTest {
     @Test
     void gitlabFichierBrutEt404Absent() {
         StubServer.on("/gitlab/api/v4/projects/groupe%2Ffront/repository/files/package.json/raw?ref=main",
-                fixture(200, "scm/gitlab/package.json", Map.of("Content-Type", "text/plain; charset=utf-8")));
+                fixture(200, "scm/gitlab/manifeste-package.json", Map.of("Content-Type", "text/plain; charset=utf-8")));
         StubServer.on("/gitlab/api/v4/projects/groupe%2Ffront/repository/files/requirements.txt/raw?ref=main",
                 fixture(404, "scm/gitlab/404-file.json", Map.of("Content-Type", "application/json")));
 
-        assertEquals(Fixtures.resource("scm/gitlab/package.json"),
+        assertEquals(Fixtures.resource("scm/gitlab/manifeste-package.json"),
                 texte(repositoryFiles.file(GITLAB, "package.json").orElseThrow()));
         assertTrue(repositoryFiles.file(GITLAB, "requirements.txt").isEmpty(), "404 GitLab : fichier absent");
     }

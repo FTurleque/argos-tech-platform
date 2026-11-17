@@ -1,10 +1,9 @@
 'use strict';
 // Doublures des objets Electron pour les tests du pont (preload.js) et des canaux (canaux.js).
-// Le preload réel est chargé dans un contexte `vm` isolé avec un `require('electron')` factice :
-// c'est le fichier livré qui est testé, pas une copie.
-const fs = require('node:fs');
+// Le preload réel est chargé par le chargeur de modules de Node, avec un `require('electron')`
+// factice et tout autre module refusé : c'est le fichier livré qui est testé, pas une copie.
+const Module = require('node:module');
 const path = require('node:path');
-const vm = require('node:vm');
 
 const PRELOAD = path.join(__dirname, '..', 'src', 'preload.js');
 
@@ -77,14 +76,24 @@ function chargerPreload(ipcRenderer, platform = 'win32') {
     },
     ipcRenderer,
   };
-  const contexte = {
-    require: (module) => {
-      if (module === 'electron') return electron;
-      throw new Error(`module interdit dans un preload sandboxé : ${module}`);
-    },
-    process: { platform },
+  const chargementOrigine = Module._load;
+  const plateformeOrigine = Object.getOwnPropertyDescriptor(process, 'platform');
+  Module._load = function chargerDepuisPreload(request, parent, ...reste) {
+    if (parent && parent.filename === PRELOAD) {
+      if (request === 'electron') return electron;
+      throw new Error(`module interdit dans un preload sandboxé : ${request}`);
+    }
+    return chargementOrigine.call(this, request, parent, ...reste);
   };
-  vm.runInNewContext(fs.readFileSync(PRELOAD, 'utf8'), contexte, { filename: PRELOAD });
+  Object.defineProperty(process, 'platform', { value: platform, configurable: true });
+  try {
+    delete require.cache[PRELOAD];
+    require(PRELOAD);
+  } finally {
+    Module._load = chargementOrigine;
+    Object.defineProperty(process, 'platform', plateformeOrigine);
+    delete require.cache[PRELOAD];
+  }
   return exposes;
 }
 
