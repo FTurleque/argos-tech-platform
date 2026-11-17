@@ -14,9 +14,11 @@ Cette section décrit des scénarios dynamiques. Ses participants portent des no
 | `Alerting & Digest` | `alerting` | — |
 | `External Adapters` | `scm-connector` et adaptateurs des sources | seul `scm-connector` est nommé en §5 |
 | `Project Intelligence` | `project-intel` | activité factuelle des projets (§6.2, fiche [`activite-projets`](../../specifications/activite-projets.md)) |
+| `Regulatory Intelligence` | `reg-intel`, `catalog` (dictionnaire métier) | veille réglementaire (§6.6, fiche [`veille-reglementaire`](../../specifications/veille-reglementaire.md)) |
+| `Expert métier` | aucun | membre d’un espace désigné expert d’un domaine (§6.6) |
 | `Relais SMTP (Synology)` | aucun | système externe : serveur d’e-mails du NAS (§6.1.1) |
 | `Client desktop` | aucun | conteneur `argos-desktop` (ADR-0022), hors du backend (§6.1.1, §6.1.2) |
-| `Scheduler & Jobs` | aucun | composant absent de §5 ; tâches planifiées Quarkus Scheduler dans les modules qui les portent (`alerting` §6.1.1, collecte de la veille web, collecte de l’activité des projets §6.2) ; aucun conteneur séparé (§6.5) |
+| `Scheduler & Jobs` | aucun | composant absent de §5 ; tâches planifiées Quarkus Scheduler dans les modules qui les portent (`alerting` §6.1.1, collecte de la veille web, collecte de l’activité des projets §6.2, collecte réglementaire et rappels §6.6) ; aucun conteneur séparé (§6.5) |
 
 Les vues métier des fiches de [`docs/specifications/`](../../specifications/README.md) emploient les noms de la section 5.
 
@@ -266,3 +268,47 @@ sequenceDiagram
 - futurs adapters ;
 - futures migrations ;
 - futurs tests d’intégration et de résilience.
+
+## 6.6 Scénario nominal — texte officiel vers fiche validée
+
+**Type : UML sequence diagram. Portée : collecte quotidienne du Journal officiel, qualification, fiche, validation par l’expert et rappel (changement `suivre-veille-reglementaire`, ADR-0030 proposé).**
+
+```mermaid
+sequenceDiagram
+    participant Sched as Scheduler & Jobs
+    participant Ingestion as Ingestion
+    participant DILA as «Software System» DILA (archives JORF)
+    participant Reg as Regulatory Intelligence
+    participant AI as AI Gateway
+    actor Expert as Expert métier
+    participant API as API & Security
+    participant Alert as Alerting & Digest
+    participant Persist as Persistence Adapter
+
+    Sched->>Reg: 06:30 : collecte du jour et des jours manqués
+    Reg->>Ingestion: archives du jour
+    Ingestion->>DILA: GET index et archives (sans redirection, tailles bornées)
+    alt source indisponible
+        DILA--xIngestion: erreur HTTP ou délai dépassé
+        Reg->>Persist: jour EN_ECHEC, source DEGRADE ; repris à la collecte suivante
+    else archives lues
+        DILA-->>Ingestion: JORF_AAAAMMJJ-HHMMSS.tar.gz
+        Ingestion-->>Reg: textes lus (XML sans DTD ni entité externe)
+        Reg->>Persist: texte enregistré une fois par identifiant officiel, dates extraites
+        Reg->>Reg: règles du dictionnaire de chaque espace
+        opt aucune règle ne s’applique
+            Reg->>AI: domaine proposé (facultatif)
+        end
+        Reg->>AI: résumé de la fiche (facultatif)
+        Reg->>Persist: fiche EN_ATTENTE_VALIDATION, historique
+    end
+    Expert->>API: corrige puis valide la fiche
+    API->>Reg: expert d’un des domaines
+    Reg->>Persist: sous argos_app (RLS) : fiche VALIDEE, texte EN_ANALYSE, historique
+    Sched->>Alert: 07:15 : rappels J-90, J-30, J-7
+    Alert->>Reg: échéances des fiches validées
+    Alert->>Persist: rappel par destinataire, clé d’idempotence
+```
+
+Une fiche en attente n’est restituée qu’aux experts de ses domaines, par la base elle-même ; l’API REST, le serveur MCP et les rappels ne voient que des fiches validées pour les autres utilisateurs. Sans IA, la fiche est préparée sans résumé et l’expert le rédige avant de valider.
+

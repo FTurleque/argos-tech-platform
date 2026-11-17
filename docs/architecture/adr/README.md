@@ -43,7 +43,7 @@ Les ADR enregistrent les décisions architecturales importantes d’ARGOS.
 - [ADR-0015 — PostgreSQL FTS / pgvector différé](0015-postgresql-fts-pgvector.md)
 - [ADR-0016 — Workspaces RBAC + RLS](0016-workspace-rbac-rls.md)
 - [ADR-0017 — POC local Docker puis VM interne](0017-deploiement-vm-conteneurs.md) — cible VM interne remplacée par ADR-0026
-- [ADR-0018 — Veille réglementaire et validation MKP](0018-veille-reglementaire-mkp.md)
+- [ADR-0018 — Veille réglementaire et validation MKP](0018-veille-reglementaire-mkp.md) — remplacement proposé par ADR-0030
 
 ### Décisions v2.4
 
@@ -82,6 +82,10 @@ Les ADR enregistrent les décisions architecturales importantes d’ARGOS.
 ### Intelligence artificielle
 
 - [ADR-0029 — Passerelle IA servie par un modèle local Ollama](0029-passerelle-ia-ollama-local.md) — Proposé ; remplacerait ADR-0004 à son acceptation
+
+### Veille réglementaire
+
+- [ADR-0030 — Veille réglementaire validée par l'expert métier, domaines par espace et données ouvertes JORF](0030-veille-reglementaire-expert-metier.md) — Proposé ; remplacerait ADR-0018 à son acceptation
 
 Les ADR-0010 à ADR-0018 restent **Proposés** jusqu’à validation par revue d’architecture et/ou preuves produites pendant le POC.
 

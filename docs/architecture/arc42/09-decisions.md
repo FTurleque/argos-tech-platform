@@ -37,6 +37,7 @@ Cette section indexe les ADR. Elle ne recopie pas leur contenu.
 | ADR-0027 | Authentifier les utilisateurs avec un Keycloak auto-hébergé | Proposé | 2026-11-16 | — (complète ADR-0008) |
 | ADR-0028 | Collecter les flux RSS/Atom et les pages surveillées dans le serveur Argos | Proposé | 2026-11-16 | ADR-0006 (à l'acceptation) |
 | ADR-0029 | Servir la passerelle IA par un modèle local Ollama | Proposé | 2026-11-16 | ADR-0004 (à l'acceptation) |
+| ADR-0030 | Veille réglementaire validée par l'expert métier, domaines par espace et données ouvertes JORF | Proposé | 2026-11-17 | ADR-0018 (à l'acceptation) |
 
 ## 9.2 Règles de gouvernance
 

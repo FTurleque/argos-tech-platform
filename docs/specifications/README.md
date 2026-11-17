@@ -46,7 +46,7 @@ Un préfixe n'est jamais réattribué ; un identifiant d'exigence retiré n'est 
 | `notifications-poste` | `NOT` | [fiche](notifications-poste.md) | absente | `notifier-sur-le-poste` | implémentée, non archivée |
 | `serveur-mcp` | `MCP` | [fiche](serveur-mcp.md) | absente | `exposer-serveur-mcp` | proposée |
 | `passerelle-ia` | `IAG` | [fiche](passerelle-ia.md) | [spec](/openspec/specs/passerelle-ia/spec.md) | `2026-11-17-encadrer-appels-ia` (archivé) | livrée |
-| `veille-reglementaire` | `REG` | [fiche](veille-reglementaire.md) | absente | `suivre-veille-reglementaire` | proposée |
+| `veille-reglementaire` | `REG` | [fiche](veille-reglementaire.md) | absente | `suivre-veille-reglementaire` | implémentée, non archivée |
 | `radar-standards` | `RAD` | [fiche](radar-standards.md) | [spec](/openspec/specs/radar-standards/spec.md) | `2026-11-16-construire-radar-et-standards` (archivé) | livrée |
 | `veille-rss-web` | `WEB` | [fiche](veille-rss-web.md) | [spec](/openspec/specs/veille-rss-web/spec.md) | `2026-11-16-collecter-veille-rss-web` (archivé) | livrée |
 | `recherche-veille` | `RCH` | [fiche](recherche-veille.md) | absente | `rechercher-et-filtrer` | proposée |
@@ -137,10 +137,12 @@ Dans ce tableau, « Tests écrits » compte les méthodes de test qui passent : 
 |---|---|---|---|---|---|---|
 | [`exposer-serveur-mcp`](/openspec/changes/exposer-serveur-mcp/proposal.md) | `serveur-mcp` | 7 | 9 | 1 | 0 | 9 |
 | [`encadrer-appels-ia`](/openspec/changes/archive/2026-11-17-encadrer-appels-ia/proposal.md) (archivé) | `passerelle-ia` | 5 | 6 | 1 | 0 | 6 |
-| [`suivre-veille-reglementaire`](/openspec/changes/suivre-veille-reglementaire/proposal.md) | `veille-reglementaire` | 8 | 13 | 1 | 4 | 0 |
-| **Total** | | **20** | **28** | **3** | **4** | **15** |
+| [`suivre-veille-reglementaire`](/openspec/changes/suivre-veille-reglementaire/proposal.md) | `veille-reglementaire` | 8 | 13 | 1 | 0 | 13 |
+| **Total** | | **20** | **28** | **3** | **0** | **28** |
 
-Pour `exposer-serveur-mcp`, « Tests écrits » compte les scénarios MCP-01-S1 à MCP-07-S1 couverts par un test qui passe (`argos-server/src/test/java/io/argos/mcp/`) ; MCP-02-S1 s'appuie sur le référentiel des standards et le calendrier réels (`construire-radar-et-standards`) ; MCP-07-S1 sur une implémentation simulée des fiches réglementaires, non encore livrées. Matrice détaillée : [`tasks.md` du changement](/openspec/changes/exposer-serveur-mcp/tasks.md#matrice-de-traçabilité).
+Pour `exposer-serveur-mcp`, « Tests écrits » compte les scénarios MCP-01-S1 à MCP-07-S1 couverts par un test qui passe (`argos-server/src/test/java/io/argos/mcp/`) ; MCP-02-S1 s'appuie sur le référentiel des standards et le calendrier réels (`construire-radar-et-standards`) ; MCP-07-S1 sur les fiches réglementaires réelles (`suivre-veille-reglementaire`). Matrice détaillée : [`tasks.md` du changement](/openspec/changes/exposer-serveur-mcp/tasks.md#matrice-de-traçabilité).
+
+Pour `suivre-veille-reglementaire`, « Tests écrits » compte les scénarios REG-01-S1 à REG-08-S1 couverts par un test qui passe, avec les archives JORF, l'API Ollama et l'API GitHub simulées par un serveur HTTP local (`LecteurJorfTest`, `CollecteReglementaireTest`, `QualificationEtDatesTest`, `VeilleReglementaireTest`, `ParcoursReglementaireTest`) ; les quatre questions sont répondues (2026-11-17). Matrice détaillée : [`tasks.md` du changement](/openspec/changes/suivre-veille-reglementaire/tasks.md#matrice-de-traçabilité).
 
 Pour `encadrer-appels-ia`, « Tests écrits » compte les scénarios IAG-01-S1 à IAG-05-S1 couverts par un test qui passe, avec l'API Ollama simulée par un serveur HTTP local (`PasserelleIaTest`, `ParcoursIaTest`, `argos-ui/tests/resume-ia.test.mjs`) ; aucun modèle réel n'est exécuté. Matrice détaillée : [`tasks.md` du changement](/openspec/changes/archive/2026-11-17-encadrer-appels-ia/tasks.md#matrice-de-traçabilité).
 

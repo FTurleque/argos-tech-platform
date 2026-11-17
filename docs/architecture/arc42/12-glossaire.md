@@ -29,6 +29,13 @@
 | **Objet suivi** | valeur qu'un utilisateur suit pour un profil de veille, choisie dans une liste fermée du manifeste (par exemple discipline `arts-visuels`, territoire `occitanie` du profil `artiste`) ; visible de lui seul, sans effet sur les droits |
 | **Opportunité** | appel à projets, résidence, aide, information ou événement collecté par une source vérifiée du profil `artiste`, avec ses disciplines, ses territoires et sa date limite (absente : « date à confirmer ») ; restituée par la stratégie discipline + territoire + date limite (capacité `profil-artiste`) |
 | **Conditions d'usage** | licence et règles de réutilisation d'une source de profil, vérifiées et enregistrées par l'administrateur plateforme avant toute collecte (ART-05) |
+| **Expert métier** | membre CONTRIBUTEUR ou ADMINISTRATEUR d'un espace, désigné par un administrateur pour un domaine métier ; seul à voir, corriger et valider les fiches réglementaires de ce domaine avant leur diffusion (ADR-0030, proposé) |
+| **Domaine métier** | thème réglementaire propre à un espace (par exemple « Carrière », « Paie »), avec ses règles de rattachement et ses experts |
+| **Dictionnaire métier** | règles déterministes d'un espace qui rattachent un texte officiel à un domaine : nature, ministère, préfixe NOR, code modifié, mot-clé du titre ; aucun dictionnaire type n'est fourni |
+| **Texte officiel** | texte publié au Journal officiel, collecté dans les archives JORF de la DILA (Licence Ouverte) et enregistré une seule fois par identifiant officiel (`JORFTEXT…`) |
+| **NOR** | numéro d'identification normalisé d'un texte officiel ; ses quatre premières lettres désignent le ministère et la direction |
+| **Fiche réglementaire** | fiche d'analyse d'un texte officiel pour un espace : résumé, articles modifiés, dates de publication et d'entrée en vigueur, domaines, liens officiels ; en attente de validation, validée ou rejetée par un expert métier ; ne constitue pas un avis juridique |
+| **Date à confirmer** | mention affichée quand aucune date d'entrée en vigueur n'est extraite d'un texte officiel |
 | **Mise en page** | présentation de l’IHM choisie par l’utilisateur (`classique`, `journal`, `fantaisie`, `gazette`) ; change la forme, jamais le contenu ni les mentions (ADR-0023) |
 | **Alerte** | message immédiat adressé à un utilisateur sur un canal quand un impact exact ou probable satisfait une de ses règles ; une seule par signal, utilisateur et canal (capacité `alertes-digests`) |
 | **Résumé périodique** | message quotidien ou hebdomadaire listant les éléments non alertés immédiatement ; jamais envoyé vide (en anglais : *digest*) |
