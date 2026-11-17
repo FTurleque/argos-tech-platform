@@ -19,3 +19,8 @@ Images de conteneur (tirées par Docker, hors du dépôt)
   quay.io/keycloak/keycloak       Apache-2.0           démarrée par les Dev Services de Quarkus
                                                        (version choisie par Quarkus)
   testcontainers/ryuk             MIT                  nettoyage des conteneurs des Dev Services
+
+Binaire du client desktop (lancé par le projet Playwright « desktop », installé hors de e2e/)
+  electron 45.3.2           MIT          dépendance de développement de argos-desktop
+                                         (argos-desktop/package-lock.json) ; aucune dépendance
+                                         ajoutée à e2e/ (_electron fait partie de @playwright/test)
