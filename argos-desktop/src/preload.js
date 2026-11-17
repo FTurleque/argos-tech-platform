@@ -3,6 +3,8 @@
 // L'IHM n'a pas accès à Node.js : elle ne voit que window.argosDesktop, limité aux notifications,
 // au compteur de la zone de notification et aux réglages du poste. Seules des valeurs simples
 // traversent le pont ; aucun objet de l'IHM n'est transmis tel quel.
+// Preload sandboxé : seul le module electron peut être chargé ; les noms de canaux sont donc
+// écrits ici et doivent rester ceux de canaux.js (vérifié par test/preload.test.js).
 
 const { contextBridge, ipcRenderer } = require('electron');
 
@@ -30,7 +32,10 @@ contextBridge.exposeInMainWorld('argosDesktop', {
   /** Nombre d'alertes ouvertes affiché dans la zone de notification (NOT-03). */
   setAlertCount: (n) => ipcRenderer.invoke('argos:alert-count', Number(n)),
   /** Appelé avec l'identifiant de l'alerte quand l'utilisateur clique sur sa notification (NOT-02). */
-  onOpenAlert: (callback) => ecouter('argos:open-alert', (id) => callback(String(id))),
+  onOpenAlert: (callback) => ecouter(
+    'argos:open-alert',
+    typeof callback === 'function' ? (id) => callback(String(id)) : null,
+  ),
   /** Réglages du poste : notifications du poste (NOT-04) et démarrage avec la session (Q-2). */
   getSettings: () => ipcRenderer.invoke('argos:settings-get'),
   setSettings: (reglages) => ipcRenderer.invoke('argos:settings-set', {
