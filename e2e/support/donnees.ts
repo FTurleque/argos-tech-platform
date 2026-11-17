@@ -6,6 +6,7 @@ import { execFileSync } from 'node:child_process'
 import { readFileSync } from 'node:fs'
 import { dirname, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
+import { cheminDocker } from './docker.mjs'
 import { EMETTEUR, URL_API } from './environnement'
 
 const ICI = dirname(fileURLToPath(import.meta.url))
@@ -52,7 +53,7 @@ export function sql(fichier: string, variables: Record<string, string>): void {
   const args = ['compose', '-f', COMPOSE, 'exec', '-T', 'postgres', 'psql', '-U', 'argos', '-d', 'argos',
     '-v', 'ON_ERROR_STOP=1', '-q']
   for (const [nom, valeur] of Object.entries(variables)) args.push('-v', `${nom}=${valeur}`)
-  execFileSync('docker', args, {
+  execFileSync(cheminDocker(), args, {
     input: readFileSync(join(ICI, '..', 'donnees', fichier)),
     stdio: ['pipe', 'pipe', 'inherit'],
   })

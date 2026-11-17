@@ -20,6 +20,8 @@ npm --prefix e2e test                          # options de Playwright après «
    - le portail web par Vite sur le port 5173, `VITE_ARGOS_API_URL=http://localhost:8090` ;
 3. arrête et efface la base à la fin. `ARGOS_E2E_GARDER_BASE=1` la conserve pour examen.
 
+Docker est appelé par un chemin absolu, pris parmi ses emplacements d’installation habituels (`e2e/support/docker.mjs`) : le `PATH` n’est pas consulté. `ARGOS_E2E_DOCKER` indique un autre emplacement.
+
 Le serveur écoute sur 8090 et non sur 8080 : le port 8080 est souvent pris par un autre service du poste. Les ports 5173 et 8180 sont imposés par le royaume de test (redirections du client `argos-ui`) et par `%dev.quarkus.keycloak.devservices.port`.
 
 ## Données et comptes

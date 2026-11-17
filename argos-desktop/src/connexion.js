@@ -31,12 +31,21 @@ const ENTETES_PAGE = {
   'X-Content-Type-Options': 'nosniff',
 };
 
-/** Vrai si `url` est sous l'émetteur : même origine, chemin sous le sien, sans identifiants. */
-function sousEmetteur(demande, racine) {
-  const prefixe = racine.pathname.replace(/\/+$/, '') + '/';
-  if (demande.origin !== racine.origin) return false;
-  if (demande.username || demande.password) return false;
-  return demande.pathname.startsWith(prefixe);
+/** Point d'autorisation du royaume Keycloak, relatif à l'émetteur configuré. */
+const CHEMIN_AUTORISATION = '/protocol/openid-connect/auth';
+
+/** Paramètres recopiés dans l'URL ouverte, dans cet ordre ; tout autre paramètre est ignoré. */
+const PARAMETRES_AUTORISATION = [
+  'response_type', 'client_id', 'redirect_uri', 'scope', 'state', 'code_challenge', 'code_challenge_method',
+];
+
+/** Point d'autorisation construit à partir de l'émetteur configuré seul. */
+function pointAutorisation(emetteur) {
+  const racine = new URL(emetteur);
+  racine.pathname = racine.pathname.replace(/\/+$/, '') + CHEMIN_AUTORISATION;
+  racine.search = '';
+  racine.hash = '';
+  return racine;
 }
 
 /** Vrai si les paramètres demandent un code d'autorisation avec PKCE S256 et un state. */
@@ -46,24 +55,37 @@ function codeAvecPkce(p) {
 }
 
 /**
- * Vrai si `url` est une demande d'autorisation acceptable : même origine et chemin sous l'émetteur
- * configuré, code d'autorisation avec PKCE S256, state présent et redirection vers l'écoute locale
- * en cours. L'identifiant du client n'est pas contrôlé ici : l'URL reste limitée à l'émetteur
- * configuré, et le royaume n'accepte cette redirection que pour le client argos-ui.
+ * URL d'autorisation à ouvrir, ou null si la demande reçue de l'IHM n'est pas acceptable.
+ * Acceptable : point d'autorisation de l'émetteur configuré (même origine, même chemin, sans
+ * identifiants), code d'autorisation avec PKCE S256, state présent et redirection vers l'écoute
+ * locale en cours. L'URL renvoyée est reconstruite : son origine et son chemin viennent de la
+ * configuration, et seuls les paramètres de PARAMETRES_AUTORISATION sont recopiés. L'identifiant
+ * du client n'est pas contrôlé ici : le royaume n'accepte cette redirection que pour argos-ui.
  */
-function demandeAcceptable(url, { emetteur, redirectUri }) {
-  if (typeof url !== 'string' || url.length > URL_MAX) return false;
+function urlAutorisationSure(url, { emetteur, redirectUri }) {
+  if (typeof url !== 'string' || url.length > URL_MAX) return null;
   let demande;
-  let racine;
+  let point;
   try {
     demande = new URL(url);
-    racine = new URL(emetteur);
+    point = pointAutorisation(emetteur);
   } catch {
-    return false;
+    return null;
   }
-  if (!sousEmetteur(demande, racine)) return false;
+  if (demande.origin !== point.origin || demande.pathname !== point.pathname) return null;
+  if (demande.username || demande.password) return null;
   const p = demande.searchParams;
-  return codeAvecPkce(p) && p.get('redirect_uri') === redirectUri;
+  if (!codeAvecPkce(p) || p.get('redirect_uri') !== redirectUri) return null;
+  for (const nom of PARAMETRES_AUTORISATION) {
+    const valeur = p.get(nom);
+    if (valeur !== null) point.searchParams.set(nom, valeur);
+  }
+  return point.toString();
+}
+
+/** Vrai si `url` est une demande d'autorisation acceptable (voir urlAutorisationSure). */
+function demandeAcceptable(url, contexte) {
+  return urlAutorisationSure(url, contexte) !== null;
 }
 
 /** Vrai si la requête reçue est le retour attendu par l'écoute `courante`, encore active. */
@@ -139,15 +161,15 @@ function creerConnexion(d) {
    */
   function autoriser(url) {
     const courante = ecoute;
-    if (!courante || courante.resoudre || !demandeAcceptable(url, { emetteur: d.emetteur, redirectUri: courante.redirectUri })) {
-      return Promise.resolve(null);
-    }
+    if (!courante || courante.resoudre) return Promise.resolve(null);
+    const sure = urlAutorisationSure(url, { emetteur: d.emetteur, redirectUri: courante.redirectUri });
+    if (!sure) return Promise.resolve(null);
     return new Promise((resolve) => {
       courante.resoudre = resolve;
       courante.minuterie = planifier(() => { if (ecoute === courante) fermer(null); }, delaiMaxMs);
       const echec = () => { if (ecoute === courante) fermer(null); };
       try {
-        Promise.resolve(d.ouvrirNavigateur(url)).catch(echec);
+        Promise.resolve(d.ouvrirNavigateur(sure)).catch(echec);
       } catch {
         echec();
       }
@@ -157,4 +179,4 @@ function creerConnexion(d) {
   return { preparer, autoriser, fermer: () => fermer(null), enAttente: () => ecoute !== null };
 }
 
-module.exports = { creerConnexion, demandeAcceptable, CHEMIN_RETOUR, HOTE, PAGE_RETOUR };
+module.exports = { creerConnexion, demandeAcceptable, urlAutorisationSure, CHEMIN_RETOUR, HOTE, PAGE_RETOUR };

@@ -5,7 +5,7 @@
 const test = require('node:test');
 const assert = require('node:assert/strict');
 const http = require('node:http');
-const { creerConnexion, demandeAcceptable, CHEMIN_RETOUR } = require('../src/connexion');
+const { creerConnexion, demandeAcceptable, urlAutorisationSure, CHEMIN_RETOUR } = require('../src/connexion');
 
 const EMETTEUR = 'http://localhost:8180/realms/argos';
 
@@ -151,4 +151,14 @@ test('validation pure de la demande d’autorisation', () => {
   assert.equal(demandeAcceptable('x'.repeat(9000), { emetteur: EMETTEUR, redirectUri }), false);
   assert.equal(demandeAcceptable(urlAutorisation(redirectUri).replace('http://', 'http://u:p@'), { emetteur: EMETTEUR, redirectUri }), false);
   assert.equal(demandeAcceptable(42, { emetteur: EMETTEUR, redirectUri }), false);
+});
+
+test('l’URL ouverte est reconstruite depuis l’émetteur configuré, avec les seuls paramètres attendus', () => {
+  const redirectUri = 'http://127.0.0.1:50000/argos/retour';
+  const contexte = { emetteur: EMETTEUR, redirectUri };
+  assert.equal(urlAutorisationSure(urlAutorisation(redirectUri), contexte), urlAutorisation(redirectUri));
+  const enrichie = `${urlAutorisation(redirectUri)}&kc_idp_hint=autre#fragment`;
+  assert.equal(urlAutorisationSure(enrichie, contexte), urlAutorisation(redirectUri));
+  const autreChemin = urlAutorisation(redirectUri).replace('/protocol/openid-connect/auth', '/protocol/openid-connect/logout');
+  assert.equal(urlAutorisationSure(autreChemin, contexte), null);
 });

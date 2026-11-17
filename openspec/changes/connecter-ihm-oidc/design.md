@@ -84,7 +84,7 @@ Non applicable — aucun objet métier ; invariants de sécurité :
 - INV-5 : au démarrage de l'IHM, le client REST et la garde des vues sont branchés sur la session avant la reprise d'un retour du fournisseur ; la lecture du compte qui suit la connexion porte donc le jeton (ACC-09-S1) et un compte non créé est détecté avant l'ouverture d'une vue protégée (ACC-09-S4).
 - INV-2 : aucun jeton n'est écrit dans `localStorage`, `sessionStorage`, un cookie, une adresse ou un journal (ACC-08-S1).
 - INV-3 : la seule écriture de stockage de la session est la demande transitoire du portail web (`argos.oidc.demande` : state, vérificateur, adresse de retour, vue), effacée au retour avant vérification.
-- INV-4 : le processus principal n'ouvre que des adresses d'autorisation de l'émetteur configuré, avec PKCE S256 et la redirection qu'il a préparée (ACC-10-S3).
+- INV-4 : le processus principal n'ouvre que le point d'autorisation de l'émetteur configuré (`<émetteur>/protocol/openid-connect/auth`), avec PKCE S256 et la redirection qu'il a préparée (ACC-10-S3). Il ouvre une adresse reconstruite : origine et chemin tirés de sa configuration, et seuls les paramètres de la demande d'autorisation recopiés (`response_type`, `client_id`, `redirect_uri`, `scope`, `state`, `code_challenge`, `code_challenge_method`).
 
 ## Traitements et interactions
 

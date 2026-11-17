@@ -6,6 +6,7 @@
 import { spawnSync } from 'node:child_process'
 import { dirname, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
+import { cheminDocker } from '../support/docker.mjs'
 
 const E2E = join(dirname(fileURLToPath(import.meta.url)), '..')
 const COMPOSE = ['compose', '-f', join(E2E, 'compose.yaml')]
@@ -17,7 +18,7 @@ function executer(commande, args) {
   return r.status ?? 1
 }
 
-if (executer('docker', [...COMPOSE, 'up', '-d', '--wait']) !== 0) {
+if (executer(cheminDocker(), [...COMPOSE, 'up', '-d', '--wait']) !== 0) {
   console.error('Base de test indisponible : Docker est-il démarré ?')
   process.exit(1)
 }
@@ -25,6 +26,6 @@ let statut = 1
 try {
   statut = executer(process.execPath, [PLAYWRIGHT, 'test', ...process.argv.slice(2)])
 } finally {
-  if (!process.env.ARGOS_E2E_GARDER_BASE) executer('docker', [...COMPOSE, 'down', '--volumes'])
+  if (!process.env.ARGOS_E2E_GARDER_BASE) executer(cheminDocker(), [...COMPOSE, 'down', '--volumes'])
 }
 process.exit(statut)
