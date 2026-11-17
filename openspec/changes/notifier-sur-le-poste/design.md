@@ -156,7 +156,7 @@ Aucun écart constaté.
 | NOT-04-S1 | intégration | `argos-desktop/test/poste.test.js`, `argos-desktop/test/preferences.test.js` | passe |
 | NOT-05-S1 | unitaire | `argos-desktop/test/notifications.test.js`, `argos-ui/tests/alertes-poste.test.mjs` | passe |
 | NOT-06-S1 | intégration (serveur simulé : coupure puis retour) | `argos-ui/tests/alertes-poste.test.mjs` | passe |
-| parcours 3.2 | E2E Electron réel | client desktop lancé contre un serveur local | non exécuté (binaire Electron absent) |
+| NOT-01-S1, NOT-01-S2 (partie application), NOT-02-S1, NOT-03-S1, NOT-04-S1 (partie poste), NOT-05-S1, NOT-06-S1 ; parcours 3.2 | E2E Electron réel | `e2e/desktop/notifications.spec.ts` : client desktop lancé contre la pile locale ; clic sur la bulle, refus du système et coupure du serveur simulés | passe ; bulle et clic réels, refus dans les réglages de Windows et arrêt réel du serveur vérifiés à la main |
 
 ## Documentation durable impactée
 

@@ -321,13 +321,13 @@ Non applicable — aucune cible chiffrée dans les sources ; renouvellement à 8
 
 - ADR-0022 point 6 (`safeStorage`) contre la demande du lot 7 (mémoire seule) : ADR-0033 (Proposé) consigne le choix, ADR-0022 n'est pas modifié.
 - arc42 §5.1 nomme encore « IdP entreprise » : libellé aligné sur ADR-0027 dans ce changement.
-- Les tests de bout en bout (navigateur et Electron) ne sont pas écrits : tâches 5.1 et 5.2 non réalisées.
+- Les parcours de bout en bout Electron remplacent le navigateur du système par une page Chromium pilotée par Playwright (doublure de `shell.openExternal`) : la connexion avec le navigateur réellement installé sur le poste et l'activation de la fenêtre par le gestionnaire de fenêtres se vérifient à la main (tâche 5.2).
 
 ## Stratégie de vérification
 
 | Exigence / scénario | Niveau de test | Moyen de preuve | État |
 |---|---|---|---|
-| ACC-07-S1 | unitaire (garde) + E2E | `tests/garde.test.mjs` (routes lues dans `router.ts`) ; E2E tâche 5.1 | unitaire exécuté ; E2E à écrire |
+| ACC-07-S1 | unitaire (garde) + E2E | `tests/garde.test.mjs` (routes lues dans `router.ts`) ; E2E `e2e/tests/connexion.spec.ts` (tâche 5.1) | exécuté |
 | ACC-07-S2 | unitaire + intégration | `tests/oidc.test.mjs`, `tests/session.test.mjs` ; `ClientIhmOidcTest#portailWebObtientUnJetonAccepteParLApi` | exécuté |
 | ACC-07-S3 | unitaire | `tests/oidc.test.mjs`, `tests/session.test.mjs` | exécuté |
 | ACC-07-S4 | unitaire | `tests/oidc.test.mjs`, `tests/session.test.mjs` | exécuté |
@@ -338,8 +338,8 @@ Non applicable — aucune cible chiffrée dans les sources ; renouvellement à 8
 | ACC-09-S1, S2 | unitaire + intégration | `tests/autorisation.test.mjs` ; jeton de l'IHM accepté par `/api/v1/moi` (`ClientIhmOidcTest`) | exécuté |
 | ACC-09-S3, S5 | unitaire | `tests/autorisation.test.mjs`, `tests/session.test.mjs` | exécuté |
 | ACC-09-S4 | unitaire + intégration | `tests/autorisation.test.mjs`, `tests/garde.test.mjs` ; `ClientIhmOidcTest#personneSansInvitationRecoitLeRefusDedie` | exécuté |
-| ACC-10-S1 à S3 | unitaire (serveur local réel) + intégration | `argos-desktop/test/connexion.test.js`, `canaux.test.js`, `preload.test.js` ; `ClientIhmOidcTest#clientDesktopUtiliseLInterfaceDeBouclage` | exécuté ; parcours Electron réel à écrire (5.2) |
-| ACC-10-S4 | unitaire | `argos-desktop/test/ui-protocol.test.js` | exécuté |
+| ACC-10-S1 à S3 | unitaire (serveur local réel) + intégration + E2E Electron | `argos-desktop/test/connexion.test.js`, `canaux.test.js`, `preload.test.js` ; `ClientIhmOidcTest#clientDesktopUtiliseLInterfaceDeBouclage` ; E2E `e2e/desktop/connexion.spec.ts` (ACC-10-S1, S2 ; tâche 5.2) | exécuté ; navigateur du système simulé dans l'E2E |
+| ACC-10-S4 | unitaire + E2E Electron | `argos-desktop/test/ui-protocol.test.js` ; E2E `e2e/desktop/connexion.spec.ts` (CSP lue et appliquée) | exécuté |
 
 ## Documentation durable impactée
 

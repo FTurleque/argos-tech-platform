@@ -20,18 +20,22 @@ const CSP_ATTENDUE = [
   "frame-ancestors 'none'",
 ].join('; ')
 
-let desktop: ApplicationDesktop
+let desktop: ApplicationDesktop | undefined
 
-test.beforeEach(async ({}, testInfo) => {
-  desktop = await lancerDesktop({ dossierDonnees: testInfo.outputPath('donnees-desktop') })
+test.beforeEach(async () => {
+  desktop = undefined
+  desktop = await lancerDesktop({ dossierDonnees: test.info().outputPath('donnees-desktop') })
 })
 
 test.afterEach(async () => {
   await desktop?.fermer()
+  desktop = undefined
 })
 
 test('ACC-10-S1, S2, S4 : connexion par le navigateur du système et retour sur 127.0.0.1', async ({ page: navigateur }) => {
-  const { fenetre } = desktop
+  const client = desktop
+  if (!client) throw new Error('client desktop non lancé')
+  const { fenetre } = client
 
   // ACC-10-S4 : l'IHM est servie par le protocole interne avec la CSP limitée au serveur et à l'émetteur.
   await expect(fenetre).toHaveURL(/^app:\/\/argos\/index\.html#\//)
@@ -43,12 +47,12 @@ test('ACC-10-S1, S2, S4 : connexion par le navigateur du système et retour sur 
   await expect(fenetre).toHaveURL(/#\/connexion\?retour=\/recherche$/)
 
   let redirectUri = ''
-  const { urlAutorisation, retour } = await connecterCompte(desktop, navigateur, 'alice', async () => {
+  const { urlAutorisation, retour } = await connecterCompte(client, navigateur, 'alice', async () => {
     // ACC-10-S1 : la fenêtre attend le navigateur du système, sans afficher la page du fournisseur.
     await expect(fenetre.getByText('Poursuivez la connexion dans votre navigateur, puis revenez à ARGOS.')).toBeVisible()
-    expect((await desktop.etatFenetre()).adresse).toMatch(/^app:\/\/argos\/index\.html#\/connexion/)
+    expect((await client.etatFenetre()).adresse).toMatch(/^app:\/\/argos\/index\.html#\/connexion/)
     // La personne passe dans son navigateur : la fenêtre ARGOS est réduite.
-    await reduireFenetre(desktop)
+    await reduireFenetre(client)
   })
 
   // ACC-10-S1 : adresse d'autorisation de l'émetteur configuré, PKCE S256, redirection vers
@@ -84,10 +88,10 @@ test('ACC-10-S1, S2, S4 : connexion par le navigateur du système et retour sur 
 
   // ACC-10-S2 : la fenêtre ARGOS revient au premier plan.
   await expect.poll(async () => {
-    const etat = await desktop.etatFenetre()
+    const etat = await client.etatFenetre()
     return etat.visible && !etat.reduite
   }).toBe(true)
-  const etat = await desktop.etatFenetre()
+  const etat = await client.etatFenetre()
   expect(etat.evenements).toEqual(expect.arrayContaining(['minimize', 'restore']))
   expect(etat.focus).toBe(true)
 
@@ -99,7 +103,7 @@ test('ACC-10-S1, S2, S4 : connexion par le navigateur du système et retour sur 
   await expect(fenetre.getByRole('button', { name: 'Se déconnecter' })).toBeVisible()
   await expect(fenetre).toHaveURL(/^app:\/\/argos\/index\.html#\/recherche$/)
   // Appel API authentifié par le jeton porteur, accepté par le serveur.
-  await expect.poll(async () => (await desktop.journal()).some((r) => (
+  await expect.poll(async () => (await client.journal()).some((r) => (
     r.adresse === `${URL_API}/api/v1/moi` && r.methode === 'GET' && r.porteur && r.statut === 200
   ))).toBe(true)
   await fenetre.screenshot({ path: 'resultats/desktop-connexion-recherche.jpg', type: 'jpeg', quality: 60 })
@@ -109,7 +113,15 @@ test('ACC-10-S1, S2, S4 : connexion par le navigateur du système et retour sur 
   const cible = `${URL_IHM}/`
   const controle = await fenetre.evaluate(async (adresse) => {
     const violations: string[] = []
-    document.addEventListener('securitypolicyviolation', (e) => violations.push(e.effectiveDirective))
+    const attendues = ['connect-src', 'script-src-elem']
+    // Attente sur condition : les deux directives attendues reçues, ou 5 s au plus.
+    let signaler: () => void = () => {}
+    const recues = new Promise<void>((resolve) => { signaler = resolve })
+    const delai = setTimeout(() => signaler(), 5_000)
+    document.addEventListener('securitypolicyviolation', (e) => {
+      violations.push(e.effectiveDirective)
+      if (attendues.every((d) => violations.includes(d))) signaler()
+    })
     let connexionBloquee = false
     try {
       await fetch(adresse)
@@ -127,7 +139,8 @@ test('ACC-10-S1, S2, S4 : connexion par le navigateur du système et retour sur 
     const enLigne = document.createElement('script')
     enLigne.textContent = 'window.__scriptEnLigneE2E = true'
     document.head.appendChild(enLigne)
-    await new Promise((resolve) => setTimeout(resolve, 300))
+    await recues
+    clearTimeout(delai)
     externe.remove()
     enLigne.remove()
     const w = window as unknown as { __scriptEnLigneE2E?: boolean }
@@ -141,7 +154,7 @@ test('ACC-10-S1, S2, S4 : connexion par le navigateur du système et retour sur 
   // Journal des requêtes de la session : aucune vers un hôte hors de la boucle locale, aucun
   // document hors du protocole interne (la page du fournisseur ne s'affiche jamais dans la fenêtre),
   // vers l'émetteur seulement la découverte et l'échange du code, rien vers l'origine bloquée.
-  const journal = await desktop.journal()
+  const journal = await client.journal()
   expect(journal.filter((r) => r.refusee).map((r) => r.adresse), 'hôtes hors de la boucle locale').toEqual([])
   expect(journal.filter((r) => r.type === 'mainFrame' || r.type === 'subFrame').map((r) => r.protocole))
     .toEqual(expect.arrayContaining(['app:']))

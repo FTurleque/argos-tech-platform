@@ -53,14 +53,12 @@ test('2.5 (AFF-03-S1) : « fantaisie » choisie sur le web, le client desktop s�
   const veille = await veilleDe('alice')
   await fenetre.getByRole('navigation', { name: 'Navigation principale' }).getByRole('link', { name: 'Ma veille' }).click()
   await expect(fenetre.getByRole('heading', { name: 'Ma veille', level: 1 })).toBeVisible()
-  if (veille.elements.length > 0) {
-    await expect(fenetre.locator('[data-mise-en-page]')).toHaveCount(1)
-    await expect(fenetre.locator('[data-mise-en-page="fantaisie"]')).toBeVisible()
-  } else {
-    await expect(fenetre.getByText(/Aucun élément dans votre veille/)).toBeVisible()
-  }
+  // Précondition du jeu de données : la veille d'alice n'est pas vide, sinon la mise en page n'aurait rien à afficher.
+  expect(veille.elements.length, 'veille d’alice non vide').toBeGreaterThan(0)
+  await expect(fenetre.locator('[data-mise-en-page]')).toHaveCount(1)
+  await expect(fenetre.locator('[data-mise-en-page="fantaisie"]')).toBeVisible()
 
-  // La préférence est lue par le desktop sur le serveur, avec son jeton porteur ; rien n'est gardé sur le poste.
+  // La préférence est lue par le desktop sur le serveur, avec son jeton porteur.
   await expect.poll(() => appelApiAuthentifie(desktop!, '/api/v1/preferences')).toBe(true)
   expect((await api<{ miseEnPage: string }>('alice', '/api/v1/preferences')).miseEnPage).toBe('fantaisie')
   await verifierJournalLocal(desktop)
