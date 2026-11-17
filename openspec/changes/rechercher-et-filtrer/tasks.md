@@ -17,12 +17,22 @@
 
 - [x] 3.1 Mettre à jour la fiche `recherche-veille`, les sections arc42 §8.10, le glossaire et l'inventaire `/docs/architecture/diagrams/README.md` — vérification : `node scripts/verifier-docs.mjs` sans erreur
 
+## 5. Écran de recherche dans argos-ui
+
+<!-- Groupe numéroté 5 pour garder les références aux tâches 4.1 et 4.2 ; placé avant le groupe des vérifications d'intégration, qui reste le dernier. -->
+
+- [x] 5.1 Appeler l'API de recherche et des vues par le point d'appel commun `appelerApi` du client REST (`argos-ui/src/api/recherche.ts`, `argos-ui/src/api/recherche-criteres.ts`) — couvre RCH-01, RCH-02, RCH-04 — vérification : `argos-ui/tests/recherche.test.mjs` passe (`npm --prefix argos-ui test`)
+- [x] 5.2 Écran de recherche `RechercheView` (route `/recherche`) : mots, filtres période (dont « 30 derniers jours »), gravité, technologies, type de contenu et projet, résultats paginés avec liens sources filtrés, état vide et erreurs — couvre RCH-01-S1, RCH-01-S2, RCH-02-S1 — vérification : `argos-ui/tests/recherche.test.mjs` passe et `npm --prefix argos-ui run build` (contrôle de types `vue-tsc`) réussit
+- [x] 5.3 Enregistrer la saisie en vue nommée, lister, rappeler (route `/recherche/vues/:id`) et supprimer les vues — couvre RCH-04-S1 — vérification : `argos-ui/tests/recherche.test.mjs` (corps `NouvelleVue`, aller-retour des critères, identifiants) passe et `npm --prefix argos-ui run build` réussit
+- [x] 5.4 Accès depuis le portail et le desktop : lien « Recherche » de la navigation principale, accessibilité de base (libellés, `fieldset`, focus, annonces `aria-live`) — couvre RCH-01, RCH-04 — vérification : `argos-ui/tests/recherche.test.mjs` (routes, lien, libellés, annonces, absence de `v-html`) passe
+- [x] 5.5 Mettre à jour la conception (écran de recherche, D8 à D10) et la fiche `recherche-veille` — vérification : `node scripts/verifier-docs.mjs` sans erreur hors `docs/audit/` et `openspec validate rechercher-et-filtrer --strict` réussit
+
 ## 4. Vérifications d'intégration
 
 - [x] 4.1 Valider le changement — vérification : `openspec validate rechercher-et-filtrer --strict` réussit
 - [ ] 4.2 Parcours : recherche « Oracle » filtrée sur un projet et 30 jours, enregistrée en vue, rappelée depuis le desktop — vérification : scénario E2E consigné avec ses résultats
 
-Tâche 4.2 non réalisée : `argos-ui` (partagée par le client desktop) n'a ni écran de recherche ni connexion OIDC. Le même parcours par l'API REST, client du portail comme du desktop, est vérifié par `RechercheVeilleTest.rch04S1VueRappelee` (recherche « Oracle », projet, 30 jours, vue enregistrée puis rappelée : mêmes résultats que la recherche directe).
+Tâche 4.2 non réalisée : l'écran de recherche existe dans `argos-ui` (partagée par le client desktop), mais l'IHM n'envoie pas encore de jeton OIDC et l'API refuse tout appel non authentifié. Le même parcours par l'API REST, client du portail comme du desktop, est vérifié par `RechercheVeilleTest.rch04S1VueRappelee` (recherche « Oracle », projet, 30 jours, vue enregistrée puis rappelée : mêmes résultats que la recherche directe).
 
 ## Preuves
 
@@ -30,18 +40,19 @@ Tâche 4.2 non réalisée : `argos-ui` (partagée par le client desktop) n'a ni 
 - `RechercheVeilleTest` (10 tests) et `RechercheMcpTest` (3 tests) passent ; `OutilsConsultationMcpTest`, `ContenuExterneMcpTest` et `ContratOutilsMcpTest` passent avec `search_signals` branché sur la recherche.
 - `MesurePerformanceRechercheTest -Dargos.performance=true` du 2026-11-16 : campagne p95 = 250 ms (cible Q-05 : 500 ms) ; [rapport QS-13](/docs/architecture/quality/mesure-qs13-recherche.md).
 - `node scripts/verifier-docs.mjs` : aucune erreur ; `openspec validate rechercher-et-filtrer --strict` : valide.
+- Écran de recherche, 2026-11-17 : `npm --prefix argos-ui test` : 42 tests, 0 échec, dont les 14 de `argos-ui/tests/recherche.test.mjs` ; `npm --prefix argos-ui run build` (`vue-tsc --noEmit` puis `vite build`) réussit. L'écran n'a été exercé ni dans un navigateur ni dans le client desktop contre un serveur réel (tâche 4.2).
 
 ## Matrice de traçabilité
 
-État au 2026-11-16.
+État au 2026-11-17.
 
 | Exigence | Scénario | Conception / diagramme | Tâche | Test ou preuve | État de la preuve |
 |---|---|---|---|---|---|
-| RCH-01 | RCH-01-S1 | Composants, D1, DF-RCH-1 | 1.1, 1.3 | `RechercheVeilleTest.rch01S1MotTrouve`, `rch01RechercheBilingue` ; `RechercheMcpTest.rch01MotsEtPertinence` | passe |
-| RCH-01 | RCH-01-S2 | Composants | 1.1, 1.3 | `RechercheVeilleTest.rch01S2AucunResultat` ; `RechercheMcpTest.rch01MotsEtPertinence` | passe |
-| RCH-02 | RCH-02-S1 | Contrats d'interface, D4, D5 | 1.2 | `RechercheVeilleTest.rch02S1FiltresCombines` | passe |
+| RCH-01 | RCH-01-S1 | Composants, D1, DF-RCH-1, Écran de recherche | 1.1, 1.3, 5.1, 5.2 | `RechercheVeilleTest.rch01S1MotTrouve`, `rch01RechercheBilingue` ; `RechercheMcpTest.rch01MotsEtPertinence` ; écran : `recherche.test.mjs` (paramètres `q`, encodage des mots) | passe (API) ; écran : logique et types vérifiés, affichage réel non exercé |
+| RCH-01 | RCH-01-S2 | Composants, Écran de recherche | 1.1, 1.3, 5.2 | `RechercheVeilleTest.rch01S2AucunResultat` ; `RechercheMcpTest.rch01MotsEtPertinence` ; écran : message `Resultats.message` affiché (`RechercheView.vue`), annonce « Aucun résultat. » (`recherche.test.mjs`) | passe (API) ; écran : logique vérifiée, affichage réel non exercé |
+| RCH-02 | RCH-02-S1 | Contrats d'interface, D4, D5, D8, D10 | 1.2, 5.2 | `RechercheVeilleTest.rch02S1FiltresCombines` ; écran : `recherche.test.mjs` (filtres répétés, période 30 jours) | passe |
 | RCH-03 | RCH-03-S1 | Sécurité et isolation, D2 | 1.1, 1.3 | `RechercheVeilleTest.rch03S1MotPresentDansUnAutreEspace`, `rch03CloisonnementSousArgosApp` ; `RechercheMcpTest.rch03MotPresentDansUnAutreEspace` | passe |
-| RCH-04 | RCH-04-S1 | Persistance et intégrité | 2.1 | `RechercheVeilleTest.rch04S1VueRappelee` | passe |
+| RCH-04 | RCH-04-S1 | Persistance et intégrité, Écran de recherche | 2.1, 5.3, 4.2 | `RechercheVeilleTest.rch04S1VueRappelee` ; écran : `recherche.test.mjs` (corps `NouvelleVue`, aller-retour des critères) ; parcours desktop : tâche 4.2 | passe (API, logique de l'écran) ; parcours E2E desktop non réalisé |
 | RCH-04 | RCH-04-S2 | Sécurité et isolation | 2.1 | `RechercheVeilleTest.rch04S2VueDUnAutreUtilisateur` | passe |
 | RCH-05 | RCH-05-S1 | Performance et stratégie de mesure | 2.2 | `MesurePerformanceRechercheTest` ; [rapport QS-13](/docs/architecture/quality/mesure-qs13-recherche.md) | passe (p95 = 250 ms) |
 
