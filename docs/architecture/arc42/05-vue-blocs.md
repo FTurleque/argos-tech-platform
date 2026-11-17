@@ -17,7 +17,7 @@ flowchart LR
 
     EXT["«Software System»\nSources externes\nRSS, Web, GitHub, GitLab, CVE"]
     AI["«Software System»\nClaude / Anthropic"]
-    IDP["«Software System»\nIdP entreprise"]
+    IDP["«Software System»\nKeycloak auto-hébergé\n(ADR-0027, proposé)"]
 
     USER -->|HTTPS| WEB
     USER -->|poste de travail| DESK
@@ -26,7 +26,8 @@ flowchart LR
     BACK -->|SQL| DB
     BACK -->|HTTPS/webhooks| EXT
     BACK -->|via AI Gateway| AI
-    WEB -->|OIDC| IDP
+    WEB -->|OIDC code + PKCE| IDP
+    DESK -->|OIDC via le navigateur du système| IDP
     BACK -->|valide les identités| IDP
 ```
 
@@ -34,7 +35,8 @@ flowchart LR
 
 - navigation, tableaux de bord, recherche et préférences ;
 - socle de veille d’équipe + veille personnelle ;
-- aucune logique métier critique dans l’IHM.
+- aucune logique métier critique dans l’IHM ;
+- session OIDC (changement `connecter-ihm-oidc`, [PROPOSITION], ADR-0033) : code d’autorisation + PKCE S256 auprès de Keycloak, jetons en mémoire seulement, jeton porteur joint aux appels de `/api/v1` sauf l’identité du serveur ; toute vue sauf l’état du serveur exige une session.
 
 ### Client desktop Electron (proposé, ADR-0022)
 
@@ -42,7 +44,8 @@ flowchart LR
 - notifications natives et icône de zone de notification ;
 - ni base de données ni serveur embarqué : client de l’API REST uniquement ;
 - alertes du poste (capacité [`notifications-poste`](../../specifications/notifications-poste.md)) : la couche contenu de l’IHM lit les alertes `DESKTOP` en attente et confirme leur remise ; le processus principal affiche la notification (titre, gravité, nombre de projets), tient le compteur d’alertes ouvertes de la zone de notification et les réglages du poste (notifications du poste, démarrage avec la session désactivé par défaut) ; il n’appelle pas l’API ;
-- fenêtre fermée, l’application reste dans la zone de notification ; quittée, plus rien ne tourne (aucun service en arrière-plan).
+- fenêtre fermée, l’application reste dans la zone de notification ; quittée, plus rien ne tourne (aucun service en arrière-plan) ;
+- connexion OIDC ([PROPOSITION], ADR-0033) : l’autorisation s’ouvre dans le navigateur du système ; le processus principal écoute le retour sur `127.0.0.1` (port éphémère, RFC 8252) et le rend à l’IHM, qui échange le code ; la CSP n’ajoute que l’origine du fournisseur d’identité configuré.
 
 ### Quarkus Backend
 
