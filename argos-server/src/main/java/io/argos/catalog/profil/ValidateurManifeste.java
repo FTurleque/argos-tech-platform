@@ -49,6 +49,12 @@ public final class ValidateurManifeste {
                 erreurs.add("rubrique en double : " + r.identifiant());
             }
             exigerTexte(erreurs, "libellé de la rubrique " + r.identifiant(), r.libelle());
+            for (String categorie : r.categories()) {
+                if (categorie == null || !m.categoriesSources().contains(categorie)) {
+                    erreurs.add("catégorie de la rubrique " + r.identifiant() + " absente de categoriesSources : "
+                            + categorie);
+                }
+            }
         }
         for (StrategieDeclaree s : m.strategies()) {
             if (s == null || s.identifiant() == null || s.identifiant().isBlank()) {

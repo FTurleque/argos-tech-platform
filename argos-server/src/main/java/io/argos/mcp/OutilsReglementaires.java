@@ -12,6 +12,7 @@ import jakarta.inject.Inject;
 import io.argos.catalog.profil.CatalogueProfils;
 import io.argos.catalog.profil.GardeFou;
 import io.argos.catalog.profil.TypeGardeFou;
+import io.argos.regintel.FicheAnalyse;
 import io.argos.regintel.FichesReglementaires;
 import io.quarkiverse.mcp.server.Tool;
 import io.quarkiverse.mcp.server.ToolArg;
@@ -32,10 +33,10 @@ public class OutilsReglementaires {
     private static final String AVIS_PAR_DEFAUT =
             "Les fiches informent ; elles ne constituent pas un avis juridique (ADR-0018).";
 
-    /** Fiche réglementaire validée. */
+    /** Fiche réglementaire validée, avec la mention de sa validation par l'expert métier (PRF-06-S2). */
     public record FicheReglementaire(UUID ficheId, UUID espaceId, String domaine, List<String> domaines,
             String referenceOfficielle, String nor, String publication, String effet, String source, String lienOfficiel,
-            String resumeValide, TexteExterne titreOfficiel) {
+            String resumeValide, String mentionValidation, TexteExterne titreOfficiel) {
     }
 
     /** Réponse de {@code get_regulatory_changes}. */
@@ -76,7 +77,7 @@ public class OutilsReglementaires {
                             d.orElse(f.domaines().isEmpty() ? null : f.domaines().get(0)), f.domaines(),
                             f.referenceOfficielle(), f.nor(), f.publication() == null ? null : f.publication().toString(),
                             f.effet() == null ? "date à confirmer" : f.effet().toString(), f.source(), f.lienOfficiel(),
-                            f.resume(), balisage.baliser(f.source(), f.titreOfficiel())))
+                            f.resume(), FicheAnalyse.MENTION_VALIDEE, balisage.baliser(f.source(), f.titreOfficiel())))
                     .toList();
             return new ChangementsReglementaires(validees.size(), gardeFous(), validees);
         });

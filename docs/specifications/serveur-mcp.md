@@ -56,7 +56,7 @@ L'utilisateur a un compte Argos et un jeton d'accès Keycloak délivré au clien
 | Ressource d'un autre espace : `INTROUVABLE`, rien sur la ressource, refus journalisé ; requêtes sous RLS du rôle `argos_app` | MCP-04 | ACC-04 ; ADR-0016 | [EXISTANT] — `CloisonnementMcpTest` |
 | Texte d'une source externe renvoyé dans un champ `TexteExterne` (nature `CONTENU_EXTERNE_NON_FIABLE`, source, texte, troncature, longueur d'origine), tronqué à 2 000 caractères | MCP-05 | risque R-11 ; Q-2 | [EXISTANT] — `ContenuExterneMcpTest` |
 | 60 appels par minute et par utilisateur sur fenêtre glissante ; refus `LIMITE_DEBIT` journalisé ; chaque appel journalisé (compte, outil, paramètres, durée, issue) | MCP-06 | ADR-0014 (Proposé) ; Q-1 | [EXISTANT] — `LimiteDebitMcpTest` |
-| `get_regulatory_changes` ne renvoie que les fiches validées par un expert et rappelle les garde-fous du profil `expert-metier` | MCP-07 | PRF-06 ; ADR-0018 (Proposé) | [EXISTANT] — `ReglementaireMcpTest` |
+| `get_regulatory_changes` ne renvoie que les fiches validées par un expert, chacune avec sa mention de validation (`mentionValidation`), et rappelle les garde-fous du profil `expert-metier` | MCP-07 | PRF-06 ; ADR-0018 (Proposé) | [EXISTANT] — `ReglementaireMcpTest`, `VeilleProfilsTest` |
 
 ## Droits d'accès et restrictions
 

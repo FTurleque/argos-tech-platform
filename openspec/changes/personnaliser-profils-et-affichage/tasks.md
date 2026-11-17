@@ -24,10 +24,10 @@
 - [x] 3.1 Définir le format du manifeste de profil et le catalogue dans `catalog` ; publier `developpeur` et `expert-metier` — couvre PRF-03-S1 — vérification : test d'intégration du catalogue passe
 - [x] 3.2 Enregistrer les profils actifs dans `workspace`, avec au moins un profil actif — couvre PRF-01-S1 à PRF-01-S3 — vérification : tests d'intégration passent
 - [x] 3.3 Brancher les stratégies de rapprochement des profils dans `impact-engine` — couvre PRF-03-S2 — vérification : tests unitaires des stratégies passent
-- [ ] 3.4 Restituer l'union des profils actifs, sans doublon, avec rubriques — couvre PRF-02-S1, PRF-02-S2 — vérification : tests d'intégration passent
-- [ ] 3.5 Publier un profil de démonstration et vérifier l'absence d'effet sur les autres utilisateurs — couvre PRF-04-S1 — vérification : test d'intégration passe
+- [x] 3.4 Restituer l'union des profils actifs, sans doublon, avec rubriques — couvre PRF-02-S1, PRF-02-S2 — vérification : tests d'intégration passent
+- [x] 3.5 Publier un profil de démonstration et vérifier l'absence d'effet sur les autres utilisateurs — couvre PRF-04-S1 — vérification : test d'intégration passe
 - [x] 3.6 Vérifier qu'aucun profil n'élargit les données visibles — couvre PRF-05-S1 — vérification : tests inter-espaces passent ; règle ArchUnit : `workspace` ne lit pas les préférences pour décider d'une autorisation
-- [ ] 3.7 Appliquer les garde-fous côté serveur, dans l'API et le serveur MCP — couvre PRF-06-S1, PRF-06-S2 — vérification : tests d'intégration et de contrat MCP passent
+- [x] 3.7 Appliquer les garde-fous côté serveur, dans l'API et le serveur MCP — couvre PRF-06-S1, PRF-06-S2 — vérification : tests d'intégration et de contrat MCP passent
 - [x] 3.8 Mettre à jour la fiche `profils-veille` — vérification : `node scripts/verifier-docs.mjs` sans erreur
 
 ## 4. Documentation durable et décisions
@@ -42,7 +42,7 @@
 
 ## Matrice de traçabilité
 
-État au 2026-11-16, code intégré avec `formaliser-chaine-securite-poc` et `gerer-comptes-et-acces`. Commandes de preuve : `mvn -B -f argos-server/pom.xml verify` (164 tests, 0 échec, PostgreSQL et Keycloak jetables par Quarkus Dev Services, jetons réels) et `npm --prefix argos-ui test` (10 tests, 0 échec). Chemins serveur relatifs à `argos-server/src/test/java/io/argos/`. La clé des préférences est l'identifiant du compte Argos relié au sujet OIDC (migration `V7__preferences_utilisateur.sql`).
+État au 2026-11-16, code intégré avec `formaliser-chaine-securite-poc` et `gerer-comptes-et-acces`. Commandes de preuve : `mvn -B -f argos-server/pom.xml verify` (164 tests, 0 échec, PostgreSQL et Keycloak jetables par Quarkus Dev Services, jetons réels) et `npm --prefix argos-ui test` (10 tests, 0 échec). Chemins serveur relatifs à `argos-server/src/test/java/io/argos/`. La clé des préférences est l'identifiant du compte Argos relié au sujet OIDC (migration `V7__preferences_utilisateur.sql`). Tâches 3.4, 3.5 et 3.7 (2026-11-17) : veille par profils `GET /api/v1/me/veille` (`io.argos.api.veille`) ; `mvn -B -f argos-server/pom.xml verify` : 469 tests, 0 échec, 1 ignoré.
 
 | Exigence | Scénario | Conception / diagramme | Tâche | Test ou preuve | État de la preuve |
 |---|---|---|---|---|---|
@@ -57,14 +57,14 @@
 | PRF-01 | PRF-01-S1 | DC-1, INV-1 | 3.2 | `api/preference/PreferencesResourceTest#prf01S1CumulDeDeuxProfils` ; profil `developpeur` activé à la création d'un compte : `#laCreationDUnCompteActiveLeProfilDeveloppeur` | passe |
 | PRF-01 | PRF-01-S2 | DC-1, INV-1, D3 | 1.2, 3.2 | `api/preference/PreferencesResourceTest#prf01S2DesactivationDuDernierProfil` | passe ; la contrainte `workspace_preference_au_moins_un_profil` n'est exercée par aucun test (le service refuse l'ensemble vide avant la base) |
 | PRF-01 | PRF-01-S3 | DC-1, INV-2 | 3.2 | `api/preference/PreferencesResourceTest#prf01S3ProfilAbsentDuCatalogue` | passe |
-| PRF-02 | PRF-02-S1 | DC-2 | 1.3, 3.4 | test d'intégration | à écrire ; aucun élément de veille ne relève d'`expert-metier` sans la capacité `regintel`, et la restitution (`GET /api/v1/me/watch`) ne dépend pas encore des profils |
-| PRF-02 | PRF-02-S2 | DC-2 | 3.4 | test d'intégration | à écrire ; même raison |
+| PRF-02 | PRF-02-S1 | DC-2 | 1.3, 3.4 | `api/veille/VeilleProfilsTest#prf02UnionDesDeuxProfilsSansDoublon` (developpeur + expert-metier : avis et fiche validée restitués une fois chacun, rubriques `securite` et `reglementation`) ; `api/veille/UnionProfilsTest#prf02S1ElementCommunADeuxProfils`, `#prf02S1MemeElementAtteintParDeuxCategories` (manifestes publiés, élément de deux catégories) ; `api/catalogue/ProfilDemonstrationTest#prf02S1ElementCommunADeuxProfilsActifs` (même avis rangé par `developpeur` et `demonstration` : une occurrence, deux rubriques) | passe ; aucun élément réel ne relève à la fois de `developpeur` et d'`expert-metier` dans le catalogue publié
+| PRF-02 | PRF-02-S2 | DC-2 | 3.4 | `api/veille/VeilleProfilsTest#prf02S2ElementDUnProfilInactif`, `#prf06S2FicheValidee` (fin) ; `api/veille/UnionProfilsTest#prf02S2ElementDUnProfilInactif` | passe |
 | PRF-03 | PRF-03-S1 | DC-1, D2 | 3.1 | `api/catalogue/CatalogueResourceTest#prf03S1LeCatalogueInitialListeDeveloppeurEtExpertMetier` ; `catalog/profil/CatalogueProfilsTest` | passe |
 | PRF-03 | PRF-03-S2 | DC-2, D2 | 3.3 | `chain/MatchRulesTest` (stratégie `purl-plage-versions` = règle PURL + plage de versions d'`impact-engine`) ; `chain/ProfilsDeVeilleTest#lesStrategiesDuProfilDeveloppeurSontImplementeesParLeMoteurDImpact`, `#prf03S2RapprochementPropreAuProfilSansIa` (IA indisponible, niveau `EXACT`, stratégie dans la provenance) | passe pour `developpeur` ; la stratégie `domaine-metier-nor` d'`expert-metier` n'a pas d'implémentation (`regintel` absent) |
-| PRF-04 | PRF-04-S1 | D2 | 3.5 | `api/catalogue/ProfilDemonstrationTest` (profil publié, profils actifs inchangés) ; `catalog/profil/CatalogueProfilsTest#ajouterUnProfilNeModifiePasLesAutres` | partie catalogue : passe ; veille inchangée : à écrire — la publication d'un profil se fait par configuration, donc par un redémarrage, et la restitution ne dépend pas encore des profils |
+| PRF-04 | PRF-04-S1 | D2 | 3.5 | `api/catalogue/ProfilDemonstrationTest` (profil publié ; profils actifs inchangés ; `#prf04S1LaVeilleDesAutresUtilisateursEstInchangee` : veille des utilisateurs `developpeur`, `expert-metier` et des deux sans élément, rubrique ni mention du profil de démonstration, qui range pourtant les avis de sécurité) ; `api/veille/UnionProfilsTest#prf04SeulsLesProfilsActifsComptent` ; `catalog/profil/CatalogueProfilsTest#ajouterUnProfilNeModifiePasLesAutres` | passe ; la publication se fait par configuration (redémarrage) : la veille, catalogue enrichi, est comparée à celle que définissent les seuls profils actifs |
 | PRF-05 | PRF-05-S1 | DC-1, INV-3 | 3.6 | `chain/ProfilsDeVeilleTest#prf05S1ActivationDUnProfilSansDroitSurLesProjets` (jetons réels, RLS sous `argos_app` : aucun impact, inventaire ni espace B restitué après activation de `developpeur` puis `expert-metier` ; appartenances inchangées) ; règle ArchUnit `architecture/PreferencesIsolationTest` | passe |
-| PRF-06 | PRF-06-S1 | DC-2 | 3.7 | tests d'intégration et de contrat MCP | à écrire ; suppose fiches réglementaires et serveur MCP |
-| PRF-06 | PRF-06-S2 | DC-2 | 3.7 | tests d'intégration | à écrire |
+| PRF-06 | PRF-06-S1 | DC-2 | 3.7 | `api/veille/VeilleProfilsTest#prf06S1FicheNonValideeNiVeilleNiMcp` (fiche en attente absente de la veille et de `get_regulatory_changes`, pour un lecteur et pour l'expert qui la voit dans la file de relecture ; jetons réels, RLS sous `argos_app`) ; `mcp/ReglementaireMcpTest` ; `api/veille/UnionProfilsTest#prf06S1ElementNonValideDUnProfilAGardeFou` | passe |
+| PRF-06 | PRF-06-S2 | DC-2 | 3.7 | `api/veille/VeilleProfilsTest#prf06S2FicheValidee` (validation par l'expert via l'API, puis fiche restituée avec `mentionValidation` dans la veille d'un utilisateur `expert-metier` et par MCP) ; contrat MCP `#contratMcpMentionDeValidation` (schéma de sortie) ; contrat OpenAPI `api/OpenApiContractTest#laVeilleParProfilsExposeSesChamps` | passe ; `argos-ui` n'affiche pas encore `GET /api/v1/me/veille` (mises en page : tâche 2.4) |
 
 ## Workflow follow-up
 

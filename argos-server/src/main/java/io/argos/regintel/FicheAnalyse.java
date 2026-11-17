@@ -38,6 +38,9 @@ public record FicheAnalyse(UUID id, UUID espaceId, Texte texte, String etatValid
         boolean peutExpertiser, String mentionValidation, String mentionAvisJuridique, String mentionSource,
         List<EvenementHistorique> historique) {
 
+    /** Mention de validation d'une fiche validée par un expert de ses domaines (PRF-06-S2). */
+    public static final String MENTION_VALIDEE = "validée par l'expert métier";
+
     /** Mention de chaque fiche (ADR-0018, garde-fou AUCUN_AVIS_JURIDIQUE du profil {@code expert-metier}). */
     public static final String AVIS_JURIDIQUE = "Les fiches informent ; elles ne constituent pas un avis juridique (ADR-0018).";
 
