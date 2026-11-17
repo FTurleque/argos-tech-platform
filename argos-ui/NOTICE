@@ -1,0 +1,40 @@
+IHM d'ARGOS (argos-ui) — dépendances, polices et licences
+=========================================================
+
+Enregistrement des licences au moment de l'introduction des dépendances (ADR-0021, point 6).
+Contrôlé par tests/polices.test.mjs pour les polices.
+
+Paquets npm livrés avec l'IHM (dependencies de package.json)
+  vue 3.5.45                MIT          https://github.com/vuejs/core
+  vue-router 5.5.1          MIT          https://github.com/vuejs/router
+
+Outillage de build et de test (devDependencies, non livré)
+  vite 8.3.8                MIT          https://github.com/vitejs/vite
+  @vitejs/plugin-vue 6.0.11 MIT          https://github.com/vitejs/vite-plugin-vue
+  typescript 6.0.3          Apache-2.0   https://github.com/microsoft/TypeScript
+  vue-tsc 3.3.14            MIT          https://github.com/vuejs/language-tools
+
+Polices embarquées (mises en page, ADR-0023 point 5)
+  Fichiers de police (woff2, woff ; sous-ensemble latin) sous SIL Open Font License 1.1 (OFL-1.1),
+  licence libre et gratuite, usage commercial permis, acceptée pour les seules polices. Feuilles
+  @font-face des paquets @fontsource/* (projet Fontsource, code sous licence MIT ; champ « license »
+  des paquets : OFL-1.1). Aucune police n'est chargée depuis un service externe à l'exécution :
+  le build copie les fichiers dans dist/assets, servis par l'application (CSP desktop : font-src 'self').
+  Avis de droit d'auteur et texte de l'OFL livrés avec l'IHM : public/licences-polices.txt
+  (régénéré par « node scripts/licences-polices.mjs »).
+
+  @fontsource/inter 5.3.0               OFL-1.1   Inter — The Inter Project Authors            classique
+  @fontsource/space-grotesk 5.3.0       OFL-1.1   Space Grotesk — The Space Grotesk Project Authors   classique
+  @fontsource/unifrakturmaguntia 5.3.0  OFL-1.1   UnifrakturMaguntia — j. 'mach' wust, Peter Wiegel   journal
+  @fontsource/playfair-display 5.3.0    OFL-1.1   Playfair Display — The Playfair Display Project Authors   journal
+  @fontsource/source-serif-4 5.3.1      OFL-1.1   Source Serif 4 — Adobe (diffusion Google Fonts)   journal
+  @fontsource/fraunces 5.3.0            OFL-1.1   Fraunces — The Fraunces Project Authors      fantaisie
+  @fontsource/caveat 5.3.0              OFL-1.1   Caveat — The Caveat Project Authors          fantaisie
+  @fontsource/literata 5.3.0            OFL-1.1   Literata — The Literata Project Authors      fantaisie
+  @fontsource/unifrakturcook 5.3.0      OFL-1.1   UnifrakturCook — j. 'mach' wust, Peter Wiegel   gazette
+  @fontsource/alfa-slab-one 5.3.0       OFL-1.1   Alfa Slab One — The Alfa Slab One Project Authors   gazette
+  @fontsource/playfair-display-sc 5.3.0 OFL-1.1   Playfair Display SC — The Playfair Display Project Authors   gazette
+  @fontsource/im-fell-english 5.3.0     OFL-1.1   IM Fell English — Igino Marini (diffusion Google Fonts)   gazette
+
+  Ce sont les polices des maquettes du 2026-11-15, toutes disponibles sous OFL-1.1 : aucune
+  substitution n'a été nécessaire.

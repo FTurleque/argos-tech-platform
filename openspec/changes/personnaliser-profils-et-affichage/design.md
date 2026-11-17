@@ -214,6 +214,24 @@ Non applicable — aucune donnée existante.
 - **Compromis** : —
 - **ADR** : non : décision locale.
 
+### D4 — Modèle de données commun et polices embarquées
+
+- **Statut** : [PROPOSITION]
+- **Choix** : un modèle typé unique `VeilleAffichee` (`argos-ui/src/mises-en-page/modele.ts`) reçu par les quatre mises en page et choisi par un sélecteur central (`MiseEnPage.vue`, repli `classique`) ; polices des maquettes embarquées par les paquets `@fontsource/*` (SIL OFL 1.1, sous-ensemble latin, feuilles sous licence MIT), servies par l'application.
+- **Justification** : un seul contrat rend la comparaison des contenus automatique (AFF-02) ; l'absence de service de polices respecte la CSP du desktop (`font-src 'self'`) et le fonctionnement sans Internet (ADR-0022, ADR-0023 point 5). L'OFL est libre, gratuite et permet l'usage commercial ; elle ne s'applique qu'aux fichiers de police et ne touche pas la licence du code (ADR-0021 point 4).
+- **Alternatives écartées** : polices système seules — ne rendent pas les maquettes ; chargement depuis Google Fonts — bloqué par la CSP et indisponible hors ligne ; un modèle par mise en page — contenus divergents.
+- **Compromis** : environ 1,4 Mo de fichiers de police dans `dist/assets`, téléchargés seulement par la mise en page qui les emploie.
+- **ADR** : non : application d'ADR-0023 point 5 et d'ADR-0021 point 6 (licences enregistrées dans `argos-ui/NOTICE`).
+
+### D5 — Couleurs en jetons contrôlés
+
+- **Statut** : [PROPOSITION]
+- **Choix** : chaque mise en page déclare sa palette (`palette.ts`) et les couples texte/fond qu'elle emploie ; ses feuilles de style n'utilisent que ces jetons. Les tests de l'IHM calculent chaque contraste (4,5:1 ou 3:1) et un banc Playwright mesure le contraste réellement rendu.
+- **Justification** : AFF-05-S1 devient un contrôle exécuté à chaque construction : une palette sous le seuil fait échouer `npm --prefix argos-ui test`.
+- **Alternatives écartées** : axe-core — licence MPL-2.0 (ADR-0021) ; revue manuelle seule — non reproductible.
+- **Compromis** : la publication au catalogue du serveur reste une configuration distincte, non bloquée par ce contrôle.
+- **ADR** : non : décision locale.
+
 ## Risques
 
 - Multiplication des mises en page à maintenir → catalogue limité aux quatre initiales jusqu'à retour d'usage.
@@ -229,9 +247,9 @@ La taxonomie fermée du dossier v2.4 §8.2 n'est pas versionnée dans `docs/arch
 | Exigence / scénario | Niveau de test | Moyen de preuve | État |
 |---|---|---|---|
 | AFF-01-S1, AFF-01-S2, AFF-04-S1, AFF-04-S2 | intégration API | tests des préférences | à écrire |
-| AFF-02-S1, AFF-02-S2 | E2E IHM | même jeu de données affiché dans les quatre mises en page, contenu comparé | à écrire |
+| AFF-02-S1, AFF-02-S2 | E2E IHM | même jeu de données affiché dans les quatre mises en page, contenu comparé | rendu des quatre mises en page sur un même jeu comparé (`argos-ui/tests/mises-en-page.test.mjs`, banc `e2e/accessibilite/`) ; E2E sur la veille réelle à écrire |
 | AFF-03-S1 | E2E | préférence modifiée sur le web, lue par le desktop | à écrire |
-| AFF-05-S1 | revue | audit d'accessibilité par mise en page | à écrire |
+| AFF-05-S1 | revue + tests IHM + navigateur | audit d'accessibilité par mise en page : palettes contrôlées (`argos-ui/tests/contrastes.test.mjs`), banc `e2e/accessibilite/` | réalisé le 2026-11-17 ([rapport](/docs/architecture/quality/audit-accessibilite-mises-en-page.md)) |
 | PRF-01-S1 à PRF-01-S3 | intégration API | tests des préférences | à écrire |
 | PRF-02-S1, PRF-02-S2 | intégration | veille d'un utilisateur à deux profils | à écrire |
 | PRF-02-S3, PRF-02-S4 | intégration | abonnements `PERSONAL` ajoutés à la veille, deux espaces | `VeilleAbonnementsPersonnelsTest` |

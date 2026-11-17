@@ -75,6 +75,7 @@ ADR acceptés structurants à ce stade :
 - [Baseline v2.4](baseline-v2.4.md)
 - [ADR](adr/README.md)
 - [Scénarios qualité](quality/scenarios.md)
+- [Audit d’accessibilité des mises en page](quality/audit-accessibilite-mises-en-page.md)
 - [Registre des risques](risks/register.md)
 - [Inventaire des diagrammes](diagrams/README.md)
 - [Spécifications fonctionnelles et couverture des exigences](../specifications/README.md)

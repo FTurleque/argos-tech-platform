@@ -1,10 +1,12 @@
 // Registre de la couche mise en page (ADR-0023 point 1).
 //
-// Une mise en page est un composant qui reçoit `ProprietesMiseEnPage` et affiche chaque
-// élément avec `MentionsObligatoires`. Elle n'importe ni le client API ni aucune logique de
-// droits : `tests/architecture.test.mjs` le vérifie.
-// Ajouter une mise en page = ajouter un dossier et une entrée ici, puis la publier au
-// catalogue du serveur.
+// Une mise en page est un composant qui reçoit `ProprietesMiseEnPage` (modele.ts) et affiche
+// chaque élément avec `MentionsObligatoires`. Elle n'importe ni le client API ni aucune logique de
+// droits : `tests/architecture.test.mjs` le vérifie. Le composant affiché est choisi par
+// `MiseEnPage.vue` (selection.ts).
+// Ajouter une mise en page = ajouter un dossier (composant, palette contrôlée par
+// tests/contrastes.test.mjs, polices embarquées enregistrées dans argos-ui/NOTICE) et une entrée
+// ici, puis la publier au catalogue du serveur après l'audit d'accessibilité (AFF-05).
 import type { Component } from 'vue'
 import MiseEnPageClassique from './classique/MiseEnPageClassique.vue'
 import MiseEnPageFantaisie from './fantaisie/MiseEnPageFantaisie.vue'

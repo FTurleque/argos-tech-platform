@@ -159,7 +159,7 @@ Un utilisateur choisit sa **mise en page** et un ou plusieurs **profils de veill
 | IHM — couche contenu | appeler l’API et construire les modèles de vue avec leurs mentions obligatoires | dépendre d’une mise en page | `argos-ui/src/contenu`, `argos-ui/src/views` |
 | IHM — couche mise en page | présenter les modèles de vue selon le style choisi | appeler l’API, filtrer un élément ou omettre une mention | `argos-ui/src/mises-en-page` |
 
-Les préférences ne sont lues que par `api` et `mcp` (`PreferencesIsolationTest`) ; une mise en page n’importe ni le client API ni le reste de la couche contenu (`argos-ui/tests/architecture.test.mjs`).
+Les préférences ne sont lues que par `api` et `mcp` (`PreferencesIsolationTest`) ; une mise en page n’importe ni le client API ni le reste de la couche contenu (`argos-ui/tests/architecture.test.mjs`). Les quatre mises en page reçoivent le même modèle de données (`argos-ui/src/mises-en-page/modele.ts`) ; le composant affiché est choisi par `MiseEnPage.vue` d’après la préférence. Leurs couleurs sont des jetons dont les contrastes sont contrôlés par les tests de l’IHM, leurs polices sont embarquées (ADR-0023 point 5) ; audit d’accessibilité : [rapport](../quality/audit-accessibilite-mises-en-page.md).
 
 **D-15 — Type : C4 Component. Portée : préférences d’affichage et de veille, du serveur à l’IHM. Statut : implémenté pour le catalogue, les préférences et les couches de l’IHM ; restitution de la veille par profils à venir.**
 
