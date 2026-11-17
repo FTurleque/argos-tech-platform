@@ -3,9 +3,9 @@
 | Élément | Valeur |
 |---|---|
 | Préfixe d'exigences | `ACC` |
-| Spec de référence | `/openspec/specs/comptes-acces/spec.md` — absente tant qu'aucun changement n'est archivé |
-| Changements en cours | [`gerer-comptes-et-acces`](/openspec/changes/gerer-comptes-et-acces/proposal.md) (implémenté, non archivé) |
-| Statut de la capacité | proposée ; implémentation et tests dans `argos-server`, changement non archivé |
+| Spec de référence | [`/openspec/specs/comptes-acces/spec.md`](/openspec/specs/comptes-acces/spec.md) |
+| Changements archivés | [`2026-11-17-gerer-comptes-et-acces`](/openspec/changes/archive/2026-11-17-gerer-comptes-et-acces/proposal.md) |
+| Statut de la capacité | livrée |
 | Composants (arc42 §5) | `API & Security`, `workspace`, `audit` |
 
 ## Objectif

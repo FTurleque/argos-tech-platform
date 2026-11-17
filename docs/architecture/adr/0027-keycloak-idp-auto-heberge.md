@@ -10,7 +10,7 @@
 ## Contexte
 
 - ADR-0008 propose OIDC vers l'IdP d'une entreprise. Argos est désormais un produit ouvert à tous les publics, porté à titre personnel ([ADR-0025](0025-produit-ouvert-projet-personnel.md), Accepté) et hébergé sur le Synology du porteur ([ADR-0026](0026-hebergement-synology.md), Accepté) : aucun IdP d'entreprise n'existe.
-- Le porteur a choisi Keycloak le 2026-11-16 (question Q-1 du changement [`gerer-comptes-et-acces`](/openspec/changes/gerer-comptes-et-acces/proposal.md)), avec une inscription sur invitation (Q-2).
+- Le porteur a choisi Keycloak le 2026-11-16 (question Q-1 du changement [`gerer-comptes-et-acces`](/openspec/changes/archive/2026-11-17-gerer-comptes-et-acces/proposal.md)), avec une inscription sur invitation (Q-2).
 - ADR-0021 point 4 : toute dépendance livrée doit avoir une licence permissive. Keycloak est publié sous Apache-2.0 et s'exécute comme système séparé (point 5) ; l'extension `quarkus-oidc` intégrée au serveur est sous Apache-2.0.
 - Le code d'Argos (`argos-server`) valide les jetons avec `quarkus-oidc` et ses tests utilisent le Keycloak des Dev Services Quarkus ([`application.properties`](/argos-server/src/main/resources/application.properties), [tests d'intégration](/argos-server/src/test/java/io/argos/api/comptes/)).
 
