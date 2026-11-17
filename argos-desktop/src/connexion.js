@@ -64,23 +64,30 @@ function codeAvecPkce(p) {
  */
 function urlAutorisationSure(url, { emetteur, redirectUri }) {
   if (typeof url !== 'string' || url.length > URL_MAX) return null;
-  let demande;
-  let point;
+  const urls = lireUrls(url, emetteur);
+  if (!urls || !demandeConforme(urls.demande, urls.point, redirectUri)) return null;
+  for (const nom of PARAMETRES_AUTORISATION) {
+    const valeur = urls.demande.searchParams.get(nom);
+    if (valeur !== null) urls.point.searchParams.set(nom, valeur);
+  }
+  return urls.point.toString();
+}
+
+/** URL reçue et point d'autorisation configuré, ou null si l'une des deux est illisible. */
+function lireUrls(url, emetteur) {
   try {
-    demande = new URL(url);
-    point = pointAutorisation(emetteur);
+    return { demande: new URL(url), point: pointAutorisation(emetteur) };
   } catch {
     return null;
   }
-  if (demande.origin !== point.origin || demande.pathname !== point.pathname) return null;
-  if (demande.username || demande.password) return null;
-  const p = demande.searchParams;
-  if (!codeAvecPkce(p) || p.get('redirect_uri') !== redirectUri) return null;
-  for (const nom of PARAMETRES_AUTORISATION) {
-    const valeur = p.get(nom);
-    if (valeur !== null) point.searchParams.set(nom, valeur);
-  }
-  return point.toString();
+}
+
+/** Vrai si la demande vise le point d'autorisation, sans identifiants, avec PKCE et la bonne redirection. */
+function demandeConforme(demande, point, redirectUri) {
+  if (demande.origin !== point.origin || demande.pathname !== point.pathname) return false;
+  if (demande.username || demande.password) return false;
+  const parametres = demande.searchParams;
+  return codeAvecPkce(parametres) && parametres.get('redirect_uri') === redirectUri;
 }
 
 /** Vrai si `url` est une demande d'autorisation acceptable (voir urlAutorisationSure). */
