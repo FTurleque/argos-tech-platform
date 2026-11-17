@@ -1,4 +1,4 @@
-// Garde des vues de l'IHM (changement connecter-ihm-oidc : ACC-07-S1, ACC-07-S5, ACC-09-S4).
+// Garde des vues de l'IHM (changement connecter-ihm-oidc : ACC-07-S1, ACC-07-S5, ACC-08-S3, ACC-09-S4).
 // Fonction pure : testée par node:test (tests/garde.test.mjs). La garde s'exécute avant que la vue
 // ne soit créée : une vue refusée ne demande aucune donnée à l'API.
 
@@ -22,4 +22,13 @@ export function decisionGarde(p: {
   if (p.connecte && p.compteNonCree) return { type: 'compte-non-cree' }
   if (!p.connecte) return { type: 'connexion', retour: p.chemin }
   return { type: 'afficher' }
+}
+
+/**
+ * Vue à afficher quand la session expire pendant l'affichage d'une vue (renouvellement refusé,
+ * réponse 401) : une vue protégée cède la place à l'écran de connexion, qui présente l'état
+ * « session expirée » et garde la vue en retour (ACC-08-S3, ACC-09-S3) ; une vue publique reste.
+ */
+export function decisionExpiration(p: { publique: boolean; chemin: string }): DecisionGarde {
+  return decisionGarde({ publique: p.publique, connecte: false, compteNonCree: false, chemin: p.chemin })
 }

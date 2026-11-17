@@ -1,11 +1,11 @@
 // Branchement de la session OIDC sur le navigateur, le pont desktop, le client REST et l'état
 // réactif de l'IHM (changement connecter-ihm-oidc). La logique est dans gestionnaire.ts et oidc.ts.
-import { reactive } from 'vue'
+import { reactive, watch } from 'vue'
 import type { Router } from 'vue-router'
 import { ApiError, configurerAutorisation, fetchMoi, type CompteCourant } from '../api/client'
 import { CODE_COMPTE_NON_CREE, type Refus } from '../api/autorisation'
 import { GestionnaireSession, type DemandeAutorisation, type EtatSession, type TransportConnexion } from './gestionnaire'
-import { decisionGarde } from './garde'
+import { decisionExpiration, decisionGarde } from './garde'
 import { contientRetour, urlNettoyee } from './oidc'
 
 const EMETTEUR_PAR_DEFAUT = 'http://localhost:8180/realms/argos'
@@ -175,10 +175,8 @@ export function installerSession(router: Router): void {
     jeton: () => gestionnaire.jetonAcces(),
     surRefus(refus: Refus) {
       if (refus === 'NON_AUTHENTIFIE') {
-        if (gestionnaire.etat !== 'CONNECTE') return
-        gestionnaire.expirer()
-        const retour = router.currentRoute.value.fullPath
-        void router.push({ name: 'connexion', query: { retour } })
+        // L'écran de connexion est ouvert par le suivi de l'état « session expirée » ci-dessous.
+        if (gestionnaire.etat === 'CONNECTE') gestionnaire.expirer()
       } else if (refus === 'COMPTE_NON_CREE') {
         etatSession.compteNonCree = true
         void router.push({ name: 'compte-non-cree' })
@@ -187,6 +185,17 @@ export function installerSession(router: Router): void {
       }
     },
   })
+  // Session expirée pendant l'affichage d'une vue (renouvellement refusé ou réponse 401) : une vue
+  // protégée cède la place à l'écran de connexion, avec l'état « session expirée » (ACC-08-S3, ACC-09-S3).
+  watch(
+    () => etatSession.etat,
+    (etat) => {
+      if (etat !== 'EXPIREE') return
+      const courante = router.currentRoute.value
+      const decision = decisionExpiration({ publique: courante.meta.public === true, chemin: courante.fullPath })
+      if (decision.type === 'connexion') void router.push({ name: 'connexion', query: { retour: decision.retour } })
+    },
+  )
   router.beforeEach((to) => {
     const decision = decisionGarde({
       publique: to.meta.public === true,

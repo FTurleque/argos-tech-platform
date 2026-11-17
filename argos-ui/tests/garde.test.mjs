@@ -4,7 +4,7 @@
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
 import { readFileSync } from 'node:fs'
-import { decisionGarde } from '../src/session/garde.ts'
+import { decisionExpiration, decisionGarde } from '../src/session/garde.ts'
 
 const ROUTEUR = readFileSync(new URL('../src/router.ts', import.meta.url), 'utf8')
 const ROUTES = [...ROUTEUR.matchAll(/\{ path: '([^']+)', name: '([^']+)', component: \w+(, meta: \{ public: true \})? \}/g)]
@@ -36,4 +36,19 @@ test('ACC-09-S4 : compte non créé → vues protégées inaccessibles, écran d
 
 test('session ouverte et compte créé : la vue s’affiche', () => {
   assert.deepEqual(decisionGarde({ publique: false, connecte: true, compteNonCree: false, chemin: '/alertes' }), { type: 'afficher' })
+})
+
+test('ACC-08-S3 : une session expirée sur une vue protégée ouvre la connexion, la vue en retour', () => {
+  for (const route of ROUTES) {
+    const attendu = route.publique ? { type: 'afficher' } : { type: 'connexion', retour: route.path }
+    assert.deepEqual(decisionExpiration({ publique: route.publique, chemin: route.path }), attendu, route.name)
+  }
+})
+
+test('ACC-08-S3 : le passage à l’état expiré déclenche la décision dans installerSession', () => {
+  // Constat E2E : un renouvellement refusé laissait la vue protégée affichée, sans l'état expiré.
+  const session = readFileSync(new URL('../src/session/session.ts', import.meta.url), 'utf8')
+  const suivi = session.indexOf("if (etat !== 'EXPIREE') return")
+  assert.ok(suivi > session.indexOf('export function installerSession'), 'suivi de l’état branché par installerSession')
+  assert.ok(session.indexOf('decisionExpiration(', suivi) > suivi, 'décision de la garde appliquée à la vue courante')
 })

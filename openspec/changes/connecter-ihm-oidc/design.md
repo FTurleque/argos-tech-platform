@@ -131,7 +131,7 @@ sequenceDiagram
     end
 ```
 
-Le retour est traité avant la première navigation du routeur : l'adresse est remplacée (`history.replaceState`) par l'adresse sans paramètres de retour, positionnée sur la vue demandée.
+Le retour est traité avant la première navigation du routeur : l'adresse est remplacée (`history.replaceState`) par l'adresse sans paramètres de retour, positionnée sur la vue demandée. L'historique par « hash » de vue-router mémorise l'adresse à la création du routeur, avant ce remplacement : `main.ts` fixe donc la première vue par une navigation explicite, la vue demandée si la connexion aboutit, sinon celle de l'adresse nettoyée, que la garde remplace par l'écran de connexion et son message (ACC-07-S2, ACC-07-S3).
 
 ### DC-3 — Connexion depuis le client desktop
 
@@ -235,8 +235,8 @@ Non applicable — aucune donnée serveur ; aucune migration (dernière : V16).
 | Fournisseur injoignable (découverte) | état `ERREUR`, message ; aucune redirection lancée |
 | State invalide, émetteur `iss` différent, retour sans demande | état `ERREUR` ; aucun échange |
 | Échange refusé | état `ERREUR` ; jetons absents |
-| Renouvellement refusé | état `EXPIREE` |
-| API 401 | état `EXPIREE`, écran de connexion avec la vue courante en retour |
+| Renouvellement refusé | état `EXPIREE` ; sur une vue protégée, écran de connexion avec la vue courante en retour (`decisionExpiration`) |
+| API 401 | état `EXPIREE`, écran de connexion avec la vue courante en retour (même suivi de l'état que le renouvellement refusé) |
 | Desktop : navigateur fermé sans retour | écoute fermée au bout de cinq minutes ; état `ERREUR` ; « Relancer la connexion » |
 | Desktop : connexion relancée pendant une attente | l'écoute précédente est fermée ; la tentative précédente devient caduque sans changer l'état ; seule la nouvelle tentative est affichée |
 | Rechargement de la page (portail) | jetons perdus ; une vue protégée affiche l'écran de connexion ; la session du fournisseur évite une nouvelle saisie |

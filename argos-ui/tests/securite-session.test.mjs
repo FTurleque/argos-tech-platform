@@ -69,3 +69,16 @@ test('ACC-09 : le client REST est branché sur la session avant la reprise du re
   assert.ok(installation < reprise, 'installerSession doit précéder demarrerSession')
   assert.ok(reprise < main.indexOf('createApp(App)'), 'retour traité avant la première navigation')
 })
+
+test('ACC-07-S2, ACC-07-S3 : après le retour du fournisseur, la première vue est imposée avant le montage', () => {
+  // L'historique par « hash » mémorise l'adresse à la création du routeur, avant le nettoyage du
+  // retour : la vue renvoyée par demarrerSession, ou à défaut celle de l'adresse nettoyée, doit être
+  // appliquée explicitement (constats E2E : accueil affiché au lieu de la vue demandée ou du message
+  // d'échec de la connexion).
+  const main = sources.find((s) => s.nom === 'main.ts').texte
+  const reprise = main.indexOf('const vue = await demarrerSession()')
+  const navigation = main.indexOf("await router.replace(vue ?? (window.location.hash.slice(1) || '/'))")
+  assert.ok(reprise > 0, 'vue renvoyée par demarrerSession conservée')
+  assert.ok(navigation > reprise, 'navigation explicite vers la vue demandée')
+  assert.ok(navigation < main.indexOf('createApp(App)'), 'navigation avant le montage')
+})
