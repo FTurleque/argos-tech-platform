@@ -1,5 +1,7 @@
 package io.argos.mcp;
 
+import java.net.URLEncoder;
+import java.nio.charset.StandardCharsets;
 import java.time.Duration;
 import java.time.Instant;
 import java.util.ArrayList;
@@ -45,8 +47,12 @@ public class OutilsSecurite {
     /** Correspondance d'une faille avec la version demandée. */
     public enum Correspondance { AFFECTEE, A_VERIFIER }
 
-    /** Référence citable d'une faille : source et identifiant. */
-    public record Reference(String source, String identifiant) {
+    /**
+     * Référence citable d'une faille : source, identifiant et lien vers la page publique de l'avis à la
+     * source. Le lien est construit par Argos à partir de la source et de l'identifiant, jamais repris
+     * d'un texte de la source ; il est absent pour une source sans page par identifiant connue.
+     */
+    public record Reference(String source, String identifiant, String lien) {
     }
 
     /** Faille connue affectant la version demandée. */
@@ -212,8 +218,9 @@ public class OutilsSecurite {
 
     private Faille faille(SignalQueries.SignalView s, Correspondance c) {
         List<Reference> references = new ArrayList<>();
-        references.add(new Reference(s.source(), s.externalId()));
-        enrichissements.forSignal(s.id()).forEach(e -> references.add(new Reference(e.source(), e.reference())));
+        references.add(new Reference(s.source(), s.externalId(), lienSource(s.source(), s.externalId())));
+        enrichissements.forSignal(s.id())
+                .forEach(e -> references.add(new Reference(e.source(), e.reference(), lienSource(e.source(), e.reference()))));
         return new Faille(s.id(), s.source(), s.externalId(), s.aliases(), s.severity(), c,
                 enrichissements.exploited(s.id()), references, balisage.baliser(s.source(), s.title()),
                 balisage.baliser(s.source(), s.summary()));
@@ -367,6 +374,22 @@ public class OutilsSecurite {
         if (!appelant.memberOf(espace.get())) {
             throw new AccesRefuse(MotifRefus.NON_MEMBRE);
         }
+    }
+
+    /**
+     * Lien public d'un avis : page par identifiant d'OSV ou de la NVD, identifiant encodé ; {@code null}
+     * pour toute autre source.
+     */
+    static String lienSource(String source, String identifiant) {
+        if (source == null || identifiant == null || identifiant.isBlank()) {
+            return null;
+        }
+        String id = URLEncoder.encode(identifiant.strip(), StandardCharsets.UTF_8);
+        return switch (source.toUpperCase(Locale.ROOT)) {
+            case "OSV" -> "https://osv.dev/vulnerability/" + id;
+            case "NVD" -> "https://nvd.nist.gov/vuln/detail/" + id;
+            default -> null;
+        };
     }
 
     static Map<String, Object> parametres(Object... clesValeurs) {

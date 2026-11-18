@@ -97,6 +97,10 @@ class OutilsConsultationMcpTest {
         assertEquals("AFFECTEE", r.path(base + "failles[0].correspondance"));
         assertEquals("OSV", r.path(base + "failles[0].references[0].source"));
         assertEquals("GHSA-MCP2-0032", r.path(base + "failles[0].references[0].identifiant"));
+        assertEquals("https://osv.dev/vulnerability/GHSA-MCP2-0032", r.path(base + "failles[0].references[0].lien"));
+        // Clients qui ne lisent que « content » : le résultat structuré y est sérialisé.
+        assertEquals("text", r.path("result.content[0].type"), r.asString());
+        assertTrue(((String) r.path("result.content[0].text")).contains("https://osv.dev/vulnerability/GHSA-MCP2-0032"));
         assertEquals(TexteExterne.NATURE, r.path(base + "failles[0].titre.nature"));
         assertEquals(1, (int) r.path(base + "referentiel.size()"));
         assertEquals("ADOPT", r.path(base + "referentiel[0].statut"));
