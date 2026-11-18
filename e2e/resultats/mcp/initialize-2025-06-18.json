@@ -1,0 +1,24 @@
+{
+  "statut": 200,
+  "typeContenu": "application/json",
+  "sessionId": "NDdlODk4ZGQtMTM1My00ZWExLThjMDktNTZjYTliOGUwZTll",
+  "message": {
+    "jsonrpc": "2.0",
+    "id": 1,
+    "result": {
+      "capabilities": {
+        "logging": {},
+        "tools": {
+          "listChanged": true
+        }
+      },
+      "serverInfo": {
+        "name": "argos",
+        "version": "0.1.0-SNAPSHOT",
+        "title": "argos"
+      },
+      "protocolVersion": "2025-06-18",
+      "resultType": "complete"
+    }
+  }
+}

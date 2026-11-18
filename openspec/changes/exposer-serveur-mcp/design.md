@@ -140,7 +140,7 @@ Non applicable — aucune donnée ni aucun contrat existants.
 
 ## Écarts code / tests / specs / documentation
 
-Aucun écart constaté.
+- `quarkus.mcp.server.supported-protocol-versions` n'existe pas dans l'extension 2.0.4 : le serveur annonce les versions 2026-07-28 à 2024-11-05 et ouvre une session sur un `initialize` en version 2025-06-18, contrairement à l'interprétation « 2026-07-28 seulement » de la fiche ; l'authentification par jeton reste exigée à chaque requête. Constaté par le parcours protocolaire `e2e/mcp/parcours-mcp.spec.ts` (2026-11-18).
 
 ## Stratégie de vérification
 
@@ -153,6 +153,8 @@ Aucun écart constaté.
 | MCP-05-S1 | intégration | texte piégé | `ContenuExterneMcpTest`, passe |
 | MCP-06-S1 | intégration | limite basse de test | `LimiteDebitMcpTest`, passe |
 | MCP-07-S1 | intégration | fiche non validée, fiches réelles de `suivre-veille-reglementaire` | `ReglementaireMcpTest`, passe |
+| MCP-02-S1, MCP-03-S1, MCP-04-S1, MCP-05 (tâche 5.2, partie protocole) | bout en bout, protocole | client MCP configuré par `e2e/donnees/mcp.json`, jeton par flux d'appareil, avis de test fictif, pile réelle | `e2e/mcp/parcours-mcp.spec.ts`, passe |
+| Tâche 5.2 avec Claude Code réel | bout en bout, manuel | procédure de la fiche `serveur-mcp` | non exécutée |
 
 ## Documentation durable impactée
 

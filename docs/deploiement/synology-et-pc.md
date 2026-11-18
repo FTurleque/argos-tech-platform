@@ -131,6 +131,8 @@ Argos expose un serveur MCP en lecture seule sur `POST /mcp` (fiche [`serveur-mc
    }
    ```
 
+   Claude Code développe `${ARGOS_MCP_TOKEN}` depuis l'environnement : le fichier ne contient aucun jeton et peut être versionné. Exemple pour la pile de test locale : [`e2e/donnees/mcp.json`](../../e2e/donnees/mcp.json) ; procédure de constat avec Claude Code : fiche [`serveur-mcp`](../specifications/serveur-mcp.md#procédure-manuelle-avec-claude-code).
+
 Limites : 60 appels par minute et par utilisateur (`argos.mcp.debit.requetes-par-minute`) ; texte externe tronqué à 2 000 caractères (`argos.mcp.contenu-externe.longueur-max`).
 
 ## État de vérification
