@@ -1,0 +1,50 @@
+{
+  "bomFormat": "CycloneDX",
+  "specVersion": "1.6",
+  "serialNumber": "urn:uuid:6a268769-2adb-542e-a98e-f1b2c6d1490c",
+  "version": 1,
+  "metadata": {
+    "timestamp": "2026-11-15T08:00:00Z",
+    "tools": {
+      "components": [
+        {
+          "type": "application",
+          "group": "@cyclonedx",
+          "name": "cyclonedx-npm",
+          "version": "1.19.3"
+        }
+      ]
+    },
+    "component": {
+      "type": "application",
+      "bom-ref": "widget-sans-version@0.1.0",
+      "name": "widget-sans-version",
+      "version": "0.1.0",
+      "purl": "pkg:npm/widget-sans-version@0.1.0"
+    }
+  },
+  "components": [
+    {
+      "type": "library",
+      "bom-ref": "widget-sans-version@0.1.0|lodash",
+      "name": "lodash",
+      "purl": "pkg:npm/lodash"
+    },
+    {
+      "type": "library",
+      "bom-ref": "widget-sans-version@0.1.0|semver@7.5.4",
+      "name": "semver",
+      "version": "7.5.4",
+      "purl": "pkg:npm/semver@7.5.4"
+    }
+  ],
+  "dependencies": [
+    {
+      "ref": "widget-sans-version@0.1.0",
+      "dependsOn": [
+        "widget-sans-version@0.1.0|lodash",
+        "widget-sans-version@0.1.0|semver@7.5.4"
+      ]
+    }
+  ]
+}

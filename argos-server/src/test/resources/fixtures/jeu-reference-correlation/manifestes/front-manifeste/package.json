@@ -1,0 +1,12 @@
+{
+  "name": "front-manifeste",
+  "version": "0.2.0",
+  "private": true,
+  "dependencies": {
+    "lodash": "4.17.20",
+    "json5": "^2.2.1",
+    "semver": "7.5.4",
+    "ua-parser-js": "0.7.29",
+    "@babel/traverse": "~7.22.5"
+  }
+}

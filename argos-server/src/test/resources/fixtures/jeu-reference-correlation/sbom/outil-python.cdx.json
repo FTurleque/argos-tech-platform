@@ -1,0 +1,50 @@
+{
+  "bomFormat": "CycloneDX",
+  "specVersion": "1.6",
+  "serialNumber": "urn:uuid:43e4421a-d0cf-5f82-aded-b286bfe57791",
+  "version": 1,
+  "metadata": {
+    "timestamp": "2026-11-15T08:00:00Z",
+    "tools": {
+      "components": [
+        {
+          "type": "application",
+          "group": "@cyclonedx",
+          "name": "cyclonedx-py",
+          "version": "4.6.1"
+        }
+      ]
+    },
+    "component": {
+      "type": "application",
+      "bom-ref": "outil-python",
+      "name": "outil-python",
+      "version": "1.2.0"
+    }
+  },
+  "components": [
+    {
+      "type": "library",
+      "bom-ref": "pkg:pypi/PyYAML@5.3.1",
+      "name": "PyYAML",
+      "version": "5.3.1",
+      "purl": "pkg:pypi/PyYAML@5.3.1"
+    },
+    {
+      "type": "library",
+      "bom-ref": "pkg:pypi/requests@2.31.0",
+      "name": "requests",
+      "version": "2.31.0",
+      "purl": "pkg:pypi/requests@2.31.0"
+    }
+  ],
+  "dependencies": [
+    {
+      "ref": "outil-python",
+      "dependsOn": [
+        "pkg:pypi/PyYAML@5.3.1",
+        "pkg:pypi/requests@2.31.0"
+      ]
+    }
+  ]
+}

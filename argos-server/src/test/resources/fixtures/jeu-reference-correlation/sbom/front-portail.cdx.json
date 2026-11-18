@@ -1,0 +1,139 @@
+{
+  "bomFormat": "CycloneDX",
+  "specVersion": "1.6",
+  "serialNumber": "urn:uuid:c2f6f5f7-8ebe-505b-a5f9-a25ef88bdda0",
+  "version": 1,
+  "metadata": {
+    "timestamp": "2026-11-15T08:00:00Z",
+    "tools": {
+      "components": [
+        {
+          "type": "application",
+          "group": "@cyclonedx",
+          "name": "cyclonedx-npm",
+          "version": "1.19.3"
+        }
+      ]
+    },
+    "component": {
+      "type": "application",
+      "bom-ref": "front-portail@2.1.0",
+      "name": "front-portail",
+      "version": "2.1.0",
+      "purl": "pkg:npm/front-portail@2.1.0"
+    }
+  },
+  "components": [
+    {
+      "type": "library",
+      "bom-ref": "front-portail@2.1.0|lodash@4.17.20",
+      "name": "lodash",
+      "version": "4.17.20",
+      "purl": "pkg:npm/lodash@4.17.20"
+    },
+    {
+      "type": "library",
+      "bom-ref": "front-portail@2.1.0|vue@3.4.21",
+      "name": "vue",
+      "version": "3.4.21",
+      "purl": "pkg:npm/vue@3.4.21"
+    },
+    {
+      "type": "library",
+      "bom-ref": "front-portail@2.1.0|request@2.88.2",
+      "name": "request",
+      "version": "2.88.2",
+      "purl": "pkg:npm/request@2.88.2"
+    },
+    {
+      "type": "library",
+      "bom-ref": "front-portail@2.1.0|lodash-es@4.17.15",
+      "name": "lodash-es",
+      "version": "4.17.15",
+      "purl": "pkg:npm/lodash-es@4.17.15"
+    },
+    {
+      "type": "library",
+      "bom-ref": "front-portail@2.1.0|lodash.template@4.5.0",
+      "name": "lodash.template",
+      "version": "4.5.0",
+      "purl": "pkg:npm/lodash.template@4.5.0"
+    },
+    {
+      "type": "library",
+      "bom-ref": "front-portail@2.1.0|@babel/traverse@7.22.5",
+      "group": "@babel",
+      "name": "traverse",
+      "version": "7.22.5",
+      "purl": "pkg:npm/%40babel/traverse@7.22.5"
+    },
+    {
+      "type": "library",
+      "bom-ref": "front-portail@2.1.0|semver@5.7.1",
+      "name": "semver",
+      "version": "5.7.1",
+      "purl": "pkg:npm/semver@5.7.1"
+    },
+    {
+      "type": "library",
+      "bom-ref": "front-portail@2.1.0|semver@7.5.1",
+      "name": "semver",
+      "version": "7.5.1",
+      "purl": "pkg:npm/semver@7.5.1"
+    },
+    {
+      "type": "library",
+      "bom-ref": "front-portail@2.1.0|json5@1.0.1",
+      "name": "json5",
+      "version": "1.0.1",
+      "purl": "pkg:npm/json5@1.0.1"
+    },
+    {
+      "type": "library",
+      "bom-ref": "front-portail@2.1.0|json5@2.2.3",
+      "name": "json5",
+      "version": "2.2.3",
+      "purl": "pkg:npm/json5@2.2.3"
+    },
+    {
+      "type": "library",
+      "bom-ref": "front-portail@2.1.0|ua-parser-js@0.7.28",
+      "name": "ua-parser-js",
+      "version": "0.7.28",
+      "purl": "pkg:npm/ua-parser-js@0.7.28"
+    }
+  ],
+  "dependencies": [
+    {
+      "ref": "front-portail@2.1.0",
+      "dependsOn": [
+        "front-portail@2.1.0|lodash@4.17.20",
+        "front-portail@2.1.0|vue@3.4.21",
+        "front-portail@2.1.0|request@2.88.2"
+      ]
+    },
+    {
+      "ref": "front-portail@2.1.0|vue@3.4.21",
+      "dependsOn": [
+        "front-portail@2.1.0|lodash-es@4.17.15",
+        "front-portail@2.1.0|lodash.template@4.5.0",
+        "front-portail@2.1.0|@babel/traverse@7.22.5",
+        "front-portail@2.1.0|ua-parser-js@0.7.28"
+      ]
+    },
+    {
+      "ref": "front-portail@2.1.0|@babel/traverse@7.22.5",
+      "dependsOn": [
+        "front-portail@2.1.0|semver@7.5.1",
+        "front-portail@2.1.0|json5@2.2.3"
+      ]
+    },
+    {
+      "ref": "front-portail@2.1.0|request@2.88.2",
+      "dependsOn": [
+        "front-portail@2.1.0|semver@5.7.1",
+        "front-portail@2.1.0|json5@1.0.1"
+      ]
+    }
+  ]
+}
