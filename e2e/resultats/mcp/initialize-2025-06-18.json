@@ -1,7 +1,7 @@
 {
   "statut": 200,
   "typeContenu": "application/json",
-  "sessionId": "NDdlODk4ZGQtMTM1My00ZWExLThjMDktNTZjYTliOGUwZTll",
+  "sessionId": "<session>",
   "message": {
     "jsonrpc": "2.0",
     "id": 1,

@@ -2,6 +2,8 @@ package io.argos.mcp;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.util.Map;
@@ -65,6 +67,23 @@ class LimiteDebitMcpTest {
         // La limite est propre à chaque utilisateur.
         Api.assurerCompte("oscar");
         assertEquals(Boolean.FALSE, Mcp.appeler("oscar", "get_security_alerts", Map.of()).path("result.isError"));
+    }
+
+    /** Les négociations {@code initialize} (sessions des versions antérieures) sont aussi limitées. */
+    @Test
+    void initialisationsLimitees() {
+        Api.assurerCompte("nina");
+        for (int i = 0; i < 3; i++) {
+            ExtractableResponse<Response> ok = Mcp.initialiser(Api.en("nina"), "2025-06-18");
+            assertEquals(200, ok.statusCode(), ok.asString());
+            assertNotNull(ok.path("result.protocolVersion"), ok.asString());
+        }
+        ExtractableResponse<Response> refus = Mcp.initialiser(Api.en("nina"), "2025-06-18");
+        assertNull(refus.path("result"), refus.asString());
+        assertTrue(refus.asString().contains("LIMITE_DEBIT"), refus.asString());
+        assertNull(refus.header("Mcp-Session-Id"), "aucune session ouverte au-delà de la limite");
+        assertEquals(1, db.count("SELECT count(*) FROM refus_acces WHERE motif = 'LIMITE_DEBIT'"
+                + " AND ressource = 'MCP initialize' AND sujet_oidc IS NOT NULL"));
     }
 
     /** Le rôle applicatif {@code argos_app} n'a aucun droit sur le journal des appels. */

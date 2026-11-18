@@ -297,11 +297,19 @@ export async function preparerMcp(): Promise<void> {
   sql('mcp.sql', { espace: espace.id, voisin: voisin.id })
 }
 
-/** Valeur unique renvoyée par une requête SQL dans la base de test (lecture du journal des appels). */
-export function valeurSql(requete: string): string {
-  return execFileSync(cheminDocker(), ['compose', '-f', COMPOSE, 'exec', '-T', 'postgres', 'psql', '-U', 'argos',
-    '-d', 'argos', '-v', 'ON_ERROR_STOP=1', '-qtA', '-c', requete], {
+/**
+ * Valeur unique renvoyée par une requête SQL dans la base de test (lecture du journal des appels). Les
+ * valeurs variables sont passées en variables psql (`-v nom=valeur`) et citées dans la requête par
+ * `:'nom'` : psql les échappe, rien n'est interpolé dans le texte SQL. La requête est lue sur l'entrée
+ * standard, seul mode où psql substitue ses variables.
+ */
+export function valeurSql(requete: string, variables: Record<string, string> = {}): string {
+  const args = ['compose', '-f', COMPOSE, 'exec', '-T', 'postgres', 'psql', '-U', 'argos', '-d', 'argos',
+    '-v', 'ON_ERROR_STOP=1', '-qtA']
+  for (const [nom, valeur] of Object.entries(variables)) args.push('-v', `${nom}=${valeur}`)
+  return execFileSync(cheminDocker(), args, {
+    input: requete,
     encoding: 'utf8',
-    stdio: ['ignore', 'pipe', 'inherit'],
+    stdio: ['pipe', 'pipe', 'inherit'],
   }).trim()
 }

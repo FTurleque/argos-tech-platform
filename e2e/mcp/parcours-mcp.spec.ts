@@ -77,7 +77,9 @@ async function serveurDe(page: Parameters<typeof jetonParFluxAppareil>[0], utili
   const serveur = lireConfiguration(FICHIER_MCP, 'argos', environnement(jeton))
   expect(serveur.type).toBe('http')
   expect(serveur.url).toBe(`${URL_API}/mcp`)
-  expect(serveur.headers.Authorization).toBe(`Bearer ${jeton}`)
+  // Comparaison booléenne : le jeton n'apparaît jamais dans un message d'échec ni dans le rapport.
+  expect(serveur.headers.Authorization === `Bearer ${jeton}`, 'en-tête Authorization développé depuis ARGOS_MCP_TOKEN')
+    .toBe(true)
   return serveur
 }
 
@@ -91,18 +93,31 @@ function resultat<T>(r: ReponseMcp): T {
 
 /** Garde la réponse dans le dossier de sortie du test (test-results/), pièce du compte rendu d'exécution. */
 function consigner(nom: string, r: ReponseMcp): void {
-  writeFileSync(test.info().outputPath(`${nom}.json`), `${JSON.stringify({ statut: r.statut, typeContenu: r.typeContenu,
-    sessionId: r.sessionId, message: r.message }, null, 2)}\n`)
+  writeFileSync(test.info().outputPath(`${nom}.json`), `${normaliser(JSON.stringify({ statut: r.statut,
+    typeContenu: r.typeContenu, sessionId: r.sessionId, message: r.message }, null, 2))}\n`)
+}
+
+/**
+ * Masque les valeurs propres à une exécution (identifiant de session, identifiant d'espace, y compris
+ * dans le texte JSON du bloc content) : les réponses consignées restent comparables d'une exécution à
+ * l'autre.
+ */
+function normaliser(json: string): string {
+  return json
+    .replace(/("sessionId": )"[^"]+"/, '$1"<session>"')
+    .replace(/(\\?"espaceId\\?":\s*\\?")[0-9a-f-]{36}/g, '$1<espace>')
 }
 
 /** Dernier identifiant du journal des appels MCP (repère pour ne compter que les appels du parcours). */
 function dernierAppel(): number {
-  return Number(valeurSql('SELECT coalesce(max(id), 0) FROM mcp_appel'))
+  return Number(valeurSql('SELECT coalesce(max(id), 0) FROM mcp_appel;'))
 }
 
+/** Valeurs passées en variables psql et citées par psql (:'nom') : aucune interpolation dans le SQL. */
 function appelsJournalises(compte: string, depuis: number, outil: string, issue: string): number {
-  return Number(valeurSql(`SELECT count(*) FROM mcp_appel WHERE id > ${depuis} AND compte_id = '${compte}'
-    AND outil = '${outil}' AND issue = '${issue}'`))
+  return Number(valeurSql(`SELECT count(*) FROM mcp_appel WHERE id > (:'depuis')::bigint
+    AND compte_id = (:'compte')::uuid AND outil = :'outil' AND issue = :'issue';`,
+  { depuis: String(depuis), compte, outil, issue }))
 }
 
 test.describe.serial('5.2 (partie protocole) : assistant configuré par .mcp.json, check_dependency cité et sourcé', () => {

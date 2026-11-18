@@ -17,7 +17,7 @@
 | Acteur | Interaction | Statut |
 |---|---|---|
 | Développeur | interroge Argos depuis son assistant IA, après avoir obtenu un jeton par le flux d'appareil | [EXISTANT] — `AuthentificationMcpTest` |
-| Assistant IA (client MCP) | appelle les outils pour le compte de l'utilisateur, en protocole MCP sans état | [EXISTANT] — `ContratOutilsMcpTest` |
+| Assistant IA (client MCP) | appelle les outils pour le compte de l'utilisateur, en protocole MCP sans état 2026-07-28 ou, s'il ne connaît qu'une version antérieure, après une négociation `initialize` qui ouvre une session | [EXISTANT] — `ContratOutilsMcpTest` |
 
 ## Périmètre et exclusions
 
@@ -42,7 +42,7 @@ L'utilisateur a un compte Argos et un jeton d'accès Keycloak délivré au clien
 |---|---|---|---|
 | Requête MCP | `POST /mcp`, JSON-RPC, en-têtes `MCP-Protocol-Version: 2026-07-28`, `Mcp-Method`, `Mcp-Name` et champs `_meta` du protocole sans état | jeton OIDC valide (signature, émetteur, audience `argos-server`, expiration), sinon 401, y compris pour une requête qui présente un `Mcp-Session-Id` ; versions annoncées par `server/discover` : 2026-07-28, 2025-11-25, 2025-06-18, 2025-03-26, 2024-11-05 (voir Écarts constatés) | [EXISTANT] — `AuthentificationMcpTest`, `ContratOutilsMcpTest`, `e2e/mcp/parcours-mcp.spec.ts` |
 | Appel d'outil | nom de l'outil, paramètres | schéma d'entrée publié par l'outil ; paramètres invalides : erreur `PARAMETRES_INVALIDES` sans appel métier | [EXISTANT] — `OutilsConsultationMcpTest` |
-| Réponse | `structuredContent` conforme au schéma de sortie de l'outil : faits, sources, champs `TexteExterne` ; le même objet sérialisé dans un bloc `content` de type `text`, pour les clients qui ne lisent que ce champ (`quarkus.mcp.server.tools.structured-content.compatibility-mode`) | périmètre de l'utilisateur (MCP-04) | [EXISTANT] — `ContratOutilsMcpTest`, `CloisonnementMcpTest`, `OutilsConsultationMcpTest`, `e2e/mcp/parcours-mcp.spec.ts` |
+| Réponse | `structuredContent` conforme au schéma de sortie de l'outil : faits, sources, champs `TexteExterne` ; le même objet sérialisé dans un bloc `content` de type `text`, pour les clients qui ne lisent que ce champ (`quarkus.mcp.server.tools.structured-content.compatibility-mode`) | périmètre de l'utilisateur (MCP-04) | [EXISTANT] — `ContratOutilsMcpTest`, `CloisonnementMcpTest`, `OutilsConsultationMcpTest`, `e2e/mcp/parcours-mcp.spec.ts` ; [PROPOSITION] pour le bloc `content` (voir Interprétations) |
 | Erreur d'outil | résultat `isError` dont le texte commence par un code stable : `NON_AUTORISE`, `INTROUVABLE`, `PARAMETRES_INVALIDES`, `LIMITE_DEBIT`, `INDISPONIBLE` | aucune donnée partielle | [PROPOSITION] — codes définis par ce changement |
 | Outil inconnu | erreur JSON-RPC `-32602` | aucune donnée modifiée, aucun appel journalisé | [EXISTANT] — `ContratOutilsMcpTest` |
 
@@ -56,6 +56,7 @@ L'utilisateur a un compte Argos et un jeton d'accès Keycloak délivré au clien
 | Ressource d'un autre espace : `INTROUVABLE`, rien sur la ressource, refus journalisé ; requêtes sous RLS du rôle `argos_app` | MCP-04 | ACC-04 ; ADR-0016 | [EXISTANT] — `CloisonnementMcpTest` |
 | Texte d'une source externe renvoyé dans un champ `TexteExterne` (nature `CONTENU_EXTERNE_NON_FIABLE`, source, texte, troncature, longueur d'origine), tronqué à 2 000 caractères | MCP-05 | risque R-11 ; Q-2 | [EXISTANT] — `ContenuExterneMcpTest` |
 | 60 appels par minute et par utilisateur sur fenêtre glissante ; refus `LIMITE_DEBIT` journalisé ; chaque appel journalisé (compte, outil, paramètres, durée, issue) | MCP-06 | ADR-0014 (Proposé) ; Q-1 | [EXISTANT] — `LimiteDebitMcpTest` |
+| Négociations `initialize` limitées à la même valeur, comptées à part par sujet du jeton ; refus `LIMITE_DEBIT` inscrit au journal des refus (ressource `MCP initialize`), aucune session ouverte ; session inactive fermée après 30 minutes (`quarkus.mcp.server.connection-idle-timeout`) | MCP-06 | ADR-0014 (Proposé) ; Q-1 | [EXISTANT] — `ControleInitialisation`, `LimiteDebitMcpTest.initialisationsLimitees` ; [PROPOSITION] (voir Interprétations) |
 | `get_regulatory_changes` ne renvoie que les fiches validées par un expert, chacune avec sa mention de validation (`mentionValidation`), et rappelle les garde-fous du profil `expert-metier` | MCP-07 | PRF-06 ; ADR-0018 (Proposé) | [EXISTANT] — `ReglementaireMcpTest`, `VeilleProfilsTest` |
 
 ## Droits d'accès et restrictions
@@ -143,7 +144,9 @@ Le jeton d'accès du royaume de test expire vite : en redemander un si `/mcp` si
 - [PROPOSITION] Champs externes balisés : titre et résumé des signaux, notes du calendrier des sorties, titre officiel des textes réglementaires. Les identifiants (identifiant d'avis, alias, PURL, sévérité déclarée) ne sont pas balisés mais restent dans leurs champs propres : aucun texte d'une source n'entre dans un champ rédigé par Argos, comme l'explication d'`explain_change`. Le test MCP-05 couvre `search_signals` ; les identifiants libres d'une future source (veille web) devront être réexaminés.
 - [PROPOSITION] Chaque référence d'une faille renvoyée par `check_dependency` porte un `lien` construit par Argos à partir de la source et de l'identifiant encodé : `https://osv.dev/vulnerability/<identifiant>` pour OSV, `https://nvd.nist.gov/vuln/detail/<identifiant>` pour la NVD, absent pour les autres sources (KEV, EPSS, CERT-FR). Aucun lien n'est repris d'un texte de la source.
 - [PROPOSITION] `explain_change` explique l'évolution d'un signal : versions successives de l'avis, dates, impacts dans le périmètre de l'utilisateur ; explication produite par Argos, sans IA et sans texte de la source.
-- [PROPOSITION] Seule la version de protocole 2026-07-28 (sans état) est admise : un client limité aux versions avec session est refusé. Non réalisé : voir Écarts constatés.
+- [PROPOSITION] Seule la version de protocole 2026-07-28 (sans état) est admise : un client limité aux versions avec session est refusé. Non réalisé, en attente de décision : voir Écarts constatés.
+- [PROPOSITION] Le résultat structuré est aussi renvoyé, sérialisé, dans un bloc `content` de type `text` (`quarkus.mcp.server.tools.structured-content.compatibility-mode=true`) : la spécification MCP 2025-06-18 le recommande pour les clients qui ne lisent que `content`.
+- [PROPOSITION] Tant que les versions avec session sont acceptées, les négociations `initialize` sont limitées comme les appels d'outils (60 par minute), comptées par sujet du jeton car aucun compte Argos n'est exigé pour négocier, et une session inactive est fermée après 30 minutes (valeur par défaut de l'extension, inscrite dans la configuration).
 - [PROPOSITION] Le compteur de débit est tenu en mémoire de l'instance unique (ADR-0017, ADR-0026).
 - [PROPOSITION] Le module `mcp` dépend de `api.security` (établissement de l'appelant) et de lui seul dans `api` (`ModuleBoundariesTest.mcpNeLitQueLaSecuriteDeLApi`).
 
@@ -151,7 +154,7 @@ Le jeton d'accès du royaume de test expire vite : en redemander un si `/mcp` si
 
 - La liste complète des huit outils figure dans le dossier de proposition v2.4 (§8.7, hors dépôt) ; baseline v2.3 n'en cite que deux.
 - La durée de conservation du journal `mcp_appel` n'est fixée par aucune source.
-- `quarkus.mcp.server.supported-protocol-versions` n'est pas une clé de configuration de l'extension 2.0.4 : elle est sans effet. Le serveur annonce par `server/discover` les versions 2026-07-28 à 2024-11-05 et répond à un `initialize` en version 2025-06-18 en ouvrant une session (`Mcp-Session-Id`) ; chaque requête reste authentifiée par son jeton porteur (401 sans jeton, session présentée ou non). `ContratOutilsMcpTest.transportSansEtat` n'obtient une erreur que parce que ses en-têtes annoncent 2026-07-28 pour une demande en 2025-06-18. Constaté par `e2e/mcp/parcours-mcp.spec.ts` (2026-11-18).
+- L'extension 2.0.4 n'offre aucune clé de configuration pour restreindre les versions de protocole. Le serveur annonce par `server/discover` les versions 2026-07-28 à 2024-11-05 et répond à un `initialize` en version 2025-06-18 en ouvrant une session (`Mcp-Session-Id`) ; chaque requête reste authentifiée par son jeton porteur (401 sans jeton, session présentée ou non). Vérifié par `ContratOutilsMcpTest.initializeAncienneVersionOuvreUneSessionSansRemplacerLeJeton` et `e2e/mcp/parcours-mcp.spec.ts`. Le transport n'est donc sans état que pour les clients en version 2026-07-28 ; restreindre les versions risquerait d'empêcher la connexion d'un assistant limité aux versions avec session, ce qui reste à décider.
 
 ## Questions ouvertes
 

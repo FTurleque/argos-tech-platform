@@ -140,7 +140,7 @@ Non applicable — aucune donnée ni aucun contrat existants.
 
 ## Écarts code / tests / specs / documentation
 
-- `quarkus.mcp.server.supported-protocol-versions` n'existe pas dans l'extension 2.0.4 : le serveur annonce les versions 2026-07-28 à 2024-11-05 et ouvre une session sur un `initialize` en version 2025-06-18, contrairement à l'interprétation « 2026-07-28 seulement » de la fiche ; l'authentification par jeton reste exigée à chaque requête. Constaté par le parcours protocolaire `e2e/mcp/parcours-mcp.spec.ts` (2026-11-18).
+- L'extension 2.0.4 n'offre aucune clé de configuration pour restreindre les versions de protocole : le serveur annonce les versions 2026-07-28 à 2024-11-05 et ouvre une session sur un `initialize` en version 2025-06-18, contrairement à l'interprétation « 2026-07-28 seulement » de la fiche ; l'authentification par jeton reste exigée à chaque requête. Ces négociations sont limitées par `ControleInitialisation` (60 par minute et par sujet du jeton) et une session inactive est fermée après 30 minutes. Vérifié par `ContratOutilsMcpTest.initializeAncienneVersionOuvreUneSessionSansRemplacerLeJeton`, `LimiteDebitMcpTest.initialisationsLimitees` et le parcours protocolaire `e2e/mcp/parcours-mcp.spec.ts`. La tâche 2.1, qui annonce le transport sans état, attend la décision sur les versions antérieures.
 
 ## Stratégie de vérification
 
