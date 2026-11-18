@@ -76,6 +76,7 @@ ADR acceptés structurants à ce stade :
 - [ADR](adr/README.md)
 - [Scénarios qualité](quality/scenarios.md)
 - [Audit d’accessibilité des mises en page](quality/audit-accessibilite-mises-en-page.md)
+- [Mesure de la corrélation sur le jeu de référence annoté](quality/mesure-correlation-jeu-reference.md)
 - [Registre des risques](risks/register.md)
 - [Inventaire des diagrammes](diagrams/README.md)
 - [Spécifications fonctionnelles et couverture des exigences](../specifications/README.md)
