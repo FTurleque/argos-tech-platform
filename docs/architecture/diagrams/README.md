@@ -41,17 +41,17 @@ Chaque relation doit porter une action et le protocole lorsqu’il est architect
 | D-18 | UML sequenceDiagram | tâche quotidienne du radar : calendrier endoflife.date, dette de version, rappels | `arc42/08-concepts-transverses.md` §8.15 |
 | D-19 | UML sequenceDiagram | texte officiel JORF → qualification, fiche, validation par l'expert, rappel ; source indisponible | `arc42/06-vue-execution.md` §6.6 |
 
-D-06 à D-09 emploient des noms de participants différents des composants de la section 5 ; la correspondance figure en tête de `arc42/06-vue-execution.md`.
+Les diagrammes de séquence de `arc42/06-vue-execution.md` (D-06 à D-09, D-16, D-17, D-19) nomment leurs participants comme les composants de la section 5.
 
 Le collecteur RSS/Atom et web intégré (ADR-0028) n'ajoute aucun diagramme d'architecture : DF-WEB-1 ([`veille-rss-web`](../../specifications/veille-rss-web.md#df-web-1--acceptation-dune-adresse)) et DC-1 du changement `collecter-veille-rss-web` décrivent l'acceptation d'une adresse et la collecte.
 
 La recherche plein texte et les vues enregistrées (changement `rechercher-et-filtrer`) n'ajoutent aucun diagramme d'architecture : DF-RCH-1 ([`recherche-veille`](../../specifications/recherche-veille.md#df-rch-1--une-recherche-filtrée)) décrit l'ordre des droits, des mots et des filtres.
 
-La passerelle IA (changement `encadrer-appels-ia`, ADR-0029 proposé) n'ajoute aucun diagramme d'architecture : DC-1 du changement décrit les vérifications qui précèdent et suivent un appel, DF-IAG-1 ([`passerelle-ia`](../../specifications/passerelle-ia.md#df-iag-1--un-résumé-est-il-produit-)) les cas où un élément reçoit un résumé ; les flèches `alerting`, `signal` et `impact-engine` vers `ai-gateway` figurent en arc42 §5.2.
+La passerelle IA (changement `encadrer-appels-ia`, ADR-0029 accepté) n'ajoute aucun diagramme d'architecture : DC-1 du changement décrit les vérifications qui précèdent et suivent un appel, DF-IAG-1 ([`passerelle-ia`](../../specifications/passerelle-ia.md#df-iag-1--un-résumé-est-il-produit-)) les cas où un élément reçoit un résumé ; les flèches `alerting`, `signal` et `impact-engine` vers `ai-gateway` figurent en arc42 §5.2.
 
 Le profil de veille `artiste` (changement `ajouter-profil-artiste`) n'ajoute aucun diagramme d'architecture : ses composants sont décrits par le tableau de `arc42/05-vue-blocs.md` §5.4.2, DF-ART-1 ([`profil-artiste`](../../specifications/profil-artiste.md#df-art-1--un-appel-est-il-proposé-à-lartiste-)) et DC-1 du changement décrivent le rapprochement d'un appel.
 
-La veille réglementaire (changement `suivre-veille-reglementaire`, ADR-0030 proposé) ajoute D-19 ; ses composants sont décrits par le tableau de `arc42/05-vue-blocs.md` §5.4.3, DF-REG-1 ([`veille-reglementaire`](../../specifications/veille-reglementaire.md#df-reg-1--parcours-dun-texte-officiel)), DC-1 et DC-2 du changement décrivent le parcours d'un texte et le cycle de vie de son suivi.
+La veille réglementaire (changement `suivre-veille-reglementaire`, ADR-0030 accepté) ajoute D-19 ; ses composants sont décrits par le tableau de `arc42/05-vue-blocs.md` §5.4.3, DF-REG-1 ([`veille-reglementaire`](../../specifications/veille-reglementaire.md#df-reg-1--parcours-dun-texte-officiel)), DC-1 et DC-2 du changement décrivent le parcours d'un texte et le cycle de vie de son suivi.
 
 Les diagrammes métier par capacité (`DF-*`) sont inventoriés dans [`../../specifications/README.md`](../../specifications/README.md#inventaire-des-diagrammes-métier) ; les diagrammes de conception propres à un changement OpenSpec (`DC-*`) restent dans son `design.md`.
 

@@ -118,9 +118,11 @@ Interprétations du changement `notifier-sur-le-poste`, à faire valider [PROPOS
 - démarrage avec la session proposé sous Windows et macOS seulement (API d'Electron), désactivé sous Linux ;
 - un refus d'authentification (401, 403) est présenté comme « connexion requise », distinct d'une coupure.
 
+[DÉCISION — porteur du projet, 2026-11-18] La coupure réseau dans la session du desktop, serveur en marche, prouve NOT-06-S1 (tâche 1.1) : le scénario porte sur un serveur injoignable depuis le client.
+
 ## Écarts constatés
 
-- Le parcours E2E (tâche 3.2) observe les objets `Notification` et `Tray` réels du processus principal, mais pas l'affichage de la bulle par Windows : le clic sur la bulle est simulé par l'événement `click` de la notification créée ; le refus des notifications dans les réglages de Windows est simulé par l'événement `failed` que Windows fait émettre (sous Windows, `Notification.isSupported` ne reflète pas ce refus) ; la coupure du serveur est simulée dans la session du desktop, le serveur restant en marche. Procédures manuelles : [`tasks.md`](/openspec/changes/notifier-sur-le-poste/tasks.md#preuves-e2e-du-client-desktop).
+- Le parcours E2E (tâche 3.2) observe les objets `Notification` et `Tray` réels du processus principal, mais pas l'affichage de la bulle par Windows : le clic sur la bulle est simulé par l'événement `click` de la notification créée ; le refus des notifications dans les réglages de Windows est simulé par l'événement `failed` que Windows fait émettre (sous Windows, `Notification.isSupported` ne reflète pas ce refus) ; la coupure du serveur est simulée dans la session du desktop, le serveur restant en marche (preuve acceptée par la [DÉCISION] du 2026-11-18). Procédures manuelles : [`tasks.md`](/openspec/changes/notifier-sur-le-poste/tasks.md#preuves-e2e-du-client-desktop).
 - La page d'un signal visée par le lien des e-mails (`/signaux/<id>`) reste à créer ; la vue `#/alertes/{id}` du client desktop affiche l'alerte, ses projets et ses sources.
 
 ## Questions ouvertes
