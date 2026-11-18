@@ -29,8 +29,8 @@ export interface ServeurMcp {
 /** Remplace ${VAR} et ${VAR:-défaut}, comme Claude Code ; une variable absente sans défaut est une erreur. */
 export function developper(valeur: string, env: Record<string, string | undefined>): string {
   return valeur.replace(/\$\{([A-Za-z_]\w*)(?::-([^}]*))?\}/g, (_tout, nom: string, defaut: string | undefined) => {
-    const v = env[nom]
-    if (v !== undefined && v !== '') return v
+    const valeurEnv = env[nom]
+    if (valeurEnv !== undefined && valeurEnv !== '') return valeurEnv
     if (defaut !== undefined) return defaut
     throw new Error(`variable ${nom} absente de l'environnement`)
   })
@@ -114,15 +114,17 @@ export async function jetonParFluxAppareil(page: Page, utilisateur: string): Pro
 
   const limite = Date.now() + 60_000
   while (Date.now() < limite) {
-    await new Promise((r) => setTimeout(r, intervalle * 1000))
-    const r = await formulaire(`${EMETTEUR}/protocol/openid-connect/token`, {
+    await new Promise((resoudre) => setTimeout(resoudre, intervalle * 1000))
+    const reponse = await formulaire(`${EMETTEUR}/protocol/openid-connect/token`, {
       client_id: CLIENT_MCP,
       device_code: codeAppareil,
       grant_type: 'urn:ietf:params:oauth:grant-type:device_code',
     })
-    if (r.statut === 200) return r.corps.access_token as string
-    if (r.corps.error === 'slow_down') intervalle += 5
-    else if (r.corps.error !== 'authorization_pending') throw new Error(`flux d'appareil : ${JSON.stringify(r.corps)}`)
+    if (reponse.statut === 200) return reponse.corps.access_token as string
+    if (reponse.corps.error === 'slow_down') intervalle += 5
+    else if (reponse.corps.error !== 'authorization_pending') {
+      throw new Error(`flux d'appareil : ${JSON.stringify(reponse.corps)}`)
+    }
   }
   throw new Error(`flux d'appareil : code non approuvé pour ${utilisateur}`)
 }
@@ -145,8 +147,8 @@ export interface ReponseMcp {
 /** Dernier message JSON-RPC d'un flux text/event-stream (champs data: de chaque événement). */
 function depuisFlux(texte: string): ReponseMcp['message'] {
   const evenements = texte.split(/\r?\n\r?\n/).map((bloc) =>
-    bloc.split(/\r?\n/).filter((l) => l.startsWith('data:')).map((l) => l.slice(5).trimStart()).join('\n'),
-  ).filter((d) => d !== '')
+    bloc.split(/\r?\n/).filter((ligne) => ligne.startsWith('data:')).map((ligne) => ligne.slice(5).trimStart()).join('\n'),
+  ).filter((donnees) => donnees !== '')
   if (evenements.length === 0) throw new Error(`flux MCP sans message : ${texte.slice(0, 200)}`)
   return JSON.parse(evenements[evenements.length - 1])
 }

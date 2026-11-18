@@ -174,89 +174,91 @@ test('NOT-04-S1 (partie poste) : notifications du poste coupées, alerte compté
   await journalSansHoteExterne()
 })
 
-test('NOT-01-S2 (partie application) : notifications refusées par le système, alertes comptées et visibles', async ({ page: navigateur }) => {
-  const { fenetre } = actif()
-  await connecter(navigateur)
-  await masquerFenetre(actif())
+test('NOT-01-S2 (partie application) : notifications refusées par le système, alertes comptées et visibles',
+  async ({ page: navigateur }) => {
+    const { fenetre } = actif()
+    await connecter(navigateur)
+    await masquerFenetre(actif())
 
-  // Système sans notification disponible : Notification.isSupported renvoie faux (simulé).
-  await actif().refuserNotificationsSysteme('non-supportees')
-  const a1 = emettreAlertePoste(compte, '01')
-  await expect.poll(derniereInfobulle, { timeout: CYCLE }).toBe('ARGOS — 1 alerte ouverte')
-  await expect.poll(() => etatAlerte(a1.id)).toBe('ENVOYEE')
-  expect(await actif().notifications()).toEqual([])
-  expect(await actif().notificationsRefusees()).toEqual([])
+    // Système sans notification disponible : Notification.isSupported renvoie faux (simulé).
+    await actif().refuserNotificationsSysteme('non-supportees')
+    const a1 = emettreAlertePoste(compte, '01')
+    await expect.poll(derniereInfobulle, { timeout: CYCLE }).toBe('ARGOS — 1 alerte ouverte')
+    await expect.poll(() => etatAlerte(a1.id)).toBe('ENVOYEE')
+    expect(await actif().notifications()).toEqual([])
+    expect(await actif().notificationsRefusees()).toEqual([])
 
-  // Réglages de Windows : la notification est demandée, le système la refuse (événement `failed` simulé).
-  await actif().refuserNotificationsSysteme('reglages-windows')
-  const a3 = emettreAlertePoste(compte, '03')
-  await expect.poll(derniereInfobulle, { timeout: CYCLE }).toBe('ARGOS — 2 alertes ouvertes')
-  await expect.poll(() => etatAlerte(a3.id)).toBe('ENVOYEE')
-  expect(await actif().notifications()).toEqual([])
-  expect(await actif().notificationsRefusees())
-    .toEqual([{ titre: TITRE_NOTIFICATION, corps: 'Gravité critique · 3 projets' }])
-  expect((await actif().etatFenetre()).visible).toBe(false)
+    // Réglages de Windows : la notification est demandée, le système la refuse (événement `failed` simulé).
+    await actif().refuserNotificationsSysteme('reglages-windows')
+    const a3 = emettreAlertePoste(compte, '03')
+    await expect.poll(derniereInfobulle, { timeout: CYCLE }).toBe('ARGOS — 2 alertes ouvertes')
+    await expect.poll(() => etatAlerte(a3.id)).toBe('ENVOYEE')
+    expect(await actif().notifications()).toEqual([])
+    expect(await actif().notificationsRefusees())
+      .toEqual([{ titre: TITRE_NOTIFICATION, corps: 'Gravité critique · 3 projets' }])
+    expect((await actif().etatFenetre()).visible).toBe(false)
 
-  // Les deux alertes sont visibles dans l'application.
-  await actif().cliquerZoneNotification()
-  await expect.poll(async () => (await actif().etatFenetre()).visible).toBe(true)
-  await fenetre.getByRole('link', { name: 'Alertes (2)' }).click()
-  await expect(fenetre.getByRole('heading', { name: 'Alertes du poste' })).toBeVisible()
-  for (const a of [a1, a3]) await expect(fenetre.getByRole('link', { name: a.titre })).toBeVisible()
-  await fenetre.screenshot({ path: 'resultats/desktop-notifications-refusees.jpg', type: 'jpeg', quality: 60 })
-  expect(await actif().notifications()).toEqual([])
+    // Les deux alertes sont visibles dans l'application.
+    await actif().cliquerZoneNotification()
+    await expect.poll(async () => (await actif().etatFenetre()).visible).toBe(true)
+    await fenetre.getByRole('link', { name: 'Alertes (2)' }).click()
+    await expect(fenetre.getByRole('heading', { name: 'Alertes du poste' })).toBeVisible()
+    for (const a of [a1, a3]) await expect(fenetre.getByRole('link', { name: a.titre })).toBeVisible()
+    await fenetre.screenshot({ path: 'resultats/desktop-notifications-refusees.jpg', type: 'jpeg', quality: 60 })
+    expect(await actif().notifications()).toEqual([])
 
-  await journalSansHoteExterne()
-})
+    await journalSansHoteExterne()
+  })
 
-test('NOT-06-S1 : coupure du serveur, deux alertes émises pendant la coupure, reprise sans perte ni doublon', async ({ page: navigateur }) => {
-  const { fenetre } = actif()
-  await connecter(navigateur)
-  const hoteApi = new URL(URL_API).host
+test('NOT-06-S1 : coupure du serveur, deux alertes émises pendant la coupure, reprise sans perte ni doublon',
+  async ({ page: navigateur }) => {
+    const { fenetre } = actif()
+    await connecter(navigateur)
+    const hoteApi = new URL(URL_API).host
 
-  // Coupure : le serveur est injoignable depuis le desktop ; la lecture suivante échoue.
-  await actif().couper(hoteApi)
-  await expect(fenetre.getByText('Hors ligne : serveur ARGOS injoignable.', { exact: false })).toBeVisible({ timeout: CYCLE })
-  await fenetre.screenshot({ path: 'resultats/desktop-reprise-hors-ligne.jpg', type: 'jpeg', quality: 60 })
+    // Coupure : le serveur est injoignable depuis le desktop ; la lecture suivante échoue.
+    await actif().couper(hoteApi)
+    await expect(fenetre.getByText('Hors ligne : serveur ARGOS injoignable.', { exact: false })).toBeVisible({ timeout: CYCLE })
+    await fenetre.screenshot({ path: 'resultats/desktop-reprise-hors-ligne.jpg', type: 'jpeg', quality: 60 })
 
-  // Deux alertes immédiates émises pendant la coupure. Le desktop tente à nouveau de les lire et
-  // cette tentative est coupée : l'état est relu après elle, les alertes restent en attente côté serveur.
-  const a5 = emettreAlertePoste(compte, '05')
-  const a6 = emettreAlertePoste(compte, '06')
-  const tentativesAvant = await lecturesCoupees()
-  await expect.poll(lecturesCoupees, { timeout: CYCLE }).toBeGreaterThan(tentativesAvant)
-  expect(await etatAlerte(a5.id)).toBe('EN_ATTENTE')
-  expect(await etatAlerte(a6.id)).toBe('EN_ATTENTE')
-  expect(await actif().notifications()).toEqual([])
+    // Deux alertes immédiates émises pendant la coupure. Le desktop tente à nouveau de les lire et
+    // cette tentative est coupée : l'état est relu après elle, les alertes restent en attente côté serveur.
+    const a5 = emettreAlertePoste(compte, '05')
+    const a6 = emettreAlertePoste(compte, '06')
+    const tentativesAvant = await lecturesCoupees()
+    await expect.poll(lecturesCoupees, { timeout: CYCLE }).toBeGreaterThan(tentativesAvant)
+    expect(await etatAlerte(a5.id)).toBe('EN_ATTENTE')
+    expect(await etatAlerte(a6.id)).toBe('EN_ATTENTE')
+    expect(await actif().notifications()).toEqual([])
 
-  // Retour de la connexion : le desktop reprend à sa tentative suivante (l'attente croissante entre
-  // deux tentatives est vérifiée sur horloge simulée par argos-ui/tests/reprise-poste.test.mjs).
-  await actif().retablir()
-  await expect(fenetre.getByText(/Connexion rétablie : 2 alertes émises pendant la coupure\./)).toBeVisible({ timeout: CYCLE })
-  await expect(fenetre.getByText('Hors ligne', { exact: false })).toHaveCount(0)
-  await fenetre.screenshot({ path: 'resultats/desktop-reprise-retablie.jpg', type: 'jpeg', quality: 60 })
+    // Retour de la connexion : le desktop reprend à sa tentative suivante (l'attente croissante entre
+    // deux tentatives est vérifiée sur horloge simulée par argos-ui/tests/reprise-poste.test.mjs).
+    await actif().retablir()
+    await expect(fenetre.getByText(/Connexion rétablie : 2 alertes émises pendant la coupure\./)).toBeVisible({ timeout: CYCLE })
+    await expect(fenetre.getByText('Hors ligne', { exact: false })).toHaveCount(0)
+    await fenetre.screenshot({ path: 'resultats/desktop-reprise-retablie.jpg', type: 'jpeg', quality: 60 })
 
-  // Exactement deux notifications, une par alerte, et les deux alertes ENVOYEE côté serveur.
-  const notifications = await actif().notifications()
-  expect(notifications).toEqual([
-    { titre: TITRE_NOTIFICATION, corps: 'Gravité critique · 1 projet' },
-    { titre: TITRE_NOTIFICATION, corps: 'Gravité critique · 1 projet' },
-  ])
-  for (const n of notifications) sansDetail(n, [a5, a6])
-  await expect.poll(() => etatAlerte(a5.id)).toBe('ENVOYEE')
-  await expect.poll(() => etatAlerte(a6.id)).toBe('ENVOYEE')
-  await expect.poll(derniereInfobulle).toBe('ARGOS — 2 alertes ouvertes')
+    // Exactement deux notifications, une par alerte, et les deux alertes ENVOYEE côté serveur.
+    const notifications = await actif().notifications()
+    expect(notifications).toEqual([
+      { titre: TITRE_NOTIFICATION, corps: 'Gravité critique · 1 projet' },
+      { titre: TITRE_NOTIFICATION, corps: 'Gravité critique · 1 projet' },
+    ])
+    for (const n of notifications) sansDetail(n, [a5, a6])
+    await expect.poll(() => etatAlerte(a5.id)).toBe('ENVOYEE')
+    await expect.poll(() => etatAlerte(a6.id)).toBe('ENVOYEE')
+    await expect.poll(derniereInfobulle).toBe('ARGOS — 2 alertes ouvertes')
 
-  // Aucun doublon à la lecture suivante.
-  const lectures = await lecturesReussies()
-  await expect.poll(lecturesReussies, { timeout: CYCLE }).toBeGreaterThan(lectures)
-  expect(await actif().notifications()).toHaveLength(2)
-  expect(await derniereInfobulle()).toBe('ARGOS — 2 alertes ouvertes')
+    // Aucun doublon à la lecture suivante.
+    const lectures = await lecturesReussies()
+    await expect.poll(lecturesReussies, { timeout: CYCLE }).toBeGreaterThan(lectures)
+    expect(await actif().notifications()).toHaveLength(2)
+    expect(await derniereInfobulle()).toBe('ARGOS — 2 alertes ouvertes')
 
-  // La coupure a bien porté sur les requêtes du desktop vers l'API, et sur elles seules.
-  const journal = await actif().journal()
-  const coupees = journal.filter((r) => r.coupee)
-  expect(coupees.length).toBeGreaterThan(0)
-  for (const r of coupees) expect(r.hote).toBe(hoteApi)
-  await journalSansHoteExterne()
-})
+    // La coupure a bien porté sur les requêtes du desktop vers l'API, et sur elles seules.
+    const journal = await actif().journal()
+    const coupees = journal.filter((r) => r.coupee)
+    expect(coupees.length).toBeGreaterThan(0)
+    for (const r of coupees) expect(r.hote).toBe(hoteApi)
+    await journalSansHoteExterne()
+  })
