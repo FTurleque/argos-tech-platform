@@ -144,7 +144,7 @@ L'IHM ne décide d'aucun droit : elle présente la décision du serveur. L'état
 
 Scénarios ACC-01-S1 à ACC-06-S1 du changement, couverts par les tests de `argos-server/src/test/java/io/argos/api/comptes/`.
 
-[PROPOSITION — `connecter-ihm-oidc`] Scénarios ACC-07-S1 à ACC-10-S4 : tests `node:test` d'`argos-ui/tests/` et d'`argos-desktop/test/`, parcours réel du client `argos-ui` contre le Keycloak des Dev Services (`ClientIhmOidcTest`) ; tests de bout en bout navigateur et Electron à écrire.
+[PROPOSITION — `connecter-ihm-oidc`] Scénarios ACC-07-S1 à ACC-10-S4 : tests `node:test` d'`argos-ui/tests/` et d'`argos-desktop/test/`, parcours réel du client `argos-ui` contre le Keycloak des Dev Services (`ClientIhmOidcTest`) ; parcours de bout en bout du portail web (`e2e/tests/connexion.spec.ts`) et du client desktop Electron (`e2e/desktop/connexion.spec.ts`, ACC-10-S1, S2 et S4, navigateur du système simulé par une page Chromium).
 
 ## Interprétations introduites par un changement
 
@@ -189,6 +189,6 @@ Scénarios ACC-01-S1 à ACC-06-S1 du changement, couverts par les tests de `argo
 | ACC-07 [PROPOSITION] | ACC-07-S1 à ACC-07-S5 | `connecter-ihm-oidc` DC-1, DC-2, DC-4 ; DF-ACC-2 | 2.1 à 2.4 | `argos-ui/tests/oidc.test.mjs`, `session.test.mjs`, `autorisation.test.mjs`, `garde.test.mjs` ; `ClientIhmOidcTest` ; E2E à écrire |
 | ACC-08 [PROPOSITION] | ACC-08-S1 à ACC-08-S4 | `connecter-ihm-oidc` DC-4 | 2.1, 2.2, 2.4 | `argos-ui/tests/session.test.mjs`, `securite-session.test.mjs` |
 | ACC-09 [PROPOSITION] | ACC-09-S1 à ACC-09-S5 | `connecter-ihm-oidc` DC-2 ; DF-ACC-2 | 2.3, 2.4 | `argos-ui/tests/autorisation.test.mjs` ; `ClientIhmOidcTest` |
-| ACC-10 [PROPOSITION] | ACC-10-S1 à ACC-10-S4 | `connecter-ihm-oidc` DC-1, DC-3 | 3.1 à 3.3 | `argos-desktop/test/connexion.test.js`, `canaux.test.js`, `preload.test.js`, `ui-protocol.test.js` ; `ClientIhmOidcTest` ; parcours Electron à écrire |
+| ACC-10 [PROPOSITION] | ACC-10-S1 à ACC-10-S4 | `connecter-ihm-oidc` DC-1, DC-3 | 3.1 à 3.3 | `argos-desktop/test/connexion.test.js`, `canaux.test.js`, `preload.test.js`, `ui-protocol.test.js` ; `ClientIhmOidcTest` ; E2E Electron `e2e/desktop/connexion.spec.ts` (ACC-10-S1, S2, S4) |
 
 Tests dans [`argos-server/src/test/java/io/argos/api/comptes/`](/argos-server/src/test/java/io/argos/api/comptes/) ; parcours de bout en bout : `ParcoursComptesEtAccesTest`. Les numéros de tâche des lignes ACC-07 à ACC-10 renvoient au [`tasks.md` de `connecter-ihm-oidc`](/openspec/changes/connecter-ihm-oidc/tasks.md#matrice-de-traçabilité).

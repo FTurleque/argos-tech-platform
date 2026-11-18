@@ -249,7 +249,7 @@ La taxonomie fermée du dossier v2.4 §8.2 n'est pas versionnée dans `docs/arch
 |---|---|---|---|
 | AFF-01-S1, AFF-01-S2, AFF-04-S1, AFF-04-S2 | intégration API | tests des préférences | `PreferencesResourceTest`, `MiseEnPageRetireeTest`, `argos-ui/tests/resolution.test.mjs` |
 | AFF-02-S1, AFF-02-S2 | E2E IHM | même jeu de données affiché dans les quatre mises en page, contenu comparé | rendu des quatre mises en page sur un même jeu comparé (`argos-ui/tests/mises-en-page.test.mjs`, banc `e2e/accessibilite/`) ; veille de `GET /api/v1/me/veille` transposée (`argos-ui/tests/veille-affichee.test.mjs`) ; E2E sur la veille réelle à écrire |
-| AFF-03-S1 | E2E | préférence modifiée sur le web, lue par le desktop | E2E web `e2e/tests/affichage.spec.ts` ; partie desktop à exécuter |
+| AFF-03-S1 | E2E | préférence modifiée sur le web, lue par le desktop | E2E web `e2e/tests/affichage.spec.ts` ; E2E web puis desktop `e2e/desktop/affichage.spec.ts` (application Electron réelle, navigateur du système simulé) |
 | AFF-05-S1 | revue + tests IHM + navigateur | audit d'accessibilité par mise en page : palettes contrôlées (`argos-ui/tests/contrastes.test.mjs`), banc `e2e/accessibilite/` | réalisé le 2026-11-17 ([rapport](/docs/architecture/quality/audit-accessibilite-mises-en-page.md)) |
 | PRF-01-S1 à PRF-01-S3 | intégration API | tests des préférences | `PreferencesResourceTest` |
 | PRF-02-S1, PRF-02-S2 | intégration | veille d'un utilisateur à deux profils | `VeilleProfilsTest`, `UnionProfilsTest`, `ProfilDemonstrationTest` |

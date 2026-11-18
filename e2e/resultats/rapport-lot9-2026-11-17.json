@@ -1,0 +1,1201 @@
+{
+  "config": {
+    "argv": [
+      "C:\\Program Files\\nodejs\\node.exe",
+      "N:\\workspace-dev\\argos-tech-platform\\e2e\\node_modules\\@playwright\\test\\cli.js",
+      "test"
+    ],
+    "configFile": "N:\\workspace-dev\\argos-tech-platform\\e2e\\playwright.config.ts",
+    "rootDir": "N:/workspace-dev/argos-tech-platform/e2e/tests",
+    "failOnFlakyTests": false,
+    "forbidOnly": true,
+    "fullyParallel": false,
+    "globalSetup": null,
+    "globalTeardown": null,
+    "globalTimeout": 0,
+    "grep": {},
+    "grepInvert": null,
+    "maxFailures": 0,
+    "metadata": {
+      "actualWorkers": 1
+    },
+    "preserveOutput": "always",
+    "projects": [
+      {
+        "outputDir": "N:/workspace-dev/argos-tech-platform/e2e/test-results",
+        "repeatEach": 1,
+        "retries": 0,
+        "metadata": {
+          "actualWorkers": 1
+        },
+        "id": "preparation",
+        "name": "preparation",
+        "testDir": "N:/workspace-dev/argos-tech-platform/e2e/tests",
+        "testIgnore": [],
+        "testMatch": [
+          "/preparation\\.setup\\.ts/"
+        ],
+        "timeout": 120000
+      },
+      {
+        "outputDir": "N:/workspace-dev/argos-tech-platform/e2e/test-results",
+        "repeatEach": 1,
+        "retries": 0,
+        "metadata": {
+          "actualWorkers": 1
+        },
+        "id": "portail-web",
+        "name": "portail-web",
+        "testDir": "N:/workspace-dev/argos-tech-platform/e2e/tests",
+        "testIgnore": [],
+        "testMatch": [
+          "/.*\\.spec\\.ts/"
+        ],
+        "timeout": 120000
+      },
+      {
+        "outputDir": "N:/workspace-dev/argos-tech-platform/e2e/test-results",
+        "repeatEach": 1,
+        "retries": 0,
+        "metadata": {
+          "actualWorkers": 1
+        },
+        "id": "construction-desktop",
+        "name": "construction-desktop",
+        "testDir": "N:/workspace-dev/argos-tech-platform/e2e/desktop",
+        "testIgnore": [],
+        "testMatch": [
+          "/construction\\.setup\\.ts/"
+        ],
+        "timeout": 120000
+      },
+      {
+        "outputDir": "N:/workspace-dev/argos-tech-platform/e2e/test-results",
+        "repeatEach": 1,
+        "retries": 0,
+        "metadata": {
+          "actualWorkers": 1
+        },
+        "id": "desktop",
+        "name": "desktop",
+        "testDir": "N:/workspace-dev/argos-tech-platform/e2e/desktop",
+        "testIgnore": [],
+        "testMatch": [
+          "/.*\\.spec\\.ts/"
+        ],
+        "timeout": 120000
+      }
+    ],
+    "quiet": false,
+    "reporter": [
+      [
+        "list",
+        null
+      ],
+      [
+        "json",
+        {
+          "outputFile": "./test-results/rapport.json"
+        }
+      ]
+    ],
+    "reportSlowTests": {
+      "max": 5,
+      "threshold": 300000
+    },
+    "shard": null,
+    "tags": [],
+    "updateSnapshots": "missing",
+    "updateSourceMethod": "patch",
+    "version": "1.61.1",
+    "workers": 1,
+    "webServer": null
+  },
+  "suites": [
+    {
+      "title": "..\\desktop\\construction.setup.ts",
+      "file": "../desktop/construction.setup.ts",
+      "column": 0,
+      "line": 0,
+      "specs": [
+        {
+          "title": "IHM construite pour le client desktop",
+          "ok": true,
+          "tags": [],
+          "tests": [
+            {
+              "timeout": 300000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "construction-desktop",
+              "projectName": "construction-desktop",
+              "results": [
+                {
+                  "workerIndex": 0,
+                  "parallelIndex": 0,
+                  "status": "passed",
+                  "duration": 2962,
+                  "errors": [],
+                  "stdout": [],
+                  "stderr": [],
+                  "retry": 0,
+                  "startTime": "2026-11-17T23:13:02.000Z",
+                  "annotations": [],
+                  "attachments": []
+                }
+              ],
+              "status": "expected"
+            }
+          ],
+          "id": "db96b61d6a99633b145e-3585c80cd5980a6a079b",
+          "file": "../desktop/construction.setup.ts",
+          "line": 32,
+          "column": 1
+        }
+      ]
+    },
+    {
+      "title": "preparation.setup.ts",
+      "file": "preparation.setup.ts",
+      "column": 0,
+      "line": 0,
+      "specs": [
+        {
+          "title": "jeu de données de la recherche",
+          "ok": true,
+          "tags": [],
+          "tests": [
+            {
+              "timeout": 120000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "preparation",
+              "projectName": "preparation",
+              "results": [
+                {
+                  "workerIndex": 1,
+                  "parallelIndex": 0,
+                  "status": "passed",
+                  "duration": 801,
+                  "errors": [],
+                  "stdout": [],
+                  "stderr": [],
+                  "retry": 0,
+                  "startTime": "2026-11-17T23:13:05.392Z",
+                  "annotations": [],
+                  "attachments": []
+                }
+              ],
+              "status": "expected"
+            }
+          ],
+          "id": "3515345599ceb0dc4f54-d3ff6dea97e72c30a358",
+          "file": "preparation.setup.ts",
+          "line": 5,
+          "column": 1
+        },
+        {
+          "title": "jeu de données de « Ma veille »",
+          "ok": true,
+          "tags": [],
+          "tests": [
+            {
+              "timeout": 120000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "preparation",
+              "projectName": "preparation",
+              "results": [
+                {
+                  "workerIndex": 1,
+                  "parallelIndex": 0,
+                  "status": "passed",
+                  "duration": 3083,
+                  "errors": [],
+                  "stdout": [],
+                  "stderr": [],
+                  "retry": 0,
+                  "startTime": "2026-11-17T23:13:06.223Z",
+                  "annotations": [],
+                  "attachments": []
+                }
+              ],
+              "status": "expected"
+            }
+          ],
+          "id": "3515345599ceb0dc4f54-e8ea02ff6f1cdf0c4164",
+          "file": "preparation.setup.ts",
+          "line": 9,
+          "column": 1
+        }
+      ]
+    },
+    {
+      "title": "affichage.spec.ts",
+      "file": "affichage.spec.ts",
+      "column": 0,
+      "line": 0,
+      "specs": [
+        {
+          "title": "AFF-01-S1, AFF-03-S1 (web) : la mise en page « gazette » choisie est retrouvée dans une nouvelle session",
+          "ok": true,
+          "tags": [],
+          "tests": [
+            {
+              "timeout": 120000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "portail-web",
+              "projectName": "portail-web",
+              "results": [
+                {
+                  "workerIndex": 2,
+                  "parallelIndex": 0,
+                  "status": "passed",
+                  "duration": 5541,
+                  "errors": [],
+                  "stdout": [],
+                  "stderr": [],
+                  "retry": 0,
+                  "startTime": "2026-11-17T23:13:10.514Z",
+                  "annotations": [],
+                  "attachments": []
+                }
+              ],
+              "status": "expected"
+            }
+          ],
+          "id": "96465f4c5e34d9fc123b-21ccf58f967fc814ab7b",
+          "file": "affichage.spec.ts",
+          "line": 7,
+          "column": 1
+        }
+      ]
+    },
+    {
+      "title": "connexion.spec.ts",
+      "file": "connexion.spec.ts",
+      "column": 0,
+      "line": 0,
+      "specs": [
+        {
+          "title": "ACC-07-S1 : une vue protégée sans session affiche la connexion sans appeler l’API",
+          "ok": true,
+          "tags": [],
+          "tests": [
+            {
+              "timeout": 120000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "portail-web",
+              "projectName": "portail-web",
+              "results": [
+                {
+                  "workerIndex": 2,
+                  "parallelIndex": 0,
+                  "status": "passed",
+                  "duration": 465,
+                  "errors": [],
+                  "stdout": [],
+                  "stderr": [],
+                  "retry": 0,
+                  "startTime": "2026-11-17T23:13:16.273Z",
+                  "annotations": [],
+                  "attachments": []
+                }
+              ],
+              "status": "expected"
+            }
+          ],
+          "id": "79ed6df8864bd10a290d-9a546f58085f0f8b7a84",
+          "file": "connexion.spec.ts",
+          "line": 27,
+          "column": 1
+        },
+        {
+          "title": "ACC-07-S2, ACC-08-S1, ACC-09-S1/S2 : connexion réelle, retour sur la vue, adresse nettoyée",
+          "ok": true,
+          "tags": [],
+          "tests": [
+            {
+              "timeout": 120000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "portail-web",
+              "projectName": "portail-web",
+              "results": [
+                {
+                  "workerIndex": 2,
+                  "parallelIndex": 0,
+                  "status": "passed",
+                  "duration": 1744,
+                  "errors": [],
+                  "stdout": [],
+                  "stderr": [],
+                  "retry": 0,
+                  "startTime": "2026-11-17T23:13:16.752Z",
+                  "annotations": [],
+                  "attachments": []
+                }
+              ],
+              "status": "expected"
+            }
+          ],
+          "id": "79ed6df8864bd10a290d-807e726cecc980a6c91f",
+          "file": "connexion.spec.ts",
+          "line": 35,
+          "column": 1
+        },
+        {
+          "title": "ACC-07-S3 : un retour au state différent de la demande est refusé sans échange de code",
+          "ok": true,
+          "tags": [],
+          "tests": [
+            {
+              "timeout": 120000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "portail-web",
+              "projectName": "portail-web",
+              "results": [
+                {
+                  "workerIndex": 2,
+                  "parallelIndex": 0,
+                  "status": "passed",
+                  "duration": 1074,
+                  "errors": [],
+                  "stdout": [],
+                  "stderr": [],
+                  "retry": 0,
+                  "startTime": "2026-11-17T23:13:18.508Z",
+                  "annotations": [],
+                  "attachments": []
+                }
+              ],
+              "status": "expected"
+            }
+          ],
+          "id": "79ed6df8864bd10a290d-0ed27311bc6e93489a88",
+          "file": "connexion.spec.ts",
+          "line": 66,
+          "column": 1
+        },
+        {
+          "title": "ACC-08-S4 : la déconnexion ferme la session de l’IHM et celle du fournisseur",
+          "ok": true,
+          "tags": [],
+          "tests": [
+            {
+              "timeout": 120000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "portail-web",
+              "projectName": "portail-web",
+              "results": [
+                {
+                  "workerIndex": 2,
+                  "parallelIndex": 0,
+                  "status": "passed",
+                  "duration": 2427,
+                  "errors": [],
+                  "stdout": [],
+                  "stderr": [],
+                  "retry": 0,
+                  "startTime": "2026-11-17T23:13:19.595Z",
+                  "annotations": [],
+                  "attachments": []
+                }
+              ],
+              "status": "expected"
+            }
+          ],
+          "id": "79ed6df8864bd10a290d-cf011b1bb867b7f3e4f7",
+          "file": "connexion.spec.ts",
+          "line": 83,
+          "column": 1
+        },
+        {
+          "title": "ACC-09-S4 : une personne sans invitation voit le refus dédié et aucune vue protégée",
+          "ok": true,
+          "tags": [],
+          "tests": [
+            {
+              "timeout": 120000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "portail-web",
+              "projectName": "portail-web",
+              "results": [
+                {
+                  "workerIndex": 2,
+                  "parallelIndex": 0,
+                  "status": "passed",
+                  "duration": 1741,
+                  "errors": [],
+                  "stdout": [],
+                  "stderr": [],
+                  "retry": 0,
+                  "startTime": "2026-11-17T23:13:22.037Z",
+                  "annotations": [],
+                  "attachments": []
+                }
+              ],
+              "status": "expected"
+            }
+          ],
+          "id": "79ed6df8864bd10a290d-21cad8916a0378a2eaac",
+          "file": "connexion.spec.ts",
+          "line": 100,
+          "column": 1
+        },
+        {
+          "title": "ACC-08-S3 : renouvellement refusé par le fournisseur, état « session expirée »",
+          "ok": true,
+          "tags": [],
+          "tests": [
+            {
+              "timeout": 120000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "portail-web",
+              "projectName": "portail-web",
+              "results": [
+                {
+                  "workerIndex": 2,
+                  "parallelIndex": 0,
+                  "status": "passed",
+                  "duration": 3184,
+                  "errors": [],
+                  "stdout": [],
+                  "stderr": [],
+                  "retry": 0,
+                  "startTime": "2026-11-17T23:13:23.794Z",
+                  "annotations": [],
+                  "attachments": []
+                }
+              ],
+              "status": "expected"
+            }
+          ],
+          "id": "79ed6df8864bd10a290d-0d43b35e7f349e68358a",
+          "file": "connexion.spec.ts",
+          "line": 114,
+          "column": 1
+        }
+      ]
+    },
+    {
+      "title": "recherche.spec.ts",
+      "file": "recherche.spec.ts",
+      "column": 0,
+      "line": 0,
+      "specs": [
+        {
+          "title": "RCH-01, RCH-02-S1, RCH-04-S1 : recherche « Oracle », projet Paie, 30 jours, vue enregistrée puis rappelée",
+          "ok": true,
+          "tags": [],
+          "tests": [
+            {
+              "timeout": 120000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "portail-web",
+              "projectName": "portail-web",
+              "results": [
+                {
+                  "workerIndex": 2,
+                  "parallelIndex": 0,
+                  "status": "passed",
+                  "duration": 3455,
+                  "errors": [],
+                  "stdout": [],
+                  "stderr": [],
+                  "retry": 0,
+                  "startTime": "2026-11-17T23:13:27.007Z",
+                  "annotations": [],
+                  "attachments": [
+                    {
+                      "name": "reponse-recherche-oracle-30j.json",
+                      "contentType": "application/json",
+                      "body": "eyJlbGVtZW50cyI6W3sidHlwZSI6IkFWSVNfU0VDVVJJVEUiLCJpZCI6IjBlMmUwMDAwLTAwMDAtNDAwMC04MDAwLTAwMDAwMDAwMDBhMSIsInNvdXJjZSI6Ik9TViIsImlkZW50aWZpYW50IjoiRTJFLU9SQUNMRS0wMDAxIiwidGl0cmUiOiJPcmFjbGUgRGF0YWJhc2UgOiBmYWlsbGUgY29ycmlnw6llIiwiZXh0cmFpdCI6IkxlIGNvcnJlY3RpZiBPcmFjbGUgY29ycmlnZSB1bmUgZmFpbGxlIGRlIGxhIGJhc2UuIiwiZ3Jhdml0ZSI6IkhJR0giLCJkYXRlIjoiMjAyNi0xMS0xMlQyMzoxMzowNi4xODQ5NjlaIiwibGllbiI6bnVsbCwicGVydGluZW5jZSI6MC44MzQ0MzA2MywicHJvamV0cyI6W3sicHJvamV0SWQiOiIwZTJlMDAwMC0wMDAwLTQwMDAtODAwMC0wMDAwMDAwMDAwMDEiLCJwcm9qZXQiOiJQYWllIn1dfSx7InR5cGUiOiJBVklTX1NFQ1VSSVRFIiwiaWQiOiIwZTJlMDAwMC0wMDAwLTQwMDAtODAwMC0wMDAwMDAwMDAwYTMiLCJzb3VyY2UiOiJPU1YiLCJpZGVudGlmaWFudCI6IkUyRS1PUkFDTEUtMDAwMyIsInRpdHJlIjoiT3JhY2xlIEphdmEgOiBmYWlsbGUiLCJleHRyYWl0IjoiQ29ycmVjdGlmIE9yYWNsZSBwb3VyIEphdmEuIiwiZ3Jhdml0ZSI6IkhJR0giLCJkYXRlIjoiMjAyNi0xMS0xMlQyMzoxMzowNi4xODQ5NjlaIiwibGllbiI6bnVsbCwicGVydGluZW5jZSI6MC44MzQ0MzA2MywicHJvamV0cyI6W3sicHJvamV0SWQiOiIwZTJlMDAwMC0wMDAwLTQwMDAtODAwMC0wMDAwMDAwMDAwMDIiLCJwcm9qZXQiOiJDb21wdGFiaWxpdMOpIn1dfV0sInBhZ2UiOjAsInRhaWxsZSI6MjAsInRvdGFsIjoyLCJtZXNzYWdlIjpudWxsfQ=="
+                    }
+                  ]
+                }
+              ],
+              "status": "expected"
+            }
+          ],
+          "id": "47cc486fa8a49be6b457-e16f236cc0f38390ac0b",
+          "file": "recherche.spec.ts",
+          "line": 10,
+          "column": 1
+        }
+      ]
+    },
+    {
+      "title": "veille.spec.ts",
+      "file": "veille.spec.ts",
+      "column": 0,
+      "line": 0,
+      "specs": [
+        {
+          "title": "3.4, 3.9 (PRF-02, PRF-02-S3) : deux profils actifs et un abonnement personnel, union sans doublon avec rubriques",
+          "ok": true,
+          "tags": [],
+          "tests": [
+            {
+              "timeout": 120000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "portail-web",
+              "projectName": "portail-web",
+              "results": [
+                {
+                  "workerIndex": 2,
+                  "parallelIndex": 0,
+                  "status": "passed",
+                  "duration": 2570,
+                  "errors": [],
+                  "stdout": [],
+                  "stderr": [],
+                  "retry": 0,
+                  "startTime": "2026-11-17T23:13:30.494Z",
+                  "annotations": [],
+                  "attachments": []
+                }
+              ],
+              "status": "expected"
+            }
+          ],
+          "id": "f14f44499e60edbd4ba2-9a1ccfb488e118ca0be5",
+          "file": "veille.spec.ts",
+          "line": 45,
+          "column": 1
+        },
+        {
+          "title": "3.9, AFF-02-S2 (PRF-02-S4) : un utilisateur d’un autre espace ne voit rien de plus que ses droits",
+          "ok": true,
+          "tags": [],
+          "tests": [
+            {
+              "timeout": 120000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "portail-web",
+              "projectName": "portail-web",
+              "results": [
+                {
+                  "workerIndex": 2,
+                  "parallelIndex": 0,
+                  "status": "passed",
+                  "duration": 2440,
+                  "errors": [],
+                  "stdout": [],
+                  "stderr": [],
+                  "retry": 0,
+                  "startTime": "2026-11-17T23:13:33.078Z",
+                  "annotations": [],
+                  "attachments": []
+                }
+              ],
+              "status": "expected"
+            }
+          ],
+          "id": "f14f44499e60edbd4ba2-134e78dec18b43cea412",
+          "file": "veille.spec.ts",
+          "line": 108,
+          "column": 1
+        },
+        {
+          "title": "2.4 (AFF-02-S1, AFF-02-S2) : la même veille réelle dans les quatre mises en page",
+          "ok": true,
+          "tags": [],
+          "tests": [
+            {
+              "timeout": 120000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "portail-web",
+              "projectName": "portail-web",
+              "results": [
+                {
+                  "workerIndex": 2,
+                  "parallelIndex": 0,
+                  "status": "passed",
+                  "duration": 4037,
+                  "errors": [],
+                  "stdout": [],
+                  "stderr": [],
+                  "retry": 0,
+                  "startTime": "2026-11-17T23:13:35.533Z",
+                  "annotations": [],
+                  "attachments": []
+                }
+              ],
+              "status": "expected"
+            }
+          ],
+          "id": "f14f44499e60edbd4ba2-a8701eb9deea8607fd34",
+          "file": "veille.spec.ts",
+          "line": 130,
+          "column": 1
+        },
+        {
+          "title": "5.2 (partie web) : « gazette » choisie sur le web, « Ma veille » affichée en gazette avec l’union des veilles",
+          "ok": true,
+          "tags": [],
+          "tests": [
+            {
+              "timeout": 120000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "portail-web",
+              "projectName": "portail-web",
+              "results": [
+                {
+                  "workerIndex": 2,
+                  "parallelIndex": 0,
+                  "status": "passed",
+                  "duration": 3383,
+                  "errors": [],
+                  "stdout": [],
+                  "stderr": [],
+                  "retry": 0,
+                  "startTime": "2026-11-17T23:13:39.585Z",
+                  "annotations": [],
+                  "attachments": []
+                }
+              ],
+              "status": "expected"
+            }
+          ],
+          "id": "f14f44499e60edbd4ba2-45a097555736c0805364",
+          "file": "veille.spec.ts",
+          "line": 167,
+          "column": 1
+        },
+        {
+          "title": "2.6 : accessibilité de « classique » sur la veille réelle (contrastes, tabulation, noms accessibles)",
+          "ok": true,
+          "tags": [],
+          "tests": [
+            {
+              "timeout": 120000,
+              "annotations": [
+                {
+                  "type": "contraste minimal",
+                  "description": "5.19"
+                },
+                {
+                  "type": "contraste minimal du focus",
+                  "description": "12.24"
+                }
+              ],
+              "expectedStatus": "passed",
+              "projectId": "portail-web",
+              "projectName": "portail-web",
+              "results": [
+                {
+                  "workerIndex": 2,
+                  "parallelIndex": 0,
+                  "status": "passed",
+                  "duration": 2298,
+                  "errors": [],
+                  "stdout": [],
+                  "stderr": [],
+                  "retry": 0,
+                  "startTime": "2026-11-17T23:13:42.983Z",
+                  "annotations": [
+                    {
+                      "type": "contraste minimal",
+                      "description": "5.19"
+                    },
+                    {
+                      "type": "contraste minimal du focus",
+                      "description": "12.24"
+                    }
+                  ],
+                  "attachments": []
+                }
+              ],
+              "status": "expected"
+            }
+          ],
+          "id": "f14f44499e60edbd4ba2-fec4c54ca419e0ac6883",
+          "file": "veille.spec.ts",
+          "line": 189,
+          "column": 3
+        },
+        {
+          "title": "2.6 : accessibilité de « journal » sur la veille réelle (contrastes, tabulation, noms accessibles)",
+          "ok": true,
+          "tags": [],
+          "tests": [
+            {
+              "timeout": 120000,
+              "annotations": [
+                {
+                  "type": "contraste minimal",
+                  "description": "5.08"
+                },
+                {
+                  "type": "contraste minimal du focus",
+                  "description": "6.59"
+                }
+              ],
+              "expectedStatus": "passed",
+              "projectId": "portail-web",
+              "projectName": "portail-web",
+              "results": [
+                {
+                  "workerIndex": 2,
+                  "parallelIndex": 0,
+                  "status": "passed",
+                  "duration": 2637,
+                  "errors": [],
+                  "stdout": [],
+                  "stderr": [],
+                  "retry": 0,
+                  "startTime": "2026-11-17T23:13:45.295Z",
+                  "annotations": [
+                    {
+                      "type": "contraste minimal",
+                      "description": "5.08"
+                    },
+                    {
+                      "type": "contraste minimal du focus",
+                      "description": "6.59"
+                    }
+                  ],
+                  "attachments": []
+                }
+              ],
+              "status": "expected"
+            }
+          ],
+          "id": "f14f44499e60edbd4ba2-76160b29a7c2c64c9374",
+          "file": "veille.spec.ts",
+          "line": 189,
+          "column": 3
+        },
+        {
+          "title": "2.6 : accessibilité de « fantaisie » sur la veille réelle (contrastes, tabulation, noms accessibles)",
+          "ok": true,
+          "tags": [],
+          "tests": [
+            {
+              "timeout": 120000,
+              "annotations": [
+                {
+                  "type": "contraste minimal",
+                  "description": "4.97"
+                },
+                {
+                  "type": "contraste minimal du focus",
+                  "description": "4.98"
+                }
+              ],
+              "expectedStatus": "passed",
+              "projectId": "portail-web",
+              "projectName": "portail-web",
+              "results": [
+                {
+                  "workerIndex": 2,
+                  "parallelIndex": 0,
+                  "status": "passed",
+                  "duration": 2235,
+                  "errors": [],
+                  "stdout": [],
+                  "stderr": [],
+                  "retry": 0,
+                  "startTime": "2026-11-17T23:13:47.946Z",
+                  "annotations": [
+                    {
+                      "type": "contraste minimal",
+                      "description": "4.97"
+                    },
+                    {
+                      "type": "contraste minimal du focus",
+                      "description": "4.98"
+                    }
+                  ],
+                  "attachments": []
+                }
+              ],
+              "status": "expected"
+            }
+          ],
+          "id": "f14f44499e60edbd4ba2-3f625cdfd96bd952f4c7",
+          "file": "veille.spec.ts",
+          "line": 189,
+          "column": 3
+        },
+        {
+          "title": "2.6 : accessibilité de « gazette » sur la veille réelle (contrastes, tabulation, noms accessibles)",
+          "ok": true,
+          "tags": [],
+          "tests": [
+            {
+              "timeout": 120000,
+              "annotations": [
+                {
+                  "type": "contraste minimal",
+                  "description": "6.67"
+                },
+                {
+                  "type": "contraste minimal du focus",
+                  "description": "6.67"
+                }
+              ],
+              "expectedStatus": "passed",
+              "projectId": "portail-web",
+              "projectName": "portail-web",
+              "results": [
+                {
+                  "workerIndex": 2,
+                  "parallelIndex": 0,
+                  "status": "passed",
+                  "duration": 2340,
+                  "errors": [],
+                  "stdout": [],
+                  "stderr": [],
+                  "retry": 0,
+                  "startTime": "2026-11-17T23:13:50.195Z",
+                  "annotations": [
+                    {
+                      "type": "contraste minimal",
+                      "description": "6.67"
+                    },
+                    {
+                      "type": "contraste minimal du focus",
+                      "description": "6.67"
+                    }
+                  ],
+                  "attachments": []
+                }
+              ],
+              "status": "expected"
+            }
+          ],
+          "id": "f14f44499e60edbd4ba2-40291ba042d8aef34361",
+          "file": "veille.spec.ts",
+          "line": 189,
+          "column": 3
+        }
+      ]
+    },
+    {
+      "title": "..\\desktop\\affichage.spec.ts",
+      "file": "../desktop/affichage.spec.ts",
+      "column": 0,
+      "line": 0,
+      "specs": [
+        {
+          "title": "2.5 (AFF-03-S1) : « fantaisie » choisie sur le web, le client desktop s’affiche en « fantaisie »",
+          "ok": true,
+          "tags": [],
+          "tests": [
+            {
+              "timeout": 120000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "desktop",
+              "projectName": "desktop",
+              "results": [
+                {
+                  "workerIndex": 3,
+                  "parallelIndex": 0,
+                  "status": "passed",
+                  "duration": 4743,
+                  "errors": [],
+                  "stdout": [],
+                  "stderr": [],
+                  "retry": 0,
+                  "startTime": "2026-11-17T23:13:53.209Z",
+                  "annotations": [],
+                  "attachments": []
+                }
+              ],
+              "status": "expected"
+            }
+          ],
+          "id": "96465f4c5e34d9fc123b-2d646d6467e996d9d8e6",
+          "file": "../desktop/affichage.spec.ts",
+          "line": 26,
+          "column": 1
+        },
+        {
+          "title": "5.2 : developpeur + expert-metier, « gazette » choisie sur le web, retrouvée sur le desktop avec l’union de ses veilles",
+          "ok": true,
+          "tags": [],
+          "tests": [
+            {
+              "timeout": 120000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "desktop",
+              "projectName": "desktop",
+              "results": [
+                {
+                  "workerIndex": 3,
+                  "parallelIndex": 0,
+                  "status": "passed",
+                  "duration": 4300,
+                  "errors": [],
+                  "stdout": [],
+                  "stderr": [],
+                  "retry": 0,
+                  "startTime": "2026-11-17T23:13:58.086Z",
+                  "annotations": [],
+                  "attachments": []
+                }
+              ],
+              "status": "expected"
+            }
+          ],
+          "id": "96465f4c5e34d9fc123b-49fd6a73cc3247f198c5",
+          "file": "../desktop/affichage.spec.ts",
+          "line": 67,
+          "column": 1
+        }
+      ]
+    },
+    {
+      "title": "..\\desktop\\connexion.spec.ts",
+      "file": "../desktop/connexion.spec.ts",
+      "column": 0,
+      "line": 0,
+      "specs": [
+        {
+          "title": "ACC-10-S1, S2, S4 : connexion par le navigateur du système et retour sur 127.0.0.1",
+          "ok": true,
+          "tags": [],
+          "tests": [
+            {
+              "timeout": 120000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "desktop",
+              "projectName": "desktop",
+              "results": [
+                {
+                  "workerIndex": 3,
+                  "parallelIndex": 0,
+                  "status": "passed",
+                  "duration": 1749,
+                  "errors": [],
+                  "stdout": [],
+                  "stderr": [],
+                  "retry": 0,
+                  "startTime": "2026-11-17T23:14:02.424Z",
+                  "annotations": [],
+                  "attachments": []
+                }
+              ],
+              "status": "expected"
+            }
+          ],
+          "id": "79ed6df8864bd10a290d-15efe10602a3c747f4a9",
+          "file": "../desktop/connexion.spec.ts",
+          "line": 35,
+          "column": 1
+        }
+      ]
+    },
+    {
+      "title": "..\\desktop\\notifications.spec.ts",
+      "file": "../desktop/notifications.spec.ts",
+      "column": 0,
+      "line": 0,
+      "specs": [
+        {
+          "title": "NOT-01-S1, NOT-05-S1, NOT-03-S1, NOT-02-S1 : fenêtre masquée, notification, compteur, clic",
+          "ok": true,
+          "tags": [],
+          "tests": [
+            {
+              "timeout": 240000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "desktop",
+              "projectName": "desktop",
+              "results": [
+                {
+                  "workerIndex": 3,
+                  "parallelIndex": 0,
+                  "status": "passed",
+                  "duration": 63274,
+                  "errors": [],
+                  "stdout": [],
+                  "stderr": [],
+                  "retry": 0,
+                  "startTime": "2026-11-17T23:14:04.211Z",
+                  "annotations": [],
+                  "attachments": []
+                }
+              ],
+              "status": "expected"
+            }
+          ],
+          "id": "be7d0958780d1a4666e5-49dc0b37e2ce5aa4c1f5",
+          "file": "../desktop/notifications.spec.ts",
+          "line": 96,
+          "column": 1
+        },
+        {
+          "title": "NOT-04-S1 (partie poste) : notifications du poste coupées, alerte comptée et visible",
+          "ok": true,
+          "tags": [],
+          "tests": [
+            {
+              "timeout": 240000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "desktop",
+              "projectName": "desktop",
+              "results": [
+                {
+                  "workerIndex": 3,
+                  "parallelIndex": 0,
+                  "status": "passed",
+                  "duration": 33277,
+                  "errors": [],
+                  "stdout": [],
+                  "stderr": [],
+                  "retry": 0,
+                  "startTime": "2026-11-17T23:15:07.502Z",
+                  "annotations": [],
+                  "attachments": []
+                }
+              ],
+              "status": "expected"
+            }
+          ],
+          "id": "be7d0958780d1a4666e5-d353a0aab4023480b81c",
+          "file": "../desktop/notifications.spec.ts",
+          "line": 145,
+          "column": 1
+        },
+        {
+          "title": "NOT-01-S2 (partie application) : notifications refusées par le système, alertes comptées et visibles",
+          "ok": true,
+          "tags": [],
+          "tests": [
+            {
+              "timeout": 240000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "desktop",
+              "projectName": "desktop",
+              "results": [
+                {
+                  "workerIndex": 3,
+                  "parallelIndex": 0,
+                  "status": "passed",
+                  "duration": 62675,
+                  "errors": [],
+                  "stdout": [],
+                  "stderr": [],
+                  "retry": 0,
+                  "startTime": "2026-11-17T23:15:40.797Z",
+                  "annotations": [],
+                  "attachments": []
+                }
+              ],
+              "status": "expected"
+            }
+          ],
+          "id": "be7d0958780d1a4666e5-d257f0ad8a9fd515a50a",
+          "file": "../desktop/notifications.spec.ts",
+          "line": 177,
+          "column": 1
+        },
+        {
+          "title": "NOT-06-S1 : coupure du serveur, deux alertes émises pendant la coupure, reprise sans perte ni doublon",
+          "ok": true,
+          "tags": [],
+          "tests": [
+            {
+              "timeout": 240000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "desktop",
+              "projectName": "desktop",
+              "results": [
+                {
+                  "workerIndex": 3,
+                  "parallelIndex": 0,
+                  "status": "passed",
+                  "duration": 78542,
+                  "errors": [],
+                  "stdout": [],
+                  "stderr": [],
+                  "retry": 0,
+                  "startTime": "2026-11-17T23:16:43.491Z",
+                  "annotations": [],
+                  "attachments": []
+                }
+              ],
+              "status": "expected"
+            }
+          ],
+          "id": "be7d0958780d1a4666e5-9f4d91e78034749f2a97",
+          "file": "../desktop/notifications.spec.ts",
+          "line": 212,
+          "column": 1
+        }
+      ]
+    },
+    {
+      "title": "..\\desktop\\recherche.spec.ts",
+      "file": "../desktop/recherche.spec.ts",
+      "column": 0,
+      "line": 0,
+      "specs": [
+        {
+          "title": "4.2 (RCH-02-S1, RCH-04-S1) : recherche enregistrée en vue sur le web, rappelée depuis le desktop",
+          "ok": true,
+          "tags": [],
+          "tests": [
+            {
+              "timeout": 120000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "desktop",
+              "projectName": "desktop",
+              "results": [
+                {
+                  "workerIndex": 3,
+                  "parallelIndex": 0,
+                  "status": "passed",
+                  "duration": 5794,
+                  "errors": [],
+                  "stdout": [],
+                  "stderr": [],
+                  "retry": 0,
+                  "startTime": "2026-11-17T23:18:02.082Z",
+                  "annotations": [],
+                  "attachments": []
+                }
+              ],
+              "status": "expected"
+            }
+          ],
+          "id": "47cc486fa8a49be6b457-a4bf2417d07bc5ed869c",
+          "file": "../desktop/recherche.spec.ts",
+          "line": 20,
+          "column": 1
+        }
+      ]
+    }
+  ],
+  "errors": [],
+  "stats": {
+    "startTime": "2026-11-17T23:11:59.648Z",
+    "duration": 369545.114,
+    "expected": 27,
+    "skipped": 0,
+    "unexpected": 0,
+    "flaky": 0
+  }
+}

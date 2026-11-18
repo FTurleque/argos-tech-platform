@@ -115,11 +115,11 @@ Toutes les exigences sont au statut [PROPOSITION] : elles dérivent d'ADR « Pro
 
 | Capacité | Exigences | Scénarios | Diagrammes métier | Questions ouvertes | Tests écrits |
 |---|---:|---:|---:|---:|---:|
-| `affichage-personnalise` | 5 | 8 | 1 | 1 | 4 |
+| `affichage-personnalise` | 5 | 8 | 1 | 1 | 5 |
 | `profils-veille` | 6 | 11 | 2 | 4 | 6 |
-| **Total** | **11** | **19** | **3** | **5** | **10** |
+| **Total** | **11** | **19** | **3** | **5** | **11** |
 
-« Tests écrits » compte les scénarios couverts par un test qui passe (AFF-01-S1, AFF-01-S2, AFF-04-S1, AFF-04-S2, PRF-01-S1 à PRF-01-S3, PRF-03-S1, PRF-03-S2, PRF-05-S1). Les exigences dérivent d'ADR-0023 et ADR-0024 (Proposés) ; les règles dont le code et les tests existent sont marquées [EXISTANT] dans les fiches. Matrice détaillée : [`tasks.md` du changement](/openspec/changes/personnaliser-profils-et-affichage/tasks.md#matrice-de-traçabilité).
+« Tests écrits » compte les scénarios couverts par un test qui passe (AFF-01-S1, AFF-01-S2, AFF-03-S1, AFF-04-S1, AFF-04-S2, PRF-01-S1 à PRF-01-S3, PRF-03-S1, PRF-03-S2, PRF-05-S1). Les exigences dérivent d'ADR-0023 et ADR-0024 (Proposés) ; les règles dont le code et les tests existent sont marquées [EXISTANT] dans les fiches. Matrice détaillée : [`tasks.md` du changement](/openspec/changes/personnaliser-profils-et-affichage/tasks.md#matrice-de-traçabilité).
 
 ### Couverture du lot 2
 
@@ -127,10 +127,10 @@ Toutes les exigences sont au statut [PROPOSITION] : elles dérivent d'ADR « Pro
 |---|---|---|---|---|---|---|
 | [`gerer-comptes-et-acces`](/openspec/changes/archive/2026-11-17-gerer-comptes-et-acces/proposal.md) (archivé) | `comptes-acces` | 6 | 11 | 1 | 0 | 37 |
 | [`diffuser-alertes-et-digests`](/openspec/changes/archive/2026-11-16-diffuser-alertes-et-digests/proposal.md) (archivé) | `alertes-digests` | 6 | 9 | 1 | 2 | 26 |
-| [`notifier-sur-le-poste`](/openspec/changes/notifier-sur-le-poste/proposal.md) | `notifications-poste` | 6 | 7 | 1 | 0 | 52 |
-| **Total** | | **18** | **27** | **3** | **2** | **115** |
+| [`notifier-sur-le-poste`](/openspec/changes/notifier-sur-le-poste/proposal.md) | `notifications-poste` | 6 | 7 | 1 | 0 | 56 |
+| **Total** | | **18** | **27** | **3** | **2** | **119** |
 
-Dans ce tableau, « Tests écrits » compte les méthodes de test qui passent : `comptes-acces` (11 scénarios couverts, dont la couverture RLS du schéma par `CouvertureRlsTest`), `alertes-digests` (9 scénarios couverts, classes `AlertesTest`, `EchecSmtpTest`, `RelaisMuetTest` et `RegleAlerteTest`) et `notifications-poste` (7 scénarios couverts par des tests unitaires et d'intégration simulée : `argos-desktop/test/`, `argos-ui/tests/alertes-poste.test.mjs` et `argos-ui/tests/reprise-poste.test.mjs` ; parcours Electron réel non exécuté).
+Dans ce tableau, « Tests écrits » compte les méthodes de test qui passent : `comptes-acces` (11 scénarios couverts, dont la couverture RLS du schéma par `CouvertureRlsTest`), `alertes-digests` (9 scénarios couverts, classes `AlertesTest`, `EchecSmtpTest`, `RelaisMuetTest` et `RegleAlerteTest`) et `notifications-poste` (7 scénarios couverts par des tests unitaires et d'intégration simulée : `argos-desktop/test/`, `argos-ui/tests/alertes-poste.test.mjs` et `argos-ui/tests/reprise-poste.test.mjs`, et 4 parcours E2E de l'application Electron réelle, `e2e/desktop/notifications.spec.ts`).
 
 ### Couverture du lot 3
 
@@ -174,7 +174,7 @@ Les exigences des deux changements archivés de ce lot sont au statut [EXIGENCE]
 |---|---|---|---|---|---|---|
 | [`connecter-ihm-oidc`](/openspec/changes/connecter-ihm-oidc/proposal.md) | `comptes-acces` (ACC-07 à ACC-10) | 4 | 18 | 1 | 2 | 18 |
 
-Pour `connecter-ihm-oidc`, « Tests écrits » compte les scénarios couverts par au moins un test qui passe : tests `node:test` d'`argos-ui/tests/` (`oidc`, `session`, `autorisation`, `garde`, `securite-session`) et d'`argos-desktop/test/` (`connexion`, `canaux`, `preload`, `ui-protocol`), et parcours réel du client `argos-ui` contre le Keycloak des Dev Services (`ClientIhmOidcTest`). Les tests de bout en bout dans un navigateur et dans Electron ne sont pas écrits. Matrice détaillée : [`tasks.md` du changement](/openspec/changes/connecter-ihm-oidc/tasks.md#matrice-de-traçabilité).
+Pour `connecter-ihm-oidc`, « Tests écrits » compte les scénarios couverts par au moins un test qui passe : tests `node:test` d'`argos-ui/tests/` (`oidc`, `session`, `autorisation`, `garde`, `securite-session`) et d'`argos-desktop/test/` (`connexion`, `canaux`, `preload`, `ui-protocol`), et parcours réel du client `argos-ui` contre le Keycloak des Dev Services (`ClientIhmOidcTest`). Les parcours de bout en bout du portail web (`e2e/tests/connexion.spec.ts`) et du client desktop Electron (`e2e/desktop/connexion.spec.ts`, ACC-10-S1, S2 et S4) passent avec `npm --prefix e2e test`. Matrice détaillée : [`tasks.md` du changement](/openspec/changes/connecter-ihm-oidc/tasks.md#matrice-de-traçabilité).
 
 ### Capacités restant à spécifier
 

@@ -5,7 +5,7 @@
 | Préfixe d'exigences | `NOT` |
 | Spec de référence | `/openspec/specs/notifications-poste/spec.md` — absente tant qu'aucun changement n'est archivé |
 | Changements en cours | [`notifier-sur-le-poste`](/openspec/changes/notifier-sur-le-poste/proposal.md) (implémenté, non archivé) |
-| Statut de la capacité | implémentée dans `argos-desktop` et `argos-ui` ; tests unitaires et d'intégration simulée (chaîne pont → canaux → poste avec doublures Electron, boucle de lecture sur horloge simulée) ; parcours Electron réel non exécuté |
+| Statut de la capacité | implémentée dans `argos-desktop` et `argos-ui` ; tests unitaires et d'intégration simulée (chaîne pont → canaux → poste avec doublures Electron, boucle de lecture sur horloge simulée) ; parcours E2E de l'application Electron réelle connectée à la pile locale (`e2e/desktop/notifications.spec.ts`), clic sur la notification, refus du système et coupure du serveur simulés ; bulle et refus réels par Windows à vérifier à la main (tâche 1.2 non cochée) |
 | Composants (arc42 §5) | `argos-desktop`, IHM `argos-ui` (couche contenu), `alerting` |
 
 ## Objectif
@@ -120,8 +120,7 @@ Interprétations du changement `notifier-sur-le-poste`, à faire valider [PROPOS
 
 ## Écarts constatés
 
-- L'IHM n'a pas encore de connexion OIDC : ses appels à l'API partent sans jeton, comme les autres vues ; tant que l'authentification de l'IHM n'existe pas, le serveur répond 401 et le client affiche « connexion requise ».
-- Le parcours Electron réel (tâche 3.2) n'est pas exécuté : le binaire Electron n'est pas installé sur le poste de vérification (script d'installation bloqué par la politique `allow-scripts` de npm). Le comportement du processus principal est vérifié avec des doublures des objets Electron.
+- Le parcours E2E (tâche 3.2) observe les objets `Notification` et `Tray` réels du processus principal, mais pas l'affichage de la bulle par Windows : le clic sur la bulle est simulé par l'événement `click` de la notification créée ; le refus des notifications dans les réglages de Windows est simulé par l'événement `failed` que Windows fait émettre (sous Windows, `Notification.isSupported` ne reflète pas ce refus) ; la coupure du serveur est simulée dans la session du desktop, le serveur restant en marche. Procédures manuelles : [`tasks.md`](/openspec/changes/notifier-sur-le-poste/tasks.md#preuves-e2e-du-client-desktop).
 - La page d'un signal visée par le lien des e-mails (`/signaux/<id>`) reste à créer ; la vue `#/alertes/{id}` du client desktop affiche l'alerte, ses projets et ses sources.
 
 ## Questions ouvertes
@@ -135,11 +134,11 @@ Interprétations du changement `notifier-sur-le-poste`, à faire valider [PROPOS
 
 | Exigence | Scénarios | Conception / diagramme | Tâche | Test ou preuve |
 |---|---|---|---|---|
-| NOT-01 | NOT-01-S1, NOT-01-S2 | DC-1 | 1.1, 1.2 | `argos-desktop/test/poste.test.js` (`NOT-01-S1…`, `NOT-01-S2…`), `argos-desktop/test/chaine-poste.test.js` (`NOT-01-S1…`, `NOT-01-S2…`), `argos-desktop/test/preload.test.js` (`NOT-01-S1 / NOT-05…`), `argos-ui/tests/alertes-poste.test.mjs` (`NOT-01…`, `NOT-01-S2…`) |
-| NOT-02 | NOT-02-S1 | DC-1 | 1.2 | `argos-desktop/test/poste.test.js` (`NOT-02-S1…`), `argos-desktop/test/chaine-poste.test.js` (`NOT-02-S1…`), `argos-desktop/test/canaux.test.js` (`NOT-02-S1…`), `argos-desktop/test/preload.test.js` (`NOT-02-S1…`) |
-| NOT-03 | NOT-03-S1 | DC-1 | 1.2 | `argos-desktop/test/poste.test.js` (`NOT-03-S1…`), `argos-desktop/test/chaine-poste.test.js` (`NOT-03-S1…`), `argos-desktop/test/preload.test.js` (`NOT-03-S1…`), `argos-desktop/test/notifications.test.js` (`NOT-03…`), `argos-ui/tests/alertes-poste.test.mjs` (`NOT-03-S1…`, `NOT-03…`) |
-| NOT-04 | NOT-04-S1 | DC-1 | 1.4 | `argos-desktop/test/poste.test.js` (`NOT-04-S1…`), `argos-desktop/test/preferences.test.js` (`NOT-04…`) ; e-mail : `AlertesTest` (`alertes-digests`), canal indépendant |
-| NOT-05 | NOT-05-S1 | DC-1 | 1.3 | `argos-desktop/test/notifications.test.js` (`NOT-05-S1…`), `argos-ui/tests/alertes-poste.test.mjs` (`NOT-05-S1…`) |
-| NOT-06 | NOT-06-S1 | DC-1 | 1.1 | `argos-ui/tests/alertes-poste.test.mjs` (`NOT-06-S1…`, `NOT-06…`), `argos-ui/tests/reprise-poste.test.mjs` (`NOT-06-S1…`, `NOT-06…`) |
+| NOT-01 | NOT-01-S1, NOT-01-S2 | DC-1 | 1.1, 1.2 | `argos-desktop/test/poste.test.js` (`NOT-01-S1…`, `NOT-01-S2…`), `argos-desktop/test/chaine-poste.test.js` (`NOT-01-S1…`, `NOT-01-S2…`), `argos-desktop/test/preload.test.js` (`NOT-01-S1 / NOT-05…`), `argos-ui/tests/alertes-poste.test.mjs` (`NOT-01…`, `NOT-01-S2…`) ; E2E Electron `e2e/desktop/notifications.spec.ts` (`NOT-01-S1…`, `NOT-01-S2 (partie application)…`) |
+| NOT-02 | NOT-02-S1 | DC-1 | 1.2 | `argos-desktop/test/poste.test.js` (`NOT-02-S1…`), `argos-desktop/test/chaine-poste.test.js` (`NOT-02-S1…`), `argos-desktop/test/canaux.test.js` (`NOT-02-S1…`), `argos-desktop/test/preload.test.js` (`NOT-02-S1…`) ; E2E Electron `e2e/desktop/notifications.spec.ts` (`…clic`) |
+| NOT-03 | NOT-03-S1 | DC-1 | 1.2 | `argos-desktop/test/poste.test.js` (`NOT-03-S1…`), `argos-desktop/test/chaine-poste.test.js` (`NOT-03-S1…`), `argos-desktop/test/preload.test.js` (`NOT-03-S1…`), `argos-desktop/test/notifications.test.js` (`NOT-03…`), `argos-ui/tests/alertes-poste.test.mjs` (`NOT-03-S1…`, `NOT-03…`) ; E2E Electron `e2e/desktop/notifications.spec.ts` (`…NOT-03-S1…`) |
+| NOT-04 | NOT-04-S1 | DC-1 | 1.4 | `argos-desktop/test/poste.test.js` (`NOT-04-S1…`), `argos-desktop/test/preferences.test.js` (`NOT-04…`) ; e-mail : `AlertesTest` (`alertes-digests`), canal indépendant ; E2E Electron `e2e/desktop/notifications.spec.ts` (`NOT-04-S1 (partie poste)…`) |
+| NOT-05 | NOT-05-S1 | DC-1 | 1.3 | `argos-desktop/test/notifications.test.js` (`NOT-05-S1…`), `argos-ui/tests/alertes-poste.test.mjs` (`NOT-05-S1…`) ; E2E Electron `e2e/desktop/notifications.spec.ts` |
+| NOT-06 | NOT-06-S1 | DC-1 | 1.1 | `argos-ui/tests/alertes-poste.test.mjs` (`NOT-06-S1…`, `NOT-06…`), `argos-ui/tests/reprise-poste.test.mjs` (`NOT-06-S1…`, `NOT-06…`) ; E2E Electron `e2e/desktop/notifications.spec.ts` (`NOT-06-S1…`) |
 
 Matrice détaillée : [`tasks.md`](/openspec/changes/notifier-sur-le-poste/tasks.md#matrice-de-traçabilité).
