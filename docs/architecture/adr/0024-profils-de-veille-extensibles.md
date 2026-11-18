@@ -1,8 +1,8 @@
 # ADR-0024 — Décrire chaque profil de veille comme un pack déclaratif, cumulable par utilisateur
 
-- **Statut** : Proposé
-- **Date** : 2026-11-15
-- **Décideurs** : porteur du projet (demande du 2026-11-15) ; revue d'architecture à venir
+- **Statut** : Accepté
+- **Date** : 2026-11-18 (acceptation ; proposition du 2026-11-15)
+- **Décideurs** : porteur du projet (acceptation du 2026-11-18)
 - **Remplace** : —
 - **Remplacé par** : —
 

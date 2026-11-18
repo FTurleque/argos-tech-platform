@@ -260,7 +260,7 @@ Métriques Micrometer / OpenTelemetry (arc42 §8.6) : fraîcheur par source, nom
 ## Performance et stratégie de mesure
 
 - Consultation : API p95 < 500 ms hors appels externes et IA (arc42 §8.10, cible initiale [PROPOSITION]) — mesure par test de charge (QS-06).
-- Délai source → signal et « projets touchés < 5 min » : cibles non validées (Q-6) ; à mesurer pendant le POC sans en faire un critère d'acceptation.
+- Délai publication source → signal (« < 1 h », ADR-0010) : cible de qualité mesurée pendant le POC, sans être un critère d'acceptation ([DÉCISION] Q-6 — porteur du projet, 2026-11-18). « Projets touchés < 5 min » : cible non validée, à mesurer pendant le POC sans en faire un critère d'acceptation.
 - Volumétrie d'avis et de projets : non documentée [QUESTION, arc42 §10.4].
 
 ## Compatibilité, migration et retour arrière
@@ -300,7 +300,7 @@ Non applicable — aucune donnée ni aucun contrat existant à migrer. Le retour
 
 - **Statut** : [PROPOSITION]
 - **Choix** : s'appuyer sur ADR-0010, 0011, 0013, 0016 (Proposés) ; signaler comme candidats à ADR, hors de ce changement, le mécanisme de planification/jobs et l'outil de migration (arc42 §9.3, points 1 et 3).
-- **ADR** : candidats signalés, non rédigés.
+- **ADR** : candidats signalés, rédigés hors de ce changement : ADR-0031 (planification) et ADR-0032 (migrations Flyway), Acceptés ([DÉCISION] — porteur du projet, 2026-11-18).
 
 ## Risques
 

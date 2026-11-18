@@ -7,7 +7,7 @@
 | Changements archivés | [`2026-11-16-collecter-veille-rss-web`](/openspec/changes/archive/2026-11-16-collecter-veille-rss-web/proposal.md) |
 | Statut de la capacité | livrée ; code et tests dans `argos-server` |
 | Composants (arc42 §5) | `source-ingestion`, `signal`, `impact-engine` |
-| Décision | [ADR-0028](/docs/architecture/adr/0028-collecteur-veille-web-integre.md) (Proposé) : collecteur intégré au serveur |
+| Décision | [ADR-0028](/docs/architecture/adr/0028-collecteur-veille-web-integre.md) (Accepté) : collecteur intégré au serveur |
 
 ## Objectif
 
@@ -57,9 +57,9 @@ API : `POST|GET /api/v1/veille-web/sources`, `DELETE /api/v1/veille-web/sources/
 
 | Règle | Exigence(s) | Source | Statut |
 |---|---|---|---|
-| Une adresse est enregistrée seulement si elle renvoie un flux valide (type `FLUX`) ou une page HTML (type `PAGE`) ; sinon refus `FLUX_INVALIDE` ou `PAGE_INVALIDE`, aucune source créée | WEB-01 | ADR-0028 (Proposé) | [EXISTANT] |
+| Une adresse est enregistrée seulement si elle renvoie un flux valide (type `FLUX`) ou une page HTML (type `PAGE`) ; sinon refus `FLUX_INVALIDE` ou `PAGE_INVALIDE`, aucune source créée | WEB-01 | ADR-0028 (Accepté) | [EXISTANT] |
 | La première collecte suit l'ajout ; chaque source est ensuite collectée toutes les heures (`argos.veille-web.frequence`) | WEB-01 | Q-2 | [EXISTANT] |
-| Une page surveillée garde un instantané (texte par blocs, empreinte SHA-256) ; un contenu différent crée une actualité datée dont le texte est l'aperçu des blocs ajoutés, à défaut retirés | WEB-02 | ADR-0028 (Proposé) | [EXISTANT] |
+| Une page surveillée garde un instantané (texte par blocs, empreinte SHA-256) ; un contenu différent crée une actualité datée dont le texte est l'aperçu des blocs ajoutés, à défaut retirés | WEB-02 | ADR-0028 (Accepté) | [EXISTANT] |
 | Adresse refusée (`ADRESSE_INTERDITE`) si son port n'est pas autorisé (80 et 443 par défaut, `argos.veille-web.ports-autorises`), si son hôte est introuvable ou si une adresse IP de l'hôte, après résolution DNS, appartient à une plage refusée (liste en arc42 §8.3, IPv4 embarquées dans IPv6 comprises) ; contrôle refait à chaque collecte et à chaque redirection (5 au plus) ; 10 s et 2 Mio par récupération, lecture du contenu comprise (un serveur qui se tait après ses en-têtes est coupé à l'échéance) | WEB-03 | risque R-12 ; arc42 §8.3 | [EXISTANT] |
 | Le message d'un refus et le motif enregistré pour une source en erreur sont propres au motif : ni hôte, ni adresse IP, ni statut HTTP, ni destination de redirection ; le détail est écrit dans le journal applicatif | WEB-03 | constat de relecture ; arc42 §8.3 | [EXISTANT] |
 | Une collecte en échec fait passer la source `EN_ERREUR` avec son motif ; la tentative suivante attend fréquence × 2^(échecs − 1), au plus × 8 ; un échec de la première collecte, après l'enregistrement de la source, laisse la source `EN_ERREUR` | WEB-03 | conception, gestion des erreurs | [EXISTANT] |

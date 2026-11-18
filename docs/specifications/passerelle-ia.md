@@ -10,7 +10,7 @@
 
 ## Objectif
 
-[PROPOSITION — `encadrer-appels-ia`] Utiliser l'IA là où elle apporte de la valeur, sans fuite de données, sans dérive de charge et sans jamais lui laisser une décision. [EXISTANT] Le fournisseur est un modèle local servi par Ollama (licence MIT), coût nul ; le remplacement d'ADR-0004 (Claude) par ce fournisseur est proposé par [ADR-0029](../architecture/adr/0029-passerelle-ia-ollama-local.md) (Proposé).
+[PROPOSITION — `encadrer-appels-ia`] Utiliser l'IA là où elle apporte de la valeur, sans fuite de données, sans dérive de charge et sans jamais lui laisser une décision. [EXISTANT] Le fournisseur est un modèle local servi par Ollama (licence MIT), coût nul ; ce fournisseur remplace celui d'ADR-0004 (Claude) : [ADR-0029](../architecture/adr/0029-passerelle-ia-ollama-local.md) (Accepté) remplace ADR-0004 ([DÉCISION] — porteur du projet, 2026-11-18).
 
 ## Acteurs
 
@@ -21,7 +21,7 @@
 | Module `impact` | demande des suggestions de projets après la corrélation (tâche `analyse-correlation`), désactivé par défaut | [EXISTANT] — `ParcoursIaTest` |
 | Module `regintel` | fiche réglementaire (tâche `fiche-reglementaire`) : prompt publié, appelant à brancher | [PROPOSITION] — `suivre-veille-reglementaire` |
 | Exploitant (porteur du projet) | fixe le plafond, les quotas et le modèle par tâche ; active Ollama (profil `ia`) | [DÉCISION] — Q-1 à Q-3, répondues le 2026-11-16 |
-| Fournisseur de modèles (Ollama local) | exécute les requêtes sur le NAS | [PROPOSITION] — ADR-0029 (Proposé) |
+| Fournisseur de modèles (Ollama local) | exécute les requêtes sur le NAS | [DÉCISION] — ADR-0029 (Accepté) |
 
 ## Périmètre et exclusions
 
@@ -52,12 +52,12 @@ Exclus :
 
 | Règle | Exigence(s) | Source | Statut |
 |---|---|---|---|
-| Appel tracé par la passerelle : modèle, version du prompt, jetons, coût (0 €), empreinte SHA-256 des entrées après filtrage (données personnelles masquées), issue ; aucune copie des données | IAG-01 | ADR-0004 (Proposé) ; décision D2 | [EXISTANT] — `PasserelleIaTest` |
+| Appel tracé par la passerelle : modèle, version du prompt, jetons, coût (0 €), empreinte SHA-256 des entrées après filtrage (données personnelles masquées), issue ; aucune copie des données | IAG-01 | ADR-0029 (Accepté, remplace ADR-0004) ; décision D2 | [EXISTANT] — `PasserelleIaTest` |
 | Seules PUBLIC et INTERNAL sortent ; jamais de secrets, de jetons ni de données personnelles | IAG-02 | Q-4, répondue le 2026-11-16 | [EXISTANT] — `PasserelleIaTest`, `FiltreDonneesTest` |
 | Plafond de 1 000 appels par jour pour l'instance et de 100 par jour et par espace, paramétrables ; au-delà, aucun appel et traitement poursuivi sans IA | IAG-03 | Q-1, Q-2, répondues le 2026-11-16 | [EXISTANT] — `PasserelleIaTest`, `ParcoursIaTest` |
 | Modèle `qwen2.5:1.5b` par défaut, remplaçable par tâche (`argos.ia.modeles.<tâche>`) | IAG-01 | Q-3, répondue le 2026-11-16 | [EXISTANT] — `PasserelleIaTest` |
-| Sortie validée par schéma, rejetée et journalisée sinon | IAG-04 | ADR-0004 (Proposé) ; QS-15 | [EXISTANT] — `PasserelleIaTest` |
-| Mention « produit par l'IA » et sources avec tout contenu produit | IAG-05 | ADR-0004 (Proposé) ; AFF-02 | [EXISTANT] — `ParcoursIaTest`, `argos-ui/tests/resume-ia.test.mjs` |
+| Sortie validée par schéma, rejetée et journalisée sinon | IAG-04 | ADR-0029 (Accepté, remplace ADR-0004) ; QS-15 | [EXISTANT] — `PasserelleIaTest` |
+| Mention « produit par l'IA » et sources avec tout contenu produit | IAG-05 | ADR-0029 (Accepté, remplace ADR-0004) ; AFF-02 | [EXISTANT] — `ParcoursIaTest`, `argos-ui/tests/resume-ia.test.mjs` |
 | Prompt modifié sans nouvelle version : démarrage refusé | IAG-01 | décision locale | [EXISTANT] — `RegistrePrompts` |
 
 ## Droits d'accès et restrictions

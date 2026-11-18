@@ -1,9 +1,9 @@
 # ADR-0033 — Tenir la session OIDC de l'IHM en mémoire et connecter le desktop par l'interface de bouclage
 
-- **Statut** : Proposé
-- **Date** : 2026-11-17
-- **Décideurs** : Non déterminé (proposition du changement `connecter-ihm-oidc`, lot 7)
-- **Complète** : [ADR-0027](0027-keycloak-idp-auto-heberge.md) (Proposé) pour les clients ; précise [ADR-0022](0022-client-desktop-electron.md) point 6 (Proposé)
+- **Statut** : Accepté
+- **Date** : 2026-11-18 (acceptation ; proposition du 2026-11-17)
+- **Décideurs** : porteur du projet (acceptation du 2026-11-18)
+- **Complète** : [ADR-0027](0027-keycloak-idp-auto-heberge.md) (Accepté) pour les clients ; précise [ADR-0022](0022-client-desktop-electron.md) point 6 (Proposé)
 - **Remplace** : —
 - **Remplacé par** : —
 
@@ -84,9 +84,9 @@
 
 ## Traçabilité
 
-- **Exigences** : ACC-07 à ACC-10 (`/openspec/changes/connecter-ihm-oidc/specs/comptes-acces/spec.md`)
+- **Exigences** : ACC-07 à ACC-10 (`/openspec/changes/archive/2026-11-18-connecter-ihm-oidc/specs/comptes-acces/spec.md`)
 - **Scénarios qualité** : aucun ; risque R-18
-- **Diagrammes** : DC-1 à DC-4 (`/openspec/changes/connecter-ihm-oidc/design.md`), DF-ACC-2 (`docs/specifications/comptes-acces.md`)
+- **Diagrammes** : DC-1 à DC-4 (`/openspec/changes/archive/2026-11-18-connecter-ihm-oidc/design.md`), DF-ACC-2 (`docs/specifications/comptes-acces.md`)
 - **Tickets/PR** : Non déterminé
 - **Fichiers source** : `argos-ui/src/session/`, `argos-ui/src/api/autorisation.ts`, `argos-desktop/src/connexion.js`, `argos-desktop/src/ui-protocol.js`, `argos-server/src/test/resources/keycloak/argos-realm.json`
 

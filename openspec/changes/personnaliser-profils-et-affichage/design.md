@@ -194,7 +194,7 @@ Non applicable — aucune donnée existante.
 - **Justification** : contenu et mentions identiques garantis par construction (AFF-02).
 - **Alternatives écartées** : thèmes purement graphiques — ne permettent pas les structures maquettées ; une IHM par style — logique dupliquée.
 - **Compromis** : chaque nouvel écran est décliné dans toutes les mises en page.
-- **ADR** : ADR-0023 (Proposé).
+- **ADR** : ADR-0023 (Accepté).
 
 ### D2 — Profil = pack déclaratif et stratégies enfichables
 
@@ -203,7 +203,7 @@ Non applicable — aucune donnée existante.
 - **Justification** : ajout d'un public sans toucher au cœur (PRF-04), rapprochement explicable (ADR-0013).
 - **Alternatives écartées** : profils codés en dur ; une instance par public ; rapprochement confié à l'IA.
 - **Compromis** : la taxonomie des signaux devient extensible.
-- **ADR** : ADR-0024 (Proposé).
+- **ADR** : ADR-0024 (Accepté).
 
 ### D3 — Au moins un profil actif
 
@@ -221,6 +221,7 @@ Non applicable — aucune donnée existante.
 - **Justification** : un seul contrat rend la comparaison des contenus automatique (AFF-02) ; l'absence de service de polices respecte la CSP du desktop (`font-src 'self'`) et le fonctionnement sans Internet (ADR-0022, ADR-0023 point 5). L'OFL est libre, gratuite et permet l'usage commercial ; elle ne s'applique qu'aux fichiers de police et ne touche pas la licence du code (ADR-0021 point 4).
 - **Alternatives écartées** : polices système seules — ne rendent pas les maquettes ; chargement depuis Google Fonts — bloqué par la CSP et indisponible hors ligne ; un modèle par mise en page — contenus divergents.
 - **Compromis** : environ 1,4 Mo de fichiers de police dans `dist/assets`, téléchargés seulement par la mise en page qui les emploie.
+- **Licence des polices** : [DÉCISION] SIL OFL 1.1 acceptée pour les seules polices embarquées de `argos-ui` — porteur du projet, 2026-11-18.
 - **ADR** : non : application d'ADR-0023 point 5 et d'ADR-0021 point 6 (licences enregistrées dans `argos-ui/NOTICE`).
 - **Raccordement de la veille réelle** : la couche contenu transpose la réponse de `GET /api/v1/me/veille` vers `VeilleAffichee` (`argos-ui/src/contenu/veille-affichee.ts`) ; chaque élément reçu donne un élément affiché, dans l'ordre reçu, avec toutes ses mentions (validation, garde-fous, « produit par l'IA », paternité de la source, origine profil ou abonnement personnel). L'union, le dédoublonnage, les garde-fous et les droits restent calculés par le serveur (arc42 §5.1).
 

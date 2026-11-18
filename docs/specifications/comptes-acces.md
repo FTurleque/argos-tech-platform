@@ -19,7 +19,7 @@
 | Utilisateur | se connecte, crée son espace, rejoint un espace sur invitation | [PROPOSITION] — ADR-0025 (Accepté) |
 | Administrateur d'espace | invite, attribue et révoque les rôles de son espace | [PROPOSITION] — ADR-0016 (Proposé) |
 | Administrateur plateforme | gère les catalogues et l'exploitation, sans accès implicite aux données des espaces | [PROPOSITION] — arc42 §8.1 |
-| Fournisseur d'identité OIDC (Keycloak) | authentifie les utilisateurs | [DÉCISION] Q-1 — ADR-0008, ADR-0027 (Proposés), ADR-0026 (Accepté) |
+| Fournisseur d'identité OIDC (Keycloak) | authentifie les utilisateurs | [DÉCISION] Q-1 — ADR-0008 (Proposé), ADR-0026, ADR-0027 (Acceptés) |
 
 ## Périmètre et exclusions
 
@@ -31,7 +31,7 @@ Inclus :
 
 Exclus :
 
-- La persistance de la session entre deux lancements du client desktop (ADR-0033, Proposé ; question Q-5).
+- La persistance de la session entre deux lancements du client desktop (ADR-0033, Accepté ; question Q-5).
 - Le déploiement de Keycloak sur le Synology.
 - La facturation et les offres payantes : aucune décision (ADR-0021).
 - La suppression de compte et l'export des données (RGPD) : changement dédié à créer.
@@ -59,7 +59,7 @@ API : `/api/v1/moi`, `/api/v1/espaces`, `/api/v1/espaces/{espaceId}/membres`, `/
 
 | Règle | Exigence(s) | Source | Statut |
 |---|---|---|---|
-| Authentification obligatoire | ACC-01 | ADR-0008, ADR-0027 (Proposés) | [PROPOSITION] — implémentée |
+| Authentification obligatoire | ACC-01 | ADR-0008 (Proposé), ADR-0027 (Accepté) | [PROPOSITION] — implémentée |
 | Création du compte à la première connexion | ACC-02 | ADR-0025 (Accepté) | [PROPOSITION] — implémentée |
 | Inscription sur invitation : compte créé seulement pour un e-mail vérifié destinataire d'une invitation en attente, ou pour l'administrateur plateforme initial | ACC-02 | Q-2 (2026-11-16) | [DÉCISION] — implémentée |
 | Profil de veille `developpeur` activé à la création du compte | ACC-02, PRF-01 | Q-3 (2026-11-16) | [DÉCISION] — implémentée : l'événement `CompteCree` active le profil dans les préférences du compte (`io.argos.api.preference.ActivationProfilParDefaut`) |
@@ -68,10 +68,10 @@ API : `/api/v1/moi`, `/api/v1/espaces`, `/api/v1/espaces/{espaceId}/membres`, `/
 | Accès refusé à un autre espace : « introuvable » (404) | ACC-04 | Q-4 (2026-11-16) | [DÉCISION] — implémentée |
 | Invitations et révocation, effective dès la requête suivante | ACC-05 | ADR-0016 (Proposé) | [PROPOSITION] — implémentée |
 | Journal des refus d'accès, unique pour toute l'API (espaces, impacts, inventaires, abonnements, exploitation) | ACC-06, COR-08 | ADR-0016 (Proposé) | [PROPOSITION] — implémentée |
-| Toute vue de l'IHM sauf l'état du serveur exige une session obtenue par code d'autorisation + PKCE S256, state vérifié | ACC-07 | ADR-0027, ADR-0033 (Proposés) | [PROPOSITION] — implémentée |
-| Jetons en mémoire seulement, renouvelés avant expiration, oubliés à la déconnexion ; « session expirée » si le renouvellement échoue | ACC-08 | ADR-0033 (Proposé) ; demande du lot 7 | [PROPOSITION] — implémentée |
+| Toute vue de l'IHM sauf l'état du serveur exige une session obtenue par code d'autorisation + PKCE S256, state vérifié | ACC-07 | ADR-0027, ADR-0033 (Acceptés) | [PROPOSITION] — implémentée |
+| Jetons en mémoire seulement, renouvelés avant expiration, oubliés à la déconnexion ; « session expirée » si le renouvellement échoue | ACC-08 | ADR-0033 (Accepté) ; demande du lot 7 | [PROPOSITION] — implémentée |
 | 401 → reconnexion ; 403 `INSCRIPTION_SUR_INVITATION` → écran « aucun compte ARGOS » sans invitation proposée ; autre 403 → message de refus | ACC-09 | ACC-01, ACC-02 ; Q-2 | [PROPOSITION] — implémentée |
-| Desktop : autorisation dans le navigateur du système, retour sur `127.0.0.1` à port éphémère, CSP limitée au serveur et au fournisseur | ACC-10 | ADR-0022 point 6, ADR-0033 (Proposés) ; RFC 8252 | [PROPOSITION] — implémentée |
+| Desktop : autorisation dans le navigateur du système, retour sur `127.0.0.1` à port éphémère, CSP limitée au serveur et au fournisseur | ACC-10 | ADR-0022 point 6 (Proposé), ADR-0033 (Accepté) ; RFC 8252 | [PROPOSITION] — implémentée |
 
 ## Droits d'accès et restrictions
 
@@ -160,7 +160,7 @@ Scénarios ACC-07-S1 à ACC-10-S4 : tests `node:test` d'`argos-ui/tests/` et d'`
 - Une invitation déjà acceptée ou révoquée répond 409 (`INVITATION_INACTIVE`) ; une invitation inconnue ou adressée à une autre personne répond 404 sans être journalisée comme refus d'accès à un espace.
 - ACC-02-S2 (« message explicite ») : le refus de Keycloak est vérifié côté serveur ; l'écran de connexion d'argos-ui affiche un message fixe pour un refus du fournisseur [EXISTANT] — ACC-07-S4, vérifié par `argos-ui/tests/session.test.mjs`, sans test de bout en bout.
 - ACC-10-S1 et ACC-10-S2 : le parcours de bout en bout du client desktop simule le navigateur du système par une page Chromium. L'ouverture du navigateur réellement installé par `shell.openExternal` et le retour de la fenêtre ARGOS au premier plan restent à constater manuellement, selon la procédure du [`tasks.md` archivé](/openspec/changes/archive/2026-11-18-connecter-ihm-oidc/tasks.md) ; cette vérification manuelle n'est pas consignée [QUESTION].
-- ADR-0022 point 6 prévoit de conserver les jetons du desktop par `safeStorage` ; `connecter-ihm-oidc` les garde en mémoire seulement (ADR-0033, Proposé). ADR-0022 n'est pas modifié.
+- ADR-0022 point 6 prévoit de conserver les jetons du desktop par `safeStorage` ; `connecter-ihm-oidc` les garde en mémoire seulement (ADR-0033, Accepté). ADR-0022 n'est pas modifié.
 - Parcours réel d'invitation : Argos n'envoie aucun e-mail et ne crée aucun compte Keycloak ; tant que l'inscription libre est désactivée dans Keycloak, l'administrateur Keycloak crée le compte de la personne invitée (e-mail vérifié) avant sa première connexion.
 - La tâche 3.3 du changement cite QS-02, qui porte sur la confidentialité des appels LLM et non sur le cloisonnement ; QS-02 est exécuté au niveau des tests de la passerelle IA (`argos-server/src/test/java/io/argos/aigateway/PasserelleIaTest.java#iag02S1DonneeConfidentielleRefuseeSansEnvoiEtJournalisee`, `argos-server/src/test/java/io/argos/chain/ParcoursIaTest.java#iag02S1DonneeConfidentielleRefuseeEtJournalisee` : refus, aucun envoi au fournisseur simulé, refus journalisé dans `ia_appel` avec son espace, 0 violation). Aucun scénario du registre qualité ne couvre l'accès inter-espaces.
 

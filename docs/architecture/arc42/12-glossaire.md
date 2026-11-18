@@ -24,12 +24,12 @@
 | **Invitation** | proposition, émise par un administrateur d’espace, de rejoindre l’espace avec un rôle ; adressée à un e-mail, valable 14 jours par défaut |
 | **Administrateur plateforme** | attribut d’un compte pour l’exploitation et les catalogues, sans accès implicite aux espaces |
 | **Espace courant** | espace transmis à PostgreSQL dans chaque transaction (`argos.espace_courant`) pour la RLS |
-| **Keycloak** | fournisseur d’identité OIDC open source (Apache-2.0) auto-hébergé, retenu par ADR-0027 (Proposé) |
+| **Keycloak** | fournisseur d’identité OIDC open source (Apache-2.0) auto-hébergé, retenu par ADR-0027 (Accepté) |
 | **Profil de veille** | type de veille qu’un utilisateur active (`developpeur`, `expert-metier`…) : sources, rubriques, stratégies de rapprochement et garde-fous décrits par un manifeste du catalogue ; cumulable, sans effet sur les droits ; à ne pas confondre avec un rôle (ADR-0024) |
 | **Objet suivi** | valeur qu'un utilisateur suit pour un profil de veille, choisie dans une liste fermée du manifeste (par exemple discipline `arts-visuels`, territoire `occitanie` du profil `artiste`) ; visible de lui seul, sans effet sur les droits |
 | **Opportunité** | appel à projets, résidence, aide, information ou événement collecté par une source vérifiée du profil `artiste`, avec ses disciplines, ses territoires et sa date limite (absente : « date à confirmer ») ; restituée par la stratégie discipline + territoire + date limite (capacité `profil-artiste`) |
 | **Conditions d'usage** | licence et règles de réutilisation d'une source de profil, vérifiées et enregistrées par l'administrateur plateforme avant toute collecte (ART-05) |
-| **Expert métier** | membre CONTRIBUTEUR ou ADMINISTRATEUR d'un espace, désigné par un administrateur pour un domaine métier ; seul à voir, corriger et valider les fiches réglementaires de ce domaine avant leur diffusion (ADR-0030, proposé) |
+| **Expert métier** | membre CONTRIBUTEUR ou ADMINISTRATEUR d'un espace, désigné par un administrateur pour un domaine métier ; seul à voir, corriger et valider les fiches réglementaires de ce domaine avant leur diffusion (ADR-0030, accepté) |
 | **Domaine métier** | thème réglementaire propre à un espace (par exemple « Carrière », « Paie »), avec ses règles de rattachement et ses experts |
 | **Dictionnaire métier** | règles déterministes d'un espace qui rattachent un texte officiel à un domaine : nature, ministère, préfixe NOR, code modifié, mot-clé du titre ; aucun dictionnaire type n'est fourni |
 | **Texte officiel** | texte publié au Journal officiel, collecté dans les archives JORF de la DILA (Licence Ouverte) et enregistré une seule fois par identifiant officiel (`JORFTEXT…`) |
@@ -52,7 +52,7 @@
 | **Claude** | famille de modèles d’Anthropic retenue comme fournisseur IA initial proposé |
 | **LLM** | Large Language Model |
 | **AI Gateway** | composant ARGOS encapsulant appels LLM, prompts, politiques, quotas, validation et audit |
-| **Ollama** | serveur de modèles d'IA local (licence MIT) appelé par la passerelle IA (ADR-0029, proposé) ; service facultatif du profil `ia` de `compose.yaml` |
+| **Ollama** | serveur de modèles d'IA local (licence MIT) appelé par la passerelle IA (ADR-0029, accepté) ; service facultatif du profil `ia` de `compose.yaml` |
 | **Quota IA** | nombre maximal d'appels transmis au modèle par jour : 1 000 pour l'instance, 100 par espace, 20 par compte pour ses demandes explicites, paramétrables (IAG-03) ; un appel qui n'a pas pu joindre le modèle est rendu |
 | **Structured output** | réponse LLM contrainte/validée selon une structure attendue, idéalement un schéma |
 | **RAG** | Retrieval-Augmented Generation ; enrichissement d’un appel LLM par des données retrouvées à la demande |
@@ -68,7 +68,7 @@
 | **Outbox** | pattern garantissant la cohérence entre transaction métier et publication d’événements |
 | **OIDC** | OpenID Connect, protocole d’identité au-dessus d’OAuth 2.0 |
 | **PKCE** | Proof Key for Code Exchange (RFC 7636) : le client public prouve, à l’échange du code d’autorisation, qu’il est l’auteur de la demande (vérificateur secret, défi S256) |
-| **Interface de bouclage** | adresse locale `127.0.0.1` sur laquelle une application native reçoit le retour d’une autorisation ouverte dans le navigateur du système (RFC 8252 §7.3) ; utilisée par le client desktop (ADR-0033, Proposé) |
+| **Interface de bouclage** | adresse locale `127.0.0.1` sur laquelle une application native reçoit le retour d’une autorisation ouverte dans le navigateur du système (RFC 8252 §7.3) ; utilisée par le client desktop (ADR-0033, Accepté) |
 | **SAML** | protocole d’échange d’assertions d’identité, courant en entreprise |
 | **RBAC** | Role-Based Access Control |
 | **SSO** | Single Sign-On |

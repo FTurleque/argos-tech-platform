@@ -24,7 +24,7 @@ flowchart TB
         SAUV[("«dossier» sauvegardes/\nexports compressés, 14 conservés")]
     end
 
-    KC["«Software System» Keycloak, royaume argos\nauto-hébergé (ADR-0027, proposé)\nhors compose.yaml : ARGOS_OIDC_URL"]
+    KC["«Software System» Keycloak, royaume argos\nauto-hébergé (ADR-0027, accepté)\nhors compose.yaml : ARGOS_OIDC_URL"]
     HB["«Software System» Copie hors site\nHyper Backup"]
     EXT["«Software System» Sources publiques\nOSV, NVD, KEV, EPSS, CERT-FR, endoflife.date,\nDILA (JORF), flux et pages surveillés"]
     FORGES["«Software System» GitLab / GitHub\nAPI REST en lecture seule"]
@@ -55,10 +55,10 @@ flowchart TB
 | Conteneurs | `argos`, `postgres` (image `postgres:18`), `ollama` (profil `ia`, désactivé par défaut) dans le projet compose `argos` | `compose.yaml` |
 | Exposition | ports d'Argos et de PostgreSQL liés à `127.0.0.1` ; `ARGOS_BIND=0.0.0.0` ouvre Argos au réseau local ou au VPN ; Ollama ne publie aucun port | `compose.yaml` |
 | Accès distant | VPN Server de DSM par défaut ; nom de domaine en HTTPS par le reverse proxy de DSM | [`synology-et-pc.md`](/docs/deploiement/synology-et-pc.md) |
-| Identité | Keycloak lu par `ARGOS_OIDC_URL` ; son déploiement sur le NAS n'est pas décrit dans `compose.yaml` | ADR-0027 (Proposé), `compose.yaml` |
+| Identité | Keycloak lu par `ARGOS_OIDC_URL` ; son déploiement sur le NAS n'est pas décrit dans `compose.yaml` | ADR-0027 (Accepté), `compose.yaml` |
 | Messagerie | relais SMTP du Synology, `ARGOS_SMTP_HOST`, STARTTLS | fiche [`alertes-digests`](../../specifications/alertes-digests.md) |
-| Migrations | Flyway appliqué au démarrage d'Argos (`quarkus.flyway.migrate-at-start=true`) | `application.properties`, [ADR-0032](../adr/0032-migrations-flyway.md) (Proposé) |
-| Tâches planifiées | exécutées dans le conteneur `argos` par `quarkus-scheduler`, sans ordonnanceur externe | [ADR-0031](../adr/0031-planification-quarkus-scheduler.md) (Proposé) |
+| Migrations | Flyway appliqué au démarrage d'Argos (`quarkus.flyway.migrate-at-start=true`) | `application.properties`, [ADR-0032](../adr/0032-migrations-flyway.md) (Accepté) |
+| Tâches planifiées | exécutées dans le conteneur `argos` par `quarkus-scheduler`, sans ordonnanceur externe | [ADR-0031](../adr/0031-planification-quarkus-scheduler.md) (Accepté) |
 | Sauvegarde | export par `scripts/sauvegarder-base.sh`, copie hors du NAS par Hyper Backup | `synology-et-pc.md` |
 
 Une seule instance du conteneur `argos` est prévue : les tâches planifiées et la réservation des traitements reposent sur cette hypothèse ou sur des verrous PostgreSQL (ADR-0031).

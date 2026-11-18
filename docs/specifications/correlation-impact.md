@@ -69,7 +69,7 @@ Les signaux sont globaux mais les impacts appartiennent à l'espace du projet (A
 | Qualité | Cible | Source | Statut |
 |---|---|---|---|
 | Impacts sans provenance | 0 (100 % traçables) | arc42 §10.2 Q-01 ; QS-01 | [PROPOSITION] |
-| Précision de la corrélation | mesurée sur jeu de référence (vrais/faux positifs, faux négatifs) | baseline v2.3 §6 critère 3 ; ADR-0013 | [EXISTANT] — mesure du 2026-11-18 sur un jeu composé (avis OSV réels, SBOM de test) : précision 98,1 %, rappel 98,1 % tous niveaux ; 100 % pour `exact` et `probable` ([rapport](../architecture/quality/mesure-correlation-jeu-reference.md)) ; seuil « pertinence ≥ 80 % » cité par ADR-0013 non validé [QUESTION] |
+| Précision de la corrélation | mesurée sur jeu de référence (vrais/faux positifs, faux négatifs) | baseline v2.3 §6 critère 3 ; ADR-0013 | [EXISTANT] — mesure du 2026-11-18 sur un jeu composé (avis OSV réels, SBOM de test) : précision 98,1 %, rappel 98,1 % tous niveaux ; 100 % pour `exact` et `probable` ([rapport](../architecture/quality/mesure-correlation-jeu-reference.md)) ; preuve partielle, le critère 3 se mesure sur les inventaires des projets pilotes ([DÉCISION] du 2026-11-18, voir « Interprétations ») ; seuil « pertinence ≥ 80 % » cité par ADR-0013 non validé [QUESTION] |
 | Alertes bloquées par l'indisponibilité de l'IA | 0 | baseline v2.3 §6 critère 6 | [PROPOSITION] |
 | Données CONFIDENTIAL / RESTRICTED envoyées à l'IA | 0 | baseline v2.3 §6 critère 7 ; QS-02 | [PROPOSITION] — portée par la future capacité AI Gateway |
 
@@ -192,9 +192,10 @@ Interprétations validées par le porteur du projet le 2026-11-16 [DÉCISION].
 - COR-02-S1 : correspondance PURL + version sur SBOM non obsolète ⇒ niveau `exact` (interprétation de ADR-0013) ;
 - COR-08-S2 : le refus ne révèle pas le contenu de l'impact.
 
+[DÉCISION — porteur du projet, 2026-11-18] Critère 3 de la baseline v2.3 §6 (tâche 4.7) : le jeu de référence composé (avis OSV réels, SBOM de test) ne suffit pas ; la précision et le rappel se mesurent sur les inventaires des projets pilotes, avec la tâche 7.1. La mesure du jeu composé reste une preuve partielle.
+
 ## Écarts constatés
 
-- arc42 §6.1 nomme `Impact Correlation`, `Technology Intelligence` et `Workspace & Project Core` ; ces participants correspondent à `impact-engine`, `signal`/`vuln-intel` et `workspace`/`inventory` de §5. DF-COR-2 utilise les noms de §5.
 - Le code de `argos-server` implémente les règles de cette fiche (`io.argos.impact`). La consultation des impacts s'exécute sous le rôle applicatif `argos_app` avec le compte de l'appelant : la RLS de `project_impact` (fonction `argos_espace_lisible`, migration V2) masque les impacts des espaces dont il n'est pas membre, même si le filtre explicite de la couche API était erroné (`CorrelationTest#rlsAppliqueeSurLeCheminApplicatif`). La corrélation écrit sous l'utilisateur de connexion, propriétaire des tables.
 - Les refus sont journalisés dans le journal unique des refus d'accès (`refus_acces`, module `audit`) : compte, méthode et chemin, motif `NON_MEMBRE` (réponse 404) ou `ROLE_INSUFFISANT` (réponse 403).
 - Un avis retiré par sa source (OSV `withdrawn`) ne produit aucun impact et retire ceux qu'il portait.

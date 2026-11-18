@@ -74,7 +74,7 @@ Les signaux de sécurité sont globaux, non rattachés à un espace (ADR-0016, c
 |---|---|---|---|
 | Perte d'avis lors d'une panne | 0 | arc42 §10.2 Q-03 ; QS-03 | [PROPOSITION] |
 | Duplication logique après rejeu | 0 | arc42 §10.2 Q-03 ; QS-04 | [PROPOSITION] |
-| Délai publication source → signal | « alerte sécurité < 1 h » | ADR-0010, traçabilité | [QUESTION Q-6 du changement] — cible non validée |
+| Délai publication source → signal | « alerte sécurité < 1 h » | ADR-0010, traçabilité | [DÉCISION] Q-6 du changement — porteur du projet, 2026-11-18 : cible de qualité mesurée pendant le POC, sans être un critère d'acceptation |
 | Fraîcheur des sources | métrique à exposer, seuil non défini | arc42 §8.6 | [QUESTION] |
 
 ## Diagrammes
@@ -198,7 +198,6 @@ Comportements absents des sources, ajoutés pour rendre les règles testables (c
 - Le délai imposé par `Retry-After` est borné par le délai maximal des tentatives (`argos.ingestion.backoff-max`, 5 minutes).
 - Un avis OSV retiré (champ `withdrawn`) reste historisé comme signal, mais ne déclare plus aucun paquet affecté : il ne produit aucun impact.
 - Aucune planification automatique des synchronisations n'est installée (tâche 6.3 du changement) ; la première synchronisation OSV sans curseur énumère tout l'index `modified_id.csv` des écosystèmes configurés, dans la requête d'exploitation, sans borne de volume.
-- Les noms de §6 (`Ingestion`, `External Adapters`, `Scheduler & Jobs`) diffèrent des composants de §5 ; voir la table de correspondance de arc42 §6.
 
 ## Questions ouvertes
 

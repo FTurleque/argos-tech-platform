@@ -16,7 +16,8 @@ Outillage de build et de test (devDependencies, non livré)
 
 Polices embarquées (mises en page, ADR-0023 point 5)
   Fichiers de police (woff2, woff ; sous-ensemble latin) sous SIL Open Font License 1.1 (OFL-1.1),
-  licence libre et gratuite, usage commercial permis, acceptée pour les seules polices. Feuilles
+  licence libre et gratuite, usage commercial permis, acceptée pour les seules polices embarquées
+  ([DÉCISION] porteur du projet, 2026-11-18). Feuilles
   @font-face des paquets @fontsource/* (projet Fontsource, code sous licence MIT ; champ « license »
   des paquets : OFL-1.1). Aucune police n'est chargée depuis un service externe à l'exécution :
   le build copie les fichiers dans dist/assets, servis par l'application (CSP desktop : font-src 'self').
