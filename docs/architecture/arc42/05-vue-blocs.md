@@ -36,7 +36,7 @@ flowchart LR
 - navigation, tableaux de bord, recherche et préférences ;
 - socle de veille d’équipe + veille personnelle ;
 - aucune logique métier critique dans l’IHM ;
-- session OIDC (changement `connecter-ihm-oidc`, [PROPOSITION], ADR-0033) : code d’autorisation + PKCE S256 auprès de Keycloak, jetons en mémoire seulement, jeton porteur joint aux appels de `/api/v1` sauf l’identité du serveur ; toute vue sauf l’état du serveur exige une session.
+- session OIDC (exigences ACC-07 à ACC-10 de la capacité [`comptes-acces`](../../specifications/comptes-acces.md), livrées ; ADR-0033, Proposé) : code d’autorisation + PKCE S256 auprès de Keycloak, jetons en mémoire seulement, jeton porteur joint aux appels de `/api/v1` sauf l’identité du serveur ; toute vue sauf l’état du serveur exige une session.
 
 ### Client desktop Electron (proposé, ADR-0022)
 
