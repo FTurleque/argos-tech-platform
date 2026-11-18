@@ -27,8 +27,17 @@ public class InventoryService {
 
     private static final Logger LOG = Logger.getLogger(InventoryService.class);
 
-    /** Issue d'un import : IMPORTED, REJECTED, KEPT (inventaire SBOM conservé) ou NONE (aucune source). */
-    public record ImportResult(String status, String origin, int components, int ignored, String reason) {
+    /**
+     * Issue d'un import : IMPORTED, REJECTED, KEPT (inventaire SBOM conservé) ou NONE (aucune source).
+     * {@code ignored} compte les composants écartés faute de PURL exploitable ; {@code ignoredComponents}
+     * les décrit, au plus {@value ParsedInventory#MAX_SIGNALED} (INV-01, décision D6 du 2026-11-18).
+     */
+    public record ImportResult(String status, String origin, int components, int ignored, String reason,
+            List<ParsedInventory.IgnoredComponent> ignoredComponents) {
+
+        public ImportResult(String status, String origin, int components, int ignored, String reason) {
+            this(status, origin, components, ignored, reason, List.of());
+        }
     }
 
     @Inject
@@ -58,7 +67,8 @@ public class InventoryService {
             return new ImportResult("REJECTED", null, 0, 0, e.getMessage());
         }
         store.replace(projectId, "SBOM", parsed, sourceRef);
-        return new ImportResult("IMPORTED", "SBOM", parsed.components().size(), parsed.ignoredComponents(), null);
+        return new ImportResult("IMPORTED", "SBOM", parsed.components().size(), parsed.ignoredComponents(), null,
+                parsed.ignored());
     }
 
     /** Constitue un inventaire de repli à partir de manifestes (chemin → contenu). */
@@ -79,7 +89,7 @@ public class InventoryService {
         if (read == 0) {
             return new ImportResult("NONE", null, 0, 0, "aucun manifeste lisible");
         }
-        store.replace(projectId, "MANIFEST", new ParsedInventory(null, null, List.copyOf(items.values()), 0),
+        store.replace(projectId, "MANIFEST", new ParsedInventory(null, null, List.copyOf(items.values())),
                 String.join(",", manifests.keySet()));
         return new ImportResult("IMPORTED", "MANIFEST", items.size(), 0, null);
     }

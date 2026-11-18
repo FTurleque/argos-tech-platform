@@ -57,7 +57,8 @@ import io.quarkus.test.junit.QuarkusTest;
  * CycloneDX et un manifeste de test, et la vérité annotée à la main. Le test exécute la chaîne réelle
  * d'ARGOS sans accès à Internet : import des inventaires, collecte OSV sur le serveur simulé,
  * corrélation déclenchée par la collecte, puis lecture des impacts enregistrés. Il compare chaque
- * impact à la vérité, calcule précision et rappel par niveau et échoue si un écart n'est pas consigné
+ * impact à la vérité, vérifie les composants signalés à l'import faute de PURL (INV-01-S3, décision D6),
+ * calcule précision et rappel par niveau et échoue si un écart n'est pas consigné
  * dans le jeu ou si les métriques diffèrent de celles du rapport versionné
  * ({@code docs/architecture/quality/mesure-correlation-jeu-reference.md}). Le rapport calculé est écrit
  * dans {@code target/jeu-reference-correlation/mesure.md}.
@@ -244,6 +245,7 @@ class JeuReferenceCorrelationTest {
         metriques.put("transitifCorrect", mesure.transitifsCorrects + "/" + mesure.transitifsAnnotes);
         metriques.put("aliasCveIndexes", aliasIndexes(avis.aliasCve()));
         metriques.put("doublonsAlias", Long.toString(doublonsAlias(observes, avis.aliasCve())));
+        metriques.put("composantsSignales", Integer.toString(composantsSignales));
 
         ecrireRapport(metriques, mesure.ecarts, attendus, observes);
 
@@ -283,9 +285,22 @@ class JeuReferenceCorrelationTest {
                 resultat = inventories.importManifests(projet, manifestes);
             }
             assertEquals("IMPORTED", resultat.status(), "import de l'inventaire de " + nom + " : " + resultat.reason());
+            // Composants écartés faute de PURL, signalés à l'import (INV-01, décision D6) : exactement ceux annotés.
+            List<String> signales = new ArrayList<>();
+            p.path("composantsSignales").forEach(s -> signales.add(String.join("|", s.path("groupe").asText(),
+                    s.path("nom").asText(), s.path("version").asText(), s.path("motif").asText())));
+            List<String> observes = new ArrayList<>();
+            resultat.ignoredComponents().forEach(i -> observes.add(String.join("|", String.valueOf(i.group()),
+                    String.valueOf(i.name()), String.valueOf(i.version()), i.reason())));
+            assertEquals(signales, observes, "composants signalés à l'import de " + nom);
+            assertEquals(signales.size(), resultat.ignored(), "nombre de composants ignorés de " + nom);
+            composantsSignales += observes.size();
         }
         return projetsParNom;
     }
+
+    /** Composants signalés à l'import, tous projets confondus (métrique {@code composantsSignales}). */
+    private int composantsSignales;
 
     private static AvisDuJeu chargerAvis(JsonNode jeu) throws IOException {
         Map<String, String> avisParId = new LinkedHashMap<>();

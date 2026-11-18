@@ -5,8 +5,10 @@ import java.time.Instant;
 import java.time.format.DateTimeParseException;
 import java.util.ArrayDeque;
 import java.util.Deque;
+import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.LinkedHashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
@@ -20,12 +22,16 @@ import io.argos.catalog.PackageKey;
  * Valide et lit une SBOM CycloneDX au format JSON, versions de schéma 1.5 et 1.6 (décision du
  * 2026-11-16, Q-7). Les dépendances directes sont celles du composant racine
  * ({@code metadata.component}) dans le graphe {@code dependencies} ; les autres composants
- * sont transitifs (INV-02). Sans graphe, le caractère transitif est inconnu.
+ * sont transitifs (INV-02). Sans graphe, le caractère transitif est inconnu. Un composant sans PURL
+ * exploitable est écarté de l'inventaire (INV-01) et signalé : nom, groupe, version et motif, pour
+ * les {@value ParsedInventory#MAX_SIGNALED} premiers (décision D6 du 2026-11-18).
  */
 public final class CycloneDxParser {
 
     static final Set<String> ACCEPTED_SPEC_VERSIONS = Set.of("1.5", "1.6");
     private static final ObjectMapper MAPPER = new ObjectMapper();
+    /** Longueur maximale conservée du nom, du groupe et de la version d'un composant ignoré. */
+    static final int MAX_FIELD = 200;
 
     private CycloneDxParser() {
     }
@@ -68,14 +74,21 @@ public final class CycloneDxParser {
         Optional<Set<String>> direct = directRefs(root);
         Map<String, ParsedInventory.Item> items = new LinkedHashMap<>();
         int ignored = 0;
+        List<ParsedInventory.IgnoredComponent> signaled = new ArrayList<>();
         Deque<JsonNode> pending = new ArrayDeque<>();
         components.forEach(pending::add);
         while (!pending.isEmpty()) {
             JsonNode c = pending.poll();
             c.path("components").forEach(pending::add);
-            Optional<PackageKey.Purl> purl = PackageKey.parse(c.path("purl").asText(null));
+            String declaredPurl = c.path("purl").asText(null);
+            Optional<PackageKey.Purl> purl = PackageKey.parse(declaredPurl);
             if (purl.isEmpty()) {
                 ignored++;
+                if (signaled.size() < ParsedInventory.MAX_SIGNALED) {
+                    signaled.add(new ParsedInventory.IgnoredComponent(text(c, "name"), text(c, "group"), text(c, "version"),
+                            declaredPurl == null || declaredPurl.isBlank() ? ParsedInventory.IgnoredComponent.SANS_PURL
+                                    : ParsedInventory.IgnoredComponent.PURL_INVALIDE));
+                }
                 continue;
             }
             String version = purl.get().version() != null ? purl.get().version() : c.path("version").asText(null);
@@ -85,7 +98,20 @@ public final class CycloneDxParser {
             items.merge(identity, new ParsedInventory.Item(purl.get().key(), c.path("purl").asText(), version, transitive),
                     (a, b) -> Boolean.FALSE.equals(a.transitive()) ? a : b);
         }
-        return new ParsedInventory(specVersion, sourceDate, java.util.List.copyOf(items.values()), ignored);
+        return new ParsedInventory(specVersion, sourceDate, List.copyOf(items.values()), ignored, List.copyOf(signaled));
+    }
+
+    /** Champ texte d'un composant, borné à {@value #MAX_FIELD} caractères ; absent s'il est vide. */
+    private static String text(JsonNode component, String field) {
+        JsonNode value = component.path(field);
+        if (!value.isValueNode()) {
+            return null;
+        }
+        String s = value.asText().strip();
+        if (s.isEmpty()) {
+            return null;
+        }
+        return s.length() > MAX_FIELD ? s.substring(0, MAX_FIELD) : s;
     }
 
     /** Références des dépendances directes du composant racine, si le graphe est exploitable. */

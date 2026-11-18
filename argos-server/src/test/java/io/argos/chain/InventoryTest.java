@@ -107,6 +107,55 @@ class InventoryTest {
                 .body("inventory.components.find { it.packageKey == 'pkg:maven/org.exemple/b' }.transitive", equalTo(true));
     }
 
+    /**
+     * INV-01, décision D6 (2026-11-18) : les composants écartés faute de PURL sont signalés dans le résultat
+     * de l'import et par l'API d'inventaire (nom, groupe, version, motif), liste bornée ; l'inventaire reste
+     * fondé sur le PURL, et un nouvel import remplace le signalement.
+     */
+    @Test
+    void inv01S3ComposantsSansPurlSignalesALImport() {
+        UUID project = projects.create(workspace, "outil", null, null);
+        StringBuilder comps = new StringBuilder(
+                "{\"type\":\"library\",\"bom-ref\":\"log4j\",\"group\":\"org.apache.logging.log4j\",\"name\":\"log4j-core\","
+                        + "\"version\":\"2.14.1\",\"cpe\":\"cpe:2.3:a:apache:log4j:2.14.1:*:*:*:*:*:*:*\"},"
+                        + "{\"type\":\"library\",\"bom-ref\":\"a\",\"name\":\"a\",\"purl\":\"pkg:maven/org.exemple/a@1.0.0\"},"
+                        + "{\"type\":\"library\",\"name\":\"illisible\",\"version\":\"3\",\"purl\":\"pas-un-purl\"}");
+        for (int i = 0; i < 120; i++) {
+            comps.append(",{\"type\":\"library\",\"name\":\"interne-").append(i).append("\"}");
+        }
+        String sbom = "{\"bomFormat\":\"CycloneDX\",\"specVersion\":\"1.6\",\"version\":1,"
+                + "\"metadata\":{\"timestamp\":\"2026-11-16T00:00:00Z\",\"component\":{\"type\":\"application\",\"bom-ref\":\"root\",\"name\":\"outil\"}},"
+                + "\"components\":[" + comps + "],\"dependencies\":[{\"ref\":\"root\",\"dependsOn\":[\"log4j\",\"a\"]}]}";
+
+        InventoryService.ImportResult result = inventories.importSbom(project, bytes(sbom), "ci#1");
+
+        assertEquals("IMPORTED", result.status());
+        assertEquals(1, result.components());
+        assertEquals(122, result.ignored());
+        assertEquals(100, result.ignoredComponents().size());
+        assertEquals("log4j-core", result.ignoredComponents().get(0).name());
+        assertEquals(1, db.count("SELECT count(*) FROM component"), "l'inventaire reste fondé sur le PURL");
+        member().when().get("/api/v1/projects/" + project + "/inventory")
+                .then().statusCode(200)
+                .body("inventory.components", hasSize(1))
+                .body("inventory.ignoredCount", equalTo(122))
+                .body("inventory.ignoredComponents", hasSize(100))
+                .body("inventory.ignoredComponents[0].name", equalTo("log4j-core"))
+                .body("inventory.ignoredComponents[0].group", equalTo("org.apache.logging.log4j"))
+                .body("inventory.ignoredComponents[0].version", equalTo("2.14.1"))
+                .body("inventory.ignoredComponents[0].reason", equalTo("SANS_PURL"))
+                .body("inventory.ignoredComponents[1].name", equalTo("illisible"))
+                .body("inventory.ignoredComponents[1].group", nullValue())
+                .body("inventory.ignoredComponents[1].reason", equalTo("PURL_INVALIDE"));
+
+        inventories.importSbom(project, bytes(Fixtures.cyclonedx("1.6", "2026-11-17T00:00:00Z",
+                java.util.Collections.singletonList(new String[] {"a", "pkg:maven/org.exemple/a@1.0.0"}), List.of("a"))), "ci#2");
+        member().when().get("/api/v1/projects/" + project + "/inventory")
+                .then().statusCode(200)
+                .body("inventory.ignoredCount", equalTo(0))
+                .body("inventory.ignoredComponents", hasSize(0));
+    }
+
     @Test
     void inv01S2NouvelleSbomRemplaceLaPrecedente() {
         UUID project = projects.create(workspace, "api", null, null);
