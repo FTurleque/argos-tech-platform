@@ -48,9 +48,9 @@ class ContratOutilsMcpTest {
     /** MCP-01-S1 : seuls des outils de consultation sont proposés. */
     @Test
     void mcp01S1SeulsDesOutilsDeConsultation() {
-        ExtractableResponse<Response> r = Mcp.lister("karim");
-        assertEquals(200, r.statusCode(), r.asString());
-        List<Map<String, Object>> outils = r.path("result.tools");
+        ExtractableResponse<Response> reponse = Mcp.lister("karim");
+        assertEquals(200, reponse.statusCode(), reponse.asString());
+        List<Map<String, Object>> outils = reponse.path("result.tools");
         assertEquals(new TreeSet<>(OUTILS), new TreeSet<>(outils.stream().map(o -> (String) o.get("name")).toList()));
         for (Map<String, Object> outil : outils) {
             @SuppressWarnings("unchecked")
@@ -82,10 +82,10 @@ class ContratOutilsMcpTest {
     void mcp01S2OutilInconnu() {
         long avant = lignes();
         for (String outil : List.of("delete_project", "update_subscription", "create_workspace")) {
-            ExtractableResponse<Response> r = Mcp.appeler("karim", outil, Map.of("id", "x"));
-            assertEquals(-32602, (int) r.path("error.code"), r.asString());
-            assertTrue(((String) r.path("error.message")).contains(outil));
-            assertNull(r.path("result"));
+            ExtractableResponse<Response> reponse = Mcp.appeler("karim", outil, Map.of("id", "x"));
+            assertEquals(-32602, (int) reponse.path("error.code"), reponse.asString());
+            assertTrue(((String) reponse.path("error.message")).contains(outil));
+            assertNull(reponse.path("result"));
         }
         assertEquals(avant, lignes());
         assertEquals(0, db.count("SELECT count(*) FROM mcp_appel"));
@@ -94,10 +94,10 @@ class ContratOutilsMcpTest {
     /** Protocole 2026-07-28 : un appel d'outil s'exécute sans négociation préalable et sans session. */
     @Test
     void appelSansSessionEnVersion20260728() {
-        ExtractableResponse<Response> r = Mcp.appeler("karim", "get_project_context", Map.of());
-        assertEquals(200, r.statusCode(), r.asString());
-        assertNull(r.header("Mcp-Session-Id"));
-        assertEquals(Boolean.FALSE, r.path("result.isError"));
+        ExtractableResponse<Response> reponse = Mcp.appeler("karim", "get_project_context", Map.of());
+        assertEquals(200, reponse.statusCode(), reponse.asString());
+        assertNull(reponse.header("Mcp-Session-Id"));
+        assertEquals(Boolean.FALSE, reponse.path("result.isError"));
     }
 
     /**
@@ -122,11 +122,11 @@ class ContratOutilsMcpTest {
     /** Découverte sans état : version de protocole 2026-07-28 et capacité « outils » annoncées. */
     @Test
     void decouverteDuServeur() {
-        ExtractableResponse<Response> r = Mcp.envoyer(Api.en("karim"), "server/discover", null, Map.of());
-        assertEquals(200, r.statusCode(), r.asString());
-        assertTrue(r.asString().contains(Mcp.VERSION), r.asString());
-        assertNotNull(r.path("result.capabilities.tools"), r.asString());
-        assertTrue(r.asString().contains("argos"), r.asString());
+        ExtractableResponse<Response> reponse = Mcp.envoyer(Api.en("karim"), "server/discover", null, Map.of());
+        assertEquals(200, reponse.statusCode(), reponse.asString());
+        assertTrue(reponse.asString().contains(Mcp.VERSION), reponse.asString());
+        assertNotNull(reponse.path("result.capabilities.tools"), reponse.asString());
+        assertTrue(reponse.asString().contains("argos"), reponse.asString());
     }
 
     private long lignes() {

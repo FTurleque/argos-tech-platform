@@ -1,11 +1,11 @@
 package io.argos.scm;
 
+import static io.argos.scm.AccesForges.enc;
+import static io.argos.scm.AccesForges.provider;
+
 import java.io.IOException;
 import java.net.URI;
-import java.net.URLEncoder;
-import java.nio.charset.StandardCharsets;
 import java.time.Duration;
-import java.util.Locale;
 import java.util.Optional;
 
 import jakarta.enterprise.context.ApplicationScoped;
@@ -58,11 +58,7 @@ public class RepositoryFiles {
 
     private static final ObjectMapper JSON = new ObjectMapper();
 
-    private final ForgeHttp http;
-    private final String gitlabUrl;
-    private final String githubUrl;
-    private final Optional<String> gitlabToken;
-    private final Optional<String> githubToken;
+    private final AccesForges forges;
     private final long maxBytes;
 
     @Inject
@@ -72,12 +68,8 @@ public class RepositoryFiles {
             @ConfigProperty(name = "argos.scm.gitlab.token") Optional<String> gitlabToken,
             @ConfigProperty(name = "argos.scm.github.token") Optional<String> githubToken,
             @ConfigProperty(name = "argos.inventory.max-document-bytes") long maxBytes) {
-        // Aucune redirection suivie : le jeton d'accès ne doit pas partir vers un autre hôte (ForgeHttp).
-        this.http = new ForgeHttp(timeout);
-        this.gitlabUrl = trim(gitlabUrl);
-        this.githubUrl = trim(githubUrl);
-        this.gitlabToken = gitlabToken.filter(t -> !t.isBlank());
-        this.githubToken = githubToken.filter(t -> !t.isBlank());
+        this.forges = AccesForges.configure(timeout, gitlabUrl, githubUrl, gitlabToken.orElse(null),
+                githubToken.orElse(null));
         this.maxBytes = maxBytes;
     }
 
@@ -133,14 +125,14 @@ public class RepositoryFiles {
             return switch (provider(ref)) {
                 case "GITLAB" -> fetch(gitlab(ref, "/repository/files/" + enc(filePath) + "/raw?ref=" + enc(ref.branch())),
                         false);
-                case "GITHUB" -> fetch(URI.create(githubUrl + "/repos/" + githubRepository(ref) + "/contents/"
+                case "GITHUB" -> fetch(URI.create(forges.githubUrl() + "/repos/" + githubRepository(ref) + "/contents/"
                         + path(filePath) + "?ref=" + enc(ref.branch())), true);
                 default -> throw new ScmException("forge non prise en charge : " + ref.provider(), null);
             };
         }
 
         private Optional<byte[]> fetch(URI uri, boolean github) {
-            ForgeHttp.Reponse r = http.get(uri, github ? githubToken : gitlabToken, github,
+            ForgeHttp.Reponse r = forges.http().get(uri, github ? forges.githubToken() : forges.gitlabToken(), github,
                     github ? "application/vnd.github.raw+json" : null, maxBytes);
             if (r.status() == 404) {
                 verifierDepot(r, github);
@@ -166,8 +158,8 @@ public class RepositoryFiles {
             if (depotVerifie) {
                 return;
             }
-            URI uri = URI.create(githubUrl + "/repos/" + githubRepository(ref));
-            ForgeHttp.Reponse r = http.get(uri, githubToken, true, "application/vnd.github+json", maxBytes);
+            URI uri = URI.create(forges.githubUrl() + "/repos/" + githubRepository(ref));
+            ForgeHttp.Reponse r = forges.http().get(uri, forges.githubToken(), true, "application/vnd.github+json", maxBytes);
             if (r.status() == 404) {
                 throw new DepotIntrouvable("GITHUB", ref.repository());
             }
@@ -177,7 +169,7 @@ public class RepositoryFiles {
     }
 
     private URI gitlab(RepositoryRef ref, String suffix) {
-        return URI.create(gitlabUrl + "/api/v4/projects/" + enc(ref.repository()) + suffix);
+        return URI.create(forges.gitlabUrl() + "/api/v4/projects/" + enc(ref.repository()) + suffix);
     }
 
     private static void verifierStatut(int status, URI uri) {
@@ -209,14 +201,6 @@ public class RepositoryFiles {
         return ref.repository();
     }
 
-    private static String provider(RepositoryRef ref) {
-        return ref.provider() == null ? "" : ref.provider().toUpperCase(Locale.ROOT);
-    }
-
-    private static String enc(String value) {
-        return URLEncoder.encode(value, StandardCharsets.UTF_8).replace("+", "%20");
-    }
-
     /** Encode chaque segment d'un chemin en conservant les « / ». */
     private static String path(String value) {
         StringBuilder sb = new StringBuilder();
@@ -230,9 +214,5 @@ public class RepositoryFiles {
             sb.append(enc(segment));
         }
         return sb.toString();
-    }
-
-    private static String trim(String url) {
-        return url.endsWith("/") ? url.substring(0, url.length() - 1) : url;
     }
 }
