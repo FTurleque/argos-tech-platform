@@ -9,6 +9,35 @@ osv/GHSA-jfh8-c2jp-5v3q.json
   Attribution : © GitHub, Inc. et les contributeurs de la GitHub Advisory Database ;
   données diffusées par le projet OSV. Contenu reproduit sans modification.
 
+jeu-reference-correlation/avis/GHSA-*.json
+  Source : OSV (https://api.osv.dev/v1/vulns/<identifiant>), avis issus de la GitHub Advisory
+  Database (https://github.com/advisories), lus le 2026-11-18 : GHSA-jfh8-c2jp-5v3q,
+  GHSA-fp5r-v3w9-4333, GHSA-36p3-wjmg-h94x, GHSA-599f-7c49-w659, GHSA-mjmj-j48q-9wg2,
+  GHSA-7g45-4rm6-3mm3, GHSA-jjjh-jjxp-wpff, GHSA-35jh-r3h4-6jhm, GHSA-c2qf-rxjj-qqgw,
+  GHSA-pjwm-rvh2-c87w, GHSA-67hx-6x53-jw92, GHSA-9c47-m6qq-7p4h, GHSA-p8p7-x288-28g6,
+  GHSA-8q59-q68h-6hv4.
+  Licence : Creative Commons Attribution 4.0 International (CC-BY 4.0),
+  https://creativecommons.org/licenses/by/4.0/
+  Attribution : © GitHub, Inc. et les contributeurs de la GitHub Advisory Database ;
+  données diffusées par le projet OSV. Contenus reproduits sans modification.
+
+jeu-reference-correlation/avis/PYSEC-2021-142.json
+  Source : OSV, avis issu de la PyPI Advisory Database (https://github.com/pypa/advisory-database),
+  lu le 2026-11-18.
+  Licence : CC-BY 4.0. Attribution : © Python Packaging Authority et les contributeurs de la PyPI
+  Advisory Database ; données diffusées par le projet OSV. Contenu reproduit sans modification.
+
+jeu-reference-correlation/avis/ARGOS-REF-2026-0001.json
+  Adaptation de GHSA-599f-7c49-w659 (même source, CC-BY 4.0) pour le jeu de référence de la
+  corrélation : identifiant remplacé par ARGOS-REF-2026-0001, alias complétés de l'identifiant
+  GHSA d'origine, champs « purl » des paquets affectés retirés (avis identifié par le seul nom).
+  Les autres champs sont repris sans modification.
+
+jeu-reference-correlation/sbom/*.cdx.json, jeu-reference-correlation/manifestes/**
+  SBOM CycloneDX 1.5 / 1.6 et package.json écrits pour le jeu de référence de la corrélation.
+  Projets, groupes com.exemple.* et numéros de série fictifs ; seuls les noms et versions de
+  paquets publics, données factuelles, sont repris. Aucune SBOM n'a été capturée sur un dépôt réel.
+
 enrichment/nvd-CVE-2021-44228.json
   Source : NIST National Vulnerability Database (https://nvd.nist.gov).
   Ce produit utilise des données de l'API NVD, mais n'est ni approuvé ni certifié par la NVD.

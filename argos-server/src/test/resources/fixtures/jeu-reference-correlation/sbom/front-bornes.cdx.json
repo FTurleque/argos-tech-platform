@@ -1,0 +1,140 @@
+{
+  "bomFormat": "CycloneDX",
+  "specVersion": "1.6",
+  "serialNumber": "urn:uuid:0802d937-525b-58f5-a004-a938c94938bf",
+  "version": 1,
+  "metadata": {
+    "timestamp": "2026-11-15T08:00:00Z",
+    "tools": {
+      "components": [
+        {
+          "type": "application",
+          "group": "@cyclonedx",
+          "name": "cyclonedx-npm",
+          "version": "1.19.3"
+        }
+      ]
+    },
+    "component": {
+      "type": "application",
+      "bom-ref": "front-bornes@0.4.0",
+      "name": "front-bornes",
+      "version": "0.4.0",
+      "purl": "pkg:npm/front-bornes@0.4.0"
+    }
+  },
+  "components": [
+    {
+      "type": "library",
+      "bom-ref": "front-bornes@0.4.0|@cypress/request@2.88.12",
+      "group": "@cypress",
+      "name": "request",
+      "version": "2.88.12",
+      "purl": "pkg:npm/%40cypress/request@2.88.12"
+    },
+    {
+      "type": "library",
+      "bom-ref": "front-bornes@0.4.0|node_modules/a|ua-parser-js@0.7.29",
+      "name": "ua-parser-js",
+      "version": "0.7.29",
+      "purl": "pkg:npm/ua-parser-js@0.7.29"
+    },
+    {
+      "type": "library",
+      "bom-ref": "front-bornes@0.4.0|node_modules/b|ua-parser-js@0.8.0",
+      "name": "ua-parser-js",
+      "version": "0.8.0",
+      "purl": "pkg:npm/ua-parser-js@0.8.0"
+    },
+    {
+      "type": "library",
+      "bom-ref": "front-bornes@0.4.0|node_modules/c|ua-parser-js@1.0.0",
+      "name": "ua-parser-js",
+      "version": "1.0.0",
+      "purl": "pkg:npm/ua-parser-js@1.0.0"
+    },
+    {
+      "type": "library",
+      "bom-ref": "front-bornes@0.4.0|node_modules/d|ua-parser-js@1.0.1",
+      "name": "ua-parser-js",
+      "version": "1.0.1",
+      "purl": "pkg:npm/ua-parser-js@1.0.1"
+    },
+    {
+      "type": "library",
+      "bom-ref": "front-bornes@0.4.0|node_modules/e|@babel/traverse@8.0.0-alpha.0",
+      "group": "@babel",
+      "name": "traverse",
+      "version": "8.0.0-alpha.0",
+      "purl": "pkg:npm/%40babel/traverse@8.0.0-alpha.0"
+    },
+    {
+      "type": "library",
+      "bom-ref": "front-bornes@0.4.0|node_modules/f|@babel/traverse@8.0.0-alpha.3",
+      "group": "@babel",
+      "name": "traverse",
+      "version": "8.0.0-alpha.3",
+      "purl": "pkg:npm/%40babel/traverse@8.0.0-alpha.3"
+    },
+    {
+      "type": "library",
+      "bom-ref": "front-bornes@0.4.0|node_modules/g|@babel/traverse@8.0.0-alpha.4",
+      "group": "@babel",
+      "name": "traverse",
+      "version": "8.0.0-alpha.4",
+      "purl": "pkg:npm/%40babel/traverse@8.0.0-alpha.4"
+    },
+    {
+      "type": "library",
+      "bom-ref": "front-bornes@0.4.0|babel-traverse@6.26.0",
+      "name": "babel-traverse",
+      "version": "6.26.0",
+      "purl": "pkg:npm/babel-traverse@6.26.0"
+    },
+    {
+      "type": "library",
+      "bom-ref": "front-bornes@0.4.0|node_modules/h|semver@5.7.2",
+      "name": "semver",
+      "version": "5.7.2",
+      "purl": "pkg:npm/semver@5.7.2"
+    },
+    {
+      "type": "library",
+      "bom-ref": "front-bornes@0.4.0|node_modules/i|semver@6.0.0",
+      "name": "semver",
+      "version": "6.0.0",
+      "purl": "pkg:npm/semver@6.0.0"
+    },
+    {
+      "type": "library",
+      "bom-ref": "front-bornes@0.4.0|json5@2.0.0",
+      "name": "json5",
+      "version": "2.0.0",
+      "purl": "pkg:npm/json5@2.0.0"
+    }
+  ],
+  "dependencies": [
+    {
+      "ref": "front-bornes@0.4.0",
+      "dependsOn": [
+        "front-bornes@0.4.0|@cypress/request@2.88.12"
+      ]
+    },
+    {
+      "ref": "front-bornes@0.4.0|@cypress/request@2.88.12",
+      "dependsOn": [
+        "front-bornes@0.4.0|node_modules/a|ua-parser-js@0.7.29",
+        "front-bornes@0.4.0|node_modules/b|ua-parser-js@0.8.0",
+        "front-bornes@0.4.0|node_modules/c|ua-parser-js@1.0.0",
+        "front-bornes@0.4.0|node_modules/d|ua-parser-js@1.0.1",
+        "front-bornes@0.4.0|node_modules/e|@babel/traverse@8.0.0-alpha.0",
+        "front-bornes@0.4.0|node_modules/f|@babel/traverse@8.0.0-alpha.3",
+        "front-bornes@0.4.0|node_modules/g|@babel/traverse@8.0.0-alpha.4",
+        "front-bornes@0.4.0|babel-traverse@6.26.0",
+        "front-bornes@0.4.0|node_modules/h|semver@5.7.2",
+        "front-bornes@0.4.0|node_modules/i|semver@6.0.0",
+        "front-bornes@0.4.0|json5@2.0.0"
+      ]
+    }
+  ]
+}
