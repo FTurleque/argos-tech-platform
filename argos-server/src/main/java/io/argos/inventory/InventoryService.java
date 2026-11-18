@@ -98,30 +98,41 @@ public class InventoryService {
             RepositoryFiles.Lecture depot = repositoryFiles.lecture(repo);
             Optional<SbomDocument> sbom = depot.latestSbom();
             if (sbom.isPresent()) {
-                String sourceRef = repo.provider() + ":" + repo.repository() + "@" + repo.branch();
-                SbomDocument.Format format = sbom.get().format();
-                if (format != SbomDocument.Format.CYCLONEDX_JSON && format != SbomDocument.Format.INCONNU) {
-                    return rejectFormat(projectId, format, sourceRef);
-                }
-                return importSbom(projectId, sbom.get().contenu(), sourceRef);
+                return importRepositorySbom(projectId, repo, sbom.get());
             }
             if (queries.origin(projectId).filter("SBOM"::equals).isPresent()) {
                 return new ImportResult("KEPT", "SBOM", 0, 0, "aucune nouvelle SBOM disponible");
             }
-            Map<String, byte[]> manifests = new LinkedHashMap<>();
-            for (String path : project.manifestPaths()) {
-                if (ManifestParser.supports(path)) {
-                    depot.file(path).ifPresent(content -> manifests.put(path, content));
-                }
-            }
-            if (manifests.isEmpty()) {
-                return new ImportResult("NONE", null, 0, 0, "ni SBOM ni manifeste lisible");
-            }
-            return importManifests(projectId, manifests);
+            return importRepositoryManifests(projectId, project, depot);
         } catch (ScmException e) {
             LOG.warnf("rafraîchissement de l'inventaire du projet %s impossible : %s", projectId, e.getMessage());
             return new ImportResult("ERROR", null, 0, 0, e.getMessage());
         }
+    }
+
+    /** Importe la SBOM lue dans le dépôt, ou la refuse si elle n'est pas en CycloneDX JSON. */
+    private ImportResult importRepositorySbom(UUID projectId, RepositoryRef repo, SbomDocument sbom) {
+        String sourceRef = repo.provider() + ":" + repo.repository() + "@" + repo.branch();
+        SbomDocument.Format format = sbom.format();
+        if (format != SbomDocument.Format.CYCLONEDX_JSON && format != SbomDocument.Format.INCONNU) {
+            return rejectFormat(projectId, format, sourceRef);
+        }
+        return importSbom(projectId, sbom.contenu(), sourceRef);
+    }
+
+    /** Repli sur les manifestes pris en charge que déclare le projet et que contient le dépôt. */
+    private ImportResult importRepositoryManifests(UUID projectId, ProjectDirectory.Project project,
+            RepositoryFiles.Lecture depot) {
+        Map<String, byte[]> manifests = new LinkedHashMap<>();
+        for (String path : project.manifestPaths()) {
+            if (ManifestParser.supports(path)) {
+                depot.file(path).ifPresent(content -> manifests.put(path, content));
+            }
+        }
+        if (manifests.isEmpty()) {
+            return new ImportResult("NONE", null, 0, 0, "ni SBOM ni manifeste lisible");
+        }
+        return importManifests(projectId, manifests);
     }
 
     /**

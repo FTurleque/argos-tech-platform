@@ -1,0 +1,330 @@
+{
+  "bomFormat": "CycloneDX",
+  "specVersion": "1.6",
+  "serialNumber": "urn:uuid:e3d8a128-16b0-5e9a-a4f6-9c4856877e0e",
+  "version": 1,
+  "metadata": {
+    "timestamp": "2026-11-15T08:00:00Z",
+    "tools": {
+      "components": [
+        {
+          "type": "application",
+          "group": "org.cyclonedx",
+          "name": "cyclonedx-maven-plugin",
+          "version": "2.9.1"
+        }
+      ]
+    },
+    "component": {
+      "type": "application",
+      "bom-ref": "pkg:maven/com.exemple.argos/distribution@3.0.0?type=pom",
+      "group": "com.exemple.argos",
+      "name": "distribution",
+      "version": "3.0.0",
+      "purl": "pkg:maven/com.exemple.argos/distribution@3.0.0?type=pom"
+    }
+  },
+  "components": [
+    {
+      "type": "library",
+      "bom-ref": "pkg:maven/com.exemple.plugins/plugin-a@1.0.0?type=jar",
+      "group": "com.exemple.plugins",
+      "name": "plugin-a",
+      "version": "1.0.0",
+      "scope": "required",
+      "purl": "pkg:maven/com.exemple.plugins/plugin-a@1.0.0?type=jar",
+      "components": [
+        {
+          "type": "library",
+          "bom-ref": "pkg:maven/org.apache.logging.log4j/log4j-core@2.0-beta9?type=jar",
+          "group": "org.apache.logging.log4j",
+          "name": "log4j-core",
+          "version": "2.0-beta9",
+          "scope": "required",
+          "purl": "pkg:maven/org.apache.logging.log4j/log4j-core@2.0-beta9?type=jar"
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "bom-ref": "pkg:maven/com.exemple.plugins/plugin-b@1.0.0?type=jar",
+      "group": "com.exemple.plugins",
+      "name": "plugin-b",
+      "version": "1.0.0",
+      "scope": "required",
+      "purl": "pkg:maven/com.exemple.plugins/plugin-b@1.0.0?type=jar",
+      "components": [
+        {
+          "type": "library",
+          "bom-ref": "pkg:maven/org.apache.logging.log4j/log4j-core@2.0-beta8?type=jar",
+          "group": "org.apache.logging.log4j",
+          "name": "log4j-core",
+          "version": "2.0-beta8",
+          "scope": "required",
+          "purl": "pkg:maven/org.apache.logging.log4j/log4j-core@2.0-beta8?type=jar"
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "bom-ref": "pkg:maven/com.exemple.plugins/plugin-c@1.0.0?type=jar",
+      "group": "com.exemple.plugins",
+      "name": "plugin-c",
+      "version": "1.0.0",
+      "scope": "required",
+      "purl": "pkg:maven/com.exemple.plugins/plugin-c@1.0.0?type=jar",
+      "components": [
+        {
+          "type": "library",
+          "bom-ref": "pkg:maven/org.apache.logging.log4j/log4j-core@2.3?type=jar",
+          "group": "org.apache.logging.log4j",
+          "name": "log4j-core",
+          "version": "2.3",
+          "scope": "required",
+          "purl": "pkg:maven/org.apache.logging.log4j/log4j-core@2.3?type=jar"
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "bom-ref": "pkg:maven/com.exemple.plugins/plugin-d@1.0.0?type=jar",
+      "group": "com.exemple.plugins",
+      "name": "plugin-d",
+      "version": "1.0.0",
+      "scope": "required",
+      "purl": "pkg:maven/com.exemple.plugins/plugin-d@1.0.0?type=jar",
+      "components": [
+        {
+          "type": "library",
+          "bom-ref": "pkg:maven/org.apache.logging.log4j/log4j-core@2.3.1?type=jar",
+          "group": "org.apache.logging.log4j",
+          "name": "log4j-core",
+          "version": "2.3.1",
+          "scope": "required",
+          "purl": "pkg:maven/org.apache.logging.log4j/log4j-core@2.3.1?type=jar"
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "bom-ref": "pkg:maven/com.exemple.plugins/plugin-e@1.0.0?type=jar",
+      "group": "com.exemple.plugins",
+      "name": "plugin-e",
+      "version": "1.0.0",
+      "scope": "required",
+      "purl": "pkg:maven/com.exemple.plugins/plugin-e@1.0.0?type=jar",
+      "components": [
+        {
+          "type": "library",
+          "bom-ref": "pkg:maven/org.apache.logging.log4j/log4j-core@2.12.1?type=jar",
+          "group": "org.apache.logging.log4j",
+          "name": "log4j-core",
+          "version": "2.12.1",
+          "scope": "required",
+          "purl": "pkg:maven/org.apache.logging.log4j/log4j-core@2.12.1?type=jar"
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "bom-ref": "pkg:maven/com.exemple.plugins/plugin-f@1.0.0?type=jar",
+      "group": "com.exemple.plugins",
+      "name": "plugin-f",
+      "version": "1.0.0",
+      "scope": "required",
+      "purl": "pkg:maven/com.exemple.plugins/plugin-f@1.0.0?type=jar",
+      "components": [
+        {
+          "type": "library",
+          "bom-ref": "pkg:maven/org.apache.logging.log4j/log4j-core@2.12.2?type=jar",
+          "group": "org.apache.logging.log4j",
+          "name": "log4j-core",
+          "version": "2.12.2",
+          "scope": "required",
+          "purl": "pkg:maven/org.apache.logging.log4j/log4j-core@2.12.2?type=jar"
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "bom-ref": "pkg:maven/com.exemple.plugins/plugin-g@1.0.0?type=jar",
+      "group": "com.exemple.plugins",
+      "name": "plugin-g",
+      "version": "1.0.0",
+      "scope": "required",
+      "purl": "pkg:maven/com.exemple.plugins/plugin-g@1.0.0?type=jar",
+      "components": [
+        {
+          "type": "library",
+          "bom-ref": "pkg:maven/org.apache.logging.log4j/log4j-core@2.13.0?type=jar",
+          "group": "org.apache.logging.log4j",
+          "name": "log4j-core",
+          "version": "2.13.0",
+          "scope": "required",
+          "purl": "pkg:maven/org.apache.logging.log4j/log4j-core@2.13.0?type=jar"
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "bom-ref": "pkg:maven/com.exemple.plugins/plugin-h@1.0.0?type=jar",
+      "group": "com.exemple.plugins",
+      "name": "plugin-h",
+      "version": "1.0.0",
+      "scope": "required",
+      "purl": "pkg:maven/com.exemple.plugins/plugin-h@1.0.0?type=jar",
+      "components": [
+        {
+          "type": "library",
+          "bom-ref": "pkg:maven/org.apache.logging.log4j/log4j-core@2.15.0?type=jar",
+          "group": "org.apache.logging.log4j",
+          "name": "log4j-core",
+          "version": "2.15.0",
+          "scope": "required",
+          "purl": "pkg:maven/org.apache.logging.log4j/log4j-core@2.15.0?type=jar"
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "bom-ref": "pkg:maven/com.exemple.plugins/plugin-i@1.0.0?type=jar",
+      "group": "com.exemple.plugins",
+      "name": "plugin-i",
+      "version": "1.0.0",
+      "scope": "required",
+      "purl": "pkg:maven/com.exemple.plugins/plugin-i@1.0.0?type=jar",
+      "components": [
+        {
+          "type": "library",
+          "bom-ref": "pkg:maven/uk.co.nichesolutions.logging.log4j/log4j-core@2.6.3-CUSTOM?type=jar",
+          "group": "uk.co.nichesolutions.logging.log4j",
+          "name": "log4j-core",
+          "version": "2.6.3-CUSTOM",
+          "scope": "required",
+          "purl": "pkg:maven/uk.co.nichesolutions.logging.log4j/log4j-core@2.6.3-CUSTOM?type=jar"
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "bom-ref": "pkg:maven/com.exemple.plugins/plugin-j@1.0.0?type=jar",
+      "group": "com.exemple.plugins",
+      "name": "plugin-j",
+      "version": "1.0.0",
+      "scope": "required",
+      "purl": "pkg:maven/com.exemple.plugins/plugin-j@1.0.0?type=jar",
+      "components": [
+        {
+          "type": "library",
+          "bom-ref": "pkg:maven/org.ops4j.pax.logging/pax-logging-log4j2@1.11.9?type=jar",
+          "group": "org.ops4j.pax.logging",
+          "name": "pax-logging-log4j2",
+          "version": "1.11.9",
+          "scope": "required",
+          "purl": "pkg:maven/org.ops4j.pax.logging/pax-logging-log4j2@1.11.9?type=jar"
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "bom-ref": "pkg:maven/com.exemple.plugins/plugin-k@1.0.0?type=jar",
+      "group": "com.exemple.plugins",
+      "name": "plugin-k",
+      "version": "1.0.0",
+      "scope": "required",
+      "purl": "pkg:maven/com.exemple.plugins/plugin-k@1.0.0?type=jar",
+      "components": [
+        {
+          "type": "library",
+          "bom-ref": "pkg:maven/org.ops4j.pax.logging/pax-logging-log4j2@1.10.8?type=jar",
+          "group": "org.ops4j.pax.logging",
+          "name": "pax-logging-log4j2",
+          "version": "1.10.8",
+          "scope": "required",
+          "purl": "pkg:maven/org.ops4j.pax.logging/pax-logging-log4j2@1.10.8?type=jar"
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "bom-ref": "pkg:maven/com.exemple.plugins/plugin-l@1.0.0?type=jar",
+      "group": "com.exemple.plugins",
+      "name": "plugin-l",
+      "version": "1.0.0",
+      "scope": "required",
+      "purl": "pkg:maven/com.exemple.plugins/plugin-l@1.0.0?type=jar",
+      "components": [
+        {
+          "type": "library",
+          "bom-ref": "pkg:maven/com.fasterxml.jackson.core/jackson-databind@2.4.0-rc1?type=jar",
+          "group": "com.fasterxml.jackson.core",
+          "name": "jackson-databind",
+          "version": "2.4.0-rc1",
+          "scope": "required",
+          "purl": "pkg:maven/com.fasterxml.jackson.core/jackson-databind@2.4.0-rc1?type=jar"
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "bom-ref": "pkg:maven/com.exemple.plugins/plugin-m@1.0.0?type=jar",
+      "group": "com.exemple.plugins",
+      "name": "plugin-m",
+      "version": "1.0.0",
+      "scope": "required",
+      "purl": "pkg:maven/com.exemple.plugins/plugin-m@1.0.0?type=jar",
+      "components": [
+        {
+          "type": "library",
+          "bom-ref": "pkg:maven/com.fasterxml.jackson.core/jackson-databind@2.12.7.1?type=jar",
+          "group": "com.fasterxml.jackson.core",
+          "name": "jackson-databind",
+          "version": "2.12.7.1",
+          "scope": "required",
+          "purl": "pkg:maven/com.fasterxml.jackson.core/jackson-databind@2.12.7.1?type=jar"
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "bom-ref": "pkg:maven/com.exemple.plugins/plugin-n@1.0.0?type=jar",
+      "group": "com.exemple.plugins",
+      "name": "plugin-n",
+      "version": "1.0.0",
+      "scope": "required",
+      "purl": "pkg:maven/com.exemple.plugins/plugin-n@1.0.0?type=jar",
+      "components": [
+        {
+          "type": "library",
+          "bom-ref": "pkg:maven/com.fasterxml.jackson.core/jackson-databind@2.13.4.1?type=jar",
+          "group": "com.fasterxml.jackson.core",
+          "name": "jackson-databind",
+          "version": "2.13.4.1",
+          "scope": "required",
+          "purl": "pkg:maven/com.fasterxml.jackson.core/jackson-databind@2.13.4.1?type=jar"
+        }
+      ]
+    }
+  ],
+  "dependencies": [
+    {
+      "ref": "pkg:maven/com.exemple.argos/distribution@3.0.0?type=pom",
+      "dependsOn": [
+        "pkg:maven/com.exemple.plugins/plugin-a@1.0.0?type=jar",
+        "pkg:maven/com.exemple.plugins/plugin-b@1.0.0?type=jar",
+        "pkg:maven/com.exemple.plugins/plugin-c@1.0.0?type=jar",
+        "pkg:maven/com.exemple.plugins/plugin-d@1.0.0?type=jar",
+        "pkg:maven/com.exemple.plugins/plugin-e@1.0.0?type=jar",
+        "pkg:maven/com.exemple.plugins/plugin-f@1.0.0?type=jar",
+        "pkg:maven/com.exemple.plugins/plugin-g@1.0.0?type=jar",
+        "pkg:maven/com.exemple.plugins/plugin-h@1.0.0?type=jar",
+        "pkg:maven/com.exemple.plugins/plugin-i@1.0.0?type=jar",
+        "pkg:maven/com.exemple.plugins/plugin-j@1.0.0?type=jar",
+        "pkg:maven/com.exemple.plugins/plugin-k@1.0.0?type=jar",
+        "pkg:maven/com.exemple.plugins/plugin-l@1.0.0?type=jar",
+        "pkg:maven/com.exemple.plugins/plugin-m@1.0.0?type=jar",
+        "pkg:maven/com.exemple.plugins/plugin-n@1.0.0?type=jar"
+      ]
+    }
+  ]
+}

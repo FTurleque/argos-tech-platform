@@ -69,7 +69,7 @@ Les signaux sont globaux mais les impacts appartiennent à l'espace du projet (A
 | Qualité | Cible | Source | Statut |
 |---|---|---|---|
 | Impacts sans provenance | 0 (100 % traçables) | arc42 §10.2 Q-01 ; QS-01 | [PROPOSITION] |
-| Précision de la corrélation | mesurée sur jeu de référence (vrais/faux positifs, faux négatifs) | baseline v2.3 §6 critère 3 ; ADR-0013 | [PROPOSITION] ; seuil « pertinence ≥ 80 % » cité par ADR-0013 non validé [QUESTION] |
+| Précision de la corrélation | mesurée sur jeu de référence (vrais/faux positifs, faux négatifs) | baseline v2.3 §6 critère 3 ; ADR-0013 | [EXISTANT] — mesure du 2026-11-18 sur un jeu composé (avis OSV réels, SBOM de test) : précision 98,1 %, rappel 98,1 % tous niveaux ; 100 % pour `exact` et `probable` ([rapport](../architecture/quality/mesure-correlation-jeu-reference.md)) ; seuil « pertinence ≥ 80 % » cité par ADR-0013 non validé [QUESTION] |
 | Alertes bloquées par l'indisponibilité de l'IA | 0 | baseline v2.3 §6 critère 6 | [PROPOSITION] |
 | Données CONFIDENTIAL / RESTRICTED envoyées à l'IA | 0 | baseline v2.3 §6 critère 7 ; QS-02 | [PROPOSITION] — portée par la future capacité AI Gateway |
 
@@ -199,6 +199,9 @@ Interprétations validées par le porteur du projet le 2026-11-16 [DÉCISION].
 - Les refus sont journalisés dans le journal unique des refus d'accès (`refus_acces`, module `audit`) : compte, méthode et chemin, motif `NON_MEMBRE` (réponse 404) ou `ROLE_INSUFFISANT` (réponse 403).
 - Un avis retiré par sa source (OSV `withdrawn`) ne produit aucun impact et retire ceux qu'il portait.
 - Les niveaux sont calculés à la corrélation et enregistrés ; le vieillissement d'une SBOM au-delà de 30 jours ne les fait pas recalculer sans nouvelle corrélation (aucune planification, tâche 6.3).
+- Jeu de référence (écart E-1 du [rapport de mesure](../architecture/quality/mesure-correlation-jeu-reference.md)) : une version dont l'ordre face à une borne dépend de deux qualificatifs inconnus (`32.0.0-jre` face à `32.0.0-android`) produit un impact `à vérifier`, alors que l'ordre Maven la classe après la borne et hors de la plage (Q-COR-3).
+- Jeu de référence (écart E-2) : un composant de SBOM décrit sans PURL (groupe, nom, version, CPE) est écarté de l'inventaire (INV-01) ; un avis qui le concerne ne produit aucun impact, même `à vérifier`.
+- Deux avis d'une même vulnérabilité publiés sous des identifiants différents (alias CVE commun, par exemple GHSA et PYSEC) produisent chacun leur impact sur le même composant ; aucun regroupement par alias n'a lieu à la corrélation.
 - Le glossaire distingue « impact probable, confirmé et résolu », alors qu'ADR-0013 définit les niveaux `exact`, `probable`, `à vérifier` : deux notions (confiance et cycle de traitement) à séparer [QUESTION Q-COR-2].
 
 ## Questions ouvertes
@@ -212,4 +215,4 @@ Interprétations validées par le porteur du projet le 2026-11-16 [DÉCISION].
 
 ## Traçabilité
 
-Voir la matrice du changement : [`tasks.md`](/openspec/changes/formaliser-chaine-securite-poc/tasks.md#matrice-de-traçabilité). Les scénarios COR-01-S1 à COR-08-S2 sont vérifiés par `argos-server/src/test/java/io/argos/chain/MatchRulesTest.java` et `CorrelationTest.java` (RLS vérifiée sur le chemin applicatif, sous le rôle non super-utilisateur `argos_app`). Le jeu de référence annoté et la mesure de précision et de rappel restent à produire (tâche 4.7).
+Voir la matrice du changement : [`tasks.md`](/openspec/changes/formaliser-chaine-securite-poc/tasks.md#matrice-de-traçabilité). Les scénarios COR-01-S1 à COR-08-S2 sont vérifiés par `argos-server/src/test/java/io/argos/chain/MatchRulesTest.java` et `CorrelationTest.java` (RLS vérifiée sur le chemin applicatif, sous le rôle non super-utilisateur `argos_app`). Le jeu de référence annoté (`argos-server/src/test/resources/fixtures/jeu-reference-correlation/`) et la mesure de précision et de rappel par niveau sont exécutés par `JeuReferenceCorrelationTest` ([rapport de mesure](../architecture/quality/mesure-correlation-jeu-reference.md)) ; la tâche 4.7 reste ouverte tant que la mesure ne porte pas sur les inventaires des projets pilotes ou qu'une [DÉCISION] du porteur n'accepte pas un jeu composé.

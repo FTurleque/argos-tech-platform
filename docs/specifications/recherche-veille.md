@@ -3,9 +3,9 @@
 | Élément | Valeur |
 |---|---|
 | Préfixe d'exigences | `RCH` |
-| Spec de référence | `/openspec/specs/recherche-veille/spec.md` — absente tant qu'aucun changement n'est archivé |
-| Changements en cours | [`rechercher-et-filtrer`](/openspec/changes/rechercher-et-filtrer/proposal.md) (implémenté côté serveur et dans l'écran de recherche de `argos-ui`, non archivé) |
-| Statut de la capacité | proposée ; implémentation et tests dans `argos-server` ; écran de recherche dans `argos-ui`, sans connexion OIDC de l'IHM ; changement non archivé |
+| Spec de référence | [`/openspec/specs/recherche-veille/spec.md`](/openspec/specs/recherche-veille/spec.md) |
+| Changements archivés | [`2026-11-18-rechercher-et-filtrer`](/openspec/changes/archive/2026-11-18-rechercher-et-filtrer/proposal.md) |
+| Statut de la capacité | livrée |
 | Composants (arc42 §5) | `signal`, `impact-engine`, `API & Security`, `workspace`, `mcp-server`, IHM — couche contenu |
 
 ## Objectif

@@ -153,8 +153,8 @@ public class OutilsSecurite {
             @ToolArg(name = "ecosystem", description = "Écosystème : Maven, npm, PyPI, crates.io, Go, NuGet, RubyGems, Packagist.", required = false) String ecosysteme,
             @ToolArg(name = "name", description = "Nom du paquet (Maven : groupe:artefact) ou PURL sans version.") String nom,
             @ToolArg(name = "version", description = "Version utilisée ou envisagée.") String version) {
-        Map<String, Object> p = parametres("ecosystem", ecosysteme, "name", nom, "version", version);
-        return garde.appeler("check_dependency", p, appelant -> verifier(appelant, Parametres.cle(ecosysteme, nom),
+        Map<String, Object> arguments = parametres("ecosystem", ecosysteme, "name", nom, "version", version);
+        return garde.appeler("check_dependency", arguments, appelant -> verifier(appelant, Parametres.cle(ecosysteme, nom),
                 Parametres.obligatoire("version", version)));
     }
 
@@ -216,12 +216,11 @@ public class OutilsSecurite {
         return meilleure;
     }
 
-    private Faille faille(SignalQueries.SignalView s, Correspondance c) {
+    private Faille faille(SignalQueries.SignalView s, Correspondance correspondance) {
         List<Reference> references = new ArrayList<>();
-        references.add(new Reference(s.source(), s.externalId(), lienSource(s.source(), s.externalId())));
-        enrichissements.forSignal(s.id())
-                .forEach(e -> references.add(new Reference(e.source(), e.reference(), lienSource(e.source(), e.reference()))));
-        return new Faille(s.id(), s.source(), s.externalId(), s.aliases(), s.severity(), c,
+        references.add(reference(s.source(), s.externalId()));
+        enrichissements.forSignal(s.id()).forEach(e -> references.add(reference(e.source(), e.reference())));
+        return new Faille(s.id(), s.source(), s.externalId(), s.aliases(), s.severity(), correspondance,
                 enrichissements.exploited(s.id()), references, balisage.baliser(s.source(), s.title()),
                 balisage.baliser(s.source(), s.summary()));
     }
@@ -244,9 +243,9 @@ public class OutilsSecurite {
             @ToolArg(name = "severity", description = "Gravité minimale : LOW, MODERATE, MEDIUM, HIGH, CRITICAL.", required = false) String gravite,
             @ToolArg(name = "horizon_days", description = "Signaux des N derniers jours (1 à 3650).", required = false) Integer horizon,
             @ToolArg(name = "limit", description = "Nombre maximal de signaux (1 à 50, 20 par défaut).", required = false) Integer limite) {
-        Map<String, Object> p = parametres("query", requete, "technologies", technologies, "packages", paquets,
+        Map<String, Object> arguments = parametres("query", requete, "technologies", technologies, "packages", paquets,
                 "sources", sources, "project_ids", projets, "severity", gravite, "horizon_days", horizon, "limit", limite);
-        return garde.appeler("search_signals", p, appelant -> {
+        return garde.appeler("search_signals", arguments, appelant -> {
             String texte = requete == null || requete.isBlank() ? null : Parametres.obligatoire("query", requete);
             List<String> t = Parametres.liste("technologies", technologies);
             List<String> k = Parametres.liste("packages", paquets).stream()
@@ -287,7 +286,7 @@ public class OutilsSecurite {
         return new SignalResume(s.id(), s.source(), s.externalId(), s.aliases(), s.severity(), texte(s.publishedAt()),
                 texte(s.modifiedAt()), s.affected().stream().map(AffectedPackage::packageKey).distinct().toList(),
                 balisage.baliser(s.source(), s.title()), balisage.baliser(s.source(), s.summary()), e.pertinence(),
-                e.projets().stream().map(p -> new ProjetVise(p.projetId(), p.projet())).toList());
+                e.projets().stream().map(vise -> new ProjetVise(vise.projetId(), vise.projet())).toList());
     }
 
     @Tool(name = "get_security_alerts", structuredContent = true,
@@ -299,8 +298,8 @@ public class OutilsSecurite {
     public Alertes getSecurityAlerts(
             @ToolArg(name = "project_id", description = "Identifiant du projet (UUID), facultatif.", required = false) String projet,
             @ToolArg(name = "limit", description = "Nombre maximal d'alertes (1 à 200, 50 par défaut).", required = false) Integer limite) {
-        Map<String, Object> p = parametres("project_id", projet, "limit", limite);
-        return garde.appeler("get_security_alerts", p, appelant -> {
+        Map<String, Object> arguments = parametres("project_id", projet, "limit", limite);
+        return garde.appeler("get_security_alerts", arguments, appelant -> {
             Optional<UUID> id = Parametres.identifiantFacultatif("project_id", projet);
             int n = Parametres.borne("limit", limite, 50, 1, 200);
             List<ImpactQueries.ImpactView> vues;
@@ -330,8 +329,8 @@ public class OutilsSecurite {
                     + " partir de ses données, sans IA." + AVERTISSEMENT)
     public ExplicationChangement explainChange(
             @ToolArg(name = "signal_id", description = "Identifiant du signal (UUID).") String signal) {
-        Map<String, Object> p = parametres("signal_id", signal);
-        return garde.appeler("explain_change", p, appelant -> {
+        Map<String, Object> arguments = parametres("signal_id", signal);
+        return garde.appeler("explain_change", arguments, appelant -> {
             UUID id = Parametres.identifiant("signal_id", signal);
             SignalQueries.SignalView s = signaux.find(id).orElseThrow(() -> new Introuvable("signal inconnu"));
             List<VersionSignal> versions = signaux.versions(id).stream()
@@ -376,28 +375,33 @@ public class OutilsSecurite {
         }
     }
 
+    /** Référence d'un avis, avec son lien public s'il en existe un ({@code null} sinon, voir {@link #lienSource}). */
+    private static Reference reference(String source, String identifiant) {
+        return new Reference(source, identifiant, lienSource(source, identifiant).orElse(null));
+    }
+
     /**
-     * Lien public d'un avis : page par identifiant d'OSV ou de la NVD, identifiant encodé ; {@code null}
-     * pour toute autre source.
+     * Lien public d'un avis : page par identifiant d'OSV ou de la NVD, identifiant encodé ; vide pour
+     * toute autre source ou sans identifiant.
      */
-    static String lienSource(String source, String identifiant) {
+    static Optional<String> lienSource(String source, String identifiant) {
         if (source == null || identifiant == null || identifiant.isBlank()) {
-            return null;
+            return Optional.empty();
         }
         String id = URLEncoder.encode(identifiant.strip(), StandardCharsets.UTF_8);
         return switch (source.toUpperCase(Locale.ROOT)) {
-            case "OSV" -> "https://osv.dev/vulnerability/" + id;
-            case "NVD" -> "https://nvd.nist.gov/vuln/detail/" + id;
-            default -> null;
+            case "OSV" -> Optional.of("https://osv.dev/vulnerability/" + id);
+            case "NVD" -> Optional.of("https://nvd.nist.gov/vuln/detail/" + id);
+            default -> Optional.empty();
         };
     }
 
     static Map<String, Object> parametres(Object... clesValeurs) {
-        Map<String, Object> p = new LinkedHashMap<>();
+        Map<String, Object> valeurs = new LinkedHashMap<>();
         for (int i = 0; i < clesValeurs.length; i += 2) {
-            p.put((String) clesValeurs[i], clesValeurs[i + 1]);
+            valeurs.put((String) clesValeurs[i], clesValeurs[i + 1]);
         }
-        return p;
+        return valeurs;
     }
 
     static String texte(Instant instant) {

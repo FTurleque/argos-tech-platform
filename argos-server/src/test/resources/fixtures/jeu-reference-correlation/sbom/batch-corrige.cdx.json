@@ -1,0 +1,161 @@
+{
+  "bomFormat": "CycloneDX",
+  "specVersion": "1.6",
+  "serialNumber": "urn:uuid:c81492d5-4661-506b-a64a-56cad536f659",
+  "version": 1,
+  "metadata": {
+    "timestamp": "2026-11-15T08:00:00Z",
+    "tools": {
+      "components": [
+        {
+          "type": "application",
+          "group": "org.cyclonedx",
+          "name": "cyclonedx-maven-plugin",
+          "version": "2.9.1"
+        }
+      ]
+    },
+    "component": {
+      "type": "application",
+      "bom-ref": "pkg:maven/com.exemple.argos/batch-corrige@2.0.3?type=jar",
+      "group": "com.exemple.argos",
+      "name": "batch-corrige",
+      "version": "2.0.3",
+      "purl": "pkg:maven/com.exemple.argos/batch-corrige@2.0.3?type=jar"
+    }
+  },
+  "components": [
+    {
+      "type": "library",
+      "bom-ref": "pkg:maven/org.apache.logging.log4j/log4j-core@2.17.1?type=jar",
+      "group": "org.apache.logging.log4j",
+      "name": "log4j-core",
+      "version": "2.17.1",
+      "scope": "required",
+      "purl": "pkg:maven/org.apache.logging.log4j/log4j-core@2.17.1?type=jar"
+    },
+    {
+      "type": "library",
+      "bom-ref": "pkg:maven/org.apache.logging.log4j/log4j-api@2.17.1?type=jar",
+      "group": "org.apache.logging.log4j",
+      "name": "log4j-api",
+      "version": "2.17.1",
+      "scope": "required",
+      "purl": "pkg:maven/org.apache.logging.log4j/log4j-api@2.17.1?type=jar"
+    },
+    {
+      "type": "library",
+      "bom-ref": "pkg:maven/org.apache.logging.log4j/log4j-1.2-api@2.17.1?type=jar",
+      "group": "org.apache.logging.log4j",
+      "name": "log4j-1.2-api",
+      "version": "2.17.1",
+      "scope": "required",
+      "purl": "pkg:maven/org.apache.logging.log4j/log4j-1.2-api@2.17.1?type=jar"
+    },
+    {
+      "type": "library",
+      "bom-ref": "pkg:maven/ch.qos.reload4j/reload4j@1.2.22?type=jar",
+      "group": "ch.qos.reload4j",
+      "name": "reload4j",
+      "version": "1.2.22",
+      "scope": "required",
+      "purl": "pkg:maven/ch.qos.reload4j/reload4j@1.2.22?type=jar"
+    },
+    {
+      "type": "library",
+      "bom-ref": "pkg:maven/org.springframework.boot/spring-boot-starter-web@2.6.6?type=jar",
+      "group": "org.springframework.boot",
+      "name": "spring-boot-starter-web",
+      "version": "2.6.6",
+      "scope": "required",
+      "purl": "pkg:maven/org.springframework.boot/spring-boot-starter-web@2.6.6?type=jar"
+    },
+    {
+      "type": "library",
+      "bom-ref": "pkg:maven/org.springframework/spring-webmvc@5.3.18?type=jar",
+      "group": "org.springframework",
+      "name": "spring-webmvc",
+      "version": "5.3.18",
+      "scope": "required",
+      "purl": "pkg:maven/org.springframework/spring-webmvc@5.3.18?type=jar"
+    },
+    {
+      "type": "library",
+      "bom-ref": "pkg:maven/org.springframework/spring-beans@5.3.18?type=jar",
+      "group": "org.springframework",
+      "name": "spring-beans",
+      "version": "5.3.18",
+      "scope": "required",
+      "purl": "pkg:maven/org.springframework/spring-beans@5.3.18?type=jar"
+    },
+    {
+      "type": "library",
+      "bom-ref": "pkg:maven/org.yaml/snakeyaml@2.0?type=jar",
+      "group": "org.yaml",
+      "name": "snakeyaml",
+      "version": "2.0",
+      "scope": "required",
+      "purl": "pkg:maven/org.yaml/snakeyaml@2.0?type=jar"
+    },
+    {
+      "type": "library",
+      "bom-ref": "pkg:maven/com.fasterxml.jackson.core/jackson-databind@2.13.4.2?type=jar",
+      "group": "com.fasterxml.jackson.core",
+      "name": "jackson-databind",
+      "version": "2.13.4.2",
+      "scope": "required",
+      "purl": "pkg:maven/com.fasterxml.jackson.core/jackson-databind@2.13.4.2?type=jar"
+    },
+    {
+      "type": "library",
+      "bom-ref": "pkg:maven/org.apache.commons/commons-text@1.10.0?type=jar",
+      "group": "org.apache.commons",
+      "name": "commons-text",
+      "version": "1.10.0",
+      "scope": "required",
+      "purl": "pkg:maven/org.apache.commons/commons-text@1.10.0?type=jar"
+    },
+    {
+      "type": "library",
+      "bom-ref": "pkg:maven/com.google.guava/guava@32.0.0-jre?type=jar",
+      "group": "com.google.guava",
+      "name": "guava",
+      "version": "32.0.0-jre",
+      "scope": "required",
+      "purl": "pkg:maven/com.google.guava/guava@32.0.0-jre?type=jar"
+    }
+  ],
+  "dependencies": [
+    {
+      "ref": "pkg:maven/com.exemple.argos/batch-corrige@2.0.3?type=jar",
+      "dependsOn": [
+        "pkg:maven/org.apache.logging.log4j/log4j-core@2.17.1?type=jar",
+        "pkg:maven/org.apache.logging.log4j/log4j-1.2-api@2.17.1?type=jar",
+        "pkg:maven/ch.qos.reload4j/reload4j@1.2.22?type=jar",
+        "pkg:maven/org.springframework.boot/spring-boot-starter-web@2.6.6?type=jar",
+        "pkg:maven/org.apache.commons/commons-text@1.10.0?type=jar",
+        "pkg:maven/com.google.guava/guava@32.0.0-jre?type=jar"
+      ]
+    },
+    {
+      "ref": "pkg:maven/org.apache.logging.log4j/log4j-core@2.17.1?type=jar",
+      "dependsOn": [
+        "pkg:maven/org.apache.logging.log4j/log4j-api@2.17.1?type=jar"
+      ]
+    },
+    {
+      "ref": "pkg:maven/org.springframework.boot/spring-boot-starter-web@2.6.6?type=jar",
+      "dependsOn": [
+        "pkg:maven/org.springframework/spring-webmvc@5.3.18?type=jar",
+        "pkg:maven/org.yaml/snakeyaml@2.0?type=jar",
+        "pkg:maven/com.fasterxml.jackson.core/jackson-databind@2.13.4.2?type=jar"
+      ]
+    },
+    {
+      "ref": "pkg:maven/org.springframework/spring-webmvc@5.3.18?type=jar",
+      "dependsOn": [
+        "pkg:maven/org.springframework/spring-beans@5.3.18?type=jar"
+      ]
+    }
+  ]
+}

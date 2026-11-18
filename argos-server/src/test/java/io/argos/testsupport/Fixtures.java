@@ -46,8 +46,8 @@ public final class Fixtures {
      * composées de limite de débit uniquement).
      */
     public static StubServer.Stub reponseEnregistree(String path) {
-        ReponseHttp r = lireReponse(path);
-        return new StubServer.Stub(r.status(), r.corps(), r.entetes(), 0);
+        ReponseHttp reponse = lireReponse(path);
+        return new StubServer.Stub(reponse.status(), reponse.corps(), reponse.entetes(), 0);
     }
 
     /** Corps d'une réponse HTTP enregistrée. */
@@ -62,15 +62,15 @@ public final class Fixtures {
     /** Lit une réponse HTTP enregistrée (fins de ligne CRLF ou LF). */
     public static ReponseHttp lireReponse(String path) {
         String brut = resource(path);
-        int crlf = brut.indexOf("\r\n\r\n");
-        int lf = brut.indexOf("\n\n");
+        int separateurCrlf = brut.indexOf("\r\n\r\n");
+        int separateurLf = brut.indexOf("\n\n");
         int fin;
         int saut;
-        if (crlf >= 0 && (lf < 0 || crlf < lf)) {
-            fin = crlf;
+        if (separateurCrlf >= 0 && (separateurLf < 0 || separateurCrlf < separateurLf)) {
+            fin = separateurCrlf;
             saut = 4;
-        } else if (lf >= 0) {
-            fin = lf;
+        } else if (separateurLf >= 0) {
+            fin = separateurLf;
             saut = 2;
         } else {
             throw new IllegalArgumentException("réponse enregistrée sans séparation en-têtes / corps : " + path);

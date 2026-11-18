@@ -1,9 +1,10 @@
 package io.argos.scm;
 
+import static io.argos.scm.AccesForges.enc;
+import static io.argos.scm.AccesForges.provider;
+
 import java.io.IOException;
 import java.net.URI;
-import java.net.URLEncoder;
-import java.nio.charset.StandardCharsets;
 import java.time.Duration;
 import java.time.Instant;
 import java.time.LocalDate;
@@ -56,11 +57,7 @@ public class RepositoryActivity {
     private static final ObjectMapper JSON = new ObjectMapper()
             .configure(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES, false);
 
-    private final ForgeHttp http;
-    private final String gitlabUrl;
-    private final String githubUrl;
-    private final Optional<String> gitlabToken;
-    private final Optional<String> githubToken;
+    private final AccesForges forges;
     private final int pagesMax;
     private final int jalonsMax;
     private final long tailleMax;
@@ -74,11 +71,8 @@ public class RepositoryActivity {
             @ConfigProperty(name = "argos.scm.activite.pages-max", defaultValue = "10") int pagesMax,
             @ConfigProperty(name = "argos.scm.activite.jalons-max", defaultValue = "50") int jalonsMax,
             @ConfigProperty(name = "argos.scm.activite.taille-max-octets", defaultValue = "5242880") long tailleMax) {
-        this.http = new ForgeHttp(timeout);
-        this.gitlabUrl = trim(gitlabUrl);
-        this.githubUrl = trim(githubUrl);
-        this.gitlabToken = gitlabToken.filter(t -> !t.isBlank());
-        this.githubToken = githubToken.filter(t -> !t.isBlank());
+        this.forges = AccesForges.configure(timeout, gitlabUrl, githubUrl, gitlabToken.orElse(null),
+                githubToken.orElse(null));
         this.pagesMax = Math.max(1, pagesMax);
         this.jalonsMax = Math.max(0, jalonsMax);
         this.tailleMax = tailleMax;
@@ -86,8 +80,7 @@ public class RepositoryActivity {
 
     /** Activité du dépôt depuis {@code depuis}. */
     public ActiviteDepot lire(RepositoryRef ref, Instant depuis) {
-        String provider = ref.provider() == null ? "" : ref.provider().toUpperCase(Locale.ROOT);
-        return switch (provider) {
+        return switch (provider(ref)) {
             case "GITHUB" -> github(ref, depuis);
             case "GITLAB" -> gitlab(ref, depuis);
             default -> throw new ScmException("forge non prise en charge : " + ref.provider(), null);
@@ -128,12 +121,12 @@ public class RepositoryActivity {
         if (!ForgeHttp.depotGithubValide(ref.repository())) {
             throw new ScmException("dépôt GitHub invalide : attendu owner/repo", null);
         }
-        String base = githubUrl + "/repos/" + ref.repository();
+        String base = forges.githubUrl() + "/repos/" + ref.repository();
         boolean complet = true;
 
         List<GhIssue> issues = new ArrayList<>();
         complet &= pages(p -> URI.create(base + "/issues?state=all&since=" + enc(depuis.toString())
-                + "&per_page=" + PAR_PAGE + "&page=" + p), githubToken, true, new TypeReference<List<GhIssue>>() { },
+                + "&per_page=" + PAR_PAGE + "&page=" + p), forges.githubToken(), true, new TypeReference<List<GhIssue>>() { },
                 issues, page -> true);
         List<ActiviteDepot.Ticket> tickets = new ArrayList<>();
         List<ActiviteDepot.Fusion> fusions = new ArrayList<>();
@@ -153,7 +146,7 @@ public class RepositoryActivity {
                 break;
             }
             GhRuns page = lireJson(URI.create(base + "/actions/runs?created=" + enc(">=" + jour) + "&per_page=" + PAR_PAGE
-                    + "&page=" + p), githubToken, true, new TypeReference<GhRuns>() { });
+                    + "&page=" + p), forges.githubToken(), true, new TypeReference<GhRuns>() { });
             List<GhRun> contenu = page == null || page.runs() == null ? List.of() : page.runs();
             runs.addAll(contenu);
             if (contenu.size() < PAR_PAGE) {
@@ -165,7 +158,7 @@ public class RepositoryActivity {
                 .filter(pl -> pl.creeLe() != null && !pl.creeLe().isBefore(depuis)).toList();
 
         List<GhRelease> releases = new ArrayList<>();
-        complet &= pages(p -> URI.create(base + "/releases?per_page=" + PAR_PAGE + "&page=" + p), githubToken, true,
+        complet &= pages(p -> URI.create(base + "/releases?per_page=" + PAR_PAGE + "&page=" + p), forges.githubToken(), true,
                 new TypeReference<List<GhRelease>>() { }, releases,
                 page -> page.stream().map(rel -> instant(rel.publishedAt())).anyMatch(d -> d == null || !d.isBefore(depuis)));
         List<ActiviteDepot.Version> versions = releases.stream().filter(rel -> !rel.draft())
@@ -173,7 +166,7 @@ public class RepositoryActivity {
                 .map(ActiviteDepot.Version::new).toList();
 
         List<GhMilestone> milestones = new ArrayList<>();
-        complet &= pages(p -> URI.create(base + "/milestones?state=all&per_page=" + PAR_PAGE + "&page=" + p), githubToken,
+        complet &= pages(p -> URI.create(base + "/milestones?state=all&per_page=" + PAR_PAGE + "&page=" + p), forges.githubToken(),
                 true, new TypeReference<List<GhMilestone>>() { }, milestones, page -> true);
         List<ActiviteDepot.Jalon> jalons = new ArrayList<>();
         for (GhMilestone m : milestones) {
@@ -245,38 +238,38 @@ public class RepositoryActivity {
         if (ref.repository() == null || ref.repository().isBlank()) {
             throw new ScmException("dépôt GitLab invalide : identifiant ou chemin attendu", null);
         }
-        String base = gitlabUrl + "/api/v4/projects/" + enc(ref.repository());
+        String base = forges.gitlabUrl() + "/api/v4/projects/" + enc(ref.repository());
         String apres = enc(depuis.toString());
         boolean complet = true;
 
         List<GlIssue> issues = new ArrayList<>();
         complet &= pages(p -> URI.create(base + "/issues?updated_after=" + apres + "&per_page=" + PAR_PAGE + "&page=" + p),
-                gitlabToken, false, new TypeReference<List<GlIssue>>() { }, issues, page -> true);
+                forges.gitlabToken(), false, new TypeReference<List<GlIssue>>() { }, issues, page -> true);
         List<ActiviteDepot.Ticket> tickets = issues.stream()
                 .map(i -> new ActiviteDepot.Ticket(instant(i.createdAt()), instant(i.closedAt()))).toList();
 
         List<GlMergeRequest> mrs = new ArrayList<>();
         complet &= pages(p -> URI.create(base + "/merge_requests?updated_after=" + apres + "&per_page=" + PAR_PAGE
-                + "&page=" + p), gitlabToken, false, new TypeReference<List<GlMergeRequest>>() { }, mrs, page -> true);
+                + "&page=" + p), forges.gitlabToken(), false, new TypeReference<List<GlMergeRequest>>() { }, mrs, page -> true);
         List<ActiviteDepot.Fusion> fusions = mrs.stream()
                 .map(m -> new ActiviteDepot.Fusion(instant(m.createdAt()), instant(m.mergedAt()))).toList();
 
         List<GlPipeline> pls = new ArrayList<>();
         complet &= pages(p -> URI.create(base + "/pipelines?updated_after=" + apres + "&per_page=" + PAR_PAGE + "&page=" + p),
-                gitlabToken, false, new TypeReference<List<GlPipeline>>() { }, pls, page -> true);
+                forges.gitlabToken(), false, new TypeReference<List<GlPipeline>>() { }, pls, page -> true);
         List<ActiviteDepot.Pipeline> pipelines = pls.stream()
                 .map(pl -> new ActiviteDepot.Pipeline(instant(pl.createdAt()), issueGitlab(pl.status())))
                 .filter(pl -> pl.creeLe() != null && !pl.creeLe().isBefore(depuis)).toList();
 
         List<GlRelease> releases = new ArrayList<>();
-        complet &= pages(p -> URI.create(base + "/releases?per_page=" + PAR_PAGE + "&page=" + p), gitlabToken, false,
+        complet &= pages(p -> URI.create(base + "/releases?per_page=" + PAR_PAGE + "&page=" + p), forges.gitlabToken(), false,
                 new TypeReference<List<GlRelease>>() { }, releases,
                 page -> page.stream().map(RepositoryActivity::publication).anyMatch(d -> d == null || !d.isBefore(depuis)));
         List<ActiviteDepot.Version> versions = releases.stream().map(RepositoryActivity::publication)
                 .filter(d -> d != null && !d.isBefore(depuis)).map(ActiviteDepot.Version::new).toList();
 
         List<GlMilestone> milestones = new ArrayList<>();
-        complet &= pages(p -> URI.create(base + "/milestones?per_page=" + PAR_PAGE + "&page=" + p), gitlabToken, false,
+        complet &= pages(p -> URI.create(base + "/milestones?per_page=" + PAR_PAGE + "&page=" + p), forges.gitlabToken(), false,
                 new TypeReference<List<GlMilestone>>() { }, milestones, page -> true);
         List<ActiviteDepot.Jalon> jalons = new ArrayList<>();
         for (GlMilestone m : milestones) {
@@ -290,7 +283,7 @@ public class RepositoryActivity {
                 break;
             }
             GlIssuesStatistics stats = lireJson(URI.create(base + "/issues_statistics?milestone=" + enc(m.title())),
-                    gitlabToken, false, new TypeReference<GlIssuesStatistics>() { });
+                    forges.gitlabToken(), false, new TypeReference<GlIssuesStatistics>() { });
             GlCounts counts = stats == null || stats.statistics() == null || stats.statistics().counts() == null
                     ? new GlCounts(0, 0) : stats.statistics().counts();
             int total = Math.max(0, counts.all());
@@ -337,7 +330,7 @@ public class RepositoryActivity {
     }
 
     private <T> T lireJson(URI uri, Optional<String> jeton, boolean github, TypeReference<T> type) {
-        ForgeHttp.Reponse r = http.get(uri, jeton, github, github ? "application/vnd.github+json" : "application/json",
+        ForgeHttp.Reponse r = forges.http().get(uri, jeton, github, github ? "application/vnd.github+json" : "application/json",
                 tailleMax);
         if (r.status() != 200) {
             throw new ScmException("HTTP " + r.status() + " de " + uri.getHost(), null);
@@ -384,11 +377,4 @@ public class RepositoryActivity {
         return brut.length() > REFERENCE_MAX ? brut.substring(0, REFERENCE_MAX) : brut;
     }
 
-    private static String enc(String value) {
-        return URLEncoder.encode(value, StandardCharsets.UTF_8).replace("+", "%20");
-    }
-
-    private static String trim(String url) {
-        return url.endsWith("/") ? url.substring(0, url.length() - 1) : url;
-    }
 }

@@ -324,7 +324,7 @@ Non applicable — aucune donnée ni aucun contrat existant à migrer. Le retour
 | COL-03-S3, COR-07 | intégration concurrente | test parallèle sur contrainte d'unicité | à écrire |
 | COL-05, COL-06, COL-07 | résilience (simulation 429/5xx/timeout, arrêt forcé) | QS-03, QS-07 | à écrire |
 | INV-01 à INV-05 | intégration avec SBOM CycloneDX de test | jeux de SBOM valides/invalides | à écrire |
-| COR-01 à COR-06 | unitaire (règles) + jeu de référence annoté | précision/rappel (baseline v2.3 §6 critère 3) | à écrire |
+| COR-01 à COR-06 | unitaire (règles) + jeu de référence annoté | précision/rappel (baseline v2.3 §6 critère 3) | `MatchRulesTest`, `CorrelationTest`, `JeuReferenceCorrelationTest` ; jeu composé mesuré le 2026-11-18, inventaires des projets pilotes à ajouter (tâches 4.7 et 7.1) |
 | COR-08, ABO-05 | intégration inter-espaces REST + RLS | test ADR-0016 | à écrire |
 | ABO-01 à ABO-04 | intégration API | tests du module `workspace` | à écrire |
 | Frontières de modules | architecture | ArchUnit (ADR-0001) | à écrire |

@@ -95,25 +95,47 @@ final class ForgeHttp {
      * (GitHub) ou {@code RateLimit-Reset} (GitLab), en secondes depuis l'époque ; à défaut, une heure.
      */
     static Optional<Instant> quota(int status, HttpHeaders entetes, byte[] corps, URI uri) {
-        boolean epuise = status == 429
-                || (status == 403 && (entetes.firstValue("x-ratelimit-remaining").map(String::strip).filter("0"::equals).isPresent()
-                        || entetes.firstValue("retry-after").isPresent()
-                        || mentionneLimiteDeDebit(corps)));
-        if (!epuise) {
+        if (!quotaEpuise(status, entetes, corps)) {
             return Optional.empty();
         }
         Instant maintenant = Instant.now();
-        Instant reprise = entier(entetes.firstValue("retry-after")).map(s -> maintenant.plusSeconds(s))
+        return Optional.of(bornerReprise(repriseAnnoncee(entetes, maintenant), maintenant));
+    }
+
+    /** Vrai pour un 429, ou pour un 403 qui signale une limite de débit (en-têtes ou corps). */
+    private static boolean quotaEpuise(int status, HttpHeaders entetes, byte[] corps) {
+        return status == 429 || (status == 403 && limiteDeDebitSignalee(entetes, corps));
+    }
+
+    private static boolean limiteDeDebitSignalee(HttpHeaders entetes, byte[] corps) {
+        return entetes.firstValue("x-ratelimit-remaining").map(String::strip).filter("0"::equals).isPresent()
+                || entetes.firstValue("retry-after").isPresent()
+                || mentionneLimiteDeDebit(corps);
+    }
+
+    /**
+     * Date de reprise annoncée par la forge : {@code Retry-After}, puis {@code x-ratelimit-reset},
+     * puis {@code RateLimit-Reset} ; à défaut, {@link #REPORT_PAR_DEFAUT} après {@code maintenant}.
+     */
+    private static Instant repriseAnnoncee(HttpHeaders entetes, Instant maintenant) {
+        return entier(entetes.firstValue("retry-after")).map(s -> maintenant.plusSeconds(s))
                 .or(() -> entier(entetes.firstValue("x-ratelimit-reset")).map(Instant::ofEpochSecond))
                 .or(() -> entier(entetes.firstValue("ratelimit-reset")).map(Instant::ofEpochSecond))
                 .orElse(maintenant.plus(REPORT_PAR_DEFAUT));
+    }
+
+    /**
+     * Reprise ramenée à {@code maintenant} si elle est passée, et remplacée par le report par défaut
+     * si elle dépasse {@link #REPORT_MAX}.
+     */
+    private static Instant bornerReprise(Instant reprise, Instant maintenant) {
         if (reprise.isBefore(maintenant)) {
-            reprise = maintenant;
+            return maintenant;
         }
         if (reprise.isAfter(maintenant.plus(REPORT_MAX))) {
-            reprise = maintenant.plus(REPORT_PAR_DEFAUT);
+            return maintenant.plus(REPORT_PAR_DEFAUT);
         }
-        return Optional.of(reprise);
+        return reprise;
     }
 
     /** Vrai si le corps (message d'erreur) mentionne une limite de débit. */
