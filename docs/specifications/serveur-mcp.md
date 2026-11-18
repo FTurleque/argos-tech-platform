@@ -113,6 +113,8 @@ Scénarios MCP-01-S1 à MCP-07-S1 du changement, couverts par les tests de `argo
 4. `check_dependency` sur `org.e2e:biblio-mcp` 3.2 (avis de test fictif `E2E-MCP-2099-0001` de `e2e/donnees/mcp.sql`) : avis, alias, sources OSV et NVD avec leurs liens, titre et résumé marqués `CONTENU_EXTERNE_NON_FIABLE` (la consigne piégée du résumé reste dans ce champ), version recommandée 3.4.1 du référentiel de l'espace ; 3.4.1 sans faille ; alerte du projet concerné ; appels journalisés ;
 5. `nina`, d'un autre espace : avis public renvoyé, mais ni le projet ni le standard de l'espace d'`oscar` ; `get_security_alerts` sur ce projet : `INTROUVABLE`, refus journalisé.
 
+Résultat du 2026-11-18 : deux exécutions complètes consécutives de `npm --prefix e2e test`, 30 tests sur 30 chacune ; réponses de référence dans [`e2e/resultats/mcp/`](/e2e/resultats/mcp/). Ce parcours est une preuve partielle de la tâche 5.2, qui reste ouverte tant que la procédure ci-dessous n'a pas été suivie avec Claude Code.
+
 ### Procédure manuelle avec Claude Code
 
 Ce parcours n'appelle ni Claude Code ni aucun modèle ; le constat avec Claude Code réel se fait à la main, sur la même pile :
