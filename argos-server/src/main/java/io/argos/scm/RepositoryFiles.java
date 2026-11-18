@@ -24,11 +24,16 @@ import com.fasterxml.jackson.databind.ObjectMapper;
  *
  * <p>Une réponse 404 sur un fichier d'un dépôt existant signifie « absent ». Un dépôt introuvable
  * lève {@link DepotIntrouvable} ; un jeton refusé (401) ou un accès interdit (403 hors quota)
- * {@link AccesRefuse} ; un quota épuisé (429, ou 403 avec {@code x-ratelimit-remaining: 0})
+ * {@link AccesRefuse} ; un quota épuisé (429, ou 403 portant {@code x-ratelimit-remaining: 0},
+ * {@code Retry-After} ou un message de limite de débit GitHub, voir {@link ForgeHttp#quota})
  * {@link QuotaEpuise} ; tout autre statut que 200, une redirection (jamais suivie) ou une réponse
- * au-delà de {@code argos.inventory.max-document-bytes} lève {@link ScmException}. Chaque appel est
- * borné par {@code argos.sources.http-timeout} ; les jetons, lus dans la configuration, ne figurent
- * dans aucun message.
+ * au-delà de {@code argos.inventory.max-document-bytes} lève {@link ScmException}. Le délai
+ * {@code argos.sources.http-timeout} borne l'établissement de la connexion et l'attente des en-têtes
+ * de réponse ; la lecture du corps est bornée en taille, pas en durée. Les jetons, lus dans la
+ * configuration, ne figurent dans aucun message.
+ *
+ * <p>Une {@link Lecture} regroupe les appels d'un même rafraîchissement : la vérification d'existence
+ * d'un dépôt GitHub y est faite au plus une fois, quel que soit le nombre de fichiers absents.
  *
  * <ul>
  *   <li>GitLab : SBOM = artefact du dernier job réussi de la branche,
@@ -76,69 +81,103 @@ public class RepositoryFiles {
         this.maxBytes = maxBytes;
     }
 
+    /** Lecture d'un dépôt pour un rafraîchissement : la vérification du dépôt y est mémorisée. */
+    public Lecture lecture(RepositoryRef ref) {
+        return new Lecture(ref);
+    }
+
     /** Dernière SBOM produite pour la branche principale, avec son format ; vide si aucune n'est disponible. */
     public Optional<SbomDocument> latestSbom(RepositoryRef ref) {
-        if (ref.sbomPath() == null || ref.sbomPath().isBlank()) {
-            return Optional.empty();
-        }
-        return switch (provider(ref)) {
-            case "GITLAB" -> {
-                if (ref.sbomJob() == null || ref.sbomJob().isBlank()) {
-                    yield Optional.empty();
-                }
-                yield fetch(ref, gitlab(ref, "/jobs/artifacts/" + enc(ref.branch()) + "/raw/" + path(ref.sbomPath())
-                        + "?job=" + enc(ref.sbomJob())), false).map(SbomDocument::de);
-            }
-            case "GITHUB" -> file(ref, ref.sbomPath()).map(SbomDocument::de);
-            default -> throw new ScmException("forge non prise en charge : " + ref.provider(), null);
-        };
+        return lecture(ref).latestSbom();
     }
 
     /** Fichier du dépôt sur la branche principale ; vide s'il n'existe pas dans un dépôt existant. */
     public Optional<byte[]> file(RepositoryRef ref, String filePath) {
-        return switch (provider(ref)) {
-            case "GITLAB" -> fetch(ref, gitlab(ref, "/repository/files/" + enc(filePath) + "/raw?ref=" + enc(ref.branch())),
-                    false);
-            case "GITHUB" -> fetch(ref, URI.create(githubUrl + "/repos/" + githubRepository(ref) + "/contents/" + path(filePath)
-                    + "?ref=" + enc(ref.branch())), true);
-            default -> throw new ScmException("forge non prise en charge : " + ref.provider(), null);
-        };
+        return lecture(ref).file(filePath);
+    }
+
+    /**
+     * Appels successifs sur un même dépôt (SBOM puis manifestes) : après un 404 GitHub, le dépôt
+     * n'est interrogé qu'une fois, et son existence vaut pour les fichiers absents suivants.
+     * Instance à usage unique, non partagée entre fils d'exécution.
+     */
+    public final class Lecture {
+
+        private final RepositoryRef ref;
+        private boolean depotVerifie;
+
+        private Lecture(RepositoryRef ref) {
+            this.ref = ref;
+        }
+
+        /** Dernière SBOM produite pour la branche principale, avec son format ; vide si aucune n'est disponible. */
+        public Optional<SbomDocument> latestSbom() {
+            if (ref.sbomPath() == null || ref.sbomPath().isBlank()) {
+                return Optional.empty();
+            }
+            return switch (provider(ref)) {
+                case "GITLAB" -> {
+                    if (ref.sbomJob() == null || ref.sbomJob().isBlank()) {
+                        yield Optional.empty();
+                    }
+                    yield fetch(gitlab(ref, "/jobs/artifacts/" + enc(ref.branch()) + "/raw/" + path(ref.sbomPath())
+                            + "?job=" + enc(ref.sbomJob())), false).map(SbomDocument::de);
+                }
+                case "GITHUB" -> file(ref.sbomPath()).map(SbomDocument::de);
+                default -> throw new ScmException("forge non prise en charge : " + ref.provider(), null);
+            };
+        }
+
+        /** Fichier du dépôt sur la branche principale ; vide s'il n'existe pas dans un dépôt existant. */
+        public Optional<byte[]> file(String filePath) {
+            return switch (provider(ref)) {
+                case "GITLAB" -> fetch(gitlab(ref, "/repository/files/" + enc(filePath) + "/raw?ref=" + enc(ref.branch())),
+                        false);
+                case "GITHUB" -> fetch(URI.create(githubUrl + "/repos/" + githubRepository(ref) + "/contents/"
+                        + path(filePath) + "?ref=" + enc(ref.branch())), true);
+                default -> throw new ScmException("forge non prise en charge : " + ref.provider(), null);
+            };
+        }
+
+        private Optional<byte[]> fetch(URI uri, boolean github) {
+            ForgeHttp.Reponse r = http.get(uri, github ? githubToken : gitlabToken, github,
+                    github ? "application/vnd.github.raw+json" : null, maxBytes);
+            if (r.status() == 404) {
+                verifierDepot(r, github);
+                return Optional.empty();
+            }
+            verifierStatut(r.status(), uri);
+            return Optional.of(r.corps());
+        }
+
+        /**
+         * Distingue, après un 404, un fichier absent d'un dépôt introuvable : message d'erreur pour
+         * GitLab, interrogation du dépôt (une fois par lecture) pour GitHub.
+         *
+         * @throws DepotIntrouvable si le dépôt n'existe pas ou n'est pas visible avec le jeton configuré
+         */
+        private void verifierDepot(ForgeHttp.Reponse reponse404, boolean github) {
+            if (!github) {
+                if (PROJET_GITLAB_INTROUVABLE.equals(message(reponse404.corps()))) {
+                    throw new DepotIntrouvable("GITLAB", ref.repository());
+                }
+                return;
+            }
+            if (depotVerifie) {
+                return;
+            }
+            URI uri = URI.create(githubUrl + "/repos/" + githubRepository(ref));
+            ForgeHttp.Reponse r = http.get(uri, githubToken, true, "application/vnd.github+json", maxBytes);
+            if (r.status() == 404) {
+                throw new DepotIntrouvable("GITHUB", ref.repository());
+            }
+            verifierStatut(r.status(), uri);
+            depotVerifie = true;
+        }
     }
 
     private URI gitlab(RepositoryRef ref, String suffix) {
         return URI.create(gitlabUrl + "/api/v4/projects/" + enc(ref.repository()) + suffix);
-    }
-
-    private Optional<byte[]> fetch(RepositoryRef ref, URI uri, boolean github) {
-        ForgeHttp.Reponse r = http.get(uri, github ? githubToken : gitlabToken, github,
-                github ? "application/vnd.github.raw+json" : null, maxBytes);
-        if (r.status() == 404) {
-            verifierDepot(ref, r, github);
-            return Optional.empty();
-        }
-        verifierStatut(r.status(), uri);
-        return Optional.of(r.corps());
-    }
-
-    /**
-     * Distingue, après un 404, un fichier absent d'un dépôt introuvable : message d'erreur pour
-     * GitLab, interrogation du dépôt pour GitHub.
-     *
-     * @throws DepotIntrouvable si le dépôt n'existe pas ou n'est pas visible avec le jeton configuré
-     */
-    private void verifierDepot(RepositoryRef ref, ForgeHttp.Reponse reponse404, boolean github) {
-        if (!github) {
-            if (PROJET_GITLAB_INTROUVABLE.equals(message(reponse404.corps()))) {
-                throw new DepotIntrouvable("GITLAB", ref.repository());
-            }
-            return;
-        }
-        URI uri = URI.create(githubUrl + "/repos/" + githubRepository(ref));
-        ForgeHttp.Reponse r = http.get(uri, githubToken, true, "application/vnd.github+json", maxBytes);
-        if (r.status() == 404) {
-            throw new DepotIntrouvable("GITHUB", ref.repository());
-        }
-        verifierStatut(r.status(), uri);
     }
 
     private static void verifierStatut(int status, URI uri) {

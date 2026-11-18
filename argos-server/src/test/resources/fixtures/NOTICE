@@ -39,23 +39,32 @@ scm/gitlab/*, scm/github/*
   de ces deux dossiers n'a été capturée sur une forge réelle.
 
 scm/enregistrees/github/*.http, scm/enregistrees/gitlab/*.http
-  Réponses HTTP (ligne de statut, en-têtes, corps) enregistrées le 2026-11-18 par `curl -i`,
-  requêtes GET anonymes, sur https://api.github.com et https://gitlab.com/api/v4 :
+  Réponses HTTP (ligne de statut, en-têtes, corps) enregistrées le 2026-11-18 (heure de Paris ;
+  les en-têtes Date, en GMT, portent le 17 novembre 2026 vers 23 h 30) par `curl -i`, requêtes GET
+  anonymes, sur https://api.github.com et https://gitlab.com/api/v4 :
   - GitHub, dépôt public CycloneDX/cyclonedx-node-npm (branche main) : contenu brut de
     demo/dev-dependencies/example-results/flat/bom.1.6.json (SBOM CycloneDX 1.6) et de
     demo/bundled-dependencies/project/package.json, métadonnées du dépôt, 404 d'un fichier absent ;
     dépôt inexistant argos-poc-inexistant-7f3a/depot-inexistant (404 du contenu et du dépôt) ;
-    401 obtenu avec un jeton manifestement fictif. Contenus du dépôt sous licence Apache-2.0,
+    401 obtenu avec un jeton manifestement fictif (requête émise avec l'en-tête
+    Accept: application/vnd.github+json et non le média raw de l'adaptateur : la réponse ne porte
+    ni param=raw ni en-têtes de quota, ce qui est sans effet sur le test, qui ne lit que le
+    statut). Contenus du dépôt sous licence Apache-2.0,
     © OWASP Foundation et les contributeurs du projet CycloneDX, reproduits sans modification.
   - GitLab, projet public gitlab-org/security-products/tests/js-npm (branche master) : fichier
-    brut package.json, métadonnées du projet, 404 d'un fichier absent et d'un artefact absent, 403
-    de l'artefact du job gemnasium-dependency_scanning (artefacts non publics) ; projet inexistant
-    (404 « Project Not Found ») ; 401 obtenu avec un jeton manifestement fictif.
+    brut package.json, 404 d'un fichier absent et d'un artefact absent, 403 de l'artefact du job
+    gemnasium-dependency_scanning (artefacts non publics) ; fichier d'un projet inexistant
+    (404 « Project Not Found ») ; 401 obtenu avec un jeton manifestement fictif. Ni les
+    métadonnées publiques du projet ni le package.json capturé ne déclarent de licence : le
+    manifeste reproduit, sans modification, se réduit au nom du projet de test et à sa liste de
+    dépendances, données factuelles servant à l'interopérabilité ; sa licence reste à confirmer
+    auprès de GitLab avant toute autre réutilisation.
   Aucun jeton réel n'a été utilisé ; les en-têtes ne contiennent aucun cookie ni donnée
   personnelle.
   Exceptions composées, faute de pouvoir les provoquer sans authentification ni épuiser un quota
-  partagé : github/403-limite-debit.http, github/403-limite-secondaire.http et
-  gitlab/429-limite-debit.http, écrites d'après la documentation des limites de débit de GitHub
+  partagé : github/403-limite-debit.http, github/403-limite-secondaire.http,
+  github/403-limite-secondaire-sans-delai.http (limite secondaire signalée par son seul message,
+  sans Retry-After, quota principal restant) et gitlab/429-limite-debit.http, écrites d'après la documentation des limites de débit de GitHub
   et de GitLab et les en-têtes des réponses enregistrées ; le motif ${maintenant+N} y est
   remplacé à la lecture par l'instant présent plus N secondes. L'artefact SBOM GitLab servi en
   200 reprend scm/gitlab/gl-sbom-npm-npm.cdx.json (composé).

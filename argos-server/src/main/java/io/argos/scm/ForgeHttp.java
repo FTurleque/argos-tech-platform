@@ -7,8 +7,10 @@ import java.net.http.HttpClient;
 import java.net.http.HttpHeaders;
 import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
+import java.nio.charset.StandardCharsets;
 import java.time.Duration;
 import java.time.Instant;
+import java.util.Locale;
 import java.util.Optional;
 
 /**
@@ -69,7 +71,7 @@ final class ForgeHttp {
             if (corps.length > tailleMax) {
                 throw new ScmException("réponse de " + uri.getHost() + " au-delà de la taille maximale", null);
             }
-            quota(r.statusCode(), r.headers(), uri).ifPresent(reprise -> {
+            quota(r.statusCode(), r.headers(), corps, uri).ifPresent(reprise -> {
                 throw new QuotaEpuise(uri.getHost(), reprise);
             });
             return new Reponse(r.statusCode(), corps, r.headers());
@@ -81,16 +83,22 @@ final class ForgeHttp {
         }
     }
 
+    /** Taille au-delà de laquelle le corps d'un 403 n'est pas examiné : un message d'erreur est court. */
+    private static final int CORPS_MESSAGE_MAX = 65_536;
+
     /**
      * Date de reprise si la réponse signale un quota épuisé : 429, ou 403 avec
-     * {@code x-ratelimit-remaining: 0} (limite principale GitHub) ou avec {@code Retry-After} (limite
-     * secondaire GitHub). Ordre de lecture : {@code Retry-After} (secondes), {@code x-ratelimit-reset}
-     * (GitHub) ou {@code RateLimit-Reset} (GitLab), en secondes depuis l'époque.
+     * {@code x-ratelimit-remaining: 0} (limite principale GitHub), avec {@code Retry-After} (limite
+     * secondaire GitHub) ou dont le corps mentionne une limite de débit ({@code rate limit} : GitHub
+     * peut signaler une limite secondaire sans {@code Retry-After} et avec un quota principal
+     * restant). Ordre de lecture : {@code Retry-After} (secondes), {@code x-ratelimit-reset}
+     * (GitHub) ou {@code RateLimit-Reset} (GitLab), en secondes depuis l'époque ; à défaut, une heure.
      */
-    static Optional<Instant> quota(int status, HttpHeaders entetes, URI uri) {
+    static Optional<Instant> quota(int status, HttpHeaders entetes, byte[] corps, URI uri) {
         boolean epuise = status == 429
                 || (status == 403 && (entetes.firstValue("x-ratelimit-remaining").map(String::strip).filter("0"::equals).isPresent()
-                        || entetes.firstValue("retry-after").isPresent()));
+                        || entetes.firstValue("retry-after").isPresent()
+                        || mentionneLimiteDeDebit(corps)));
         if (!epuise) {
             return Optional.empty();
         }
@@ -106,6 +114,14 @@ final class ForgeHttp {
             reprise = maintenant.plus(REPORT_PAR_DEFAUT);
         }
         return Optional.of(reprise);
+    }
+
+    /** Vrai si le corps (message d'erreur) mentionne une limite de débit. */
+    static boolean mentionneLimiteDeDebit(byte[] corps) {
+        if (corps == null || corps.length == 0 || corps.length > CORPS_MESSAGE_MAX) {
+            return false;
+        }
+        return new String(corps, StandardCharsets.UTF_8).toLowerCase(Locale.ROOT).contains("rate limit");
     }
 
     private static Optional<Long> entier(Optional<String> valeur) {

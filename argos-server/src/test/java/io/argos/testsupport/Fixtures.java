@@ -4,10 +4,15 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.io.UncheckedIOException;
 import java.nio.charset.StandardCharsets;
+import java.time.Instant;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
+import java.util.Set;
+import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 
 /** Construction des documents de test : avis OSV, SBOM CycloneDX, réponses enregistrées. */
@@ -29,10 +34,10 @@ public final class Fixtures {
     }
 
     /** En-têtes de transport recalculés par le serveur simulé, jamais rejoués. */
-    private static final java.util.Set<String> ENTETES_TRANSPORT =
-            java.util.Set.of("content-length", "transfer-encoding", "connection", "keep-alive", "content-encoding");
+    private static final Set<String> ENTETES_TRANSPORT =
+            Set.of("content-length", "transfer-encoding", "connection", "keep-alive", "content-encoding");
 
-    private static final java.util.regex.Pattern MAINTENANT = java.util.regex.Pattern.compile("\\$\\{maintenant\\+(\\d+)}");
+    private static final Pattern MAINTENANT = Pattern.compile("\\$\\{maintenant\\+(\\d+)}");
 
     /**
      * Réponse HTTP enregistrée ({@code fixtures/<path>}, sortie de {@code curl -i}) : ligne de statut,
@@ -76,14 +81,14 @@ public final class Fixtures {
             throw new IllegalArgumentException("ligne de statut invalide : " + path);
         }
         Map<String, String> entetes = new LinkedHashMap<>();
-        long maintenant = java.time.Instant.now().getEpochSecond();
+        long maintenant = Instant.now().getEpochSecond();
         for (int i = 1; i < lignes.length; i++) {
             int deuxPoints = lignes[i].indexOf(':');
             if (deuxPoints <= 0) {
                 continue;
             }
             String nom = lignes[i].substring(0, deuxPoints).strip();
-            if (ENTETES_TRANSPORT.contains(nom.toLowerCase(java.util.Locale.ROOT))) {
+            if (ENTETES_TRANSPORT.contains(nom.toLowerCase(Locale.ROOT))) {
                 continue;
             }
             String valeur = MAINTENANT.matcher(lignes[i].substring(deuxPoints + 1).strip())
@@ -99,7 +104,7 @@ public final class Fixtures {
      */
     public static String osv(String id, String modified, String ecosystem, String name, String purl, String introduced,
             String fixed, String... aliases) {
-        String aliasJson = java.util.Arrays.stream(aliases).map(a -> "\"" + a + "\"").collect(Collectors.joining(","));
+        String aliasJson = Arrays.stream(aliases).map(a -> "\"" + a + "\"").collect(Collectors.joining(","));
         String events = "{\"introduced\":\"" + introduced + "\"}" + (fixed == null ? "" : ",{\"fixed\":\"" + fixed + "\"}");
         return """
                 {"id":"%s","modified":"%s","published":"2026-01-01T00:00:00Z","aliases":[%s],

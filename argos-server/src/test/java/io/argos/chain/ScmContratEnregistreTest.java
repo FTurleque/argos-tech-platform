@@ -11,6 +11,7 @@ import java.nio.charset.StandardCharsets;
 import java.time.Duration;
 import java.time.Instant;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
 
@@ -143,10 +144,13 @@ class ScmContratEnregistreTest {
     @Test
     void githubSbomAbsenteRepliSurLeManifeste() {
         UUID espace = Api.nouvelEspace("alice", "Équipe A");
-        UUID projet = projects.create(espace, "demo", GITHUB, List.of(GITHUB_MANIFESTE_CHEMIN));
+        UUID projet = projects.create(espace, "demo", GITHUB,
+                List.of(GITHUB_MANIFESTE_CHEMIN, "requirements.txt", "demo/requirements.txt"));
         sert(GITHUB_SBOM, GH + "404-fichier-absent.http");
         sert(GITHUB_DEPOT, GH + "200-depot.http");
         sert(GITHUB_MANIFESTE, GH + "200-manifeste-package-json.http");
+        sert(GITHUB_DEPOT + "/contents/requirements.txt?ref=main", GH + "404-fichier-absent.http");
+        sert(GITHUB_DEPOT + "/contents/demo/requirements.txt?ref=main", GH + "404-fichier-absent.http");
 
         InventoryService.ImportResult resultat = inventories.refresh(projet);
 
@@ -159,7 +163,7 @@ class ScmContratEnregistreTest {
                 .body("inventory.components.find { it.packageKey == 'pkg:npm/is-obj' }.version", equalTo("3.0.0"))
                 .body("inventory.components.find { it.packageKey == 'pkg:npm/bundle-dependencies' }.version", equalTo("1.0.2"));
         assertEquals(1, StubServer.received(GITHUB_DEPOT).stream().filter(r -> r.pathAndQuery().equals(GITHUB_DEPOT)).count(),
-                "un 404 GitHub est suivi d'une seule vérification du dépôt");
+                "trois 404 GitHub dans un même rafraîchissement : une seule vérification du dépôt");
     }
 
     @Test
@@ -214,6 +218,12 @@ class ScmContratEnregistreTest {
         avant = Instant.now();
         QuotaEpuise secondaire = assertThrows(QuotaEpuise.class, () -> forges().latestSbom(GITHUB));
         assertBorne(secondaire.reprise(), avant.plusSeconds(60));
+
+        // Limite secondaire signalée par son seul message : ni Retry-After ni quota principal épuisé.
+        sert(GITHUB_SBOM, GH + "403-limite-secondaire-sans-delai.http");
+        avant = Instant.now();
+        QuotaEpuise sansDelai = assertThrows(QuotaEpuise.class, () -> forges().latestSbom(GITHUB));
+        assertBorne(sansDelai.reprise(), avant.plusSeconds(3600));
     }
 
     // --- GitLab -------------------------------------------------------------------------------
@@ -222,7 +232,7 @@ class ScmContratEnregistreTest {
     void gitlabSbomTrouveeAvecJetonPrivateToken() {
         // Artefact composé : aucun artefact de job n'est lisible anonymement sur gitlab.com (403 enregistré).
         StubServer.on(GITLAB_SBOM, new StubServer.Stub(200, Fixtures.resource("scm/gitlab/gl-sbom-npm-npm.cdx.json"),
-                java.util.Map.of("Content-Type", "application/json"), 0));
+                Map.of("Content-Type", "application/json"), 0));
 
         SbomDocument sbom = forges().latestSbom(GITLAB).orElseThrow();
 
