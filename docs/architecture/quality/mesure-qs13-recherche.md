@@ -1,6 +1,6 @@
 # Mesure QS-13 — recherche de veille
 
-Rapport de la tâche 2.2 du changement [`rechercher-et-filtrer`](/openspec/changes/rechercher-et-filtrer/tasks.md) (exigence RCH-05, scénario qualité QS-13 de [`scenarios.md`](scenarios.md)). Cible comparée : Q-05 d'arc42 §10.2, latence API p95 < 500 ms, cible initiale.
+Rapport de la tâche 2.2 du changement [`rechercher-et-filtrer`](/openspec/changes/archive/2026-11-18-rechercher-et-filtrer/tasks.md) (exigence RCH-05, scénario qualité QS-13 de [`scenarios.md`](scenarios.md)). Cible comparée : Q-05 d'arc42 §10.2, latence API p95 < 500 ms, cible initiale.
 
 ## Méthode
 

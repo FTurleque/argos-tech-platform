@@ -80,4 +80,4 @@
 - Vérifier une fois à la main l'ouverture du navigateur réellement installé et le retour de la fenêtre au premier plan (procédure dans « Preuves E2E du client desktop »).
 - Basculer dans la fiche `comptes-acces` les statuts [PROPOSITION] de ce changement en [EXIGENCE] ou [EXISTANT] selon les preuves obtenues.
 - Archiver le changement uniquement sur demande explicite, après revue (`openspec archive connecter-ihm-oidc`).
-- Après archivage, remplacer dans les fiches et ADR-0033 les liens vers `/openspec/changes/connecter-ihm-oidc/` par la spec principale ou le dossier d'archive, puis exécuter `node scripts/verifier-docs.mjs`.
+- Après archivage, remplacer dans les fiches et ADR-0033 les liens vers `/openspec/changes/archive/2026-11-18-connecter-ihm-oidc/` par la spec principale ou le dossier d'archive, puis exécuter `node scripts/verifier-docs.mjs`.
