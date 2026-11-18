@@ -1,0 +1,2 @@
+# Réponses HTTP enregistrées : octets conservés tels que capturés (fins de ligne CRLF des en-têtes).
+*.http -text

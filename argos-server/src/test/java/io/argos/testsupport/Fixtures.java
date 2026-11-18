@@ -28,6 +28,71 @@ public final class Fixtures {
         }
     }
 
+    /** En-têtes de transport recalculés par le serveur simulé, jamais rejoués. */
+    private static final java.util.Set<String> ENTETES_TRANSPORT =
+            java.util.Set.of("content-length", "transfer-encoding", "connection", "keep-alive", "content-encoding");
+
+    private static final java.util.regex.Pattern MAINTENANT = java.util.regex.Pattern.compile("\\$\\{maintenant\\+(\\d+)}");
+
+    /**
+     * Réponse HTTP enregistrée ({@code fixtures/<path>}, sortie de {@code curl -i}) : ligne de statut,
+     * en-têtes, ligne vide, corps. Les en-têtes de transport sont retirés ; {@code ${maintenant+N}}
+     * est remplacé par l'instant présent plus N secondes, en secondes depuis l'époque (réponses
+     * composées de limite de débit uniquement).
+     */
+    public static StubServer.Stub reponseEnregistree(String path) {
+        ReponseHttp r = lireReponse(path);
+        return new StubServer.Stub(r.status(), r.corps(), r.entetes(), 0);
+    }
+
+    /** Corps d'une réponse HTTP enregistrée. */
+    public static String corpsEnregistre(String path) {
+        return lireReponse(path).corps();
+    }
+
+    /** Réponse HTTP enregistrée, décomposée. */
+    public record ReponseHttp(int status, Map<String, String> entetes, String corps) {
+    }
+
+    /** Lit une réponse HTTP enregistrée (fins de ligne CRLF ou LF). */
+    public static ReponseHttp lireReponse(String path) {
+        String brut = resource(path);
+        int crlf = brut.indexOf("\r\n\r\n");
+        int lf = brut.indexOf("\n\n");
+        int fin;
+        int saut;
+        if (crlf >= 0 && (lf < 0 || crlf < lf)) {
+            fin = crlf;
+            saut = 4;
+        } else if (lf >= 0) {
+            fin = lf;
+            saut = 2;
+        } else {
+            throw new IllegalArgumentException("réponse enregistrée sans séparation en-têtes / corps : " + path);
+        }
+        String[] lignes = brut.substring(0, fin).split("\r?\n");
+        String[] statut = lignes[0].split(" ", 3);
+        if (statut.length < 2 || !statut[0].startsWith("HTTP/")) {
+            throw new IllegalArgumentException("ligne de statut invalide : " + path);
+        }
+        Map<String, String> entetes = new LinkedHashMap<>();
+        long maintenant = java.time.Instant.now().getEpochSecond();
+        for (int i = 1; i < lignes.length; i++) {
+            int deuxPoints = lignes[i].indexOf(':');
+            if (deuxPoints <= 0) {
+                continue;
+            }
+            String nom = lignes[i].substring(0, deuxPoints).strip();
+            if (ENTETES_TRANSPORT.contains(nom.toLowerCase(java.util.Locale.ROOT))) {
+                continue;
+            }
+            String valeur = MAINTENANT.matcher(lignes[i].substring(deuxPoints + 1).strip())
+                    .replaceAll(m -> Long.toString(maintenant + Long.parseLong(m.group(1))));
+            entetes.put(nom, valeur);
+        }
+        return new ReponseHttp(Integer.parseInt(statut[1]), entetes, brut.substring(fin + saut));
+    }
+
     /**
      * Avis au format OSV affectant un paquet sur l'intervalle [introduced, fixed[.
      * {@code purl} nul : l'avis ne déclare que l'écosystème et le nom.

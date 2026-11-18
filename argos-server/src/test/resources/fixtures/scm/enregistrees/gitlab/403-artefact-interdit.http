@@ -1,0 +1,28 @@
+HTTP/1.1 403 Forbidden
+Date: Tue, 17 Nov 2026 23:34:17 GMT
+Content-Type: application/json
+Content-Length: 27
+Connection: keep-alive
+CF-Ray: a5c28b987d25e1c5-MRS
+CF-Cache-Status: BYPASS
+Cache-Control: no-store, private, max-age=0
+Server: cloudflare
+Strict-Transport-Security: max-age=31536000
+Vary: Origin
+content-security-policy: default-src 'none'
+gitlab-lb: haproxy-main-http-us-east1-d-5575489745-v6dg7
+gitlab-sv: api-gke-us-east1-d
+nel: {"max_age": 0}
+ratelimit-limit: 500
+ratelimit-name: throttle_unauthenticated_api
+ratelimit-observed: 21
+ratelimit-remaining: 479
+ratelimit-reset: 1794958500
+referrer-policy: strict-origin-when-cross-origin
+x-content-type-options: nosniff
+x-frame-options: SAMEORIGIN
+x-gitlab-meta: {"correlation_id":"a5c28b987d25e1c5-MRS","version":"1"}
+x-request-id: a5c28b987d25e1c5-MRS
+x-runtime: 0.111581
+
+{"message":"403 Forbidden"}

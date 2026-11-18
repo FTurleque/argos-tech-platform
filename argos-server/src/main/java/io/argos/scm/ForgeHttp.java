@@ -83,12 +83,14 @@ final class ForgeHttp {
 
     /**
      * Date de reprise si la réponse signale un quota épuisé : 429, ou 403 avec
-     * {@code x-ratelimit-remaining: 0} (GitHub). Ordre de lecture : {@code Retry-After} (secondes),
-     * {@code x-ratelimit-reset} (GitHub) ou {@code RateLimit-Reset} (GitLab), en secondes depuis l'époque.
+     * {@code x-ratelimit-remaining: 0} (limite principale GitHub) ou avec {@code Retry-After} (limite
+     * secondaire GitHub). Ordre de lecture : {@code Retry-After} (secondes), {@code x-ratelimit-reset}
+     * (GitHub) ou {@code RateLimit-Reset} (GitLab), en secondes depuis l'époque.
      */
     static Optional<Instant> quota(int status, HttpHeaders entetes, URI uri) {
         boolean epuise = status == 429
-                || (status == 403 && entetes.firstValue("x-ratelimit-remaining").map(String::strip).filter("0"::equals).isPresent());
+                || (status == 403 && (entetes.firstValue("x-ratelimit-remaining").map(String::strip).filter("0"::equals).isPresent()
+                        || entetes.firstValue("retry-after").isPresent()));
         if (!epuise) {
             return Optional.empty();
         }
