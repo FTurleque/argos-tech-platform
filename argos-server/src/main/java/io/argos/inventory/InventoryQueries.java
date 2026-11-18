@@ -21,6 +21,9 @@ import jakarta.transaction.Transactional;
 
 import org.eclipse.microprofile.config.inject.ConfigProperty;
 
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.ObjectMapper;
+
 import io.argos.workspace.ContexteBase;
 
 /**
@@ -36,13 +39,21 @@ import io.argos.workspace.ContexteBase;
 @ApplicationScoped
 public class InventoryQueries {
 
+    private static final ObjectMapper MAPPER = new ObjectMapper();
+
     /** Composant consultable. {@code transitive} : {@code null} si inconnu. */
     public record ComponentView(UUID id, String purl, String packageKey, String version, Boolean transitive) {
     }
 
-    /** Inventaire de référence d'un projet, avec son origine et son âge. */
+    /**
+     * Inventaire de référence d'un projet, avec son origine et son âge. {@code ignoredCount} compte les
+     * composants du dernier import écartés faute de PURL exploitable ; {@code ignoredComponents} les décrit
+     * (nom, groupe, version, motif), au plus {@value ParsedInventory#MAX_SIGNALED} (INV-01, décision D6
+     * du 2026-11-18).
+     */
     public record InventoryView(UUID projectId, String origin, Instant sourceDate, Long ageDays, boolean obsolete,
-            String specVersion, Instant importedAt, List<ComponentView> components) {
+            String specVersion, Instant importedAt, List<ComponentView> components, int ignoredCount,
+            List<ParsedInventory.IgnoredComponent> ignoredComponents) {
     }
 
     /** Projet lisible par un compte : identifiant, espace et nom. */
@@ -66,7 +77,8 @@ public class InventoryQueries {
 
     @Transactional
     public Optional<InventoryView> inventory(UUID projectId, UUID accountId) {
-        String sql = "SELECT origin, source_date, spec_version, imported_at FROM inventory WHERE project_id = ?";
+        String sql = "SELECT origin, source_date, spec_version, imported_at, ignored_count, ignored_components::text"
+                + " FROM inventory WHERE project_id = ?";
         try (Connection c = dataSource.getConnection()) {
             ContexteBase.appliquer(c, new ContexteBase.Contexte(accountId, null, null));
             try (PreparedStatement ps = c.prepareStatement(sql)) {
@@ -79,7 +91,7 @@ public class InventoryQueries {
                     Instant sourceDate = instant(rs, 2);
                     Long age = sourceDate == null ? null : Duration.between(sourceDate, Instant.now()).toDays();
                     return Optional.of(new InventoryView(projectId, origin, sourceDate, age, sbomObsolete(origin, sourceDate),
-                            rs.getString(3), instant(rs, 4), components(c, projectId)));
+                            rs.getString(3), instant(rs, 4), components(c, projectId), rs.getInt(5), ignored(rs.getString(6))));
                 }
             }
         } catch (SQLException e) {
@@ -227,6 +239,17 @@ public class InventoryQueries {
             }
         }
         return components;
+    }
+
+    private static List<ParsedInventory.IgnoredComponent> ignored(String json) {
+        if (json == null || json.isBlank()) {
+            return List.of();
+        }
+        try {
+            return List.of(MAPPER.readValue(json, ParsedInventory.IgnoredComponent[].class));
+        } catch (JsonProcessingException e) {
+            throw new IllegalStateException("lecture des composants ignorés impossible", e);
+        }
     }
 
     private static Instant instant(ResultSet rs, int column) throws SQLException {
