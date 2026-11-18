@@ -4,9 +4,9 @@
 
 Capacité [`comptes-acces`](../../specifications/comptes-acces.md) (exigences ACC-01 à ACC-06, changement `gerer-comptes-et-acces` ; exigences ACC-07 à ACC-10, changement `connecter-ihm-oidc`, tous deux archivés).
 
-**Authentification** (ADR-0008, ADR-0027, Proposés) : OIDC auprès d’un Keycloak auto-hébergé. L’IHM et le client desktop obtiennent un jeton par Authorization Code + PKCE ; `API & Security` (`quarkus-oidc`, mode `service`) vérifie à chaque requête la signature, l’émetteur, l’audience `argos-server` et l’expiration. Toutes les routes exigent un jeton, sauf `/api/v1/system/info` et `/q/health` (`application.properties`).
+**Authentification** (ADR-0008, Proposé ; ADR-0027, Accepté) : OIDC auprès d’un Keycloak auto-hébergé. L’IHM et le client desktop obtiennent un jeton par Authorization Code + PKCE ; `API & Security` (`quarkus-oidc`, mode `service`) vérifie à chaque requête la signature, l’émetteur, l’audience `argos-server` et l’expiration. Toutes les routes exigent un jeton, sauf `/api/v1/system/info` et `/q/health` (`application.properties`).
 
-**Session de l’IHM** (exigences ACC-07 à ACC-10, livrées ; ADR-0033, Proposé) : jetons en mémoire seulement, renouvelés avant expiration ; state vérifié et adresse nettoyée au retour ; un 401 de l’API ramène à l’écran de connexion (« session expirée »), un 403 `INSCRIPTION_SUR_INVITATION` ouvre l’écran « aucun compte ARGOS ». Le client desktop se connecte dans le navigateur du système, avec une redirection vers l’interface de bouclage `127.0.0.1` (RFC 8252).
+**Session de l’IHM** (exigences ACC-07 à ACC-10, livrées ; ADR-0033, Accepté) : jetons en mémoire seulement, renouvelés avant expiration ; state vérifié et adresse nettoyée au retour ; un 401 de l’API ramène à l’écran de connexion (« session expirée »), un 403 `INSCRIPTION_SUR_INVITATION` ouvre l’écran « aucun compte ARGOS ». Le client desktop se connecte dans le navigateur du système, avec une redirection vers l’interface de bouclage `127.0.0.1` (RFC 8252).
 
 **Comptes** : un compte Argos est créé à la première connexion réussie, sans aucun espace. L’inscription se fait sur invitation : sans invitation en attente pour son e-mail vérifié, une personne authentifiée reçoit un refus explicite (403) et aucun compte. À la création, l’événement `CompteCree` enregistre le profil de veille `developpeur` dans les préférences du compte (`io.argos.api.preference.ActivationProfilParDefaut`). Les préférences sont rattachées au compte (`workspace_preference_utilisateur.compte_id`), jamais au nom du principal.
 
@@ -91,7 +91,7 @@ Classification minimale : `PUBLIC`, `INTERNAL`, `CONFIDENTIAL`, `RESTRICTED`. Le
 
 Les zones de confiance, les flux qui les franchissent et le contrôle appliqué à chacun sont D-12 : [`../diagrams/d-12-frontieres-confiance.md`](../diagrams/d-12-frontieres-confiance.md).
 
-### Veille RSS/Atom et pages surveillées (ADR-0028, Proposé)
+### Veille RSS/Atom et pages surveillées (ADR-0028, Accepté)
 
 [PROPOSITION — `collecter-veille-rss-web`] Le collecteur web intégré (`source-ingestion`, paquet `io.argos.ingestion.web`) applique ces principes à toute adresse proposée par un utilisateur :
 
@@ -133,13 +133,13 @@ Métriques clés : fraîcheur des sources, impacts détectés, couverture SBOM, 
 
 PostgreSQL est **Accepté** comme stockage principal : relationnel, JSONB, FTS et RLS. `pgvector` n’est activé que si un besoin est démontré.
 
-Le schéma est versionné par des migrations SQL Flyway appliquées au démarrage (ADR-0032, Proposé) ; le modèle physique qu'elles produisent est D-13 : [`../diagrams/d-13-modele-physique.md`](../diagrams/d-13-modele-physique.md).
+Le schéma est versionné par des migrations SQL Flyway appliquées au démarrage (ADR-0032, Accepté) ; le modèle physique qu'elles produisent est D-13 : [`../diagrams/d-13-modele-physique.md`](../diagrams/d-13-modele-physique.md).
 
 ## 8.8 IA et coûts
 
 Tous les appels runtime passent par l’AI Gateway : quotas, prompts versionnés, schémas de sortie, audit et plafond.
 
-Passerelle `io.argos.aigateway` (changement `encadrer-appels-ia`, fiche [`passerelle-ia`](../../specifications/passerelle-ia.md)) : fournisseur local Ollama (`argos.ia.ollama.url`, modèle `qwen2.5:1.5b` par défaut, remplaçable par tâche), proposé par [ADR-0029](../adr/0029-passerelle-ia-ollama-local.md) en remplacement d'ADR-0004 ; coût nul. Chaque demande passe, dans l'ordre, par le refus des entrées CONFIDENTIAL ou RESTRICTED, le refus des secrets et le masquage des données personnelles, la réservation sur le plafond journalier de l'instance (1 000 appels) le quota journalier de l'espace imputé (100 appels) et celui du compte pour ses demandes explicites (20 appels), rendue si le modèle n'a pas pu être joint, l'appel avec le prompt versionné (données entre balises `<donnees>`, séparées des consignes), puis la validation de la sortie par le schéma de la tâche. Le journal `ia_appel` trace modèle, version du prompt, jetons, coût, empreinte des entrées et issue, sans copie des données. Tout contenu produit porte la mention « produit par l'IA » et ses sources. Sans Ollama joignable, chaque demande est refusée comme indisponible et Argos fonctionne en mode déterministe.
+Passerelle `io.argos.aigateway` (changement `encadrer-appels-ia`, fiche [`passerelle-ia`](../../specifications/passerelle-ia.md)) : fournisseur local Ollama (`argos.ia.ollama.url`, modèle `qwen2.5:1.5b` par défaut, remplaçable par tâche), retenu par [ADR-0029](../adr/0029-passerelle-ia-ollama-local.md) (Accepté), qui remplace ADR-0004 ; coût nul. Chaque demande passe, dans l'ordre, par le refus des entrées CONFIDENTIAL ou RESTRICTED, le refus des secrets et le masquage des données personnelles, la réservation sur le plafond journalier de l'instance (1 000 appels) le quota journalier de l'espace imputé (100 appels) et celui du compte pour ses demandes explicites (20 appels), rendue si le modèle n'a pas pu être joint, l'appel avec le prompt versionné (données entre balises `<donnees>`, séparées des consignes), puis la validation de la sortie par le schéma de la tâche. Le journal `ia_appel` trace modèle, version du prompt, jetons, coût, empreinte des entrées et issue, sans copie des données. Tout contenu produit porte la mention « produit par l'IA » et ses sources. Sans Ollama joignable, chaque demande est refusée comme indisponible et Argos fonctionne en mode déterministe.
 
 Le budget d’abonnement utilisé par le développeur pour Claude/Claude Code est distinct du budget Claude API/Console consommé par ARGOS.
 
@@ -178,7 +178,7 @@ POC local Docker Compose, puis VM Linux interne pour le POC partagé/MVP. Voir A
 
 ## 8.14 Profils de veille et taxonomie extensible des signaux
 
-**Statut : proposé (ADR-0024).** Le dossier v2.4 §8.2 fixe une taxonomie fermée des signaux (`SECURITY`, `RELEASE`, `UPCOMING`…). Avec les profils de veille, elle devient extensible :
+**Statut : accepté (ADR-0024).** Le dossier v2.4 §8.2 fixe une taxonomie fermée des signaux (`SECURITY`, `RELEASE`, `UPCOMING`…). Avec les profils de veille, elle devient extensible :
 
 - le **noyau commun** d’un signal ne change pas : identifiant, source, dates, provenance, gravité, empreinte (ADR-0003) ;
 - chaque profil déclare dans son manifeste ses **rubriques** (par exemple `securite`, `versions` et `fins-de-support` pour `developpeur` ; `reglementation` et `normes-declaratives` pour `expert-metier`) et, plus tard, ses attributs propres ;

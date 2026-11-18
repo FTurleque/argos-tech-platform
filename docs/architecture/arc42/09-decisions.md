@@ -11,7 +11,7 @@ Cette section indexe les ADR. Elle ne recopie pas leur contenu.
 | ADR-0001 | Adopter un monolithe modulaire pour la première version | Proposé | 2026-09-24 | — |
 | ADR-0002 | Utiliser PostgreSQL comme stockage principal | Accepté | 2026-09-24 | — |
 | ADR-0003 | Introduire un modèle canonique d’événements | Proposé | 2026-09-24 | — |
-| ADR-0004 | Encapsuler Claude derrière un AI Gateway | Proposé | 2026-09-24 | — |
+| ADR-0004 | Encapsuler Claude derrière un AI Gateway | Remplacé par ADR-0029 | 2026-09-24 | — |
 | ADR-0005 | Utiliser Mermaid comme source des diagrammes d’architecture | Accepté | 2026-09-24 | — |
 | ADR-0006 | Maintenir FreshRSS et changedetection.io comme systèmes séparés | Proposé | 2026-09-24 | — |
 | ADR-0007 | Limiter n8n aux automatisations périphériques | Proposé | 2026-09-24 | — |
@@ -30,17 +30,17 @@ Cette section indexe les ADR. Elle ne recopie pas leur contenu.
 | ADR-0020 | Spécifier les exigences avec OpenSpec et le schéma `detailed-uml` | Proposé | 2026-11-15 | — |
 | ADR-0021 | Préserver la possibilité d'une double licence | Proposé | 2026-11-15 | — |
 | ADR-0022 | Client desktop Electron réutilisant l'IHM Vue.js 3 | Proposé | 2026-11-15 | — |
-| ADR-0023 | Mises en page sélectionnables par utilisateur | Proposé | 2026-11-15 | — |
-| ADR-0024 | Profils de veille extensibles et cumulables | Proposé | 2026-11-15 | — |
+| ADR-0023 | Mises en page sélectionnables par utilisateur | Accepté | 2026-11-18 | — |
+| ADR-0024 | Profils de veille extensibles et cumulables | Accepté | 2026-11-18 | — |
 | ADR-0025 | Produit ouvert à tous les publics, porté à titre personnel | Accepté | 2026-11-16 | — |
-| ADR-0026 | Hébergement sur le serveur Synology du porteur | Accepté (cible) | 2026-11-16 | ADR-0017 (cible VM) |
-| ADR-0027 | Authentifier les utilisateurs avec un Keycloak auto-hébergé | Proposé | 2026-11-16 | — (complète ADR-0008) |
-| ADR-0028 | Collecter les flux RSS/Atom et les pages surveillées dans le serveur Argos | Proposé | 2026-11-16 | ADR-0006 (à l'acceptation) |
-| ADR-0029 | Servir la passerelle IA par un modèle local Ollama | Proposé | 2026-11-16 | ADR-0004 (à l'acceptation) |
-| ADR-0030 | Veille réglementaire validée par l'expert métier, domaines par espace et données ouvertes JORF | Proposé | 2026-11-17 | ADR-0018 (à l'acceptation) |
-| ADR-0031 | Planifier les traitements périodiques avec quarkus-scheduler dans le serveur | Proposé | 2026-11-17 | — |
-| ADR-0032 | Versionner le schéma PostgreSQL par des migrations SQL Flyway appliquées au démarrage | Proposé | 2026-11-17 | — |
-| ADR-0033 | Tenir la session OIDC de l'IHM en mémoire et connecter le desktop par l'interface de bouclage | Proposé | 2026-11-17 | — (complète ADR-0027, précise ADR-0022 point 6) |
+| ADR-0026 | Hébergement sur le serveur Synology du porteur | Accepté | 2026-11-18 | ADR-0017 (cible VM) |
+| ADR-0027 | Authentifier les utilisateurs avec un Keycloak auto-hébergé | Accepté | 2026-11-18 | — (complète ADR-0008) |
+| ADR-0028 | Collecter les flux RSS/Atom et les pages surveillées dans le serveur Argos | Accepté | 2026-11-18 | ADR-0006 pour la veille RSS/Atom et web (ADR-0006 reste Proposé) |
+| ADR-0029 | Servir la passerelle IA par un modèle local Ollama | Accepté | 2026-11-18 | ADR-0004 |
+| ADR-0030 | Veille réglementaire validée par l'expert métier, domaines par espace et données ouvertes JORF | Accepté | 2026-11-18 | ADR-0018 pour l'expert métier et les domaines (ADR-0018 reste Proposé) |
+| ADR-0031 | Planifier les traitements périodiques avec quarkus-scheduler dans le serveur | Accepté | 2026-11-18 | — |
+| ADR-0032 | Versionner le schéma PostgreSQL par des migrations SQL Flyway appliquées au démarrage | Accepté | 2026-11-18 | — |
+| ADR-0033 | Tenir la session OIDC de l'IHM en mémoire et connecter le desktop par l'interface de bouclage | Accepté | 2026-11-18 | — (complète ADR-0027, précise ADR-0022 point 6) |
 
 ## 9.2 Règles de gouvernance
 
@@ -54,9 +54,9 @@ Cette section indexe les ADR. Elle ne recopie pas leur contenu.
 
 ## 9.3 Décisions encore à formaliser après la baseline v2.4
 
-1. mécanisme précis de scheduling/jobs : proposé par ADR-0031 (Proposé) ;
+1. mécanisme précis de scheduling/jobs : tranché par ADR-0031 (Accepté) ;
 2. ajout ou non d’un broker après mesure ;
-3. Flyway ou Liquibase : proposé par ADR-0032 (Proposé) ;
+3. Flyway ou Liquibase : tranché par ADR-0032 (Accepté, Flyway) ;
 4. gestion des secrets et rotation ;
 5. stack d’observabilité réellement imposée par l’entreprise ;
 6. stratégie de sauvegarde/PRA entreprise ;
@@ -70,6 +70,7 @@ Le frontend n’est plus une question ouverte : **Vue.js 3 est retenu**. Le back
 
 - les ADR listés sont versionnés dans `docs/architecture/adr/` ;
 - ADR-0002 et ADR-0019 matérialisent les choix de stack désormais acceptés ;
+- [DÉCISION] ADR-0023 à ADR-0033 sont acceptés par le porteur du projet le 2026-11-18 ; ADR-0029 remplace ADR-0004 ; ADR-0006 et ADR-0018 restent Proposés ;
 - ADR-0017 documente la stratégie POC local puis VM ;
 - les ADR-0010 à ADR-0018 restent à confirmer par revue d’architecture et/ou preuve issue du POC.
 

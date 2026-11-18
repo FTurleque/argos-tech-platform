@@ -60,7 +60,7 @@ API REST `/api/v1/profils/artiste/` : `listes` (GET), `suivis` (GET, PUT), `oppo
 
 | Règle | Exigence(s) | Source | Statut |
 |---|---|---|---|
-| Pack `artiste` au catalogue, rubriques appels à projets et résidences, aides à la création, droits et rémunérations, statut social et fiscal, événements | ART-01 | ADR-0024 (Proposé) | [EXISTANT] |
+| Pack `artiste` au catalogue, rubriques appels à projets et résidences, aides à la création, droits et rémunérations, statut social et fiscal, événements | ART-01 | ADR-0024 (Accepté) | [EXISTANT] |
 | Disciplines (arts visuels, musique, spectacle vivant, littérature, cinéma et audiovisuel, design et métiers d'art) et territoires (France entière, 13 régions métropolitaines, 5 régions d'outre-mer) choisis dans les listes du pack | ART-02 | Q-2, Q-3 | [EXISTANT] |
 | Restitution si une discipline et un territoire de l'appel sont suivis (un appel `france` vaut pour tout territoire) et si la date limite n'est pas dépassée ; le jour même reste ouvert ; sans date connue, restitution « date à confirmer » | ART-03 | ADR-0024 ; ADR-0013 | [EXISTANT] |
 | Rappel aux jours de rappel du compte (J-30, J-7, J-1 par défaut), avec la date limite, le lien officiel et la mention « aucun avis d'éligibilité » ; aucun rappel pour une date à confirmer | ART-04 | ALR-04 ; Q-4 | [EXISTANT] |

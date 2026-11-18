@@ -1,8 +1,8 @@
 # ADR-0030 — Veille réglementaire validée par l'expert métier, domaines propres à chaque espace et données ouvertes JORF
 
-- **Statut** : Proposé
-- **Date** : 2026-11-17
-- **Décideurs** : porteur du projet (questions Q-1 à Q-4 du changement `suivre-veille-reglementaire`, répondues le 2026-11-17) ; mise à jour d'ADR-0018 soumise à validation humaine
+- **Statut** : Accepté
+- **Date** : 2026-11-18 (acceptation ; proposition du 2026-11-17)
+- **Décideurs** : porteur du projet (acceptation du 2026-11-18)
 - **Remplace** : [ADR-0018](0018-veille-reglementaire-mkp.md) (Proposé), à l'acceptation du présent ADR
 - **Remplacé par** : —
 

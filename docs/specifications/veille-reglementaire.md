@@ -7,7 +7,7 @@
 | Changements archivés | [`2026-11-17-suivre-veille-reglementaire`](/openspec/changes/archive/2026-11-17-suivre-veille-reglementaire/proposal.md) |
 | Statut de la capacité | livrée |
 | Composants (arc42 §5) | `reg-intel`, `source-ingestion`, `catalog`, `ai-gateway`, `scm-connector`, `alerting` (arc42 §5.4.3) |
-| Décision | [ADR-0030](../architecture/adr/0030-veille-reglementaire-expert-metier.md) (Proposé), mise à jour d'ADR-0018 (Proposé) |
+| Décision | [ADR-0030](../architecture/adr/0030-veille-reglementaire-expert-metier.md) (Accepté), mise à jour d'ADR-0018 (Proposé) |
 
 ## Objectif
 
@@ -18,7 +18,7 @@
 | Acteur | Interaction | Statut |
 |---|---|---|
 | Administrateur de l'espace | définit les domaines, les règles de rattachement, les experts et les jours de rappel | [EXISTANT] — `ReglementaireResource` |
-| Expert métier | membre CONTRIBUTEUR ou ADMINISTRATEUR désigné pour un domaine ; voit, corrige, valide ou rejette les fiches de ses domaines, fait avancer le suivi | [EXISTANT] — `ExpertiseFiches` ; ADR-0030 (Proposé) |
+| Expert métier | membre CONTRIBUTEUR ou ADMINISTRATEUR désigné pour un domaine ; voit, corrige, valide ou rejette les fiches de ses domaines, fait avancer le suivi | [EXISTANT] — `ExpertiseFiches` ; ADR-0030 (Accepté) |
 | Membre de l'espace | consulte les fiches validées et le calendrier ; reçoit les rappels si son profil `expert-metier` est actif | [EXISTANT] — PRF-06 |
 | Administrateur plateforme | consulte l'état de la source et rejoue la collecte d'un jour | [EXISTANT] |
 | DILA (jeux de données JORF) | publie les archives quotidiennes du Journal officiel sous Licence Ouverte | [DÉCISION] — Q-1 ; [EXISTANT] — `ArchivesJorf` |
@@ -56,12 +56,12 @@ Domaines, règles et experts configurés dans l'espace (aucun dictionnaire type 
 
 | Règle | Exigence(s) | Source | Statut |
 |---|---|---|---|
-| Collecte quotidienne sans doublon ; relecture des trois derniers jours (archives publiées après le passage de la collecte) ; reprise du jour manqué, source `DEGRADE` en cas d'échec ; jour abandonné après cinq échecs consécutifs de ses archives ou hors de la fenêtre de reprise de 31 jours, rejouable par l'administrateur plateforme ; le rejeu prépare les fiches manquantes | REG-01 | ADR-0030 (Proposé) | [EXISTANT] — `CollecteReglementaire` |
-| Qualification par les règles de l'espace ; proposition IA marquée avec sa confiance si aucune règle ne s'applique (natures `LOI`, `ORDONNANCE`, `DECRET`, `ARRETE`, 20 propositions au plus par espace et par collecte) | REG-02 | ADR-0013 (Proposé), ADR-0030 (Proposé) | [EXISTANT] — `Qualification`, `PreparationFiches` |
-| Date de publication et date d'effet distinctes ; « date à confirmer » sans date extraite ; date proposée par l'IA affichée comme proposition | REG-03 | ADR-0030 (Proposé) | [EXISTANT] — `DatesTexte` |
-| Fiche préparée et marquée « produit par l'IA » et « en attente de validation » ; sans IA, préparée sans résumé | REG-04 | IAG-04, ADR-0029 (Proposé) | [EXISTANT] — `AnalyseIa` |
+| Collecte quotidienne sans doublon ; relecture des trois derniers jours (archives publiées après le passage de la collecte) ; reprise du jour manqué, source `DEGRADE` en cas d'échec ; jour abandonné après cinq échecs consécutifs de ses archives ou hors de la fenêtre de reprise de 31 jours, rejouable par l'administrateur plateforme ; le rejeu prépare les fiches manquantes | REG-01 | ADR-0030 (Accepté) | [EXISTANT] — `CollecteReglementaire` |
+| Qualification par les règles de l'espace ; proposition IA marquée avec sa confiance si aucune règle ne s'applique (natures `LOI`, `ORDONNANCE`, `DECRET`, `ARRETE`, 20 propositions au plus par espace et par collecte) | REG-02 | ADR-0013 (Proposé), ADR-0030 (Accepté) | [EXISTANT] — `Qualification`, `PreparationFiches` |
+| Date de publication et date d'effet distinctes ; « date à confirmer » sans date extraite ; date proposée par l'IA affichée comme proposition | REG-03 | ADR-0030 (Accepté) | [EXISTANT] — `DatesTexte` |
+| Fiche préparée et marquée « produit par l'IA » et « en attente de validation » ; sans IA, préparée sans résumé | REG-04 | IAG-04, ADR-0029 (Accepté) | [EXISTANT] — `AnalyseIa` |
 | Fiche visible des seuls experts de ses domaines avant validation ; corrections et décisions historisées | REG-05 | PRF-06 | [EXISTANT] — RLS V16, `ExpertiseFiches` |
-| Suivi nouveau → en analyse → sans impact / impact produit → spécifié → livré ; « spécifié » exige une demande d'évolution | REG-06 | ADR-0030 (Proposé) | [EXISTANT] — `CycleVie` |
+| Suivi nouveau → en analyse → sans impact / impact produit → spécifié → livré ; « spécifié » exige une demande d'évolution | REG-06 | ADR-0030 (Accepté) | [EXISTANT] — `CycleVie` |
 | Calendrier des fiches validées ; rappels J-90, J-30, J-7, réglables par espace ; un rappel manqué le jour exact part dans les trois jours suivants, une seule fois ; le lien du rappel ouvre le texte officiel | REG-07 | Q-2 | [EXISTANT] — `EcheancesReglementaires`, `RappelsReglementaires` |
 | Lien vers une demande d'évolution GitHub ou GitLab | REG-08 | Q-3 | [EXISTANT] — `DemandesEvolution` |
 
@@ -109,7 +109,7 @@ Scénarios REG-01-S1 à REG-08-S1 du changement, tous couverts par un test qui p
 
 ## Interprétations introduites par un changement
 
-- [DÉCISION] Domaines et dictionnaire métier propres à chaque espace (ADR-0025) ; expert désigné par un administrateur parmi les membres CONTRIBUTEUR ou ADMINISTRATEUR — ADR-0030 (Proposé).
+- [DÉCISION] Domaines et dictionnaire métier propres à chaque espace (ADR-0025) ; expert désigné par un administrateur parmi les membres CONTRIBUTEUR ou ADMINISTRATEUR — ADR-0030 (Accepté).
 - [PROPOSITION] « Utilisateurs du domaine » destinataires des rappels : experts des domaines de la fiche et membres de l'espace dont le profil `expert-metier` est actif ; toute fiche validée est lisible de tous les membres de l'espace.
 - [PROPOSITION] Une fiche validée ou rejetée n'est plus corrigée ; une demande d'évolution ne s'associe qu'à un texte « impact produit » ou au-delà.
 - [PROPOSITION] Chaque collecte relit les trois derniers jours, la première comprise ; la reprise remonte au plus 31 jours ; un jour est abandonné après cinq échecs consécutifs de ses archives (une source injoignable ne compte pas), et une archive en erreur permanente est écartée.
@@ -119,7 +119,7 @@ Scénarios REG-01-S1 à REG-08-S1 du changement, tous couverts par un test qui p
 
 ## Écarts constatés
 
-- ADR-0018 nomme les MKP et les modules RH d'un éditeur ; ADR-0030 (Proposé) le met à jour (expert métier, domaines par espace, données ouvertes JORF).
+- ADR-0018 nomme les MKP et les modules RH d'un éditeur ; ADR-0030 (Accepté) le met à jour (expert métier, domaines par espace, données ouvertes JORF).
 - Le connecteur lit les seules archives JORF de la DILA, sans l'API PISTE (Q-1) ; le titre de la tâche 2.1 le précise.
 - L'IHM (`argos-ui`) n'a pas d'écran réglementaire : fiches, validation et calendrier passent par l'API REST.
 

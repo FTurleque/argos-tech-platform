@@ -60,7 +60,7 @@ Chaque utilisateur hérite du **socle d’équipe** et peut ajouter une **veille
 | API | REST + OpenAPI | Accepté dans la stack cible | ADR-0019 |
 | Frontend | Vue.js 3 en SPA | Accepté | ADR-0019 |
 | MCP | Quarkus MCP Server / Quarkiverse, Streamable HTTP | Décision proposée | ADR-0014 + POC |
-| IA | Claude via AI Gateway | Décision proposée | ADR-0004 |
+| IA | modèle local Ollama via la passerelle IA | Décision acceptée | ADR-0029 (remplace ADR-0004) |
 | RSS | FreshRSS séparé | Décision proposée | ADR-0006 + POC |
 | Web watch | changedetection.io séparé | Décision proposée | ADR-0006 + POC |
 | Automatisation | n8n périphérique uniquement | Décision proposée | ADR-0007 |

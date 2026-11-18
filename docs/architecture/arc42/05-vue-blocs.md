@@ -17,7 +17,7 @@ flowchart LR
 
     EXT["«Software System»\nSources externes\nRSS, Web, GitHub, GitLab, CVE"]
     AI["«Software System»\nClaude / Anthropic"]
-    IDP["«Software System»\nKeycloak auto-hébergé\n(ADR-0027, proposé)"]
+    IDP["«Software System»\nKeycloak auto-hébergé\n(ADR-0027, accepté)"]
 
     USER -->|HTTPS| WEB
     USER -->|poste de travail| DESK
@@ -36,7 +36,7 @@ flowchart LR
 - navigation, tableaux de bord, recherche et préférences ;
 - socle de veille d’équipe + veille personnelle ;
 - aucune logique métier critique dans l’IHM ;
-- session OIDC (exigences ACC-07 à ACC-10 de la capacité [`comptes-acces`](../../specifications/comptes-acces.md), livrées ; ADR-0033, Proposé) : code d’autorisation + PKCE S256 auprès de Keycloak, jetons en mémoire seulement, jeton porteur joint aux appels de `/api/v1` sauf l’identité du serveur ; toute vue sauf l’état du serveur exige une session.
+- session OIDC (exigences ACC-07 à ACC-10 de la capacité [`comptes-acces`](../../specifications/comptes-acces.md), livrées ; ADR-0033, Accepté) : code d’autorisation + PKCE S256 auprès de Keycloak, jetons en mémoire seulement, jeton porteur joint aux appels de `/api/v1` sauf l’identité du serveur ; toute vue sauf l’état du serveur exige une session.
 
 ### Client desktop Electron (proposé, ADR-0022)
 
@@ -131,9 +131,9 @@ flowchart TB
 | inventory | projets, dépôts, SBOM, PURL | calculer seul l’impact sécurité |
 | release-radar | calendrier public endoflife.date (copie locale, fraîcheur), échéances par technologie du référentiel (`io.argos.releaseradar`, fiche [`radar-standards`](../../specifications/radar-standards.md)) | décider d’un statut du référentiel ; utiliser la correspondance produit d’un autre espace |
 | impact-engine | corrélation déterministe ; dette de version et projets touchés par une échéance ou un changement de standard (`RadarProjets`) | déléguer la décision au LLM |
-| ai-gateway | point d'appel unique au modèle local Ollama : prompts versionnés, classes de données, plafond et quotas journaliers, sorties validées par schéma, mention IA, journal `ia_appel` via `audit` (`io.argos.aigateway`, fiche [`passerelle-ia`](../../specifications/passerelle-ia.md), ADR-0029 proposé) ; appelé par `alerting` (résumé d'alerte), `signal.web` (résumé d'actualité), `impact` (analyse complémentaire, désactivée par défaut) et `regintel` (résumé de fiche et domaine proposé) | exposer le fournisseur au domaine ; décider d'un impact ; recevoir une donnée CONFIDENTIAL ou RESTRICTED |
+| ai-gateway | point d'appel unique au modèle local Ollama : prompts versionnés, classes de données, plafond et quotas journaliers, sorties validées par schéma, mention IA, journal `ia_appel` via `audit` (`io.argos.aigateway`, fiche [`passerelle-ia`](../../specifications/passerelle-ia.md), ADR-0029 accepté) ; appelé par `alerting` (résumé d'alerte), `signal.web` (résumé d'actualité), `impact` (analyse complémentaire, désactivée par défaut) et `regintel` (résumé de fiche et domaine proposé) | exposer le fournisseur au domaine ; décider d'un impact ; recevoir une donnée CONFIDENTIAL ou RESTRICTED |
 | mcp-server | huit outils MCP en lecture seule sur `POST /mcp` (Streamable HTTP : sans session en protocole 2026-07-28 ; session en mémoire, négociations limitées et fermée après 30 minutes d'inactivité, pour une version antérieure ; jeton exigé à chaque requête) ; appelant établi par `api.security`, limitation de débit, journal des appels (`audit`), contenu externe balisé et tronqué (`io.argos.mcp`, fiche [`serveur-mcp`](../../specifications/serveur-mcp.md)) | modifier le domaine ; dépendre de `api` hors `api.security` |
-| reg-intel | collecte quotidienne des archives JORF de la DILA, qualification par le dictionnaire de l'espace puis proposition IA marquée, fiche en attente de validation, correction et validation par l'expert, cycle de vie, demande d'évolution GitHub ou GitLab, échéances (`io.argos.regintel`, fiche [`veille-reglementaire`](../../specifications/veille-reglementaire.md), ADR-0030 proposé) | produire un avis juridique ; diffuser une fiche non validée |
+| reg-intel | collecte quotidienne des archives JORF de la DILA, qualification par le dictionnaire de l'espace puis proposition IA marquée, fiche en attente de validation, correction et validation par l'expert, cycle de vie, demande d'évolution GitHub ou GitLab, échéances (`io.argos.regintel`, fiche [`veille-reglementaire`](../../specifications/veille-reglementaire.md), ADR-0030 accepté) | produire un avis juridique ; diffuser une fiche non validée |
 | alerting | règles d’alerte et digests ; rappels d’échéance et annonces de standard du radar (`RappelsRadar`) ; rappels des entrées en vigueur réglementaires (`RappelsReglementaires`) | accorder des droits d’accès |
 | scm-connector | GitLab/API/webhooks/SBOM ; SBOM et manifestes de la branche principale remis à `inventory`, dépôt introuvable, jeton refusé et quota épuisé distingués d'un fichier absent (`RepositoryFiles`, `DepotIntrouvable`, `AccesRefuse`, `QuotaEpuise`) ; activité GitHub et GitLab en lecture seule, sans identité, quotas (`RepositoryActivity`) | injecter les payloads fournisseurs dans le domaine ; écrire dans un dépôt |
 | project-intel | collecte planifiée et agrégation par jour de l'activité des dépôts, avancement des jalons avec dénominateur, synthèse IA marquée par le point d'extension `SyntheseIa`, purge à 13 mois (`io.argos.projectintel`, fiche [`activite-projets`](../../specifications/activite-projets.md)) | stocker ou restituer une identité de personne ; laisser l'IA calculer un indicateur |
@@ -147,7 +147,7 @@ Une `Subscription` possède un `scope` :
 
 Le scope de veille n’accorde **aucun droit supplémentaire** sur les projets. RBAC/RLS reste la source d’autorisation.
 
-### 5.4.1 Profils de veille et mise en page (ADR-0023, ADR-0024 — proposés)
+### 5.4.1 Profils de veille et mise en page (ADR-0023, ADR-0024 — acceptés)
 
 Un utilisateur choisit sa **mise en page** et un ou plusieurs **profils de veille**. Ces préférences décident de ce qu’il voit parmi ce qu’il a le droit de voir, et de la façon dont il le voit ; elles ne décident jamais d’un droit.
 
@@ -183,7 +183,7 @@ flowchart LR
     PREF -->|SQL| DB
 ```
 
-### 5.4.2 Profil de veille `artiste` (ADR-0024 — proposé)
+### 5.4.2 Profil de veille `artiste` (ADR-0024 — accepté)
 
 Le profil `artiste` est un pack du catalogue (changement `ajouter-profil-artiste`, fiche [`profil-artiste`](../../specifications/profil-artiste.md)). Il ajoute des listes fermées d'objets suivis au manifeste (disciplines, territoires) et une stratégie de rapprochement sans identifiant de composant.
 
@@ -199,7 +199,7 @@ Le profil `artiste` est un pack du catalogue (changement `ajouter-profil-artiste
 
 Le paquet `workspace.suivi` n'emprunte au reste de `workspace` que `ContexteBase` et ne lit aucune donnée d'autorisation (`SuiviIsolationTest`). Aucune dépendance de module n'est ajoutée à §5.6.
 
-### 5.4.3 Veille réglementaire (ADR-0030 — proposé)
+### 5.4.3 Veille réglementaire (ADR-0030 — accepté)
 
 La veille réglementaire du profil `expert-metier` (changement `suivre-veille-reglementaire`, fiche [`veille-reglementaire`](../../specifications/veille-reglementaire.md)) repose sur les domaines, le dictionnaire et les experts de chaque espace.
 

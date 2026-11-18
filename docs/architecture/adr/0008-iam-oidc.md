@@ -4,7 +4,7 @@
 - **Date** : 2026-09-24
 - **Décideurs** : Non déterminé
 - **Remplace** : —
-- **Complété par** : [ADR-0027](0027-keycloak-idp-auto-heberge.md) (Proposé) — Keycloak auto-hébergé, faute d'IdP d'entreprise (ADR-0025, ADR-0026)
+- **Complété par** : [ADR-0027](0027-keycloak-idp-auto-heberge.md) (Accepté) — Keycloak auto-hébergé, faute d'IdP d'entreprise (ADR-0025, ADR-0026)
 
 ## Contexte
 

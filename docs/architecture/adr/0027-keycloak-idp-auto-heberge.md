@@ -1,8 +1,8 @@
 # ADR-0027 — Authentifier les utilisateurs avec un Keycloak auto-hébergé
 
-- **Statut** : Proposé
-- **Date** : 2026-11-16
-- **Décideurs** : porteur du projet (choix du fournisseur, Q-1 de `gerer-comptes-et-acces`, répondue le 2026-11-16)
+- **Statut** : Accepté
+- **Date** : 2026-11-18 (acceptation ; proposition du 2026-11-16)
+- **Décideurs** : porteur du projet (acceptation du 2026-11-18)
 - **Complète** : [ADR-0008](0008-iam-oidc.md) (Proposé), sans en changer le protocole (OIDC)
 - **Remplace** : —
 - **Remplacé par** : —
