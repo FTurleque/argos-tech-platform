@@ -13,7 +13,9 @@
     { "nom": "front-portail", "sbom": "sbom/front-portail.cdx.json", "ageJours": 4 },
     { "nom": "front-corrige", "sbom": "sbom/front-corrige.cdx.json", "ageJours": 6 },
     { "nom": "front-bornes", "sbom": "sbom/front-bornes.cdx.json", "ageJours": 2 },
-    { "nom": "front-manifeste", "manifestes": ["manifestes/front-manifeste/package.json"] },
+    { "nom": "front-manifeste", "manifestes": [
+      { "nom": "front-manifeste/package.json", "fichier": "manifestes/front-manifeste/package.manifeste.json" }
+    ] },
     { "nom": "widget-sans-version", "sbom": "sbom/widget-sans-version.cdx.json", "ageJours": 3 },
     { "nom": "outil-python", "sbom": "sbom/outil-python.cdx.json", "ageJours": 2 }
   ],

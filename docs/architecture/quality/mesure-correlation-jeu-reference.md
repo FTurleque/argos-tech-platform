@@ -7,7 +7,7 @@ Rapport de la tâche 4.7 du changement [`formaliser-chaine-securite-poc`](/opens
 | Élément | Valeur |
 |---|---|
 | Test | `argos-server/src/test/java/io/argos/chain/JeuReferenceCorrelationTest.java`, exécuté à chaque `mvn -B -f argos-server/pom.xml verify` ; seul : `mvn -f argos-server/pom.xml test -Dtest=JeuReferenceCorrelationTest` |
-| Jeu | `argos-server/src/test/resources/fixtures/jeu-reference-correlation/` : `jeu.json` (projets, vérité annotée, négatifs annotés, écarts consignés, métriques consignées), `avis/` (16 avis OSV), `sbom/` (11 SBOM CycloneDX 1.5 et 1.6), `manifestes/` (un `package.json`) |
+| Jeu | `argos-server/src/test/resources/fixtures/jeu-reference-correlation/` : `jeu.json` (projets, vérité annotée, négatifs annotés, écarts consignés, métriques consignées), `avis/` (16 avis OSV), `sbom/` (11 SBOM CycloneDX 1.5 et 1.6), `manifestes/` (un manifeste npm, `package.manifeste.json`, importé sous le nom `package.json`) |
 | Chaîne exécutée | chaîne réelle d'ARGOS, sans accès à Internet : création des projets, import des inventaires (`InventoryService`), collecte OSV (`SourceSynchronizer`) sur le serveur HTTP local des tests, corrélation déclenchée par la collecte (`CorrelationEngine`), lecture des impacts enregistrés dans `project_impact` ; puis corrélation par projet (second déclencheur) qui ne crée ni ne retire aucun impact |
 | Base | PostgreSQL des Dev Services Quarkus (conteneur jetable), migrations V1 à V16 |
 | Dates des SBOM | `metadata.timestamp` réécrit à l'exécution à « maintenant moins `ageJours` » : le caractère récent ou obsolète (seuil de 30 jours) ne dépend pas de la date d'exécution |

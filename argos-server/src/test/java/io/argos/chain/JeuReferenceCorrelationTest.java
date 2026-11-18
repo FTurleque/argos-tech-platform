@@ -275,7 +275,10 @@ class JeuReferenceCorrelationTest {
             } else {
                 Map<String, byte[]> manifestes = new LinkedHashMap<>();
                 for (JsonNode m : p.path("manifestes")) {
-                    manifestes.put(m.asText(), Fixtures.resource(JEU + m.asText()).getBytes(StandardCharsets.UTF_8));
+                    // Nom transmis à l'import (détection du format) et fichier de la fixture, nommé autrement
+                    // qu'un vrai manifeste pour ne pas passer pour un projet npm sans fichier de verrouillage.
+                    manifestes.put(m.path("nom").asText(),
+                            Fixtures.resource(JEU + m.path("fichier").asText()).getBytes(StandardCharsets.UTF_8));
                 }
                 resultat = inventories.importManifests(projet, manifestes);
             }
