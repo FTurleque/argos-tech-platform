@@ -2,7 +2,8 @@
 // scripts/lancer.mjs (e2e/compose.yaml) ; Playwright démarre le serveur (quarkus:dev, Keycloak des
 // Dev Services sur 8180 avec le royaume de test) et le portail web (Vite, port 5173), ou réutilise
 // ceux qui tournent déjà. Le projet « desktop » pilote le client Electron argos-desktop
-// (support/electron.ts) contre la même pile.
+// (support/electron.ts) contre la même pile ; le projet « mcp » rejoue au niveau du protocole un
+// assistant configuré par un .mcp.json (support/mcp.ts).
 import { defineConfig, devices } from '@playwright/test'
 import { URL_API, URL_IHM } from './support/environnement'
 
@@ -49,6 +50,9 @@ export default defineConfig({
       testMatch: /.*\.spec\.ts/,
       dependencies: ['preparation', 'construction-desktop'],
     },
+    // Serveur MCP : client MCP du protocole (fetch), configuré par donnees/mcp.json ; navigateur
+    // seulement pour l'approbation du code d'appareil sur Keycloak.
+    { name: 'mcp', testDir: './mcp', testMatch: /.*\.spec\.ts/ },
   ],
   webServer: [
     {
