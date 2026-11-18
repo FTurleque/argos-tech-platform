@@ -28,7 +28,7 @@ Les ADR enregistrent les décisions architecturales importantes d’ARGOS.
 - [ADR-0003 — Modèle canonique d’événements](0003-modele-canonique-evenements.md)
 - [ADR-0004 — AI Gateway Claude](0004-ai-gateway-claude.md) — **Remplacé par ADR-0029**
 - [ADR-0005 — Mermaid pour les diagrammes](0005-mermaid-diagrammes.md) — **Accepté**
-- [ADR-0006 — Collecteurs séparés](0006-collecteurs-separes.md) — Proposé ; la veille RSS/Atom et web relève d'ADR-0028 (Accepté)
+- [ADR-0006 — Collecteurs séparés](0006-collecteurs-separes.md) — Proposé ; ADR-0028 (Accepté) annonce son remplacement pour la veille RSS/Atom et web
 - [ADR-0007 — n8n périphérique](0007-n8n-peripherique.md)
 - [ADR-0008 — IAM OIDC](0008-iam-oidc.md)
 - [ADR-0009 — PolyForm Internal Use License 1.0.0](0009-licence-polyform-internal-use.md) — **Accepté**
@@ -43,7 +43,7 @@ Les ADR enregistrent les décisions architecturales importantes d’ARGOS.
 - [ADR-0015 — PostgreSQL FTS / pgvector différé](0015-postgresql-fts-pgvector.md)
 - [ADR-0016 — Workspaces RBAC + RLS](0016-workspace-rbac-rls.md)
 - [ADR-0017 — POC local Docker puis VM interne](0017-deploiement-vm-conteneurs.md) — cible VM interne remplacée par ADR-0026
-- [ADR-0018 — Veille réglementaire et validation MKP](0018-veille-reglementaire-mkp.md) — Proposé ; mis à jour par ADR-0030 (Accepté)
+- [ADR-0018 — Veille réglementaire et validation MKP](0018-veille-reglementaire-mkp.md) — Proposé ; ADR-0030 (Accepté) annonce son remplacement
 
 ### Décisions v2.4
 
@@ -86,7 +86,7 @@ Les ADR enregistrent les décisions architecturales importantes d’ARGOS.
 
 ### Veille réglementaire
 
-- [ADR-0030 — Veille réglementaire validée par l'expert métier, domaines par espace et données ouvertes JORF](0030-veille-reglementaire-expert-metier.md) — **Accepté** ; remplace ADR-0018 pour l'expert métier et les domaines (ADR-0018 reste Proposé)
+- [ADR-0030 — Veille réglementaire validée par l'expert métier, domaines par espace et données ouvertes JORF](0030-veille-reglementaire-expert-metier.md) — **Accepté** ; remplace ADR-0018 (ADR-0018 reste Proposé)
 
 ### Exploitation du serveur
 

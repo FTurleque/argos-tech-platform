@@ -105,9 +105,9 @@ Tous les changements utilisent le schéma `detailed-uml` : aucun changement d'un
 |---|---:|---:|---:|---:|---:|
 | `collecte-avis-securite` | 8 | 18 | 3 | 4 | 22 |
 | `inventaire-sbom` | 5 | 10 | 2 | 5 | 14 |
-| `correlation-impact` | 8 | 17 | 3 | 4 | 36 |
+| `correlation-impact` | 8 | 17 | 3 | 4 | 37 |
 | `abonnements-veille` | 6 | 10 | 2 | 4 | 10 |
-| **Total** | **27** | **55** | **10** | **17** | **82** |
+| **Total** | **27** | **55** | **10** | **17** | **83** |
 
 Toutes les exigences sont au statut [PROPOSITION] : elles dérivent d'ADR « Proposé » ou de baselines « à valider ». Les tests écrits sont ceux d'`argos-server/src/test/java/io/argos/chain/` (hors `ProfilsDeVeilleTest`) et `architecture/SubscriptionIsolationTest.java`, exécutés par `mvn -B -f argos-server/pom.xml verify` avec des jetons réels du Keycloak des Dev Services et la RLS appliquée sous le rôle `argos_app`. Matrice détaillée : [`tasks.md` du changement](/openspec/changes/formaliser-chaine-securite-poc/tasks.md#matrice-de-traçabilité).
 

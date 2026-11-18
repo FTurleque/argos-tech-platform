@@ -37,7 +37,7 @@ Cette section indexe les ADR. Elle ne recopie pas leur contenu.
 | ADR-0027 | Authentifier les utilisateurs avec un Keycloak auto-hébergé | Accepté | 2026-11-18 | — (complète ADR-0008) |
 | ADR-0028 | Collecter les flux RSS/Atom et les pages surveillées dans le serveur Argos | Accepté | 2026-11-18 | ADR-0006 pour la veille RSS/Atom et web (ADR-0006 reste Proposé) |
 | ADR-0029 | Servir la passerelle IA par un modèle local Ollama | Accepté | 2026-11-18 | ADR-0004 |
-| ADR-0030 | Veille réglementaire validée par l'expert métier, domaines par espace et données ouvertes JORF | Accepté | 2026-11-18 | ADR-0018 pour l'expert métier et les domaines (ADR-0018 reste Proposé) |
+| ADR-0030 | Veille réglementaire validée par l'expert métier, domaines par espace et données ouvertes JORF | Accepté | 2026-11-18 | ADR-0018 (ADR-0018 reste Proposé) |
 | ADR-0031 | Planifier les traitements périodiques avec quarkus-scheduler dans le serveur | Accepté | 2026-11-18 | — |
 | ADR-0032 | Versionner le schéma PostgreSQL par des migrations SQL Flyway appliquées au démarrage | Accepté | 2026-11-18 | — |
 | ADR-0033 | Tenir la session OIDC de l'IHM en mémoire et connecter le desktop par l'interface de bouclage | Accepté | 2026-11-18 | — (complète ADR-0027, précise ADR-0022 point 6) |
@@ -71,6 +71,7 @@ Le frontend n’est plus une question ouverte : **Vue.js 3 est retenu**. Le back
 - les ADR listés sont versionnés dans `docs/architecture/adr/` ;
 - ADR-0002 et ADR-0019 matérialisent les choix de stack désormais acceptés ;
 - [DÉCISION] ADR-0023 à ADR-0033 sont acceptés par le porteur du projet le 2026-11-18 ; ADR-0029 remplace ADR-0004 ; ADR-0006 et ADR-0018 restent Proposés ;
+- [QUESTION] ADR-0028 et ADR-0030 annoncent dans leur en-tête que leur acceptation fait passer ADR-0006 (pour la veille RSS/Atom et web) et ADR-0018 à « Remplacé », alors que ces deux ADR restent Proposés : le statut d'ADR-0006 et d'ADR-0018 reste à trancher par le porteur du projet ;
 - ADR-0017 documente la stratégie POC local puis VM ;
 - les ADR-0010 à ADR-0018 restent à confirmer par revue d’architecture et/ou preuve issue du POC.
 

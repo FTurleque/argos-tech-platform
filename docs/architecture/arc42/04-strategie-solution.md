@@ -32,7 +32,7 @@ Toute analyse doit conserver source, identifiant externe, date de collecte, payl
 
 ### P4 — IA non souveraine
 
-Claude synthétise et classe, mais ne devient pas la source de vérité. Les métriques projet proviennent des données GitHub/GitLab et les décisions de sécurité restent déterministes ou humaines.
+L'IA (modèle local Ollama, ADR-0029) synthétise et classe, mais ne devient pas la source de vérité. Les métriques projet proviennent des données GitHub/GitLab et les décisions de sécurité restent déterministes ou humaines.
 
 ### P5 — Gratuit/self-hosted d’abord
 
@@ -61,8 +61,8 @@ Chaque utilisateur hérite du **socle d’équipe** et peut ajouter une **veille
 | Frontend | Vue.js 3 en SPA | Accepté | ADR-0019 |
 | MCP | Quarkus MCP Server / Quarkiverse, Streamable HTTP | Décision proposée | ADR-0014 + POC |
 | IA | modèle local Ollama via la passerelle IA | Décision acceptée | ADR-0029 (remplace ADR-0004) |
-| RSS | FreshRSS séparé | Décision proposée | ADR-0006 + POC |
-| Web watch | changedetection.io séparé | Décision proposée | ADR-0006 + POC |
+| RSS | collecteur RSS/Atom intégré au serveur | Décision acceptée | ADR-0028 (remplace ADR-0006 pour la veille RSS/Atom et web) |
+| Web watch | pages surveillées par le collecteur intégré au serveur | Décision acceptée | ADR-0028 |
 | Automatisation | n8n périphérique uniquement | Décision proposée | ADR-0007 |
 | IAM | OIDC vers IdP entreprise | Décision proposée | ADR-0008 |
 | Diagrammes | Mermaid | Imposé | ADR-0005 |
@@ -103,8 +103,10 @@ flowchart LR
 - [ADR-0001 — Monolithe modulaire](../adr/0001-monolithe-modulaire.md)
 - [ADR-0002 — PostgreSQL comme stockage principal](../adr/0002-postgresql-stockage-principal.md)
 - [ADR-0003 — Modèle canonique d’événements](../adr/0003-modele-canonique-evenements.md)
-- [ADR-0004 — AI Gateway Claude](../adr/0004-ai-gateway-claude.md)
-- [ADR-0006 — FreshRSS et changedetection séparés](../adr/0006-collecteurs-separes.md)
+- [ADR-0004 — AI Gateway Claude](../adr/0004-ai-gateway-claude.md) (remplacé par ADR-0029)
+- [ADR-0006 — FreshRSS et changedetection séparés](../adr/0006-collecteurs-separes.md) (Proposé ; ADR-0028 pour la veille RSS/Atom et web)
+- [ADR-0028 — Collecteur RSS/Atom et pages surveillées intégré au serveur](../adr/0028-collecteur-veille-web-integre.md)
+- [ADR-0029 — Passerelle IA servie par un modèle local Ollama](../adr/0029-passerelle-ia-ollama-local.md)
 - [ADR-0007 — n8n périphérique](../adr/0007-n8n-peripherique.md)
 - [ADR-0008 — IAM OIDC](../adr/0008-iam-oidc.md)
 - [ADR-0014 — MCP lecture seule](../adr/0014-mcp-readonly-streamable-http.md)

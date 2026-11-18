@@ -3,7 +3,7 @@
 - **Statut** : Accepté
 - **Date** : 2026-11-18 (acceptation ; proposition du 2026-11-17)
 - **Décideurs** : porteur du projet (acceptation du 2026-11-18)
-- **Complète** : [ADR-0027](0027-keycloak-idp-auto-heberge.md) (Accepté) pour les clients ; précise [ADR-0022](0022-client-desktop-electron.md) point 6 (Proposé)
+- **Complète** : [ADR-0027](0027-keycloak-idp-auto-heberge.md) (Proposé) pour les clients ; précise [ADR-0022](0022-client-desktop-electron.md) point 6 (Proposé)
 - **Remplace** : —
 - **Remplacé par** : —
 

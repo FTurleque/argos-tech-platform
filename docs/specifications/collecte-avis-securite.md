@@ -22,7 +22,7 @@ Disposer, sans veille manuelle, des avis de vulnérabilité qui concernent les c
 | NVD, CISA KEV, FIRST EPSS, CERT-FR | enrichissent les signaux | [PROPOSITION] — ADR-0010 |
 | Responsable sécurité, utilisateur technique | consultent les signaux et leur provenance | [PROPOSITION] — arc42 §1.3 |
 | Exploitant | surveille l'état des sources | [PROPOSITION] — arc42 §3.2, §6.3 |
-| Planificateur interne | déclenche les synchronisations | [QUESTION] — composant absent de arc42 §5 ; hypothèse arc42 §6.5 |
+| API d'exploitation (`API & Security`) | déclenche une synchronisation à la demande de l'exploitant | [EXISTANT] — `POST /api/v1/ops/sources/{id}/synchronizations` ; aucune planification automatique |
 
 ## Périmètre et exclusions
 
@@ -88,7 +88,7 @@ Les signaux de sécurité sont globaux, non rattachés à un espace (ADR-0016, c
 
 ```mermaid
 sequenceDiagram
-    participant Plan as Planificateur (non défini en §5)
+    participant Plan as API & Security
     participant Ing as source-ingestion
     participant OSV as «Software System» OSV
     participant Sig as signal
@@ -96,7 +96,7 @@ sequenceDiagram
     participant Sec as «Software System» NVD / KEV / EPSS / CERT-FR
     participant DB as PostgreSQL
 
-    Plan->>Ing: lancer la synchronisation OSV
+    Plan->>Ing: lancer la synchronisation OSV (demande de l'exploitant)
     Ing->>DB: lire le dernier curseur persisté
     Ing->>OSV: demander les avis depuis le curseur
     alt réponse reçue
@@ -120,14 +120,14 @@ sequenceDiagram
     else 429 avec Retry-After, timeout ou 5xx
         OSV--xIng: erreur transitoire
         Ing->>DB: enregistrer tentative et erreur, curseur inchangé
-        Ing->>Plan: replanifier après Retry-After ou délai croissant
+        Ing->>Ing: attendre Retry-After ou un délai croissant, puis rejouer (tentatives bornées)
     else erreur permanente
         OSV--xIng: authentification refusée ou requête invalide
         Ing->>DB: enregistrer erreur permanente, sans nouvelle tentative
     end
 ```
 
-Le curseur n'avance qu'en fin de lot, après l'enregistrement durable des signaux (COL-05) : une panne entre deux avis fait rejouer le lot, et l'idempotence (COL-03) absorbe les avis déjà enregistrés. L'enrichissement est facultatif : son absence ne bloque pas le signal (COL-04-S3). Le planificateur figure en §6 (`Scheduler & Jobs`) mais pas parmi les composants de §5 ; son existence reste une hypothèse (arc42 §6.5).
+Le curseur n'avance qu'en fin de lot, après l'enregistrement durable des signaux (COL-05) : une panne entre deux avis fait rejouer le lot, et l'idempotence (COL-03) absorbe les avis déjà enregistrés. L'enrichissement est facultatif : son absence ne bloque pas le signal (COL-04-S3). La synchronisation se lance à la demande de l'exploitant par l'API d'exploitation ; aucune planification automatique n'existe (arc42 §6.3).
 
 ### DF-COL-2 — Traitement d'un avis reçu
 

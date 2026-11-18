@@ -16,7 +16,7 @@ flowchart LR
     end
 
     EXT["«Software System»\nSources externes\nRSS, Web, GitHub, GitLab, CVE"]
-    AI["«Software System»\nClaude / Anthropic"]
+    AI["«Software System»\nOllama, modèle d'IA local\n(ADR-0029, accepté ; facultatif)"]
     IDP["«Software System»\nKeycloak auto-hébergé\n(ADR-0027, accepté)"]
 
     USER -->|HTTPS| WEB
@@ -25,7 +25,7 @@ flowchart LR
     WEB -->|REST/OpenAPI| BACK
     BACK -->|SQL| DB
     BACK -->|HTTPS/webhooks| EXT
-    BACK -->|via AI Gateway| AI
+    BACK -->|via la passerelle IA| AI
     WEB -->|OIDC code + PKCE| IDP
     DESK -->|OIDC via le navigateur du système| IDP
     BACK -->|valide les identités| IDP

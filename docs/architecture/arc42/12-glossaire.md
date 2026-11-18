@@ -49,7 +49,7 @@
 | **ADR** | Architecture Decision Record ; enregistrement versionné d’une décision structurante |
 | **OpenAPI** | spécification de description d’API HTTP ; à ne pas confondre avec OpenAI |
 | **OpenAI** | fournisseur de services IA ; non retenu comme fournisseur IA initial dans le cadrage actuel |
-| **Claude** | famille de modèles d’Anthropic retenue comme fournisseur IA initial proposé |
+| **Claude** | famille de modèles d’Anthropic, fournisseur IA d'ADR-0004, remplacé par ADR-0029 (modèle local Ollama) |
 | **LLM** | Large Language Model |
 | **AI Gateway** | composant ARGOS encapsulant appels LLM, prompts, politiques, quotas, validation et audit |
 | **Ollama** | serveur de modèles d'IA local (licence MIT) appelé par la passerelle IA (ADR-0029, accepté) ; service facultatif du profil `ia` de `compose.yaml` |

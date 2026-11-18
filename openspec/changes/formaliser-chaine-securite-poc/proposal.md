@@ -71,7 +71,7 @@ Aucune : aucune spec de référence n'existe.
 ## Écarts constatés
 
 - Les ADR-0010 à ADR-0018 citent des exigences `F01`–`F16` absentes du dépôt ; la correspondance avec les identifiants `COL`, `INV`, `COR`, `ABO` ne peut pas être établie [QUESTION Q-1].
-- arc42 §6 annonce reprendre « strictement » les composants de la section 5, mais ses participants (`Technology Intelligence`, `Impact Correlation`, `Workspace & Project Core`, `Scheduler & Jobs`…) diffèrent des composants de la section 5 (`signal`, `impact-engine`, `workspace`…). Une table de correspondance est ajoutée à arc42 §6 ; le renommage des diagrammes reste à décider.
+- arc42 §6 reprend les composants de la section 5 : les participants de ses diagrammes en portent les noms (`source-ingestion`, `signal`, `impact-engine`, `workspace`…) ([DÉCISION] — porteur du projet, 2026-11-18, tâche 6.1).
 - L'inventaire des diagrammes annonce D-05 (classes, §5), D-11 (déploiement cible, §7), D-12 et D-13 (§8) ; aucun de ces diagrammes n'est présent dans les fichiers cités. D-05 est ajouté à partir du glossaire ; D-11, D-12 et D-13 restent signalés manquants.
 
 ## Impact

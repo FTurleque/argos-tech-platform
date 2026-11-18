@@ -156,21 +156,24 @@ La collecte remplace les compteurs des jours de sa fenêtre : rejouée, elle pro
 
 ## 6.3 Scénario d’erreur — API externe indisponible
 
-**Type : UML sequence diagram. Portée : synchronisation planifiée.**
+**Type : UML sequence diagram. Portée : synchronisation d’une source lancée par l’exploitant (`POST /api/v1/ops/sources/{id}/synchronizations`) ; aucune planification automatique de la collecte des avis n’existe.**
 
 ```mermaid
 sequenceDiagram
+    participant Ops as Exploitant
+    participant API as API & Security
     participant Ingestion as source-ingestion
     participant Ext as «Software System» Source externe
     participant Persist as PostgreSQL
 
-    Ingestion->>Ingestion: tâche planifiée : lancer synchronisation source
+    Ops->>API: lancer la synchronisation d’une source
+    API->>Ingestion: synchroniser la source
     Ingestion->>Ext: demander delta depuis dernier curseur
     Ext--xIngestion: timeout / 429 / 5xx
     Ingestion->>Persist: enregistrer tentative et erreur
 
     loop retry borné avec backoff
-        Ingestion->>Ingestion: rejouer la synchronisation
+        Ingestion->>Ingestion: attendre le délai, puis rejouer la synchronisation
         Ingestion->>Ext: reprendre depuis curseur stable
         alt succès
             Ext-->>Ingestion: retourner événements
@@ -209,14 +212,17 @@ sequenceDiagram
     Ops->>Back: démarrer / redémarrer le service
     Back->>Persist: vérifier connectivité et migrations
     Persist-->>Back: état base OK
-    Back->>Ingestion: initialiser planificateur
+    Back->>Ingestion: notifier le démarrage
     Ingestion->>Persist: rechercher traitements RUNNING expirés
     Persist-->>Ingestion: retourner traitements à reprendre
-    Ingestion->>Ingestion: reclassifier en RETRYABLE
-    Ingestion->>Ext: reprendre synchronisations depuis curseurs persistés
-    Ext-->>Ingestion: retourner deltas
-    Ingestion->>Persist: enregistrer reprise et nouveaux curseurs
+    Ingestion->>Persist: reclasser en RETRYABLE
     Back-->>Ops: exposer état READY
+    Ops->>Back: lancer la synchronisation d’une source
+    Back->>Ingestion: synchroniser la source
+    Ingestion->>Persist: reprendre le traitement RETRYABLE
+    Ingestion->>Ext: reprendre depuis le curseur persisté
+    Ext-->>Ingestion: retourner deltas
+    Ingestion->>Persist: enregistrer reprise et nouveau curseur
 ```
 
 ## 6.5 Hypothèses et validation
