@@ -113,16 +113,74 @@ class MatchRulesTest {
         assertEquals(Optional.empty(), MatchRules.evaluate(fixed20, "2.0.post1", true), "2.0.post1 suit le correctif 2.0");
     }
 
-    /** Un qualificatif inconnu n'est classé ni avant ni après la version publiée : niveau « à vérifier ». */
+    /**
+     * Maven (décision D5, 2026-11-18, Q-COR-3) : les qualificatifs inconnus suivent l'ordre de
+     * {@code ComparableVersion}, après la version publiée et entre eux par ordre lexical.
+     */
     @Test
-    void qualificatifInconnuNonClasseCommePreVersion() {
-        assertTrue(VersionComparator.compare("1.0-foo", "1.0").isEmpty());
-        assertTrue(VersionComparator.compare("1.0", "1.0-foo").isEmpty());
-        assertEquals(Optional.of(0), VersionComparator.compare("32.1.3-jre", "32.1.3-jre"));
-        assertTrue(VersionComparator.compare("31.1-jre", "32.0.0-jre").orElseThrow() < 0, "décidé par les segments numériques");
+    void qualificatifsInconnusOrdonnesSelonMavenPourMaven() {
+        assertEquals(Optional.of(1), VersionComparator.compare("Maven", "32.0.0-jre", "32.0.0-android"));
+        assertEquals(Optional.of(-1), VersionComparator.compare("Maven", "32.0.0-android", "32.0.0-jre"));
+        assertEquals(Optional.of(1), VersionComparator.compare("Maven", "1.0-foo", "1.0"), "un qualificatif inconnu suit la version publiée");
+        assertEquals(Optional.of(1), VersionComparator.compare("maven", "1.0-foo", "1.0-sp"), "et suit sp");
+        assertEquals(Optional.of(0), VersionComparator.compare("Maven", "32.1.3-jre", "32.1.3-jre"));
+        assertEquals(Optional.of(-1), VersionComparator.compare("Maven", "31.1-jre", "32.0.0-android"), "décidé par les segments numériques");
+        assertTrue(VersionComparator.compare("Maven", "latest", "1.0").isEmpty(), "une version non numérique reste non interprétable");
+    }
+
+    /** GHSA-7g45-4rm6-3mm3 (guava, borne fixed 32.0.0-android) : 32.0.0-jre non affectée, 31.1-jre affectée. */
+    @Test
+    void cor01S5GuavaJreFaceALaBorneAndroid() {
+        AffectedPackage guava = new AffectedPackage("pkg:maven/com.google.guava/guava", true, "Maven",
+                "com.google.guava:guava", List.of(new VersionRange("ECOSYSTEM", "1.0", "32.0.0-android", null)), List.of());
+        assertEquals(Optional.empty(), MatchRules.evaluate(guava, "32.0.0-jre", true));
+        assertEquals(Optional.of(false), MatchRules.versionAffected(guava, "32.0.0-jre"));
+        assertEquals(Optional.of(Level.EXACT), MatchRules.evaluate(guava, "31.1-jre", true));
+        assertEquals(Optional.of(Level.EXACT), MatchRules.evaluate(guava, "32.0.0-SNAPSHOT", true), "snapshot précède la borne");
+        assertEquals(Optional.empty(), MatchRules.evaluate(guava, "32.1.3-jre", true));
+        AffectedPackage sansEcosysteme = new AffectedPackage("pkg:maven/com.google.guava/guava", true, null,
+                "com.google.guava:guava", List.of(new VersionRange("ECOSYSTEM", "0", "32.0.0-android", null)), List.of());
+        assertEquals(Optional.empty(), MatchRules.evaluate(sansEcosysteme, "32.0.0-jre", true), "écosystème déduit de la clé PURL");
+    }
+
+    /** Un qualificatif inconnu face à la borne d'un paquet Maven : plage interprétable, niveau selon COR-02. */
+    @Test
+    void qualificatifInconnuMavenNePlusAVerifier() {
         AffectedPackage pkg = new AffectedPackage(KEY, true, "Maven", "org.exemple:lib",
                 List.of(new VersionRange("ECOSYSTEM", "0", "1.0", null)), List.of());
-        assertEquals(Optional.of(Level.A_VERIFIER), MatchRules.evaluate(pkg, "1.0-foo", true));
+        assertEquals(Optional.empty(), MatchRules.evaluate(pkg, "1.0-foo", true), "1.0-foo suit la borne 1.0");
+        assertEquals(Optional.of(Level.EXACT), MatchRules.evaluate(pkg, "0.9-foo", true));
+        AffectedPackage last = new AffectedPackage(KEY, true, "Maven", "org.exemple:lib",
+                List.of(new VersionRange("ECOSYSTEM", "1.0-bar", null, "1.0-foo")), List.of());
+        assertEquals(Optional.of(Level.EXACT), MatchRules.evaluate(last, "1.0-baz", true), "bar < baz <= foo");
+        assertEquals(Optional.empty(), MatchRules.evaluate(last, "1.0-zzz", true));
+        assertEquals(Optional.empty(), MatchRules.evaluate(last, "1.0-alpha", true), "alpha précède la borne introduced 1.0-bar");
+    }
+
+    /** Hors Maven, un qualificatif inconnu n'est classé ni avant ni après la version publiée : niveau « à vérifier ». */
+    @Test
+    void qualificatifInconnuHorsMavenResteAVerifier() {
+        assertTrue(VersionComparator.compare("1.0-foo", "1.0").isEmpty());
+        assertTrue(VersionComparator.compare("1.0", "1.0-foo").isEmpty());
+        assertTrue(VersionComparator.compare("npm", "32.0.0-jre", "32.0.0-android").isEmpty());
+        assertTrue(VersionComparator.compare("PyPI", "1.0-foo", "1.0").isEmpty());
+        assertTrue(VersionComparator.compare(null, "1.0-foo", "1.0").isEmpty());
+        AffectedPackage npm = new AffectedPackage("pkg:npm/exemple", true, "npm", "exemple",
+                List.of(new VersionRange("SEMVER", "0", "1.0.0", null)), List.of());
+        assertEquals(Optional.of(Level.A_VERIFIER), MatchRules.evaluate(npm, "1.0.0-foo", true));
+        AffectedPackage pypi = new AffectedPackage("pkg:pypi/exemple", true, "PyPI", "exemple",
+                List.of(new VersionRange("ECOSYSTEM", "0", "1.0", null)), List.of());
+        assertEquals(Optional.of(Level.A_VERIFIER), MatchRules.evaluate(pypi, "1.0-foo", true));
+    }
+
+    /** Les qualificatifs connus gardent l'ordre générique, pour Maven comme pour les autres écosystèmes. */
+    @Test
+    void qualificatifsConnusInchangesPourMaven() {
+        assertEquals(Optional.of(-1), VersionComparator.compare("Maven", "1.0-rc1", "1.0"));
+        assertEquals(Optional.of(-1), VersionComparator.compare("Maven", "2.0-beta9", "2.0"));
+        assertEquals(Optional.of(1), VersionComparator.compare("Maven", "1.0-sp1", "1.0"));
+        assertEquals(Optional.of(0), VersionComparator.compare("Maven", "1.0.0.RELEASE", "1.0"));
+        assertEquals(Optional.of(-1), VersionComparator.compare("Maven", "1.0-SNAPSHOT", "1.0"));
     }
 
     @Test
