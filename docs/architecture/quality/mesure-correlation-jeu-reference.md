@@ -62,7 +62,7 @@ Avis : GHSA-jfh8-c2jp-5v3q (log4j-core, CVE-2021-44228), GHSA-fp5r-v3w9-4333 (lo
 | Doublons d'alias (deux signaux de même CVE sur un même composant) | 3 : PyYAML (GHSA-8q59-q68h-6hv4 et PYSEC-2021-142) ; commons-text dans `api-paiement` et `api-obsolete` (GHSA-599f-7c49-w659 et l'avis dérivé, qui en reprend les alias) |
 | Corrélation par projet après la collecte | aucun impact créé ni retiré |
 
-Le jeu permet de mesurer vrais positifs, faux positifs et faux négatifs de la corrélation : le critère 3 de la baseline v2.3 §6 est satisfait sur ce jeu. Précision et rappel dépassent le seuil de 80 % cité par ADR-0013, seuil non validé.
+Le jeu permet de mesurer vrais positifs, faux positifs et faux négatifs de la corrélation, ce que demande littéralement le critère 3 de la baseline v2.3 §6. Le jeu ne contient pas les inventaires des projets pilotes : la tâche 4.7 reste ouverte jusqu'à la mesure sur ces inventaires (tâche 7.1) ou à une [DÉCISION] du porteur qui accepte un jeu composé [QUESTION]. Précision et rappel dépassent le seuil de 80 % cité par ADR-0013, seuil non validé.
 
 ## Écarts analysés
 

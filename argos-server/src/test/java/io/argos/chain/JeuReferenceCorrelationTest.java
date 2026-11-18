@@ -1,6 +1,8 @@
 package io.argos.chain;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.io.IOException;
@@ -107,6 +109,93 @@ class JeuReferenceCorrelationTest {
         }
     }
 
+    /** Avis du jeu : contenu JSON, date de modification et alias CVE, par identifiant. */
+    record AvisDuJeu(Map<String, String> json, Map<String, String> modifie, Map<String, List<String>> aliasCve) {
+    }
+
+    /** Comptes accumulés en comparant chaque paire (projet, avis, composant) à la vérité annotée. */
+    private static final class Mesure {
+        private int vp;
+        private int fp;
+        private int fn;
+        private int vpConfirmes;
+        private int fpConfirmes;
+        private int fnConfirmes;
+        private int transitifsCorrects;
+        private int transitifsAnnotes;
+        private final Map<String, Compte> parNiveau = new LinkedHashMap<>();
+        private final Set<String> ecarts = new TreeSet<>();
+
+        Mesure() {
+            for (String niveau : NIVEAUX) {
+                parNiveau.put(niveau, new Compte(0, 0, 0));
+            }
+        }
+
+        void comparer(String cle, JsonNode a, Observe o) {
+            String attendu = a == null ? AUCUN : a.path("niveau").asText();
+            String observe = o == null ? AUCUN : o.niveau();
+            compterTousNiveaux(attendu, observe, a, o);
+            compterConfirmes(attendu, observe);
+            for (String niveau : NIVEAUX) {
+                compterNiveau(niveau, attendu, observe);
+            }
+            if (!attendu.equals(observe)) {
+                ecarts.add(cle + "|" + nature(attendu, observe) + "|" + observe);
+            }
+        }
+
+        private void compterTousNiveaux(String attendu, String observe, JsonNode a, Observe o) {
+            if (!attendu.equals(AUCUN) && !observe.equals(AUCUN)) {
+                vp++;
+                if (a.hasNonNull("transitif")) {
+                    transitifsAnnotes++;
+                    if (Boolean.valueOf(a.path("transitif").asBoolean()).equals(o.transitif())) {
+                        transitifsCorrects++;
+                    }
+                }
+            } else if (!observe.equals(AUCUN)) {
+                fp++;
+            } else if (!attendu.equals(AUCUN)) {
+                fn++;
+            }
+        }
+
+        private void compterConfirmes(String attendu, String observe) {
+            boolean attenduConfirme = confirme(attendu);
+            boolean observeConfirme = confirme(observe);
+            if (attenduConfirme && observeConfirme) {
+                vpConfirmes++;
+            } else if (observeConfirme) {
+                fpConfirmes++;
+            } else if (attenduConfirme) {
+                fnConfirmes++;
+            }
+        }
+
+        private void compterNiveau(String niveau, String attendu, String observe) {
+            Compte k = parNiveau.get(niveau);
+            if (attendu.equals(niveau) && observe.equals(niveau)) {
+                parNiveau.put(niveau, new Compte(k.vp() + 1, k.fp(), k.fn()));
+            } else if (observe.equals(niveau)) {
+                parNiveau.put(niveau, new Compte(k.vp(), k.fp() + 1, k.fn()));
+            } else if (attendu.equals(niveau)) {
+                parNiveau.put(niveau, new Compte(k.vp(), k.fp(), k.fn() + 1));
+            }
+        }
+
+        private static boolean confirme(String niveau) {
+            return niveau.equals("EXACT") || niveau.equals("PROBABLE");
+        }
+
+        private static String nature(String attendu, String observe) {
+            if (attendu.equals(AUCUN)) {
+                return "FAUX_POSITIF";
+            }
+            return observe.equals(AUCUN) ? "FAUX_NEGATIF" : "NIVEAU";
+        }
+    }
+
     @Test
     void precisionEtRappelSurLeJeuDeReference() throws Exception {
         db.reset();
@@ -114,6 +203,63 @@ class JeuReferenceCorrelationTest {
         UUID espace = Api.nouvelEspace("alice", "Jeu de référence de la corrélation");
 
         // 1. Inventaires : SBOM datées par rapport à l'instant présent, ou manifestes de repli.
+        Map<String, UUID> projetsParNom = importerInventaires(jeu, espace);
+
+        // 2. Avis réels servis par la source OSV simulée ; la collecte déclenche la corrélation.
+        AvisDuJeu avis = chargerAvis(jeu);
+        Fixtures.stubOsv(avis.json(), avis.modifie());
+        synchronizer.synchronize("OSV");
+        assertEquals(avis.json().size(), db.count("SELECT count(*) FROM signal"), "tous les avis du jeu sont collectés");
+
+        // 3. Second déclencheur, la corrélation par projet : même résultat, aucun impact créé ni retiré.
+        for (UUID projet : projetsParNom.values()) {
+            for (CorrelationEngine.CorrelationReport r : engine.correlateProject(projet)) {
+                assertEquals(0, r.created() + r.removed(), "corrélation par projet stable pour " + projet);
+            }
+        }
+
+        // 4. Comparaison à la vérité annotée.
+        Map<String, Set<String>> composantsParProjet = composants();
+        Map<String, Observe> observes = observes();
+        Map<String, JsonNode> attendus = attendus(jeu, composantsParProjet, avis.json().keySet());
+        int vraisNegatifs = vraisNegatifs(jeu, composantsParProjet, attendus, observes);
+        Set<String> cles = new TreeSet<>(attendus.keySet());
+        cles.addAll(observes.keySet());
+        Mesure mesure = new Mesure();
+        for (String c : cles) {
+            mesure.comparer(c, attendus.get(c), observes.get(c));
+        }
+
+        // 5. Métriques, dont les alias CVE indexés et les doublons d'alias (deux signaux de même CVE sur un composant).
+        Map<String, String> metriques = new LinkedHashMap<>();
+        metriques.put("projets", Integer.toString(projetsParNom.size()));
+        metriques.put("avis", Integer.toString(avis.json().size()));
+        metriques.put("impactsAttendus", Integer.toString(attendus.size()));
+        metriques.put("impactsObserves", Integer.toString(observes.size()));
+        metriques.put("negatifsAnnotes", Integer.toString(jeu.path("negatifs").size()));
+        metriques.put("vraisNegatifs", Integer.toString(vraisNegatifs));
+        metriques.put("tousNiveaux", new Compte(mesure.vp, mesure.fp, mesure.fn).ligne());
+        metriques.put("niveauxConfirmes", new Compte(mesure.vpConfirmes, mesure.fpConfirmes, mesure.fnConfirmes).ligne());
+        mesure.parNiveau.forEach((niveau, k) -> metriques.put(niveau, k.ligne()));
+        metriques.put("transitifCorrect", mesure.transitifsCorrects + "/" + mesure.transitifsAnnotes);
+        metriques.put("aliasCveIndexes", aliasIndexes(avis.aliasCve()));
+        metriques.put("doublonsAlias", Long.toString(doublonsAlias(observes, avis.aliasCve())));
+
+        ecrireRapport(metriques, mesure.ecarts, attendus, observes);
+
+        Set<String> ecartsConnus = new TreeSet<>();
+        for (JsonNode e : jeu.path("ecartsConnus")) {
+            ecartsConnus.add(cle(e) + "|" + e.path("nature").asText() + "|" + e.path("observe").asText());
+        }
+        assertEquals(ecartsConnus, mesure.ecarts,
+                "écarts entre la corrélation et la vérité annotée (à analyser et consigner dans le jeu)");
+        Map<String, String> attenduesDuRapport = new LinkedHashMap<>();
+        jeu.path("metriquesConsignees").fields()
+                .forEachRemaining(f -> attenduesDuRapport.put(f.getKey(), f.getValue().asText()));
+        assertEquals(attenduesDuRapport, metriques, "métriques différentes de celles du rapport versionné");
+    }
+
+    private Map<String, UUID> importerInventaires(JsonNode jeu, UUID espace) throws IOException {
         Map<String, UUID> projetsParNom = new LinkedHashMap<>();
         for (JsonNode p : jeu.path("projets")) {
             String nom = p.path("nom").asText();
@@ -122,7 +268,8 @@ class JeuReferenceCorrelationTest {
             InventoryService.ImportResult resultat;
             if (p.has("sbom")) {
                 ObjectNode sbom = (ObjectNode) MAPPER.readTree(Fixtures.resource(JEU + p.path("sbom").asText()));
-                Instant genereLe = Instant.now().minus(p.path("ageJours").asLong(), ChronoUnit.DAYS).truncatedTo(ChronoUnit.SECONDS);
+                Instant genereLe = Instant.now().minus(p.path("ageJours").asLong(), ChronoUnit.DAYS)
+                        .truncatedTo(ChronoUnit.SECONDS);
                 ((ObjectNode) sbom.path("metadata")).put("timestamp", genereLe.toString());
                 resultat = inventories.importSbom(projet, MAPPER.writeValueAsBytes(sbom), "jeu-reference");
             } else {
@@ -134,8 +281,10 @@ class JeuReferenceCorrelationTest {
             }
             assertEquals("IMPORTED", resultat.status(), "import de l'inventaire de " + nom + " : " + resultat.reason());
         }
+        return projetsParNom;
+    }
 
-        // 2. Avis réels servis par la source OSV simulée ; la collecte déclenche la corrélation.
+    private static AvisDuJeu chargerAvis(JsonNode jeu) throws IOException {
         Map<String, String> avisParId = new LinkedHashMap<>();
         Map<String, String> modifieParId = new LinkedHashMap<>();
         Map<String, List<String>> aliasCve = new TreeMap<>();
@@ -153,136 +302,72 @@ class JeuReferenceCorrelationTest {
             });
             aliasCve.put(id, cve);
         }
-        Fixtures.stubOsv(avisParId, modifieParId);
-        synchronizer.synchronize("OSV");
-        assertEquals(avisParId.size(), db.count("SELECT count(*) FROM signal"), "tous les avis du jeu sont collectés");
+        return new AvisDuJeu(avisParId, modifieParId, aliasCve);
+    }
 
-        // 3. Second déclencheur (inventaire remplacé) : même résultat, aucun impact créé ni retiré.
-        for (UUID projet : projetsParNom.values()) {
-            for (CorrelationEngine.CorrelationReport r : engine.correlateProject(projet)) {
-                assertEquals(0, r.created() + r.removed(), "corrélation par projet stable pour " + projet);
-            }
-        }
-
-        // 4. Comparaison à la vérité annotée.
-        Map<String, Set<String>> composantsParProjet = composants();
-        Map<String, Observe> observes = observes();
+    private static Map<String, JsonNode> attendus(JsonNode jeu, Map<String, Set<String>> composantsParProjet,
+            Set<String> idsAvis) {
         Map<String, JsonNode> attendus = new LinkedHashMap<>();
         for (JsonNode v : jeu.path("verite")) {
             if (!v.path("horsInventaire").asBoolean(false)) {
-                assertTrue(composantsParProjet.getOrDefault(v.path("projet").asText(), Set.of()).contains(norme(v.path("composant").asText())),
-                        "composant annoté absent de l'inventaire : " + v);
+                assertTrue(dansLInventaire(composantsParProjet, v), "composant annoté absent de l'inventaire : " + v);
             }
-            assertTrue(avisParId.containsKey(v.path("avis").asText()), "avis annoté absent du jeu : " + v);
+            assertTrue(idsAvis.contains(v.path("avis").asText()), "avis annoté absent du jeu : " + v);
             attendus.put(cle(v), v);
         }
+        return attendus;
+    }
+
+    private static int vraisNegatifs(JsonNode jeu, Map<String, Set<String>> composantsParProjet,
+            Map<String, JsonNode> attendus, Map<String, Observe> observes) {
         int vraisNegatifs = 0;
         for (JsonNode n : jeu.path("negatifs")) {
-            assertTrue(composantsParProjet.getOrDefault(n.path("projet").asText(), Set.of()).contains(norme(n.path("composant").asText())),
-                    "composant négatif absent de l'inventaire : " + n);
-            assertTrue(!attendus.containsKey(cle(n)), "paire annotée à la fois positive et négative : " + n);
+            assertTrue(dansLInventaire(composantsParProjet, n), "composant négatif absent de l'inventaire : " + n);
+            assertFalse(attendus.containsKey(cle(n)), "paire annotée à la fois positive et négative : " + n);
             if (!observes.containsKey(cle(n))) {
                 vraisNegatifs++;
             }
         }
+        return vraisNegatifs;
+    }
 
-        Set<String> cles = new TreeSet<>(attendus.keySet());
-        cles.addAll(observes.keySet());
-        Set<String> ecarts = new TreeSet<>();
-        Map<String, Compte> parNiveau = new LinkedHashMap<>();
-        int vp = 0, fp = 0, fn = 0, vpConfirmes = 0, fpConfirmes = 0, fnConfirmes = 0, transitifsCorrects = 0, transitifsAnnotes = 0;
-        for (String niveau : NIVEAUX) {
-            parNiveau.put(niveau, new Compte(0, 0, 0));
-        }
-        for (String c : cles) {
-            JsonNode a = attendus.get(c);
-            Observe o = observes.get(c);
-            String attendu = a == null ? AUCUN : a.path("niveau").asText();
-            String observe = o == null ? AUCUN : o.niveau();
-            if (!attendu.equals(AUCUN) && !observe.equals(AUCUN)) {
-                vp++;
-                if (a.hasNonNull("transitif")) {
-                    transitifsAnnotes++;
-                    if (Boolean.valueOf(a.path("transitif").asBoolean()).equals(o.transitif())) {
-                        transitifsCorrects++;
+    private static boolean dansLInventaire(Map<String, Set<String>> composantsParProjet, JsonNode paire) {
+        return composantsParProjet.getOrDefault(paire.path("projet").asText(), Set.of())
+                .contains(norme(paire.path("composant").asText()));
+    }
+
+    /** Alias CVE des avis retrouvés dans l'index des alias, sous la forme « indexés/attendus ». */
+    private String aliasIndexes(Map<String, List<String>> aliasCve) throws SQLException {
+        int indexes = 0;
+        int attendus = 0;
+        try (Connection c = dataSource.getConnection(); PreparedStatement ps = c.prepareStatement(
+                "SELECT count(*) FROM signal_alias a JOIN signal s ON s.id = a.signal_id WHERE s.external_id = ? AND a.alias = ?")) {
+            for (Map.Entry<String, List<String>> e : aliasCve.entrySet()) {
+                for (String cve : e.getValue()) {
+                    attendus++;
+                    ps.setString(1, e.getKey());
+                    ps.setString(2, cve);
+                    try (ResultSet rs = ps.executeQuery()) {
+                        rs.next();
+                        indexes += rs.getInt(1);
                     }
                 }
-            } else if (!observe.equals(AUCUN)) {
-                fp++;
-            } else if (!attendu.equals(AUCUN)) {
-                fn++;
-            }
-            boolean attenduConfirme = attendu.equals("EXACT") || attendu.equals("PROBABLE");
-            boolean observeConfirme = observe.equals("EXACT") || observe.equals("PROBABLE");
-            if (attenduConfirme && observeConfirme) {
-                vpConfirmes++;
-            } else if (observeConfirme) {
-                fpConfirmes++;
-            } else if (attenduConfirme) {
-                fnConfirmes++;
-            }
-            for (String niveau : NIVEAUX) {
-                Compte k = parNiveau.get(niveau);
-                if (attendu.equals(niveau) && observe.equals(niveau)) {
-                    parNiveau.put(niveau, new Compte(k.vp() + 1, k.fp(), k.fn()));
-                } else if (observe.equals(niveau)) {
-                    parNiveau.put(niveau, new Compte(k.vp(), k.fp() + 1, k.fn()));
-                } else if (attendu.equals(niveau)) {
-                    parNiveau.put(niveau, new Compte(k.vp(), k.fp(), k.fn() + 1));
-                }
-            }
-            if (!attendu.equals(observe)) {
-                String nature = attendu.equals(AUCUN) ? "FAUX_POSITIF" : observe.equals(AUCUN) ? "FAUX_NEGATIF" : "NIVEAU";
-                ecarts.add(c + "|" + nature + "|" + observe);
             }
         }
+        return indexes + "/" + attendus;
+    }
 
-        // 5. Alias CVE indexés et doublons d'alias (deux signaux de même CVE sur un même composant).
-        int aliasIndexes = 0;
-        int aliasAttendus = 0;
-        for (Map.Entry<String, List<String>> e : aliasCve.entrySet()) {
-            for (String cve : e.getValue()) {
-                aliasAttendus++;
-                aliasIndexes += (int) db.count("SELECT count(*) FROM signal_alias a JOIN signal s ON s.id = a.signal_id "
-                        + "WHERE s.external_id = '" + e.getKey() + "' AND a.alias = '" + cve + "'");
-            }
-        }
+    /** Nombre de couples (projet, composant, CVE) portés par plusieurs signaux. */
+    private static long doublonsAlias(Map<String, Observe> observes, Map<String, List<String>> aliasCve) {
         Map<String, Set<String>> signauxParComposantEtCve = new HashMap<>();
         for (String c : observes.keySet()) {
             String[] parties = c.split("\\|", 3);
             for (String cve : aliasCve.getOrDefault(parties[1], List.of())) {
-                signauxParComposantEtCve.computeIfAbsent(parties[0] + "|" + parties[2] + "|" + cve, k -> new HashSet<>()).add(parties[1]);
+                signauxParComposantEtCve.computeIfAbsent(parties[0] + "|" + parties[2] + "|" + cve, k -> new HashSet<>())
+                        .add(parties[1]);
             }
         }
-        long doublonsAlias = signauxParComposantEtCve.values().stream().filter(s -> s.size() > 1).count();
-
-        Compte global = new Compte(vp, fp, fn);
-        Compte confirmes = new Compte(vpConfirmes, fpConfirmes, fnConfirmes);
-        Map<String, String> metriques = new LinkedHashMap<>();
-        metriques.put("projets", Integer.toString(projetsParNom.size()));
-        metriques.put("avis", Integer.toString(avisParId.size()));
-        metriques.put("impactsAttendus", Integer.toString(attendus.size()));
-        metriques.put("impactsObserves", Integer.toString(observes.size()));
-        metriques.put("negatifsAnnotes", Integer.toString(jeu.path("negatifs").size()));
-        metriques.put("vraisNegatifs", Integer.toString(vraisNegatifs));
-        metriques.put("tousNiveaux", global.ligne());
-        metriques.put("niveauxConfirmes", confirmes.ligne());
-        parNiveau.forEach((niveau, k) -> metriques.put(niveau, k.ligne()));
-        metriques.put("transitifCorrect", transitifsCorrects + "/" + transitifsAnnotes);
-        metriques.put("aliasCveIndexes", aliasIndexes + "/" + aliasAttendus);
-        metriques.put("doublonsAlias", Long.toString(doublonsAlias));
-
-        ecrireRapport(metriques, ecarts, attendus, observes);
-
-        Set<String> ecartsConnus = new TreeSet<>();
-        for (JsonNode e : jeu.path("ecartsConnus")) {
-            ecartsConnus.add(cle(e) + "|" + e.path("nature").asText() + "|" + e.path("observe").asText());
-        }
-        assertEquals(ecartsConnus, ecarts, "écarts entre la corrélation et la vérité annotée (à analyser et consigner dans le jeu)");
-        JsonNode consignees = jeu.path("metriquesConsignees");
-        Map<String, String> attenduesDuRapport = new LinkedHashMap<>();
-        consignees.fields().forEachRemaining(f -> attenduesDuRapport.put(f.getKey(), f.getValue().asText()));
-        assertEquals(attenduesDuRapport, metriques, "métriques différentes de celles du rapport versionné");
+        return signauxParComposantEtCve.values().stream().filter(s -> s.size() > 1).count();
     }
 
     private static String cle(JsonNode n) {
@@ -306,7 +391,7 @@ class JeuReferenceCorrelationTest {
             while (rs.next()) {
                 String cle = rs.getString(1) + "|" + rs.getString(2) + "|" + norme(rs.getString(3));
                 Observe precedent = observes.put(cle, new Observe(rs.getString(4), (Boolean) rs.getObject(5)));
-                assertEquals(null, precedent, "impact en double pour " + cle);
+                assertNull(precedent, "impact en double pour " + cle);
             }
         }
         return observes;
