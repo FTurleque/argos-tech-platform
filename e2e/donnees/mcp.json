@@ -1,0 +1,11 @@
+{
+  "mcpServers": {
+    "argos": {
+      "type": "http",
+      "url": "${ARGOS_MCP_URL:-http://localhost:8090/mcp}",
+      "headers": {
+        "Authorization": "Bearer ${ARGOS_MCP_TOKEN}"
+      }
+    }
+  }
+}

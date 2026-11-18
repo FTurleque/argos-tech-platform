@@ -94,7 +94,9 @@ public class InventoryService {
         RepositoryRef repo = project.repository()
                 .orElseThrow(() -> new IllegalStateException("aucun dépôt rattaché au projet " + projectId));
         try {
-            Optional<SbomDocument> sbom = repositoryFiles.latestSbom(repo);
+            // Une seule lecture par rafraîchissement : le dépôt GitHub n'est vérifié qu'une fois.
+            RepositoryFiles.Lecture depot = repositoryFiles.lecture(repo);
+            Optional<SbomDocument> sbom = depot.latestSbom();
             if (sbom.isPresent()) {
                 String sourceRef = repo.provider() + ":" + repo.repository() + "@" + repo.branch();
                 SbomDocument.Format format = sbom.get().format();
@@ -109,7 +111,7 @@ public class InventoryService {
             Map<String, byte[]> manifests = new LinkedHashMap<>();
             for (String path : project.manifestPaths()) {
                 if (ManifestParser.supports(path)) {
-                    repositoryFiles.file(repo, path).ifPresent(content -> manifests.put(path, content));
+                    depot.file(path).ifPresent(content -> manifests.put(path, content));
                 }
             }
             if (manifests.isEmpty()) {

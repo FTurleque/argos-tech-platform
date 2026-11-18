@@ -47,6 +47,22 @@ public final class Mcp {
         return envoyer(given().auth().oauth2(jeton), "tools/call", outil, Map.of("name", outil, "arguments", arguments));
     }
 
+    /**
+     * {@code initialize} d'un client d'une version de protocole antérieure à 2026-07-28 : ni en-tête
+     * {@code MCP-Protocol-Version} ni champ {@code _meta}, comme l'envoie un tel client.
+     */
+    public static ExtractableResponse<Response> initialiser(RequestSpecification requete, String version) {
+        Map<String, Object> corps = Map.of("jsonrpc", "2.0", "id", IDS.incrementAndGet(), "method", "initialize",
+                "params", Map.of("protocolVersion", version, "capabilities", Map.of(),
+                        "clientInfo", Map.of("name", "ancien-client", "version", "1")));
+        try {
+            return requete.contentType("application/json").accept("application/json, text/event-stream")
+                    .body(JSON.writeValueAsString(corps)).when().post("/mcp").then().extract();
+        } catch (JsonProcessingException e) {
+            throw new IllegalStateException(e);
+        }
+    }
+
     public static ExtractableResponse<Response> envoyer(RequestSpecification requete, String methode, String nom,
             Map<String, ?> params) {
         Map<String, Object> p = new java.util.LinkedHashMap<>(params);

@@ -19,6 +19,8 @@ import java.util.UUID;
 
 import jakarta.inject.Inject;
 
+import org.eclipse.microprofile.config.inject.ConfigProperty;
+
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
@@ -65,15 +67,22 @@ class ScmContractTest {
     @Inject
     RepositoryFiles repositoryFiles;
 
+    /** Jetons fictifs de la configuration de test. */
+    @ConfigProperty(name = "argos.test.scm.gitlab-jeton")
+    String jetonGitlab;
+
+    @ConfigProperty(name = "argos.test.scm.github-jeton")
+    String jetonGithub;
+
     @BeforeEach
     void reset() {
         db.reset();
     }
 
     /** Adapter construit avec des jetons de test, pour vérifier leur transmission. */
-    private static RepositoryFiles avecJetons(long tailleMax) {
+    private RepositoryFiles avecJetons(long tailleMax) {
         return new RepositoryFiles(Duration.ofSeconds(1), StubServer.base() + "/gitlab", StubServer.base() + "/github",
-                Optional.of("glpat-test-argos"), Optional.of("ghp-test-argos"), tailleMax);
+                Optional.of(jetonGitlab), Optional.of(jetonGithub), tailleMax);
     }
 
     private static Stub fixture(int status, String path, Map<String, String> headers) {
@@ -94,7 +103,7 @@ class ScmContractTest {
         assertEquals(Fixtures.resource("scm/gitlab/gl-sbom-npm-npm.cdx.json"), texte(sbom.contenu()));
         StubServer.Received requete = StubServer.received("/gitlab/").get(0);
         assertEquals("GET", requete.method());
-        assertEquals(List.of("glpat-test-argos"), entete(requete, "PRIVATE-TOKEN"));
+        assertEquals(List.of(jetonGitlab), entete(requete, "PRIVATE-TOKEN"));
         assertTrue(entete(requete, "Authorization").isEmpty(), "GitLab : jeton dans PRIVATE-TOKEN seulement");
     }
 
@@ -126,7 +135,7 @@ class ScmContractTest {
         assertEquals(SbomDocument.Format.CYCLONEDX_JSON, sbom.format());
         StubServer.Received requete = StubServer.received("/github/").get(0);
         assertEquals(List.of("application/vnd.github.raw+json"), entete(requete, "Accept"));
-        assertEquals(List.of("Bearer ghp-test-argos"), entete(requete, "Authorization"));
+        assertEquals(List.of("Bearer " + jetonGithub), entete(requete, "Authorization"));
         assertTrue(entete(requete, "PRIVATE-TOKEN").isEmpty());
     }
 
@@ -148,7 +157,8 @@ class ScmContractTest {
     @Test
     void github404AbsentEt403QuotaEpuise() {
         StubServer.on(GITHUB_SBOM, fixture(404, "scm/github/404.json", Map.of("Content-Type", "application/json")));
-        assertTrue(repositoryFiles.latestSbom(GITHUB).isEmpty(), "404 GitHub : SBOM absente");
+        StubServer.on("/github/repos/org/app", Stub.ok("{\"full_name\":\"org/app\"}"));
+        assertTrue(repositoryFiles.latestSbom(GITHUB).isEmpty(), "404 GitHub sur un dépôt existant : SBOM absente");
 
         long reset = Instant.now().plusSeconds(900).getEpochSecond();
         StubServer.on(GITHUB_SBOM, fixture(403, "scm/github/403-rate-limit.json",
@@ -164,7 +174,7 @@ class ScmContractTest {
         ScmException e = assertThrows(ScmException.class, () -> avecJetons(1_048_576).latestSbom(GITHUB));
 
         assertTrue(e.getMessage().contains("302"));
-        assertFalse(e.getMessage().contains("ghp-test-argos"), "le jeton n'apparaît dans aucun message");
+        assertFalse(e.getMessage().contains(jetonGithub), "le jeton n'apparaît dans aucun message");
         assertTrue(StubServer.received("/ailleurs").isEmpty(), "la redirection n'est pas suivie");
     }
 
@@ -212,6 +222,7 @@ class ScmContractTest {
         UUID espace = Api.nouvelEspace("alice", "Équipe A");
         UUID projet = projects.create(espace, "app", GITHUB, List.of("requirements.txt"));
         StubServer.on(GITHUB_SBOM, fixture(404, "scm/github/404.json", Map.of()));
+        StubServer.on("/github/repos/org/app", Stub.ok("{\"full_name\":\"org/app\"}"));
         StubServer.on("/github/repos/org/app/contents/requirements.txt?ref=main",
                 fixture(200, "scm/github/requirements.txt", Map.of()));
 

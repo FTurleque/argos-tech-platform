@@ -1,0 +1,28 @@
+HTTP/1.1 401 Unauthorized
+Date: Tue, 17 Nov 2026 23:34:19 GMT
+Content-Type: application/json
+Content-Length: 30
+Connection: keep-alive
+CF-Ray: a5c28ba398f2787a-MRS
+CF-Cache-Status: BYPASS
+Cache-Control: no-store, private, max-age=0
+Server: cloudflare
+Strict-Transport-Security: max-age=31536000
+Vary: Origin
+content-security-policy: default-src 'none'
+gitlab-lb: haproxy-main-http-us-east1-d-5575489745-6vjrr
+gitlab-sv: api-gke-us-east1-d
+nel: {"max_age": 0}
+ratelimit-limit: 500
+ratelimit-name: throttle_unauthenticated_api
+ratelimit-observed: 26
+ratelimit-remaining: 474
+ratelimit-reset: 1794958500
+referrer-policy: strict-origin-when-cross-origin
+x-content-type-options: nosniff
+x-frame-options: SAMEORIGIN
+x-gitlab-meta: {"correlation_id":"a5c28ba398f2787a-MRS","version":"1"}
+x-request-id: a5c28ba398f2787a-MRS
+x-runtime: 0.099766
+
+{"message":"401 Unauthorized"}

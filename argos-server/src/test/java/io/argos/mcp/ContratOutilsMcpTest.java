@@ -1,5 +1,6 @@
 package io.argos.mcp;
 
+import static io.restassured.RestAssured.given;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
@@ -24,8 +25,9 @@ import io.restassured.response.ExtractableResponse;
 import io.restassured.response.Response;
 
 /**
- * Contrat du serveur MCP (tâches 2.1, 3.2 et 3.4) : transport Streamable HTTP sans état, huit
- * outils de consultation seulement, schémas d'entrée et de sortie par outil, outil inconnu refusé.
+ * Contrat du serveur MCP (tâches 2.1, 3.2 et 3.4) : transport Streamable HTTP, sans session en
+ * version 2026-07-28, avec session pour une version antérieure négociée par {@code initialize} ;
+ * huit outils de consultation seulement, schémas d'entrée et de sortie par outil, outil inconnu refusé.
  */
 @QuarkusTest
 class ContratOutilsMcpTest {
@@ -89,19 +91,32 @@ class ContratOutilsMcpTest {
         assertEquals(0, db.count("SELECT count(*) FROM mcp_appel"));
     }
 
-    /** Transport sans état : aucune session n'est créée, la négociation avec état est refusée. */
+    /** Protocole 2026-07-28 : un appel d'outil s'exécute sans négociation préalable et sans session. */
     @Test
-    void transportSansEtat() {
+    void appelSansSessionEnVersion20260728() {
         ExtractableResponse<Response> r = Mcp.appeler("karim", "get_project_context", Map.of());
         assertEquals(200, r.statusCode(), r.asString());
         assertNull(r.header("Mcp-Session-Id"));
         assertEquals(Boolean.FALSE, r.path("result.isError"));
+    }
 
-        ExtractableResponse<Response> init = Mcp.envoyer(Api.en("karim"), "initialize", null, Map.of(
-                "protocolVersion", "2025-06-18", "capabilities", Map.of(),
-                "clientInfo", Map.of("name", "ancien-client", "version", "1")));
-        assertNull(init.header("Mcp-Session-Id"));
-        assertNotNull(init.path("error"), init.asString());
+    /**
+     * Écart constaté (fiche {@code serveur-mcp}) : un client en version 2025-06-18 négocie par
+     * {@code initialize} et obtient une session ; la session ne remplace jamais le jeton porteur.
+     */
+    @Test
+    void initializeAncienneVersionOuvreUneSessionSansRemplacerLeJeton() {
+        ExtractableResponse<Response> init = Mcp.initialiser(Api.en("karim"), "2025-06-18");
+        assertEquals(200, init.statusCode(), init.asString());
+        assertEquals("2025-06-18", init.path("result.protocolVersion"), init.asString());
+        String session = init.header("Mcp-Session-Id");
+        assertNotNull(session, "session ouverte pour un client en version 2025-06-18");
+
+        int statut = given().header("Mcp-Session-Id", session).contentType("application/json")
+                .accept("application/json, text/event-stream")
+                .body("{\"jsonrpc\":\"2.0\",\"id\":1,\"method\":\"tools/list\",\"params\":{}}")
+                .when().post("/mcp").then().extract().statusCode();
+        assertEquals(401, statut, "une session présentée sans jeton est refusée");
     }
 
     /** Découverte sans état : version de protocole 2026-07-28 et capacité « outils » annoncées. */

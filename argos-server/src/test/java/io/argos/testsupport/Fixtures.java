@@ -4,10 +4,15 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.io.UncheckedIOException;
 import java.nio.charset.StandardCharsets;
+import java.time.Instant;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
+import java.util.Set;
+import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 
 /** Construction des documents de test : avis OSV, SBOM CycloneDX, réponses enregistrées. */
@@ -28,13 +33,78 @@ public final class Fixtures {
         }
     }
 
+    /** En-têtes de transport recalculés par le serveur simulé, jamais rejoués. */
+    private static final Set<String> ENTETES_TRANSPORT =
+            Set.of("content-length", "transfer-encoding", "connection", "keep-alive", "content-encoding");
+
+    private static final Pattern MAINTENANT = Pattern.compile("\\$\\{maintenant\\+(\\d+)}");
+
+    /**
+     * Réponse HTTP enregistrée ({@code fixtures/<path>}, sortie de {@code curl -i}) : ligne de statut,
+     * en-têtes, ligne vide, corps. Les en-têtes de transport sont retirés ; {@code ${maintenant+N}}
+     * est remplacé par l'instant présent plus N secondes, en secondes depuis l'époque (réponses
+     * composées de limite de débit uniquement).
+     */
+    public static StubServer.Stub reponseEnregistree(String path) {
+        ReponseHttp r = lireReponse(path);
+        return new StubServer.Stub(r.status(), r.corps(), r.entetes(), 0);
+    }
+
+    /** Corps d'une réponse HTTP enregistrée. */
+    public static String corpsEnregistre(String path) {
+        return lireReponse(path).corps();
+    }
+
+    /** Réponse HTTP enregistrée, décomposée. */
+    public record ReponseHttp(int status, Map<String, String> entetes, String corps) {
+    }
+
+    /** Lit une réponse HTTP enregistrée (fins de ligne CRLF ou LF). */
+    public static ReponseHttp lireReponse(String path) {
+        String brut = resource(path);
+        int crlf = brut.indexOf("\r\n\r\n");
+        int lf = brut.indexOf("\n\n");
+        int fin;
+        int saut;
+        if (crlf >= 0 && (lf < 0 || crlf < lf)) {
+            fin = crlf;
+            saut = 4;
+        } else if (lf >= 0) {
+            fin = lf;
+            saut = 2;
+        } else {
+            throw new IllegalArgumentException("réponse enregistrée sans séparation en-têtes / corps : " + path);
+        }
+        String[] lignes = brut.substring(0, fin).split("\r?\n");
+        String[] statut = lignes[0].split(" ", 3);
+        if (statut.length < 2 || !statut[0].startsWith("HTTP/")) {
+            throw new IllegalArgumentException("ligne de statut invalide : " + path);
+        }
+        Map<String, String> entetes = new LinkedHashMap<>();
+        long maintenant = Instant.now().getEpochSecond();
+        for (int i = 1; i < lignes.length; i++) {
+            int deuxPoints = lignes[i].indexOf(':');
+            if (deuxPoints <= 0) {
+                continue;
+            }
+            String nom = lignes[i].substring(0, deuxPoints).strip();
+            if (ENTETES_TRANSPORT.contains(nom.toLowerCase(Locale.ROOT))) {
+                continue;
+            }
+            String valeur = MAINTENANT.matcher(lignes[i].substring(deuxPoints + 1).strip())
+                    .replaceAll(m -> Long.toString(maintenant + Long.parseLong(m.group(1))));
+            entetes.put(nom, valeur);
+        }
+        return new ReponseHttp(Integer.parseInt(statut[1]), entetes, brut.substring(fin + saut));
+    }
+
     /**
      * Avis au format OSV affectant un paquet sur l'intervalle [introduced, fixed[.
      * {@code purl} nul : l'avis ne déclare que l'écosystème et le nom.
      */
     public static String osv(String id, String modified, String ecosystem, String name, String purl, String introduced,
             String fixed, String... aliases) {
-        String aliasJson = java.util.Arrays.stream(aliases).map(a -> "\"" + a + "\"").collect(Collectors.joining(","));
+        String aliasJson = Arrays.stream(aliases).map(a -> "\"" + a + "\"").collect(Collectors.joining(","));
         String events = "{\"introduced\":\"" + introduced + "\"}" + (fixed == null ? "" : ",{\"fixed\":\"" + fixed + "\"}");
         return """
                 {"id":"%s","modified":"%s","published":"2026-01-01T00:00:00Z","aliases":[%s],

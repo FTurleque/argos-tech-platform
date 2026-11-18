@@ -1,0 +1,47 @@
+HTTP/1.1 200 OK
+Access-Control-Allow-Origin: *
+Access-Control-Expose-Headers: ETag, Link, Location, Retry-After, X-GitHub-OTP, X-RateLimit-Limit, X-RateLimit-Remaining, X-RateLimit-Used, X-RateLimit-Resource, X-RateLimit-Reset, X-OAuth-Scopes, X-Accepted-OAuth-Scopes, X-Poll-Interval, X-GitHub-Media-Type, X-GitHub-SSO, X-GitHub-Request-Id, Deprecation, Sunset, Warning
+Cache-Control: public, max-age=60, s-maxage=60
+Content-Length: 474
+Content-Security-Policy: default-src 'none'
+Content-Type: application/vnd.github.raw+json; charset=utf-8
+Date: Tue, 17 Nov 2026 23:38:38 GMT
+ETag: "51a2d9580cf8cd5f8900eacdaee0139fef11d03a"
+Last-Modified: Fri, 13 Nov 2026 10:00:36 GMT
+Referrer-Policy: origin-when-cross-origin, strict-origin-when-cross-origin
+Strict-Transport-Security: max-age=31536000; includeSubdomains; preload
+Vary: Accept, Accept-Encoding, Accept, X-Requested-With
+X-Content-Type-Options: nosniff
+X-Frame-Options: deny
+x-github-api-version-selected: 2022-11-28
+X-GitHub-Media-Type: github.v3; param=raw; format=json
+X-XSS-Protection: 0
+Server: github.com
+Accept-Ranges: bytes
+X-RateLimit-Limit: 60
+X-RateLimit-Remaining: 53
+X-RateLimit-Used: 7
+X-RateLimit-Resource: core
+X-RateLimit-Reset: 1794961987
+X-GitHub-Request-Id: CEC6:1767:3A1C732:57FDB07:6AFCE57E
+x-github-edge-region: fra
+
+{
+  "name": "demo-bundled-deps",
+  "private": true,
+  "version": "0.0.0",
+  "description": "demo: demo-bundled-deps -- showcase how bundled deps look like",
+  "license": "Apache-2.0",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/CycloneDX/cyclonedx-node-npm.git",
+    "directory": "demo/bundled-dependencies/project"
+  },
+  "dependencies": {
+    "bundle-dependencies": "1.0.2",
+    "is-obj": "3.0.0"
+  },
+  "bundledDependencies": [
+    "is-obj"
+  ]
+}
