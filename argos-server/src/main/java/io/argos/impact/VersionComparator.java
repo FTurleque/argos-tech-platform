@@ -69,13 +69,22 @@ public final class VersionComparator {
      * l'ordre générique dépend d'un qualificatif inconnu, ordre Maven ({@link MavenVersionOrder}).
      * Vide si l'une des versions n'est pas interprétable, ou si l'ordre dépend d'un qualificatif
      * inconnu hors de l'écosystème Maven.
+     *
+     * <p>L'ordre Maven reçoit les versions sous la forme lue par l'ordre générique : préfixe {@code v}
+     * et métadonnées de build ({@code +…}) retirés. Une version qui contient {@code _}, séparateur pour
+     * l'ordre générique mais pas pour Maven, reste « à vérifier ».
      */
     public static Optional<Integer> compare(String ecosystem, String a, String b) {
         Optional<Integer> generic = compare(a, b);
         if (generic.isPresent() || !maven(ecosystem) || !interpretable(a) || !interpretable(b)) {
             return generic;
         }
-        return Optional.of(MavenVersionOrder.compare(a.strip(), b.strip()));
+        String na = normalized(a);
+        String nb = normalized(b);
+        if (na.indexOf('_') >= 0 || nb.indexOf('_') >= 0) {
+            return Optional.empty();
+        }
+        return Optional.of(MavenVersionOrder.compare(na, nb));
     }
 
     /** Vrai pour l'écosystème Maven, désigné par son nom OSV ({@code Maven}) ou son type PURL ({@code maven}). */
@@ -133,18 +142,21 @@ public final class VersionComparator {
         return rank == null ? null : Integer.signum(rank);
     }
 
-    private static Optional<List<Object>> tokens(String version) {
-        if (version == null) {
-            return Optional.empty();
-        }
+    /** Version en minuscules, sans préfixe {@code v} ni métadonnées de build ({@code +…}). */
+    private static String normalized(String version) {
         String v = version.strip().toLowerCase(Locale.ROOT);
         if (v.startsWith("v")) {
             v = v.substring(1);
         }
         int plus = v.indexOf('+');
-        if (plus >= 0) {
-            v = v.substring(0, plus);
+        return plus >= 0 ? v.substring(0, plus) : v;
+    }
+
+    private static Optional<List<Object>> tokens(String version) {
+        if (version == null) {
+            return Optional.empty();
         }
+        String v = normalized(version);
         if (v.isEmpty() || !Character.isDigit(v.charAt(0))) {
             return Optional.empty();
         }

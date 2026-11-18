@@ -8,12 +8,12 @@ import java.util.List;
  *
  * @param specVersion version du schéma CycloneDX, absente pour un manifeste
  * @param sourceDate date de production de la SBOM ({@code metadata.timestamp}), absente si inconnue
- * @param ignoredComponents nombre de composants écartés faute de PURL exploitable
- * @param ignored composants écartés, signalés à l'import (INV-01, décision D6 du 2026-11-18), au plus
- *        {@link #MAX_SIGNALED} ; {@code ignoredComponents} donne leur nombre total
+ * @param ignoredCount nombre de composants écartés faute de PURL exploitable
+ * @param ignoredComponents composants écartés, signalés à l'import (INV-01, décision D6 du 2026-11-18), au plus
+ *        {@link #MAX_SIGNALED} ; {@code ignoredCount} donne leur nombre total
  */
-public record ParsedInventory(String specVersion, Instant sourceDate, List<Item> components, int ignoredComponents,
-        List<IgnoredComponent> ignored) {
+public record ParsedInventory(String specVersion, Instant sourceDate, List<Item> components, int ignoredCount,
+        List<IgnoredComponent> ignoredComponents) {
 
     /** Nombre maximal de composants ignorés décrits par un import ; au-delà, seul le nombre total est conservé. */
     public static final int MAX_SIGNALED = 100;

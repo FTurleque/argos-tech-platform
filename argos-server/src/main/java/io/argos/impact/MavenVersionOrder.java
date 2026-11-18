@@ -1,3 +1,9 @@
+/*
+ * Adaptation de org.apache.maven.artifact.versioning.ComparableVersion (Maven Artifact 3.9.16),
+ * Copyright 2001-2026 The Apache Software Foundation, sous licence Apache License 2.0
+ * (http://www.apache.org/licenses/LICENSE-2.0 ; texte dans argos-server/licenses/Apache-2.0.txt).
+ * Modifications : réécriture en Java 21 réduite à la comparaison de deux versions ; voir argos-server/NOTICE.
+ */
 package io.argos.impact;
 
 import java.math.BigInteger;
@@ -24,8 +30,9 @@ import java.util.Map;
  *       < 32.0.0-jre}.</li>
  * </ul>
  *
- * <p>Implémentation propre au dépôt, sans dépendance ; sa conformité à {@code ComparableVersion}
- * est vérifiée par {@code MavenVersionOrderTest} sur les exemples de la documentation de Maven.
+ * <p>Adaptation de {@code ComparableVersion} (Apache License 2.0, voir {@code argos-server/NOTICE}),
+ * sans dépendance ; sa conformité est vérifiée par {@code MavenVersionOrderTest} sur les exemples de
+ * la documentation de Maven.
  */
 public final class MavenVersionOrder {
 
@@ -129,7 +136,7 @@ public final class MavenVersionOrder {
             for (int k = 0; k < n; k++) {
                 Item l = k < items.size() ? items.get(k) : null;
                 Item r = k < s.items.size() ? s.items.get(k) : null;
-                int c = l == null ? (r == null ? 0 : -r.compareTo(null)) : l.compareTo(r);
+                int c = compareSegments(l, r);
                 if (c != 0) {
                     return c;
                 }
@@ -140,6 +147,14 @@ public final class MavenVersionOrder {
         @Override
         public boolean neutral() {
             return items.isEmpty();
+        }
+
+        /** Comparaison de deux segments de même rang ; l'un ou l'autre peut être absent. */
+        private static int compareSegments(Item l, Item r) {
+            if (l != null) {
+                return l.compareTo(r);
+            }
+            return r == null ? 0 : -r.compareTo(null);
         }
 
         /** Retire les segments neutres finaux, sans franchir une sous-liste non vide. */
@@ -162,59 +177,84 @@ public final class MavenVersionOrder {
     }
 
     private static Sub parse(String version) {
-        String v = version.toLowerCase(Locale.ENGLISH);
-        Sub root = new Sub();
-        Deque<Sub> opened = new ArrayDeque<>();
-        opened.push(root);
-        Sub list = root;
-        boolean digits = false;
-        int start = 0;
-        for (int i = 0; i < v.length(); i++) {
-            char c = v.charAt(i);
-            if (c == '.' || c == '-') {
-                list.items.add(i == start ? new Num(BigInteger.ZERO) : item(digits, v.substring(start, i)));
-                start = i + 1;
-                if (c == '-') {
-                    list = open(list, opened);
-                }
-            } else if (Character.isDigit(c)) {
-                if (!digits && i > start) {
-                    // Qualificatif suivi d'un chiffre (« rc1 ») : sous-liste propre, puis le nombre dans une autre.
-                    if (!list.items.isEmpty()) {
-                        list = open(list, opened);
-                    }
-                    list.items.add(Qual.of(v.substring(start, i), true));
-                    start = i;
-                    list = open(list, opened);
-                }
-                digits = true;
-            } else {
-                if (digits && i > start) {
-                    list.items.add(item(true, v.substring(start, i)));
-                    start = i;
-                    list = open(list, opened);
-                }
-                digits = false;
-            }
-        }
-        if (v.length() > start) {
-            // « .X » final traité comme « -X » pour un qualificatif X.
-            if (!digits && !list.items.isEmpty()) {
-                list = open(list, opened);
-            }
-            list.items.add(item(digits, v.substring(start)));
-        }
-        while (!opened.isEmpty()) {
-            opened.pop().normalize();
-        }
-        return root;
+        return new Parser(version.toLowerCase(Locale.ENGLISH)).parse();
     }
 
-    private static Sub open(Sub parent, Deque<Sub> opened) {
-        Sub child = new Sub();
-        parent.items.add(child);
-        opened.push(child);
-        return child;
+    /** Découpage d'une version en segments, à l'état porté par l'instance. */
+    private static final class Parser {
+
+        private final String v;
+        private final Sub root = new Sub();
+        private final Deque<Sub> opened = new ArrayDeque<>();
+        private Sub list = root;
+        private boolean digits;
+        private int start;
+
+        Parser(String v) {
+            this.v = v;
+            opened.push(root);
+        }
+
+        Sub parse() {
+            for (int i = 0; i < v.length(); i++) {
+                char c = v.charAt(i);
+                if (c == '.' || c == '-') {
+                    separator(i, c);
+                } else if (Character.isDigit(c)) {
+                    digit(i);
+                } else {
+                    letter(i);
+                }
+            }
+            if (v.length() > start) {
+                // « .X » final traité comme « -X » pour un qualificatif X.
+                if (!digits && !list.items.isEmpty()) {
+                    open();
+                }
+                list.items.add(item(digits, v.substring(start)));
+            }
+            while (!opened.isEmpty()) {
+                opened.pop().normalize();
+            }
+            return root;
+        }
+
+        private void separator(int i, char c) {
+            list.items.add(i == start ? new Num(BigInteger.ZERO) : item(digits, v.substring(start, i)));
+            start = i + 1;
+            if (c == '-') {
+                open();
+            }
+        }
+
+        private void digit(int i) {
+            if (!digits && i > start) {
+                // Qualificatif suivi d'un chiffre (« rc1 ») : sous-liste propre, puis le nombre dans une autre.
+                if (!list.items.isEmpty()) {
+                    open();
+                }
+                list.items.add(Qual.of(v.substring(start, i), true));
+                start = i;
+                open();
+            }
+            digits = true;
+        }
+
+        private void letter(int i) {
+            if (digits && i > start) {
+                list.items.add(item(true, v.substring(start, i)));
+                start = i;
+                open();
+            }
+            digits = false;
+        }
+
+        private void open() {
+            Sub child = new Sub();
+            list.items.add(child);
+            opened.push(child);
+            list = child;
+        }
     }
 
     private static Item item(boolean digits, String text) {

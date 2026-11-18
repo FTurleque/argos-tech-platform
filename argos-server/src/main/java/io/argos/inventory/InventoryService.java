@@ -67,8 +67,8 @@ public class InventoryService {
             return new ImportResult("REJECTED", null, 0, 0, e.getMessage());
         }
         store.replace(projectId, "SBOM", parsed, sourceRef);
-        return new ImportResult("IMPORTED", "SBOM", parsed.components().size(), parsed.ignoredComponents(), null,
-                parsed.ignored());
+        return new ImportResult("IMPORTED", "SBOM", parsed.components().size(), parsed.ignoredCount(), null,
+                parsed.ignoredComponents());
     }
 
     /** Constitue un inventaire de repli à partir de manifestes (chemin → contenu). */

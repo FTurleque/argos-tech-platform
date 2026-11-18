@@ -157,6 +157,22 @@ class MatchRulesTest {
         assertEquals(Optional.empty(), MatchRules.evaluate(last, "1.0-alpha", true), "alpha précède la borne introduced 1.0-bar");
     }
 
+    /**
+     * L'ordre Maven reçoit la version lue par l'ordre générique : préfixe {@code v} et métadonnées
+     * {@code +…} retirés ; une version avec {@code _} reste « à vérifier ».
+     */
+    @Test
+    void qualificatifInconnuMavenAvecPrefixeOuMetadonnees() {
+        assertEquals(Optional.of(1), VersionComparator.compare("Maven", "v32.0.0-jre", "32.0.0-android"));
+        assertEquals(Optional.of(1), VersionComparator.compare("Maven", "V32.0.0-jre+build.7", "32.0.0-android"));
+        assertEquals(Optional.of(-1), VersionComparator.compare("Maven", "32.0.0-android", "v32.0.0-jre"));
+        assertTrue(VersionComparator.compare("Maven", "32_0_0-jre", "32.0.0-android").isEmpty());
+        AffectedPackage guava = new AffectedPackage("pkg:maven/com.google.guava/guava", true, "Maven",
+                "com.google.guava:guava", List.of(new VersionRange("ECOSYSTEM", "1.0", "32.0.0-android", null)), List.of());
+        assertEquals(Optional.empty(), MatchRules.evaluate(guava, "v32.0.0-jre", true), "v32.0.0-jre suit la borne");
+        assertEquals(Optional.of(Level.A_VERIFIER), MatchRules.evaluate(guava, "32_0_0-jre", true));
+    }
+
     /** Hors Maven, un qualificatif inconnu n'est classé ni avant ni après la version publiée : niveau « à vérifier ». */
     @Test
     void qualificatifInconnuHorsMavenResteAVerifier() {

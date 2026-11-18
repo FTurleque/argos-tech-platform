@@ -54,7 +54,7 @@ public class InventoryStore {
                 ps.setString(4, parsed.specVersion());
                 ps.setString(5, cut(sourceRef));
                 ps.setObject(6, importId);
-                ps.setInt(7, parsed.ignoredComponents());
+                ps.setInt(7, parsed.ignoredCount());
                 ps.setString(8, ignoredJson(parsed));
                 ps.executeUpdate();
             }
@@ -109,7 +109,7 @@ public class InventoryStore {
 
     /** Composants ignorés de l'import (au plus {@value ParsedInventory#MAX_SIGNALED}), en tableau JSON. */
     private static String ignoredJson(ParsedInventory parsed) {
-        List<ParsedInventory.IgnoredComponent> ignored = parsed.ignored() == null ? List.of() : parsed.ignored();
+        List<ParsedInventory.IgnoredComponent> ignored = parsed.ignoredComponents() == null ? List.of() : parsed.ignoredComponents();
         try {
             return MAPPER.writeValueAsString(ignored.subList(0, Math.min(ignored.size(), ParsedInventory.MAX_SIGNALED)));
         } catch (JsonProcessingException e) {
