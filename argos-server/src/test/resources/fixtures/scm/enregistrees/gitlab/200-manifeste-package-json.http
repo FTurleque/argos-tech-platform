@@ -1,0 +1,58 @@
+HTTP/1.1 200 OK
+Date: Tue, 17 Nov 2026 23:34:17 GMT
+Content-Type: text/plain; charset=utf-8
+Content-Length: 346
+Connection: keep-alive
+CF-Ray: a5c28b93cd02e9e9-MRS
+CF-Cache-Status: BYPASS
+Accept-Ranges: bytes
+Cache-Control: max-age=0, private, must-revalidate, no-store, no-cache
+Content-Disposition: inline; filename="package.json"; filename*=UTF-8''package.json
+Expires: Fri, 01 Jan 1990 00:00:00 GMT
+Server: cloudflare
+Strict-Transport-Security: max-age=31536000
+Vary: Origin
+content-security-policy: default-src 'none'
+gitlab-lb: haproxy-main-http-us-east1-b-676944b94d-lkjcz
+gitlab-sv: api-gke-us-east1-b
+nel: {"max_age": 0}
+ratelimit-limit: 500
+ratelimit-name: throttle_unauthenticated_api
+ratelimit-observed: 19
+ratelimit-remaining: 481
+ratelimit-reset: 1794958500
+referrer-policy: strict-origin-when-cross-origin
+x-content-type-options: nosniff
+x-frame-options: SAMEORIGIN
+x-gitlab-blob-id: 94df1676601fc77f47cd3efc8f68166932fe237d
+x-gitlab-commit-id: fffda0d71cbeecd65679862382f1b75de3575e2b
+x-gitlab-content-sha256: a51a68380ce7e25c029237a6b36c4d35959970e00db3e47213c2c614d6fc06f8
+x-gitlab-encoding: base64
+x-gitlab-execute-filemode: false
+x-gitlab-file-name: package.json
+x-gitlab-file-path: package.json
+x-gitlab-last-commit-id: 620dee1894fc7a2c8a52eec27db0aef7a5d391cc
+x-gitlab-meta: {"correlation_id":"a5c28b93cd02e9e9-MRS","version":"1"}
+x-gitlab-ref: master
+x-gitlab-size: 346
+x-request-id: a5c28b93cd02e9e9-MRS
+x-runtime: 0.148878
+
+{
+  "name": "js-npm",
+  "version": "1.0.0",
+  "description": "Test project for js-npm",
+  "dependencies": {
+    "highlight.js": "^9.12.0",
+    "moment": "^2.18.1",
+    "normalize.css": "^7.0.0",
+    "decamelize": "1.1.1"
+  },
+  "devDependencies": {
+    "jsdom": "^11.2.0",
+    "nyc": "^11.2.1"
+  },
+  "scripts": {
+    "test": "echo 'test'"
+  }
+}

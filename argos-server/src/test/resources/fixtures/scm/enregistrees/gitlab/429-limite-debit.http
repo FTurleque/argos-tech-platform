@@ -1,0 +1,13 @@
+HTTP/1.1 429 Too Many Requests
+Date: Tue, 17 Nov 2026 23:40:00 GMT
+Content-Type: text/plain
+Server: cloudflare
+Cache-Control: no-cache
+Retry-After: 120
+ratelimit-limit: 500
+ratelimit-name: throttle_unauthenticated_api
+ratelimit-observed: 501
+ratelimit-remaining: 0
+ratelimit-reset: ${maintenant+120}
+
+Retry later
