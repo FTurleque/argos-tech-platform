@@ -46,6 +46,7 @@ Désigner automatiquement, et seulement eux, les projets concernés par un signa
 | Règle | Exigence(s) | Source | Statut |
 |---|---|---|---|
 | Impact si PURL identique et version dans la plage ; aucun sinon | COR-01 | ADR-0013 | [PROPOSITION] |
+| Écosystème Maven : quand l'ordre de deux versions dépend d'un qualificatif inconnu (`jre`, `android`…), l'ordre de Maven (`ComparableVersion`) tranche : un qualificatif inconnu suit la version publiée et `sp`, les qualificatifs inconnus s'ordonnent entre eux par ordre lexical (`32.0.0-android` < `32.0.0-jre`). Autres écosystèmes : une telle plage n'est pas interprétable et l'impact porte le niveau `à vérifier` | COR-01 (COR-01-S5), COR-02 | décision du porteur du projet, 2026-11-18 (D5, Q-COR-3) | [DÉCISION] |
 | Un niveau parmi `exact`, `probable`, `à vérifier` : `exact` = PURL déclaré et version dans la plage sur SBOM non obsolète ; `probable` = même correspondance sur inventaire de repli ou SBOM obsolète ; `à vérifier` = correspondance sans PURL, version inconnue ou plage non interprétable | COR-02 | ADR-0013 ; décision du 2026-11-16 (Q-2) | [PROPOSITION] |
 | Provenance complète, aucun impact orphelin | COR-03 | arc42 §10.2 Q-01 | [PROPOSITION] |
 | L'IA ne déclenche jamais seule une alerte critique | COR-04 | ADR-0013 | [PROPOSITION] |
@@ -69,7 +70,7 @@ Les signaux sont globaux mais les impacts appartiennent à l'espace du projet (A
 | Qualité | Cible | Source | Statut |
 |---|---|---|---|
 | Impacts sans provenance | 0 (100 % traçables) | arc42 §10.2 Q-01 ; QS-01 | [PROPOSITION] |
-| Précision de la corrélation | mesurée sur jeu de référence (vrais/faux positifs, faux négatifs) | baseline v2.3 §6 critère 3 ; ADR-0013 | [EXISTANT] — mesure du 2026-11-18 sur un jeu composé (avis OSV réels, SBOM de test) : précision 98,1 %, rappel 98,1 % tous niveaux ; 100 % pour `exact` et `probable` ([rapport](../architecture/quality/mesure-correlation-jeu-reference.md)) ; seuil « pertinence ≥ 80 % » cité par ADR-0013 non validé [QUESTION] |
+| Précision de la corrélation | mesurée sur jeu de référence (vrais/faux positifs, faux négatifs) | baseline v2.3 §6 critère 3 ; ADR-0013 | [EXISTANT] — mesure du 2026-11-18 sur un jeu composé (avis OSV réels, SBOM de test) : précision 100 %, rappel 98,1 % tous niveaux ; 100 % pour `exact` et `probable` ([rapport](../architecture/quality/mesure-correlation-jeu-reference.md)) ; seuil « pertinence ≥ 80 % » cité par ADR-0013 non validé [QUESTION] |
 | Alertes bloquées par l'indisponibilité de l'IA | 0 | baseline v2.3 §6 critère 6 | [PROPOSITION] |
 | Données CONFIDENTIAL / RESTRICTED envoyées à l'IA | 0 | baseline v2.3 §6 critère 7 ; QS-02 | [PROPOSITION] — portée par la future capacité AI Gateway |
 
@@ -199,8 +200,7 @@ Interprétations validées par le porteur du projet le 2026-11-16 [DÉCISION].
 - Les refus sont journalisés dans le journal unique des refus d'accès (`refus_acces`, module `audit`) : compte, méthode et chemin, motif `NON_MEMBRE` (réponse 404) ou `ROLE_INSUFFISANT` (réponse 403).
 - Un avis retiré par sa source (OSV `withdrawn`) ne produit aucun impact et retire ceux qu'il portait.
 - Les niveaux sont calculés à la corrélation et enregistrés ; le vieillissement d'une SBOM au-delà de 30 jours ne les fait pas recalculer sans nouvelle corrélation (aucune planification, tâche 6.3).
-- Jeu de référence (écart E-1 du [rapport de mesure](../architecture/quality/mesure-correlation-jeu-reference.md)) : une version dont l'ordre face à une borne dépend de deux qualificatifs inconnus (`32.0.0-jre` face à `32.0.0-android`) produit un impact `à vérifier`, alors que l'ordre Maven la classe après la borne et hors de la plage (Q-COR-3).
-- Jeu de référence (écart E-2) : un composant de SBOM décrit sans PURL (groupe, nom, version, CPE) est écarté de l'inventaire (INV-01) ; un avis qui le concerne ne produit aucun impact, même `à vérifier`.
+- Jeu de référence (écart E-2 du [rapport de mesure](../architecture/quality/mesure-correlation-jeu-reference.md)) : un composant de SBOM décrit sans PURL (groupe, nom, version, CPE) est écarté de l'inventaire (INV-01) et signalé à l'import (INV-01-S3, décision D6 du porteur du projet, 2026-11-18) ; un avis qui le concerne ne produit aucun impact, même `à vérifier`. Le faux négatif reste consigné dans le jeu de référence.
 - Deux avis d'une même vulnérabilité publiés sous des identifiants différents (alias CVE commun, par exemple GHSA et PYSEC) produisent chacun leur impact sur le même composant ; aucun regroupement par alias n'a lieu à la corrélation.
 - Le glossaire distingue « impact probable, confirmé et résolu », alors qu'ADR-0013 définit les niveaux `exact`, `probable`, `à vérifier` : deux notions (confiance et cycle de traitement) à séparer [QUESTION Q-COR-2].
 
@@ -211,7 +211,7 @@ Interprétations validées par le porteur du projet le 2026-11-16 [DÉCISION].
 | Q-2 (changement) | Règles des niveaux `probable` et `à vérifier` ? | répondue le 2026-11-16 : `exact` : PURL et version dans la plage affectée, SBOM non obsolète ; `probable` : même correspondance, mais inventaire de repli ou SBOM obsolète ; `à vérifier` : correspondance sans PURL (nom ou CPE seul), version inconnue ou plage non interprétable [DÉCISION] | architecte / sécurité |
 | Q-COR-1 | Quand une analyse IA est-elle « autorisée et nécessaire » ? | DF-COR-2, AI Gateway | architecte / sécurité |
 | Q-COR-2 | Quel cycle de vie de traitement pour un impact (confirmé, résolu…) ? | futur stateDiagram `ProjectImpact` | Product Owner |
-| Q-COR-3 | Comment traiter une plage de versions non interprétable pour un écosystème ? | COR-01 | backend |
+| Q-COR-3 | Comment traiter une plage de versions non interprétable pour un écosystème ? | tranchée le 2026-11-18 par le porteur du projet (D5) : pour l'écosystème Maven seulement, les qualificatifs inconnus suivent l'ordre de `ComparableVersion` ; les autres écosystèmes gardent le niveau `à vérifier` (COR-01-S5) [DÉCISION] | backend |
 
 ## Traçabilité
 

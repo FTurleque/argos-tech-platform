@@ -40,6 +40,7 @@ Répondre de façon fiable à la question « quels composants, et dans quelles v
 | Entrée : manifeste de dépendances | dépendances déclarées | utilisé seulement sans SBOM | [PROPOSITION] |
 | Sortie : inventaire du projet | composants, PURL, version, direct/transitif, origine (SBOM ou manifeste), date de la source | un inventaire de référence par projet | [PROPOSITION] |
 | Sortie : échec d'import | motif | consultable | [PROPOSITION] |
+| Sortie : composants signalés à l'import | nombre total des composants écartés faute de PURL ; nom, groupe, version et motif (`SANS_PURL` : aucun PURL déclaré ; `PURL_INVALIDE` : PURL illisible) des 100 premiers | restitués avec l'inventaire (`ignoredCount`, `ignoredComponents` de `GET /api/v1/projects/{projectId}/inventory`) et dans le résultat de l'import ; remplacés à chaque import | [DÉCISION] porteur du projet, 2026-11-18 (D6) |
 | Entrée : SBOM récupérée sur la forge | octets et format reconnu à l'en-tête : CycloneDX JSON, CycloneDX XML, SPDX JSON (dont l'export du graphe de dépendances GitHub), SPDX étiquette-valeur, inconnu | seule une SBOM CycloneDX JSON (ou de format inconnu, alors soumise au contrôle CycloneDX) est importée ; un autre format reconnu est refusé avec un motif qui le nomme, l'inventaire en place est conservé | [EXISTANT] — `io.argos.scm.SbomDocument`, `InventoryService.refresh` ; [PROPOSITION] pour le refus nommé des formats SPDX et CycloneDX XML |
 
 ## Règles métier
@@ -47,6 +48,7 @@ Répondre de façon fiable à la question « quels composants, et dans quelles v
 | Règle | Exigence(s) | Source | Statut |
 |---|---|---|---|
 | La SBOM de la branche principale fait référence | INV-01 | ADR-0011 | [PROPOSITION] |
+| L'inventaire reste fondé sur le PURL : un composant de SBOM sans PURL exploitable n'y entre pas et il est signalé à l'utilisateur avec l'import (nom, groupe, version, motif « sans PURL ») | INV-01 (INV-01-S3) | décision du porteur du projet, 2026-11-18 (D6) | [DÉCISION] |
 | Les dépendances transitives sont incluses et distinguées | INV-02 | ADR-0011 ; baseline v2.3 §4, §6 | [PROPOSITION] |
 | L'âge de la SBOM et l'absence de SBOM sont visibles | INV-03 | ADR-0011 | [PROPOSITION] |
 | Sans SBOM, repli sur les manifestes, origine affichée | INV-04 | ADR-0011 | [PROPOSITION] |
@@ -58,7 +60,7 @@ L'inventaire appartient au projet et suit le cloisonnement par espace (ADR-0016,
 
 ## Effets de bord observables
 
-- remplacement de l'inventaire de référence à chaque nouvelle SBOM ;
+- remplacement de l'inventaire de référence à chaque nouvelle SBOM, et du signalement des composants écartés faute de PURL ;
 - nouvelle corrélation des signaux existants pour le projet après changement d'inventaire — attendu par la chaîne baseline v2.3 §3, déclenchement non spécifié [QUESTION Q-INV-2] ;
 - enregistrement des échecs d'import.
 
@@ -93,6 +95,7 @@ sequenceDiagram
     alt SBOM exploitable
         Inv->>DB: remplacer l'inventaire de référence (PURL, version, direct ou transitif)
         Inv->>DB: enregistrer la date et l'origine SBOM
+        Inv->>DB: signaler les composants sans PURL (nombre, 100 premiers décrits, INV-01-S3)
         Inv-)Imp: inventaire du projet modifié
     else SBOM non conforme
         Inv->>DB: enregistrer l'échec d'import et son motif
@@ -139,6 +142,7 @@ Interprétation introduite par l'implémentation, à valider [PROPOSITION] :
 - INV-03 : une SBOM sans date de génération est traitée comme obsolète, faute de pouvoir établir sa fraîcheur ; la corrélation lui attribue au mieux le niveau `probable`. La décision Q-3 ne fixe que le seuil de 30 jours après la date de génération.
 - INV-04 : le repli sur les manifestes ne s'applique qu'à une SBOM absente d'un dépôt accessible ; un dépôt introuvable, un jeton refusé ou un quota épuisé fait échouer le rafraîchissement sans repli, l'inventaire en place étant conservé.
 - Tâche 3.2 : des réponses enregistrées sur des dépôts publics de `api.github.com` et `gitlab.com`, faute de dépôt pilote disponible, sont proposées comme vérification « test de contrat GitLab/GitHub enregistré ». Tant que le porteur n'a pas accepté cette interprétation, la tâche reste non cochée ; une capture sur un dépôt pilote, notamment de l'artefact SBOM GitLab, la rendrait inutile.
+- INV-01-S3 : la description des composants signalés est bornée à 100 entrées par import et chaque champ à 200 caractères ; au-delà, seul le nombre total est conservé. Un PURL présent mais illisible porte le motif `PURL_INVALIDE`, distinct de `SANS_PURL`.
 - INV-01, INV-05 : une SBOM SPDX ou CycloneDX XML trouvée sur la forge est reconnue et refusée avec le motif « SBOM <format> non acceptée : CycloneDX JSON 1.5 ou 1.6 attendu » ; elle n'est ni convertie ni importée, conformément à la décision Q-7. L'import de SPDX demanderait de modifier INV-01.
 
 ## Écarts constatés
@@ -149,6 +153,7 @@ Interprétation introduite par l'implémentation, à valider [PROPOSITION] :
 - `scm-connector` (`io.argos.scm.RepositoryFiles`) récupère la SBOM et les manifestes en lecture seule : GitLab, SBOM = artefact du job désigné sur la branche principale, fichiers par l'API des fichiers bruts, jeton `PRIVATE-TOKEN` ; GitHub, SBOM et fichiers par l'API des contenus en média brut, jeton `Bearer`. Les jetons sont lus dans la configuration (`argos.scm.gitlab.token`, `argos.scm.github.token`, variables d'environnement) ; le délai `argos.sources.http-timeout` borne l'établissement de la connexion et l'attente des en-têtes de réponse, la lecture du corps étant bornée en taille et non en durée. Une réponse 404 sur un fichier d'un dépôt existant signifie « absent » et ouvre le repli sur les manifestes ; un dépôt introuvable (`DepotIntrouvable` : corps `404 Project Not Found` de GitLab ; pour GitHub, dont le 404 est identique pour un fichier et un dépôt absents, un `GET /repos/:owner/:repo` répondant 404), un jeton refusé (401) ou un accès interdit (403 hors quota, `AccesRefuse`), un quota épuisé (`QuotaEpuise` : 429, ou 403 avec `x-ratelimit-remaining: 0`, `Retry-After` ou un message mentionnant une limite de débit, comme la limite secondaire GitHub signalée sans `Retry-After`), un autre statut, une redirection (jamais suivie) ou une réponse au-delà de `argos.inventory.max-document-bytes` font échouer le rafraîchissement (`ERROR`) sans repli ni modification de l'inventaire. Les segments `.` et `..` sont retirés des chemins, un dépôt GitHub hors de la forme `owner/repo` est refusé, le jeton n'apparaît dans aucun message. Les points d'accès utilisés ne sont pas paginés. Au cours d'un même rafraîchissement (`RepositoryFiles.Lecture`), le dépôt GitHub n'est vérifié qu'une fois, quel que soit le nombre de fichiers absents.
 - Le contrat de ces appels est vérifié sans accès à Internet, sur un serveur HTTP local qui rejoue des réponses de `api.github.com` et `gitlab.com` enregistrées le 2026-11-18 sur des dépôts publics, en-têtes compris (`argos-server/src/test/resources/fixtures/scm/enregistrees/`, `chain/ScmContratEnregistreTest`) : SBOM CycloneDX 1.6 trouvée et importée, SBOM absente avec repli sur `package.json`, dépôt introuvable, jeton refusé, artefact interdit. Les limites de débit et l'artefact SBOM GitLab servi en 200 sont composés d'après la documentation des forges (`fixtures/NOTICE`) ; `chain/ScmContractTest` complète ces cas sur des réponses composées (formats SPDX et CycloneDX XML, redirection, taille, chemins hostiles). Aucune réponse n'est enregistrée sur un dépôt pilote.
 - Les artefacts de job GitLab ne sont pas lisibles anonymement sur les projets publics essayés (403 enregistré) ; la récupération d'un artefact réel n'est vérifiée qu'avec une réponse composée.
+- Aucune vue de l'inventaire n'existe dans `argos-ui` : les composants signalés à l'import sont restitués par l'API d'inventaire et par le résultat de l'import (`InventoryService.ImportResult`), conservés dans les colonnes `ignored_count` et `ignored_components` de `inventory` (migration V17), sous la RLS de la table.
 - `InventoryService.refresh` n'a aucun déclencheur en production : ni tâche planifiée, ni point d'entrée REST (Q-INV-1).
 - Une forge qui sert durablement une SBOM SPDX ou CycloneDX XML fait refuser chaque rafraîchissement (`REJECTED`) sans repli sur les manifestes : un inventaire existant reste en l'état et n'est plus mis à jour tant que la SBOM n'est ni retirée ni remplacée par une SBOM CycloneDX JSON, comme pour une SBOM CycloneDX invalide.
 
@@ -165,4 +170,4 @@ Interprétation introduite par l'implémentation, à valider [PROPOSITION] :
 
 ## Traçabilité
 
-Voir la matrice du changement : [`tasks.md`](/openspec/changes/formaliser-chaine-securite-poc/tasks.md#matrice-de-traçabilité). Les scénarios INV-01-S1 à INV-05-S1 sont vérifiés par `argos-server/src/test/java/io/argos/chain/InventoryTest.java` et `DocumentParsingTest.java`. La récupération GitLab et GitHub est vérifiée par `argos-server/src/test/java/io/argos/chain/ScmContratEnregistreTest.java` (réponses enregistrées) et `ScmContractTest.java` (réponses composées), forges simulées par un serveur HTTP local (tâche 3.2).
+Voir la matrice du changement : [`tasks.md`](/openspec/changes/formaliser-chaine-securite-poc/tasks.md#matrice-de-traçabilité). Les scénarios INV-01-S1 à INV-05-S1 sont vérifiés par `argos-server/src/test/java/io/argos/chain/InventoryTest.java` et `DocumentParsingTest.java` ; INV-01-S3 l'est aussi par `JeuReferenceCorrelationTest` (composant sans PURL du projet `outil-sans-purl`). La récupération GitLab et GitHub est vérifiée par `argos-server/src/test/java/io/argos/chain/ScmContratEnregistreTest.java` (réponses enregistrées) et `ScmContractTest.java` (réponses composées), forges simulées par un serveur HTTP local (tâche 3.2).
