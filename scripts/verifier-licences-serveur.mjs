@@ -332,7 +332,7 @@ for (const c of composants) {
 }
 
 // Textes des licences retenues, copiés depuis argos-server/licenses/ (dossier recréé à chaque exécution).
-const fichiersTextes = [...couverture.keys()].sort();
+const fichiersTextes = [...couverture.keys()].sort((a, b) => a.localeCompare(b, "en"));
 rmSync(SORTIE_TEXTES, { recursive: true, force: true });
 mkdirSync(SORTIE_TEXTES, { recursive: true });
 for (const fichier of fichiersTextes) {
