@@ -7,7 +7,7 @@ Collecter les flux et pages choisis par les utilisateurs et leurs espaces, sans 
 
 ### Requirement: WEB-01 Ajout d'un flux
 Le système DOIT (MUST) permettre d'ajouter un flux RSS ou Atom au niveau d'un espace ou à titre personnel, et refuser une adresse qui ne renvoie pas un flux valide.
-Source : ADR-0006 (Proposé) ; ABO-04. Statut : [EXIGENCE].
+Source : ADR-0006 (Remplacé par ADR-0028 pour la veille RSS/Atom et web) ; ABO-04. Statut : [EXIGENCE].
 
 #### Scenario: WEB-01-S1 Flux valide
 - **WHEN** un utilisateur ajoute l'adresse d'un flux Atom valide
@@ -21,7 +21,7 @@ Source : ADR-0006 (Proposé) ; ABO-04. Statut : [EXIGENCE].
 
 ### Requirement: WEB-02 Page surveillée
 Le système DOIT (MUST) créer un élément de veille lorsqu'une page surveillée change de contenu, avec la date et un aperçu de la modification.
-Source : ADR-0006 (Proposé). Statut : [EXIGENCE].
+Source : ADR-0006 (Remplacé par ADR-0028 pour la veille RSS/Atom et web). Statut : [EXIGENCE].
 
 #### Scenario: WEB-02-S1 Page modifiée
 - **GIVEN** une page de notes de version surveillée

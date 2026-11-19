@@ -202,7 +202,7 @@ Interprétations validées par le porteur du projet le 2026-11-16 [DÉCISION].
 - Les refus sont journalisés dans le journal unique des refus d'accès (`refus_acces`, module `audit`) : compte, méthode et chemin, motif `NON_MEMBRE` (réponse 404) ou `ROLE_INSUFFISANT` (réponse 403).
 - Un avis retiré par sa source (OSV `withdrawn`) ne produit aucun impact et retire ceux qu'il portait.
 - Les niveaux sont calculés à la corrélation et enregistrés ; le vieillissement d'une SBOM au-delà de 30 jours ne les fait pas recalculer sans nouvelle corrélation (aucune planification, tâche 6.3).
-- Jeu de référence (écart E-2 du [rapport de mesure](../architecture/quality/mesure-correlation-jeu-reference.md)) : un composant de SBOM décrit sans PURL (groupe, nom, version, CPE) est écarté de l'inventaire (INV-01) et signalé à l'import (INV-01-S3, décision D6 du porteur du projet, 2026-11-18), puis affiché dans l'IHM (décision E4 du 2026-11-19) ; un avis qui le concerne ne produit aucun impact, même `à vérifier`. Le faux négatif reste consigné dans le jeu de référence.
+- Jeu de référence (écart E-2 du [rapport de mesure](../architecture/quality/mesure-correlation-jeu-reference.md)) : un composant de SBOM décrit sans PURL (groupe, nom, version, CPE) est écarté de l'inventaire (INV-01) et signalé à l'import (INV-01-S3, décision D6 du porteur du projet, 2026-11-18), puis affiché dans la vue d'inventaire de l'IHM (décision E4 du 2026-11-19) ; un avis qui le concerne ne produit aucun impact, même `à vérifier`. Le faux négatif reste consigné dans le jeu de référence.
 - Deux avis d'une même vulnérabilité publiés sous des identifiants différents (alias CVE commun, par exemple GHSA et PYSEC) produisent chacun leur impact sur le même composant ; aucun regroupement par alias n'a lieu à la corrélation.
 - Le glossaire distingue « impact probable, confirmé et résolu », alors qu'ADR-0013 définit les niveaux `exact`, `probable`, `à vérifier` : deux notions (confiance et cycle de traitement) à séparer [QUESTION Q-COR-2].
 
@@ -213,7 +213,7 @@ Interprétations validées par le porteur du projet le 2026-11-16 [DÉCISION].
 | Q-2 (changement) | Règles des niveaux `probable` et `à vérifier` ? | répondue le 2026-11-16 : `exact` : PURL et version dans la plage affectée, SBOM non obsolète ; `probable` : même correspondance, mais inventaire de repli ou SBOM obsolète ; `à vérifier` : correspondance sans PURL (nom ou CPE seul), version inconnue ou plage non interprétable [DÉCISION] | architecte / sécurité |
 | Q-COR-1 | Quand une analyse IA est-elle « autorisée et nécessaire » ? | DF-COR-2, AI Gateway | architecte / sécurité |
 | Q-COR-2 | Quel cycle de vie de traitement pour un impact (confirmé, résolu…) ? | futur stateDiagram `ProjectImpact` | Product Owner |
-| Q-COR-3 | Comment traiter une plage de versions non interprétable pour un écosystème ? | tranchée le 2026-11-18 par le porteur du projet (D5) et précisée le 2026-11-19 (E3) : pour l'écosystème Maven, toute comparaison suit `ComparableVersion` de `maven-artifact` ; les autres écosystèmes gardent l'ordre générique et le niveau `à vérifier` (COR-01-S5) [DÉCISION] | backend |
+| Q-COR-3 | Comment traiter une plage de versions non interprétable pour un écosystème ? | tranchée le 2026-11-18 par le porteur du projet (D5), puis révisée le 2026-11-19 (E3) : pour l'écosystème Maven, toute comparaison suit `ComparableVersion` de `maven-artifact` ; les autres écosystèmes gardent l'ordre générique et le niveau `à vérifier` (COR-01-S5) [DÉCISION] | backend |
 
 ## Traçabilité
 
