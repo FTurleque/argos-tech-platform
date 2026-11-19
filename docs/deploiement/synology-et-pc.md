@@ -105,8 +105,14 @@ L'image contient les avis de licence dans `/opt/argos/licenses/` :
 | Fichier | Contenu |
 |---|---|
 | `NOTICE` | avis NOTICE propres au serveur (copie de `argos-server/NOTICE`) |
-| `THIRD-PARTY.txt` | dépendances tierces livrées, leurs licences et les avis NOTICE de leurs archives, générés à la construction de l'image |
+| `THIRD-PARTY.txt` | dépendances tierces livrées, leurs licences, les avis NOTICE de leurs archives, les titulaires des droits (licences MIT, BSD, JDOM) et l'adresse du code source des dépendances sous EPL-2.0, générés à la construction de l'image |
 | `Apache-2.0.txt` | texte de l'Apache License 2.0 |
+| `MIT.txt`, `MIT-0.txt` | textes des licences MIT et MIT No Attribution |
+| `BSD-2-Clause.txt`, `BSD-3-Clause.txt` | textes des licences BSD à deux et trois clauses |
+| `EPL-2.0.txt` | texte de l'Eclipse Public License 2.0 (neuf API Jakarta embarquées par Quarkus) |
+| `JDOM.txt` | texte de la licence de JDOM (lecture des flux RSS et Atom) |
+
+[DÉCISION — porteur du projet, 2026-11-19 (H1)] L'image livre les textes des licences MIT, BSD (variantes présentes) et EPL-2.0 des dépendances du serveur, à côté des avis existants ; les avis npm de l'IHM ne sont pas ajoutés. Seuls les textes des licences effectivement retenues par les dépendances entrent dans l'image. Le dossier (0755) et les fichiers (0444) appartiennent à root : l'utilisateur d'exécution (UID 1001) les lit sans pouvoir les modifier.
 
 Pour les lire sans démarrer Argos :
 
@@ -117,7 +123,19 @@ docker run --rm --entrypoint cat argos:local /opt/argos/licenses/THIRD-PARTY.txt
 
 Remplacez `argos:local` par `argos:<ARGOS_VERSION>` si la variable est définie dans `.env`. Sur un conteneur démarré : `docker compose exec argos cat /opt/argos/licenses/NOTICE`.
 
-Commande dédiée, hors de l'image (Maven et Node.js installés) : `mvn -B -f argos-server/pom.xml -P licences validate`, qui écrit `argos-server/target/THIRD-PARTY.txt`.
+Commande dédiée, hors de l'image (Maven et Node.js installés) : `mvn -B -f argos-server/pom.xml -P licences validate`, qui écrit `argos-server/target/THIRD-PARTY.txt` et copie les textes des licences retenues dans `argos-server/target/licenses/`.
+
+## Images de base
+
+| Image | Usage | Référence |
+|---|---|---|
+| `node:22-slim` | construction de l'IHM ; binaire Node.js du contrôle des licences | tag |
+| `maven:3.9-eclipse-temurin-17` | construction du serveur | tag |
+| `eclipse-temurin:17-jre` | exécution d'Argos | tag |
+| `postgres:18` | base de données (`compose.yaml`) | tag |
+| `ollama/ollama:${ARGOS_OLLAMA_VERSION:-0.12.6}` | modèle d'IA local, désactivé par défaut (`compose.yaml`) | tag |
+
+[DÉCISION — porteur du projet, 2026-11-19 (H2)] Les images de base Docker restent épinglées par tag, sans empreinte (digest). Un tag désigne une ligne de versions (`22`, `3.9`, `17`, `18`) : la reconstruction de l'image (`docker compose up -d --build`, ou `docker compose build --pull` pour forcer le téléchargement) reçoit les correctifs publiés sur cette ligne. En contrepartie, deux constructions à des dates différentes peuvent partir d'images de base différentes ; le contrôle des licences et les tests portent sur le serveur, non sur le contenu des images de base.
 
 ## Client desktop
 
@@ -162,5 +180,5 @@ Limites : 60 appels par minute et par utilisateur (`argos.mcp.debit.requetes-par
 
 - `compose.yaml` validé par `docker compose config` ; script de sauvegarde contrôlé par `sh -n`.
 - Serveur MCP : protocole, authentification et outils vérifiés par les tests `io.argos.mcp` ; **non vérifié** : la connexion réelle d'un assistant IA configuré par `.mcp.json`.
-- Construction de l'image vérifiée le 2026-11-19 sur un PC Windows (Docker Engine 29.9.3) : `docker build` réussit, l'étape de contrôle affiche « 194 dépendances inventoriées, 26 avis NOTICE reproduits » puis « Aucune licence absente ni non admise », et `/opt/argos/licenses/` contient `NOTICE`, `THIRD-PARTY.txt` et `Apache-2.0.txt`, propriété de root en lecture seule (0444) et lisibles par l'utilisateur d'UID 1001. Un inventaire factice (licence GPL-3.0, EPL-2.0 hors des neuf API Jakarta, licence absente) donné au script dans l'étage `server` fait échouer `docker build` avec le code 1.
+- Construction de l'image vérifiée le 2026-11-19 sur un PC Windows (Docker Engine 29.9.3) : `docker build` réussit, l'étape de contrôle affiche « 194 dépendances inventoriées, 26 avis NOTICE reproduits », « 7 textes de licence copiés » puis « Aucune licence absente ni non admise », et `/opt/argos/licenses/` (dossier 0755) contient `NOTICE`, `THIRD-PARTY.txt`, `Apache-2.0.txt`, `BSD-2-Clause.txt`, `BSD-3-Clause.txt`, `EPL-2.0.txt`, `JDOM.txt`, `MIT-0.txt` et `MIT.txt`, propriété de root en lecture seule (0444), lisibles et non modifiables par l'utilisateur d'UID 1001. Un inventaire factice (licence GPL-3.0, EPL-2.0 hors des neuf API Jakarta, licence absente) donné au script dans l'étage `server` fait échouer `docker build` avec le code 1.
 - **Non vérifié** : le démarrage réel sur le NAS. Premier essai à faire sur le PC avec `docker compose up -d --build`.

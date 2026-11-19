@@ -1,26 +1,33 @@
 #!/usr/bin/env node
-// Licences des dépendances livrées avec argos-server (décisions F3 révisée par G1, G2 et G3 du porteur du
+// Licences des dépendances livrées avec argos-server (décisions F3 révisée par G1, G2, G3 et H1 du porteur du
 // projet, 2026-11-19 ; ADR-0021 points 4 et 6).
 // Commande : mvn -B -f argos-server/pom.xml -P licences validate
 //            (le profil « licences » produit argos-server/target/bom.json puis lance ce script).
 //            Le build de l'image Docker (Dockerfile, étage « server ») exécute la même commande et
-//            échoue sur un écart ; l'image embarque NOTICE et THIRD-PARTY.txt dans /opt/argos/licenses/.
+//            échoue sur un écart ; l'image embarque NOTICE, THIRD-PARTY.txt et les textes de licence
+//            rassemblés dans /opt/argos/licenses/.
 // Usage direct : node scripts/verifier-licences-serveur.mjs [chemin/vers/bom.json] [--depot <dépôt Maven local>]
 //                (dépôt par défaut : MAVEN_REPO_LOCAL, sinon ~/.m2/repository)
 // Effets : écrit THIRD-PARTY.txt à côté du fichier CycloneDX : pour chaque dépendance, version, licences
-//          déclarées et licence retenue, puis les avis NOTICE (META-INF/NOTICE*) de chaque archive, lus dans
-//          le dépôt Maven local (Apache License 2.0, section 4 d).
+//          déclarées et licence retenue ; les avis NOTICE (META-INF/NOTICE*) de chaque archive, lus dans
+//          le dépôt Maven local (Apache License 2.0, section 4 d) ; pour chaque texte de licence, les
+//          dépendances qu'il couvre avec les titulaires des droits (licences à attribution) ou l'adresse du
+//          code source (EPL-2.0, section 3.2). Copie dans le dossier licenses/, à côté du fichier CycloneDX,
+//          les textes versionnés sous argos-server/licenses/ des licences effectivement retenues (décision H1).
 // Règles (ADR-0021 point 4 : licences permissives admises d'office, tout copyleft sur décision explicite) :
 //  - liste blanche : seules les licences de ADMISES sont acceptées ; une licence inconnue est un écart ;
 //  - plusieurs licences déclarées s'appliquent ensemble (ET) : chacune doit être admise ; seule une
 //    expression SPDX « OR », ou un composant de CHOIX dont le projet amont publie une double licence au
 //    choix, permet de retenir une seule licence ;
 //  - une licence soumise à décision (SOUS_RESERVE, par exemple EPL-2.0) n'est acceptée que pour les
-//    composants nommés dans sa liste.
+//    composants nommés dans sa liste ;
+//  - chaque licence retenue a un texte versionné (TEXTES), sauf celles qui n'en demandent pas (SANS_TEXTE) ;
+//    une licence à attribution (MIT, BSD, JDOM) exige au moins un titulaire des droits, lu dans les fichiers
+//    LICENSE de l'archive ou, à défaut, dans TITULAIRES.
 // Aucun accès réseau : le script ne lit que le fichier CycloneDX et les archives du dépôt Maven local.
 // Code de sortie : 0 sans écart, 1 en cas d'écart, 2 si les arguments ou le fichier CycloneDX sont invalides.
 
-import { readFileSync, writeFileSync, existsSync } from 'node:fs';
+import { readFileSync, writeFileSync, existsSync, mkdirSync, rmSync, copyFileSync } from 'node:fs';
 import { dirname, resolve, join } from 'node:path';
 import { homedir } from 'node:os';
 import { inflateRawSync } from 'node:zlib';
@@ -43,6 +50,9 @@ const DEPOT = resolve(iDepot >= 0 ? args[iDepot + 1]
 const positionnels = args.filter((_, i) => iDepot < 0 || (i !== iDepot && i !== iDepot + 1));
 const BOM = resolve(positionnels[0] ?? join(RACINE, 'argos-server', 'target', 'bom.json'));
 const SORTIE = join(dirname(BOM), 'THIRD-PARTY.txt');
+// Textes de licence versionnés, et dossier où sont copiés ceux des licences retenues (target/licenses/).
+const TEXTES_VERSIONNES = join(RACINE, 'argos-server', 'licenses');
+const SORTIE_TEXTES = join(dirname(BOM), 'licenses');
 
 // Licences permissives admises d'office (ADR-0021 point 4), par identifiant SPDX ou nom déclaré dans les POM.
 const ADMISES = [
@@ -85,6 +95,62 @@ const CHOIX = new Map([
   ['org.eclipse.parsson:parsson', 'Eclipse Parsson : EPL-2.0 OR GPL-2.0 WITH Classpath-exception-2.0'],
   ['org.glassfish.expressly:expressly', 'Eclipse Expressly : EPL-2.0 OR GPL-2.0 WITH Classpath-exception-2.0'],
 ]);
+
+// [DÉCISION — porteur du projet, 2026-11-19 (H1)] L'image livre les textes des licences MIT, BSD (variantes
+// présentes) et EPL-2.0 des dépendances du serveur, à côté de l'Apache License 2.0. Texte versionné de chaque
+// licence retenue (fichier de argos-server/licenses/) ; « attribution » : le texte exige de reproduire l'avis de
+// droit d'auteur, dont les titulaires sont listés dans THIRD-PARTY.txt ; « source » : licence qui impose
+// d'indiquer où obtenir le code source d'un programme distribué sous forme objet (EPL-2.0, section 3.2) ;
+// « detail: false » : la section 3 de THIRD-PARTY.txt donne le seul nombre de dépendances couvertes.
+// Le texte JDOM, licence propre au projet JDOM (type BSD), reproduit le fichier LICENSE.txt de jdom2.
+const TEXTES = [
+  { motif: ADMISES.find(({ nom }) => nom === 'Apache-2.0').motif, fichier: 'Apache-2.0.txt', attribution: false, detail: false },
+  { motif: /^(MIT|The MIT License( \(MIT\))?|MIT License)$/i, fichier: 'MIT.txt', attribution: true },
+  { motif: /^(MIT-0|MIT No Attribution)$/i, fichier: 'MIT-0.txt', attribution: false },
+  { motif: /^(BSD-2-Clause|BSD 2-Clause License)$/i, fichier: 'BSD-2-Clause.txt', attribution: true },
+  {
+    motif: /^(BSD-3-Clause|The New BSD License|BSD 3-Clause License|EDL-1\.0|Eclipse Distribution License.*)$/i,
+    fichier: 'BSD-3-Clause.txt', attribution: true,
+  },
+  { motif: SOUS_RESERVE[0].motif, fichier: 'EPL-2.0.txt', attribution: false, source: true },
+  { motif: ADMISES.find(({ nom }) => nom.startsWith('JDOM')).motif, fichier: 'JDOM.txt', attribution: true },
+];
+
+// Licences admises qui n'imposent aucun texte ni aucune attribution.
+const SANS_TEXTE = /^(Public Domain|CC0-1\.0|Unlicense)$/i;
+
+// Titulaires des droits des archives qui ne contiennent aucun fichier LICENSE, relevés dans leurs sources
+// publiées (archive -sources.jar du dépôt Maven). Clé : groupe:artefact.
+const TITULAIRES = new Map([
+  ['org.crac:crac', 'Copyright 2017-2020 Azul Systems, Inc. (en-tête des sources de org.crac)'],
+]);
+
+// Fichier LICENSE d'une archive, y compris ceux des bibliothèques qu'elle intègre (META-INF/licenses/...).
+const EST_LICENCE = (nom) => /^META-INF\/(.+\/)?(LICEN[CS]E|COPYING)(\.txt|\.md)?$/i.test(nom);
+const LIGNE_COPYRIGHT = /^[\s/*#>-]*(Copyright\s*(\(c\)|©)?\s*\d{4}.*?)\s*$/i;
+
+function texteDe(licence) {
+  return TEXTES.find(({ motif }) => motif.test(licence)) ?? null;
+}
+
+// Titulaires lus dans les fichiers LICENSE d'une archive ; pour une bibliothèque intégrée, son chemin est cité.
+function titulairesDe(entrees) {
+  const titulaires = new Set();
+  for (const { nom, texte } of entrees) {
+    const integree = nom.match(/^META-INF\/licenses\/(.+)\/META-INF\//i)?.[1];
+    for (const ligne of texte.split(/\r?\n/)) {
+      const copyright = ligne.match(LIGNE_COPYRIGHT)?.[1];
+      if (copyright) titulaires.add(integree ? `${copyright} (bibliothèque intégrée ${integree})` : copyright);
+    }
+  }
+  return [...titulaires];
+}
+
+// Adresse du code source déclarée dans l'inventaire CycloneDX (référence « vcs », à défaut « website »).
+function sourceDe(composant) {
+  const references = composant.externalReferences ?? [];
+  return (references.find((r) => r.type === 'vcs') ?? references.find((r) => r.type === 'website'))?.url ?? null;
+}
 
 function choixDe(composant) {
   return CHOIX.get(`${composant.group}:${composant.name}`) ?? CHOIX.get(`${composant.group}:*`) ?? null;
@@ -192,6 +258,8 @@ try {
 const lignes = [];
 const avis = [];
 const ecarts = [];
+// Fichier de texte de licence → dépendances couvertes (coordonnées et détail : titulaires ou code source).
+const couverture = new Map();
 const composants = [...(bom.components ?? [])].sort((a, b) =>
   `${a.group}:${a.name}:${a.version}`.localeCompare(`${b.group}:${b.name}:${b.version}`));
 
@@ -206,13 +274,16 @@ for (const c of composants) {
     const refusees = [...new Set(alternatives.flat().filter((l) => !statut(l, c)))];
     ecarts.push(`${coordonnees} : licence non admise sans décision explicite (${refusees.join(', ')}) — ${declarees}`);
   }
+  let licencesArchive = [];
   if (c.group && c.version) {
     const archive = cheminArchive(c);
     if (existsSync(archive)) {
       try {
-        for (const { nom, texte } of lireEntrees(archive, EST_NOTICE)) {
+        const entrees = lireEntrees(archive, (nom) => EST_NOTICE(nom) || EST_LICENCE(nom));
+        for (const { nom, texte } of entrees.filter(({ nom }) => EST_NOTICE(nom))) {
           avis.push(`--- ${coordonnees} (${nom}) ---\n${texte}`);
         }
+        licencesArchive = entrees.filter(({ nom }) => EST_LICENCE(nom));
       } catch (erreur) {
         ecarts.push(`${coordonnees} : archive illisible (${erreur.message})`);
       }
@@ -225,6 +296,44 @@ for (const c of composants) {
     ? retenue.map((l) => (statut(l, c) === 'admise' ? l : `${l} [${statut(l, c)}]`)).join(' ET ')
     : '(aucune admissible)';
   lignes.push(`${coordonnees}\n    licences déclarées : ${declarees || '(aucune)'}${choix}\n    licence retenue    : ${texteRetenue}`);
+  for (const licence of retenue ?? []) {
+    if (SANS_TEXTE.test(licence)) continue;
+    const texte = texteDe(licence);
+    if (!texte) {
+      ecarts.push(`${coordonnees} : aucun texte versionné pour la licence « ${licence} » (argos-server/licenses/)`);
+      continue;
+    }
+    let detail = '';
+    if (texte.attribution) {
+      const titulaires = titulairesDe(licencesArchive);
+      const connu = TITULAIRES.get(`${c.group}:${c.name}`);
+      if (titulaires.length === 0 && connu) titulaires.push(connu);
+      if (titulaires.length === 0) {
+        ecarts.push(`${coordonnees} : titulaire des droits introuvable (licence ${licence} : ni fichier LICENSE `
+          + 'dans l\'archive, ni entrée dans TITULAIRES)');
+      }
+      detail = titulaires.map((t) => `\n    titulaire : ${t}`).join('');
+    } else if (texte.source) {
+      const source = sourceDe(c);
+      detail = `\n    code source : ${source ?? '(adresse non déclarée)'} ; archive de sources `
+        + `${c.name}-${c.version}-sources.jar du dépôt Maven Central`;
+    }
+    if (!couverture.has(texte.fichier)) couverture.set(texte.fichier, []);
+    couverture.get(texte.fichier).push(`${coordonnees}${detail}`);
+  }
+}
+
+// Textes des licences retenues, copiés depuis argos-server/licenses/ (dossier recréé à chaque exécution).
+const fichiersTextes = [...couverture.keys()].sort();
+rmSync(SORTIE_TEXTES, { recursive: true, force: true });
+mkdirSync(SORTIE_TEXTES, { recursive: true });
+for (const fichier of fichiersTextes) {
+  const versionne = join(TEXTES_VERSIONNES, fichier);
+  if (existsSync(versionne)) {
+    copyFileSync(versionne, join(SORTIE_TEXTES, fichier));
+  } else {
+    ecarts.push(`texte de licence versionné absent : ${versionne}`);
+  }
 }
 
 const entete = [
@@ -235,8 +344,10 @@ const entete = [
   '(inventaire CycloneDX, puis node scripts/verifier-licences-serveur.mjs).',
   'Portée : dépendances compile et runtime de argos-server, directes et transitives (sans les tests).',
   'Avis propres au serveur : argos-server/NOTICE ; textes de licence : argos-server/licenses/',
-  '(dans l\'image Docker : NOTICE et Apache-2.0.txt, à côté de ce fichier dans /opt/argos/licenses/).',
-  `Composants : ${composants.length} ; avis NOTICE reproduits : ${avis.length}.`,
+  '(dans l\'image Docker : NOTICE et les textes des licences retenues, à côté de ce fichier dans',
+  '/opt/argos/licenses/).',
+  `Composants : ${composants.length} ; avis NOTICE reproduits : ${avis.length} ; `
+    + `textes de licence : ${fichiersTextes.join(', ')}.`,
   '',
   '1. Dépendances et licences',
   '--------------------------',
@@ -250,9 +361,32 @@ const partieAvis = [
   'Contenu des fichiers META-INF/NOTICE* des archives livrées, reproduit sans modification.',
   '',
 ];
-writeFileSync(SORTIE,
-  `${entete.join('\n')}${lignes.join('\n')}\n${partieAvis.join('\n')}${avis.join('\n\n')}\n`, 'utf8');
+// Dépendances couvertes par un texte : liste détaillée, ou simple décompte pour un texte sans attribution ni
+// code source à indiquer (Apache-2.0 : liste en section 1, avis NOTICE en section 2).
+function couvertes(fichier) {
+  const dependances = couverture.get(fichier);
+  if (TEXTES.find((t) => t.fichier === fichier).detail === false) {
+    return `  ${dependances.length} dépendances (licence retenue en section 1, avis NOTICE en section 2)`;
+  }
+  return dependances.map((l) => `  ${l.replaceAll('\n    ', '\n      ')}`).join('\n');
+}
+
+const partieTextes = [
+  '',
+  '3. Textes de licence, titulaires des droits et code source',
+  '----------------------------------------------------------',
+  '',
+  'Chaque texte (fichier du même nom dans /opt/argos/licenses/ de l\'image, argos-server/licenses/ du dépôt)',
+  's\'applique aux dépendances listées sous son nom. Pour les licences à attribution (MIT, BSD, JDOM), les',
+  'avis de droit d\'auteur des titulaires listés complètent le texte, dont la ligne « Copyright » est un',
+  'modèle. Pour l\'EPL-2.0 (section 3.2), le code source de chaque dépendance s\'obtient à l\'adresse indiquée.',
+  '',
+  ...fichiersTextes.map((fichier) => `licenses/${fichier}\n${couvertes(fichier)}\n`),
+];
+writeFileSync(SORTIE, `${entete.join('\n')}${lignes.join('\n')}\n${partieAvis.join('\n')}${avis.join('\n\n')}\n`
+  + `${partieTextes.join('\n')}`, 'utf8');
 console.log(`${composants.length} dépendances inventoriées, ${avis.length} avis NOTICE reproduits : ${SORTIE}`);
+console.log(`${fichiersTextes.length} textes de licence copiés : ${SORTIE_TEXTES}`);
 
 if (ecarts.length > 0) {
   console.error(`\n${ecarts.length} dépendance(s) non conforme(s) à ADR-0021 :`);

@@ -51,7 +51,7 @@ flowchart TB
 
 | Élément | Fait observé | Source |
 |---|---|---|
-| Image | image unique x86-64 (DS1522+ et PC) : IHM construite puis servie par Quarkus, JRE 17, utilisateur non privilégié d'UID 1001 ; licences des dépendances du serveur contrôlées à la construction (profil Maven `licences`), avis `NOTICE` et `THIRD-PARTY.txt` dans `/opt/argos/licenses/` | [`Dockerfile`](/Dockerfile) |
+| Image | image unique x86-64 (DS1522+ et PC) : IHM construite puis servie par Quarkus, JRE 17, utilisateur non privilégié d'UID 1001 ; licences des dépendances du serveur contrôlées à la construction (profil Maven `licences`), avis `NOTICE`, `THIRD-PARTY.txt` et textes des licences retenues (Apache-2.0, MIT, BSD, EPL-2.0, JDOM) dans `/opt/argos/licenses/` ; images de base épinglées par tag | [`Dockerfile`](/Dockerfile) |
 | Conteneurs | `argos`, `postgres` (image `postgres:18`), `ollama` (profil `ia`, désactivé par défaut) dans le projet compose `argos` | `compose.yaml` |
 | Exposition | ports d'Argos et de PostgreSQL liés à `127.0.0.1` ; `ARGOS_BIND=0.0.0.0` ouvre Argos au réseau local ou au VPN ; Ollama ne publie aucun port | `compose.yaml` |
 | Accès distant | VPN Server de DSM par défaut ; nom de domaine en HTTPS par le reverse proxy de DSM | [`synology-et-pc.md`](/docs/deploiement/synology-et-pc.md) |
