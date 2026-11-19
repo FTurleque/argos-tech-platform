@@ -4,6 +4,7 @@
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
 import { readFileSync } from 'node:fs'
+import { route } from './support/routes.mjs'
 import {
   basculerProfil,
   dateLisible,
@@ -121,9 +122,8 @@ test('module API de la veille : appels par appelerApi, points d’accès existan
 })
 
 test('écrans : routes, lien de navigation, aucun v-html, « Ma veille » dans la mise en page choisie', () => {
-  const routeur = source('../src/router.ts')
-  assert.match(routeur, /path: '\/veille', name: 'veille', component: VeilleView/)
-  assert.match(routeur, /path: '\/veille\/profils', name: 'profils-veille', component: ProfilsVeilleView/)
+  assert.deepEqual(route('veille'), { path: '/veille', name: 'veille', composant: 'VeilleView', publique: false })
+  assert.deepEqual(route('profils-veille'), { path: '/veille/profils', name: 'profils-veille', composant: 'ProfilsVeilleView', publique: false })
   assert.match(source('../src/App.vue'), /<RouterLink to="\/veille">Ma veille<\/RouterLink>/)
   for (const fichier of ['../src/views/VeilleView.vue', '../src/views/ProfilsVeilleView.vue']) {
     const vue = source(fichier)

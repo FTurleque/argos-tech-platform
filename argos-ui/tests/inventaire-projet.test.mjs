@@ -1,5 +1,5 @@
 // Vue d'inventaire d'un projet (INV-01-S3, INV-02, INV-03 ; décision E4 du 2026-11-19) : synthèse de la
-// réponse de `GET /api/v1/projects/{projectId}/inventory`, validation de l'identifiant et comportement du
+// réponse de `GET /api/v1/projects/{projectId}/inventory/summary` (décision G5), validation de l'identifiant et comportement du
 // chargement (réponse, projet sans inventaire, erreur puis nouvelle tentative, annulation), avec une
 // lecture de l'API simulée : ni navigateur ni réseau.
 import { test } from 'node:test'
@@ -17,14 +17,14 @@ function disponible(extra = {}) {
   return {
     projectId: PROJET,
     status: 'AVAILABLE',
-    inventory: {
+    summary: {
       projectId: PROJET,
       origin: 'SBOM',
       sourceDate: '2026-11-17T00:00:00Z',
       ageDays: 2,
       obsolete: false,
       importedAt: '2026-11-18T00:00:00Z',
-      components: [{ id: 'c1' }, { id: 'c2' }],
+      componentCount: 2,
       ignoredCount: 1,
       ignoredComponents: [SANS_PURL],
       ...extra,
@@ -50,13 +50,13 @@ test('synthèse : origine, dates, âge, obsolescence et nombre de composants inv
     obsolete: false,
     composants: 2,
   })
-  const manifestes = resumeInventaire(disponible({ origin: 'MANIFEST', ageDays: null, obsolete: true, components: null }))
+  const manifestes = resumeInventaire(disponible({ origin: 'MANIFEST', ageDays: null, obsolete: true, componentCount: null }))
   assert.equal(manifestes.origine, 'manifestes')
   assert.equal(manifestes.ageJours, null)
   assert.equal(manifestes.obsolete, true)
   assert.equal(manifestes.composants, 0)
   assert.equal(resumeInventaire(disponible({ origin: 'AUTRE' })).origine, 'non précisée')
-  assert.deepEqual(resumeInventaire({ projectId: PROJET, status: 'NO_SBOM', inventory: null }), { etat: 'SANS_INVENTAIRE' })
+  assert.deepEqual(resumeInventaire({ projectId: PROJET, status: 'NO_SBOM', summary: null }), { etat: 'SANS_INVENTAIRE' })
   assert.deepEqual(resumeInventaire(null), { etat: 'SANS_INVENTAIRE' })
 })
 
@@ -82,7 +82,7 @@ test('chargement : synthèse et composants ignorés du projet demandé', async (
 })
 
 test('chargement : projet sans inventaire, sans erreur', async () => {
-  const etat = await chargerInventaireProjet(PROJET, async () => ({ projectId: PROJET, status: 'NO_SBOM', inventory: null }))
+  const etat = await chargerInventaireProjet(PROJET, async () => ({ projectId: PROJET, status: 'NO_SBOM', summary: null }))
   assert.deepEqual(etat, { resume: { etat: 'SANS_INVENTAIRE' }, ignores: { etat: 'SANS_INVENTAIRE' }, erreur: '' })
 })
 

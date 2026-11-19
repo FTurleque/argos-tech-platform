@@ -5,7 +5,6 @@ import java.util.List;
 import java.util.UUID;
 
 import jakarta.inject.Inject;
-import jakarta.ws.rs.DefaultValue;
 import jakarta.ws.rs.GET;
 import jakarta.ws.rs.Path;
 import jakarta.ws.rs.Produces;
@@ -13,10 +12,13 @@ import jakarta.ws.rs.QueryParam;
 import jakarta.ws.rs.core.MediaType;
 
 import org.eclipse.microprofile.openapi.annotations.Operation;
+import org.eclipse.microprofile.openapi.annotations.enums.SchemaType;
+import org.eclipse.microprofile.openapi.annotations.media.Schema;
 import org.eclipse.microprofile.openapi.annotations.parameters.Parameter;
 import org.eclipse.microprofile.openapi.annotations.responses.APIResponse;
 import org.eclipse.microprofile.openapi.annotations.tags.Tag;
 
+import io.argos.api.ParametresPagination;
 import io.argos.api.security.Access;
 import io.argos.api.security.Caller;
 import io.argos.impact.RechercheVeille;
@@ -33,6 +35,15 @@ import io.argos.workspace.DonneeInvalide;
 @Produces(MediaType.APPLICATION_JSON)
 public class RechercheResource {
 
+    /** Description OpenAPI du paramètre {@code page} des résultats, partagée avec {@link VuesResource}. */
+    static final String PAGE = "Numéro de page, à partir de 0 ; une valeur négative ou non entière donne 400";
+
+    /** Description OpenAPI du paramètre {@code taille} des résultats, partagée avec {@link VuesResource}. */
+    static final String TAILLE = "Taille de page, de 1 à 100 ; une valeur hors bornes ou non entière donne 400";
+
+    /** Taille de page des résultats quand {@code taille} est absent. */
+    static final int TAILLE_PAR_DEFAUT = 20;
+
     @Inject
     Access access;
 
@@ -42,7 +53,7 @@ public class RechercheResource {
     @GET
     @Operation(summary = "Recherche plein texte (français et anglais) et filtres combinables, du plus pertinent au moins pertinent")
     @APIResponse(responseCode = "200", description = "Page de résultats ; liste vide et message explicite si rien ne correspond")
-    @APIResponse(responseCode = "400", description = "Filtre inconnu ou mal formé")
+    @APIResponse(responseCode = "400", description = "Filtre inconnu ou mal formé, paramètre page ou taille non entier ou hors bornes")
     @APIResponse(responseCode = "401", description = "Non authentifié")
     @APIResponse(responseCode = "404", description = "Projet inconnu ou d'un espace dont l'appelant n'est pas membre")
     public RechercheVeille.Resultats rechercher(
@@ -53,12 +64,13 @@ public class RechercheResource {
             @Parameter(description = "Gravité minimale : LOW, MODERATE, MEDIUM, HIGH, CRITICAL") @QueryParam("gravite") String gravite,
             @Parameter(description = "Éléments des N derniers jours (1 à 3 650)") @QueryParam("horizon") Integer horizon,
             @Parameter(description = "Profil de veille (répétable)") @QueryParam("profil") List<String> profils,
-            @QueryParam("page") @DefaultValue("0") int page,
-            @QueryParam("taille") @DefaultValue("20") int taille) {
+            @Parameter(description = PAGE, schema = @Schema(type = SchemaType.INTEGER, defaultValue = "0")) @QueryParam("page") String page,
+            @Parameter(description = TAILLE, schema = @Schema(type = SchemaType.INTEGER, defaultValue = "20")) @QueryParam("taille") String taille) {
         Caller appelant = access.authenticated();
         CriteresRecherche criteres = new CriteresRecherche(texte, uuids(projets), nonVide(technologies), nonVide(types),
                 gravite, horizon, nonVide(profils));
-        return traduction.executer(criteres, appelant, true, page, taille);
+        return traduction.executer(criteres, appelant, true, ParametresPagination.entier(page, "page", 0),
+                ParametresPagination.entier(taille, "taille", TAILLE_PAR_DEFAUT));
     }
 
     private static List<String> nonVide(List<String> valeurs) {

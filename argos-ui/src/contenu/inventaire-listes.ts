@@ -12,6 +12,7 @@ import {
   type PageProjetsApi,
   type ProjetApi,
 } from '../api/inventaire-modele.ts'
+import { introuvableOuInterdit, STATUT_NON_AUTHENTIFIE } from '../api/statuts-http.ts'
 
 /** Erreur d'appel minimale lue par les chargements : statut HTTP et motif d'absence de réponse. */
 interface ErreurAppel {
@@ -22,8 +23,8 @@ interface ErreurAppel {
 // Valeurs restituées entières : leurs longueurs sont bornées par les colonnes du serveur.
 function texte(valeur: unknown): string | null {
   if (typeof valeur !== 'string') return null
-  const v = valeur.trim()
-  return v ? v : null
+  const nettoye = valeur.trim()
+  return nettoye ? nettoye : null
 }
 
 function entierPositif(valeur: unknown): number {
@@ -55,37 +56,37 @@ export interface ListeProjets {
 
 /** État du chargement de la liste des projets. */
 export interface EtatListeProjets {
-  liste: ListeProjets | null
+  projets: ListeProjets | null
   erreur: string
 }
 
-function option(p: ProjetApi): OptionProjet | null {
-  if (!estUuid(p?.id)) return null
-  const nom = texte(p.name) ?? 'projet sans nom'
-  const espace = texte(p.workspaceName)
-  return { id: p.id.trim().toLowerCase(), libelle: espace ? `${nom} — ${espace}` : nom }
+function option(projet: ProjetApi): OptionProjet | null {
+  if (!estUuid(projet?.id)) return null
+  const nom = texte(projet.name) ?? 'projet sans nom'
+  const espace = texte(projet.workspaceName)
+  return { id: projet.id.trim().toLowerCase(), libelle: espace ? `${nom} — ${espace}` : nom }
 }
 
 /** Conversion de la page de projets : options dans l'ordre du serveur, entrées sans UUID écartées. */
 export function listeProjets(reponse: PageProjetsApi | null | undefined): ListeProjets {
   const items = Array.isArray(reponse?.items) ? reponse.items : []
-  const options = items.map(option).filter((o): o is OptionProjet => o !== null)
+  const options = items.map(option).filter((proposee): proposee is OptionProjet => proposee !== null)
   const total = Math.max(entierPositif(reponse?.total), options.length)
   return { options, total, tronquee: total > options.length }
 }
 
 /** Phrase d'état de la liste : aucun projet, ou liste limitée aux premiers projets. */
-export function syntheseProjets(liste: ListeProjets): string {
-  if (liste.options.length === 0) return 'Aucun projet dans vos espaces.'
-  if (liste.tronquee) {
-    return `${liste.total} projets dans vos espaces ; les ${liste.options.length} premiers sont proposés, les autres se désignent par leur identifiant.`
+export function syntheseProjets(projets: ListeProjets): string {
+  if (projets.options.length === 0) return 'Aucun projet dans vos espaces.'
+  if (projets.tronquee) {
+    return `${projets.total} projets dans vos espaces ; les ${projets.options.length} premiers sont proposés, les autres se désignent par leur identifiant.`
   }
-  return liste.total === 1 ? '1 projet dans vos espaces.' : `${liste.total} projets dans vos espaces.`
+  return projets.total === 1 ? '1 projet dans vos espaces.' : `${projets.total} projets dans vos espaces.`
 }
 
 /** Message d'erreur du chargement de la liste des projets. */
 export function messageErreurProjets(statut: number | undefined): string {
-  if (statut === 401) return 'Connectez-vous pour consulter vos projets.'
+  if (statut === STATUT_NON_AUTHENTIFIE) return 'Connectez-vous pour consulter vos projets.'
   return 'Liste des projets indisponible pour le moment.'
 }
 
@@ -97,10 +98,10 @@ export async function chargerProjets(
   try {
     const reponse = await lire(signal)
     if (signal?.aborted) return null
-    return { liste: listeProjets(reponse), erreur: '' }
+    return { projets: listeProjets(reponse), erreur: '' }
   } catch (e) {
     if (annule(e, signal)) return null
-    return { liste: null, erreur: messageErreurProjets(((e ?? {}) as ErreurAppel).status) }
+    return { projets: null, erreur: messageErreurProjets(((e ?? {}) as ErreurAppel).status) }
   }
 }
 
@@ -142,14 +143,14 @@ function dependance(transitive: unknown): string {
   return 'inconnue'
 }
 
-function composant(c: ComposantApi, rang: number): ComposantAffiche {
-  const id = texte(c?.id)
+function composant(recu: ComposantApi, rang: number): ComposantAffiche {
+  const id = texte(recu?.id)
   return {
     cle: id ?? `rang-${rang}`,
-    nom: texte(c?.name),
-    version: texte(c?.version),
-    purl: texte(c?.purl),
-    dependance: dependance(c?.transitive),
+    nom: texte(recu?.name),
+    version: texte(recu?.version),
+    purl: texte(recu?.purl),
+    dependance: dependance(recu?.transitive),
   }
 }
 
@@ -171,24 +172,24 @@ export function pageComposants(reponse: PageComposantsApi | null | undefined): P
 }
 
 /** Phrase de synthèse de la page affichée. */
-export function syntheseComposants(p: PageComposants): string {
-  if (p.total === 0) return 'Aucun composant inventorié.'
-  if (p.composants.length === 0) return `${p.total} composants inventoriés ; cette page est vide.`
-  const premier = p.page * p.taille + 1
-  const dernier = p.page * p.taille + p.composants.length
-  const nombre = p.total === 1 ? '1 composant inventorié' : `${p.total} composants inventoriés`
+export function syntheseComposants(affichee: PageComposants): string {
+  if (affichee.total === 0) return 'Aucun composant inventorié.'
+  if (affichee.composants.length === 0) return `${affichee.total} composants inventoriés ; cette page est vide.`
+  const premier = affichee.page * affichee.taille + 1
+  const dernier = affichee.page * affichee.taille + affichee.composants.length
+  const nombre = affichee.total === 1 ? '1 composant inventorié' : `${affichee.total} composants inventoriés`
   return `${nombre} ; composants ${premier} à ${dernier} affichés.`
 }
 
 /** Libellé de la position dans la pagination. */
-export function libellePage(p: PageComposants): string {
-  return `Page ${p.page + 1} sur ${p.pages}`
+export function libellePage(affichee: PageComposants): string {
+  return `Page ${affichee.page + 1} sur ${affichee.pages}`
 }
 
 /** Message d'erreur du chargement des composants. */
 export function messageErreurComposants(statut: number | undefined): string {
-  if (statut === 401) return 'Connectez-vous pour consulter les composants.'
-  if (statut === 403 || statut === 404) return 'Composants introuvables ou hors de vos espaces.'
+  if (statut === STATUT_NON_AUTHENTIFIE) return 'Connectez-vous pour consulter les composants.'
+  if (introuvableOuInterdit(statut)) return 'Composants introuvables ou hors de vos espaces.'
   return 'Composants indisponibles pour le moment.'
 }
 

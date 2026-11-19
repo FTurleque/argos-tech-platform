@@ -1,5 +1,5 @@
-// Composants ignorés faute de PURL (INV-01-S3, décision D6 du 2026-11-18, décision E4 du 2026-11-19) :
-// conversion de la réponse de `GET /api/v1/projects/{projectId}/inventory` en données affichables. Module
+// Composants ignorés faute de PURL (INV-01-S3, décision D6 du 2026-11-18, décisions E4 et G5 du 2026-11-19) :
+// conversion de la réponse de `GET /api/v1/projects/{projectId}/inventory/summary` en données affichables. Module
 // pur, sans appel réseau ni dépendance à Vue : testé directement par `node --test`.
 //
 // Aucune règle métier ici (arc42 §5.1) : le serveur écarte les composants, les compte et borne la liste.
@@ -8,8 +8,9 @@ import {
   MAX_CARACTERES_CHAMP,
   MAX_COMPOSANTS_IGNORES,
   type ComposantIgnoreApi,
-  type InventaireProjetApi,
+  type SyntheseInventaireProjetApi,
 } from '../api/inventaire-modele.ts'
+import { introuvableOuInterdit, STATUT_NON_AUTHENTIFIE } from '../api/statuts-http.ts'
 
 /** Composant ignoré prêt à afficher ; `null` : champ absent de la SBOM. */
 export interface ComposantIgnoreAffiche {
@@ -44,22 +45,27 @@ export function libelleMotif(code: string | null | undefined): string {
 
 function borne(valeur: unknown): string | null {
   if (typeof valeur !== 'string') return null
-  const v = valeur.trim()
-  if (!v) return null
-  return v.length > MAX_CARACTERES_CHAMP ? v.slice(0, MAX_CARACTERES_CHAMP) : v
+  const texte = valeur.trim()
+  if (!texte) return null
+  return texte.length > MAX_CARACTERES_CHAMP ? texte.slice(0, MAX_CARACTERES_CHAMP) : texte
 }
 
-function composant(c: ComposantIgnoreApi): ComposantIgnoreAffiche {
-  return { nom: borne(c?.name), groupe: borne(c?.group), version: borne(c?.version), motif: libelleMotif(c?.reason) }
+function composant(ignore: ComposantIgnoreApi): ComposantIgnoreAffiche {
+  return {
+    nom: borne(ignore?.name),
+    groupe: borne(ignore?.group),
+    version: borne(ignore?.version),
+    motif: libelleMotif(ignore?.reason),
+  }
 }
 
 /** Conversion de la réponse de l'API : liste bornée comme l'API, total et indication de troncature. */
-export function composantsIgnores(reponse: InventaireProjetApi | null | undefined): ComposantsIgnoresVue {
-  const inventaire = reponse?.status === 'AVAILABLE' ? reponse.inventory : null
-  if (!inventaire) return { etat: 'SANS_INVENTAIRE' }
-  const liste = Array.isArray(inventaire.ignoredComponents) ? inventaire.ignoredComponents : []
-  const composants = liste.slice(0, MAX_COMPOSANTS_IGNORES).map(composant)
-  const declare = Number.isInteger(inventaire.ignoredCount) && inventaire.ignoredCount > 0 ? inventaire.ignoredCount : 0
+export function composantsIgnores(reponse: SyntheseInventaireProjetApi | null | undefined): ComposantsIgnoresVue {
+  const synthese = reponse?.status === 'AVAILABLE' ? reponse.summary : null
+  if (!synthese) return { etat: 'SANS_INVENTAIRE' }
+  const ignoresRecus = Array.isArray(synthese.ignoredComponents) ? synthese.ignoredComponents : []
+  const composants = ignoresRecus.slice(0, MAX_COMPOSANTS_IGNORES).map(composant)
+  const declare = Number.isInteger(synthese.ignoredCount) && synthese.ignoredCount > 0 ? synthese.ignoredCount : 0
   const total = Math.max(declare, composants.length)
   return { etat: 'DISPONIBLE', total, composants, tronque: total > composants.length }
 }
@@ -75,7 +81,7 @@ export function syntheseComposantsIgnores(vue: ComposantsIgnoresVue): string {
 
 /** Message d'erreur du chargement de l'inventaire d'un projet. */
 export function messageErreurInventaire(statut: number | undefined): string {
-  if (statut === 401) return 'Connectez-vous pour consulter l’inventaire.'
-  if (statut === 403 || statut === 404) return 'Inventaire introuvable ou hors de vos espaces.'
+  if (statut === STATUT_NON_AUTHENTIFIE) return 'Connectez-vous pour consulter l’inventaire.'
+  if (introuvableOuInterdit(statut)) return 'Inventaire introuvable ou hors de vos espaces.'
   return 'Inventaire indisponible pour le moment.'
 }

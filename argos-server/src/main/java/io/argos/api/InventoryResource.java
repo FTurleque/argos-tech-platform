@@ -24,8 +24,8 @@ import io.argos.api.security.Caller;
 import io.argos.inventory.InventoryQueries;
 
 /**
- * Inventaire d'un projet : composants, origine et âge (INV-02, INV-03), composants inventoriés paginés (INV-06,
- * décision F5 du 2026-11-19), imports refusés (INV-05).
+ * Inventaire d'un projet : composants, origine et âge (INV-02, INV-03), synthèse sans composants (INV-06, décision
+ * G5 du 2026-11-19), composants inventoriés paginés (INV-06, décision F5 du 2026-11-19), imports refusés (INV-05).
  */
 @Path("/api/v1/projects/{projectId}/inventory")
 @Tag(name = "Inventaires")
@@ -37,6 +37,14 @@ public class InventoryResource {
      * INV-03-S2) ; {@code inventory} est absent dans le second cas.
      */
     public record ProjectInventory(UUID projectId, String status, InventoryQueries.InventoryView inventory) {
+    }
+
+    /**
+     * Synthèse de l'inventaire d'un projet, sans la liste des composants (décision G5 du porteur du projet,
+     * 2026-11-19). {@code status} vaut {@code AVAILABLE} ou {@code NO_SBOM} ; {@code summary} est absent dans le
+     * second cas.
+     */
+    public record ProjectInventorySummary(UUID projectId, String status, InventoryQueries.InventorySummary summary) {
     }
 
     @Inject
@@ -52,6 +60,20 @@ public class InventoryResource {
         return inventories.inventory(projectId, caller.accountId())
                 .map(i -> new ProjectInventory(projectId, "AVAILABLE", i))
                 .orElseGet(() -> new ProjectInventory(projectId, "NO_SBOM", null));
+    }
+
+    @GET
+    @Path("/summary")
+    @Operation(summary = "Synthèse de l'inventaire de référence du projet, sans la liste des composants")
+    @APIResponse(responseCode = "200", description = "Origine, dates, âge, obsolescence, nombre de composants inventoriés et"
+            + " composants ignorés faute de PURL ; statut NO_SBOM sans synthèse si le projet n'a pas d'inventaire")
+    @APIResponse(responseCode = "401", description = "Non authentifié")
+    @APIResponse(responseCode = "404", description = "Projet inconnu ou d'un espace dont l'appelant n'est pas membre (refus journalisé)")
+    public ProjectInventorySummary summary(@PathParam("projectId") UUID projectId) {
+        Caller caller = authorize(projectId);
+        return inventories.summary(projectId, caller.accountId())
+                .map(s -> new ProjectInventorySummary(projectId, "AVAILABLE", s))
+                .orElseGet(() -> new ProjectInventorySummary(projectId, "NO_SBOM", null));
     }
 
     @GET

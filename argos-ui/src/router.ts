@@ -1,4 +1,5 @@
-import { createRouter, createWebHashHistory } from 'vue-router'
+import type { Component } from 'vue'
+import { createRouter, createWebHashHistory, type RouteRecordRaw } from 'vue-router'
 import AffichageView from './views/AffichageView.vue'
 import AlertesView from './views/AlertesView.vue'
 import CompteNonCreeView from './views/CompteNonCreeView.vue'
@@ -17,23 +18,37 @@ declare module 'vue-router' {
   }
 }
 
+/** Une vue et ses adresses, indexées par nom de route : une vue de liste a aussi l'adresse d'un élément. */
+type VueAdressee = readonly [vue: Component, adresses: Readonly<Record<string, string>>]
+
+/** Vues accessibles sans session (ACC-07) : état du serveur, connexion et refus d'un compte non créé. */
+const VUES_PUBLIQUES: readonly VueAdressee[] = [
+  [StatusView, { status: '/' }],
+  [ConnexionView, { connexion: '/connexion' }],
+  [CompteNonCreeView, { 'compte-non-cree': '/compte-non-cree' }],
+]
+
+/** Vues qui exigent une session. */
+const VUES_PROTEGEES: readonly VueAdressee[] = [
+  [AffichageView, { affichage: '/affichage' }],
+  [AlertesView, { alertes: '/alertes', alerte: '/alertes/:id' }],
+  [InventaireView, { inventaire: '/inventaire', 'inventaire-projet': '/inventaire/:id' }],
+  [ReglagesPosteView, { poste: '/poste' }],
+  [RechercheView, { recherche: '/recherche', 'vue-recherche': '/recherche/vues/:id' }],
+  [VeilleView, { veille: '/veille' }],
+  [ProfilsVeilleView, { 'profils-veille': '/veille/profils' }],
+]
+
+/** Une route par adresse de chaque vue ; les vues publiques portent `meta.public`. */
+function routes(vues: readonly VueAdressee[], publique: boolean): RouteRecordRaw[] {
+  return vues.flatMap(([component, adresses]) =>
+    Object.entries(adresses).map(([name, path]) => (publique ? { path, name, component, meta: { public: true } } : { path, name, component })),
+  )
+}
+
 // Historique par « hash » : fonctionne aussi bien servi par un serveur web que chargé par le desktop.
 // La garde des vues est posée par installerSession (session/session.ts).
 export const router = createRouter({
   history: createWebHashHistory(),
-  routes: [
-    { path: '/', name: 'status', component: StatusView, meta: { public: true } },
-    { path: '/connexion', name: 'connexion', component: ConnexionView, meta: { public: true } },
-    { path: '/compte-non-cree', name: 'compte-non-cree', component: CompteNonCreeView, meta: { public: true } },
-    { path: '/affichage', name: 'affichage', component: AffichageView },
-    { path: '/alertes', name: 'alertes', component: AlertesView },
-    { path: '/alertes/:id', name: 'alerte', component: AlertesView },
-    { path: '/inventaire', name: 'inventaire', component: InventaireView },
-    { path: '/inventaire/:id', name: 'inventaire-projet', component: InventaireView },
-    { path: '/poste', name: 'poste', component: ReglagesPosteView },
-    { path: '/recherche', name: 'recherche', component: RechercheView },
-    { path: '/recherche/vues/:id', name: 'vue-recherche', component: RechercheView },
-    { path: '/veille', name: 'veille', component: VeilleView },
-    { path: '/veille/profils', name: 'profils-veille', component: ProfilsVeilleView },
-  ],
+  routes: [...routes(VUES_PUBLIQUES, true), ...routes(VUES_PROTEGEES, false)],
 })

@@ -1,16 +1,22 @@
-// Composants ignorés faute de PURL (INV-01-S3, décision E4 du 2026-11-19) : conversion de la réponse de
-// `GET /api/v1/projects/{projectId}/inventory`, chemin de l'appel, rendu côté serveur de la liste
+// Composants ignorés faute de PURL (INV-01-S3, décisions E4 et G5 du 2026-11-19) : conversion de la réponse de
+// `GET /api/v1/projects/{projectId}/inventory/summary`, chemins des appels, rendu côté serveur de la liste
 // (tests/support/rendu-ssr.mjs, sans navigateur ni réseau) et règles de sécurité de l'écran.
 import { after, before, test } from 'node:test'
 import assert from 'node:assert/strict'
 import { readFileSync } from 'node:fs'
-import { cheminInventaire, MAX_CARACTERES_CHAMP, MAX_COMPOSANTS_IGNORES } from '../src/api/inventaire-modele.ts'
+import {
+  cheminInventaire,
+  cheminSyntheseInventaire,
+  MAX_CARACTERES_CHAMP,
+  MAX_COMPOSANTS_IGNORES,
+} from '../src/api/inventaire-modele.ts'
 import {
   composantsIgnores,
   libelleMotif,
   messageErreurInventaire,
   syntheseComposantsIgnores,
 } from '../src/contenu/composants-ignores.ts'
+import { route } from './support/routes.mjs'
 import { ouvrirRendu } from './support/rendu-ssr.mjs'
 
 const source = (chemin) => readFileSync(new URL(chemin, import.meta.url), 'utf8')
@@ -20,12 +26,12 @@ function reponse(ignoredCount, ignoredComponents) {
   return {
     projectId: PROJET,
     status: 'AVAILABLE',
-    inventory: {
+    summary: {
       projectId: PROJET,
       origin: 'SBOM',
       sourceDate: '2026-11-17T00:00:00Z',
       importedAt: '2026-11-18T00:00:00Z',
-      components: [],
+      componentCount: 0,
       ignoredCount,
       ignoredComponents,
     },
@@ -48,6 +54,11 @@ test('chemin de l’inventaire : UUID seulement, aucune URL construite avec une 
   assert.equal(cheminInventaire('../ops/sources'), null)
   assert.equal(cheminInventaire(`${PROJET}/failures`), null)
   assert.equal(cheminInventaire(null), null)
+  assert.equal(cheminSyntheseInventaire(PROJET), `/api/v1/projects/${PROJET}/inventory/summary`)
+  assert.equal(cheminSyntheseInventaire(` ${PROJET} `), `/api/v1/projects/${PROJET}/inventory/summary`)
+  assert.equal(cheminSyntheseInventaire('../ops/sources'), null)
+  assert.equal(cheminSyntheseInventaire(`${PROJET}/failures`), null)
+  assert.equal(cheminSyntheseInventaire(undefined), null)
 })
 
 test('conversion : nom, groupe, version et motif de chaque composant ignoré', () => {
@@ -69,7 +80,7 @@ test('conversion : état vide et projet sans inventaire', () => {
   assert.deepEqual(vide, { etat: 'DISPONIBLE', total: 0, composants: [], tronque: false })
   assert.equal(syntheseComposantsIgnores(vide), 'Aucun composant ignoré au dernier import.')
   assert.deepEqual(composantsIgnores(reponse(0, null)), vide, 'liste absente : état vide')
-  const sansSbom = composantsIgnores({ projectId: PROJET, status: 'NO_SBOM', inventory: null })
+  const sansSbom = composantsIgnores({ projectId: PROJET, status: 'NO_SBOM', summary: null })
   assert.deepEqual(sansSbom, { etat: 'SANS_INVENTAIRE' })
   assert.equal(syntheseComposantsIgnores(sansSbom), 'Aucun inventaire importé pour ce projet.')
   assert.deepEqual(composantsIgnores(undefined), { etat: 'SANS_INVENTAIRE' })
@@ -87,8 +98,8 @@ test('conversion : liste et champs bornés comme l’API, total déclaré conser
   )
   const champ = composantsIgnores(reponse(1, [{ ...LOG4J, name: 'x'.repeat(500) }]))
   assert.equal(champ.composants[0].nom.length, MAX_CARACTERES_CHAMP)
-  const un = composantsIgnores(reponse(1, [LOG4J]))
-  assert.equal(syntheseComposantsIgnores(un), "1 composant écarté de l'inventaire au dernier import, faute de PURL exploitable.")
+  const unSeul = composantsIgnores(reponse(1, [LOG4J]))
+  assert.equal(syntheseComposantsIgnores(unSeul),"1 composant écarté de l'inventaire au dernier import, faute de PURL exploitable.")
   assert.equal(composantsIgnores(reponse(-3, [LOG4J])).total, 1, 'total jamais inférieur à la liste')
 })
 
@@ -132,8 +143,11 @@ test('rendu : état vide et projet sans inventaire, sans tableau', async () => {
 
 test('sécurité de l’écran : appel par appelerApi, aucun v-html, liste rattachée à la vue d’inventaire', () => {
   const api = source('../src/api/inventaire.ts')
-  assert.match(api, /appelerApi<InventaireProjetApi>\(chemin/)
+  assert.match(api, /appelerApi<SyntheseInventaireProjetApi>\(chemin/)
   assert.doesNotMatch(api, /\bfetch\s*\(/)
+  // Décision G5 : la vue ne lit plus l'inventaire complet, seulement la synthèse et la page de composants.
+  assert.doesNotMatch(api, /cheminInventaire\b/)
+  assert.doesNotMatch(api, /\bInventaireProjetApi\b/)
   const composant = source('../src/contenu/ComposantsIgnores.vue')
   const vue = source('../src/views/InventaireView.vue')
   for (const s of [composant, vue]) {
@@ -142,10 +156,10 @@ test('sécurité de l’écran : appel par appelerApi, aucun v-html, liste ratta
   }
   assert.doesNotMatch(composant, /:key="i"/, 'clé de ligne différente du seul rang')
   assert.match(vue, /<h2 id="titre-composants-ignores">Composants ignorés<\/h2>/)
-  assert.match(vue, /chargerInventaireProjet\(id\.value, fetchInventaireProjet, signal\)/)
-  const routeur = source('../src/router.ts')
-  assert.match(routeur, /path: '\/inventaire', name: 'inventaire', component: InventaireView/)
-  assert.match(routeur, /path: '\/inventaire\/:id', name: 'inventaire-projet', component: InventaireView/)
+  assert.match(vue, /chargerInventaireProjet\(id\.value, fetchSyntheseInventaire, signal\)/)
+  assert.deepEqual(route('inventaire'), { path: '/inventaire', name: 'inventaire', composant: 'InventaireView', publique: false })
+  assert.deepEqual(route('inventaire-projet'),
+    { path: '/inventaire/:id', name: 'inventaire-projet', composant: 'InventaireView', publique: false })
   // Entrée de navigation commune au portail web et au client desktop (sans condition isDesktop).
   assert.match(source('../src/App.vue'), /\n\s*<RouterLink to="\/inventaire">Inventaire<\/RouterLink>/)
 })
