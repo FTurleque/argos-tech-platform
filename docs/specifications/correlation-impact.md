@@ -46,7 +46,8 @@ Désigner automatiquement, et seulement eux, les projets concernés par un signa
 | Règle | Exigence(s) | Source | Statut |
 |---|---|---|---|
 | Impact si PURL identique et version dans la plage ; aucun sinon | COR-01 | ADR-0013 | [PROPOSITION] |
-| Écosystème Maven : quand l'ordre de deux versions dépend d'un qualificatif inconnu (`jre`, `android`…), l'ordre de Maven (`ComparableVersion`) tranche : un qualificatif inconnu suit la version publiée et `sp`, les qualificatifs inconnus s'ordonnent entre eux par ordre lexical (`32.0.0-android` < `32.0.0-jre`). Autres écosystèmes : une telle plage n'est pas interprétable et l'impact porte le niveau `à vérifier` | COR-01 (COR-01-S5), COR-02 | décision du porteur du projet, 2026-11-18 (D5, Q-COR-3) | [DÉCISION] |
+| Écosystème Maven : toute comparaison de versions suit `ComparableVersion` de la bibliothèque `maven-artifact` : un qualificatif inconnu de Maven suit la version publiée et `sp`, les qualificatifs inconnus s'ordonnent entre eux par ordre lexical (`32.0.0-android` < `32.0.0-jre`). Préfixe `v` et métadonnées `+…` sont retirés avant la comparaison. Autres écosystèmes : ordre générique inchangé ; une plage dont l'ordre dépend d'un qualificatif inconnu n'est pas interprétable et l'impact porte le niveau `à vérifier` | COR-01 (COR-01-S5), COR-02 | décisions du porteur du projet, 2026-11-18 (D5, Q-COR-3) et 2026-11-19 (E3) | [DÉCISION] |
+| Écosystème Maven : une version qui ne commence pas par un chiffre ou qui contient un caractère autre qu'un chiffre, une lettre, `.` ou `-` (par exemple `_`) n'est pas interprétable : l'impact éventuel porte le niveau `à vérifier` | COR-02 | option prudente, `_` n'étant pas un séparateur pour `ComparableVersion` | [PROPOSITION] |
 | Un niveau parmi `exact`, `probable`, `à vérifier` : `exact` = PURL déclaré et version dans la plage sur SBOM non obsolète ; `probable` = même correspondance sur inventaire de repli ou SBOM obsolète ; `à vérifier` = correspondance sans PURL, version inconnue ou plage non interprétable | COR-02 | ADR-0013 ; décision du 2026-11-16 (Q-2) | [PROPOSITION] |
 | Provenance complète, aucun impact orphelin | COR-03 | arc42 §10.2 Q-01 | [PROPOSITION] |
 | L'IA ne déclenche jamais seule une alerte critique | COR-04 | ADR-0013 | [PROPOSITION] |
@@ -212,7 +213,7 @@ Interprétations validées par le porteur du projet le 2026-11-16 [DÉCISION].
 | Q-2 (changement) | Règles des niveaux `probable` et `à vérifier` ? | répondue le 2026-11-16 : `exact` : PURL et version dans la plage affectée, SBOM non obsolète ; `probable` : même correspondance, mais inventaire de repli ou SBOM obsolète ; `à vérifier` : correspondance sans PURL (nom ou CPE seul), version inconnue ou plage non interprétable [DÉCISION] | architecte / sécurité |
 | Q-COR-1 | Quand une analyse IA est-elle « autorisée et nécessaire » ? | DF-COR-2, AI Gateway | architecte / sécurité |
 | Q-COR-2 | Quel cycle de vie de traitement pour un impact (confirmé, résolu…) ? | futur stateDiagram `ProjectImpact` | Product Owner |
-| Q-COR-3 | Comment traiter une plage de versions non interprétable pour un écosystème ? | tranchée le 2026-11-18 par le porteur du projet (D5) : pour l'écosystème Maven seulement, les qualificatifs inconnus suivent l'ordre de `ComparableVersion` ; les autres écosystèmes gardent le niveau `à vérifier` (COR-01-S5) [DÉCISION] | backend |
+| Q-COR-3 | Comment traiter une plage de versions non interprétable pour un écosystème ? | tranchée le 2026-11-18 par le porteur du projet (D5) et précisée le 2026-11-19 (E3) : pour l'écosystème Maven, toute comparaison suit `ComparableVersion` de `maven-artifact` ; les autres écosystèmes gardent l'ordre générique et le niveau `à vérifier` (COR-01-S5) [DÉCISION] | backend |
 
 ## Traçabilité
 

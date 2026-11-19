@@ -16,8 +16,9 @@ import io.argos.signal.AffectedPackage;
  *       inconnue ou plage non interprétable.</li>
  * </ul>
  * Une version hors de toutes les plages ne produit aucun impact (COR-01-S2). Pour un paquet Maven,
- * les qualificatifs inconnus suivent l'ordre de {@code ComparableVersion} (décision D5 du porteur du
- * projet, 2026-11-18, Q-COR-3) : {@code 32.0.0-jre} suit la borne {@code 32.0.0-android}.
+ * toute comparaison suit l'ordre de {@code ComparableVersion} (décision E3 du porteur du projet,
+ * 2026-11-19, qui précise D5 du 2026-11-18, Q-COR-3) : {@code 32.0.0-jre} suit la borne
+ * {@code 32.0.0-android}.
  */
 public final class MatchRules {
 
@@ -97,7 +98,10 @@ public final class MatchRules {
 
     private static RangeResult inInterval(AffectedPackage affected, AffectedPackage.VersionRange r, String version) {
         String ecosystem = ecosystem(affected);
-        if (!VersionComparator.interpretable(version)) {
+        boolean interpretable = VersionComparator.maven(ecosystem)
+                ? VersionComparator.mavenInterpretable(version)
+                : VersionComparator.interpretable(version);
+        if (!interpretable) {
             return RangeResult.UNKNOWN;
         }
         String introduced = r.introduced();
