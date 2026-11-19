@@ -16,8 +16,28 @@ const SANS_COLLECTE_EXTERNE = {
   ARGOS_RADAR_CRON: 'off',
   ARGOS_ACTIVITE_CADENCE: 'off',
   ARGOS_VEILLE_WEB_CADENCE: 'off',
-  ARGOS_INGESTION_PLANIFICATION_CADENCE: 'off',
-  ARGOS_INVENTORY_IMPORT_CRON: 'off',
+}
+
+// Chaîne automatisée (automatiser-chaine-veille, tâche 4.3 ; [PROPOSITION] PI-1) : la synchronisation des sources
+// d'avis (J1) et l'import des inventaires (J3) restent actifs, rapprochés à 5 secondes, et n'interrogent que les
+// sources et forges simulées de support/sources-simulees.mjs ; jetons de forge fictifs.
+const PORT_SOURCES = Number(process.env.ARGOS_E2E_PORT_SOURCES ?? 8099)
+const SOURCES = `http://localhost:${PORT_SOURCES}`
+const CHAINE_SIMULEE = {
+  ARGOS_INGESTION_PLANIFICATION_CADENCE: '5s',
+  ARGOS_INVENTORY_IMPORT_CRON: '*/5 * * * * ?',
+  ARGOS_SOURCES_OSV_EXPORT_URL: `${SOURCES}/osv-export`,
+  ARGOS_SOURCES_OSV_API_URL: `${SOURCES}/osv-api`,
+  ARGOS_SOURCES_OSV_ECOSYSTEMS: 'Maven',
+  ARGOS_SOURCES_NVD_URL: `${SOURCES}/nvd`,
+  ARGOS_SOURCES_KEV_URL: `${SOURCES}/kev.json`,
+  ARGOS_SOURCES_EPSS_URL: `${SOURCES}/epss`,
+  ARGOS_SOURCES_CERTFR_FEED_URL: `${SOURCES}/certfr/feed/`,
+  ARGOS_SOURCES_CERTFR_BASE_URL: `${SOURCES}/certfr/`,
+  ARGOS_SCM_GITLAB_URL: `${SOURCES}/gitlab`,
+  ARGOS_SCM_GITHUB_URL: `${SOURCES}/github`,
+  ARGOS_GITLAB_TOKEN: 'jeton-fictif-e2e',
+  ARGOS_GITHUB_TOKEN: 'jeton-fictif-e2e',
 }
 
 export default defineConfig({
@@ -58,6 +78,14 @@ export default defineConfig({
   ],
   webServer: [
     {
+      command: 'node support/sources-simulees.mjs',
+      url: `${SOURCES}/__pret`,
+      timeout: 30_000,
+      reuseExistingServer: false,
+      stdout: 'ignore',
+      env: { ARGOS_E2E_PORT_SOURCES: String(PORT_SOURCES) },
+    },
+    {
       command: 'mvn -B -q -f ../argos-server/pom.xml quarkus:dev -Dquarkus.console.enabled=false',
       url: `${URL_API}/q/health/ready`,
       timeout: 5 * 60_000,
@@ -66,6 +94,7 @@ export default defineConfig({
       stderr: 'pipe',
       env: {
         ...SANS_COLLECTE_EXTERNE,
+        ...CHAINE_SIMULEE,
         _DEV_QUARKUS_DATASOURCE_JDBC_URL: 'jdbc:postgresql://localhost:55432/argos',
         QUARKUS_HTTP_PORT: new URL(URL_API).port,
       },

@@ -1,0 +1,5 @@
+{"id":"E2E-CHAINE-0001","modified":"2026-11-19T01:00:00Z","published":"2026-11-01T00:00:00Z","aliases":[],
+ "summary":"Bibliothèque org.e2e.chaine:lib : faille fictive 0001","details":"Avis fictif du parcours de la chaîne automatisée.",
+ "affected":[{"package":{"ecosystem":"Maven","name":"org.e2e.chaine:lib","purl":"pkg:maven/org.e2e.chaine/lib"},
+              "ranges":[{"type":"ECOSYSTEM","events":[{"introduced":"0"},{"fixed":"1.3.0"}]}]}],
+ "database_specific":{"severity":"HIGH"}}

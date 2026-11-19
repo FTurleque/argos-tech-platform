@@ -345,3 +345,91 @@ export function valeurSql(requete: string, variables: Record<string, string> = {
     stdio: ['pipe', 'pipe', 'inherit'],
   }).trim()
 }
+
+// ------------------------------------------------------------------ Chaîne automatisée
+// Parcours de automatiser-chaine-veille (tâche 4.3) : marc administre « Espace E2E chaîne » et son projet
+// « Chaîne E2E » à deux dépôts (donnees/chaine.sql) ; gina y est CONTRIBUTEUR et tient un abonnement personnel
+// immédiat sur le canal DESKTOP. Les sources d'avis et les forges sont simulées par support/sources-simulees.mjs,
+// que le parcours programme avec les réponses enregistrées de donnees/chaine/. Aucun autre parcours ne lit cet
+// espace : ni alice, ni jules, ni lina n'en sont membres.
+
+export const ESPACE_CHAINE = 'Espace E2E chaîne'
+export const COMPTE_CHAINE_ADMIN = 'marc'
+export const COMPTE_CHAINE = 'gina'
+export const URL_SOURCES = `http://localhost:${process.env.ARGOS_E2E_PORT_SOURCES ?? 8099}`
+export const CHAINE = {
+  projet: '0e2e0000-0000-4000-8000-0000000000c1',
+  /** Chemins (avec requête) lus par le serveur sur les forges simulées pour la SBOM de chaque dépôt. */
+  sbomGitlab: '/gitlab/api/v4/projects/e2e%2Fchaine-front/jobs/artifacts/main/raw/bom.cdx.json?job=sbom',
+  sbomGithub: '/github/repos/e2e/chaine-api/contents/bom.json?ref=main',
+  /** Critères de l'abonnement personnel de gina. */
+  paquets: ['pkg:maven/org.e2e.chaine/lib', 'pkg:maven/org.e2e.chaine/nouveau'],
+}
+
+/** Avis OSV simulé : identifiant, date de modification et fichier enregistré de donnees/chaine/. */
+export interface AvisSimule {
+  id: string
+  modified: string
+  fichier: string
+}
+
+export const AVIS_CHAINE: Record<'lib' | 'nouveau' | 'suspendu' | 'reactive', AvisSimule> = {
+  lib: { id: 'E2E-CHAINE-0001', modified: '2026-11-19T01:00:00Z', fichier: 'osv-E2E-CHAINE-0001.json' },
+  nouveau: { id: 'E2E-CHAINE-0002', modified: '2026-11-19T01:00:01Z', fichier: 'osv-E2E-CHAINE-0002.json' },
+  suspendu: { id: 'E2E-CHAINE-0003', modified: '2026-11-19T02:00:00Z', fichier: 'osv-E2E-CHAINE-0003.json' },
+  reactive: { id: 'E2E-CHAINE-0004', modified: '2026-11-19T03:00:00Z', fichier: 'osv-E2E-CHAINE-0004.json' },
+}
+
+/** Programme les sources simulées : avis publiés par OSV et SBOM servies par chaque forge. */
+export async function programmerSources(osv: AvisSimule[], forges: Record<string, string>): Promise<void> {
+  const reponse = await fetch(`${URL_SOURCES}/__etat`, { method: 'PUT', body: JSON.stringify({ osv, forges }) })
+  if (reponse.status !== 204) throw new Error(`sources simulées : ${reponse.status} ${await reponse.text()}`)
+}
+
+/** Requêtes reçues par les sources simulées depuis la dernière programmation (« GET /chemin?requête »). */
+export async function requetesSources(): Promise<string[]> {
+  return (await fetch(`${URL_SOURCES}/__requetes`)).json() as Promise<string[]>
+}
+
+/** Espace, membres, projet à deux dépôts et abonnement personnel immédiat de gina (canal DESKTOP). */
+export async function preparerChaine(): Promise<string> {
+  await api('alice', '/api/v1/moi')
+  await assurerCompte(COMPTE_CHAINE_ADMIN)
+  const espace = await espaceNomme(COMPTE_CHAINE_ADMIN, ESPACE_CHAINE)
+  await assurerMembre(COMPTE_CHAINE_ADMIN, espace, COMPTE_CHAINE, 'CONTRIBUTEUR')
+  sql('chaine.sql', { espace: espace.id })
+  const abonnements = await api<Abonnement[]>(COMPTE_CHAINE, '/api/v1/subscriptions')
+  if (!abonnements.some((s) => s.scope === 'PERSONAL')) {
+    await api(COMPTE_CHAINE, '/api/v1/subscriptions', {
+      method: 'POST',
+      body: JSON.stringify({
+        scope: 'PERSONAL',
+        filters: CHAINE.paquets.map((value) => ({ type: 'PACKAGE', value })),
+        channel: 'desktop',
+        frequency: 'immediate',
+        mandatory: false,
+      }),
+    })
+  }
+  return espace.id
+}
+
+/** Impact lu par l'API (champs lus par le parcours de la chaîne). */
+export interface ImpactChaine {
+  id: string
+  signalExternalId: string
+  componentPurl: string | null
+  etat: string
+  level: string
+}
+
+/** Impacts du projet de la chaîne aux états donnés (GET /api/v1/projects/{id}/impacts, COR-12-S2). */
+export async function impactsChaine(etats: string[] = []): Promise<ImpactChaine[]> {
+  const requete = etats.map((e) => `etat=${encodeURIComponent(e)}`).join('&')
+  return api<ImpactChaine[]>(COMPTE_CHAINE, `/api/v1/projects/${CHAINE.projet}/impacts${requete ? `?${requete}` : ''}`)
+}
+
+/** Alertes DESKTOP de gina : identifiant, état et identifiants externes des signaux cités. */
+export async function alertesChaine(): Promise<{ id: string; etat: string; titre: string }[]> {
+  return api(COMPTE_CHAINE, '/api/v1/alertes?canal=DESKTOP&limite=200')
+}
