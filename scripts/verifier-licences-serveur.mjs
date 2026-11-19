@@ -1,8 +1,10 @@
 #!/usr/bin/env node
-// Licences des dépendances livrées avec argos-server (décision F3 du porteur du projet, 2026-11-19 ;
-// ADR-0021 points 4 et 6).
+// Licences des dépendances livrées avec argos-server (décisions F3 révisée par G1, G2 et G3 du porteur du
+// projet, 2026-11-19 ; ADR-0021 points 4 et 6).
 // Commande : mvn -B -f argos-server/pom.xml -P licences validate
 //            (le profil « licences » produit argos-server/target/bom.json puis lance ce script).
+//            Le build de l'image Docker (Dockerfile, étage « server ») exécute la même commande et
+//            échoue sur un écart ; l'image embarque NOTICE et THIRD-PARTY.txt dans /opt/argos/licenses/.
 // Usage direct : node scripts/verifier-licences-serveur.mjs [chemin/vers/bom.json] [--depot <dépôt Maven local>]
 //                (dépôt par défaut : MAVEN_REPO_LOCAL, sinon ~/.m2/repository)
 // Effets : écrit THIRD-PARTY.txt à côté du fichier CycloneDX : pour chaque dépendance, version, licences
@@ -53,8 +55,9 @@ const ADMISES = [
 ];
 
 // Licences soumises à décision, acceptées seulement pour les composants nommés (groupe:artefact).
-// [PROPOSITION] EPL-2.0, copyleft faible au niveau du fichier, pour les API Jakarta non modifiées apportées
-// par la plateforme Quarkus (voir argos-server/README.md) ; toute autre dépendance sous EPL est un écart.
+// [DÉCISION — porteur du projet, 2026-11-19 (G3)] EPL-2.0, copyleft faible au niveau du fichier, admise
+// pour les neuf API Jakarta nommées ci-dessous que Quarkus embarque, livrées sans modification, et pour
+// elles seules : toute autre dépendance sous EPL fait échouer le contrôle (voir argos-server/README.md).
 const SOUS_RESERVE = [
   {
     motif: /^(EPL-2\.0|Eclipse Public License( -)? v?(ersion )?2\.0)$/i,
@@ -231,7 +234,8 @@ const entete = [
   'Fichier généré, ne pas modifier : « mvn -B -f argos-server/pom.xml -P licences validate »',
   '(inventaire CycloneDX, puis node scripts/verifier-licences-serveur.mjs).',
   'Portée : dépendances compile et runtime de argos-server, directes et transitives (sans les tests).',
-  'Avis propres au serveur : argos-server/NOTICE ; textes de licence : argos-server/licenses/.',
+  'Avis propres au serveur : argos-server/NOTICE ; textes de licence : argos-server/licenses/',
+  '(dans l\'image Docker : NOTICE et Apache-2.0.txt, à côté de ce fichier dans /opt/argos/licenses/).',
   `Composants : ${composants.length} ; avis NOTICE reproduits : ${avis.length}.`,
   '',
   '1. Dépendances et licences',

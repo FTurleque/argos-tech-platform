@@ -10,9 +10,13 @@ Monolithe modulaire Quarkus d'ARGOS (Java 17 minimum, ADR-0019). Démarrage loca
 
 ## Licences des dépendances
 
-[DÉCISION — porteur du projet, 2026-11-19 (F3)] Avis de licence du serveur : générés au build par un plugin Maven gratuit (`org.codehaus.mojo:license-maven-plugin`, désigné comme sous licence Apache-2.0, licence à vérifier), qui produit la liste des dépendances et de leurs licences ; `argos-server/NOTICE` garde les avis que les licences Apache-2.0 imposent de reproduire (au moins `maven-artifact`) et renvoie vers le fichier généré ; la commande est documentée.
+[DÉCISION — porteur du projet, 2026-11-19 (F3, révisée par G1)] Outil des avis de licence du serveur : le [CycloneDX Maven Plugin](https://github.com/CycloneDX/cyclonedx-maven-plugin) (Apache-2.0) et le script `scripts/verifier-licences-serveur.mjs` (liste blanche) produisent la liste des dépendances livrées et de leurs licences ; `org.codehaus.mojo:license-maven-plugin` n'est pas utilisé ; `argos-server/NOTICE` garde les avis que les licences Apache-2.0 imposent de reproduire (au moins `maven-artifact`) et renvoie vers le fichier généré ; la commande est documentée.
 
-Vérification de la licence de l'outil désigné : le POM de `org.codehaus.mojo:license-maven-plugin` (2.7.1 dans le dépôt local, 2.9.0 sur Maven Central) déclare la **GNU Lesser General Public License, version 3.0**, et non l'Apache-2.0. La substitution décrite ci-dessous en découle ([PROPOSITION] plus bas).
+Origine de la révision : la décision F3 désignait `license-maven-plugin` comme sous licence Apache-2.0, alors que son POM (2.7.1 dans le dépôt local, 2.9.0 sur Maven Central) déclare la **GNU Lesser General Public License, version 3.0**. CycloneDX est aussi le format SBOM retenu par ARGOS (ADR-0011 proposé).
+
+[DÉCISION — porteur du projet, 2026-11-19 (G2)] Le contrôle des licences s'exécute au build de l'image Docker du serveur : le build échoue si une licence est absente ou non admise. L'image embarque `argos-server/NOTICE` et `THIRD-PARTY.txt` (Apache License 2.0, section 4 d). La commande dédiée `mvn -P licences validate` reste disponible ; `mvn verify` n'est pas modifié.
+
+[DÉCISION — porteur du projet, 2026-11-19 (G3)] EPL-2.0 est admise pour les neuf API Jakarta nommées que Quarkus embarque (`jakarta.annotation-api`, `jakarta.el-api`, `jakarta.interceptor-api`, `jakarta.json-api`, `jakarta.resource-api`, `jakarta.transaction-api`, `jakarta.ws.rs-api`, `parsson`, `expressly`), et pour elles seules : toute autre dépendance sous EPL fait échouer le contrôle. Ces archives sont livrées sans modification ; l'EPL-2.0 est un copyleft faible au niveau du fichier. La décision s'applique dans le cadre d'ADR-0021 point 4 (copyleft sur décision explicite), sans modifier cet ADR.
 
 Mise en œuvre : `mvn -B -f argos-server/pom.xml -P licences validate` exécute le profil `licences` du `pom.xml`, en deux étapes de la phase `validate` :
 
@@ -30,12 +34,22 @@ Règles du contrôle (ADR-0021 point 4 : licences permissives admises d'office, 
 
 Le fichier généré reste dans `target/`, non versionné : il suit les dépendances réellement résolues, sans copie à tenir à jour à la main, et `argos-server/NOTICE` y renvoie.
 
-Le profil `licences` n'est pas rattaché au cycle `mvn verify` : le but `makeBom` du plugin CycloneDX se déclare « requiresOnline » et refuse le mode hors ligne (`mvn -o`), même avec un dépôt local complet. `mvn verify` reste donc inchangé et sans accès réseau supplémentaire. La commande dédiée exige le mode en ligne de Maven ; elle ne télécharge que les plugins absents du dépôt local, et le script de vérification n'accède pas au réseau. Aucune chaîne d'intégration continue n'existe dans le dépôt ; la commande se lance à la main avant une livraison.
+Le profil `licences` n'est pas rattaché au cycle `mvn verify` : le but `makeBom` du plugin CycloneDX se déclare « requiresOnline » et refuse le mode hors ligne (`mvn -o`), même avec un dépôt local complet. `mvn verify` reste donc inchangé et sans accès réseau supplémentaire. La commande dédiée exige le mode en ligne de Maven ; elle ne télécharge que les plugins absents du dépôt local, et le script de vérification n'accède pas au réseau. Le build de l'image Docker exécute la même commande (décision G2), en ligne lui aussi ; hors de l'image, elle se lance à la main avant une livraison.
 
-État au 2026-11-19 : 194 dépendances inventoriées, aucune licence absente ni non admise ; 26 archives portent un avis NOTICE. Neuf API Jakarta (`jakarta.annotation-api`, `jakarta.el-api`, `jakarta.interceptor-api`, `jakarta.json-api`, `jakarta.resource-api`, `jakarta.transaction-api`, `jakarta.ws.rs-api`, `parsson`, `expressly`), apportées par la plateforme Quarkus, sont proposées sous EPL-2.0 ou GPL-2.0 avec exception Classpath : la licence retenue est EPL-2.0. Huit modules Eclipse Vert.x, proposés sous EPL ou Apache-2.0, retiennent Apache-2.0.
+État au 2026-11-19 : 194 dépendances inventoriées, aucune licence absente ni non admise ; 26 archives portent un avis NOTICE. Neuf API Jakarta (`jakarta.annotation-api`, `jakarta.el-api`, `jakarta.interceptor-api`, `jakarta.json-api`, `jakarta.resource-api`, `jakarta.transaction-api`, `jakarta.ws.rs-api`, `parsson`, `expressly`), apportées par la plateforme Quarkus, sont proposées sous EPL-2.0 ou GPL-2.0 avec exception Classpath : la licence retenue est EPL-2.0 (décision G3). Huit modules Eclipse Vert.x, proposés sous EPL ou Apache-2.0, retiennent Apache-2.0.
 
-[PROPOSITION] Outil : faute de licence permissive pour `license-maven-plugin` (LGPL-3.0), le CycloneDX Maven Plugin (Apache-2.0), qui produit le format SBOM déjà retenu par ARGOS (CycloneDX, ADR-0011 proposé), le remplace, complété par le script de vérification. ADR-0021 point 4 vise les dépendances livrées, et un plugin de build n'est pas livré : l'adoption de `license-maven-plugin` comme outil de build non livré (but `add-third-party`, `failOnBlacklist`, `useRepositoryMissingFiles=false`) reste possible si le porteur du projet le décide.
+### Contrôle au build de l'image Docker
 
-[PROPOSITION] EPL-2.0 (copyleft faible, au niveau du fichier) est admise pour les neuf archives Jakarta non modifiées ci-dessus, et pour elles seules, à confirmer au regard d'ADR-0021 point 4.
+Le `Dockerfile` du dépôt exécute `mvn -B -P licences validate` dans l'étage `server`, avant la compilation : Node.js y est le binaire de l'image officielle `node:22-slim` (licence MIT), copié dans l'image de build `maven:3.9-eclipse-temurin-17`. Le script de contrôle entre dans le contexte de build par `.dockerignore`. Une licence absente ou non admise arrête `docker build` (ou `docker compose up -d --build`) avec la liste des dépendances en écart.
 
-[PROPOSITION] Livraison : l'image Docker (`Dockerfile`) n'embarque aujourd'hui ni `argos-server/NOTICE` ni `THIRD-PARTY.txt`, alors que l'Apache License 2.0 (section 4 d) demande de fournir les avis NOTICE à la redistribution ; leur copie dans l'image et l'exécution du profil `licences` dans la chaîne de publication restent à décider.
+L'image d'exécution contient, dans `/opt/argos/licenses/` :
+
+| Fichier | Contenu |
+|---|---|
+| `NOTICE` | copie de `argos-server/NOTICE` |
+| `THIRD-PARTY.txt` | liste générée au build de l'image : dépendances livrées, licences, avis NOTICE de leurs archives |
+| `Apache-2.0.txt` | texte de l'Apache License 2.0 (`argos-server/licenses/Apache-2.0.txt`), cité par `NOTICE` |
+
+Lecture sans démarrer Argos : `docker run --rm --entrypoint cat argos:local /opt/argos/licenses/THIRD-PARTY.txt` (guide [`docs/deploiement/synology-et-pc.md`](../docs/deploiement/synology-et-pc.md#avis-de-licence-de-limage)).
+
+Vérification du 2026-11-19 (Docker Engine 29.9.3) : `docker build` réussit avec « 194 dépendances inventoriées, 26 avis NOTICE reproduits » et « Aucune licence absente ni non admise » ; `docker run --rm --entrypoint ls <image> -l /opt/argos/licenses` liste `Apache-2.0.txt`, `NOTICE` et `THIRD-PARTY.txt`. Un inventaire CycloneDX factice (GPL-3.0-only, EPL-2.0 sur un composant hors des neuf API Jakarta, licence absente), donné au script dans l'étage `server`, fait échouer `docker build` (code 1, six écarts listés).
