@@ -85,6 +85,18 @@ class MatchRulesTest {
         assertEquals(Optional.empty(), MatchRules.evaluate(listed, "1.0.2", true));
     }
 
+    /** Maven : l'appartenance aux versions énumérées suit l'égalité de ComparableVersion (décision E3). */
+    @Test
+    void versionsEnumereesMavenSelonComparableVersion() {
+        AffectedPackage listed = new AffectedPackage(KEY, true, "Maven", "x", List.of(), List.of("1.0", "2.0-RC1"));
+        assertEquals(Optional.of(Level.EXACT), MatchRules.evaluate(listed, "1.0.0", true), "1.0 == 1.0.0");
+        assertEquals(Optional.of(Level.EXACT), MatchRules.evaluate(listed, "1.0-ga", true), "1.0 == 1.0-ga");
+        assertEquals(Optional.of(Level.EXACT), MatchRules.evaluate(listed, "2.0-rc-1", true), "2.0-RC1 == 2.0-rc-1");
+        assertEquals(Optional.empty(), MatchRules.evaluate(listed, "1.0.1", true));
+        AffectedPackage npm = new AffectedPackage("pkg:npm/exemple", true, "npm", "exemple", List.of(), List.of("1.0"));
+        assertEquals(Optional.empty(), MatchRules.evaluate(npm, "1.0.0", true), "hors Maven : égalité des chaînes inchangée");
+    }
+
     @Test
     void comparaisonDesVersions() {
         assertTrue(VersionComparator.compare("1.2.0", "1.3.0").orElseThrow() < 0);

@@ -17,7 +17,7 @@ import io.argos.signal.AffectedPackage;
  * </ul>
  * Une version hors de toutes les plages ne produit aucun impact (COR-01-S2). Pour un paquet Maven,
  * toute comparaison suit l'ordre de {@code ComparableVersion} (décision E3 du porteur du projet,
- * 2026-11-19, qui précise D5 du 2026-11-18, Q-COR-3) : {@code 32.0.0-jre} suit la borne
+ * 2026-11-19, qui révise D5 du 2026-11-18, Q-COR-3) : {@code 32.0.0-jre} suit la borne
  * {@code 32.0.0-android}.
  */
 public final class MatchRules {
@@ -75,7 +75,7 @@ public final class MatchRules {
         if (version == null || version.isBlank()) {
             return RangeResult.UNKNOWN;
         }
-        if (affected.versions() != null && affected.versions().contains(version)) {
+        if (enumerated(affected, version)) {
             return RangeResult.IN_RANGE;
         }
         boolean unknown = false;
@@ -94,6 +94,29 @@ public final class MatchRules {
             return RangeResult.UNKNOWN;
         }
         return unknown ? RangeResult.UNKNOWN : RangeResult.OUT_OF_RANGE;
+    }
+
+    /**
+     * Version énumérée par le paquet. Pour Maven, l'égalité suit aussi {@code ComparableVersion} (décision E3) :
+     * {@code 1.0} énumérée correspond à {@code 1.0.0}. Une chaîne identique correspond dans tous les cas.
+     */
+    private static boolean enumerated(AffectedPackage affected, String version) {
+        if (affected.versions() == null || affected.versions().isEmpty()) {
+            return false;
+        }
+        if (affected.versions().contains(version)) {
+            return true;
+        }
+        String ecosystem = ecosystem(affected);
+        if (!VersionComparator.maven(ecosystem)) {
+            return false;
+        }
+        for (String listed : affected.versions()) {
+            if (VersionComparator.compare(ecosystem, version, listed).filter(c -> c == 0).isPresent()) {
+                return true;
+            }
+        }
+        return false;
     }
 
     private static RangeResult inInterval(AffectedPackage affected, AffectedPackage.VersionRange r, String version) {

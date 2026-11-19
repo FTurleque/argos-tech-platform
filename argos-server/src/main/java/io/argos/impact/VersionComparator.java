@@ -21,7 +21,7 @@ import org.apache.maven.artifact.versioning.ComparableVersion;
  *
  * <p>Pour l'écosystème Maven, {@link #compare(String, String, String)} n'utilise pas l'ordre générique :
  * toute comparaison passe par {@link ComparableVersion} de la bibliothèque {@code maven-artifact}
- * (décision E3 du porteur du projet, 2026-11-19, qui précise D5 du 2026-11-18, Q-COR-3).
+ * (décision E3 du porteur du projet, 2026-11-19, qui révise D5 du 2026-11-18, Q-COR-3).
  */
 public final class VersionComparator {
 
