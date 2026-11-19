@@ -13,8 +13,8 @@ et G2 du porteur du projet, 2026-11-19), produit par :
 
 Le build de l'image Docker exécute la même commande ; l'image embarque ce fichier NOTICE,
 THIRD-PARTY.txt et les textes des licences retenues par les dépendances (Apache License 2.0, MIT,
-BSD et EPL-2.0 : décision H1 du porteur du projet, 2026-11-19 ; licence de JDOM : proposition
-consignée dans argos-server/README.md, en attente de validation) dans /opt/argos/licenses/.
+BSD et EPL-2.0 : décision H1 du porteur du projet, 2026-11-19 ; licence de JDOM : décision du
+porteur du projet, 2026-11-19, consignée dans argos-server/README.md) dans /opt/argos/licenses/.
 THIRD-PARTY.txt liste les titulaires des droits et l'adresse du code source des dépendances sous
 EPL-2.0.
 

@@ -28,7 +28,7 @@ RUN mvn -B -q -P licences dependency:go-offline
 # licence déclarée ou porte une licence non admise ; target/THIRD-PARTY.txt est produit. Le script copie
 # aussi dans target/licenses/ les textes versionnés (argos-server/licenses/) des licences retenues :
 # Apache-2.0, MIT, BSD (variantes présentes) et EPL-2.0 (décision H1 du porteur du projet, 2026-11-19),
-# ainsi que la licence de JDOM ([PROPOSITION] consignée dans argos-server/README.md).
+# ainsi que la licence de JDOM (décision du porteur du projet du 2026-11-19, consignée dans argos-server/README.md).
 COPY argos-server/licenses ./licenses
 COPY scripts/verifier-licences-serveur.mjs ../scripts/
 RUN mvn -B -P licences validate

@@ -114,7 +114,7 @@ L'image contient les avis de licence dans `/opt/argos/licenses/` :
 
 [DÉCISION — porteur du projet, 2026-11-19 (H1)] L'image livre les textes des licences MIT, BSD (variantes présentes) et EPL-2.0 des dépendances du serveur, à côté des avis existants ; les avis npm de l'IHM ne sont pas ajoutés. Seuls les textes des licences effectivement retenues par les dépendances entrent dans l'image. Le dossier (0755) et les fichiers (0444) appartiennent à root : l'utilisateur d'exécution (UID 1001) les lit sans pouvoir les modifier.
 
-[PROPOSITION] `JDOM.txt` est livré en plus des textes nommés par la décision H1 : la clause 2 de la licence de JDOM impose de reproduire l'avis dans la documentation d'une distribution binaire ([README du serveur](../../argos-server/README.md#licences-des-dépendances)).
+[DÉCISION — porteur du projet, 2026-11-19] `JDOM.txt` est livré en plus des textes nommés par la décision H1 : la clause 2 de la licence de JDOM impose de reproduire l'avis dans la documentation d'une distribution binaire ([README du serveur](../../argos-server/README.md#licences-des-dépendances)).
 
 Pour les lire sans démarrer Argos :
 

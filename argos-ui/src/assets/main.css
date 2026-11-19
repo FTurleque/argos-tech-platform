@@ -25,7 +25,6 @@ body { margin: 0; }
 }
 .brand { display: flex; align-items: baseline; gap: 0.75rem; }
 .brand-name { font-weight: 700; font-size: 1.25rem; letter-spacing: 0.08em; }
-.brand-motto { font-size: 0.85rem; opacity: 0.8; }
 .nav { display: flex; gap: 1rem; }
 .nav a { color: #fff; text-decoration: none; opacity: 0.85; }
 .nav a.router-link-exact-active { opacity: 1; text-decoration: underline; }

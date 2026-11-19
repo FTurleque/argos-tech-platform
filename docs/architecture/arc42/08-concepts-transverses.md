@@ -109,7 +109,7 @@ Risque résiduel : rebinding DNS entre le contrôle et la connexion ; un mandata
 
 - API REST/OpenAPI Quarkus ;
 - Vue.js 3 consomme les contrats HTTP ; les statuts HTTP lus par l'IHM sont des constantes nommées d'un module partagé unique, `argos-ui/src/api/statuts-http.ts` (204, 400, 401, 403, 404, 409, 429), utilisé par tous les écrans et modules d'`argos-ui` ; aucune comparaison de statut n'écrit le nombre en dur ([DÉCISION] du porteur du projet, 2026-11-19, H4) ;
-- [PROPOSITION] moyen de contrôle de H4 : `argos-ui/tests/statuts-http.test.mjs` échoue, hors du module partagé, sur une égalité ou une inégalité à un nombre de 100 à 599, un `case` sur un tel nombre, une liste de tels nombres ou une comparaison d'ordre d'une variable de statut ; une comparaison légitime à un nombre de cette plage passe par une constante nommée ;
+- [DÉCISION — porteur du projet, 2026-11-19] moyen de contrôle de H4, qui inclut 204 dans le module partagé : `argos-ui/tests/statuts-http.test.mjs` échoue, hors du module partagé, sur une égalité ou une inégalité à un nombre de 100 à 599, un `case` sur un tel nombre, une liste de tels nombres ou une comparaison d'ordre d'une variable de statut ; une comparaison légitime à un nombre de cette plage passe par une constante nommée ;
 - adapters externes indépendants du domaine ;
 - contract tests sur GitHub/GitLab/FreshRSS/changedetection/MCP ;
 - stratégie de dépréciation documentée.

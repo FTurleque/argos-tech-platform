@@ -38,7 +38,7 @@ Règles du contrôle (ADR-0021 point 4 : licences permissives admises d'office, 
 - une licence à attribution (MIT, BSD-2-Clause, BSD-3-Clause, licence de JDOM) exige au moins un titulaire des droits, lu dans les lignes « Copyright » des fichiers `META-INF/**/LICENSE*` de l'archive, y compris ceux des bibliothèques qu'elle intègre (pilote PostgreSQL : bibliothèques OnGres), ou, pour une archive sans fichier LICENSE, dans le tableau `TITULAIRES` (relevé dans ses sources publiées : `org.crac`) ;
 - le build échoue aussi si une dépendance n'a aucune licence déclarée ou si son archive manque au dépôt local.
 
-Textes versionnés sous `argos-server/licenses/` (décision H1 ; `JDOM.txt` : [PROPOSITION] ci-dessous) :
+Textes versionnés sous `argos-server/licenses/` (décision H1 ; `JDOM.txt` : décision ci-dessous) :
 
 | Fichier | Licence | Origine du texte | Dépendances couvertes au 2026-11-19 |
 |---|---|---|---|
@@ -50,7 +50,7 @@ Textes versionnés sous `argos-server/licenses/` (décision H1 ; `JDOM.txt` : [P
 | `EPL-2.0.txt` | Eclipse Public License 2.0 | texte de la Fondation Eclipse, partie EPL-2.0 du fichier `META-INF/LICENSE.md` de `jakarta.annotation-api` 3.0.0 (sans l'annexe GPL) | les neuf API Jakarta de la décision G3 |
 | `JDOM.txt` | licence de JDOM (type BSD) | fichier `META-INF/LICENSE.txt` de `jdom2` 2.0.6.1 | `jdom2` |
 
-[PROPOSITION] Le texte de la licence de JDOM est livré avec les textes MIT, BSD et EPL-2.0 : sa clause 2 impose de reproduire l'avis de droit d'auteur et l'avertissement dans la documentation d'une distribution binaire. Le domaine public (`jboss-transaction-spi`) ne demande aucun texte.
+[DÉCISION — porteur du projet, 2026-11-19] Le texte de la licence de JDOM est livré avec les textes MIT, BSD et EPL-2.0 : sa clause 2 impose de reproduire l'avis de droit d'auteur et l'avertissement dans la documentation d'une distribution binaire. Le domaine public (`jboss-transaction-spi`) ne demande aucun texte.
 
 Le fichier généré reste dans `target/`, non versionné : il suit les dépendances réellement résolues, sans copie à tenir à jour à la main, et `argos-server/NOTICE` y renvoie.
 
@@ -69,7 +69,7 @@ L'image d'exécution contient, dans `/opt/argos/licenses/` :
 | `NOTICE` | copie de `argos-server/NOTICE` |
 | `THIRD-PARTY.txt` | liste générée au build de l'image : dépendances livrées, licences, avis NOTICE de leurs archives, titulaires des droits et adresses du code source EPL-2.0 |
 | `Apache-2.0.txt` | texte de l'Apache License 2.0, cité par `NOTICE` |
-| `MIT.txt`, `MIT-0.txt`, `BSD-2-Clause.txt`, `BSD-3-Clause.txt`, `EPL-2.0.txt`, `JDOM.txt` | textes des autres licences retenues (décision H1 ; `JDOM.txt` : [PROPOSITION]), copiés depuis `argos-server/licenses/` par le contrôle des licences |
+| `MIT.txt`, `MIT-0.txt`, `BSD-2-Clause.txt`, `BSD-3-Clause.txt`, `EPL-2.0.txt`, `JDOM.txt` | textes des autres licences retenues (décision H1 ; `JDOM.txt` : décision du porteur du projet, 2026-11-19), copiés depuis `argos-server/licenses/` par le contrôle des licences |
 
 Le dossier (mode 0755) et chaque fichier (mode 0444) appartiennent à root. Seuls les textes des licences effectivement retenues entrent dans l'image : une licence qui disparaît des dépendances retire son texte au build suivant.
 

@@ -375,6 +375,8 @@ Non applicable — aucune donnée ni aucun contrat existant à migrer. Le retour
 #### Révision H — 2026-11-19
 
 - [DÉCISION — porteur du projet, 2026-11-19 ; H3] Outils MCP : l'ordre des projets de l'API (nom, espace, identifiant) et la lecture paginée sans instantané commun au-delà de 200 projets sont acceptés.
+- [DÉCISION — porteur du projet, 2026-11-19] `/vues/{id}/resultats` : une vue dont un critère est devenu invalide reçoit le 400 du critère avant celui d'une pagination non entière (ordre : vue de l'appelant, critères, pagination).
+- [DÉCISION — porteur du projet, 2026-11-19] Le bloc JDBC commun à `InventoryQueries` et `alerting.Destinataires` reste dupliqué : le partager exigerait un couplage entre modules que les frontières d'architecture (ArchUnit, arc42 §5) excluent.
 - [DÉCISION — porteur du projet, 2026-11-19 ; H5] `/recherche` : un projet filtré inconnu ou invisible reçoit 404 même avec un paramètre de pagination non entier (contrôle d'accès aux projets avant la conversion des paramètres) ; la réponse ne permet pas de distinguer un projet inexistant d'un projet d'un autre espace (même réponse que pour les autres ressources). Test d'intégration.
 - **Choix** :
   - H3 : `io.argos.mcp.ProjetsVisibles` garde la lecture de G6 (pages de 200 de `InventoryQueries.projects`, ordre de l'API) ; aucun changement de code.
