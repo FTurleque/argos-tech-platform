@@ -298,3 +298,39 @@ sequenceDiagram
 
 Une fiche en attente n’est restituée qu’aux experts de ses domaines, par la base elle-même ; l’API REST, le serveur MCP et les rappels ne voient que des fiches validées pour les autres utilisateurs. Sans IA, la fiche est préparée sans résumé et l’expert le rédige avant de valider.
 
+## 6.7 Scénario nominal — import quotidien des inventaires et recorrélation
+
+**Type : UML sequence diagram. Portée : import planifié des inventaires depuis les dépôts GitHub/GitLab de chaque projet, puis recorrélation (changement `automatiser-chaine-veille`, volet B ; décisions J3, J4 et J6 du porteur du projet, 2026-11-19).**
+
+```mermaid
+sequenceDiagram
+    participant Core as inventory
+    participant Ext as scm-connector
+    participant Forge as «Software System» GitHub/GitLab
+    participant Persist as PostgreSQL
+    participant Impact as impact-engine
+
+    Core->>Core: tâche planifiée quotidienne (03:00, argos.inventory.import.cron)
+    Core->>Persist: projets au marqueur de recorrélation resté posé
+    Core-)Impact: relancer leur recorrélation
+    loop pour chaque projet ayant au moins un dépôt
+        loop pour chaque dépôt du projet
+            Core->>Ext: SBOM, sinon manifestes, de la branche principale
+            Ext->>Forge: lecture seule (jeton en configuration)
+            Forge-->>Ext: document ou erreur
+            Ext-->>Core: octets et format reconnu
+            opt refus, erreur de forge ou quota épuisé
+                Core->>Persist: échec enregistré avec le dépôt, sans jeton
+            end
+        end
+        opt au moins un dépôt importé
+            Core->>Persist: verrou du projet, occurrences des dépôts importés remplacées, union recalculée
+            Core->>Persist: marqueur de recorrélation posé
+            Core-)Impact: InventoryReplaced (après validation)
+            Impact->>Persist: impacts recalculés pour le projet, marqueur effacé
+        end
+    end
+```
+
+Aucun flux n'entre depuis une forge ou une CI : seule la tâche planifiée, ou un import manuel, déclenche un import. L'import manuel prend le même verrou consultatif par projet, si bien que deux imports d'un même projet s'exécutent l'un après l'autre. Un dépôt en échec garde son dernier import réussi ; une recorrélation en échec laisse le marqueur posé, et le passage suivant la relance. La tâche est désactivée dans le profil de test et dans la pile E2E.
+

@@ -157,6 +157,7 @@ Liste à jour des migrations, dans `argos-server/src/main/resources/db/migration
 | V15 | `V15__profil_artiste.sql` | objets suivis par profil, rappels, sources vérifiées, opportunités (ADR-0024) | `ajouter-profil-artiste` |
 | V16 | `V16__veille_reglementaire.sql` | domaines métier, experts, dictionnaire, sources et textes officiels, fiches réglementaires et leur historique | `suivre-veille-reglementaire` |
 | V17 | `V17__composants_ignores_import.sql` | colonnes `ignored_count` et `ignored_components` de `inventory` : composants ignorés faute de PURL au dernier import (INV-01, décision D6 du 2026-11-18) | `formaliser-chaine-securite-poc` |
+| V19 | `V19__depots_projet_et_occurrences.sql` | dépôts d'un projet (`project_repository`, alimentée depuis `project.scm_*`), dernier import par dépôt (`repository_inventory`), occurrences des composants par dépôt (`component_occurrence`), dépôt d'un échec d'import, marqueur `inventory.recorrelation_pending` ; RLS de lecture des nouvelles tables (INV-07 à INV-10, décision J6 du 2026-11-19) | `automatiser-chaine-veille` (volet B, tâche 2.1 ; numéro réservé, P-11) |
 
 ## 8.8 IA et coûts
 

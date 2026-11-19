@@ -543,7 +543,7 @@ Opérations retenues (lecture, sans appel externe ni IA) : `GET /api/v1/projects
 
 ### D6 — Projet à plusieurs dépôts, inventaire = union (J6)
 
-- **Statut** : [DÉCISION] J6 ; modèle et règle de niveau [PROPOSITION] P-7.
+- **Statut** : [DÉCISION] J6 ; modèle et règle de niveau [PROPOSITION] P-7 ; cible de l'import manuel, synthèse et dernier échec d'un dépôt [PROPOSITION] P-B1 (volet B, 2026-11-19).
 - **Choix** : `project_repository` (1..n par projet), `repository_inventory` (dernier import réussi par dépôt), `component_occurrence` (présence d'un composant dans un dépôt) ; `component` reste unique par (projet, paquet, version) ; le niveau d'un impact se calcule sur la meilleure occurrence ; les données existantes sont migrées vers un dépôt `principal`.
 - **Justification** : J6 ; l'identité de composant existante et le triplet d'impact (COR-07) sont conservés, ce qui évite des impacts en double pour un même paquet présent dans deux dépôts.
 - **Alternatives écartées** : un inventaire et des composants par dépôt (impacts dupliqués par dépôt, union recalculée à chaque lecture) ; un projet par dépôt (contraire à J6) ; suppression immédiate de `project.scm_*` (casse `projectintel`).
@@ -590,9 +590,9 @@ Opérations retenues (lecture, sans appel externe ni IA) : `GET /api/v1/projects
 | COL-09-S1 à S5 | intégration (horloge simulée, OSV et CERT-FR simulés) | `chain/SynchronisationPlanifieeTest` | à écrire |
 | COL-10-S1 à S4 | unitaire + intégration | `ingestion/EmpreinteNormaliseeTest`, `chain/CollecteTest` | à écrire |
 | ABO-07, ABO-08 | intégration + architecture + UI | `chain/SubscriptionTest`, `architecture/SubscriptionIsolationTest`, `argos-ui/tests/abonnements.test.mjs` | à écrire |
-| INV-07-S1 à S4, INV-08 | intégration (forges simulées par réponses enregistrées) | `chain/ImportPlanifieTest` | à écrire |
-| INV-09-S1 à S4 | intégration | `chain/RecorrelationImportTest` | à écrire |
-| INV-10-S1 à S4 | intégration + migration + UI | `chain/ProjetMultiDepotsTest`, `argos-ui/tests/inventaire-depots.test.mjs` | à écrire |
+| INV-07-S1 à S4, INV-08 | intégration (forges simulées par réponses enregistrées) | `chain/ImportPlanifieTest` | passé le 2026-11-19 (volet B) |
+| INV-09-S1 à S4 | intégration | `chain/RecorrelationImportTest` | passé le 2026-11-19 (volet B ; INV-09-S2 avant le volet C) |
+| INV-10-S1 à S4 | intégration + migration + UI | `chain/ProjetMultiDepotsTest`, `chain/MigrationDepotsTest`, `argos-ui/tests/inventaire-depots.test.mjs` | passé le 2026-11-19 (volet B) |
 | COR-09 à COR-12 | intégration (jetons réels, RLS sous `argos_app`) + UI | `chain/EtatTraitementImpactTest`, `argos-ui/tests/traitement-impact.test.mjs` | à écrire |
 | ALR-07 | intégration | `alerting/AlertesImpactsTraitesTest` | à écrire |
 | PERF-01, PERF-02 | mesure | `npm --prefix e2e run test:performance`, rapport `docs/architecture/quality/mesure-performance-api-mcp.md` | à exécuter |
