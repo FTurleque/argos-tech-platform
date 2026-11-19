@@ -256,7 +256,7 @@ test('sécurité et accessibilité de l’écran : appels par appelerApi, aucun 
   assert.match(vue, /chargerProjets\(fetchProjets, /)
   assert.match(vue, /chargerComposants\(projet, numero, fetchComposantsProjet, signal\)/)
   // Un projet chargé efface les messages de validation des deux formulaires.
-  assert.match(vue, /erreurSaisie\.value = ''\n\s*erreurChoix\.value = ''/)
+  assert.match(vue, /erreurSaisie\.value = ''\r?\n\s*erreurChoix\.value = ''/)
   // Aucun changement de contexte à la sélection (WCAG 3.2.2) : la navigation part du bouton du formulaire.
   assert.doesNotMatch(vue, /@change=/)
 })
