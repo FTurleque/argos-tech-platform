@@ -116,7 +116,9 @@ test('module API de la veille : appels par appelerApi, points d’accès existan
   const contenu = source('../src/contenu/veille-profils.ts')
   const imports = [...contenu.matchAll(/^import[\s\S]*?from '([^']+)'/gm)]
   assert.ok(imports.length > 0)
-  for (const [declaration] of imports) {
+  for (const [declaration, module] of imports) {
+    // Seule valeur importée : les statuts HTTP partagés, module pur sans appel réseau (H4).
+    if (module === '../api/statuts-http.ts') continue
     assert.match(declaration, /^import type /, `module pur : import de types seulement (${declaration})`)
   }
 })

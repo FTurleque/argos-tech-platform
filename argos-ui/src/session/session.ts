@@ -4,6 +4,7 @@ import { reactive, watch } from 'vue'
 import type { Router } from 'vue-router'
 import { ApiError, configurerAutorisation, fetchMoi, type CompteCourant } from '../api/client'
 import { CODE_COMPTE_NON_CREE, type Refus } from '../api/autorisation'
+import { STATUT_INTERDIT } from '../api/statuts-http'
 import { GestionnaireSession, type DemandeAutorisation, type EtatSession, type TransportConnexion } from './gestionnaire'
 import { decisionExpiration, decisionGarde } from './garde'
 import { contientRetour, urlNettoyee } from './oidc'
@@ -138,7 +139,7 @@ async function verifierCompte(): Promise<void> {
     etatSession.compte = await fetchMoi()
     etatSession.compteNonCree = false
   } catch (e) {
-    if (e instanceof ApiError && e.status === 403 && e.code === CODE_COMPTE_NON_CREE) {
+    if (e instanceof ApiError && e.status === STATUT_INTERDIT && e.code === CODE_COMPTE_NON_CREE) {
       etatSession.compteNonCree = true
     }
   }
