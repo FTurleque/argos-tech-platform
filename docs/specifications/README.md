@@ -39,8 +39,8 @@ Un préfixe n'est jamais réattribué ; un identifiant d'exigence retiré n'est 
 | `inventaire-sbom` | `INV` | [fiche](inventaire-sbom.md) | absente | `formaliser-chaine-securite-poc` | proposée |
 | `correlation-impact` | `COR` | [fiche](correlation-impact.md) | absente | `formaliser-chaine-securite-poc` | proposée |
 | `abonnements-veille` | `ABO` | [fiche](abonnements-veille.md) | absente | `formaliser-chaine-securite-poc` | proposée |
-| `affichage-personnalise` | `AFF` | [fiche](affichage-personnalise.md) | absente | `personnaliser-profils-et-affichage` | proposée |
-| `profils-veille` | `PRF` | [fiche](profils-veille.md) | absente | `personnaliser-profils-et-affichage` | proposée |
+| `affichage-personnalise` | `AFF` | [fiche](affichage-personnalise.md) | [spec](/openspec/specs/affichage-personnalise/spec.md) | `2026-11-19-personnaliser-profils-et-affichage` (archivé) | livrée |
+| `profils-veille` | `PRF` | [fiche](profils-veille.md) | [spec](/openspec/specs/profils-veille/spec.md) | `2026-11-19-personnaliser-profils-et-affichage` (archivé) | livrée |
 | `comptes-acces` | `ACC` | [fiche](comptes-acces.md) | [spec](/openspec/specs/comptes-acces/spec.md) | `2026-11-17-gerer-comptes-et-acces` (archivé) ; `2026-11-18-connecter-ihm-oidc` (archivé, ACC-07 à ACC-10) | livrée |
 | `alertes-digests` | `ALR` | [fiche](alertes-digests.md) | [spec](/openspec/specs/alertes-digests/spec.md) | `2026-11-16-diffuser-alertes-et-digests` (archivé) | livrée |
 | `notifications-poste` | `NOT` | [fiche](notifications-poste.md) | absente | `notifier-sur-le-poste` | implémentée, non archivée |
@@ -87,15 +87,15 @@ Les diagrammes d'architecture (D-01 à D-13) sont inventoriés dans [`/docs/arch
 
 ## Bilan de couverture
 
-État au 2026-11-18.
+État au 2026-11-19.
 
 ### Inventaire OpenSpec
 
 | Élément | Nombre | Détail |
 |---|---:|---|
-| Specs de référence | 9 | `comptes-acces`, `recherche-veille`, `alertes-digests`, `veille-rss-web`, `radar-standards`, `passerelle-ia`, `activite-projets`, `profil-artiste`, `veille-reglementaire` ; le code des changements actifs est présent dans `argos-server`, `argos-ui` et `argos-desktop` |
-| Changements actifs | 4 | `formaliser-chaine-securite-poc`, `personnaliser-profils-et-affichage`, `notifier-sur-le-poste`, `exposer-serveur-mcp` (schéma `detailed-uml`) |
-| Changements archivés | 10 | `2026-11-16-diffuser-alertes-et-digests`, `2026-11-16-collecter-veille-rss-web`, `2026-11-16-construire-radar-et-standards`, `2026-11-17-encadrer-appels-ia`, `2026-11-17-mesurer-activite-projets`, `2026-11-17-ajouter-profil-artiste`, `2026-11-17-suivre-veille-reglementaire`, `2026-11-17-gerer-comptes-et-acces`, `2026-11-18-connecter-ihm-oidc`, `2026-11-18-rechercher-et-filtrer` |
+| Specs de référence | 11 | `comptes-acces`, `recherche-veille`, `affichage-personnalise`, `profils-veille`, `alertes-digests`, `veille-rss-web`, `radar-standards`, `passerelle-ia`, `activite-projets`, `profil-artiste`, `veille-reglementaire` ; le code des changements actifs est présent dans `argos-server`, `argos-ui` et `argos-desktop` |
+| Changements actifs | 3 | `formaliser-chaine-securite-poc`, `notifier-sur-le-poste`, `exposer-serveur-mcp` (schéma `detailed-uml`) |
+| Changements archivés | 11 | `2026-11-16-diffuser-alertes-et-digests`, `2026-11-16-collecter-veille-rss-web`, `2026-11-16-construire-radar-et-standards`, `2026-11-17-encadrer-appels-ia`, `2026-11-17-mesurer-activite-projets`, `2026-11-17-ajouter-profil-artiste`, `2026-11-17-suivre-veille-reglementaire`, `2026-11-17-gerer-comptes-et-acces`, `2026-11-18-connecter-ihm-oidc`, `2026-11-18-rechercher-et-filtrer`, `2026-11-19-personnaliser-profils-et-affichage` |
 
 Tous les changements utilisent le schéma `detailed-uml` : aucun changement d'un autre schéma n'est à migrer.
 
@@ -111,15 +111,15 @@ Tous les changements utilisent le schéma `detailed-uml` : aucun changement d'un
 
 Toutes les exigences sont au statut [PROPOSITION] : elles dérivent d'ADR « Proposé » ou de baselines « à valider ». Les tests écrits sont ceux d'`argos-server/src/test/java/io/argos/chain/` (hors `ProfilsDeVeilleTest`) et `architecture/SubscriptionIsolationTest.java`, exécutés par `mvn -B -f argos-server/pom.xml verify` avec des jetons réels du Keycloak des Dev Services et la RLS appliquée sous le rôle `argos_app`. Matrice détaillée : [`tasks.md` du changement](/openspec/changes/formaliser-chaine-securite-poc/tasks.md#matrice-de-traçabilité).
 
-### Couverture de `personnaliser-profils-et-affichage`
+### Couverture de [`personnaliser-profils-et-affichage`](/openspec/changes/archive/2026-11-19-personnaliser-profils-et-affichage/proposal.md) (archivé)
 
 | Capacité | Exigences | Scénarios | Diagrammes métier | Questions ouvertes | Tests écrits |
 |---|---:|---:|---:|---:|---:|
-| `affichage-personnalise` | 5 | 8 | 1 | 1 | 5 |
-| `profils-veille` | 6 | 11 | 2 | 4 | 6 |
-| **Total** | **11** | **19** | **3** | **5** | **11** |
+| `affichage-personnalise` | 5 | 8 | 1 | 0 | 8 |
+| `profils-veille` | 6 | 13 | 2 | 1 | 13 |
+| **Total** | **11** | **21** | **3** | **1** | **21** |
 
-« Tests écrits » compte les scénarios couverts par un test qui passe (AFF-01-S1, AFF-01-S2, AFF-03-S1, AFF-04-S1, AFF-04-S2, PRF-01-S1 à PRF-01-S3, PRF-03-S1, PRF-03-S2, PRF-05-S1). Les exigences dérivent d'ADR-0023 et ADR-0024 (Acceptés) ; les règles dont le code et les tests existent sont marquées [EXISTANT] dans les fiches. Matrice détaillée : [`tasks.md` du changement](/openspec/changes/personnaliser-profils-et-affichage/tasks.md#matrice-de-traçabilité).
+Les exigences AFF-01 à AFF-05 et PRF-01 à PRF-06 sont au statut [EXIGENCE] dans les specs de référence `affichage-personnalise` et `profils-veille` (ADR-0023 et ADR-0024 Acceptés). « Tests écrits » compte les scénarios couverts par au moins un test ou un E2E qui passe : tous les scénarios AFF-01-S1 à AFF-05-S1 et PRF-01-S1 à PRF-06-S2 ; PRF-02-S1 l'est par `UnionProfilsTest`, `ProfilDemonstrationTest` et le parcours E2E « 3.4, 3.9 », preuve acceptée par le porteur du projet le 2026-11-19 (révision de D8). « Questions ouvertes » compte les questions sans réponse : Q-5 (publication d'un profil au catalogue). Matrice détaillée : [`tasks.md` du changement](/openspec/changes/archive/2026-11-19-personnaliser-profils-et-affichage/tasks.md#matrice-de-traçabilité).
 
 ### Couverture du lot 2
 
