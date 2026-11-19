@@ -7,7 +7,7 @@
 | Changements archivés | [`2026-11-17-suivre-veille-reglementaire`](/openspec/changes/archive/2026-11-17-suivre-veille-reglementaire/proposal.md) |
 | Statut de la capacité | livrée |
 | Composants (arc42 §5) | `reg-intel`, `source-ingestion`, `catalog`, `ai-gateway`, `scm-connector`, `alerting` (arc42 §5.4.3) |
-| Décision | [ADR-0030](../architecture/adr/0030-veille-reglementaire-expert-metier.md) (Accepté), mise à jour d'ADR-0018 (Proposé) |
+| Décision | [ADR-0030](../architecture/adr/0030-veille-reglementaire-expert-metier.md) (Accepté), qui remplace ADR-0018 |
 
 ## Objectif
 
@@ -119,7 +119,7 @@ Scénarios REG-01-S1 à REG-08-S1 du changement, tous couverts par un test qui p
 
 ## Écarts constatés
 
-- ADR-0018 nomme les MKP et les modules RH d'un éditeur ; ADR-0030 (Accepté) le met à jour (expert métier, domaines par espace, données ouvertes JORF).
+- ADR-0018 nomme les MKP et les modules RH d'un éditeur ; ADR-0030 (Accepté) le remplace (expert métier, domaines par espace, données ouvertes JORF).
 - Le connecteur lit les seules archives JORF de la DILA, sans l'API PISTE (Q-1) ; le titre de la tâche 2.1 le précise.
 - L'IHM (`argos-ui`) n'a pas d'écran réglementaire : fiches, validation et calendrier passent par l'API REST.
 

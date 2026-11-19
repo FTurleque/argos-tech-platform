@@ -57,7 +57,7 @@ L'utilisateur a un compte Argos et un jeton d'accès Keycloak délivré au clien
 | Texte d'une source externe renvoyé dans un champ `TexteExterne` (nature `CONTENU_EXTERNE_NON_FIABLE`, source, texte, troncature, longueur d'origine), tronqué à 2 000 caractères | MCP-05 | risque R-11 ; Q-2 | [EXISTANT] — `ContenuExterneMcpTest` |
 | 60 appels par minute et par utilisateur sur fenêtre glissante ; refus `LIMITE_DEBIT` journalisé ; chaque appel journalisé (compte, outil, paramètres, durée, issue) | MCP-06 | ADR-0014 (Proposé) ; Q-1 | [EXISTANT] — `LimiteDebitMcpTest` |
 | Négociations `initialize` limitées à la même valeur, comptées à part par sujet du jeton ; refus `LIMITE_DEBIT` inscrit au journal des refus (ressource `MCP initialize`), aucune session ouverte ; session inactive fermée après 30 minutes (`quarkus.mcp.server.connection-idle-timeout`) | MCP-06 | ADR-0014 (Proposé) ; Q-1 | [EXISTANT] — `ControleInitialisation`, `LimiteDebitMcpTest.initialisationsLimitees` ; [PROPOSITION] (voir Interprétations) |
-| `get_regulatory_changes` ne renvoie que les fiches validées par un expert, chacune avec sa mention de validation (`mentionValidation`), et rappelle les garde-fous du profil `expert-metier` | MCP-07 | PRF-06 ; ADR-0018 (Proposé) | [EXISTANT] — `ReglementaireMcpTest`, `VeilleProfilsTest` |
+| `get_regulatory_changes` ne renvoie que les fiches validées par un expert, chacune avec sa mention de validation (`mentionValidation`), et rappelle les garde-fous du profil `expert-metier` | MCP-07 | PRF-06 ; ADR-0018 (remplacé par ADR-0030) | [EXISTANT] — `ReglementaireMcpTest`, `VeilleProfilsTest` |
 
 ## Droits d'accès et restrictions
 

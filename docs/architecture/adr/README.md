@@ -28,7 +28,7 @@ Les ADR enregistrent les décisions architecturales importantes d’ARGOS.
 - [ADR-0003 — Modèle canonique d’événements](0003-modele-canonique-evenements.md)
 - [ADR-0004 — AI Gateway Claude](0004-ai-gateway-claude.md) — **Remplacé par ADR-0029**
 - [ADR-0005 — Mermaid pour les diagrammes](0005-mermaid-diagrammes.md) — **Accepté**
-- [ADR-0006 — Collecteurs séparés](0006-collecteurs-separes.md) — Proposé ; ADR-0028 (Accepté) annonce son remplacement pour la veille RSS/Atom et web
+- [ADR-0006 — Collecteurs séparés](0006-collecteurs-separes.md) — **Remplacé par ADR-0028 pour la veille RSS/Atom et web** ; reste de la portée inchangé
 - [ADR-0007 — n8n périphérique](0007-n8n-peripherique.md)
 - [ADR-0008 — IAM OIDC](0008-iam-oidc.md)
 - [ADR-0009 — PolyForm Internal Use License 1.0.0](0009-licence-polyform-internal-use.md) — **Accepté**
@@ -43,7 +43,7 @@ Les ADR enregistrent les décisions architecturales importantes d’ARGOS.
 - [ADR-0015 — PostgreSQL FTS / pgvector différé](0015-postgresql-fts-pgvector.md)
 - [ADR-0016 — Workspaces RBAC + RLS](0016-workspace-rbac-rls.md)
 - [ADR-0017 — POC local Docker puis VM interne](0017-deploiement-vm-conteneurs.md) — cible VM interne remplacée par ADR-0026
-- [ADR-0018 — Veille réglementaire et validation MKP](0018-veille-reglementaire-mkp.md) — Proposé ; ADR-0030 (Accepté) annonce son remplacement
+- [ADR-0018 — Veille réglementaire et validation MKP](0018-veille-reglementaire-mkp.md) — **Remplacé par ADR-0030**
 
 ### Décisions v2.4
 
@@ -78,7 +78,7 @@ Les ADR enregistrent les décisions architecturales importantes d’ARGOS.
 
 ### Collecte
 
-- [ADR-0028 — Collecteur RSS/Atom et pages surveillées intégré au serveur](0028-collecteur-veille-web-integre.md) — **Accepté** ; remplace ADR-0006 pour la veille RSS/Atom et web (ADR-0006 reste Proposé)
+- [ADR-0028 — Collecteur RSS/Atom et pages surveillées intégré au serveur](0028-collecteur-veille-web-integre.md) — **Accepté** ; remplace ADR-0006 pour la veille RSS/Atom et web
 
 ### Intelligence artificielle
 
@@ -86,13 +86,13 @@ Les ADR enregistrent les décisions architecturales importantes d’ARGOS.
 
 ### Veille réglementaire
 
-- [ADR-0030 — Veille réglementaire validée par l'expert métier, domaines par espace et données ouvertes JORF](0030-veille-reglementaire-expert-metier.md) — **Accepté** ; remplace ADR-0018 (ADR-0018 reste Proposé)
+- [ADR-0030 — Veille réglementaire validée par l'expert métier, domaines par espace et données ouvertes JORF](0030-veille-reglementaire-expert-metier.md) — **Accepté** ; remplace ADR-0018
 
 ### Exploitation du serveur
 
 - [ADR-0031 — Planifier les traitements périodiques avec quarkus-scheduler dans le serveur](0031-planification-quarkus-scheduler.md) — **Accepté**
 - [ADR-0032 — Versionner le schéma PostgreSQL par des migrations SQL Flyway appliquées au démarrage](0032-migrations-flyway.md) — **Accepté**
 
-Les ADR-0010 à ADR-0018 restent **Proposés** jusqu’à validation par revue d’architecture et/ou preuves produites pendant le POC.
+Les ADR-0010 à ADR-0016 restent **Proposés** jusqu’à validation par revue d’architecture et/ou preuves produites pendant le POC.
 
 Utiliser [`template.md`](template.md) pour toute nouvelle décision.
