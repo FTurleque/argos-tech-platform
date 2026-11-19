@@ -1,10 +1,10 @@
 # ADR-0018 — Intégrer la veille réglementaire avec validation MKP obligatoire
 
-- **Statut** : Proposé
+- **Statut** : Remplacé par [ADR-0030](0030-veille-reglementaire-expert-metier.md)
 - **Date** : 2026-09-27
 - **Décideurs** : revue d’architecture ARGOS
 - **Remplace** : —
-- **Remplacé par** : —
+- **Remplacé par** : [ADR-0030](0030-veille-reglementaire-expert-metier.md) (décision du porteur du projet, 2026-11-19)
 
 ## Contexte
 
