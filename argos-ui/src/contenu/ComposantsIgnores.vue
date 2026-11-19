@@ -12,7 +12,13 @@ const props = defineProps<{
 }>()
 
 const synthese = computed(() => syntheseComposantsIgnores(props.vue))
-const composants = computed(() => (props.vue.etat === 'DISPONIBLE' ? props.vue.composants : []))
+// Clé de ligne : rang dans la liste du serveur (liste figée, jamais réordonnée) et identité du composant.
+const composants = computed(() =>
+  (props.vue.etat === 'DISPONIBLE' ? props.vue.composants : []).map((c, rang) => ({
+    ...c,
+    cle: `${rang}|${c.groupe ?? ''}|${c.nom ?? ''}|${c.version ?? ''}`,
+  })),
+)
 </script>
 
 <template>
@@ -29,7 +35,7 @@ const composants = computed(() => (props.vue.etat === 'DISPONIBLE' ? props.vue.c
         </tr>
       </thead>
       <tbody>
-        <tr v-for="(c, i) in composants" :key="i" data-composant-ignore>
+        <tr v-for="c in composants" :key="c.cle" data-composant-ignore>
           <td>{{ c.nom ?? 'non renseigné' }}</td>
           <td>{{ c.groupe ?? 'non renseigné' }}</td>
           <td>{{ c.version ?? 'non renseignée' }}</td>

@@ -130,17 +130,22 @@ test('rendu : état vide et projet sans inventaire, sans tableau', async () => {
   assert.match(sans, /Aucun inventaire importé pour ce projet\./)
 })
 
-test('sécurité de l’écran : appel par appelerApi, aucun v-html, section rattachée au détail d’alerte', () => {
+test('sécurité de l’écran : appel par appelerApi, aucun v-html, liste rattachée à la vue d’inventaire', () => {
   const api = source('../src/api/inventaire.ts')
   assert.match(api, /appelerApi<InventaireProjetApi>\(chemin/)
   assert.doesNotMatch(api, /\bfetch\s*\(/)
   const composant = source('../src/contenu/ComposantsIgnores.vue')
-  const vue = source('../src/views/AlertesView.vue')
+  const vue = source('../src/views/InventaireView.vue')
   for (const s of [composant, vue]) {
     assert.doesNotMatch(s, /v-html/)
     assert.doesNotMatch(s, /\bfetch\s*\(/)
   }
+  assert.doesNotMatch(composant, /:key="i"/, 'clé de ligne différente du seul rang')
   assert.match(vue, /<h2 id="titre-composants-ignores">Composants ignorés<\/h2>/)
-  assert.match(vue, /fetchInventaireProjet\(projetId, annulation\.signal\)/)
-  assert.match(vue, /<details[\s\S]*?@toggle="ouvrirInventaire\(projet\.id, \$event\)"/)
+  assert.match(vue, /chargerInventaireProjet\(id\.value, fetchInventaireProjet, signal\)/)
+  const routeur = source('../src/router.ts')
+  assert.match(routeur, /path: '\/inventaire', name: 'inventaire', component: InventaireView/)
+  assert.match(routeur, /path: '\/inventaire\/:id', name: 'inventaire-projet', component: InventaireView/)
+  // Entrée de navigation commune au portail web et au client desktop (sans condition isDesktop).
+  assert.match(source('../src/App.vue'), /\n\s*<RouterLink to="\/inventaire">Inventaire<\/RouterLink>/)
 })

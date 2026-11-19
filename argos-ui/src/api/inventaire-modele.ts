@@ -1,5 +1,5 @@
 // Inventaire d'un projet tel que le restitue `GET /api/v1/projects/{projectId}/inventory` (INV-01-S3,
-// décision D6 du 2026-11-18) : types de la réponse et chemin de l'appel. Module pur, sans appel réseau :
+// décision D6 du 2026-11-18, décision E4 du 2026-11-19) : types de la réponse et chemin de l'appel. Module pur, sans appel réseau :
 // testé directement par `node --test`. L'appel lui-même passe par `appelerApi` (`inventaire.ts`).
 import { estUuid } from './recherche-criteres.ts'
 
@@ -17,7 +17,13 @@ export interface InventaireApi {
   projectId: string
   origin: string | null
   sourceDate: string | null
+  /** Âge de la source en jours, `null` si la date de la source est inconnue. */
+  ageDays?: number | null
+  /** Vrai quand l'inventaire est jugé obsolète par le serveur (INV-03). */
+  obsolete?: boolean
   importedAt: string | null
+  /** Composants inventoriés (avec un PURL exploitable) ; seul leur nombre est lu par l'IHM. */
+  components?: unknown[] | null
   /** Nombre total de composants écartés au dernier import. */
   ignoredCount: number
   /** Les premiers composants écartés, au plus {@link MAX_COMPOSANTS_IGNORES}. */
