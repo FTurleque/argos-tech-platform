@@ -1,6 +1,8 @@
 package io.argos.api;
 
+import java.util.EnumSet;
 import java.util.List;
+import java.util.Set;
 import java.util.UUID;
 
 import jakarta.inject.Inject;
@@ -21,9 +23,11 @@ import org.eclipse.microprofile.openapi.annotations.tags.Tag;
 
 import io.argos.api.security.Access;
 import io.argos.api.security.Caller;
+import io.argos.impact.EtatImpact;
 import io.argos.impact.ImpactQueries;
 import io.argos.signal.SignalQueries;
 import io.argos.vulnintel.Enricher;
+import io.argos.workspace.DonneeInvalide;
 
 /** Consultation d'un signal de sécurité, de sa provenance (COL-02-S1) et de ses impacts (COR-08-S1). */
 @Path("/api/v1/signals")
@@ -68,9 +72,9 @@ public class SignalResource {
 
     @GET
     @Path("/{id}/impacts")
-    @Operation(summary = "Impacts du signal limités aux espaces de l'appelant (liste paginée)")
+    @Operation(summary = "Impacts du signal limités aux espaces de l'appelant, filtrés par état de traitement (liste paginée)")
     @APIResponse(responseCode = "200", description = "Page d'impacts du signal dans les espaces de l'appelant")
-    @APIResponse(responseCode = "400", description = "Paramètre page ou size non entier")
+    @APIResponse(responseCode = "400", description = "Paramètre page ou size non entier, ou état inconnu (DONNEE_INVALIDE)")
     @APIResponse(responseCode = "401", description = "Non authentifié")
     @APIResponse(responseCode = "404", description = "Signal inconnu")
     public ImpactQueries.Page impacts(@PathParam("id") UUID id,
@@ -78,10 +82,29 @@ public class SignalResource {
                     schema = @Schema(type = SchemaType.INTEGER, defaultValue = "0")) @QueryParam("page") String page,
             @Parameter(description = "Taille de page, de 1 à 200 ; une valeur hors bornes est ramenée à la borne la plus proche ;"
                     + " une valeur non entière donne 400",
-                    schema = @Schema(type = SchemaType.INTEGER, defaultValue = "50")) @QueryParam("size") String size) {
+                    schema = @Schema(type = SchemaType.INTEGER, defaultValue = "50")) @QueryParam("size") String size,
+            @Parameter(description = "États de traitement retenus, paramètre répétable (OUVERT, CONFIRME, ECARTE, RESOLU) ;"
+                    + " absent : OUVERT et CONFIRME (COR-12-S2) ; une valeur inconnue donne 400")
+            @QueryParam("etat") List<String> etat) {
         Caller caller = access.authenticated();
+        Set<EtatImpact> etats = etats(etat);
         signals.find(id).orElseThrow(NotFoundException::new);
-        return impacts.forSignal(id, caller.accountId(), caller.memberWorkspaces(), ParametresPagination.entier(page, "page", 0),
-                ParametresPagination.entier(size, "size", 50));
+        return impacts.forSignal(id, caller.accountId(), caller.memberWorkspaces(), etats,
+                ParametresPagination.entier(page, "page", 0), ParametresPagination.entier(size, "size", 50));
+    }
+
+    /** États demandés ; aucun : ouverts et confirmés ; une valeur inconnue est refusée (400). */
+    static Set<EtatImpact> etats(List<String> valeurs) {
+        Set<EtatImpact> etats = EnumSet.noneOf(EtatImpact.class);
+        if (valeurs != null) {
+            for (String v : valeurs) {
+                if (v == null || v.isBlank()) {
+                    continue;
+                }
+                etats.add(EtatImpact.depuis(v).orElseThrow(() -> new DonneeInvalide("DONNEE_INVALIDE",
+                        "État inconnu : OUVERT, CONFIRME, ECARTE ou RESOLU attendu.", "etat")));
+            }
+        }
+        return etats.isEmpty() ? EtatImpact.ACTIFS : etats;
     }
 }

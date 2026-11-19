@@ -51,7 +51,8 @@ import io.argos.workspace.subscription.SubscriptionService;
  *
  * <p>Pour chaque membre d'un espace touché :
  * <ol>
- *   <li>les impacts du signal qu'il est autorisé à voir sont relus sous son contexte (RLS, ACC-04) ;</li>
+ *   <li>les impacts du signal qu'il est autorisé à voir sont relus sous son contexte (RLS, ACC-04) ; seuls
+ *       les impacts ouverts ou confirmés sont retenus, jamais un impact écarté ou résolu (ALR-07) ;</li>
  *   <li>ses abonnements actifs donnent ses règles (ABO-03, ABO-04) ;</li>
  *   <li>une règle immédiate dont la gravité minimale est atteinte et qui concerne au moins un impact
  *       exact ou probable produit une alerte sur son canal (ALR-01) ; un impact « à vérifier » n'en
@@ -283,7 +284,7 @@ public class MoteurAlertes {
         return QuarkusTransaction.requiringNew().call(() -> {
             try (Connection c = dataSource.getConnection(); PreparedStatement ps = c.prepareStatement("""
                     SELECT 1 FROM alerte WHERE nature = 'IMMEDIATE' AND signal_id = ? AND compte_id = ?
-                      AND (?::varchar IS NULL OR canal = ?::varchar)
+                      AND etat <> 'ANNULEE' AND (?::varchar IS NULL OR canal = ?::varchar)
                     """)) {
                 ps.setObject(1, signalId);
                 ps.setObject(2, compteId);
@@ -303,7 +304,12 @@ public class MoteurAlertes {
                     INSERT INTO alerte(id, nature, compte_id, canal, signal_id, titre, gravite, contenu, resume_ia,
                                        etat_resume_ia, etat, cree_le)
                     VALUES (?, 'IMMEDIATE', ?, ?, ?, ?, ?, ?::jsonb, ?, ?, 'EN_ATTENTE', ?)
-                    ON CONFLICT (signal_id, compte_id, canal) WHERE nature = 'IMMEDIATE' DO NOTHING
+                    ON CONFLICT (signal_id, compte_id, canal) WHERE nature = 'IMMEDIATE' DO UPDATE SET
+                           titre = excluded.titre, gravite = excluded.gravite, contenu = excluded.contenu,
+                           resume_ia = excluded.resume_ia, etat_resume_ia = excluded.etat_resume_ia, etat = 'EN_ATTENTE',
+                           tentatives = 0, prochain_essai = NULL, derniere_erreur = NULL, envoye_le = NULL,
+                           cree_le = excluded.cree_le
+                        WHERE alerte.etat = 'ANNULEE'
                     RETURNING id
                     """)) {
                 ps.setObject(1, UUID.randomUUID());

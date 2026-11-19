@@ -56,14 +56,14 @@ Code concerné : `io.argos.inventory` (`ImportPlanifie` nouveau, `InventoryServi
 
 Code concerné : `io.argos.impact` (`TraitementImpacts` nouveau, `CorrelationEngine`, `ImpactQueries`), `io.argos.alerting` (`MoteurAlertes`, `ResumesPeriodiques`), `io.argos.api` (`ImpactResource`, `SignalResource`), `db/migration/V20__etat_traitement_impacts.sql`, `argos-ui/src/views/AlertesView.vue` et son module d'API, `e2e/performance/mesurer-p95.mjs` (nouveau), `e2e/package.json` (script `test:performance`), `docs/architecture/quality/mesure-performance-api-mcp.md` (nouveau).
 
-- [ ] 3.1 Créer la migration V20 (`project_impact.state`, instantané paquet/version, `component_id` en `ON DELETE SET NULL`, contrainte INV-C3, `project_impact_transition`, privilèges et politiques RLS `project_impact_etat` et `project_impact_transition_lecture`) — couvre COR-09, COR-10, COR-12 — vérification : `mvn -B -f argos-server/pom.xml verify` passe ; test RLS : un `LECTEUR` ne peut pas modifier `state` sous `argos_app` ; `CouvertureRlsTest` vert
-- [ ] 3.2 Implémenter l'état de traitement et les transitions demandées par un utilisateur autorisé (`TraitementImpacts`, `POST /api/v1/impacts/{id}/transitions`, motif obligatoire pour `écarté`, 400/403/404/409, refus journalisés, historique et filtre `etat`, contrat OpenAPI) — couvre COR-09-S1 à COR-09-S3, COR-10-S1 à COR-10-S5, COR-12-S1, COR-12-S2 — vérification : `chain/EtatTraitementImpactTest` (jetons réels du Keycloak des Dev Services, RLS sous `argos_app`) passe ; `ModuleBoundariesTest` vert (`impact` sans dépendance vers `workspace`)
-- [ ] 3.3 Remplacer la suppression des impacts sans objet par leur résolution système motivée, ne jamais toucher un impact `écarté`, rouvrir un impact `résolu` de nouveau vérifié (P-3, P-6) — couvre COR-11-S1 à COR-11-S5 — vérification : cas ajoutés à `chain/CorrelationTest` et `chain/RecorrelationImportTest` passent ; COR-07-S1 et `JeuReferenceCorrelationTest` toujours verts
-- [ ] 3.4 Exclure les impacts `écarté` et `résolu` des alertes immédiates et des résumés — couvre ALR-07-S1, ALR-07-S2 — vérification : `alerting/AlertesImpactsTraitesTest` passe ; `AlertesTest` toujours vert
-- [ ] 3.5 Afficher l'état, l'historique et les actions de transition d'un impact dans `argos-ui` (motif demandé pour écarter, actions masquées pour un `LECTEUR`, texte externe rendu comme texte) — couvre COR-10-S1, COR-12-S1 — vérification : `argos-ui/tests/traitement-impact.test.mjs` passe ; `npm --prefix argos-ui test && npm --prefix argos-ui run build` réussissent
-- [ ] 3.6 Écrire la campagne de mesure p95 sans dépendance (`e2e/performance/mesurer-p95.mjs`, script `test:performance`, garde réseau, opérations retenues et exclues, rapport JSON et Markdown) — couvre PERF-02-S1 à PERF-02-S3, PERF-01-S3 — vérification : test de la garde réseau et du calcul des centiles (`node --test e2e/performance/`) passe ; `npm --prefix e2e test` ne lance pas la campagne
-- [ ] 3.7 Exécuter la campagne sur la pile de test locale (verrou E2E du dépôt) et versionner le rapport daté `docs/architecture/quality/mesure-performance-api-mcp.md` avec `e2e/resultats/performance/` ; reporter le résultat dans arc42 §10.2 Q-05 et QS-06 — couvre PERF-01-S1, PERF-01-S2 — vérification : rapport présent, code de sortie consigné, valeurs de Q-PERF-1 et Q-PERF-2 écrites
-- [ ] 3.8 Mettre à jour la documentation du volet : fiches `correlation-impact` (DF-COR-4, preuves), `alertes-digests` (ALR-07), `performance-api-mcp` (preuves), glossaire « État de traitement d'un impact », arc42 §8.7 (V20), registre (couverture du volet) et matrice ci-dessous — vérification : `node scripts/verifier-docs.mjs` sans erreur
+- [x] 3.1 Créer la migration V20 (`project_impact.state`, instantané paquet/version, `component_id` en `ON DELETE SET NULL`, contrainte INV-C3, `project_impact_transition`, privilèges et politiques RLS `project_impact_etat` et `project_impact_transition_lecture`) — couvre COR-09, COR-10, COR-12 — vérification : `mvn -B -f argos-server/pom.xml verify` passe ; test RLS : un `LECTEUR` ne peut pas modifier `state` sous `argos_app` ; `CouvertureRlsTest` vert — preuve 2026-11-19 (branche `lot18/impacts-performance`) : `mvn -B -f argos-server/pom.xml verify` : 602 tests, 0 échec (BUILD SUCCESS) ; `EtatTraitementImpactTest#rlsLecteurNePeutPasModifierLEtat` (lecteur et non-membre : 0 ligne, insertion d'historique refusée 42501, colonne `level` non modifiable) et `#migrationV20EtatParDefautInstantaneEtRetraitDuComposant` ; `CouvertureRlsTest` vert. Écarts : INV-C3 vérifié par le contrôle d'intégrité et non par une contrainte `CHECK` (P-13) ; colonne `workspace_id` ajoutée à `project_impact_transition` pour sa RLS ; état d'alerte `ANNULEE` (P-17).
+- [x] 3.2 Implémenter l'état de traitement et les transitions demandées par un utilisateur autorisé (`TraitementImpacts`, `POST /api/v1/impacts/{id}/transitions`, motif obligatoire pour `écarté`, 400/403/404/409, refus journalisés, historique et filtre `etat`, contrat OpenAPI) — couvre COR-09-S1 à COR-09-S3, COR-10-S1 à COR-10-S5, COR-12-S1, COR-12-S2 — vérification : `chain/EtatTraitementImpactTest` (jetons réels du Keycloak des Dev Services, RLS sous `argos_app`) passe ; `ModuleBoundariesTest` vert (`impact` sans dépendance vers `workspace`) — preuve 2026-11-19 (branche `lot18/impacts-performance`) : `chain/EtatTraitementImpactTest` : 12 tests verts (COR-09-S1 à S3, COR-10-S1 à S5, COR-12-S1, S2, migration, RLS, contrat OpenAPI) ; `ModuleBoundariesTest` vert. Le rôle est porté par `Caller.contributorWorkspaces` (`api`), la RLS le garantit.
+- [x] 3.3 Remplacer la suppression des impacts sans objet par leur résolution système motivée, ne jamais toucher un impact `écarté`, rouvrir un impact `résolu` de nouveau vérifié (P-3, P-6) — couvre COR-11-S1 à COR-11-S5 — vérification : cas ajoutés à `chain/CorrelationTest` et `chain/RecorrelationImportTest` passent ; COR-07-S1 et `JeuReferenceCorrelationTest` toujours verts — preuve 2026-11-19 (branche `lot18/impacts-performance`) : `chain/CorrelationTest` : 20 tests verts, dont COR-11-S1 à S5, avis retiré (`AVIS_RETIRE`) et composant revenu (P-14) ; `cor07S1CorrelationRejoueeSansDoublon` et `JeuReferenceCorrelationTest` verts. Écart : `chain/RecorrelationImportTest` appartient au volet B (absent de cette branche) ; les cas d'import sont couverts dans `CorrelationTest` par réimport de SBOM. `correlateProject` parcourt aussi les signaux porteurs d'un impact actif du projet (extension minimale de D4 ; marqueur laissé au volet B).
+- [x] 3.4 Exclure les impacts `écarté` et `résolu` des alertes immédiates et des résumés — couvre ALR-07-S1, ALR-07-S2 — vérification : `alerting/AlertesImpactsTraitesTest` passe ; `AlertesTest` toujours vert — preuve 2026-11-19 (branche `lot18/impacts-performance`) : `alerting/AlertesImpactsTraitesTest` : 4 tests verts (ALR-07-S1 poste et e-mail, ALR-07-S2, impact écarté non évalué) ; `AlertesTest` vert.
+- [x] 3.5 Afficher l'état, l'historique et les actions de transition d'un impact dans `argos-ui` (motif demandé pour écarter, actions masquées pour un `LECTEUR`, texte externe rendu comme texte) — couvre COR-10-S1, COR-12-S1 — vérification : `argos-ui/tests/traitement-impact.test.mjs` passe ; `npm --prefix argos-ui test && npm --prefix argos-ui run build` réussissent — preuve 2026-11-19 (branche `lot18/impacts-performance`) : `argos-ui/tests/traitement-impact.test.mjs` : 8 tests verts ; `npm --prefix argos-ui test` (192 tests, 0 échec) et `npm --prefix argos-ui run build` réussissent.
+- [x] 3.6 Écrire la campagne de mesure p95 sans dépendance (`e2e/performance/mesurer-p95.mjs`, script `test:performance`, garde réseau, opérations retenues et exclues, rapport JSON et Markdown) — couvre PERF-02-S1 à PERF-02-S3, PERF-01-S3 — vérification : test de la garde réseau et du calcul des centiles (`node --test e2e/performance/`) passe ; `npm --prefix e2e test` ne lance pas la campagne — preuve 2026-11-19 (branche `lot18/impacts-performance`) : `node --test "e2e/performance/*.test.mjs"` : 7 tests verts (garde réseau, centiles, verdict, exclusions, rapport, campagne absente de `npm --prefix e2e test`, aucune dépendance). Écart : Node 24 refuse un dossier comme argument de `node --test`, d'où le motif de fichiers.
+- [x] 3.7 Exécuter la campagne sur la pile de test locale (verrou E2E du dépôt) et versionner le rapport daté `docs/architecture/quality/mesure-performance-api-mcp.md` avec `e2e/resultats/performance/` ; reporter le résultat dans arc42 §10.2 Q-05 et QS-06 — couvre PERF-01-S1, PERF-01-S2 — vérification : rapport présent, code de sortie consigné, valeurs de Q-PERF-1 et Q-PERF-2 écrites — preuve 2026-11-19 (branche `lot18/impacts-performance`) : campagne exécutée sous le verrou E2E (base, serveur et Keycloak arrêtés ensuite) : rapport `docs/architecture/quality/mesure-performance-api-mcp.md` et `e2e/resultats/performance/rapport-2026-11-19.json`, code de sortie 1 consigné : 15 opérations sur 16 dans la cible, `GET /api/v1/me/veille` hors cible (p95 = 618 ms ; PERF-01-S2 constaté, PERF-01-S1 non atteint, P-18) ; valeurs retenues pour Q-PERF-1 (20 projets × 100 composants, 1 000 avis, 20 000 impacts) et Q-PERF-2 (4 clients simultanés) écrites ; arc42 §10.2 Q-05 et QS-06 mis à jour.
+- [x] 3.8 Mettre à jour la documentation du volet : fiches `correlation-impact` (DF-COR-4, preuves), `alertes-digests` (ALR-07), `performance-api-mcp` (preuves), glossaire « État de traitement d'un impact », arc42 §8.7 (V20), registre (couverture du volet) et matrice ci-dessous — vérification : `node scripts/verifier-docs.mjs` sans erreur — preuve 2026-11-19 (branche `lot18/impacts-performance`) : `node scripts/verifier-docs.mjs` sans erreur ; fiches `correlation-impact`, `alertes-digests`, `performance-api-mcp`, glossaire (« Alerte », « Alerte annulée » ; « État de traitement d'un impact » déjà aligné), arc42 §5.2, §8.7 (V20), §10.2, D-13, registre et matrice mis à jour.
 
 ## 4. Vérifications d'intégration
 
@@ -74,7 +74,7 @@ Code concerné : `io.argos.impact` (`TraitementImpacts` nouveau, `CorrelationEng
 
 ## Matrice de traçabilité
 
-État au 2026-11-19 : volets A et B intégrés (COL-09, COL-10, ABO-07, ABO-08, INV-07 à INV-10 : tests verts) ; volet C et vérifications d'intégration : voir les lignes suivantes.
+État au 2026-11-19 : volets A, B et C intégrés sur la branche `lot18/integration` ; la colonne « État de la preuve » est mise à jour par les vérifications d'intégration (groupe 4).
 
 | Exigence | Scénario | Conception / diagramme | Tâche | Test ou preuve | État de la preuve |
 |---|---|---|---|---|---|
@@ -108,29 +108,29 @@ Code concerné : `io.argos.impact` (`TraitementImpacts` nouveau, `CorrelationEng
 | INV-10 | INV-10-S2 | D6, DC-6 | 2.2 | `chain/ProjetMultiDepotsTest#inv10S2ImportRefusePourUnSeulDepot` | test passé le 2026-11-19 |
 | INV-10 | INV-10-S3 | D6, DC-6 | 2.2 | `chain/ProjetMultiDepotsTest#inv10S3DepotDetacheEtImpactsDuComposant` | test passé le 2026-11-19 (impacts : suppression avant le volet C) |
 | INV-10 | INV-10-S4 | D6, Persistance (V19) | 2.1 | `chain/MigrationDepotsTest#inv10S4ProjetExistantAUnSeulDepot` | test passé le 2026-11-19 |
-| COR-09 | COR-09-S1 | D5, DC-2, DC-5 | 3.1, 3.2 | `chain/EtatTraitementImpactTest` | à écrire |
-| COR-09 | COR-09-S2 | D5, DC-5 | 3.2 | `chain/EtatTraitementImpactTest` | à écrire |
-| COR-09 | COR-09-S3 | D5, DC-5 | 3.2 | `chain/EtatTraitementImpactTest` | à écrire |
-| COR-10 | COR-10-S1 | D5, DC-5, Contrats | 3.2, 3.5, 4.3 | `chain/EtatTraitementImpactTest`, `argos-ui/tests/traitement-impact.test.mjs` | à écrire |
-| COR-10 | COR-10-S2 | D5, Sécurité | 3.1, 3.2 | `chain/EtatTraitementImpactTest` | à écrire |
-| COR-10 | COR-10-S3 | D5, DC-5, Transactions | 3.2 | `chain/EtatTraitementImpactTest` | à écrire |
-| COR-10 | COR-10-S4 | D5, Contrats | 3.2 | `chain/EtatTraitementImpactTest` | à écrire |
-| COR-10 | COR-10-S5 | D5, Sécurité | 3.2 | `chain/EtatTraitementImpactTest` | à écrire |
-| COR-11 | COR-11-S1 | D4, D5, DC-4, DC-5 | 3.3, 4.3 | `chain/RecorrelationImportTest` | à écrire |
-| COR-11 | COR-11-S2 | D4, D5, DC-4 | 3.3 | `chain/RecorrelationImportTest` | à écrire |
-| COR-11 | COR-11-S3 | D5, P-3 | 3.3 | `chain/CorrelationTest` | à écrire |
-| COR-11 | COR-11-S4 | D5, DC-5, P-6 | 3.3 | `chain/RecorrelationImportTest` | à écrire |
-| COR-11 | COR-11-S5 | D5, DC-5, P-6 | 3.3 | `chain/CorrelationTest` | à écrire |
-| COR-12 | COR-12-S1 | D5, Contrats | 3.2, 3.5 | `chain/EtatTraitementImpactTest`, `argos-ui/tests/traitement-impact.test.mjs` | à écrire |
-| COR-12 | COR-12-S2 | D5, Contrats | 3.2 | `chain/EtatTraitementImpactTest` | à écrire |
-| ALR-07 | ALR-07-S1 | D5, DC-1, DC-5 | 3.4 | `alerting/AlertesImpactsTraitesTest` | à écrire |
-| ALR-07 | ALR-07-S2 | D5, DC-5 | 3.4 | `alerting/AlertesImpactsTraitesTest` | à écrire |
-| PERF-01 | PERF-01-S1 | D8, DC-8 | 3.7 | rapport `docs/architecture/quality/mesure-performance-api-mcp.md` | preuve manquante |
-| PERF-01 | PERF-01-S2 | D8, DC-8 | 3.6, 3.7 | `node --test e2e/performance/` (verdict) ; rapport | à écrire |
-| PERF-01 | PERF-01-S3 | D8, Performance | 3.6 | `node --test e2e/performance/` (opérations exclues) | à écrire |
-| PERF-02 | PERF-02-S1 | D8, DC-8 | 3.6, 3.7 | rapport JSON `e2e/resultats/performance/` et Markdown | preuve manquante |
-| PERF-02 | PERF-02-S2 | D8 | 3.6 | `mvn verify`, `npm --prefix argos-ui test`, `npm --prefix e2e test` sans campagne | à écrire |
-| PERF-02 | PERF-02-S3 | D8, Sécurité | 3.6 | `node --test e2e/performance/` (garde réseau) | à écrire |
+| COR-09 | COR-09-S1 | D5, DC-2, DC-5 | 3.1, 3.2 | `chain/EtatTraitementImpactTest` | vérifié 2026-11-19 |
+| COR-09 | COR-09-S2 | D5, DC-5 | 3.2 | `chain/EtatTraitementImpactTest` | vérifié 2026-11-19 |
+| COR-09 | COR-09-S3 | D5, DC-5 | 3.2 | `chain/EtatTraitementImpactTest` | vérifié 2026-11-19 |
+| COR-10 | COR-10-S1 | D5, DC-5, Contrats | 3.2, 3.5, 4.3 | `chain/EtatTraitementImpactTest`, `argos-ui/tests/traitement-impact.test.mjs` ; E2E (4.3) à écrire | vérifié 2026-11-19 (hors E2E) |
+| COR-10 | COR-10-S2 | D5, Sécurité | 3.1, 3.2 | `chain/EtatTraitementImpactTest` | vérifié 2026-11-19 |
+| COR-10 | COR-10-S3 | D5, DC-5, Transactions | 3.2 | `chain/EtatTraitementImpactTest` | vérifié 2026-11-19 |
+| COR-10 | COR-10-S4 | D5, Contrats | 3.2 | `chain/EtatTraitementImpactTest` | vérifié 2026-11-19 |
+| COR-10 | COR-10-S5 | D5, Sécurité | 3.2 | `chain/EtatTraitementImpactTest` | vérifié 2026-11-19 |
+| COR-11 | COR-11-S1 | D4, D5, DC-4, DC-5 | 3.3, 4.3 | `chain/CorrelationTest#cor11S1ComposantRetireDeLInventaire`, `chain/EtatTraitementImpactTest#cor12S1HistoriqueConsulteParUnLecteur` ; E2E (4.3) à écrire | vérifié 2026-11-19 (hors E2E) |
+| COR-11 | COR-11-S2 | D4, D5, DC-4 | 3.3 | `chain/CorrelationTest#cor11S2ComposantMisAJourHorsPlage` | vérifié 2026-11-19 |
+| COR-11 | COR-11-S3 | D5, P-3 | 3.3 | `chain/CorrelationTest` (avis modifié, avis retiré) | vérifié 2026-11-19 |
+| COR-11 | COR-11-S4 | D5, DC-5, P-6 | 3.3 | `chain/CorrelationTest#cor11S4ImpactEcarteJamaisModifieParLeSysteme` | vérifié 2026-11-19 |
+| COR-11 | COR-11-S5 | D5, DC-5, P-6 | 3.3 | `chain/CorrelationTest#cor11S3AvisModifieEtCor11S5ImpactResoluDeNouveauVerifie` | vérifié 2026-11-19 |
+| COR-12 | COR-12-S1 | D5, Contrats | 3.2, 3.5 | `chain/EtatTraitementImpactTest`, `argos-ui/tests/traitement-impact.test.mjs` | vérifié 2026-11-19 |
+| COR-12 | COR-12-S2 | D5, Contrats | 3.2 | `chain/EtatTraitementImpactTest` | vérifié 2026-11-19 |
+| ALR-07 | ALR-07-S1 | D5, DC-1, DC-5 | 3.4 | `alerting/AlertesImpactsTraitesTest` | vérifié 2026-11-19 |
+| ALR-07 | ALR-07-S2 | D5, DC-5 | 3.4 | `alerting/AlertesImpactsTraitesTest` | vérifié 2026-11-19 |
+| PERF-01 | PERF-01-S1 | D8, DC-8 | 3.7 | rapport `docs/architecture/quality/mesure-performance-api-mcp.md` (2026-11-19) | non atteint : `GET /api/v1/me/veille` hors cible (P-18) |
+| PERF-01 | PERF-01-S2 | D8, DC-8 | 3.6, 3.7 | `e2e/performance/mesure.test.mjs` ; rapport du 2026-11-19 (code 1) | vérifié 2026-11-19 |
+| PERF-01 | PERF-01-S3 | D8, Performance | 3.6 | `e2e/performance/mesure.test.mjs` ; rapport (opérations exclues) | vérifié 2026-11-19 |
+| PERF-02 | PERF-02-S1 | D8, DC-8 | 3.6, 3.7 | `e2e/performance/mesure.test.mjs` ; `e2e/resultats/performance/rapport-2026-11-19.json` et rapport Markdown | vérifié 2026-11-19 |
+| PERF-02 | PERF-02-S2 | D8 | 3.6 | `e2e/performance/mesure.test.mjs` (scripts, configuration Playwright) ; `mvn verify` et `npm --prefix argos-ui test` sans campagne | vérifié 2026-11-19 |
+| PERF-02 | PERF-02-S3 | D8, Sécurité | 3.6 | `e2e/performance/mesure.test.mjs` (garde réseau) | vérifié 2026-11-19 |
 
 ## Workflow follow-up
 

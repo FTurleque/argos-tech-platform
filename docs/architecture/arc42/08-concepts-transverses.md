@@ -136,7 +136,7 @@ PostgreSQL est **Accepté** comme stockage principal : relationnel, JSONB, FTS e
 
 Le schéma est versionné par des migrations SQL Flyway appliquées au démarrage (ADR-0032, Accepté) ; le modèle physique qu'elles produisent est D-13 : [`../diagrams/d-13-modele-physique.md`](../diagrams/d-13-modele-physique.md).
 
-Liste à jour des migrations, dans `argos-server/src/main/resources/db/migration/` (état au 2026-11-19). ADR-0032 porte la décision et décrit V1 à V16, état de sa date d'acceptation ; il n'est pas modifié et cette liste tient l'inventaire à jour des migrations ([DÉCISION] du porteur du projet, 2026-11-19). Les numéros V19 et V20 sont réservés aux volets B et C du changement `automatiser-chaine-veille` (proposition P-11 de ce changement).
+Liste à jour des migrations, dans `argos-server/src/main/resources/db/migration/` (état au 2026-11-19). ADR-0032 porte la décision et décrit V1 à V16, état de sa date d'acceptation ; il n'est pas modifié et cette liste tient l'inventaire à jour des migrations ([DÉCISION] du porteur du projet, 2026-11-19). Les numéros V18 à V20 sont réservés aux trois volets du changement `automatiser-chaine-veille` (P-11 : V18 volet A, V19 volet B, V20 volet C) ; la prochaine migration hors de ce changement porte le numéro V21.
 
 | Version | Fichier | Objet | Changement OpenSpec |
 |---|---|---|---|
@@ -159,6 +159,7 @@ Liste à jour des migrations, dans `argos-server/src/main/resources/db/migration
 | V17 | `V17__composants_ignores_import.sql` | colonnes `ignored_count` et `ignored_components` de `inventory` : composants ignorés faute de PURL au dernier import (INV-01, décision D6 du 2026-11-18) | `formaliser-chaine-securite-poc` |
 | V18 | `V18__automatisation_collecte_et_abonnements.sql` | empreinte du contenu normalisé `normalized_hash` de `signal` et `signal_version`, index unique partiel par signal (COL-10) ; état d'abonnement `ACTIVE` ou `SUSPENDED` (`INACTIVE` devient `SUSPENDED`), privilège `DELETE` et politiques RLS `subscription_mise_a_jour` et `subscription_suppression` (ABO-07, ABO-08) | `automatiser-chaine-veille` (volet A, tâche 1.1) |
 | V19 | `V19__depots_projet_et_occurrences.sql` | dépôts d'un projet (`project_repository`, alimentée depuis `project.scm_*`), dernier import par dépôt (`repository_inventory`), occurrences des composants par dépôt (`component_occurrence`), dépôt d'un échec d'import, marqueur `inventory.recorrelation_pending` ; RLS de lecture des nouvelles tables (INV-07 à INV-10, décision J6 du 2026-11-19) | `automatiser-chaine-veille` (volet B, tâche 2.1 ; numéro réservé, P-11) |
+| V20 | `V20__etat_traitement_impacts.sql` | état de traitement des impacts (`project_impact.state` : `OUVERT`, `CONFIRME`, `ECARTE`, `RESOLU`), instantané paquet / PURL / version, référence au composant en `ON DELETE SET NULL`, historique des transitions (`project_impact_transition`), fonction `argos_traite_impacts` et politiques RLS `project_impact_etat`, `project_impact_transition_lecture` et `project_impact_transition_creation` ; état `ANNULEE` des alertes (COR-09 à COR-12, ALR-07 ; décision J5 du 2026-11-19) | `automatiser-chaine-veille` (volet C, tâche 3.1) |
 
 ## 8.8 IA et coûts
 
