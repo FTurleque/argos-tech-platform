@@ -90,12 +90,10 @@ public class OutilsReferentiel {
                     if (cle.isPresent()) {
                         cles.add(cle.get());
                     } else {
-                        for (InventoryQueries.ProjectSummary p : inventaires.visibleProjects(appelant.accountId())) {
-                            if (appelant.memberOf(p.workspaceId())) {
-                                inventaires.inventory(p.id(), appelant.accountId())
-                                        .ifPresent(i -> i.components().forEach(c -> cles.add(c.packageKey())));
-                            }
-                        }
+                        ProjetsVisibles.du(appelant.accountId(), inventaires)
+                                .filter(projet -> appelant.memberOf(projet.workspaceId()))
+                                .forEach(projet -> inventaires.inventory(projet.id(), appelant.accountId())
+                                        .ifPresent(i -> i.components().forEach(c -> cles.add(c.packageKey()))));
                     }
                     LocalDate aujourdhui = LocalDate.now();
                     LocalDate jusqua = aujourdhui.plusDays(jours);

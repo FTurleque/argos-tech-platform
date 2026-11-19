@@ -9,7 +9,7 @@ Deux conteneurs démarrent :
 | `postgres` | base de données PostgreSQL 18, données dans le volume `argos-pgdata` | 512 Mo |
 | `argos` | IHM web + API Quarkus, sur le port 8080 | 1 Go |
 
-L'image `argos` est construite à partir du [`Dockerfile`](../../Dockerfile) : elle compile l'IHM, l'embarque dans le serveur et ne garde qu'un JRE 17. Elle cible les processeurs x86-64, ce qui couvre le DS1522+ (AMD Ryzen R1600) et les PC.
+L'image `argos` est construite à partir du [`Dockerfile`](../../Dockerfile) : elle compile l'IHM, l'embarque dans le serveur, contrôle les licences des dépendances du serveur et ne garde qu'un JRE 17 et les avis de licence ([Avis de licence de l'image](#avis-de-licence-de-limage)). Elle cible les processeurs x86-64, ce qui couvre le DS1522+ (AMD Ryzen R1600) et les PC.
 
 ## Sur un PC (Windows, macOS, Linux)
 
@@ -96,6 +96,29 @@ Les migrations de base s'appliquent au démarrage d'Argos. Faites une sauvegarde
 | `ARGOS_MEM_LIMIT` / `ARGOS_DB_MEM_LIMIT` | `1g` / `512m` | mémoire maximale des conteneurs |
 | `ARGOS_BACKUP_DIR` / `ARGOS_BACKUP_KEEP` | `./sauvegardes` / `14` | dossier et nombre de sauvegardes conservées |
 
+## Avis de licence de l'image
+
+La construction de l'image contrôle les licences des dépendances livrées du serveur (profil Maven `licences`, [README du serveur](../../argos-server/README.md#licences-des-dépendances)) : elle échoue si une dépendance n'a aucune licence déclarée ou porte une licence non admise, et affiche la liste des écarts. Ce contrôle demande l'accès au dépôt Maven Central, comme le reste de la construction.
+
+L'image contient les avis de licence dans `/opt/argos/licenses/` :
+
+| Fichier | Contenu |
+|---|---|
+| `NOTICE` | avis NOTICE propres au serveur (copie de `argos-server/NOTICE`) |
+| `THIRD-PARTY.txt` | dépendances tierces livrées, leurs licences et les avis NOTICE de leurs archives, générés à la construction de l'image |
+| `Apache-2.0.txt` | texte de l'Apache License 2.0 |
+
+Pour les lire sans démarrer Argos :
+
+```bash
+docker run --rm --entrypoint ls argos:local /opt/argos/licenses
+docker run --rm --entrypoint cat argos:local /opt/argos/licenses/THIRD-PARTY.txt
+```
+
+Remplacez `argos:local` par `argos:<ARGOS_VERSION>` si la variable est définie dans `.env`. Sur un conteneur démarré : `docker compose exec argos cat /opt/argos/licenses/NOTICE`.
+
+Commande dédiée, hors de l'image (Maven et Node.js installés) : `mvn -B -f argos-server/pom.xml -P licences validate`, qui écrit `argos-server/target/THIRD-PARTY.txt`.
+
 ## Client desktop
 
 Le client desktop (ADR-0022) se connecte à un serveur Argos. Pour viser le NAS, construisez l'IHM avec l'adresse du serveur : `VITE_ARGOS_API_URL=http://adresse-du-nas:8080`, puis `npm run dist` dans `argos-desktop`.
@@ -139,4 +162,5 @@ Limites : 60 appels par minute et par utilisateur (`argos.mcp.debit.requetes-par
 
 - `compose.yaml` validé par `docker compose config` ; script de sauvegarde contrôlé par `sh -n`.
 - Serveur MCP : protocole, authentification et outils vérifiés par les tests `io.argos.mcp` ; **non vérifié** : la connexion réelle d'un assistant IA configuré par `.mcp.json`.
-- **Non vérifié** : la construction de l'image (dépendances Maven inaccessibles depuis l'environnement de préparation) et le démarrage réel sur le NAS. Premier essai à faire sur le PC avec `docker compose up -d --build`.
+- Construction de l'image vérifiée le 2026-11-19 sur un PC Windows (Docker Engine 29.9.3) : `docker build` réussit, l'étape de contrôle affiche « 194 dépendances inventoriées, 26 avis NOTICE reproduits » puis « Aucune licence absente ni non admise », et `/opt/argos/licenses/` contient `NOTICE`, `THIRD-PARTY.txt` et `Apache-2.0.txt`, propriété de root en lecture seule (0444) et lisibles par l'utilisateur d'UID 1001. Un inventaire factice (licence GPL-3.0, EPL-2.0 hors des neuf API Jakarta, licence absente) donné au script dans l'étage `server` fait échouer `docker build` avec le code 1.
+- **Non vérifié** : le démarrage réel sur le NAS. Premier essai à faire sur le PC avec `docker compose up -d --build`.

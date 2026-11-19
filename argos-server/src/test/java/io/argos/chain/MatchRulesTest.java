@@ -125,14 +125,14 @@ class MatchRulesTest {
         assertEquals(Optional.empty(), MatchRules.evaluate(fixed20, "2.0.post1", true), "2.0.post1 suit le correctif 2.0");
     }
 
-    private static void mavenAvant(String a, String b) {
-        assertEquals(Optional.of(-1), VersionComparator.compare("Maven", a, b), a + " < " + b);
-        assertEquals(Optional.of(1), VersionComparator.compare("Maven", b, a), b + " > " + a);
+    private static void mavenAvant(String anterieure, String posterieure) {
+        assertEquals(Optional.of(-1), VersionComparator.compare("Maven", anterieure, posterieure), anterieure + " < " + posterieure);
+        assertEquals(Optional.of(1), VersionComparator.compare("Maven", posterieure, anterieure), posterieure + " > " + anterieure);
     }
 
-    private static void mavenEgales(String a, String b) {
-        assertEquals(Optional.of(0), VersionComparator.compare("Maven", a, b), a + " = " + b);
-        assertEquals(Optional.of(0), VersionComparator.compare("Maven", b, a), b + " = " + a);
+    private static void mavenEgales(String version, String equivalente) {
+        assertEquals(Optional.of(0), VersionComparator.compare("Maven", version, equivalente), version + " = " + equivalente);
+        assertEquals(Optional.of(0), VersionComparator.compare("Maven", equivalente, version), equivalente + " = " + version);
     }
 
     /** Maven (décision E3, 2026-11-19) : toute comparaison suit {@code ComparableVersion} ; cas usuels. */

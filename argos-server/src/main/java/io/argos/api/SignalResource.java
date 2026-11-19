@@ -4,7 +4,6 @@ import java.util.List;
 import java.util.UUID;
 
 import jakarta.inject.Inject;
-import jakarta.ws.rs.DefaultValue;
 import jakarta.ws.rs.GET;
 import jakarta.ws.rs.NotFoundException;
 import jakarta.ws.rs.Path;
@@ -14,6 +13,10 @@ import jakarta.ws.rs.QueryParam;
 import jakarta.ws.rs.core.MediaType;
 
 import org.eclipse.microprofile.openapi.annotations.Operation;
+import org.eclipse.microprofile.openapi.annotations.enums.SchemaType;
+import org.eclipse.microprofile.openapi.annotations.media.Schema;
+import org.eclipse.microprofile.openapi.annotations.parameters.Parameter;
+import org.eclipse.microprofile.openapi.annotations.responses.APIResponse;
 import org.eclipse.microprofile.openapi.annotations.tags.Tag;
 
 import io.argos.api.security.Access;
@@ -66,10 +69,19 @@ public class SignalResource {
     @GET
     @Path("/{id}/impacts")
     @Operation(summary = "Impacts du signal limités aux espaces de l'appelant (liste paginée)")
-    public ImpactQueries.Page impacts(@PathParam("id") UUID id, @QueryParam("page") @DefaultValue("0") int page,
-            @QueryParam("size") @DefaultValue("50") int size) {
+    @APIResponse(responseCode = "200", description = "Page d'impacts du signal dans les espaces de l'appelant")
+    @APIResponse(responseCode = "400", description = "Paramètre page ou size non entier")
+    @APIResponse(responseCode = "401", description = "Non authentifié")
+    @APIResponse(responseCode = "404", description = "Signal inconnu")
+    public ImpactQueries.Page impacts(@PathParam("id") UUID id,
+            @Parameter(description = "Numéro de page, à partir de 0 ; une valeur négative vaut 0 ; une valeur non entière donne 400",
+                    schema = @Schema(type = SchemaType.INTEGER, defaultValue = "0")) @QueryParam("page") String page,
+            @Parameter(description = "Taille de page, de 1 à 200 ; une valeur hors bornes est ramenée à la borne la plus proche ;"
+                    + " une valeur non entière donne 400",
+                    schema = @Schema(type = SchemaType.INTEGER, defaultValue = "50")) @QueryParam("size") String size) {
         Caller caller = access.authenticated();
         signals.find(id).orElseThrow(NotFoundException::new);
-        return impacts.forSignal(id, caller.accountId(), caller.memberWorkspaces(), page, size);
+        return impacts.forSignal(id, caller.accountId(), caller.memberWorkspaces(), ParametresPagination.entier(page, "page", 0),
+                ParametresPagination.entier(size, "size", 50));
     }
 }

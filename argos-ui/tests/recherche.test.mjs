@@ -3,6 +3,7 @@
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
 import { readFileSync } from 'node:fs'
+import { route } from './support/routes.mjs'
 import {
   PERIODES,
   TAILLE_PAGE,
@@ -178,9 +179,8 @@ test('les appels de recherche passent par le point d’appel commun du client RE
 })
 
 test('écran de recherche : routes, lien de navigation, aucun v-html, liens sources filtrés, annonces', () => {
-  const routeur = source('../src/router.ts')
-  assert.match(routeur, /path: '\/recherche', name: 'recherche', component: RechercheView/)
-  assert.match(routeur, /path: '\/recherche\/vues\/:id', name: 'vue-recherche', component: RechercheView/)
+  assert.deepEqual(route('recherche'), { path: '/recherche', name: 'recherche', composant: 'RechercheView', publique: false })
+  assert.deepEqual(route('vue-recherche'), { path: '/recherche/vues/:id', name: 'vue-recherche', composant: 'RechercheView', publique: false })
   const app = source('../src/App.vue')
   assert.match(app, /<RouterLink to="\/recherche">Recherche<\/RouterLink>/)
   const vue = source('../src/views/RechercheView.vue')

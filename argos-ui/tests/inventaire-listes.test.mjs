@@ -108,10 +108,10 @@ test('choix du projet : chargement, erreur puis nouvelle tentative, annulation',
     if (essais === 1) throw new ErreurApi(503)
     return { items: [{ id: PROJET, name: 'Paie', workspaceName: 'A' }], page: 0, size: 200, total: 1 }
   }
-  assert.deepEqual(await chargerProjets(lire), { liste: null, erreur: 'Liste des projets indisponible pour le moment.' })
+  assert.deepEqual(await chargerProjets(lire), { projets: null, erreur: 'Liste des projets indisponible pour le moment.' })
   const reprise = await chargerProjets(lire)
   assert.equal(reprise.erreur, '')
-  assert.deepEqual(reprise.liste.options, [{ id: PROJET, libelle: 'Paie — A' }])
+  assert.deepEqual(reprise.projets.options, [{ id: PROJET, libelle: 'Paie — A' }])
   const annulation = new AbortController()
   assert.equal(await chargerProjets(async () => { annulation.abort(); return { items: [] } }, annulation.signal), null)
   assert.equal(await chargerProjets(async () => { throw new ErreurApi(undefined, 'ANNULE') }), null)

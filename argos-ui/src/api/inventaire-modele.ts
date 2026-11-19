@@ -1,8 +1,9 @@
-// Inventaire d'un projet tel que le restitue `GET /api/v1/projects/{projectId}/inventory` (INV-01-S3,
-// décision D6 du 2026-11-18, décision E4 du 2026-11-19), projets visibles (`GET /api/v1/projects`, INV-06,
-// décision F1 du 2026-11-19) et composants inventoriés paginés (`GET /api/v1/projects/{projectId}/inventory/components`,
-// INV-06, décision F5 du 2026-11-19) : types des réponses et chemins des appels. Module pur, sans appel réseau :
-// testé directement par `node --test`. Les appels eux-mêmes passent par `appelerApi` (`inventaire.ts`).
+// Synthèse de l'inventaire d'un projet telle que la restitue `GET /api/v1/projects/{projectId}/inventory/summary`
+// (INV-01-S3, INV-06 ; décision D6 du 2026-11-18, décisions E4 et G5 du 2026-11-19), projets visibles
+// (`GET /api/v1/projects`, INV-06, décision F1 du 2026-11-19) et composants inventoriés paginés
+// (`GET /api/v1/projects/{projectId}/inventory/components`, INV-06, décision F5 du 2026-11-19) : types des réponses
+// et chemins des appels. Module pur, sans appel réseau : testé directement par `node --test`. Les appels eux-mêmes
+// passent par `appelerApi` (`inventaire.ts`).
 import { estUuid } from './recherche-criteres.ts'
 
 /** Composant de la SBOM écarté de l'inventaire faute de PURL exploitable (schéma `IgnoredComponent`). */
@@ -14,8 +15,8 @@ export interface ComposantIgnoreApi {
   reason: string | null
 }
 
-/** Inventaire de référence (schéma `InventoryView`), réduit aux champs lus par l'IHM. */
-export interface InventaireApi {
+/** Synthèse de l'inventaire de référence, sans la liste des composants (schéma `InventorySummary`). */
+export interface SyntheseInventaireApi {
   projectId: string
   origin: string | null
   sourceDate: string | null
@@ -24,19 +25,19 @@ export interface InventaireApi {
   /** Vrai quand l'inventaire est jugé obsolète par le serveur (INV-03). */
   obsolete?: boolean
   importedAt: string | null
-  /** Composants inventoriés (avec un PURL exploitable) ; seul leur nombre est lu par l'IHM. */
-  components?: unknown[] | null
+  /** Nombre de composants inventoriés (avec un PURL exploitable). */
+  componentCount: number
   /** Nombre total de composants écartés au dernier import. */
   ignoredCount: number
   /** Les premiers composants écartés, au plus {@link MAX_COMPOSANTS_IGNORES}. */
   ignoredComponents: ComposantIgnoreApi[] | null
 }
 
-/** Réponse de l'appel (schéma `ProjectInventory`) : `inventory` est absent quand `status` vaut `NO_SBOM`. */
-export interface InventaireProjetApi {
+/** Réponse de l'appel (schéma `ProjectInventorySummary`) : `summary` est absent quand `status` vaut `NO_SBOM`. */
+export interface SyntheseInventaireProjetApi {
   projectId: string
   status: 'AVAILABLE' | 'NO_SBOM' | string
-  inventory: InventaireApi | null
+  summary: SyntheseInventaireApi | null
 }
 
 /** Borne de la liste restituée par l'API (`ParsedInventory.MAX_SIGNALED`). */
@@ -45,10 +46,19 @@ export const MAX_COMPOSANTS_IGNORES = 100
 /** Borne de chaque champ restitué par l'API (nom, groupe, version, motif). */
 export const MAX_CARACTERES_CHAMP = 200
 
-/** Chemin de l'inventaire d'un projet ; `null` si l'identifiant n'est pas un UUID (aucune URL construite). */
+/**
+ * Chemin de l'inventaire d'un projet, base des chemins de la synthèse et des composants ; `null` si l'identifiant
+ * n'est pas un UUID (aucune URL construite).
+ */
 export function cheminInventaire(projetId: unknown): string | null {
   if (!estUuid(projetId)) return null
   return `/api/v1/projects/${encodeURIComponent(projetId.trim())}/inventory`
+}
+
+/** Chemin de la synthèse de l'inventaire d'un projet ; `null` si l'identifiant n'est pas un UUID. */
+export function cheminSyntheseInventaire(projetId: unknown): string | null {
+  const base = cheminInventaire(projetId)
+  return base ? `${base}/summary` : null
 }
 
 /** Projet visible de l'appelant (schéma `ProjectItem`). */
@@ -107,6 +117,6 @@ export function cheminProjets(): string {
 export function cheminComposants(projetId: unknown, page: unknown, taille: number = TAILLE_PAGE_COMPOSANTS): string | null {
   const base = cheminInventaire(projetId)
   if (!base || typeof page !== 'number' || !Number.isInteger(page) || page < 0) return null
-  const t = Math.min(Math.max(Math.trunc(taille), 1), TAILLE_PAGE_MAX)
-  return `${base}/components?page=${page}&size=${t}`
+  const tailleBornee = Math.min(Math.max(Math.trunc(taille), 1), TAILLE_PAGE_MAX)
+  return `${base}/components?page=${page}&size=${tailleBornee}`
 }

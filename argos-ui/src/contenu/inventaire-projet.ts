@@ -1,12 +1,12 @@
-// Vue d'inventaire d'un projet (INV-01-S3, INV-02, INV-03 ; décision E4 du porteur du projet, 2026-11-19) :
-// synthèse de la réponse de `GET /api/v1/projects/{projectId}/inventory` et chargement de l'écran. Module
-// pur, sans appel réseau ni dépendance à Vue : la lecture de l'API lui est passée en paramètre, ce qui le
-// rend testable directement par `node --test`.
+// Vue d'inventaire d'un projet (INV-01-S3, INV-02, INV-03 ; décisions E4 et G5 du porteur du projet,
+// 2026-11-19) : mise en forme de la synthèse de `GET /api/v1/projects/{projectId}/inventory/summary`, sans la liste
+// des composants, et chargement de l'écran. Module pur, sans appel réseau ni dépendance à Vue : la lecture de l'API
+// lui est passée en paramètre, ce qui le rend testable directement par `node --test`.
 //
-// Aucune règle métier ici (arc42 §5.1) : l'origine, l'âge, l'obsolescence et les composants écartés sont
-// calculés par le serveur ; ce module les nomme.
+// Aucune règle métier ici (arc42 §5.1) : l'origine, l'âge, l'obsolescence, le nombre de composants et les
+// composants écartés sont calculés par le serveur ; ce module les nomme.
 import { estUuid } from '../api/recherche-criteres.ts'
-import type { InventaireProjetApi } from '../api/inventaire-modele.ts'
+import type { SyntheseInventaireProjetApi } from '../api/inventaire-modele.ts'
 import { composantsIgnores, messageErreurInventaire, type ComposantsIgnoresVue } from './composants-ignores.ts'
 
 /** Synthèse de l'inventaire de référence d'un projet, prête à afficher. */
@@ -48,18 +48,18 @@ function entierPositif(valeur: unknown): number | null {
 }
 
 /** Synthèse de la réponse de l'API ; projet sans inventaire quand `status` ne vaut pas `AVAILABLE`. */
-export function resumeInventaire(reponse: InventaireProjetApi | null | undefined): ResumeInventaire {
-  const inventaire = reponse?.status === 'AVAILABLE' ? reponse.inventory : null
-  if (!inventaire) return { etat: 'SANS_INVENTAIRE' }
-  const origine = typeof inventaire.origin === 'string' ? (ORIGINES[inventaire.origin] ?? 'non précisée') : 'non précisée'
+export function resumeInventaire(reponse: SyntheseInventaireProjetApi | null | undefined): ResumeInventaire {
+  const synthese = reponse?.status === 'AVAILABLE' ? reponse.summary : null
+  if (!synthese) return { etat: 'SANS_INVENTAIRE' }
+  const origine = typeof synthese.origin === 'string' ? (ORIGINES[synthese.origin] ?? 'non précisée') : 'non précisée'
   return {
     etat: 'DISPONIBLE',
     origine,
-    dateSource: inventaire.sourceDate ?? null,
-    importeLe: inventaire.importedAt ?? null,
-    ageJours: entierPositif(inventaire.ageDays),
-    obsolete: inventaire.obsolete === true,
-    composants: Array.isArray(inventaire.components) ? inventaire.components.length : 0,
+    dateSource: synthese.sourceDate ?? null,
+    importeLe: synthese.importedAt ?? null,
+    ageJours: entierPositif(synthese.ageDays),
+    obsolete: synthese.obsolete === true,
+    composants: entierPositif(synthese.componentCount) ?? 0,
   }
 }
 
@@ -71,11 +71,11 @@ export function messageIdentifiantProjet(saisie: unknown): string {
 
 /**
  * Charge l'inventaire d'un projet et renvoie l'état de l'écran ; `null` si l'appel a été annulé (le projet
- * affiché a changé entre-temps). `lire` est la lecture de l'API (`fetchInventaireProjet`).
+ * affiché a changé entre-temps). `lire` est la lecture de la synthèse (`fetchSyntheseInventaire`).
  */
 export async function chargerInventaireProjet(
   projetId: string,
-  lire: (projetId: string, signal?: AbortSignal) => Promise<InventaireProjetApi>,
+  lire: (projetId: string, signal?: AbortSignal) => Promise<SyntheseInventaireProjetApi>,
   signal?: AbortSignal,
 ): Promise<EtatInventaireProjet | null> {
   if (!estUuid(projetId)) return { resume: null, ignores: null, erreur: messageIdentifiantProjet(projetId) }

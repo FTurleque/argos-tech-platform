@@ -8,7 +8,6 @@ import jakarta.annotation.PostConstruct;
 import jakarta.inject.Inject;
 import jakarta.ws.rs.Consumes;
 import jakarta.ws.rs.DELETE;
-import jakarta.ws.rs.DefaultValue;
 import jakarta.ws.rs.GET;
 import jakarta.ws.rs.POST;
 import jakarta.ws.rs.Path;
@@ -19,6 +18,9 @@ import jakarta.ws.rs.core.MediaType;
 
 import org.eclipse.microprofile.config.inject.ConfigProperty;
 import org.eclipse.microprofile.openapi.annotations.Operation;
+import org.eclipse.microprofile.openapi.annotations.enums.SchemaType;
+import org.eclipse.microprofile.openapi.annotations.media.Schema;
+import org.eclipse.microprofile.openapi.annotations.parameters.Parameter;
 import org.eclipse.microprofile.openapi.annotations.responses.APIResponse;
 import org.eclipse.microprofile.openapi.annotations.tags.Tag;
 import org.jboss.resteasy.reactive.RestResponse;
@@ -159,15 +161,18 @@ public class VeilleWebResource {
     @Path("/actualites")
     @Operation(summary = "Actualités des sources visibles, chacune restituée une fois avec toutes ses sources")
     @APIResponse(responseCode = "200", description = "Actualités, contenu externe cité et marqué non fiable")
+    @APIResponse(responseCode = "400", description = "Paramètre limite non entier")
     @APIResponse(responseCode = "401", description = "Non authentifié")
     @APIResponse(responseCode = "404", description = "Espace dont l'appelant n'est pas membre")
     public List<ActualitesWeb.Actualite> actualites(@QueryParam("espaceId") UUID espaceId,
-            @QueryParam("limite") @DefaultValue("50") int limite) {
+            @Parameter(description = "Nombre maximal d'actualités, de 1 à 200 ; une valeur hors bornes est ramenée à la borne la"
+                    + " plus proche ; une valeur non entière donne 400",
+                    schema = @Schema(type = SchemaType.INTEGER, defaultValue = "50")) @QueryParam("limite") String limite) {
         Caller caller = access.authenticated();
         if (espaceId != null && !caller.memberOf(espaceId)) {
             throw access.outOfScope();
         }
-        return actualites.lister(caller.accountId(), espaceId, limite);
+        return actualites.lister(caller.accountId(), espaceId, ParametresPagination.entier(limite, "limite", 50));
     }
 
     @GET

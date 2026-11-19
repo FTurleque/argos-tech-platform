@@ -140,13 +140,62 @@ class CloisonnementMcpTest {
         UUID lina = Api.compte("lina");
         assertTrue(impacts.forWorkspaces(lina, Set.of(espaceB), 50).isEmpty());
         assertTrue(impacts.forProject(projetP, lina, Set.of(espaceB)).isEmpty());
-        assertFalse(inventaireQueries.visibleProjects(lina).stream().anyMatch(p -> p.id().equals(projetP)));
+        assertFalse(ProjetsVisibles.du(lina, inventaireQueries).anyMatch(p -> p.id().equals(projetP)));
         assertTrue(inventaireQueries.inventory(projetP, lina).isEmpty());
+        assertTrue(inventaireQueries.summary(projetP, lina).isEmpty());
 
         UUID marc = Api.compte("marc");
         assertEquals(1, impacts.forWorkspaces(marc, Set.of(espaceB), 50).size());
-        assertTrue(inventaireQueries.visibleProjects(marc).stream().anyMatch(p -> p.id().equals(projetP)));
+        assertTrue(ProjetsVisibles.du(marc, inventaireQueries).anyMatch(p -> p.id().equals(projetP)));
+        assertEquals(1, inventaireQueries.summary(projetP, marc).orElseThrow().componentCount());
         assertFalse(espaceA.equals(espaceB));
+    }
+
+    /**
+     * Le résumé des projets (sans {@code project_id}) lit la synthèse de l'inventaire et non ses composants : même
+     * inventaire et mêmes alertes que le détail du projet (comportement inchangé pour l'appelant, décision G6).
+     */
+    @Test
+    void resumeEtDetailRestituentLeMemeInventaire() {
+        ExtractableResponse<Response> detail = Mcp.appeler("marc", "get_project_context", Map.of("project_id", projetP.toString()));
+        ExtractableResponse<Response> resume = Mcp.appeler("marc", "get_project_context", Map.of());
+        assertEquals(1, (int) resume.path("result.structuredContent.nombre"), resume.asString());
+        Map<String, Object> inventaire = detail.path("result.structuredContent.projets[0].inventaire");
+        assertEquals(1, inventaire.get("nombreComposants"), detail.asString());
+        assertEquals("SBOM", inventaire.get("origine"));
+        assertEquals(inventaire, resume.path("result.structuredContent.projets[0].inventaire"));
+        assertEquals((Object) detail.path("result.structuredContent.projets[0].alertesParNiveau"),
+                resume.path("result.structuredContent.projets[0].alertesParNiveau"));
+        assertEquals(1, ((List<?>) detail.path("result.structuredContent.projets[0].composants")).size());
+        assertTrue(((List<?>) resume.path("result.structuredContent.projets[0].composants")).isEmpty());
+        assertEquals(Boolean.FALSE, resume.path("result.structuredContent.projets[0].composantsTronques"));
+    }
+
+    /**
+     * Décision G6 (porteur du projet, 2026-11-19) : les outils MCP lisent les projets par la requête paginée de
+     * l'API, page après page. Un projet au-delà de la première page de 200 reste désignable et les pages ne
+     * mélangent pas les espaces.
+     */
+    @Test
+    void projetsLusPageApresPage() {
+        for (int i = 1; i <= InventoryQueries.MAX_PAGE_SIZE + 4; i++) {
+            projets.create(espaceB, "Lot %03d".formatted(i), null, null);
+        }
+        UUID dernier = projets.create(espaceB, "Zéphyr", null, null);
+        UUID marc = Api.compte("marc");
+
+        List<UUID> lus = ProjetsVisibles.du(marc, inventaireQueries).map(InventoryQueries.ProjectItem::id).toList();
+        assertEquals(InventoryQueries.MAX_PAGE_SIZE + 6, lus.size());
+        assertEquals(lus.size(), Set.copyOf(lus).size(), "aucun projet lu deux fois");
+        assertEquals(dernier, lus.get(lus.size() - 1));
+        assertEquals(0L, ProjetsVisibles.du(Api.compte("lina"), inventaireQueries).count());
+
+        ExtractableResponse<Response> detail = Mcp.appeler("marc", "get_project_context", Map.of("project_id", dernier.toString()));
+        assertEquals(1, (int) detail.path("result.structuredContent.nombre"), detail.asString());
+        assertEquals("Zéphyr", detail.path("result.structuredContent.projets[0].projet"));
+        ExtractableResponse<Response> resume = Mcp.appeler("marc", "get_project_context", Map.of());
+        assertEquals(50, (int) resume.path("result.structuredContent.nombre"), resume.asString());
+        assertEquals("Lot 001", resume.path("result.structuredContent.projets[0].projet"));
     }
 
     private void assertAucuneInformationSurP(String reponse) {
