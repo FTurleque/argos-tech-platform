@@ -12,10 +12,12 @@ test('3.7 (INV-01-S3) : composants ignorés faute de PURL affichés dans la vue 
     dialogues.push(d.message())
     void d.dismiss()
   })
-  await seConnecterDepuis(page, '/', 'alice')
+  // Vue protégée : connexion, puis retour sur la vue d'inventaire.
+  await seConnecterDepuis(page, '/inventaire', 'alice')
   await expect(page.getByRole('button', { name: 'Se déconnecter' })).toBeVisible()
 
   // 1. Entrée « Inventaire » de la navigation, identifiant invalide : refusé sans appel de l'API.
+  await page.getByRole('navigation', { name: 'Navigation principale' }).getByRole('link', { name: 'État' }).click()
   await page.getByRole('navigation', { name: 'Navigation principale' }).getByRole('link', { name: 'Inventaire' }).click()
   await expect(page).toHaveURL(/#\/inventaire$/)
   await expect(page.getByRole('heading', { level: 1, name: 'Inventaire d’un projet' })).toBeVisible()
