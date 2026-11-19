@@ -41,6 +41,12 @@ public final class MatchRules {
     /** Résultat de l'évaluation d'une version par rapport aux plages d'un paquet. */
     enum RangeResult { IN_RANGE, OUT_OF_RANGE, UNKNOWN }
 
+    /**
+     * Écosystème inconnu : ni déclaré par la source ni lisible dans la clé PURL. Il n'est pas Maven
+     * ({@link VersionComparator#maven}) : les versions suivent l'ordre générique.
+     */
+    private static final String UNKNOWN_ECOSYSTEM = "";
+
     private MatchRules() {
     }
 
@@ -79,15 +85,32 @@ public final class MatchRules {
         if (enumerated(affected, version)) {
             return RangeResult.IN_RANGE;
         }
+        RangeResult ranges = inAnyRange(affected, version);
+        if (ranges == RangeResult.OUT_OF_RANGE && declaresNoVersion(affected)) {
+            return RangeResult.UNKNOWN;
+        }
+        return ranges;
+    }
+
+    /**
+     * IN_RANGE dès qu'une plage contient la version ; sinon UNKNOWN si une plage ne permet pas de conclure,
+     * OUT_OF_RANGE sinon (et aussi sans aucune plage).
+     */
+    private static RangeResult inAnyRange(AffectedPackage affected, String version) {
         boolean unknown = false;
         for (AffectedPackage.VersionRange range : affected.ranges()) {
-            RangeResult result = "GIT".equalsIgnoreCase(range.type()) ? RangeResult.UNKNOWN : inInterval(affected, range, version);
+            RangeResult result = inRange(affected, range, version);
             if (result == RangeResult.IN_RANGE) {
                 return result;
             }
             unknown |= result == RangeResult.UNKNOWN;
         }
-        return unknown || declaresNoVersion(affected) ? RangeResult.UNKNOWN : RangeResult.OUT_OF_RANGE;
+        return unknown ? RangeResult.UNKNOWN : RangeResult.OUT_OF_RANGE;
+    }
+
+    /** Version dans une plage ; une plage GIT (révisions) ne permet jamais de conclure. */
+    private static RangeResult inRange(AffectedPackage affected, AffectedPackage.VersionRange range, String version) {
+        return "GIT".equalsIgnoreCase(range.type()) ? RangeResult.UNKNOWN : inInterval(affected, range, version);
     }
 
     /** Paquet sans plage ni version énumérée : rien ne permet de conclure. */
@@ -164,16 +187,16 @@ public final class MatchRules {
                 .orElse(RangeResult.UNKNOWN);
     }
 
-    /** Écosystème du paquet : nom déclaré par la source, sinon type de la clé PURL ({@code pkg:maven/…}). */
+    /**
+     * Écosystème du paquet : nom déclaré par la source, sinon type de la clé PURL ({@code pkg:maven/…}), sinon
+     * {@link #UNKNOWN_ECOSYSTEM}, qui suit l'ordre générique des versions.
+     */
     private static String ecosystem(AffectedPackage affected) {
         if (affected.ecosystem() != null && !affected.ecosystem().isBlank()) {
             return affected.ecosystem();
         }
         String key = affected.packageKey();
-        if (key != null && key.startsWith("pkg:")) {
-            int slash = key.indexOf('/');
-            return slash > 4 ? key.substring(4, slash) : null;
-        }
-        return null;
+        int slash = key == null || !key.startsWith("pkg:") ? -1 : key.indexOf('/');
+        return slash > 4 ? key.substring(4, slash) : UNKNOWN_ECOSYSTEM;
     }
 }
