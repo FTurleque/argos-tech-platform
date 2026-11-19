@@ -14,7 +14,7 @@
 //    invalide (appel en échec, requête hors de la boucle locale).
 // Node.js seul (fetch, node:perf_hooks) : aucune dépendance (ADR-0021). Jamais lancée par `npm --prefix e2e test`.
 import { execFileSync, spawn, spawnSync } from 'node:child_process'
-import { mkdirSync, readFileSync, writeFileSync } from 'node:fs'
+import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs'
 import { arch, cpus, platform, release, totalmem } from 'node:os'
 import { dirname, join } from 'node:path'
 import { performance } from 'node:perf_hooks'
@@ -74,6 +74,15 @@ async function pret() {
   }
 }
 
+// Exécutables appelés par leur chemin absolu, pris parmi des emplacements fixes : la campagne ne dépend pas
+// du PATH (même règle que support/docker.mjs). ARGOS_E2E_GIT désigne un autre emplacement de Git.
+const TASKKILL = 'C:/Windows/System32/taskkill.exe'
+const EMPLACEMENTS_GIT = ['C:/Program Files/Git/cmd/git.exe', '/usr/bin/git', '/usr/local/bin/git', '/opt/homebrew/bin/git']
+
+function cheminGit() {
+  return process.env.ARGOS_E2E_GIT ?? EMPLACEMENTS_GIT.find((chemin) => existsSync(chemin))
+}
+
 function executer(commande, args, options = {}) {
   const r = spawnSync(commande, args, { cwd: E2E, stdio: 'inherit', ...options })
   if (r.error) throw r.error
@@ -83,7 +92,7 @@ function executer(commande, args, options = {}) {
 /** Arrête le serveur démarré par la campagne et ses processus enfants (mvn → java). */
 function arreter(processus) {
   if (!processus || processus.exitCode !== null) return
-  if (platform() === 'win32') spawnSync('taskkill', ['/pid', String(processus.pid), '/T', '/F'], { stdio: 'ignore' })
+  if (platform() === 'win32') spawnSync(TASKKILL, ['/pid', String(processus.pid), '/T', '/F'], { stdio: 'ignore' })
   else {
     try {
       process.kill(-processus.pid, 'SIGTERM')
@@ -225,8 +234,10 @@ async function mesurer(operation, token, p) {
 }
 
 function revision() {
+  const git = cheminGit()
+  if (!git) return 'inconnue'
   try {
-    return execFileSync('git', ['rev-parse', '--short', 'HEAD'], { cwd: RACINE }).toString().trim()
+    return execFileSync(git, ['rev-parse', '--short', 'HEAD'], { cwd: RACINE }).toString().trim()
   } catch {
     return 'inconnue'
   }
