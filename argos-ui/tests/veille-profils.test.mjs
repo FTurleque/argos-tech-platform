@@ -106,10 +106,10 @@ test('messages d’erreur : refus du serveur affiché tel quel, autres statuts t
 
 test('module API de la veille : appels par appelerApi, points d’accès existants seulement', () => {
   const api = source('../src/api/veille.ts')
-  assert.match(api, /import \{ appelerApi, type PreferencesEffectives \} from '\.\/client'/)
+  assert.match(api, /import \{ appelerApi \} from '\.\/client'/)
   assert.doesNotMatch(api, /\bfetch\s*\(/)
   for (const chemin of ["'/api/v1/me/veille'", "'/api/v1/catalogue/profils'", "'/api/v1/preferences'",
-    "'/api/v1/preferences/profils'", "'/api/v1/subscriptions'"]) {
+    "'/api/v1/preferences/profils'", "'/api/v1/preferences/mise-en-page'", "'/api/v1/subscriptions'"]) {
     assert.ok(api.includes(chemin), chemin)
   }
   assert.match(api, /methode: 'PUT'/)

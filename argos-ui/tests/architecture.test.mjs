@@ -69,7 +69,7 @@ test('aucune mise en page n’importe le client API ni un autre module de la cou
 test('la règle détecte un import du client API et un appel réseau', () => {
   const chemin = join(MISES_EN_PAGE, 'exemple', 'MiseEnPageFautive.vue')
   const source = [
-    "import { choisirMiseEnPage } from '../../api/client'",
+    "import { fetchMisesEnPage } from '../../api/client'",
     "import { ELEMENTS_APERCU } from '../../contenu/apercu'",
     "import axios from 'axios'",
     "import '@fontsource/inter/index.js'",

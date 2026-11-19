@@ -3,15 +3,9 @@
 // préférence sur le serveur, la confronte aux mises en page connues de l'IHM et transmet des
 // modèles de vue à la couche mise en page.
 import { computed, onMounted, ref } from 'vue'
-import {
-  ApiError,
-  choisirMiseEnPage,
-  fetchMisesEnPage,
-  type MiseEnPageCatalogue,
-  type PreferencesEffectives,
-} from '../api/client'
+import { ApiError, fetchMisesEnPage, type MiseEnPageCatalogue } from '../api/client'
 import { STATUT_NON_AUTHENTIFIE } from '../api/statuts-http'
-import { lirePreferences } from '../api/veille'
+import { choisirMiseEnPage, lirePreferences, type PreferencesEffectives } from '../api/veille'
 import { VEILLE_APERCU } from '../contenu/apercu'
 import { resoudreMiseEnPage } from '../contenu/resolution'
 import MiseEnPage from '../mises-en-page/MiseEnPage.vue'
