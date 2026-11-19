@@ -117,9 +117,10 @@ public class InventoryQueries {
             if (summary.isEmpty()) {
                 return Optional.empty();
             }
-            InventorySummary s = summary.get();
-            return Optional.of(new InventoryView(projectId, s.origin(), s.sourceDate(), s.ageDays(), s.obsolete(),
-                    s.specVersion(), s.importedAt(), components(c, projectId), s.ignoredCount(), s.ignoredComponents()));
+            InventorySummary resume = summary.get();
+            return Optional.of(new InventoryView(projectId, resume.origin(), resume.sourceDate(), resume.ageDays(),
+                    resume.obsolete(), resume.specVersion(), resume.importedAt(), components(c, projectId), resume.ignoredCount(),
+                    resume.ignoredComponents()));
         } catch (SQLException e) {
             throw new IllegalStateException("lecture de l'inventaire impossible", e);
         }
@@ -169,8 +170,8 @@ public class InventoryQueries {
      */
     @Transactional
     public ProjectPage projects(UUID accountId, int page, int size) {
-        int p = Math.max(page, 0);
-        int s = boundedSize(size);
+        int appliedPage = Math.max(page, 0);
+        int appliedSize = boundedSize(size);
         String sql = "SELECT p.id, p.workspace_id, e.nom, p.name FROM project p LEFT JOIN espace e ON e.id = p.workspace_id"
                 + " ORDER BY p.name, e.nom, p.id LIMIT ? OFFSET ?";
         try (Connection c = dataSource.getConnection()) {
@@ -178,8 +179,8 @@ public class InventoryQueries {
             long total = count(c, "SELECT count(*) FROM project", null);
             List<ProjectItem> items = new ArrayList<>();
             try (PreparedStatement ps = c.prepareStatement(sql)) {
-                ps.setInt(1, s);
-                ps.setLong(2, (long) p * s);
+                ps.setInt(1, appliedSize);
+                ps.setLong(2, (long) appliedPage * appliedSize);
                 try (ResultSet rs = ps.executeQuery()) {
                     while (rs.next()) {
                         items.add(new ProjectItem(rs.getObject(1, UUID.class), rs.getObject(2, UUID.class), rs.getString(3),
@@ -187,7 +188,7 @@ public class InventoryQueries {
                     }
                 }
             }
-            return new ProjectPage(items, p, s, total);
+            return new ProjectPage(items, appliedPage, appliedSize, total);
         } catch (SQLException e) {
             throw new IllegalStateException("lecture des projets impossible", e);
         }
@@ -200,8 +201,8 @@ public class InventoryQueries {
      */
     @Transactional
     public ComponentPage components(UUID projectId, UUID accountId, int page, int size) {
-        int p = Math.max(page, 0);
-        int s = boundedSize(size);
+        int appliedPage = Math.max(page, 0);
+        int appliedSize = boundedSize(size);
         String sql = "SELECT id, " + COMPONENT_NAME + " AS name, version, purl, package_key, transitive FROM component"
                 + " WHERE project_id = ? ORDER BY name, version NULLS FIRST, id LIMIT ? OFFSET ?";
         try (Connection c = dataSource.getConnection()) {
@@ -210,8 +211,8 @@ public class InventoryQueries {
             List<ComponentItem> items = new ArrayList<>();
             try (PreparedStatement ps = c.prepareStatement(sql)) {
                 ps.setObject(1, projectId);
-                ps.setInt(2, s);
-                ps.setLong(3, (long) p * s);
+                ps.setInt(2, appliedSize);
+                ps.setLong(3, (long) appliedPage * appliedSize);
                 try (ResultSet rs = ps.executeQuery()) {
                     while (rs.next()) {
                         items.add(new ComponentItem(rs.getObject(1, UUID.class), rs.getString(2), rs.getString(3),
@@ -219,7 +220,7 @@ public class InventoryQueries {
                     }
                 }
             }
-            return new ComponentPage(projectId, items, p, s, total);
+            return new ComponentPage(projectId, items, appliedPage, appliedSize, total);
         } catch (SQLException e) {
             throw new IllegalStateException("lecture des composants impossible", e);
         }

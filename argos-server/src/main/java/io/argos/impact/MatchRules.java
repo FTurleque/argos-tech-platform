@@ -1,6 +1,7 @@
 package io.argos.impact;
 
 import java.util.Optional;
+import java.util.function.IntPredicate;
 
 import io.argos.signal.AffectedPackage;
 
@@ -79,21 +80,19 @@ public final class MatchRules {
             return RangeResult.IN_RANGE;
         }
         boolean unknown = false;
-        for (AffectedPackage.VersionRange r : affected.ranges()) {
-            if ("GIT".equalsIgnoreCase(r.type())) {
-                unknown = true;
-                continue;
-            }
-            RangeResult result = inInterval(affected, r, version);
+        for (AffectedPackage.VersionRange range : affected.ranges()) {
+            RangeResult result = "GIT".equalsIgnoreCase(range.type()) ? RangeResult.UNKNOWN : inInterval(affected, range, version);
             if (result == RangeResult.IN_RANGE) {
                 return result;
             }
             unknown |= result == RangeResult.UNKNOWN;
         }
-        if (affected.ranges().isEmpty() && (affected.versions() == null || affected.versions().isEmpty())) {
-            return RangeResult.UNKNOWN;
-        }
-        return unknown ? RangeResult.UNKNOWN : RangeResult.OUT_OF_RANGE;
+        return unknown || declaresNoVersion(affected) ? RangeResult.UNKNOWN : RangeResult.OUT_OF_RANGE;
+    }
+
+    /** Paquet sans plage ni version énumérée : rien ne permet de conclure. */
+    private static boolean declaresNoVersion(AffectedPackage affected) {
+        return affected.ranges().isEmpty() && (affected.versions() == null || affected.versions().isEmpty());
     }
 
     /**
@@ -112,46 +111,57 @@ public final class MatchRules {
             return false;
         }
         for (String listed : affected.versions()) {
-            if (VersionComparator.compare(ecosystem, version, listed).filter(c -> c == 0).isPresent()) {
+            if (VersionComparator.compare(ecosystem, version, listed).filter(order -> order == 0).isPresent()) {
                 return true;
             }
         }
         return false;
     }
 
-    private static RangeResult inInterval(AffectedPackage affected, AffectedPackage.VersionRange r, String version) {
+    /**
+     * Version dans un intervalle {@code [introduced, fixed)} ou {@code [introduced, lastAffected]} ;
+     * UNKNOWN si la version ou une borne n'est pas interprétable dans l'écosystème du paquet.
+     */
+    private static RangeResult inInterval(AffectedPackage affected, AffectedPackage.VersionRange range, String version) {
         String ecosystem = ecosystem(affected);
-        boolean interpretable = VersionComparator.maven(ecosystem)
-                ? VersionComparator.mavenInterpretable(version)
-                : VersionComparator.interpretable(version);
-        if (!interpretable) {
+        if (!interpretable(ecosystem, version)) {
             return RangeResult.UNKNOWN;
         }
-        String introduced = r.introduced();
-        if (introduced != null && !introduced.isBlank() && !"0".equals(introduced)) {
-            Optional<Integer> c = VersionComparator.compare(ecosystem, version, introduced);
-            if (c.isEmpty()) {
-                return RangeResult.UNKNOWN;
-            }
-            if (c.get() < 0) {
-                return RangeResult.OUT_OF_RANGE;
-            }
+        RangeResult lowerBound = fromIntroduced(ecosystem, version, range.introduced());
+        return lowerBound == RangeResult.IN_RANGE ? beforeUpperBound(ecosystem, version, range) : lowerBound;
+    }
+
+    /** Version interprétable : au sens de {@code ComparableVersion} pour Maven, de l'ordre générique sinon. */
+    private static boolean interpretable(String ecosystem, String version) {
+        return VersionComparator.maven(ecosystem)
+                ? VersionComparator.mavenInterpretable(version)
+                : VersionComparator.interpretable(version);
+    }
+
+    /** Borne basse incluse ; une introduction absente ou {@code 0} admet toute version. */
+    private static RangeResult fromIntroduced(String ecosystem, String version, String introduced) {
+        if (introduced == null || introduced.isBlank() || "0".equals(introduced)) {
+            return RangeResult.IN_RANGE;
         }
-        if (r.fixed() != null) {
-            Optional<Integer> c = VersionComparator.compare(ecosystem, version, r.fixed());
-            if (c.isEmpty()) {
-                return RangeResult.UNKNOWN;
-            }
-            return c.get() < 0 ? RangeResult.IN_RANGE : RangeResult.OUT_OF_RANGE;
+        return position(ecosystem, version, introduced, order -> order >= 0);
+    }
+
+    /** Borne haute : version corrigée exclue, sinon dernière version affectée incluse, sinon plage ouverte. */
+    private static RangeResult beforeUpperBound(String ecosystem, String version, AffectedPackage.VersionRange range) {
+        if (range.fixed() != null) {
+            return position(ecosystem, version, range.fixed(), order -> order < 0);
         }
-        if (r.lastAffected() != null) {
-            Optional<Integer> c = VersionComparator.compare(ecosystem, version, r.lastAffected());
-            if (c.isEmpty()) {
-                return RangeResult.UNKNOWN;
-            }
-            return c.get() <= 0 ? RangeResult.IN_RANGE : RangeResult.OUT_OF_RANGE;
+        if (range.lastAffected() != null) {
+            return position(ecosystem, version, range.lastAffected(), order -> order <= 0);
         }
         return RangeResult.IN_RANGE;
+    }
+
+    /** Position de la version par rapport à une borne : IN_RANGE si l'ordre satisfait la condition, UNKNOWN si incomparable. */
+    private static RangeResult position(String ecosystem, String version, String bound, IntPredicate inside) {
+        return VersionComparator.compare(ecosystem, version, bound)
+                .map(order -> inside.test(order) ? RangeResult.IN_RANGE : RangeResult.OUT_OF_RANGE)
+                .orElse(RangeResult.UNKNOWN);
     }
 
     /** Écosystème du paquet : nom déclaré par la source, sinon type de la clé PURL ({@code pkg:maven/…}). */
