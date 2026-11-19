@@ -11,6 +11,7 @@ import {
   type MiseEnPageCatalogue,
   type PreferencesEffectives,
 } from '../api/client'
+import { STATUT_NON_AUTHENTIFIE } from '../api/statuts-http'
 import { VEILLE_APERCU } from '../contenu/apercu'
 import { resoudreMiseEnPage } from '../contenu/resolution'
 import MiseEnPage from '../mises-en-page/MiseEnPage.vue'
@@ -25,7 +26,7 @@ const resolue = computed(() => resoudreMiseEnPage(preferences.value, IDENTIFIANT
 const choix = computed(() => catalogue.value.filter((m) => IDENTIFIANTS_MISES_EN_PAGE.includes(m.identifiant)))
 
 function message(e: unknown): string {
-  if (e instanceof ApiError && e.status === 401) {
+  if (e instanceof ApiError && e.status === STATUT_NON_AUTHENTIFIE) {
     return 'Connectez-vous pour enregistrer votre mise en page. La mise en page « classique » s’applique.'
   }
   return e instanceof ApiError ? e.message : 'Erreur inattendue'

@@ -1,7 +1,16 @@
 // Mise en forme des mots et filtres de la recherche de veille pour l'API (RCH-01, RCH-02, RCH-04).
-// Module pur, sans import : testé directement par `node --test`. Aucune règle métier ici
+// Module pur, sans autre import que les statuts HTTP partagés : testé directement par `node --test`. Aucune règle métier ici
 // (arc42 §5.1) : la validation, les droits et la sémantique des filtres restent dans argos-server
 // (`TraductionCriteres`, `RechercheVeille`).
+
+import {
+  STATUT_CONFLIT,
+  STATUT_INTERDIT,
+  STATUT_INTROUVABLE,
+  STATUT_NON_AUTHENTIFIE,
+  STATUT_REQUETE_INVALIDE,
+  STATUT_TROP_DE_DEMANDES,
+} from './statuts-http.ts'
 
 /** Mots et filtres d'une recherche (schéma OpenAPI `CriteresRecherche`) ; attribut absent : filtre absent. */
 export interface CriteresRecherche {
@@ -199,13 +208,13 @@ export function messageErreur(
   message: string,
 ): string {
   if (status === undefined) return message
-  if (status === 401) return 'Connectez-vous pour rechercher dans votre veille.'
-  if (status === 404) {
+  if (status === STATUT_NON_AUTHENTIFIE) return 'Connectez-vous pour rechercher dans votre veille.'
+  if (status === STATUT_INTROUVABLE) {
     if (operation === 'recherche' || operation === 'enregistrement') return 'Projet introuvable ou hors de vos espaces.'
     return 'Vue introuvable.'
   }
-  if (status === 400 || status === 409) return message
-  if (status === 403) return 'Accès refusé : vos droits ne permettent pas cette opération.'
-  if (status === 429) return 'Trop de demandes en peu de temps : réessayez dans quelques instants.'
+  if (status === STATUT_REQUETE_INVALIDE || status === STATUT_CONFLIT) return message
+  if (status === STATUT_INTERDIT) return 'Accès refusé : vos droits ne permettent pas cette opération.'
+  if (status === STATUT_TROP_DE_DEMANDES) return 'Trop de demandes en peu de temps : réessayez dans quelques instants.'
   return `Le serveur a répondu ${status}.`
 }

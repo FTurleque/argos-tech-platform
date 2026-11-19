@@ -1,6 +1,7 @@
 // Client minimal de l'API REST ARGOS (/api/v1). Aucune règle métier ici (arc42 §5.1).
 
 import { classerRefus, entetesAvecJeton, type Refus } from './autorisation'
+import { STATUT_SANS_CONTENU } from './statuts-http'
 
 const DEFAULT_API_URL = 'http://localhost:8080'
 
@@ -109,7 +110,7 @@ export async function appelerApi<T>(chemin: string, options: OptionsAppel = {}):
       const message = typeof erreur?.message === 'string' ? erreur.message : `Le serveur a répondu ${response.status}`
       throw new ApiError(message, response.status, typeof erreur?.code === 'string' ? erreur.code : undefined)
     }
-    if (response.status === 204) return undefined as T
+    if (response.status === STATUT_SANS_CONTENU) return undefined as T
     return (await response.json()) as T
   } catch (error) {
     if (error instanceof ApiError) throw error
