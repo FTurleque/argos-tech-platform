@@ -6,7 +6,6 @@ import jakarta.annotation.PostConstruct;
 import jakarta.inject.Inject;
 import jakarta.ws.rs.DefaultValue;
 import jakarta.ws.rs.GET;
-import jakarta.ws.rs.NotFoundException;
 import jakarta.ws.rs.Path;
 import jakarta.ws.rs.PathParam;
 import jakarta.ws.rs.Produces;
@@ -91,11 +90,6 @@ public class ActiviteResource {
     }
 
     private Caller autoriser(UUID projectId) {
-        Caller caller = access.authenticated();
-        UUID espace = projets.workspaceOf(projectId).orElseThrow(NotFoundException::new);
-        if (!caller.memberOf(espace)) {
-            throw access.outOfScope();
-        }
-        return caller;
+        return access.memberOfProject(() -> projets.workspaceOf(projectId));
     }
 }

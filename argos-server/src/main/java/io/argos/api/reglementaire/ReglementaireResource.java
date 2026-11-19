@@ -145,7 +145,7 @@ public class ReglementaireResource {
     @APIResponse(responseCode = "404", description = "Espace inconnu ou hors périmètre",
             content = @Content(schema = @Schema(implementation = Erreur.class)))
     public List<DomaineVue> domaines(@PathParam("espaceId") UUID espaceId) {
-        Caller caller = membre(espaceId);
+        Caller caller = access.member(espaceId);
         return dictionnaire.domaines(caller.accountId(), espaceId).stream().map(ReglementaireResource::vue).toList();
     }
 
@@ -159,7 +159,7 @@ public class ReglementaireResource {
             content = @Content(schema = @Schema(implementation = Erreur.class)))
     public DomaineVue enregistrerDomaine(@PathParam("espaceId") UUID espaceId, @PathParam("code") String code,
             SaisieDomaine saisie) {
-        Caller caller = administrateur(espaceId);
+        Caller caller = access.administrator(espaceId);
         return vue(dictionnaire.enregistrerDomaine(caller.accountId(), espaceId, code, saisie == null ? null : saisie.libelle()));
     }
 
@@ -168,7 +168,7 @@ public class ReglementaireResource {
     @Operation(summary = "Supprime un domaine métier, ses règles, ses experts et ses rattachements (administrateur de l'espace)")
     @APIResponse(responseCode = "204", description = "Domaine supprimé")
     public RestResponse<Void> supprimerDomaine(@PathParam("espaceId") UUID espaceId, @PathParam("code") String code) {
-        Caller caller = administrateur(espaceId);
+        Caller caller = access.administrator(espaceId);
         dictionnaire.supprimerDomaine(caller.accountId(), espaceId, code);
         return RestResponse.noContent();
     }
@@ -180,7 +180,7 @@ public class ReglementaireResource {
     @APIResponse(responseCode = "400", description = "Règle invalide",
             content = @Content(schema = @Schema(implementation = Erreur.class)))
     public DomaineVue remplacerRegles(@PathParam("espaceId") UUID espaceId, @PathParam("code") String code, Regles corps) {
-        Caller caller = administrateur(espaceId);
+        Caller caller = access.administrator(espaceId);
         return vue(dictionnaire.remplacerRegles(caller.accountId(), espaceId, code, corps == null ? null : corps.regles()));
     }
 
@@ -191,7 +191,7 @@ public class ReglementaireResource {
     @APIResponse(responseCode = "400", description = "Compte non membre contributeur ou administrateur de l'espace",
             content = @Content(schema = @Schema(implementation = Erreur.class)))
     public DomaineVue remplacerExperts(@PathParam("espaceId") UUID espaceId, @PathParam("code") String code, Experts corps) {
-        Caller caller = administrateur(espaceId);
+        Caller caller = access.administrator(espaceId);
         return vue(dictionnaire.remplacerExperts(caller.accountId(), espaceId, code, corps == null ? null : corps.comptes()));
     }
 
@@ -199,7 +199,7 @@ public class ReglementaireResource {
     @Path("/espaces/{espaceId}/rappels")
     @Operation(summary = "Jours de rappel avant une entrée en vigueur (J-90, J-30 et J-7 par défaut)")
     public Rappels rappels(@PathParam("espaceId") UUID espaceId) {
-        Caller caller = membre(espaceId);
+        Caller caller = access.member(espaceId);
         return new Rappels(echeances.parametres(caller.accountId(), espaceId));
     }
 
@@ -210,7 +210,7 @@ public class ReglementaireResource {
     @APIResponse(responseCode = "400", description = "De 1 à 10 jours entre 0 et 365",
             content = @Content(schema = @Schema(implementation = Erreur.class)))
     public Rappels modifierRappels(@PathParam("espaceId") UUID espaceId, Rappels corps) {
-        Caller caller = administrateur(espaceId);
+        Caller caller = access.administrator(espaceId);
         return new Rappels(echeances.modifierParametres(caller.accountId(), espaceId, corps == null ? null : corps.rappelsJours()));
     }
 
@@ -393,21 +393,5 @@ public class ReglementaireResource {
         } catch (DateTimeParseException e) {
             throw Erreur.demandeRefusee("DONNEE_INVALIDE", "Date « " + nom + " » attendue au format AAAA-MM-JJ.");
         }
-    }
-
-    private Caller membre(UUID espaceId) {
-        Caller caller = access.authenticated();
-        if (!caller.memberOf(espaceId)) {
-            throw access.outOfScope();
-        }
-        return caller;
-    }
-
-    private Caller administrateur(UUID espaceId) {
-        Caller caller = membre(espaceId);
-        if (!caller.adminOf(espaceId)) {
-            throw access.forbidden();
-        }
-        return caller;
     }
 }

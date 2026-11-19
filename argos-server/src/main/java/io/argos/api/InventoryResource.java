@@ -5,7 +5,6 @@ import java.util.UUID;
 
 import jakarta.inject.Inject;
 import jakarta.ws.rs.GET;
-import jakarta.ws.rs.NotFoundException;
 import jakarta.ws.rs.Path;
 import jakarta.ws.rs.PathParam;
 import jakarta.ws.rs.Produces;
@@ -104,11 +103,6 @@ public class InventoryResource {
     }
 
     private Caller authorize(UUID projectId) {
-        Caller caller = access.authenticated();
-        UUID workspace = inventories.workspaceOf(projectId).orElseThrow(NotFoundException::new);
-        if (!caller.memberOf(workspace)) {
-            throw access.outOfScope();
-        }
-        return caller;
+        return access.memberOfProject(() -> inventories.workspaceOf(projectId));
     }
 }
