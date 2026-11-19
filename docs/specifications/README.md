@@ -188,15 +188,15 @@ Les exigences ACC-07 à ACC-10 sont au statut [EXIGENCE] dans la spec de référ
 
 | Changement | Capacité | Exigences | Scénarios | Diagrammes métier | Questions ouvertes | Tests écrits |
 |---|---|---|---|---|---|---|
-| [`automatiser-chaine-veille`](/openspec/changes/automatiser-chaine-veille/proposal.md) | `collecte-avis-securite` (COL-09, COL-10) | 2 | 9 | 0 (DF-COL-1, DF-COL-2 mis à jour) | 0 | 0 |
-| | `inventaire-sbom` (INV-07 à INV-10) | 4 | 14 | 1 (DF-INV-4 ; DF-INV-1 mis à jour) | 0 | 0 |
+| [`automatiser-chaine-veille`](/openspec/changes/automatiser-chaine-veille/proposal.md) | `collecte-avis-securite` (COL-09, COL-10) | 2 | 9 | 0 (DF-COL-1, DF-COL-2 mis à jour) | 0 | 9 |
+| | `inventaire-sbom` (INV-07 à INV-10) | 4 | 14 | 1 (DF-INV-4 ; DF-INV-1 mis à jour) | 0 | 14 |
 | | `correlation-impact` (COR-09 à COR-12) | 4 | 15 | 1 (DF-COR-4) | 0 | 15 |
-| | `abonnements-veille` (ABO-07, ABO-08) | 2 | 7 | 1 (DF-ABO-3) | 0 | 0 |
+| | `abonnements-veille` (ABO-07, ABO-08) | 2 | 7 | 1 (DF-ABO-3) | 0 | 7 |
 | | `alertes-digests` (ALR-07) | 1 | 2 | 0 | 0 | 2 |
 | | `performance-api-mcp` (PERF-01, PERF-02) | 2 | 6 | 1 (DF-PERF-1) | 2 | 5 |
-| **Total** | | **15** | **53** | **4** | **2** | **22** |
+| **Total** | | **15** | **53** | **4** | **2** | **52** |
 
-Cadrage du 2026-11-19 : exigences au statut [PROPOSITION], issues des décisions J1 à J8 du porteur du projet (2026-11-19) ; aucune implémentation, aucun test écrit. Le travail est découpé en trois volets indépendants (A : collecte et abonnements ; B : inventaire ; C : impacts et performance) puis des vérifications d'intégration. « Questions ouvertes » : Q-PERF-1 et Q-PERF-2 (volume et concurrence de la campagne). Volet C (branche `lot18/impacts-performance`, 2026-11-19, non intégré) : « Tests écrits » compte les scénarios couverts par au moins un test qui passe (`chain/EtatTraitementImpactTest`, `chain/CorrelationTest`, `alerting/AlertesImpactsTraitesTest`, `argos-ui/tests/traitement-impact.test.mjs`, `e2e/performance/mesure.test.mjs`) ; PERF-01-S1 n'est pas atteint : la campagne du 2026-11-19 mesure `GET /api/v1/me/veille` hors cible (p95 = 618 ms, [rapport](../architecture/quality/mesure-performance-api-mcp.md)) ; les volets A et B ne sont pas comptés ici. Matrice détaillée : [`tasks.md` du changement](/openspec/changes/automatiser-chaine-veille/tasks.md#matrice-de-traçabilité).
+Exigences au statut [PROPOSITION], issues des décisions J1 à J8 du porteur du projet (2026-11-19). Volets A (collecte et abonnements), B (inventaire) et C (impacts et performance) implémentés puis intégrés le 2026-11-19 (branche `lot18/integration`, migrations V18 à V20) ; vérifications d'intégration faites : `mvn verify` (649 tests), tests de l'IHM, parcours E2E `e2e/tests/chaine-automatisee.spec.ts` (sources et forges simulées) et deux exécutions complètes de `npm --prefix e2e test`. « Tests écrits » compte les scénarios couverts par au moins un test qui passe ; PERF-01-S1 n'est pas atteint : `GET /api/v1/me/veille` reste hors cible (p95 = 533,8 ms sur la branche intégrée, [rapport](../architecture/quality/mesure-performance-api-mcp.md), [PROPOSITION] P-18). Tâche 3.1 décochée : la contrainte INV-C3 n'est pas créée ([PROPOSITION] P-13, à valider). « Questions ouvertes » : Q-PERF-1 et Q-PERF-2 (volume et concurrence de la campagne). Matrice détaillée : [`tasks.md` du changement](/openspec/changes/automatiser-chaine-veille/tasks.md#matrice-de-traçabilité).
 
 ### Capacités restant à spécifier
 

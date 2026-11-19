@@ -124,6 +124,28 @@ Risque résiduel : rebinding DNS entre le contrôle et la connexion ; un mandata
 - replay contrôlé ;
 - health/readiness distincts.
 
+### Tâches planifiées
+
+Les traitements périodiques sont des méthodes `@Scheduled` de `quarkus-scheduler` (ADR-0031, Accepté), sans chevauchement d'une exécution avec la suivante (`SKIP`), dont l'expression est lue dans la configuration ; la valeur `off` désactive une tâche. ADR-0031 décrit les tâches existantes à sa date d'acceptation ; cette liste tient l'inventaire à jour (état au 2026-11-19, 13 tâches).
+
+| Identité | Module | Échéance (propriété) | Défaut |
+|---|---|---|---|
+| `signal-synchronisation-sources` | `signal` | `argos.ingestion.planification.cadence` | toutes les heures (J1) |
+| `inventory-import-quotidien` | `inventory` | `argos.inventory.import.cron` | 03:00, fuseau `argos.alerting.fuseau` (J3) |
+| `argos-envoi-alertes` | `alerting` | `argos.alerting.envoi.intervalle` | toutes les minutes |
+| `argos-resume-quotidien` | `alerting` | `argos.alerting.resume-quotidien.cron` | 08:00 |
+| `argos-resume-hebdomadaire` | `alerting` | `argos.alerting.resume-hebdomadaire.cron` | lundi 08:00 |
+| `argos-radar-quotidien` | `alerting` | `argos.radar.tache.cron` | 06:00 |
+| `argos-activite-collecte` | `projectintel` | `argos.activite.cadence` | toutes les heures |
+| `argos-activite-purge` | `projectintel` | `argos.activite.purge.cron` | 04:30 |
+| `collecte-veille-web` | `signal.web` | `argos.veille-web.cadence` | toutes les 5 minutes |
+| `collecte-reglementaire` | `regintel` | `argos.reglementaire.collecte.cron` | 06:30 |
+| `rappels-reglementaires` | `alerting` | `argos.reglementaire.rappels.cron` | 07:15 |
+| `collecte-profil-artiste` | `signal.opportunite` | `argos.profil-artiste.collecte.cron` | 05:00 |
+| `rappels-profil-artiste` | `alerting` | `argos.profil-artiste.rappels.cron` | 07:00 |
+
+Une échéance manquée (serveur arrêté) n'est pas rattrapée : la tâche s'exécute à l'échéance suivante (ADR-0031). Dans la pile E2E, les tâches qui joindraient une source externe sont désactivées, sauf la synchronisation des sources d'avis et l'import des inventaires, rapprochées (toutes les 5 secondes) et dirigées vers les sources et forges simulées de `e2e/support/sources-simulees.mjs` ([PROPOSITION] PI-1 du changement `automatiser-chaine-veille`).
+
 ## 8.6 Observabilité
 
 OpenTelemetry/Micrometer côté Quarkus, logs structurés, métriques et traces lorsque pertinent.
@@ -136,7 +158,9 @@ PostgreSQL est **Accepté** comme stockage principal : relationnel, JSONB, FTS e
 
 Le schéma est versionné par des migrations SQL Flyway appliquées au démarrage (ADR-0032, Accepté) ; le modèle physique qu'elles produisent est D-13 : [`../diagrams/d-13-modele-physique.md`](../diagrams/d-13-modele-physique.md).
 
-Liste à jour des migrations, dans `argos-server/src/main/resources/db/migration/` (état au 2026-11-19). ADR-0032 porte la décision et décrit V1 à V16, état de sa date d'acceptation ; il n'est pas modifié et cette liste tient l'inventaire à jour des migrations ([DÉCISION] du porteur du projet, 2026-11-19). Les numéros V18 à V20 sont réservés aux trois volets du changement `automatiser-chaine-veille` (P-11 : V18 volet A, V19 volet B, V20 volet C) ; la prochaine migration hors de ce changement porte le numéro V21.
+Liste à jour des migrations, dans `argos-server/src/main/resources/db/migration/` (état au 2026-11-19). ADR-0032 porte la décision et décrit V1 à V16, état de sa date d'acceptation ; il n'est pas modifié et cette liste tient l'inventaire à jour des migrations ([DÉCISION] du porteur du projet, 2026-11-19). V18 à V20 appartiennent au changement `automatiser-chaine-veille` (V18 volet A, V19 volet B, V20 volet C), intégrés ensemble et appliqués dans cet ordre ; la prochaine migration porte le numéro V21. Flyway refuse une migration de numéro inférieur à la dernière appliquée (`out-of-order` désactivé) : une base persistante ne reçoit que des branches intégrées.
+
+Retour arrière : les migrations ne sont pas réversibles automatiquement (ADR-0032). Pour V18 à V20, le retour à V17 est manuel et suppose une sauvegarde : V18 se défait en rétablissant `INACTIVE` à la place de `SUSPENDED`, l'ancienne contrainte et la politique `subscription_desactivation`, et en révoquant `DELETE` (un abonnement supprimé n'est pas récupérable) ; V19 en supprimant les trois tables ajoutées et la colonne `repository_id` ; V20 en supprimant d'abord les impacts sans composant (résolus ou écartés), l'historique `project_impact_transition` et les alertes `ANNULEE`, puis la colonne `state` et l'instantané, avant de remettre `component_id` en `NOT NULL` et `ON DELETE CASCADE`.
 
 | Version | Fichier | Objet | Changement OpenSpec |
 |---|---|---|---|

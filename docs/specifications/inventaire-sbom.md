@@ -4,7 +4,7 @@
 |---|---|
 | Préfixe d'exigences | `INV` |
 | Spec de référence | `/openspec/specs/inventaire-sbom/spec.md` — absente : capacité non livrée |
-| Changement en cours | [`formaliser-chaine-securite-poc`](/openspec/changes/formaliser-chaine-securite-poc/specs/inventaire-sbom/spec.md) — proposé, non archivé ; [`automatiser-chaine-veille`](/openspec/changes/automatiser-chaine-veille/specs/inventaire-sbom/spec.md) — proposé, non archivé ; INV-07 à INV-10 implémentées par le volet B (branche `lot18/inventaire`, 2026-11-19) |
+| Changement en cours | [`formaliser-chaine-securite-poc`](/openspec/changes/formaliser-chaine-securite-poc/specs/inventaire-sbom/spec.md) — proposé, non archivé ; [`automatiser-chaine-veille`](/openspec/changes/automatiser-chaine-veille/specs/inventaire-sbom/spec.md) — proposé, non archivé ; INV-07 à INV-10 implémentées (volet B) et intégrées le 2026-11-19 |
 | Statut de la capacité | **proposée**, implémentée dans `argos-server` (changement non archivé) : paquets `io.argos.scm`, `io.argos.inventory` |
 | Composants (arc42 §5) | `inventory`, `scm-connector`, adaptateur PostgreSQL |
 
@@ -65,7 +65,7 @@ Répondre de façon fiable à la question « quels composants, et dans quelles v
 | La synthèse de l'inventaire d'un projet (nombres, dates, origine, composants ignorés) est fournie sans la liste des composants ; la vue ne charge que la synthèse et la page de composants affichée | INV-06 (INV-06-S4) | décision du porteur du projet, 2026-11-19 (G5) | [DÉCISION] |
 | Import quotidien, configurable, de l'inventaire de chaque dépôt configuré, par interrogation en lecture seule de la forge ; aucun webhook | INV-07 | décision J3 du porteur du projet, 2026-11-19 ; ADR-0031 | [PROPOSITION] — `automatiser-chaine-veille`, implémentée (volet B) |
 | L'import manuel existant reste possible ; les imports d'un même projet sont sérialisés | INV-08 | décision J3 du porteur du projet, 2026-11-19 | [PROPOSITION] — `automatiser-chaine-veille`, implémentée (volet B) |
-| Chaque import réussi recorrèle les avis connus pour le projet ; les impacts devenus sans objet sont résolus (COR-11) | INV-09 | décision J4 du porteur du projet, 2026-11-19 | [PROPOSITION] — `automatiser-chaine-veille` ; recorrélation implémentée (volet B), résolution COR-11 au volet C (jusque-là, l'impact sans objet est supprimé) |
+| Chaque import réussi recorrèle les avis connus pour le projet ; les impacts devenus sans objet sont résolus (COR-11) | INV-09 | décision J4 du porteur du projet, 2026-11-19 | [PROPOSITION] — `automatiser-chaine-veille` ; recorrélation implémentée (volet B) ; l'impact sans objet est résolu par le système (COR-11, volet C), intégré le 2026-11-19 |
 | Un projet regroupe un ou plusieurs dépôts ; son inventaire est l'union des inventaires de ses dépôts | INV-10 | décision J6 du porteur du projet, 2026-11-19 | [PROPOSITION] — `automatiser-chaine-veille`, implémentée (volet B) |
 | Un composant présent dans plusieurs dépôts est une seule ligne de l'inventaire ; son niveau d'impact se fonde sur sa meilleure occurrence (SBOM non obsolète, puis SBOM obsolète, puis manifestes) ; il est direct dès qu'un dépôt l'utilise directement | INV-10, COR-02, COR-06 | proposition P-7 du changement ; volet B | [PROPOSITION] |
 | Un dépôt refusé, en erreur, sans nouvelle SBOM ou dont la forge a épuisé son quota garde son dernier import réussi ; l'échec est enregistré avec le dépôt, sans jeton | INV-07-S2, INV-10-S2 | design.md du changement (« Gestion des erreurs ») ; volet B | [PROPOSITION] |

@@ -13,7 +13,7 @@
 - [EXISTANT] `InventoryService.refresh` lit la SBOM ou les manifestes d'un projet par `io.argos.scm.RepositoryFiles` (un seul dépôt : colonnes `scm_*` de `project`), remplace l'inventaire (`InventoryStore.replace`) et publie `InventoryReplaced` ; `CorrelationEngine#onInventoryReplaced` recorrèle alors le projet. Aucun déclencheur de `refresh` en production.
 - [EXISTANT] `CorrelationEngine#deterministic` insère ou met à jour l'impact du triplet (signal, projet, composant), puis **supprime** les impacts du signal qui ne sont plus vérifiés ; `project_impact.component_id` est en `ON DELETE CASCADE`. `project_impact` n'a ni état ni historique.
 - [EXISTANT] `subscription.state` vaut `ACTIVE` ou `INACTIVE` ; `SubscriptionService#leave` désactive un `PERSONAL` ou enregistre le retrait d'un `TEAM` facultatif ; `activeFor` (abonnements actifs) sert à `alerting.MoteurAlertes`, `api.WatchResource`, `api.veille.VeilleProfilsResource` et `GET /api/v1/subscriptions`.
-- [EXISTANT] Onze tâches `@Scheduled` suivent ADR-0031 (identité, cadence en configuration, `SKIP`, méthode testable recevant l'instant, `%test.quarkus.scheduler.enabled=false`) ; les parcours E2E désactivent les tâches qui joindraient une source externe (`e2e/README.md`).
+- [EXISTANT] Onze tâches `@Scheduled` suivent ADR-0031 (identité, cadence en configuration, `SKIP`, méthode testable recevant l'instant, `%test.quarkus.scheduler.enabled=false`) ; les parcours E2E désactivent les tâches qui joindraient une source externe (`e2e/README.md`). Treize tâches à l'intégration du changement, inventoriées en arc42 §8.5.
 - [EXISTANT] Frontières de modules vérifiées par `io.argos.architecture.ModuleBoundariesTest` : `ingestion` et `scm` ne dépendent de rien ; `signal` → `ingestion` ; `vulnintel` → `signal` ; `inventory` → `scm`, `workspace`, `catalog` ; `impact` → `signal`, `vulnintel`, `inventory`… (jamais `workspace`) ; `alerting` → `impact`, `workspace` ; `api` → tous les modules métier.
 
 ## Exigences couvertes
@@ -30,7 +30,7 @@
 | COR-10 | D5 ; Contrats ; Sécurité | DC-5 |
 | COR-11 | D4, D5 ; Persistance (V20) | DC-4, DC-5 |
 | COR-12 | D5 ; Contrats | DC-5 |
-| ALR-07 | D5 (effet sur `alerting`) | DC-1 |
+| ALR-07 | intégration | `alerting/AlertesImpactsTraitesTest` | passé le 2026-11-19 |
 | ABO-07 | D7 ; Persistance (V18) | DC-7 |
 | ABO-08 | D7 ; Contrats | DC-7 |
 | PERF-01 | D8 ; Performance | DC-8 |
@@ -182,12 +182,12 @@ classDiagram
 
 Invariants testables :
 
-- **INV-A1** (COL-10) : pour un signal, deux versions n'ont jamais la même empreinte normalisée ; la version courante porte l'empreinte normalisée du signal.
+- **INV-A1** (COL-10) : pour un signal, deux versions n'ont jamais la même empreinte normalisée ; la version courante porte l'empreinte normalisée du signal. Un avis dont le contenu redevient celui d'une version antérieure met à jour le signal, qui repointe vers cette version existante (J2).
 - **INV-B1** (INV-10) : un composant d'un projet a au moins une occurrence ; un composant sans occurrence est retiré de l'inventaire du projet.
 - **INV-B2** (INV-10) : l'identité d'un composant reste (projet, clé du paquet, version), comme dans V4 (`component_identity`).
 - **INV-C1** (COR-09) : tout impact a exactement un niveau et un état ; un impact créé est `ouvert`.
 - **INV-C2** (COR-10, COR-11) : l'état courant d'un impact est l'état d'arrivée de sa dernière transition, ou `ouvert` sans transition.
-- **INV-C3** (COR-11) : un impact dont le composant a disparu (`component_id` nul) est `résolu` ou `écarté`.
+- **INV-C3** (COR-11) : un impact dont le composant a disparu (`component_id` nul) est `résolu` ou `écarté`. Invariant au repos : une transition utilisateur vers `ouvert` ou `confirmé` d'un tel impact est refusée (409) et n'est pas proposée ; la recorrélation qui résout l'impact suit la validation de l'import, et le contrôle d'intégrité (`GET /api/v1/ops/impacts/integrity`) signale tout écart. La contrainte `CHECK` prévue dans V20 n'est pas créée ([PROPOSITION] P-13, à valider par le porteur du projet).
 - **INV-C4** (COR-07) : au plus un impact par (signal, projet, composant) ; un impact au composant disparu garde sa clé de paquet et sa version pour la traçabilité.
 - **INV-A2** (ABO-07) : un abonnement suspendu garde ses filtres, son canal, sa fréquence et ses retraits ; seul `state` change.
 
@@ -373,8 +373,8 @@ Migrations prévues (ADR-0032), numéros réservés par volet (P-11), chacune aj
 | Migration | Volet | Contenu |
 |---|---|---|
 | `V18__automatisation_collecte_et_abonnements.sql` | A | `signal.normalized_hash char(64)` et `signal_version.normalized_hash char(64)`, nullables (rattrapage au premier passage, COL-10-S4), index unique partiel `(signal_id, normalized_hash) WHERE normalized_hash IS NOT NULL` ; `subscription.state` : `INACTIVE` → `SUSPENDED`, contrainte `CHECK (state IN ('ACTIVE','SUSPENDED'))` ; privilèges `argos_app` : `UPDATE (state)` et `DELETE` sur `subscription` ; politiques RLS `subscription_mise_a_jour` et `subscription_suppression` (propriétaire d'un `PERSONAL`, `ADMINISTRATEUR` de l'espace d'un `TEAM` via `argos_role_dans`) |
-| `V19__depots_projet_et_occurrences.sql` | B | `project_repository(id, project_id, provider, repository, branch, sbom_job, sbom_path, manifest_paths, principal, created_at)` alimentée depuis `project.scm_*` (une ligne `principal` par projet configuré) ; `repository_inventory(repository_id, origin, source_date, spec_version, source_ref, import_id, imported_at, ignored_count, ignored_components)` ; `component_occurrence(component_id, repository_id, transitive, import_id)` alimentée depuis `component` ; `inventory_import_failure.repository_id` ; `inventory.recorrelation_pending boolean` ; RLS de lecture par `argos_projet_lisible` sur les nouvelles tables |
-| `V20__etat_traitement_impacts.sql` | C | `project_impact.state varchar(16) NOT NULL DEFAULT 'OUVERT' CHECK (state IN ('OUVERT','CONFIRME','ECARTE','RESOLU'))`, `package_key`, `component_version` (instantané pour la traçabilité, alimentés depuis `component`) ; `component_id` nullable, contrainte refaite en `ON DELETE SET NULL` ; `CHECK (component_id IS NOT NULL OR state IN ('RESOLU','ECARTE'))` (INV-C3) ; `project_impact_transition(id, impact_id, from_state, to_state, actor_account_id, actor_system boolean, reason, comment, occurred_at)` ; privilèges `argos_app` : `UPDATE (state)` sur `project_impact`, `INSERT` sur `project_impact_transition` ; politiques RLS `project_impact_transition_lecture` (`argos_espace_lisible`) et `project_impact_etat` (`argos_role_dans(workspace_id) IN ('CONTRIBUTEUR','ADMINISTRATEUR')`) |
+| `V19__depots_projet_et_occurrences.sql` | B | `project_repository(id, project_id, provider, repository, branch, sbom_job, sbom_path, manifest_paths, principal, created_at)` alimentée depuis `project.scm_*` (une ligne `principal` par projet configuré) ; `repository_inventory(repository_id, origin, source_date, spec_version, source_ref, import_id, imported_at, ignored_count, ignored_components)` ; `component_occurrence(component_id, repository_id, project_id, transitive, import_id)` (`project_id` pour la RLS) alimentée depuis `component` ; `inventory_import_failure.repository_id` ; `inventory.recorrelation_pending boolean` ; RLS de lecture par `argos_projet_lisible` sur les nouvelles tables |
+| `V20__etat_traitement_impacts.sql` | C | `project_impact.state varchar(16) NOT NULL DEFAULT 'OUVERT' CHECK (state IN ('OUVERT','CONFIRME','ECARTE','RESOLU'))`, `package_key`, `component_version` (instantané pour la traçabilité, alimentés depuis `component`) ; `component_id` nullable, contrainte refaite en `ON DELETE SET NULL` ; INV-C3 vérifié au repos et par la garde de `TraitementImpacts`, sans contrainte `CHECK` ([PROPOSITION] P-13) ; `project_impact_transition(id, impact_id, from_state, to_state, actor_account_id, actor_system boolean, reason, comment, occurred_at)` ; privilèges `argos_app` : `UPDATE (state)` sur `project_impact`, `INSERT` sur `project_impact_transition` ; politiques RLS `project_impact_transition_lecture` (`argos_espace_lisible`) et `project_impact_etat` (`argos_role_dans(workspace_id) IN ('CONTRIBUTEUR','ADMINISTRATEUR')`) |
 
 ### Vue entité-association des nouvelles tables
 
@@ -483,7 +483,7 @@ flowchart TD
     I -- non --> K["Opérations « hors cible », code de sortie 1"]
 ```
 
-Opérations retenues (lecture, sans appel externe ni IA) : `GET /api/v1/projects`, `/inventory/summary`, `/inventory/components`, `GET /api/v1/impacts/{id}`, liste des impacts d'un signal, `GET /api/v1/me/veille`, recherche `GET /api/v1/recherche`, `GET /api/v1/subscriptions`, `GET /api/v1/alertes`, et les huit outils MCP en lecture seule. Exclues et listées : synthèses et résumés IA, synchronisations, collectes. L'arrêt de la pile suit le verrou E2E du dépôt et n'arrête qu'une pile lancée par la campagne.
+Opérations retenues (lecture, sans appel externe ni IA) : `GET /api/v1/projects`, `/inventory/summary`, `/inventory/components`, `GET /api/v1/impacts/{id}`, liste des impacts d'un signal, `GET /api/v1/me/veille`, recherche `GET /api/v1/recherche`, `GET /api/v1/subscriptions`, `GET /api/v1/alertes`, et les sept outils MCP de consultation en lecture seule (`explain_change`, qui appelle l'IA, est exclu comme les autres appels IA). Exclues et listées : synthèses et résumés IA, synchronisations, collectes. L'arrêt de la pile suit le verrou E2E du dépôt et n'arrête qu'une pile lancée par la campagne.
 
 ## Compatibilité, migration et retour arrière
 
@@ -526,7 +526,7 @@ Opérations retenues (lecture, sans appel externe ni IA) : `GET /api/v1/projects
 ### D4 — Recorrélation à chaque import (J4)
 
 - **Statut** : [DÉCISION] J4 ; marqueur de reprise [PROPOSITION] P-10.
-- **Choix** : conserver le déclenchement existant (`InventoryReplaced` → `CorrelationEngine#correlateProject`) et l'étendre : la recorrélation d'un projet parcourt les signaux qui affectent un paquet de l'inventaire **et** ceux qui portent un impact `ouvert`, `confirmé` ou `résolu` sur ce projet, pour traiter les impacts devenus sans objet ou de nouveau vérifiés ; marqueur `recorrelation_pending` repris au passage suivant.
+- **Choix** : conserver le déclenchement existant (`InventoryReplaced` → `CorrelationEngine#correlateProject`) et l'étendre : la recorrélation d'un projet parcourt les signaux qui affectent un paquet de l'inventaire **et** ceux qui portent un impact `ouvert` ou `confirmé` sur ce projet, pour résoudre les impacts devenus sans objet ; un impact `résolu` dont le composant revient est retrouvé par le premier ensemble, et seul un impact résolu par le système redevient `ouvert` (J5 ; une résolution décidée par un utilisateur est respectée) ; marqueur `recorrelation_pending` repris au passage suivant.
 - **Justification** : J4 ; l'existant ne parcourt que les paquets présents et ne voit donc pas un composant retiré (il disparaît aujourd'hui par cascade).
 - **Alternatives écartées** : recorrélation globale de tous les signaux à chaque import (coût sans besoin) ; recorrélation différée en lot nocturne (J4 dit « à chaque import »).
 - **Vérification** : INV-09-S1 à S4 ; COR-11-S1, S2 (volet C).
@@ -587,16 +587,16 @@ Opérations retenues (lecture, sans appel externe ni IA) : `GET /api/v1/projects
 
 | Exigence / scénario | Niveau de test | Moyen de preuve | État |
 |---|---|---|---|
-| COL-09-S1 à S5 | intégration (horloge simulée, OSV et CERT-FR simulés) | `chain/SynchronisationPlanifieeTest` | à écrire |
-| COL-10-S1 à S4 | unitaire + intégration | `ingestion/EmpreinteNormaliseeTest`, `chain/CollecteTest` | à écrire |
-| ABO-07, ABO-08 | intégration + architecture + UI | `chain/SubscriptionTest`, `architecture/SubscriptionIsolationTest`, `argos-ui/tests/abonnements.test.mjs` | à écrire |
+| COL-09-S1 à S5 | intégration (horloge simulée, OSV et CERT-FR simulés) + E2E | `chain/SynchronisationPlanifieeTest`, `e2e/tests/chaine-automatisee.spec.ts` | passé le 2026-11-19 (intégration) |
+| COL-10-S1 à S4 | unitaire + intégration | `ingestion/EmpreinteNormaliseeTest`, `chain/CollecteTest` | passé le 2026-11-19 (contenu revenu à une version antérieure compris, J2) |
+| ABO-07, ABO-08 | intégration + architecture + UI + E2E | `chain/SubscriptionTest`, `architecture/SubscriptionIsolationTest`, `argos-ui/tests/abonnements.test.mjs`, `e2e/tests/chaine-automatisee.spec.ts` | passé le 2026-11-19 (intégration) |
 | INV-07-S1 à S4, INV-08 | intégration (forges simulées par réponses enregistrées) | `chain/ImportPlanifieTest` | passé le 2026-11-19 (volet B) |
-| INV-09-S1 à S4 | intégration | `chain/RecorrelationImportTest` | passé le 2026-11-19 (volet B ; INV-09-S2 avant le volet C) |
+| INV-09-S1 à S4 | intégration + E2E | `chain/RecorrelationImportTest`, `e2e/tests/chaine-automatisee.spec.ts` | passé le 2026-11-19 (intégration : impact sans objet résolu) |
 | INV-10-S1 à S4 | intégration + migration + UI | `chain/ProjetMultiDepotsTest`, `chain/MigrationDepotsTest`, `argos-ui/tests/inventaire-depots.test.mjs` | passé le 2026-11-19 (volet B) |
-| COR-09 à COR-12 | intégration (jetons réels, RLS sous `argos_app`) + UI | `chain/EtatTraitementImpactTest`, `argos-ui/tests/traitement-impact.test.mjs` | à écrire |
+| COR-09 à COR-12 | intégration (jetons réels, RLS sous `argos_app`) + UI + E2E | `chain/EtatTraitementImpactTest`, `chain/CorrelationTest`, `argos-ui/tests/traitement-impact.test.mjs`, `e2e/tests/chaine-automatisee.spec.ts` | passé le 2026-11-19 (intégration) |
 | ALR-07 | intégration | `alerting/AlertesImpactsTraitesTest` | à écrire |
-| PERF-01, PERF-02 | mesure | `npm --prefix e2e run test:performance`, rapport `docs/architecture/quality/mesure-performance-api-mcp.md` | à exécuter |
-| Chaîne complète | E2E (pile locale, sources et forges simulées) | parcours `e2e/tests/chaine-automatisee.spec.ts` | à écrire |
+| PERF-01, PERF-02 | mesure | `npm --prefix e2e run test:performance`, rapport `docs/architecture/quality/mesure-performance-api-mcp.md` | exécutée le 2026-11-19 sur la branche intégrée : code 1, `GET /api/v1/me/veille` hors cible (P-18) |
+| Chaîne complète | E2E (pile locale, sources et forges simulées, PI-1) | parcours `e2e/tests/chaine-automatisee.spec.ts` | passé le 2026-11-19 |
 
 ## Documentation durable impactée
 
