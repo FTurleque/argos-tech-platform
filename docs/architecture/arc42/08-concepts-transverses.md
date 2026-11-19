@@ -136,7 +136,7 @@ PostgreSQL est **Accepté** comme stockage principal : relationnel, JSONB, FTS e
 
 Le schéma est versionné par des migrations SQL Flyway appliquées au démarrage (ADR-0032, Accepté) ; le modèle physique qu'elles produisent est D-13 : [`../diagrams/d-13-modele-physique.md`](../diagrams/d-13-modele-physique.md).
 
-Liste à jour des migrations, dans `argos-server/src/main/resources/db/migration/` (état au 2026-11-19). ADR-0032 porte la décision et décrit V1 à V16, état de sa date d'acceptation ; il n'est pas modifié et cette liste tient l'inventaire à jour des migrations ([DÉCISION] du porteur du projet, 2026-11-19). La prochaine migration porte le numéro V18.
+Liste à jour des migrations, dans `argos-server/src/main/resources/db/migration/` (état au 2026-11-19). ADR-0032 porte la décision et décrit V1 à V16, état de sa date d'acceptation ; il n'est pas modifié et cette liste tient l'inventaire à jour des migrations ([DÉCISION] du porteur du projet, 2026-11-19). Les numéros V19 et V20 sont réservés aux volets B et C du changement `automatiser-chaine-veille` (proposition P-11 de ce changement).
 
 | Version | Fichier | Objet | Changement OpenSpec |
 |---|---|---|---|
@@ -157,6 +157,7 @@ Liste à jour des migrations, dans `argos-server/src/main/resources/db/migration
 | V15 | `V15__profil_artiste.sql` | objets suivis par profil, rappels, sources vérifiées, opportunités (ADR-0024) | `ajouter-profil-artiste` |
 | V16 | `V16__veille_reglementaire.sql` | domaines métier, experts, dictionnaire, sources et textes officiels, fiches réglementaires et leur historique | `suivre-veille-reglementaire` |
 | V17 | `V17__composants_ignores_import.sql` | colonnes `ignored_count` et `ignored_components` de `inventory` : composants ignorés faute de PURL au dernier import (INV-01, décision D6 du 2026-11-18) | `formaliser-chaine-securite-poc` |
+| V18 | `V18__automatisation_collecte_et_abonnements.sql` | empreinte du contenu normalisé `normalized_hash` de `signal` et `signal_version`, index unique partiel par signal (COL-10) ; état d'abonnement `ACTIVE` ou `SUSPENDED` (`INACTIVE` devient `SUSPENDED`), privilège `DELETE` et politiques RLS `subscription_mise_a_jour` et `subscription_suppression` (ABO-07, ABO-08) | `automatiser-chaine-veille` (volet A, tâche 1.1) |
 
 ## 8.8 IA et coûts
 

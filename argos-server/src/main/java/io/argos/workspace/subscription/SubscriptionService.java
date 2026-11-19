@@ -25,7 +25,8 @@ import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 
 /**
- * Abonnements de veille {@code TEAM} et {@code PERSONAL} (ABO-01 à ABO-04, ABO-06).
+ * Abonnements de veille {@code TEAM} et {@code PERSONAL} (ABO-01 à ABO-04, ABO-06) ; état actif ou
+ * suspendu et suppression distincte (ABO-07, ABO-08, décision J7 du 2026-11-19).
  *
  * <p>Ce service ne lit ni n'écrit aucune donnée d'autorisation (INV-D7) : les espaces dont
  * l'utilisateur est membre lui sont fournis par l'appelant ({@code API & Security}), qui vérifie
@@ -123,29 +124,94 @@ public class SubscriptionService {
     }
 
     /**
+     * Abonnements visibles de l'utilisateur, actifs ou suspendus (ABO-07-S4) : ses abonnements
+     * {@code PERSONAL} et les abonnements {@code TEAM} des espaces dont il est membre, hors abonnements
+     * facultatifs qu'il a quittés. Chacun porte son état ; seuls les actifs s'appliquent ({@link #activeFor}).
+     */
+    @Transactional
+    public List<Subscription> listFor(UUID userId, Set<UUID> memberWorkspaces) {
+        String sql = "SELECT " + COLUMNS + """
+                 FROM subscription s WHERE (
+                    (s.scope = 'PERSONAL' AND s.owner_user_id = ?)
+                    OR (s.scope = 'TEAM' AND s.owner_workspace_id = ANY (?)
+                        AND (s.mandatory OR NOT EXISTS (SELECT 1 FROM subscription_opt_out o
+                                                        WHERE o.subscription_id = s.id AND o.user_id = ?))))
+                ORDER BY s.created_at, s.id
+                """;
+        return query(userId, sql, userId, memberWorkspaces, userId);
+    }
+
+    /**
+     * Suspend un abonnement : critères, canal, fréquence et retraits conservés, plus aucune notification
+     * (ABO-07, décision J7 du 2026-11-19). Idempotent. Vide si l'abonnement est inconnu, invisible ou si la
+     * politique RLS refuse la modification (ni propriétaire du {@code PERSONAL}, ni administrateur de
+     * l'espace du {@code TEAM}).
+     */
+    @Transactional
+    public Optional<Subscription> suspend(UUID subscriptionId, UUID accountId) {
+        return changeState(subscriptionId, accountId, "SUSPENDED");
+    }
+
+    /** Réactive un abonnement suspendu, sans rejouer la période de suspension (ABO-07-S2, P-4). Idempotent. */
+    @Transactional
+    public Optional<Subscription> reactivate(UUID subscriptionId, UUID accountId) {
+        return changeState(subscriptionId, accountId, "ACTIVE");
+    }
+
+    /**
+     * Supprime définitivement un abonnement, actif ou suspendu, avec ses critères et les retraits de ses
+     * membres (ABO-08). Faux si l'abonnement est inconnu, invisible ou si la politique RLS refuse la suppression.
+     */
+    @Transactional
+    public boolean delete(UUID subscriptionId, UUID accountId) {
+        try (Connection c = dataSource.getConnection()) {
+            session(c, accountId);
+            try (PreparedStatement ps = c.prepareStatement("DELETE FROM subscription WHERE id = ?")) {
+                ps.setObject(1, subscriptionId);
+                return ps.executeUpdate() == 1;
+            }
+        } catch (SQLException e) {
+            throw new IllegalStateException("suppression de l'abonnement impossible", e);
+        }
+    }
+
+    private Optional<Subscription> changeState(UUID subscriptionId, UUID accountId, String state) {
+        int updated;
+        try (Connection c = dataSource.getConnection()) {
+            session(c, accountId);
+            try (PreparedStatement ps = c.prepareStatement("UPDATE subscription SET state = ? WHERE id = ?")) {
+                ps.setString(1, state);
+                ps.setObject(2, subscriptionId);
+                updated = ps.executeUpdate();
+            }
+        } catch (SQLException e) {
+            throw new IllegalStateException("changement d'état de l'abonnement impossible", e);
+        }
+        return updated == 1 ? find(subscriptionId, accountId) : Optional.empty();
+    }
+
+    /**
      * Retrait de l'utilisateur d'un abonnement : refusé pour un {@code TEAM} obligatoire ; retrait
-     * personnel pour un {@code TEAM} facultatif ; désactivation pour un {@code PERSONAL} qu'il possède
-     * (décision du 2026-11-16, Q-5).
+     * personnel pour un {@code TEAM} facultatif actif (décision du 2026-11-16, Q-5) ; suspension pour un
+     * {@code PERSONAL} qu'il possède, actif ou déjà suspendu (proposition P-8 du changement
+     * {@code automatiser-chaine-veille}).
      */
     @Transactional
     public LeaveOutcome leave(UUID subscriptionId, UUID userId, Set<UUID> memberWorkspaces) {
-        Optional<Subscription> found = find(subscriptionId, userId).filter(s -> "ACTIVE".equals(s.state()));
+        Optional<Subscription> found = find(subscriptionId, userId)
+                .filter(s -> "PERSONAL".equals(s.scope()) || "ACTIVE".equals(s.state()));
         if (found.isEmpty()) {
             return LeaveOutcome.NOT_FOUND;
         }
         Subscription s = found.get();
+        if ("PERSONAL".equals(s.scope())) {
+            if (!s.ownerUserId().equals(userId)) {
+                return LeaveOutcome.NOT_FOUND;
+            }
+            return suspend(subscriptionId, userId).isPresent() ? LeaveOutcome.LEFT : LeaveOutcome.NOT_FOUND;
+        }
         try (Connection c = dataSource.getConnection()) {
             session(c, userId);
-            if ("PERSONAL".equals(s.scope())) {
-                if (!s.ownerUserId().equals(userId)) {
-                    return LeaveOutcome.NOT_FOUND;
-                }
-                try (PreparedStatement ps = c.prepareStatement("UPDATE subscription SET state = 'INACTIVE' WHERE id = ?")) {
-                    ps.setObject(1, subscriptionId);
-                    ps.executeUpdate();
-                }
-                return LeaveOutcome.LEFT;
-            }
             if (!memberWorkspaces.contains(s.ownerWorkspaceId())) {
                 return LeaveOutcome.NOT_FOUND;
             }

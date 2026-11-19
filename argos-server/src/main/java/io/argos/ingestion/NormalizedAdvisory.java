@@ -8,7 +8,10 @@ import java.util.List;
  *
  * @param externalId identifiant de l'avis chez la source, obligatoire (COL-02)
  * @param modifiedAt date de dernière modification déclarée par la source
- * @param contentHash empreinte SHA-256 du contenu brut, qui détecte une modification (COL-03)
+ * @param withdrawnAt date de retrait déclarée par la source, absente si l'avis n'est pas retiré ; un avis
+ *        retiré ne déclare plus aucun paquet affecté
+ * @param contentHash empreinte SHA-256 du contenu brut, conservée pour l'audit ; la modification d'un avis
+ *        se juge sur l'empreinte du contenu normalisé ({@link #normalizedHash()}, COL-10)
  */
 public record NormalizedAdvisory(
         String externalId,
@@ -19,8 +22,17 @@ public record NormalizedAdvisory(
         Instant modifiedAt,
         List<String> aliases,
         List<Affected> affected,
+        Instant withdrawnAt,
         String rawContent,
         String contentHash) {
+
+    /**
+     * Empreinte SHA-256 du contenu normalisé (COL-10) : identique pour deux contenus bruts qui ne diffèrent
+     * que par la présentation ou la date de modification déclarée par la source ({@link EmpreinteNormalisee}).
+     */
+    public String normalizedHash() {
+        return EmpreinteNormalisee.de(this);
+    }
 
     /**
      * Paquet affecté. {@code purl} est le PURL déclaré par la source, absent si elle ne

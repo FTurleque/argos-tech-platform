@@ -4,7 +4,7 @@
 |---|---|
 | Préfixe d'exigences | `COL` |
 | Spec de référence | `/openspec/specs/collecte-avis-securite/spec.md` — absente : capacité non livrée |
-| Changement en cours | [`formaliser-chaine-securite-poc`](/openspec/changes/formaliser-chaine-securite-poc/specs/collecte-avis-securite/spec.md) — proposé, non archivé ; [`automatiser-chaine-veille`](/openspec/changes/automatiser-chaine-veille/specs/collecte-avis-securite/spec.md) — proposé, non implémenté (COL-09, COL-10) |
+| Changement en cours | [`formaliser-chaine-securite-poc`](/openspec/changes/formaliser-chaine-securite-poc/specs/collecte-avis-securite/spec.md) — proposé, non archivé ; [`automatiser-chaine-veille`](/openspec/changes/automatiser-chaine-veille/specs/collecte-avis-securite/spec.md) — proposé, non archivé ; COL-09 et COL-10 implémentés par le volet A (2026-11-19) |
 | Statut de la capacité | **proposée**, implémentée dans `argos-server` (changement non archivé) : paquets `io.argos.ingestion`, `io.argos.signal`, `io.argos.vulnintel` |
 | Composants (arc42 §5) | `source-ingestion`, `signal`, `vuln-intel`, `audit`, adaptateur PostgreSQL |
 
@@ -22,8 +22,8 @@ Disposer, sans veille manuelle, des avis de vulnérabilité qui concernent les c
 | NVD, CISA KEV, FIRST EPSS, CERT-FR | enrichissent les signaux | [PROPOSITION] — ADR-0010 |
 | Responsable sécurité, utilisateur technique | consultent les signaux et leur provenance | [PROPOSITION] — arc42 §1.3 |
 | Exploitant | surveille l'état des sources | [PROPOSITION] — arc42 §3.2, §6.3 |
-| API d'exploitation (`API & Security`) | déclenche une synchronisation à la demande de l'exploitant | [EXISTANT] — `POST /api/v1/ops/sources/{id}/synchronizations` ; aucune planification automatique à ce jour |
-| Planificateur du serveur (`quarkus-scheduler`) | déclenche la synchronisation de chaque source toutes les heures par défaut (COL-09) | [PROPOSITION] — changement `automatiser-chaine-veille` ; [DÉCISION] J1, porteur du projet, 2026-11-19 ; ADR-0031 (Accepté) |
+| API d'exploitation (`API & Security`) | déclenche une synchronisation à la demande de l'exploitant | [EXISTANT] — `POST /api/v1/ops/sources/{id}/synchronizations` |
+| Planificateur du serveur (`quarkus-scheduler`) | déclenche la synchronisation de chaque source toutes les heures par défaut (COL-09) | [EXISTANT] — tâche `signal-synchronisation-sources` (`io.argos.signal.SynchronisationPlanifiee`, 2026-11-19) ; [DÉCISION] J1, porteur du projet, 2026-11-19 ; ADR-0031 (Accepté) ; exigence [PROPOSITION] jusqu'à l'archivage de `automatiser-chaine-veille` |
 
 ## Périmètre et exclusions
 
@@ -33,7 +33,7 @@ Disposer, sans veille manuelle, des avis de vulnérabilité qui concernent les c
 ## Préconditions et déclencheurs
 
 - La source OSV est configurée et joignable depuis l'environnement (proxy sortant selon politique SI : arc42 §7.3) [QUESTION].
-- Déclencheur : synchronisation planifiée ou reprise après redémarrage (arc42 §6.3, §6.4). [DÉCISION — porteur du projet, 2026-11-19 ; J1, Q-COL-1] Les sources d'avis (OSV, CERT-FR et autres collecteurs existants) sont synchronisées toutes les heures par la planification existante (`quarkus-scheduler`, ADR-0031), avec le curseur delta existant ; fréquence configurable. Exigence COL-09 du changement [`automatiser-chaine-veille`](/openspec/changes/automatiser-chaine-veille/proposal.md) [PROPOSITION].
+- Déclencheur : synchronisation planifiée ou reprise après redémarrage (arc42 §6.3, §6.4). [DÉCISION — porteur du projet, 2026-11-19 ; J1, Q-COL-1] Les sources d'avis (OSV, CERT-FR et autres collecteurs existants) sont synchronisées toutes les heures par la planification existante (`quarkus-scheduler`, ADR-0031), avec le curseur delta existant ; fréquence configurable. Exigence COL-09 du changement [`automatiser-chaine-veille`](/openspec/changes/automatiser-chaine-veille/proposal.md) [PROPOSITION] ; implémentée [EXISTANT] par la tâche `signal-synchronisation-sources`, cadence `argos.ingestion.planification.cadence` (`1h` par défaut, variable `ARGOS_INGESTION_PLANIFICATION_CADENCE`, `off` la désactive), désactivée dans le profil de test et dans la pile E2E. Le CERT-FR, source d'enrichissement sans curseur, est rafraîchi à chaque échéance (index invalidé puis relu à la consultation suivante, COL-09-S5).
 
 ## Entrées, sorties et validations
 
@@ -56,8 +56,8 @@ Disposer, sans veille manuelle, des avis de vulnérabilité qui concernent les c
 | Retry borné, `Retry-After` respecté, erreurs permanentes distinguées | COL-06 | arc42 §6.3, §8.5 | [PROPOSITION] |
 | Seuil d'échec → `DEGRADED` + événement d'exploitation | COL-07 | arc42 §6.3 | [PROPOSITION] |
 | Avis non normalisable → zone d'échec, lot poursuivi | COL-08 | arc42 §8.3, §8.5, §11.2 | [PROPOSITION] |
-| Synchronisation planifiée de chaque source, une heure par défaut, depuis le curseur persisté ; aucune seconde synchronisation d'une source déjà en cours ; index d'enrichissement rafraîchis à chaque cadence | COL-09 | décision J1 du porteur du projet, 2026-11-19 ; ADR-0031 | [PROPOSITION] — `automatiser-chaine-veille` |
-| Avis connu inchangé si l'empreinte de son contenu normalisé est identique ; sinon nouvelle version | COL-10 | décision J2 du porteur du projet, 2026-11-19 | [PROPOSITION] — `automatiser-chaine-veille` |
+| Synchronisation planifiée de chaque source, une heure par défaut, depuis le curseur persisté ; aucune seconde synchronisation d'une source déjà en cours ; index d'enrichissement rafraîchis à chaque cadence | COL-09 | décision J1 du porteur du projet, 2026-11-19 ; ADR-0031 | [PROPOSITION] — `automatiser-chaine-veille` ; implémentée et vérifiée le 2026-11-19 (`SynchronisationPlanifieeTest`) |
+| Avis connu inchangé si l'empreinte de son contenu normalisé est identique ; sinon nouvelle version | COL-10 | décision J2 du porteur du projet, 2026-11-19 | [PROPOSITION] — `automatiser-chaine-veille` ; implémentée et vérifiée le 2026-11-19 (`EmpreinteNormaliseeTest`, `CollecteTest`) |
 
 ## Droits d'accès et restrictions
 
@@ -86,7 +86,7 @@ Les signaux de sécurité sont globaux, non rattachés à un espace (ADR-0016, c
 
 - **Question** : comment un avis OSV devient-il un signal enrichi, et que se passe-t-il quand une source répond en erreur ?
 - **Type** : UML séquence
-- **Portée** : implémenté dans `argos-server` (`io.argos.ingestion.SourceSynchronizer`, `SyncStore`, `RetryPolicy`, `io.argos.ingestion.osv`, `io.argos.vulnintel`) ; la planification automatique n'existe pas encore : une synchronisation se lance par `POST /api/v1/ops/sources/{id}/synchronizations` ; le déclenchement horaire planifié est la cible de COL-09 (changement `automatiser-chaine-veille`, [PROPOSITION])
+- **Portée** : implémenté dans `argos-server` (`io.argos.ingestion.SourceSynchronizer`, `SyncStore`, `RetryPolicy`, `io.argos.ingestion.osv`, `io.argos.vulnintel`) ; une synchronisation se lance par `POST /api/v1/ops/sources/{id}/synchronizations` ou par la tâche planifiée horaire `signal-synchronisation-sources` (`io.argos.signal.SynchronisationPlanifiee`, COL-09, changement `automatiser-chaine-veille`), qui suit la même séquence (DC-3 du changement)
 - **Exigences** : COL-01, COL-03, COL-04, COL-05, COL-06
 
 ```mermaid
@@ -99,7 +99,7 @@ sequenceDiagram
     participant Sec as «Software System» NVD / KEV / EPSS / CERT-FR
     participant DB as PostgreSQL
 
-    Plan->>Ing: lancer la synchronisation OSV (demande de l'exploitant)
+    Plan->>Ing: lancer la synchronisation OSV (demande de l'exploitant ou échéance planifiée)
     Ing->>DB: lire le dernier curseur persisté
     Ing->>OSV: demander les avis depuis le curseur
     alt réponse reçue
@@ -130,7 +130,7 @@ sequenceDiagram
     end
 ```
 
-Le curseur n'avance qu'en fin de lot, après l'enregistrement durable des signaux (COL-05) : une panne entre deux avis fait rejouer le lot, et l'idempotence (COL-03) absorbe les avis déjà enregistrés. L'enrichissement est facultatif : son absence ne bloque pas le signal (COL-04-S3). La synchronisation se lance aujourd'hui à la demande de l'exploitant par l'API d'exploitation ; le changement `automatiser-chaine-veille` ajoute un déclenchement horaire par le planificateur, qui suit la même séquence et saute une source déjà en cours de synchronisation (COL-09) [PROPOSITION].
+Le curseur n'avance qu'en fin de lot, après l'enregistrement durable des signaux (COL-05) : une panne entre deux avis fait rejouer le lot, et l'idempotence (COL-03) absorbe les avis déjà enregistrés. L'enrichissement est facultatif : son absence ne bloque pas le signal (COL-04-S3). La synchronisation se lance à la demande de l'exploitant par l'API d'exploitation, ou toutes les heures par le planificateur (COL-09, changement `automatiser-chaine-veille`) : la tâche planifiée suit la même séquence, saute une source déjà en cours de synchronisation (index unique `sync_run_one_running`) et retente une source `DEGRADED` [EXISTANT, 2026-11-19].
 
 ### DF-COL-2 — Traitement d'un avis reçu
 
@@ -145,7 +145,7 @@ flowchart TD
     B -- non --> F["Zone d'échec : avis, motif, provenance<br/>(COL-08, COL-02-S2)"]
     B -- oui --> C{"Signal existant pour<br/>source + identifiant externe ?"}
     C -- non --> N["Créer le signal et sa provenance<br/>(COL-01, COL-02)"]
-    C -- oui --> D{"Contenu identique à la<br/>dernière version ?"}
+    C -- oui --> D{"Empreinte du contenu normalisé identique<br/>à celle de la version courante ? (COL-10)"}
     D -- oui --> I["Aucun effet<br/>(COL-03-S1)"]
     D -- non --> H["Historiser la nouvelle version<br/>sur le même signal (COL-03-S2)"]
     F --> S["Avis suivant du lot"]
@@ -154,7 +154,7 @@ flowchart TD
     H --> S
 ```
 
-Un avis rejeté n'interrompt pas le lot (COL-08-S1). [DÉCISION — porteur du projet, 2026-11-19 ; J2, Q-COL-2] « Contenu identique » signifie : même empreinte (hash) du contenu normalisé ; sinon l'avis est mis à jour (COL-10, changement `automatiser-chaine-veille`). Le code compare aujourd'hui l'empreinte du contenu brut [EXISTANT] ; la définition du contenu normalisé (champs du signal hors date de modification déclarée par la source et date de collecte) est la proposition P-2 du changement [PROPOSITION].
+Un avis rejeté n'interrompt pas le lot (COL-08-S1). [DÉCISION — porteur du projet, 2026-11-19 ; J2, Q-COL-2] « Contenu identique » signifie : même empreinte (hash) du contenu normalisé ; sinon l'avis est mis à jour (COL-10, changement `automatiser-chaine-veille`). Depuis le volet A (2026-11-19), le code compare l'empreinte du contenu normalisé [EXISTANT] : `io.argos.ingestion.EmpreinteNormalisee`, SHA-256 du JSON canonique (clés triées, sans espaces) de l'identifiant externe, du titre, du résumé, de la gravité, des alias triés, des paquets affectés triés avec leurs plages et versions, de la date de publication et de la date de retrait ; la date de modification déclarée par la source et la date de collecte en sont exclues (proposition P-2 du changement [PROPOSITION]). L'empreinte du contenu brut reste enregistrée pour l'audit. Un signal antérieur à la migration V18 reçoit son empreinte normalisée au premier passage, sans nouvelle version (COL-10-S4).
 
 ### DF-COL-3 — État de synchronisation d'une source
 
@@ -200,7 +200,8 @@ Comportements absents des sources, ajoutés pour rendre les règles testables (c
 - Le code de `argos-server` implémente les règles de cette fiche (tests `argos-server/src/test/java/io/argos/chain/CollecteTest.java`, `EnrichmentTest.java`, `ResilienceTest.java`). Toute erreur inattendue pendant une synchronisation (et pas seulement une erreur de source) termine le traitement en échec permanent et fait changer l'état de la source ; un traitement `RUNNING` sans activité depuis `argos.ingestion.running-expiry` (30 minutes) est repris au lancement suivant.
 - Le délai imposé par `Retry-After` est borné par le délai maximal des tentatives (`argos.ingestion.backoff-max`, 5 minutes).
 - Un avis OSV retiré (champ `withdrawn`) reste historisé comme signal, mais ne déclare plus aucun paquet affecté : il ne produit aucun impact.
-- Aucune planification automatique des synchronisations n'est installée à ce jour ; elle est spécifiée par COL-09 (décision J1 du 2026-11-19, changement `automatiser-chaine-veille`, volet A). La première synchronisation OSV sans curseur énumère tout l'index `modified_id.csv` des écosystèmes configurés, dans la requête d'exploitation, sans borne de volume.
+- La synchronisation planifiée horaire est installée par le volet A du changement `automatiser-chaine-veille` (COL-09, 2026-11-19). La première synchronisation OSV sans curseur énumère tout l'index `modified_id.csv` des écosystèmes configurés, sans borne de volume ; lancée par le planificateur, elle s'exécute en tâche de fond et ne bloque plus une requête d'exploitation.
+- Un avis dont le contenu revient exactement à celui d'une version antérieure (même empreinte normalisée qu'une version déjà historisée, mais différente de la version courante) est jugé inchangé, comme avant le changement pour l'empreinte brute : la version courante n'est pas remplacée [EXISTANT]. L'invariant INV-A1 (deux versions d'un signal n'ont jamais la même empreinte normalisée) l'impose ; le cas n'est pas couvert par les sources et reste à trancher s'il se présente [PROPOSITION PA-2].
 
 ## Questions ouvertes
 
@@ -213,4 +214,4 @@ Comportements absents des sources, ajoutés pour rendre les règles testables (c
 
 ## Traçabilité
 
-Voir la matrice du changement : [`tasks.md`](/openspec/changes/formaliser-chaine-securite-poc/tasks.md#matrice-de-traçabilité). Les scénarios COL-01-S1 à COL-08-S1 sont vérifiés par `argos-server/src/test/java/io/argos/chain/CollecteTest.java`, `ResilienceTest.java`, `EnrichmentTest.java` et `DocumentParsingTest.java` (contrat sur une réponse OSV réelle enregistrée) ; les sources externes y sont simulées. COL-09 et COL-10 : matrice du changement [`automatiser-chaine-veille`](/openspec/changes/automatiser-chaine-veille/tasks.md#matrice-de-traçabilité) (tests à écrire, volet A).
+Voir la matrice du changement : [`tasks.md`](/openspec/changes/formaliser-chaine-securite-poc/tasks.md#matrice-de-traçabilité). Les scénarios COL-01-S1 à COL-08-S1 sont vérifiés par `argos-server/src/test/java/io/argos/chain/CollecteTest.java`, `ResilienceTest.java`, `EnrichmentTest.java` et `DocumentParsingTest.java` (contrat sur une réponse OSV réelle enregistrée) ; les sources externes y sont simulées. COL-09 et COL-10 : matrice du changement [`automatiser-chaine-veille`](/openspec/changes/automatiser-chaine-veille/tasks.md#matrice-de-traçabilité) ; vérifiés le 2026-11-19 par `argos-server/src/test/java/io/argos/chain/SynchronisationPlanifieeTest.java` (COL-09-S1 à S5), `argos-server/src/test/java/io/argos/ingestion/EmpreinteNormaliseeTest.java` et `CollecteTest.java` (COL-10-S1 à S4), et `MigrationV18Test.java` (migration V18).

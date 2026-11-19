@@ -2,8 +2,11 @@ package io.argos.ingestion;
 
 import java.time.Duration;
 import java.time.Instant;
+import java.util.List;
 import java.util.Optional;
+import java.util.Set;
 import java.util.UUID;
+import java.util.stream.Collectors;
 
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.enterprise.inject.Instance;
@@ -42,6 +45,15 @@ public class SourceSynchronizer {
 
     @Inject
     Sleeper sleeper;
+
+    /**
+     * Sources enregistrées dans la table {@code source} et servies par un connecteur, dans l'ordre de leur
+     * identifiant : celles que la synchronisation planifiée parcourt (COL-09).
+     */
+    public List<String> synchronisables() {
+        Set<String> connues = feeds.stream().map(AdvisoryFeed::sourceId).collect(Collectors.toSet());
+        return store.sourceStates().stream().map(SyncStore.SourceState::sourceId).filter(connues::contains).toList();
+    }
 
     public SyncReport synchronize(String sourceId) {
         AdvisoryFeed feed = feeds.stream().filter(f -> f.sourceId().equals(sourceId)).findFirst()

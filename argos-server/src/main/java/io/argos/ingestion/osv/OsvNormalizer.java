@@ -64,15 +64,17 @@ public final class OsvNormalizer {
         }
         // Avis retiré (champ OSV « withdrawn ») : le signal et son historique sont conservés, mais il
         // ne déclare plus aucun paquet affecté ; la corrélation retire donc les impacts qu'il portait.
+        Instant withdrawnAt = null;
         JsonNode withdrawn = root.path("withdrawn");
         if (!withdrawn.isMissingNode() && !withdrawn.isNull()) {
             affected.clear();
+            withdrawnAt = dateDeRetrait(root);
         }
 
         String summary = text(root, "summary");
         String details = text(root, "details");
         return new NormalizedAdvisory(id, summary, details, severity(root), published, modified,
-                List.copyOf(aliases), List.copyOf(affected), raw.content(), sha256(raw.content()));
+                List.copyOf(aliases), List.copyOf(affected), withdrawnAt, raw.content(), sha256(raw.content()));
     }
 
     private static Affected affected(JsonNode a) {
@@ -107,6 +109,19 @@ public final class OsvNormalizer {
         List<String> versions = new ArrayList<>();
         a.path("versions").forEach(v -> versions.add(v.asText()));
         return new Affected(ecosystem, name, purl, List.copyOf(ranges), List.copyOf(versions));
+    }
+
+    /**
+     * Date de retrait, qui entre dans le contenu normalisé (COL-10, P-2). Une date illisible ne rejette pas
+     * l'avis, accepté jusqu'ici : le retrait reste marqué par {@link Instant#EPOCH}.
+     */
+    private static Instant dateDeRetrait(JsonNode root) {
+        try {
+            Instant date = instant(root, "withdrawn", false);
+            return date == null ? Instant.EPOCH : date;
+        } catch (AdvisoryRejectedException illisible) {
+            return Instant.EPOCH;
+        }
     }
 
     private static String severity(JsonNode root) {

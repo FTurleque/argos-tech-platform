@@ -1,6 +1,6 @@
 # D-13 — Modèle physique
 
-Modèle physique de la base PostgreSQL d'Argos tel que le produisent les migrations Flyway `V1__socle.sql` à `V17__composants_ignores_import.sql` ([`argos-server/src/main/resources/db/migration/`](/argos-server/src/main/resources/db/migration/)). Chaque entité porte ses clés et ses colonnes significatives ; la définition complète (types exacts, contraintes `CHECK`, index, fonctions, politiques RLS) reste celle des migrations. Le modèle métier conceptuel est D-05 (arc42 [§5.7](../arc42/05-vue-blocs.md)).
+Modèle physique de la base PostgreSQL d'Argos tel que le produisent les migrations Flyway `V1__socle.sql` à `V18__automatisation_collecte_et_abonnements.sql` ([`argos-server/src/main/resources/db/migration/`](/argos-server/src/main/resources/db/migration/)). Chaque entité porte ses clés et ses colonnes significatives ; la définition complète (types exacts, contraintes `CHECK`, index, fonctions, politiques RLS) reste celle des migrations. Le modèle métier conceptuel est D-05 (arc42 [§5.7](../arc42/05-vue-blocs.md)).
 
 Conventions : `PK` clé primaire, `FK` clé étrangère, `UK` unicité ; un type suffixé `_arr` est un tableau PostgreSQL (`varchar(64)[]`, `integer[]`). Une ligne pointillée relie deux tables par une référence logique, sans clé étrangère. Les entités d'un autre bloc (`compte`, `espace`, `project`, `component`, `signal`) n'y sont répétées qu'avec leur clé.
 
@@ -81,7 +81,7 @@ erDiagram
     compte |o..o{ refus_acces : "journalisé"
 ```
 
-## D-13.2 — Chaîne sécurité : collecte, inventaire, impacts, abonnements (V3 à V6, V11, V17)
+## D-13.2 — Chaîne sécurité : collecte, inventaire, impacts, abonnements (V3 à V6, V11, V17, V18)
 
 ```mermaid
 erDiagram
@@ -133,15 +133,17 @@ erDiagram
         varchar external_id
         varchar title
         char content_hash
+        char normalized_hash "empreinte normalisée (V18)"
         jsonb affected
         uuid current_version_id FK
         tsvector recherche "V11"
     }
     signal_version {
         uuid id PK
-        uuid signal_id FK "UK avec version_no, UK avec content_hash"
+        uuid signal_id FK "UK avec version_no, UK avec content_hash, UK partielle avec normalized_hash (V18)"
         integer version_no
         char content_hash
+        char normalized_hash "V18"
         text raw_content
     }
     signal_alias {
@@ -217,7 +219,7 @@ erDiagram
         uuid owner_user_id FK
         jsonb filters
         boolean mandatory
-        varchar state "ACTIVE, INACTIVE"
+        varchar state "ACTIVE, SUSPENDED (V18)"
     }
     subscription_opt_out {
         uuid subscription_id PK, FK
