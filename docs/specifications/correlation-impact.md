@@ -4,7 +4,7 @@
 |---|---|
 | Préfixe d'exigences | `COR` |
 | Spec de référence | `/openspec/specs/correlation-impact/spec.md` — absente : capacité non livrée |
-| Changement en cours | [`formaliser-chaine-securite-poc`](/openspec/changes/formaliser-chaine-securite-poc/specs/correlation-impact/spec.md) — proposé, non archivé |
+| Changement en cours | [`formaliser-chaine-securite-poc`](/openspec/changes/formaliser-chaine-securite-poc/specs/correlation-impact/spec.md) — proposé, non archivé ; [`automatiser-chaine-veille`](/openspec/changes/automatiser-chaine-veille/specs/correlation-impact/spec.md) — proposé ; COR-09 à COR-12 implémentés et intégrés le 2026-11-19 (volets A, B et C réunis) |
 | Statut de la capacité | **proposée**, implémentée dans `argos-server` (changement non archivé) : paquet `io.argos.impact` |
 | Composants (arc42 §5) | `impact-engine`, `inventory`, `vuln-intel`, `workspace`, `ai-gateway` (facultatif), `audit` |
 
@@ -25,11 +25,12 @@ Désigner automatiquement, et seulement eux, les projets concernés par un signa
 ## Périmètre et exclusions
 
 - **Inclus** : rapprochement PURL + plage de versions, niveau d'impact, provenance, garde-fou IA, fonctionnement sans IA, idempotence, cloisonnement de la consultation.
-- **Exclu** : émission et routage des alertes (lot 2, `alerting`), corrélation de signaux non techniques (réglementation, releases), cycle de vie de traitement d'un impact (probable, confirmé, résolu : glossaire, termes ambigus).
+- **Exclu** : émission et routage des alertes (lot 2, `alerting`), corrélation de signaux non techniques (réglementation, releases). Le cycle de vie de traitement d'un impact, exclu du changement `formaliser-chaine-securite-poc`, est spécifié par le changement `automatiser-chaine-veille` (COR-09 à COR-12, décision J5 du 2026-11-19) [PROPOSITION].
 
 ## Préconditions et déclencheurs
 
-- Un signal de sécurité est créé ou modifié (`collecte-avis-securite`) ; ou un inventaire change (déclenchement à confirmer, Q-INV-2).
+- Un signal de sécurité est créé ou modifié (`collecte-avis-securite`) ; ou un inventaire est importé : [DÉCISION — porteur du projet, 2026-11-19 ; J4, Q-INV-2] à chaque import d'inventaire d'un projet, les avis connus sont recorrélés pour ce projet (INV-09, COR-11 du changement `automatiser-chaine-veille`, [PROPOSITION]).
+- Un utilisateur autorisé demande un changement d'état de traitement d'un impact (COR-10) [PROPOSITION].
 - Les projets disposent d'un inventaire (`inventaire-sbom`).
 
 ## Entrées, sorties et validations
@@ -55,6 +56,10 @@ Désigner automatiquement, et seulement eux, les projets concernés par un signa
 | Inventaire de repli ou SBOM obsolète → niveau autre que `exact` | COR-06 | ADR-0011 | [PROPOSITION] |
 | Rejeu sans doublon d'impact | COR-07 | arc42 §6.1 | [PROPOSITION] |
 | Consultation limitée au périmètre autorisé, refus journalisé | COR-08 | ADR-0016 | [PROPOSITION] |
+| Deux axes distincts : niveau de confiance (`exact`, `probable`, `à vérifier`) et état de traitement (`ouvert`, `confirmé`, `écarté`, `résolu`) ; un impact créé est `ouvert` | COR-09 | décision J5 du porteur du projet, 2026-11-19 (Q-COR-2) | [DÉCISION] pour les deux axes ; exigence [PROPOSITION] — `automatiser-chaine-veille` |
+| Transitions permises (DF-COR-4), faites par un membre `CONTRIBUTEUR` ou `ADMINISTRATEUR` de l'espace du projet ; motif obligatoire pour écarter ; `LECTEUR` refusé (403), autre espace refusé (404), refus journalisés | COR-10 | décision J5 (RBAC existant) ; rôles et motif : proposition P-5 du changement | [PROPOSITION] — `automatiser-chaine-veille` |
+| Résolution automatique (auteur « système ») d'un impact `ouvert` ou `confirmé` qui n'est plus vérifié : composant retiré ou mis à jour hors plage (J4) ; avis modifié ou retiré (P-3) ; un impact `écarté` n'est jamais modifié par le système ; un impact `résolu` par le système et de nouveau vérifié repasse `ouvert`, un impact `résolu` par un utilisateur autorisé reste résolu (P-6, J5) ; un impact n'est plus supprimé | COR-11 | décisions J4 et J5 du porteur du projet, 2026-11-19 ; propositions P-3, P-6 | [PROPOSITION] — `automatiser-chaine-veille` |
+| Historique complet des transitions restitué avec l'impact ; listes filtrables par état, `ouvert` et `confirmé` par défaut | COR-12 | décision J5 ; arc42 §10.2 Q-01 | [PROPOSITION] — `automatiser-chaine-veille` |
 
 ## Droits d'accès et restrictions
 
@@ -180,6 +185,32 @@ flowchart TD
 
 Une SBOM est obsolète 30 jours après sa date de génération (Q-3). Le niveau le plus fort l'emporte quand plusieurs entrées de l'avis visent le même paquet.
 
+### DF-COR-4 — État de traitement d'un impact
+
+- **Question** : quels états de traitement un impact traverse-t-il, et qui fait chaque transition ?
+- **Type** : UML états (stateDiagram-v2)
+- **Portée** : cible proposée (changement `automatiser-chaine-veille`, décision J5 du 2026-11-19) ; implémentée (`EtatImpact`, `TraitementImpacts`, V20) et intégrée le 2026-11-19
+- **Exigences** : COR-09, COR-10, COR-11, COR-12
+
+```mermaid
+stateDiagram-v2
+    state "ouvert" as Ouvert
+    state "confirmé" as Confirme
+    state "écarté" as Ecarte
+    state "résolu" as Resolu
+
+    [*] --> Ouvert: corrélation crée l'impact
+    Ouvert --> Confirme: utilisateur autorisé
+    Ouvert --> Ecarte: utilisateur autorisé, motif obligatoire
+    Ouvert --> Resolu: utilisateur autorisé, ou système
+    Confirme --> Resolu: utilisateur autorisé, ou système
+    Confirme --> Ecarte: utilisateur autorisé, motif obligatoire
+    Ecarte --> Ouvert: utilisateur autorisé
+    Resolu --> Ouvert: utilisateur autorisé, ou système si de nouveau vérifié
+```
+
+L'état de traitement est indépendant du niveau de confiance (DF-COR-3) : un impact `à vérifier` peut être confirmé, un impact `exact` écarté (COR-09). « Utilisateur autorisé » désigne un membre `CONTRIBUTEUR` ou `ADMINISTRATEUR` de l'espace du projet (P-5). Le système ne résout qu'un impact `ouvert` ou `confirmé` (J4 : composant retiré ou mis à jour hors plage ; P-3 : avis modifié ou retiré) et ne rouvre qu'un impact qu'il a lui-même résolu, de nouveau vérifié (P-6) : une résolution décidée par un utilisateur autorisé est respectée (J5, vérifié par `chain/EtatTraitementImpactTest#j5ResolutionHumaineConserveeALaRecorrelation`) ; il ne touche jamais un impact `écarté`. La liste des impacts d'un projet (`GET /api/v1/projects/{id}/impacts`) et celle d'un signal acceptent le filtre répétable `etat`, par défaut `ouvert` et `confirmé` (COR-12-S2, [PROPOSITION] PI-2). Chaque transition est historisée (COR-12). Seuls les impacts `ouvert` et `confirmé` donnent lieu à une alerte (ALR-07).
+
 ## Critères d'acceptation
 
 - Scénarios `COR-01-S1` à `COR-08-S2` de la spec.
@@ -200,11 +231,16 @@ Interprétations validées par le porteur du projet le 2026-11-16 [DÉCISION].
 
 - Le code de `argos-server` implémente les règles de cette fiche (`io.argos.impact`). La consultation des impacts s'exécute sous le rôle applicatif `argos_app` avec le compte de l'appelant : la RLS de `project_impact` (fonction `argos_espace_lisible`, migration V2) masque les impacts des espaces dont il n'est pas membre, même si le filtre explicite de la couche API était erroné (`CorrelationTest#rlsAppliqueeSurLeCheminApplicatif`). La corrélation écrit sous l'utilisateur de connexion, propriétaire des tables.
 - Les refus sont journalisés dans le journal unique des refus d'accès (`refus_acces`, module `audit`) : compte, méthode et chemin, motif `NON_MEMBRE` (réponse 404) ou `ROLE_INSUFFISANT` (réponse 403).
-- Un avis retiré par sa source (OSV `withdrawn`) ne produit aucun impact et retire ceux qu'il portait.
+- Un avis retiré par sa source (OSV `withdrawn`) ne produit aucun impact actif ; les impacts ouverts ou confirmés qu'il portait passent `résolu` avec le motif `AVIS_RETIRE` (COR-11-S3, proposition P-3), au lieu d'être supprimés [EXISTANT, 2026-11-19 — `CorrelationTest#avisRetireSansImpactEtCor11S3ImpactResoluAvisRetire`]. Un avis qui ne déclare plus aucun paquet affecté est traité comme retiré (le normaliseur OSV vide la liste des paquets d'un avis `withdrawn`) [PROPOSITION P-16].
 - Les niveaux sont calculés à la corrélation et enregistrés ; le vieillissement d'une SBOM au-delà de 30 jours ne les fait pas recalculer sans nouvelle corrélation (aucune planification, tâche 6.3).
 - Jeu de référence (écart E-2 du [rapport de mesure](../architecture/quality/mesure-correlation-jeu-reference.md)) : un composant de SBOM décrit sans PURL (groupe, nom, version, CPE) est écarté de l'inventaire (INV-01) et signalé à l'import (INV-01-S3, décision D6 du porteur du projet, 2026-11-18), puis affiché dans la vue d'inventaire de l'IHM (décision E4 du 2026-11-19) ; un avis qui le concerne ne produit aucun impact, même `à vérifier`. Le faux négatif reste consigné dans le jeu de référence.
 - Deux avis d'une même vulnérabilité publiés sous des identifiants différents (alias CVE commun, par exemple GHSA et PYSEC) produisent chacun leur impact sur le même composant ; aucun regroupement par alias n'a lieu à la corrélation.
-- Le glossaire distingue « impact probable, confirmé et résolu », alors qu'ADR-0013 définit les niveaux `exact`, `probable`, `à vérifier` : deux notions (confiance et cycle de traitement) à séparer [QUESTION Q-COR-2].
+- Le glossaire distinguait « impact probable, confirmé et résolu », alors qu'ADR-0013 définit les niveaux `exact`, `probable`, `à vérifier`. [DÉCISION — porteur du projet, 2026-11-19 ; J5, Q-COR-2] Deux axes distincts : le niveau de confiance de la corrélation (`exact`, `probable`, `à vérifier`, ADR-0013) et l'état de traitement d'un impact (`ouvert`, `confirmé`, `écarté`, `résolu`) ; le glossaire est aligné (« Niveau d'impact », « État de traitement d'un impact »). Sur la branche du volet C (2026-11-19), l'état de traitement est porté par `project_impact.state` et son historique par `project_impact_transition` (migration V20) ; `GET /api/v1/impacts/{id}` restitue `level` et `etat` séparément, l'historique et les transitions que l'appelant peut demander ; `POST /api/v1/impacts/{id}/transitions` applique une transition (`io.argos.impact.TraitementImpacts`) [EXISTANT sur la branche, non intégré].
+- Un impact qui n'est plus vérifié n'est jamais supprimé, et la suppression d'un composant ne supprime plus ses impacts : V20 remplace la suppression en cascade de `V5__impacts_projet.sql` par la résolution système motivée (`COMPOSANT_RETIRE`, `VERSION_HORS_PLAGE`, `AVIS_MODIFIE`, `AVIS_RETIRE`), garde l'instantané paquet, PURL et version de l'impact, et passe la référence au composant en `ON DELETE SET NULL` [EXISTANT, 2026-11-19].
+- INV-C3 (un impact sans composant est `résolu` ou `écarté`) est un invariant au repos, vérifié par le contrôle d'intégrité (`GET /api/v1/ops/impacts/integrity`, champ `withoutComponent`), et non une contrainte `CHECK` : l'import qui retire un composant est validé avant que la recorrélation du projet ne résolve l'impact (événement `InventoryReplaced` après validation), et une contrainte ferait échouer cet import. Entre les deux, l'impact reste `ouvert` sans composant [PROPOSITION P-13]. Une transition utilisateur vers `ouvert` ou `confirmé` d'un impact sans composant est refusée (409) et n'est pas proposée ([PROPOSITION] PI-3, `chain/EtatTraitementImpactTest#invC3ImpactSansComposantNeRedevientPasActif`).
+- La recorrélation d'un projet parcourt aussi les signaux qui portent un impact ouvert ou confirmé sur lui (D4), pour résoudre un impact dont le composant a disparu : extension minimale de `CorrelationEngine#correlateProject` faite par le volet C ; le marqueur de reprise reste au volet B.
+- Un impact résolu dont le composant revient dans l'inventaire à la même version retrouve ce composant et repasse `ouvert` (`DE_NOUVEAU_VERIFIE`) ; un impact écarté le retrouve et reste écarté. Aucun doublon n'est créé (INV-C4) [PROPOSITION P-14].
+- Les listes d'impacts (signal, projet, espaces, veille, outils MCP) ne restituent par défaut que les impacts `ouvert` et `confirmé`, ce qui conserve le comportement antérieur (les impacts sans objet étaient supprimés) ; un impact écarté ou résolu reste consultable par son identifiant et par le filtre `etat` de `GET /api/v1/signals/{id}/impacts`. La recherche (`argos_rechercher_veille`, V11) rattache encore un avis à un projet par tout impact, quel que soit son état [PROPOSITION P-15].
 
 ## Questions ouvertes
 
@@ -212,9 +248,9 @@ Interprétations validées par le porteur du projet le 2026-11-16 [DÉCISION].
 |---|---|---|---|
 | Q-2 (changement) | Règles des niveaux `probable` et `à vérifier` ? | répondue le 2026-11-16 : `exact` : PURL et version dans la plage affectée, SBOM non obsolète ; `probable` : même correspondance, mais inventaire de repli ou SBOM obsolète ; `à vérifier` : correspondance sans PURL (nom ou CPE seul), version inconnue ou plage non interprétable [DÉCISION] | architecte / sécurité |
 | Q-COR-1 | Quand une analyse IA est-elle « autorisée et nécessaire » ? | DF-COR-2, AI Gateway | architecte / sécurité |
-| Q-COR-2 | Quel cycle de vie de traitement pour un impact (confirmé, résolu…) ? | futur stateDiagram `ProjectImpact` | Product Owner |
+| Q-COR-2 | Quel cycle de vie de traitement pour un impact (confirmé, résolu…) ? | levée le 2026-11-19 : état de traitement `ouvert`, `confirmé`, `écarté`, `résolu`, distinct du niveau de confiance ; transitions faites par un utilisateur autorisé (RBAC existant), sauf `résolu` qui peut aussi résulter d'un import (composant retiré ou mis à jour hors plage) [DÉCISION — porteur du projet, 2026-11-19 ; J5] ; voir DF-COR-4 et COR-09 à COR-12 du changement [`automatiser-chaine-veille`](/openspec/changes/automatiser-chaine-veille/design.md) | Product Owner |
 | Q-COR-3 | Comment traiter une plage de versions non interprétable pour un écosystème ? | tranchée le 2026-11-18 par le porteur du projet (D5), puis révisée le 2026-11-19 (E3) : pour l'écosystème Maven, toute comparaison suit `ComparableVersion` de `maven-artifact` ; les autres écosystèmes gardent l'ordre générique et le niveau `à vérifier` (COR-01-S5) [DÉCISION] | backend |
 
 ## Traçabilité
 
-Voir la matrice du changement : [`tasks.md`](/openspec/changes/formaliser-chaine-securite-poc/tasks.md#matrice-de-traçabilité). Les scénarios COR-01-S1 à COR-08-S2 sont vérifiés par `argos-server/src/test/java/io/argos/chain/MatchRulesTest.java` et `CorrelationTest.java` (RLS vérifiée sur le chemin applicatif, sous le rôle non super-utilisateur `argos_app`). Le jeu de référence annoté (`argos-server/src/test/resources/fixtures/jeu-reference-correlation/`) et la mesure de précision et de rappel par niveau sont exécutés par `JeuReferenceCorrelationTest` ([rapport de mesure](../architecture/quality/mesure-correlation-jeu-reference.md)) ; la tâche 4.7 reste ouverte tant que la mesure ne porte pas sur les inventaires des projets pilotes ou qu'une [DÉCISION] du porteur n'accepte pas un jeu composé.
+Voir la matrice du changement : [`tasks.md`](/openspec/changes/formaliser-chaine-securite-poc/tasks.md#matrice-de-traçabilité). Les scénarios COR-01-S1 à COR-08-S2 sont vérifiés par `argos-server/src/test/java/io/argos/chain/MatchRulesTest.java` et `CorrelationTest.java` (RLS vérifiée sur le chemin applicatif, sous le rôle non super-utilisateur `argos_app`). Le jeu de référence annoté (`argos-server/src/test/resources/fixtures/jeu-reference-correlation/`) et la mesure de précision et de rappel par niveau sont exécutés par `JeuReferenceCorrelationTest` ([rapport de mesure](../architecture/quality/mesure-correlation-jeu-reference.md)) ; la tâche 4.7 reste ouverte tant que la mesure ne porte pas sur les inventaires des projets pilotes ou qu'une [DÉCISION] du porteur n'accepte pas un jeu composé. COR-09 à COR-12 : matrice du changement [`automatiser-chaine-veille`](/openspec/changes/automatiser-chaine-veille/tasks.md#matrice-de-traçabilité) ; vérifiés le 2026-11-19 sur la branche intégrée par `chain/EtatTraitementImpactTest` (jetons réels, RLS sous `argos_app`, contrat OpenAPI), `chain/CorrelationTest` (COR-11-S1 à S5) et `argos-ui/tests/traitement-impact.test.mjs`.

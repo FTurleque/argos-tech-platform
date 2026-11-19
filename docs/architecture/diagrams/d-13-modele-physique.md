@@ -1,6 +1,6 @@
 # D-13 — Modèle physique
 
-Modèle physique de la base PostgreSQL d'Argos tel que le produisent les migrations Flyway `V1__socle.sql` à `V17__composants_ignores_import.sql` ([`argos-server/src/main/resources/db/migration/`](/argos-server/src/main/resources/db/migration/)). Chaque entité porte ses clés et ses colonnes significatives ; la définition complète (types exacts, contraintes `CHECK`, index, fonctions, politiques RLS) reste celle des migrations. Le modèle métier conceptuel est D-05 (arc42 [§5.7](../arc42/05-vue-blocs.md)).
+Modèle physique de la base PostgreSQL d'Argos tel que le produisent les migrations Flyway `V1__socle.sql` à `V20__etat_traitement_impacts.sql` ([`argos-server/src/main/resources/db/migration/`](/argos-server/src/main/resources/db/migration/)). Chaque entité porte ses clés et ses colonnes significatives ; la définition complète (types exacts, contraintes `CHECK`, index, fonctions, politiques RLS) reste celle des migrations. Le modèle métier conceptuel est D-05 (arc42 [§5.7](../arc42/05-vue-blocs.md)).
 
 Conventions : `PK` clé primaire, `FK` clé étrangère, `UK` unicité ; un type suffixé `_arr` est un tableau PostgreSQL (`varchar(64)[]`, `integer[]`). Une ligne pointillée relie deux tables par une référence logique, sans clé étrangère. Les entités d'un autre bloc (`compte`, `espace`, `project`, `component`, `signal`) n'y sont répétées qu'avec leur clé.
 
@@ -81,7 +81,7 @@ erDiagram
     compte |o..o{ refus_acces : "journalisé"
 ```
 
-## D-13.2 — Chaîne sécurité : collecte, inventaire, impacts, abonnements (V3 à V6, V11, V17)
+## D-13.2 — Chaîne sécurité : collecte, inventaire, impacts, abonnements (V3 à V6, V11, V17 à V20)
 
 ```mermaid
 erDiagram
@@ -133,15 +133,17 @@ erDiagram
         varchar external_id
         varchar title
         char content_hash
+        char normalized_hash "empreinte normalisée (V18)"
         jsonb affected
         uuid current_version_id FK
         tsvector recherche "V11"
     }
     signal_version {
         uuid id PK
-        uuid signal_id FK "UK avec version_no, UK avec content_hash"
+        uuid signal_id FK "UK avec version_no, UK avec content_hash, UK partielle avec normalized_hash (V18)"
         integer version_no
         char content_hash
+        char normalized_hash "V18"
         text raw_content
     }
     signal_alias {
@@ -184,6 +186,7 @@ erDiagram
         uuid import_id
         integer ignored_count "composants sans PURL (V17)"
         jsonb ignored_components "100 au plus (V17)"
+        boolean recorrelation_pending "marqueur (V19)"
     }
     component {
         uuid id PK
@@ -196,8 +199,30 @@ erDiagram
     inventory_import_failure {
         uuid id PK
         uuid project_id FK
+        uuid repository_id FK "dépôt (V19)"
         varchar reason
         varchar source_ref
+    }
+    project_repository {
+        uuid id PK
+        uuid project_id FK "UK avec provider et repository"
+        varchar provider "GITLAB, GITHUB"
+        varchar repository
+        varchar branch
+        boolean principal "au plus un par projet"
+    }
+    repository_inventory {
+        uuid repository_id PK, FK
+        uuid project_id FK
+        varchar origin "SBOM, MANIFEST"
+        timestamptz source_date
+        timestamptz imported_at
+    }
+    component_occurrence {
+        uuid component_id FK "UK avec repository_id"
+        uuid repository_id FK "nul : import manuel sans dépôt"
+        uuid project_id FK
+        boolean transitive
     }
     project_impact {
         uuid id PK
@@ -205,10 +230,23 @@ erDiagram
         uuid signal_version_id FK
         uuid project_id FK
         uuid workspace_id FK
-        uuid component_id FK
+        uuid component_id FK "nul si retiré (V20, SET NULL)"
         varchar level "EXACT, PROBABLE, A_VERIFIER"
+        varchar state "OUVERT, CONFIRME, ECARTE, RESOLU (V20)"
+        varchar package_key "instantané (V20)"
         varchar method
         jsonb provenance
+    }
+    project_impact_transition {
+        uuid id PK
+        uuid impact_id FK
+        uuid workspace_id FK
+        varchar from_state
+        varchar to_state
+        uuid actor_account_id FK "nul si système"
+        boolean actor_system
+        varchar reason
+        timestamptz occurred_at
     }
     subscription {
         uuid id PK
@@ -217,7 +255,7 @@ erDiagram
         uuid owner_user_id FK
         jsonb filters
         boolean mandatory
-        varchar state "ACTIVE, INACTIVE"
+        varchar state "ACTIVE, SUSPENDED (V18)"
     }
     subscription_opt_out {
         uuid subscription_id PK, FK
@@ -239,11 +277,17 @@ erDiagram
     project ||--o| inventory : "inventaire de référence"
     inventory ||--o{ component : "liste"
     project ||--o{ inventory_import_failure : "refus d'import"
+    project ||--o{ project_repository : "regroupe (V19)"
+    project_repository ||--o| repository_inventory : "dernier import"
+    project_repository |o--o{ component_occurrence : "contient"
+    component ||--|{ component_occurrence : "présent dans"
+    project_repository |o--o{ inventory_import_failure : "échec du dépôt"
     signal ||--o{ project_impact : "cause"
     signal_version ||--o{ project_impact : "version corrélée"
     project ||--o{ project_impact : "concerne"
-    component ||--o{ project_impact : "via"
+    component |o--o{ project_impact : "via"
     espace ||--o{ project_impact : "cloisonne"
+    project_impact ||--o{ project_impact_transition : "historise (V20)"
     espace |o--o{ subscription : "socle TEAM"
     compte |o--o{ subscription : "PERSONAL"
     subscription ||--o{ subscription_opt_out : "quittée par"
@@ -270,7 +314,7 @@ erDiagram
         uuid signal_id FK
         timestamptz fin_periode
         varchar cle_radar "V12"
-        varchar etat "EN_ATTENTE, ENVOYEE, EN_ECHEC"
+        varchar etat "EN_ATTENTE, ENVOYEE, EN_ECHEC, ANNULEE (V20)"
         integer tentatives
         timestamptz prochain_essai
     }
@@ -563,6 +607,6 @@ erDiagram
 
 ## Cloisonnement
 
-Les politiques RLS, appliquées sous le rôle `argos_app` (ADR-0016, migration V2), couvrent les tables : `compte`, `espace`, `appartenance`, `invitation` (V2) ; `project`, `inventory`, `component`, `inventory_import_failure` (V4) ; `project_impact` (V5) ; `subscription`, `subscription_opt_out` (V6) ; `workspace_preference_utilisateur` (V7) ; `alerte`, `resume_element` (V8) ; `source_web`, `actualite`, `actualite_source`, `actualite_impact` (V10) ; `workspace_vue` (V11) ; `standard_technologie`, `standard_historique`, `standard_suggestion`, `radar_parametres`, `dette_version` (V12) ; `activite_compteur`, `activite_jalon`, `activite_collecte` (V14) ; `suivi_profil`, `suivi_rappels` (V15) ; `domaine_metier`, `expert_domaine`, `regle_dictionnaire`, `reg_parametres`, `fiche_reglementaire`, `fiche_domaine`, `fiche_historique` (V16).
+Les politiques RLS, appliquées sous le rôle `argos_app` (ADR-0016, migration V2), couvrent les tables : `compte`, `espace`, `appartenance`, `invitation` (V2) ; `project`, `inventory`, `component`, `inventory_import_failure` (V4) ; `project_impact` (V5), `project_impact_transition` (V20) ; `subscription`, `subscription_opt_out` (V6) ; `workspace_preference_utilisateur` (V7) ; `alerte`, `resume_element` (V8) ; `source_web`, `actualite`, `actualite_source`, `actualite_impact` (V10) ; `workspace_vue` (V11) ; `standard_technologie`, `standard_historique`, `standard_suggestion`, `radar_parametres`, `dette_version` (V12) ; `activite_compteur`, `activite_jalon`, `activite_collecte` (V14) ; `suivi_profil`, `suivi_rappels` (V15) ; `domaine_metier`, `expert_domaine`, `regle_dictionnaire`, `reg_parametres`, `fiche_reglementaire`, `fiche_domaine`, `fiche_historique` (V16) ; `project_repository`, `repository_inventory`, `component_occurrence` (V19).
 
 Les tables de la collecte des avis (`source`, `sync_*`, `ingestion_failure`, `ops_event`, `signal*`, `enrichment`), du calendrier des produits (`cycle_vie*`), des sources du profil artiste (`source_profil`, `opportunite`) et de la collecte réglementaire (`texte_officiel`, `reg_source`, `reg_collecte_jour`) sont communes à tous les espaces. `refus_acces`, `mcp_appel`, `ia_prompt`, `ia_appel` et `ia_quota_jour` sont des journaux et compteurs internes, écrits sous l'utilisateur de connexion, sur lesquels `argos_app` n'a aucun droit.

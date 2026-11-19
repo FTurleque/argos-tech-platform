@@ -124,6 +124,28 @@ Risque résiduel : rebinding DNS entre le contrôle et la connexion ; un mandata
 - replay contrôlé ;
 - health/readiness distincts.
 
+### Tâches planifiées
+
+Les traitements périodiques sont des méthodes `@Scheduled` de `quarkus-scheduler` (ADR-0031, Accepté), sans chevauchement d'une exécution avec la suivante (`SKIP`), dont l'expression est lue dans la configuration ; la valeur `off` désactive une tâche. ADR-0031 décrit les tâches existantes à sa date d'acceptation ; cette liste tient l'inventaire à jour (état au 2026-11-19, 13 tâches).
+
+| Identité | Module | Échéance (propriété) | Défaut |
+|---|---|---|---|
+| `signal-synchronisation-sources` | `signal` | `argos.ingestion.planification.cadence` | toutes les heures (J1) |
+| `inventory-import-quotidien` | `inventory` | `argos.inventory.import.cron` | 03:00, fuseau `argos.alerting.fuseau` (J3) |
+| `argos-envoi-alertes` | `alerting` | `argos.alerting.envoi.intervalle` | toutes les minutes |
+| `argos-resume-quotidien` | `alerting` | `argos.alerting.resume-quotidien.cron` | 08:00 |
+| `argos-resume-hebdomadaire` | `alerting` | `argos.alerting.resume-hebdomadaire.cron` | lundi 08:00 |
+| `argos-radar-quotidien` | `alerting` | `argos.radar.tache.cron` | 06:00 |
+| `argos-activite-collecte` | `projectintel` | `argos.activite.cadence` | toutes les heures |
+| `argos-activite-purge` | `projectintel` | `argos.activite.purge.cron` | 04:30 |
+| `collecte-veille-web` | `signal.web` | `argos.veille-web.cadence` | toutes les 5 minutes |
+| `collecte-reglementaire` | `regintel` | `argos.reglementaire.collecte.cron` | 06:30 |
+| `rappels-reglementaires` | `alerting` | `argos.reglementaire.rappels.cron` | 07:15 |
+| `collecte-profil-artiste` | `signal.opportunite` | `argos.profil-artiste.collecte.cron` | 05:00 |
+| `rappels-profil-artiste` | `alerting` | `argos.profil-artiste.rappels.cron` | 07:00 |
+
+Une échéance manquée (serveur arrêté) n'est pas rattrapée : la tâche s'exécute à l'échéance suivante (ADR-0031). Dans la pile E2E, les tâches qui joindraient une source externe sont désactivées, sauf la synchronisation des sources d'avis et l'import des inventaires, rapprochées (toutes les 5 secondes) et dirigées vers les sources et forges simulées de `e2e/support/sources-simulees.mjs` ([PROPOSITION] PI-1 du changement `automatiser-chaine-veille`).
+
 ## 8.6 Observabilité
 
 OpenTelemetry/Micrometer côté Quarkus, logs structurés, métriques et traces lorsque pertinent.
@@ -136,7 +158,9 @@ PostgreSQL est **Accepté** comme stockage principal : relationnel, JSONB, FTS e
 
 Le schéma est versionné par des migrations SQL Flyway appliquées au démarrage (ADR-0032, Accepté) ; le modèle physique qu'elles produisent est D-13 : [`../diagrams/d-13-modele-physique.md`](../diagrams/d-13-modele-physique.md).
 
-Liste à jour des migrations, dans `argos-server/src/main/resources/db/migration/` (état au 2026-11-19). ADR-0032 porte la décision et décrit V1 à V16, état de sa date d'acceptation ; il n'est pas modifié et cette liste tient l'inventaire à jour des migrations ([DÉCISION] du porteur du projet, 2026-11-19). La prochaine migration porte le numéro V18.
+Liste à jour des migrations, dans `argos-server/src/main/resources/db/migration/` (état au 2026-11-19). ADR-0032 porte la décision et décrit V1 à V16, état de sa date d'acceptation ; il n'est pas modifié et cette liste tient l'inventaire à jour des migrations ([DÉCISION] du porteur du projet, 2026-11-19). V18 à V20 appartiennent au changement `automatiser-chaine-veille` (V18 volet A, V19 volet B, V20 volet C), intégrés ensemble et appliqués dans cet ordre ; la prochaine migration porte le numéro V21. Flyway refuse une migration de numéro inférieur à la dernière appliquée (`out-of-order` désactivé) : une base persistante ne reçoit que des branches intégrées.
+
+Retour arrière : les migrations ne sont pas réversibles automatiquement (ADR-0032). Pour V18 à V20, le retour à V17 est manuel et suppose une sauvegarde : V18 se défait en rétablissant `INACTIVE` à la place de `SUSPENDED`, l'ancienne contrainte et la politique `subscription_desactivation`, et en révoquant `DELETE` (un abonnement supprimé n'est pas récupérable) ; V19 en supprimant les trois tables ajoutées et la colonne `repository_id` ; V20 en supprimant d'abord les impacts sans composant (résolus ou écartés), l'historique `project_impact_transition` et les alertes `ANNULEE`, puis la colonne `state` et l'instantané, avant de remettre `component_id` en `NOT NULL` et `ON DELETE CASCADE`.
 
 | Version | Fichier | Objet | Changement OpenSpec |
 |---|---|---|---|
@@ -157,6 +181,9 @@ Liste à jour des migrations, dans `argos-server/src/main/resources/db/migration
 | V15 | `V15__profil_artiste.sql` | objets suivis par profil, rappels, sources vérifiées, opportunités (ADR-0024) | `ajouter-profil-artiste` |
 | V16 | `V16__veille_reglementaire.sql` | domaines métier, experts, dictionnaire, sources et textes officiels, fiches réglementaires et leur historique | `suivre-veille-reglementaire` |
 | V17 | `V17__composants_ignores_import.sql` | colonnes `ignored_count` et `ignored_components` de `inventory` : composants ignorés faute de PURL au dernier import (INV-01, décision D6 du 2026-11-18) | `formaliser-chaine-securite-poc` |
+| V18 | `V18__automatisation_collecte_et_abonnements.sql` | empreinte du contenu normalisé `normalized_hash` de `signal` et `signal_version`, index unique partiel par signal (COL-10) ; état d'abonnement `ACTIVE` ou `SUSPENDED` (`INACTIVE` devient `SUSPENDED`), privilège `DELETE` et politiques RLS `subscription_mise_a_jour` et `subscription_suppression` (ABO-07, ABO-08) | `automatiser-chaine-veille` (volet A, tâche 1.1) |
+| V19 | `V19__depots_projet_et_occurrences.sql` | dépôts d'un projet (`project_repository`, alimentée depuis `project.scm_*`), dernier import par dépôt (`repository_inventory`), occurrences des composants par dépôt (`component_occurrence`), dépôt d'un échec d'import, marqueur `inventory.recorrelation_pending` ; RLS de lecture des nouvelles tables (INV-07 à INV-10, décision J6 du 2026-11-19) | `automatiser-chaine-veille` (volet B, tâche 2.1 ; numéro réservé, P-11) |
+| V20 | `V20__etat_traitement_impacts.sql` | état de traitement des impacts (`project_impact.state` : `OUVERT`, `CONFIRME`, `ECARTE`, `RESOLU`), instantané paquet / PURL / version, référence au composant en `ON DELETE SET NULL`, historique des transitions (`project_impact_transition`), fonction `argos_traite_impacts` et politiques RLS `project_impact_etat`, `project_impact_transition_lecture` et `project_impact_transition_creation` ; état `ANNULEE` des alertes (COR-09 à COR-12, ALR-07 ; décision J5 du 2026-11-19) | `automatiser-chaine-veille` (volet C, tâche 3.1) |
 
 ## 8.8 IA et coûts
 

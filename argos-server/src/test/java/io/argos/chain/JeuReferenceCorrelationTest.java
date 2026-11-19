@@ -212,10 +212,10 @@ class JeuReferenceCorrelationTest {
         synchronizer.synchronize("OSV");
         assertEquals(avis.json().size(), db.count("SELECT count(*) FROM signal"), "tous les avis du jeu sont collectés");
 
-        // 3. Second déclencheur, la corrélation par projet : même résultat, aucun impact créé ni retiré.
+        // 3. Second déclencheur, la corrélation par projet : même résultat, aucun impact créé, résolu ni rouvert.
         for (UUID projet : projetsParNom.values()) {
             for (CorrelationEngine.CorrelationReport r : engine.correlateProject(projet)) {
-                assertEquals(0, r.created() + r.removed(), "corrélation par projet stable pour " + projet);
+                assertEquals(0, r.created() + r.resolved() + r.reopened(), "corrélation par projet stable pour " + projet);
             }
         }
 

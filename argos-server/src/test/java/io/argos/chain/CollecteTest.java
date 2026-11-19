@@ -25,6 +25,8 @@ import io.argos.ingestion.AdvisorySink;
 import io.argos.ingestion.RawAdvisory;
 import io.argos.ingestion.SourceSynchronizer;
 import io.argos.ingestion.osv.OsvNormalizer;
+import io.argos.inventory.InventoryService;
+import io.argos.inventory.ProjectDirectory;
 import io.argos.signal.SignalQueries;
 import io.argos.signal.SignalRecorder;
 import io.argos.testsupport.Fixtures;
@@ -54,6 +56,12 @@ class CollecteTest {
 
     @Inject
     SignalRecorder recorder;
+
+    @Inject
+    ProjectDirectory projects;
+
+    @Inject
+    InventoryService inventories;
 
     @BeforeEach
     void reset() {
@@ -208,6 +216,147 @@ class CollecteTest {
                 .when().get("/api/v1/ops/sources/OSV/rejected")
                 .then().statusCode(200).body("[0].externalId", equalTo("GHSA-000B"))
                 .body("[0].reason", equalTo("identifiant externe absent"));
+    }
+
+    // ------------------------------------------------------------------ COL-10 (automatiser-chaine-veille, 1.4)
+
+    /** Même avis : clés JSON dans un autre ordre, autres espaces, date de modification plus récente. */
+    private static String republie(String json, String modifie) {
+        return json.replace("{\"id\":", "{ \"database_specific\":{\"severity\":\"HIGH\"},  \"id\":")
+                .replace(",\n \"database_specific\":{\"severity\":\"HIGH\"}", "")
+                .replaceFirst("\"modified\":\"[^\"]+\"", "\"modified\" : \"" + modifie + "\"");
+    }
+
+    @Test
+    void col10S1EtS2RepublicationAuContenuNormaliseIdentique() {
+        String v1 = Fixtures.osv("GHSA-0101", "2026-11-01T00:00:00Z", "Maven", "org.exemple:lib",
+                "pkg:maven/org.exemple/lib", "0", "1.3.0");
+        assertEquals(AdvisorySink.Outcome.CREATED, record(v1));
+        String updatedAt = db.string("SELECT updated_at::text FROM signal");
+        String republie = republie(v1, "2026-11-08T00:00:00Z");
+        assertTrue(!republie.equals(v1) && republie.indexOf("database_specific") < republie.indexOf("\"id\""), republie);
+
+        assertEquals(AdvisorySink.Outcome.UNCHANGED, record(republie));
+
+        assertEquals(1, db.count("SELECT count(*) FROM signal_version"));
+        assertEquals(updatedAt, db.string("SELECT updated_at::text FROM signal"));
+        assertEquals(OsvNormalizer.normalize(new RawAdvisory("x", v1)).normalizedHash(),
+                db.string("SELECT normalized_hash FROM signal"));
+        assertEquals(db.string("SELECT normalized_hash FROM signal"), db.string("SELECT normalized_hash FROM signal_version"));
+    }
+
+    @Test
+    void col10S3PlageModifieeNouvelleVersionEtCorrelationDeclenchee() {
+        UUID espace = Api.nouvelEspace("alice", "Espace collecte COL-10");
+        UUID projet = projects.create(espace, "app-col10", null, null);
+        inventories.importSbom(projet, Fixtures.cyclonedx("1.6", java.time.Instant.now().minus(1, java.time.temporal.ChronoUnit.DAYS)
+                .toString(), java.util.Collections.singletonList(new String[] {"lib", "pkg:maven/org.exemple/lib@1.3.5"}),
+                List.of("lib")).getBytes(java.nio.charset.StandardCharsets.UTF_8), "ci");
+        String v1 = Fixtures.osv("GHSA-0102", "2026-11-01T00:00:00Z", "Maven", "org.exemple:lib",
+                "pkg:maven/org.exemple/lib", "0", "1.3.0");
+        Fixtures.stubOsv("GHSA-0102", "2026-11-01T00:00:00Z", v1);
+        synchronizer.synchronize("OSV");
+        assertEquals(0, db.count("SELECT count(*) FROM project_impact"), "1.3.5 hors de la plage < 1.3.0");
+
+        String v2 = Fixtures.osv("GHSA-0102", "2026-11-05T00:00:00Z", "Maven", "org.exemple:lib",
+                "pkg:maven/org.exemple/lib", "0", "1.4.0");
+        Fixtures.stubOsv("GHSA-0102", "2026-11-05T00:00:00Z", v2);
+        SourceSynchronizer.SyncReport report = synchronizer.synchronize("OSV");
+
+        assertEquals(1, report.updated());
+        assertEquals(2, db.count("SELECT count(*) FROM signal_version"));
+        assertEquals(2, db.count("SELECT count(DISTINCT normalized_hash) FROM signal_version"));
+        String courante = db.string("SELECT v.normalized_hash FROM signal s JOIN signal_version v ON v.id = s.current_version_id");
+        assertEquals(OsvNormalizer.normalize(new RawAdvisory("x", v2)).normalizedHash(), courante);
+        assertEquals(courante, db.string("SELECT normalized_hash FROM signal"));
+        assertEquals(v2, db.string("SELECT v.raw_content FROM signal s JOIN signal_version v ON v.id = s.current_version_id"));
+        assertEquals(1, db.count("SELECT count(*) FROM project_impact WHERE project_id = '" + projet + "'"),
+                "la corrélation du signal modifié est déclenchée");
+    }
+
+    /**
+     * J2 : un avis dont le contenu normalisé redevient celui d'une version antérieure (autre que la courante) est mis
+     * à jour ; le signal repointe vers cette version sans la dupliquer (INV-A1), et l'impact devenu sans objet est résolu.
+     */
+    @Test
+    void col10ContenuRevenuAUneVersionAnterieure() {
+        UUID espace = Api.nouvelEspace("alice", "Espace collecte J2");
+        UUID projet = projects.create(espace, "app-j2", null, null);
+        inventories.importSbom(projet, Fixtures.cyclonedx("1.6", java.time.Instant.now().minus(1, java.time.temporal.ChronoUnit.DAYS)
+                .toString(), java.util.Collections.singletonList(new String[] {"lib", "pkg:maven/org.exemple/lib@1.3.5"}),
+                List.of("lib")).getBytes(java.nio.charset.StandardCharsets.UTF_8), "ci");
+        String v1 = Fixtures.osv("GHSA-0106", "2026-11-01T00:00:00Z", "Maven", "org.exemple:lib",
+                "pkg:maven/org.exemple/lib", "0", "1.3.0");
+        Fixtures.stubOsv("GHSA-0106", "2026-11-01T00:00:00Z", v1);
+        synchronizer.synchronize("OSV");
+        String premiere = db.string("SELECT current_version_id::text FROM signal");
+        String v2 = Fixtures.osv("GHSA-0106", "2026-11-05T00:00:00Z", "Maven", "org.exemple:lib",
+                "pkg:maven/org.exemple/lib", "0", "1.4.0");
+        Fixtures.stubOsv("GHSA-0106", "2026-11-05T00:00:00Z", v2);
+        synchronizer.synchronize("OSV");
+        assertEquals(1, db.count("SELECT count(*) FROM project_impact WHERE state = 'OUVERT'"), "1.3.5 dans la plage < 1.4.0");
+
+        // La source corrige l'avis et revient à la plage < 1.3.0 (même contenu normalisé que v1, autre date).
+        String v3 = Fixtures.osv("GHSA-0106", "2026-11-07T00:00:00Z", "Maven", "org.exemple:lib",
+                "pkg:maven/org.exemple/lib", "0", "1.3.0");
+        Fixtures.stubOsv("GHSA-0106", "2026-11-07T00:00:00Z", v3);
+        SourceSynchronizer.SyncReport report = synchronizer.synchronize("OSV");
+
+        assertEquals(1, report.updated());
+        assertEquals(2, db.count("SELECT count(*) FROM signal_version"), "aucune version dupliquée (INV-A1)");
+        assertEquals(premiere, db.string("SELECT current_version_id::text FROM signal"));
+        assertEquals(OsvNormalizer.normalize(new RawAdvisory("x", v1)).normalizedHash(),
+                db.string("SELECT normalized_hash FROM signal"));
+        assertTrue(db.string("SELECT affected::text FROM signal").contains("1.3.0"));
+        assertEquals(0, db.count("SELECT count(*) FROM project_impact WHERE state IN ('OUVERT', 'CONFIRME')"),
+                "l'impact devenu sans objet n'est plus actif");
+        assertEquals(1, db.count("SELECT count(*) FROM project_impact WHERE state = 'RESOLU'"));
+    }
+
+    @Test
+    void col10S4RattrapageDesEmpreintesSansNouvelleVersion() {
+        String brut = Fixtures.osv("GHSA-0103", "2026-11-01T00:00:00Z", "Maven", "org.exemple:lib",
+                "pkg:maven/org.exemple/lib", "0", "1.3.0");
+        String identique = Fixtures.osv("GHSA-0104", "2026-11-01T00:00:00Z", "Maven", "org.exemple:autre",
+                "pkg:maven/org.exemple/autre", "0", "2.0.0");
+        record(brut);
+        record(identique);
+        // Signaux enregistrés avant V18 : aucune empreinte normalisée.
+        db.exec("UPDATE signal SET normalized_hash = NULL; UPDATE signal_version SET normalized_hash = NULL");
+
+        // Premier passage : contenu brut réorganisé (renormalisation de la version courante) et contenu brut identique.
+        assertEquals(AdvisorySink.Outcome.UNCHANGED, record(republie(brut, "2026-11-03T00:00:00Z")));
+        assertEquals(AdvisorySink.Outcome.UNCHANGED, record(identique));
+
+        assertEquals(2, db.count("SELECT count(*) FROM signal_version"));
+        assertEquals(0, db.count("SELECT count(*) FROM signal WHERE normalized_hash IS NULL"));
+        assertEquals(0, db.count("SELECT count(*) FROM signal_version WHERE normalized_hash IS NULL"));
+        assertEquals(OsvNormalizer.normalize(new RawAdvisory("x", brut)).normalizedHash(),
+                db.string("SELECT normalized_hash FROM signal WHERE external_id = 'GHSA-0103'"));
+        assertEquals(OsvNormalizer.normalize(new RawAdvisory("x", identique)).normalizedHash(),
+                db.string("SELECT normalized_hash FROM signal WHERE external_id = 'GHSA-0104'"));
+
+        // Le contenu normalisé change ensuite : nouvelle version, comparée sur l'empreinte rattrapée.
+        String modifie = Fixtures.osv("GHSA-0103", "2026-11-04T00:00:00Z", "Maven", "org.exemple:lib",
+                "pkg:maven/org.exemple/lib", "0", "1.4.0");
+        assertEquals(AdvisorySink.Outcome.UPDATED, record(modifie));
+        assertEquals(2, db.count("SELECT count(*) FROM signal_version v JOIN signal s ON s.id = v.signal_id"
+                + " WHERE s.external_id = 'GHSA-0103'"));
+    }
+
+    @Test
+    void migrationV18EmpreinteNormaliseeUniqueParSignal() {
+        String json = Fixtures.osv("GHSA-0105", "2026-11-01T00:00:00Z", "Maven", "org.exemple:lib",
+                "pkg:maven/org.exemple/lib", "0", "1.3.0");
+        record(json);
+        String signal = db.string("SELECT id::text FROM signal");
+        IllegalStateException e = assertThrows(IllegalStateException.class, () -> db.exec("""
+                INSERT INTO signal_version(id, signal_id, version_no, content_hash, normalized_hash, source_modified_at,
+                                           collected_at, raw_content)
+                SELECT gen_random_uuid(), signal_id, 2, repeat('b', 64), normalized_hash, now(), now(), '{}'
+                FROM signal_version WHERE signal_id = '%s'
+                """.formatted(signal)));
+        assertTrue(e.getCause().getMessage().contains("signal_version_normalized_uk"), e.getCause().getMessage());
     }
 
     private AdvisorySink.Outcome record(String json) {

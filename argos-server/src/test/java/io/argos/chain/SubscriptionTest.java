@@ -19,6 +19,7 @@ import jakarta.inject.Inject;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
+import io.argos.impact.CorrelationEngine;
 import io.argos.ingestion.SourceSynchronizer;
 import io.argos.inventory.InventoryService;
 import io.argos.inventory.ProjectDirectory;
@@ -53,6 +54,12 @@ class SubscriptionTest {
 
     @Inject
     SourceSynchronizer synchronizer;
+
+    @Inject
+    javax.sql.DataSource dataSource;
+
+    @Inject
+    CorrelationEngine engine;
 
     /** Espace administré par karim. */
     private UUID rh;
@@ -200,5 +207,217 @@ class SubscriptionTest {
                 .body("id", hasItem(mandatory)).body("id", not(hasItem(optional)));
         as("karim").when().get("/api/v1/subscriptions").then().statusCode(200).body("id", hasItem(optional));
         as("paul").when().post("/api/v1/subscriptions/" + optional + "/leave").then().statusCode(404);
+    }
+
+    // ------------------------------------------------------------------ ABO-07, ABO-08 (automatiser-chaine-veille, 1.5)
+
+    private static final String DEUX_PAQUETS = "[{\"type\":\"PACKAGE\",\"value\":\"pkg:maven/org.exemple/lib\"},"
+            + "{\"type\":\"PACKAGE\",\"value\":\"pkg:maven/org.exemple/autre\"}]";
+
+    private static String personalEmailImmediat(String filters) {
+        return "{\"scope\":\"PERSONAL\",\"filters\":" + filters
+                + ",\"channel\":\"email\",\"frequency\":\"immediate\",\"mandatory\":false}";
+    }
+
+    private UUID projetRhAvecLib() {
+        UUID projet = projects.create(rh, "portail-rh", null, null);
+        inventories.importSbom(projet, Fixtures.cyclonedx("1.6", Instant.now().minus(1, ChronoUnit.DAYS).toString(),
+                java.util.Collections.singletonList(new String[] {"lib", "pkg:maven/org.exemple/lib@1.2.0"}), List.of("lib"))
+                .getBytes(StandardCharsets.UTF_8), "ci");
+        return projet;
+    }
+
+    private long alertesDe(String user) {
+        return db.count("SELECT count(*) FROM alerte WHERE compte_id = '" + Api.compte(user) + "'");
+    }
+
+    @Test
+    void abo07S1EtS2SuspensionPuisReactivationSansRejeu() {
+        UUID projet = projetRhAvecLib();
+        membre("jules", rh);
+        String id = as("jules").body(personalEmailImmediat(DEUX_PAQUETS))
+                .when().post("/api/v1/subscriptions").then().statusCode(201).extract().path("id");
+
+        as("jules").when().post("/api/v1/subscriptions/" + id + "/suspension").then().statusCode(200)
+                .body("state", equalTo("SUSPENDED"))
+                .body("filters", hasSize(2))
+                .body("filters.value", hasItem("pkg:maven/org.exemple/autre"))
+                .body("channel", equalTo("EMAIL"))
+                .body("frequency", equalTo("IMMEDIATE"));
+        // Idempotence : suspendre un abonnement suspendu répond 200 sans effet.
+        as("jules").when().post("/api/v1/subscriptions/" + id + "/suspension").then().statusCode(200)
+                .body("state", equalTo("SUSPENDED"));
+
+        publish("GHSA-SUSP1", "Maven", "org.exemple:lib", "pkg:maven/org.exemple/lib");
+        assertEquals(1, db.count("SELECT count(*) FROM project_impact"), "le signal est corrélé");
+        assertEquals(0, alertesDe("jules"), "aucune alerte au titre d'un abonnement suspendu");
+        assertEquals(0, db.count("SELECT count(*) FROM resume_element WHERE compte_id = '" + Api.compte("jules") + "'"));
+
+        as("jules").when().post("/api/v1/subscriptions/" + id + "/reactivation").then().statusCode(200)
+                .body("state", equalTo("ACTIVE")).body("filters", hasSize(2));
+        publish("GHSA-SUSP2", "Maven", "org.exemple:lib", "pkg:maven/org.exemple/lib");
+
+        assertEquals(1, alertesDe("jules"));
+        assertEquals(1, db.count("SELECT count(*) FROM alerte a JOIN signal s ON s.id = a.signal_id WHERE a.compte_id = '"
+                + Api.compte("jules") + "' AND s.external_id = 'GHSA-SUSP2'"));
+        assertEquals(0, db.count("SELECT count(*) FROM alerte a JOIN signal s ON s.id = a.signal_id"
+                + " WHERE s.external_id = 'GHSA-SUSP1'"), "la période de suspension n'est pas rejouée");
+
+        // Recorrélation du projet après la réactivation (import quotidien, J4) : impact inchangé, aucune alerte
+        // pour le signal corrélé pendant la suspension ([PROPOSITION] PI-4, intégration du 2026-11-19).
+        engine.correlateProject(projet);
+        assertEquals(0, db.count("SELECT count(*) FROM alerte a JOIN signal s ON s.id = a.signal_id"
+                + " WHERE s.external_id = 'GHSA-SUSP1'"), "la recorrélation ne rejoue pas la période de suspension");
+        assertEquals(1, alertesDe("jules"));
+    }
+
+    @Test
+    void abo07S3SuspensionDUnTeamParUnContributeurRefusee() {
+        String id = as("karim").body(team(rh, JAVA, true)).when().post("/api/v1/subscriptions")
+                .then().statusCode(201).extract().path("id");
+        Api.ajouterMembre("karim", rh.toString(), "jules", "CONTRIBUTEUR");
+
+        as("jules").when().post("/api/v1/subscriptions/" + id + "/suspension").then().statusCode(403);
+        as("jules").when().post("/api/v1/subscriptions/" + id + "/reactivation").then().statusCode(403);
+        as("jules").when().delete("/api/v1/subscriptions/" + id).then().statusCode(403);
+
+        assertEquals(1, db.count("SELECT count(*) FROM refus_acces WHERE compte_id = '" + Api.compte("jules")
+                + "' AND ressource = 'POST /api/v1/subscriptions/" + id + "/suspension' AND motif = 'ROLE_INSUFFISANT'"));
+        assertEquals("ACTIVE", db.string("SELECT state FROM subscription WHERE id = '" + id + "'"));
+        // Un non-membre ne voit pas l'abonnement : 404, sans le révéler.
+        Api.compte("paul");
+        as("paul").when().post("/api/v1/subscriptions/" + id + "/suspension").then().statusCode(404);
+        // L'administrateur de l'espace suspend et réactive.
+        as("karim").when().post("/api/v1/subscriptions/" + id + "/suspension").then().statusCode(200)
+                .body("state", equalTo("SUSPENDED"));
+        as("karim").when().post("/api/v1/subscriptions/" + id + "/reactivation").then().statusCode(200)
+                .body("state", equalTo("ACTIVE"));
+    }
+
+    @Test
+    void abo07S3RlsRefuseLaModificationParUnContributeurSousArgosApp() throws Exception {
+        String id = as("karim").body(team(rh, JAVA, true)).when().post("/api/v1/subscriptions")
+                .then().statusCode(201).extract().path("id");
+        String personnel = as("jules").body(personal(RUST)).when().post("/api/v1/subscriptions")
+                .then().statusCode(201).extract().path("id");
+        Api.ajouterMembre("karim", rh.toString(), "jules", "CONTRIBUTEUR");
+
+        // Même si la couche API se trompait, la base refuse sous argos_app (politiques V18).
+        assertEquals(0, sousArgosApp("jules", "UPDATE subscription SET state = 'SUSPENDED' WHERE id = '" + id + "'"));
+        assertEquals(0, sousArgosApp("jules", "DELETE FROM subscription WHERE id = '" + id + "'"));
+        assertEquals(0, sousArgosApp("ines", "UPDATE subscription SET state = 'SUSPENDED' WHERE id = '" + personnel + "'"));
+        assertEquals(0, sousArgosApp("ines", "DELETE FROM subscription WHERE id = '" + personnel + "'"));
+        assertEquals(1, sousArgosApp("karim", "UPDATE subscription SET state = 'SUSPENDED' WHERE id = '" + id + "'"));
+        assertEquals(1, sousArgosApp("jules", "UPDATE subscription SET state = 'SUSPENDED' WHERE id = '" + personnel + "'"));
+        // Seul l'état est modifiable : les critères restent hors de portée d'argos_app.
+        java.sql.SQLException refus = org.junit.jupiter.api.Assertions.assertThrows(java.sql.SQLException.class,
+                () -> sousArgosApp("jules", "UPDATE subscription SET filters = '[]' WHERE id = '" + personnel + "'"));
+        assertEquals("42501", refus.getSQLState(), "privilège UPDATE limité à la colonne state");
+        assertEquals("SUSPENDED", db.string("SELECT state FROM subscription WHERE id = '" + id + "'"));
+        assertEquals(1, db.count("SELECT jsonb_array_length(filters) FROM subscription WHERE id = '" + personnel + "'"));
+    }
+
+    /** Exécute une écriture dans une transaction sous argos_app avec le compte donné ; renvoie le nombre de lignes. */
+    private int sousArgosApp(String user, String sql) throws java.sql.SQLException {
+        UUID compte = Api.compte(user);
+        try (java.sql.Connection c = dataSource.getConnection()) {
+            c.setAutoCommit(false);
+            try (java.sql.Statement st = c.createStatement()) {
+                st.execute("SET LOCAL ROLE argos_app");
+                st.execute("SELECT set_config('argos.compte_courant', '" + compte + "', true), "
+                        + "set_config('argos.espace_courant', '', true)");
+                int lignes = st.executeUpdate(sql);
+                c.commit();
+                return lignes;
+            } catch (java.sql.SQLException e) {
+                c.rollback();
+                throw e;
+            }
+        }
+    }
+
+    @Test
+    void abo07S4AbonnementsSuspendusListesAvecLeurEtat() {
+        String actif = as("jules").body(personal(RUST)).when().post("/api/v1/subscriptions")
+                .then().statusCode(201).extract().path("id");
+        String suspendu = as("jules").body(personal(JAVA)).when().post("/api/v1/subscriptions")
+                .then().statusCode(201).extract().path("id");
+        as("jules").when().post("/api/v1/subscriptions/" + suspendu + "/suspension").then().statusCode(200);
+
+        as("jules").when().get("/api/v1/subscriptions").then().statusCode(200)
+                .body("$", hasSize(2))
+                .body("find { it.id == '" + actif + "' }.state", equalTo("ACTIVE"))
+                .body("find { it.id == '" + suspendu + "' }.state", equalTo("SUSPENDED"));
+        // Le retrait d'un PERSONAL est une suspension (P-8) : critères conservés, réactivable.
+        as("jules").when().post("/api/v1/subscriptions/" + actif + "/leave").then().statusCode(204);
+        assertEquals("SUSPENDED", db.string("SELECT state FROM subscription WHERE id = '" + actif + "'"));
+        as("jules").when().post("/api/v1/subscriptions/" + actif + "/leave").then().statusCode(204);
+        as("jules").when().post("/api/v1/subscriptions/" + actif + "/reactivation").then().statusCode(200)
+                .body("state", equalTo("ACTIVE")).body("filters[0].value", equalTo("rust"));
+    }
+
+    @Test
+    void abo08S1SuppressionDUnAbonnementSuspendu() {
+        String id = as("jules").body(personal(RUST)).when().post("/api/v1/subscriptions")
+                .then().statusCode(201).extract().path("id");
+        as("jules").when().post("/api/v1/subscriptions/" + id + "/suspension").then().statusCode(200);
+
+        as("jules").when().delete("/api/v1/subscriptions/" + id).then().statusCode(204);
+
+        as("jules").when().get("/api/v1/subscriptions").then().statusCode(200).body("id", not(hasItem(id)));
+        as("jules").when().post("/api/v1/subscriptions/" + id + "/reactivation").then().statusCode(404);
+        as("jules").when().delete("/api/v1/subscriptions/" + id).then().statusCode(404);
+        assertEquals(0, db.count("SELECT count(*) FROM subscription WHERE id = '" + id + "'"));
+    }
+
+    @Test
+    void abo08S2SuppressionParUnAutreUtilisateurSansRevelerLAbonnement() {
+        String id = as("jules").body(personal(RUST)).when().post("/api/v1/subscriptions")
+                .then().statusCode(201).extract().path("id");
+        String inconnu = UUID.randomUUID().toString();
+        Api.compte("ines");
+
+        String corpsAutre = as("ines").when().delete("/api/v1/subscriptions/" + id).then().statusCode(404)
+                .extract().asString();
+        String corpsInconnu = as("ines").when().delete("/api/v1/subscriptions/" + inconnu).then().statusCode(404)
+                .extract().asString();
+        as("ines").when().post("/api/v1/subscriptions/" + id + "/suspension").then().statusCode(404);
+
+        assertEquals(corpsInconnu, corpsAutre, "même réponse que pour un abonnement inexistant");
+        assertEquals("ACTIVE", db.string("SELECT state FROM subscription WHERE id = '" + id + "'"));
+        assertEquals(1, db.count("SELECT count(*) FROM subscription WHERE id = '" + id + "'"));
+    }
+
+    @Test
+    void abo08S3SuppressionDUnTeamFacultatifQuitteParDesMembres() {
+        String id = as("karim").body(team(rh, JAVA, false)).when().post("/api/v1/subscriptions")
+                .then().statusCode(201).extract().path("id");
+        membre("lina", rh);
+        membre("marc", rh);
+        as("lina").when().post("/api/v1/subscriptions/" + id + "/leave").then().statusCode(204);
+        as("marc").when().post("/api/v1/subscriptions/" + id + "/leave").then().statusCode(204);
+        assertEquals(2, db.count("SELECT count(*) FROM subscription_opt_out WHERE subscription_id = '" + id + "'"));
+
+        as("karim").when().delete("/api/v1/subscriptions/" + id).then().statusCode(204);
+
+        assertEquals(0, db.count("SELECT count(*) FROM subscription WHERE id = '" + id + "'"));
+        assertEquals(0, db.count("SELECT count(*) FROM subscription_opt_out WHERE subscription_id = '" + id + "'"));
+        for (String user : List.of("karim", "lina", "marc")) {
+            as(user).when().get("/api/v1/subscriptions").then().statusCode(200).body("id", not(hasItem(id)));
+        }
+    }
+
+    @Test
+    void contratOpenApiDesActionsSurLesAbonnements() {
+        Api.en("alice").queryParam("format", "json")
+                .when().get("/q/openapi")
+                .then().statusCode(200)
+                .body("paths.'/api/v1/subscriptions'.get", notNullValue())
+                .body("paths.'/api/v1/subscriptions/{id}/suspension'.post.responses.'403'", notNullValue())
+                .body("paths.'/api/v1/subscriptions/{id}/suspension'.post.responses.'404'", notNullValue())
+                .body("paths.'/api/v1/subscriptions/{id}/reactivation'.post.responses.'200'", notNullValue())
+                .body("paths.'/api/v1/subscriptions/{id}'.delete.responses.'204'", notNullValue())
+                .body("paths.'/api/v1/subscriptions/{id}'.delete.responses.'403'", notNullValue())
+                .body("components.schemas.Subscription.properties.keySet()", hasItem("state"));
     }
 }

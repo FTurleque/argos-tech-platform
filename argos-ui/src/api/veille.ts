@@ -1,5 +1,6 @@
 // Veille par profils et choix des profils actifs (PRF-01, PRF-02, décision Q-3 de `profils-veille`) :
-// appels à `GET /api/v1/me/veille`, au catalogue des profils, aux préférences et aux abonnements, tous
+// appels à `GET /api/v1/me/veille`, au catalogue des profils, aux préférences et aux abonnements (lecture,
+// suspension, réactivation et suppression : ABO-07, ABO-08), tous
 // par le point d'appel commun `appelerApi` du client REST. Aucune règle métier ici (arc42 §5.1) : l'union
 // des profils et des abonnements PERSONAL, le dédoublonnage, les garde-fous et les droits sont calculés
 // par le serveur.
@@ -92,6 +93,7 @@ export interface Abonnement {
   channel: string
   frequency: string
   mandatory: boolean
+  /** `ACTIVE` ou `SUSPENDED` (ABO-07) ; seul un abonnement actif produit des notifications. */
   state: string
   createdAt: string
 }
@@ -133,7 +135,28 @@ export function choisirProfils(profilsActifs: readonly string[]): Promise<Prefer
   })
 }
 
-/** Abonnements qui s'appliquent à l'appelant, pour nommer l'origine des éléments de sa veille. */
+/**
+ * Abonnements visibles de l'appelant, actifs ou suspendus (ABO-07-S4), chacun avec son état : pour nommer
+ * l'origine des éléments de sa veille et pour les gérer.
+ */
 export function lireAbonnements(signal?: AbortSignal): Promise<Abonnement[]> {
   return appelerApi<Abonnement[]>('/api/v1/subscriptions', { signal })
+}
+
+/**
+ * Suspend un abonnement : critères conservés, plus aucune notification (ABO-07). Le serveur décide des droits :
+ * 403 pour un abonnement d'équipe dont l'appelant n'administre pas l'espace, 404 s'il est inconnu ou invisible.
+ */
+export function suspendreAbonnement(id: string): Promise<Abonnement> {
+  return appelerApi<Abonnement>(`/api/v1/subscriptions/${encodeURIComponent(id)}/suspension`, { methode: 'POST' })
+}
+
+/** Réactive un abonnement suspendu, sans rejouer la période de suspension (ABO-07-S2). */
+export function reactiverAbonnement(id: string): Promise<Abonnement> {
+  return appelerApi<Abonnement>(`/api/v1/subscriptions/${encodeURIComponent(id)}/reactivation`, { methode: 'POST' })
+}
+
+/** Supprime définitivement un abonnement, actif ou suspendu (ABO-08) ; réponse 204 sans corps. */
+export function supprimerAbonnement(id: string): Promise<void> {
+  return appelerApi<void>(`/api/v1/subscriptions/${encodeURIComponent(id)}`, { methode: 'DELETE' })
 }

@@ -1,0 +1,1590 @@
+{
+  "config": {
+    "argv": [
+      "C:\\Program Files\\nodejs\\node.exe",
+      "N:\\workspace-dev\\argos-tech-platform\\.claude\\worktrees\\lot18-integration\\e2e\\node_modules\\@playwright\\test\\cli.js",
+      "test"
+    ],
+    "configFile": "N:\\workspace-dev\\argos-tech-platform\\.claude\\worktrees\\lot18-integration\\e2e\\playwright.config.ts",
+    "rootDir": "N:/workspace-dev/argos-tech-platform/.claude/worktrees/lot18-integration/e2e/tests",
+    "failOnFlakyTests": false,
+    "forbidOnly": true,
+    "fullyParallel": false,
+    "globalSetup": null,
+    "globalTeardown": null,
+    "globalTimeout": 0,
+    "grep": {},
+    "grepInvert": null,
+    "maxFailures": 0,
+    "metadata": {
+      "actualWorkers": 1
+    },
+    "preserveOutput": "always",
+    "projects": [
+      {
+        "outputDir": "N:/workspace-dev/argos-tech-platform/.claude/worktrees/lot18-integration/e2e/test-results",
+        "repeatEach": 1,
+        "retries": 0,
+        "metadata": {
+          "actualWorkers": 1
+        },
+        "id": "preparation",
+        "name": "preparation",
+        "testDir": "N:/workspace-dev/argos-tech-platform/.claude/worktrees/lot18-integration/e2e/tests",
+        "testIgnore": [],
+        "testMatch": [
+          "/preparation\\.setup\\.ts/"
+        ],
+        "timeout": 120000
+      },
+      {
+        "outputDir": "N:/workspace-dev/argos-tech-platform/.claude/worktrees/lot18-integration/e2e/test-results",
+        "repeatEach": 1,
+        "retries": 0,
+        "metadata": {
+          "actualWorkers": 1
+        },
+        "id": "portail-web",
+        "name": "portail-web",
+        "testDir": "N:/workspace-dev/argos-tech-platform/.claude/worktrees/lot18-integration/e2e/tests",
+        "testIgnore": [],
+        "testMatch": [
+          "/.*\\.spec\\.ts/"
+        ],
+        "timeout": 120000
+      },
+      {
+        "outputDir": "N:/workspace-dev/argos-tech-platform/.claude/worktrees/lot18-integration/e2e/test-results",
+        "repeatEach": 1,
+        "retries": 0,
+        "metadata": {
+          "actualWorkers": 1
+        },
+        "id": "construction-desktop",
+        "name": "construction-desktop",
+        "testDir": "N:/workspace-dev/argos-tech-platform/.claude/worktrees/lot18-integration/e2e/desktop",
+        "testIgnore": [],
+        "testMatch": [
+          "/construction\\.setup\\.ts/"
+        ],
+        "timeout": 120000
+      },
+      {
+        "outputDir": "N:/workspace-dev/argos-tech-platform/.claude/worktrees/lot18-integration/e2e/test-results",
+        "repeatEach": 1,
+        "retries": 0,
+        "metadata": {
+          "actualWorkers": 1
+        },
+        "id": "desktop",
+        "name": "desktop",
+        "testDir": "N:/workspace-dev/argos-tech-platform/.claude/worktrees/lot18-integration/e2e/desktop",
+        "testIgnore": [],
+        "testMatch": [
+          "/.*\\.spec\\.ts/"
+        ],
+        "timeout": 120000
+      },
+      {
+        "outputDir": "N:/workspace-dev/argos-tech-platform/.claude/worktrees/lot18-integration/e2e/test-results",
+        "repeatEach": 1,
+        "retries": 0,
+        "metadata": {
+          "actualWorkers": 1
+        },
+        "id": "mcp",
+        "name": "mcp",
+        "testDir": "N:/workspace-dev/argos-tech-platform/.claude/worktrees/lot18-integration/e2e/mcp",
+        "testIgnore": [],
+        "testMatch": [
+          "/.*\\.spec\\.ts/"
+        ],
+        "timeout": 120000
+      }
+    ],
+    "quiet": false,
+    "reporter": [
+      [
+        "list",
+        null
+      ],
+      [
+        "json",
+        {
+          "outputFile": "./test-results/rapport.json"
+        }
+      ]
+    ],
+    "reportSlowTests": {
+      "max": 5,
+      "threshold": 300000
+    },
+    "shard": null,
+    "tags": [],
+    "updateSnapshots": "missing",
+    "updateSourceMethod": "patch",
+    "version": "1.61.1",
+    "workers": 1,
+    "webServer": null
+  },
+  "suites": [
+    {
+      "title": "..\\desktop\\construction.setup.ts",
+      "file": "../desktop/construction.setup.ts",
+      "column": 0,
+      "line": 0,
+      "specs": [
+        {
+          "title": "IHM construite pour le client desktop",
+          "ok": true,
+          "tags": [],
+          "tests": [
+            {
+              "timeout": 300000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "construction-desktop",
+              "projectName": "construction-desktop",
+              "results": [
+                {
+                  "workerIndex": 0,
+                  "parallelIndex": 0,
+                  "status": "passed",
+                  "duration": 3035,
+                  "errors": [],
+                  "stdout": [],
+                  "stderr": [],
+                  "retry": 0,
+                  "startTime": "2026-11-19T20:03:05.653Z",
+                  "annotations": [],
+                  "attachments": []
+                }
+              ],
+              "status": "expected"
+            }
+          ],
+          "id": "db96b61d6a99633b145e-3585c80cd5980a6a079b",
+          "file": "../desktop/construction.setup.ts",
+          "line": 32,
+          "column": 1
+        }
+      ]
+    },
+    {
+      "title": "preparation.setup.ts",
+      "file": "preparation.setup.ts",
+      "column": 0,
+      "line": 0,
+      "specs": [
+        {
+          "title": "jeu de données de la recherche",
+          "ok": true,
+          "tags": [],
+          "tests": [
+            {
+              "timeout": 120000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "preparation",
+              "projectName": "preparation",
+              "results": [
+                {
+                  "workerIndex": 1,
+                  "parallelIndex": 0,
+                  "status": "passed",
+                  "duration": 676,
+                  "errors": [],
+                  "stdout": [],
+                  "stderr": [],
+                  "retry": 0,
+                  "startTime": "2026-11-19T20:03:09.197Z",
+                  "annotations": [],
+                  "attachments": []
+                }
+              ],
+              "status": "expected"
+            }
+          ],
+          "id": "3515345599ceb0dc4f54-d3ff6dea97e72c30a358",
+          "file": "preparation.setup.ts",
+          "line": 5,
+          "column": 1
+        },
+        {
+          "title": "jeu de données de « Ma veille »",
+          "ok": true,
+          "tags": [],
+          "tests": [
+            {
+              "timeout": 120000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "preparation",
+              "projectName": "preparation",
+              "results": [
+                {
+                  "workerIndex": 1,
+                  "parallelIndex": 0,
+                  "status": "passed",
+                  "duration": 1759,
+                  "errors": [],
+                  "stdout": [],
+                  "stderr": [],
+                  "retry": 0,
+                  "startTime": "2026-11-19T20:03:09.907Z",
+                  "annotations": [],
+                  "attachments": []
+                }
+              ],
+              "status": "expected"
+            }
+          ],
+          "id": "3515345599ceb0dc4f54-e8ea02ff6f1cdf0c4164",
+          "file": "preparation.setup.ts",
+          "line": 9,
+          "column": 1
+        },
+        {
+          "title": "jeu de données de la vue d’inventaire",
+          "ok": true,
+          "tags": [],
+          "tests": [
+            {
+              "timeout": 120000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "preparation",
+              "projectName": "preparation",
+              "results": [
+                {
+                  "workerIndex": 1,
+                  "parallelIndex": 0,
+                  "status": "passed",
+                  "duration": 450,
+                  "errors": [],
+                  "stdout": [],
+                  "stderr": [],
+                  "retry": 0,
+                  "startTime": "2026-11-19T20:03:11.675Z",
+                  "annotations": [],
+                  "attachments": []
+                }
+              ],
+              "status": "expected"
+            }
+          ],
+          "id": "3515345599ceb0dc4f54-fe017a0ebc3bc36d59dc",
+          "file": "preparation.setup.ts",
+          "line": 13,
+          "column": 1
+        }
+      ]
+    },
+    {
+      "title": "affichage.spec.ts",
+      "file": "affichage.spec.ts",
+      "column": 0,
+      "line": 0,
+      "specs": [
+        {
+          "title": "AFF-01-S1, AFF-03-S1 (web) : la mise en page « gazette » choisie est retrouvée dans une nouvelle session",
+          "ok": true,
+          "tags": [],
+          "tests": [
+            {
+              "timeout": 120000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "portail-web",
+              "projectName": "portail-web",
+              "results": [
+                {
+                  "workerIndex": 3,
+                  "parallelIndex": 0,
+                  "status": "passed",
+                  "duration": 3014,
+                  "errors": [],
+                  "stdout": [],
+                  "stderr": [],
+                  "retry": 0,
+                  "startTime": "2026-11-19T20:03:28.597Z",
+                  "annotations": [],
+                  "attachments": []
+                }
+              ],
+              "status": "expected"
+            }
+          ],
+          "id": "96465f4c5e34d9fc123b-21ccf58f967fc814ab7b",
+          "file": "affichage.spec.ts",
+          "line": 7,
+          "column": 1
+        }
+      ]
+    },
+    {
+      "title": "chaine-automatisee.spec.ts",
+      "file": "chaine-automatisee.spec.ts",
+      "column": 0,
+      "line": 0,
+      "specs": [
+        {
+          "title": "chaîne automatisée : collecte et import planifiés, recorrélation, traitement d’un impact, abonnement suspendu",
+          "ok": true,
+          "tags": [],
+          "tests": [
+            {
+              "timeout": 600000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "portail-web",
+              "projectName": "portail-web",
+              "results": [
+                {
+                  "workerIndex": 3,
+                  "parallelIndex": 0,
+                  "status": "passed",
+                  "duration": 28402,
+                  "errors": [],
+                  "stdout": [],
+                  "stderr": [],
+                  "retry": 0,
+                  "steps": [
+                    {
+                      "title": "collecte horaire et import quotidien simulés : signaux, inventaire à deux dépôts, impact (COL-09-S1, INV-07-S1, INV-10-S1)",
+                      "duration": 5112
+                    },
+                    {
+                      "title": "import d’un nouveau composant : impact créé sans nouvelle collecte (INV-09-S1)",
+                      "duration": 2291
+                    },
+                    {
+                      "title": "confirmation d’un impact par un contributeur dans l’IHM (COR-10-S1)",
+                      "duration": 521
+                    },
+                    {
+                      "title": "composant retiré par l’import suivant : impact résolu par le système (COR-11-S1, INV-09-S2)",
+                      "duration": 4803
+                    },
+                    {
+                      "title": "abonnement suspendu : critères conservés, aucune alerte (ABO-07-S1)",
+                      "duration": 8795
+                    },
+                    {
+                      "title": "abonnement réactivé : une alerte pour le nouvel avis seulement (ABO-07-S2)",
+                      "duration": 5685
+                    }
+                  ],
+                  "startTime": "2026-11-19T20:03:31.769Z",
+                  "annotations": [],
+                  "attachments": []
+                }
+              ],
+              "status": "expected"
+            }
+          ],
+          "id": "ac878628c90a3759a104-f9d6f46411955ac629f5",
+          "file": "chaine-automatisee.spec.ts",
+          "line": 78,
+          "column": 1
+        }
+      ]
+    },
+    {
+      "title": "connexion.spec.ts",
+      "file": "connexion.spec.ts",
+      "column": 0,
+      "line": 0,
+      "specs": [
+        {
+          "title": "ACC-07-S1 : une vue protégée sans session affiche la connexion sans appeler l’API",
+          "ok": true,
+          "tags": [],
+          "tests": [
+            {
+              "timeout": 120000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "portail-web",
+              "projectName": "portail-web",
+              "results": [
+                {
+                  "workerIndex": 3,
+                  "parallelIndex": 0,
+                  "status": "passed",
+                  "duration": 592,
+                  "errors": [],
+                  "stdout": [],
+                  "stderr": [],
+                  "retry": 0,
+                  "startTime": "2026-11-19T20:04:00.209Z",
+                  "annotations": [],
+                  "attachments": []
+                }
+              ],
+              "status": "expected"
+            }
+          ],
+          "id": "79ed6df8864bd10a290d-9a546f58085f0f8b7a84",
+          "file": "connexion.spec.ts",
+          "line": 27,
+          "column": 1
+        },
+        {
+          "title": "ACC-07-S2, ACC-08-S1, ACC-09-S1/S2 : connexion réelle, retour sur la vue, adresse nettoyée",
+          "ok": true,
+          "tags": [],
+          "tests": [
+            {
+              "timeout": 120000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "portail-web",
+              "projectName": "portail-web",
+              "results": [
+                {
+                  "workerIndex": 3,
+                  "parallelIndex": 0,
+                  "status": "passed",
+                  "duration": 1901,
+                  "errors": [],
+                  "stdout": [],
+                  "stderr": [],
+                  "retry": 0,
+                  "startTime": "2026-11-19T20:04:00.823Z",
+                  "annotations": [],
+                  "attachments": []
+                }
+              ],
+              "status": "expected"
+            }
+          ],
+          "id": "79ed6df8864bd10a290d-807e726cecc980a6c91f",
+          "file": "connexion.spec.ts",
+          "line": 35,
+          "column": 1
+        },
+        {
+          "title": "ACC-07-S3 : un retour au state différent de la demande est refusé sans échange de code",
+          "ok": true,
+          "tags": [],
+          "tests": [
+            {
+              "timeout": 120000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "portail-web",
+              "projectName": "portail-web",
+              "results": [
+                {
+                  "workerIndex": 3,
+                  "parallelIndex": 0,
+                  "status": "passed",
+                  "duration": 1013,
+                  "errors": [],
+                  "stdout": [],
+                  "stderr": [],
+                  "retry": 0,
+                  "startTime": "2026-11-19T20:04:02.741Z",
+                  "annotations": [],
+                  "attachments": []
+                }
+              ],
+              "status": "expected"
+            }
+          ],
+          "id": "79ed6df8864bd10a290d-0ed27311bc6e93489a88",
+          "file": "connexion.spec.ts",
+          "line": 66,
+          "column": 1
+        },
+        {
+          "title": "ACC-08-S4 : la déconnexion ferme la session de l’IHM et celle du fournisseur",
+          "ok": true,
+          "tags": [],
+          "tests": [
+            {
+              "timeout": 120000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "portail-web",
+              "projectName": "portail-web",
+              "results": [
+                {
+                  "workerIndex": 3,
+                  "parallelIndex": 0,
+                  "status": "passed",
+                  "duration": 2405,
+                  "errors": [],
+                  "stdout": [],
+                  "stderr": [],
+                  "retry": 0,
+                  "startTime": "2026-11-19T20:04:03.772Z",
+                  "annotations": [],
+                  "attachments": []
+                }
+              ],
+              "status": "expected"
+            }
+          ],
+          "id": "79ed6df8864bd10a290d-cf011b1bb867b7f3e4f7",
+          "file": "connexion.spec.ts",
+          "line": 83,
+          "column": 1
+        },
+        {
+          "title": "ACC-09-S4 : une personne sans invitation voit le refus dédié et aucune vue protégée",
+          "ok": true,
+          "tags": [],
+          "tests": [
+            {
+              "timeout": 120000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "portail-web",
+              "projectName": "portail-web",
+              "results": [
+                {
+                  "workerIndex": 3,
+                  "parallelIndex": 0,
+                  "status": "passed",
+                  "duration": 1751,
+                  "errors": [],
+                  "stdout": [],
+                  "stderr": [],
+                  "retry": 0,
+                  "startTime": "2026-11-19T20:04:06.193Z",
+                  "annotations": [],
+                  "attachments": []
+                }
+              ],
+              "status": "expected"
+            }
+          ],
+          "id": "79ed6df8864bd10a290d-21cad8916a0378a2eaac",
+          "file": "connexion.spec.ts",
+          "line": 100,
+          "column": 1
+        },
+        {
+          "title": "ACC-08-S3 : renouvellement refusé par le fournisseur, état « session expirée »",
+          "ok": true,
+          "tags": [],
+          "tests": [
+            {
+              "timeout": 120000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "portail-web",
+              "projectName": "portail-web",
+              "results": [
+                {
+                  "workerIndex": 3,
+                  "parallelIndex": 0,
+                  "status": "passed",
+                  "duration": 2915,
+                  "errors": [],
+                  "stdout": [],
+                  "stderr": [],
+                  "retry": 0,
+                  "startTime": "2026-11-19T20:04:07.961Z",
+                  "annotations": [],
+                  "attachments": []
+                }
+              ],
+              "status": "expected"
+            }
+          ],
+          "id": "79ed6df8864bd10a290d-0d43b35e7f349e68358a",
+          "file": "connexion.spec.ts",
+          "line": 114,
+          "column": 1
+        }
+      ]
+    },
+    {
+      "title": "inventaire.spec.ts",
+      "file": "inventaire.spec.ts",
+      "column": 0,
+      "line": 0,
+      "specs": [
+        {
+          "title": "3.7, 3.8 (INV-01-S3, INV-06) : projet choisi, composants paginés et composants ignorés dans la vue d’inventaire du portail web",
+          "ok": true,
+          "tags": [],
+          "tests": [
+            {
+              "timeout": 120000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "portail-web",
+              "projectName": "portail-web",
+              "results": [
+                {
+                  "workerIndex": 3,
+                  "parallelIndex": 0,
+                  "status": "passed",
+                  "duration": 2827,
+                  "errors": [],
+                  "stdout": [],
+                  "stderr": [],
+                  "retry": 0,
+                  "steps": [
+                    {
+                      "title": "1. liste des projets ouverte depuis la navigation",
+                      "duration": 134
+                    },
+                    {
+                      "title": "2. aucun projet choisi, identifiant invalide refusé sans appel",
+                      "duration": 119
+                    },
+                    {
+                      "title": "3. projet choisi : synthèse et première page des composants",
+                      "duration": 215
+                    },
+                    {
+                      "title": "4. pagination des composants au clavier",
+                      "duration": 238
+                    },
+                    {
+                      "title": "5. composants ignorés faute de PURL",
+                      "duration": 139
+                    },
+                    {
+                      "title": "6. projet sans inventaire désigné par son identifiant",
+                      "duration": 104
+                    }
+                  ],
+                  "startTime": "2026-11-19T20:04:10.909Z",
+                  "annotations": [],
+                  "attachments": [
+                    {
+                      "name": "reponse-projets.json",
+                      "contentType": "application/json",
+                      "body": "eyJpdGVtcyI6W3siaWQiOiIwZTJlMDAwMC0wMDAwLTQwMDAtODAwMC0wMDAwMDAwMDAwMDIiLCJ3b3Jrc3BhY2VJZCI6IjYxNWMxNjk0LTY0OTktNGE4ZS04YzFhLWFiMjRmNTQ0ODIyNSIsIndvcmtzcGFjZU5hbWUiOiJFc3BhY2UgRTJFIHJlY2hlcmNoZSIsIm5hbWUiOiJDb21wdGFiaWxpdMOpIn0seyJpZCI6IjBlMmUwMDAwLTAwMDAtNDAwMC04MDAwLTAwMDAwMDAwMDBlMSIsIndvcmtzcGFjZUlkIjoiYTY0M2I3N2EtYTJjOS00NDQxLTgwNGItYzkyNWU4MWJmYmFmIiwid29ya3NwYWNlTmFtZSI6IkVzcGFjZSBFMkUgaW52ZW50YWlyZSIsIm5hbWUiOiJJbnZlbnRhaXJlIEUyRSJ9LHsiaWQiOiIwZTJlMDAwMC0wMDAwLTQwMDAtODAwMC0wMDAwMDAwMDAwMDEiLCJ3b3Jrc3BhY2VJZCI6IjYxNWMxNjk0LTY0OTktNGE4ZS04YzFhLWFiMjRmNTQ0ODIyNSIsIndvcmtzcGFjZU5hbWUiOiJFc3BhY2UgRTJFIHJlY2hlcmNoZSIsIm5hbWUiOiJQYWllIn0seyJpZCI6IjBlMmUwMDAwLTAwMDAtNDAwMC04MDAwLTAwMDAwMDAwMDBlMiIsIndvcmtzcGFjZUlkIjoiYTY0M2I3N2EtYTJjOS00NDQxLTgwNGItYzkyNWU4MWJmYmFmIiwid29ya3NwYWNlTmFtZSI6IkVzcGFjZSBFMkUgaW52ZW50YWlyZSIsIm5hbWUiOiJTYW5zIFNCT00gRTJFIn1dLCJwYWdlIjowLCJzaXplIjoyMDAsInRvdGFsIjo0fQ=="
+                    },
+                    {
+                      "name": "reponse-synthese-inventaire.json",
+                      "contentType": "application/json",
+                      "body": "eyJwcm9qZWN0SWQiOiIwZTJlMDAwMC0wMDAwLTQwMDAtODAwMC0wMDAwMDAwMDAwZTEiLCJzdGF0dXMiOiJBVkFJTEFCTEUiLCJzdW1tYXJ5Ijp7InByb2plY3RJZCI6IjBlMmUwMDAwLTAwMDAtNDAwMC04MDAwLTAwMDAwMDAwMDBlMSIsIm9yaWdpbiI6IlNCT00iLCJzb3VyY2VEYXRlIjoiMjAyNi0xMS0xN1QyMDowMzoxMi4xMTIzMzJaIiwiYWdlRGF5cyI6Miwib2Jzb2xldGUiOmZhbHNlLCJzcGVjVmVyc2lvbiI6IjEuNiIsImltcG9ydGVkQXQiOiIyMDI2LTExLTE5VDIwOjAzOjEyLjExMjMzMloiLCJjb21wb25lbnRDb3VudCI6MjUsImlnbm9yZWRDb3VudCI6MywiaWdub3JlZENvbXBvbmVudHMiOlt7Im5hbWUiOiJvdXRpbC1pbnRlcm5lIiwiZ3JvdXAiOiJmci5lMmUiLCJ2ZXJzaW9uIjoiMS4wIiwicmVhc29uIjoiU0FOU19QVVJMIn0seyJuYW1lIjoiPGltZyBzcmM9eCBvbmVycm9yPWFsZXJ0KDEpPiIsImdyb3VwIjpudWxsLCJ2ZXJzaW9uIjpudWxsLCJyZWFzb24iOiJQVVJMX0lOVkFMSURFIn1dLCJyZXBvc2l0b3JpZXMiOltdfX0="
+                    },
+                    {
+                      "name": "reponse-composants-page-0.json",
+                      "contentType": "application/json",
+                      "body": "eyJwcm9qZWN0SWQiOiIwZTJlMDAwMC0wMDAwLTQwMDAtODAwMC0wMDAwMDAwMDAwZTEiLCJpdGVtcyI6W3siaWQiOiIwZTJlMDAwMC0wMDAwLTQwMDAtODAwMC0wMDAwMDAwMDAxMDEiLCJuYW1lIjoiZTJlLXBhcXVldC0wMSIsInZlcnNpb24iOiIxLjAuMSIsInB1cmwiOiJwa2c6bnBtL2UyZS1wYXF1ZXQtMDFAMS4wLjEiLCJwYWNrYWdlS2V5IjoicGtnOm5wbS9lMmUtcGFxdWV0LTAxIiwidHJhbnNpdGl2ZSI6ZmFsc2UsInJlcG9zaXRvcmllcyI6W119LHsiaWQiOiIwZTJlMDAwMC0wMDAwLTQwMDAtODAwMC0wMDAwMDAwMDAxMDIiLCJuYW1lIjoiZTJlLXBhcXVldC0wMiIsInZlcnNpb24iOiIxLjAuMiIsInB1cmwiOiJwa2c6bnBtL2UyZS1wYXF1ZXQtMDJAMS4wLjIiLCJwYWNrYWdlS2V5IjoicGtnOm5wbS9lMmUtcGFxdWV0LTAyIiwidHJhbnNpdGl2ZSI6dHJ1ZSwicmVwb3NpdG9yaWVzIjpbXX0seyJpZCI6IjBlMmUwMDAwLTAwMDAtNDAwMC04MDAwLTAwMDAwMDAwMDEwMyIsIm5hbWUiOiJlMmUtcGFxdWV0LTAzIiwidmVyc2lvbiI6IjEuMC4zIiwicHVybCI6InBrZzpucG0vZTJlLXBhcXVldC0wM0AxLjAuMyIsInBhY2thZ2VLZXkiOiJwa2c6bnBtL2UyZS1wYXF1ZXQtMDMiLCJ0cmFuc2l0aXZlIjp0cnVlLCJyZXBvc2l0b3JpZXMiOltdfSx7ImlkIjoiMGUyZTAwMDAtMDAwMC00MDAwLTgwMDAtMDAwMDAwMDAwMTA0IiwibmFtZSI6ImUyZS1wYXF1ZXQtMDQiLCJ2ZXJzaW9uIjoiMS4wLjQiLCJwdXJsIjoicGtnOm5wbS9lMmUtcGFxdWV0LTA0QDEuMC40IiwicGFja2FnZUtleSI6InBrZzpucG0vZTJlLXBhcXVldC0wNCIsInRyYW5zaXRpdmUiOnRydWUsInJlcG9zaXRvcmllcyI6W119LHsiaWQiOiIwZTJlMDAwMC0wMDAwLTQwMDAtODAwMC0wMDAwMDAwMDAxMDUiLCJuYW1lIjoiZTJlLXBhcXVldC0wNSIsInZlcnNpb24iOiIxLjAuNSIsInB1cmwiOiJwa2c6bnBtL2UyZS1wYXF1ZXQtMDVAMS4wLjUiLCJwYWNrYWdlS2V5IjoicGtnOm5wbS9lMmUtcGFxdWV0LTA1IiwidHJhbnNpdGl2ZSI6dHJ1ZSwicmVwb3NpdG9yaWVzIjpbXX0seyJpZCI6IjBlMmUwMDAwLTAwMDAtNDAwMC04MDAwLTAwMDAwMDAwMDEwNiIsIm5hbWUiOiJlMmUtcGFxdWV0LTA2IiwidmVyc2lvbiI6IjEuMC42IiwicHVybCI6InBrZzpucG0vZTJlLXBhcXVldC0wNkAxLjAuNiIsInBhY2thZ2VLZXkiOiJwa2c6bnBtL2UyZS1wYXF1ZXQtMDYiLCJ0cmFuc2l0aXZlIjp0cnVlLCJyZXBvc2l0b3JpZXMiOltdfSx7ImlkIjoiMGUyZTAwMDAtMDAwMC00MDAwLTgwMDAtMDAwMDAwMDAwMTA3IiwibmFtZSI6ImUyZS1wYXF1ZXQtMDciLCJ2ZXJzaW9uIjoiMS4wLjciLCJwdXJsIjoicGtnOm5wbS9lMmUtcGFxdWV0LTA3QDEuMC43IiwicGFja2FnZUtleSI6InBrZzpucG0vZTJlLXBhcXVldC0wNyIsInRyYW5zaXRpdmUiOnRydWUsInJlcG9zaXRvcmllcyI6W119LHsiaWQiOiIwZTJlMDAwMC0wMDAwLTQwMDAtODAwMC0wMDAwMDAwMDAxMDgiLCJuYW1lIjoiZTJlLXBhcXVldC0wOCIsInZlcnNpb24iOiIxLjAuOCIsInB1cmwiOiJwa2c6bnBtL2UyZS1wYXF1ZXQtMDhAMS4wLjgiLCJwYWNrYWdlS2V5IjoicGtnOm5wbS9lMmUtcGFxdWV0LTA4IiwidHJhbnNpdGl2ZSI6dHJ1ZSwicmVwb3NpdG9yaWVzIjpbXX0seyJpZCI6IjBlMmUwMDAwLTAwMDAtNDAwMC04MDAwLTAwMDAwMDAwMDEwOSIsIm5hbWUiOiJlMmUtcGFxdWV0LTA5IiwidmVyc2lvbiI6IjEuMC45IiwicHVybCI6InBrZzpucG0vZTJlLXBhcXVldC0wOUAxLjAuOSIsInBhY2thZ2VLZXkiOiJwa2c6bnBtL2UyZS1wYXF1ZXQtMDkiLCJ0cmFuc2l0aXZlIjp0cnVlLCJyZXBvc2l0b3JpZXMiOltdfSx7ImlkIjoiMGUyZTAwMDAtMDAwMC00MDAwLTgwMDAtMDAwMDAwMDAwMTEwIiwibmFtZSI6ImUyZS1wYXF1ZXQtMTAiLCJ2ZXJzaW9uIjoiMS4wLjEwIiwicHVybCI6InBrZzpucG0vZTJlLXBhcXVldC0xMEAxLjAuMTAiLCJwYWNrYWdlS2V5IjoicGtnOm5wbS9lMmUtcGFxdWV0LTEwIiwidHJhbnNpdGl2ZSI6dHJ1ZSwicmVwb3NpdG9yaWVzIjpbXX0seyJpZCI6IjBlMmUwMDAwLTAwMDAtNDAwMC04MDAwLTAwMDAwMDAwMDExMSIsIm5hbWUiOiJlMmUtcGFxdWV0LTExIiwidmVyc2lvbiI6IjEuMC4xMSIsInB1cmwiOiJwa2c6bnBtL2UyZS1wYXF1ZXQtMTFAMS4wLjExIiwicGFja2FnZUtleSI6InBrZzpucG0vZTJlLXBhcXVldC0xMSIsInRyYW5zaXRpdmUiOnRydWUsInJlcG9zaXRvcmllcyI6W119LHsiaWQiOiIwZTJlMDAwMC0wMDAwLTQwMDAtODAwMC0wMDAwMDAwMDAxMTIiLCJuYW1lIjoiZTJlLXBhcXVldC0xMiIsInZlcnNpb24iOiIxLjAuMTIiLCJwdXJsIjoicGtnOm5wbS9lMmUtcGFxdWV0LTEyQDEuMC4xMiIsInBhY2thZ2VLZXkiOiJwa2c6bnBtL2UyZS1wYXF1ZXQtMTIiLCJ0cmFuc2l0aXZlIjp0cnVlLCJyZXBvc2l0b3JpZXMiOltdfSx7ImlkIjoiMGUyZTAwMDAtMDAwMC00MDAwLTgwMDAtMDAwMDAwMDAwMTEzIiwibmFtZSI6ImUyZS1wYXF1ZXQtMTMiLCJ2ZXJzaW9uIjoiMS4wLjEzIiwicHVybCI6InBrZzpucG0vZTJlLXBhcXVldC0xM0AxLjAuMTMiLCJwYWNrYWdlS2V5IjoicGtnOm5wbS9lMmUtcGFxdWV0LTEzIiwidHJhbnNpdGl2ZSI6dHJ1ZSwicmVwb3NpdG9yaWVzIjpbXX0seyJpZCI6IjBlMmUwMDAwLTAwMDAtNDAwMC04MDAwLTAwMDAwMDAwMDExNCIsIm5hbWUiOiJlMmUtcGFxdWV0LTE0IiwidmVyc2lvbiI6IjEuMC4xNCIsInB1cmwiOiJwa2c6bnBtL2UyZS1wYXF1ZXQtMTRAMS4wLjE0IiwicGFja2FnZUtleSI6InBrZzpucG0vZTJlLXBhcXVldC0xNCIsInRyYW5zaXRpdmUiOnRydWUsInJlcG9zaXRvcmllcyI6W119LHsiaWQiOiIwZTJlMDAwMC0wMDAwLTQwMDAtODAwMC0wMDAwMDAwMDAxMTUiLCJuYW1lIjoiZTJlLXBhcXVldC0xNSIsInZlcnNpb24iOiIxLjAuMTUiLCJwdXJsIjoicGtnOm5wbS9lMmUtcGFxdWV0LTE1QDEuMC4xNSIsInBhY2thZ2VLZXkiOiJwa2c6bnBtL2UyZS1wYXF1ZXQtMTUiLCJ0cmFuc2l0aXZlIjp0cnVlLCJyZXBvc2l0b3JpZXMiOltdfSx7ImlkIjoiMGUyZTAwMDAtMDAwMC00MDAwLTgwMDAtMDAwMDAwMDAwMTE2IiwibmFtZSI6ImUyZS1wYXF1ZXQtMTYiLCJ2ZXJzaW9uIjoiMS4wLjE2IiwicHVybCI6InBrZzpucG0vZTJlLXBhcXVldC0xNkAxLjAuMTYiLCJwYWNrYWdlS2V5IjoicGtnOm5wbS9lMmUtcGFxdWV0LTE2IiwidHJhbnNpdGl2ZSI6dHJ1ZSwicmVwb3NpdG9yaWVzIjpbXX0seyJpZCI6IjBlMmUwMDAwLTAwMDAtNDAwMC04MDAwLTAwMDAwMDAwMDExNyIsIm5hbWUiOiJlMmUtcGFxdWV0LTE3IiwidmVyc2lvbiI6IjEuMC4xNyIsInB1cmwiOiJwa2c6bnBtL2UyZS1wYXF1ZXQtMTdAMS4wLjE3IiwicGFja2FnZUtleSI6InBrZzpucG0vZTJlLXBhcXVldC0xNyIsInRyYW5zaXRpdmUiOnRydWUsInJlcG9zaXRvcmllcyI6W119LHsiaWQiOiIwZTJlMDAwMC0wMDAwLTQwMDAtODAwMC0wMDAwMDAwMDAxMTgiLCJuYW1lIjoiZTJlLXBhcXVldC0xOCIsInZlcnNpb24iOiIxLjAuMTgiLCJwdXJsIjoicGtnOm5wbS9lMmUtcGFxdWV0LTE4QDEuMC4xOCIsInBhY2thZ2VLZXkiOiJwa2c6bnBtL2UyZS1wYXF1ZXQtMTgiLCJ0cmFuc2l0aXZlIjp0cnVlLCJyZXBvc2l0b3JpZXMiOltdfSx7ImlkIjoiMGUyZTAwMDAtMDAwMC00MDAwLTgwMDAtMDAwMDAwMDAwMTE5IiwibmFtZSI6ImUyZS1wYXF1ZXQtMTkiLCJ2ZXJzaW9uIjoiMS4wLjE5IiwicHVybCI6InBrZzpucG0vZTJlLXBhcXVldC0xOUAxLjAuMTkiLCJwYWNrYWdlS2V5IjoicGtnOm5wbS9lMmUtcGFxdWV0LTE5IiwidHJhbnNpdGl2ZSI6dHJ1ZSwicmVwb3NpdG9yaWVzIjpbXX0seyJpZCI6IjBlMmUwMDAwLTAwMDAtNDAwMC04MDAwLTAwMDAwMDAwMDEyMCIsIm5hbWUiOiJlMmUtcGFxdWV0LTIwIiwidmVyc2lvbiI6IjEuMC4yMCIsInB1cmwiOiJwa2c6bnBtL2UyZS1wYXF1ZXQtMjBAMS4wLjIwIiwicGFja2FnZUtleSI6InBrZzpucG0vZTJlLXBhcXVldC0yMCIsInRyYW5zaXRpdmUiOnRydWUsInJlcG9zaXRvcmllcyI6W119XSwicGFnZSI6MCwic2l6ZSI6MjAsInRvdGFsIjoyNX0="
+                    }
+                  ]
+                }
+              ],
+              "status": "expected"
+            }
+          ],
+          "id": "47892ddad6d4ce317ba4-df114db1361ba9ebfbd2",
+          "file": "inventaire.spec.ts",
+          "line": 149,
+          "column": 1
+        }
+      ]
+    },
+    {
+      "title": "recherche.spec.ts",
+      "file": "recherche.spec.ts",
+      "column": 0,
+      "line": 0,
+      "specs": [
+        {
+          "title": "RCH-01, RCH-02-S1, RCH-04-S1 : recherche « Oracle », projet Paie, 30 jours, vue enregistrée puis rappelée",
+          "ok": true,
+          "tags": [],
+          "tests": [
+            {
+              "timeout": 120000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "portail-web",
+              "projectName": "portail-web",
+              "results": [
+                {
+                  "workerIndex": 3,
+                  "parallelIndex": 0,
+                  "status": "passed",
+                  "duration": 3310,
+                  "errors": [],
+                  "stdout": [],
+                  "stderr": [],
+                  "retry": 0,
+                  "startTime": "2026-11-19T20:04:13.774Z",
+                  "annotations": [],
+                  "attachments": [
+                    {
+                      "name": "reponse-recherche-oracle-30j.json",
+                      "contentType": "application/json",
+                      "body": "eyJlbGVtZW50cyI6W3sidHlwZSI6IkFWSVNfU0VDVVJJVEUiLCJpZCI6IjBlMmUwMDAwLTAwMDAtNDAwMC04MDAwLTAwMDAwMDAwMDBhMSIsInNvdXJjZSI6Ik9TViIsImlkZW50aWZpYW50IjoiRTJFLU9SQUNMRS0wMDAxIiwidGl0cmUiOiJPcmFjbGUgRGF0YWJhc2UgOiBmYWlsbGUgY29ycmlnw6llIiwiZXh0cmFpdCI6IkxlIGNvcnJlY3RpZiBPcmFjbGUgY29ycmlnZSB1bmUgZmFpbGxlIGRlIGxhIGJhc2UuIiwiZ3Jhdml0ZSI6IkhJR0giLCJkYXRlIjoiMjAyNi0xMS0xNFQyMDowMzowOS44NzAxMjFaIiwibGllbiI6bnVsbCwicGVydGluZW5jZSI6MC44MzQ0MzA2MywicHJvamV0cyI6W3sicHJvamV0SWQiOiIwZTJlMDAwMC0wMDAwLTQwMDAtODAwMC0wMDAwMDAwMDAwMDEiLCJwcm9qZXQiOiJQYWllIn1dfSx7InR5cGUiOiJBVklTX1NFQ1VSSVRFIiwiaWQiOiIwZTJlMDAwMC0wMDAwLTQwMDAtODAwMC0wMDAwMDAwMDAwYTMiLCJzb3VyY2UiOiJPU1YiLCJpZGVudGlmaWFudCI6IkUyRS1PUkFDTEUtMDAwMyIsInRpdHJlIjoiT3JhY2xlIEphdmEgOiBmYWlsbGUiLCJleHRyYWl0IjoiQ29ycmVjdGlmIE9yYWNsZSBwb3VyIEphdmEuIiwiZ3Jhdml0ZSI6IkhJR0giLCJkYXRlIjoiMjAyNi0xMS0xNFQyMDowMzowOS44NzAxMjFaIiwibGllbiI6bnVsbCwicGVydGluZW5jZSI6MC44MzQ0MzA2MywicHJvamV0cyI6W3sicHJvamV0SWQiOiIwZTJlMDAwMC0wMDAwLTQwMDAtODAwMC0wMDAwMDAwMDAwMDIiLCJwcm9qZXQiOiJDb21wdGFiaWxpdMOpIn1dfV0sInBhZ2UiOjAsInRhaWxsZSI6MjAsInRvdGFsIjoyLCJtZXNzYWdlIjpudWxsfQ=="
+                    }
+                  ]
+                }
+              ],
+              "status": "expected"
+            }
+          ],
+          "id": "47cc486fa8a49be6b457-e16f236cc0f38390ac0b",
+          "file": "recherche.spec.ts",
+          "line": 10,
+          "column": 1
+        }
+      ]
+    },
+    {
+      "title": "veille.spec.ts",
+      "file": "veille.spec.ts",
+      "column": 0,
+      "line": 0,
+      "specs": [
+        {
+          "title": "3.4, 3.9 (PRF-02, PRF-02-S3) : deux profils actifs et un abonnement personnel, union sans doublon avec rubriques",
+          "ok": true,
+          "tags": [],
+          "tests": [
+            {
+              "timeout": 120000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "portail-web",
+              "projectName": "portail-web",
+              "results": [
+                {
+                  "workerIndex": 3,
+                  "parallelIndex": 0,
+                  "status": "passed",
+                  "duration": 2501,
+                  "errors": [],
+                  "stdout": [],
+                  "stderr": [],
+                  "retry": 0,
+                  "startTime": "2026-11-19T20:04:17.116Z",
+                  "annotations": [],
+                  "attachments": []
+                }
+              ],
+              "status": "expected"
+            }
+          ],
+          "id": "f14f44499e60edbd4ba2-9a1ccfb488e118ca0be5",
+          "file": "veille.spec.ts",
+          "line": 45,
+          "column": 1
+        },
+        {
+          "title": "3.9, AFF-02-S2 (PRF-02-S4) : un utilisateur d’un autre espace ne voit rien de plus que ses droits",
+          "ok": true,
+          "tags": [],
+          "tests": [
+            {
+              "timeout": 120000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "portail-web",
+              "projectName": "portail-web",
+              "results": [
+                {
+                  "workerIndex": 3,
+                  "parallelIndex": 0,
+                  "status": "passed",
+                  "duration": 2197,
+                  "errors": [],
+                  "stdout": [],
+                  "stderr": [],
+                  "retry": 0,
+                  "startTime": "2026-11-19T20:04:19.631Z",
+                  "annotations": [],
+                  "attachments": []
+                }
+              ],
+              "status": "expected"
+            }
+          ],
+          "id": "f14f44499e60edbd4ba2-134e78dec18b43cea412",
+          "file": "veille.spec.ts",
+          "line": 108,
+          "column": 1
+        },
+        {
+          "title": "2.4 (AFF-02-S1, AFF-02-S2) : la même veille réelle dans les quatre mises en page",
+          "ok": true,
+          "tags": [],
+          "tests": [
+            {
+              "timeout": 120000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "portail-web",
+              "projectName": "portail-web",
+              "results": [
+                {
+                  "workerIndex": 3,
+                  "parallelIndex": 0,
+                  "status": "passed",
+                  "duration": 3453,
+                  "errors": [],
+                  "stdout": [],
+                  "stderr": [],
+                  "retry": 0,
+                  "startTime": "2026-11-19T20:04:21.845Z",
+                  "annotations": [],
+                  "attachments": []
+                }
+              ],
+              "status": "expected"
+            }
+          ],
+          "id": "f14f44499e60edbd4ba2-a8701eb9deea8607fd34",
+          "file": "veille.spec.ts",
+          "line": 130,
+          "column": 1
+        },
+        {
+          "title": "5.2 (partie web) : « gazette » choisie sur le web, « Ma veille » affichée en gazette avec l’union des veilles",
+          "ok": true,
+          "tags": [],
+          "tests": [
+            {
+              "timeout": 120000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "portail-web",
+              "projectName": "portail-web",
+              "results": [
+                {
+                  "workerIndex": 3,
+                  "parallelIndex": 0,
+                  "status": "passed",
+                  "duration": 3568,
+                  "errors": [],
+                  "stdout": [],
+                  "stderr": [],
+                  "retry": 0,
+                  "startTime": "2026-11-19T20:04:25.314Z",
+                  "annotations": [],
+                  "attachments": []
+                }
+              ],
+              "status": "expected"
+            }
+          ],
+          "id": "f14f44499e60edbd4ba2-45a097555736c0805364",
+          "file": "veille.spec.ts",
+          "line": 167,
+          "column": 1
+        },
+        {
+          "title": "2.6 : accessibilité de « classique » sur la veille réelle (contrastes, tabulation, noms accessibles)",
+          "ok": true,
+          "tags": [],
+          "tests": [
+            {
+              "timeout": 120000,
+              "annotations": [
+                {
+                  "type": "contraste minimal",
+                  "description": "5.19"
+                },
+                {
+                  "type": "contraste minimal du focus",
+                  "description": "12.24"
+                }
+              ],
+              "expectedStatus": "passed",
+              "projectId": "portail-web",
+              "projectName": "portail-web",
+              "results": [
+                {
+                  "workerIndex": 3,
+                  "parallelIndex": 0,
+                  "status": "passed",
+                  "duration": 2195,
+                  "errors": [],
+                  "stdout": [],
+                  "stderr": [],
+                  "retry": 0,
+                  "startTime": "2026-11-19T20:04:28.899Z",
+                  "annotations": [
+                    {
+                      "type": "contraste minimal",
+                      "description": "5.19"
+                    },
+                    {
+                      "type": "contraste minimal du focus",
+                      "description": "12.24"
+                    }
+                  ],
+                  "attachments": []
+                }
+              ],
+              "status": "expected"
+            }
+          ],
+          "id": "f14f44499e60edbd4ba2-fec4c54ca419e0ac6883",
+          "file": "veille.spec.ts",
+          "line": 189,
+          "column": 3
+        },
+        {
+          "title": "2.6 : accessibilité de « journal » sur la veille réelle (contrastes, tabulation, noms accessibles)",
+          "ok": true,
+          "tags": [],
+          "tests": [
+            {
+              "timeout": 120000,
+              "annotations": [
+                {
+                  "type": "contraste minimal",
+                  "description": "5.08"
+                },
+                {
+                  "type": "contraste minimal du focus",
+                  "description": "6.59"
+                }
+              ],
+              "expectedStatus": "passed",
+              "projectId": "portail-web",
+              "projectName": "portail-web",
+              "results": [
+                {
+                  "workerIndex": 3,
+                  "parallelIndex": 0,
+                  "status": "passed",
+                  "duration": 2190,
+                  "errors": [],
+                  "stdout": [],
+                  "stderr": [],
+                  "retry": 0,
+                  "startTime": "2026-11-19T20:04:31.109Z",
+                  "annotations": [
+                    {
+                      "type": "contraste minimal",
+                      "description": "5.08"
+                    },
+                    {
+                      "type": "contraste minimal du focus",
+                      "description": "6.59"
+                    }
+                  ],
+                  "attachments": []
+                }
+              ],
+              "status": "expected"
+            }
+          ],
+          "id": "f14f44499e60edbd4ba2-76160b29a7c2c64c9374",
+          "file": "veille.spec.ts",
+          "line": 189,
+          "column": 3
+        },
+        {
+          "title": "2.6 : accessibilité de « fantaisie » sur la veille réelle (contrastes, tabulation, noms accessibles)",
+          "ok": true,
+          "tags": [],
+          "tests": [
+            {
+              "timeout": 120000,
+              "annotations": [
+                {
+                  "type": "contraste minimal",
+                  "description": "4.97"
+                },
+                {
+                  "type": "contraste minimal du focus",
+                  "description": "4.98"
+                }
+              ],
+              "expectedStatus": "passed",
+              "projectId": "portail-web",
+              "projectName": "portail-web",
+              "results": [
+                {
+                  "workerIndex": 3,
+                  "parallelIndex": 0,
+                  "status": "passed",
+                  "duration": 2239,
+                  "errors": [],
+                  "stdout": [],
+                  "stderr": [],
+                  "retry": 0,
+                  "startTime": "2026-11-19T20:04:33.313Z",
+                  "annotations": [
+                    {
+                      "type": "contraste minimal",
+                      "description": "4.97"
+                    },
+                    {
+                      "type": "contraste minimal du focus",
+                      "description": "4.98"
+                    }
+                  ],
+                  "attachments": []
+                }
+              ],
+              "status": "expected"
+            }
+          ],
+          "id": "f14f44499e60edbd4ba2-3f625cdfd96bd952f4c7",
+          "file": "veille.spec.ts",
+          "line": 189,
+          "column": 3
+        },
+        {
+          "title": "2.6 : accessibilité de « gazette » sur la veille réelle (contrastes, tabulation, noms accessibles)",
+          "ok": true,
+          "tags": [],
+          "tests": [
+            {
+              "timeout": 120000,
+              "annotations": [
+                {
+                  "type": "contraste minimal",
+                  "description": "6.67"
+                },
+                {
+                  "type": "contraste minimal du focus",
+                  "description": "6.67"
+                }
+              ],
+              "expectedStatus": "passed",
+              "projectId": "portail-web",
+              "projectName": "portail-web",
+              "results": [
+                {
+                  "workerIndex": 3,
+                  "parallelIndex": 0,
+                  "status": "passed",
+                  "duration": 2332,
+                  "errors": [],
+                  "stdout": [],
+                  "stderr": [],
+                  "retry": 0,
+                  "startTime": "2026-11-19T20:04:35.569Z",
+                  "annotations": [
+                    {
+                      "type": "contraste minimal",
+                      "description": "6.67"
+                    },
+                    {
+                      "type": "contraste minimal du focus",
+                      "description": "6.67"
+                    }
+                  ],
+                  "attachments": []
+                }
+              ],
+              "status": "expected"
+            }
+          ],
+          "id": "f14f44499e60edbd4ba2-40291ba042d8aef34361",
+          "file": "veille.spec.ts",
+          "line": 189,
+          "column": 3
+        }
+      ]
+    },
+    {
+      "title": "..\\desktop\\affichage.spec.ts",
+      "file": "../desktop/affichage.spec.ts",
+      "column": 0,
+      "line": 0,
+      "specs": [
+        {
+          "title": "2.5 (AFF-03-S1) : « fantaisie » choisie sur le web, le client desktop s’affiche en « fantaisie »",
+          "ok": true,
+          "tags": [],
+          "tests": [
+            {
+              "timeout": 120000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "desktop",
+              "projectName": "desktop",
+              "results": [
+                {
+                  "workerIndex": 4,
+                  "parallelIndex": 0,
+                  "status": "passed",
+                  "duration": 4015,
+                  "errors": [],
+                  "stdout": [],
+                  "stderr": [],
+                  "retry": 0,
+                  "startTime": "2026-11-19T20:04:38.441Z",
+                  "annotations": [],
+                  "attachments": []
+                }
+              ],
+              "status": "expected"
+            }
+          ],
+          "id": "96465f4c5e34d9fc123b-2d646d6467e996d9d8e6",
+          "file": "../desktop/affichage.spec.ts",
+          "line": 26,
+          "column": 1
+        },
+        {
+          "title": "5.2 : developpeur + expert-metier, « gazette » choisie sur le web, retrouvée sur le desktop avec l’union de ses veilles",
+          "ok": true,
+          "tags": [],
+          "tests": [
+            {
+              "timeout": 120000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "desktop",
+              "projectName": "desktop",
+              "results": [
+                {
+                  "workerIndex": 4,
+                  "parallelIndex": 0,
+                  "status": "passed",
+                  "duration": 3946,
+                  "errors": [],
+                  "stdout": [],
+                  "stderr": [],
+                  "retry": 0,
+                  "startTime": "2026-11-19T20:04:42.599Z",
+                  "annotations": [],
+                  "attachments": []
+                }
+              ],
+              "status": "expected"
+            }
+          ],
+          "id": "96465f4c5e34d9fc123b-49fd6a73cc3247f198c5",
+          "file": "../desktop/affichage.spec.ts",
+          "line": 68,
+          "column": 1
+        }
+      ]
+    },
+    {
+      "title": "..\\desktop\\connexion.spec.ts",
+      "file": "../desktop/connexion.spec.ts",
+      "column": 0,
+      "line": 0,
+      "specs": [
+        {
+          "title": "ACC-10-S1, S2, S4 : connexion par le navigateur du système et retour sur 127.0.0.1",
+          "ok": true,
+          "tags": [],
+          "tests": [
+            {
+              "timeout": 120000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "desktop",
+              "projectName": "desktop",
+              "results": [
+                {
+                  "workerIndex": 4,
+                  "parallelIndex": 0,
+                  "status": "passed",
+                  "duration": 1769,
+                  "errors": [],
+                  "stdout": [],
+                  "stderr": [],
+                  "retry": 0,
+                  "startTime": "2026-11-19T20:04:46.578Z",
+                  "annotations": [],
+                  "attachments": []
+                }
+              ],
+              "status": "expected"
+            }
+          ],
+          "id": "79ed6df8864bd10a290d-15efe10602a3c747f4a9",
+          "file": "../desktop/connexion.spec.ts",
+          "line": 35,
+          "column": 1
+        }
+      ]
+    },
+    {
+      "title": "..\\desktop\\inventaire.spec.ts",
+      "file": "../desktop/inventaire.spec.ts",
+      "column": 0,
+      "line": 0,
+      "specs": [
+        {
+          "title": "3.7, 3.8 (INV-01-S3, INV-06) : projet choisi, composants paginés et composants ignorés dans la vue d’inventaire du desktop",
+          "ok": true,
+          "tags": [],
+          "tests": [
+            {
+              "timeout": 120000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "desktop",
+              "projectName": "desktop",
+              "results": [
+                {
+                  "workerIndex": 4,
+                  "parallelIndex": 0,
+                  "status": "passed",
+                  "duration": 1841,
+                  "errors": [],
+                  "stdout": [],
+                  "stderr": [],
+                  "retry": 0,
+                  "startTime": "2026-11-19T20:04:48.389Z",
+                  "annotations": [],
+                  "attachments": []
+                }
+              ],
+              "status": "expected"
+            }
+          ],
+          "id": "47892ddad6d4ce317ba4-c81c42e6cb80dccb712f",
+          "file": "../desktop/inventaire.spec.ts",
+          "line": 17,
+          "column": 1
+        }
+      ]
+    },
+    {
+      "title": "..\\desktop\\notifications.spec.ts",
+      "file": "../desktop/notifications.spec.ts",
+      "column": 0,
+      "line": 0,
+      "specs": [
+        {
+          "title": "NOT-01-S1, NOT-05-S1, NOT-03-S1, NOT-02-S1 : fenêtre masquée, notification, compteur, clic",
+          "ok": true,
+          "tags": [],
+          "tests": [
+            {
+              "timeout": 240000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "desktop",
+              "projectName": "desktop",
+              "results": [
+                {
+                  "workerIndex": 4,
+                  "parallelIndex": 0,
+                  "status": "passed",
+                  "duration": 62743,
+                  "errors": [],
+                  "stdout": [],
+                  "stderr": [],
+                  "retry": 0,
+                  "startTime": "2026-11-19T20:04:50.265Z",
+                  "annotations": [],
+                  "attachments": []
+                }
+              ],
+              "status": "expected"
+            }
+          ],
+          "id": "be7d0958780d1a4666e5-49dc0b37e2ce5aa4c1f5",
+          "file": "../desktop/notifications.spec.ts",
+          "line": 96,
+          "column": 1
+        },
+        {
+          "title": "NOT-04-S1 (partie poste) : notifications du poste coupées, alerte comptée et visible",
+          "ok": true,
+          "tags": [],
+          "tests": [
+            {
+              "timeout": 240000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "desktop",
+              "projectName": "desktop",
+              "results": [
+                {
+                  "workerIndex": 4,
+                  "parallelIndex": 0,
+                  "status": "passed",
+                  "duration": 32723,
+                  "errors": [],
+                  "stdout": [],
+                  "stderr": [],
+                  "retry": 0,
+                  "startTime": "2026-11-19T20:05:53.031Z",
+                  "annotations": [],
+                  "attachments": []
+                }
+              ],
+              "status": "expected"
+            }
+          ],
+          "id": "be7d0958780d1a4666e5-d353a0aab4023480b81c",
+          "file": "../desktop/notifications.spec.ts",
+          "line": 145,
+          "column": 1
+        },
+        {
+          "title": "NOT-01-S2 (partie application) : notifications refusées par le système, alertes comptées et visibles",
+          "ok": true,
+          "tags": [],
+          "tests": [
+            {
+              "timeout": 240000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "desktop",
+              "projectName": "desktop",
+              "results": [
+                {
+                  "workerIndex": 4,
+                  "parallelIndex": 0,
+                  "status": "passed",
+                  "duration": 63020,
+                  "errors": [],
+                  "stdout": [],
+                  "stderr": [],
+                  "retry": 0,
+                  "startTime": "2026-11-19T20:06:25.773Z",
+                  "annotations": [],
+                  "attachments": []
+                }
+              ],
+              "status": "expected"
+            }
+          ],
+          "id": "be7d0958780d1a4666e5-d257f0ad8a9fd515a50a",
+          "file": "../desktop/notifications.spec.ts",
+          "line": 177,
+          "column": 1
+        },
+        {
+          "title": "NOT-06-S1 : coupure du serveur, deux alertes émises pendant la coupure, reprise sans perte ni doublon",
+          "ok": true,
+          "tags": [],
+          "tests": [
+            {
+              "timeout": 240000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "desktop",
+              "projectName": "desktop",
+              "results": [
+                {
+                  "workerIndex": 4,
+                  "parallelIndex": 0,
+                  "status": "passed",
+                  "duration": 77583,
+                  "errors": [],
+                  "stdout": [],
+                  "stderr": [],
+                  "retry": 0,
+                  "startTime": "2026-11-19T20:07:28.813Z",
+                  "annotations": [],
+                  "attachments": []
+                }
+              ],
+              "status": "expected"
+            }
+          ],
+          "id": "be7d0958780d1a4666e5-9f4d91e78034749f2a97",
+          "file": "../desktop/notifications.spec.ts",
+          "line": 213,
+          "column": 1
+        }
+      ]
+    },
+    {
+      "title": "..\\desktop\\recherche.spec.ts",
+      "file": "../desktop/recherche.spec.ts",
+      "column": 0,
+      "line": 0,
+      "specs": [
+        {
+          "title": "4.2 (RCH-02-S1, RCH-04-S1) : recherche enregistrée en vue sur le web, rappelée depuis le desktop",
+          "ok": true,
+          "tags": [],
+          "tests": [
+            {
+              "timeout": 120000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "desktop",
+              "projectName": "desktop",
+              "results": [
+                {
+                  "workerIndex": 4,
+                  "parallelIndex": 0,
+                  "status": "passed",
+                  "duration": 3793,
+                  "errors": [],
+                  "stdout": [],
+                  "stderr": [],
+                  "retry": 0,
+                  "startTime": "2026-11-19T20:08:46.438Z",
+                  "annotations": [],
+                  "attachments": []
+                }
+              ],
+              "status": "expected"
+            }
+          ],
+          "id": "47cc486fa8a49be6b457-a4bf2417d07bc5ed869c",
+          "file": "../desktop/recherche.spec.ts",
+          "line": 20,
+          "column": 1
+        }
+      ]
+    },
+    {
+      "title": "..\\mcp\\parcours-mcp.spec.ts",
+      "file": "../mcp/parcours-mcp.spec.ts",
+      "column": 0,
+      "line": 0,
+      "specs": [],
+      "suites": [
+        {
+          "title": "5.2 (partie protocole) : assistant configuré par .mcp.json, check_dependency cité et sourcé",
+          "file": "../mcp/parcours-mcp.spec.ts",
+          "line": 286,
+          "column": 15,
+          "specs": [
+            {
+              "title": ".mcp.json versionné sans secret ; appel sans jeton refusé (MCP-03-S1)",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 120000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "mcp",
+                  "projectName": "mcp",
+                  "results": [
+                    {
+                      "workerIndex": 2,
+                      "parallelIndex": 0,
+                      "status": "passed",
+                      "duration": 77,
+                      "errors": [],
+                      "stdout": [],
+                      "stderr": [],
+                      "retry": 0,
+                      "startTime": "2026-11-19T20:03:12.584Z",
+                      "annotations": [],
+                      "attachments": []
+                    }
+                  ],
+                  "status": "expected"
+                }
+              ],
+              "id": "f53464bdafebb8ca0abc-e3fcd71387fc47e7afeb",
+              "file": "../mcp/parcours-mcp.spec.ts",
+              "line": 291,
+              "column": 3
+            },
+            {
+              "title": "Q-3, MCP-01, MCP-02-S1, MCP-05 : jeton par le flux d'appareil, découverte, outils, version vulnérable citée et sourcée",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 120000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "mcp",
+                  "projectName": "mcp",
+                  "results": [
+                    {
+                      "workerIndex": 2,
+                      "parallelIndex": 0,
+                      "status": "passed",
+                      "duration": 7710,
+                      "errors": [],
+                      "stdout": [],
+                      "stderr": [],
+                      "retry": 0,
+                      "steps": [
+                        {
+                          "title": "négociation : découverte sans état, version de protocole, initialize",
+                          "duration": 90
+                        },
+                        {
+                          "title": "liste des outils : huit outils de consultation, schémas publiés",
+                          "duration": 141
+                        },
+                        {
+                          "title": "check_dependency sur la version vulnérable : avis cité, sources et liens, contenu externe balisé",
+                          "duration": 108
+                        },
+                        {
+                          "title": "la version recommandée n'est affectée par aucune faille connue",
+                          "duration": 24
+                        },
+                        {
+                          "title": "alertes du projet concerné, dans le périmètre d'oscar",
+                          "duration": 43
+                        },
+                        {
+                          "title": "chaque appel est journalisé (MCP-06)",
+                          "duration": 462
+                        }
+                      ],
+                      "startTime": "2026-11-19T20:03:13.950Z",
+                      "annotations": [],
+                      "attachments": []
+                    }
+                  ],
+                  "status": "expected"
+                }
+              ],
+              "id": "f53464bdafebb8ca0abc-a1a389a2e40445654ce3",
+              "file": "../mcp/parcours-mcp.spec.ts",
+              "line": 296,
+              "column": 3
+            },
+            {
+              "title": "MCP-04-S1 : un compte d'un autre espace ne voit pas les projets concernés",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 120000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "mcp",
+                  "projectName": "mcp",
+                  "results": [
+                    {
+                      "workerIndex": 2,
+                      "parallelIndex": 0,
+                      "status": "passed",
+                      "duration": 6442,
+                      "errors": [],
+                      "stdout": [],
+                      "stderr": [],
+                      "retry": 0,
+                      "startTime": "2026-11-19T20:03:21.675Z",
+                      "annotations": [],
+                      "attachments": []
+                    }
+                  ],
+                  "status": "expected"
+                }
+              ],
+              "id": "f53464bdafebb8ca0abc-22f3264e90ef8d6658df",
+              "file": "../mcp/parcours-mcp.spec.ts",
+              "line": 321,
+              "column": 3
+            }
+          ]
+        }
+      ]
+    }
+  ],
+  "errors": [],
+  "stats": {
+    "startTime": "2026-11-19T20:02:19.504Z",
+    "duration": 391512.295,
+    "expected": 34,
+    "skipped": 0,
+    "unexpected": 0,
+    "flaky": 0
+  }
+}

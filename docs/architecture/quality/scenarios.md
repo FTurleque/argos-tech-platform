@@ -9,7 +9,7 @@ Ce registre complète arc42 section 10. Les seuils sont **Hypothèses à valider
 | QS-03 | Défaillance | API GitHub/GitLab retourne 429/5xx | prod | retry borné, curseur stable | 0 perte | chaos/intégration | Backend |
 | QS-04 | Défaillance | même webhook reçu plusieurs fois | prod | un seul effet métier | 0 duplication logique | test idempotence | Backend |
 | QS-05 | Changement | ajout d’une nouvelle source | dev | nouvel adapter sans couplage domaine | cœur métier inchangé sauf nouveau concept justifié | revue architecture | Architecte |
-| QS-06 | Performance | chargement dashboard projet | charge nominale | données pré-calculées rendues sans LLM bloquant | API p95 < 500 ms | test de charge | Backend |
+| QS-06 | Performance | chargement dashboard projet | charge nominale | données pré-calculées rendues sans LLM bloquant | API p95 < 500 ms ; mesuré le 2026-11-19 : 15 opérations API et MCP sur 16 dans la cible, `GET /api/v1/me/veille` hors cible (p95 = 533,8 ms, branche intégrée) ([rapport](mesure-performance-api-mcp.md)) | campagne `npm --prefix e2e run test:performance` (PERF-01, PERF-02) | Backend |
 | QS-07 | Exploitation | redémarrage brutal du backend | prod | reprise des jobs/curseurs | 0 perte ; état READY après recovery | test reprise | Ops |
 | QS-08 | Coût | hausse x10 du volume d’items | prod | budgets/quotas empêchent emballement LLM | budget workspace respecté | métriques coût | Produit/FinOps |
 | QS-09 | Confidentialité | log d’une erreur adapter contenant un token | prod | secret masqué | 0 secret exploitable dans logs | scanner logs | Sécurité/Ops |

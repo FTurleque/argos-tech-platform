@@ -9,7 +9,10 @@ import java.time.Instant;
 import java.time.OffsetDateTime;
 import java.util.ArrayList;
 import java.util.Collection;
+import java.util.HashMap;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
 
@@ -59,11 +62,30 @@ public class InventoryQueries {
     /**
      * Synthèse de l'inventaire de référence d'un projet, sans la liste des composants (décision G5 du porteur du
      * projet, 2026-11-19) : mêmes champs que {@link InventoryView}, {@code components} remplacé par
-     * {@code componentCount}, nombre de composants inventoriés.
+     * {@code componentCount}, nombre de composants inventoriés. Pour un projet à plusieurs dépôts (INV-10),
+     * l'origine et les dates sont celles du dépôt principal (compatibilité), {@code ignoredCount} la somme des
+     * dépôts, et {@code repositories} décrit chaque dépôt rattaché, le principal d'abord (vide sans dépôt).
      */
     public record InventorySummary(UUID projectId, String origin, Instant sourceDate, Long ageDays, boolean obsolete,
             String specVersion, Instant importedAt, long componentCount, int ignoredCount,
-            List<ParsedInventory.IgnoredComponent> ignoredComponents) {
+            List<ParsedInventory.IgnoredComponent> ignoredComponents, List<RepositorySummary> repositories) {
+    }
+
+    /**
+     * Dépôt rattaché au projet et son dernier import réussi (INV-10-S1) : {@code origin}, {@code sourceDate} et
+     * {@code importedAt} sont nuls tant qu'aucun import n'a réussi ; {@code lastFailure} est le dernier échec
+     * d'import postérieur au dernier import réussi, nul s'il n'y en a pas.
+     */
+    public record RepositorySummary(UUID id, String provider, String repository, String branch, boolean principal,
+            String origin, Instant sourceDate, Instant importedAt, RepositoryFailure lastFailure) {
+    }
+
+    /** Échec d'import d'un dépôt : motif (sans jeton) et date. */
+    public record RepositoryFailure(String reason, Instant receivedAt) {
+    }
+
+    /** Dépôt dans lequel figure un composant. */
+    public record ComponentRepository(UUID id, String provider, String repository) {
     }
 
     /** Projet listé pour un compte : identifiant, espace (identifiant et nom) et nom du projet. */
@@ -76,9 +98,11 @@ public class InventoryQueries {
 
     /**
      * Composant inventorié d'une page. {@code name} : clé du paquet sans le préfixe {@code pkg:<type>/}
-     * (espace de noms et nom) ; {@code transitive} : {@code null} si inconnu.
+     * (espace de noms et nom) ; {@code transitive} : {@code null} si inconnu ; {@code repositories} : dépôts du
+     * projet qui contiennent le composant (INV-10-S1), vide pour un composant importé sans dépôt.
      */
-    public record ComponentItem(UUID id, String name, String version, String purl, String packageKey, Boolean transitive) {
+    public record ComponentItem(UUID id, String name, String version, String purl, String packageKey, Boolean transitive,
+            List<ComponentRepository> repositories) {
     }
 
     /** Page des composants inventoriés d'un projet (arc42 §8.10), triés par nom, version puis identifiant. */
@@ -151,7 +175,34 @@ public class InventoryQueries {
         long componentCount = count(connexion, "SELECT count(*) FROM component WHERE project_id = ?", projectId);
         return Optional.of(new InventorySummary(projectId, entete.origin(), entete.sourceDate(), entete.ageDays(),
                 entete.obsolete(), entete.specVersion(), entete.importedAt(), componentCount, entete.ignoredCount(),
-                entete.ignoredComponents()));
+                entete.ignoredComponents(), repositories(connexion, projectId)));
+    }
+
+    /** Dépôts du projet et leur dernier import, lus sous le contexte de la connexion (RLS de V19). */
+    private static List<RepositorySummary> repositories(Connection connexion, UUID projectId) throws SQLException {
+        String sql = """
+                SELECT r.id, r.provider, r.repository, r.branch, r.principal, ri.origin, ri.source_date, ri.imported_at,
+                       f.reason, f.received_at
+                FROM project_repository r
+                LEFT JOIN repository_inventory ri ON ri.repository_id = r.id
+                LEFT JOIN LATERAL (SELECT reason, received_at FROM inventory_import_failure x
+                                   WHERE x.repository_id = r.id AND (ri.imported_at IS NULL OR x.received_at > ri.imported_at)
+                                   ORDER BY x.received_at DESC LIMIT 1) f ON true
+                WHERE r.project_id = ? ORDER BY r.principal DESC, r.created_at, r.id
+                """;
+        List<RepositorySummary> depots = new ArrayList<>();
+        try (PreparedStatement requete = connexion.prepareStatement(sql)) {
+            requete.setObject(1, projectId);
+            try (ResultSet lignes = requete.executeQuery()) {
+                while (lignes.next()) {
+                    String motif = lignes.getString(9);
+                    depots.add(new RepositorySummary(lignes.getObject(1, UUID.class), lignes.getString(2), lignes.getString(3),
+                            lignes.getString(4), lignes.getBoolean(5), lignes.getString(6), instant(lignes, 7),
+                            instant(lignes, 8), motif == null ? null : new RepositoryFailure(motif, instant(lignes, 10))));
+                }
+            }
+        }
+        return depots;
     }
 
     /** Ligne {@code inventory} d'un projet, commune à l'inventaire complet et à sa synthèse, sans compter les composants. */
@@ -224,18 +275,22 @@ public class InventoryQueries {
         try (Connection connexion = dataSource.getConnection()) {
             ContexteBase.appliquer(connexion, new ContexteBase.Contexte(accountId, null, null));
             long total = count(connexion, "SELECT count(*) FROM component WHERE project_id = ?", projectId);
-            List<ComponentItem> items = new ArrayList<>();
+            List<ComponentItem> lus = new ArrayList<>();
             try (PreparedStatement requete = connexion.prepareStatement(sql)) {
                 requete.setObject(1, projectId);
                 requete.setInt(2, appliedSize);
                 requete.setLong(3, (long) appliedPage * appliedSize);
                 try (ResultSet lignes = requete.executeQuery()) {
                     while (lignes.next()) {
-                        items.add(new ComponentItem(lignes.getObject(1, UUID.class), lignes.getString(2), lignes.getString(3),
-                                lignes.getString(4), lignes.getString(5), (Boolean) lignes.getObject(6)));
+                        lus.add(new ComponentItem(lignes.getObject(1, UUID.class), lignes.getString(2), lignes.getString(3),
+                                lignes.getString(4), lignes.getString(5), (Boolean) lignes.getObject(6), List.of()));
                     }
                 }
             }
+            Map<UUID, List<ComponentRepository>> depots = depotsDesComposants(connexion,
+                    lus.stream().map(ComponentItem::id).toList());
+            List<ComponentItem> items = lus.stream().map(c -> new ComponentItem(c.id(), c.name(), c.version(), c.purl(),
+                    c.packageKey(), c.transitive(), depots.getOrDefault(c.id(), List.of()))).toList();
             return new ComponentPage(projectId, items, appliedPage, appliedSize, total);
         } catch (SQLException e) {
             throw new IllegalStateException("lecture des composants impossible", e);
@@ -263,19 +318,28 @@ public class InventoryQueries {
         return failures;
     }
 
-    /** Composants dont la clé de paquet figure parmi celles données, éventuellement limités à un projet. */
+    /**
+     * Composants dont la clé de paquet figure parmi celles données, éventuellement limités à un projet. Pour un
+     * composant présent dans plusieurs dépôts (INV-10), l'origine et la date retenues sont celles de sa meilleure
+     * occurrence : SBOM non obsolète, puis SBOM obsolète, puis manifestes, et à rang égal la source la plus récente
+     * ([PROPOSITION] P-7). Une occurrence sans dépôt, ou un composant sans occurrence, prend l'origine de la ligne
+     * de synthèse {@code inventory}.
+     */
     @Transactional
     public List<ComponentMatch> componentsMatching(Collection<String> packageKeys, Optional<UUID> projectId) {
-        List<ComponentMatch> matches = new ArrayList<>();
         if (packageKeys.isEmpty()) {
-            return matches;
+            return new ArrayList<>();
         }
         String sql = """
                 SELECT c.id, c.project_id, p.workspace_id, c.package_key, c.purl, c.version, c.transitive,
-                       i.origin, i.source_date
+                       coalesce(ri.origin, i.origin), CASE WHEN ri.repository_id IS NULL THEN i.source_date ELSE ri.source_date END
                 FROM component c JOIN inventory i ON i.project_id = c.project_id JOIN project p ON p.id = c.project_id
+                LEFT JOIN component_occurrence o ON o.component_id = c.id
+                LEFT JOIN repository_inventory ri ON ri.repository_id = o.repository_id
                 WHERE c.package_key = ANY (?) AND (?::uuid IS NULL OR c.project_id = ?::uuid)
+                ORDER BY c.project_id, c.package_key, c.version, c.id
                 """;
+        Map<UUID, ComponentMatch> meilleures = new LinkedHashMap<>();
         try (Connection connexion = dataSource.getConnection(); PreparedStatement requete = connexion.prepareStatement(sql)) {
             requete.setArray(1, connexion.createArrayOf("varchar", packageKeys.toArray()));
             requete.setObject(2, projectId.orElse(null));
@@ -284,15 +348,108 @@ public class InventoryQueries {
                 while (lignes.next()) {
                     String origin = lignes.getString(8);
                     Instant date = instant(lignes, 9);
-                    matches.add(new ComponentMatch(lignes.getObject(1, UUID.class), lignes.getObject(2, UUID.class),
+                    ComponentMatch candidat = new ComponentMatch(lignes.getObject(1, UUID.class), lignes.getObject(2, UUID.class),
                             lignes.getObject(3, UUID.class), lignes.getString(4), lignes.getString(5), lignes.getString(6),
-                            (Boolean) lignes.getObject(7), origin, date, !"SBOM".equals(origin) || sbomObsolete(origin, date)));
+                            (Boolean) lignes.getObject(7), origin, date, !"SBOM".equals(origin) || sbomObsolete(origin, date));
+                    meilleures.merge(candidat.componentId(), candidat, InventoryQueries::meilleure);
                 }
             }
         } catch (SQLException e) {
             throw new IllegalStateException("recherche des composants impossible", e);
         }
-        return matches;
+        return new ArrayList<>(meilleures.values());
+    }
+
+    /** Meilleure de deux occurrences d'un même composant (P-7). */
+    private static ComponentMatch meilleure(ComponentMatch a, ComponentMatch b) {
+        int rangA = rang(a);
+        int rangB = rang(b);
+        if (rangA != rangB) {
+            return rangA < rangB ? a : b;
+        }
+        if (a.inventoryDate() == null) {
+            return b.inventoryDate() == null ? a : b;
+        }
+        return b.inventoryDate() != null && b.inventoryDate().isAfter(a.inventoryDate()) ? b : a;
+    }
+
+    /** 0 : SBOM non obsolète ; 1 : SBOM obsolète ; 2 : manifestes ou origine inconnue. */
+    private static int rang(ComponentMatch m) {
+        if (!"SBOM".equals(m.inventoryOrigin())) {
+            return 2;
+        }
+        return m.inventoryObsolete() ? 1 : 0;
+    }
+
+    /** Origine du dernier import réussi d'un dépôt (traitement technique), s'il existe. */
+    @Transactional
+    public Optional<String> originDepot(UUID repositoryId) {
+        try (Connection connexion = dataSource.getConnection(); PreparedStatement requete =
+                connexion.prepareStatement("SELECT origin FROM repository_inventory WHERE repository_id = ?")) {
+            requete.setObject(1, repositoryId);
+            try (ResultSet lignes = requete.executeQuery()) {
+                return lignes.next() ? Optional.of(lignes.getString(1)) : Optional.empty();
+            }
+        } catch (SQLException e) {
+            throw new IllegalStateException("lecture de l'inventaire du dépôt impossible", e);
+        }
+    }
+
+    /** Projets dont la recorrélation est restée en attente (marqueur posé, INV-09-S4), traitement technique. */
+    @Transactional
+    public List<UUID> projetsARecorreler() {
+        List<UUID> projets = new ArrayList<>();
+        try (Connection connexion = dataSource.getConnection(); PreparedStatement requete = connexion.prepareStatement(
+                "SELECT project_id FROM inventory WHERE recorrelation_pending ORDER BY imported_at, project_id");
+                ResultSet lignes = requete.executeQuery()) {
+            while (lignes.next()) {
+                projets.add(lignes.getObject(1, UUID.class));
+            }
+        } catch (SQLException e) {
+            throw new IllegalStateException("lecture des recorrélations en attente impossible", e);
+        }
+        return projets;
+    }
+
+    /**
+     * Identifiant de l'état courant de l'inventaire d'un projet (renouvelé à chaque import ou reconstitution), lu au
+     * début d'une recorrélation pour n'effacer le marqueur que si l'inventaire n'a pas changé entre-temps.
+     */
+    @Transactional
+    public Optional<UUID> importCourant(UUID projectId) {
+        try (Connection connexion = dataSource.getConnection();
+                PreparedStatement requete = connexion.prepareStatement("SELECT import_id FROM inventory WHERE project_id = ?")) {
+            requete.setObject(1, projectId);
+            try (ResultSet lignes = requete.executeQuery()) {
+                return lignes.next() ? Optional.of(lignes.getObject(1, UUID.class)) : Optional.empty();
+            }
+        } catch (SQLException e) {
+            throw new IllegalStateException("lecture de l'inventaire impossible", e);
+        }
+    }
+
+    /** Dépôts de chacun des composants donnés, le principal d'abord, lus sous le contexte de la connexion. */
+    private static Map<UUID, List<ComponentRepository>> depotsDesComposants(Connection connexion, List<UUID> composants)
+            throws SQLException {
+        Map<UUID, List<ComponentRepository>> depots = new HashMap<>();
+        if (composants.isEmpty()) {
+            return depots;
+        }
+        String sql = """
+                SELECT o.component_id, r.id, r.provider, r.repository FROM component_occurrence o
+                JOIN project_repository r ON r.id = o.repository_id
+                WHERE o.component_id = ANY (?) ORDER BY r.principal DESC, r.created_at, r.id
+                """;
+        try (PreparedStatement requete = connexion.prepareStatement(sql)) {
+            requete.setArray(1, connexion.createArrayOf("uuid", composants.toArray()));
+            try (ResultSet lignes = requete.executeQuery()) {
+                while (lignes.next()) {
+                    depots.computeIfAbsent(lignes.getObject(1, UUID.class), k -> new ArrayList<>())
+                            .add(new ComponentRepository(lignes.getObject(2, UUID.class), lignes.getString(3), lignes.getString(4)));
+                }
+            }
+        }
+        return depots;
     }
 
     /** Clés de paquet de l'inventaire d'un projet. */

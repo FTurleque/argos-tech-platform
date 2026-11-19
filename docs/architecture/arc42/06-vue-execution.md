@@ -156,18 +156,28 @@ La collecte remplace les compteurs des jours de sa fenêtre : rejouée, elle pro
 
 ## 6.3 Scénario d’erreur — API externe indisponible
 
-**Type : UML sequence diagram. Portée : synchronisation d’une source lancée par l’exploitant (`POST /api/v1/ops/sources/{id}/synchronizations`) ; aucune planification automatique de la collecte des avis n’existe.**
+**Type : UML sequence diagram. Portée : synchronisation d’une source lancée par l’exploitant (`POST /api/v1/ops/sources/{id}/synchronizations`) ou par la tâche planifiée `signal-synchronisation-sources` du module `signal` (toutes les heures par défaut, `argos.ingestion.planification.cadence` ; COL-09, changement `automatiser-chaine-veille`, 2026-11-19 ; ADR-0031).**
 
 ```mermaid
 sequenceDiagram
     participant Ops as Exploitant
     participant API as API & Security
+    participant Plan as signal (SynchronisationPlanifiee)
     participant Ingestion as source-ingestion
     participant Ext as «Software System» Source externe
     participant Persist as PostgreSQL
 
-    Ops->>API: lancer la synchronisation d’une source
-    API->>Ingestion: synchroniser la source
+    alt lancement par l’exploitant
+        Ops->>API: lancer la synchronisation d’une source
+        API->>Ingestion: synchroniser la source
+    else échéance horaire (quarkus-scheduler)
+        Plan->>Ingestion: synchroniser chaque source enregistrée
+    end
+    Ingestion->>Persist: réserver le traitement (index sync_run_one_running)
+    opt traitement déjà en cours pour cette source
+        Persist-->>Ingestion: réservation refusée
+        Ingestion-->>Plan: source sautée (COL-09-S2)
+    end
     Ingestion->>Ext: demander delta depuis dernier curseur
     Ext--xIngestion: timeout / 429 / 5xx
     Ingestion->>Persist: enregistrer tentative et erreur
@@ -195,7 +205,8 @@ sequenceDiagram
 - distinguer erreurs transitoires et permanentes ;
 - respecter `Retry-After` et les rate limits ;
 - ne pas boucler indéfiniment ;
-- rendre visible la source dégradée dans l’observabilité.
+- rendre visible la source dégradée dans l’observabilité ;
+- à chaque échéance planifiée, rafraîchir les index d’enrichissement (CERT-FR, KEV) sans bloquer la synchronisation, retenter une source `DEGRADED` et ne jamais lancer une seconde synchronisation d’une source déjà en cours (COL-09).
 
 ## 6.4 Scénario d’exploitation — redémarrage/reprise
 
@@ -297,4 +308,40 @@ sequenceDiagram
 ```
 
 Une fiche en attente n’est restituée qu’aux experts de ses domaines, par la base elle-même ; l’API REST, le serveur MCP et les rappels ne voient que des fiches validées pour les autres utilisateurs. Sans IA, la fiche est préparée sans résumé et l’expert le rédige avant de valider.
+
+## 6.7 Scénario nominal — import quotidien des inventaires et recorrélation
+
+**Type : UML sequence diagram. Portée : import planifié des inventaires depuis les dépôts GitHub/GitLab de chaque projet, puis recorrélation (changement `automatiser-chaine-veille`, volet B ; décisions J3, J4 et J6 du porteur du projet, 2026-11-19).**
+
+```mermaid
+sequenceDiagram
+    participant Core as inventory
+    participant Ext as scm-connector
+    participant Forge as «Software System» GitHub/GitLab
+    participant Persist as PostgreSQL
+    participant Impact as impact-engine
+
+    Core->>Core: tâche planifiée quotidienne (03:00, argos.inventory.import.cron)
+    Core->>Persist: projets au marqueur de recorrélation resté posé
+    Core-)Impact: relancer leur recorrélation
+    loop pour chaque projet ayant au moins un dépôt
+        loop pour chaque dépôt du projet
+            Core->>Ext: SBOM, sinon manifestes, de la branche principale
+            Ext->>Forge: lecture seule (jeton en configuration)
+            Forge-->>Ext: document ou erreur
+            Ext-->>Core: octets et format reconnu
+            opt refus, erreur de forge ou quota épuisé
+                Core->>Persist: échec enregistré avec le dépôt, sans jeton
+            end
+        end
+        opt au moins un dépôt importé
+            Core->>Persist: verrou du projet, occurrences des dépôts importés remplacées, union recalculée
+            Core->>Persist: marqueur de recorrélation posé
+            Core-)Impact: InventoryReplaced (après validation)
+            Impact->>Persist: impacts recalculés pour le projet, marqueur effacé
+        end
+    end
+```
+
+Aucun flux n'entre depuis une forge ou une CI : seule la tâche planifiée, ou un import manuel, déclenche un import. L'import manuel prend le même verrou consultatif par projet, si bien que deux imports d'un même projet s'exécutent l'un après l'autre. Un dépôt en échec garde son dernier import réussi ; une recorrélation en échec laisse le marqueur posé, et le passage suivant la relance. La tâche est désactivée dans le profil de test et dans la pile E2E.
 

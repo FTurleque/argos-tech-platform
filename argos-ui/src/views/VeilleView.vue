@@ -4,7 +4,9 @@
 // dans la mise en page de sa préférence. Vue de la couche contenu : elle lit l'API, transpose la réponse vers
 // le modèle commun (`contenu/veille-affichee.ts`, conversion de forme seulement) et la transmet au sélecteur
 // central des mises en page. Elle ne filtre, ne dédoublonne ni ne retire aucun élément ni aucune mention
-// (arc42 §5.1).
+// (arc42 §5.1). Elle liste aussi les abonnements de l'utilisateur avec leur état (actif ou suspendu) et
+// propose de suspendre, réactiver ou supprimer un abonnement personnel (ABO-07, ABO-08) ; le serveur décide
+// des droits et renvoie l'état.
 import { computed, onMounted, onUnmounted, ref } from 'vue'
 import { ApiError } from '../api/client'
 import {
@@ -12,11 +14,26 @@ import {
   lireCatalogueProfils,
   lirePreferences,
   lireVeille,
+  reactiverAbonnement,
+  supprimerAbonnement,
+  suspendreAbonnement,
   type Abonnement,
   type PreferencesEffectives,
   type ProfilCatalogue,
   type VeilleProfils,
 } from '../api/veille'
+import {
+  actionsAbonnement,
+  confirmationSuppression,
+  libelleAction,
+  libelleEtat,
+  messageErreurAbonnement,
+  nomAbonnement,
+  remplacerAbonnement,
+  retirerAbonnement,
+  type ActionAbonnement,
+} from '../contenu/abonnements'
+import { STATUT_INTROUVABLE } from '../api/statuts-http'
 import { resoudreMiseEnPage } from '../contenu/resolution'
 import { veilleAffichee } from '../contenu/veille-affichee'
 import { libelleProfil, messageErreurVeille } from '../contenu/veille-profils'
@@ -72,6 +89,61 @@ async function charger(): Promise<void> {
   }
 }
 
+/** Relit le seul contenu de « Ma veille » ; un échec laisse le contenu affiché et le signale. */
+async function rechargerVeille(): Promise<void> {
+  try {
+    veille.value = await lireVeille()
+    composeeLe.value = new Date().toISOString()
+    erreur.value = ''
+  } catch (e) {
+    erreur.value =
+      e instanceof ApiError ? messageErreurVeille('veille', e.status, e.message) : 'Erreur inattendue.'
+  }
+}
+
+// Gestion des abonnements (ABO-07, ABO-08) : l'état affiché est celui renvoyé par le serveur, qui décide
+// seul des droits. La suppression, définitive, est confirmée dans la page avant l'appel.
+const actionEnCours = ref<string | null>(null)
+const suppressionDemandee = ref<string | null>(null)
+const erreurAbonnement = ref('')
+const annonceAbonnement = ref('')
+
+async function agir(abonnement: Abonnement, action: ActionAbonnement): Promise<void> {
+  if (action === 'SUPPRIMER' && suppressionDemandee.value !== abonnement.id) {
+    suppressionDemandee.value = abonnement.id
+    return
+  }
+  actionEnCours.value = abonnement.id
+  erreurAbonnement.value = ''
+  annonceAbonnement.value = ''
+  try {
+    if (action === 'SUPPRIMER') {
+      await supprimerAbonnement(abonnement.id)
+      abonnements.value = retirerAbonnement(abonnements.value, abonnement.id)
+      annonceAbonnement.value = `${nomAbonnement(abonnement)} : supprimé.`
+    } else {
+      const modifie =
+        action === 'SUSPENDRE' ? await suspendreAbonnement(abonnement.id) : await reactiverAbonnement(abonnement.id)
+      abonnements.value = remplacerAbonnement(abonnements.value, modifie)
+      annonceAbonnement.value = `${nomAbonnement(modifie)} : ${libelleEtat(modifie.state).toLowerCase()}.`
+    }
+    // Les éléments de « Ma veille » dépendent des abonnements actifs (P-4) : ils sont relus après l'action.
+    await rechargerVeille()
+  } catch (e) {
+    const statut = e instanceof ApiError ? e.status : undefined
+    erreurAbonnement.value =
+      e instanceof ApiError ? messageErreurAbonnement(statut, e.message) : 'Erreur inattendue.'
+    if (statut === STATUT_INTROUVABLE) await charger()
+  } finally {
+    actionEnCours.value = null
+    suppressionDemandee.value = null
+  }
+}
+
+function annulerSuppression(): void {
+  suppressionDemandee.value = null
+}
+
 onMounted(charger)
 onUnmounted(() => chargementCourant?.abort())
 </script>
@@ -104,6 +176,43 @@ onUnmounted(() => chargementCourant?.abort())
     :veille="affichee"
     :niveau-titre="2"
   />
+
+  <section v-if="abonnements.length > 0" class="card" aria-labelledby="titre-abonnements">
+    <h2 id="titre-abonnements">Mes abonnements</h2>
+    <p class="muted">
+      Un abonnement suspendu garde ses critères et ne produit plus aucune notification ; la suppression est
+      définitive.
+    </p>
+    <p v-if="erreurAbonnement" class="status status-down" role="alert">{{ erreurAbonnement }}</p>
+    <p class="muted" role="status" aria-live="polite">{{ annonceAbonnement }}</p>
+    <ul class="abonnements">
+      <li v-for="abonnement in abonnements" :key="abonnement.id" class="abonnement">
+        <span class="nom">{{ nomAbonnement(abonnement) }}</span>
+        <span class="etat" :class="{ suspendu: abonnement.state === 'SUSPENDED' }">
+          {{ libelleEtat(abonnement.state) }}
+        </span>
+        <span v-if="suppressionDemandee === abonnement.id" class="confirmation" role="group" aria-label="Confirmer la suppression">
+          <span>{{ confirmationSuppression(abonnement) }}</span>
+          <button type="button" :disabled="actionEnCours !== null" @click="agir(abonnement, 'SUPPRIMER')">
+            Confirmer la suppression
+          </button>
+          <button type="button" class="secondary" @click="annulerSuppression">Annuler</button>
+        </span>
+        <span v-else class="actions">
+          <button
+            v-for="action in actionsAbonnement(abonnement)"
+            :key="action"
+            type="button"
+            :class="{ secondary: action === 'SUPPRIMER' }"
+            :disabled="actionEnCours !== null"
+            @click="agir(abonnement, action)"
+          >
+            {{ libelleAction(action) }}
+          </button>
+        </span>
+      </li>
+    </ul>
+  </section>
 </template>
 
 <style scoped>
@@ -111,5 +220,35 @@ onUnmounted(() => chargementCourant?.abort())
   padding: 0.75rem 1rem;
   border: 1px dashed var(--border);
   border-radius: 8px;
+}
+.abonnements {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+}
+.abonnement {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem 1rem;
+  align-items: center;
+  padding: 0.5rem 0;
+  border-top: 1px solid var(--border);
+}
+.nom {
+  flex: 1 1 16rem;
+  overflow-wrap: anywhere;
+}
+.etat {
+  font-weight: 600;
+}
+.etat.suspendu {
+  font-style: italic;
+}
+.actions,
+.confirmation {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  align-items: center;
 }
 </style>

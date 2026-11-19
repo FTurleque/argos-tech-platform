@@ -76,7 +76,8 @@ Les valeurs ci-dessous sont des **cibles initiales à valider**. Elles deviendro
 | Réponse | données déjà calculées rendues sans appel LLM synchrone |
 | Mesure | latence API p95 |
 | Seuil | < 500 ms, cible initiale |
-| Vérification | test de charge |
+| Vérification | test de charge ; campagne automatisée `npm --prefix e2e run test:performance` (PERF-01, PERF-02, changement `automatiser-chaine-veille`) |
+| Résultat | mesuré le 2026-11-19 sur la pile de test locale (20 projets × 100 composants, 1 000 avis, 20 000 impacts ; 200 appels par opération, 4 clients simultanés) : 15 opérations sur 16 dans la cible (p95 de 15,1 à 129,6 ms) ; **hors cible** : `GET /api/v1/me/veille`, p95 = 533,8 ms (branche intégrée, révision `7c5b9d7` ; 618 ms à la première mesure du volet C) ([rapport](../quality/mesure-performance-api-mcp.md)) [EXISTANT] |
 | Propriétaire | Backend/Frontend à confirmer |
 
 ### Q-06 — Maîtrise des coûts Claude

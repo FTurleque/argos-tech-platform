@@ -34,7 +34,8 @@ const TYPES_FILTRE: Readonly<Record<string, string>> = {
   SEVERITY: 'gravité minimale',
 }
 
-function libelleFiltre(f: FiltreAbonnement): string {
+/** Libellé d'un critère d'abonnement, par exemple « paquet : pkg:cargo/hyper ». */
+export function libelleFiltre(f: FiltreAbonnement): string {
   return `${TYPES_FILTRE[f.type] ?? f.type.toLowerCase()} : ${f.value}`
 }
 

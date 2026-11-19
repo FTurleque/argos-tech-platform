@@ -35,14 +35,15 @@ Un préfixe n'est jamais réattribué ; un identifiant d'exigence retiré n'est 
 
 | Capacité | Préfixe | Fiche | Spec de référence | Changement | Statut |
 |---|---|---|---|---|---|
-| `collecte-avis-securite` | `COL` | [fiche](collecte-avis-securite.md) | absente | `formaliser-chaine-securite-poc` | proposée |
-| `inventaire-sbom` | `INV` | [fiche](inventaire-sbom.md) | absente | `formaliser-chaine-securite-poc` | proposée |
-| `correlation-impact` | `COR` | [fiche](correlation-impact.md) | absente | `formaliser-chaine-securite-poc` | proposée |
-| `abonnements-veille` | `ABO` | [fiche](abonnements-veille.md) | absente | `formaliser-chaine-securite-poc` | proposée |
+| `collecte-avis-securite` | `COL` | [fiche](collecte-avis-securite.md) | absente | `formaliser-chaine-securite-poc` ; `automatiser-chaine-veille` (COL-09, COL-10) | proposée |
+| `inventaire-sbom` | `INV` | [fiche](inventaire-sbom.md) | absente | `formaliser-chaine-securite-poc` ; `automatiser-chaine-veille` (INV-07 à INV-10) | proposée |
+| `correlation-impact` | `COR` | [fiche](correlation-impact.md) | absente | `formaliser-chaine-securite-poc` ; `automatiser-chaine-veille` (COR-09 à COR-12) | proposée |
+| `abonnements-veille` | `ABO` | [fiche](abonnements-veille.md) | absente | `formaliser-chaine-securite-poc` ; `automatiser-chaine-veille` (ABO-07, ABO-08) | proposée |
+| `performance-api-mcp` | `PERF` | [fiche](performance-api-mcp.md) | absente | `automatiser-chaine-veille` | proposée |
 | `affichage-personnalise` | `AFF` | [fiche](affichage-personnalise.md) | [spec](/openspec/specs/affichage-personnalise/spec.md) | `2026-11-19-personnaliser-profils-et-affichage` (archivé) | livrée |
 | `profils-veille` | `PRF` | [fiche](profils-veille.md) | [spec](/openspec/specs/profils-veille/spec.md) | `2026-11-19-personnaliser-profils-et-affichage` (archivé) | livrée |
 | `comptes-acces` | `ACC` | [fiche](comptes-acces.md) | [spec](/openspec/specs/comptes-acces/spec.md) | `2026-11-17-gerer-comptes-et-acces` (archivé) ; `2026-11-18-connecter-ihm-oidc` (archivé, ACC-07 à ACC-10) | livrée |
-| `alertes-digests` | `ALR` | [fiche](alertes-digests.md) | [spec](/openspec/specs/alertes-digests/spec.md) | `2026-11-16-diffuser-alertes-et-digests` (archivé) | livrée |
+| `alertes-digests` | `ALR` | [fiche](alertes-digests.md) | [spec](/openspec/specs/alertes-digests/spec.md) | `2026-11-16-diffuser-alertes-et-digests` (archivé) ; `automatiser-chaine-veille` (ALR-07, proposé) | livrée |
 | `notifications-poste` | `NOT` | [fiche](notifications-poste.md) | absente | `notifier-sur-le-poste` | implémentée, non archivée |
 | `serveur-mcp` | `MCP` | [fiche](serveur-mcp.md) | absente | `exposer-serveur-mcp` | proposée |
 | `passerelle-ia` | `IAG` | [fiche](passerelle-ia.md) | [spec](/openspec/specs/passerelle-ia/spec.md) | `2026-11-17-encadrer-appels-ia` (archivé) | livrée |
@@ -63,11 +64,15 @@ Un préfixe n'est jamais réattribué ; un identifiant d'exigence retiré n'est 
 | DF-INV-1 | UML séquence | comment une SBOM remplace-t-elle l'inventaire ? | [inventaire-sbom](inventaire-sbom.md#df-inv-1--import-dune-sbom) |
 | DF-INV-2 | organigramme | d'où provient l'inventaire et quelle confiance en découle ? | [inventaire-sbom](inventaire-sbom.md#df-inv-2--origine-de-linventaire-dun-projet) |
 | DF-INV-3 | UML séquence | comment choisir un projet et parcourir ses composants inventoriés sans voir un autre espace ? | [inventaire-sbom](inventaire-sbom.md#df-inv-3--consultation-de-linventaire-dun-projet-choisi) |
+| DF-INV-4 | UML classes | comment un projet regroupe-t-il ses dépôts, et comment son inventaire se déduit-il des leurs ? | [inventaire-sbom](inventaire-sbom.md#df-inv-4--projet-à-plusieurs-dépôts) |
 | DF-COR-1 | UML classes | quels concepts la corrélation relie-t-elle ? | [correlation-impact](correlation-impact.md#df-cor-1--modèle-conceptuel-de-la-corrélation) |
 | DF-COR-2 | UML séquence | comment un signal produit-il des impacts, avec ou sans IA ? | [correlation-impact](correlation-impact.md#df-cor-2--corrélation-dun-signal-avec-et-sans-ia) |
 | DF-COR-3 | organigramme | quel niveau porte un impact ? | [correlation-impact](correlation-impact.md#df-cor-3--détermination-du-niveau-dun-impact) |
+| DF-COR-4 | UML états | quels états de traitement un impact traverse-t-il, et qui fait chaque transition ? | [correlation-impact](correlation-impact.md#df-cor-4--état-de-traitement-dun-impact) |
 | DF-ABO-1 | UML classes | comment les abonnements se rattachent-ils sans toucher aux droits ? | [abonnements-veille](abonnements-veille.md#df-abo-1--abonnements-équipes-et-autorisations) |
 | DF-ABO-2 | UML séquence | dans quel ordre droits et abonnements s'appliquent-ils ? | [abonnements-veille](abonnements-veille.md#df-abo-2--restitution-de-la-veille-dun-utilisateur) |
+| DF-ABO-3 | UML états | quels états un abonnement connaît-il, et qu'est-ce qui distingue suspension et suppression ? | [abonnements-veille](abonnements-veille.md#df-abo-3--état-dun-abonnement) |
+| DF-PERF-1 | organigramme | comment une campagne de mesure aboutit-elle à un verdict et à un rapport, sans quitter le poste ? | [performance-api-mcp](performance-api-mcp.md#df-perf-1--une-campagne-de-mesure) |
 | DF-AFF-1 | organigramme | quelle mise en page s'affiche à l'ouverture ? | [affichage-personnalise](affichage-personnalise.md#df-aff-1--mise-en-page-appliquée-à-louverture) |
 | DF-PRF-1 | UML classes | de quoi un profil de veille est-il composé ? | [profils-veille](profils-veille.md#df-prf-1--ce-que-décrit-un-profil) |
 | DF-PRF-2 | organigramme | comment se compose la veille d'un utilisateur à plusieurs profils ? | [profils-veille](profils-veille.md#df-prf-2--veille-dun-utilisateur-à-plusieurs-profils) |
@@ -95,7 +100,7 @@ Les diagrammes d'architecture (D-01 à D-13) sont inventoriés dans [`/docs/arch
 | Élément | Nombre | Détail |
 |---|---:|---|
 | Specs de référence | 11 | `comptes-acces`, `recherche-veille`, `affichage-personnalise`, `profils-veille`, `alertes-digests`, `veille-rss-web`, `radar-standards`, `passerelle-ia`, `activite-projets`, `profil-artiste`, `veille-reglementaire` ; le code des changements actifs est présent dans `argos-server`, `argos-ui` et `argos-desktop` |
-| Changements actifs | 3 | `formaliser-chaine-securite-poc`, `notifier-sur-le-poste`, `exposer-serveur-mcp` (schéma `detailed-uml`) |
+| Changements actifs | 4 | `formaliser-chaine-securite-poc`, `notifier-sur-le-poste`, `exposer-serveur-mcp`, `automatiser-chaine-veille` (schéma `detailed-uml`) |
 | Changements archivés | 11 | `2026-11-16-diffuser-alertes-et-digests`, `2026-11-16-collecter-veille-rss-web`, `2026-11-16-construire-radar-et-standards`, `2026-11-17-encadrer-appels-ia`, `2026-11-17-mesurer-activite-projets`, `2026-11-17-ajouter-profil-artiste`, `2026-11-17-suivre-veille-reglementaire`, `2026-11-17-gerer-comptes-et-acces`, `2026-11-18-connecter-ihm-oidc`, `2026-11-18-rechercher-et-filtrer`, `2026-11-19-personnaliser-profils-et-affichage` |
 
 Tous les changements utilisent le schéma `detailed-uml` : aucun changement d'un autre schéma n'est à migrer.
@@ -104,11 +109,13 @@ Tous les changements utilisent le schéma `detailed-uml` : aucun changement d'un
 
 | Capacité | Exigences | Scénarios | Diagrammes métier | Questions ouvertes | Tests écrits |
 |---|---:|---:|---:|---:|---:|
-| `collecte-avis-securite` | 8 | 18 | 3 | 4 | 22 |
-| `inventaire-sbom` | 6 | 14 | 3 | 5 | 27 |
-| `correlation-impact` | 8 | 17 | 3 | 4 | 37 |
-| `abonnements-veille` | 6 | 10 | 2 | 4 | 10 |
-| **Total** | **28** | **59** | **11** | **17** | **96** |
+| `collecte-avis-securite` | 8 | 18 | 3 | 2 | 22 |
+| `inventaire-sbom` | 6 | 14 | 3 | 3 | 27 |
+| `correlation-impact` | 8 | 17 | 3 | 3 | 37 |
+| `abonnements-veille` | 6 | 10 | 2 | 3 | 10 |
+| **Total** | **28** | **59** | **11** | **11** | **96** |
+
+« Questions ouvertes » : Q-COL-1, Q-COL-2, Q-INV-1, Q-INV-2, Q-COR-2 et Q-ABO-1 sont levées par les décisions J1 à J7 du porteur du projet (2026-11-19), reprises par le changement `automatiser-chaine-veille` (voir « Couverture du lot 18 »).
 
 Toutes les exigences sont au statut [PROPOSITION] : elles dérivent d'ADR « Proposé » ou de baselines « à valider » ; la formulation d'INV-06 dérive des décisions F1, F5 et G5 du porteur du projet (2026-11-19). Les tests écrits sont ceux d'`argos-server/src/test/java/io/argos/chain/` (hors `ProfilsDeVeilleTest`) et `architecture/SubscriptionIsolationTest.java`, exécutés par `mvn -B -f argos-server/pom.xml verify` avec des jetons réels du Keycloak des Dev Services et la RLS appliquée sous le rôle `argos_app`. Matrice détaillée : [`tasks.md` du changement](/openspec/changes/formaliser-chaine-securite-poc/tasks.md#matrice-de-traçabilité).
 
@@ -177,6 +184,20 @@ Les exigences des deux changements archivés de ce lot sont au statut [EXIGENCE]
 
 Les exigences ACC-07 à ACC-10 sont au statut [EXIGENCE] dans la spec de référence `comptes-acces`. Pour `connecter-ihm-oidc`, « Tests écrits » compte les scénarios couverts par au moins un test qui passe : tests `node:test` d'`argos-ui/tests/` (`oidc`, `session`, `autorisation`, `garde`, `securite-session`) et d'`argos-desktop/test/` (`connexion`, `canaux`, `preload`, `ui-protocol`), et parcours réel du client `argos-ui` contre le Keycloak des Dev Services (`ClientIhmOidcTest`). Les parcours de bout en bout du portail web (`e2e/tests/connexion.spec.ts`) et du client desktop Electron (`e2e/desktop/connexion.spec.ts`, ACC-10-S1, S2 et S4) passent avec `npm --prefix e2e test`. Matrice détaillée : [`tasks.md` du changement](/openspec/changes/archive/2026-11-18-connecter-ihm-oidc/tasks.md#matrice-de-traçabilité).
 
+### Couverture du lot 18
+
+| Changement | Capacité | Exigences | Scénarios | Diagrammes métier | Questions ouvertes | Tests écrits |
+|---|---|---|---|---|---|---|
+| [`automatiser-chaine-veille`](/openspec/changes/automatiser-chaine-veille/proposal.md) | `collecte-avis-securite` (COL-09, COL-10) | 2 | 9 | 0 (DF-COL-1, DF-COL-2 mis à jour) | 0 | 9 |
+| | `inventaire-sbom` (INV-07 à INV-10) | 4 | 14 | 1 (DF-INV-4 ; DF-INV-1 mis à jour) | 0 | 14 |
+| | `correlation-impact` (COR-09 à COR-12) | 4 | 15 | 1 (DF-COR-4) | 0 | 15 |
+| | `abonnements-veille` (ABO-07, ABO-08) | 2 | 7 | 1 (DF-ABO-3) | 0 | 7 |
+| | `alertes-digests` (ALR-07) | 1 | 2 | 0 | 0 | 2 |
+| | `performance-api-mcp` (PERF-01, PERF-02) | 2 | 6 | 1 (DF-PERF-1) | 2 | 5 |
+| **Total** | | **15** | **53** | **4** | **2** | **52** |
+
+Exigences au statut [PROPOSITION], issues des décisions J1 à J8 du porteur du projet (2026-11-19). Volets A (collecte et abonnements), B (inventaire) et C (impacts et performance) implémentés puis intégrés le 2026-11-19 (branche `lot18/integration`, migrations V18 à V20) ; vérifications d'intégration faites : `mvn verify` (649 tests), tests de l'IHM, parcours E2E `e2e/tests/chaine-automatisee.spec.ts` (sources et forges simulées) et deux exécutions complètes de `npm --prefix e2e test`. « Tests écrits » compte les scénarios couverts par au moins un test qui passe ; PERF-01-S1 n'est pas atteint : `GET /api/v1/me/veille` reste hors cible (p95 = 533,8 ms sur la branche intégrée, [rapport](../architecture/quality/mesure-performance-api-mcp.md), [PROPOSITION] P-18). Tâche 3.1 décochée : la contrainte INV-C3 n'est pas créée ([PROPOSITION] P-13, à valider). « Questions ouvertes » : Q-PERF-1 et Q-PERF-2 (volume et concurrence de la campagne). Matrice détaillée : [`tasks.md` du changement](/openspec/changes/automatiser-chaine-veille/tasks.md#matrice-de-traçabilité).
+
 ### Capacités restant à spécifier
 
 | Lot | Capacité pressentie | Composant(s) | Sources disponibles | Manques principaux |
@@ -192,7 +213,8 @@ Les exigences ACC-07 à ACC-10 sont au statut [EXIGENCE] dans la spec de référ
 | Les ADR citent des exigences `F01`–`F16` absentes du dépôt | question Q-1 du changement ; aucune correspondance inventée |
 | arc42 §6 annonçait les noms de §5 mais utilise d'autres participants | participants des diagrammes de §6 renommés avec les noms des composants de §5 ([DÉCISION] — porteur du projet, 2026-11-18 ; tâche 6.1) |
 | Inventaire des diagrammes : D-05, D-11, D-12, D-13 annoncés, absents | D-05 ajouté en arc42 §5.7 ; D-11, D-12 et D-13 produits dans `docs/architecture/diagrams/` (tâche 6.2) |
-| Glossaire : « impact probable, confirmé, résolu » vs niveaux ADR-0013 | question Q-COR-2 |
+| Glossaire : « impact probable, confirmé, résolu » vs niveaux ADR-0013 | levé : deux axes distincts, niveau de confiance et état de traitement ([DÉCISION] — porteur du projet, 2026-11-19, J5) ; glossaire aligné, changement `automatiser-chaine-veille` |
+| Glossaire : « projet » parmi les termes ambigus | levé : un projet peut regrouper plusieurs dépôts, son inventaire est l'union des leurs ([DÉCISION] — porteur du projet, 2026-11-19, J6) ; glossaire aligné |
 
 ## Vérification
 

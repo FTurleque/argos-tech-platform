@@ -83,7 +83,7 @@ test('chargement : synthèse et composants ignorés du projet demandé', async (
 
 test('chargement : projet sans inventaire, sans erreur', async () => {
   const etat = await chargerInventaireProjet(PROJET, async () => ({ projectId: PROJET, status: 'NO_SBOM', summary: null }))
-  assert.deepEqual(etat, { resume: { etat: 'SANS_INVENTAIRE' }, ignores: { etat: 'SANS_INVENTAIRE' }, erreur: '' })
+  assert.deepEqual(etat, { resume: { etat: 'SANS_INVENTAIRE' }, ignores: { etat: 'SANS_INVENTAIRE' }, depots: [], erreur: '' })
 })
 
 test('chargement : identifiant invalide, aucun appel', async () => {
@@ -93,7 +93,7 @@ test('chargement : identifiant invalide, aucun appel', async () => {
     return disponible()
   })
   assert.equal(appele, false)
-  assert.deepEqual(etat, { resume: null, ignores: null, erreur: 'Identifiant de projet invalide : un UUID est attendu.' })
+  assert.deepEqual(etat, { resume: null, ignores: null, depots: [], erreur: 'Identifiant de projet invalide : un UUID est attendu.' })
 })
 
 test('chargement : erreur nommée, puis nouvelle tentative qui aboutit', async () => {
@@ -104,7 +104,7 @@ test('chargement : erreur nommée, puis nouvelle tentative qui aboutit', async (
     return disponible()
   }
   const echec = await chargerInventaireProjet(PROJET, lire)
-  assert.deepEqual(echec, { resume: null, ignores: null, erreur: 'Inventaire indisponible pour le moment.' })
+  assert.deepEqual(echec, { resume: null, ignores: null, depots: [], erreur: 'Inventaire indisponible pour le moment.' })
   const reprise = await chargerInventaireProjet(PROJET, lire)
   assert.equal(reprise.erreur, '')
   assert.equal(reprise.resume.etat, 'DISPONIBLE')

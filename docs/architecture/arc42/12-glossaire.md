@@ -16,7 +16,8 @@
 | **Rappel d’échéance** | message envoyé aux membres d’un espace, aux jours de rappel de l’espace (J-30, J-7, J0 par défaut), pour une échéance qui touche un de ses projets |
 | **Dette de version** | impact d’un projet dont une version de l’inventaire a atteint sa fin de support, avec la version recommandée de l’espace |
 | **Source** | configuration permettant de collecter une origine de veille |
-| **Repository** | dépôt GitHub/GitLab associé à un projet |
+| **Projet** | ensemble suivi dans un espace, qui regroupe un ou plusieurs dépôts ; son inventaire est l'union des inventaires de ses dépôts : un composant présent dans plusieurs dépôts n'y figure qu'une fois, avec la liste de ses dépôts ([DÉCISION] du porteur du projet, 2026-11-19, J6 ; exigence INV-10 proposée par le changement `automatiser-chaine-veille`, implémentée par son volet B : table `project_repository`, migration V19) |
+| **Repository** | dépôt GitHub/GitLab rattaché à un projet ; un projet peut en regrouper plusieurs (J6), dont au plus un **dépôt principal** (celui des colonnes `scm_*` du projet, cible de l'import manuel) ; chaque dépôt garde son dernier import réussi, importé chaque jour depuis sa forge (INV-07, INV-10) |
 | **Workspace** | frontière organisationnelle et d’autorisation regroupant projets et sources |
 | **Espace** | nom de l’IHM et de l’API (`/api/v1/espaces`) pour un workspace ; ses membres y ont un rôle (capacité `comptes-acces`) |
 | **Compte** | identité Argos d’une personne, créée à sa première connexion OIDC et reliée au sujet du jeton |
@@ -37,7 +38,8 @@
 | **Fiche réglementaire** | fiche d'analyse d'un texte officiel pour un espace : résumé, articles modifiés, dates de publication et d'entrée en vigueur, domaines, liens officiels ; en attente de validation, validée ou rejetée par un expert métier ; ne constitue pas un avis juridique |
 | **Date à confirmer** | mention affichée quand aucune date d'entrée en vigueur n'est extraite d'un texte officiel |
 | **Mise en page** | présentation de l’IHM choisie par l’utilisateur (`classique`, `journal`, `fantaisie`, `gazette`) ; change la forme, jamais le contenu ni les mentions (ADR-0023) |
-| **Alerte** | message immédiat adressé à un utilisateur sur un canal quand un impact exact ou probable satisfait une de ses règles ; une seule par signal, utilisateur et canal (capacité `alertes-digests`) |
+| **Alerte** | message immédiat adressé à un utilisateur sur un canal quand un impact exact ou probable, ouvert ou confirmé, satisfait une de ses règles ; une seule par signal, utilisateur et canal (capacité `alertes-digests`) |
+| **Alerte annulée** | alerte immédiate encore en attente dont tous les impacts visibles du destinataire ont été écartés ou résolus avant l'envoi : elle n'est ni envoyée ni remise au poste et reste consultable (état `ANNULEE`, ALR-07, proposition P-17 du changement `automatiser-chaine-veille`) |
 | **Résumé périodique** | message quotidien ou hebdomadaire listant les éléments non alertés immédiatement ; jamais envoyé vide (en anglais : *digest*) |
 | **Vue enregistrée** | recherche nommée d’un utilisateur (mots et filtres), visible de lui seul et rejouée sous ses droits courants ; n’accorde aucun droit (capacité `recherche-veille`) |
 | **Horizon** | filtre de recherche retenant les éléments des N derniers jours, d’après leur date de publication, sinon de modification ou de réception (capacité `recherche-veille`) |
@@ -83,7 +85,9 @@
 | **Signal de sécurité** | avis de vulnérabilité normalisé, unique par source et identifiant externe, avec sa provenance et l'historique de ses versions (exigences COL-01 à COL-03) |
 | **Inventaire** | liste de référence des composants d'un projet, issue de la SBOM CycloneDX de la branche principale ou, à défaut, des manifestes, avec son origine et sa date (INV-01, INV-04) |
 | **Composant** | élément d'un inventaire identifié par son PURL et sa version, direct ou transitif (INV-01, INV-02) |
-| **Niveau d'impact** | confiance d'un impact : `exact`, `probable` ou `à vérifier` (COR-02) ; distinct du cycle de traitement d'un impact |
+| **Niveau d'impact** | niveau de confiance de la corrélation d'un impact : `exact`, `probable` ou `à vérifier` (COR-02, ADR-0013) ; distinct de l'état de traitement ([DÉCISION] du porteur du projet, 2026-11-19, J5) |
+| **État de traitement d'un impact** | avancement du traitement d'un impact par l'équipe : `ouvert` (à la création), `confirmé`, `écarté` (avec motif) ou `résolu` ; changé par un membre autorisé de l'espace, ou passé à `résolu` par le système quand un import retire le composant ou le met à jour hors plage ; indépendant du niveau d'impact ([DÉCISION] du porteur du projet, 2026-11-19, J5 ; exigences COR-09 à COR-11 proposées par le changement `automatiser-chaine-veille`) |
+| **Abonnement suspendu** | abonnement de veille dont les critères sont conservés mais qui ne produit plus de notification jusqu'à sa réactivation ; distinct d'un abonnement supprimé, qui disparaît avec ses critères et ses retraits ; état `SUSPENDED` dans le code, `ACTIVE` pour un abonnement actif (migration V18) ([DÉCISION] du porteur du projet, 2026-11-19, J7 ; ABO-07, ABO-08 proposées, implémentées le 2026-11-19 par le volet A de `automatiser-chaine-veille`) |
 | **MCP** | Model Context Protocol ; protocole par lequel un assistant IA appelle les outils d'un serveur. Argos expose huit outils en lecture seule, en protocole sans état 2026-07-28 ; les versions antérieures, avec session, restent acceptées (MCP-01 à MCP-07) |
 | **Contenu externe** | texte issu d'une source tierce (avis, calendrier, texte officiel), renvoyé par le serveur MCP dans un champ `TexteExterne` marqué `CONTENU_EXTERNE_NON_FIABLE` et tronqué, à part des champs produits par Argos (MCP-05) |
 | **Flux d'appareil** | OAuth 2.0 Device Authorization Grant (RFC 8628) : un outil sans navigateur intégré, comme un IDE, obtient un jeton après que l'utilisateur s'est connecté sur une page de vérification (Q-3 du changement `exposer-serveur-mcp`) |
@@ -96,11 +100,11 @@
 
 ## Termes encore ambigus à préciser
 
-- **projet** : projet métier, dépôt ou agrégat de plusieurs dépôts ?
 - **progression** : aucun pourcentage global ne doit être utilisé sans définition objective ;
 - **risque projet** : doit être défini par règle mesurable et provenance ;
-- **impact** : distinction à préciser entre impact probable, confirmé et résolu ;
 - **source critique** : seuil et règles à définir.
+
+Termes précisés le 2026-11-19 par le porteur du projet (changement `automatiser-chaine-veille`) : **projet** (agrégat d'un ou plusieurs dépôts, J6 : voir « Projet ») et **impact** (niveau de confiance et état de traitement distincts, J5 : voir « Niveau d'impact » et « État de traitement d'un impact »).
 
 ## Preuve et maintenance
 

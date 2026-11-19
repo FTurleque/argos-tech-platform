@@ -33,7 +33,8 @@ import io.argos.impact.ImpactQueries;
  *
  * <p>Un résumé reprend, pour un destinataire et un canal, les éléments en attente de cette fréquence,
  * hors ceux qui lui ont été alertés immédiatement. Les projets cités sont relus sous le contexte du
- * destinataire au moment de la composition : un élément qu'il ne peut plus voir est retiré. Sans
+ * destinataire au moment de la composition : un élément qu'il ne peut plus voir, ou dont tous les
+ * impacts ont été écartés ou résolus depuis (ALR-07-S2), est retiré. Sans
  * élément restant, aucun résumé n'est envoyé (ALR-04-S2). Un élément entre une seule fois dans un
  * résumé d'une fréquence et d'un canal donnés.
  */
@@ -122,7 +123,7 @@ public class ResumesPeriodiques {
                 try (PreparedStatement ps = c.prepareStatement("""
                         DELETE FROM resume_element e WHERE e.compte_id = ? AND e.canal = ? AND e.frequence = ?
                           AND e.alerte_id IS NULL AND EXISTS (SELECT 1 FROM alerte a WHERE a.nature = 'IMMEDIATE'
-                              AND a.signal_id = e.signal_id AND a.compte_id = e.compte_id)
+                              AND a.etat <> 'ANNULEE' AND a.signal_id = e.signal_id AND a.compte_id = e.compte_id)
                         """)) {
                     ps.setObject(1, compte);
                     ps.setString(2, canal);
