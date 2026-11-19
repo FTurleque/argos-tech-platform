@@ -5,12 +5,16 @@ import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Types;
+import java.time.Instant;
 import java.time.ZoneOffset;
 import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.HashSet;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.Set;
 import java.util.UUID;
 
 import javax.sql.DataSource;
@@ -41,7 +45,13 @@ import io.argos.signal.SignalQueries;
  * <p>Les impacts sont calculés et enregistrés dans une transaction propre, avant toute analyse
  * complémentaire (décision D3) : l'indisponibilité ou le plafond de l'IA ne peut pas les bloquer
  * (COR-05). Un nouveau calcul met à jour l'impact existant du triplet signal + projet + composant
- * au lieu d'en créer un second (COR-07) et retire les impacts qui ne sont plus vérifiés.
+ * au lieu d'en créer un second (COR-07) ; il conserve son état de traitement (COR-09-S2).
+ *
+ * <p>Un impact ouvert ou confirmé qui n'est plus vérifié n'est pas supprimé : il passe {@code RESOLU} avec l'auteur
+ * « système » et un {@link MotifSysteme} (COR-11, décisions J4 et J5 du porteur du projet, 2026-11-19 ; P-3). Un
+ * impact {@code ECARTE} n'est jamais modifié par le système (COR-11-S4) ; un impact {@code RESOLU} de nouveau vérifié
+ * repasse {@code OUVERT} (COR-11-S5, P-6). Un impact dont le composant a quitté l'inventaire, puis y revient à la même
+ * version, retrouve ce composant au lieu d'être dupliqué (INV-C4).
  */
 @ApplicationScoped
 public class CorrelationEngine {
@@ -50,11 +60,11 @@ public class CorrelationEngine {
     private static final ObjectMapper MAPPER = new ObjectMapper();
 
     /** Résultat d'une corrélation. {@code analysis} : NONE, DONE, UNAVAILABLE ou BUDGET_EXHAUSTED. */
-    public record CorrelationReport(UUID signalId, int created, int updated, int removed, List<UUID> impactIds,
-            String analysis, List<ComplementaryAnalysis.Suggestion> suggestions) {
+    public record CorrelationReport(UUID signalId, int created, int updated, int resolved, int reopened,
+            List<UUID> impactIds, String analysis, List<ComplementaryAnalysis.Suggestion> suggestions) {
     }
 
-    private record Deterministic(int created, int updated, int removed, List<UUID> impactIds,
+    private record Deterministic(int created, int updated, int resolved, int reopened, List<UUID> impactIds,
             ImpactsRecorded recorded) {
     }
 
@@ -73,6 +83,9 @@ public class CorrelationEngine {
     @Inject
     Event<ImpactsRecorded> impactsRecorded;
 
+    @Inject
+    Event<ImpactsTraites> impactsTraites;
+
     void onSignalChanged(@Observes(during = TransactionPhase.AFTER_SUCCESS) SignalChanged event) {
         try {
             correlate(event.signalId(), Optional.empty());
@@ -89,10 +102,16 @@ public class CorrelationEngine {
         }
     }
 
-    /** Corrèle tous les signaux qui affectent un paquet de l'inventaire du projet. */
+    /**
+     * Corrèle avec le projet les signaux qui affectent un paquet de son inventaire, et ceux qui portent un impact
+     * ouvert ou confirmé sur lui : un impact dont le composant a quitté l'inventaire est ainsi résolu (COR-11-S1, S2).
+     */
     public List<CorrelationReport> correlateProject(UUID projectId) {
-        List<UUID> signalIds = QuarkusTransaction.requiringNew()
-                .call(() -> signals.signalsAffecting(inventories.packageKeys(projectId)));
+        Set<UUID> signalIds = QuarkusTransaction.requiringNew().call(() -> {
+            Set<UUID> ids = new LinkedHashSet<>(signals.signalsAffecting(inventories.packageKeys(projectId)));
+            ids.addAll(signalsWithActiveImpacts(projectId));
+            return ids;
+        });
         List<CorrelationReport> reports = new ArrayList<>();
         for (UUID signalId : signalIds) {
             reports.add(correlate(signalId, Optional.of(projectId)));
@@ -104,6 +123,13 @@ public class CorrelationEngine {
     public CorrelationReport correlate(UUID signalId, Optional<UUID> projectId) {
         Deterministic d = QuarkusTransaction.requiringNew().call(() -> deterministic(signalId, projectId));
         publish(d.recorded());
+        if (d.resolved() > 0) {
+            try {
+                impactsTraites.fire(new ImpactsTraites(signalId));
+            } catch (RuntimeException e) {
+                LOG.errorf(e, "publication des impacts résolus du signal %s en échec", signalId);
+            }
+        }
         String status = "NONE";
         List<ComplementaryAnalysis.Suggestion> suggestions = List.of();
         if (analysis.isResolvable()) {
@@ -121,7 +147,8 @@ public class CorrelationEngine {
                 }
             }
         }
-        return new CorrelationReport(signalId, d.created(), d.updated(), d.removed(), d.impactIds(), status, suggestions);
+        return new CorrelationReport(signalId, d.created(), d.updated(), d.resolved(), d.reopened(), d.impactIds(),
+                status, suggestions);
     }
 
     /**
@@ -139,6 +166,20 @@ public class CorrelationEngine {
         }
     }
 
+    private List<UUID> signalsWithActiveImpacts(UUID projectId) throws SQLException {
+        List<UUID> ids = new ArrayList<>();
+        try (Connection c = dataSource.getConnection(); PreparedStatement ps = c.prepareStatement(
+                "SELECT DISTINCT signal_id FROM project_impact WHERE project_id = ? AND state IN ('OUVERT', 'CONFIRME')")) {
+            ps.setObject(1, projectId);
+            try (ResultSet rs = ps.executeQuery()) {
+                while (rs.next()) {
+                    ids.add(rs.getObject(1, UUID.class));
+                }
+            }
+        }
+        return ids;
+    }
+
     private Deterministic deterministic(UUID signalId, Optional<UUID> projectId) throws SQLException {
         SignalQueries.SignalView signal = signals.find(signalId)
                 .orElseThrow(() -> new IllegalArgumentException("signal inconnu : " + signalId));
@@ -146,14 +187,19 @@ public class CorrelationEngine {
         for (AffectedPackage a : signal.affected()) {
             byKey.computeIfAbsent(a.packageKey(), k -> new ArrayList<>()).add(a);
         }
+        Instant now = Instant.now();
         int created = 0;
         int updated = 0;
+        int reopened = 0;
         List<UUID> kept = new ArrayList<>();
+        // Paquets (projet + clé) pour lesquels un composant reste affecté : un impact de l'ancienne version de ce
+        // paquet est résolu comme composant retiré, et non comme version hors plage.
+        Set<String> stillAffected = new HashSet<>();
         List<ImpactsRecorded.Item> items = new ArrayList<>();
         try (Connection c = dataSource.getConnection()) {
             // Traitement technique, hors rôle applicatif. Le verrou par signal sérialise une corrélation
-            // globale et une corrélation par projet du même signal : la suppression des impacts devenus
-            // caducs ne peut pas retirer un impact validé entre-temps par l'autre traitement.
+            // globale et une corrélation par projet du même signal : la résolution des impacts devenus
+            // caducs ne peut pas résoudre un impact validé entre-temps par l'autre traitement.
             try (PreparedStatement lock = c.prepareStatement("SELECT pg_advisory_xact_lock(hashtext(?))")) {
                 lock.setString(1, "project_impact:" + signalId);
                 lock.execute();
@@ -163,6 +209,8 @@ public class CorrelationEngine {
                 if (best.isEmpty()) {
                     continue;
                 }
+                stillAffected.add(m.projectId() + " " + m.packageKey());
+                reattach(c, signalId, m);
                 UUID id = UUID.randomUUID();
                 try (PreparedStatement ps = c.prepareStatement("""
                         INSERT INTO project_impact(id, signal_id, signal_version_id, project_id, workspace_id, component_id,
@@ -172,8 +220,8 @@ public class CorrelationEngine {
                                signal_version_id = excluded.signal_version_id, level = excluded.level,
                                method = excluded.method, transitive = excluded.transitive,
                                inventory_origin = excluded.inventory_origin, inventory_date = excluded.inventory_date,
-                               provenance = excluded.provenance, updated_at = now()
-                        RETURNING id, (xmax = 0)
+                               provenance = excluded.provenance, component_id = excluded.component_id, updated_at = now()
+                        RETURNING id, (xmax = 0), state
                         """)) {
                     ps.setObject(1, id);
                     ps.setObject(2, signalId);
@@ -193,30 +241,116 @@ public class CorrelationEngine {
                     ps.setString(12, provenance(signal, m, best.get()).toString());
                     try (ResultSet rs = ps.executeQuery()) {
                         rs.next();
-                        kept.add(rs.getObject(1, UUID.class));
-                        items.add(new ImpactsRecorded.Item(rs.getObject(1, UUID.class), m.projectId(), m.workspaceId(),
-                                best.get().level().name(), m.packageKey()));
+                        UUID impactId = rs.getObject(1, UUID.class);
+                        EtatImpact etat = EtatImpact.valueOf(rs.getString(3));
+                        kept.add(impactId);
                         if (rs.getBoolean(2)) {
                             created++;
                         } else {
                             updated++;
                         }
+                        if (etat == EtatImpact.RESOLU && TraitementImpacts.systeme(c, impactId, m.workspaceId(),
+                                EtatImpact.RESOLU, EtatImpact.OUVERT, MotifSysteme.DE_NOUVEAU_VERIFIE, now)) {
+                            reopened++;
+                            etat = EtatImpact.OUVERT;
+                        }
+                        // Un impact écarté reste enregistré et à jour, mais n'est publié à aucune alerte (ALR-07).
+                        if (EtatImpact.ACTIFS.contains(etat)) {
+                            items.add(new ImpactsRecorded.Item(impactId, m.projectId(), m.workspaceId(),
+                                    best.get().level().name(), m.packageKey()));
+                        }
                     }
                 }
             }
-            int removed;
-            try (PreparedStatement ps = c.prepareStatement("""
-                    DELETE FROM project_impact WHERE signal_id = ? AND (?::uuid IS NULL OR project_id = ?::uuid)
-                      AND NOT (id = ANY (?))
-                    """)) {
-                ps.setObject(1, signalId);
-                ps.setObject(2, projectId.orElse(null));
-                ps.setObject(3, projectId.orElse(null));
-                ps.setArray(4, c.createArrayOf("uuid", kept.toArray()));
-                removed = ps.executeUpdate();
-            }
-            return new Deterministic(created, updated, removed, List.copyOf(kept), new ImpactsRecorded(signalId,
+            int resolved = resolveStale(c, signal, projectId, kept, stillAffected, now);
+            return new Deterministic(created, updated, resolved, reopened, List.copyOf(kept), new ImpactsRecorded(signalId,
                     signal.title(), signal.severity(), signal.source(), signal.externalId(), items));
+        }
+    }
+
+    /**
+     * Rattache au composant revenu dans l'inventaire l'impact que ce signal portait sur la même clé de paquet et la même
+     * version avant son retrait (composant nul), s'il n'existe pas déjà d'impact pour ce composant : l'upsert qui suit
+     * met alors à jour cet impact, avec son historique, au lieu d'en créer un second.
+     */
+    private static void reattach(Connection c, UUID signalId, InventoryQueries.ComponentMatch m) throws SQLException {
+        try (PreparedStatement ps = c.prepareStatement("""
+                UPDATE project_impact SET component_id = ?, updated_at = now()
+                WHERE id = (SELECT i.id FROM project_impact i
+                            WHERE i.signal_id = ? AND i.project_id = ? AND i.component_id IS NULL AND i.package_key = ?
+                              AND coalesce(i.component_version, '') = coalesce(?, '')
+                            ORDER BY i.updated_at DESC, i.id LIMIT 1)
+                  AND NOT EXISTS (SELECT 1 FROM project_impact j
+                                  WHERE j.signal_id = ? AND j.project_id = ? AND j.component_id = ?)
+                """)) {
+            ps.setObject(1, m.componentId());
+            ps.setObject(2, signalId);
+            ps.setObject(3, m.projectId());
+            ps.setString(4, m.packageKey());
+            ps.setString(5, m.version());
+            ps.setObject(6, signalId);
+            ps.setObject(7, m.projectId());
+            ps.setObject(8, m.componentId());
+            ps.executeUpdate();
+        }
+    }
+
+    /**
+     * Résout les impacts ouverts ou confirmés du signal (et du projet donné) qui ne sont plus vérifiés, avec le motif
+     * qui l'explique (COR-11). Les impacts écartés et déjà résolus ne sont pas touchés.
+     */
+    private int resolveStale(Connection c, SignalQueries.SignalView signal, Optional<UUID> projectId, List<UUID> kept,
+            Set<String> stillAffected, Instant now) throws SQLException {
+        record Stale(UUID id, UUID workspaceId, UUID projectId, EtatImpact etat, UUID componentId, String packageKey) {
+        }
+        List<Stale> stale = new ArrayList<>();
+        try (PreparedStatement ps = c.prepareStatement("""
+                SELECT id, workspace_id, project_id, state, component_id, package_key FROM project_impact
+                WHERE signal_id = ? AND (?::uuid IS NULL OR project_id = ?::uuid) AND state IN ('OUVERT', 'CONFIRME')
+                  AND NOT (id = ANY (?))
+                ORDER BY id
+                """)) {
+            ps.setObject(1, signal.id());
+            ps.setObject(2, projectId.orElse(null));
+            ps.setObject(3, projectId.orElse(null));
+            ps.setArray(4, c.createArrayOf("uuid", kept.toArray()));
+            try (ResultSet rs = ps.executeQuery()) {
+                while (rs.next()) {
+                    stale.add(new Stale(rs.getObject(1, UUID.class), rs.getObject(2, UUID.class),
+                            rs.getObject(3, UUID.class), EtatImpact.valueOf(rs.getString(4)), rs.getObject(5, UUID.class),
+                            rs.getString(6)));
+                }
+            }
+        }
+        int resolved = 0;
+        for (Stale s : stale) {
+            MotifSysteme motif;
+            if (signal.affected().isEmpty()) {
+                // Avis retiré par sa source (OSV « withdrawn ») : il ne déclare plus aucun paquet affecté.
+                motif = MotifSysteme.AVIS_RETIRE;
+            } else if (s.componentId() != null) {
+                motif = MotifSysteme.AVIS_MODIFIE;
+            } else if (!stillAffected.contains(s.projectId() + " " + s.packageKey())
+                    && packagePresent(c, s.projectId(), s.packageKey())) {
+                motif = MotifSysteme.VERSION_HORS_PLAGE;
+            } else {
+                motif = MotifSysteme.COMPOSANT_RETIRE;
+            }
+            if (TraitementImpacts.systeme(c, s.id(), s.workspaceId(), s.etat(), EtatImpact.RESOLU, motif, now)) {
+                resolved++;
+            }
+        }
+        return resolved;
+    }
+
+    private static boolean packagePresent(Connection c, UUID projectId, String packageKey) throws SQLException {
+        try (PreparedStatement ps = c.prepareStatement(
+                "SELECT 1 FROM component WHERE project_id = ? AND package_key = ? LIMIT 1")) {
+            ps.setObject(1, projectId);
+            ps.setString(2, packageKey);
+            try (ResultSet rs = ps.executeQuery()) {
+                return rs.next();
+            }
         }
     }
 

@@ -201,23 +201,159 @@ class CorrelationTest {
                 .body("impacts", equalTo(1));
     }
 
-    /** Un avis OSV retiré (« withdrawn ») ne produit plus d'impact ; son historique est conservé. */
+    /**
+     * Un avis OSV retiré (« withdrawn ») ne produit plus d'impact actif ; son historique est conservé et l'impact
+     * qu'il portait est résolu par le système, non supprimé (COR-11-S3, avis retiré ; P-3).
+     */
     @Test
-    void avisRetireSansImpact() {
+    void avisRetireSansImpactEtCor11S3ImpactResoluAvisRetire() {
         UUID project = projectWithSbom(spaceA, "app", fresh(), LIB + "@1.2.0");
         UUID signal = publish("GHSA-WITHDRAWN", LIB, "0", "1.3.0");
         assertEquals(1, impactsOf(project));
+        UUID impact = db.uuid("SELECT id FROM project_impact");
 
         String retire = Fixtures.osv("GHSA-WITHDRAWN", "2026-11-12T00:00:00Z", "Maven", "org.exemple:lib", LIB, "0", "1.3.0")
                 .replaceFirst("\\{", "{\"withdrawn\":\"2026-11-12T00:00:00Z\",");
         Fixtures.stubOsv("GHSA-WITHDRAWN", "2026-11-12T00:00:00Z", retire);
         synchronizer.synchronize("OSV");
 
-        assertEquals(0, impactsOf(project), "un avis retiré ne produit pas d'impact");
+        assertEquals(0, activeImpactsOf(project), "un avis retiré ne produit pas d'impact actif");
+        assertEquals(1, impactsOf(project), "l'impact n'est pas supprimé");
+        assertEquals("RESOLU", stateOf(impact));
+        assertEquals("AVIS_RETIRE", lastReason(impact));
         assertEquals(2, db.count("SELECT count(*) FROM signal_version WHERE signal_id = '" + signal + "'"));
 
         UUID autre = projectWithSbom(spaceA, "tardif", fresh(), LIB + "@1.0.0");
         assertEquals(0, impactsOf(autre), "ni pour un inventaire importé après le retrait");
+    }
+
+    private long activeImpactsOf(UUID project) {
+        return db.count("SELECT count(*) FROM project_impact WHERE project_id = '" + project
+                + "' AND state IN ('OUVERT', 'CONFIRME')");
+    }
+
+    private String stateOf(UUID impact) {
+        return db.string("SELECT state FROM project_impact WHERE id = '" + impact + "'");
+    }
+
+    /** Motif de la dernière transition faite par le système. */
+    private String lastReason(UUID impact) {
+        return db.string("SELECT reason FROM project_impact_transition WHERE impact_id = '" + impact
+                + "' AND actor_system ORDER BY occurred_at DESC, id LIMIT 1");
+    }
+
+    private void reimport(UUID project, String... purls) {
+        List<String[]> components = new java.util.ArrayList<>();
+        for (int i = 0; i < purls.length; i++) {
+            components.add(new String[] {"c" + i, purls[i]});
+        }
+        inventories.importSbom(project, Fixtures.cyclonedx("1.6", fresh().toString(), components, List.of("c0"))
+                .getBytes(StandardCharsets.UTF_8), "ci");
+    }
+
+    /** COR-11-S1 : un impact confirmé dont le composant est retiré par un import est résolu, et reste consultable. */
+    @Test
+    void cor11S1ComposantRetireDeLInventaire() {
+        UUID project = projectWithSbom(spaceA, "app", fresh(), "pkg:npm/exemple@1.5.0", "pkg:npm/autre@1.0.0");
+        String avis = Fixtures.osv("GHSA-COR11-1", "2026-11-10T00:00:00Z", "npm", "exemple", "pkg:npm/exemple", "0", "2.0.0");
+        Fixtures.stubOsv("GHSA-COR11-1", "2026-11-10T00:00:00Z", avis);
+        synchronizer.synchronize("OSV");
+        UUID impact = db.uuid("SELECT id FROM project_impact");
+        db.exec("UPDATE project_impact SET state = 'CONFIRME' WHERE id = '" + impact + "'");
+
+        reimport(project, "pkg:npm/autre@1.0.0");
+
+        assertEquals("RESOLU", stateOf(impact));
+        assertEquals("COMPOSANT_RETIRE", lastReason(impact));
+        assertEquals("CONFIRME", db.string("SELECT from_state FROM project_impact_transition WHERE impact_id = '" + impact + "'"));
+        assertEquals(1, db.count("SELECT count(*) FROM project_impact_transition WHERE impact_id = '" + impact
+                + "' AND actor_system AND actor_account_id IS NULL"));
+        Optional<ImpactQueries.ImpactView> vue = impacts.find(impact, Api.compte("alice"), Set.of(spaceA));
+        assertTrue(vue.isPresent(), "l'impact résolu reste consultable");
+        assertEquals("pkg:npm/exemple@1.5.0", vue.get().componentPurl());
+        assertTrue(vue.get().provenance().contains("GHSA-COR11-1"), "sa provenance est conservée");
+        assertTrue(impacts.integrity().intact(), "INV-C3 : aucun impact actif sans composant");
+    }
+
+    /** COR-11-S2 : composant mis à jour hors plage, aucun impact créé pour la nouvelle version. */
+    @Test
+    void cor11S2ComposantMisAJourHorsPlage() {
+        UUID project = projectWithSbom(spaceA, "app", fresh(), "pkg:npm/exemple@1.5.0");
+        String avis = Fixtures.osv("GHSA-COR11-2", "2026-11-10T00:00:00Z", "npm", "exemple", "pkg:npm/exemple", "0", "2.0.0");
+        Fixtures.stubOsv("GHSA-COR11-2", "2026-11-10T00:00:00Z", avis);
+        synchronizer.synchronize("OSV");
+        UUID impact = db.uuid("SELECT id FROM project_impact");
+
+        reimport(project, "pkg:npm/exemple@2.1.0");
+
+        assertEquals("RESOLU", stateOf(impact));
+        assertEquals("VERSION_HORS_PLAGE", lastReason(impact));
+        assertEquals(1, impactsOf(project), "aucun impact pour pkg:npm/exemple@2.1.0");
+    }
+
+    /** COR-11-S3 (avis modifié) puis COR-11-S5 : résolu par le système, puis rouvert quand l'avis couvre de nouveau. */
+    @Test
+    void cor11S3AvisModifieEtCor11S5ImpactResoluDeNouveauVerifie() {
+        UUID project = projectWithSbom(spaceA, "app", fresh(), LIB + "@1.2.0");
+        UUID signal = publish("GHSA-COR11-3", LIB, "0", "1.3.0");
+        UUID impact = db.uuid("SELECT id FROM project_impact");
+
+        String corrige = Fixtures.osv("GHSA-COR11-3", "2026-11-12T00:00:00Z", "Maven", "org.exemple:lib", LIB, "0", "1.1.0");
+        Fixtures.stubOsv("GHSA-COR11-3", "2026-11-12T00:00:00Z", corrige);
+        synchronizer.synchronize("OSV");
+
+        assertEquals("RESOLU", stateOf(impact));
+        assertEquals("AVIS_MODIFIE", lastReason(impact));
+        assertEquals(1, impactsOf(project), "l'impact n'est pas supprimé");
+
+        String elargi = Fixtures.osv("GHSA-COR11-3", "2026-11-13T00:00:00Z", "Maven", "org.exemple:lib", LIB, "0", "1.4.0");
+        Fixtures.stubOsv("GHSA-COR11-3", "2026-11-13T00:00:00Z", elargi);
+        synchronizer.synchronize("OSV");
+
+        assertEquals("OUVERT", stateOf(impact));
+        assertEquals("DE_NOUVEAU_VERIFIE", lastReason(impact));
+        assertEquals(1, db.count("SELECT count(*) FROM project_impact WHERE signal_id = '" + signal + "'"),
+                "un seul impact pour ce signal, ce projet et ce composant (COR-07)");
+        assertEquals(2, db.count("SELECT count(*) FROM project_impact_transition WHERE impact_id = '" + impact + "'"));
+    }
+
+    /** COR-11-S4 : un impact écarté n'est jamais modifié par le système, même si son composant est retiré. */
+    @Test
+    void cor11S4ImpactEcarteJamaisModifieParLeSysteme() {
+        UUID project = projectWithSbom(spaceA, "app", fresh(), LIB + "@1.2.0", "pkg:maven/org.autre/outil@1.0.0");
+        UUID signal = publish("GHSA-COR11-4", LIB, "0", "1.3.0");
+        UUID impact = db.uuid("SELECT id FROM project_impact");
+        db.exec("UPDATE project_impact SET state = 'ECARTE' WHERE id = '" + impact + "'");
+
+        reimport(project, "pkg:maven/org.autre/outil@1.0.0");
+        engine.correlate(signal, Optional.empty());
+
+        assertEquals("ECARTE", stateOf(impact));
+        assertEquals(0, db.count("SELECT count(*) FROM project_impact_transition WHERE impact_id = '" + impact + "'"));
+        assertTrue(impacts.integrity().intact(), "un impact écarté sans composant respecte INV-C3");
+
+        // Le composant revient à la même version : l'impact écarté le retrouve, sans doublon, et reste écarté.
+        reimport(project, LIB + "@1.2.0");
+        assertEquals(1, impactsOf(project));
+        assertEquals("ECARTE", stateOf(impact));
+        assertEquals(0, activeImpactsOf(project));
+    }
+
+    /** Un composant retiré puis réimporté à la même version : l'impact résolu le retrouve et repasse ouvert. */
+    @Test
+    void composantRevenuRouvreLImpactSansDoublon() {
+        UUID project = projectWithSbom(spaceA, "app", fresh(), LIB + "@1.2.0", "pkg:maven/org.autre/outil@1.0.0");
+        publish("GHSA-COR11-6", LIB, "0", "1.3.0");
+        UUID impact = db.uuid("SELECT id FROM project_impact");
+
+        reimport(project, "pkg:maven/org.autre/outil@1.0.0");
+        assertEquals("RESOLU", stateOf(impact));
+        reimport(project, LIB + "@1.2.0");
+
+        assertEquals(1, impactsOf(project));
+        assertEquals("OUVERT", stateOf(impact));
+        assertEquals("DE_NOUVEAU_VERIFIE", lastReason(impact));
+        assertTrue(db.uuid("SELECT component_id FROM project_impact WHERE id = '" + impact + "'") != null);
     }
 
     @Test

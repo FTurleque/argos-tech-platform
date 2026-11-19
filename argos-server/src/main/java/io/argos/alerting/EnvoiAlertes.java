@@ -198,6 +198,11 @@ public class EnvoiAlertes {
      */
     private Optional<Reservation> reserver(UUID id, Set<String> canauxDiffuses, Instant maintenant) throws SQLException {
         try (Connection c = dataSource.getConnection()) {
+            // ALR-07-S1 : une alerte immédiate dont tous les impacts ont été écartés ou résolus avant l'envoi n'est
+            // pas diffusée.
+            if (AlertesSansObjet.annulerSiSansObjet(c, id)) {
+                return Optional.empty();
+            }
             Reservation r;
             try (PreparedStatement ps = c.prepareStatement("""
                     SELECT a.canal, a.tentatives, a.nature, a.compte_id, c.email, a.titre, a.gravite, a.contenu::text

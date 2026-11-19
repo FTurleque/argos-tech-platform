@@ -4,6 +4,9 @@
 // le clic sur une notification ouvre cette vue sur l'alerte).
 // Chaque projet cité mène à sa vue d'inventaire (`/inventaire/{id}`, décision E4 du 2026-11-19), qui
 // affiche notamment ses composants écartés faute de PURL.
+// Sous chaque signal, les impacts visibles de l'utilisateur avec leur état de traitement, leur historique et les
+// transitions qu'il peut demander (COR-09, COR-10, COR-12 ; changement automatiser-chaine-veille, tâche 3.5). Une
+// alerte `ANNULEE` (impacts écartés ou résolus avant la remise, ALR-07) reste listée avec cette mention.
 import { computed, ref, watch } from 'vue'
 import { useRoute } from 'vue-router'
 import { ApiError, fetchAlerte, fetchAlertesPoste, type AlerteVue } from '../api/client'
@@ -12,6 +15,7 @@ import { estUuid } from '../api/recherche-criteres'
 import { urlSure } from '../contenu/liens'
 import { alerteConsultee } from '../contenu/suivi-poste'
 import { resumeIaAffiche } from '../contenu/resume-ia'
+import TraitementImpacts from '../contenu/TraitementImpacts.vue'
 
 const GRAVITES: Record<string, string> = {
   CRITICAL: 'critique',
@@ -87,6 +91,8 @@ watch(id, charger, { immediate: true })
               <span v-else>{{ source.nom }} {{ source.identifiant }}</span>
             </li>
           </ul>
+          <!-- État de traitement, historique et transitions des impacts du signal (COR-09, COR-10, COR-12). -->
+          <TraitementImpacts v-if="estUuid(element.signalId)" :signal-id="element.signalId" />
         </div>
         <div v-if="resumeIa" class="resume-ia">
           <h2>Résumé</h2>
@@ -103,6 +109,7 @@ watch(id, charger, { immediate: true })
         <li v-for="a in liste" :key="a.id">
           <RouterLink :to="`/alertes/${a.id}`">{{ a.titre }}</RouterLink>
           <span class="muted"> · gravité {{ gravite(a.gravite) }} · {{ date(a.creeLe) }}</span>
+          <span v-if="a.etat === 'ANNULEE'" class="muted"> · sans objet : impacts écartés ou résolus avant la remise</span>
         </li>
       </ul>
     </template>
