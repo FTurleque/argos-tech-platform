@@ -227,6 +227,37 @@ class MatchRulesTest {
         assertEquals(Optional.empty(), MatchRules.evaluate(sansEcosysteme, "32.0.0-jre", true), "écosystème déduit de la clé PURL");
     }
 
+    /**
+     * Écosystème ni déclaré ni lisible dans la clé PURL : ordre générique, comme hors Maven ; un écosystème blanc
+     * laisse la clé PURL décider.
+     */
+    @Test
+    void ecosystemeInconnuSuitLOrdreGenerique() {
+        List<VersionRange> plage = List.of(new VersionRange("ECOSYSTEM", "0", "32.0.0-android", null));
+        for (String cle : new String[] {"com.google.guava:guava", "pkg:/guava", "pkg:maven", null}) {
+            AffectedPackage inconnu = new AffectedPackage(cle, true, null, "guava", plage, List.of());
+            assertEquals(Optional.of(Level.A_VERIFIER), MatchRules.evaluate(inconnu, "32.0.0-jre", true), cle);
+            assertEquals(Optional.of(Level.EXACT), MatchRules.evaluate(inconnu, "31.1", true), cle);
+        }
+        AffectedPackage blanc = new AffectedPackage("pkg:maven/com.google.guava/guava", true, "  ", "guava", plage, List.of());
+        assertEquals(Optional.empty(), MatchRules.evaluate(blanc, "32.0.0-jre", true), "écosystème blanc : clé PURL Maven");
+    }
+
+    /** Sans plage : rien à conclure sans version énumérée, hors plage si les versions énumérées ne la citent pas. */
+    @Test
+    void sansPlageVersionsEnumereesOuRien() {
+        AffectedPackage rien = new AffectedPackage(KEY, true, "Maven", "x", List.of(), null);
+        assertEquals(Optional.of(Level.A_VERIFIER), MatchRules.evaluate(rien, "1.0", true));
+        assertEquals(Optional.empty(), MatchRules.versionAffected(rien, "1.0"));
+        AffectedPackage enumeres = new AffectedPackage(KEY, true, "Maven", "x", List.of(), List.of("2.0"));
+        assertEquals(Optional.empty(), MatchRules.evaluate(enumeres, "1.0", true));
+        assertEquals(Optional.of(false), MatchRules.versionAffected(enumeres, "1.0"));
+        AffectedPackage gitEtHors = new AffectedPackage(KEY, true, "Maven", "x", List.of(new VersionRange("GIT", "a", "b", null),
+                new VersionRange("ECOSYSTEM", "0", "1.0", null)), List.of());
+        assertEquals(Optional.of(Level.EXACT), MatchRules.evaluate(gitEtHors, "0.5", true), "une plage contenant la version l'emporte");
+        assertEquals(Optional.of(Level.A_VERIFIER), MatchRules.evaluate(gitEtHors, "1.5", true), "plage GIT : rien à conclure");
+    }
+
     /** Un qualificatif inconnu face à la borne d'un paquet Maven : plage interprétable, niveau selon COR-02. */
     @Test
     void qualificatifInconnuMavenNePlusAVerifier() {
