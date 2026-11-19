@@ -163,7 +163,7 @@ export function pageComposants(reponse: PageComposantsApi | null | undefined): P
   const atteste = items.length > 0 ? page * taille + items.length : 0
   const total = Math.max(entierPositif(reponse?.total), atteste)
   return {
-    composants: items.map(composant),
+    composants: items.map((element, rang) => composant(element, rang)),
     page,
     taille,
     total,
