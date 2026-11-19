@@ -99,6 +99,8 @@ async function charger(): Promise<void> {
   chargementComposants.value = false
   saisie.value = id.value ?? ''
   choix.value = id.value ?? ''
+  erreurSaisie.value = ''
+  erreurChoix.value = ''
   if (!id.value) {
     chargement.value = false
     annonce.value = ''
