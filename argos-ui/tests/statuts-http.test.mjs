@@ -49,12 +49,34 @@ test('classements : introuvable ou interdit, non autorisé', () => {
   assert.equal(nonAutorise(undefined), false)
 })
 
-test('aucun statut HTTP écrit en dur dans une comparaison hors du module partagé', () => {
-  const comparaison = /[!=]==?\s*[1-5]\d\d\b|\b[1-5]\d\d\s*[!=]==?/
+// Formes repérées : égalité ou inégalité (===, !==, ==, !=), `case 404:`, liste de statuts
+// (`[401, 403].includes(…)`) et comparaison d'ordre d'une variable dont le nom contient « status » ou
+// « statut » (`status >= 400`).
+const FORMES_STATUT_EN_DUR = [
+  /[!=]==?\s*[1-5]\d\d\b|\b[1-5]\d\d\s*[!=]==?/,
+  /\bcase\s+[1-5]\d\d\s*:/,
+  /\[\s*[1-5]\d\d\s*(,\s*[1-5]\d\d\s*)+\]/,
+  /statu[st]?\w*\s*[<>]=?\s*[1-5]\d\d\b|\b[1-5]\d\d\s*[<>]=?\s*[\w.]*statu/i,
+]
+
+test("garde-fou : les formes repérées couvrent égalité, case, liste et comparaison d'ordre", () => {
+  const repere = (ligne) => FORMES_STATUT_EN_DUR.some((forme) => forme.test(ligne))
+  for (const ligne of ['if (r.status === 404)', 'case 409:', '[401, 403].includes(s)', 'if (status >= 400)',
+    'if (500 <= reponse.status)']) {
+    assert.equal(repere(ligne), true, ligne)
+  }
+  for (const ligne of ['if (r.status === STATUT_INTROUVABLE)', 'texte.length > 200', 'const taille = 250']) {
+    assert.equal(repere(ligne), false, ligne)
+  }
+})
+
+test('aucun statut HTTP écrit en dur hors du module partagé', () => {
   for (const fichier of fichiersSource(SRC)) {
     if (fichier === MODULE_PARTAGE) continue
     readFileSync(fichier, 'utf8').split('\n').forEach((ligne, index) => {
-      assert.doesNotMatch(ligne, comparaison, `${fichier}:${index + 1}`)
+      for (const forme of FORMES_STATUT_EN_DUR) {
+        assert.doesNotMatch(ligne, forme, `${fichier}:${index + 1}`)
+      }
     })
   }
 })
