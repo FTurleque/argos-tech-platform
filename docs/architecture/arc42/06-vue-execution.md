@@ -156,18 +156,28 @@ La collecte remplace les compteurs des jours de sa fenêtre : rejouée, elle pro
 
 ## 6.3 Scénario d’erreur — API externe indisponible
 
-**Type : UML sequence diagram. Portée : synchronisation d’une source lancée par l’exploitant (`POST /api/v1/ops/sources/{id}/synchronizations`) ; aucune planification automatique de la collecte des avis n’existe.**
+**Type : UML sequence diagram. Portée : synchronisation d’une source lancée par l’exploitant (`POST /api/v1/ops/sources/{id}/synchronizations`) ou par la tâche planifiée `signal-synchronisation-sources` du module `signal` (toutes les heures par défaut, `argos.ingestion.planification.cadence` ; COL-09, changement `automatiser-chaine-veille`, 2026-11-19 ; ADR-0031).**
 
 ```mermaid
 sequenceDiagram
     participant Ops as Exploitant
     participant API as API & Security
+    participant Plan as signal (SynchronisationPlanifiee)
     participant Ingestion as source-ingestion
     participant Ext as «Software System» Source externe
     participant Persist as PostgreSQL
 
-    Ops->>API: lancer la synchronisation d’une source
-    API->>Ingestion: synchroniser la source
+    alt lancement par l’exploitant
+        Ops->>API: lancer la synchronisation d’une source
+        API->>Ingestion: synchroniser la source
+    else échéance horaire (quarkus-scheduler)
+        Plan->>Ingestion: synchroniser chaque source enregistrée
+    end
+    Ingestion->>Persist: réserver le traitement (index sync_run_one_running)
+    opt traitement déjà en cours pour cette source
+        Persist-->>Ingestion: réservation refusée
+        Ingestion-->>Plan: source sautée (COL-09-S2)
+    end
     Ingestion->>Ext: demander delta depuis dernier curseur
     Ext--xIngestion: timeout / 429 / 5xx
     Ingestion->>Persist: enregistrer tentative et erreur
@@ -195,7 +205,8 @@ sequenceDiagram
 - distinguer erreurs transitoires et permanentes ;
 - respecter `Retry-After` et les rate limits ;
 - ne pas boucler indéfiniment ;
-- rendre visible la source dégradée dans l’observabilité.
+- rendre visible la source dégradée dans l’observabilité ;
+- à chaque échéance planifiée, rafraîchir les index d’enrichissement (CERT-FR, KEV) sans bloquer la synchronisation, retenter une source `DEGRADED` et ne jamais lancer une seconde synchronisation d’une source déjà en cours (COL-09).
 
 ## 6.4 Scénario d’exploitation — redémarrage/reprise
 

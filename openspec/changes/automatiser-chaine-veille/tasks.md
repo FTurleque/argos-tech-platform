@@ -1,7 +1,7 @@
 # Tâches : automatiser la chaîne de veille sécurité
 
 <!--
-Cadrage du 2026-11-19 (branche lot18/cadrage) : proposition, specs, conception et tâches rédigées à partir des décisions J1 à J8 du porteur du projet (2026-11-19) ; questions Q-COL-1, Q-COL-2, Q-INV-1, Q-INV-2, Q-COR-2, Q-ABO-1 levées dans les fiches ; glossaire et registre mis à jour. Preuves du cadrage, 2026-11-19 : `openspec validate automatiser-chaine-veille --strict` (valide), `openspec validate --all --strict`, `node scripts/verifier-docs.mjs` (aucune erreur). Aucune tâche d'implémentation n'est faite : aucune case n'est cochée.
+Cadrage du 2026-11-19 (branche lot18/cadrage) : proposition, specs, conception et tâches rédigées à partir des décisions J1 à J8 du porteur du projet (2026-11-19) ; questions Q-COL-1, Q-COL-2, Q-INV-1, Q-INV-2, Q-COR-2, Q-ABO-1 levées dans les fiches ; glossaire et registre mis à jour. Preuves du cadrage, 2026-11-19 : `openspec validate automatiser-chaine-veille --strict` (valide), `openspec validate --all --strict`, `node scripts/verifier-docs.mjs` (aucune erreur). Aucune tâche d'implémentation n'est faite au cadrage. Volet A (tâches 1.1 à 1.7) implémenté et vérifié le 2026-11-19 sur la branche `lot18/collecte-abonnements` (preuves sous la tâche 1.7).
 
 Trois volets indépendants, réalisables en parallèle (design.md, « Compatibilité ») ; migrations réservées : V18 (A), V19 (B), V20 (C). Chaque volet livre ses tests et sa documentation ; le groupe 4 ne contient que des vérifications d'intégration.
 Règles communes : aucune requête vers Internet dans les tests (sources et forges simulées par réponses enregistrées, `testsupport/StubServer`) ; aucune dépendance payante ni sous licence non permissive (ADR-0021) ; ADR inchangés.
@@ -11,13 +11,33 @@ Règles communes : aucune requête vers Internet dans les tests (sources et forg
 
 Code concerné : `io.argos.signal` (`SynchronisationPlanifiee` nouveau, `SignalRecorder`, `SourceOperations`), `io.argos.ingestion` (`NormalizedAdvisory`, `osv/OsvNormalizer`, `SourceSynchronizer`), `io.argos.vulnintel` (`Enricher`, `CertFrSource`, `KevSource`, `EpssSource`), `io.argos.workspace.subscription` (`SubscriptionService`), `io.argos.api.SubscriptionResource`, `db/migration/V18__automatisation_collecte_et_abonnements.sql`, `application.properties`, `argos-ui/src/views/VeilleView.vue`, `argos-ui/src/api/veille.ts`.
 
-- [ ] 1.1 Créer la migration V18 (empreinte normalisée de `signal` et `signal_version`, index unique partiel ; `subscription.state` `INACTIVE` → `SUSPENDED` ; privilèges et politiques RLS de mise à jour et de suppression) — couvre COL-10, ABO-07, ABO-08 — vérification : `mvn -B -f argos-server/pom.xml verify` passe, test de migration (abonnements `INACTIVE` devenus `SUSPENDED`, critères intacts) et `CouvertureRlsTest` verts
-- [ ] 1.2 Planifier la synchronisation des sources d'avis (`signal-synchronisation-sources`, cadence `argos.ingestion.planification.cadence`, `PT1H` par défaut, `SKIP`, méthode testable recevant l'instant, désactivée en test et en E2E) — couvre COL-09-S1 à COL-09-S4 — vérification : `chain/SynchronisationPlanifieeTest` (horloge simulée, OSV simulé par réponses enregistrées) passe ; `ModuleBoundariesTest` vert
-- [ ] 1.3 Rafraîchir les index des sources d'enrichissement (CERT-FR, KEV, EPSS) à chaque cadence, sans bloquer la synchronisation — couvre COL-09-S5 — vérification : test d'intégration avec CERT-FR simulé puis indisponible passe
-- [ ] 1.4 Calculer l'empreinte SHA-256 du contenu normalisé canonique (P-2), comparer sur elle et rattraper l'empreinte des signaux existants sans nouvelle version — couvre COL-10-S1 à COL-10-S4 — vérification : `ingestion/EmpreinteNormaliseeTest` et cas ajoutés à `chain/CollecteTest` passent ; COL-03-S1 à S3 toujours verts
-- [ ] 1.5 Implémenter suspension, réactivation et suppression des abonnements (service, `POST …/suspension`, `POST …/reactivation`, `DELETE /api/v1/subscriptions/{id}`, liste complète de l'appelant, `/leave` d'un `PERSONAL` = suspension, contrat OpenAPI) — couvre ABO-07-S1 à ABO-07-S4, ABO-08-S1 à ABO-08-S3 — vérification : `chain/SubscriptionTest` (jetons réels, RLS sous `argos_app`) et `architecture/SubscriptionIsolationTest` passent ; aucune alerte au titre d'un abonnement suspendu (`alerting` inchangé)
-- [ ] 1.6 Afficher l'état des abonnements et les actions suspendre, réactiver, supprimer dans `argos-ui` (confirmation avant suppression) — couvre ABO-07-S4, ABO-08-S1 — vérification : `argos-ui/tests/abonnements.test.mjs` passe ; `npm --prefix argos-ui test && npm --prefix argos-ui run build` réussissent
-- [ ] 1.7 Mettre à jour la documentation du volet : fiches `collecte-avis-securite` et `abonnements-veille` (preuves, statuts), glossaire « Abonnement suspendu », arc42 §8.7 (V18), §6.3 (synchronisation planifiée), registre `docs/specifications/README.md` (couverture du volet) et matrice ci-dessous — vérification : `node scripts/verifier-docs.mjs` sans erreur
+- [x] 1.1 Créer la migration V18 (empreinte normalisée de `signal` et `signal_version`, index unique partiel ; `subscription.state` `INACTIVE` → `SUSPENDED` ; privilèges et politiques RLS de mise à jour et de suppression) — couvre COL-10, ABO-07, ABO-08 — vérification : `mvn -B -f argos-server/pom.xml verify` passe, test de migration (abonnements `INACTIVE` devenus `SUSPENDED`, critères intacts) et `CouvertureRlsTest` verts
+- [x] 1.2 Planifier la synchronisation des sources d'avis (`signal-synchronisation-sources`, cadence `argos.ingestion.planification.cadence`, `PT1H` par défaut, `SKIP`, méthode testable recevant l'instant, désactivée en test et en E2E) — couvre COL-09-S1 à COL-09-S4 — vérification : `chain/SynchronisationPlanifieeTest` (horloge simulée, OSV simulé par réponses enregistrées) passe ; `ModuleBoundariesTest` vert
+- [x] 1.3 Rafraîchir les index des sources d'enrichissement (CERT-FR, KEV, EPSS) à chaque cadence, sans bloquer la synchronisation — couvre COL-09-S5 — vérification : test d'intégration avec CERT-FR simulé puis indisponible passe
+- [x] 1.4 Calculer l'empreinte SHA-256 du contenu normalisé canonique (P-2), comparer sur elle et rattraper l'empreinte des signaux existants sans nouvelle version — couvre COL-10-S1 à COL-10-S4 — vérification : `ingestion/EmpreinteNormaliseeTest` et cas ajoutés à `chain/CollecteTest` passent ; COL-03-S1 à S3 toujours verts
+- [x] 1.5 Implémenter suspension, réactivation et suppression des abonnements (service, `POST …/suspension`, `POST …/reactivation`, `DELETE /api/v1/subscriptions/{id}`, liste complète de l'appelant, `/leave` d'un `PERSONAL` = suspension, contrat OpenAPI) — couvre ABO-07-S1 à ABO-07-S4, ABO-08-S1 à ABO-08-S3 — vérification : `chain/SubscriptionTest` (jetons réels, RLS sous `argos_app`) et `architecture/SubscriptionIsolationTest` passent ; aucune alerte au titre d'un abonnement suspendu (`alerting` inchangé)
+- [x] 1.6 Afficher l'état des abonnements et les actions suspendre, réactiver, supprimer dans `argos-ui` (confirmation avant suppression) — couvre ABO-07-S4, ABO-08-S1 — vérification : `argos-ui/tests/abonnements.test.mjs` passe ; `npm --prefix argos-ui test && npm --prefix argos-ui run build` réussissent
+- [x] 1.7 Mettre à jour la documentation du volet : fiches `collecte-avis-securite` et `abonnements-veille` (preuves, statuts), glossaire « Abonnement suspendu », arc42 §8.7 (V18), §6.3 (synchronisation planifiée), registre `docs/specifications/README.md` (couverture du volet) et matrice ci-dessous — vérification : `node scripts/verifier-docs.mjs` sans erreur
+
+Preuves du volet A, 2026-11-19 (branche `lot18/collecte-abonnements`) :
+
+- 1.1 : `V18__automatisation_collecte_et_abonnements.sql` ; `chain/MigrationV18Test` (base jetable migrée en V17, abonnement `INACTIVE` devenu `SUSPENDED`, critères, canal, fréquence et retraits intacts, signal antérieur sans empreinte normalisée) ; `CouvertureRlsTest` vert ; `mvn -B -f argos-server/pom.xml verify` passe.
+- 1.2 : `io.argos.signal.SynchronisationPlanifiee` (`synchroniserToutes(Instant)`), propriété `argos.ingestion.planification.cadence=${ARGOS_INGESTION_PLANIFICATION_CADENCE:1h}`, `ARGOS_INGESTION_PLANIFICATION_CADENCE: 'off'` dans `e2e/playwright.config.ts` ; `chain/SynchronisationPlanifieeTest` (COL-09-S1 à S4) et `ModuleBoundariesTest` verts.
+- 1.3 : `io.argos.vulnintel.RafraichissementIndex` observe `io.argos.signal.EcheanceSynchronisation` et invalide les index CERT-FR et KEV (EPSS et NVD sont interrogés par CVE, sans index : rien à rafraîchir) ; `SynchronisationPlanifieeTest#col09S5…` (CERT-FR simulé, puis 503) vert.
+- 1.4 : `io.argos.ingestion.EmpreinteNormalisee`, `NormalizedAdvisory#normalizedHash`, `SignalRecorder` ; `ingestion/EmpreinteNormaliseeTest` et `CollecteTest` (COL-10-S1 à S4, unicité V18 ; COL-03-S1 à S3 toujours verts).
+- 1.5 : `SubscriptionService#suspend`, `#reactivate`, `#delete`, `#listFor` ; `SubscriptionResource` ; `chain/SubscriptionTest` (ABO-07-S1 à S4, ABO-08-S1 à S3, RLS sous `argos_app`, contrat OpenAPI) et `architecture/SubscriptionIsolationTest` (règle ajoutée : seule l'API change l'état ou supprime) verts ; `alerting` inchangé.
+- 1.6 : `argos-ui/src/contenu/abonnements.ts`, `VeilleView.vue`, `api/veille.ts` ; `argos-ui/tests/abonnements.test.mjs` ; `npm --prefix argos-ui test` (191 tests) et `npm --prefix argos-ui run build` réussissent.
+- 1.7 : fiches `collecte-avis-securite` et `abonnements-veille`, glossaire, arc42 §6.3 et §8.7, D-13, registre ; `node scripts/verifier-docs.mjs` sans erreur, `openspec validate --all --strict` valide ; diagramme de §6.3 validé par un moteur Mermaid.
+
+Propositions du volet A (option la plus prudente, sans question possible) :
+
+- [PROPOSITION] PA-1 : l'IHM ne propose suspendre, réactiver et supprimer que sur les abonnements `PERSONAL` ; un abonnement `TEAM` y est affiché avec son état, sans action (l'administrateur de l'espace le gère par l'API), faute de connaître le rôle de l'appelant côté IHM.
+- [PROPOSITION] PA-2 : un avis dont le contenu normalisé revient à celui d'une version antérieure (différente de la version courante) est jugé inchangé, comme l'existant pour l'empreinte brute ; l'invariant INV-A1 interdit une seconde version de même empreinte.
+- [PROPOSITION] PA-3 : le rafraîchissement des index d'enrichissement est une invalidation, relue à la première consultation suivante : aucun appel réseau à l'échéance, donc aucun blocage (COL-09-S5).
+- [PROPOSITION] PA-4 : une date de retrait OSV illisible ne rejette pas l'avis ; le retrait entre dans l'empreinte normalisée sous la valeur `1970-01-01T00:00:00Z`.
+- [PROPOSITION] PA-5 : `GET /api/v1/subscriptions` restitue aux membres de l'espace les abonnements `TEAM` suspendus (hors abonnements facultatifs qu'ils ont quittés), avec leur état ; seuls les actifs s'appliquent.
+- [PROPOSITION] PA-6 : `/leave` reste refusé (404) pour un `TEAM` suspendu, comme avant ; pour un `PERSONAL` déjà suspendu il répond 204 sans effet (suspension idempotente, P-8).
+- [PROPOSITION] PA-7 : la synchronisation planifiée parcourt les sources de la table `source` servies par un connecteur (`SourceSynchronizer#synchronisables`) ; l'échec d'une source n'interrompt pas les autres.
 
 ## 2. Volet B — inventaire (J3, J4, J6)
 
@@ -52,26 +72,26 @@ Code concerné : `io.argos.impact` (`TraitementImpacts` nouveau, `CorrelationEng
 
 ## Matrice de traçabilité
 
-État au 2026-11-19 (cadrage) : aucune implémentation ; tous les tests sont à écrire.
+État au 2026-11-19 : volet A implémenté (COL-09, COL-10, ABO-07, ABO-08 : tests verts) ; volets B et C : tests à écrire.
 
 | Exigence | Scénario | Conception / diagramme | Tâche | Test ou preuve | État de la preuve |
 |---|---|---|---|---|---|
-| COL-09 | COL-09-S1 | D1, DC-3 | 1.2, 4.3 | `chain/SynchronisationPlanifieeTest` ; `e2e/tests/chaine-automatisee.spec.ts` | à écrire |
-| COL-09 | COL-09-S2 | D1, DC-3, Transactions | 1.2 | `chain/SynchronisationPlanifieeTest` | à écrire |
-| COL-09 | COL-09-S3 | D1, Contrats (tâches planifiées) | 1.2 | `chain/SynchronisationPlanifieeTest` | à écrire |
-| COL-09 | COL-09-S4 | D1, Gestion des erreurs | 1.2 | `chain/SynchronisationPlanifieeTest` | à écrire |
-| COL-09 | COL-09-S5 | D1, DC-3 | 1.3 | `chain/SynchronisationPlanifieeTest` | à écrire |
-| COL-10 | COL-10-S1 | D2, DC-3 | 1.4 | `ingestion/EmpreinteNormaliseeTest` | à écrire |
-| COL-10 | COL-10-S2 | D2 | 1.4 | `ingestion/EmpreinteNormaliseeTest` | à écrire |
-| COL-10 | COL-10-S3 | D2, DC-3 | 1.4 | `chain/CollecteTest` | à écrire |
-| COL-10 | COL-10-S4 | D2, Persistance (V18) | 1.1, 1.4 | `chain/CollecteTest` | à écrire |
-| ABO-07 | ABO-07-S1 | D7, DC-7 | 1.5, 4.3 | `chain/SubscriptionTest` ; `e2e/tests/chaine-automatisee.spec.ts` | à écrire |
-| ABO-07 | ABO-07-S2 | D7, DC-7 | 1.5, 4.3 | `chain/SubscriptionTest` | à écrire |
-| ABO-07 | ABO-07-S3 | D7, Sécurité | 1.1, 1.5 | `chain/SubscriptionTest`, `architecture/SubscriptionIsolationTest` | à écrire |
-| ABO-07 | ABO-07-S4 | D7, Contrats | 1.5, 1.6 | `chain/SubscriptionTest`, `argos-ui/tests/abonnements.test.mjs` | à écrire |
-| ABO-08 | ABO-08-S1 | D7, DC-7 | 1.5, 1.6 | `chain/SubscriptionTest`, `argos-ui/tests/abonnements.test.mjs` | à écrire |
-| ABO-08 | ABO-08-S2 | D7, Sécurité | 1.1, 1.5 | `architecture/SubscriptionIsolationTest` | à écrire |
-| ABO-08 | ABO-08-S3 | D7, Persistance (V18) | 1.5 | `chain/SubscriptionTest` | à écrire |
+| COL-09 | COL-09-S1 | D1, DC-3 | 1.2, 4.3 | `chain/SynchronisationPlanifieeTest` ; `e2e/tests/chaine-automatisee.spec.ts` | vert le 2026-11-19 (intégration) ; parcours E2E de la tâche 4.3 à écrire |
+| COL-09 | COL-09-S2 | D1, DC-3, Transactions | 1.2 | `chain/SynchronisationPlanifieeTest` | vert le 2026-11-19 |
+| COL-09 | COL-09-S3 | D1, Contrats (tâches planifiées) | 1.2 | `chain/SynchronisationPlanifieeTest` | vert le 2026-11-19 |
+| COL-09 | COL-09-S4 | D1, Gestion des erreurs | 1.2 | `chain/SynchronisationPlanifieeTest` | vert le 2026-11-19 |
+| COL-09 | COL-09-S5 | D1, DC-3 | 1.3 | `chain/SynchronisationPlanifieeTest` | vert le 2026-11-19 |
+| COL-10 | COL-10-S1 | D2, DC-3 | 1.4 | `ingestion/EmpreinteNormaliseeTest` | vert le 2026-11-19 |
+| COL-10 | COL-10-S2 | D2 | 1.4 | `ingestion/EmpreinteNormaliseeTest` | vert le 2026-11-19 |
+| COL-10 | COL-10-S3 | D2, DC-3 | 1.4 | `chain/CollecteTest` | vert le 2026-11-19 |
+| COL-10 | COL-10-S4 | D2, Persistance (V18) | 1.1, 1.4 | `chain/CollecteTest` | vert le 2026-11-19 |
+| ABO-07 | ABO-07-S1 | D7, DC-7 | 1.5, 4.3 | `chain/SubscriptionTest` ; `e2e/tests/chaine-automatisee.spec.ts` | vert le 2026-11-19 (intégration) ; parcours E2E de la tâche 4.3 à écrire |
+| ABO-07 | ABO-07-S2 | D7, DC-7 | 1.5, 4.3 | `chain/SubscriptionTest` | vert le 2026-11-19 (intégration) ; parcours E2E de la tâche 4.3 à écrire |
+| ABO-07 | ABO-07-S3 | D7, Sécurité | 1.1, 1.5 | `chain/SubscriptionTest`, `architecture/SubscriptionIsolationTest` | vert le 2026-11-19 |
+| ABO-07 | ABO-07-S4 | D7, Contrats | 1.5, 1.6 | `chain/SubscriptionTest`, `argos-ui/tests/abonnements.test.mjs` | vert le 2026-11-19 |
+| ABO-08 | ABO-08-S1 | D7, DC-7 | 1.5, 1.6 | `chain/SubscriptionTest`, `argos-ui/tests/abonnements.test.mjs` | vert le 2026-11-19 |
+| ABO-08 | ABO-08-S2 | D7, Sécurité | 1.1, 1.5 | `architecture/SubscriptionIsolationTest` | vert le 2026-11-19 |
+| ABO-08 | ABO-08-S3 | D7, Persistance (V18) | 1.5 | `chain/SubscriptionTest` | vert le 2026-11-19 |
 | INV-07 | INV-07-S1 | D3, DC-4 | 2.3, 4.3 | `chain/ImportPlanifieTest` ; `e2e/tests/chaine-automatisee.spec.ts` | à écrire |
 | INV-07 | INV-07-S2 | D3, Gestion des erreurs | 2.3 | `chain/ImportPlanifieTest` | à écrire |
 | INV-07 | INV-07-S3 | D3, Contrats | 2.3 | `chain/ImportPlanifieTest` (inventaire des routes) | à écrire |
