@@ -1,11 +1,13 @@
 <script setup lang="ts">
-// Page des composants inventoriés d'un projet (INV-06 ; décision F5 du porteur du projet, 2026-11-19).
+// Page des composants inventoriés d'un projet (INV-06 ; décision F5 du porteur du projet, 2026-11-19), avec les
+// dépôts de chaque composant pour un projet à plusieurs dépôts (INV-10, décision J6 du 2026-11-19).
 // Composant de présentation, sans appel réseau : les données viennent de `pageComposants`
 // (inventaire-listes.ts) ; la vue demande une autre page par l'événement `page`. Valeurs issues de la SBOM
 // rendues comme texte, par interpolation. Les boutons de pagination restent focalisables à la première et à la
 // dernière page (`aria-disabled`) : le focus clavier n'est jamais perdu lors d'un changement de page.
 import { computed } from 'vue'
 import { libellePage, syntheseComposants, type PageComposants } from './inventaire-listes.ts'
+import { libelleDepotsComposant } from './inventaire-depots.ts'
 
 const props = defineProps<{
   page: PageComposants
@@ -13,6 +15,8 @@ const props = defineProps<{
   projet: string
   /** Vrai pendant le chargement d'une autre page : les boutons ne déclenchent rien. */
   chargement?: boolean
+  /** Vrai pour un projet à plusieurs dépôts : colonne « Dépôts » affichée (INV-10). */
+  afficherDepots?: boolean
 }>()
 
 const emit = defineEmits<{ page: [numero: number] }>()
@@ -39,6 +43,7 @@ function aller(numero: number, bloque: boolean): void {
           <th scope="col">Version</th>
           <th scope="col">PURL</th>
           <th scope="col">Dépendance</th>
+          <th v-if="afficherDepots" scope="col">Dépôts</th>
         </tr>
       </thead>
       <tbody>
@@ -47,6 +52,7 @@ function aller(numero: number, bloque: boolean): void {
           <td>{{ c.version ?? 'non renseignée' }}</td>
           <td class="purl">{{ c.purl ?? 'non renseigné' }}</td>
           <td>{{ c.dependance }}</td>
+          <td v-if="afficherDepots" data-champ="depots-composant">{{ libelleDepotsComposant(c.depots) }}</td>
         </tr>
       </tbody>
     </table>

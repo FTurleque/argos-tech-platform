@@ -1,5 +1,5 @@
 // Synthèse de l'inventaire d'un projet telle que la restitue `GET /api/v1/projects/{projectId}/inventory/summary`
-// (INV-01-S3, INV-06 ; décision D6 du 2026-11-18, décisions E4 et G5 du 2026-11-19), projets visibles
+// (INV-01-S3, INV-06, INV-10 ; décision D6 du 2026-11-18, décisions E4, G5 et J6 du 2026-11-19), projets visibles
 // (`GET /api/v1/projects`, INV-06, décision F1 du 2026-11-19) et composants inventoriés paginés
 // (`GET /api/v1/projects/{projectId}/inventory/components`, INV-06, décision F5 du 2026-11-19) : types des réponses
 // et chemins des appels. Module pur, sans appel réseau : testé directement par `node --test`. Les appels eux-mêmes
@@ -31,6 +31,36 @@ export interface SyntheseInventaireApi {
   ignoredCount: number
   /** Les premiers composants écartés, au plus {@link MAX_COMPOSANTS_IGNORES}. */
   ignoredComponents: ComposantIgnoreApi[] | null
+  /** Dépôts du projet, le principal d'abord (INV-10) ; absent d'un serveur antérieur, vide sans dépôt. */
+  repositories?: DepotInventaireApi[] | null
+}
+
+/** Dernier échec d'import d'un dépôt, postérieur à son dernier import réussi (schéma `RepositoryFailure`). */
+export interface EchecDepotApi {
+  reason: string | null
+  receivedAt: string | null
+}
+
+/** Dépôt d'un projet et son dernier import réussi (schéma `RepositorySummary`, INV-10-S1). */
+export interface DepotInventaireApi {
+  id: string
+  /** `GITLAB` ou `GITHUB`. */
+  provider: string | null
+  repository: string | null
+  branch: string | null
+  principal: boolean
+  /** `SBOM` ou `MANIFEST`, `null` tant qu'aucun import n'a réussi. */
+  origin: string | null
+  sourceDate: string | null
+  importedAt: string | null
+  lastFailure: EchecDepotApi | null
+}
+
+/** Dépôt dans lequel figure un composant (schéma `ComponentRepository`). */
+export interface DepotComposantApi {
+  id: string
+  provider: string | null
+  repository: string | null
 }
 
 /** Réponse de l'appel (schéma `ProjectInventorySummary`) : `summary` est absent quand `status` vaut `NO_SBOM`. */
@@ -87,6 +117,8 @@ export interface ComposantApi {
   purl: string | null
   packageKey?: string | null
   transitive: boolean | null
+  /** Dépôts du projet qui contiennent le composant (INV-10) ; absent d'un serveur antérieur. */
+  repositories?: DepotComposantApi[] | null
 }
 
 /** Page de composants inventoriés (schéma `ComponentPage`). */

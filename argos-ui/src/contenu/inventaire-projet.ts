@@ -8,6 +8,7 @@
 import { estUuid } from '../api/recherche-criteres.ts'
 import type { SyntheseInventaireProjetApi } from '../api/inventaire-modele.ts'
 import { composantsIgnores, messageErreurInventaire, type ComposantsIgnoresVue } from './composants-ignores.ts'
+import { depotsInventaire, type DepotAffiche } from './inventaire-depots.ts'
 
 /** Synthèse de l'inventaire de référence d'un projet, prête à afficher. */
 export type ResumeInventaire =
@@ -32,6 +33,8 @@ export type ResumeInventaire =
 export interface EtatInventaireProjet {
   resume: ResumeInventaire | null
   ignores: ComposantsIgnoresVue | null
+  /** Dépôts du projet (INV-10), vide sans dépôt, sans inventaire ou en cas d'erreur. */
+  depots: DepotAffiche[]
   erreur: string
 }
 
@@ -78,14 +81,14 @@ export async function chargerInventaireProjet(
   lire: (projetId: string, signal?: AbortSignal) => Promise<SyntheseInventaireProjetApi>,
   signal?: AbortSignal,
 ): Promise<EtatInventaireProjet | null> {
-  if (!estUuid(projetId)) return { resume: null, ignores: null, erreur: messageIdentifiantProjet(projetId) }
+  if (!estUuid(projetId)) return { resume: null, ignores: null, depots: [], erreur: messageIdentifiantProjet(projetId) }
   try {
     const reponse = await lire(projetId, signal)
     if (signal?.aborted) return null
-    return { resume: resumeInventaire(reponse), ignores: composantsIgnores(reponse), erreur: '' }
+    return { resume: resumeInventaire(reponse), ignores: composantsIgnores(reponse), depots: depotsInventaire(reponse), erreur: '' }
   } catch (e) {
     const erreur = (e ?? {}) as ErreurAppel
     if (signal?.aborted || erreur.motif === 'ANNULE') return null
-    return { resume: null, ignores: null, erreur: messageErreurInventaire(erreur.status) }
+    return { resume: null, ignores: null, depots: [], erreur: messageErreurInventaire(erreur.status) }
   }
 }

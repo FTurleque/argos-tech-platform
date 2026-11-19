@@ -6,6 +6,8 @@
 // affichée (`GET /api/v1/projects/{projectId}/inventory/components`). Le projet affiché est celui de l'adresse
 // (`/inventaire/{id}`) ; il se choisit dans la liste, ou se désigne par son identifiant (projet au-delà de la
 // liste, lien d'une alerte). Les autres écrans y mènent par lien (« Projets concernés » du détail d'une alerte).
+// Dépôts du projet (INV-10, décision J6 du 2026-11-19) : tableau des dépôts avec leur dernier import et leur dernier
+// échec, et colonne « Dépôts » des composants pour un projet à plusieurs dépôts.
 import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { fetchComposantsProjet, fetchProjets, fetchSyntheseInventaire } from '../api/inventaire'
@@ -25,6 +27,7 @@ import {
   messageIdentifiantProjet,
   type ResumeInventaire,
 } from '../contenu/inventaire-projet'
+import { afficherColonneDepots, type DepotAffiche } from '../contenu/inventaire-depots'
 
 const route = useRoute()
 const router = useRouter()
@@ -38,6 +41,7 @@ const saisie = ref('')
 const erreurSaisie = ref('')
 const resume = ref<ResumeInventaire | null>(null)
 const ignores = ref<ComposantsIgnoresVue | null>(null)
+const depots = ref<DepotAffiche[]>([])
 const erreur = ref('')
 const annonce = ref('')
 const chargement = ref(false)
@@ -93,6 +97,7 @@ async function charger(): Promise<void> {
   const signal = annulation.signal
   resume.value = null
   ignores.value = null
+  depots.value = []
   composants.value = null
   erreur.value = ''
   erreurComposants.value = ''
@@ -113,6 +118,7 @@ async function charger(): Promise<void> {
   chargement.value = false
   resume.value = etat.resume
   ignores.value = etat.ignores
+  depots.value = etat.depots
   erreur.value = etat.erreur
   annonce.value = etat.erreur ? '' : 'Inventaire chargé.'
   if (etat.resume?.etat === 'DISPONIBLE') await chargerPage(0, false)
@@ -217,6 +223,39 @@ onBeforeUnmount(() => {
           <dd data-champ="composants">{{ resume.composants }}</dd>
         </dl>
       </section>
+      <section v-if="depots.length > 0" aria-labelledby="titre-depots-projet">
+        <h2 id="titre-depots-projet">Dépôts du projet</h2>
+        <p class="muted">
+          L’inventaire du projet est l’union des inventaires de ses dépôts, importés chaque jour depuis leur forge.
+        </p>
+        <table data-tableau-depots>
+          <caption class="sr-only">Dépôts du projet {{ nomProjet }} et leur dernier import</caption>
+          <thead>
+            <tr>
+              <th scope="col">Dépôt</th>
+              <th scope="col">Origine</th>
+              <th scope="col">Date de la source</th>
+              <th scope="col">Importé le</th>
+              <th scope="col">Dernier échec</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr v-for="d in depots" :key="d.cle" data-depot-projet>
+              <td>
+                {{ d.depot }} <span class="muted">({{ d.forge }}<template v-if="d.branche">, {{ d.branche }}</template>)</span>
+                <strong v-if="d.principal"> · principal</strong>
+              </td>
+              <td>{{ d.origine ?? 'aucun import réussi' }}</td>
+              <td>{{ d.origine ? date(d.dateSource) : '—' }}</td>
+              <td>{{ d.importeLe ? date(d.importeLe) : '—' }}</td>
+              <td>
+                <template v-if="d.echec">{{ d.echec.motif }} <span class="muted">({{ date(d.echec.date) }})</span></template>
+                <template v-else>aucun</template>
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </section>
       <section
         v-if="resume.etat === 'DISPONIBLE'"
         ref="sectionComposants"
@@ -236,6 +275,7 @@ onBeforeUnmount(() => {
           :page="composants"
           :projet="nomProjet"
           :chargement="chargementComposants"
+          :afficher-depots="afficherColonneDepots(depots)"
           @page="(numero) => chargerPage(numero, true)"
         />
       </section>
@@ -255,4 +295,9 @@ onBeforeUnmount(() => {
 .inventaire-resume { display: grid; grid-template-columns: max-content 1fr; gap: 0.25rem 1rem; }
 .inventaire-resume dt { font-weight: 600; }
 .inventaire-resume dd { margin: 0; overflow-wrap: anywhere; }
+[data-tableau-depots] { width: 100%; border-collapse: collapse; font-size: 0.9rem; }
+[data-tableau-depots] th, [data-tableau-depots] td {
+  text-align: left; padding: 0.3rem 0.5rem; border-bottom: 1px solid var(--border); overflow-wrap: anywhere;
+}
+[data-tableau-depots] th { color: var(--navy); }
 </style>

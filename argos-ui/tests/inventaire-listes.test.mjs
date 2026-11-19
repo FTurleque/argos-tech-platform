@@ -123,7 +123,7 @@ test('composants : conversion d’une page, dépendance nommée, total et nombre
   assert.equal(p.taille, 20)
   assert.equal(p.total, 25)
   assert.equal(p.pages, 2)
-  assert.deepEqual(p.composants[0], { cle: 'id-21', nom: 'paquet-21', version: '1.0.21', purl: 'pkg:npm/paquet-21@1.0.21', dependance: 'directe' })
+  assert.deepEqual(p.composants[0], { cle: 'id-21', nom: 'paquet-21', version: '1.0.21', purl: 'pkg:npm/paquet-21@1.0.21', dependance: 'directe', depots: [] })
   assert.equal(p.composants[1].dependance, 'transitive')
   assert.equal(p.composants[2].dependance, 'inconnue')
   assert.equal(p.composants[2].version, null)

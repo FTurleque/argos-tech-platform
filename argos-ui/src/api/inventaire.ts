@@ -18,6 +18,9 @@ import { STATUT_REQUETE_INVALIDE } from './statuts-http.ts'
 export type {
   ComposantApi,
   ComposantIgnoreApi,
+  DepotComposantApi,
+  DepotInventaireApi,
+  EchecDepotApi,
   PageComposantsApi,
   PageProjetsApi,
   ProjetApi,
