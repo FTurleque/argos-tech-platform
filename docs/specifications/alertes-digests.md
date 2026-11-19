@@ -5,6 +5,7 @@
 | Préfixe d'exigences | `ALR` |
 | Spec de référence | [`/openspec/specs/alertes-digests/spec.md`](/openspec/specs/alertes-digests/spec.md) |
 | Changements archivés | [`2026-11-16-diffuser-alertes-et-digests`](/openspec/changes/archive/2026-11-16-diffuser-alertes-et-digests/proposal.md) |
+| Changement en cours | [`automatiser-chaine-veille`](/openspec/changes/automatiser-chaine-veille/specs/alertes-digests/spec.md) — proposé, non implémenté (ALR-07) |
 | Statut de la capacité | livrée ; implémentation et tests dans `argos-server` |
 | Composants (arc42 §5) | `alerting`, `workspace`, `impact-engine` |
 
@@ -70,6 +71,7 @@ Configuration par variables d'environnement (aucun secret versionné) :
 | Résumés quotidien (08:00) et hebdomadaire (lundi 08:00), Europe/Paris, paramétrables ; aucun résumé sans élément nouveau | ALR-04 | ABO-02 (fréquence) ; [DÉCISION] du 2026-11-16 (Q-3) | [EXISTANT] |
 | Résumé IA demandé avec un délai borné ; alerte envoyée sans lui s'il est indisponible, refusé ou au-delà du plafond, avec mention dans le message | ALR-05 | baseline v2.3 §6 ; QS-10 | [EXISTANT] |
 | Diffusion par e-mail (relais SMTP du Synology) et vers le client desktop ; nouvelles tentatives bornées puis état « en échec » | ALR-06 | ADR-0022 (Proposé) ; [DÉCISION] du 2026-11-16 (Q-1) | [EXISTANT] |
+| Aucune alerte immédiate ni mention dans un résumé pour un impact `écarté` ou `résolu` ; un impact rouvert redevient éligible ; un abonnement suspendu ne produit aucune notification (ABO-07) | ALR-07 | décisions J5 et J7 du porteur du projet, 2026-11-19 | [PROPOSITION] — changement [`automatiser-chaine-veille`](/openspec/changes/automatiser-chaine-veille/specs/alertes-digests/spec.md) |
 
 ## Droits d'accès et restrictions
 
@@ -154,5 +156,6 @@ Interprétations du changement `diffuser-alertes-et-digests`, à faire valider [
 | ALR-04 | ALR-04-S1, ALR-04-S2 | DC-1 | 3.1 | `AlertesTest.alr04S1…`, `alr04S2…`, `horairesDesResumes…` (signaux de sécurité ; Q-5) |
 | ALR-05 | ALR-05-S1 | DC-1 | 2.4 | `AlertesTest.alr05S1…`, `qs10…` |
 | ALR-06 | ALR-06-S1, ALR-06-S2 | DC-1 | 1.1, 3.2, 3.3 | `AlertesTest.alr01S1EtAlr06S1…`, `EchecSmtpTest`, `RelaisMuetTest`, `AlertesTest.contrat…`, `rls…`, `cloisonnement…` |
+| ALR-07 | ALR-07-S1, ALR-07-S2 | `automatiser-chaine-veille` : D5, DC-5 | 3.4 (de ce changement) | `alerting/AlertesImpactsTraitesTest` — à écrire [PROPOSITION] |
 
 Tests : `argos-server/src/test/java/io/argos/alerting/`. Matrice détaillée : [`tasks.md`](/openspec/changes/archive/2026-11-16-diffuser-alertes-et-digests/tasks.md#matrice-de-traçabilité).

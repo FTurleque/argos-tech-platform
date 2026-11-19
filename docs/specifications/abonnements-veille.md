@@ -4,7 +4,7 @@
 |---|---|
 | Préfixe d'exigences | `ABO` |
 | Spec de référence | `/openspec/specs/abonnements-veille/spec.md` — absente : capacité non livrée |
-| Changement en cours | [`formaliser-chaine-securite-poc`](/openspec/changes/formaliser-chaine-securite-poc/specs/abonnements-veille/spec.md) — proposé, non archivé |
+| Changement en cours | [`formaliser-chaine-securite-poc`](/openspec/changes/formaliser-chaine-securite-poc/specs/abonnements-veille/spec.md) — proposé, non archivé ; [`automatiser-chaine-veille`](/openspec/changes/automatiser-chaine-veille/specs/abonnements-veille/spec.md) — proposé, non implémenté (ABO-07, ABO-08) |
 | Statut de la capacité | **proposée**, implémentée dans `argos-server` (changement non archivé) : paquet `io.argos.workspace.subscription`, autorisations dans `io.argos.api` |
 | Composants (arc42 §5) | `workspace`, `API & Security`, `alerting` (canal et fréquence) |
 
@@ -36,7 +36,7 @@ Donner à chaque utilisateur la veille utile à son équipe et lui permettre d'�
 | Entrée / sortie | Contenu | Validation ou contrainte | Statut |
 |---|---|---|---|
 | Entrée : demande d'abonnement | portée, propriétaire, filtres, canal, fréquence, obligatoire/facultatif | tous obligatoires (ABO-01, ABO-02) | [PROPOSITION] |
-| Sortie : abonnement | attributs, date de création, état | valeurs de l'état non définies [QUESTION Q-ABO-1] | [PROPOSITION] |
+| Sortie : abonnement | attributs, date de création, état | état `actif` ou `suspendu` [DÉCISION — porteur du projet, 2026-11-19 ; J7, Q-ABO-1] (ABO-07) ; le code porte aujourd'hui `ACTIVE` / `INACTIVE` [EXISTANT — `V6__abonnements_veille.sql`] | [PROPOSITION] |
 | Sortie : veille de l'utilisateur | éléments filtrés par ses abonnements et par ses droits | ABO-05 | [PROPOSITION] |
 
 ## Règles métier
@@ -49,6 +49,8 @@ Donner à chaque utilisateur la veille utile à son équipe et lui permettre d'�
 | Seul un administrateur de l'espace crée un `TEAM` ; un `TEAM` obligatoire ne peut pas être quitté, un `TEAM` facultatif peut l'être | ABO-06 | décision du 2026-11-16 (Q-5) | [PROPOSITION] |
 | Veille personnelle libre de lien avec l'équipe | ABO-04 | baseline v2.4 §4 ; arc42 §8.2 (exemple RH / Rust) | [PROPOSITION] |
 | Un abonnement n'accorde aucun droit | ABO-05 | baseline v2.4 §4 ; arc42 §5.5 règle 6 | [PROPOSITION] |
+| Un abonnement est actif ou suspendu ; suspendre conserve les critères et arrête les notifications ; réactiver les rétablit sans rejouer la période de suspension ; propriétaire d'un `PERSONAL`, administrateur de l'espace d'un `TEAM` | ABO-07 | décision J7 du porteur du projet, 2026-11-19 ; droits et absence de rejeu : propositions P-4, P-8 du changement | [PROPOSITION] — `automatiser-chaine-veille` |
+| La suppression est distincte de la suspension : définitive, critères et retraits compris | ABO-08 | décision J7 du porteur du projet, 2026-11-19 | [PROPOSITION] — `automatiser-chaine-veille` |
 
 ## Droits d'accès et restrictions
 
@@ -127,6 +129,27 @@ sequenceDiagram
 
 Le filtre d'abonnement réduit le résultat, la RLS borne le périmètre : un filtre visant un projet non autorisé ne produit aucune donnée interne de ce projet (ABO-05-S2).
 
+### DF-ABO-3 — État d'un abonnement
+
+- **Question** : quels états un abonnement connaît-il, et qu'est-ce qui distingue la suspension de la suppression ?
+- **Type** : UML états (stateDiagram-v2)
+- **Portée** : cible proposée (changement `automatiser-chaine-veille`, décision J7 du 2026-11-19) ; le code porte aujourd'hui `ACTIVE` et `INACTIVE`, sans réactivation ni suppression [EXISTANT]
+- **Exigences** : ABO-07, ABO-08
+
+```mermaid
+stateDiagram-v2
+    state "actif" as Actif
+    state "suspendu" as Suspendu
+
+    [*] --> Actif: création (ABO-01, ABO-02)
+    Actif --> Suspendu: suspension, critères conservés
+    Suspendu --> Actif: réactivation
+    Actif --> [*]: suppression définitive
+    Suspendu --> [*]: suppression définitive
+```
+
+Un abonnement suspendu garde ses critères, son canal et sa fréquence, et ne produit plus de notification (J7) ; il ne contribue plus non plus à « Ma veille » et sa réactivation ne rejoue pas la période de suspension (proposition P-4 du changement) [PROPOSITION]. La suppression n'est pas un état : l'abonnement et ses retraits disparaissent (ABO-08). Suspendre, réactiver et supprimer relèvent du propriétaire d'un `PERSONAL` et d'un administrateur de l'espace d'un `TEAM` (proposition P-8) [PROPOSITION].
+
 ## Critères d'acceptation
 
 - Scénarios `ABO-01-S1` à `ABO-06-S3` de la spec.
@@ -152,10 +175,10 @@ Interprétations validées par le porteur du projet le 2026-11-16 [DÉCISION].
 | ID | Question | Impact | Destinataire |
 |---|---|---|---|
 | Q-5 (changement) | Qui crée un abonnement `TEAM` ? Peut-on se désabonner d'un `TEAM` obligatoire ? | répondue le 2026-11-16 : seul un administrateur de l'espace crée un abonnement `TEAM` ; un `TEAM` obligatoire ne peut pas être quitté, un `TEAM` facultatif peut l'être [DÉCISION] | Product Owner |
-| Q-ABO-1 | Quelles valeurs pour l'état d'un abonnement ? | ABO-02 | Product Owner |
+| Q-ABO-1 | Quelles valeurs pour l'état d'un abonnement ? | levée le 2026-11-19 : actif ou suspendu ; suspendre conserve les critères et arrête les notifications ; la suppression reste distincte [DÉCISION — porteur du projet, 2026-11-19 ; J7] ; voir DF-ABO-3, ABO-07 et ABO-08 du changement [`automatiser-chaine-veille`](/openspec/changes/automatiser-chaine-veille/design.md) | Product Owner |
 | Q-ABO-2 | Une équipe correspond-elle à un espace (workspace) ? | DF-ABO-1, ABO-03 | architecte |
 | Q-ABO-3 | Un abonnement `PERSONAL` est-il visible d'autres utilisateurs ? | confidentialité | DPO / Product Owner |
 
 ## Traçabilité
 
-Voir la matrice du changement : [`tasks.md`](/openspec/changes/formaliser-chaine-securite-poc/tasks.md#matrice-de-traçabilité). Les scénarios ABO-01-S1 à ABO-06-S3 sont vérifiés par `argos-server/src/test/java/io/argos/chain/SubscriptionTest.java` ; l'invariant INV-D7 par `argos-server/src/test/java/io/argos/architecture/SubscriptionIsolationTest.java`. Dans le code, une équipe est un espace (ADR-0016, « espace d'équipe ») et l'état d'un abonnement vaut `ACTIVE` ou `INACTIVE` ; ces deux choix restent soumis à Q-ABO-1 et Q-ABO-2.
+Voir la matrice du changement : [`tasks.md`](/openspec/changes/formaliser-chaine-securite-poc/tasks.md#matrice-de-traçabilité). Les scénarios ABO-01-S1 à ABO-06-S3 sont vérifiés par `argos-server/src/test/java/io/argos/chain/SubscriptionTest.java` ; l'invariant INV-D7 par `argos-server/src/test/java/io/argos/architecture/SubscriptionIsolationTest.java`. Dans le code, une équipe est un espace (ADR-0016, « espace d'équipe ») et l'état d'un abonnement vaut `ACTIVE` ou `INACTIVE` ; le premier choix reste soumis à Q-ABO-2 ; le second est remplacé par `ACTIVE` / `SUSPENDED` selon la décision J7 du 2026-11-19 (Q-ABO-1 levée). ABO-07 et ABO-08 : matrice du changement [`automatiser-chaine-veille`](/openspec/changes/automatiser-chaine-veille/tasks.md#matrice-de-traçabilité) (tests à écrire, volet A).
