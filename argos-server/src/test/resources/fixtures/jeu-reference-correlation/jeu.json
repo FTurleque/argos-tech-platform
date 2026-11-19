@@ -1,15 +1,17 @@
 {
   "nom": "Jeu de référence annoté de la corrélation d'impact",
-  "version": "1.0",
+  "version": "1.1",
   "date": "2026-11-18",
-  "regles": "Vérité annotée à la main à partir du texte de chaque avis et de chaque inventaire : un impact est attendu quand un analyste conclurait que le composant est concerné par l'avis ou qu'il faut le vérifier ; le niveau attendu suit COR-02 (exact : PURL déclaré par l'avis et version dans la plage sur SBOM de moins de 30 jours ; probable : même correspondance sur inventaire de repli ou SBOM obsolète ; à vérifier : avis sans PURL, version inconnue ou plage non interprétable). Toute paire (projet, avis, composant) absente de « verite » doit rester sans impact. Composants désignés par PURL sans qualificatif ; « horsInventaire » : composant présent dans le document source mais sans PURL.",
+  "regles": "Vérité annotée à la main à partir du texte de chaque avis et de chaque inventaire : un impact est attendu quand un analyste conclurait que le composant est concerné par l'avis ou qu'il faut le vérifier ; le niveau attendu suit COR-02 (exact : PURL déclaré par l'avis et version dans la plage sur SBOM de moins de 30 jours ; probable : même correspondance sur inventaire de repli ou SBOM obsolète ; à vérifier : avis sans PURL, version inconnue ou plage non interprétable). Toute paire (projet, avis, composant) absente de « verite » doit rester sans impact. Composants désignés par PURL sans qualificatif ; « horsInventaire » : composant présent dans le document source mais sans PURL ; « composantsSignales » : composants écartés faute de PURL que l'import signale (INV-01, décision D6 du 2026-11-18), et eux seuls.",
   "projets": [
     { "nom": "api-paiement", "sbom": "sbom/api-paiement.cdx.json", "ageJours": 3 },
     { "nom": "batch-corrige", "sbom": "sbom/batch-corrige.cdx.json", "ageJours": 5 },
     { "nom": "legacy-log4j1", "sbom": "sbom/legacy-log4j1.cdx.json", "ageJours": 10 },
     { "nom": "distribution-plugins", "sbom": "sbom/distribution-plugins.cdx.json", "ageJours": 1 },
     { "nom": "api-obsolete", "sbom": "sbom/api-obsolete.cdx.json", "ageJours": 45 },
-    { "nom": "outil-sans-purl", "sbom": "sbom/outil-sans-purl.cdx.json", "ageJours": 2 },
+    { "nom": "outil-sans-purl", "sbom": "sbom/outil-sans-purl.cdx.json", "ageJours": 2, "composantsSignales": [
+      { "groupe": "org.apache.logging.log4j", "nom": "log4j-core", "version": "2.14.1", "motif": "SANS_PURL" }
+    ] },
     { "nom": "front-portail", "sbom": "sbom/front-portail.cdx.json", "ageJours": 4 },
     { "nom": "front-corrige", "sbom": "sbom/front-corrige.cdx.json", "ageJours": 6 },
     { "nom": "front-bornes", "sbom": "sbom/front-bornes.cdx.json", "ageJours": 2 },
@@ -139,23 +141,23 @@
     { "projet": "widget-sans-version", "avis": "GHSA-c2qf-rxjj-qqgw", "composant": "pkg:npm/semver@7.5.4", "motif": "postérieure à la borne fixed 7.5.2" }
   ],
   "ecartsConnus": [
-    { "projet": "batch-corrige", "avis": "GHSA-7g45-4rm6-3mm3", "composant": "pkg:maven/com.google.guava/guava@32.0.0-jre", "nature": "FAUX_POSITIF", "observe": "A_VERIFIER", "reference": "E-1" },
-    { "projet": "outil-sans-purl", "avis": "GHSA-jfh8-c2jp-5v3q", "composant": "org.apache.logging.log4j:log4j-core:2.14.1 (sans PURL, CPE seul)", "nature": "FAUX_NEGATIF", "observe": "AUCUN", "reference": "E-2" }
+    { "projet": "outil-sans-purl", "avis": "GHSA-jfh8-c2jp-5v3q", "composant": "org.apache.logging.log4j:log4j-core:2.14.1 (sans PURL, CPE seul)", "nature": "FAUX_NEGATIF", "observe": "AUCUN", "reference": "E-2", "traitement": "signalé à l'import (décision D6 du 2026-11-18) : composant écarté de l'inventaire faute de PURL (INV-01), décrit dans le résultat d'import et par l'API d'inventaire" }
   ],
   "metriquesConsignees": {
     "projets": "12",
     "avis": "16",
     "impactsAttendus": "52",
-    "impactsObserves": "52",
+    "impactsObserves": "51",
     "negatifsAnnotes": "36",
-    "vraisNegatifs": "35",
-    "tousNiveaux": "51/1/1 précision 98,1 % rappel 98,1 %",
+    "vraisNegatifs": "36",
+    "tousNiveaux": "51/0/1 précision 100,0 % rappel 98,1 %",
     "niveauxConfirmes": "46/0/0 précision 100,0 % rappel 100,0 %",
     "EXACT": "42/0/0 précision 100,0 % rappel 100,0 %",
     "PROBABLE": "4/0/0 précision 100,0 % rappel 100,0 %",
-    "A_VERIFIER": "5/1/1 précision 83,3 % rappel 83,3 %",
+    "A_VERIFIER": "5/0/1 précision 100,0 % rappel 83,3 %",
     "transitifCorrect": "47/47",
     "aliasCveIndexes": "16/16",
-    "doublonsAlias": "3"
+    "doublonsAlias": "3",
+    "composantsSignales": "1"
   }
 }

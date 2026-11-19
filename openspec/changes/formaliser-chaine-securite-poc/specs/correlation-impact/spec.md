@@ -7,8 +7,8 @@ Relier de façon déterministe, explicable et traçable un signal de sécurité 
 ## ADDED Requirements
 
 ### Requirement: COR-01 Rapprochement par PURL et plage de versions
-Le système DOIT (MUST) créer un impact projet lorsqu'un composant de l'inventaire d'un projet a le même PURL qu'un paquet affecté par un signal de sécurité et une version comprise dans la plage affectée, et NE DOIT PAS (MUST NOT) en créer pour les autres projets.
-Source : ADR-0013 (Proposé) ; ADR-0011 (Proposé) ; baseline v2.3 §4. Statut : [PROPOSITION].
+Le système DOIT (MUST) créer un impact projet lorsqu'un composant de l'inventaire d'un projet a le même PURL qu'un paquet affecté par un signal de sécurité et une version comprise dans la plage affectée, et NE DOIT PAS (MUST NOT) en créer pour les autres projets. Les versions Maven s'ordonnent selon `ComparableVersion`.
+Source : ADR-0013 ; ADR-0011 (Proposés) ; baseline v2.3 §4 ; décision D5 du 2026-11-18 (Q-COR-3). Statut : [PROPOSITION].
 
 #### Scenario: COR-01-S1 Version dans la plage affectée
 - **GIVEN** un projet dont l'inventaire contient `pkg:maven/org.exemple/lib@1.2.0`
@@ -32,6 +32,13 @@ Source : ADR-0013 (Proposé) ; ADR-0011 (Proposé) ; baseline v2.3 §4. Statut :
 - **GIVEN** un projet dont l'inventaire ne contient aucun composant du paquet affecté
 - **WHEN** la corrélation du signal s'exécute
 - **THEN** aucun impact n'est créé pour ce projet
+
+#### Scenario: COR-01-S5 Qualificatifs inconnus d'une version Maven
+- **GIVEN** un projet dont l'inventaire contient `pkg:maven/com.google.guava/guava@32.0.0-jre`
+- **AND** un signal qui affecte ce paquet pour les versions inférieures à `32.0.0-android`
+- **WHEN** la corrélation de ce signal s'exécute
+- **THEN** aucun impact n'est créé pour ce composant, `32.0.0-jre` suivant `32.0.0-android` dans l'ordre des versions Maven
+- **AND** un composant `31.1-jre` du même paquet reçoit un impact
 
 ### Requirement: COR-02 Niveau de chaque impact
 Le système DOIT (MUST) attribuer à chaque impact exactement un niveau, affiché avec l'impact : `exact` (PURL déclaré et version dans la plage, SBOM non obsolète), `probable` (même correspondance, inventaire de repli ou SBOM obsolète) ou `à vérifier` (correspondance sans PURL, version inconnue ou plage non interprétable).

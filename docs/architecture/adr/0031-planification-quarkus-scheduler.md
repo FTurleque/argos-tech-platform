@@ -1,8 +1,8 @@
 # ADR-0031 — Planifier les traitements périodiques avec quarkus-scheduler dans le serveur
 
-- **Statut** : Proposé
-- **Date** : 2026-11-17
-- **Décideurs** : Non déterminé ; décision soumise à validation humaine (candidat signalé par la décision D4 du changement `formaliser-chaine-securite-poc`, arc42 §9.3 point 1)
+- **Statut** : Accepté
+- **Date** : 2026-11-18 (acceptation ; proposition du 2026-11-17)
+- **Décideurs** : porteur du projet (acceptation du 2026-11-18)
 - **Remplace** : —
 - **Remplacé par** : —
 

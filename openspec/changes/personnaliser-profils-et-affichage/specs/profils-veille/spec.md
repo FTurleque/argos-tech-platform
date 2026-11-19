@@ -8,7 +8,7 @@ Permettre à chaque utilisateur d'activer un ou plusieurs profils de veille (dé
 
 ### Requirement: PRF-01 Profils actifs d'un utilisateur
 Le système DOIT (MUST) permettre à un utilisateur d'activer un ou plusieurs profils publiés au catalogue, et NE DOIT PAS (MUST NOT) le laisser sans aucun profil actif.
-Source : demande du porteur (2026-11-15) ; ADR-0024 (Proposé) point 2. Statut : [PROPOSITION].
+Source : demande du porteur (2026-11-15) ; ADR-0024 (Accepté) point 2. Statut : [PROPOSITION].
 
 #### Scenario: PRF-01-S1 Cumul de deux profils
 - **GIVEN** un utilisateur dont le seul profil actif est `developpeur`
@@ -29,7 +29,7 @@ Source : demande du porteur (2026-11-15) ; ADR-0024 (Proposé) point 2. Statut :
 
 ### Requirement: PRF-02 Veille restituée comme l'union des profils actifs
 Le système DOIT (MUST) restituer à un utilisateur l'union des éléments de veille relevant de ses profils actifs et des éléments retenus par ses abonnements `PERSONAL`, dans la limite de ses droits, chaque élément n'apparaissant qu'une fois, avec les rubriques de chacun des profils dont il relève.
-Source : ADR-0024 (Proposé) point 2 ; décision Q-3 du 2026-11-16 (abonnements `PERSONAL`, ABO-04). Statut : [PROPOSITION].
+Source : ADR-0024 (Accepté) point 2 ; décision Q-3 du 2026-11-16 (abonnements `PERSONAL`, ABO-04). Statut : [PROPOSITION].
 
 #### Scenario: PRF-02-S1 Élément commun à deux profils
 - **GIVEN** un utilisateur dont les profils actifs sont `developpeur` et `expert-metier`
@@ -59,7 +59,7 @@ Source : ADR-0024 (Proposé) point 2 ; décision Q-3 du 2026-11-16 (abonnements 
 
 ### Requirement: PRF-03 Profils initiaux
 Le système DOIT (MUST) publier au catalogue les profils `developpeur`, qui rapproche les signaux des composants des projets, et `expert-metier`, qui rapproche les textes officiels des domaines et modules produits ; ces profils reprennent les règles de rapprochement proposées par ADR-0013 et ADR-0018.
-Source : ADR-0024 (Proposé) point 3 ; ADR-0013 (Proposé) ; ADR-0018 (Proposé). Statut : [PROPOSITION].
+Source : ADR-0024 (Accepté) point 3 ; ADR-0013 (Proposé) ; ADR-0018 (Proposé). Statut : [PROPOSITION].
 
 #### Scenario: PRF-03-S1 Catalogue initial
 - **GIVEN** une installation d'Argos sans profil ajouté
@@ -74,7 +74,7 @@ Source : ADR-0024 (Proposé) point 3 ; ADR-0013 (Proposé) ; ADR-0018 (Proposé)
 
 ### Requirement: PRF-04 Ajout d'un profil sans effet sur les autres
 Le système DOIT (MUST) permettre de publier un nouveau profil au catalogue sans modifier la veille restituée aux utilisateurs qui ne l'activent pas.
-Source : ADR-0024 (Proposé) points 1 et 8. Statut : [PROPOSITION].
+Source : ADR-0024 (Accepté) points 1 et 8. Statut : [PROPOSITION].
 
 #### Scenario: PRF-04-S1 Publication d'un profil de démonstration
 - **GIVEN** des utilisateurs dont les profils actifs sont `developpeur` ou `expert-metier`
@@ -84,7 +84,7 @@ Source : ADR-0024 (Proposé) points 1 et 8. Statut : [PROPOSITION].
 
 ### Requirement: PRF-05 Aucun droit accordé par un profil
 Le système NE DOIT PAS (MUST NOT) donner accès, au titre d'un profil de veille, à un projet ou à une donnée interne situés hors du périmètre autorisé de l'utilisateur ; l'autorisation reste déterminée uniquement par ses rôles.
-Source : ADR-0024 (Proposé) point 6 ; ADR-0016 (Proposé) ; exigence ABO-05. Statut : [PROPOSITION].
+Source : ADR-0024 (Accepté) point 6 ; ADR-0016 (Proposé) ; exigence ABO-05. Statut : [PROPOSITION].
 
 #### Scenario: PRF-05-S1 Activation d'un profil sans droit sur les projets
 - **GIVEN** un utilisateur sans droit sur les projets de l'espace B
@@ -94,7 +94,7 @@ Source : ADR-0024 (Proposé) point 6 ; ADR-0016 (Proposé) ; exigence ABO-05. St
 
 ### Requirement: PRF-06 Garde-fous d'un profil appliqués avant diffusion
 Le système DOIT (MUST) appliquer les garde-fous déclarés par un profil, comme une validation humaine obligatoire, avant de restituer un élément relevant de ce profil, dans toutes les mises en page et via le serveur MCP.
-Source : ADR-0024 (Proposé) point 7 ; ADR-0018 (Proposé). Statut : [PROPOSITION].
+Source : ADR-0024 (Accepté) point 7 ; ADR-0018 (Proposé). Statut : [PROPOSITION].
 
 #### Scenario: PRF-06-S1 Fiche réglementaire non validée
 - **GIVEN** une fiche d'analyse du profil `expert-metier` qui n'a pas encore été validée par un expert métier

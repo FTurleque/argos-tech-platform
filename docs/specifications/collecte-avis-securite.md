@@ -22,7 +22,7 @@ Disposer, sans veille manuelle, des avis de vulnérabilité qui concernent les c
 | NVD, CISA KEV, FIRST EPSS, CERT-FR | enrichissent les signaux | [PROPOSITION] — ADR-0010 |
 | Responsable sécurité, utilisateur technique | consultent les signaux et leur provenance | [PROPOSITION] — arc42 §1.3 |
 | Exploitant | surveille l'état des sources | [PROPOSITION] — arc42 §3.2, §6.3 |
-| Planificateur interne | déclenche les synchronisations | [QUESTION] — composant absent de arc42 §5 ; hypothèse arc42 §6.5 |
+| API d'exploitation (`API & Security`) | déclenche une synchronisation à la demande de l'exploitant | [EXISTANT] — `POST /api/v1/ops/sources/{id}/synchronizations` ; aucune planification automatique |
 
 ## Périmètre et exclusions
 
@@ -74,7 +74,7 @@ Les signaux de sécurité sont globaux, non rattachés à un espace (ADR-0016, c
 |---|---|---|---|
 | Perte d'avis lors d'une panne | 0 | arc42 §10.2 Q-03 ; QS-03 | [PROPOSITION] |
 | Duplication logique après rejeu | 0 | arc42 §10.2 Q-03 ; QS-04 | [PROPOSITION] |
-| Délai publication source → signal | « alerte sécurité < 1 h » | ADR-0010, traçabilité | [QUESTION Q-6 du changement] — cible non validée |
+| Délai publication source → signal | « alerte sécurité < 1 h » | ADR-0010, traçabilité | [DÉCISION] Q-6 du changement — porteur du projet, 2026-11-18 : cible de qualité mesurée pendant le POC, sans être un critère d'acceptation |
 | Fraîcheur des sources | métrique à exposer, seuil non défini | arc42 §8.6 | [QUESTION] |
 
 ## Diagrammes
@@ -88,7 +88,7 @@ Les signaux de sécurité sont globaux, non rattachés à un espace (ADR-0016, c
 
 ```mermaid
 sequenceDiagram
-    participant Plan as Planificateur (non défini en §5)
+    participant Plan as API & Security
     participant Ing as source-ingestion
     participant OSV as «Software System» OSV
     participant Sig as signal
@@ -96,7 +96,7 @@ sequenceDiagram
     participant Sec as «Software System» NVD / KEV / EPSS / CERT-FR
     participant DB as PostgreSQL
 
-    Plan->>Ing: lancer la synchronisation OSV
+    Plan->>Ing: lancer la synchronisation OSV (demande de l'exploitant)
     Ing->>DB: lire le dernier curseur persisté
     Ing->>OSV: demander les avis depuis le curseur
     alt réponse reçue
@@ -120,14 +120,14 @@ sequenceDiagram
     else 429 avec Retry-After, timeout ou 5xx
         OSV--xIng: erreur transitoire
         Ing->>DB: enregistrer tentative et erreur, curseur inchangé
-        Ing->>Plan: replanifier après Retry-After ou délai croissant
+        Ing->>Ing: attendre Retry-After ou un délai croissant, puis rejouer (tentatives bornées)
     else erreur permanente
         OSV--xIng: authentification refusée ou requête invalide
         Ing->>DB: enregistrer erreur permanente, sans nouvelle tentative
     end
 ```
 
-Le curseur n'avance qu'en fin de lot, après l'enregistrement durable des signaux (COL-05) : une panne entre deux avis fait rejouer le lot, et l'idempotence (COL-03) absorbe les avis déjà enregistrés. L'enrichissement est facultatif : son absence ne bloque pas le signal (COL-04-S3). Le planificateur figure en §6 (`Scheduler & Jobs`) mais pas parmi les composants de §5 ; son existence reste une hypothèse (arc42 §6.5).
+Le curseur n'avance qu'en fin de lot, après l'enregistrement durable des signaux (COL-05) : une panne entre deux avis fait rejouer le lot, et l'idempotence (COL-03) absorbe les avis déjà enregistrés. L'enrichissement est facultatif : son absence ne bloque pas le signal (COL-04-S3). La synchronisation se lance à la demande de l'exploitant par l'API d'exploitation ; aucune planification automatique n'existe (arc42 §6.3).
 
 ### DF-COL-2 — Traitement d'un avis reçu
 
@@ -198,7 +198,6 @@ Comportements absents des sources, ajoutés pour rendre les règles testables (c
 - Le délai imposé par `Retry-After` est borné par le délai maximal des tentatives (`argos.ingestion.backoff-max`, 5 minutes).
 - Un avis OSV retiré (champ `withdrawn`) reste historisé comme signal, mais ne déclare plus aucun paquet affecté : il ne produit aucun impact.
 - Aucune planification automatique des synchronisations n'est installée (tâche 6.3 du changement) ; la première synchronisation OSV sans curseur énumère tout l'index `modified_id.csv` des écosystèmes configurés, dans la requête d'exploitation, sans borne de volume.
-- Les noms de §6 (`Ingestion`, `External Adapters`, `Scheduler & Jobs`) diffèrent des composants de §5 ; voir la table de correspondance de arc42 §6.
 
 ## Questions ouvertes
 

@@ -1,8 +1,8 @@
 # ADR-0023 — Séparer le contenu de la mise en page et laisser chaque utilisateur choisir la sienne
 
-- **Statut** : Proposé
-- **Date** : 2026-11-15
-- **Décideurs** : porteur du projet (demande du 2026-11-15) ; revue d'architecture à venir
+- **Statut** : Accepté
+- **Date** : 2026-11-18 (acceptation ; proposition du 2026-11-15)
+- **Décideurs** : porteur du projet (acceptation du 2026-11-18)
 - **Remplace** : —
 - **Remplacé par** : —
 

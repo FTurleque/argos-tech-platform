@@ -15,7 +15,9 @@ import io.argos.signal.AffectedPackage;
  *   <li>{@code A_VERIFIER} : correspondance sans PURL déclaré (nom seul), version du composant
  *       inconnue ou plage non interprétable.</li>
  * </ul>
- * Une version hors de toutes les plages ne produit aucun impact (COR-01-S2).
+ * Une version hors de toutes les plages ne produit aucun impact (COR-01-S2). Pour un paquet Maven,
+ * les qualificatifs inconnus suivent l'ordre de {@code ComparableVersion} (décision D5 du porteur du
+ * projet, 2026-11-18, Q-COR-3) : {@code 32.0.0-jre} suit la borne {@code 32.0.0-android}.
  */
 public final class MatchRules {
 
@@ -81,7 +83,7 @@ public final class MatchRules {
                 unknown = true;
                 continue;
             }
-            RangeResult result = inInterval(r, version);
+            RangeResult result = inInterval(affected, r, version);
             if (result == RangeResult.IN_RANGE) {
                 return result;
             }
@@ -93,13 +95,14 @@ public final class MatchRules {
         return unknown ? RangeResult.UNKNOWN : RangeResult.OUT_OF_RANGE;
     }
 
-    private static RangeResult inInterval(AffectedPackage.VersionRange r, String version) {
+    private static RangeResult inInterval(AffectedPackage affected, AffectedPackage.VersionRange r, String version) {
+        String ecosystem = ecosystem(affected);
         if (!VersionComparator.interpretable(version)) {
             return RangeResult.UNKNOWN;
         }
         String introduced = r.introduced();
         if (introduced != null && !introduced.isBlank() && !"0".equals(introduced)) {
-            Optional<Integer> c = VersionComparator.compare(version, introduced);
+            Optional<Integer> c = VersionComparator.compare(ecosystem, version, introduced);
             if (c.isEmpty()) {
                 return RangeResult.UNKNOWN;
             }
@@ -108,19 +111,32 @@ public final class MatchRules {
             }
         }
         if (r.fixed() != null) {
-            Optional<Integer> c = VersionComparator.compare(version, r.fixed());
+            Optional<Integer> c = VersionComparator.compare(ecosystem, version, r.fixed());
             if (c.isEmpty()) {
                 return RangeResult.UNKNOWN;
             }
             return c.get() < 0 ? RangeResult.IN_RANGE : RangeResult.OUT_OF_RANGE;
         }
         if (r.lastAffected() != null) {
-            Optional<Integer> c = VersionComparator.compare(version, r.lastAffected());
+            Optional<Integer> c = VersionComparator.compare(ecosystem, version, r.lastAffected());
             if (c.isEmpty()) {
                 return RangeResult.UNKNOWN;
             }
             return c.get() <= 0 ? RangeResult.IN_RANGE : RangeResult.OUT_OF_RANGE;
         }
         return RangeResult.IN_RANGE;
+    }
+
+    /** Écosystème du paquet : nom déclaré par la source, sinon type de la clé PURL ({@code pkg:maven/…}). */
+    private static String ecosystem(AffectedPackage affected) {
+        if (affected.ecosystem() != null && !affected.ecosystem().isBlank()) {
+            return affected.ecosystem();
+        }
+        String key = affected.packageKey();
+        if (key != null && key.startsWith("pkg:")) {
+            int slash = key.indexOf('/');
+            return slash > 4 ? key.substring(4, slash) : null;
+        }
+        return null;
     }
 }

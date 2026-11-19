@@ -7,24 +7,24 @@ Rapport de la tâche 4.7 du changement [`formaliser-chaine-securite-poc`](/opens
 | Élément | Valeur |
 |---|---|
 | Test | `argos-server/src/test/java/io/argos/chain/JeuReferenceCorrelationTest.java`, exécuté à chaque `mvn -B -f argos-server/pom.xml verify` ; seul : `mvn -f argos-server/pom.xml test -Dtest=JeuReferenceCorrelationTest` |
-| Jeu | `argos-server/src/test/resources/fixtures/jeu-reference-correlation/` : `jeu.json` (projets, vérité annotée, négatifs annotés, écarts consignés, métriques consignées), `avis/` (16 avis OSV), `sbom/` (11 SBOM CycloneDX 1.5 et 1.6), `manifestes/` (un manifeste npm, `package.manifeste.json`, importé sous le nom `package.json`) |
+| Jeu | `argos-server/src/test/resources/fixtures/jeu-reference-correlation/` : `jeu.json` (projets et composants à signaler à l'import, vérité annotée, négatifs annotés, écarts consignés, métriques consignées), `avis/` (16 avis OSV), `sbom/` (11 SBOM CycloneDX 1.5 et 1.6), `manifestes/` (un manifeste npm, `package.manifeste.json`, importé sous le nom `package.json`) |
 | Chaîne exécutée | chaîne réelle d'ARGOS, sans accès à Internet : création des projets, import des inventaires (`InventoryService`), collecte OSV (`SourceSynchronizer`) sur le serveur HTTP local des tests, corrélation déclenchée par la collecte (`CorrelationEngine`), lecture des impacts enregistrés dans `project_impact` ; puis corrélation par projet (second déclencheur) qui ne crée ni ne retire aucun impact |
-| Base | PostgreSQL des Dev Services Quarkus (conteneur jetable), migrations V1 à V16 |
+| Base | PostgreSQL des Dev Services Quarkus (conteneur jetable), migrations V1 à V17 |
 | Dates des SBOM | `metadata.timestamp` réécrit à l'exécution à « maintenant moins `ageJours` » : le caractère récent ou obsolète (seuil de 30 jours) ne dépend pas de la date d'exécution |
 | Unité de mesure | triplet (projet, avis, composant), clé d'unicité d'un impact (COR-07) ; le composant est identifié par sa clé PURL et sa version, sans qualificatif |
 | Vérité | annotée à la main depuis le texte de chaque avis et le contenu de chaque inventaire : impact attendu ou non, niveau attendu selon COR-02, caractère transitif attendu. Monde fermé : un impact observé hors de la vérité est un faux positif |
-| Garde-fou | le test échoue si l'ensemble des écarts diffère des écarts consignés dans `jeu.json`, ou si une métrique diffère des métriques consignées, qui sont celles de ce rapport. Le rapport calculé est écrit dans `argos-server/target/jeu-reference-correlation/mesure.md`, détail par triplet compris |
+| Garde-fou | le test échoue si l'ensemble des écarts diffère des écarts consignés dans `jeu.json`, si les composants signalés à l'import d'un projet diffèrent de ceux annotés (`composantsSignales`), ou si une métrique diffère des métriques consignées, qui sont celles de ce rapport. Le rapport calculé est écrit dans `argos-server/target/jeu-reference-correlation/mesure.md`, détail par triplet compris |
 
 ### Composition du jeu
 
 | Projet | Inventaire | Ce que le projet éprouve |
 |---|---|---|
 | `api-paiement` | SBOM Maven 1.5, 3 jours | versions affectées directes et transitives (log4j-core, Spring, commons-text, snakeyaml, guava, jackson-databind) ; artefact voisin non concerné (log4j-api) |
-| `batch-corrige` | SBOM Maven 1.6, 5 jours | versions corrigées sur les bornes `fixed` exclues ; paquets renommés ou forks (reload4j, log4j-1.2-api) ; guava `32.0.0-jre` face à la borne `32.0.0-android` |
+| `batch-corrige` | SBOM Maven 1.6, 5 jours | versions corrigées sur les bornes `fixed` exclues ; paquets renommés ou forks (reload4j, log4j-1.2-api) ; guava `32.0.0-jre` face à la borne `32.0.0-android` (ordre Maven des qualificatifs inconnus) |
 | `legacy-log4j1` | SBOM Maven 1.5, 10 jours | borne `last_affected` incluse (log4j 1.2.17) ; versions `RELEASE` de Spring 4 ; version `22.0-android` énumérée ; version antérieure à la borne `introduced` |
 | `distribution-plugins` | SBOM Maven 1.6, 1 jour | composants imbriqués (bibliothèques embarquées par 14 greffons) ; bornes de pré-version (`2.0-beta9`, `2.4.0-rc1`) ; paquet republié sous un autre groupe et version énumérée sans intervalle (`2.6.3-CUSTOM`) ; intervalles multiples |
 | `api-obsolete` | SBOM Maven 1.5, 45 jours | SBOM obsolète : niveau `probable` |
-| `outil-sans-purl` | SBOM Maven 1.6, 2 jours | composant concerné décrit sans PURL (groupe, nom, version, CPE) |
+| `outil-sans-purl` | SBOM Maven 1.6, 2 jours | composant concerné décrit sans PURL (groupe, nom, version, CPE), écarté de l'inventaire et signalé à l'import |
 | `front-portail` | SBOM npm 1.6, 4 jours | paquets à portée (`@babel/traverse`) ; deux versions d'un même paquet ; borne `last_affected` (lodash.template, request) |
 | `front-corrige` | SBOM npm 1.5, 6 jours | versions corrigées ; fork renommé corrigé (`@cypress/request` 3.0.1) ; même nom dans un autre écosystème (`pkg:pypi/semver`) |
 | `front-bornes` | SBOM npm 1.6, 2 jours | versions malveillantes énumérées (ua-parser-js) ; pré-versions SemVer (`8.0.0-alpha.0` incluse, `8.0.0-alpha.4` exclue) ; ancien nom à intervalle ouvert (`babel-traverse`) ; fork renommé affecté |
@@ -43,37 +43,38 @@ Avis : GHSA-jfh8-c2jp-5v3q (log4j-core, CVE-2021-44228), GHSA-fp5r-v3w9-4333 (lo
 
 ## Résultats du 2026-11-18
 
-12 projets, 16 avis, 52 impacts attendus, 52 impacts observés, 36 négatifs annotés.
+12 projets, 16 avis, 52 impacts attendus, 51 impacts observés, 36 négatifs annotés.
 
 | Mesure | VP | FP | FN | Précision | Rappel |
 |---|---:|---:|---:|---:|---:|
-| **Tous niveaux** | 51 | 1 | 1 | **98,1 %** | **98,1 %** |
+| **Tous niveaux** | 51 | 0 | 1 | **100,0 %** | **98,1 %** |
 | Niveaux confirmés (`exact`, `probable`) | 46 | 0 | 0 | 100,0 % | 100,0 % |
 | `exact` | 42 | 0 | 0 | 100,0 % | 100,0 % |
 | `probable` | 4 | 0 | 0 | 100,0 % | 100,0 % |
-| `à vérifier` | 5 | 1 | 1 | 83,3 % | 83,3 % |
+| `à vérifier` | 5 | 0 | 1 | 100,0 % | 83,3 % |
 
 | Contrôle complémentaire | Résultat |
 |---|---|
-| Vrais négatifs | 35 sur 36 (le 36e est le faux positif E-1) |
+| Vrais négatifs | 36 sur 36, dont guava `32.0.0-jre` de `batch-corrige` (E-1) |
 | Caractère transitif des vrais positifs | 47 corrects sur 47 annotés (inventaire de repli : transitif inconnu, non annoté) |
 | Niveau des vrais positifs | aucun écart de niveau |
 | Alias CVE des avis indexés (`signal_alias`) | 16 sur 16 |
 | Doublons d'alias (deux signaux de même CVE sur un même composant) | 3 : PyYAML (GHSA-8q59-q68h-6hv4 et PYSEC-2021-142) ; commons-text dans `api-paiement` et `api-obsolete` (GHSA-599f-7c49-w659 et l'avis dérivé, qui en reprend les alias) |
 | Corrélation par projet après la collecte | aucun impact créé ni retiré |
+| Composants signalés à l'import | 1 sur les 12 imports : `org.apache.logging.log4j:log4j-core` 2.14.1 du projet `outil-sans-purl`, motif `SANS_PURL` (E-2) ; aucun autre import ne signale de composant |
 
-Le jeu permet de mesurer vrais positifs, faux positifs et faux négatifs de la corrélation, ce que demande littéralement le critère 3 de la baseline v2.3 §6. Le jeu ne contient pas les inventaires des projets pilotes : la tâche 4.7 reste ouverte jusqu'à la mesure sur ces inventaires (tâche 7.1) ou à une [DÉCISION] du porteur qui accepte un jeu composé [QUESTION]. Précision et rappel dépassent le seuil de 80 % cité par ADR-0013, seuil non validé.
+Le jeu permet de mesurer vrais positifs, faux positifs et faux négatifs de la corrélation, ce que demande littéralement le critère 3 de la baseline v2.3 §6. Le jeu ne contient pas les inventaires des projets pilotes. [DÉCISION — porteur du projet, 2026-11-18] Le jeu composé ne suffit pas au critère 3 : la mesure se fait sur les inventaires des projets pilotes, avec la tâche 7.1 ; la tâche 4.7 reste ouverte et la présente mesure est une preuve partielle. Précision et rappel dépassent le seuil de 80 % cité par ADR-0013, seuil non validé.
 
 ## Écarts analysés
 
 | Réf. | Triplet | Nature | Analyse | Suite |
 |---|---|---|---|---|
-| E-1 | `batch-corrige`, GHSA-7g45-4rm6-3mm3, `pkg:maven/com.google.guava/guava@32.0.0-jre` | faux positif `à vérifier` | La borne `fixed` de l'avis vaut `32.0.0-android`. Les qualificatifs `jre` et `android` sont inconnus de `VersionComparator` : l'ordre de `32.0.0-jre` et `32.0.0-android` n'est pas déterminé et la plage est jugée non interprétable, d'où le niveau `à vérifier` (COR-02). L'ordre Maven (`ComparableVersion`) classe les qualificatifs inconnus après la version publiée, par ordre lexical : `32.0.0-jre` suit `32.0.0-android` et n'est pas affectée. Ce comportement est voulu et vérifié par `MatchRulesTest#qualificatifInconnuNonClasseCommePreVersion` ; il ne constitue pas un défaut. Les versions énumérées par l'avis (`31.1-jre`, `22.0-android`…) sont, elles, reconnues | [PROPOSITION] ordre des qualificatifs inconnus propre à Maven (question Q-COR-3 de la fiche) |
-| E-2 | `outil-sans-purl`, GHSA-jfh8-c2jp-5v3q, `org.apache.logging.log4j:log4j-core:2.14.1` sans PURL | faux négatif `à vérifier` | Le composant n'est décrit que par groupe, nom, version et CPE. INV-01 identifie chaque composant par son PURL : `CycloneDxParser` l'écarte et le compte parmi les composants ignorés de l'import. Le composant est donc absent de l'inventaire et aucune correspondance, même `à vérifier`, n'est possible. Limite de l'inventaire et non défaut de la corrélation | [PROPOSITION] signaler à l'import les composants ignorés faute de PURL, ou déduire une clé `à vérifier` du couple groupe et nom Maven |
+| E-1 | `batch-corrige`, GHSA-7g45-4rm6-3mm3, `pkg:maven/com.google.guava/guava@32.0.0-jre` | vrai négatif ; faux positif `à vérifier` sous l'ordre générique | La borne `fixed` de l'avis vaut `32.0.0-android`. Les qualificatifs `jre` et `android` sont inconnus de l'ordre générique de `VersionComparator`, qui ne classe pas `32.0.0-jre` face à `32.0.0-android`. Pour l'écosystème Maven, l'ordre de `ComparableVersion` tranche (`MavenVersionOrder`) : les qualificatifs inconnus suivent la version publiée, par ordre lexical ; `32.0.0-jre` suit `32.0.0-android` et n'est pas affectée, alors que `31.1-jre` l'est. Vérifié par `MatchRulesTest#cor01S5GuavaJreFaceALaBorneAndroid`, `MavenVersionOrderTest` et ce jeu ; hors Maven, un qualificatif inconnu laisse la plage non interprétable (`MatchRulesTest#qualificatifInconnuHorsMavenResteAVerifier`) | résolu par la décision D5 du porteur du projet, 2026-11-18 (question Q-COR-3 tranchée, COR-01-S5) [DÉCISION] |
+| E-2 | `outil-sans-purl`, GHSA-jfh8-c2jp-5v3q, `org.apache.logging.log4j:log4j-core:2.14.1` sans PURL | faux négatif `à vérifier`, signalé à l'import | Le composant n'est décrit que par groupe, nom, version et CPE. INV-01 identifie chaque composant par son PURL : `CycloneDxParser` l'écarte de l'inventaire et aucune correspondance, même `à vérifier`, n'est possible. L'import le signale (nom, groupe, version, motif `SANS_PURL`) dans son résultat et dans l'inventaire restitué par l'API (INV-01-S3) ; le test vérifie ce signalement. Limite de l'inventaire et non défaut de la corrélation | signalé à l'import selon la décision D6 du porteur du projet, 2026-11-18 ; l'inventaire reste fondé sur le PURL [DÉCISION] |
 
 Observation hors écart : un même composant reçoit un impact par avis, y compris quand deux avis décrivent la même vulnérabilité sous des identifiants différents (alias). Chaque impact est juste à l'unité de mesure (triplet) ; le regroupement par alias relève de la restitution et des alertes.
 
-Aucun défaut de corrélation avéré n'est révélé par le jeu : aucun correctif de code n'accompagne cette mesure.
+Hors de l'ordre des qualificatifs Maven inconnus (E-1, décision D5), le jeu ne révèle aucun défaut de corrélation.
 
 ## Limites
 

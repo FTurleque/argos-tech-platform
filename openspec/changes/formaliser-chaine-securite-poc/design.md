@@ -20,8 +20,8 @@
 | COL-04 | Traitements ; Gestion des erreurs | DF-COL-1 |
 | COL-05, COL-06, COL-07 | Gestion des erreurs et reprise ; États | DF-COL-1, DF-COL-3, DC-3 |
 | COL-08 | Gestion des erreurs et reprise | DF-COL-2 |
-| INV-01 à INV-05 | Traitements ; Persistance | DF-INV-1, DF-INV-2, DC-2 |
-| COR-01, COR-02, COR-06, COR-07 | Traitements ; Transactions | DF-COR-1, DF-COR-2, DF-COR-3 |
+| INV-01 à INV-05 | Traitements ; Persistance ; Décision D6 (INV-01-S3) | DF-INV-1, DF-INV-2, DC-2 |
+| COR-01, COR-02, COR-06, COR-07 | Traitements ; Transactions ; Décision D5 (COR-01-S5) | DF-COR-1, DF-COR-2, DF-COR-3 |
 | COR-03 | Persistance (provenance) ; Observabilité | DF-COR-1, DC-2 |
 | COR-04, COR-05 | Décision D3 | DF-COR-2 |
 | COR-08, ABO-05 | Sécurité et isolation | DF-ABO-2 |
@@ -119,7 +119,7 @@ Le modèle conceptuel est DF-COR-1 (corrélation) et DF-ABO-1 (abonnements). Inv
 - Import SBOM : DF-INV-1 ; origine de l'inventaire : DF-INV-2.
 - Corrélation : DF-COR-2 ; niveau : DF-COR-3.
 - Restitution de la veille : DF-ABO-2.
-- Ces vues remplacent, pour ce lot, les participants de arc42 §6.1 par les composants de §5 (table de correspondance ajoutée en arc42 §6).
+- Ces vues nomment leurs participants comme les composants de §5, à l'image des diagrammes d'arc42 §6.
 
 ## États et transitions
 
@@ -156,7 +156,7 @@ Le contrat REST est décrit en OpenAPI générée par Quarkus (ADR-0019), sous `
 |---|---|---|---|
 | Consulter un signal et sa provenance | utilisateur authentifié | — | COL-02-S1 |
 | Consulter l'état des sources | rôle `OPS` | — | COL-07-S1 |
-| Consulter l'inventaire d'un projet et son âge | utilisateur autorisé sur le projet | — | INV-02-S1, INV-03 |
+| Consulter l'inventaire d'un projet, son âge et les composants ignorés faute de PURL | utilisateur autorisé sur le projet | — | INV-01-S3, INV-02-S1, INV-03 |
 | Consulter les impacts d'un signal (liste paginée, arc42 §8.10) | filtrée par espace | — | COR-08-S1 |
 | Consulter un impact | utilisateur autorisé sur le projet | refus sans divulgation, journalisé | COR-03-S1, COR-08-S2 |
 | Créer un abonnement | `PERSONAL` : l'appelant ; `TEAM` : administrateur de l'espace (Q-5, ABO-06) | refus nommant l'attribut manquant (400) ; refus journalisé (403) | ABO-01-S1, ABO-02, ABO-06 |
@@ -204,6 +204,8 @@ erDiagram
         uuid project_id FK
         string origin "SBOM ou MANIFEST"
         timestamp source_date
+        int ignored_count "composants sans PURL"
+        jsonb ignored_components "100 au plus"
     }
     COMPONENT {
         string purl
@@ -260,12 +262,12 @@ Métriques Micrometer / OpenTelemetry (arc42 §8.6) : fraîcheur par source, nom
 ## Performance et stratégie de mesure
 
 - Consultation : API p95 < 500 ms hors appels externes et IA (arc42 §8.10, cible initiale [PROPOSITION]) — mesure par test de charge (QS-06).
-- Délai source → signal et « projets touchés < 5 min » : cibles non validées (Q-6) ; à mesurer pendant le POC sans en faire un critère d'acceptation.
+- Délai publication source → signal (« < 1 h », ADR-0010) : cible de qualité mesurée pendant le POC, sans être un critère d'acceptation ([DÉCISION] Q-6 — porteur du projet, 2026-11-18). « Projets touchés < 5 min » : cible non validée, à mesurer pendant le POC sans en faire un critère d'acceptation.
 - Volumétrie d'avis et de projets : non documentée [QUESTION, arc42 §10.4].
 
 ## Compatibilité, migration et retour arrière
 
-Non applicable — aucune donnée ni aucun contrat existant à migrer. Le retour arrière d'une future livraison se limite au retrait des migrations du lot ; la stratégie dépend de l'outil de migration choisi.
+Non applicable — aucune donnée ni aucun contrat existant à migrer. Le retour arrière d'une future livraison se limite au retrait des migrations du lot ; la stratégie dépend de l'outil de migration choisi. La migration V17 (décision D6) ajoute à `inventory` deux colonnes dotées d'une valeur par défaut : un inventaire importé avant elle signale zéro composant ignoré jusqu'à son prochain import ; les champs ajoutés à la réponse de l'API d'inventaire laissent les champs existants inchangés.
 
 ## Décisions, alternatives et compromis
 
@@ -300,7 +302,25 @@ Non applicable — aucune donnée ni aucun contrat existant à migrer. Le retour
 
 - **Statut** : [PROPOSITION]
 - **Choix** : s'appuyer sur ADR-0010, 0011, 0013, 0016 (Proposés) ; signaler comme candidats à ADR, hors de ce changement, le mécanisme de planification/jobs et l'outil de migration (arc42 §9.3, points 1 et 3).
-- **ADR** : candidats signalés, non rédigés.
+- **ADR** : candidats signalés, rédigés hors de ce changement : ADR-0031 (planification) et ADR-0032 (migrations Flyway), Acceptés ([DÉCISION] — porteur du projet, 2026-11-18).
+
+### D5 — Ordre Maven des qualificatifs inconnus
+
+- **Statut** : [DÉCISION] du porteur du projet, 2026-11-18 (écart E-1 du jeu de référence, question Q-COR-3 de la fiche `correlation-impact`).
+- **Choix** : pour l'écosystème Maven seulement, quand l'ordre générique de deux versions dépend d'un qualificatif inconnu (`jre`, `android`…), l'ordre de `ComparableVersion` de Maven tranche : un qualificatif inconnu suit la version publiée et `sp`, et les qualificatifs inconnus s'ordonnent entre eux par ordre lexical. L'algorithme est une adaptation de `ComparableVersion` (Maven Artifact 3.9.16, Apache-2.0) dans le dépôt (`io.argos.impact.MavenVersionOrder`), sans dépendance, avec attribution et texte de licence dans `argos-server/NOTICE` et `argos-server/licenses/Apache-2.0.txt` ; il reçoit les versions sans préfixe `v` ni métadonnées `+…`, et une version qui contient `_` reste `à vérifier`. L'ordre générique et ses qualificatifs connus (`dev`, `pre`, `preview`, `post`, `rev`, `r`, `a`, `b`, `c`, `m` sans chiffre compris) restent appliqués en premier : pour ces qualificatifs, l'ordre retenu diffère de `ComparableVersion`, et le mélange des deux ordres peut ne pas être transitif (`1.0-dev` < `1.0-alpha` < `1.0-abc` < `1.0-dev`) [PROPOSITION : application aux seuls qualificatifs inconnus de l'ordre générique, à trancher par le porteur du projet face à `ComparableVersion` intégral pour Maven]. Les autres écosystèmes gardent le niveau `à vérifier` pour une plage dont l'ordre dépend d'un qualificatif inconnu.
+- **Justification** : les avis OSV de l'écosystème Maven expriment leurs bornes dans l'ordre de Maven ; `32.0.0-jre` suit la borne `32.0.0-android` et n'est pas affectée (COR-01-S5).
+- **Alternatives écartées** : niveau `à vérifier` pour tout qualificatif inconnu (faux positif E-1) ; dépendance `maven-artifact` (Apache-2.0, ajoute `plexus-utils`) pour un algorithme court.
+- **Compromis** : fidélité à `ComparableVersion` à maintenir ; elle est vérifiée par `MavenVersionOrderTest`. Code dérivé d'Apache-2.0, intégré selon ADR-0021 points 3 et 4 [PROPOSITION : adaptation attribuée plutôt que dépendance `maven-artifact` ou réécriture indépendante, à trancher par le porteur du projet].
+- **ADR** : non — règle locale de comparaison, dans le cadre d'ADR-0013.
+
+### D6 — Composants sans PURL signalés à l'import
+
+- **Statut** : [DÉCISION] du porteur du projet, 2026-11-18 (écart E-2 du jeu de référence).
+- **Choix** : l'inventaire reste fondé sur le PURL (INV-01) ; un composant de SBOM sans PURL exploitable est écarté et signalé : nombre total et description (nom, groupe, version, motif `SANS_PURL` ou `PURL_INVALIDE`) des 100 premiers, dans l'inventaire restitué par `GET /api/v1/projects/{projectId}/inventory` (champs `ignoredCount` et `ignoredComponents`), seul canal exposé à l'utilisateur : `argos-ui` n'a pas de vue de l'inventaire, les outils MCP ne restituent pas le signalement et le résultat interne de l'import (`InventoryService.ImportResult`) n'est renvoyé par aucun point d'entrée [PROPOSITION : l'API suffit à rendre le signalement visible, à confirmer par le porteur du projet]. Le signalement est remplacé à chaque import (D2) et conservé dans les colonnes `ignored_count` et `ignored_components` de `inventory` (migration V17, ADR-0032), sous la RLS de la table.
+- **Justification** : un composant ignoré en silence masque un faux négatif de la corrélation ; le signalement le rend visible sans créer de correspondance incertaine.
+- **Alternatives écartées** : clé `à vérifier` déduite du groupe et du nom Maven (hors de la décision D6) ; table dédiée (aucune requête ne porte sur un composant ignoré isolé).
+- **Compromis** : liste bornée à 100 entrées et champs bornés à 200 caractères [PROPOSITION] ; aucune vue de l'inventaire n'existe dans `argos-ui`, la restitution passe par l'API.
+- **ADR** : non — décision locale.
 
 ## Risques
 
@@ -312,7 +332,7 @@ Non applicable — aucune donnée ni aucun contrat existant à migrer. Le retour
 ## Écarts code / tests / specs / documentation
 
 - Code et tests alignés sur les scénarios : voir tasks.md, matrice de traçabilité.
-- arc42 §6 / §5 : noms de participants divergents — table de correspondance ajoutée en arc42 §6 ; renommage des diagrammes D-06 à D-09 non effectué.
+- arc42 §6 / §5 : les participants des diagrammes d'arc42 §6 portent les noms des composants de §5 ([DÉCISION] — porteur du projet, 2026-11-18, tâche 6.1).
 - Inventaire des diagrammes : D-05, D-11, D-12, D-13 annoncés mais absents — D-05 ajouté en arc42 §5.7 ; D-11, D-12 et D-13 marqués manquants.
 - `F01`–`F16` cités par les ADR sans définition dans le dépôt (proposal.md, Q-1).
 

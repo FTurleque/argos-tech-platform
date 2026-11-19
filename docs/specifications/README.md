@@ -104,10 +104,10 @@ Tous les changements utilisent le schéma `detailed-uml` : aucun changement d'un
 | Capacité | Exigences | Scénarios | Diagrammes métier | Questions ouvertes | Tests écrits |
 |---|---:|---:|---:|---:|---:|
 | `collecte-avis-securite` | 8 | 18 | 3 | 4 | 22 |
-| `inventaire-sbom` | 5 | 9 | 2 | 5 | 12 |
-| `correlation-impact` | 8 | 16 | 3 | 4 | 27 |
+| `inventaire-sbom` | 5 | 10 | 2 | 5 | 14 |
+| `correlation-impact` | 8 | 17 | 3 | 4 | 37 |
 | `abonnements-veille` | 6 | 10 | 2 | 4 | 10 |
-| **Total** | **27** | **53** | **10** | **17** | **71** |
+| **Total** | **27** | **55** | **10** | **17** | **83** |
 
 Toutes les exigences sont au statut [PROPOSITION] : elles dérivent d'ADR « Proposé » ou de baselines « à valider ». Les tests écrits sont ceux d'`argos-server/src/test/java/io/argos/chain/` (hors `ProfilsDeVeilleTest`) et `architecture/SubscriptionIsolationTest.java`, exécutés par `mvn -B -f argos-server/pom.xml verify` avec des jetons réels du Keycloak des Dev Services et la RLS appliquée sous le rôle `argos_app`. Matrice détaillée : [`tasks.md` du changement](/openspec/changes/formaliser-chaine-securite-poc/tasks.md#matrice-de-traçabilité).
 
@@ -119,7 +119,7 @@ Toutes les exigences sont au statut [PROPOSITION] : elles dérivent d'ADR « Pro
 | `profils-veille` | 6 | 11 | 2 | 4 | 6 |
 | **Total** | **11** | **19** | **3** | **5** | **11** |
 
-« Tests écrits » compte les scénarios couverts par un test qui passe (AFF-01-S1, AFF-01-S2, AFF-03-S1, AFF-04-S1, AFF-04-S2, PRF-01-S1 à PRF-01-S3, PRF-03-S1, PRF-03-S2, PRF-05-S1). Les exigences dérivent d'ADR-0023 et ADR-0024 (Proposés) ; les règles dont le code et les tests existent sont marquées [EXISTANT] dans les fiches. Matrice détaillée : [`tasks.md` du changement](/openspec/changes/personnaliser-profils-et-affichage/tasks.md#matrice-de-traçabilité).
+« Tests écrits » compte les scénarios couverts par un test qui passe (AFF-01-S1, AFF-01-S2, AFF-03-S1, AFF-04-S1, AFF-04-S2, PRF-01-S1 à PRF-01-S3, PRF-03-S1, PRF-03-S2, PRF-05-S1). Les exigences dérivent d'ADR-0023 et ADR-0024 (Acceptés) ; les règles dont le code et les tests existent sont marquées [EXISTANT] dans les fiches. Matrice détaillée : [`tasks.md` du changement](/openspec/changes/personnaliser-profils-et-affichage/tasks.md#matrice-de-traçabilité).
 
 ### Couverture du lot 2
 
@@ -189,7 +189,7 @@ Les exigences ACC-07 à ACC-10 sont au statut [EXIGENCE] dans la spec de référ
 | Écart | Traitement |
 |---|---|
 | Les ADR citent des exigences `F01`–`F16` absentes du dépôt | question Q-1 du changement ; aucune correspondance inventée |
-| arc42 §6 annonçait les noms de §5 mais utilise d'autres participants | table de correspondance ajoutée en arc42 §6 ; renommage à décider (tâche 6.1) |
+| arc42 §6 annonçait les noms de §5 mais utilise d'autres participants | participants des diagrammes de §6 renommés avec les noms des composants de §5 ([DÉCISION] — porteur du projet, 2026-11-18 ; tâche 6.1) |
 | Inventaire des diagrammes : D-05, D-11, D-12, D-13 annoncés, absents | D-05 ajouté en arc42 §5.7 ; D-11, D-12 et D-13 produits dans `docs/architecture/diagrams/` (tâche 6.2) |
 | Glossaire : « impact probable, confirmé, résolu » vs niveaux ADR-0013 | question Q-COR-2 |
 

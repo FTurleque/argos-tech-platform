@@ -71,7 +71,7 @@ Aucune : aucune spec de référence n'existe.
 ## Écarts constatés
 
 - Les ADR-0010 à ADR-0018 citent des exigences `F01`–`F16` absentes du dépôt ; la correspondance avec les identifiants `COL`, `INV`, `COR`, `ABO` ne peut pas être établie [QUESTION Q-1].
-- arc42 §6 annonce reprendre « strictement » les composants de la section 5, mais ses participants (`Technology Intelligence`, `Impact Correlation`, `Workspace & Project Core`, `Scheduler & Jobs`…) diffèrent des composants de la section 5 (`signal`, `impact-engine`, `workspace`…). Une table de correspondance est ajoutée à arc42 §6 ; le renommage des diagrammes reste à décider.
+- arc42 §6 reprend les composants de la section 5 : les participants de ses diagrammes en portent les noms (`source-ingestion`, `signal`, `impact-engine`, `workspace`…) ([DÉCISION] — porteur du projet, 2026-11-18, tâche 6.1).
 - L'inventaire des diagrammes annonce D-05 (classes, §5), D-11 (déploiement cible, §7), D-12 et D-13 (§8) ; aucun de ces diagrammes n'est présent dans les fichiers cités. D-05 est ajouté à partir du glossaire ; D-11, D-12 et D-13 restent signalés manquants.
 
 ## Impact
@@ -97,5 +97,5 @@ Complète : le changement couvre plusieurs modules, introduit le modèle de donn
 | Q-3 | À partir de quel âge une SBOM est-elle obsolète ? | **Répondue le 2026-11-16** : obsolète 30 jours après sa date de génération [DÉCISION] | sécurité / Tech Lead |
 | Q-4 | Nombre maximal de tentatives et seuil d'échec qui place une source en `DEGRADED` ? | **Répondue le 2026-11-16** : 5 tentatives par synchronisation, avec attente exponentielle ; `DEGRADED` après 3 synchronisations consécutives en échec [DÉCISION] | backend / exploitation |
 | Q-5 | Qui peut créer un abonnement `TEAM`, et un utilisateur peut-il se désabonner d'un abonnement `TEAM` obligatoire ? | **Répondue le 2026-11-16** : seul un administrateur de l'espace crée un abonnement `TEAM` ; un `TEAM` obligatoire ne peut pas être quitté, un `TEAM` facultatif peut l'être [DÉCISION] | Product Owner |
-| Q-6 | Le délai cible source → signal (« alerte sécurité < 1 h », ADR-0010) est-il validé ? | non : cible qualité à valider | Product Owner / sécurité |
+| Q-6 | Le délai cible source → signal (« alerte sécurité < 1 h », ADR-0010) est-il validé ? | **Répondue le 2026-11-18** : cible de qualité mesurée pendant le POC, sans être un critère d'acceptation [DÉCISION] | porteur du projet |
 | Q-7 | Quelles versions du schéma CycloneDX doivent être acceptées ? | **Répondue le 2026-11-16** : CycloneDX 1.5 et 1.6, format JSON [DÉCISION] | Tech Lead |

@@ -62,12 +62,37 @@ class DocumentParsingTest {
         assertEquals("1.6", inv.specVersion());
         assertEquals(Instant.parse("2026-11-10T08:00:00Z"), inv.sourceDate());
         assertEquals(2, inv.components().size());
-        assertEquals(1, inv.ignoredComponents());
+        assertEquals(1, inv.ignoredCount());
+        assertEquals(List.of(new ParsedInventory.IgnoredComponent("nopurl", null, null, ParsedInventory.IgnoredComponent.PURL_INVALIDE)),
+                inv.ignoredComponents());
         ParsedInventory.Item a = inv.components().get(0);
         assertEquals("pkg:maven/org.exemple/a", a.packageKey());
         assertEquals("1.0.0", a.version());
         assertFalse(a.transitive());
         assertTrue(inv.components().get(1).transitive());
+    }
+
+    /** INV-01, décision D6 (2026-11-18) : composants sans PURL écartés et signalés, liste bornée. */
+    @Test
+    void composantsSansPurlSignalesEtListeBornee() {
+        StringBuilder comps = new StringBuilder(
+                "{\"type\":\"library\",\"group\":\"org.apache.logging.log4j\",\"name\":\"log4j-core\",\"version\":\"2.14.1\","
+                        + "\"cpe\":\"cpe:2.3:a:apache:log4j:2.14.1:*:*:*:*:*:*:*\"},"
+                        + "{\"type\":\"library\",\"name\":\"" + "n".repeat(300) + "\",\"purl\":\"  \"}");
+        for (int i = 0; i < 150; i++) {
+            comps.append(",{\"type\":\"library\",\"name\":\"lib").append(i).append("\"}");
+        }
+        comps.append(",{\"type\":\"library\",\"name\":\"ok\",\"purl\":\"pkg:maven/org.exemple/ok@1.0\"}");
+        String sbom = "{\"bomFormat\":\"CycloneDX\",\"specVersion\":\"1.6\",\"components\":[" + comps + "]}";
+        ParsedInventory inv = CycloneDxParser.parse(sbom.getBytes(StandardCharsets.UTF_8), 1_000_000);
+        assertEquals(1, inv.components().size());
+        assertEquals(152, inv.ignoredCount(), "le nombre total compte tous les composants écartés");
+        assertEquals(ParsedInventory.MAX_SIGNALED, inv.ignoredComponents().size(), "la description est bornée");
+        assertEquals(new ParsedInventory.IgnoredComponent("log4j-core", "org.apache.logging.log4j", "2.14.1",
+                ParsedInventory.IgnoredComponent.SANS_PURL), inv.ignoredComponents().get(0));
+        assertEquals(200, inv.ignoredComponents().get(1).name().length(), "nom borné à 200 caractères");
+        assertEquals(ParsedInventory.IgnoredComponent.SANS_PURL, inv.ignoredComponents().get(1).reason(), "PURL vide : sans PURL");
+        assertEquals("lib97", inv.ignoredComponents().get(99).name());
     }
 
     @Test

@@ -1,26 +1,8 @@
 # 6. Vue d’exécution
 
-Cette section décrit des scénarios dynamiques. Ses participants portent des noms de responsabilités qui ne coïncident pas tous avec les composants de la section 5 ; la table suivante donne la correspondance.
+Cette section décrit des scénarios dynamiques. Les participants des diagrammes portent les noms des composants de la section 5 ; une tâche planifiée figure comme un appel du module qui la porte (`quarkus-scheduler`, ADR-0031).
 
-| Participant (§6) | Composant(s) de la section 5 | Remarque |
-|---|---|---|
-| `API & Security` | `API & Security` | identique |
-| `Ingestion` | `source-ingestion` | — |
-| `Technology Intelligence` | `signal`, `vuln-intel`, `release-radar` | regroupement de plusieurs composants |
-| `Impact Correlation` | `impact-engine` | — |
-| `Workspace & Project Core` | `workspace`, `inventory` | regroupement |
-| `AI Gateway` | `ai-gateway` | — |
-| `Persistence Adapter` | adaptateur `PostgreSQL` | — |
-| `Alerting & Digest` | `alerting` | — |
-| `External Adapters` | `scm-connector` et adaptateurs des sources | seul `scm-connector` est nommé en §5 |
-| `Project Intelligence` | `project-intel` | activité factuelle des projets (§6.2, fiche [`activite-projets`](../../specifications/activite-projets.md)) |
-| `Regulatory Intelligence` | `reg-intel`, `catalog` (dictionnaire métier) | veille réglementaire (§6.6, fiche [`veille-reglementaire`](../../specifications/veille-reglementaire.md)) |
-| `Expert métier` | aucun | membre d’un espace désigné expert d’un domaine (§6.6) |
-| `Relais SMTP (Synology)` | aucun | système externe : serveur d’e-mails du NAS (§6.1.1) |
-| `Client desktop` | aucun | conteneur `argos-desktop` (ADR-0022), hors du backend (§6.1.1, §6.1.2) |
-| `Scheduler & Jobs` | aucun | composant absent de §5 ; tâches planifiées Quarkus Scheduler dans les modules qui les portent (`alerting` §6.1.1, collecte de la veille web, collecte de l’activité des projets §6.2, collecte réglementaire et rappels §6.6) ; aucun conteneur séparé (§6.5) |
-
-Les vues métier des fiches de [`docs/specifications/`](../../specifications/README.md) emploient les noms de la section 5.
+Les vues métier des fiches de [`docs/specifications/`](../../specifications/README.md) emploient aussi les noms de la section 5.
 
 ## 6.1 Scénario nominal — signal technologique vers impact projet
 
@@ -30,13 +12,13 @@ Les vues métier des fiches de [`docs/specifications/`](../../specifications/REA
 sequenceDiagram
     actor User as Utilisateur ARGOS
     participant API as API & Security
-    participant Ingestion as Ingestion
-    participant Tech as Technology Intelligence
-    participant Corr as Impact Correlation
-    participant Core as Workspace & Project Core
-    participant AI as AI Gateway
-    participant Persist as Persistence Adapter
-    participant Alert as Alerting & Digest
+    participant Ingestion as source-ingestion
+    participant Tech as signal / vuln-intel / release-radar
+    participant Corr as impact-engine
+    participant Core as inventory / workspace
+    participant AI as ai-gateway
+    participant Persist as PostgreSQL
+    participant Alert as alerting
 
     Ingestion->>Persist: enregistrer IntelligenceItem normalisé
     Ingestion->>Tech: soumettre l’item à classification
@@ -68,7 +50,7 @@ sequenceDiagram
 
 - aucune synthèse ne remplace la source ;
 - toute analyse LLM doit être associée à la version du prompt/modèle ;
-- la politique de confidentialité doit être évaluée avant l’appel à `AI Gateway` ;
+- la politique de confidentialité doit être évaluée avant l’appel à `ai-gateway` ;
 - l’opération doit être idempotente sur la source + l’identifiant externe.
 
 ### 6.1.1 Alerte immédiate et résumé périodique
@@ -77,11 +59,11 @@ sequenceDiagram
 
 ```mermaid
 sequenceDiagram
-    participant Corr as Impact Correlation
-    participant Alert as Alerting & Digest
-    participant Core as Workspace & Project Core
+    participant Corr as impact-engine
+    participant Alert as alerting
+    participant Core as workspace
     participant IA as Point d'extension ResumeIa
-    participant Persist as Persistence Adapter
+    participant Persist as PostgreSQL
     participant Mail as Relais SMTP (Synology)
     actor Desk as Client desktop
 
@@ -112,7 +94,7 @@ L’indisponibilité de l’IA ou du serveur d’e-mails ne bloque ni les impact
 
 ```mermaid
 sequenceDiagram
-    participant Alert as Alerting & Digest
+    participant Alert as alerting
     participant UI as Client desktop (IHM, couche contenu)
     participant Main as Client desktop (processus principal)
     actor U as Utilisateur
@@ -141,15 +123,14 @@ Une alerte non confirmée reste `EN_ATTENTE` côté serveur : elle revient à la
 ```mermaid
 sequenceDiagram
     actor User as Utilisateur ARGOS
-    participant Sched as Scheduler & Jobs
-    participant Proj as Project Intelligence
-    participant Core as Workspace & Project Core
-    participant Ext as External Adapters
+    participant Proj as project-intel
+    participant Core as inventory
+    participant Ext as scm-connector
     participant Forge as «Software System» GitHub/GitLab
     participant API as API & Security
-    participant Persist as Persistence Adapter
+    participant Persist as PostgreSQL
 
-    Sched->>Proj: cadence horaire : chercher les projets échus
+    Proj->>Proj: tâche planifiée horaire : chercher les projets échus
     Proj->>Core: projets reliés à un dépôt
     Core-->>Proj: projets et références de dépôt
     Proj->>Ext: activité depuis le début de la fenêtre (30 jours)
@@ -175,22 +156,24 @@ La collecte remplace les compteurs des jours de sa fenêtre : rejouée, elle pro
 
 ## 6.3 Scénario d’erreur — API externe indisponible
 
-**Type : UML sequence diagram. Portée : synchronisation planifiée.**
+**Type : UML sequence diagram. Portée : synchronisation d’une source lancée par l’exploitant (`POST /api/v1/ops/sources/{id}/synchronizations`) ; aucune planification automatique de la collecte des avis n’existe.**
 
 ```mermaid
 sequenceDiagram
-    participant Jobs as Scheduler & Jobs
-    participant Ingestion as Ingestion
-    participant Ext as External Adapters
-    participant Persist as Persistence Adapter
+    participant Ops as Exploitant
+    participant API as API & Security
+    participant Ingestion as source-ingestion
+    participant Ext as «Software System» Source externe
+    participant Persist as PostgreSQL
 
-    Jobs->>Ingestion: lancer synchronisation source
+    Ops->>API: lancer la synchronisation d’une source
+    API->>Ingestion: synchroniser la source
     Ingestion->>Ext: demander delta depuis dernier curseur
     Ext--xIngestion: timeout / 429 / 5xx
     Ingestion->>Persist: enregistrer tentative et erreur
 
     loop retry borné avec backoff
-        Jobs->>Ingestion: rejouer la synchronisation
+        Ingestion->>Ingestion: attendre le délai, puis rejouer la synchronisation
         Ingestion->>Ext: reprendre depuis curseur stable
         alt succès
             Ext-->>Ingestion: retourner événements
@@ -216,27 +199,30 @@ sequenceDiagram
 
 ## 6.4 Scénario d’exploitation — redémarrage/reprise
 
-**Type : UML sequence diagram. Portée : reprise du `ARGOS Backend`.**
+**Type : UML sequence diagram. Portée : reprise du conteneur `Quarkus Backend`.**
 
 ```mermaid
 sequenceDiagram
     participant Ops as Exploitant
-    participant Back as ARGOS Backend
-    participant Jobs as Scheduler & Jobs
-    participant Persist as Persistence Adapter
-    participant Ext as External Adapters
+    participant Back as Quarkus Backend
+    participant Ingestion as source-ingestion
+    participant Persist as PostgreSQL
+    participant Ext as «Software System» Sources externes
 
     Ops->>Back: démarrer / redémarrer le service
     Back->>Persist: vérifier connectivité et migrations
     Persist-->>Back: état base OK
-    Back->>Jobs: initialiser planificateur
-    Jobs->>Persist: rechercher traitements RUNNING expirés
-    Persist-->>Jobs: retourner traitements à reprendre
-    Jobs->>Jobs: reclassifier en RETRYABLE
-    Jobs->>Ext: reprendre synchronisations depuis curseurs persistés
-    Ext-->>Jobs: retourner deltas
-    Jobs->>Persist: enregistrer reprise et nouveaux curseurs
+    Back->>Ingestion: notifier le démarrage
+    Ingestion->>Persist: rechercher traitements RUNNING expirés
+    Persist-->>Ingestion: retourner traitements à reprendre
+    Ingestion->>Persist: reclasser en RETRYABLE
     Back-->>Ops: exposer état READY
+    Ops->>Back: lancer la synchronisation d’une source
+    Back->>Ingestion: synchroniser la source
+    Ingestion->>Persist: reprendre le traitement RETRYABLE
+    Ingestion->>Ext: reprendre depuis le curseur persisté
+    Ext-->>Ingestion: retourner deltas
+    Ingestion->>Persist: enregistrer reprise et nouveau curseur
 ```
 
 ## 6.5 Hypothèses et validation
@@ -271,21 +257,21 @@ sequenceDiagram
 
 ## 6.6 Scénario nominal — texte officiel vers fiche validée
 
-**Type : UML sequence diagram. Portée : collecte quotidienne du Journal officiel, qualification, fiche, validation par l’expert et rappel (changement `suivre-veille-reglementaire`, ADR-0030 proposé).**
+**Type : UML sequence diagram. Portée : collecte quotidienne du Journal officiel, qualification, fiche, validation par l’expert et rappel (changement `suivre-veille-reglementaire`, ADR-0030 accepté).**
 
 ```mermaid
 sequenceDiagram
-    participant Sched as Scheduler & Jobs
-    participant Ingestion as Ingestion
+    participant Ingestion as source-ingestion
     participant DILA as «Software System» DILA (archives JORF)
-    participant Reg as Regulatory Intelligence
-    participant AI as AI Gateway
+    participant Reg as reg-intel
+    participant Cat as catalog
+    participant AI as ai-gateway
     actor Expert as Expert métier
     participant API as API & Security
-    participant Alert as Alerting & Digest
-    participant Persist as Persistence Adapter
+    participant Alert as alerting
+    participant Persist as PostgreSQL
 
-    Sched->>Reg: 06:30 : collecte des 3 derniers jours et des jours manqués
+    Reg->>Reg: tâche planifiée 06:30 : collecte des 3 derniers jours et des jours manqués
     Reg->>Ingestion: archives non encore lues de chaque jour
     Ingestion->>DILA: GET index et archives (sans redirection, tailles bornées)
     alt source indisponible
@@ -295,7 +281,7 @@ sequenceDiagram
         DILA-->>Ingestion: JORF_AAAAMMJJ-HHMMSS.tar.gz
         Ingestion-->>Reg: textes lus (XML sans DTD ni entité externe)
         Reg->>Persist: texte enregistré une fois par identifiant officiel, dates extraites
-        Reg->>Reg: règles du dictionnaire de chaque espace
+        Reg->>Cat: règles du dictionnaire de chaque espace
         opt aucune règle ne s’applique
             Reg->>AI: domaine proposé (facultatif)
         end
@@ -305,7 +291,7 @@ sequenceDiagram
     Expert->>API: corrige puis valide la fiche
     API->>Reg: expert d’un des domaines
     Reg->>Persist: sous argos_app (RLS) : fiche VALIDEE, texte EN_ANALYSE, historique
-    Sched->>Alert: 07:15 : rappels J-90, J-30, J-7
+    Alert->>Alert: tâche planifiée 07:15 : rappels J-90, J-30, J-7
     Alert->>Reg: échéances des fiches validées
     Alert->>Persist: rappel par destinataire, clé d’idempotence
 ```

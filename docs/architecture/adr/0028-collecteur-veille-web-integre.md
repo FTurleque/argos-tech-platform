@@ -1,8 +1,8 @@
 # ADR-0028 — Collecter les flux RSS/Atom et les pages surveillées dans le serveur Argos
 
-- **Statut** : Proposé
-- **Date** : 2026-11-16
-- **Décideurs** : porteur du projet (choix du collecteur, Q-1 de `collecter-veille-rss-web`, répondue le 2026-11-16)
+- **Statut** : Accepté
+- **Date** : 2026-11-18 (acceptation ; proposition du 2026-11-16)
+- **Décideurs** : porteur du projet (acceptation du 2026-11-18)
 - **Remplace** : [ADR-0006](0006-collecteurs-separes.md) (Proposé) pour la veille RSS/Atom et web, à l'acceptation du présent ADR
 - **Remplacé par** : —
 

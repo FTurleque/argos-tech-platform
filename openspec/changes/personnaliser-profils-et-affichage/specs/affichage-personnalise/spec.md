@@ -8,7 +8,7 @@ Permettre à chaque utilisateur de choisir la mise en page d'Argos parmi un cata
 
 ### Requirement: AFF-01 Choix de la mise en page dans le catalogue
 Le système DOIT (MUST) permettre à un utilisateur authentifié de choisir sa mise en page parmi celles publiées au catalogue ; le catalogue initial comprend `classique`, `journal`, `fantaisie` et `gazette`.
-Source : demande du porteur (2026-11-15) ; ADR-0023 (Proposé). Statut : [PROPOSITION].
+Source : demande du porteur (2026-11-15) ; ADR-0023 (Accepté). Statut : [PROPOSITION].
 
 #### Scenario: AFF-01-S1 Choix d'une mise en page publiée
 - **GIVEN** un utilisateur authentifié dont la mise en page est `classique`
@@ -24,7 +24,7 @@ Source : demande du porteur (2026-11-15) ; ADR-0023 (Proposé). Statut : [PROPOS
 
 ### Requirement: AFF-02 Contenu et mentions identiques dans toute mise en page
 Le système DOIT (MUST) restituer, pour un même utilisateur et un même instant, les mêmes éléments de veille, les mêmes impacts et les mêmes mentions obligatoires (source, date, niveau de confiance, résumé produit par l'IA) quelle que soit la mise en page choisie.
-Source : ADR-0023 (Proposé) ; dossier v2.4 §A.3 ; ADR-0013 (Proposé). Statut : [PROPOSITION].
+Source : ADR-0023 (Accepté) ; dossier v2.4 §A.3 ; ADR-0013 (Proposé). Statut : [PROPOSITION].
 
 #### Scenario: AFF-02-S1 Changement de mise en page
 - **GIVEN** un utilisateur dont la veille comporte trois éléments, dont une alerte avec un résumé produit par l'IA
@@ -39,7 +39,7 @@ Source : ADR-0023 (Proposé) ; dossier v2.4 §A.3 ; ADR-0013 (Proposé). Statut 
 
 ### Requirement: AFF-03 Préférence partagée entre le portail web et le desktop
 Le système DOIT (MUST) enregistrer la mise en page choisie comme préférence de l'utilisateur côté serveur, et l'appliquer dans le portail web comme dans le client desktop.
-Source : ADR-0023 (Proposé) ; ADR-0022 (Proposé). Statut : [PROPOSITION].
+Source : ADR-0023 (Accepté) ; ADR-0022 (Proposé). Statut : [PROPOSITION].
 
 #### Scenario: AFF-03-S1 Choix fait sur le web, retrouvé sur le desktop
 - **GIVEN** un utilisateur qui choisit la mise en page `fantaisie` dans le portail web
@@ -48,7 +48,7 @@ Source : ADR-0023 (Proposé) ; ADR-0022 (Proposé). Statut : [PROPOSITION].
 
 ### Requirement: AFF-04 Mise en page par défaut
 Le système DOIT (MUST) appliquer la mise en page `classique` à un utilisateur qui n'a fait aucun choix, ou dont la mise en page choisie a été retirée du catalogue.
-Source : ADR-0023 (Proposé). Statut : [PROPOSITION].
+Source : ADR-0023 (Accepté). Statut : [PROPOSITION].
 
 #### Scenario: AFF-04-S1 Premier accès
 - **GIVEN** un utilisateur qui n'a jamais choisi de mise en page
@@ -64,7 +64,7 @@ Source : ADR-0023 (Proposé). Statut : [PROPOSITION].
 
 ### Requirement: AFF-05 Accessibilité de chaque mise en page
 Le système DOIT (MUST) n'inscrire au catalogue qu'une mise en page conforme au référentiel d'accessibilité retenu pour Argos, vérifiée sur les mêmes écrans de référence que les autres mises en page.
-Source : ADR-0023 (Proposé) point 6 ; référentiel à fixer (question Q-4). Statut : [PROPOSITION].
+Source : ADR-0023 (Accepté) point 6 ; référentiel à fixer (question Q-4). Statut : [PROPOSITION].
 
 #### Scenario: AFF-05-S1 Mise en page non conforme
 - **GIVEN** une nouvelle mise en page dont un texte n'atteint pas le contraste minimal du référentiel retenu

@@ -1,6 +1,6 @@
 # Tâches : exposer Argos aux assistants IA par un serveur MCP en lecture seule
 
-<!-- Tâches 1 à 5.1 réalisées et vérifiées sauf 2.1 (transport sans état tenu pour la seule version 2026-07-28, décision attendue sur les versions antérieures) ; 5.2 (parcours avec Claude Code réel) reste à faire : seule sa partie protocole est vérifiée. -->
+<!-- Tâches 1 à 5.1 réalisées et vérifiées (2.1 : transport sans état en version 2026-07-28, versions antérieures acceptées avec session par la décision du 2026-11-18) ; 5.2 (parcours avec Claude Code réel) reste à faire : seule sa partie protocole est vérifiée. -->
 
 ## 1. Arbitrages
 
@@ -8,7 +8,9 @@
 
 ## 2. Serveur et sécurité
 
-- [ ] 2.1 Ajouter `quarkus-mcp-server-http` (licence enregistrée, ADR-0021) et le transport sans état — couvre MCP-01 — vérification : test de contrat « liste des outils » passe
+- [x] 2.1 Ajouter `quarkus-mcp-server-http` (licence enregistrée, ADR-0021) et le transport sans état — couvre MCP-01 — vérification : test de contrat « liste des outils » passe
+  - [DÉCISION] Les versions de protocole antérieures à 2026-07-28 restent acceptées : la négociation `initialize` ouvre une session, le jeton reste exigé à chaque requête, les initialisations sont limitées à 60 par minute et par sujet du jeton, une session inactive est fermée après 30 minutes — porteur du projet, 2026-11-18. Le transport est sans état en version 2026-07-28 ; un client en version antérieure obtient une session.
+  - Le 2026-11-18 : `ContratOutilsMcpTest` (liste des outils et schémas, appel sans session en 2026-07-28, découverte, `initializeAncienneVersionOuvreUneSessionSansRemplacerLeJeton`) et `LimiteDebitMcpTest` (dont `initialisationsLimitees`) passent ; `mvn -B -f argos-server/pom.xml verify` → BUILD SUCCESS, « Tests run: 525, Failures: 0, Errors: 0, Skipped: 1 ».
 - [x] 2.2 Brancher l'authentification et l'espace courant — couvre MCP-03-S1, MCP-04-S1 — vérification : tests d'intégration passent
 - [x] 2.3 Baliser et tronquer le contenu externe — couvre MCP-05-S1 — vérification : test du texte piégé passe
 - [x] 2.4 Limiter le débit et journaliser les appels — couvre MCP-06-S1 — vérification : test d'intégration passe
@@ -33,7 +35,7 @@
 
 | Tâche | Preuve | Résultat |
 |---|---|---|
-| 2.1 | `argos-server/pom.xml` : `io.quarkiverse.mcp:quarkus-mcp-server-http` 2.0.4, licence Apache-2.0 consignée (dépendances transitives `quarkus-mcp-server-core`, `quarkus-mcp-server-sse-client`, `org.mcpjava:mcp-server-api` 1.0.0, `com.github.victools:jsonschema-generator` 4.38.0, `jsonschema-module-jackson`, `jsonschema-module-jakarta-validation`, `jsonschema-module-swagger-2` : Apache-2.0) ; `ContratOutilsMcpTest` (liste, schémas, appel sans session en 2026-07-28, découverte) passe. Le 2026-11-18, `ContratOutilsMcpTest.initializeAncienneVersionOuvreUneSessionSansRemplacerLeJeton` établit qu'un client en version 2025-06-18 obtient une session (jeton toujours exigé) : le transport n'est sans état qu'en version 2026-07-28 ; négociations limitées par `ControleInitialisation` (`LimiteDebitMcpTest.initialisationsLimitees`). Case non cochée : le « transport sans état » de l'intitulé attend la décision sur les versions antérieures (`design.md`, Écarts) | partielle ; décision attendue |
+| 2.1 | `argos-server/pom.xml` : `io.quarkiverse.mcp:quarkus-mcp-server-http` 2.0.4, licence Apache-2.0 consignée (dépendances transitives `quarkus-mcp-server-core`, `quarkus-mcp-server-sse-client`, `org.mcpjava:mcp-server-api` 1.0.0, `com.github.victools:jsonschema-generator` 4.38.0, `jsonschema-module-jackson`, `jsonschema-module-jakarta-validation`, `jsonschema-module-swagger-2` : Apache-2.0) ; `ContratOutilsMcpTest` (liste, schémas, appel sans session en 2026-07-28, découverte) passe. Le 2026-11-18, `ContratOutilsMcpTest.initializeAncienneVersionOuvreUneSessionSansRemplacerLeJeton` établit qu'un client en version 2025-06-18 obtient une session (jeton toujours exigé) : le transport n'est sans état qu'en version 2026-07-28 ; négociations limitées par `ControleInitialisation` (`LimiteDebitMcpTest.initialisationsLimitees`). Versions antérieures acceptées dans ces conditions ([DÉCISION] — porteur du projet, 2026-11-18) ; `mvn -B -f argos-server/pom.xml verify` relancé le 2026-11-18 : BUILD SUCCESS, « Tests run: 525, Failures: 0, Errors: 0, Skipped: 1 » | passe |
 | 2.2 | `GardeAppels` (appelant par `CallerResolver`, refus journalisés) ; `AuthentificationMcpTest`, `CloisonnementMcpTest` (dont RLS sous `argos_app`) ; règle `ModuleBoundariesTest.mcpNeLitQueLaSecuriteDeLApi` | passe |
 | 2.3 | `BalisageExterne`, `TexteExterne` ; `ContenuExterneMcpTest` | passe |
 | 2.4 | `api.security.LimiteurDebit` (commun avec la veille web), `audit.JournalAppelsMcp`, migration `V9__journal_appels_mcp.sql` ; `LimiteDebitMcpTest` (profil de test à 3 appels par minute), `LimiteurDebitTest` | passe |

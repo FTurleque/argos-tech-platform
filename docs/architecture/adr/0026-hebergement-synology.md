@@ -1,8 +1,8 @@
 # ADR-0026 — Héberger Argos sur le serveur Synology du porteur avant toute offre en ligne
 
-- **Statut** : Accepté (cible d'hébergement) ; modalités détaillées Proposées
-- **Date** : 2026-11-16
-- **Décideurs** : porteur du projet
+- **Statut** : Accepté
+- **Date** : 2026-11-18 (acceptation ; proposition du 2026-11-16)
+- **Décideurs** : porteur du projet (acceptation du 2026-11-18)
 - **Remplace** : ADR-0017, pour la cible d'hébergement (VM interne de Ciril)
 - **Remplacé par** : —
 

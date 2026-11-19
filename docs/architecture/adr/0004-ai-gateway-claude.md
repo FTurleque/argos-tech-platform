@@ -1,9 +1,10 @@
 # ADR-0004 — Encapsuler Claude derrière un AI Gateway
 
-- **Statut** : Proposé
+- **Statut** : Remplacé par [ADR-0029](0029-passerelle-ia-ollama-local.md)
 - **Date** : 2026-09-24
 - **Décideurs** : Non déterminé
 - **Remplace** : —
+- **Remplacé par** : [ADR-0029](0029-passerelle-ia-ollama-local.md) (accepté le 2026-11-18)
 
 ## Contexte
 

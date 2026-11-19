@@ -26,9 +26,9 @@ Les ADR enregistrent les décisions architecturales importantes d’ARGOS.
 - [ADR-0001 — Monolithe modulaire](0001-monolithe-modulaire.md)
 - [ADR-0002 — PostgreSQL comme stockage principal](0002-postgresql-stockage-principal.md) — **Accepté v2.4**
 - [ADR-0003 — Modèle canonique d’événements](0003-modele-canonique-evenements.md)
-- [ADR-0004 — AI Gateway Claude](0004-ai-gateway-claude.md)
+- [ADR-0004 — AI Gateway Claude](0004-ai-gateway-claude.md) — **Remplacé par ADR-0029**
 - [ADR-0005 — Mermaid pour les diagrammes](0005-mermaid-diagrammes.md) — **Accepté**
-- [ADR-0006 — Collecteurs séparés](0006-collecteurs-separes.md) — remplacement proposé par ADR-0028
+- [ADR-0006 — Collecteurs séparés](0006-collecteurs-separes.md) — Proposé ; ADR-0028 (Accepté) annonce son remplacement pour la veille RSS/Atom et web
 - [ADR-0007 — n8n périphérique](0007-n8n-peripherique.md)
 - [ADR-0008 — IAM OIDC](0008-iam-oidc.md)
 - [ADR-0009 — PolyForm Internal Use License 1.0.0](0009-licence-polyform-internal-use.md) — **Accepté**
@@ -43,7 +43,7 @@ Les ADR enregistrent les décisions architecturales importantes d’ARGOS.
 - [ADR-0015 — PostgreSQL FTS / pgvector différé](0015-postgresql-fts-pgvector.md)
 - [ADR-0016 — Workspaces RBAC + RLS](0016-workspace-rbac-rls.md)
 - [ADR-0017 — POC local Docker puis VM interne](0017-deploiement-vm-conteneurs.md) — cible VM interne remplacée par ADR-0026
-- [ADR-0018 — Veille réglementaire et validation MKP](0018-veille-reglementaire-mkp.md) — remplacement proposé par ADR-0030
+- [ADR-0018 — Veille réglementaire et validation MKP](0018-veille-reglementaire-mkp.md) — Proposé ; ADR-0030 (Accepté) annonce son remplacement
 
 ### Décisions v2.4
 
@@ -63,35 +63,35 @@ Les ADR enregistrent les décisions architecturales importantes d’ARGOS.
 
 ### Personnalisation
 
-- [ADR-0023 — Mises en page sélectionnables par utilisateur](0023-mises-en-page-selectionnables.md) — Proposé
-- [ADR-0024 — Profils de veille extensibles et cumulables](0024-profils-de-veille-extensibles.md) — Proposé
+- [ADR-0023 — Mises en page sélectionnables par utilisateur](0023-mises-en-page-selectionnables.md) — **Accepté**
+- [ADR-0024 — Profils de veille extensibles et cumulables](0024-profils-de-veille-extensibles.md) — **Accepté**
 
 ### Positionnement
 
 - [ADR-0025 — Produit ouvert à tous les publics, porté à titre personnel](0025-produit-ouvert-projet-personnel.md) — **Accepté** ; ADR-0008, ADR-0009 et ADR-0017 à revoir
-- [ADR-0026 — Hébergement sur le serveur Synology du porteur](0026-hebergement-synology.md) — **Accepté** (cible) ; remplace ADR-0017 pour la VM interne
+- [ADR-0026 — Hébergement sur le serveur Synology du porteur](0026-hebergement-synology.md) — **Accepté** ; remplace ADR-0017 pour la VM interne
 
 ### Identité
 
-- [ADR-0027 — Keycloak auto-hébergé comme fournisseur d'identité](0027-keycloak-idp-auto-heberge.md) — Proposé ; complète ADR-0008
-- [ADR-0033 — Session OIDC de l'IHM en mémoire, desktop connecté par l'interface de bouclage](0033-session-oidc-ihm-memoire-bouclage.md) — Proposé ; complète ADR-0027, précise ADR-0022 point 6
+- [ADR-0027 — Keycloak auto-hébergé comme fournisseur d'identité](0027-keycloak-idp-auto-heberge.md) — **Accepté** ; complète ADR-0008
+- [ADR-0033 — Session OIDC de l'IHM en mémoire, desktop connecté par l'interface de bouclage](0033-session-oidc-ihm-memoire-bouclage.md) — **Accepté** ; complète ADR-0027, précise ADR-0022 point 6
 
 ### Collecte
 
-- [ADR-0028 — Collecteur RSS/Atom et pages surveillées intégré au serveur](0028-collecteur-veille-web-integre.md) — Proposé ; remplacerait ADR-0006 à son acceptation
+- [ADR-0028 — Collecteur RSS/Atom et pages surveillées intégré au serveur](0028-collecteur-veille-web-integre.md) — **Accepté** ; remplace ADR-0006 pour la veille RSS/Atom et web (ADR-0006 reste Proposé)
 
 ### Intelligence artificielle
 
-- [ADR-0029 — Passerelle IA servie par un modèle local Ollama](0029-passerelle-ia-ollama-local.md) — Proposé ; remplacerait ADR-0004 à son acceptation
+- [ADR-0029 — Passerelle IA servie par un modèle local Ollama](0029-passerelle-ia-ollama-local.md) — **Accepté** ; remplace ADR-0004
 
 ### Veille réglementaire
 
-- [ADR-0030 — Veille réglementaire validée par l'expert métier, domaines par espace et données ouvertes JORF](0030-veille-reglementaire-expert-metier.md) — Proposé ; remplacerait ADR-0018 à son acceptation
+- [ADR-0030 — Veille réglementaire validée par l'expert métier, domaines par espace et données ouvertes JORF](0030-veille-reglementaire-expert-metier.md) — **Accepté** ; remplace ADR-0018 (ADR-0018 reste Proposé)
 
 ### Exploitation du serveur
 
-- [ADR-0031 — Planifier les traitements périodiques avec quarkus-scheduler dans le serveur](0031-planification-quarkus-scheduler.md) — Proposé
-- [ADR-0032 — Versionner le schéma PostgreSQL par des migrations SQL Flyway appliquées au démarrage](0032-migrations-flyway.md) — Proposé
+- [ADR-0031 — Planifier les traitements périodiques avec quarkus-scheduler dans le serveur](0031-planification-quarkus-scheduler.md) — **Accepté**
+- [ADR-0032 — Versionner le schéma PostgreSQL par des migrations SQL Flyway appliquées au démarrage](0032-migrations-flyway.md) — **Accepté**
 
 Les ADR-0010 à ADR-0018 restent **Proposés** jusqu’à validation par revue d’architecture et/ou preuves produites pendant le POC.
 

@@ -4,7 +4,7 @@
 
 ## Why — Pourquoi
 
-Le porteur du projet a demandé le 2026-11-15 deux personnalisations absentes du dossier v2.4 [PROPOSITION — demande du porteur, ADR-0023 et ADR-0024 (Proposés)] :
+Le porteur du projet a demandé le 2026-11-15 deux personnalisations absentes du dossier v2.4 [DÉCISION — demande du porteur, ADR-0023 et ADR-0024 (Acceptés le 2026-11-18)] :
 
 - choisir sa **mise en page**, parmi les quatre maquettées (classique, journal, fantaisie, gazette), pour une IHM « plus jolie et qui ne fasse pas penser au travail » ;
 - choisir **un ou plusieurs profils d'utilisation** : développeur et expert métier d'abord, puis d'autres publics comme des artistes, des comédiens ou des acteurs de la vie politique.
@@ -79,7 +79,7 @@ Aucune : aucune spec de référence n'existe. Le lien avec `abonnements-veille` 
 - **Sécurité, confidentialité, droits** : un profil n'accorde aucun droit ; garde-fous appliqués avant diffusion ; profils futurs concernant des personnes soumis au DPO.
 - **Exploitation et observabilité** : nombre d'utilisateurs par profil et par mise en page (sans suivi individuel).
 - **Documentation durable à mettre à jour** : `/docs/specifications/affichage-personnalise.md`, `/docs/specifications/profils-veille.md`, registre `/docs/specifications/README.md`, arc42 §5 et §8, glossaire.
-- **ADR** : ADR-0023 et ADR-0024 (Proposés) ; aucun autre ADR modifié.
+- **ADR** : ADR-0023 et ADR-0024 (Acceptés) ; aucun autre ADR modifié.
 
 ## Conception requise
 
@@ -94,3 +94,4 @@ Allégée : le changement fixe des règles fonctionnelles et le découpage des r
 | Q-3 | Un abonnement `PERSONAL` (ABO-04) peut-il porter sur une source qui n'appartient à aucun de ses profils actifs ? | **Répondue le 2026-11-16** : oui, dans la limite de ses droits ; la source s'ajoute à l'union des profils actifs [DÉCISION] | Product Owner |
 | Q-4 | Quel référentiel d'accessibilité s'impose aux mises en page (RGAA, WCAG 2.1 AA) ? | **Répondue le 2026-11-16** : RGAA 4.1.2 (aligné sur WCAG 2.1 AA) [DÉCISION] | RSSI / référent accessibilité |
 | Q-5 | Qui publie un nouveau profil au catalogue, et après quelle revue ? | non pour les profils initiaux | Product Owner / architecte |
+| Q-6 | Quelle règle rend un élément réel commun aux profils `developpeur` et `expert-metier` (PRF-02-S1, décision D8 du 2026-11-18) : fiche réglementaire validée et avis de sécurité qu'elle cite fusionnés en un élément, preuve actuelle acceptée, ou attente d'une source commune ? | **oui pour la tâche 3.4** | porteur du projet |

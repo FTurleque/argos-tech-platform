@@ -1,9 +1,9 @@
 # ADR-0029 — Servir la passerelle IA par un modèle local Ollama
 
-- **Statut** : Proposé
-- **Date** : 2026-11-16
-- **Décideurs** : porteur du projet (questions Q-1 à Q-4 du changement `encadrer-appels-ia`, répondues le 2026-11-16) ; remplacement d'ADR-0004 soumis à validation humaine
-- **Remplace** : [ADR-0004](0004-ai-gateway-claude.md) (Proposé), à l'acceptation du présent ADR
+- **Statut** : Accepté
+- **Date** : 2026-11-18 (acceptation ; proposition du 2026-11-16)
+- **Décideurs** : porteur du projet (acceptation du 2026-11-18)
+- **Remplace** : [ADR-0004](0004-ai-gateway-claude.md)
 - **Remplacé par** : —
 
 ## Contexte

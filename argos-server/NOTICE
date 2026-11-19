@@ -1,0 +1,17 @@
+Serveur d'ARGOS (argos-server) — code tiers repris dans les sources
+===================================================================
+
+Enregistrement des licences du code tiers intégré au dépôt (ADR-0021, points 3, 4 et 6).
+
+src/main/java/io/argos/impact/MavenVersionOrder.java
+  Adaptation de org.apache.maven.artifact.versioning.ComparableVersion (Maven Artifact 3.9.16,
+  https://github.com/apache/maven), réécrite en Java 21 et réduite à la comparaison de deux versions
+  (classes internes, noms et commentaires modifiés ; aucune autre partie de Maven reprise).
+  Licence : Apache License 2.0, texte complet dans licenses/Apache-2.0.txt.
+  Avis NOTICE du projet d'origine :
+
+    Maven Artifact
+    Copyright 2001-2026 The Apache Software Foundation
+
+    This product includes software developed at
+    The Apache Software Foundation (http://www.apache.org/).

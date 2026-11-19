@@ -6,6 +6,7 @@ import java.sql.SQLException;
 import java.sql.Types;
 import java.time.Instant;
 import java.time.ZoneOffset;
+import java.util.List;
 import java.util.UUID;
 
 import javax.sql.DataSource;
@@ -15,12 +16,18 @@ import jakarta.enterprise.event.Event;
 import jakarta.inject.Inject;
 import jakarta.transaction.Transactional;
 
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.ObjectMapper;
+
 /**
  * Écriture des inventaires : remplacement en bloc de l'inventaire de référence (D2, INV-01-S2)
- * en conservant l'identité des composants inchangés, et journal des imports refusés (INV-05).
+ * en conservant l'identité des composants inchangés, composants ignorés faute de PURL signalés avec
+ * l'inventaire (INV-01, décision D6 du 2026-11-18), et journal des imports refusés (INV-05).
  */
 @ApplicationScoped
 public class InventoryStore {
+
+    private static final ObjectMapper MAPPER = new ObjectMapper();
 
     @Inject
     DataSource dataSource;
@@ -33,11 +40,13 @@ public class InventoryStore {
         UUID importId = UUID.randomUUID();
         try (Connection c = dataSource.getConnection()) {
             try (PreparedStatement ps = c.prepareStatement("""
-                    INSERT INTO inventory(project_id, origin, source_date, spec_version, source_ref, import_id, imported_at)
-                    VALUES (?, ?, ?, ?, ?, ?, now())
+                    INSERT INTO inventory(project_id, origin, source_date, spec_version, source_ref, import_id, imported_at,
+                        ignored_count, ignored_components)
+                    VALUES (?, ?, ?, ?, ?, ?, now(), ?, ?::jsonb)
                     ON CONFLICT (project_id) DO UPDATE SET origin = excluded.origin, source_date = excluded.source_date,
                         spec_version = excluded.spec_version, source_ref = excluded.source_ref,
-                        import_id = excluded.import_id, imported_at = excluded.imported_at
+                        import_id = excluded.import_id, imported_at = excluded.imported_at,
+                        ignored_count = excluded.ignored_count, ignored_components = excluded.ignored_components
                     """)) {
                 ps.setObject(1, projectId);
                 ps.setString(2, origin);
@@ -45,6 +54,8 @@ public class InventoryStore {
                 ps.setString(4, parsed.specVersion());
                 ps.setString(5, cut(sourceRef));
                 ps.setObject(6, importId);
+                ps.setInt(7, parsed.ignoredCount());
+                ps.setString(8, ignoredJson(parsed));
                 ps.executeUpdate();
             }
             try (PreparedStatement ps = c.prepareStatement("""
@@ -93,6 +104,16 @@ public class InventoryStore {
             ps.executeUpdate();
         } catch (SQLException e) {
             throw new IllegalStateException("enregistrement de l'échec d'import impossible", e);
+        }
+    }
+
+    /** Composants ignorés de l'import (au plus {@value ParsedInventory#MAX_SIGNALED}), en tableau JSON. */
+    private static String ignoredJson(ParsedInventory parsed) {
+        List<ParsedInventory.IgnoredComponent> ignored = parsed.ignoredComponents() == null ? List.of() : parsed.ignoredComponents();
+        try {
+            return MAPPER.writeValueAsString(ignored.subList(0, Math.min(ignored.size(), ParsedInventory.MAX_SIGNALED)));
+        } catch (JsonProcessingException e) {
+            throw new IllegalStateException("sérialisation des composants ignorés impossible", e);
         }
     }
 

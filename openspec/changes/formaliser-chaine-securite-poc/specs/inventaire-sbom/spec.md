@@ -7,8 +7,8 @@ Maintenir pour chaque projet suivi un inventaire de ses composants, directs et t
 ## ADDED Requirements
 
 ### Requirement: INV-01 SBOM CycloneDX de la branche principale comme référence
-Le système DOIT (MUST) constituer l'inventaire de référence d'un projet à partir de la dernière SBOM CycloneDX produite par la CI de sa branche principale, chaque composant étant identifié par son PURL et sa version. Les SBOM acceptées sont au format JSON, schéma CycloneDX 1.5 ou 1.6.
-Source : ADR-0011 (Proposé) ; baseline v2.3 §4 ; décision du 2026-11-16 (question Q-7). Statut : [PROPOSITION].
+Le système DOIT (MUST) constituer l'inventaire de référence d'un projet à partir de la dernière SBOM CycloneDX produite par la CI de sa branche principale, chaque composant étant identifié par son PURL et sa version. Les SBOM acceptées sont au format JSON, schéma CycloneDX 1.5 ou 1.6. Un composant sans PURL exploitable est écarté et signalé avec l'import.
+Source : ADR-0011 (Proposé) ; baseline v2.3 §4 ; décisions du 2026-11-16 (Q-7) et D6 du 2026-11-18. Statut : [PROPOSITION].
 
 #### Scenario: INV-01-S1 Import d'une SBOM valide
 - **GIVEN** un projet suivi dont la CI de la branche principale a produit une SBOM CycloneDX valide
@@ -21,6 +21,12 @@ Source : ADR-0011 (Proposé) ; baseline v2.3 §4 ; décision du 2026-11-16 (ques
 - **WHEN** une SBOM plus récente de la branche principale est importée
 - **THEN** l'inventaire de référence correspond à la nouvelle SBOM
 - **AND** un composant absent de la nouvelle SBOM n'apparaît plus dans l'inventaire de référence
+
+#### Scenario: INV-01-S3 Composant sans PURL signalé à l'import
+- **GIVEN** une SBOM CycloneDX valide dont un composant n'est décrit que par son groupe, son nom, sa version et un CPE, sans PURL
+- **WHEN** le système importe cette SBOM
+- **THEN** ce composant n'apparaît pas dans l'inventaire de référence
+- **AND** l'utilisateur qui consulte l'inventaire voit ce composant signalé avec son nom, son groupe, sa version et le motif « sans PURL »
 
 ### Requirement: INV-02 Dépendances transitives
 Le système DOIT (MUST) inclure dans l'inventaire les dépendances transitives déclarées par la SBOM et permettre de distinguer une dépendance directe d'une dépendance transitive.
