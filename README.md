@@ -67,6 +67,8 @@ L’URL du serveur se règle avec `VITE_ARGOS_API_URL` (voir `argos-ui/.env.exam
 
 Tests de bout en bout du portail web (Playwright, Keycloak et PostgreSQL de test) : `npm --prefix e2e ci` puis `npm --prefix e2e test` ; voir [`e2e/README.md`](e2e/README.md).
 
+Liste des dépendances tierces du serveur, de leurs licences et de leurs avis NOTICE (commande dédiée, hors `mvn verify`) : voir [`argos-server/README.md`](argos-server/README.md#licences-des-dépendances).
+
 ### Argos complet sous Docker (PC ou Synology)
 
 ```bash

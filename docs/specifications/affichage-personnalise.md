@@ -60,7 +60,7 @@ Utilisateur authentifié ; mise en page publiée au catalogue.
 | Contenu, droits et mentions identiques dans toute mise en page | AFF-02 | ADR-0023 ; dossier v2.4 §A.3 | [EXIGENCE] — implémentée : couches séparées (`argos-ui/tests/architecture.test.mjs`) ; mêmes faits, liens et mentions dans les quatre mises en page sur un même jeu (`argos-ui/tests/mises-en-page.test.mjs`, banc `e2e/accessibilite/`) ; veille réelle transposée rendue dans les quatre mises en page (`argos-ui/tests/veille-affichee.test.mjs`, `argos-ui/tests/mises-en-page.test.mjs`) ; E2E `e2e/tests/veille.spec.ts` « 2.4 (AFF-02-S1, AFF-02-S2) » sur la veille réelle (2026-11-17) |
 | Préférence partagée web / desktop | AFF-03 | ADR-0023 ; ADR-0022 | [EXIGENCE] — implémentée : préférence serveur ; E2E web puis desktop (`e2e/desktop/affichage.spec.ts`, application Electron réelle) passe ; la connexion du desktop avec le navigateur réellement installé sur le poste reste à vérifier à la main (navigateur du système simulé dans l'E2E) |
 | `classique` par défaut et en repli | AFF-04 | ADR-0023 | [EXISTANT] — serveur (`ResolutionPreferences`) et IHM (`resolution.ts`) ; tests AFF-04-S1, AFF-04-S2 |
-| Accessibilité vérifiée avant publication | AFF-05 | ADR-0023 | [EXIGENCE] — partiellement implémentée : audit des quatre mises en page du 2026-11-17 ([rapport](../architecture/quality/audit-accessibilite-mises-en-page.md)) ; un couple de couleurs sous le seuil fait échouer les tests de l'IHM ; la publication au catalogue du serveur n'est pas bloquée par ce contrôle |
+| Accessibilité vérifiée avant publication | AFF-05 | ADR-0023 | [EXIGENCE] — partiellement implémentée : audit des quatre mises en page du 2026-11-17 ([rapport](../architecture/quality/audit-accessibilite-mises-en-page.md)) ; un couple de couleurs sous le seuil fait échouer les tests de l'IHM ; la publication au catalogue du serveur n'est pas bloquée par ce contrôle ([DÉCISION] du porteur du projet du 2026-11-19 : aucun contrôle côté serveur, voir « Qualités mesurables ») |
 
 ## Droits d'accès et restrictions
 
@@ -73,6 +73,8 @@ Modification de la préférence de l'utilisateur ; aucune autre donnée.
 ## Qualités mesurables
 
 [DÉCISION — 2026-11-16] Référentiel d'accessibilité : RGAA 4.1.2 (aligné sur WCAG 2.1 AA), vérifié sur les mêmes écrans de référence pour chaque mise en page (AFF-05).
+
+[DÉCISION — porteur du projet, 2026-11-19 (F6)] AFF-05 : aucun contrôle d'accessibilité côté serveur. La conformité des mises en page est vérifiée par les tests de l'IHM (`argos-ui/tests/contrastes.test.mjs`, `e2e/accessibilite/mises-en-page.spec.ts`) et par l'audit d'accessibilité ; AFF-05 reste partiellement implémentée, le catalogue du serveur ne refusant pas lui-même une mise en page non conforme. Décision consignée dans la [spec de référence](/openspec/specs/affichage-personnalise/spec.md) (AFF-05).
 
 [EXISTANT] Audit du 2026-11-17 ([rapport](../architecture/quality/audit-accessibilite-mises-en-page.md)) : contraste minimal du texte rendu 4,97:1 (`fantaisie`) à 6,67:1 (`gazette`), lecture à 320 px sans défilement horizontal, tabulation et focus, mouvement réduit, structure et décor contrôlés ; restitution par lecteur d'écran non vérifiée.
 

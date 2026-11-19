@@ -135,6 +135,28 @@ PostgreSQL est **Accepté** comme stockage principal : relationnel, JSONB, FTS e
 
 Le schéma est versionné par des migrations SQL Flyway appliquées au démarrage (ADR-0032, Accepté) ; le modèle physique qu'elles produisent est D-13 : [`../diagrams/d-13-modele-physique.md`](../diagrams/d-13-modele-physique.md).
 
+Liste à jour des migrations, dans `argos-server/src/main/resources/db/migration/` (état au 2026-11-19). ADR-0032 porte la décision et décrit V1 à V16, état de sa date d'acceptation ; il n'est pas modifié et cette liste tient l'inventaire à jour des migrations ([DÉCISION] du porteur du projet, 2026-11-19). La prochaine migration porte le numéro V18.
+
+| Version | Fichier | Objet | Changement OpenSpec |
+|---|---|---|---|
+| V1 | `V1__socle.sql` | aucune table : vérifie que la chaîne Flyway fonctionne | socle |
+| V2 | `V2__comptes_et_acces.sql` | comptes, espaces, appartenances, invitations, journal des refus d'accès (`refus_acces`) ; rôle `argos_app`, fonctions de contexte et politiques RLS (ADR-0016) | `gerer-comptes-et-acces` |
+| V3 | `V3__collecte_avis_securite.sql` | sources, avis de sécurité (`signal`, alias, paquets, versions), enrichissements, synchronisations, tentatives, curseurs, zone d'échec, événements d'exploitation | `formaliser-chaine-securite-poc` (tâche 2.1) |
+| V4 | `V4__projets_et_inventaires.sql` | projets suivis, inventaire de référence, composants, échecs d'import | `formaliser-chaine-securite-poc` (tâche 3.1) |
+| V5 | `V5__impacts_projet.sql` | impacts projet (`project_impact`) et leur RLS | `formaliser-chaine-securite-poc` (tâche 4.1) |
+| V6 | `V6__abonnements_veille.sql` | abonnements de veille `TEAM` et `PERSONAL`, retraits d'un abonnement facultatif | `formaliser-chaine-securite-poc` (tâche 5.1) |
+| V7 | `V7__preferences_utilisateur.sql` | préférences d'affichage et de veille d'un compte | `personnaliser-profils-et-affichage` |
+| V8 | `V8__alertes_et_resumes.sql` | alertes immédiates et résumés périodiques, éléments des résumés | `diffuser-alertes-et-digests` |
+| V9 | `V9__journal_appels_mcp.sql` | journal des appels d'outils MCP (`mcp_appel`) | `exposer-serveur-mcp` |
+| V10 | `V10__veille_rss_web.sql` | sources de veille web (flux et pages surveillées), actualités, rapprochements (ADR-0028) | `collecter-veille-rss-web` |
+| V11 | `V11__recherche_veille.sql` | recherche plein texte bilingue sur `signal` et `actualite`, fonction `argos_rechercher_veille`, vues enregistrées (ADR-0015) | `rechercher-et-filtrer` |
+| V12 | `V12__radar_et_standards.sql` | référentiel des standards, suggestions et historique, cycles de vie, radar, dette de version | `construire-radar-et-standards` |
+| V13 | `V13__passerelle_ia.sql` | journal des appels IA, prompts versionnés, quotas journaliers | `encadrer-appels-ia` |
+| V14 | `V14__activite_projets.sql` | compteurs d'activité des projets, jalons, état de la collecte, sans identité de personne | `mesurer-activite-projets` |
+| V15 | `V15__profil_artiste.sql` | objets suivis par profil, rappels, sources vérifiées, opportunités (ADR-0024) | `ajouter-profil-artiste` |
+| V16 | `V16__veille_reglementaire.sql` | domaines métier, experts, dictionnaire, sources et textes officiels, fiches réglementaires et leur historique | `suivre-veille-reglementaire` |
+| V17 | `V17__composants_ignores_import.sql` | colonnes `ignored_count` et `ignored_components` de `inventory` : composants ignorés faute de PURL au dernier import (INV-01, décision D6 du 2026-11-18) | `formaliser-chaine-securite-poc` |
+
 ## 8.8 IA et coûts
 
 Tous les appels runtime passent par l’AI Gateway : quotas, prompts versionnés, schémas de sortie, audit et plafond.
