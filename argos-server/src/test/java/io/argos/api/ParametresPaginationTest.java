@@ -1,8 +1,10 @@
 package io.argos.api;
 
+import static org.hamcrest.Matchers.containsString;
 import static org.hamcrest.Matchers.equalTo;
 import static org.hamcrest.Matchers.hasItem;
 import static org.hamcrest.Matchers.notNullValue;
+import static org.junit.jupiter.api.Assertions.assertEquals;
 
 import java.time.Instant;
 import java.util.List;
@@ -82,6 +84,41 @@ class ParametresPaginationTest {
         alice().when().get("/api/v1/recherche").then().statusCode(200).body("page", equalTo(0)).body("taille", equalTo(20));
     }
 
+    /**
+     * Décision H5 du porteur du projet, 2026-11-19 : les projets filtrés de la recherche sont contrôlés avant la
+     * lecture de la pagination. Un projet inconnu et un projet d'un autre espace reçoivent la même réponse 404,
+     * même avec {@code page=abc} ou une taille hors bornes ; seul le second refus est journalisé.
+     */
+    @Test
+    void rechercheControleLesProjetsAvantLaPagination() {
+        UUID espaceJules = Api.nouvelEspace("jules", "Équipe voisine");
+        UUID secret = jeu.projet(espaceJules, "Secret");
+        UUID visible = jeu.projet(espace, "Visible");
+        String compte = "SELECT count(*) FROM refus_acces WHERE motif = 'NON_MEMBRE' AND compte_id = '"
+                + Api.compte("alice") + "'";
+        long refusAvant = db.count(compte);
+
+        String inconnu = alice().queryParam("projet", UUID.randomUUID().toString()).queryParam("page", "abc")
+                .when().get("/api/v1/recherche").then().statusCode(404).body("code", equalTo("INTROUVABLE"))
+                .extract().asString();
+        assertEquals(refusAvant, db.count(compte), "projet inexistant : aucun refus d'accès à journaliser");
+        String autreEspace = alice().queryParam("projet", secret.toString()).queryParam("page", "abc")
+                .when().get("/api/v1/recherche").then().statusCode(404).body("code", equalTo("INTROUVABLE"))
+                .extract().asString();
+        assertEquals(inconnu, autreEspace, "la réponse ne distingue pas un projet inexistant d'un projet d'un autre espace");
+        assertEquals(refusAvant + 1, db.count(compte));
+
+        alice().queryParam("projet", secret.toString()).queryParam("taille", "dix")
+                .when().get("/api/v1/recherche").then().statusCode(404);
+        alice().queryParam("projet", secret.toString()).queryParam("taille", 101)
+                .when().get("/api/v1/recherche").then().statusCode(404);
+        // Projet visible : la pagination est ensuite lue normalement.
+        refuse(alice().queryParam("projet", visible.toString()).queryParam("page", "abc")
+                .when().get("/api/v1/recherche").then(), "page");
+        alice().queryParam("projet", visible.toString()).queryParam("taille", 5)
+                .when().get("/api/v1/recherche").then().statusCode(200).body("taille", equalTo(5));
+    }
+
     @Test
     void resultatsDUneVueEnregistree() {
         String vue = alice().contentType(ContentType.JSON)
@@ -139,5 +176,8 @@ class ParametresPaginationTest {
                 contrat.body(operation + ".parameters.find { it.name == '" + parametre + "' }.schema.type", equalTo("integer"));
             }
         });
+        // Décision H5 : le contrat de la recherche annonce le contrôle des projets filtrés avant la pagination.
+        contrat.body("paths.'/api/v1/recherche'.get.responses.'404'.description",
+                containsString("contrôlés avant la lecture de la pagination"));
     }
 }

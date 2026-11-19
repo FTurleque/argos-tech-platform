@@ -27,7 +27,6 @@ import org.jboss.resteasy.reactive.RestResponse;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 
-import io.argos.api.ParametresPagination;
 import io.argos.api.security.Access;
 import io.argos.api.security.Caller;
 import io.argos.impact.RechercheVeille;
@@ -120,8 +119,7 @@ public class VuesResource {
             @QueryParam("taille") String taille) {
         Caller appelant = access.authenticated();
         VueEnregistree vue = representation(vues.trouver(appelant.accountId(), id));
-        return traduction.executer(vue.criteres(), appelant, false, ParametresPagination.entier(page, "page", 0),
-                ParametresPagination.entier(taille, "taille", RechercheResource.TAILLE_PAR_DEFAUT));
+        return traduction.executer(vue.criteres(), appelant, false, page, taille);
     }
 
     @DELETE

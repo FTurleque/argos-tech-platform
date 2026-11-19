@@ -13,6 +13,7 @@ import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.inject.Inject;
 
 import io.argos.alerting.Gravite;
+import io.argos.api.ParametresPagination;
 import io.argos.api.security.Caller;
 import io.argos.catalog.profil.CatalogueProfils;
 import io.argos.catalog.profil.ManifesteProfil;
@@ -45,14 +46,21 @@ public class TraductionCriteres {
     @Inject
     RechercheVeille recherche;
 
-    /** Recherche commune au point d'accès {@code /api/v1/recherche} et au rappel d'une vue enregistrée. */
+    /**
+     * Recherche commune au point d'accès {@code /api/v1/recherche} et au rappel d'une vue enregistrée. Les critères,
+     * dont le contrôle des projets filtrés, sont validés avant la lecture de {@code page} et {@code taille} (décision
+     * H5 du porteur du projet, 2026-11-19) : un projet filtré inconnu ou d'un autre espace reçoit 404 même avec un
+     * paramètre de pagination non entier ou hors bornes.
+     */
     public RechercheVeille.Resultats executer(CriteresRecherche criteres, Caller appelant, boolean verifierProjets,
-            int page, int taille) {
-        if (page < 0 || taille < 1 || taille > 100) {
+            String page, String taille) {
+        RechercheVeille.Criteres k = traduire(criteres, appelant, verifierProjets);
+        int numero = ParametresPagination.entier(page, "page", 0);
+        int nombre = ParametresPagination.entier(taille, "taille", RechercheResource.TAILLE_PAR_DEFAUT);
+        if (numero < 0 || nombre < 1 || nombre > 100) {
             throw invalide("taille", "page ≥ 0 et taille comprise entre 1 et 100.");
         }
-        RechercheVeille.Criteres k = traduire(criteres, appelant, verifierProjets);
-        return recherche.rechercher(k, appelant.accountId(), appelant.memberWorkspaces(), page, taille);
+        return recherche.rechercher(k, appelant.accountId(), appelant.memberWorkspaces(), numero, nombre);
     }
 
     /**
