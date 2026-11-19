@@ -53,6 +53,14 @@ const SORTIE = join(dirname(BOM), 'THIRD-PARTY.txt');
 // Textes de licence versionnés, et dossier où sont copiés ceux des licences retenues (target/licenses/).
 const TEXTES_VERSIONNES = join(RACINE, 'argos-server', 'licenses');
 const SORTIE_TEXTES = join(dirname(BOM), 'licenses');
+// Garde-fou : le dossier de sortie est vidé avant la copie ; il ne doit jamais être celui des textes versionnés
+// (cas d'un inventaire placé directement dans argos-server/, par exemple argos-server/bom.json).
+const memeDossier = (a, b) => (process.platform === 'win32' ? resolve(a).toLowerCase() === resolve(b).toLowerCase()
+  : resolve(a) === resolve(b));
+if (memeDossier(SORTIE_TEXTES, TEXTES_VERSIONNES)) {
+  arreter(`Le dossier de sortie des textes (${SORTIE_TEXTES}) est celui des textes versionnés : `
+    + "placer l'inventaire CycloneDX hors de argos-server/ (par défaut argos-server/target/bom.json).");
+}
 
 // Licences permissives admises d'office (ADR-0021 point 4), par identifiant SPDX ou nom déclaré dans les POM.
 const ADMISES = [

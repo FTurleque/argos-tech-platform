@@ -27,7 +27,7 @@ Mise en œuvre : `mvn -B -f argos-server/pom.xml -P licences validate` exécute 
 1. le plugin [CycloneDX Maven Plugin](https://github.com/CycloneDX/cyclonedx-maven-plugin) 2.9.3 (Apache-2.0) écrit `argos-server/target/bom.json`, inventaire CycloneDX des dépendances compile et runtime, directes et transitives, sans les dépendances de test ;
 2. le plugin `exec-maven-plugin` 3.6.4 (Apache-2.0) lance `node scripts/verifier-licences-serveur.mjs`, qui lit cet inventaire et les archives du dépôt Maven local de Maven, sans accès réseau, et écrit `argos-server/target/THIRD-PARTY.txt` : pour chaque dépendance, ses licences déclarées et la licence retenue (section 1), le contenu des fichiers `META-INF/NOTICE*` de chaque archive (section 2), puis, pour chaque texte de licence, les dépendances qu'il couvre avec les titulaires des droits (licences MIT, BSD et JDOM) ou l'adresse de leur code source (EPL-2.0, section 3.2 de la licence) (section 3). Il copie dans `argos-server/target/licenses/` les textes versionnés sous `argos-server/licenses/` des seules licences retenues (décision H1).
 
-Le script s'utilise aussi seul sur un inventaire existant : `node scripts/verifier-licences-serveur.mjs [bom.json] [--depot <dépôt Maven local>]` (dépôt par défaut : `MAVEN_REPO_LOCAL`, sinon `~/.m2/repository`).
+Le script s'utilise aussi seul sur un inventaire existant : `node scripts/verifier-licences-serveur.mjs [bom.json] [--depot <dépôt Maven local>]` (dépôt par défaut : `MAVEN_REPO_LOCAL`, sinon `~/.m2/repository`). Les textes sont copiés dans le dossier `licenses/` voisin de l'inventaire, vidé au préalable ; le script refuse un inventaire placé directement dans `argos-server/`, dont le dossier `licenses/` est celui des textes versionnés.
 
 Règles du contrôle (ADR-0021 point 4 : licences permissives admises d'office, tout copyleft sur décision explicite) :
 
@@ -38,7 +38,7 @@ Règles du contrôle (ADR-0021 point 4 : licences permissives admises d'office, 
 - une licence à attribution (MIT, BSD-2-Clause, BSD-3-Clause, licence de JDOM) exige au moins un titulaire des droits, lu dans les lignes « Copyright » des fichiers `META-INF/**/LICENSE*` de l'archive, y compris ceux des bibliothèques qu'elle intègre (pilote PostgreSQL : bibliothèques OnGres), ou, pour une archive sans fichier LICENSE, dans le tableau `TITULAIRES` (relevé dans ses sources publiées : `org.crac`) ;
 - le build échoue aussi si une dépendance n'a aucune licence déclarée ou si son archive manque au dépôt local.
 
-Textes versionnés sous `argos-server/licenses/` (décision H1) :
+Textes versionnés sous `argos-server/licenses/` (décision H1 ; `JDOM.txt` : [PROPOSITION] ci-dessous) :
 
 | Fichier | Licence | Origine du texte | Dépendances couvertes au 2026-11-19 |
 |---|---|---|---|
@@ -69,7 +69,7 @@ L'image d'exécution contient, dans `/opt/argos/licenses/` :
 | `NOTICE` | copie de `argos-server/NOTICE` |
 | `THIRD-PARTY.txt` | liste générée au build de l'image : dépendances livrées, licences, avis NOTICE de leurs archives, titulaires des droits et adresses du code source EPL-2.0 |
 | `Apache-2.0.txt` | texte de l'Apache License 2.0, cité par `NOTICE` |
-| `MIT.txt`, `MIT-0.txt`, `BSD-2-Clause.txt`, `BSD-3-Clause.txt`, `EPL-2.0.txt`, `JDOM.txt` | textes des autres licences retenues (décision H1), copiés depuis `argos-server/licenses/` par le contrôle des licences |
+| `MIT.txt`, `MIT-0.txt`, `BSD-2-Clause.txt`, `BSD-3-Clause.txt`, `EPL-2.0.txt`, `JDOM.txt` | textes des autres licences retenues (décision H1 ; `JDOM.txt` : [PROPOSITION]), copiés depuis `argos-server/licenses/` par le contrôle des licences |
 
 Le dossier (mode 0755) et chaque fichier (mode 0444) appartiennent à root. Seuls les textes des licences effectivement retenues entrent dans l'image : une licence qui disparaît des dépendances retire son texte au build suivant.
 
