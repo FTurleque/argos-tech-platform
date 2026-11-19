@@ -7,8 +7,8 @@ Relier de façon déterministe, explicable et traçable un signal de sécurité 
 ## ADDED Requirements
 
 ### Requirement: COR-01 Rapprochement par PURL et plage de versions
-Le système DOIT (MUST) créer un impact projet lorsqu'un composant de l'inventaire d'un projet a le même PURL qu'un paquet affecté par un signal de sécurité et une version comprise dans la plage affectée, et NE DOIT PAS (MUST NOT) en créer pour les autres projets. Les versions Maven s'ordonnent selon `ComparableVersion`.
-Source : ADR-0013 ; ADR-0011 (Proposés) ; baseline v2.3 §4 ; décision D5 du 2026-11-18 (Q-COR-3). Statut : [PROPOSITION].
+Le système DOIT (MUST) créer un impact projet lorsqu'un composant de l'inventaire d'un projet a le même PURL qu'un paquet affecté par un signal de sécurité et une version comprise dans la plage affectée, et NE DOIT PAS (MUST NOT) en créer pour les autres projets. Toute comparaison de versions Maven suit `ComparableVersion` (`maven-artifact`).
+Source : ADR-0013 ; ADR-0011 (Proposés) ; baseline v2.3 §4 ; décision D5 du 2026-11-18 (Q-COR-3) ; décision E3 du 2026-11-19. Statut : [PROPOSITION].
 
 #### Scenario: COR-01-S1 Version dans la plage affectée
 - **GIVEN** un projet dont l'inventaire contient `pkg:maven/org.exemple/lib@1.2.0`

@@ -59,7 +59,7 @@ Source : ADR-0024 (Accepté) point 2 ; décision Q-3 du 2026-11-16 (abonnements 
 
 ### Requirement: PRF-03 Profils initiaux
 Le système DOIT (MUST) publier au catalogue les profils `developpeur`, qui rapproche les signaux des composants des projets, et `expert-metier`, qui rapproche les textes officiels des domaines et modules produits ; ces profils reprennent les règles de rapprochement proposées par ADR-0013 et ADR-0018.
-Source : ADR-0024 (Accepté) point 3 ; ADR-0013 (Proposé) ; ADR-0018 (Proposé). Statut : [PROPOSITION].
+Source : ADR-0024 (Accepté) point 3 ; ADR-0013 (Proposé) ; ADR-0018 (Remplacé par ADR-0030). Statut : [PROPOSITION].
 
 #### Scenario: PRF-03-S1 Catalogue initial
 - **GIVEN** une installation d'Argos sans profil ajouté
@@ -94,7 +94,7 @@ Source : ADR-0024 (Accepté) point 6 ; ADR-0016 (Proposé) ; exigence ABO-05. St
 
 ### Requirement: PRF-06 Garde-fous d'un profil appliqués avant diffusion
 Le système DOIT (MUST) appliquer les garde-fous déclarés par un profil, comme une validation humaine obligatoire, avant de restituer un élément relevant de ce profil, dans toutes les mises en page et via le serveur MCP.
-Source : ADR-0024 (Accepté) point 7 ; ADR-0018 (Proposé). Statut : [PROPOSITION].
+Source : ADR-0024 (Accepté) point 7 ; ADR-0018 (Remplacé par ADR-0030). Statut : [PROPOSITION].
 
 #### Scenario: PRF-06-S1 Fiche réglementaire non validée
 - **GIVEN** une fiche d'analyse du profil `expert-metier` qui n'a pas encore été validée par un expert métier

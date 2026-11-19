@@ -38,6 +38,11 @@ export async function ouvrirRendu() {
     rendreSelecteur(identifiant, veille = VEILLE_APERCU) {
       return renderToString(createSSRApp({ render: () => h(MiseEnPage, { identifiant, veille, niveauTitre: 2 }) }))
     },
+    /** HTML d'un composant Vue de `src/` (chemin depuis la racine de argos-ui, par exemple `/src/contenu/X.vue`). */
+    async rendreComposant(chemin, props = {}) {
+      const { default: composant } = await vite.ssrLoadModule(chemin)
+      return renderToString(createSSRApp({ render: () => h(composant, props) }))
+    },
     fermer: () => vite.close(),
   }
 }

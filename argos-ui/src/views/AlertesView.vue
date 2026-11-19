@@ -2,9 +2,12 @@
 // Alertes du poste (canal DESKTOP) de l'utilisateur : la liste, ou le détail d'une alerte quand la
 // route porte son identifiant (NOT-01-S2 : une alerte non notifiée reste visible ici ; NOT-02 :
 // le clic sur une notification ouvre cette vue sur l'alerte).
+// Chaque projet cité mène à sa vue d'inventaire (`/inventaire/{id}`, décision E4 du 2026-11-19), qui
+// affiche notamment ses composants écartés faute de PURL.
 import { computed, ref, watch } from 'vue'
 import { useRoute } from 'vue-router'
 import { ApiError, fetchAlerte, fetchAlertesPoste, type AlerteVue } from '../api/client'
+import { estUuid } from '../api/recherche-criteres'
 import { urlSure } from '../contenu/liens'
 import { alerteConsultee } from '../contenu/suivi-poste'
 import { resumeIaAffiche } from '../contenu/resume-ia'
@@ -68,7 +71,11 @@ watch(id, charger, { immediate: true })
         <div v-for="element in alerte.contenu?.elements ?? []" :key="element.signalId">
           <h2>Projets concernés</h2>
           <ul>
-            <li v-for="projet in element.projets" :key="projet.id">{{ projet.nom }} ({{ projet.niveau }})</li>
+            <li v-for="projet in element.projets" :key="projet.id">
+              <RouterLink v-if="estUuid(projet.id)" :to="`/inventaire/${projet.id}`">{{ projet.nom }}</RouterLink>
+              <template v-else>{{ projet.nom }}</template>
+              ({{ projet.niveau }})
+            </li>
           </ul>
           <h2>Sources</h2>
           <ul>

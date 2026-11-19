@@ -13,7 +13,7 @@ Cette section indexe les ADR. Elle ne recopie pas leur contenu.
 | ADR-0003 | Introduire un modèle canonique d’événements | Proposé | 2026-09-24 | — |
 | ADR-0004 | Encapsuler Claude derrière un AI Gateway | Remplacé par ADR-0029 | 2026-09-24 | — |
 | ADR-0005 | Utiliser Mermaid comme source des diagrammes d’architecture | Accepté | 2026-09-24 | — |
-| ADR-0006 | Maintenir FreshRSS et changedetection.io comme systèmes séparés | Proposé | 2026-09-24 | — |
+| ADR-0006 | Maintenir FreshRSS et changedetection.io comme systèmes séparés | Remplacé par ADR-0028 pour la veille RSS/Atom et web | 2026-09-24 | — |
 | ADR-0007 | Limiter n8n aux automatisations périphériques | Proposé | 2026-09-24 | — |
 | ADR-0008 | Utiliser l’IdP d’entreprise via OIDC en première intention | Proposé | 2026-09-24 | — |
 | ADR-0009 | Utiliser PolyForm Internal Use License 1.0.0 | Accepté | 2026-09-24 | — |
@@ -25,7 +25,7 @@ Cette section indexe les ADR. Elle ne recopie pas leur contenu.
 | ADR-0015 | PostgreSQL FTS au MVP, pgvector différé | Proposé | 2026-09-27 | — |
 | ADR-0016 | Cloisonnement workspace avec RBAC + PostgreSQL RLS | Proposé | 2026-09-27 | — |
 | ADR-0017 | POC local Docker puis VM interne | Remplacé (cible VM) par ADR-0026 | 2026-09-27 | — |
-| ADR-0018 | Veille réglementaire intégrée avec validation MKP | Proposé | 2026-09-27 | — |
+| ADR-0018 | Veille réglementaire intégrée avec validation MKP | Remplacé par ADR-0030 | 2026-09-27 | — |
 | ADR-0019 | Java 17+ / Quarkus / Vue.js 3 / PostgreSQL | Accepté | 2026-09-27 | — |
 | ADR-0020 | Spécifier les exigences avec OpenSpec et le schéma `detailed-uml` | Proposé | 2026-11-15 | — |
 | ADR-0021 | Préserver la possibilité d'une double licence | Proposé | 2026-11-15 | — |
@@ -35,9 +35,9 @@ Cette section indexe les ADR. Elle ne recopie pas leur contenu.
 | ADR-0025 | Produit ouvert à tous les publics, porté à titre personnel | Accepté | 2026-11-16 | — |
 | ADR-0026 | Hébergement sur le serveur Synology du porteur | Accepté | 2026-11-18 | ADR-0017 (cible VM) |
 | ADR-0027 | Authentifier les utilisateurs avec un Keycloak auto-hébergé | Accepté | 2026-11-18 | — (complète ADR-0008) |
-| ADR-0028 | Collecter les flux RSS/Atom et les pages surveillées dans le serveur Argos | Accepté | 2026-11-18 | ADR-0006 pour la veille RSS/Atom et web (ADR-0006 reste Proposé) |
+| ADR-0028 | Collecter les flux RSS/Atom et les pages surveillées dans le serveur Argos | Accepté | 2026-11-18 | ADR-0006 pour la veille RSS/Atom et web |
 | ADR-0029 | Servir la passerelle IA par un modèle local Ollama | Accepté | 2026-11-18 | ADR-0004 |
-| ADR-0030 | Veille réglementaire validée par l'expert métier, domaines par espace et données ouvertes JORF | Accepté | 2026-11-18 | ADR-0018 (ADR-0018 reste Proposé) |
+| ADR-0030 | Veille réglementaire validée par l'expert métier, domaines par espace et données ouvertes JORF | Accepté | 2026-11-18 | ADR-0018 |
 | ADR-0031 | Planifier les traitements périodiques avec quarkus-scheduler dans le serveur | Accepté | 2026-11-18 | — |
 | ADR-0032 | Versionner le schéma PostgreSQL par des migrations SQL Flyway appliquées au démarrage | Accepté | 2026-11-18 | — |
 | ADR-0033 | Tenir la session OIDC de l'IHM en mémoire et connecter le desktop par l'interface de bouclage | Accepté | 2026-11-18 | — (complète ADR-0027, précise ADR-0022 point 6) |
@@ -70,10 +70,10 @@ Le frontend n’est plus une question ouverte : **Vue.js 3 est retenu**. Le back
 
 - les ADR listés sont versionnés dans `docs/architecture/adr/` ;
 - ADR-0002 et ADR-0019 matérialisent les choix de stack désormais acceptés ;
-- [DÉCISION] ADR-0023 à ADR-0033 sont acceptés par le porteur du projet le 2026-11-18 ; ADR-0029 remplace ADR-0004 ; ADR-0006 et ADR-0018 restent Proposés ;
-- [QUESTION] ADR-0028 et ADR-0030 annoncent dans leur en-tête que leur acceptation fait passer ADR-0006 (pour la veille RSS/Atom et web) et ADR-0018 à « Remplacé », alors que ces deux ADR restent Proposés : le statut d'ADR-0006 et d'ADR-0018 reste à trancher par le porteur du projet ;
+- [DÉCISION] ADR-0023 à ADR-0033 sont acceptés par le porteur du projet le 2026-11-18 ; ADR-0029 remplace ADR-0004 ;
+- [DÉCISION] ADR-0006 est remplacé par ADR-0028 pour la veille RSS/Atom et web, le reste de sa portée étant inchangé, et ADR-0018 est remplacé par ADR-0030 — porteur du projet, 2026-11-19 ;
 - ADR-0017 documente la stratégie POC local puis VM ;
-- les ADR-0010 à ADR-0018 restent à confirmer par revue d’architecture et/ou preuve issue du POC.
+- les ADR-0010 à ADR-0016 restent à confirmer par revue d’architecture et/ou preuve issue du POC.
 
 ## 9.5 Risque
 

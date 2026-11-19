@@ -71,7 +71,7 @@ Source : ADR-0014 (Proposé) ; dossier v2.4 §8.7. Statut : [PROPOSITION].
 
 ### Requirement: MCP-07 Garde-fous des profils
 Le serveur MCP DOIT (MUST) appliquer les garde-fous des profils de veille, notamment ne renvoyer par `get_regulatory_changes` que des fiches validées par un expert.
-Source : PRF-06 ; ADR-0018 (Proposé). Statut : [PROPOSITION].
+Source : PRF-06 ; ADR-0018 (Remplacé par ADR-0030). Statut : [PROPOSITION].
 
 #### Scenario: MCP-07-S1 Fiche non validée
 - **GIVEN** une fiche réglementaire en attente de validation

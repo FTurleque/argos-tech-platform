@@ -104,7 +104,7 @@ flowchart LR
 - [ADR-0002 — PostgreSQL comme stockage principal](../adr/0002-postgresql-stockage-principal.md)
 - [ADR-0003 — Modèle canonique d’événements](../adr/0003-modele-canonique-evenements.md)
 - [ADR-0004 — AI Gateway Claude](../adr/0004-ai-gateway-claude.md) (remplacé par ADR-0029)
-- [ADR-0006 — FreshRSS et changedetection séparés](../adr/0006-collecteurs-separes.md) (Proposé ; ADR-0028 pour la veille RSS/Atom et web)
+- [ADR-0006 — FreshRSS et changedetection séparés](../adr/0006-collecteurs-separes.md) (remplacé par ADR-0028 pour la veille RSS/Atom et web)
 - [ADR-0028 — Collecteur RSS/Atom et pages surveillées intégré au serveur](../adr/0028-collecteur-veille-web-integre.md)
 - [ADR-0029 — Passerelle IA servie par un modèle local Ollama](../adr/0029-passerelle-ia-ollama-local.md)
 - [ADR-0007 — n8n périphérique](../adr/0007-n8n-peripherique.md)

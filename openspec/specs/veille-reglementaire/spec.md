@@ -7,7 +7,7 @@ Repérer les textes officiels qui touchent les domaines d'un espace, en prépare
 
 ### Requirement: REG-01 Collecte quotidienne sans doublon
 Le système DOIT (MUST) collecter chaque jour les textes publiés au Journal officiel et les enregistrer une seule fois par identifiant officiel, même en cas de rejeu.
-Source : ADR-0018 (Proposé) ; arc42 §6.3. Statut : [EXIGENCE].
+Source : ADR-0018 (Remplacé par ADR-0030) ; arc42 §6.3. Statut : [EXIGENCE].
 
 #### Scenario: REG-01-S1 Rejeu de la collecte
 - **GIVEN** un décret déjà enregistré
@@ -21,7 +21,7 @@ Source : ADR-0018 (Proposé) ; arc42 §6.3. Statut : [EXIGENCE].
 
 ### Requirement: REG-02 Qualification par domaine
 Le système DOIT (MUST) rattacher un texte aux domaines de l'espace par règles déterministes (nature, ministère, NOR, codes modifiés, dictionnaire métier) et, à défaut, marquer toute proposition de l'IA comme telle avec son niveau de confiance.
-Source : ADR-0018 (Proposé) ; ADR-0013 (Proposé). Statut : [EXIGENCE].
+Source : ADR-0018 (Remplacé par ADR-0030) ; ADR-0013 (Proposé). Statut : [EXIGENCE].
 
 #### Scenario: REG-02-S1 Code suivi modifié
 - **GIVEN** un espace dont le dictionnaire rattache le code général de la fonction publique au domaine « Carrière »
@@ -35,7 +35,7 @@ Source : ADR-0018 (Proposé) ; ADR-0013 (Proposé). Statut : [EXIGENCE].
 
 ### Requirement: REG-03 Dates de publication et d'entrée en vigueur
 Le système DOIT (MUST) distinguer la date de publication et la date d'entrée en vigueur d'un texte, et indiquer « date à confirmer » quand la seconde n'est pas extraite.
-Source : ADR-0018 (Proposé). Statut : [EXIGENCE].
+Source : ADR-0018 (Remplacé par ADR-0030). Statut : [EXIGENCE].
 
 #### Scenario: REG-03-S1 Date extraite
 - **WHEN** un décret publié le 20 novembre fixe son entrée en vigueur au 1er janvier
@@ -47,7 +47,7 @@ Source : ADR-0018 (Proposé). Statut : [EXIGENCE].
 
 ### Requirement: REG-04 Fiche d'analyse préparée
 Le système DOIT (MUST) préparer pour chaque texte qualifié une fiche d'analyse comprenant résumé, articles modifiés, date d'effet, domaines concernés et liens vers le texte publié et sa version consolidée.
-Source : ADR-0018 (Proposé) ; IAG-04. Statut : [EXIGENCE].
+Source : ADR-0018 (Remplacé par ADR-0030) ; IAG-04. Statut : [EXIGENCE].
 
 #### Scenario: REG-04-S1 Fiche préparée
 - **WHEN** un texte est rattaché au domaine « Paie »
@@ -56,7 +56,7 @@ Source : ADR-0018 (Proposé) ; IAG-04. Statut : [EXIGENCE].
 
 ### Requirement: REG-05 Validation par l'expert avant diffusion
 Le système NE DOIT PAS (MUST NOT) diffuser une fiche à d'autres utilisateurs que les experts du domaine tant qu'un expert ne l'a pas validée ; toute correction est historisée.
-Source : ADR-0018 (Proposé) ; PRF-06. Statut : [EXIGENCE].
+Source : ADR-0018 (Remplacé par ADR-0030) ; PRF-06. Statut : [EXIGENCE].
 
 #### Scenario: REG-05-S1 Fiche corrigée puis validée
 - **GIVEN** une fiche en attente
@@ -71,7 +71,7 @@ Source : ADR-0018 (Proposé) ; PRF-06. Statut : [EXIGENCE].
 
 ### Requirement: REG-06 Suivi jusqu'à la livraison
 Le système DOIT (MUST) faire suivre à chaque texte les états nouveau, en analyse, sans impact ou impact produit, spécifié, livré, et refuser toute transition hors de cet ordre.
-Source : ADR-0018 (Proposé). Statut : [EXIGENCE].
+Source : ADR-0018 (Remplacé par ADR-0030). Statut : [EXIGENCE].
 
 #### Scenario: REG-06-S1 Transition valide
 - **GIVEN** un texte « en analyse »
@@ -86,7 +86,7 @@ Source : ADR-0018 (Proposé). Statut : [EXIGENCE].
 
 ### Requirement: REG-07 Calendrier et rappels
 Le système DOIT (MUST) présenter le calendrier des entrées en vigueur des textes validés et rappeler les échéances aux utilisateurs du domaine.
-Source : ADR-0018 (Proposé). Statut : [EXIGENCE].
+Source : ADR-0018 (Remplacé par ADR-0030). Statut : [EXIGENCE].
 
 #### Scenario: REG-07-S1 Rappel avant échéance
 - **GIVEN** un texte validé entrant en vigueur le 1er janvier
@@ -95,7 +95,7 @@ Source : ADR-0018 (Proposé). Statut : [EXIGENCE].
 
 ### Requirement: REG-08 Lien vers un outil de suivi
 Le système DOIT (MUST) permettre d'associer à un texte un lien vers une demande d'évolution dans un outil de suivi externe.
-Source : ADR-0018 (Proposé). Statut : [EXIGENCE].
+Source : ADR-0018 (Remplacé par ADR-0030). Statut : [EXIGENCE].
 
 #### Scenario: REG-08-S1 Demande associée
 - **WHEN** l'expert associe l'adresse d'une demande d'évolution à un texte « impact produit »

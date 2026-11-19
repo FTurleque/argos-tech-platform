@@ -85,6 +85,18 @@ class MatchRulesTest {
         assertEquals(Optional.empty(), MatchRules.evaluate(listed, "1.0.2", true));
     }
 
+    /** Maven : l'appartenance aux versions énumérées suit l'égalité de ComparableVersion (décision E3). */
+    @Test
+    void versionsEnumereesMavenSelonComparableVersion() {
+        AffectedPackage listed = new AffectedPackage(KEY, true, "Maven", "x", List.of(), List.of("1.0", "2.0-RC1"));
+        assertEquals(Optional.of(Level.EXACT), MatchRules.evaluate(listed, "1.0.0", true), "1.0 == 1.0.0");
+        assertEquals(Optional.of(Level.EXACT), MatchRules.evaluate(listed, "1.0-ga", true), "1.0 == 1.0-ga");
+        assertEquals(Optional.of(Level.EXACT), MatchRules.evaluate(listed, "2.0-rc-1", true), "2.0-RC1 == 2.0-rc-1");
+        assertEquals(Optional.empty(), MatchRules.evaluate(listed, "1.0.1", true));
+        AffectedPackage npm = new AffectedPackage("pkg:npm/exemple", true, "npm", "exemple", List.of(), List.of("1.0"));
+        assertEquals(Optional.empty(), MatchRules.evaluate(npm, "1.0.0", true), "hors Maven : égalité des chaînes inchangée");
+    }
+
     @Test
     void comparaisonDesVersions() {
         assertTrue(VersionComparator.compare("1.2.0", "1.3.0").orElseThrow() < 0);
@@ -113,19 +125,91 @@ class MatchRulesTest {
         assertEquals(Optional.empty(), MatchRules.evaluate(fixed20, "2.0.post1", true), "2.0.post1 suit le correctif 2.0");
     }
 
+    private static void mavenAvant(String a, String b) {
+        assertEquals(Optional.of(-1), VersionComparator.compare("Maven", a, b), a + " < " + b);
+        assertEquals(Optional.of(1), VersionComparator.compare("Maven", b, a), b + " > " + a);
+    }
+
+    private static void mavenEgales(String a, String b) {
+        assertEquals(Optional.of(0), VersionComparator.compare("Maven", a, b), a + " = " + b);
+        assertEquals(Optional.of(0), VersionComparator.compare("Maven", b, a), b + " = " + a);
+    }
+
+    /** Maven (décision E3, 2026-11-19) : toute comparaison suit {@code ComparableVersion} ; cas usuels. */
+    @Test
+    void mavenCasUsuels() {
+        mavenAvant("1.2.0", "1.3.0");
+        mavenAvant("1.9", "1.10");
+        mavenAvant("1", "1.1");
+        mavenAvant("2.0.9", "2.1.0");
+        mavenEgales("1", "1.0");
+        mavenEgales("1.0", "1.0.0");
+        mavenAvant("1.2147483647", "1.2147483648");
+        mavenAvant("1.99999999999999999999", "1.100000000000000000000");
+    }
+
+    /** Qualificatifs connus de Maven et leurs alias : alpha < beta < milestone < rc < snapshot < (publiée) = ga = final < sp. */
+    @Test
+    void mavenQualificatifsConnus() {
+        List<String> ordre = List.of("1-alpha", "1-beta", "1-milestone", "1-rc", "1-snapshot", "1", "1-sp");
+        for (int i = 0; i + 1 < ordre.size(); i++) {
+            mavenAvant(ordre.get(i), ordre.get(i + 1));
+        }
+        mavenEgales("1-ga", "1");
+        mavenEgales("1-final", "1");
+        mavenEgales("1.0.0.RELEASE", "1");
+        mavenEgales("1-a1", "1-alpha-1");
+        mavenEgales("1-b2", "1-beta-2");
+        mavenEgales("1-m3", "1-milestone-3");
+        mavenEgales("1-cr1", "1-rc1");
+        mavenAvant("1.0-rc1", "1.0");
+        mavenAvant("2.0-beta9", "2.0");
+        mavenAvant("1.0-SNAPSHOT", "1.0");
+        mavenAvant("1.0", "1.0-sp1");
+    }
+
     /**
-     * Maven (décision D5, 2026-11-18, Q-COR-3) : les qualificatifs inconnus suivent l'ordre de
-     * {@code ComparableVersion}, après la version publiée et entre eux par ordre lexical.
+     * Qualificatifs inconnus de Maven ({@code jre}, {@code android}, mais aussi {@code dev}, {@code pre},
+     * {@code post}, {@code a} sans chiffre) : après la version publiée et {@code sp}, entre eux par ordre lexical.
      */
     @Test
-    void qualificatifsInconnusOrdonnesSelonMavenPourMaven() {
-        assertEquals(Optional.of(1), VersionComparator.compare("Maven", "32.0.0-jre", "32.0.0-android"));
-        assertEquals(Optional.of(-1), VersionComparator.compare("Maven", "32.0.0-android", "32.0.0-jre"));
-        assertEquals(Optional.of(1), VersionComparator.compare("Maven", "1.0-foo", "1.0"), "un qualificatif inconnu suit la version publiée");
-        assertEquals(Optional.of(1), VersionComparator.compare("maven", "1.0-foo", "1.0-sp"), "et suit sp");
-        assertEquals(Optional.of(0), VersionComparator.compare("Maven", "32.1.3-jre", "32.1.3-jre"));
-        assertEquals(Optional.of(-1), VersionComparator.compare("Maven", "31.1-jre", "32.0.0-android"), "décidé par les segments numériques");
+    void mavenQualificatifsInconnus() {
+        mavenAvant("32.0.0-android", "32.0.0-jre");
+        mavenAvant("1.0", "1.0-foo");
+        mavenAvant("1.0-sp", "1.0-foo");
+        mavenAvant("1-abc", "1-abd");
+        mavenAvant("1-foo2", "1-foo10");
+        mavenAvant("31.1-jre", "32.0.0-android");
+        mavenEgales("32.1.3-jre", "32.1.3-jre");
+        mavenAvant("1.0", "1.0-dev");
+        mavenAvant("1.0", "1.0-pre");
+        mavenAvant("1.0", "1.0.post1");
+        mavenAvant("1", "1-a");
+        mavenAvant("2.6.3", "2.6.3-CUSTOM");
+    }
+
+    /** La casse ne change pas l'ordre Maven. */
+    @Test
+    void mavenCasse() {
+        mavenEgales("1.0-ALPHA1", "1.0-alpha-1");
+        mavenEgales("1.0-RC1", "1.0-rc1");
+        mavenEgales("32.0.0-JRE", "32.0.0-jre");
+        mavenAvant("1.0-Snapshot", "1.0");
+    }
+
+    /** Séparateurs {@code .} et {@code -} de Maven ; {@code _} n'en est pas un : version « à vérifier ». */
+    @Test
+    void mavenSeparateurs() {
+        mavenEgales("1.ga", "1-ga");
+        mavenEgales("1.foo", "1-foo");
+        mavenAvant("1-foo", "1-1");
+        mavenAvant("1-1", "1.1");
+        mavenAvant("1-ga.1", "1-sp.1");
+        mavenAvant("1-sp-1", "1-ga-1");
+        assertTrue(VersionComparator.compare("Maven", "32_0_0-jre", "32.0.0-android").isEmpty());
+        assertTrue(VersionComparator.compare("Maven", "1.0~rc1", "1.0").isEmpty());
         assertTrue(VersionComparator.compare("Maven", "latest", "1.0").isEmpty(), "une version non numérique reste non interprétable");
+        assertTrue(VersionComparator.compare("Maven", "1.0", null).isEmpty());
     }
 
     /** GHSA-7g45-4rm6-3mm3 (guava, borne fixed 32.0.0-android) : 32.0.0-jre non affectée, 31.1-jre affectée. */
@@ -158,8 +242,8 @@ class MatchRulesTest {
     }
 
     /**
-     * L'ordre Maven reçoit la version lue par l'ordre générique : préfixe {@code v} et métadonnées
-     * {@code +…} retirés ; une version avec {@code _} reste « à vérifier ».
+     * L'ordre Maven reçoit la version normalisée : préfixe {@code v} et métadonnées {@code +…} retirés ;
+     * une version avec {@code _} reste « à vérifier ».
      */
     @Test
     void qualificatifInconnuMavenAvecPrefixeOuMetadonnees() {
@@ -189,14 +273,29 @@ class MatchRulesTest {
         assertEquals(Optional.of(Level.A_VERIFIER), MatchRules.evaluate(pypi, "1.0-foo", true));
     }
 
-    /** Les qualificatifs connus gardent l'ordre générique, pour Maven comme pour les autres écosystèmes. */
+    /**
+     * Hors Maven, l'ordre générique est inchangé (décision E3) : npm, PyPI, crates.io, Go et écosystème
+     * absent gardent leurs qualificatifs connus et le niveau « à vérifier » pour un qualificatif inconnu.
+     */
     @Test
-    void qualificatifsConnusInchangesPourMaven() {
-        assertEquals(Optional.of(-1), VersionComparator.compare("Maven", "1.0-rc1", "1.0"));
-        assertEquals(Optional.of(-1), VersionComparator.compare("Maven", "2.0-beta9", "2.0"));
-        assertEquals(Optional.of(1), VersionComparator.compare("Maven", "1.0-sp1", "1.0"));
-        assertEquals(Optional.of(0), VersionComparator.compare("Maven", "1.0.0.RELEASE", "1.0"));
-        assertEquals(Optional.of(-1), VersionComparator.compare("Maven", "1.0-SNAPSHOT", "1.0"));
+    void ordreGeneriqueInchangeHorsMaven() {
+        for (String eco : new String[] {"npm", "PyPI", "crates.io", "Go", "NuGet", null}) {
+            assertEquals(Optional.of(-1), VersionComparator.compare(eco, "1.0-rc1", "1.0"), eco);
+            assertEquals(Optional.of(-1), VersionComparator.compare(eco, "1.0.dev1", "1.0"), eco + " : dev précède la version publiée");
+            assertEquals(Optional.of(1), VersionComparator.compare(eco, "1.0.post1", "1.0"), eco);
+            assertEquals(Optional.of(0), VersionComparator.compare(eco, "1.0", "1.0.0"), eco);
+            assertEquals(Optional.of(1), VersionComparator.compare(eco, "v2.1.0+build.7", "2.0.9"), eco);
+            assertEquals(Optional.of(0), VersionComparator.compare(eco, "1.0_1", "1.0.1"), eco + " : _ reste un séparateur");
+            assertTrue(VersionComparator.compare(eco, "32.0.0-jre", "32.0.0-android").isEmpty(), eco);
+            assertTrue(VersionComparator.compare(eco, "1.0-foo", "1.0").isEmpty(), eco);
+        }
+        AffectedPackage npm = new AffectedPackage("pkg:npm/exemple", true, "npm", "exemple",
+                List.of(new VersionRange("SEMVER", "0", "1.0.0", null)), List.of());
+        assertEquals(Optional.of(Level.EXACT), MatchRules.evaluate(npm, "1.0.0-rc.1", true));
+        assertEquals(Optional.of(Level.EXACT), MatchRules.evaluate(npm, "1.0.0-dev", true), "dev précède la version publiée hors Maven");
+        AffectedPackage maven = new AffectedPackage(KEY, true, "Maven", "org.exemple:lib",
+                List.of(new VersionRange("ECOSYSTEM", "0", "1.0.0", null)), List.of());
+        assertEquals(Optional.empty(), MatchRules.evaluate(maven, "1.0.0-dev", true), "dev suit la version publiée pour Maven");
     }
 
     @Test

@@ -1,9 +1,10 @@
 # ADR-0006 — Maintenir FreshRSS et changedetection.io comme systèmes séparés
 
-- **Statut** : Proposé
+- **Statut** : Remplacé par [ADR-0028](0028-collecteur-veille-web-integre.md) pour la veille RSS/Atom et web ; reste de la portée inchangé
 - **Date** : 2026-09-24
 - **Décideurs** : Non déterminé
 - **Remplace** : —
+- **Remplacé par** : [ADR-0028](0028-collecteur-veille-web-integre.md) pour la veille RSS/Atom et web (décision du porteur du projet, 2026-11-19)
 
 ## Contexte
 

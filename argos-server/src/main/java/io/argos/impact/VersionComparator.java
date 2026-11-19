@@ -6,6 +6,8 @@ import java.util.Locale;
 import java.util.Map;
 import java.util.Optional;
 
+import org.apache.maven.artifact.versioning.ComparableVersion;
+
 /**
  * Comparaison générique de versions pour les plages SEMVER et ECOSYSTEM : segments numériques
  * comparés numériquement, qualificatifs ordonnés {@code alpha < beta < milestone < rc < snapshot
@@ -15,9 +17,11 @@ import java.util.Optional;
  * renvoie vide et l'impact éventuel est classé « à vérifier » (Q-2).
  *
  * <p>Quand l'ordre dépend d'un qualificatif inconnu ({@code jre}, {@code android}…), la comparaison
- * générique renvoie vide ; pour l'écosystème Maven seulement, {@link #compare(String, String, String)}
- * tranche alors selon l'ordre de {@code ComparableVersion} ({@link MavenVersionOrder} ; décision D5
- * du porteur du projet, 2026-11-18, Q-COR-3). Les autres écosystèmes gardent le niveau « à vérifier ».
+ * générique renvoie vide : les écosystèmes autres que Maven gardent alors le niveau « à vérifier ».
+ *
+ * <p>Pour l'écosystème Maven, {@link #compare(String, String, String)} n'utilise pas l'ordre générique :
+ * toute comparaison passe par {@link ComparableVersion} de la bibliothèque {@code maven-artifact}
+ * (décision E3 du porteur du projet, 2026-11-19, qui révise D5 du 2026-11-18, Q-COR-3).
  */
 public final class VersionComparator {
 
@@ -65,26 +69,43 @@ public final class VersionComparator {
     }
 
     /**
-     * Signe de {@code a - b} pour un écosystème : comparaison générique, puis, pour Maven seulement et si
-     * l'ordre générique dépend d'un qualificatif inconnu, ordre Maven ({@link MavenVersionOrder}).
-     * Vide si l'une des versions n'est pas interprétable, ou si l'ordre dépend d'un qualificatif
-     * inconnu hors de l'écosystème Maven.
-     *
-     * <p>L'ordre Maven reçoit les versions sous la forme lue par l'ordre générique : préfixe {@code v}
-     * et métadonnées de build ({@code +…}) retirés. Une version qui contient {@code _}, séparateur pour
-     * l'ordre générique mais pas pour Maven, reste « à vérifier ».
+     * Signe de {@code a - b} pour un écosystème. Pour Maven, ordre de {@link ComparableVersion} sur les
+     * versions normalisées (préfixe {@code v} et métadonnées de build {@code +…} retirés) ; vide si
+     * l'une des versions n'est pas interprétable au sens de {@link #mavenInterpretable(String)}. Pour
+     * les autres écosystèmes, comparaison générique {@link #compare(String, String)}.
      */
     public static Optional<Integer> compare(String ecosystem, String a, String b) {
-        Optional<Integer> generic = compare(a, b);
-        if (generic.isPresent() || !maven(ecosystem) || !interpretable(a) || !interpretable(b)) {
-            return generic;
+        if (!maven(ecosystem)) {
+            return compare(a, b);
         }
-        String na = normalized(a);
-        String nb = normalized(b);
-        if (na.indexOf('_') >= 0 || nb.indexOf('_') >= 0) {
+        if (!mavenInterpretable(a) || !mavenInterpretable(b)) {
             return Optional.empty();
         }
-        return Optional.of(MavenVersionOrder.compare(na, nb));
+        int c = new ComparableVersion(normalized(a)).compareTo(new ComparableVersion(normalized(b)));
+        return Optional.of(Integer.signum(c));
+    }
+
+    /**
+     * Version Maven interprétable : après normalisation, elle commence par un chiffre et ne contient que
+     * des chiffres, des lettres ASCII et les séparateurs {@code .} et {@code -} de Maven. Un autre
+     * caractère ({@code _}, {@code ~}…) n'est pas un séparateur pour {@link ComparableVersion} : la
+     * version reste non interprétable et l'impact éventuel porte le niveau « à vérifier » (COR-02).
+     */
+    public static boolean mavenInterpretable(String version) {
+        if (version == null) {
+            return false;
+        }
+        String v = normalized(version);
+        if (v.isEmpty() || !Character.isDigit(v.charAt(0))) {
+            return false;
+        }
+        for (char ch : v.toCharArray()) {
+            boolean ok = (ch >= '0' && ch <= '9') || (ch >= 'a' && ch <= 'z') || ch == '.' || ch == '-';
+            if (!ok) {
+                return false;
+            }
+        }
+        return true;
     }
 
     /** Vrai pour l'écosystème Maven, désigné par son nom OSV ({@code Maven}) ou son type PURL ({@code maven}). */

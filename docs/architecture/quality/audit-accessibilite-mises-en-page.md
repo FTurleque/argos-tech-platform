@@ -1,6 +1,6 @@
 # Audit d'accessibilité des mises en page
 
-Rapport de la tâche 2.6 du changement [`personnaliser-profils-et-affichage`](/openspec/changes/personnaliser-profils-et-affichage/tasks.md) (exigence AFF-05, scénario AFF-05-S1). Il couvre les quatre mises en page du catalogue initial : `classique`, `journal`, `fantaisie` et `gazette` (ADR-0023, Accepté).
+Rapport de la tâche 2.6 du changement [`personnaliser-profils-et-affichage`](/openspec/changes/archive/2026-11-19-personnaliser-profils-et-affichage/tasks.md) (exigence AFF-05, scénario AFF-05-S1). Il couvre les quatre mises en page du catalogue initial : `classique`, `journal`, `fantaisie` et `gazette` (ADR-0023, Accepté).
 
 ## Référentiel et périmètre
 

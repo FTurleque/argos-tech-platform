@@ -72,6 +72,30 @@ export async function preparerRecherche(): Promise<string> {
   return espace.id
 }
 
+// ------------------------------------------------------------------ Vue d'inventaire
+// Parcours de la vue d'inventaire (formaliser-chaine-securite-poc, tâche 3.7 ; décision E4 du 2026-11-19) :
+// espace propre d'alice, projet « Inventaire E2E » (SBOM importée, composants écartés faute de PURL) et
+// projet « Sans SBOM E2E » (aucun inventaire). Données écrites par donnees/inventaire.sql.
+
+export const ESPACE_INVENTAIRE = 'Espace E2E inventaire'
+export const INVENTAIRE = {
+  projet: '0e2e0000-0000-4000-8000-0000000000e1',
+  projetSansSbom: '0e2e0000-0000-4000-8000-0000000000e2',
+  /** Nom hostile d'un composant écarté : affiché comme texte, jamais interprété. */
+  nomHostile: '<img src=x onerror=alert(1)>',
+}
+
+/** Espace d'alice et projets du parcours de la vue d'inventaire. */
+export async function preparerInventaire(): Promise<void> {
+  await api('alice', '/api/v1/moi')
+  const espaces = await api<{ id: string; nom: string }[]>('alice', '/api/v1/espaces')
+  const espace = espaces.find((e) => e.nom === ESPACE_INVENTAIRE) ?? (await api<{ id: string }>('alice', '/api/v1/espaces', {
+    method: 'POST',
+    body: JSON.stringify({ nom: ESPACE_INVENTAIRE }),
+  }))
+  sql('inventaire.sql', { espace: espace.id })
+}
+
 // ------------------------------------------------------------------ « Ma veille »
 // Parcours de personnaliser-profils-et-affichage (tâches 2.4, 2.6, 3.4, 3.9, 5.2) : deux espaces.
 // Espace A (ines, administratrice et experte « paie » ; jules, lecteur) ; espace B (karim). Les avis,

@@ -23,6 +23,7 @@
     <quarkus-mcp-server.version>2.0.4</quarkus-mcp-server.version>
     <rome.version>2.1.0</rome.version>
     <jsoup.version>1.22.1</jsoup.version>
+    <maven-artifact.version>3.9.16</maven-artifact.version>
     <compiler-plugin.version>3.14.0</compiler-plugin.version>
     <surefire-plugin.version>3.5.3</surefire-plugin.version>
     <skipITs>true</skipITs>
@@ -117,6 +118,22 @@
       <groupId>org.jsoup</groupId>
       <artifactId>jsoup</artifactId>
       <version>${jsoup.version}</version>
+    </dependency>
+
+    <!-- Ordre des versions Maven pour la corrélation (décision E3 du porteur du projet, 2026-11-19) :
+         org.apache.maven.artifact.versioning.ComparableVersion. Licence Apache-2.0 (pom parent
+         org.apache:apache, LICENSE et NOTICE du jar ; ADR-0021 points 4 et 6), avis NOTICE reproduit
+         dans argos-server/NOTICE. plexus-utils (Apache-2.0) exclu : ComparableVersion ne l'utilise pas. -->
+    <dependency>
+      <groupId>org.apache.maven</groupId>
+      <artifactId>maven-artifact</artifactId>
+      <version>${maven-artifact.version}</version>
+      <exclusions>
+        <exclusion>
+          <groupId>org.codehaus.plexus</groupId>
+          <artifactId>plexus-utils</artifactId>
+        </exclusion>
+      </exclusions>
     </dependency>
 
     <!-- Tests -->

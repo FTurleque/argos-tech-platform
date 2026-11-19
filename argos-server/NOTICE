@@ -1,12 +1,15 @@
-Serveur d'ARGOS (argos-server) — code tiers repris dans les sources
-===================================================================
+Serveur d'ARGOS (argos-server) — avis NOTICE de maven-artifact
+===============================================================
 
-Enregistrement des licences du code tiers intégré au dépôt (ADR-0021, points 3, 4 et 6).
+Avis NOTICE de la dépendance org.apache.maven:maven-artifact, ajoutée par la décision E3 du porteur
+du projet (2026-11-19), enregistré selon ADR-0021 (points 4 et 6) et l'Apache License 2.0, section 4 d.
+Ce fichier ne recense que cette dépendance : les avis NOTICE des autres dépendances Apache-2.0 livrées
+avec le serveur (Quarkus, ROME, etc.) restent dans leurs propres archives et ne sont pas consolidés ici.
+Aucun code tiers n'est repris dans les sources du serveur.
 
-src/main/java/io/argos/impact/MavenVersionOrder.java
-  Adaptation de org.apache.maven.artifact.versioning.ComparableVersion (Maven Artifact 3.9.16,
-  https://github.com/apache/maven), réécrite en Java 21 et réduite à la comparaison de deux versions
-  (classes internes, noms et commentaires modifiés ; aucune autre partie de Maven reprise).
+org.apache.maven:maven-artifact (Maven Artifact 3.9.16, https://github.com/apache/maven)
+  Dépendance non modifiée : ordre des versions Maven (ComparableVersion) pour la corrélation
+  (décision E3 du porteur du projet, 2026-11-19).
   Licence : Apache License 2.0, texte complet dans licenses/Apache-2.0.txt.
   Avis NOTICE du projet d'origine :
 
