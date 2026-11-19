@@ -152,12 +152,12 @@ public class RadarResource {
     public List<ReferentielEspace.Suggestion> decider(@PathParam("espaceId") UUID espaceId,
             @PathParam("suggestionId") UUID suggestionId, CorpsDecision corps) {
         Caller caller = access.administrator(espaceId);
-        String d = corps == null || corps.decision() == null ? "" : corps.decision().strip().toUpperCase(Locale.ROOT);
-        if (!Set.of("ACCEPTER", "REJETER").contains(d)) {
+        String decision = corps == null || corps.decision() == null ? "" : corps.decision().strip().toUpperCase(Locale.ROOT);
+        if (!Set.of("ACCEPTER", "REJETER").contains(decision)) {
             throw new DonneeInvalide("DONNEE_INVALIDE", "Décision attendue : ACCEPTER ou REJETER.", "decision");
         }
         referentiel.decider(caller.accountId(), espaceId, suggestionId,
-                new ReferentielEspace.Decision("ACCEPTER".equals(d), corps.responsable(), corps.dateRevue()));
+                new ReferentielEspace.Decision("ACCEPTER".equals(decision), corps.responsable(), corps.dateRevue()));
         return referentiel.suggestions(caller.accountId(), espaceId);
     }
 

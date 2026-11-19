@@ -111,15 +111,15 @@ public class InventoryQueries {
 
     @Transactional
     public Optional<InventoryView> inventory(UUID projectId, UUID accountId) {
-        try (Connection c = dataSource.getConnection()) {
-            ContexteBase.appliquer(c, new ContexteBase.Contexte(accountId, null, null));
-            Optional<LigneInventaire> ligne = ligne(c, projectId);
+        try (Connection connexion = dataSource.getConnection()) {
+            ContexteBase.appliquer(connexion, new ContexteBase.Contexte(accountId, null, null));
+            Optional<LigneInventaire> ligne = ligne(connexion, projectId);
             if (ligne.isEmpty()) {
                 return Optional.empty();
             }
             LigneInventaire entete = ligne.get();
             return Optional.of(new InventoryView(projectId, entete.origin(), entete.sourceDate(), entete.ageDays(),
-                    entete.obsolete(), entete.specVersion(), entete.importedAt(), components(c, projectId), entete.ignoredCount(),
+                    entete.obsolete(), entete.specVersion(), entete.importedAt(), components(connexion, projectId), entete.ignoredCount(),
                     entete.ignoredComponents()));
         } catch (SQLException e) {
             throw new IllegalStateException("lecture de l'inventaire impossible", e);
@@ -134,21 +134,21 @@ public class InventoryQueries {
      */
     @Transactional
     public Optional<InventorySummary> summary(UUID projectId, UUID accountId) {
-        try (Connection c = dataSource.getConnection()) {
-            ContexteBase.appliquer(c, new ContexteBase.Contexte(accountId, null, null));
-            return summary(c, projectId);
+        try (Connection connexion = dataSource.getConnection()) {
+            ContexteBase.appliquer(connexion, new ContexteBase.Contexte(accountId, null, null));
+            return summary(connexion, projectId);
         } catch (SQLException e) {
             throw new IllegalStateException("lecture de l'inventaire impossible", e);
         }
     }
 
-    private Optional<InventorySummary> summary(Connection c, UUID projectId) throws SQLException {
-        Optional<LigneInventaire> ligne = ligne(c, projectId);
+    private Optional<InventorySummary> summary(Connection connexion, UUID projectId) throws SQLException {
+        Optional<LigneInventaire> ligne = ligne(connexion, projectId);
         if (ligne.isEmpty()) {
             return Optional.empty();
         }
         LigneInventaire entete = ligne.get();
-        long componentCount = count(c, "SELECT count(*) FROM component WHERE project_id = ?", projectId);
+        long componentCount = count(connexion, "SELECT count(*) FROM component WHERE project_id = ?", projectId);
         return Optional.of(new InventorySummary(projectId, entete.origin(), entete.sourceDate(), entete.ageDays(),
                 entete.obsolete(), entete.specVersion(), entete.importedAt(), componentCount, entete.ignoredCount(),
                 entete.ignoredComponents()));
@@ -159,20 +159,20 @@ public class InventoryQueries {
             Instant importedAt, int ignoredCount, List<ParsedInventory.IgnoredComponent> ignoredComponents) {
     }
 
-    private Optional<LigneInventaire> ligne(Connection c, UUID projectId) throws SQLException {
+    private Optional<LigneInventaire> ligne(Connection connexion, UUID projectId) throws SQLException {
         String sql = "SELECT origin, source_date, spec_version, imported_at, ignored_count, ignored_components::text"
                 + " FROM inventory WHERE project_id = ?";
-        try (PreparedStatement ps = c.prepareStatement(sql)) {
-            ps.setObject(1, projectId);
-            try (ResultSet rs = ps.executeQuery()) {
-                if (!rs.next()) {
+        try (PreparedStatement requete = connexion.prepareStatement(sql)) {
+            requete.setObject(1, projectId);
+            try (ResultSet lignes = requete.executeQuery()) {
+                if (!lignes.next()) {
                     return Optional.empty();
                 }
-                String origin = rs.getString(1);
-                Instant sourceDate = instant(rs, 2);
+                String origin = lignes.getString(1);
+                Instant sourceDate = instant(lignes, 2);
                 Long age = sourceDate == null ? null : Duration.between(sourceDate, Instant.now()).toDays();
                 return Optional.of(new LigneInventaire(origin, sourceDate, age, sbomObsolete(origin, sourceDate),
-                        rs.getString(3), instant(rs, 4), rs.getInt(5), ignored(rs.getString(6))));
+                        lignes.getString(3), instant(lignes, 4), lignes.getInt(5), ignored(lignes.getString(6))));
             }
         }
     }
@@ -190,17 +190,17 @@ public class InventoryQueries {
         int appliedSize = boundedSize(size);
         String sql = "SELECT p.id, p.workspace_id, e.nom, p.name FROM project p LEFT JOIN espace e ON e.id = p.workspace_id"
                 + " ORDER BY p.name, e.nom, p.id LIMIT ? OFFSET ?";
-        try (Connection c = dataSource.getConnection()) {
-            ContexteBase.appliquer(c, new ContexteBase.Contexte(accountId, null, null));
-            long total = count(c, "SELECT count(*) FROM project", null);
+        try (Connection connexion = dataSource.getConnection()) {
+            ContexteBase.appliquer(connexion, new ContexteBase.Contexte(accountId, null, null));
+            long total = count(connexion, "SELECT count(*) FROM project", null);
             List<ProjectItem> items = new ArrayList<>();
-            try (PreparedStatement ps = c.prepareStatement(sql)) {
-                ps.setInt(1, appliedSize);
-                ps.setLong(2, (long) appliedPage * appliedSize);
-                try (ResultSet rs = ps.executeQuery()) {
-                    while (rs.next()) {
-                        items.add(new ProjectItem(rs.getObject(1, UUID.class), rs.getObject(2, UUID.class), rs.getString(3),
-                                rs.getString(4)));
+            try (PreparedStatement requete = connexion.prepareStatement(sql)) {
+                requete.setInt(1, appliedSize);
+                requete.setLong(2, (long) appliedPage * appliedSize);
+                try (ResultSet lignes = requete.executeQuery()) {
+                    while (lignes.next()) {
+                        items.add(new ProjectItem(lignes.getObject(1, UUID.class), lignes.getObject(2, UUID.class), lignes.getString(3),
+                                lignes.getString(4)));
                     }
                 }
             }
@@ -221,18 +221,18 @@ public class InventoryQueries {
         int appliedSize = boundedSize(size);
         String sql = "SELECT id, " + COMPONENT_NAME + " AS name, version, purl, package_key, transitive FROM component"
                 + " WHERE project_id = ? ORDER BY name, version NULLS FIRST, id LIMIT ? OFFSET ?";
-        try (Connection c = dataSource.getConnection()) {
-            ContexteBase.appliquer(c, new ContexteBase.Contexte(accountId, null, null));
-            long total = count(c, "SELECT count(*) FROM component WHERE project_id = ?", projectId);
+        try (Connection connexion = dataSource.getConnection()) {
+            ContexteBase.appliquer(connexion, new ContexteBase.Contexte(accountId, null, null));
+            long total = count(connexion, "SELECT count(*) FROM component WHERE project_id = ?", projectId);
             List<ComponentItem> items = new ArrayList<>();
-            try (PreparedStatement ps = c.prepareStatement(sql)) {
-                ps.setObject(1, projectId);
-                ps.setInt(2, appliedSize);
-                ps.setLong(3, (long) appliedPage * appliedSize);
-                try (ResultSet rs = ps.executeQuery()) {
-                    while (rs.next()) {
-                        items.add(new ComponentItem(rs.getObject(1, UUID.class), rs.getString(2), rs.getString(3),
-                                rs.getString(4), rs.getString(5), (Boolean) rs.getObject(6)));
+            try (PreparedStatement requete = connexion.prepareStatement(sql)) {
+                requete.setObject(1, projectId);
+                requete.setInt(2, appliedSize);
+                requete.setLong(3, (long) appliedPage * appliedSize);
+                try (ResultSet lignes = requete.executeQuery()) {
+                    while (lignes.next()) {
+                        items.add(new ComponentItem(lignes.getObject(1, UUID.class), lignes.getString(2), lignes.getString(3),
+                                lignes.getString(4), lignes.getString(5), (Boolean) lignes.getObject(6)));
                     }
                 }
             }
@@ -246,14 +246,14 @@ public class InventoryQueries {
     public List<ImportFailure> failures(UUID projectId, UUID accountId) {
         List<ImportFailure> failures = new ArrayList<>();
         String sql = "SELECT id, reason, source_ref, received_at FROM inventory_import_failure WHERE project_id = ? ORDER BY received_at";
-        try (Connection c = dataSource.getConnection()) {
-            ContexteBase.appliquer(c, new ContexteBase.Contexte(accountId, null, null));
-            try (PreparedStatement ps = c.prepareStatement(sql)) {
-                ps.setObject(1, projectId);
-                try (ResultSet rs = ps.executeQuery()) {
-                    while (rs.next()) {
-                        failures.add(new ImportFailure(rs.getObject(1, UUID.class), rs.getString(2), rs.getString(3),
-                                instant(rs, 4)));
+        try (Connection connexion = dataSource.getConnection()) {
+            ContexteBase.appliquer(connexion, new ContexteBase.Contexte(accountId, null, null));
+            try (PreparedStatement requete = connexion.prepareStatement(sql)) {
+                requete.setObject(1, projectId);
+                try (ResultSet lignes = requete.executeQuery()) {
+                    while (lignes.next()) {
+                        failures.add(new ImportFailure(lignes.getObject(1, UUID.class), lignes.getString(2), lignes.getString(3),
+                                instant(lignes, 4)));
                     }
                 }
             }
@@ -276,17 +276,17 @@ public class InventoryQueries {
                 FROM component c JOIN inventory i ON i.project_id = c.project_id JOIN project p ON p.id = c.project_id
                 WHERE c.package_key = ANY (?) AND (?::uuid IS NULL OR c.project_id = ?::uuid)
                 """;
-        try (Connection c = dataSource.getConnection(); PreparedStatement ps = c.prepareStatement(sql)) {
-            ps.setArray(1, c.createArrayOf("varchar", packageKeys.toArray()));
-            ps.setObject(2, projectId.orElse(null));
-            ps.setObject(3, projectId.orElse(null));
-            try (ResultSet rs = ps.executeQuery()) {
-                while (rs.next()) {
-                    String origin = rs.getString(8);
-                    Instant date = instant(rs, 9);
-                    matches.add(new ComponentMatch(rs.getObject(1, UUID.class), rs.getObject(2, UUID.class),
-                            rs.getObject(3, UUID.class), rs.getString(4), rs.getString(5), rs.getString(6),
-                            (Boolean) rs.getObject(7), origin, date, !"SBOM".equals(origin) || sbomObsolete(origin, date)));
+        try (Connection connexion = dataSource.getConnection(); PreparedStatement requete = connexion.prepareStatement(sql)) {
+            requete.setArray(1, connexion.createArrayOf("varchar", packageKeys.toArray()));
+            requete.setObject(2, projectId.orElse(null));
+            requete.setObject(3, projectId.orElse(null));
+            try (ResultSet lignes = requete.executeQuery()) {
+                while (lignes.next()) {
+                    String origin = lignes.getString(8);
+                    Instant date = instant(lignes, 9);
+                    matches.add(new ComponentMatch(lignes.getObject(1, UUID.class), lignes.getObject(2, UUID.class),
+                            lignes.getObject(3, UUID.class), lignes.getString(4), lignes.getString(5), lignes.getString(6),
+                            (Boolean) lignes.getObject(7), origin, date, !"SBOM".equals(origin) || sbomObsolete(origin, date)));
                 }
             }
         } catch (SQLException e) {
@@ -299,12 +299,12 @@ public class InventoryQueries {
     @Transactional
     public List<String> packageKeys(UUID projectId) {
         List<String> keys = new ArrayList<>();
-        try (Connection c = dataSource.getConnection();
-                PreparedStatement ps = c.prepareStatement("SELECT DISTINCT package_key FROM component WHERE project_id = ?")) {
-            ps.setObject(1, projectId);
-            try (ResultSet rs = ps.executeQuery()) {
-                while (rs.next()) {
-                    keys.add(rs.getString(1));
+        try (Connection connexion = dataSource.getConnection();
+                PreparedStatement requete = connexion.prepareStatement("SELECT DISTINCT package_key FROM component WHERE project_id = ?")) {
+            requete.setObject(1, projectId);
+            try (ResultSet lignes = requete.executeQuery()) {
+                while (lignes.next()) {
+                    keys.add(lignes.getString(1));
                 }
             }
         } catch (SQLException e) {
@@ -316,11 +316,11 @@ public class InventoryQueries {
     /** Origine de l'inventaire de référence du projet (traitement technique), s'il existe. */
     @Transactional
     public Optional<String> origin(UUID projectId) {
-        try (Connection c = dataSource.getConnection();
-                PreparedStatement ps = c.prepareStatement("SELECT origin FROM inventory WHERE project_id = ?")) {
-            ps.setObject(1, projectId);
-            try (ResultSet rs = ps.executeQuery()) {
-                return rs.next() ? Optional.of(rs.getString(1)) : Optional.empty();
+        try (Connection connexion = dataSource.getConnection();
+                PreparedStatement requete = connexion.prepareStatement("SELECT origin FROM inventory WHERE project_id = ?")) {
+            requete.setObject(1, projectId);
+            try (ResultSet lignes = requete.executeQuery()) {
+                return lignes.next() ? Optional.of(lignes.getString(1)) : Optional.empty();
             }
         } catch (SQLException e) {
             throw new IllegalStateException("lecture de l'inventaire impossible", e);
@@ -330,11 +330,11 @@ public class InventoryQueries {
     /** Espace du projet, s'il existe. */
     @Transactional
     public Optional<UUID> workspaceOf(UUID projectId) {
-        try (Connection c = dataSource.getConnection();
-                PreparedStatement ps = c.prepareStatement("SELECT workspace_id FROM project WHERE id = ?")) {
-            ps.setObject(1, projectId);
-            try (ResultSet rs = ps.executeQuery()) {
-                return rs.next() ? Optional.of(rs.getObject(1, UUID.class)) : Optional.empty();
+        try (Connection connexion = dataSource.getConnection();
+                PreparedStatement requete = connexion.prepareStatement("SELECT workspace_id FROM project WHERE id = ?")) {
+            requete.setObject(1, projectId);
+            try (ResultSet lignes = requete.executeQuery()) {
+                return lignes.next() ? Optional.of(lignes.getObject(1, UUID.class)) : Optional.empty();
             }
         } catch (SQLException e) {
             throw new IllegalStateException("lecture du projet impossible", e);
@@ -350,15 +350,15 @@ public class InventoryQueries {
         return "SBOM".equals(origin) && (sourceDate == null || sourceDate.plus(sbomMaxAge).isBefore(Instant.now()));
     }
 
-    private static List<ComponentView> components(Connection c, UUID projectId) throws SQLException {
+    private static List<ComponentView> components(Connection connexion, UUID projectId) throws SQLException {
         List<ComponentView> components = new ArrayList<>();
-        try (PreparedStatement ps = c.prepareStatement(
+        try (PreparedStatement requete = connexion.prepareStatement(
                 "SELECT id, purl, package_key, version, transitive FROM component WHERE project_id = ? ORDER BY package_key, version")) {
-            ps.setObject(1, projectId);
-            try (ResultSet rs = ps.executeQuery()) {
-                while (rs.next()) {
-                    components.add(new ComponentView(rs.getObject(1, UUID.class), rs.getString(2), rs.getString(3),
-                            rs.getString(4), (Boolean) rs.getObject(5)));
+            requete.setObject(1, projectId);
+            try (ResultSet lignes = requete.executeQuery()) {
+                while (lignes.next()) {
+                    components.add(new ComponentView(lignes.getObject(1, UUID.class), lignes.getString(2), lignes.getString(3),
+                            lignes.getString(4), (Boolean) lignes.getObject(5)));
                 }
             }
         }
@@ -369,14 +369,14 @@ public class InventoryQueries {
         return Math.min(Math.max(size, 1), MAX_PAGE_SIZE);
     }
 
-    private static long count(Connection c, String sql, UUID projectId) throws SQLException {
-        try (PreparedStatement ps = c.prepareStatement(sql)) {
+    private static long count(Connection connexion, String sql, UUID projectId) throws SQLException {
+        try (PreparedStatement requete = connexion.prepareStatement(sql)) {
             if (projectId != null) {
-                ps.setObject(1, projectId);
+                requete.setObject(1, projectId);
             }
-            try (ResultSet rs = ps.executeQuery()) {
-                rs.next();
-                return rs.getLong(1);
+            try (ResultSet lignes = requete.executeQuery()) {
+                lignes.next();
+                return lignes.getLong(1);
             }
         }
     }
@@ -392,8 +392,8 @@ public class InventoryQueries {
         }
     }
 
-    private static Instant instant(ResultSet rs, int column) throws SQLException {
-        OffsetDateTime value = rs.getObject(column, OffsetDateTime.class);
+    private static Instant instant(ResultSet lignes, int column) throws SQLException {
+        OffsetDateTime value = lignes.getObject(column, OffsetDateTime.class);
         return value == null ? null : value.toInstant();
     }
 }
