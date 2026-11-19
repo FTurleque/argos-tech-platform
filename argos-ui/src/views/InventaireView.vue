@@ -1,14 +1,25 @@
 <script setup lang="ts">
-// Vue d'inventaire d'un projet (INV-01-S3, INV-02, INV-03 ; décision E4 du porteur du projet, 2026-11-19),
-// commune au portail web et au client desktop : synthèse de l'inventaire de référence et composants écartés
-// faute de PURL, lus sur `GET /api/v1/projects/{projectId}/inventory`. Le projet est désigné par son
-// identifiant dans l'adresse (`/inventaire/{id}`) : l'API n'expose pas la liste des projets de l'utilisateur.
-// Les autres écrans y mènent par lien (« Projets concernés » du détail d'une alerte).
-import { computed, ref, watch } from 'vue'
+// Vue d'inventaire d'un projet (INV-01-S3, INV-02, INV-03, INV-06 ; décisions E4, F1 et F5 du porteur du projet,
+// 2026-11-19), commune au portail web et au client desktop : choix du projet parmi les projets visibles
+// (`GET /api/v1/projects`), synthèse de l'inventaire de référence et composants écartés faute de PURL
+// (`GET /api/v1/projects/{projectId}/inventory`), composants inventoriés paginés
+// (`GET /api/v1/projects/{projectId}/inventory/components`). Le projet affiché est celui de l'adresse
+// (`/inventaire/{id}`) ; il se choisit dans la liste, ou se désigne par son identifiant (projet au-delà de la
+// liste, lien d'une alerte). Les autres écrans y mènent par lien (« Projets concernés » du détail d'une alerte).
+import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
-import { fetchInventaireProjet } from '../api/inventaire'
+import { fetchComposantsProjet, fetchInventaireProjet, fetchProjets } from '../api/inventaire'
 import ComposantsIgnores from '../contenu/ComposantsIgnores.vue'
+import ComposantsInventories from '../contenu/ComposantsInventories.vue'
 import type { ComposantsIgnoresVue } from '../contenu/composants-ignores'
+import {
+  chargerComposants,
+  chargerProjets,
+  libellePage,
+  syntheseProjets,
+  type ListeProjets,
+  type PageComposants,
+} from '../contenu/inventaire-listes'
 import {
   chargerInventaireProjet,
   messageIdentifiantProjet,
@@ -19,6 +30,10 @@ const route = useRoute()
 const router = useRouter()
 const id = computed(() => (typeof route.params.id === 'string' ? route.params.id : null))
 
+const projets = ref<ListeProjets | null>(null)
+const erreurProjets = ref('')
+const choix = ref('')
+const erreurChoix = ref('')
 const saisie = ref('')
 const erreurSaisie = ref('')
 const resume = ref<ResumeInventaire | null>(null)
@@ -26,20 +41,64 @@ const ignores = ref<ComposantsIgnoresVue | null>(null)
 const erreur = ref('')
 const annonce = ref('')
 const chargement = ref(false)
+const composants = ref<PageComposants | null>(null)
+const erreurComposants = ref('')
+const chargementComposants = ref(false)
+const sectionComposants = ref<HTMLElement | null>(null)
 let annulation = new AbortController()
+let annulationComposants = new AbortController()
+let annulationProjets = new AbortController()
+
+/** Libellé du projet affiché : celui de la liste s'il y figure, son identifiant sinon. */
+const nomProjet = computed(() => projets.value?.options.find((o) => o.id === id.value)?.libelle ?? id.value ?? '')
 
 function date(iso: string | null): string {
   return iso ? new Date(iso).toLocaleString('fr-FR') : 'inconnue'
 }
 
+async function chargerListe(): Promise<void> {
+  annulationProjets.abort()
+  annulationProjets = new AbortController()
+  erreurProjets.value = ''
+  const etat = await chargerProjets(fetchProjets, annulationProjets.signal)
+  if (etat === null) return
+  projets.value = etat.liste
+  erreurProjets.value = etat.erreur
+}
+
+async function chargerPage(numero: number, focaliser: boolean): Promise<void> {
+  annulationComposants.abort()
+  annulationComposants = new AbortController()
+  const signal = annulationComposants.signal
+  const projet = id.value
+  if (!projet) return
+  erreurComposants.value = ''
+  chargementComposants.value = true
+  const etat = await chargerComposants(projet, numero, fetchComposantsProjet, signal)
+  if (etat === null) return
+  chargementComposants.value = false
+  composants.value = etat.page
+  erreurComposants.value = etat.erreur
+  if (etat.page && focaliser) {
+    annonce.value = `${libellePage(etat.page)} des composants inventoriés chargée.`
+    await nextTick()
+    sectionComposants.value?.querySelector<HTMLElement>('[data-tableau-composants]')?.focus()
+  }
+}
+
 async function charger(): Promise<void> {
   annulation.abort()
+  annulationComposants.abort()
   annulation = new AbortController()
   const signal = annulation.signal
   resume.value = null
   ignores.value = null
+  composants.value = null
   erreur.value = ''
+  erreurComposants.value = ''
+  chargementComposants.value = false
   saisie.value = id.value ?? ''
+  choix.value = id.value ?? ''
   if (!id.value) {
     chargement.value = false
     annonce.value = ''
@@ -54,28 +113,68 @@ async function charger(): Promise<void> {
   ignores.value = etat.ignores
   erreur.value = etat.erreur
   annonce.value = etat.erreur ? '' : 'Inventaire chargé.'
+  if (etat.resume?.etat === 'DISPONIBLE') await chargerPage(0, false)
+}
+
+async function aller(cible: string): Promise<void> {
+  if (cible === id.value) await charger()
+  else await router.push(`/inventaire/${cible}`)
+}
+
+async function choisir(): Promise<void> {
+  erreurChoix.value = choix.value ? '' : 'Choisissez un projet dans la liste.'
+  if (erreurChoix.value) return
+  await aller(choix.value)
 }
 
 async function afficher(): Promise<void> {
   erreurSaisie.value = messageIdentifiantProjet(saisie.value)
   if (erreurSaisie.value) return
-  const cible = saisie.value.trim().toLowerCase()
-  if (cible === id.value) await charger()
-  else await router.push(`/inventaire/${cible}`)
+  await aller(saisie.value.trim().toLowerCase())
 }
 
 watch(id, charger, { immediate: true })
+onMounted(chargerListe)
+onBeforeUnmount(() => {
+  annulation.abort()
+  annulationComposants.abort()
+  annulationProjets.abort()
+})
 </script>
 
 <template>
   <section class="card" aria-labelledby="titre-inventaire">
     <h1 id="titre-inventaire">Inventaire d’un projet</h1>
     <p class="muted">
-      Inventaire de référence importé pour un projet de vos espaces, et composants des SBOM écartés faute de PURL
-      exploitable : aucun impact ne peut les concerner.
+      Inventaire de référence importé pour un projet de vos espaces, composants inventoriés, et composants des SBOM
+      écartés faute de PURL exploitable : aucun impact ne peut concerner ces derniers.
     </p>
+    <form class="inventaire-choix" novalidate @submit.prevent="choisir">
+      <label for="choix-projet">Projet</label>
+      <select
+        id="choix-projet"
+        v-model="choix"
+        :aria-invalid="erreurChoix ? 'true' : undefined"
+        aria-describedby="etat-projets erreur-choix-projet"
+      >
+        <option value="">— Choisir un projet —</option>
+        <option v-for="o in projets?.options ?? []" :key="o.id" :value="o.id">{{ o.libelle }}</option>
+      </select>
+      <button type="submit">Afficher l’inventaire</button>
+      <p id="etat-projets" class="muted aide">
+        <template v-if="projets">{{ syntheseProjets(projets) }}</template>
+        <template v-else-if="!erreurProjets">Chargement de la liste des projets…</template>
+      </p>
+      <p id="erreur-choix-projet" class="erreur-saisie" role="alert">{{ erreurChoix }}</p>
+    </form>
+    <div role="alert">
+      <p v-if="erreurProjets" class="status status-down">
+        {{ erreurProjets }}
+        <button type="button" class="secondary" @click="chargerListe">Recharger la liste</button>
+      </p>
+    </div>
     <form class="inventaire-choix" novalidate @submit.prevent="afficher">
-      <label for="identifiant-projet">Identifiant du projet</label>
+      <label for="identifiant-projet">Ou identifiant du projet</label>
       <input
         id="identifiant-projet"
         v-model="saisie"
@@ -85,7 +184,7 @@ watch(id, charger, { immediate: true })
         :aria-invalid="erreurSaisie ? 'true' : undefined"
         aria-describedby="erreur-identifiant-projet"
       />
-      <button type="submit">Afficher l’inventaire</button>
+      <button type="submit" class="secondary">Afficher par identifiant</button>
       <p id="erreur-identifiant-projet" class="erreur-saisie" role="alert">{{ erreurSaisie }}</p>
     </form>
 
@@ -116,6 +215,28 @@ watch(id, charger, { immediate: true })
           <dd data-champ="composants">{{ resume.composants }}</dd>
         </dl>
       </section>
+      <section
+        v-if="resume.etat === 'DISPONIBLE'"
+        ref="sectionComposants"
+        aria-labelledby="titre-composants-inventories"
+        :aria-busy="chargementComposants ? 'true' : undefined"
+      >
+        <h2 id="titre-composants-inventories">Composants inventoriés</h2>
+        <p v-if="chargementComposants && !composants" class="muted">Chargement des composants…</p>
+        <div role="alert">
+          <p v-if="erreurComposants" class="status status-down">
+            {{ erreurComposants }}
+            <button type="button" class="secondary" @click="chargerPage(composants?.page ?? 0, true)">Réessayer</button>
+          </p>
+        </div>
+        <ComposantsInventories
+          v-if="composants"
+          :page="composants"
+          :projet="nomProjet"
+          :chargement="chargementComposants"
+          @page="(n) => chargerPage(n, true)"
+        />
+      </section>
       <section v-if="ignores?.etat === 'DISPONIBLE'" aria-labelledby="titre-composants-ignores">
         <h2 id="titre-composants-ignores">Composants ignorés</h2>
         <ComposantsIgnores :vue="ignores" :projet="id ?? ''" />
@@ -126,8 +247,9 @@ watch(id, charger, { immediate: true })
 
 <style scoped>
 .inventaire-choix { display: flex; flex-wrap: wrap; align-items: center; gap: 0.5rem; margin-bottom: 1rem; }
-.inventaire-choix input { min-width: 22rem; max-width: 100%; }
+.inventaire-choix input, .inventaire-choix select { min-width: 22rem; max-width: 100%; }
 .erreur-saisie { flex-basis: 100%; margin: 0; color: var(--ko); }
+.aide { flex-basis: 100%; margin: 0; }
 .inventaire-resume { display: grid; grid-template-columns: max-content 1fr; gap: 0.25rem 1rem; }
 .inventaire-resume dt { font-weight: 600; }
 .inventaire-resume dd { margin: 0; overflow-wrap: anywhere; }
