@@ -181,6 +181,7 @@ public class RepositoryActivity {
                 echeance == null ? null : LocalDate.ofInstant(echeance, ZoneOffset.UTC),
                 fermes, fermes + Math.max(0, m.openIssues()));
     }
+
     private static ActiviteDepot.Issue issueGithub(String conclusion) {
         if (conclusion == null) {
             return ActiviteDepot.Issue.AUTRE;
@@ -282,6 +283,7 @@ public class RepositoryActivity {
         return stats == null || stats.statistics() == null || stats.statistics().counts() == null
                 ? new GlCounts(0, 0) : stats.statistics().counts();
     }
+
     private static Instant publication(GlRelease r) {
         Instant publiee = instant(r.releasedAt());
         return publiee != null ? publiee : instant(r.createdAt());
@@ -398,6 +400,7 @@ public class RepositoryActivity {
             throw new ScmException("réponse illisible de " + uri.getHost(), null);
         }
     }
+
     private static Instant instant(String valeur) {
         if (valeur == null || valeur.isBlank()) {
             return null;

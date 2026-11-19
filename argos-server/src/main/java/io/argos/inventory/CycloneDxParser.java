@@ -41,7 +41,7 @@ public final class CycloneDxParser {
         String specVersion = specVersion(root);
         JsonNode components = composants(root);
         Optional<Instant> sourceDate = dateSource(root);
-        Lecture lecture = new Lecture(directRefs(root));
+        Lecture lecture = new Lecture(directRefs(root).orElse(null));
         lecture.lire(components);
         return new ParsedInventory(specVersion, sourceDate.orElse(null), List.copyOf(lecture.items.values()), lecture.ignored,
                 List.copyOf(lecture.signaled));
@@ -105,12 +105,13 @@ public final class CycloneDxParser {
      */
     private static final class Lecture {
 
-        private final Optional<Set<String>> direct;
+        /** Références directes du composant racine ; {@code null} si le graphe n'est pas exploitable. */
+        private final Set<String> direct;
         private final Map<String, ParsedInventory.Item> items = new LinkedHashMap<>();
         private final List<ParsedInventory.IgnoredComponent> signaled = new ArrayList<>();
         private int ignored;
 
-        private Lecture(Optional<Set<String>> direct) {
+        private Lecture(Set<String> direct) {
             this.direct = direct;
         }
 
@@ -128,7 +129,7 @@ public final class CycloneDxParser {
         private void retenir(JsonNode c, PackageKey.Purl purl) {
             String version = purl.version() != null ? purl.version() : c.path("version").asText(null);
             String bomRef = c.path("bom-ref").asText(null);
-            Boolean transitive = direct.filter(d -> bomRef != null).map(d -> !d.contains(bomRef)).orElse(null);
+            Boolean transitive = direct == null || bomRef == null ? null : !direct.contains(bomRef);
             String identity = purl.key() + "@" + (version == null ? "" : version);
             items.merge(identity, new ParsedInventory.Item(purl.key(), c.path("purl").asText(), version, transitive),
                     (a, b) -> Boolean.FALSE.equals(a.transitive()) ? a : b);
@@ -139,6 +140,7 @@ public final class CycloneDxParser {
             signal(signaled, c, declaredPurl);
         }
     }
+
     /** Décrit un composant écarté, tant que la liste n'atteint pas {@link ParsedInventory#MAX_SIGNALED} entrées. */
     private static void signal(List<ParsedInventory.IgnoredComponent> signaled, JsonNode component, String declaredPurl) {
         if (signaled.size() >= ParsedInventory.MAX_SIGNALED) {
