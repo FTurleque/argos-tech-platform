@@ -15,8 +15,9 @@ RUN npm run build
 #    Les tests demandent Docker (base jetable) : ils se lancent hors de l'image avec « mvn verify ».
 FROM maven:3.9-eclipse-temurin-17 AS server
 WORKDIR /src/argos-server
-# Node.js, pour le contrôle des licences : binaire de l'image officielle node:22-slim (licence MIT).
-COPY --from=node:22-slim /usr/local/bin/node /usr/local/bin/node
+# Node.js, pour le contrôle des licences : binaire de l'étage « ui » (image officielle node:22-slim,
+# licence MIT), si bien que la version de Node n'est écrite qu'une fois.
+COPY --from=ui /usr/local/bin/node /usr/local/bin/node
 COPY argos-server/pom.xml ./
 RUN mvn -B -q -P licences dependency:go-offline
 # Contrôle des licences des dépendances livrées (décision G2 du porteur du projet, 2026-11-19 ;
@@ -32,12 +33,14 @@ RUN mvn -B package -DskipTests
 # 3. Exécution : JRE 17 seul, utilisateur non privilégié.
 #    /opt/argos/licenses : avis NOTICE du serveur, liste générée des dépendances tierces et de leurs
 #    licences (THIRD-PARTY.txt) et texte de l'Apache License 2.0 (Apache-2.0, section 4 d).
+#    Ces avis appartiennent à root et sont en lecture seule (0444) : l'utilisateur d'exécution les lit
+#    sans pouvoir les modifier.
 FROM eclipse-temurin:17-jre
 WORKDIR /opt/argos
 RUN useradd --system --uid 1001 --no-create-home argos
 COPY --from=server --chown=1001:0 /src/argos-server/target/quarkus-app/ ./
-COPY --chown=1001:0 --chmod=u=rwX,go=rX argos-server/NOTICE argos-server/licenses/Apache-2.0.txt ./licenses/
-COPY --from=server --chown=1001:0 --chmod=u=rwX,go=rX /src/argos-server/target/THIRD-PARTY.txt ./licenses/
+COPY --chmod=0444 argos-server/NOTICE argos-server/licenses/Apache-2.0.txt ./licenses/
+COPY --from=server --chmod=0444 /src/argos-server/target/THIRD-PARTY.txt ./licenses/
 USER 1001
 EXPOSE 8080
 ENV JAVA_OPTS="-XX:MaxRAMPercentage=75 -Djava.util.logging.manager=org.jboss.logmanager.LogManager"

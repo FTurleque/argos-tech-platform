@@ -40,7 +40,7 @@ Le profil `licences` n'est pas rattaché au cycle `mvn verify` : le but `makeBom
 
 ### Contrôle au build de l'image Docker
 
-Le `Dockerfile` du dépôt exécute `mvn -B -P licences validate` dans l'étage `server`, avant la compilation : Node.js y est le binaire de l'image officielle `node:22-slim` (licence MIT), copié dans l'image de build `maven:3.9-eclipse-temurin-17`. Le script de contrôle entre dans le contexte de build par `.dockerignore`. Une licence absente ou non admise arrête `docker build` (ou `docker compose up -d --build`) avec la liste des dépendances en écart.
+Le `Dockerfile` du dépôt exécute `mvn -B -P licences validate` dans l'étage `server`, avant la compilation : Node.js y est le binaire de l'étage `ui` (image officielle `node:22-slim`, licence MIT), copié dans l'image de build `maven:3.9-eclipse-temurin-17`. Le script de contrôle entre dans le contexte de build par `.dockerignore`. Une licence absente ou non admise arrête `docker build` (ou `docker compose up -d --build`) avec la liste des dépendances en écart.
 
 L'image d'exécution contient, dans `/opt/argos/licenses/` :
 
