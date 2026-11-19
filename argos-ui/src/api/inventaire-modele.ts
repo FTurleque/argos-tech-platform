@@ -1,6 +1,8 @@
 // Inventaire d'un projet tel que le restitue `GET /api/v1/projects/{projectId}/inventory` (INV-01-S3,
-// décision D6 du 2026-11-18, décision E4 du 2026-11-19) : types de la réponse et chemin de l'appel. Module pur, sans appel réseau :
-// testé directement par `node --test`. L'appel lui-même passe par `appelerApi` (`inventaire.ts`).
+// décision D6 du 2026-11-18, décision E4 du 2026-11-19), projets visibles (`GET /api/v1/projects`, INV-06,
+// décision F1 du 2026-11-19) et composants inventoriés paginés (`GET /api/v1/projects/{projectId}/inventory/components`,
+// INV-06, décision F5 du 2026-11-19) : types des réponses et chemins des appels. Module pur, sans appel réseau :
+// testé directement par `node --test`. Les appels eux-mêmes passent par `appelerApi` (`inventaire.ts`).
 import { estUuid } from './recherche-criteres.ts'
 
 /** Composant de la SBOM écarté de l'inventaire faute de PURL exploitable (schéma `IgnoredComponent`). */
@@ -47,4 +49,64 @@ export const MAX_CARACTERES_CHAMP = 200
 export function cheminInventaire(projetId: unknown): string | null {
   if (!estUuid(projetId)) return null
   return `/api/v1/projects/${encodeURIComponent(projetId.trim())}/inventory`
+}
+
+/** Projet visible de l'appelant (schéma `ProjectItem`). */
+export interface ProjetApi {
+  id: string
+  workspaceId: string | null
+  /** Nom de l'espace du projet, `null` s'il n'est pas lisible. */
+  workspaceName: string | null
+  name: string | null
+}
+
+/** Page de projets (schéma `ProjectPage`). */
+export interface PageProjetsApi {
+  items: ProjetApi[] | null
+  page: number
+  size: number
+  /** Nombre total de projets visibles. */
+  total: number
+}
+
+/** Composant inventorié (schéma `ComponentItem`) ; `transitive` vaut `null` si le lien est inconnu. */
+export interface ComposantApi {
+  id: string
+  name: string | null
+  version: string | null
+  purl: string | null
+  packageKey?: string | null
+  transitive: boolean | null
+}
+
+/** Page de composants inventoriés (schéma `ComponentPage`). */
+export interface PageComposantsApi {
+  projectId: string
+  items: ComposantApi[] | null
+  page: number
+  size: number
+  /** Nombre total de composants inventoriés du projet. */
+  total: number
+}
+
+/** Taille maximale d'une page acceptée par l'API (`InventoryQueries.MAX_PAGE_SIZE`). */
+export const TAILLE_PAGE_MAX = 200
+
+/** Taille des pages de composants demandées par la vue d'inventaire. */
+export const TAILLE_PAGE_COMPOSANTS = 20
+
+/** Chemin de la liste des projets visibles : première page, de la taille maximale acceptée par l'API. */
+export function cheminProjets(): string {
+  return `/api/v1/projects?page=0&size=${TAILLE_PAGE_MAX}`
+}
+
+/**
+ * Chemin d'une page des composants inventoriés d'un projet ; `null` si l'identifiant n'est pas un UUID ou si la
+ * page n'est pas un entier positif ou nul (aucune URL construite).
+ */
+export function cheminComposants(projetId: unknown, page: unknown, taille: number = TAILLE_PAGE_COMPOSANTS): string | null {
+  const base = cheminInventaire(projetId)
+  if (!base || typeof page !== 'number' || !Number.isInteger(page) || page < 0) return null
+  const t = Math.min(Math.max(Math.trunc(taille), 1), TAILLE_PAGE_MAX)
+  return `${base}/components?page=${page}&size=${t}`
 }

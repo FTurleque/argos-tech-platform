@@ -62,6 +62,7 @@ Un préfixe n'est jamais réattribué ; un identifiant d'exigence retiré n'est 
 | DF-COL-3 | UML états | comment une source passe-t-elle en `DEGRADED` et en sort-elle ? | [collecte-avis-securite](collecte-avis-securite.md#df-col-3--état-de-synchronisation-dune-source) |
 | DF-INV-1 | UML séquence | comment une SBOM remplace-t-elle l'inventaire ? | [inventaire-sbom](inventaire-sbom.md#df-inv-1--import-dune-sbom) |
 | DF-INV-2 | organigramme | d'où provient l'inventaire et quelle confiance en découle ? | [inventaire-sbom](inventaire-sbom.md#df-inv-2--origine-de-linventaire-dun-projet) |
+| DF-INV-3 | UML séquence | comment choisir un projet et parcourir ses composants inventoriés sans voir un autre espace ? | [inventaire-sbom](inventaire-sbom.md#df-inv-3--consultation-de-linventaire-dun-projet-choisi) |
 | DF-COR-1 | UML classes | quels concepts la corrélation relie-t-elle ? | [correlation-impact](correlation-impact.md#df-cor-1--modèle-conceptuel-de-la-corrélation) |
 | DF-COR-2 | UML séquence | comment un signal produit-il des impacts, avec ou sans IA ? | [correlation-impact](correlation-impact.md#df-cor-2--corrélation-dun-signal-avec-et-sans-ia) |
 | DF-COR-3 | organigramme | quel niveau porte un impact ? | [correlation-impact](correlation-impact.md#df-cor-3--détermination-du-niveau-dun-impact) |
@@ -104,12 +105,12 @@ Tous les changements utilisent le schéma `detailed-uml` : aucun changement d'un
 | Capacité | Exigences | Scénarios | Diagrammes métier | Questions ouvertes | Tests écrits |
 |---|---:|---:|---:|---:|---:|
 | `collecte-avis-securite` | 8 | 18 | 3 | 4 | 22 |
-| `inventaire-sbom` | 5 | 10 | 2 | 5 | 14 |
+| `inventaire-sbom` | 6 | 13 | 3 | 5 | 24 |
 | `correlation-impact` | 8 | 17 | 3 | 4 | 37 |
 | `abonnements-veille` | 6 | 10 | 2 | 4 | 10 |
-| **Total** | **27** | **55** | **10** | **17** | **83** |
+| **Total** | **28** | **58** | **11** | **17** | **93** |
 
-Toutes les exigences sont au statut [PROPOSITION] : elles dérivent d'ADR « Proposé » ou de baselines « à valider ». Les tests écrits sont ceux d'`argos-server/src/test/java/io/argos/chain/` (hors `ProfilsDeVeilleTest`) et `architecture/SubscriptionIsolationTest.java`, exécutés par `mvn -B -f argos-server/pom.xml verify` avec des jetons réels du Keycloak des Dev Services et la RLS appliquée sous le rôle `argos_app`. Matrice détaillée : [`tasks.md` du changement](/openspec/changes/formaliser-chaine-securite-poc/tasks.md#matrice-de-traçabilité).
+Toutes les exigences sont au statut [PROPOSITION] : elles dérivent d'ADR « Proposé » ou de baselines « à valider » ; la formulation d'INV-06 dérive des décisions F1 et F5 du porteur du projet (2026-11-19). Les tests écrits sont ceux d'`argos-server/src/test/java/io/argos/chain/` (hors `ProfilsDeVeilleTest`) et `architecture/SubscriptionIsolationTest.java`, exécutés par `mvn -B -f argos-server/pom.xml verify` avec des jetons réels du Keycloak des Dev Services et la RLS appliquée sous le rôle `argos_app`. Matrice détaillée : [`tasks.md` du changement](/openspec/changes/formaliser-chaine-securite-poc/tasks.md#matrice-de-traçabilité).
 
 ### Couverture de [`personnaliser-profils-et-affichage`](/openspec/changes/archive/2026-11-19-personnaliser-profils-et-affichage/proposal.md) (archivé)
 

@@ -73,14 +73,22 @@ export async function preparerRecherche(): Promise<string> {
 }
 
 // ------------------------------------------------------------------ Vue d'inventaire
-// Parcours de la vue d'inventaire (formaliser-chaine-securite-poc, tâche 3.7 ; décision E4 du 2026-11-19) :
-// espace propre d'alice, projet « Inventaire E2E » (SBOM importée, composants écartés faute de PURL) et
-// projet « Sans SBOM E2E » (aucun inventaire). Données écrites par donnees/inventaire.sql.
+// Parcours de la vue d'inventaire (formaliser-chaine-securite-poc, tâches 3.7 et 3.8 ; décisions E4, F1 et F5
+// du 2026-11-19) : espace propre d'alice, projet « Inventaire E2E » (SBOM importée, 25 composants inventoriés,
+// composants écartés faute de PURL) et projet « Sans SBOM E2E » (aucun inventaire). Données écrites par
+// donnees/inventaire.sql.
 
 export const ESPACE_INVENTAIRE = 'Espace E2E inventaire'
 export const INVENTAIRE = {
   projet: '0e2e0000-0000-4000-8000-0000000000e1',
   projetSansSbom: '0e2e0000-0000-4000-8000-0000000000e2',
+  /** Libellé du projet dans la liste de choix : nom du projet, puis nom de l'espace. */
+  libelle: `Inventaire E2E — ${ESPACE_INVENTAIRE}`,
+  libelleSansSbom: `Sans SBOM E2E — ${ESPACE_INVENTAIRE}`,
+  /** Nombre de composants inventoriés : deux pages de 20 dans la vue. */
+  composants: 25,
+  /** Projet d'un espace dont alice n'est pas membre (donnees/veille.sql) : absent de sa liste. */
+  projetHorsEspaces: 'RH confidentiel',
   /** Nom hostile d'un composant écarté : affiché comme texte, jamais interprété. */
   nomHostile: '<img src=x onerror=alert(1)>',
 }

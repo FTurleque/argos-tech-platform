@@ -60,6 +60,34 @@ public class InventoryQueries {
     public record ProjectSummary(UUID id, UUID workspaceId, String name) {
     }
 
+    /** Projet listé pour un compte : identifiant, espace (identifiant et nom) et nom du projet. */
+    public record ProjectItem(UUID id, UUID workspaceId, String workspaceName, String name) {
+    }
+
+    /** Page des projets lisibles par un compte (arc42 §8.10). {@code total} : nombre de projets lisibles. */
+    public record ProjectPage(List<ProjectItem> items, int page, int size, long total) {
+    }
+
+    /**
+     * Composant inventorié d'une page. {@code name} : clé du paquet sans le préfixe {@code pkg:<type>/}
+     * (espace de noms et nom) ; {@code transitive} : {@code null} si inconnu.
+     */
+    public record ComponentItem(UUID id, String name, String version, String purl, String packageKey, Boolean transitive) {
+    }
+
+    /** Page des composants inventoriés d'un projet (arc42 §8.10), triés par nom, version puis identifiant. */
+    public record ComponentPage(UUID projectId, List<ComponentItem> items, int page, int size, long total) {
+    }
+
+    /** Taille de page par défaut des listes paginées de l'inventaire. */
+    public static final int DEFAULT_PAGE_SIZE = 50;
+
+    /** Taille de page maximale des listes paginées de l'inventaire ; une taille supérieure est ramenée à cette borne. */
+    public static final int MAX_PAGE_SIZE = 200;
+
+    /** Nom affiché d'un composant : clé du paquet sans le préfixe {@code pkg:<type>/}. */
+    private static final String COMPONENT_NAME = "coalesce(substring(package_key from '^pkg:[^/]+/(.+)$'), package_key)";
+
     /** Import refusé (INV-05). */
     public record ImportFailure(UUID id, String reason, String sourceRef, Instant receivedAt) {
     }
@@ -116,6 +144,70 @@ public class InventoryQueries {
             throw new IllegalStateException("lecture des projets impossible", e);
         }
         return projects;
+    }
+
+    /**
+     * Page des projets lisibles par le compte, triés par nom de projet, nom d'espace puis identifiant (tri
+     * stable). Aucun filtre applicatif : la RLS de {@code project} sous {@code argos_app} limite la liste aux
+     * espaces dont le compte est membre (ADR-0016). Page négative ramenée à 0, taille bornée à
+     * [1, {@value #MAX_PAGE_SIZE}].
+     */
+    @Transactional
+    public ProjectPage projects(UUID accountId, int page, int size) {
+        int p = Math.max(page, 0);
+        int s = boundedSize(size);
+        String sql = "SELECT p.id, p.workspace_id, e.nom, p.name FROM project p LEFT JOIN espace e ON e.id = p.workspace_id"
+                + " ORDER BY p.name, e.nom, p.id LIMIT ? OFFSET ?";
+        try (Connection c = dataSource.getConnection()) {
+            ContexteBase.appliquer(c, new ContexteBase.Contexte(accountId, null, null));
+            long total = count(c, "SELECT count(*) FROM project", null);
+            List<ProjectItem> items = new ArrayList<>();
+            try (PreparedStatement ps = c.prepareStatement(sql)) {
+                ps.setInt(1, s);
+                ps.setLong(2, (long) p * s);
+                try (ResultSet rs = ps.executeQuery()) {
+                    while (rs.next()) {
+                        items.add(new ProjectItem(rs.getObject(1, UUID.class), rs.getObject(2, UUID.class), rs.getString(3),
+                                rs.getString(4)));
+                    }
+                }
+            }
+            return new ProjectPage(items, p, s, total);
+        } catch (SQLException e) {
+            throw new IllegalStateException("lecture des projets impossible", e);
+        }
+    }
+
+    /**
+     * Page des composants inventoriés d'un projet, triés par nom, version puis identifiant (tri stable). La
+     * lecture s'exécute sous {@code argos_app} avec le compte : un projet hors de ses espaces donne une page
+     * vide (RLS de {@code component}). Page négative ramenée à 0, taille bornée à [1, {@value #MAX_PAGE_SIZE}].
+     */
+    @Transactional
+    public ComponentPage components(UUID projectId, UUID accountId, int page, int size) {
+        int p = Math.max(page, 0);
+        int s = boundedSize(size);
+        String sql = "SELECT id, " + COMPONENT_NAME + " AS name, version, purl, package_key, transitive FROM component"
+                + " WHERE project_id = ? ORDER BY name, version NULLS FIRST, id LIMIT ? OFFSET ?";
+        try (Connection c = dataSource.getConnection()) {
+            ContexteBase.appliquer(c, new ContexteBase.Contexte(accountId, null, null));
+            long total = count(c, "SELECT count(*) FROM component WHERE project_id = ?", projectId);
+            List<ComponentItem> items = new ArrayList<>();
+            try (PreparedStatement ps = c.prepareStatement(sql)) {
+                ps.setObject(1, projectId);
+                ps.setInt(2, s);
+                ps.setLong(3, (long) p * s);
+                try (ResultSet rs = ps.executeQuery()) {
+                    while (rs.next()) {
+                        items.add(new ComponentItem(rs.getObject(1, UUID.class), rs.getString(2), rs.getString(3),
+                                rs.getString(4), rs.getString(5), (Boolean) rs.getObject(6)));
+                    }
+                }
+            }
+            return new ComponentPage(projectId, items, p, s, total);
+        } catch (SQLException e) {
+            throw new IllegalStateException("lecture des composants impossible", e);
+        }
     }
 
     @Transactional
@@ -239,6 +331,22 @@ public class InventoryQueries {
             }
         }
         return components;
+    }
+
+    private static int boundedSize(int size) {
+        return Math.min(Math.max(size, 1), MAX_PAGE_SIZE);
+    }
+
+    private static long count(Connection c, String sql, UUID projectId) throws SQLException {
+        try (PreparedStatement ps = c.prepareStatement(sql)) {
+            if (projectId != null) {
+                ps.setObject(1, projectId);
+            }
+            try (ResultSet rs = ps.executeQuery()) {
+                rs.next();
+                return rs.getLong(1);
+            }
+        }
     }
 
     private static List<ParsedInventory.IgnoredComponent> ignored(String json) {

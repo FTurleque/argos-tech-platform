@@ -64,6 +64,7 @@ Source : ADR-0023 (Accepté). Statut : [EXIGENCE].
 ### Requirement: AFF-05 Accessibilité de chaque mise en page
 Le système DOIT (MUST) n'inscrire au catalogue qu'une mise en page conforme au référentiel d'accessibilité retenu pour Argos, vérifiée sur les mêmes écrans de référence que les autres mises en page.
 Source : ADR-0023 (Accepté) point 6 ; référentiel RGAA 4.1.2 (décision Q-4 du 2026-11-16). Statut : [EXIGENCE].
+[DÉCISION — porteur du projet, 2026-11-19] Aucun contrôle côté serveur : tests de l'IHM et audit vérifient la conformité ; AFF-05 est partiellement implémentée.
 
 #### Scenario: AFF-05-S1 Mise en page non conforme
 - **GIVEN** une nouvelle mise en page dont un texte n'atteint pas le contraste minimal du référentiel retenu
