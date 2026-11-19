@@ -33,11 +33,11 @@ RUN mvn -B package -DskipTests
 # 3. Exécution : JRE 17 seul, utilisateur non privilégié.
 #    /opt/argos/licenses : avis NOTICE du serveur, liste générée des dépendances tierces et de leurs
 #    licences (THIRD-PARTY.txt) et texte de l'Apache License 2.0 (Apache-2.0, section 4 d).
-#    Ces avis appartiennent à root et sont en lecture seule (0444) : l'utilisateur d'exécution les lit
+#    Ce dossier (0755) et ces avis (0444) appartiennent à root : l'utilisateur d'exécution les lit
 #    sans pouvoir les modifier.
 FROM eclipse-temurin:17-jre
 WORKDIR /opt/argos
-RUN useradd --system --uid 1001 --no-create-home argos
+RUN useradd --system --uid 1001 --no-create-home argos && mkdir -m 0755 licenses
 COPY --from=server --chown=1001:0 /src/argos-server/target/quarkus-app/ ./
 COPY --chmod=0444 argos-server/NOTICE argos-server/licenses/Apache-2.0.txt ./licenses/
 COPY --from=server --chmod=0444 /src/argos-server/target/THIRD-PARTY.txt ./licenses/
