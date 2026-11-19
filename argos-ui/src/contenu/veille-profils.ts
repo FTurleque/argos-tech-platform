@@ -1,5 +1,6 @@
 // Libellés de la veille par profils (couche contenu, PRF-02, décision Q-3) et du choix des profils
-// (PRF-01). La transposition vers le modèle des mises en page est faite par `veille-affichee.ts`. Module pur, sans appel réseau ni dépendance à Vue : testé directement par `node --test`.
+// (PRF-01). La transposition vers le modèle des mises en page est faite par `veille-affichee.ts`.
+// Module pur, sans appel réseau ni dépendance à Vue : testé directement par `node --test`.
 //
 // Aucune règle métier ici (arc42 §5.1) : les éléments reçus sont déjà autorisés, filtrés, dédoublonnés et
 // accompagnés de leurs mentions par le serveur. Ce module les nomme (profils, abonnements, types, gravités),
