@@ -230,13 +230,13 @@ public class ReglementaireResource {
         if (espace != null && !caller.memberOf(espace)) {
             throw access.outOfScope();
         }
-        String d = domaine == null || domaine.isBlank() ? null : DictionnaireMetier.code(domaine);
-        String e = etat == null || etat.isBlank() ? null : etatValidation(etat);
-        int n = ParametresPagination.entier(limite, "limite", 50);
-        if (n < 1 || n > FichesEnBase.LIMITE_MAX) {
+        String codeDomaine = domaine == null || domaine.isBlank() ? null : DictionnaireMetier.code(domaine);
+        String etatRetenu = etat == null || etat.isBlank() ? null : etatValidation(etat);
+        int nombre = ParametresPagination.entier(limite, "limite", 50);
+        if (nombre < 1 || nombre > FichesEnBase.LIMITE_MAX) {
             throw Erreur.demandeRefusee("DONNEE_INVALIDE", "La limite est comprise entre 1 et " + FichesEnBase.LIMITE_MAX + ".");
         }
-        return fiches.lister(caller.accountId(), new FichesEnBase.Criteres(espace, d, e, null, null, n));
+        return fiches.lister(caller.accountId(), new FichesEnBase.Criteres(espace, codeDomaine, etatRetenu, null, null, nombre));
     }
 
     @GET
@@ -372,16 +372,16 @@ public class ReglementaireResource {
 
     // ------------------------------------------------------------------ outils
 
-    private static DomaineVue vue(DictionnaireMetier.Domaine d) {
-        return new DomaineVue(d.code(), d.libelle(), d.regles(), d.experts());
+    private static DomaineVue vue(DictionnaireMetier.Domaine domaine) {
+        return new DomaineVue(domaine.code(), domaine.libelle(), domaine.regles(), domaine.experts());
     }
 
     private static String etatValidation(String etat) {
-        String e = etat.strip().toUpperCase(Locale.ROOT);
-        if (!List.of("EN_ATTENTE_VALIDATION", "VALIDEE", "REJETEE").contains(e)) {
+        String normalise = etat.strip().toUpperCase(Locale.ROOT);
+        if (!List.of("EN_ATTENTE_VALIDATION", "VALIDEE", "REJETEE").contains(normalise)) {
             throw Erreur.demandeRefusee("ETAT_INCONNU", "État de validation inconnu : EN_ATTENTE_VALIDATION, VALIDEE ou REJETEE.");
         }
-        return e;
+        return normalise;
     }
 
     private static LocalDate date(String valeur, LocalDate defaut, String nom) {
