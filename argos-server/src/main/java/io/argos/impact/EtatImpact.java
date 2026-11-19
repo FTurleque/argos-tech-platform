@@ -32,6 +32,19 @@ public enum EtatImpact {
         return SUIVANTS.get(this);
     }
 
+    /**
+     * États atteignables par un utilisateur selon que le composant de l'impact est encore dans l'inventaire : un impact
+     * dont le composant a été retiré ne redevient ni ouvert ni confirmé (invariant INV-C3, décision J5).
+     */
+    public Set<EtatImpact> suivants(boolean composantPresent) {
+        if (composantPresent) {
+            return suivants();
+        }
+        EnumSet<EtatImpact> inactifs = EnumSet.noneOf(EtatImpact.class);
+        suivants().stream().filter(e -> !ACTIFS.contains(e)).forEach(inactifs::add);
+        return Set.copyOf(inactifs);
+    }
+
     /** Vrai si la transition vers {@code vers} est permise (COR-10). */
     public boolean peutAller(EtatImpact vers) {
         return suivants().contains(vers);

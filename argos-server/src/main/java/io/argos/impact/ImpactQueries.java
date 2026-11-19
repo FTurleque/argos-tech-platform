@@ -202,6 +202,12 @@ public class ImpactQueries {
     /** Impacts actifs d'un projet, vides si le projet n'appartient à aucun des espaces donnés. */
     @Transactional
     public List<ImpactView> forProject(UUID projectId, UUID accountId, Set<UUID> workspaces) {
+        return forProject(projectId, accountId, workspaces, EtatImpact.ACTIFS);
+    }
+
+    /** Impacts d'un projet aux états donnés (COR-12-S2), vides si le projet n'appartient à aucun des espaces donnés. */
+    @Transactional
+    public List<ImpactView> forProject(UUID projectId, UUID accountId, Set<UUID> workspaces, Set<EtatImpact> etats) {
         List<ImpactView> items = new ArrayList<>();
         if (workspaces.isEmpty()) {
             return items;
@@ -213,7 +219,7 @@ public class ImpactQueries {
                     + " ORDER BY i.created_at, i.id")) {
                 ps.setObject(1, projectId);
                 ps.setArray(2, uuids(c, workspaces));
-                ps.setArray(3, etats(c, EtatImpact.ACTIFS));
+                ps.setArray(3, etats(c, etats));
                 try (ResultSet rs = ps.executeQuery()) {
                     while (rs.next()) {
                         items.add(view(rs));

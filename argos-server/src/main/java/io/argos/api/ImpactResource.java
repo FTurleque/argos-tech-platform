@@ -131,7 +131,7 @@ public class ImpactResource {
     /** Transitions que l'appelant peut demander : aucune pour un lecteur. */
     private static ImpactQueries.ImpactView avecTransitions(Caller caller, ImpactQueries.ImpactView view) {
         List<String> possibles = caller.contributorOf(view.workspaceId())
-                ? EtatImpact.valueOf(view.etat()).suivants().stream().sorted(Comparator.naturalOrder())
+                ? EtatImpact.valueOf(view.etat()).suivants(view.componentId() != null).stream().sorted(Comparator.naturalOrder())
                         .map(EtatImpact::name).toList()
                 : List.of();
         return view.avecTransitionsPossibles(possibles);

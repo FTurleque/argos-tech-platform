@@ -44,9 +44,16 @@ public class TraitementImpacts {
 
         private final EtatImpact courant;
 
+        private final Set<EtatImpact> possibles;
+
         public TransitionInterdite(EtatImpact courant) {
+            this(courant, courant.suivants());
+        }
+
+        public TransitionInterdite(EtatImpact courant, Set<EtatImpact> possibles) {
             super("Transition impossible depuis l'état " + courant + ".");
             this.courant = courant;
+            this.possibles = Set.copyOf(possibles);
         }
 
         public EtatImpact courant() {
@@ -55,7 +62,7 @@ public class TraitementImpacts {
 
         /** Transitions possibles depuis l'état courant. */
         public Set<EtatImpact> possibles() {
-            return courant.suivants();
+            return possibles;
         }
     }
 
@@ -102,8 +109,10 @@ public class TraitementImpacts {
                 return Optional.empty();
             }
             EtatImpact de = lu.get().etat();
-            if (!de.peutAller(vers)) {
-                throw new TransitionInterdite(de);
+            // Un impact dont le composant a quitté l'inventaire ne redevient pas actif (INV-C3) : 409.
+            Set<EtatImpact> possibles = de.suivants(lu.get().composantPresent());
+            if (!possibles.contains(vers)) {
+                throw new TransitionInterdite(de, possibles);
             }
             if (!changer(c, impactId, de, vers)) {
                 // Aucune ligne modifiée : état changé entre-temps (409), ou refus de la politique RLS.
@@ -128,6 +137,23 @@ public class TraitementImpacts {
     }
 
     /**
+     * Vrai si la dernière transition de l'impact vers {@code RESOLU} a été faite par le système (COR-11) : seule une
+     * résolution système peut être annulée par la recorrélation ; une résolution décidée par un utilisateur autorisé
+     * est respectée (décision J5).
+     */
+    static boolean resoluParLeSysteme(Connection c, UUID impactId) throws SQLException {
+        try (PreparedStatement ps = c.prepareStatement("""
+                SELECT actor_system FROM project_impact_transition
+                WHERE impact_id = ? AND to_state = 'RESOLU' ORDER BY occurred_at DESC, id DESC LIMIT 1
+                """)) {
+            ps.setObject(1, impactId);
+            try (ResultSet rs = ps.executeQuery()) {
+                return rs.next() && rs.getBoolean(1);
+            }
+        }
+    }
+
+    /**
      * Transition système, dans la transaction et la connexion de l'appelant ({@link CorrelationEngine}).
      *
      * @return vrai si l'impact était encore à l'état {@code de} et a été modifié
@@ -141,17 +167,17 @@ public class TraitementImpacts {
         return true;
     }
 
-    private record Lu(EtatImpact etat, UUID espace, UUID signal) {
+    private record Lu(EtatImpact etat, UUID espace, UUID signal, boolean composantPresent) {
     }
 
     private static Optional<Lu> lire(Connection c, UUID impactId) throws SQLException {
         try (PreparedStatement ps = c.prepareStatement(
-                "SELECT state, workspace_id, signal_id FROM project_impact WHERE id = ?")) {
+                "SELECT state, workspace_id, signal_id, component_id IS NOT NULL FROM project_impact WHERE id = ?")) {
             ps.setObject(1, impactId);
             try (ResultSet rs = ps.executeQuery()) {
                 return rs.next()
                         ? Optional.of(new Lu(EtatImpact.valueOf(rs.getString(1)), rs.getObject(2, UUID.class),
-                                rs.getObject(3, UUID.class)))
+                                rs.getObject(3, UUID.class), rs.getBoolean(4)))
                         : Optional.empty();
             }
         }

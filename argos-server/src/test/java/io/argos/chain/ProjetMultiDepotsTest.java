@@ -202,6 +202,9 @@ class ProjetMultiDepotsTest {
                 .body("items.purl", contains("pkg:npm/b@2.0.0", "pkg:maven/org.exemple/c@3.0.0"))
                 .body("items.find { it.purl == 'pkg:npm/b@2.0.0' }.repositories.repository", contains("org/back"));
         assertTrue(ouverts(projet, "alice").isEmpty(), "l'impact du composant retiré n'est plus parmi les impacts ouverts");
+        // Intégration avec le volet C (COR-11-S1) : l'impact reste enregistré, résolu par le système.
+        assertEquals(1, impacts.forProject(projet, Api.compte("alice"), Set.of(queries.workspaceOf(projet).orElseThrow()),
+                Set.of(io.argos.impact.EtatImpact.RESOLU)).size());
         Api.en("alice").when().get("/api/v1/projects/" + projet + "/inventory/summary")
                 .then().statusCode(200)
                 .body("summary.repositories.repository", contains("org/back"))

@@ -19,6 +19,7 @@ import jakarta.inject.Inject;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
+import io.argos.impact.CorrelationEngine;
 import io.argos.ingestion.SourceSynchronizer;
 import io.argos.inventory.InventoryService;
 import io.argos.inventory.ProjectDirectory;
@@ -56,6 +57,9 @@ class SubscriptionTest {
 
     @Inject
     javax.sql.DataSource dataSource;
+
+    @Inject
+    CorrelationEngine engine;
 
     /** Espace administré par karim. */
     private UUID rh;
@@ -229,7 +233,7 @@ class SubscriptionTest {
 
     @Test
     void abo07S1EtS2SuspensionPuisReactivationSansRejeu() {
-        projetRhAvecLib();
+        UUID projet = projetRhAvecLib();
         membre("jules", rh);
         String id = as("jules").body(personalEmailImmediat(DEUX_PAQUETS))
                 .when().post("/api/v1/subscriptions").then().statusCode(201).extract().path("id");
@@ -258,6 +262,13 @@ class SubscriptionTest {
                 + Api.compte("jules") + "' AND s.external_id = 'GHSA-SUSP2'"));
         assertEquals(0, db.count("SELECT count(*) FROM alerte a JOIN signal s ON s.id = a.signal_id"
                 + " WHERE s.external_id = 'GHSA-SUSP1'"), "la période de suspension n'est pas rejouée");
+
+        // Recorrélation du projet après la réactivation (import quotidien, J4) : impact inchangé, aucune alerte
+        // pour le signal corrélé pendant la suspension ([PROPOSITION] PI-4, intégration du 2026-11-19).
+        engine.correlateProject(projet);
+        assertEquals(0, db.count("SELECT count(*) FROM alerte a JOIN signal s ON s.id = a.signal_id"
+                + " WHERE s.external_id = 'GHSA-SUSP1'"), "la recorrélation ne rejoue pas la période de suspension");
+        assertEquals(1, alertesDe("jules"));
     }
 
     @Test

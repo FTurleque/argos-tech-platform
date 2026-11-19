@@ -133,6 +133,10 @@ class RecorrelationImportTest {
         importPlanifie.importer(Instant.parse("2026-11-21T02:00:00Z"));
 
         assertTrue(ouverts(projet).isEmpty(), "l'impact du composant retiré n'est plus compté parmi les impacts ouverts");
+        // Intégration avec le volet C (COR-11-S1, J4/J5) : l'impact n'est pas supprimé, il est résolu par le système.
+        assertEquals("RESOLU", db.string("SELECT state FROM project_impact WHERE project_id = '" + projet + "'"));
+        assertEquals("COMPOSANT_RETIRE", db.string("SELECT t.reason FROM project_impact_transition t JOIN project_impact i"
+                + " ON i.id = t.impact_id WHERE i.project_id = '" + projet + "' AND t.actor_system"));
     }
 
     /** Version mise à jour hors de la plage affectée : l'impact n'est plus vérifié. */
@@ -146,6 +150,10 @@ class RecorrelationImportTest {
         inventories.importSbom(projet, sbom(LIB + "@2.1.0").getBytes(StandardCharsets.UTF_8), "manuel#2");
 
         assertTrue(ouverts(projet).isEmpty());
+        // COR-11-S2 : impact résolu par le système, motif « version hors plage », aucun impact pour 2.1.0.
+        assertEquals(1, db.count("SELECT count(*) FROM project_impact WHERE project_id = '" + projet + "'"));
+        assertEquals("VERSION_HORS_PLAGE", db.string("SELECT t.reason FROM project_impact_transition t JOIN project_impact i"
+                + " ON i.id = t.impact_id WHERE i.project_id = '" + projet + "' AND t.actor_system"));
     }
 
     @Test

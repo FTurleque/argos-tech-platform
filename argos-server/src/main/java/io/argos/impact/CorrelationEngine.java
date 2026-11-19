@@ -228,6 +228,7 @@ public class CorrelationEngine {
                 }
                 stillAffected.add(m.projectId() + " " + m.packageKey());
                 reattach(c, signalId, m);
+                Optional<Precedent> avant = precedent(c, signalId, m);
                 UUID id = UUID.randomUUID();
                 try (PreparedStatement ps = c.prepareStatement("""
                         INSERT INTO project_impact(id, signal_id, signal_version_id, project_id, workspace_id, component_id,
@@ -260,19 +261,27 @@ public class CorrelationEngine {
                         rs.next();
                         UUID impactId = rs.getObject(1, UUID.class);
                         EtatImpact etat = EtatImpact.valueOf(rs.getString(3));
+                        boolean change = avant.map(a -> a.reactive() || !a.level().equals(best.get().level().name())
+                                || !a.signalVersionId().equals(signal.currentVersionId())).orElse(true);
                         kept.add(impactId);
                         if (rs.getBoolean(2)) {
                             created++;
                         } else {
                             updated++;
                         }
-                        if (etat == EtatImpact.RESOLU && TraitementImpacts.systeme(c, impactId, m.workspaceId(),
+                        // Seul un impact résolu par le système redevient ouvert ; une résolution humaine est respectée (J5).
+                        if (etat == EtatImpact.RESOLU && TraitementImpacts.resoluParLeSysteme(c, impactId)
+                                && TraitementImpacts.systeme(c, impactId, m.workspaceId(),
                                 EtatImpact.RESOLU, EtatImpact.OUVERT, MotifSysteme.DE_NOUVEAU_VERIFIE, now)) {
                             reopened++;
                             etat = EtatImpact.OUVERT;
+                            change = true;
                         }
                         // Un impact écarté reste enregistré et à jour, mais n'est publié à aucune alerte (ALR-07).
-                        if (EtatImpact.ACTIFS.contains(etat)) {
+                        // Seul un impact nouveau, rouvert (par le système, ou par un utilisateur depuis la corrélation
+                        // précédente), de niveau changé ou porté par une nouvelle version de l'avis est publié : une recorrélation sans changement (import quotidien) ne produit aucune alerte,
+                        // notamment au titre d'un abonnement réactivé (ABO-07-S2, [PROPOSITION] PI-4).
+                        if (EtatImpact.ACTIFS.contains(etat) && change) {
                             items.add(new ImpactsRecorded.Item(impactId, m.projectId(), m.workspaceId(),
                                     best.get().level().name(), m.packageKey()));
                         }
@@ -282,6 +291,30 @@ public class CorrelationEngine {
             int resolved = resolveStale(c, signal, projectId, kept, stillAffected, now);
             return new Deterministic(created, updated, resolved, reopened, List.copyOf(kept), new ImpactsRecorded(signalId,
                     signal.title(), signal.severity(), signal.source(), signal.externalId(), items));
+        }
+    }
+
+    /** Impact existant : niveau, version de l'avis, et vrai s'il est redevenu actif depuis sa dernière corrélation. */
+    private record Precedent(String level, UUID signalVersionId, boolean reactive) {
+    }
+
+    /** État de l'impact existant pour ce signal, ce projet et ce composant, s'il existe. */
+    private static Optional<Precedent> precedent(Connection c, UUID signalId, InventoryQueries.ComponentMatch m)
+            throws SQLException {
+        try (PreparedStatement ps = c.prepareStatement("""
+                SELECT i.level, i.signal_version_id,
+                       EXISTS (SELECT 1 FROM project_impact_transition t WHERE t.impact_id = i.id
+                               AND t.to_state IN ('OUVERT', 'CONFIRME') AND t.occurred_at > i.updated_at)
+                FROM project_impact i
+                WHERE i.signal_id = ? AND i.project_id = ? AND i.component_id = ?
+                """)) {
+            ps.setObject(1, signalId);
+            ps.setObject(2, m.projectId());
+            ps.setObject(3, m.componentId());
+            try (ResultSet rs = ps.executeQuery()) {
+                return rs.next() ? Optional.of(new Precedent(rs.getString(1), rs.getObject(2, UUID.class), rs.getBoolean(3)))
+                        : Optional.empty();
+            }
         }
     }
 

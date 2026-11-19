@@ -22,6 +22,7 @@ import java.time.temporal.ChronoUnit;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.UUID;
 
 import javax.sql.DataSource;
@@ -285,6 +286,45 @@ class EtatTraitementImpactTest {
                 .body("historique[1].motif", equalTo("COMPOSANT_RETIRE"));
     }
 
+    /**
+     * J5 : une résolution décidée par un utilisateur autorisé n'est pas annulée par la recorrélation (import suivant ou
+     * nouvelle corrélation du signal) ; seule une résolution système peut redevenir « ouvert » (COR-11-S5).
+     */
+    @Test
+    void j5ResolutionHumaineConserveeALaRecorrelation() {
+        UUID projet = projet(spaceA, "app", recent(), LIB + "@1.2.0");
+        UUID signal = publier("GHSA-ETAT-J5", LIB, "0", "1.3.0");
+        UUID impact = impactDe(projet);
+        transition("jules", impact, Map.of("vers", "RESOLU", "commentaire", "Atténué hors SBOM")).statusCode(200);
+
+        importer(projet, Instant.now().minus(1, ChronoUnit.DAYS), LIB + "@1.2.0");
+        engine.correlateProject(projet);
+        engine.correlate(signal, Optional.empty());
+
+        assertEquals("RESOLU", etat(impact));
+        assertEquals(1, transitions(impact), "aucune réouverture système");
+    }
+
+    /**
+     * INV-C3 (J5) : un impact dont le composant a quitté l'inventaire ne peut pas redevenir ouvert par une transition
+     * utilisateur (409), et la transition n'est pas proposée.
+     */
+    @Test
+    void invC3ImpactSansComposantNeRedevientPasActif() {
+        UUID projet = projet(spaceA, "app", recent(), LIB + "@1.2.0", "pkg:maven/org.autre/outil@1.0.0");
+        publier("GHSA-ETAT-C3", LIB, "0", "1.3.0");
+        UUID impact = impactDe(projet);
+        importer(projet, Instant.now().minus(1, ChronoUnit.DAYS), "pkg:maven/org.autre/outil@1.0.0");
+        assertEquals("RESOLU", etat(impact));
+
+        transition("jules", impact, Map.of("vers", "OUVERT"))
+                .statusCode(409).body("code", equalTo("TRANSITION_INTERDITE"));
+        assertEquals("RESOLU", etat(impact));
+        assertEquals(1, transitions(impact));
+        Api.en("jules").when().get("/api/v1/impacts/" + impact)
+                .then().statusCode(200).body("transitionsPossibles", hasSize(0));
+    }
+
     @Test
     void cor12S2ListeFiltreeParEtat() {
         UUID projet = projet(spaceA, "app", recent(), LIB + "@1.0.0", LIB + "@1.1.0", LIB + "@1.2.0");
@@ -308,6 +348,18 @@ class EtatTraitementImpactTest {
                 .then().statusCode(200).body("total", equalTo(2));
         Api.en("jules").queryParam("etat", "INCONNU").when().get(chemin)
                 .then().statusCode(400).body("code", equalTo("DONNEE_INVALIDE")).body("attribut", equalTo("etat"));
+
+        // Liste des impacts du projet (COR-12-S2 au sens strict) : même filtre, même défaut.
+        String projetChemin = "/api/v1/projects/" + projet + "/impacts";
+        Api.en("jules").queryParam("etat", "OUVERT").when().get(projetChemin)
+                .then().statusCode(200).body("$", hasSize(1)).body("[0].id", equalTo(ids.get(0).toString()));
+        Api.en("karim").when().get(projetChemin)
+                .then().statusCode(200).body("$", hasSize(1)).body("[0].etat", equalTo("OUVERT"));
+        Api.en("jules").queryParam("etat", "ECARTE").queryParam("etat", "RESOLU").when().get(projetChemin)
+                .then().statusCode(200).body("$", hasSize(2));
+        Api.en("jules").queryParam("etat", "INCONNU").when().get(projetChemin)
+                .then().statusCode(400).body("code", equalTo("DONNEE_INVALIDE"));
+        Api.en("ines").when().get(projetChemin).then().statusCode(404);
     }
 
     /**
