@@ -83,8 +83,8 @@ Source : arc42 §8.3 (validation des entrées externes) ; arc42 §11.2 (pas de s
 - **AND** aucun composant issu de ce fichier n'est ajouté à l'inventaire
 
 ### Requirement: INV-06 Consultation de l'inventaire par projet
-Le système DOIT (MUST) proposer le choix du projet parmi ceux des espaces de l'utilisateur et lister les composants inventoriés du projet par pages de taille bornée, dans un ordre stable par nom puis version.
-Source : décisions F1 et F5 du porteur du projet, 2026-11-19 ; ADR-0016 ; arc42 §8.10. Statut : [PROPOSITION].
+Le système DOIT (MUST) proposer le choix du projet parmi ceux des espaces de l'utilisateur, fournir la synthèse de l'inventaire de référence sans la liste des composants et lister les composants inventoriés du projet par pages de taille bornée, dans un ordre stable par nom puis version.
+Source : décisions F1, F5 et G5 du porteur du projet, 2026-11-19 ; ADR-0016 ; arc42 §8.10. Statut : [PROPOSITION].
 
 #### Scenario: INV-06-S1 Projets visibles limités aux espaces de l'utilisateur
 - **GIVEN** un utilisateur membre de l'espace A, des projets dans l'espace A et un projet dans l'espace B dont il n'est pas membre
@@ -103,3 +103,9 @@ Source : décisions F1 et F5 du porteur du projet, 2026-11-19 ; ADR-0016 ; arc42
 - **WHEN** il demande les composants d'un projet inconnu ou d'un projet de l'espace B
 - **THEN** la réponse est identique à celle d'un projet inexistant et ne révèle aucun composant
 - **AND** le refus portant sur le projet de l'espace B est journalisé
+
+#### Scenario: INV-06-S4 Synthèse de l'inventaire sans la liste des composants
+- **GIVEN** un projet visible de l'utilisateur dont l'inventaire de référence compte 25 composants et 3 composants écartés faute de PURL
+- **WHEN** l'utilisateur ouvre la vue d'inventaire de ce projet
+- **THEN** la synthèse affiche l'origine, la date de la source, le nombre de 25 composants inventoriés et les composants écartés
+- **AND** seule la page de composants affichée est transférée, jamais la liste complète des composants
