@@ -150,7 +150,7 @@ Liste à jour des migrations, dans `argos-server/src/main/resources/db/migration
 | V9 | `V9__journal_appels_mcp.sql` | journal des appels d'outils MCP (`mcp_appel`) | `exposer-serveur-mcp` |
 | V10 | `V10__veille_rss_web.sql` | sources de veille web (flux et pages surveillées), actualités, rapprochements (ADR-0028) | `collecter-veille-rss-web` |
 | V11 | `V11__recherche_veille.sql` | recherche plein texte bilingue sur `signal` et `actualite`, fonction `argos_rechercher_veille`, vues enregistrées (ADR-0015) | `rechercher-et-filtrer` |
-| V12 | `V12__radar_et_standards.sql` | référentiel des standards, suggestions et historique, cycles de vie, radar, dette de version | `construire-radar-et-standards` |
+| V12 | `V12__radar_et_standards.sql` | référentiel des standards, suggestions et historique, cycles de vie, radar, dette de version ; colonne `alerte.cle_radar` (clé d’idempotence des messages du radar) | `construire-radar-et-standards` |
 | V13 | `V13__passerelle_ia.sql` | journal des appels IA, prompts versionnés, quotas journaliers | `encadrer-appels-ia` |
 | V14 | `V14__activite_projets.sql` | compteurs d'activité des projets, jalons, état de la collecte, sans identité de personne | `mesurer-activite-projets` |
 | V15 | `V15__profil_artiste.sql` | objets suivis par profil, rappels, sources vérifiées, opportunités (ADR-0024) | `ajouter-profil-artiste` |
