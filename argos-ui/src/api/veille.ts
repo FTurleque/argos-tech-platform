@@ -3,9 +3,18 @@
 // par le point d'appel commun `appelerApi` du client REST. Aucune règle métier ici (arc42 §5.1) : l'union
 // des profils et des abonnements PERSONAL, le dédoublonnage, les garde-fous et les droits sont calculés
 // par le serveur.
-import { appelerApi, type PreferencesEffectives } from './client'
+import { appelerApi } from './client'
 
-export type { PreferencesEffectives } from './client'
+/** Réponse de `GET /api/v1/preferences` (schéma OpenAPI `PreferencesEffectives`). */
+export interface PreferencesEffectives {
+  miseEnPage: string
+  miseEnPageChoisie: string | null
+  miseEnPageIndisponible: boolean
+  message: string | null
+  profilsActifs: string[]
+  profilsParDefaut: boolean
+  profilsIndisponibles: string[]
+}
 
 /** Rubrique d'un profil actif portée par un élément (schéma `RubriqueElementVeille`). */
 export interface RubriqueElementVeille {
@@ -97,9 +106,20 @@ export function lireCatalogueProfils(signal?: AbortSignal): Promise<ProfilCatalo
   return appelerApi<ProfilCatalogue[]>('/api/v1/catalogue/profils', { signal })
 }
 
-/** Préférences appliquées : profils actifs, profils par défaut et profils retirés du catalogue. */
+/**
+ * Préférences appliquées : mise en page, profils actifs, profils par défaut et profils retirés du
+ * catalogue. Lecture de `GET /api/v1/preferences` partagée par la veille, les profils et la mise en page.
+ */
 export function lirePreferences(signal?: AbortSignal): Promise<PreferencesEffectives> {
   return appelerApi<PreferencesEffectives>('/api/v1/preferences', { signal })
+}
+
+/** Enregistre la mise en page choisie et renvoie les préférences effectives (AFF-01, AFF-03). */
+export function choisirMiseEnPage(miseEnPage: string): Promise<PreferencesEffectives> {
+  return appelerApi<PreferencesEffectives>('/api/v1/preferences/mise-en-page', {
+    methode: 'PUT',
+    corps: { miseEnPage },
+  })
 }
 
 /**

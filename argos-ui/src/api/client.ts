@@ -129,10 +129,6 @@ function getJson<T>(path: string): Promise<T> {
   return appelerApi<T>(path)
 }
 
-function putJson<T>(path: string, body: unknown): Promise<T> {
-  return appelerApi<T>(path, { methode: 'PUT', corps: body })
-}
-
 function postJson<T>(path: string): Promise<T> {
   return appelerApi<T>(path, { methode: 'POST' })
 }
@@ -158,18 +154,7 @@ export function fetchMoi(): Promise<CompteCourant> {
   return getJson<CompteCourant>('/api/v1/moi')
 }
 
-// --- Préférences et catalogue (AFF-01, AFF-03, PRF-01) ---------------------
-
-/** Réponse de `GET /api/v1/preferences` (schéma OpenAPI `PreferencesEffectives`). */
-export interface PreferencesEffectives {
-  miseEnPage: string
-  miseEnPageChoisie: string | null
-  miseEnPageIndisponible: boolean
-  message: string | null
-  profilsActifs: string[]
-  profilsParDefaut: boolean
-  profilsIndisponibles: string[]
-}
+// --- Catalogue des mises en page (AFF-01, AFF-03) ------------------------------
 
 /** Élément de `GET /api/v1/catalogue/mises-en-page` (schéma `MiseEnPageCatalogue`). */
 export interface MiseEnPageCatalogue {
@@ -179,16 +164,8 @@ export interface MiseEnPageCatalogue {
   parDefaut: boolean
 }
 
-export function fetchPreferences(): Promise<PreferencesEffectives> {
-  return getJson<PreferencesEffectives>('/api/v1/preferences')
-}
-
 export function fetchMisesEnPage(): Promise<MiseEnPageCatalogue[]> {
   return getJson<MiseEnPageCatalogue[]>('/api/v1/catalogue/mises-en-page')
-}
-
-export function choisirMiseEnPage(miseEnPage: string): Promise<PreferencesEffectives> {
-  return putJson<PreferencesEffectives>('/api/v1/preferences/mise-en-page', { miseEnPage })
 }
 
 // --- Alertes du poste (ALR-06, NOT-01 à NOT-06) -----------------------------

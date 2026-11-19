@@ -40,6 +40,8 @@ import io.restassured.path.json.JsonPath;
 class RechercheVeilleTest {
 
     private static final Instant MAINTENANT = Instant.now();
+    /** Statut observé pour {@code horizon=abc} (caractérisation). */
+    private static final int STATUT_HORIZON_NON_ENTIER = 404;
 
     @Inject
     TestDb db;
@@ -310,6 +312,15 @@ class RechercheVeilleTest {
         });
         assertEquals(0, visibles);
         assertEquals(1, db.count("SELECT count(*) FROM workspace_vue WHERE id = '" + id + "'"));
+    }
+
+    /**
+     * Caractérisation : un horizon non entier n'est pas converti en {@code Integer} par RESTEasy Reactive ; la réponse
+     * est figée telle qu'observée avant le regroupement des paramètres dans {@link ParametresRecherche}.
+     */
+    @Test
+    void horizonNonEntier() {
+        Api.en("oscar").queryParam("horizon", "abc").get("/api/v1/recherche").then().statusCode(STATUT_HORIZON_NON_ENTIER);
     }
 
     /** Entrées non fiables : filtres refusés, saisie jamais interprétée comme SQL, liens non http écartés. */

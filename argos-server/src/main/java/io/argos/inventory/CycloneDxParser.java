@@ -37,6 +37,18 @@ public final class CycloneDxParser {
     }
 
     public static ParsedInventory parse(byte[] document, long maxBytes) {
+        JsonNode root = racine(document, maxBytes);
+        String specVersion = specVersion(root);
+        JsonNode components = composants(root);
+        Optional<Instant> sourceDate = dateSource(root);
+        Lecture lecture = new Lecture(directRefs(root).orElse(null));
+        lecture.lire(components);
+        return new ParsedInventory(specVersion, sourceDate.orElse(null), List.copyOf(lecture.items.values()), lecture.ignored,
+                List.copyOf(lecture.signaled));
+    }
+
+    /** Racine du document : taille bornée, JSON lisible et objet. */
+    private static JsonNode racine(byte[] document, long maxBytes) {
         if (document.length > maxBytes) {
             throw new InvalidDocumentException("document de " + document.length + " octets au-delà de la taille maximale");
         }
@@ -49,6 +61,11 @@ public final class CycloneDxParser {
         if (root == null || !root.isObject()) {
             throw new InvalidDocumentException("le document n'est pas un objet JSON");
         }
+        return root;
+    }
+
+    /** Version de schéma d'un document CycloneDX, parmi {@link #ACCEPTED_SPEC_VERSIONS}. */
+    private static String specVersion(JsonNode root) {
         if (!"CycloneDX".equals(root.path("bomFormat").asText())) {
             throw new InvalidDocumentException("bomFormat absent ou différent de CycloneDX");
         }
@@ -57,44 +74,71 @@ public final class CycloneDxParser {
             throw new InvalidDocumentException("version de schéma CycloneDX non acceptée : '" + specVersion
                     + "' (acceptées : 1.5, 1.6)");
         }
+        return specVersion;
+    }
+
+    /** Composants de premier niveau : tableau, ou nœud absent si le document n'en déclare pas. */
+    private static JsonNode composants(JsonNode root) {
         JsonNode components = root.path("components");
         if (!components.isMissingNode() && !components.isArray()) {
             throw new InvalidDocumentException("champ components non conforme");
         }
-        Instant sourceDate = null;
+        return components;
+    }
+
+    /** Date de la SBOM ({@code metadata.timestamp}), absente si le document n'en déclare pas. */
+    private static Optional<Instant> dateSource(JsonNode root) {
         String timestamp = root.path("metadata").path("timestamp").asText(null);
-        if (timestamp != null) {
-            try {
-                sourceDate = Instant.parse(timestamp);
-            } catch (DateTimeParseException e) {
-                throw new InvalidDocumentException("metadata.timestamp illisible", e);
+        if (timestamp == null) {
+            return Optional.empty();
+        }
+        try {
+            return Optional.of(Instant.parse(timestamp));
+        } catch (DateTimeParseException e) {
+            throw new InvalidDocumentException("metadata.timestamp illisible", e);
+        }
+    }
+
+    /**
+     * Lecture des composants, imbriqués compris, en largeur : un composant à PURL exploitable entre dans
+     * l'inventaire (un doublon direct l'emporte sur les autres), les autres sont comptés et signalés.
+     */
+    private static final class Lecture {
+
+        /** Références directes du composant racine ; {@code null} si le graphe n'est pas exploitable. */
+        private final Set<String> direct;
+        private final Map<String, ParsedInventory.Item> items = new LinkedHashMap<>();
+        private final List<ParsedInventory.IgnoredComponent> signaled = new ArrayList<>();
+        private int ignored;
+
+        private Lecture(Set<String> direct) {
+            this.direct = direct;
+        }
+
+        void lire(JsonNode components) {
+            Deque<JsonNode> pending = new ArrayDeque<>();
+            components.forEach(pending::add);
+            while (!pending.isEmpty()) {
+                JsonNode c = pending.poll();
+                c.path("components").forEach(pending::add);
+                String declaredPurl = c.path("purl").asText(null);
+                PackageKey.parse(declaredPurl).ifPresentOrElse(purl -> retenir(c, purl), () -> ecarter(c, declaredPurl));
             }
         }
 
-        Optional<Set<String>> direct = directRefs(root);
-        Map<String, ParsedInventory.Item> items = new LinkedHashMap<>();
-        int ignored = 0;
-        List<ParsedInventory.IgnoredComponent> signaled = new ArrayList<>();
-        Deque<JsonNode> pending = new ArrayDeque<>();
-        components.forEach(pending::add);
-        while (!pending.isEmpty()) {
-            JsonNode c = pending.poll();
-            c.path("components").forEach(pending::add);
-            String declaredPurl = c.path("purl").asText(null);
-            Optional<PackageKey.Purl> purl = PackageKey.parse(declaredPurl);
-            if (purl.isEmpty()) {
-                ignored++;
-                signal(signaled, c, declaredPurl);
-                continue;
-            }
-            String version = purl.get().version() != null ? purl.get().version() : c.path("version").asText(null);
+        private void retenir(JsonNode c, PackageKey.Purl purl) {
+            String version = purl.version() != null ? purl.version() : c.path("version").asText(null);
             String bomRef = c.path("bom-ref").asText(null);
-            Boolean transitive = direct.map(d -> bomRef == null ? null : !d.contains(bomRef)).orElse(null);
-            String identity = purl.get().key() + "@" + (version == null ? "" : version);
-            items.merge(identity, new ParsedInventory.Item(purl.get().key(), c.path("purl").asText(), version, transitive),
+            Boolean transitive = direct == null || bomRef == null ? null : !direct.contains(bomRef);
+            String identity = purl.key() + "@" + (version == null ? "" : version);
+            items.merge(identity, new ParsedInventory.Item(purl.key(), c.path("purl").asText(), version, transitive),
                     (a, b) -> Boolean.FALSE.equals(a.transitive()) ? a : b);
         }
-        return new ParsedInventory(specVersion, sourceDate, List.copyOf(items.values()), ignored, List.copyOf(signaled));
+
+        private void ecarter(JsonNode c, String declaredPurl) {
+            ignored++;
+            signal(signaled, c, declaredPurl);
+        }
     }
 
     /** Décrit un composant écarté, tant que la liste n'atteint pas {@link ParsedInventory#MAX_SIGNALED} entrées. */
@@ -104,21 +148,21 @@ public final class CycloneDxParser {
         }
         String reason = declaredPurl == null || declaredPurl.isBlank() ? ParsedInventory.IgnoredComponent.SANS_PURL
                 : ParsedInventory.IgnoredComponent.PURL_INVALIDE;
-        signaled.add(new ParsedInventory.IgnoredComponent(text(component, "name"), text(component, "group"),
-                text(component, "version"), reason));
+        signaled.add(new ParsedInventory.IgnoredComponent(text(component, "name").orElse(null),
+                text(component, "group").orElse(null), text(component, "version").orElse(null), reason));
     }
 
     /** Champ texte d'un composant, borné à {@value #MAX_FIELD} caractères ; absent s'il est vide. */
-    private static String text(JsonNode component, String field) {
+    private static Optional<String> text(JsonNode component, String field) {
         JsonNode value = component.path(field);
         if (!value.isValueNode()) {
-            return null;
+            return Optional.empty();
         }
         String s = value.asText().strip();
         if (s.isEmpty()) {
-            return null;
+            return Optional.empty();
         }
-        return s.length() > MAX_FIELD ? s.substring(0, MAX_FIELD) : s;
+        return Optional.of(s.length() > MAX_FIELD ? s.substring(0, MAX_FIELD) : s);
     }
 
     /** Références des dépendances directes du composant racine, si le graphe est exploitable. */

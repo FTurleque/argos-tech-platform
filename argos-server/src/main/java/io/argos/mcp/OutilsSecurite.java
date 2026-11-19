@@ -245,41 +245,89 @@ public class OutilsSecurite {
             @ToolArg(name = "limit", description = "Nombre maximal de signaux (1 à 50, 20 par défaut).", required = false) Integer limite) {
         Map<String, Object> arguments = parametres("query", requete, "technologies", technologies, "packages", paquets,
                 "sources", sources, "project_ids", projets, "severity", gravite, "horizon_days", horizon, "limit", limite);
-        return garde.appeler("search_signals", arguments, appelant -> {
+        DemandeSignaux demande = new DemandeSignaux(requete, technologies, paquets, sources, projets, gravite, horizon, limite);
+        return garde.appeler("search_signals", arguments, appelant -> rechercherSignaux(appelant, demande.criteres()));
+    }
+
+    /**
+     * Arguments bruts de {@code search_signals}, dans l'ordre et sous les noms du contrat MCP ; validés par
+     * {@link #criteres()}.
+     */
+    record DemandeSignaux(String requete, List<String> technologies, List<String> paquets, List<String> sources,
+            List<String> projets, String gravite, Integer horizon, Integer limite) {
+
+        /**
+         * Critères validés, paramètre par paramètre dans l'ordre du contrat, puis exigence d'au moins un mot ou
+         * un filtre.
+         *
+         * @throws ParametreInvalide au premier paramètre invalide, ou sans aucun mot ni filtre
+         */
+        CriteresSignaux criteres() {
             String texte = requete == null || requete.isBlank() ? null : Parametres.obligatoire("query", requete);
             List<String> t = Parametres.liste("technologies", technologies);
-            List<String> k = Parametres.liste("packages", paquets).stream()
-                    .map(v -> PackageKey.parse(v).map(PackageKey.Purl::key).orElse(v)).toList();
+            List<String> k = clesDePaquets();
             List<String> s = Parametres.liste("sources", sources).stream().map(v -> v.toUpperCase(Locale.ROOT)).toList();
+            Set<UUID> ids = identifiantsDeProjets();
+            Set<String> gravites = gravitesRetenues();
+            Instant depuis = horizon == null ? null
+                    : Instant.now().minus(Duration.ofDays(Parametres.borne("horizon_days", horizon, 30, 1, 3650)));
+            int n = Parametres.borne("limit", limite, 20, 1, 50);
+            RechercheVeille.Criteres recherche = new RechercheVeille.Criteres(texte, Set.of(RechercheVeille.AVIS_SECURITE),
+                    ids, Set.copyOf(t), gravites, depuis, Set.copyOf(k), Set.copyOf(s));
+            if (sansMotNiFiltre(recherche)) {
+                throw new ParametreInvalide("query, technologies, packages, sources, project_ids, severity ou horizon_days :"
+                        + " au moins un mot ou un filtre est requis.");
+            }
+            return new CriteresSignaux(ids, recherche, n);
+        }
+
+        /** Paquets en clé Argos ; une valeur qui n'est pas une PURL reconnue est gardée telle quelle. */
+        private List<String> clesDePaquets() {
+            return Parametres.liste("packages", paquets).stream()
+                    .map(v -> PackageKey.parse(v).map(PackageKey.Purl::key).orElse(v)).toList();
+        }
+
+        /** Identifiants de projets, dans l'ordre donné et sans doublon. */
+        private Set<UUID> identifiantsDeProjets() {
             Set<UUID> ids = new LinkedHashSet<>();
             for (String projet : Parametres.liste("project_ids", projets)) {
                 ids.add(Parametres.identifiant("project_ids", projet));
             }
-            Set<String> gravites = null;
-            if (gravite != null && !gravite.isBlank()) {
-                if (!Gravite.reconnue(gravite)) {
-                    throw new ParametreInvalide("severity : LOW, MODERATE, MEDIUM, HIGH ou CRITICAL attendu.");
-                }
-                gravites = Gravite.auMoins(gravite);
+            return ids;
+        }
+
+        /** Gravités au moins égales à la gravité minimale ; {@code null} sans gravité demandée. */
+        private Set<String> gravitesRetenues() {
+            if (gravite == null || gravite.isBlank()) {
+                return null;
             }
-            Instant depuis = horizon == null ? null
-                    : Instant.now().minus(Duration.ofDays(Parametres.borne("horizon_days", horizon, 30, 1, 3650)));
-            int n = Parametres.borne("limit", limite, 20, 1, 50);
-            if (texte == null && t.isEmpty() && k.isEmpty() && s.isEmpty() && ids.isEmpty() && gravites == null
-                    && depuis == null) {
-                throw new ParametreInvalide("query, technologies, packages, sources, project_ids, severity ou horizon_days :"
-                        + " au moins un mot ou un filtre est requis.");
+            if (!Gravite.reconnue(gravite)) {
+                throw new ParametreInvalide("severity : LOW, MODERATE, MEDIUM, HIGH ou CRITICAL attendu.");
             }
-            ids.forEach(id -> exigerProjetVisible(appelant, id, inventaires));
-            RechercheVeille.Criteres criteres = new RechercheVeille.Criteres(texte, Set.of(RechercheVeille.AVIS_SECURITE),
-                    ids, Set.copyOf(t), gravites, depuis, Set.copyOf(k), Set.copyOf(s));
-            List<SignalResume> resultats = new ArrayList<>();
-            for (RechercheVeille.Element e : recherche.rechercher(criteres, appelant.accountId(),
-                    appelant.memberWorkspaces(), 0, n).elements()) {
-                signaux.find(e.id()).ifPresent(v -> resultats.add(resume(v, e)));
-            }
-            return new Signaux(resultats.size(), resultats);
-        });
+            return Gravite.auMoins(gravite);
+        }
+
+        private static boolean sansMotNiFiltre(RechercheVeille.Criteres c) {
+            return c.texte() == null && c.technologies().isEmpty() && c.paquets().isEmpty() && c.sources().isEmpty()
+                    && c.projets().isEmpty() && c.gravites() == null && c.depuis() == null;
+        }
+    }
+
+    /**
+     * Critères validés de {@code search_signals} : projets demandés dans l'ordre donné (contrôlés un à un avant
+     * la recherche), critères de la recherche de veille et nombre maximal de signaux.
+     */
+    record CriteresSignaux(Set<UUID> projets, RechercheVeille.Criteres recherche, int limite) {
+    }
+
+    private Signaux rechercherSignaux(Caller appelant, CriteresSignaux criteres) {
+        criteres.projets().forEach(id -> exigerProjetVisible(appelant, id, inventaires));
+        List<SignalResume> resultats = new ArrayList<>();
+        for (RechercheVeille.Element e : recherche.rechercher(criteres.recherche(), appelant.accountId(),
+                appelant.memberWorkspaces(), 0, criteres.limite()).elements()) {
+            signaux.find(e.id()).ifPresent(v -> resultats.add(resume(v, e)));
+        }
+        return new Signaux(resultats.size(), resultats);
     }
 
     private SignalResume resume(SignalQueries.SignalView s, RechercheVeille.Element e) {
