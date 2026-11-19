@@ -89,6 +89,18 @@ async function charger(): Promise<void> {
   }
 }
 
+/** Relit le seul contenu de « Ma veille » ; un échec laisse le contenu affiché et le signale. */
+async function rechargerVeille(): Promise<void> {
+  try {
+    veille.value = await lireVeille()
+    composeeLe.value = new Date().toISOString()
+    erreur.value = ''
+  } catch (e) {
+    erreur.value =
+      e instanceof ApiError ? messageErreurVeille('veille', e.status, e.message) : 'Erreur inattendue.'
+  }
+}
+
 // Gestion des abonnements (ABO-07, ABO-08) : l'état affiché est celui renvoyé par le serveur, qui décide
 // seul des droits. La suppression, définitive, est confirmée dans la page avant l'appel.
 const actionEnCours = ref<string | null>(null)
@@ -115,6 +127,8 @@ async function agir(abonnement: Abonnement, action: ActionAbonnement): Promise<v
       abonnements.value = remplacerAbonnement(abonnements.value, modifie)
       annonceAbonnement.value = `${nomAbonnement(modifie)} : ${libelleEtat(modifie.state).toLowerCase()}.`
     }
+    // Les éléments de « Ma veille » dépendent des abonnements actifs (P-4) : ils sont relus après l'action.
+    await rechargerVeille()
   } catch (e) {
     const statut = e instanceof ApiError ? e.status : undefined
     erreurAbonnement.value =
