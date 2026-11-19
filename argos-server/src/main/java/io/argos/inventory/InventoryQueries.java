@@ -56,8 +56,14 @@ public class InventoryQueries {
             List<ParsedInventory.IgnoredComponent> ignoredComponents) {
     }
 
-    /** Projet lisible par un compte : identifiant, espace et nom. */
-    public record ProjectSummary(UUID id, UUID workspaceId, String name) {
+    /**
+     * Synthèse de l'inventaire de référence d'un projet, sans la liste des composants (décision G5 du porteur du
+     * projet, 2026-11-19) : mêmes champs que {@link InventoryView}, {@code components} remplacé par
+     * {@code componentCount}, nombre de composants inventoriés.
+     */
+    public record InventorySummary(UUID projectId, String origin, Instant sourceDate, Long ageDays, boolean obsolete,
+            String specVersion, Instant importedAt, long componentCount, int ignoredCount,
+            List<ParsedInventory.IgnoredComponent> ignoredComponents) {
     }
 
     /** Projet listé pour un compte : identifiant, espace (identifiant et nom) et nom du projet. */
@@ -105,52 +111,61 @@ public class InventoryQueries {
 
     @Transactional
     public Optional<InventoryView> inventory(UUID projectId, UUID accountId) {
-        String sql = "SELECT origin, source_date, spec_version, imported_at, ignored_count, ignored_components::text"
-                + " FROM inventory WHERE project_id = ?";
         try (Connection c = dataSource.getConnection()) {
             ContexteBase.appliquer(c, new ContexteBase.Contexte(accountId, null, null));
-            try (PreparedStatement ps = c.prepareStatement(sql)) {
-                ps.setObject(1, projectId);
-                try (ResultSet rs = ps.executeQuery()) {
-                    if (!rs.next()) {
-                        return Optional.empty();
-                    }
-                    String origin = rs.getString(1);
-                    Instant sourceDate = instant(rs, 2);
-                    Long age = sourceDate == null ? null : Duration.between(sourceDate, Instant.now()).toDays();
-                    return Optional.of(new InventoryView(projectId, origin, sourceDate, age, sbomObsolete(origin, sourceDate),
-                            rs.getString(3), instant(rs, 4), components(c, projectId), rs.getInt(5), ignored(rs.getString(6))));
-                }
+            Optional<InventorySummary> summary = summary(c, projectId);
+            if (summary.isEmpty()) {
+                return Optional.empty();
             }
+            InventorySummary s = summary.get();
+            return Optional.of(new InventoryView(projectId, s.origin(), s.sourceDate(), s.ageDays(), s.obsolete(),
+                    s.specVersion(), s.importedAt(), components(c, projectId), s.ignoredCount(), s.ignoredComponents()));
         } catch (SQLException e) {
             throw new IllegalStateException("lecture de l'inventaire impossible", e);
         }
     }
 
-    /** Projets lisibles par le compte (RLS sous {@code argos_app}), par nom. */
+    /**
+     * Synthèse de l'inventaire de référence d'un projet, sans la liste des composants (décision G5 du porteur du
+     * projet, 2026-11-19) : origine, dates, âge, obsolescence, nombre de composants inventoriés et composants
+     * ignorés faute de PURL. Lecture sous {@code argos_app} avec le compte : vide si le projet n'a pas
+     * d'inventaire ou s'il n'est pas lisible par le compte (RLS de {@code inventory}).
+     */
     @Transactional
-    public List<ProjectSummary> visibleProjects(UUID accountId) {
-        List<ProjectSummary> projects = new ArrayList<>();
-        String sql = "SELECT id, workspace_id, name FROM project ORDER BY name, id";
+    public Optional<InventorySummary> summary(UUID projectId, UUID accountId) {
         try (Connection c = dataSource.getConnection()) {
             ContexteBase.appliquer(c, new ContexteBase.Contexte(accountId, null, null));
-            try (PreparedStatement ps = c.prepareStatement(sql); ResultSet rs = ps.executeQuery()) {
-                while (rs.next()) {
-                    projects.add(new ProjectSummary(rs.getObject(1, UUID.class), rs.getObject(2, UUID.class),
-                            rs.getString(3)));
-                }
-            }
+            return summary(c, projectId);
         } catch (SQLException e) {
-            throw new IllegalStateException("lecture des projets impossible", e);
+            throw new IllegalStateException("lecture de l'inventaire impossible", e);
         }
-        return projects;
+    }
+
+    private Optional<InventorySummary> summary(Connection c, UUID projectId) throws SQLException {
+        String sql = "SELECT origin, source_date, spec_version, imported_at, ignored_count, ignored_components::text"
+                + " FROM inventory WHERE project_id = ?";
+        try (PreparedStatement ps = c.prepareStatement(sql)) {
+            ps.setObject(1, projectId);
+            try (ResultSet rs = ps.executeQuery()) {
+                if (!rs.next()) {
+                    return Optional.empty();
+                }
+                String origin = rs.getString(1);
+                Instant sourceDate = instant(rs, 2);
+                Long age = sourceDate == null ? null : Duration.between(sourceDate, Instant.now()).toDays();
+                long componentCount = count(c, "SELECT count(*) FROM component WHERE project_id = ?", projectId);
+                return Optional.of(new InventorySummary(projectId, origin, sourceDate, age, sbomObsolete(origin, sourceDate),
+                        rs.getString(3), instant(rs, 4), componentCount, rs.getInt(5), ignored(rs.getString(6))));
+            }
+        }
     }
 
     /**
      * Page des projets lisibles par le compte, triés par nom de projet, nom d'espace puis identifiant (tri
      * stable). Aucun filtre applicatif : la RLS de {@code project} sous {@code argos_app} limite la liste aux
      * espaces dont le compte est membre (ADR-0016). Page négative ramenée à 0, taille bornée à
-     * [1, {@value #MAX_PAGE_SIZE}].
+     * [1, {@value #MAX_PAGE_SIZE}]. Seule requête de liste des projets visibles : l'API REST et les outils MCP
+     * la partagent (décision G6 du porteur du projet, 2026-11-19).
      */
     @Transactional
     public ProjectPage projects(UUID accountId, int page, int size) {

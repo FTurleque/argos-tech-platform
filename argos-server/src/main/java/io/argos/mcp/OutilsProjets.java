@@ -63,29 +63,41 @@ public class OutilsProjets {
             Optional<UUID> id = Parametres.identifiantFacultatif("project_id", projet);
             if (id.isPresent()) {
                 OutilsSecurite.exigerProjetVisible(appelant, id.get(), inventaires);
-                List<ContexteProjet> un = inventaires.visibleProjects(appelant.accountId()).stream()
-                        .filter(p -> p.id().equals(id.get())).map(p -> contexte(appelant, p, true)).toList();
-                return new ContexteProjets(un.size(), un);
+                List<ContexteProjet> projetDemande = ProjetsVisibles.du(appelant.accountId(), inventaires)
+                        .filter(p -> p.id().equals(id.get())).limit(1).map(p -> detail(appelant, p)).toList();
+                return new ContexteProjets(projetDemande.size(), projetDemande);
             }
-            List<ContexteProjet> tous = inventaires.visibleProjects(appelant.accountId()).stream()
+            List<ContexteProjet> projets = ProjetsVisibles.du(appelant.accountId(), inventaires)
                     .filter(p -> appelant.memberOf(p.workspaceId())).limit(PROJETS_MAX)
-                    .map(p -> contexte(appelant, p, false)).toList();
-            return new ContexteProjets(tous.size(), tous);
+                    .map(p -> resume(appelant, p)).toList();
+            return new ContexteProjets(projets.size(), projets);
         });
     }
 
-    private ContexteProjet contexte(Caller appelant, InventoryQueries.ProjectSummary p, boolean avecComposants) {
-        Optional<InventoryQueries.InventoryView> inventaire = inventaires.inventory(p.id(), appelant.accountId());
-        Map<String, Long> niveaux = impacts.forProject(p.id(), appelant.accountId(), appelant.memberWorkspaces()).stream()
-                .collect(Collectors.groupingBy(ImpactQueries.ImpactView::level, TreeMap::new, Collectors.counting()));
+    /** Contexte d'un projet avec ses composants (au plus {@value #COMPOSANTS_MAX}). */
+    private ContexteProjet detail(Caller appelant, InventoryQueries.ProjectItem projet) {
+        Optional<InventoryQueries.InventoryView> inventaire = inventaires.inventory(projet.id(), appelant.accountId());
         List<InventoryQueries.ComponentView> composants = inventaire.map(InventoryQueries.InventoryView::components)
                 .orElse(List.of());
-        return new ContexteProjet(p.id(), p.name(), p.workspaceId(),
+        return new ContexteProjet(projet.id(), projet.name(), projet.workspaceId(),
                 inventaire.map(i -> new Inventaire(i.origin(), texte(i.sourceDate()), i.ageDays(), i.obsolete(),
                         i.components().size())).orElse(null),
-                niveaux,
-                avecComposants ? composants.stream().limit(COMPOSANTS_MAX)
-                        .map(c -> new Composant(c.purl(), c.version(), c.transitive())).toList() : List.of(),
-                avecComposants && composants.size() > COMPOSANTS_MAX);
+                alertesParNiveau(appelant, projet),
+                composants.stream().limit(COMPOSANTS_MAX).map(c -> new Composant(c.purl(), c.version(), c.transitive())).toList(),
+                composants.size() > COMPOSANTS_MAX);
+    }
+
+    /** Contexte d'un projet sans ses composants : synthèse de l'inventaire, sans lecture des composants (G5). */
+    private ContexteProjet resume(Caller appelant, InventoryQueries.ProjectItem projet) {
+        Optional<InventoryQueries.InventorySummary> synthese = inventaires.summary(projet.id(), appelant.accountId());
+        return new ContexteProjet(projet.id(), projet.name(), projet.workspaceId(),
+                synthese.map(s -> new Inventaire(s.origin(), texte(s.sourceDate()), s.ageDays(), s.obsolete(),
+                        Math.toIntExact(s.componentCount()))).orElse(null),
+                alertesParNiveau(appelant, projet), List.of(), false);
+    }
+
+    private Map<String, Long> alertesParNiveau(Caller appelant, InventoryQueries.ProjectItem projet) {
+        return impacts.forProject(projet.id(), appelant.accountId(), appelant.memberWorkspaces()).stream()
+                .collect(Collectors.groupingBy(ImpactQueries.ImpactView::level, TreeMap::new, Collectors.counting()));
     }
 }

@@ -5,7 +5,9 @@ import static org.hamcrest.Matchers.contains;
 import static org.hamcrest.Matchers.empty;
 import static org.hamcrest.Matchers.equalTo;
 import static org.hamcrest.Matchers.hasItems;
+import static org.hamcrest.Matchers.hasKey;
 import static org.hamcrest.Matchers.hasSize;
+import static org.hamcrest.Matchers.not;
 import static org.hamcrest.Matchers.notNullValue;
 import static org.hamcrest.Matchers.nullValue;
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -30,8 +32,9 @@ import io.argos.testsupport.TestDb;
 import io.quarkus.test.junit.QuarkusTest;
 
 /**
- * Consultation de l'inventaire par projet (INV-06 ; décisions F1 et F5 du porteur du projet, 2026-11-19) :
- * liste des projets visibles ({@code GET /api/v1/projects}) et composants inventoriés paginés
+ * Consultation de l'inventaire par projet (INV-06 ; décisions F1, F5 et G5 du porteur du projet, 2026-11-19) :
+ * liste des projets visibles ({@code GET /api/v1/projects}), synthèse sans composants
+ * ({@code GET /api/v1/projects/{id}/inventory/summary}) et composants inventoriés paginés
  * ({@code GET /api/v1/projects/{id}/inventory/components}) ; cloisonnement entre espaces, RLS sous
  * {@code argos_app}, bornes de pagination, tri stable, projet inconnu ou d'un autre espace, contrat OpenAPI.
  */
@@ -250,6 +253,74 @@ class ConsultationInventaireTest {
                 .body("items", empty());
     }
 
+    /**
+     * Décision G5 (porteur du projet, 2026-11-19) : synthèse de l'inventaire sans la liste des composants, mêmes
+     * valeurs que la réponse complète de {@code /inventory}, qui reste inchangée.
+     */
+    @Test
+    void syntheseSansComposantsEgaleALInventaireComplet() {
+        UUID projet = projects.create(espaceA, "api", null, null);
+        String sbom = "{\"bomFormat\":\"CycloneDX\",\"specVersion\":\"1.6\",\"version\":1,"
+                + "\"metadata\":{\"timestamp\":\"2026-11-18T00:00:00Z\",\"component\":{\"type\":\"application\",\"bom-ref\":\"root\",\"name\":\"api\"}},"
+                + "\"components\":[{\"type\":\"library\",\"bom-ref\":\"a\",\"name\":\"a\",\"purl\":\"pkg:npm/a@1.0.0\"},"
+                + "{\"type\":\"library\",\"bom-ref\":\"b\",\"name\":\"b\",\"purl\":\"pkg:npm/b@2.0.0\"},"
+                + "{\"type\":\"library\",\"name\":\"outil-interne\",\"group\":\"fr.exemple\",\"version\":\"1.0\"}],"
+                + "\"dependencies\":[{\"ref\":\"root\",\"dependsOn\":[\"a\"]}]}";
+        assertEquals("IMPORTED", inventories.importSbom(projet, bytes(sbom), "ci").status());
+        String chemin = "/api/v1/projects/" + projet + "/inventory";
+        io.restassured.path.json.JsonPath complet = Api.en("alice").when().get(chemin)
+                .then().statusCode(200).extract().jsonPath();
+
+        Api.en("alice").when().get(chemin + "/summary")
+                .then().statusCode(200)
+                .body("projectId", equalTo(projet.toString()))
+                .body("status", equalTo("AVAILABLE"))
+                .body("summary.projectId", equalTo(projet.toString()))
+                .body("summary.origin", equalTo("SBOM"))
+                .body("summary.sourceDate", equalTo(complet.getString("inventory.sourceDate")))
+                .body("summary.ageDays", equalTo(complet.getInt("inventory.ageDays")))
+                .body("summary.obsolete", equalTo(complet.getBoolean("inventory.obsolete")))
+                .body("summary.specVersion", equalTo("1.6"))
+                .body("summary.importedAt", equalTo(complet.getString("inventory.importedAt")))
+                .body("summary.componentCount", equalTo(2))
+                .body("summary.ignoredCount", equalTo(1))
+                .body("summary.ignoredComponents", hasSize(1))
+                .body("summary.ignoredComponents[0].name", equalTo("outil-interne"))
+                .body("summary.ignoredComponents[0].group", equalTo("fr.exemple"))
+                .body("summary.ignoredComponents[0].reason", equalTo("SANS_PURL"))
+                .body("summary.components", nullValue())
+                .body("inventory", nullValue());
+        assertEquals(2, complet.getList("inventory.components").size(), "réponse complète inchangée pour ses clients");
+    }
+
+    @Test
+    void syntheseProjetSansInventaire() {
+        UUID projet = projects.create(espaceA, "neuf", null, null);
+        Api.en("alice").when().get("/api/v1/projects/" + projet + "/inventory/summary")
+                .then().statusCode(200)
+                .body("projectId", equalTo(projet.toString()))
+                .body("status", equalTo("NO_SBOM"))
+                .body("summary", nullValue());
+    }
+
+    /** Cloisonnement de la synthèse : 404 pour un projet inconnu ou d'un autre espace (refus journalisé), RLS. */
+    @Test
+    void syntheseCloisonneeEntreEspaces() {
+        UUID secret = projects.create(espaceB, "Secret", null, null);
+        importer(secret, 3);
+        String chemin = "/api/v1/projects/" + secret + "/inventory/summary";
+
+        Api.en("alice").when().get("/api/v1/projects/" + UUID.randomUUID() + "/inventory/summary").then().statusCode(404);
+        String refus = Api.en("alice").when().get(chemin).then().statusCode(404).extract().asString();
+        assertTrue(!refus.contains("paquet-") && !refus.contains("Secret"), "le refus ne révèle rien de l'inventaire");
+        assertEquals(1, db.count("SELECT count(*) FROM refus_acces WHERE compte_id = '" + Api.compte("alice")
+                + "' AND ressource = 'GET " + chemin + "' AND motif = 'NON_MEMBRE'"));
+        given().when().get(chemin).then().statusCode(401);
+        Api.en("jules").when().get(chemin).then().statusCode(200).body("summary.componentCount", equalTo(3));
+        assertTrue(queries.summary(secret, Api.compte("alice")).isEmpty(), "synthèse d'un autre espace invisible sous argos_app");
+        assertEquals(3, queries.summary(secret, Api.compte("jules")).orElseThrow().componentCount());
+    }
+
     @Test
     void contratOpenApi() {
         Api.en("alice").queryParam("format", "json").when().get("/q/openapi")
@@ -264,6 +335,12 @@ class ConsultationInventaireTest {
                 .body("paths.'/api/v1/projects'.get.responses.'400'", notNullValue())
                 .body("paths.'/api/v1/projects'.get.parameters.find { it.name == 'size' }.schema.type", equalTo("integer"))
                 .body("paths.'/api/v1/projects/{projectId}/inventory'.get", notNullValue())
+                .body("paths.'/api/v1/projects/{projectId}/inventory/summary'.get", notNullValue())
+                .body("paths.'/api/v1/projects/{projectId}/inventory/summary'.get.responses.'404'", notNullValue())
+                .body("components.schemas.ProjectInventorySummary.properties.keySet()", hasItems("projectId", "status", "summary"))
+                .body("components.schemas.InventorySummary.properties.keySet()", hasItems("projectId", "origin", "sourceDate",
+                        "ageDays", "obsolete", "specVersion", "importedAt", "componentCount", "ignoredCount", "ignoredComponents"))
+                .body("components.schemas.InventorySummary.properties", not(hasKey("components")))
                 .body("components.schemas.ProjectPage.properties.keySet()", hasItems("items", "page", "size", "total"))
                 .body("components.schemas.ProjectItem.properties.keySet()", hasItems("id", "workspaceId", "workspaceName", "name"))
                 .body("components.schemas.ComponentPage.properties.keySet()",
