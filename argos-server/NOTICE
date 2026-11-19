@@ -1,11 +1,20 @@
-Serveur d'ARGOS (argos-server) — avis NOTICE de maven-artifact
-===============================================================
+Serveur d'ARGOS (argos-server) — avis NOTICE
+=============================================
 
-Avis NOTICE de la dépendance org.apache.maven:maven-artifact, ajoutée par la décision E3 du porteur
-du projet (2026-11-19), enregistré selon ADR-0021 (points 4 et 6) et l'Apache License 2.0, section 4 d.
-Ce fichier ne recense que cette dépendance : les avis NOTICE des autres dépendances Apache-2.0 livrées
-avec le serveur (Quarkus, ROME, etc.) restent dans leurs propres archives et ne sont pas consolidés ici.
+Ce fichier reproduit les avis que l'Apache License 2.0 (section 4 d) impose de conserver pour les
+dépendances introduites par une décision du projet et enregistrées selon ADR-0021 (points 4 et 6).
 Aucun code tiers n'est repris dans les sources du serveur.
+
+Liste complète des dépendances tierces livrées et de leurs licences, avec les avis NOTICE de chacune
+de leurs archives : fichier généré argos-server/target/THIRD-PARTY.txt (décision F3 du porteur du
+projet, 2026-11-19), produit par :
+
+    mvn -B -f argos-server/pom.xml -P licences validate
+    node scripts/verifier-licences-serveur.mjs
+
+La seconde commande échoue si une dépendance n'a aucune licence déclarée ou n'a que des licences
+non permissives, qu'ADR-0021 (point 4) n'admet pas sans décision explicite (GPL, LGPL, AGPL, MPL,
+SSPL, BUSL, CDDL…). Voir argos-server/README.md.
 
 org.apache.maven:maven-artifact (Maven Artifact 3.9.16, https://github.com/apache/maven)
   Dépendance non modifiée : ordre des versions Maven (ComparableVersion) pour la corrélation
