@@ -4,7 +4,7 @@
 |---|---|
 | Préfixe d'exigences | `INV` |
 | Spec de référence | `/openspec/specs/inventaire-sbom/spec.md` — absente : capacité non livrée |
-| Changement en cours | [`formaliser-chaine-securite-poc`](/openspec/changes/formaliser-chaine-securite-poc/specs/inventaire-sbom/spec.md) — proposé, non archivé ; [`automatiser-chaine-veille`](/openspec/changes/automatiser-chaine-veille/specs/inventaire-sbom/spec.md) — proposé, non implémenté (INV-07 à INV-10) |
+| Changement en cours | [`formaliser-chaine-securite-poc`](/openspec/changes/formaliser-chaine-securite-poc/specs/inventaire-sbom/spec.md) — proposé, non archivé ; [`automatiser-chaine-veille`](/openspec/changes/automatiser-chaine-veille/specs/inventaire-sbom/spec.md) — proposé, non archivé ; INV-07 à INV-10 implémentées par le volet B (branche `lot18/inventaire`, 2026-11-19) |
 | Statut de la capacité | **proposée**, implémentée dans `argos-server` (changement non archivé) : paquets `io.argos.scm`, `io.argos.inventory` |
 | Composants (arc42 §5) | `inventory`, `scm-connector`, adaptateur PostgreSQL |
 
@@ -29,8 +29,8 @@ Répondre de façon fiable à la question « quels composants, et dans quelles v
 
 ## Préconditions et déclencheurs
 
-- Le projet est suivi et rattaché à au moins un dépôt (glossaire « Repository »). [DÉCISION — porteur du projet, 2026-11-19 ; J6] Un projet peut regrouper plusieurs dépôts ; son inventaire est l'union des inventaires de ses dépôts (INV-10 du changement [`automatiser-chaine-veille`](/openspec/changes/automatiser-chaine-veille/proposal.md), [PROPOSITION]). Le code ne rattache aujourd'hui qu'un dépôt par projet [EXISTANT — `V4__projets_et_inventaires.sql`].
-- Déclencheur de l'import : [DÉCISION — porteur du projet, 2026-11-19 ; J3, Q-INV-1] interrogation périodique, quotidienne et configurable, des dépôts GitHub/GitLab configurés, en réutilisant la récupération existante de `scm-connector` ; l'import manuel existant reste possible ; aucun point d'entrée entrant (pas de webhook). Exigences INV-07 et INV-08 [PROPOSITION].
+- Le projet est suivi et rattaché à au moins un dépôt (glossaire « Repository »). [DÉCISION — porteur du projet, 2026-11-19 ; J6] Un projet peut regrouper plusieurs dépôts ; son inventaire est l'union des inventaires de ses dépôts (INV-10 du changement [`automatiser-chaine-veille`](/openspec/changes/automatiser-chaine-veille/proposal.md), [PROPOSITION]). Le code rattache à un projet zéro, un ou plusieurs dépôts, dont au plus un principal (table `project_repository`, migration V19 ; `io.argos.inventory.ProjectDirectory`) ; les projets antérieurs reçoivent leur dépôt principal à la migration. Aucune API ni écran n'administre les dépôts d'un projet (P-7 du changement) [EXISTANT — volet B, 2026-11-19].
+- Déclencheur de l'import : [DÉCISION — porteur du projet, 2026-11-19 ; J3, Q-INV-1] interrogation périodique, quotidienne et configurable, des dépôts GitHub/GitLab configurés, en réutilisant la récupération existante de `scm-connector` ; l'import manuel existant reste possible ; aucun point d'entrée entrant (pas de webhook). Exigences INV-07 et INV-08 [PROPOSITION]. Le passage quotidien est la tâche `inventory-import-quotidien` (`io.argos.inventory.ImportPlanifie`, `cron` `argos.inventory.import.cron`, 03:00 par défaut, fuseau `argos.alerting.fuseau`, `SKIP`), désactivée dans le profil de test et dans la pile E2E (`ARGOS_INVENTORY_IMPORT_CRON=off`) [EXISTANT — volet B].
 
 ## Entrées, sorties et validations
 
@@ -43,6 +43,8 @@ Répondre de façon fiable à la question « quels composants, et dans quelles v
 | Sortie : composants signalés à l'import | nombre total des composants écartés faute de PURL ; nom, groupe, version et motif (`SANS_PURL` : aucun PURL déclaré ; `PURL_INVALIDE` : PURL illisible) des 100 premiers | restitués avec l'inventaire (`ignoredCount`, `ignoredComponents` de `GET /api/v1/projects/{projectId}/inventory`) et affichés dans la vue d'inventaire d'`argos-ui`, web et desktop (section « Composants ignorés ») ; remplacés à chaque import | [DÉCISION] porteur du projet, 2026-11-18 (D6) et 2026-11-19 (E4) |
 | Sortie : projets visibles | identifiant, espace (identifiant et nom) et nom de chaque projet des espaces de l'utilisateur, par nom de projet, nom d'espace puis identifiant ; nombre total | `GET /api/v1/projects`, liste paginée (`page` à partir de 0, `size` de 1 à 200, défaut 50, ramenés aux bornes) ; liste de choix « Projet » de la vue d'inventaire d'`argos-ui` | [DÉCISION] porteur du projet, 2026-11-19 (F1) ; modalités [PROPOSITION] |
 | Sortie : composants inventoriés paginés | nom (clé du paquet sans `pkg:<type>/`), version, PURL, dépendance directe, transitive ou inconnue, par nom, version puis identifiant ; nombre total | `GET /api/v1/projects/{projectId}/inventory/components`, mêmes bornes ; section « Composants inventoriés » de la vue d'inventaire, pages de 20 | [DÉCISION] porteur du projet, 2026-11-19 (F5) ; modalités [PROPOSITION] |
+| Sortie : dépôts du projet | pour chaque dépôt, le principal d'abord : forge, identifiant, branche, principal, origine, date de la source et date du dernier import réussi, dernier échec postérieur à ce dernier import (motif sans jeton, date) | `repositories` de `GET /api/v1/projects/{projectId}/inventory/summary` ; tableau « Dépôts du projet » de la vue d'inventaire d'`argos-ui` ; liste vide pour un projet sans dépôt | [PROPOSITION] — INV-10-S1, volet B de `automatiser-chaine-veille` |
+| Sortie : dépôts d'un composant | dépôts du projet qui contiennent le composant (identifiant, forge, identifiant du dépôt) | `repositories` de chaque composant de `GET /api/v1/projects/{projectId}/inventory/components` ; colonne « Dépôts » de la vue d'inventaire pour un projet à plusieurs dépôts | [PROPOSITION] — INV-10-S1, volet B |
 | Entrée : SBOM récupérée sur la forge | octets et format reconnu à l'en-tête : CycloneDX JSON, CycloneDX XML, SPDX JSON (dont l'export du graphe de dépendances GitHub), SPDX étiquette-valeur, inconnu | seule une SBOM CycloneDX JSON (ou de format inconnu, alors soumise au contrôle CycloneDX) est importée ; un autre format reconnu est refusé avec un motif qui le nomme, l'inventaire en place est conservé | [EXISTANT] — `io.argos.scm.SbomDocument`, `InventoryService.refresh` ; [PROPOSITION] pour le refus nommé des formats SPDX et CycloneDX XML |
 
 ## Règles métier
@@ -61,20 +63,23 @@ Répondre de façon fiable à la question « quels composants, et dans quelles v
 | Pages de taille bornée (1 à 200, défaut 50, valeurs hors bornes ramenées), tri stable (composants : nom, version, identifiant ; projets : nom, espace, identifiant) ; projet inconnu ou d'un autre espace : 404, refus journalisé | INV-06 (INV-06-S2, INV-06-S3) | arc42 §8.10 ; design.md D7 | [PROPOSITION] |
 | Un paramètre de pagination non entier est refusé par 400 `DONNEE_INVALIDE`, sur toutes les listes paginées de l'API REST | INV-06 (INV-06-S2) | décision du porteur du projet, 2026-11-19 (G4) | [DÉCISION] |
 | La synthèse de l'inventaire d'un projet (nombres, dates, origine, composants ignorés) est fournie sans la liste des composants ; la vue ne charge que la synthèse et la page de composants affichée | INV-06 (INV-06-S4) | décision du porteur du projet, 2026-11-19 (G5) | [DÉCISION] |
-| Import quotidien, configurable, de l'inventaire de chaque dépôt configuré, par interrogation en lecture seule de la forge ; aucun webhook | INV-07 | décision J3 du porteur du projet, 2026-11-19 ; ADR-0031 | [PROPOSITION] — `automatiser-chaine-veille` |
-| L'import manuel existant reste possible ; les imports d'un même projet sont sérialisés | INV-08 | décision J3 du porteur du projet, 2026-11-19 | [PROPOSITION] — `automatiser-chaine-veille` |
-| Chaque import réussi recorrèle les avis connus pour le projet ; les impacts devenus sans objet sont résolus (COR-11) | INV-09 | décision J4 du porteur du projet, 2026-11-19 | [PROPOSITION] — `automatiser-chaine-veille` |
-| Un projet regroupe un ou plusieurs dépôts ; son inventaire est l'union des inventaires de ses dépôts | INV-10 | décision J6 du porteur du projet, 2026-11-19 | [PROPOSITION] — `automatiser-chaine-veille` |
+| Import quotidien, configurable, de l'inventaire de chaque dépôt configuré, par interrogation en lecture seule de la forge ; aucun webhook | INV-07 | décision J3 du porteur du projet, 2026-11-19 ; ADR-0031 | [PROPOSITION] — `automatiser-chaine-veille`, implémentée (volet B) |
+| L'import manuel existant reste possible ; les imports d'un même projet sont sérialisés | INV-08 | décision J3 du porteur du projet, 2026-11-19 | [PROPOSITION] — `automatiser-chaine-veille`, implémentée (volet B) |
+| Chaque import réussi recorrèle les avis connus pour le projet ; les impacts devenus sans objet sont résolus (COR-11) | INV-09 | décision J4 du porteur du projet, 2026-11-19 | [PROPOSITION] — `automatiser-chaine-veille` ; recorrélation implémentée (volet B), résolution COR-11 au volet C (jusque-là, l'impact sans objet est supprimé) |
+| Un projet regroupe un ou plusieurs dépôts ; son inventaire est l'union des inventaires de ses dépôts | INV-10 | décision J6 du porteur du projet, 2026-11-19 | [PROPOSITION] — `automatiser-chaine-veille`, implémentée (volet B) |
+| Un composant présent dans plusieurs dépôts est une seule ligne de l'inventaire ; son niveau d'impact se fonde sur sa meilleure occurrence (SBOM non obsolète, puis SBOM obsolète, puis manifestes) ; il est direct dès qu'un dépôt l'utilise directement | INV-10, COR-02, COR-06 | proposition P-7 du changement ; volet B | [PROPOSITION] |
+| Un dépôt refusé, en erreur, sans nouvelle SBOM ou dont la forge a épuisé son quota garde son dernier import réussi ; l'échec est enregistré avec le dépôt, sans jeton | INV-07-S2, INV-10-S2 | design.md du changement (« Gestion des erreurs ») ; volet B | [PROPOSITION] |
+| L'import manuel d'un projet remplace l'inventaire de son dépôt principal, ou, sans dépôt principal, l'inventaire « sans dépôt » du projet | INV-08 | proposition P-B1 (volet B, 2026-11-19) | [PROPOSITION] |
 
 ## Droits d'accès et restrictions
 
-L'inventaire appartient au projet et suit le cloisonnement par espace (ADR-0016, Proposé) : seuls les utilisateurs autorisés sur le projet le consultent. La liste des projets visibles n'applique aucun filtre d'espace dans sa requête : la RLS de `project` sous le rôle `argos_app` la limite aux espaces dont l'utilisateur est membre (INV-06-S1). Les exigences de cloisonnement des impacts sont portées par COR-08. Le cloisonnement de l'inventaire est appliqué et testé sur les points d'accès de consultation : `GET /api/v1/projects/{projectId}/inventory`, `GET /api/v1/projects/{projectId}/inventory/summary` et `GET /api/v1/projects/{projectId}/inventory/components` répondent 404 à un projet inconnu ou d'un espace dont l'appelant n'est pas membre, le second refus étant journalisé (motif `NON_MEMBRE`), et la RLS de `project`, `inventory` et `component` sous `argos_app` sert de garde-fou (INV-06-S3, `ConsultationInventaireTest`). Les rôles fins au sein d'un espace (ADR-0016, Proposé) relèvent de la capacité de contrôle d'accès.
+L'inventaire appartient au projet et suit le cloisonnement par espace (ADR-0016, Proposé) : seuls les utilisateurs autorisés sur le projet le consultent. La liste des projets visibles n'applique aucun filtre d'espace dans sa requête : la RLS de `project` sous le rôle `argos_app` la limite aux espaces dont l'utilisateur est membre (INV-06-S1). Les exigences de cloisonnement des impacts sont portées par COR-08. Le cloisonnement de l'inventaire est appliqué et testé sur les points d'accès de consultation : `GET /api/v1/projects/{projectId}/inventory`, `GET /api/v1/projects/{projectId}/inventory/summary` et `GET /api/v1/projects/{projectId}/inventory/components` répondent 404 à un projet inconnu ou d'un espace dont l'appelant n'est pas membre, le second refus étant journalisé (motif `NON_MEMBRE`), et la RLS de `project`, `inventory` et `component` sous `argos_app` sert de garde-fou (INV-06-S3, `ConsultationInventaireTest`). Les dépôts d'un projet, leur dernier import et les occurrences des composants (`project_repository`, `repository_inventory`, `component_occurrence`, migration V19) suivent la même règle : lecture seule sous `argos_app`, réservée aux membres de l'espace du projet (`argos_projet_lisible`), vérifiée par `ProjetMultiDepotsTest` et `CouvertureRlsTest`. L'import planifié s'exécute sous l'utilisateur de connexion, comme la collecte et la corrélation (traitement technique). Les rôles fins au sein d'un espace (ADR-0016, Proposé) relèvent de la capacité de contrôle d'accès.
 
 ## Effets de bord observables
 
 - remplacement de l'inventaire de référence à chaque nouvelle SBOM, et du signalement des composants écartés faute de PURL ;
-- nouvelle corrélation des signaux existants pour le projet après changement d'inventaire — attendu par la chaîne baseline v2.3 §3 ; [DÉCISION — porteur du projet, 2026-11-19 ; J4, Q-INV-2] à chaque import d'inventaire d'un projet, les avis connus sont recorrélés pour ce projet (INV-09, [PROPOSITION]) ; le code le fait déjà sur l'événement `InventoryReplaced` [EXISTANT — `io.argos.impact.CorrelationEngine#onInventoryReplaced`] ;
-- enregistrement des échecs d'import.
+- nouvelle corrélation des signaux existants pour le projet après changement d'inventaire — attendu par la chaîne baseline v2.3 §3 ; [DÉCISION — porteur du projet, 2026-11-19 ; J4, Q-INV-2] à chaque import d'inventaire d'un projet, les avis connus sont recorrélés pour ce projet (INV-09, [PROPOSITION]) ; le code le fait sur l'événement `InventoryReplaced` [EXISTANT — `io.argos.impact.CorrelationEngine#onInventoryReplaced`] ; depuis le volet B, la recorrélation parcourt aussi les signaux qui portent déjà un impact sur le projet, et le marqueur `inventory.recorrelation_pending`, posé par l'import, n'est effacé qu'après une recorrélation réussie ; un marqueur resté posé est repris au passage planifié suivant (INV-09-S4, P-10) ;
+- enregistrement des échecs d'import, rattachés au dépôt concerné, y compris les erreurs de forge (INV-07-S2).
 
 ## Qualités mesurables
 
@@ -90,36 +95,43 @@ L'inventaire appartient au projet et suit le cloisonnement par espace (ADR-0016,
 
 - **Question** : comment l'inventaire de référence d'un projet est-il remplacé par une nouvelle SBOM, et que se passe-t-il si elle est invalide ?
 - **Type** : UML séquence
-- **Portée** : cible proposée ; déclencheur : passage quotidien planifié ou import manuel (décision J3 du 2026-11-19, INV-07, INV-08 [PROPOSITION])
-- **Exigences** : INV-01, INV-02, INV-05, INV-07, INV-09
+- **Portée** : implémentée (volet B du changement `automatiser-chaine-veille`, 2026-11-19) ; déclencheur : passage quotidien planifié ou import manuel (décision J3 du 2026-11-19, INV-07, INV-08 [PROPOSITION])
+- **Exigences** : INV-01, INV-02, INV-05, INV-07, INV-08, INV-09
 
 ```mermaid
 sequenceDiagram
     participant Plan as quarkus-scheduler (passage quotidien)
-    participant Inv as inventory
+    participant Inv as inventory (ImportPlanifie, InventoryService)
     participant SCM as scm-connector
     participant Forge as «Software System» GitHub / GitLab
     participant DB as PostgreSQL
     participant Imp as impact-engine
 
     Plan->>Inv: échéance quotidienne (INV-07)
-    Inv->>SCM: lire la SBOM du dépôt configuré
-    SCM->>Forge: lecture seule de la branche principale
-    Forge-->>SCM: SBOM CycloneDX publiée par la CI du projet
-    SCM-->>Inv: transmettre la SBOM et le projet
-    Inv->>Inv: valider le document CycloneDX
-    alt SBOM exploitable
-        Inv->>DB: remplacer l'inventaire de référence (PURL, version, direct ou transitif)
-        Inv->>DB: enregistrer la date et l'origine SBOM
-        Inv->>DB: signaler les composants sans PURL (nombre, 100 premiers décrits, INV-01-S3)
-        Inv-)Imp: inventaire du projet modifié
-    else SBOM non conforme
-        Inv->>DB: enregistrer l'échec d'import et son motif
-        Note over Inv,DB: aucun composant du fichier n'est ajouté (INV-05)
+    Inv->>DB: projets au marqueur de recorrélation resté posé
+    Inv-)Imp: relancer leur recorrélation (INV-09-S4)
+    loop pour chaque dépôt de chaque projet
+        Inv->>SCM: lire la SBOM du dépôt
+        SCM->>Forge: lecture seule de la branche principale
+        Forge-->>SCM: SBOM CycloneDX publiée par la CI du projet
+        SCM-->>Inv: transmettre la SBOM
+        Inv->>Inv: valider le document CycloneDX
+        alt SBOM non conforme ou forge en erreur
+            Inv->>DB: enregistrer l'échec, son motif et le dépôt
+            Note over Inv,DB: le dépôt garde son dernier import (INV-05, INV-07-S2)
+        end
+    end
+    opt au moins un dépôt importé
+        Inv->>DB: verrou du projet (partagé avec l'import manuel, INV-08)
+        Inv->>DB: remplacer les occurrences des dépôts importés, recalculer l'union
+        Inv->>DB: enregistrer date et origine par dépôt, composants sans PURL (INV-01-S3)
+        Inv->>DB: poser le marqueur de recorrélation
+        Inv-)Imp: inventaire du projet modifié (après validation)
+        Imp->>DB: recorréler, puis effacer le marqueur
     end
 ```
 
-L'envoi vers `impact-engine` est asynchrone et matérialise l'effet de bord « nouvelle corrélation » : à chaque import réussi, les avis connus sont recorrélés pour le projet (décision J4 du 2026-11-19, INV-09 [PROPOSITION]). Aucun flux n'entre depuis la forge ou la CI : ARGOS interroge la forge (J3). Le devenir de l'inventaire précédent après un import refusé n'est pas documenté (Q-INV-3).
+L'envoi vers `impact-engine` est un événement CDI observé après la validation de la transaction d'import et matérialise l'effet de bord « nouvelle corrélation » : à chaque import réussi, les avis connus sont recorrélés pour le projet (décision J4 du 2026-11-19, INV-09 [PROPOSITION]). Aucun flux n'entre depuis la forge ou la CI : ARGOS interroge la forge (J3). Un import refusé conserve le dernier import réussi du dépôt (INV-07-S2, INV-10-S2) ; la question Q-INV-3 reste ouverte sur sa portée hors de ces scénarios.
 
 ### DF-INV-2 — Origine de l'inventaire d'un projet
 
@@ -185,7 +197,7 @@ La synthèse (origine, âge, obsolescence, nombre de composants) et les composan
 
 - **Question** : comment un projet regroupe-t-il ses dépôts, et comment son inventaire se déduit-il des leurs ?
 - **Type** : UML classes (modèle conceptuel)
-- **Portée** : cible proposée (changement `automatiser-chaine-veille`, décision J6 du 2026-11-19) ; aujourd'hui un projet n'a qu'un dépôt [EXISTANT]
+- **Portée** : implémentée (changement `automatiser-chaine-veille`, décision J6 du 2026-11-19, volet B : tables `project_repository`, `repository_inventory`, `component_occurrence` de la migration V19)
 - **Exigences** : INV-10, INV-07, INV-03
 
 ```mermaid
@@ -215,7 +227,7 @@ classDiagram
     Composant "0..*" -- "1..*" Depot : présent dans
 ```
 
-L'inventaire du projet est l'union des inventaires de ses dépôts (J6) : un composant présent dans deux dépôts n'y figure qu'une fois, avec ses dépôts ; chaque dépôt garde son origine, sa date et son dernier import réussi, si bien qu'un refus sur un dépôt ne retire rien des autres (INV-10-S2). Le passage quotidien importe chaque dépôt (INV-07). La règle de niveau d'un composant présent dans plusieurs dépôts (meilleure preuve parmi ses occurrences) est la proposition P-7 du changement [PROPOSITION].
+L'inventaire du projet est l'union des inventaires de ses dépôts (J6) : un composant présent dans deux dépôts n'y figure qu'une fois, avec ses dépôts ; chaque dépôt garde son origine, sa date et son dernier import réussi, si bien qu'un refus sur un dépôt ne retire rien des autres (INV-10-S2). Le passage quotidien importe chaque dépôt (INV-07). La règle de niveau d'un composant présent dans plusieurs dépôts (meilleure preuve parmi ses occurrences) est la proposition P-7 du changement [PROPOSITION]. La présence d'un composant dans un dépôt est une occurrence ; un composant sans occurrence est retiré de l'inventaire du projet, y compris quand le dépôt qui le contenait est détaché (INV-10-S3). Une occurrence sans dépôt provient d'un import manuel d'un projet sans dépôt principal (P-B1) [PROPOSITION].
 
 ## Critères d'acceptation
 
@@ -238,9 +250,19 @@ Interprétation introduite par l'implémentation, à valider [PROPOSITION] :
 - INV-01-S3 : la description des composants signalés est bornée à 100 entrées par import et chaque champ à 200 caractères ; au-delà, seul le nombre total est conservé. Un PURL présent mais illisible porte le motif `PURL_INVALIDE`, distinct de `SANS_PURL`.
 - INV-01, INV-05 : une SBOM SPDX ou CycloneDX XML trouvée sur la forge est reconnue et refusée avec le motif « SBOM <format> non acceptée : CycloneDX JSON 1.5 ou 1.6 attendu » ; elle n'est ni convertie ni importée, conformément à la décision Q-7. L'import de SPDX demanderait de modifier INV-01.
 
+Interprétations introduites par le volet B du changement `automatiser-chaine-veille` (2026-11-19), à valider [PROPOSITION] :
+
+- P-B1 — INV-08 : l'import manuel (méthodes de service `InventoryService.importSbom` et `importManifests`, sans point d'accès, P-1) remplace l'inventaire du dépôt principal du projet ; un projet sans dépôt principal reçoit un inventaire « sans dépôt » (occurrences sans dépôt), que le premier import d'un dépôt de ce projet remplace. Une API d'import manuel par dépôt n'est pas ouverte.
+- INV-10-S1 : dans la synthèse, l'origine, la date de la source et la date d'import restent celles du dépôt principal (ou, sans dépôt principal importé, du dernier dépôt importé), pour la compatibilité des clients existants ; le nombre de composants ignorés est la somme des dépôts et leur description réunit au plus 100 entrées, celles du dépôt de référence d'abord.
+- INV-07-S2 : le dernier échec d'un dépôt n'est restitué que s'il est postérieur à son dernier import réussi ; les erreurs de forge (dépôt introuvable, jeton refusé, quota épuisé, autre statut) sont enregistrées comme les refus, et apparaissent donc aussi dans `GET …/inventory/failures`.
+- INV-07 (quota) : un quota épuisé sur une forge pendant un passage arrête l'interrogation de cette forge jusqu'au passage suivant (issue `DEFERRED` pour ses autres dépôts) ; les autres forges continuent (design.md, « Gestion des erreurs »).
+- INV-08-S2 : les imports d'un même projet sont sérialisés par le verrou consultatif transactionnel `inventory:<projet>`, pris à l'écriture ; la lecture des forges se fait hors verrou et hors transaction. L'inventaire final est celui de l'écriture validée en dernier.
+- INV-10-S1 (IHM) : la colonne « Dépôts » des composants n'est affichée que pour un projet à plusieurs dépôts ; le tableau « Dépôts du projet » l'est dès qu'un dépôt est rattaché.
+- P-12 : l'heure par défaut du passage quotidien est 03:00 (`0 0 3 * * ?`), au fuseau commun `argos.alerting.fuseau`.
+
 ## Écarts constatés
 
-- Le code de `argos-server` implémente les règles de cette fiche (`io.argos.inventory`, `io.argos.scm` ; tests `argos-server/src/test/java/io/argos/chain/InventoryTest.java` et `DocumentParsingTest.java`). La consultation de l'inventaire s'exécute sous le rôle applicatif `argos_app` : la RLS des tables `project`, `inventory`, `component` et `inventory_import_failure` limite la lecture aux membres de l'espace du projet.
+- Le code de `argos-server` implémente les règles de cette fiche (`io.argos.inventory`, `io.argos.scm` ; tests `argos-server/src/test/java/io/argos/chain/InventoryTest.java` et `DocumentParsingTest.java`). La consultation de l'inventaire s'exécute sous le rôle applicatif `argos_app` : la RLS des tables `project`, `inventory`, `component`, `inventory_import_failure`, `project_repository`, `repository_inventory` et `component_occurrence` limite la lecture aux membres de l'espace du projet.
 - L'indicateur `obsolete` de la consultation ne vaut vrai que pour une SBOM ; un inventaire de repli (manifestes) n'est pas une SBOM, mais la corrélation ne lui accorde jamais le niveau `exact`.
 - Les niveaux des impacts sont calculés à la corrélation et enregistrés : une SBOM qui dépasse ensuite les 30 jours ne fait pas recalculer les impacts existants tant qu'aucun nouveau signal ni inventaire ne déclenche de corrélation (aucune tâche planifiée ne le fait à ce jour ; le passage quotidien d'INV-07 et la recorrélation d'INV-09, changement `automatiser-chaine-veille`, recalculent les niveaux à chaque import réussi, pas lorsqu'une SBOM inchangée est conservée).
 - `scm-connector` (`io.argos.scm.RepositoryFiles`) récupère la SBOM et les manifestes en lecture seule : GitLab, SBOM = artefact du job désigné sur la branche principale, fichiers par l'API des fichiers bruts, jeton `PRIVATE-TOKEN` ; GitHub, SBOM et fichiers par l'API des contenus en média brut, jeton `Bearer`. Les jetons sont lus dans la configuration (`argos.scm.gitlab.token`, `argos.scm.github.token`, variables d'environnement) ; le délai `argos.sources.http-timeout` borne l'établissement de la connexion et l'attente des en-têtes de réponse, la lecture du corps étant bornée en taille et non en durée. Une réponse 404 sur un fichier d'un dépôt existant signifie « absent » et ouvre le repli sur les manifestes ; un dépôt introuvable (`DepotIntrouvable` : corps `404 Project Not Found` de GitLab ; pour GitHub, dont le 404 est identique pour un fichier et un dépôt absents, un `GET /repos/:owner/:repo` répondant 404), un jeton refusé (401) ou un accès interdit (403 hors quota, `AccesRefuse`), un quota épuisé (`QuotaEpuise` : 429, ou 403 avec `x-ratelimit-remaining: 0`, `Retry-After` ou un message mentionnant une limite de débit, comme la limite secondaire GitHub signalée sans `Retry-After`), un autre statut, une redirection (jamais suivie) ou une réponse au-delà de `argos.inventory.max-document-bytes` font échouer le rafraîchissement (`ERROR`) sans repli ni modification de l'inventaire. Les segments `.` et `..` sont retirés des chemins, un dépôt GitHub hors de la forme `owner/repo` est refusé, le jeton n'apparaît dans aucun message. Les points d'accès utilisés ne sont pas paginés. Au cours d'un même rafraîchissement (`RepositoryFiles.Lecture`), le dépôt GitHub n'est vérifié qu'une fois, quel que soit le nombre de fichiers absents.
@@ -257,7 +279,7 @@ Interprétation introduite par l'implémentation, à valider [PROPOSITION] :
 - [DÉCISION — porteur du projet, 2026-11-19 ; G6] Une seule requête de liste des projets visibles : les outils MCP passent par la requête paginée `InventoryQueries.projects` (ou son équivalent unifié) ; `visibleProjects` disparaît si plus rien ne l'utilise ; comportement des outils MCP inchangé pour l'appelant (cloisonnement, contenu), tests MCP verts.
 - Les décisions G4, G5 et G6 sont implémentées (tâche 3.9, design.md D7, révision G) : `GET /api/v1/projects/{projectId}/inventory/summary` (`InventoryResource#summary`, `InventoryQueries.summary`) renvoie `{projectId, status, summary}`, `summary` portant les champs de l'inventaire de référence avec `componentCount` à la place de `components`, mêmes règles d'accès que `/inventory` (404 journalisé hors des espaces de l'appelant, RLS sous `argos_app`) ; `GET /api/v1/projects/{projectId}/inventory` est inchangé pour ses clients. La vue d'inventaire d'`argos-ui` (web et desktop) lit la synthèse et la page de composants affichée, jamais l'inventaire complet. Les paramètres `page`, `size`, `taille` et `limite` des listes paginées de l'API passent par `ParametresPagination` ; les bornes propres à chaque liste sont conservées. Les outils MCP `get_project_context` et `upcoming_releases` lisent les projets par `InventoryQueries.projects`, page après page (`io.argos.mcp.ProjetsVisibles`) ; `InventoryQueries.projects` est la seule requête de liste des projets visibles. Le résumé des projets de `get_project_context` lit la synthèse de l'inventaire et non ses composants.
 - ADR-0032 décrit les migrations V1 à V16 à sa date d'acceptation ; la migration V17 figure dans la liste à jour des migrations d'[arc42 §8.7](../architecture/arc42/08-concepts-transverses.md#87-persistance), qui fait foi pour les migrations suivantes. [DÉCISION — porteur du projet, 2026-11-19 ; F4] ADR-0032 n'est pas modifié ; l'écart est levé.
-- `InventoryService.refresh` n'a aucun déclencheur en production : ni tâche planifiée, ni point d'entrée REST. La décision J3 du 2026-11-19 (Q-INV-1) le fait appeler par un passage quotidien planifié (INV-07, changement `automatiser-chaine-veille`, volet B).
+- Écart levé par le volet B (2026-11-19) : l'import depuis les dépôts n'avait aucun déclencheur en production. La tâche planifiée `inventory-import-quotidien` (`ImportPlanifie`) appelle désormais `InventoryService.importerProjet` pour chaque projet ayant au moins un dépôt (décision J3, INV-07) ; `refresh` en est la forme à un dépôt, conservée. Aucun point d'entrée REST n'est ajouté.
 - « Import manuel existant » (décision J3) : aucun point d'accès REST, outil MCP ni écran ne déclenche un import ; seules les méthodes de service `InventoryService.importSbom`, `importManifests` et `refresh` existent, appelées par les tests. Le changement `automatiser-chaine-veille` les conserve sans ouvrir de nouvelle surface (proposition P-1) [PROPOSITION].
 - Une forge qui sert durablement une SBOM SPDX ou CycloneDX XML fait refuser chaque rafraîchissement (`REJECTED`) sans repli sur les manifestes : un inventaire existant reste en l'état et n'est plus mis à jour tant que la SBOM n'est ni retirée ni remplacée par une SBOM CycloneDX JSON, comme pour une SBOM CycloneDX invalide.
 
@@ -274,4 +296,4 @@ Interprétation introduite par l'implémentation, à valider [PROPOSITION] :
 
 ## Traçabilité
 
-Voir la matrice du changement : [`tasks.md`](/openspec/changes/formaliser-chaine-securite-poc/tasks.md#matrice-de-traçabilité). Les scénarios INV-01-S1 à INV-05-S1 sont vérifiés par `argos-server/src/test/java/io/argos/chain/InventoryTest.java` et `DocumentParsingTest.java` ; INV-01-S3 l'est aussi par `JeuReferenceCorrelationTest` (composant sans PURL du projet `outil-sans-purl`) et, pour l'affichage dans la vue d'inventaire d'`argos-ui`, par `argos-ui/tests/composants-ignores.test.mjs` (conversion, rendu, règles de l'écran), `argos-ui/tests/inventaire-projet.test.mjs` (synthèse, chargement, erreur et nouvelle tentative, annulation) et les parcours E2E `e2e/tests/inventaire.spec.ts` (portail web) et `e2e/desktop/inventaire.spec.ts` (client desktop). Les scénarios INV-06-S1 à INV-06-S4 sont vérifiés par `argos-server/src/test/java/io/argos/chain/ConsultationInventaireTest.java` (cloisonnement entre espaces, RLS sous `argos_app`, bornes de pagination, paramètres non entiers, tri stable, projet inconnu ou d'un autre espace, synthèse sans composants égale à l'inventaire complet, contrat OpenAPI), `argos-server/src/test/java/io/argos/api/ParametresPaginationTest.java` (paramètres non entiers des autres listes paginées de l'API, décision G4), `argos-server/src/test/java/io/argos/mcp/CloisonnementMcpTest.java` (projets des outils MCP lus page après page, décision G6), `argos-ui/tests/inventaire-listes.test.mjs` (chemins, liste de choix, pages, chargements, rendu du tableau et de la pagination, accessibilité de l'écran), `argos-ui/tests/inventaire-projet.test.mjs` et `argos-ui/tests/composants-ignores.test.mjs` (synthèse lue sur `/inventory/summary`) et les mêmes parcours E2E (choix du projet dans la liste, seconde page atteinte au clavier, synthèse lue sans appel de l'inventaire complet). La récupération GitLab et GitHub est vérifiée par `argos-server/src/test/java/io/argos/chain/ScmContratEnregistreTest.java` (réponses enregistrées) et `ScmContractTest.java` (réponses composées), forges simulées par un serveur HTTP local (tâche 3.2). INV-07 à INV-10 : matrice du changement [`automatiser-chaine-veille`](/openspec/changes/automatiser-chaine-veille/tasks.md#matrice-de-traçabilité) (tests à écrire, volet B).
+Voir la matrice du changement : [`tasks.md`](/openspec/changes/formaliser-chaine-securite-poc/tasks.md#matrice-de-traçabilité). Les scénarios INV-01-S1 à INV-05-S1 sont vérifiés par `argos-server/src/test/java/io/argos/chain/InventoryTest.java` et `DocumentParsingTest.java` ; INV-01-S3 l'est aussi par `JeuReferenceCorrelationTest` (composant sans PURL du projet `outil-sans-purl`) et, pour l'affichage dans la vue d'inventaire d'`argos-ui`, par `argos-ui/tests/composants-ignores.test.mjs` (conversion, rendu, règles de l'écran), `argos-ui/tests/inventaire-projet.test.mjs` (synthèse, chargement, erreur et nouvelle tentative, annulation) et les parcours E2E `e2e/tests/inventaire.spec.ts` (portail web) et `e2e/desktop/inventaire.spec.ts` (client desktop). Les scénarios INV-06-S1 à INV-06-S4 sont vérifiés par `argos-server/src/test/java/io/argos/chain/ConsultationInventaireTest.java` (cloisonnement entre espaces, RLS sous `argos_app`, bornes de pagination, paramètres non entiers, tri stable, projet inconnu ou d'un autre espace, synthèse sans composants égale à l'inventaire complet, contrat OpenAPI), `argos-server/src/test/java/io/argos/api/ParametresPaginationTest.java` (paramètres non entiers des autres listes paginées de l'API, décision G4), `argos-server/src/test/java/io/argos/mcp/CloisonnementMcpTest.java` (projets des outils MCP lus page après page, décision G6), `argos-ui/tests/inventaire-listes.test.mjs` (chemins, liste de choix, pages, chargements, rendu du tableau et de la pagination, accessibilité de l'écran), `argos-ui/tests/inventaire-projet.test.mjs` et `argos-ui/tests/composants-ignores.test.mjs` (synthèse lue sur `/inventory/summary`) et les mêmes parcours E2E (choix du projet dans la liste, seconde page atteinte au clavier, synthèse lue sans appel de l'inventaire complet). La récupération GitLab et GitHub est vérifiée par `argos-server/src/test/java/io/argos/chain/ScmContratEnregistreTest.java` (réponses enregistrées) et `ScmContractTest.java` (réponses composées), forges simulées par un serveur HTTP local (tâche 3.2). INV-07 à INV-10 : matrice du changement [`automatiser-chaine-veille`](/openspec/changes/automatiser-chaine-veille/tasks.md#matrice-de-traçabilité) ; vérifiés le 2026-11-19 (volet B) par `argos-server/src/test/java/io/argos/chain/ImportPlanifieTest.java` (INV-07-S1 à S4, INV-08-S1, S2 : forges simulées par les réponses enregistrées, imports concurrents sous le verrou du projet, aucune route entrante), `RecorrelationImportTest.java` (INV-09-S1 à S4), `ProjetMultiDepotsTest.java` (INV-10-S1 à S3, meilleure occurrence P-7, cloisonnement et RLS des nouvelles tables), `MigrationDepotsTest.java` (INV-10-S4, reprise des données de V19), `ConsultationInventaireTest.java` (contrat OpenAPI des dépôts) et `argos-ui/tests/inventaire-depots.test.mjs` (affichage des dépôts).

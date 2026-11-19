@@ -189,12 +189,12 @@ Les exigences ACC-07 à ACC-10 sont au statut [EXIGENCE] dans la spec de référ
 | Changement | Capacité | Exigences | Scénarios | Diagrammes métier | Questions ouvertes | Tests écrits |
 |---|---|---|---|---|---|---|
 | [`automatiser-chaine-veille`](/openspec/changes/automatiser-chaine-veille/proposal.md) | `collecte-avis-securite` (COL-09, COL-10) | 2 | 9 | 0 (DF-COL-1, DF-COL-2 mis à jour) | 0 | 9 |
-| | `inventaire-sbom` (INV-07 à INV-10) | 4 | 14 | 1 (DF-INV-4 ; DF-INV-1 mis à jour) | 0 | 0 |
+| | `inventaire-sbom` (INV-07 à INV-10) | 4 | 14 | 1 (DF-INV-4 ; DF-INV-1 mis à jour) | 0 | 14 |
 | | `correlation-impact` (COR-09 à COR-12) | 4 | 15 | 1 (DF-COR-4) | 0 | 0 |
 | | `abonnements-veille` (ABO-07, ABO-08) | 2 | 7 | 1 (DF-ABO-3) | 0 | 7 |
 | | `alertes-digests` (ALR-07) | 1 | 2 | 0 | 0 | 0 |
 | | `performance-api-mcp` (PERF-01, PERF-02) | 2 | 6 | 1 (DF-PERF-1) | 2 | 0 |
-| **Total** | | **15** | **53** | **4** | **2** | **16** |
+| **Total** | | **15** | **53** | **4** | **2** | **30** |
 
 Cadrage du 2026-11-19 : exigences au statut [PROPOSITION], issues des décisions J1 à J8 du porteur du projet (2026-11-19). Volet A (collecte et abonnements) implémenté le 2026-11-19 sur la branche `lot18/collecte-abonnements` : COL-09-S1 à S5, COL-10-S1 à S4, ABO-07-S1 à S4 et ABO-08-S1 à S3 couverts par des tests qui passent (`SynchronisationPlanifieeTest`, `EmpreinteNormaliseeTest`, `CollecteTest`, `SubscriptionTest`, `SubscriptionIsolationTest`, `MigrationV18Test`, `argos-ui/tests/abonnements.test.mjs`) ; migration V18. Volets B et C : aucun test écrit à cette date sur cette branche. « Tests écrits » compte les scénarios couverts par au moins un test qui passe. Le travail est découpé en trois volets indépendants (A : collecte et abonnements ; B : inventaire ; C : impacts et performance) puis des vérifications d'intégration. « Questions ouvertes » : Q-PERF-1 et Q-PERF-2 (volume et concurrence de la campagne). Matrice détaillée : [`tasks.md` du changement](/openspec/changes/automatiser-chaine-veille/tasks.md#matrice-de-traçabilité).
 

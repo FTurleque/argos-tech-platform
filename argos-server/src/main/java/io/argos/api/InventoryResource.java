@@ -24,7 +24,9 @@ import io.argos.inventory.InventoryQueries;
 
 /**
  * Inventaire d'un projet : composants, origine et âge (INV-02, INV-03), synthèse sans composants (INV-06, décision
- * G5 du 2026-11-19), composants inventoriés paginés (INV-06, décision F5 du 2026-11-19), imports refusés (INV-05).
+ * G5 du 2026-11-19), composants inventoriés paginés (INV-06, décision F5 du 2026-11-19), imports refusés (INV-05) ;
+ * dépôts du projet dans la synthèse et dans chaque composant (INV-10, décision J6 du 2026-11-19). Lecture seule :
+ * aucune route n'importe un inventaire ni ne reçoit de notification de forge (INV-07-S3).
  */
 @Path("/api/v1/projects/{projectId}/inventory")
 @Tag(name = "Inventaires")
@@ -64,8 +66,9 @@ public class InventoryResource {
     @GET
     @Path("/summary")
     @Operation(summary = "Synthèse de l'inventaire de référence du projet, sans la liste des composants")
-    @APIResponse(responseCode = "200", description = "Origine, dates, âge, obsolescence, nombre de composants inventoriés et"
-            + " composants ignorés faute de PURL ; statut NO_SBOM sans synthèse si le projet n'a pas d'inventaire")
+    @APIResponse(responseCode = "200", description = "Origine, dates, âge, obsolescence, nombre de composants inventoriés,"
+            + " composants ignorés faute de PURL et dépôts du projet avec leur dernier import et leur dernier échec"
+            + " (repositories, INV-10) ; statut NO_SBOM sans synthèse si le projet n'a pas d'inventaire")
     @APIResponse(responseCode = "401", description = "Non authentifié")
     @APIResponse(responseCode = "404", description = "Projet inconnu ou d'un espace dont l'appelant n'est pas membre (refus journalisé)")
     public ProjectInventorySummary summary(@PathParam("projectId") UUID projectId) {
@@ -78,7 +81,8 @@ public class InventoryResource {
     @GET
     @Path("/components")
     @Operation(summary = "Composants inventoriés du projet, triés par nom, version puis identifiant (liste paginée)")
-    @APIResponse(responseCode = "200", description = "Page de composants : nom, version, PURL, direct ou transitif ; page vide si le projet n'a pas d'inventaire")
+    @APIResponse(responseCode = "200", description = "Page de composants : nom, version, PURL, direct ou transitif, dépôts qui"
+            + " le contiennent (repositories, INV-10) ; page vide si le projet n'a pas d'inventaire")
     @APIResponse(responseCode = "400", description = "Paramètre page ou size non entier")
     @APIResponse(responseCode = "401", description = "Non authentifié")
     @APIResponse(responseCode = "404", description = "Projet inconnu ou d'un espace dont l'appelant n'est pas membre (refus journalisé)")

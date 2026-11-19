@@ -146,6 +146,7 @@ Options les plus prudentes, à confirmer par le porteur du projet ; chacune est 
 | P-10 | Un échec de recorrélation après un import laisse l'inventaire importé, est journalisé et la recorrélation est relancée au passage planifié suivant (marqueur persisté). | Pas d'inventaire refusé pour une panne de corrélation ; aucune recorrélation perdue. |
 | P-11 | Numéros de migration réservés par volet : V18 (A), V19 (B), V20 (C). | Les volets avancent en parallèle sans conflit de numéro. |
 | P-12 | Cadences par défaut : synchronisation des sources toutes les heures (`PT1H`), import d'inventaire à 03:00 (Europe/Paris) chaque jour. | Respecte J1 et J3 ; l'heure de nuit évite les heures de travail et les tâches existantes de 04:30 à 08:00. |
+| P-B1 | Volet B (2026-11-19) : l'import manuel remplace l'inventaire du dépôt principal du projet ; un projet sans dépôt principal reçoit un inventaire « sans dépôt », remplacé par le premier import d'un de ses dépôts. Dans la synthèse, origine et dates restent celles du dépôt principal ; le dernier échec d'un dépôt n'est restitué que s'il suit son dernier import réussi ; un quota épuisé suspend la forge concernée jusqu'au passage suivant. | Garde les méthodes d'import manuel sans paramètre de dépôt (P-1) et les champs existants de la synthèse inchangés pour un projet à un dépôt ; n'affiche pas un échec déjà rattrapé. |
 
 ## Questions ouvertes
 

@@ -16,8 +16,8 @@
 | **Rappel d’échéance** | message envoyé aux membres d’un espace, aux jours de rappel de l’espace (J-30, J-7, J0 par défaut), pour une échéance qui touche un de ses projets |
 | **Dette de version** | impact d’un projet dont une version de l’inventaire a atteint sa fin de support, avec la version recommandée de l’espace |
 | **Source** | configuration permettant de collecter une origine de veille |
-| **Projet** | ensemble suivi dans un espace, qui regroupe un ou plusieurs dépôts ; son inventaire est l'union des inventaires de ses dépôts ([DÉCISION] du porteur du projet, 2026-11-19, J6 ; exigence INV-10 proposée par le changement `automatiser-chaine-veille`) |
-| **Repository** | dépôt GitHub/GitLab rattaché à un projet ; un projet peut en regrouper plusieurs (J6) |
+| **Projet** | ensemble suivi dans un espace, qui regroupe un ou plusieurs dépôts ; son inventaire est l'union des inventaires de ses dépôts : un composant présent dans plusieurs dépôts n'y figure qu'une fois, avec la liste de ses dépôts ([DÉCISION] du porteur du projet, 2026-11-19, J6 ; exigence INV-10 proposée par le changement `automatiser-chaine-veille`, implémentée par son volet B : table `project_repository`, migration V19) |
+| **Repository** | dépôt GitHub/GitLab rattaché à un projet ; un projet peut en regrouper plusieurs (J6), dont au plus un **dépôt principal** (celui des colonnes `scm_*` du projet, cible de l'import manuel) ; chaque dépôt garde son dernier import réussi, importé chaque jour depuis sa forge (INV-07, INV-10) |
 | **Workspace** | frontière organisationnelle et d’autorisation regroupant projets et sources |
 | **Espace** | nom de l’IHM et de l’API (`/api/v1/espaces`) pour un workspace ; ses membres y ont un rôle (capacité `comptes-acces`) |
 | **Compte** | identité Argos d’une personne, créée à sa première connexion OIDC et reliée au sujet du jeton |

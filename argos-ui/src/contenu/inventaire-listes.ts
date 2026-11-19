@@ -13,6 +13,7 @@ import {
   type ProjetApi,
 } from '../api/inventaire-modele.ts'
 import { introuvableOuInterdit, STATUT_NON_AUTHENTIFIE } from '../api/statuts-http.ts'
+import { depotsComposant } from './inventaire-depots.ts'
 
 /** Erreur d'appel minimale lue par les chargements : statut HTTP et motif d'absence de réponse. */
 interface ErreurAppel {
@@ -116,6 +117,8 @@ export interface ComposantAffiche {
   purl: string | null
   /** « directe », « transitive » ou « inconnue ». */
   dependance: string
+  /** Dépôts du projet qui contiennent le composant (INV-10), dans l'ordre du serveur. */
+  depots: string[]
 }
 
 /** Page de composants inventoriés, prête à afficher. */
@@ -151,6 +154,7 @@ function composant(recu: ComposantApi, rang: number): ComposantAffiche {
     version: texte(recu?.version),
     purl: texte(recu?.purl),
     dependance: dependance(recu?.transitive),
+    depots: depotsComposant(recu?.repositories),
   }
 }
 
