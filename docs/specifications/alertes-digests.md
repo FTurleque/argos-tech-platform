@@ -5,7 +5,7 @@
 | Préfixe d'exigences | `ALR` |
 | Spec de référence | [`/openspec/specs/alertes-digests/spec.md`](/openspec/specs/alertes-digests/spec.md) |
 | Changements archivés | [`2026-11-16-diffuser-alertes-et-digests`](/openspec/changes/archive/2026-11-16-diffuser-alertes-et-digests/proposal.md) |
-| Changement en cours | [`automatiser-chaine-veille`](/openspec/changes/automatiser-chaine-veille/specs/alertes-digests/spec.md) — proposé, non implémenté (ALR-07) |
+| Changement en cours | [`automatiser-chaine-veille`](/openspec/changes/automatiser-chaine-veille/specs/alertes-digests/spec.md) — proposé ; ALR-07 implémenté par le volet C (branche `lot18/impacts-performance`, 2026-11-19), non intégré |
 | Statut de la capacité | livrée ; implémentation et tests dans `argos-server` |
 | Composants (arc42 §5) | `alerting`, `workspace`, `impact-engine` |
 
@@ -135,6 +135,7 @@ Interprétations du changement `diffuser-alertes-et-digests`, à faire valider [
 
 - Le code de `argos-server` implémente les règles de cette fiche : module `io.argos.alerting` (`MoteurAlertes`, `RegleAlerte`, `ResumesPeriodiques`, `EnvoiAlertes`, `CanalEmail`, `ConsultationAlertes`), `io.argos.api.AlertesResource`, événement `io.argos.impact.ImpactsRecorded`, migration `V8__alertes_et_resumes.sql`.
 - L'IHM ne présente pas encore les alertes ni la page d'un signal visée par le lien des messages.
+- ALR-07 (branche du volet C de `automatiser-chaine-veille`, 2026-11-19) : `MoteurAlertes` et `ResumesPeriodiques` ne relisent que les impacts `ouvert` et `confirmé` (`ImpactQueries#forSignals`). Une alerte immédiate encore en attente (e-mail en nouvelle tentative, alerte du poste pas encore remise) dont tous les impacts visibles du destinataire ont été écartés ou résolus passe `ANNULEE` (`AlertesSansObjet`, sur l'événement `ImpactsTraites`, et contrôle à la réservation dans `EnvoiAlertes`) ; elle n'est plus envoyée ni remise et reste consultable. Si l'impact repasse ouvert, la même ligne d'alerte est remise en attente (clé d'idempotence ALR-03 inchangée). Nouvel état d'alerte `ANNULEE` (migration V20) [PROPOSITION P-17].
 
 ## Questions ouvertes
 
@@ -156,6 +157,6 @@ Interprétations du changement `diffuser-alertes-et-digests`, à faire valider [
 | ALR-04 | ALR-04-S1, ALR-04-S2 | DC-1 | 3.1 | `AlertesTest.alr04S1…`, `alr04S2…`, `horairesDesResumes…` (signaux de sécurité ; Q-5) |
 | ALR-05 | ALR-05-S1 | DC-1 | 2.4 | `AlertesTest.alr05S1…`, `qs10…` |
 | ALR-06 | ALR-06-S1, ALR-06-S2 | DC-1 | 1.1, 3.2, 3.3 | `AlertesTest.alr01S1EtAlr06S1…`, `EchecSmtpTest`, `RelaisMuetTest`, `AlertesTest.contrat…`, `rls…`, `cloisonnement…` |
-| ALR-07 | ALR-07-S1, ALR-07-S2 | `automatiser-chaine-veille` : D5, DC-5 | 3.4 (de ce changement) | `alerting/AlertesImpactsTraitesTest` — à écrire [PROPOSITION] |
+| ALR-07 | ALR-07-S1, ALR-07-S2 | `automatiser-chaine-veille` : D5, DC-5 | 3.4 (de ce changement) | `alerting/AlertesImpactsTraitesTest` — vérifié le 2026-11-19 (branche du volet C) |
 
 Tests : `argos-server/src/test/java/io/argos/alerting/`. Matrice détaillée : [`tasks.md`](/openspec/changes/archive/2026-11-16-diffuser-alertes-et-digests/tasks.md#matrice-de-traçabilité).

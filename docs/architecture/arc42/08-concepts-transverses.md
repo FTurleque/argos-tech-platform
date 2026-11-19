@@ -136,7 +136,7 @@ PostgreSQL est **Accepté** comme stockage principal : relationnel, JSONB, FTS e
 
 Le schéma est versionné par des migrations SQL Flyway appliquées au démarrage (ADR-0032, Accepté) ; le modèle physique qu'elles produisent est D-13 : [`../diagrams/d-13-modele-physique.md`](../diagrams/d-13-modele-physique.md).
 
-Liste à jour des migrations, dans `argos-server/src/main/resources/db/migration/` (état au 2026-11-19). ADR-0032 porte la décision et décrit V1 à V16, état de sa date d'acceptation ; il n'est pas modifié et cette liste tient l'inventaire à jour des migrations ([DÉCISION] du porteur du projet, 2026-11-19). La prochaine migration porte le numéro V18.
+Liste à jour des migrations, dans `argos-server/src/main/resources/db/migration/` (état au 2026-11-19). ADR-0032 porte la décision et décrit V1 à V16, état de sa date d'acceptation ; il n'est pas modifié et cette liste tient l'inventaire à jour des migrations ([DÉCISION] du porteur du projet, 2026-11-19). Les numéros V18 à V20 sont réservés aux trois volets du changement `automatiser-chaine-veille` (P-11 : V18 volet A, V19 volet B, V20 volet C) ; la prochaine migration hors de ce changement porte le numéro V21.
 
 | Version | Fichier | Objet | Changement OpenSpec |
 |---|---|---|---|
@@ -157,6 +157,7 @@ Liste à jour des migrations, dans `argos-server/src/main/resources/db/migration
 | V15 | `V15__profil_artiste.sql` | objets suivis par profil, rappels, sources vérifiées, opportunités (ADR-0024) | `ajouter-profil-artiste` |
 | V16 | `V16__veille_reglementaire.sql` | domaines métier, experts, dictionnaire, sources et textes officiels, fiches réglementaires et leur historique | `suivre-veille-reglementaire` |
 | V17 | `V17__composants_ignores_import.sql` | colonnes `ignored_count` et `ignored_components` de `inventory` : composants ignorés faute de PURL au dernier import (INV-01, décision D6 du 2026-11-18) | `formaliser-chaine-securite-poc` |
+| V20 | `V20__etat_traitement_impacts.sql` | état de traitement des impacts (`project_impact.state` : `OUVERT`, `CONFIRME`, `ECARTE`, `RESOLU`), instantané paquet / PURL / version, référence au composant en `ON DELETE SET NULL`, historique des transitions (`project_impact_transition`), fonction `argos_traite_impacts` et politiques RLS `project_impact_etat`, `project_impact_transition_lecture` et `project_impact_transition_creation` ; état `ANNULEE` des alertes (COR-09 à COR-12, ALR-07 ; décision J5 du 2026-11-19) | `automatiser-chaine-veille` (volet C, tâche 3.1) |
 
 ## 8.8 IA et coûts
 

@@ -4,7 +4,7 @@
 |---|---|
 | Préfixe d'exigences | `PERF` |
 | Spec de référence | `/openspec/specs/performance-api-mcp/spec.md` — absente tant qu'aucun changement n'est archivé |
-| Changements en cours | [`automatiser-chaine-veille`](/openspec/changes/automatiser-chaine-veille/specs/performance-api-mcp/spec.md) — proposé, non implémenté |
+| Changements en cours | [`automatiser-chaine-veille`](/openspec/changes/automatiser-chaine-veille/specs/performance-api-mcp/spec.md) — proposé ; campagne implémentée et exécutée par le volet C (branche `lot18/impacts-performance`, 2026-11-19), non intégrée |
 | Statut de la capacité | proposée |
 | Composants (arc42 §5) | `API & Security`, serveur MCP (`mcp`), `e2e/` (campagne de mesure) |
 
@@ -64,7 +64,7 @@ La campagne s'authentifie avec les comptes du royaume de test du dépôt (`argos
 
 | Qualité | Cible | Source | Statut |
 |---|---|---|---|
-| Latence API et MCP, p95, hors appels externes et IA | < 500 ms | arc42 §8 ; arc42 §10.2 Q-05 ; QS-06 | [PROPOSITION] — cible initiale ; mesure de la recherche seule : p95 = 250 ms le 2026-11-16 (QS-13, [rapport](../architecture/quality/mesure-qs13-recherche.md)) [EXISTANT] |
+| Latence API et MCP, p95, hors appels externes et IA | < 500 ms | arc42 §8 ; arc42 §10.2 Q-05 ; QS-06 | [PROPOSITION] — cible initiale ; mesure de la recherche seule : p95 = 250 ms le 2026-11-16 (QS-13, [rapport](../architecture/quality/mesure-qs13-recherche.md)) [EXISTANT] ; campagne du 2026-11-19 : 15 opérations sur 16 dans la cible, `GET /api/v1/me/veille` hors cible (p95 = 618 ms), code de sortie 1 ([rapport](../architecture/quality/mesure-performance-api-mcp.md)) [EXISTANT] |
 
 ## Diagrammes
 
@@ -103,7 +103,10 @@ Propositions du changement `automatiser-chaine-veille`, à valider [PROPOSITION]
 
 ## Écarts constatés
 
-- Aucune campagne couvrant l'ensemble de l'API et du MCP n'existe : seule la recherche est mesurée (`MesurePerformanceRechercheTest`, QS-13).
+- Campagne implémentée (branche du volet C, 2026-11-19) : `e2e/performance/mesurer-p95.mjs` (exécution), `e2e/performance/mesure.mjs` (garde réseau, centiles, verdict, rapports), `e2e/performance/donnees-performance.sql` (jeu de données paramétré), commande `npm --prefix e2e run test:performance` ; tests `node --test "e2e/performance/*.test.mjs"` (Node 24 n'accepte pas un dossier comme argument de `node --test`) [EXISTANT sur la branche].
+- Première exécution, 2026-11-19 (révision `fbb04c9`, code du volet C ; script de campagne non encore validé dans Git au moment de la mesure) : `GET /api/v1/me/veille` dépasse la cible (p50 = 511 ms, p95 = 618 ms) ; les quinze autres opérations sont sous 230 ms. L'écart est consigné, sans correction dans ce volet : l'optimisation de « Ma veille » relève d'un changement ultérieur [PROPOSITION P-18].
+- Valeurs retenues en attendant Q-PERF-1 et Q-PERF-2 (P-9) : 20 projets × 100 composants, 1 000 avis, 20 000 impacts dans un espace ; 200 appels par opération après 20 d'échauffement ; 4 clients simultanés ; surchargeables par `ARGOS_PERF_PROJETS`, `ARGOS_PERF_COMPOSANTS`, `ARGOS_PERF_SIGNAUX`, `ARGOS_PERF_APPELS`, `ARGOS_PERF_ECHAUFFEMENT`, `ARGOS_PERF_CONCURRENCE`.
+- `explain_change` (synthèse par l'IA) est exclu : sept outils MCP sur huit sont mesurés. La limite de débit MCP (60 requêtes par minute en développement) est relevée pour la campagne par `ARGOS_MCP_DEBIT_REQUETES_PAR_MINUTE`, comme dans le profil de test.
 
 ## Questions ouvertes
 
@@ -116,7 +119,7 @@ Propositions du changement `automatiser-chaine-veille`, à valider [PROPOSITION]
 
 | Exigence | Scénarios | Conception / diagramme | Tâche | Test ou preuve |
 |---|---|---|---|---|
-| PERF-01 | PERF-01-S1, PERF-01-S2, PERF-01-S3 | design.md D8, DC-8 ; DF-PERF-1 | 3.6, 3.7 | rapport `docs/architecture/quality/mesure-performance-api-mcp.md` — preuve manquante |
-| PERF-02 | PERF-02-S1, PERF-02-S2, PERF-02-S3 | design.md D8, DC-8 ; DF-PERF-1 | 3.6, 3.7 | `node --test e2e/performance/` — à écrire |
+| PERF-01 | PERF-01-S1, PERF-01-S2, PERF-01-S3 | design.md D8, DC-8 ; DF-PERF-1 | 3.6, 3.7 | [rapport du 2026-11-19](../architecture/quality/mesure-performance-api-mcp.md) (S2 constaté : une opération hors cible, code 1 ; S1 non atteint) ; `e2e/performance/mesure.test.mjs` (S2, S3) |
+| PERF-02 | PERF-02-S1, PERF-02-S2, PERF-02-S3 | design.md D8, DC-8 ; DF-PERF-1 | 3.6, 3.7 | `e2e/performance/mesure.test.mjs` (S1 à S3) ; rapports JSON (`e2e/resultats/performance/rapport-2026-11-19.json`) et Markdown du 2026-11-19 |
 
 Matrice détaillée : [`tasks.md` du changement](/openspec/changes/automatiser-chaine-veille/tasks.md#matrice-de-traçabilité).

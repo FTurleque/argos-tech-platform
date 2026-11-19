@@ -38,7 +38,8 @@
 | **Fiche réglementaire** | fiche d'analyse d'un texte officiel pour un espace : résumé, articles modifiés, dates de publication et d'entrée en vigueur, domaines, liens officiels ; en attente de validation, validée ou rejetée par un expert métier ; ne constitue pas un avis juridique |
 | **Date à confirmer** | mention affichée quand aucune date d'entrée en vigueur n'est extraite d'un texte officiel |
 | **Mise en page** | présentation de l’IHM choisie par l’utilisateur (`classique`, `journal`, `fantaisie`, `gazette`) ; change la forme, jamais le contenu ni les mentions (ADR-0023) |
-| **Alerte** | message immédiat adressé à un utilisateur sur un canal quand un impact exact ou probable satisfait une de ses règles ; une seule par signal, utilisateur et canal (capacité `alertes-digests`) |
+| **Alerte** | message immédiat adressé à un utilisateur sur un canal quand un impact exact ou probable, ouvert ou confirmé, satisfait une de ses règles ; une seule par signal, utilisateur et canal (capacité `alertes-digests`) |
+| **Alerte annulée** | alerte immédiate encore en attente dont tous les impacts visibles du destinataire ont été écartés ou résolus avant l'envoi : elle n'est ni envoyée ni remise au poste et reste consultable (état `ANNULEE`, ALR-07, proposition P-17 du changement `automatiser-chaine-veille`) |
 | **Résumé périodique** | message quotidien ou hebdomadaire listant les éléments non alertés immédiatement ; jamais envoyé vide (en anglais : *digest*) |
 | **Vue enregistrée** | recherche nommée d’un utilisateur (mots et filtres), visible de lui seul et rejouée sous ses droits courants ; n’accorde aucun droit (capacité `recherche-veille`) |
 | **Horizon** | filtre de recherche retenant les éléments des N derniers jours, d’après leur date de publication, sinon de modification ou de réception (capacité `recherche-veille`) |
