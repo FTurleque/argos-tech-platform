@@ -49,4 +49,23 @@ class SubscriptionIsolationTest {
                 .because("ABO-05 : un abonnement n'accorde aucun droit ; l'autorisation dépend des seuls rôles")
                 .check(classes);
     }
+
+    /**
+     * ABO-07, ABO-08 (changement {@code automatiser-chaine-veille}) : seule la couche {@code API & Security},
+     * qui contrôle le propriétaire et le rôle d'administrateur, suspend, réactive ou supprime un abonnement ;
+     * {@code alerting} et la veille ne font que lire les abonnements actifs.
+     */
+    @Test
+    void seuleLApiChangeLEtatOuSupprimeUnAbonnement() {
+        noClasses().that().resideOutsideOfPackages("io.argos.api..", SUBSCRIPTION)
+                .should().callMethodWhere(com.tngtech.archunit.base.DescribedPredicate.describe(
+                        "suspend, reactivate ou delete de SubscriptionService",
+                        (com.tngtech.archunit.core.domain.JavaMethodCall appel) ->
+                                appel.getTargetOwner().getName().equals(
+                                        "io.argos.workspace.subscription.SubscriptionService")
+                                        && java.util.Set.of("suspend", "reactivate", "delete").contains(appel.getName())))
+                .because("ABO-07, ABO-08 : l'état et la suppression d'un abonnement relèvent de son propriétaire ou "
+                        + "d'un administrateur, contrôlés par l'API")
+                .check(classes);
+    }
 }
