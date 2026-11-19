@@ -209,8 +209,9 @@
   </build>
 
   <profiles>
-    <!-- Avis de licence des dépendances livrées (décision F3 du porteur du projet, 2026-11-19 ;
-         ADR-0021 points 4 et 6). Hors du cycle « mvn verify » : le but makeBom du plugin CycloneDX
+    <!-- Avis de licence des dépendances livrées (décisions F3 révisée par G1, G2 et G3 du porteur du
+         projet, 2026-11-19 ; ADR-0021 points 4 et 6). Le build de l'image Docker (Dockerfile, étage
+         « server ») exécute ce profil. Hors du cycle « mvn verify » : le but makeBom du plugin CycloneDX
          se déclare « requiresOnline » et refuse le mode hors ligne (« mvn -o »). Commande dédiée :
            mvn -B -f argos-server/pom.xml -P licences validate
          Elle produit target/bom.json (dépendances compile et runtime, sans les tests), puis lance
