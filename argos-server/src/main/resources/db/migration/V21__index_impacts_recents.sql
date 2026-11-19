@@ -1,0 +1,16 @@
+-- Index des impacts les plus récents (changement OpenSpec optimiser-ma-veille, tâche 2.2 ; décision K2 du
+-- porteur du projet, 2026-11-19). Exigence : PRF-07 (latence de « Ma veille » dans la cible de PERF-01).
+-- Conception : design.md, D2.
+--
+-- ImpactQueries.forWorkspaces (« Ma veille », outil MCP get_security_alerts) lit les 200 impacts actifs les
+-- plus récents des espaces de l'appelant : ORDER BY updated_at DESC, id LIMIT 200, sous la RLS du rôle
+-- argos_app. Sans index sur cet ordre, PostgreSQL lit et filtre tous les impacts de l'espace, en évaluant la
+-- politique project_impact_lecture (argos_espace_lisible, fonction SECURITY DEFINER non intégrable) sur
+-- chaque ligne, puis trie : 241 ms pour 20 000 impacts (EXPLAIN ANALYZE, jeu de référence K3). Avec cet index,
+-- le parcours suit l'ordre demandé et s'arrête aux 200 premières lignes visibles : 7 ms.
+--
+-- La colonne workspace_id n'est pas en tête : le filtre workspace_id = ANY (?) ne garantit pas l'ordre d'un
+-- index (workspace_id, updated_at), que le planificateur n'utilise pas pour ce tri (constaté par EXPLAIN).
+-- Aucune donnée, aucun droit ni aucune politique RLS ne change. Retour arrière : DROP INDEX
+-- project_impact_recents (arc42 §8.7).
+CREATE INDEX project_impact_recents ON project_impact (updated_at DESC, id);
