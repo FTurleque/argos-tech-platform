@@ -113,10 +113,17 @@ export function alertePoste(alerte: AlerteRecue): AlertePoste {
 
 function statut(erreur: unknown): number | undefined {
   if (erreur && typeof erreur === 'object' && 'status' in erreur) {
-    const s = (erreur as { status?: unknown }).status
-    return typeof s === 'number' ? s : undefined
+    const valeur = (erreur as { status?: unknown }).status
+    return typeof valeur === 'number' ? valeur : undefined
   }
   return undefined
+}
+
+/** Alertes du canal DESKTOP encore EN_ATTENTE, des plus anciennes aux plus récentes. */
+function alertesATraiter(recues: ReadonlyArray<AlerteRecue>): AlerteRecue[] {
+  return [...recues]
+    .filter((a) => a.canal === 'DESKTOP' && a.etat === 'EN_ATTENTE')
+    .sort((a, b) => String(a.creeLe ?? '').localeCompare(String(b.creeLe ?? '')))
 }
 
 /** Identifiants mémorisés ; stockage absent, illisible ou invalide : liste vide. */
@@ -191,41 +198,12 @@ export class SuiviAlertesPoste {
     try {
       recues = await this.d.lister()
     } catch (erreur) {
-      const s = statut(erreur)
-      this.connexion = nonAutorise(s) ? 'NON_AUTORISE' : 'HORS_LIGNE'
-      this.echecs += 1
-      this.recuesPendantCoupure = 0
-      this.publier()
-      return delaiReprise(this.echecs)
+      return this.echecLecture(erreur)
     }
-    // Reprise après coupure : une lecture réussie après un échec, une fois la session connectée.
-    const apresCoupure = this.dejaConnecte && (this.connexion === 'HORS_LIGNE' || this.connexion === 'NON_AUTORISE')
-    this.dejaConnecte = true
-    this.connexion = 'CONNECTE'
-    this.echecs = 0
+    const apresCoupure = this.lectureReussie()
     let nouvelles = 0
-    const aTraiter = [...recues]
-      .filter((a) => a.canal === 'DESKTOP' && a.etat === 'EN_ATTENTE')
-      .sort((a, b) => String(a.creeLe ?? '').localeCompare(String(b.creeLe ?? '')))
-    for (const alerte of aTraiter) {
-      if (!this.traitees.includes(alerte.id)) {
-        this.ajouterTraitee(alerte.id)
-        // Seules les alertes immédiates sont notifiées et comptées ; un résumé est seulement remis.
-        if (alerte.nature === 'IMMEDIATE') {
-          nouvelles += 1
-          this.ajouterOuverte(alerte.id)
-          try {
-            await this.d.notifier(alertePoste(alerte))
-          } catch {
-            // notification refusée ou indisponible : l'alerte reste comptée et visible (NOT-01-S2)
-          }
-        }
-      }
-      try {
-        await this.d.remettre(alerte.id)
-      } catch {
-        // confirmation perdue : l'alerte reviendra à la prochaine lecture, sans nouvelle notification
-      }
+    for (const alerte of alertesATraiter(recues)) {
+      if (await this.traiter(alerte)) nouvelles += 1
     }
     // Information gardée jusqu'à sa lecture (oublierCoupure) ou jusqu'à la prochaine coupure.
     if (apresCoupure) this.recuesPendantCoupure = nouvelles
@@ -259,6 +237,62 @@ export class SuiviAlertesPoste {
       return () => clearTimeout(t)
     })
     this.annuler = planifier(() => void this.boucle(), attente)
+  }
+
+  /** Lecture refusée ou impossible : état de la connexion, compte des échecs, attente croissante. */
+  private echecLecture(erreur: unknown): number {
+    this.connexion = nonAutorise(statut(erreur)) ? 'NON_AUTORISE' : 'HORS_LIGNE'
+    this.echecs += 1
+    this.recuesPendantCoupure = 0
+    this.publier()
+    return delaiReprise(this.echecs)
+  }
+
+  /**
+   * Lecture réussie : la session passe à l'état connecté. Renvoie vrai pour une reprise après
+   * coupure, c'est-à-dire une lecture réussie après un échec, une fois la session connectée.
+   */
+  private lectureReussie(): boolean {
+    const apresCoupure = this.dejaConnecte && (this.connexion === 'HORS_LIGNE' || this.connexion === 'NON_AUTORISE')
+    this.dejaConnecte = true
+    this.connexion = 'CONNECTE'
+    this.echecs = 0
+    return apresCoupure
+  }
+
+  /**
+   * Une alerte lue : notifiée si elle est nouvelle et immédiate, puis remise dans tous les cas.
+   * Renvoie vrai pour une nouvelle alerte immédiate.
+   */
+  private async traiter(alerte: AlerteRecue): Promise<boolean> {
+    let nouvelleImmediate = false
+    if (!this.traitees.includes(alerte.id)) {
+      this.ajouterTraitee(alerte.id)
+      // Seules les alertes immédiates sont notifiées et comptées ; un résumé est seulement remis.
+      if (alerte.nature === 'IMMEDIATE') {
+        nouvelleImmediate = true
+        this.ajouterOuverte(alerte.id)
+        await this.notifierSansEchec(alerte)
+      }
+    }
+    await this.remettreSansEchec(alerte.id)
+    return nouvelleImmediate
+  }
+
+  private async notifierSansEchec(alerte: AlerteRecue): Promise<void> {
+    try {
+      await this.d.notifier(alertePoste(alerte))
+    } catch {
+      // notification refusée ou indisponible : l'alerte reste comptée et visible (NOT-01-S2)
+    }
+  }
+
+  private async remettreSansEchec(id: string): Promise<void> {
+    try {
+      await this.d.remettre(id)
+    } catch {
+      // confirmation perdue : l'alerte reviendra à la prochaine lecture, sans nouvelle notification
+    }
   }
 
   private ajouterOuverte(id: string): void {
