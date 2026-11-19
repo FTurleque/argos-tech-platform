@@ -208,6 +208,27 @@ class ConsultationInventaireTest {
     }
 
     @Test
+    void parametresDePaginationNonEntiers() {
+        UUID projet = projects.create(espaceA, "api", null, null);
+        importer(projet, 3);
+        String chemin = "/api/v1/projects/" + projet + "/inventory/components";
+
+        Api.en("alice").queryParam("page", "abc").when().get(chemin)
+                .then().statusCode(400).body("code", equalTo("DONNEE_INVALIDE")).body("attribut", equalTo("page"));
+        Api.en("alice").queryParam("size", "1.5").when().get(chemin)
+                .then().statusCode(400).body("attribut", equalTo("size"));
+        Api.en("alice").queryParam("page", "abc").when().get("/api/v1/projects")
+                .then().statusCode(400).body("code", equalTo("DONNEE_INVALIDE")).body("attribut", equalTo("page"));
+        Api.en("alice").queryParam("size", "x").when().get("/api/v1/projects")
+                .then().statusCode(400).body("attribut", equalTo("size"));
+        // Un entier hors des bornes de int est saturé puis borné, comme toute autre valeur hors bornes.
+        Api.en("alice").queryParam("size", "99999999999").when().get(chemin)
+                .then().statusCode(200).body("size", equalTo(InventoryQueries.MAX_PAGE_SIZE));
+        Api.en("alice").queryParam("page", "-99999999999").queryParam("size", "").when().get(chemin)
+                .then().statusCode(200).body("page", equalTo(0)).body("size", equalTo(InventoryQueries.DEFAULT_PAGE_SIZE));
+    }
+
+    @Test
     void inv06S3ProjetInconnuOuDUnAutreEspaceIntrouvable() {
         UUID secret = projects.create(espaceB, "Secret", null, null);
         importer(secret, 2);
@@ -239,6 +260,9 @@ class ConsultationInventaireTest {
                 .body("paths.'/api/v1/projects/{projectId}/inventory/components'.get.parameters.name",
                         hasItems("projectId", "page", "size"))
                 .body("paths.'/api/v1/projects/{projectId}/inventory/components'.get.responses.'404'", notNullValue())
+                .body("paths.'/api/v1/projects/{projectId}/inventory/components'.get.responses.'400'", notNullValue())
+                .body("paths.'/api/v1/projects'.get.responses.'400'", notNullValue())
+                .body("paths.'/api/v1/projects'.get.parameters.find { it.name == 'size' }.schema.type", equalTo("integer"))
                 .body("paths.'/api/v1/projects/{projectId}/inventory'.get", notNullValue())
                 .body("components.schemas.ProjectPage.properties.keySet()", hasItems("items", "page", "size", "total"))
                 .body("components.schemas.ProjectItem.properties.keySet()", hasItems("id", "workspaceId", "workspaceName", "name"))
