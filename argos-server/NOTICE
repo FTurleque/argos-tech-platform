@@ -10,11 +10,11 @@ de leurs archives : fichier généré argos-server/target/THIRD-PARTY.txt (déci
 projet, 2026-11-19), produit par :
 
     mvn -B -f argos-server/pom.xml -P licences validate
-    node scripts/verifier-licences-serveur.mjs
 
-La seconde commande échoue si une dépendance n'a aucune licence déclarée ou n'a que des licences
-non permissives, qu'ADR-0021 (point 4) n'admet pas sans décision explicite (GPL, LGPL, AGPL, MPL,
-SSPL, BUSL, CDDL…). Voir argos-server/README.md.
+La commande échoue si une dépendance n'a aucune licence déclarée ou porte une licence que la liste
+blanche des licences permissives n'admet pas : ADR-0021 (point 4) exige une décision explicite pour
+tout copyleft (GPL, LGPL, AGPL, MPL, EPL, CDDL…) et refuse les licences à usage commercial restreint.
+Voir argos-server/README.md.
 
 org.apache.maven:maven-artifact (Maven Artifact 3.9.16, https://github.com/apache/maven)
   Dépendance non modifiée : ordre des versions Maven (ComparableVersion) pour la corrélation

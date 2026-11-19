@@ -29,6 +29,8 @@
     <!-- Inventaire des dépendances tierces et de leurs licences (profil « licences », décision F3 du
          porteur du projet, 2026-11-19). CycloneDX Maven Plugin, licence Apache-2.0. -->
     <cyclonedx-plugin.version>2.9.3</cyclonedx-plugin.version>
+    <!-- Lancement du script de vérification des licences dans le même profil. Licence Apache-2.0. -->
+    <exec-plugin.version>3.6.4</exec-plugin.version>
     <skipITs>true</skipITs>
   </properties>
 
@@ -209,11 +211,11 @@
   <profiles>
     <!-- Avis de licence des dépendances livrées (décision F3 du porteur du projet, 2026-11-19 ;
          ADR-0021 points 4 et 6). Hors du cycle « mvn verify » : le but makeBom du plugin CycloneDX
-         se déclare « requiresOnline » et échouerait avec « mvn -o ». Commande dédiée :
+         se déclare « requiresOnline » et refuse le mode hors ligne (« mvn -o »). Commande dédiée :
            mvn -B -f argos-server/pom.xml -P licences validate
-           node scripts/verifier-licences-serveur.mjs
-         La première produit target/bom.json (dépendances compile et runtime, sans les tests), la
-         seconde en tire target/THIRD-PARTY.txt et échoue sur une licence interdite. -->
+         Elle produit target/bom.json (dépendances compile et runtime, sans les tests), puis lance
+         scripts/verifier-licences-serveur.mjs (Node.js), qui en tire target/THIRD-PARTY.txt et fait
+         échouer le build sur une licence absente ou non admise. -->
     <profile>
       <id>licences</id>
       <build>
@@ -243,6 +245,29 @@
               <includeLicenseText>false</includeLicenseText>
               <skipAttach>true</skipAttach>
             </configuration>
+          </plugin>
+          <plugin>
+            <groupId>org.codehaus.mojo</groupId>
+            <artifactId>exec-maven-plugin</artifactId>
+            <version>${exec-plugin.version}</version>
+            <executions>
+              <execution>
+                <id>verification-licences</id>
+                <phase>validate</phase>
+                <goals>
+                  <goal>exec</goal>
+                </goals>
+                <configuration>
+                  <executable>node</executable>
+                  <arguments>
+                    <argument>${project.basedir}/../scripts/verifier-licences-serveur.mjs</argument>
+                    <argument>${project.build.directory}/bom.json</argument>
+                    <argument>--depot</argument>
+                    <argument>${settings.localRepository}</argument>
+                  </arguments>
+                </configuration>
+              </execution>
+            </executions>
           </plugin>
         </plugins>
       </build>

@@ -1,18 +1,22 @@
 #!/usr/bin/env node
 // Licences des dépendances livrées avec argos-server (décision F3 du porteur du projet, 2026-11-19 ;
 // ADR-0021 points 4 et 6).
-// Prérequis : mvn -B -f argos-server/pom.xml -P licences validate  (produit argos-server/target/bom.json)
-// Usage     : node scripts/verifier-licences-serveur.mjs [chemin/vers/bom.json] [--depot <dépôt Maven local>]
-//             (dépôt par défaut : MAVEN_REPO_LOCAL, sinon ~/.m2/repository)
-// Effets    : écrit argos-server/target/THIRD-PARTY.txt : pour chaque dépendance, version, licences
-//             déclarées et licence retenue, puis les avis NOTICE (META-INF/NOTICE*) de chaque archive,
-//             lus dans le dépôt Maven local (Apache License 2.0, section 4 d) ;
-//             échoue si une dépendance n'a aucune licence déclarée, n'a que des licences interdites
-//             ou si son archive est absente du dépôt local.
-// Une dépendance proposée sous plusieurs licences au choix (par exemple « EPL-2.0 | GPL-2.0 avec
-// exception Classpath ») est acceptée si l'une d'elles n'est pas interdite : c'est la licence retenue.
+// Commande : mvn -B -f argos-server/pom.xml -P licences validate
+//            (le profil « licences » produit argos-server/target/bom.json puis lance ce script).
+// Usage direct : node scripts/verifier-licences-serveur.mjs [chemin/vers/bom.json] [--depot <dépôt Maven local>]
+//                (dépôt par défaut : MAVEN_REPO_LOCAL, sinon ~/.m2/repository)
+// Effets : écrit THIRD-PARTY.txt à côté du fichier CycloneDX : pour chaque dépendance, version, licences
+//          déclarées et licence retenue, puis les avis NOTICE (META-INF/NOTICE*) de chaque archive, lus dans
+//          le dépôt Maven local (Apache License 2.0, section 4 d).
+// Règles (ADR-0021 point 4 : licences permissives admises d'office, tout copyleft sur décision explicite) :
+//  - liste blanche : seules les licences de ADMISES sont acceptées ; une licence inconnue est un écart ;
+//  - plusieurs licences déclarées s'appliquent ensemble (ET) : chacune doit être admise ; seule une
+//    expression SPDX « OR », ou un composant de CHOIX dont le projet amont publie une double licence au
+//    choix, permet de retenir une seule licence ;
+//  - une licence soumise à décision (SOUS_RESERVE, par exemple EPL-2.0) n'est acceptée que pour les
+//    composants nommés dans sa liste.
 // Aucun accès réseau : le script ne lit que le fichier CycloneDX et les archives du dépôt Maven local.
-// Code de sortie : 0 sans écart, 1 en cas d'écart, 2 si le fichier CycloneDX est absent ou illisible.
+// Code de sortie : 0 sans écart, 1 en cas d'écart, 2 si les arguments ou le fichier CycloneDX sont invalides.
 
 import { readFileSync, writeFileSync, existsSync } from 'node:fs';
 import { dirname, resolve, join } from 'node:path';
@@ -21,42 +25,101 @@ import { inflateRawSync } from 'node:zlib';
 import { fileURLToPath } from 'node:url';
 
 const RACINE = resolve(dirname(fileURLToPath(import.meta.url)), '..');
+
+function arreter(message) {
+  console.error(message);
+  process.exit(2);
+}
+
 const args = process.argv.slice(2);
 const iDepot = args.indexOf('--depot');
+if (iDepot >= 0 && (args[iDepot + 1] === undefined || args[iDepot + 1].startsWith('--'))) {
+  arreter('Option --depot sans valeur : indiquer le chemin du dépôt Maven local.');
+}
 const DEPOT = resolve(iDepot >= 0 ? args[iDepot + 1]
   : (process.env.MAVEN_REPO_LOCAL ?? join(homedir(), '.m2', 'repository')));
 const positionnels = args.filter((_, i) => iDepot < 0 || (i !== iDepot && i !== iDepot + 1));
 const BOM = resolve(positionnels[0] ?? join(RACINE, 'argos-server', 'target', 'bom.json'));
 const SORTIE = join(dirname(BOM), 'THIRD-PARTY.txt');
 
-// Licences interdites (ADR-0021 point 4 : copyleft et licences restreignant l'usage commercial).
-// Reconnues par identifiant SPDX ou par nom usuel déclaré dans les POM.
-const INTERDITES = [
-  { motif: /\b(A|L)?GPL\b|GPL-\d/i, nom: 'GPL, LGPL ou AGPL' },
-  { motif: /GNU (Lesser |Library |Affero )?General Public/i, nom: 'GPL, LGPL ou AGPL' },
-  { motif: /\bMPL\b|MPL-\d|Mozilla Public/i, nom: 'MPL' },
-  { motif: /\bSSPL\b|Server Side Public/i, nom: 'SSPL' },
-  { motif: /\bBUSL\b|BSL-1\.1|Business Source/i, nom: 'BUSL' },
-  { motif: /\bCDDL\b|Common Development and Distribution/i, nom: 'CDDL' },
-  { motif: /Commons Clause|Elastic License|Sustainable Use/i, nom: 'licence à usage commercial restreint' },
+// Licences permissives admises d'office (ADR-0021 point 4), par identifiant SPDX ou nom déclaré dans les POM.
+const ADMISES = [
+  { motif: /^(Apache-2\.0|Apache License,? (Version )?2(\.0)?|The Apache (Software )?License,? Version 2\.0)$/i, nom: 'Apache-2.0' },
+  { motif: /^(MIT|MIT-0|The MIT License( \(MIT\))?|MIT License|MIT No Attribution)$/i, nom: 'MIT' },
+  { motif: /^(BSD-2-Clause|BSD-3-Clause|0BSD|The (New )?BSD License|BSD (2|3)-Clause License|EDL-1\.0|Eclipse Distribution License.*)$/i, nom: 'BSD' },
+  { motif: /^(ISC|Zlib|UPL-1\.0|Unlicense|CC0-1\.0|Public Domain)$/i, nom: 'permissive' },
+  // Licence de JDOM : licence de type Apache sans clause de mention publicitaire.
+  { motif: /^Similar to Apache License but with the acknowledgment clause removed$/i, nom: 'JDOM (type Apache)' },
 ];
 
-function interdite(licence) {
-  return INTERDITES.find(({ motif }) => motif.test(licence))?.nom ?? null;
+// Licences soumises à décision, acceptées seulement pour les composants nommés (groupe:artefact).
+// [PROPOSITION] EPL-2.0, copyleft faible au niveau du fichier, pour les API Jakarta non modifiées apportées
+// par la plateforme Quarkus (voir argos-server/README.md) ; toute autre dépendance sous EPL est un écart.
+const SOUS_RESERVE = [
+  {
+    motif: /^(EPL-2\.0|Eclipse Public License( -)? v?(ersion )?2\.0)$/i,
+    nom: 'EPL-2.0',
+    composants: new Set([
+      'jakarta.annotation:jakarta.annotation-api', 'jakarta.el:jakarta.el-api',
+      'jakarta.interceptor:jakarta.interceptor-api', 'jakarta.json:jakarta.json-api',
+      'jakarta.resource:jakarta.resource-api', 'jakarta.transaction:jakarta.transaction-api',
+      'jakarta.ws.rs:jakarta.ws.rs-api', 'org.eclipse.parsson:parsson', 'org.glassfish.expressly:expressly',
+    ]),
+  },
+];
+
+// Composants dont le projet amont publie une double licence au choix, alors que le POM les déclare comme
+// une simple liste : la licence retenue est la première admise. Clé : groupe:artefact, ou groupe:* .
+const CHOIX = new Map([
+  ['io.vertx:*', 'Eclipse Vert.x : double licence au choix, EPL ou Apache-2.0'],
+  ['jakarta.annotation:jakarta.annotation-api', 'Jakarta EE : EPL-2.0 OR GPL-2.0 WITH Classpath-exception-2.0'],
+  ['jakarta.el:jakarta.el-api', 'Jakarta EE : EPL-2.0 OR GPL-2.0 WITH Classpath-exception-2.0'],
+  ['jakarta.interceptor:jakarta.interceptor-api', 'Jakarta EE : EPL-2.0 OR GPL-2.0 WITH Classpath-exception-2.0'],
+  ['jakarta.json:jakarta.json-api', 'Jakarta EE : EPL-2.0 OR GPL-2.0 WITH Classpath-exception-2.0'],
+  ['jakarta.resource:jakarta.resource-api', 'Jakarta EE : EPL-2.0 OR GPL-2.0 WITH Classpath-exception-2.0'],
+  ['jakarta.transaction:jakarta.transaction-api', 'Jakarta EE : EPL-2.0 OR GPL-2.0 WITH Classpath-exception-2.0'],
+  ['jakarta.ws.rs:jakarta.ws.rs-api', 'Jakarta EE : EPL-2.0 OR GPL-2.0 WITH Classpath-exception-2.0'],
+  ['org.eclipse.parsson:parsson', 'Eclipse Parsson : EPL-2.0 OR GPL-2.0 WITH Classpath-exception-2.0'],
+  ['org.glassfish.expressly:expressly', 'Eclipse Expressly : EPL-2.0 OR GPL-2.0 WITH Classpath-exception-2.0'],
+]);
+
+function choixDe(composant) {
+  return CHOIX.get(`${composant.group}:${composant.name}`) ?? CHOIX.get(`${composant.group}:*`) ?? null;
 }
 
-// Licences déclarées d'un composant CycloneDX : identifiant SPDX, nom, ou branches « OR » d'une expression.
-function licencesDe(composant) {
-  const resultat = [];
+// Statut d'une licence pour un composant : 'admise', 'sous réserve' (acceptée par décision) ou null.
+function statut(licence, composant) {
+  if (ADMISES.some(({ motif }) => motif.test(licence))) return 'admise';
+  const reserve = SOUS_RESERVE.find(({ motif }) => motif.test(licence));
+  if (reserve?.composants.has(`${composant.group}:${composant.name}`)) return `sous réserve (${reserve.nom})`;
+  return null;
+}
+
+// Licences déclarées d'un composant CycloneDX. Chaque entrée « license » s'ajoute aux autres (ET) ; une
+// expression SPDX se découpe en alternatives (OR) dont chacune est une liste cumulative (AND).
+// Résultat : liste d'alternatives, chacune étant la liste des licences qui s'appliquent ensemble.
+function alternativesDe(composant) {
+  const cumul = [];
+  let alternatives = null;
   for (const entree of composant.licenses ?? []) {
-    if (entree.license) resultat.push(entree.license.id ?? entree.license.name ?? '');
-    else if (entree.expression) resultat.push(...entree.expression.split(/\s+OR\s+/i));
+    if (entree.license) {
+      cumul.push(entree.license.id ?? entree.license.name ?? '');
+    } else if (entree.expression) {
+      const branches = entree.expression.replaceAll(/[()]/g, ' ').split(/\s+OR\s+/i)
+        .map((b) => b.split(/\s+AND\s+/i).map((l) => l.trim()).filter(Boolean));
+      alternatives = alternatives ?? [[]];
+      alternatives = alternatives.flatMap((a) => branches.map((b) => [...a, ...b]));
+    }
   }
-  return resultat.map((l) => l.trim()).filter(Boolean);
+  const declarees = cumul.map((l) => l.trim()).filter(Boolean);
+  if (alternatives) return alternatives.map((a) => [...declarees, ...a]);
+  if (declarees.length > 1 && choixDe(composant)) return declarees.map((l) => [l]);
+  return declarees.length > 0 ? [declarees] : [];
 }
 
 // Lecture minimale d'une archive ZIP (répertoire central, entrées stockées ou compressées par
-// « deflate ») : renvoie le contenu texte des entrées dont le nom satisfait le filtre.
+// « deflate ») : renvoie le contenu texte des entrées dont le nom satisfait le filtre. Le format ZIP64
+// n'est pas pris en charge : une telle archive est signalée comme illisible.
 function lireEntrees(cheminArchive, filtre) {
   const zip = readFileSync(cheminArchive);
   let fin = -1;
@@ -66,6 +129,7 @@ function lireEntrees(cheminArchive, filtre) {
   if (fin < 0) throw new Error('fin du répertoire central introuvable');
   const nombre = zip.readUInt16LE(fin + 10);
   let pos = zip.readUInt32LE(fin + 16);
+  if (nombre === 0xffff || pos === 0xffffffff) throw new Error('archive ZIP64 non prise en charge');
   const entrees = [];
   for (let n = 0; n < nombre; n++) {
     if (zip.readUInt32LE(pos) !== 0x02014b50) throw new Error('répertoire central invalide');
@@ -79,7 +143,9 @@ function lireEntrees(cheminArchive, filtre) {
     if (filtre(nom)) {
       const debut = local + 30 + zip.readUInt16LE(local + 26) + zip.readUInt16LE(local + 28);
       const donnees = zip.subarray(debut, debut + tailleCompressee);
-      const contenu = methode === 0 ? donnees : methode === 8 ? inflateRawSync(donnees) : null;
+      let contenu = null;
+      if (methode === 0) contenu = donnees;
+      else if (methode === 8) contenu = inflateRawSync(donnees);
       if (!contenu) throw new Error(`méthode de compression ${methode} non prise en charge (${nom})`);
       entrees.push({ nom, texte: contenu.toString('utf8').trim() });
     }
@@ -90,18 +156,34 @@ function lireEntrees(cheminArchive, filtre) {
 
 const EST_NOTICE = (nom) => /^META-INF\/NOTICE(\.txt|\.md)?$/i.test(nom);
 
+// Nom de l'archive dans le dépôt Maven local, d'après le type et le classifieur du PURL (jar par défaut).
+function cheminArchive(composant) {
+  let type = 'jar';
+  let classifieur = '';
+  const requete = composant.purl?.split('?')[1]?.split('#')[0];
+  for (const paire of requete?.split('&') ?? []) {
+    const [cle, valeur = ''] = paire.split('=');
+    if (cle === 'type' && valeur) type = decodeURIComponent(valeur);
+    if (cle === 'classifier' && valeur) classifieur = `-${decodeURIComponent(valeur)}`;
+  }
+  const fichier = `${composant.name}-${composant.version}${classifieur}.${type}`;
+  return join(DEPOT, ...composant.group.split('.'), composant.name, composant.version, fichier);
+}
+
+function coordonneesDe(composant) {
+  const groupe = composant.group ? `${composant.group}:` : '';
+  return `${groupe}${composant.name}:${composant.version ?? '?'}`;
+}
+
 if (!existsSync(BOM)) {
-  console.error(`Fichier CycloneDX absent : ${BOM}`);
-  console.error('Lancer d\'abord : mvn -B -f argos-server/pom.xml -P licences validate');
-  process.exit(2);
+  arreter(`Fichier CycloneDX absent : ${BOM}\nLancer : mvn -B -f argos-server/pom.xml -P licences validate`);
 }
 
 let bom;
 try {
   bom = JSON.parse(readFileSync(BOM, 'utf8'));
 } catch (erreur) {
-  console.error(`Fichier CycloneDX illisible (${BOM}) : ${erreur.message}`);
-  process.exit(2);
+  arreter(`Fichier CycloneDX illisible (${BOM}) : ${erreur.message}`);
 }
 
 const lignes = [];
@@ -111,19 +193,19 @@ const composants = [...(bom.components ?? [])].sort((a, b) =>
   `${a.group}:${a.name}:${a.version}`.localeCompare(`${b.group}:${b.name}:${b.version}`));
 
 for (const c of composants) {
-  const coordonnees = `${c.group ? `${c.group}:` : ''}${c.name}:${c.version ?? '?'}`;
-  const licences = licencesDe(c);
-  const retenue = licences.find((l) => !interdite(l));
-  if (licences.length === 0) {
+  const coordonnees = coordonneesDe(c);
+  const alternatives = alternativesDe(c);
+  const retenue = alternatives.find((a) => a.every((l) => statut(l, c)));
+  const declarees = alternatives.map((a) => a.join(' ET ')).join(' OU ');
+  if (alternatives.length === 0) {
     ecarts.push(`${coordonnees} : aucune licence déclarée`);
   } else if (!retenue) {
-    ecarts.push(`${coordonnees} : licence interdite (${licences.map(interdite).join(', ')}) — ${licences.join(' | ')}`);
+    const refusees = [...new Set(alternatives.flat().filter((l) => !statut(l, c)))];
+    ecarts.push(`${coordonnees} : licence non admise sans décision explicite (${refusees.join(', ')}) — ${declarees}`);
   }
   if (c.group && c.version) {
-    const archive = join(DEPOT, ...c.group.split('.'), c.name, c.version, `${c.name}-${c.version}.jar`);
-    if (!existsSync(archive)) {
-      ecarts.push(`${coordonnees} : archive absente du dépôt Maven local (${archive})`);
-    } else {
+    const archive = cheminArchive(c);
+    if (existsSync(archive)) {
       try {
         for (const { nom, texte } of lireEntrees(archive, EST_NOTICE)) {
           avis.push(`--- ${coordonnees} (${nom}) ---\n${texte}`);
@@ -131,17 +213,23 @@ for (const c of composants) {
       } catch (erreur) {
         ecarts.push(`${coordonnees} : archive illisible (${erreur.message})`);
       }
+    } else {
+      ecarts.push(`${coordonnees} : archive absente du dépôt Maven local (${archive})`);
     }
   }
-  lignes.push(`${coordonnees}\n    licences déclarées : ${licences.join(' | ') || '(aucune)'}\n    licence retenue    : ${retenue ?? '(aucune admissible)'}`);
+  const choix = alternatives.length > 1 && choixDe(c) ? `\n    choix              : ${choixDe(c)}` : '';
+  const texteRetenue = retenue
+    ? retenue.map((l) => (statut(l, c) === 'admise' ? l : `${l} [${statut(l, c)}]`)).join(' ET ')
+    : '(aucune admissible)';
+  lignes.push(`${coordonnees}\n    licences déclarées : ${declarees || '(aucune)'}${choix}\n    licence retenue    : ${texteRetenue}`);
 }
 
 const entete = [
   'Serveur d\'ARGOS (argos-server) — dépendances tierces livrées et leurs licences',
   '===========================================================================',
   '',
-  'Fichier généré, ne pas modifier : node scripts/verifier-licences-serveur.mjs, à partir de',
-  'l\'inventaire CycloneDX produit par « mvn -B -f argos-server/pom.xml -P licences validate ».',
+  'Fichier généré, ne pas modifier : « mvn -B -f argos-server/pom.xml -P licences validate »',
+  '(inventaire CycloneDX, puis node scripts/verifier-licences-serveur.mjs).',
   'Portée : dépendances compile et runtime de argos-server, directes et transitives (sans les tests).',
   'Avis propres au serveur : argos-server/NOTICE ; textes de licence : argos-server/licenses/.',
   `Composants : ${composants.length} ; avis NOTICE reproduits : ${avis.length}.`,
@@ -167,4 +255,4 @@ if (ecarts.length > 0) {
   for (const e of ecarts) console.error(`  - ${e}`);
   process.exit(1);
 }
-console.log('Aucune licence interdite ni absente.');
+console.log('Aucune licence absente ni non admise.');
