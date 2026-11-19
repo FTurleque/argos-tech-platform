@@ -471,9 +471,9 @@ Cible : « API/MCP p95 < 500 ms hors appels externes/IA » (arc42 §8, cibles in
 ```mermaid
 flowchart TD
     A["npm --prefix e2e run test:performance"] --> B["Démarrer la pile de test locale<br/>(PostgreSQL, serveur, Keycloak de test)"]
-    B --> C["Charger le jeu de données de référence<br/>(volume : Q-PERF-1, valeur par défaut P-9)"]
+    B --> C["Charger le jeu de données de référence<br/>(volume : décision K3)"]
     C --> D["Obtenir un jeton de test, échauffement"]
-    D --> E["Pour chaque opération retenue :<br/>N appels, concurrence C (Q-PERF-2)"]
+    D --> E["Pour chaque opération retenue :<br/>N appels, concurrence C (décision K3)"]
     E --> F{"Requête hors boucle locale ?"}
     F -- oui --> X["Échec : hôte nommé, rapport invalide"]
     F -- non --> G["Calculer p50, p95, max par opération"]
@@ -574,7 +574,7 @@ Opérations retenues (lecture, sans appel externe ni IA) : `GET /api/v1/projects
 - Quotas des forges lors du passage quotidien sur beaucoup de dépôts → arrêt par forge sur `QuotaEpuise`, reprise au passage suivant ; cadence réglable.
 - Volume des impacts conservés (`résolu`) → index `(project_id, state)` ; listes filtrées par défaut sur `ouvert` et `confirmé`.
 - Divergence de l'ordre de fusion des volets → numéros de migration réservés (P-11) ; vérification d'intégration 4.1.
-- Mesure de performance non représentative (volume, concurrence non fixés) → Q-PERF-1, Q-PERF-2 ; valeurs écrites dans le rapport.
+- Mesure de performance non représentative d'un projet réel → jeu de référence fixé par la décision K3 ; valeurs écrites dans le rapport.
 
 ## Écarts code / tests / specs / documentation
 
@@ -606,4 +606,3 @@ Opérations retenues (lecture, sans appel externe ni IA) : `GET /api/v1/projects
 
 ## Questions ouvertes
 
-- Q-PERF-1, Q-PERF-2 (proposal.md) : n'affectent ni les specs ni les tâches ; les valeurs retenues sont écrites dans le rapport.

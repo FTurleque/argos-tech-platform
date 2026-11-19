@@ -37,8 +37,8 @@ Vérifier, par une mesure automatisée et gratuite, que les consultations de l'A
 
 | Entrée / sortie | Contenu | Validation ou contrainte | Statut |
 |---|---|---|---|
-| Entrée : jeu de données de référence | espaces, projets, inventaires, signaux, impacts, éléments de veille | volume non fixé [QUESTION Q-PERF-1] ; valeur retenue écrite dans le rapport | [PROPOSITION] |
-| Entrée : paramètres de campagne | nombre d'appels par opération, concurrence, échauffement | concurrence non fixée [QUESTION Q-PERF-2] ; valeurs écrites dans le rapport | [PROPOSITION] |
+| Entrée : jeu de données de référence | espaces, projets, inventaires, signaux, impacts, éléments de veille | 20 projets × 100 composants, 1 000 avis [DÉCISION K3, 2026-11-19] ; valeur écrite dans le rapport | [PROPOSITION] |
+| Entrée : paramètres de campagne | nombre d'appels par opération, concurrence, échauffement | 4 clients simultanés [DÉCISION K3, 2026-11-19] ; valeurs écrites dans le rapport | [PROPOSITION] |
 | Sortie : rapport JSON | date, révision Git, environnement, volume, concurrence, mesures par opération, opérations exclues, verdict | `e2e/resultats/performance/` | [PROPOSITION] |
 | Sortie : rapport Markdown | mêmes informations, lisibles | `docs/architecture/quality/mesure-performance-api-mcp.md` | [PROPOSITION] |
 | Sortie : code de sortie | 0 si tous les p95 < 500 ms, non nul sinon ou en cas de requête hors du poste | PERF-01-S2, PERF-02-S3 | [PROPOSITION] |
@@ -104,16 +104,13 @@ Propositions du changement `automatiser-chaine-veille`, à valider [PROPOSITION]
 ## Écarts constatés
 
 - Campagne implémentée (volet C, 2026-11-19) : `e2e/performance/mesurer-p95.mjs` (exécution), `e2e/performance/mesure.mjs` (garde réseau, centiles, verdict, rapports), `e2e/performance/donnees-performance.sql` (jeu de données paramétré), commande `npm --prefix e2e run test:performance` ; tests `node --test "e2e/performance/*.test.mjs"` (Node 24 n'accepte pas un dossier comme argument de `node --test`) [EXISTANT].
-- Première exécution, 2026-11-19 (révision `fbb04c9`, code du volet C ; script de campagne non encore validé dans Git au moment de la mesure) : `GET /api/v1/me/veille` dépasse la cible (p50 = 511 ms, p95 = 618 ms) ; les quinze autres opérations sont sous 230 ms. Seconde exécution, 2026-11-19, branche intégrée (révision `7c5b9d7`, volets A, B et C réunis, script validé ; serveur démarré par la campagne, synchronisation horaire, import quotidien et IA désactivés) : `GET /api/v1/me/veille` p50 = 509,3 ms, p95 = 533,8 ms, toujours hors cible ; les quinze autres opérations ont un p95 de 15,1 à 129,6 ms ; code de sortie 1. L'écart est consigné, sans correction dans ce changement : l'optimisation de « Ma veille » relève d'un changement ultérieur [PROPOSITION P-18].
-- Valeurs retenues en attendant Q-PERF-1 et Q-PERF-2 (P-9) : 20 projets × 100 composants, 1 000 avis, 20 000 impacts dans un espace ; 200 appels par opération après 20 d'échauffement ; 4 clients simultanés ; surchargeables par `ARGOS_PERF_PROJETS`, `ARGOS_PERF_COMPOSANTS`, `ARGOS_PERF_SIGNAUX`, `ARGOS_PERF_APPELS`, `ARGOS_PERF_ECHAUFFEMENT`, `ARGOS_PERF_CONCURRENCE`.
+- Première exécution, 2026-11-19 (révision `fbb04c9`, code du volet C ; script de campagne non encore validé dans Git au moment de la mesure) : `GET /api/v1/me/veille` dépasse la cible (p50 = 511 ms, p95 = 618 ms) ; les quinze autres opérations sont sous 230 ms. Seconde exécution, 2026-11-19, branche intégrée (révision `7c5b9d7`, volets A, B et C réunis, script validé ; serveur démarré par la campagne, synchronisation horaire, import quotidien et IA désactivés) : `GET /api/v1/me/veille` p50 = 509,3 ms, p95 = 533,8 ms, toujours hors cible ; les quinze autres opérations ont un p95 de 15,1 à 129,6 ms ; code de sortie 1. L'écart est consigné, sans correction dans ce changement : l'optimisation de « Ma veille » fait l'objet d'un changement dédié [DÉCISION K2, 2026-11-19].
+- Jeu de référence [DÉCISION K3, 2026-11-19] : 20 projets × 100 composants, 1 000 avis, 20 000 impacts dans un espace ; 200 appels par opération après 20 d'échauffement ; 4 clients simultanés ; surchargeables par `ARGOS_PERF_PROJETS`, `ARGOS_PERF_COMPOSANTS`, `ARGOS_PERF_SIGNAUX`, `ARGOS_PERF_APPELS`, `ARGOS_PERF_ECHAUFFEMENT`, `ARGOS_PERF_CONCURRENCE`.
 - `explain_change` (synthèse par l'IA) est exclu : sept outils MCP sur huit sont mesurés. La limite de débit MCP (60 requêtes par minute en développement) est relevée pour la campagne par `ARGOS_MCP_DEBIT_REQUETES_PAR_MINUTE`, comme dans le profil de test.
 
 ## Questions ouvertes
 
-| ID | Question | Impact | Destinataire |
-|---|---|---|---|
-| Q-PERF-1 | Quel volume de données de référence pour la campagne ? | représentativité de PERF-01 | porteur du projet |
-| Q-PERF-2 | Quelle concurrence (clients simultanés) pour mesurer le p95 ? | représentativité de PERF-01 | porteur du projet |
+Aucune.
 
 ## Traçabilité
 
