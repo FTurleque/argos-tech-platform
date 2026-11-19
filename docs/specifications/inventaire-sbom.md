@@ -41,6 +41,8 @@ Répondre de façon fiable à la question « quels composants, et dans quelles v
 | Sortie : inventaire du projet | composants, PURL, version, direct/transitif, origine (SBOM ou manifeste), date de la source | un inventaire de référence par projet | [PROPOSITION] |
 | Sortie : échec d'import | motif | consultable | [PROPOSITION] |
 | Sortie : composants signalés à l'import | nombre total des composants écartés faute de PURL ; nom, groupe, version et motif (`SANS_PURL` : aucun PURL déclaré ; `PURL_INVALIDE` : PURL illisible) des 100 premiers | restitués avec l'inventaire (`ignoredCount`, `ignoredComponents` de `GET /api/v1/projects/{projectId}/inventory`) et affichés dans la vue d'inventaire d'`argos-ui`, web et desktop (section « Composants ignorés ») ; remplacés à chaque import | [DÉCISION] porteur du projet, 2026-11-18 (D6) et 2026-11-19 (E4) |
+| Sortie : projets visibles | identifiant, espace (identifiant et nom) et nom de chaque projet des espaces de l'utilisateur, par nom de projet, nom d'espace puis identifiant ; nombre total | `GET /api/v1/projects`, liste paginée (`page` à partir de 0, `size` de 1 à 200, défaut 50, ramenés aux bornes) ; liste de choix « Projet » de la vue d'inventaire d'`argos-ui` | [DÉCISION] porteur du projet, 2026-11-19 (F1) ; modalités [PROPOSITION] |
+| Sortie : composants inventoriés paginés | nom (clé du paquet sans `pkg:<type>/`), version, PURL, dépendance directe, transitive ou inconnue, par nom, version puis identifiant ; nombre total | `GET /api/v1/projects/{projectId}/inventory/components`, mêmes bornes ; section « Composants inventoriés » de la vue d'inventaire, pages de 20 | [DÉCISION] porteur du projet, 2026-11-19 (F5) ; modalités [PROPOSITION] |
 | Entrée : SBOM récupérée sur la forge | octets et format reconnu à l'en-tête : CycloneDX JSON, CycloneDX XML, SPDX JSON (dont l'export du graphe de dépendances GitHub), SPDX étiquette-valeur, inconnu | seule une SBOM CycloneDX JSON (ou de format inconnu, alors soumise au contrôle CycloneDX) est importée ; un autre format reconnu est refusé avec un motif qui le nomme, l'inventaire en place est conservé | [EXISTANT] — `io.argos.scm.SbomDocument`, `InventoryService.refresh` ; [PROPOSITION] pour le refus nommé des formats SPDX et CycloneDX XML |
 
 ## Règles métier
@@ -54,10 +56,13 @@ Répondre de façon fiable à la question « quels composants, et dans quelles v
 | L'âge de la SBOM et l'absence de SBOM sont visibles | INV-03 | ADR-0011 | [PROPOSITION] |
 | Sans SBOM, repli sur les manifestes, origine affichée | INV-04 | ADR-0011 | [PROPOSITION] |
 | SBOM non conforme refusée, motif visible | INV-05 | arc42 §8.3, §11.2 | [PROPOSITION] |
+| La vue d'inventaire propose le choix du projet parmi les projets des espaces de l'utilisateur, lus sous la RLS de `project` ; les liens depuis les alertes restent | INV-06 (INV-06-S1) | décision du porteur du projet, 2026-11-19 (F1) | [DÉCISION] |
+| Les composants inventoriés d'un projet (nom, version, PURL, direct ou transitif) sont listés par pages côté serveur et consultables dans la vue | INV-06 (INV-06-S2) | décision du porteur du projet, 2026-11-19 (F5) | [DÉCISION] |
+| Pages de taille bornée (1 à 200, défaut 50, valeurs hors bornes ramenées), tri stable (composants : nom, version, identifiant ; projets : nom, espace, identifiant) ; projet inconnu ou d'un autre espace : 404, refus journalisé | INV-06 (INV-06-S2, INV-06-S3) | arc42 §8.10 ; design.md D7 | [PROPOSITION] |
 
 ## Droits d'accès et restrictions
 
-L'inventaire appartient au projet et suit le cloisonnement par espace (ADR-0016, Proposé) : seuls les utilisateurs autorisés sur le projet le consultent. Les exigences de cloisonnement des impacts sont portées par COR-08 ; le cloisonnement de l'inventaire lui-même relève de la capacité de contrôle d'accès (lot ultérieur) [QUESTION].
+L'inventaire appartient au projet et suit le cloisonnement par espace (ADR-0016, Proposé) : seuls les utilisateurs autorisés sur le projet le consultent. La liste des projets visibles n'applique aucun filtre d'espace dans sa requête : la RLS de `project` sous le rôle `argos_app` la limite aux espaces dont l'utilisateur est membre (INV-06-S1). Les exigences de cloisonnement des impacts sont portées par COR-08 ; le cloisonnement de l'inventaire lui-même relève de la capacité de contrôle d'accès (lot ultérieur) [QUESTION].
 
 ## Effets de bord observables
 
@@ -126,9 +131,46 @@ flowchart TD
 
 Le diagramme relie l'origine de l'inventaire au niveau d'impact défini par `correlation-impact`. Le comportement d'un projet sans aucun inventaire vis-à-vis de la corrélation (aucun impact calculable) est une conséquence logique, non une règle écrite dans les sources.
 
+### DF-INV-3 — Consultation de l'inventaire d'un projet choisi
+
+- **Question** : comment un utilisateur choisit-il un projet et parcourt-il ses composants inventoriés, sans voir ceux d'un autre espace ?
+- **Type** : UML séquence
+- **Portée** : implémentée (décisions F1 et F5 du 2026-11-19 ; modalités [PROPOSITION], design.md D7)
+- **Exigences** : INV-06, INV-03
+
+```mermaid
+sequenceDiagram
+    actor U as Utilisateur
+    participant IHM as argos-ui (vue d'inventaire)
+    participant API as api (REST)
+    participant Inv as inventory
+    participant DB as PostgreSQL (rôle argos_app, RLS)
+
+    U->>IHM: ouvrir « Inventaire »
+    IHM->>API: GET /api/v1/projects?page=0&size=200
+    API->>Inv: projets lisibles du compte
+    Inv->>DB: lire project et espace sous le compte
+    DB-->>Inv: projets des espaces dont le compte est membre
+    Inv-->>IHM: page de projets (nom, espace, identifiant, total)
+    U->>IHM: choisir un projet, « Afficher l'inventaire »
+    IHM->>API: GET /api/v1/projects/{id}/inventory
+    IHM->>API: GET /api/v1/projects/{id}/inventory/components?page=0&size=20
+    alt projet d'un espace de l'utilisateur
+        API->>Inv: page de composants (nom, version, identifiant)
+        Inv->>DB: lire component sous le compte
+        Inv-->>IHM: composants de la page et nombre total
+        U->>IHM: « Page suivante » (clavier ou souris)
+        IHM->>API: GET …/inventory/components?page=1&size=20
+    else projet inconnu ou d'un autre espace
+        API-->>IHM: 404, refus journalisé pour un autre espace
+    end
+```
+
+La synthèse (origine, âge, obsolescence) et les composants ignorés restent lus sur `/inventory` (INV-01-S3, INV-03) ; la page de composants est un appel distinct, sans modification de la réponse de `/inventory`.
+
 ## Critères d'acceptation
 
-- Scénarios `INV-01-S1` à `INV-05-S1` de la spec.
+- Scénarios `INV-01-S1` à `INV-05-S1` de la spec, et `INV-06-S1` à `INV-06-S3` (consultation par projet, [PROPOSITION] issue des décisions F1 et F5 du 2026-11-19).
 - Baseline v2.3 §4 : « SBOM CycloneDX de deux projets, PURL et versions transitives consultables ».
 
 ## Interprétations introduites par un changement
@@ -157,7 +199,11 @@ Interprétation introduite par l'implémentation, à valider [PROPOSITION] :
 - Les artefacts de job GitLab ne sont pas lisibles anonymement sur les projets publics essayés (403 enregistré) ; la récupération d'un artefact réel n'est vérifiée qu'avec une réponse composée.
 - Écart E-2 du [jeu de référence](../architecture/quality/mesure-correlation-jeu-reference.md) (composant décrit sans PURL) : signalé à l'import et affiché dans l'IHM.
 - [DÉCISION — porteur du projet, 2026-11-19 ; E4] Composants ignorés faute de PURL : ils sont affichés dans la vue d'inventaire d'`argos-ui` (web et desktop), à partir du champ déjà exposé par `GET /api/v1/projects/{id}/inventory`.
-- Les composants signalés à l'import sont restitués par l'API d'inventaire et affichés par la vue d'inventaire d'`argos-ui`, web et desktop (`argos-ui/src/views/InventaireView.vue`, adresses `/inventaire` et `/inventaire/{id}`, entrée « Inventaire » de la navigation) : l'IHM lit `GET /api/v1/projects/{projectId}/inventory` par `appelerApi` (`argos-ui/src/api/inventaire.ts`), affiche la synthèse de l'inventaire de référence (origine, date et âge de la source, obsolescence, date d'import, nombre de composants inventoriés), puis la section « Composants ignorés » : nombre total, tableau à en-têtes de colonne (nom, groupe, version, motif) borné comme l'API, ou l'état vide (« Aucun composant ignoré au dernier import. ») ; un projet sans inventaire est nommé comme tel. Les valeurs issues de la SBOM sont rendues comme texte. Le détail d'une alerte mène à la vue d'inventaire de chaque projet cité. [PROPOSITION : l'API n'expose pas la liste des projets de l'utilisateur ; la vue désigne le projet par son identifiant, saisi ou suivi depuis le lien d'un projet cité par une alerte ; une liste des projets visibles, par exemple `GET /api/v1/projects`, reste à décider par le porteur du projet]. Les outils MCP ne restituent pas le signalement ; le résultat interne de l'import (`InventoryService.ImportResult`) le porte aussi, mais aucun point d'entrée ne le renvoie. Ils sont conservés dans les colonnes `ignored_count` et `ignored_components` de `inventory` (migration V17), sous la RLS de la table.
+- Les composants signalés à l'import sont restitués par l'API d'inventaire et affichés par la vue d'inventaire d'`argos-ui`, web et desktop (`argos-ui/src/views/InventaireView.vue`, adresses `/inventaire` et `/inventaire/{id}`, entrée « Inventaire » de la navigation) : l'IHM lit `GET /api/v1/projects/{projectId}/inventory` par `appelerApi` (`argos-ui/src/api/inventaire.ts`), affiche la synthèse de l'inventaire de référence (origine, date et âge de la source, obsolescence, date d'import, nombre de composants inventoriés), puis la section « Composants ignorés » : nombre total, tableau à en-têtes de colonne (nom, groupe, version, motif) borné comme l'API, ou l'état vide (« Aucun composant ignoré au dernier import. ») ; un projet sans inventaire est nommé comme tel. Les valeurs issues de la SBOM sont rendues comme texte. Le détail d'une alerte mène à la vue d'inventaire de chaque projet cité. Le projet se choisit dans la liste des projets visibles ou se désigne par son identifiant (décision F1 ci-dessous). Les outils MCP ne restituent pas le signalement ; le résultat interne de l'import (`InventoryService.ImportResult`) le porte aussi, mais aucun point d'entrée ne le renvoie. Ils sont conservés dans les colonnes `ignored_count` et `ignored_components` de `inventory` (migration V17), sous la RLS de la table.
+- [DÉCISION — porteur du projet, 2026-11-19 ; F1] Vue d'inventaire : nouveau point d'accès `GET /api/v1/projects` listant les projets visibles par l'utilisateur (sous RLS, adossé à `InventoryQueries.visibleProjects` ou équivalent existant), et liste de choix du projet dans la vue Inventaire d'`argos-ui` ; les liens depuis les alertes restent.
+- [DÉCISION — porteur du projet, 2026-11-19 ; F5] Vue d'inventaire : liste paginée côté serveur des composants inventoriés d'un projet (nom, version, PURL, direct ou transitif), consultable dans la vue.
+- Les décisions F1 et F5 sont implémentées (exigence INV-06 [PROPOSITION], tâche 3.8, design.md D7) : `io.argos.api.ProjectResource` (`GET /api/v1/projects`) et `InventoryResource#components` (`GET /api/v1/projects/{projectId}/inventory/components`), adossés à `InventoryQueries.projects` et `InventoryQueries.components`, exécutés sous `argos_app` avec le compte de l'appelant ; `GET /api/v1/projects/{projectId}/inventory` est inchangé. La vue d'inventaire d'`argos-ui` (web et desktop) propose la liste de choix « Projet » (libellé « nom du projet — nom de l'espace », 200 premiers projets ; au-delà, un message renvoie à la désignation par identifiant, conservée sous « Ou identifiant du projet ») et la section « Composants inventoriés » : tableau à en-têtes (nom, version, PURL, dépendance), pages de 20, navigation « Page précédente » / « Page suivante » au clavier, position « Page n sur m », annonce dans la région live, focus sur le tableau après un changement de page, état vide (« Aucun composant inventorié. ») et erreurs avec nouvelle tentative. L'ordre des versions est l'ordre alphabétique de la base, et non l'ordre des versions de l'écosystème [PROPOSITION].
+- Les outils MCP (`OutilsProjets`, `OutilsReferentiel`) lisent toujours la liste complète des projets lisibles (`InventoryQueries.visibleProjects`), sans pagination.
 - ADR-0032 décrit les migrations V1 à V16 ; la migration V17 n'y figure pas. Le texte de l'ADR n'est pas modifiable sans décision : le traitement de cet écart (note d'arc42, nouvel ADR ou écart toléré) reste à trancher par le porteur du projet [QUESTION].
 - `InventoryService.refresh` n'a aucun déclencheur en production : ni tâche planifiée, ni point d'entrée REST (Q-INV-1).
 - Une forge qui sert durablement une SBOM SPDX ou CycloneDX XML fait refuser chaque rafraîchissement (`REJECTED`) sans repli sur les manifestes : un inventaire existant reste en l'état et n'est plus mis à jour tant que la SBOM n'est ni retirée ni remplacée par une SBOM CycloneDX JSON, comme pour une SBOM CycloneDX invalide.
@@ -175,4 +221,4 @@ Interprétation introduite par l'implémentation, à valider [PROPOSITION] :
 
 ## Traçabilité
 
-Voir la matrice du changement : [`tasks.md`](/openspec/changes/formaliser-chaine-securite-poc/tasks.md#matrice-de-traçabilité). Les scénarios INV-01-S1 à INV-05-S1 sont vérifiés par `argos-server/src/test/java/io/argos/chain/InventoryTest.java` et `DocumentParsingTest.java` ; INV-01-S3 l'est aussi par `JeuReferenceCorrelationTest` (composant sans PURL du projet `outil-sans-purl`) et, pour l'affichage dans la vue d'inventaire d'`argos-ui`, par `argos-ui/tests/composants-ignores.test.mjs` (conversion, rendu, règles de l'écran), `argos-ui/tests/inventaire-projet.test.mjs` (synthèse, chargement, erreur et nouvelle tentative, annulation) et les parcours E2E `e2e/tests/inventaire.spec.ts` (portail web) et `e2e/desktop/inventaire.spec.ts` (client desktop). La récupération GitLab et GitHub est vérifiée par `argos-server/src/test/java/io/argos/chain/ScmContratEnregistreTest.java` (réponses enregistrées) et `ScmContractTest.java` (réponses composées), forges simulées par un serveur HTTP local (tâche 3.2).
+Voir la matrice du changement : [`tasks.md`](/openspec/changes/formaliser-chaine-securite-poc/tasks.md#matrice-de-traçabilité). Les scénarios INV-01-S1 à INV-05-S1 sont vérifiés par `argos-server/src/test/java/io/argos/chain/InventoryTest.java` et `DocumentParsingTest.java` ; INV-01-S3 l'est aussi par `JeuReferenceCorrelationTest` (composant sans PURL du projet `outil-sans-purl`) et, pour l'affichage dans la vue d'inventaire d'`argos-ui`, par `argos-ui/tests/composants-ignores.test.mjs` (conversion, rendu, règles de l'écran), `argos-ui/tests/inventaire-projet.test.mjs` (synthèse, chargement, erreur et nouvelle tentative, annulation) et les parcours E2E `e2e/tests/inventaire.spec.ts` (portail web) et `e2e/desktop/inventaire.spec.ts` (client desktop). Les scénarios INV-06-S1 à INV-06-S3 sont vérifiés par `argos-server/src/test/java/io/argos/chain/ConsultationInventaireTest.java` (cloisonnement entre espaces, RLS sous `argos_app`, bornes de pagination, tri stable, projet inconnu ou d'un autre espace, contrat OpenAPI), `argos-ui/tests/inventaire-listes.test.mjs` (chemins, liste de choix, pages, chargements, rendu du tableau et de la pagination, accessibilité de l'écran) et les mêmes parcours E2E (choix du projet dans la liste, seconde page atteinte au clavier). La récupération GitLab et GitHub est vérifiée par `argos-server/src/test/java/io/argos/chain/ScmContratEnregistreTest.java` (réponses enregistrées) et `ScmContractTest.java` (réponses composées), forges simulées par un serveur HTTP local (tâche 3.2).

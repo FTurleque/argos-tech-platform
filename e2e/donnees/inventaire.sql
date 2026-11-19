@@ -1,7 +1,8 @@
--- Jeu de données du parcours « vue d'inventaire » (formaliser-chaine-securite-poc, tâche 3.7 ; INV-01-S3 ;
--- décision E4 du porteur du projet, 2026-11-19). Écrit sous l'utilisateur de connexion, hors RLS, comme
--- l'import d'une SBOM : inventaire de référence, composant inventorié et composants écartés faute de PURL
--- (colonnes ignored_count et ignored_components de la migration V17). Idempotent : identifiants fixes.
+-- Jeu de données du parcours « vue d'inventaire » (formaliser-chaine-securite-poc, tâches 3.7 et 3.8 ;
+-- INV-01-S3, INV-06 ; décisions E4, F1 et F5 du porteur du projet, 2026-11-19). Écrit sous l'utilisateur de
+-- connexion, hors RLS, comme l'import d'une SBOM : inventaire de référence, 25 composants inventoriés (deux
+-- pages de 20 dans la vue) et composants écartés faute de PURL (colonnes ignored_count et ignored_components
+-- de la migration V17). Idempotent : identifiants fixes.
 -- Variable : espace (identifiant de l'espace « Espace E2E inventaire » d'alice, créé par l'API).
 -- Aucun signal ni impact : le projet n'apparaît dans aucune recherche ni veille des autres parcours.
 BEGIN;
@@ -27,6 +28,19 @@ INSERT INTO component (id, project_id, package_key, purl, version, import_id) VA
   ('0e2e0000-0000-4000-8000-0000000000e3', '0e2e0000-0000-4000-8000-0000000000e1',
    'pkg:maven/org.e2e/inventaire', 'pkg:maven/org.e2e/inventaire@1.0', '1.0',
    '0e2e0000-0000-4000-8000-0000000000f1')
+ON CONFLICT DO NOTHING;
+
+-- 24 composants npm e2e-paquet-01 à e2e-paquet-24 : le premier direct, les autres transitifs. Triés par nom,
+-- ils précèdent org.e2e/inventaire (lien inconnu), dernier composant de la seconde page.
+INSERT INTO component (id, project_id, package_key, purl, version, transitive, import_id)
+SELECT format('0e2e0000-0000-4000-8000-0000000001%s', lpad(n::text, 2, '0'))::uuid,
+       '0e2e0000-0000-4000-8000-0000000000e1',
+       format('pkg:npm/e2e-paquet-%s', lpad(n::text, 2, '0')),
+       format('pkg:npm/e2e-paquet-%s@1.0.%s', lpad(n::text, 2, '0'), n),
+       format('1.0.%s', n),
+       n > 1,
+       '0e2e0000-0000-4000-8000-0000000000f1'
+FROM generate_series(1, 24) AS n
 ON CONFLICT DO NOTHING;
 
 COMMIT;

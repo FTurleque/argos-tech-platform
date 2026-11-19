@@ -81,3 +81,25 @@ Source : arc42 §8.3 (validation des entrées externes) ; arc42 §11.2 (pas de s
 - **WHEN** le système tente de l'importer
 - **THEN** l'import est refusé et son motif est enregistré et consultable
 - **AND** aucun composant issu de ce fichier n'est ajouté à l'inventaire
+
+### Requirement: INV-06 Consultation de l'inventaire par projet
+Le système DOIT (MUST) proposer le choix du projet parmi ceux des espaces de l'utilisateur et lister les composants inventoriés du projet par pages de taille bornée, dans un ordre stable par nom puis version.
+Source : décisions F1 et F5 du porteur du projet, 2026-11-19 ; ADR-0016 ; arc42 §8.10. Statut : [PROPOSITION].
+
+#### Scenario: INV-06-S1 Projets visibles limités aux espaces de l'utilisateur
+- **GIVEN** un utilisateur membre de l'espace A, des projets dans l'espace A et un projet dans l'espace B dont il n'est pas membre
+- **WHEN** l'utilisateur ouvre la vue d'inventaire
+- **THEN** la liste de choix propose chaque projet de l'espace A avec le nom de son espace, triés par nom
+- **AND** le projet de l'espace B n'y figure pas
+
+#### Scenario: INV-06-S2 Composants inventoriés par pages
+- **GIVEN** un projet visible de l'utilisateur dont l'inventaire de référence compte 25 composants
+- **WHEN** l'utilisateur consulte la seconde page de 20 composants
+- **THEN** les 5 derniers composants sont listés par nom puis version, chacun avec sa version, son PURL et son caractère direct ou transitif
+- **AND** le nombre total de 25 composants et la position « page 2 sur 2 » sont affichés
+
+#### Scenario: INV-06-S3 Projet inconnu ou d'un autre espace
+- **GIVEN** un utilisateur membre de l'espace A seulement
+- **WHEN** il demande les composants d'un projet inconnu ou d'un projet de l'espace B
+- **THEN** la réponse est identique à celle d'un projet inexistant et ne révèle aucun composant
+- **AND** le refus portant sur le projet de l'espace B est journalisé

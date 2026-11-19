@@ -21,6 +21,7 @@
 | COL-05, COL-06, COL-07 | Gestion des erreurs et reprise ; États | DF-COL-1, DF-COL-3, DC-3 |
 | COL-08 | Gestion des erreurs et reprise | DF-COL-2 |
 | INV-01 à INV-05 | Traitements ; Persistance ; Décision D6 (INV-01-S3) | DF-INV-1, DF-INV-2, DC-2 |
+| INV-06 | Contrats d'interface ; Sécurité et isolation ; Décision D7 | DF-INV-3 |
 | COR-01, COR-02, COR-06, COR-07 | Traitements ; Transactions ; Décision D5 (COR-01-S5) | DF-COR-1, DF-COR-2, DF-COR-3 |
 | COR-03 | Persistance (provenance) ; Observabilité | DF-COR-1, DC-2 |
 | COR-04, COR-05 | Décision D3 | DF-COR-2 |
@@ -157,6 +158,8 @@ Le contrat REST est décrit en OpenAPI générée par Quarkus (ADR-0019), sous `
 | Consulter un signal et sa provenance | utilisateur authentifié | — | COL-02-S1 |
 | Consulter l'état des sources | rôle `OPS` | — | COL-07-S1 |
 | Consulter l'inventaire d'un projet, son âge et les composants ignorés faute de PURL | utilisateur autorisé sur le projet | — | INV-01-S3, INV-02-S1, INV-03 |
+| Lister les projets visibles (`GET /api/v1/projects`, liste paginée, arc42 §8.10) | utilisateur authentifié ; liste limitée par la RLS de `project` | — | INV-06-S1 |
+| Consulter les composants inventoriés d'un projet (`GET /api/v1/projects/{projectId}/inventory/components`, liste paginée) | utilisateur autorisé sur le projet | refus sans divulgation, journalisé | INV-06-S2, INV-06-S3 |
 | Consulter les impacts d'un signal (liste paginée, arc42 §8.10) | filtrée par espace | — | COR-08-S1 |
 | Consulter un impact | utilisateur autorisé sur le projet | refus sans divulgation, journalisé | COR-03-S1, COR-08-S2 |
 | Créer un abonnement | `PERSONAL` : l'appelant ; `TEAM` : administrateur de l'espace (Q-5, ABO-06) | refus nommant l'attribut manquant (400) ; refus journalisé (403) | ABO-01-S1, ABO-02, ABO-06 |
@@ -243,6 +246,7 @@ Contraintes proposées : unicité (source, external_id) pour INV-D1 et (signal_i
 
 - Signaux globaux ; impacts, inventaires, abonnements et vues rattachés à un espace (ADR-0016).
 - Double contrôle : vérification d'espace dans les services, RLS en base comme garde-fou ; traitements batch (collecte, import, corrélation, contrôle d'intégrité) sous l'utilisateur de connexion, propriétaire des tables, les consultations sous le rôle applicatif `argos_app` avec le compte de l'appelant (ADR-0016, conséquences négatives ; arc42 §8.1).
+- Liste des projets visibles (INV-06, D7) : la RLS de `project` est le seul filtre de la liste ; aucune condition d'espace n'est ajoutée dans la requête, ce que vérifie `chain/ConsultationInventaireTest#rlsGardeFouSurLaListeDesProjetsEtLesComposants`.
 - Abonnements : le module `workspace` ne lit ni n'écrit les rôles (INV-D7) ; la restitution passe par les mêmes requêtes RLS que les autres consultations (DF-ABO-2).
 - Entrées externes (avis, SBOM, manifestes) traitées comme données non fiables : validation de structure, taille maximale configurable (`argos.inventory.max-document-bytes`, 20 Mio par défaut), aucune redirection ni URL issue d'un avis ou d'un flux suivie (risque SSRF R-12).
 - Aucun appel IA dans ce lot ; toute analyse future passe par `ai-gateway` et sa politique de classification (arc42 §8.3).
@@ -336,6 +340,21 @@ Non applicable — aucune donnée ni aucun contrat existant à migrer. Le retour
 - [DÉCISION — porteur du projet, 2026-11-19 ; E4] Composants ignorés faute de PURL : ils sont affichés dans la vue d'inventaire d'`argos-ui` (web et desktop), à partir du champ déjà exposé par `GET /api/v1/projects/{id}/inventory`.
 - **Choix** : `argos-ui` a une vue d'inventaire (`InventaireView`, adresses `/inventaire` et `/inventaire/{id}`, entrée « Inventaire » de la navigation, commune au portail web et au client desktop). Elle affiche, pour un projet des espaces de l'utilisateur, la synthèse de l'inventaire de référence (origine, date et âge de la source, obsolescence, date d'import, nombre de composants inventoriés) et la section « Composants ignorés » : nombre total, puis tableau (nom, groupe, version, motif) des composants listés par l'API, bornes reprises. Un projet sans inventaire est nommé comme tel. Les valeurs de la SBOM sont rendues comme texte. Le détail d'une alerte mène à la vue d'inventaire de chaque projet cité. Les outils MCP ne restituent toujours pas le signalement.
 - **Compromis** : l'API n'expose pas la liste des projets de l'utilisateur ; la vue désigne donc le projet par son identifiant (saisi, ou suivi depuis le lien d'un projet cité par une alerte) [PROPOSITION : désignation par identifiant, sans nouveau point d'entrée de l'API ; une liste des projets visibles, par exemple `GET /api/v1/projects` sur `InventoryQueries.visibleProjects`, reste à décider par le porteur du projet]. La vue charge l'inventaire complet (`components` compris) pour en afficher le nombre de composants.
+- Le compromis ci-dessus sur la désignation par identifiant est levé par la décision F1 (D7) : la vue propose la liste des projets visibles et garde la désignation par identifiant.
+
+### D7 — Consultation de l'inventaire par projet : liste des projets et composants paginés
+
+- **Statut** : [DÉCISION — porteur du projet, 2026-11-19 ; F1] Vue d'inventaire : nouveau point d'accès `GET /api/v1/projects` listant les projets visibles par l'utilisateur (sous RLS, adossé à `InventoryQueries.visibleProjects` ou équivalent existant), et liste de choix du projet dans la vue Inventaire d'`argos-ui` ; les liens depuis les alertes restent. [DÉCISION — porteur du projet, 2026-11-19 ; F5] Vue d'inventaire : liste paginée côté serveur des composants inventoriés d'un projet (nom, version, PURL, direct ou transitif), consultable dans la vue. Les modalités ci-dessous sont des [PROPOSITION].
+- **Choix** :
+  - `GET /api/v1/projects?page=&size=` renvoie `{items, page, size, total}`, chaque élément portant `id`, `workspaceId`, `workspaceName` et `name`. La requête (`InventoryQueries.projects`) ne filtre pas par espace : sous `argos_app`, la RLS de `project` limite la liste aux espaces dont l'appelant est membre ; le nom de l'espace vient d'une jointure externe sur `espace`, lue sous sa propre RLS. Tri : nom du projet, nom de l'espace, identifiant.
+  - `GET /api/v1/projects/{projectId}/inventory/components?page=&size=` renvoie `{projectId, items, page, size, total}`, chaque élément portant `id`, `name` (clé du paquet sans le préfixe `pkg:<type>/`), `version`, `purl`, `packageKey` et `transitive` (`null` si inconnu). Tri : nom, version (absente en premier), identifiant ; l'ordre des noms et des versions est l'ordre alphabétique de la base, et non l'ordre des versions de l'écosystème. Un projet inconnu ou d'un autre espace reçoit 404, le second refus étant journalisé (`refus_acces`, motif `NON_MEMBRE`) comme pour `/inventory` ; un projet sans inventaire reçoit une page vide.
+  - Pagination des deux listes : `page` à partir de 0 (négatif ramené à 0), `size` de 1 à 200 (défaut 50), une valeur hors bornes étant ramenée à la borne la plus proche, comme pour les impacts d'un signal (`ImpactQueries.forSignal`). `page` et `size` restitués sont les valeurs appliquées.
+  - `GET /api/v1/projects/{projectId}/inventory` reste inchangé, `components` compris : les clients actuels ne sont pas modifiés.
+  - `argos-ui` : la vue d'inventaire propose une liste de choix (`<select>` étiqueté « Projet », libellé « nom du projet — nom de l'espace ») alimentée par la première page de 200 projets ; au-delà, un message l'indique et la désignation par identifiant (« Ou identifiant du projet ») reste disponible. La sélection ne change pas de contexte : le bouton « Afficher l'inventaire » mène à `/inventaire/{id}`. La section « Composants inventoriés » affiche un tableau à en-têtes (nom, version, PURL, dépendance) par pages de 20, une navigation « Page précédente » / « Page suivante » nommée, focalisable aux bornes (`aria-disabled`), la position « Page n sur m », une annonce dans la région live et le focus sur le tableau après un changement de page, l'état vide et les erreurs avec nouvelle tentative. Une page au-delà de la dernière (inventaire remplacé entre deux pages) est remplacée par la dernière.
+- **Justification** : la RLS reste le garde-fou unique de la visibilité (ADR-0016) ; un sous-chemin `/components` ajoute la pagination sans changer la réponse de `/inventory` ; le ramenage aux bornes reprend la convention existante des listes paginées de l'API.
+- **Alternatives écartées** : paramètres de pagination ajoutés à `/inventory` (réponse existante modifiée) ; refus 400 d'une taille hors bornes (convention différente des impacts d'un signal) ; pagination par curseur (volumes du POC compatibles avec un décalage) ; tri par ordre des versions de l'écosystème (règle métier de `impact-engine`, hors de la consultation).
+- **Compromis** : la liste de choix ne présente que les 200 premiers projets ; le décompte et la page sont deux requêtes de la même connexion, sans instantané commun : un import concurrent peut décaler une page.
+- **ADR** : non — décision locale, sans nouveau composant ni nouvelle technologie.
 
 ## Risques
 
@@ -359,6 +378,7 @@ Non applicable — aucune donnée ni aucun contrat existant à migrer. Le retour
 | COL-03-S3, COR-07 | intégration concurrente | test parallèle sur contrainte d'unicité | à écrire |
 | COL-05, COL-06, COL-07 | résilience (simulation 429/5xx/timeout, arrêt forcé) | QS-03, QS-07 | à écrire |
 | INV-01 à INV-05 | intégration avec SBOM CycloneDX de test | jeux de SBOM valides/invalides | à écrire |
+| INV-06 | intégration REST + RLS ; IHM (`node --test`) ; E2E web et desktop | `chain/ConsultationInventaireTest`, `argos-ui/tests/inventaire-listes.test.mjs`, `e2e/tests/inventaire.spec.ts`, `e2e/desktop/inventaire.spec.ts` | passe le 2026-11-19 (tâche 3.8) |
 | COR-01 à COR-06 | unitaire (règles) + jeu de référence annoté | précision/rappel (baseline v2.3 §6 critère 3) | `MatchRulesTest`, `CorrelationTest`, `JeuReferenceCorrelationTest` ; jeu composé mesuré le 2026-11-18, inventaires des projets pilotes à ajouter (tâches 4.7 et 7.1) |
 | COR-08, ABO-05 | intégration inter-espaces REST + RLS | test ADR-0016 | à écrire |
 | ABO-01 à ABO-04 | intégration API | tests du module `workspace` | à écrire |
