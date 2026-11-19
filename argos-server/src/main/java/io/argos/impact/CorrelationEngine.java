@@ -8,9 +8,11 @@ import java.sql.Types;
 import java.time.ZoneOffset;
 import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.Set;
 import java.util.UUID;
 
 import javax.sql.DataSource;
@@ -31,6 +33,7 @@ import io.quarkus.narayana.jta.QuarkusTransaction;
 
 import io.argos.inventory.InventoryQueries;
 import io.argos.inventory.InventoryReplaced;
+import io.argos.inventory.InventoryStore;
 import io.argos.signal.AffectedPackage;
 import io.argos.signal.SignalChanged;
 import io.argos.signal.SignalQueries;
@@ -68,6 +71,9 @@ public class CorrelationEngine {
     InventoryQueries inventories;
 
     @Inject
+    InventoryStore inventoryStore;
+
+    @Inject
     Instance<ComplementaryAnalysis> analysis;
 
     @Inject
@@ -89,15 +95,38 @@ public class CorrelationEngine {
         }
     }
 
-    /** Corrèle tous les signaux qui affectent un paquet de l'inventaire du projet. */
+    /**
+     * Recorrèle un projet (INV-09, décision D4 du changement automatiser-chaine-veille) : les signaux qui affectent
+     * un paquet de son inventaire et ceux qui portent déjà un impact sur ce projet, afin de traiter aussi les impacts
+     * devenus sans objet. Quand tous les signaux sont traités, le marqueur de recorrélation posé par l'import est
+     * effacé, sauf si l'inventaire a changé entre-temps ; un échec le laisse posé, et l'import planifié suivant
+     * relance la recorrélation (INV-09-S4).
+     */
     public List<CorrelationReport> correlateProject(UUID projectId) {
-        List<UUID> signalIds = QuarkusTransaction.requiringNew()
-                .call(() -> signals.signalsAffecting(inventories.packageKeys(projectId)));
+        Optional<UUID> importCourant = QuarkusTransaction.requiringNew().call(() -> inventories.importCourant(projectId));
+        List<UUID> signalIds = QuarkusTransaction.requiringNew().call(() -> signalsToRecorrelate(projectId));
         List<CorrelationReport> reports = new ArrayList<>();
         for (UUID signalId : signalIds) {
             reports.add(correlate(signalId, Optional.of(projectId)));
         }
+        importCourant.ifPresent(importId -> QuarkusTransaction.requiringNew()
+                .run(() -> inventoryStore.recorrelationTerminee(projectId, importId)));
         return reports;
+    }
+
+    /** Signaux qui affectent l'inventaire du projet, puis signaux porteurs d'un impact sur ce projet, sans doublon. */
+    private List<UUID> signalsToRecorrelate(UUID projectId) throws SQLException {
+        Set<UUID> ids = new LinkedHashSet<>(signals.signalsAffecting(inventories.packageKeys(projectId)));
+        try (Connection c = dataSource.getConnection(); PreparedStatement ps = c.prepareStatement(
+                "SELECT DISTINCT signal_id FROM project_impact WHERE project_id = ? ORDER BY signal_id")) {
+            ps.setObject(1, projectId);
+            try (ResultSet rs = ps.executeQuery()) {
+                while (rs.next()) {
+                    ids.add(rs.getObject(1, UUID.class));
+                }
+            }
+        }
+        return List.copyOf(ids);
     }
 
     /** Corrèle un signal avec tous les projets, ou avec un seul projet. */

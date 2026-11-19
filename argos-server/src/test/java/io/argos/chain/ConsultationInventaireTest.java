@@ -293,6 +293,26 @@ class ConsultationInventaireTest {
         assertEquals(2, complet.getList("inventory.components").size(), "réponse complète inchangée pour ses clients");
     }
 
+    /**
+     * INV-10 (changement automatiser-chaine-veille, tâche 2.5) : un projet sans dépôt, inventorié par import manuel,
+     * a une liste de dépôts vide dans la synthèse et dans chaque composant ; les autres champs sont inchangés.
+     */
+    @Test
+    void depotsVidesPourUnProjetSansDepot() {
+        UUID projet = projects.create(espaceA, "manuel", null, null);
+        importer(projet, 2);
+        String chemin = "/api/v1/projects/" + projet + "/inventory";
+        Api.en("alice").when().get(chemin + "/summary")
+                .then().statusCode(200)
+                .body("summary.componentCount", equalTo(2))
+                .body("summary.repositories", empty());
+        Api.en("alice").when().get(chemin + "/components")
+                .then().statusCode(200)
+                .body("items", hasSize(2))
+                .body("items[0].repositories", empty())
+                .body("items[1].repositories", empty());
+    }
+
     @Test
     void syntheseProjetSansInventaire() {
         UUID projet = projects.create(espaceA, "neuf", null, null);
@@ -339,14 +359,19 @@ class ConsultationInventaireTest {
                 .body("paths.'/api/v1/projects/{projectId}/inventory/summary'.get.responses.'404'", notNullValue())
                 .body("components.schemas.ProjectInventorySummary.properties.keySet()", hasItems("projectId", "status", "summary"))
                 .body("components.schemas.InventorySummary.properties.keySet()", hasItems("projectId", "origin", "sourceDate",
-                        "ageDays", "obsolete", "specVersion", "importedAt", "componentCount", "ignoredCount", "ignoredComponents"))
+                        "ageDays", "obsolete", "specVersion", "importedAt", "componentCount", "ignoredCount", "ignoredComponents",
+                        "repositories"))
+                .body("components.schemas.RepositorySummary.properties.keySet()", hasItems("id", "provider", "repository",
+                        "branch", "principal", "origin", "sourceDate", "importedAt", "lastFailure"))
+                .body("components.schemas.RepositoryFailure.properties.keySet()", hasItems("reason", "receivedAt"))
+                .body("components.schemas.ComponentRepository.properties.keySet()", hasItems("id", "provider", "repository"))
                 .body("components.schemas.InventorySummary.properties", not(hasKey("components")))
                 .body("components.schemas.ProjectPage.properties.keySet()", hasItems("items", "page", "size", "total"))
                 .body("components.schemas.ProjectItem.properties.keySet()", hasItems("id", "workspaceId", "workspaceName", "name"))
                 .body("components.schemas.ComponentPage.properties.keySet()",
                         hasItems("projectId", "items", "page", "size", "total"))
                 .body("components.schemas.ComponentItem.properties.keySet()",
-                        hasItems("id", "name", "version", "purl", "packageKey", "transitive"))
+                        hasItems("id", "name", "version", "purl", "packageKey", "transitive", "repositories"))
                 .body("paths.'/api/v1/projects'.post", nullValue());
     }
 }

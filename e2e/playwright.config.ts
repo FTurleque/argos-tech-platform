@@ -16,6 +16,7 @@ const SANS_COLLECTE_EXTERNE = {
   ARGOS_RADAR_CRON: 'off',
   ARGOS_ACTIVITE_CADENCE: 'off',
   ARGOS_VEILLE_WEB_CADENCE: 'off',
+  ARGOS_INVENTORY_IMPORT_CRON: 'off',
 }
 
 export default defineConfig({
