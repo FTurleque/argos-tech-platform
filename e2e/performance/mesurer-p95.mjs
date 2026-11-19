@@ -76,7 +76,7 @@ async function pret() {
 
 // Exécutables appelés par leur chemin absolu, pris parmi des emplacements fixes : la campagne ne dépend pas
 // du PATH (même règle que support/docker.mjs). ARGOS_E2E_GIT désigne un autre emplacement de Git.
-const TASKKILL = 'C:/Windows/System32/taskkill.exe'
+const EMPLACEMENTS_TASKKILL = ['C:\\Windows\\System32\\taskkill.exe']
 const EMPLACEMENTS_GIT = ['C:/Program Files/Git/cmd/git.exe', '/usr/bin/git', '/usr/local/bin/git', '/opt/homebrew/bin/git']
 
 function cheminGit() {
@@ -92,7 +92,9 @@ function executer(commande, args, options = {}) {
 /** Arrête le serveur démarré par la campagne et ses processus enfants (mvn → java). */
 function arreter(processus) {
   if (!processus || processus.exitCode !== null) return
-  if (platform() === 'win32') spawnSync(TASKKILL, ['/pid', String(processus.pid), '/T', '/F'], { stdio: 'ignore' })
+  const taskkill = EMPLACEMENTS_TASKKILL.find((chemin) => existsSync(chemin))
+  if (platform() === 'win32' && taskkill) spawnSync(taskkill, ['/pid', String(processus.pid), '/T', '/F'], { stdio: 'ignore' })
+  else if (platform() === 'win32') processus.kill()
   else {
     try {
       process.kill(-processus.pid, 'SIGTERM')
