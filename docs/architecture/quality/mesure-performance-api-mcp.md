@@ -8,11 +8,12 @@ Cible : p95 < 500 ms par opération de consultation, hors appels externes et IA 
 
 | Élément | Valeur |
 |---|---|
-| Date | 2026-11-19T18:38:53.741Z |
-| Révision Git | fbb04c9 |
+| Date | 2026-11-19T19:55:25.587Z |
+| Révision Git | 7c5b9d7 |
 | Environnement | pile de test locale (PostgreSQL de e2e/compose.yaml, quarkus:dev http://localhost:8090, Keycloak des Dev Services) |
 | Système | win32 10.0.19045 x64, 16 cœurs, 48 Gio |
 | Node.js | v24.18.0 |
+| Serveur | démarré par la campagne (tâches externes et IA désactivées) |
 | Jeu de données | 20 projets × 100 composants, 1000 avis, 20000 impacts (un espace) |
 | Appels par opération | 200 (après 20 appels d’échauffement) |
 | Concurrence | 4 clients simultanés |
@@ -23,22 +24,22 @@ Cible : p95 < 500 ms par opération de consultation, hors appels externes et IA 
 
 | Opération | Type | Appels | p50 (ms) | p95 (ms) | max (ms) | Erreurs | Verdict |
 |---|---|---|---|---|---|---|---|
-| GET /api/v1/projects | REST | 200 | 12.9 | 20 | 36.7 | 0 | dans la cible |
-| GET /api/v1/projects/{id}/inventory/summary | REST | 200 | 16 | 29.5 | 47.1 | 0 | dans la cible |
-| GET /api/v1/projects/{id}/inventory/components | REST | 200 | 15.3 | 21.5 | 27.9 | 0 | dans la cible |
-| GET /api/v1/impacts/{id} | REST | 200 | 12.8 | 18.9 | 27.8 | 0 | dans la cible |
-| GET /api/v1/signals/{id}/impacts | REST | 200 | 14.6 | 18.5 | 24.6 | 0 | dans la cible |
-| GET /api/v1/me/veille | REST | 200 | 510.7 | 618.2 | 827.5 | 0 | **hors cible** |
-| GET /api/v1/recherche | REST | 200 | 30 | 38.5 | 45.8 | 0 | dans la cible |
-| GET /api/v1/subscriptions | REST | 200 | 13.8 | 18.9 | 27.8 | 0 | dans la cible |
-| GET /api/v1/alertes | REST | 200 | 14.2 | 20.1 | 22.9 | 0 | dans la cible |
-| MCP get_project_context | MCP | 200 | 47.3 | 62.3 | 84 | 0 | dans la cible |
-| MCP get_technology_standard | MCP | 200 | 9 | 15.6 | 18.3 | 0 | dans la cible |
-| MCP upcoming_releases | MCP | 200 | 121.5 | 222.2 | 351.1 | 0 | dans la cible |
-| MCP get_regulatory_changes | MCP | 200 | 11.1 | 16.4 | 17.9 | 0 | dans la cible |
-| MCP check_dependency | MCP | 200 | 46.7 | 57.7 | 67.9 | 0 | dans la cible |
-| MCP search_signals | MCP | 200 | 30.3 | 41.2 | 59.3 | 0 | dans la cible |
-| MCP get_security_alerts | MCP | 200 | 90.7 | 102.6 | 113.2 | 0 | dans la cible |
+| GET /api/v1/projects | REST | 200 | 14 | 20.6 | 46.1 | 0 | dans la cible |
+| GET /api/v1/projects/{id}/inventory/summary | REST | 200 | 15.3 | 26.2 | 44.6 | 0 | dans la cible |
+| GET /api/v1/projects/{id}/inventory/components | REST | 200 | 15.9 | 26.6 | 32.2 | 0 | dans la cible |
+| GET /api/v1/impacts/{id} | REST | 200 | 11.2 | 17.9 | 19 | 0 | dans la cible |
+| GET /api/v1/signals/{id}/impacts | REST | 200 | 14.7 | 20.8 | 28.5 | 0 | dans la cible |
+| GET /api/v1/me/veille | REST | 200 | 509.3 | 533.8 | 542.3 | 0 | **hors cible** |
+| GET /api/v1/recherche | REST | 200 | 28.1 | 35.2 | 39.2 | 0 | dans la cible |
+| GET /api/v1/subscriptions | REST | 200 | 10 | 18.5 | 41.1 | 0 | dans la cible |
+| GET /api/v1/alertes | REST | 200 | 12.9 | 15.9 | 17.2 | 0 | dans la cible |
+| MCP get_project_context | MCP | 200 | 46.5 | 59.1 | 75 | 0 | dans la cible |
+| MCP get_technology_standard | MCP | 200 | 9.1 | 15.1 | 18.5 | 0 | dans la cible |
+| MCP upcoming_releases | MCP | 200 | 107.6 | 129.6 | 140.7 | 0 | dans la cible |
+| MCP get_regulatory_changes | MCP | 200 | 11.9 | 18.8 | 23.9 | 0 | dans la cible |
+| MCP check_dependency | MCP | 200 | 46.2 | 54.3 | 68.5 | 0 | dans la cible |
+| MCP search_signals | MCP | 200 | 30.2 | 38.2 | 47.7 | 0 | dans la cible |
+| MCP get_security_alerts | MCP | 200 | 92.6 | 118.9 | 148.6 | 0 | dans la cible |
 
 ## Opérations exclues
 
@@ -57,4 +58,5 @@ Cible : p95 < 500 ms par opération de consultation, hors appels externes et IA 
 - Garde réseau : toute requête hors de la boucle locale (`localhost`, `127.0.0.1`, `[::1]`) fait échouer la campagne en nommant l’hôte (PERF-02-S3).
 - Jetons : comptes du royaume de test (flux par mot de passe du client de test `argos-server`), aucun secret réel.
 - Durée d’un appel : de l’envoi de la requête à la lecture complète de la réponse, mesurée par `performance.now()` côté client ; centiles par la méthode du rang le plus proche.
+- Limites : le serveur tourne en mode développement (`quarkus:dev`), dont les latences sont plus élevées qu’un binaire de production ; la garde réseau porte sur les requêtes du client de mesure et ne prouve pas à elle seule l’absence d’appel externe côté serveur, garantie par la désactivation des tâches externes et de l’IA au démarrage ; la révision indiquée est celle du dépôt, modifications non validées éventuelles non comprises.
 - Outillage : Node.js seul (`fetch`, `node:perf_hooks`), aucune dépendance ajoutée (ADR-0021). La campagne n’est lancée ni par `mvn verify`, ni par `npm --prefix argos-ui test`, ni par `npm --prefix e2e test` (PERF-02-S2).
