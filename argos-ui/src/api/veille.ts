@@ -99,7 +99,7 @@ export function lireCatalogueProfils(signal?: AbortSignal): Promise<ProfilCatalo
 
 /**
  * Préférences appliquées : mise en page, profils actifs, profils par défaut et profils retirés du
- * catalogue. Seule lecture de `GET /api/v1/preferences` de l'IHM (veille, profils et mise en page).
+ * catalogue. Lecture de `GET /api/v1/preferences` partagée par la veille, les profils et la mise en page.
  */
 export function lirePreferences(signal?: AbortSignal): Promise<PreferencesEffectives> {
   return appelerApi<PreferencesEffectives>('/api/v1/preferences', { signal })
