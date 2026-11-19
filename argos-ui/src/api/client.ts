@@ -179,10 +179,6 @@ export interface MiseEnPageCatalogue {
   parDefaut: boolean
 }
 
-export function fetchPreferences(): Promise<PreferencesEffectives> {
-  return getJson<PreferencesEffectives>('/api/v1/preferences')
-}
-
 export function fetchMisesEnPage(): Promise<MiseEnPageCatalogue[]> {
   return getJson<MiseEnPageCatalogue[]>('/api/v1/catalogue/mises-en-page')
 }

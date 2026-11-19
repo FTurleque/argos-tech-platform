@@ -7,11 +7,11 @@ import {
   ApiError,
   choisirMiseEnPage,
   fetchMisesEnPage,
-  fetchPreferences,
   type MiseEnPageCatalogue,
   type PreferencesEffectives,
 } from '../api/client'
 import { STATUT_NON_AUTHENTIFIE } from '../api/statuts-http'
+import { lirePreferences } from '../api/veille'
 import { VEILLE_APERCU } from '../contenu/apercu'
 import { resoudreMiseEnPage } from '../contenu/resolution'
 import MiseEnPage from '../mises-en-page/MiseEnPage.vue'
@@ -35,7 +35,7 @@ function message(e: unknown): string {
 async function charger(): Promise<void> {
   erreur.value = ''
   try {
-    const [prefs, misesEnPage] = await Promise.all([fetchPreferences(), fetchMisesEnPage()])
+    const [prefs, misesEnPage] = await Promise.all([lirePreferences(), fetchMisesEnPage()])
     preferences.value = prefs
     catalogue.value = misesEnPage
   } catch (e) {
