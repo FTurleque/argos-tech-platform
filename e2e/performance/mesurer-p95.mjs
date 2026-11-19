@@ -47,6 +47,11 @@ const SANS_COLLECTE_EXTERNE = {
   ARGOS_RADAR_CRON: 'off',
   ARGOS_ACTIVITE_CADENCE: 'off',
   ARGOS_VEILLE_WEB_CADENCE: 'off',
+  // Synchronisation horaire des sources d'avis (J1) et import quotidien des inventaires (J3).
+  ARGOS_INGESTION_PLANIFICATION_CADENCE: 'off',
+  ARGOS_INVENTORY_IMPORT_CRON: 'off',
+  // Aucune passerelle IA, quelle que soit la configuration du poste (cible « hors IA »).
+  ARGOS_IA_ACTIVE: 'false',
 }
 
 /** fetch sous la garde réseau : toute URL hors de la boucle locale fait échouer la campagne (PERF-02-S3). */
