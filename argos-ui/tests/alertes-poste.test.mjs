@@ -228,3 +228,51 @@ test('attente croissante après des échecs, bornée à cinq minutes', () => {
   assert.equal(delaiReprise(3), 20_000)
   assert.equal(delaiReprise(50), REPRISE_MAX_MS)
 })
+
+test('cycle : ordre des notifications et des remises, délais renvoyés et reprise après un refus', async () => {
+  const journal = []
+  const sansDate = alerte(['a'], { creeLe: undefined })
+  const recente = alerte(['b'], { creeLe: '2026-11-16T09:00:00Z' })
+  const ancienne = alerte(['c'], { creeLe: '2026-11-16T07:00:00Z' })
+  const resume = alerte([], { nature: 'DAILY', creeLe: '2026-11-16T08:00:00Z' })
+  const dejaRemise = alerte(['d'], { etat: 'ENVOYEE', creeLe: '2026-11-16T06:00:00Z' })
+  let reponse = () => Promise.reject(Object.assign(new Error('refus'), { status: 403 }))
+  const suiviAlertes = new SuiviAlertesPoste({
+    lister: () => reponse(),
+    remettre: async (id) => {
+      journal.push(`remise ${id}`)
+    },
+    notifier: async (a) => {
+      journal.push(`notification ${a.id}`)
+      if (a.id === recente.id) throw new Error('notification indisponible')
+      return true
+    },
+    compteur: (n) => journal.push(`compteur ${n}`),
+    surEtat: (e) => journal.push(`etat ${e.connexion} ${e.ouvertes} ${e.recuesPendantCoupure}`),
+    planifier: () => () => {},
+  })
+  assert.equal(await suiviAlertes.cycle(), REPRISE_INITIALE_MS)
+  assert.equal(suiviAlertes.etat.connexion, 'NON_AUTORISE')
+  assert.equal(await suiviAlertes.cycle(), REPRISE_INITIALE_MS * 2)
+  reponse = async () => []
+  assert.equal(await suiviAlertes.cycle(), INTERVALLE_MS)
+  assert.equal(suiviAlertes.etat.recuesPendantCoupure, 0)
+  reponse = () => Promise.reject(new Error('coupure'))
+  assert.equal(await suiviAlertes.cycle(), REPRISE_INITIALE_MS)
+  assert.equal(suiviAlertes.etat.connexion, 'HORS_LIGNE')
+  reponse = async () => [recente, resume, sansDate, dejaRemise, ancienne, recente]
+  journal.length = 0
+  assert.equal(await suiviAlertes.cycle(), INTERVALLE_MS)
+  assert.deepEqual(journal, [
+    `notification ${sansDate.id}`,
+    `remise ${sansDate.id}`,
+    `notification ${ancienne.id}`,
+    `remise ${ancienne.id}`,
+    `remise ${resume.id}`,
+    `notification ${recente.id}`,
+    `remise ${recente.id}`,
+    `remise ${recente.id}`,
+    'compteur 3',
+    'etat CONNECTE 3 3',
+  ])
+})
