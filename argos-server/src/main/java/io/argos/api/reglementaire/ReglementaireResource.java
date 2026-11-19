@@ -23,13 +23,16 @@ import jakarta.ws.rs.core.MediaType;
 
 import org.eclipse.microprofile.config.inject.ConfigProperty;
 import org.eclipse.microprofile.openapi.annotations.Operation;
+import org.eclipse.microprofile.openapi.annotations.enums.SchemaType;
 import org.eclipse.microprofile.openapi.annotations.media.Content;
 import org.eclipse.microprofile.openapi.annotations.media.Schema;
+import org.eclipse.microprofile.openapi.annotations.parameters.Parameter;
 import org.eclipse.microprofile.openapi.annotations.responses.APIResponse;
 import org.eclipse.microprofile.openapi.annotations.tags.Tag;
 import org.jboss.resteasy.reactive.RestResponse;
 
 import io.argos.api.Erreur;
+import io.argos.api.ParametresPagination;
 import io.argos.api.security.Access;
 import io.argos.api.security.Caller;
 import io.argos.api.security.LimiteDebitAtteinte;
@@ -219,14 +222,17 @@ public class ReglementaireResource {
     @APIResponse(responseCode = "400", description = "Critère invalide",
             content = @Content(schema = @Schema(implementation = Erreur.class)))
     public List<FicheAnalyse> listerFiches(@QueryParam("espace") UUID espace, @QueryParam("domaine") String domaine,
-            @QueryParam("etat") String etat, @QueryParam("limite") Integer limite) {
+            @QueryParam("etat") String etat,
+            @Parameter(description = "Nombre maximal de fiches, de 1 à " + FichesEnBase.LIMITE_MAX
+                    + " ; une valeur hors bornes ou non entière donne 400",
+                    schema = @Schema(type = SchemaType.INTEGER, defaultValue = "50")) @QueryParam("limite") String limite) {
         Caller caller = access.authenticated();
         if (espace != null && !caller.memberOf(espace)) {
             throw access.outOfScope();
         }
         String d = domaine == null || domaine.isBlank() ? null : DictionnaireMetier.code(domaine);
         String e = etat == null || etat.isBlank() ? null : etatValidation(etat);
-        int n = limite == null ? 50 : limite;
+        int n = ParametresPagination.entier(limite, "limite", 50);
         if (n < 1 || n > FichesEnBase.LIMITE_MAX) {
             throw Erreur.demandeRefusee("DONNEE_INVALIDE", "La limite est comprise entre 1 et " + FichesEnBase.LIMITE_MAX + ".");
         }

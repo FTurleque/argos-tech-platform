@@ -8,7 +8,6 @@ import java.util.UUID;
 import jakarta.inject.Inject;
 import jakarta.ws.rs.Consumes;
 import jakarta.ws.rs.DELETE;
-import jakarta.ws.rs.DefaultValue;
 import jakarta.ws.rs.GET;
 import jakarta.ws.rs.POST;
 import jakarta.ws.rs.Path;
@@ -18,7 +17,9 @@ import jakarta.ws.rs.QueryParam;
 import jakarta.ws.rs.core.MediaType;
 
 import org.eclipse.microprofile.openapi.annotations.Operation;
+import org.eclipse.microprofile.openapi.annotations.enums.SchemaType;
 import org.eclipse.microprofile.openapi.annotations.media.Schema;
+import org.eclipse.microprofile.openapi.annotations.parameters.Parameter;
 import org.eclipse.microprofile.openapi.annotations.responses.APIResponse;
 import org.eclipse.microprofile.openapi.annotations.tags.Tag;
 import org.jboss.resteasy.reactive.RestResponse;
@@ -26,6 +27,7 @@ import org.jboss.resteasy.reactive.RestResponse;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 
+import io.argos.api.ParametresPagination;
 import io.argos.api.security.Access;
 import io.argos.api.security.Caller;
 import io.argos.impact.RechercheVeille;
@@ -107,14 +109,19 @@ public class VuesResource {
     @Path("/{id}/resultats")
     @Operation(summary = "Rappelle une vue : applique ses mots et ses filtres sous les droits courants")
     @APIResponse(responseCode = "200", description = "Page de résultats de la vue")
-    @APIResponse(responseCode = "400", description = "Filtre de la vue devenu invalide (profil retiré du catalogue)")
+    @APIResponse(responseCode = "400", description = "Filtre de la vue devenu invalide (profil retiré du catalogue),"
+            + " paramètre page ou taille non entier ou hors bornes")
     @APIResponse(responseCode = "401", description = "Non authentifié")
     @APIResponse(responseCode = "404", description = "Vue inconnue ou d'un autre utilisateur")
-    public RechercheVeille.Resultats resultats(@PathParam("id") UUID id, @QueryParam("page") @DefaultValue("0") int page,
-            @QueryParam("taille") @DefaultValue("20") int taille) {
+    public RechercheVeille.Resultats resultats(@PathParam("id") UUID id,
+            @Parameter(description = RechercheResource.PAGE, schema = @Schema(type = SchemaType.INTEGER, defaultValue = "0"))
+            @QueryParam("page") String page,
+            @Parameter(description = RechercheResource.TAILLE, schema = @Schema(type = SchemaType.INTEGER, defaultValue = "20"))
+            @QueryParam("taille") String taille) {
         Caller appelant = access.authenticated();
         VueEnregistree vue = representation(vues.trouver(appelant.accountId(), id));
-        return traduction.executer(vue.criteres(), appelant, false, page, taille);
+        return traduction.executer(vue.criteres(), appelant, false, ParametresPagination.entier(page, "page", 0),
+                ParametresPagination.entier(taille, "taille", RechercheResource.TAILLE_PAR_DEFAUT));
     }
 
     @DELETE

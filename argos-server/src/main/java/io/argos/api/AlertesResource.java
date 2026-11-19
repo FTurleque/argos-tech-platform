@@ -4,7 +4,6 @@ import java.util.List;
 import java.util.UUID;
 
 import jakarta.inject.Inject;
-import jakarta.ws.rs.DefaultValue;
 import jakarta.ws.rs.GET;
 import jakarta.ws.rs.POST;
 import jakarta.ws.rs.Path;
@@ -15,6 +14,10 @@ import jakarta.ws.rs.core.MediaType;
 import jakarta.ws.rs.core.Response;
 
 import org.eclipse.microprofile.openapi.annotations.Operation;
+import org.eclipse.microprofile.openapi.annotations.enums.SchemaType;
+import org.eclipse.microprofile.openapi.annotations.media.Schema;
+import org.eclipse.microprofile.openapi.annotations.parameters.Parameter;
+import org.eclipse.microprofile.openapi.annotations.responses.APIResponse;
 import org.eclipse.microprofile.openapi.annotations.tags.Tag;
 
 import io.argos.alerting.ConsultationAlertes;
@@ -42,10 +45,15 @@ public class AlertesResource {
 
     @GET
     @Operation(summary = "Alertes et résumés de l'appelant, des plus récents aux plus anciens (filtres : canal, état)")
+    @APIResponse(responseCode = "200", description = "Alertes et résumés de l'appelant")
+    @APIResponse(responseCode = "400", description = "Paramètre limite non entier")
+    @APIResponse(responseCode = "401", description = "Non authentifié")
     public List<ConsultationAlertes.AlerteVue> lister(@QueryParam("canal") String canal, @QueryParam("etat") String etat,
-            @QueryParam("limite") @DefaultValue("50") int limite) {
+            @Parameter(description = "Nombre maximal d'alertes, de 1 à 200 ; une valeur hors bornes est ramenée à la borne la plus"
+                    + " proche ; une valeur non entière donne 400",
+                    schema = @Schema(type = SchemaType.INTEGER, defaultValue = "50")) @QueryParam("limite") String limite) {
         Caller caller = access.authenticated();
-        return alertes.lister(caller.accountId(), canal, etat, limite);
+        return alertes.lister(caller.accountId(), canal, etat, ParametresPagination.entier(limite, "limite", 50));
     }
 
     @GET
