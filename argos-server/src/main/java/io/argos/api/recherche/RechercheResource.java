@@ -5,16 +5,13 @@ import java.util.List;
 import java.util.UUID;
 
 import jakarta.inject.Inject;
+import jakarta.ws.rs.BeanParam;
 import jakarta.ws.rs.GET;
 import jakarta.ws.rs.Path;
 import jakarta.ws.rs.Produces;
-import jakarta.ws.rs.QueryParam;
 import jakarta.ws.rs.core.MediaType;
 
 import org.eclipse.microprofile.openapi.annotations.Operation;
-import org.eclipse.microprofile.openapi.annotations.enums.SchemaType;
-import org.eclipse.microprofile.openapi.annotations.media.Schema;
-import org.eclipse.microprofile.openapi.annotations.parameters.Parameter;
 import org.eclipse.microprofile.openapi.annotations.responses.APIResponse;
 import org.eclipse.microprofile.openapi.annotations.tags.Tag;
 
@@ -57,20 +54,12 @@ public class RechercheResource {
     @APIResponse(responseCode = "404", description = "Projet filtré inconnu ou d'un espace dont l'appelant n'est pas membre"
             + " (même réponse, second refus journalisé), y compris avec un paramètre page ou taille non entier ou hors bornes :"
             + " les projets filtrés sont contrôlés avant la lecture de la pagination")
-    public RechercheVeille.Resultats rechercher(
-            @Parameter(description = "Mots recherchés (syntaxe web : mots, \"expression\", or, -exclusion)") @QueryParam("q") String texte,
-            @Parameter(description = "Identifiant de projet (répétable)") @QueryParam("projet") List<String> projets,
-            @Parameter(description = "Technologie (répétable)") @QueryParam("technologie") List<String> technologies,
-            @Parameter(description = "AVIS_SECURITE, ARTICLE ou CHANGEMENT_PAGE (répétable)") @QueryParam("type") List<String> types,
-            @Parameter(description = "Gravité minimale : LOW, MODERATE, MEDIUM, HIGH, CRITICAL") @QueryParam("gravite") String gravite,
-            @Parameter(description = "Éléments des N derniers jours (1 à 3 650)") @QueryParam("horizon") Integer horizon,
-            @Parameter(description = "Profil de veille (répétable)") @QueryParam("profil") List<String> profils,
-            @Parameter(description = PAGE, schema = @Schema(type = SchemaType.INTEGER, defaultValue = "0")) @QueryParam("page") String page,
-            @Parameter(description = TAILLE, schema = @Schema(type = SchemaType.INTEGER, defaultValue = "20")) @QueryParam("taille") String taille) {
+    public RechercheVeille.Resultats rechercher(@BeanParam ParametresRecherche parametres) {
         Caller appelant = access.authenticated();
-        CriteresRecherche criteres = new CriteresRecherche(texte, uuids(projets), nonVide(technologies), nonVide(types),
-                gravite, horizon, nonVide(profils));
-        return traduction.executer(criteres, appelant, true, page, taille);
+        CriteresRecherche criteres = new CriteresRecherche(parametres.texte, uuids(parametres.projets),
+                nonVide(parametres.technologies), nonVide(parametres.types), parametres.gravite, parametres.horizon,
+                nonVide(parametres.profils));
+        return traduction.executer(criteres, appelant, true, parametres.page, parametres.taille);
     }
 
     private static List<String> nonVide(List<String> valeurs) {
