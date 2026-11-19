@@ -7,6 +7,7 @@
 import { computed, ref, watch } from 'vue'
 import { useRoute } from 'vue-router'
 import { ApiError, fetchAlerte, fetchAlertesPoste, type AlerteVue } from '../api/client'
+import { STATUT_INTROUVABLE, STATUT_NON_AUTHENTIFIE } from '../api/statuts-http'
 import { estUuid } from '../api/recherche-criteres'
 import { urlSure } from '../contenu/liens'
 import { alerteConsultee } from '../contenu/suivi-poste'
@@ -37,8 +38,8 @@ function date(iso: string | null): string {
 }
 
 function message(e: unknown): string {
-  if (e instanceof ApiError && e.status === 401) return 'Connectez-vous pour consulter vos alertes.'
-  if (e instanceof ApiError && e.status === 404) return 'Alerte introuvable.'
+  if (e instanceof ApiError && e.status === STATUT_NON_AUTHENTIFIE) return 'Connectez-vous pour consulter vos alertes.'
+  if (e instanceof ApiError && e.status === STATUT_INTROUVABLE) return 'Alerte introuvable.'
   return e instanceof ApiError ? e.message : 'Erreur inattendue'
 }
 

@@ -35,7 +35,6 @@ function deconnecter(): void {
     <header class="topbar">
       <div class="brand">
         <span class="brand-name">ARGOS</span>
-        <span class="brand-motto">Observer. Corréler. Comprendre. Anticiper.</span>
       </div>
       <nav class="nav" aria-label="Navigation principale">
         <RouterLink to="/">État</RouterLink>

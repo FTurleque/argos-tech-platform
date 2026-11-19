@@ -18,7 +18,6 @@ import org.eclipse.microprofile.openapi.annotations.parameters.Parameter;
 import org.eclipse.microprofile.openapi.annotations.responses.APIResponse;
 import org.eclipse.microprofile.openapi.annotations.tags.Tag;
 
-import io.argos.api.ParametresPagination;
 import io.argos.api.security.Access;
 import io.argos.api.security.Caller;
 import io.argos.impact.RechercheVeille;
@@ -55,7 +54,9 @@ public class RechercheResource {
     @APIResponse(responseCode = "200", description = "Page de résultats ; liste vide et message explicite si rien ne correspond")
     @APIResponse(responseCode = "400", description = "Filtre inconnu ou mal formé, paramètre page ou taille non entier ou hors bornes")
     @APIResponse(responseCode = "401", description = "Non authentifié")
-    @APIResponse(responseCode = "404", description = "Projet inconnu ou d'un espace dont l'appelant n'est pas membre")
+    @APIResponse(responseCode = "404", description = "Projet filtré inconnu ou d'un espace dont l'appelant n'est pas membre"
+            + " (même réponse, second refus journalisé), y compris avec un paramètre page ou taille non entier ou hors bornes :"
+            + " les projets filtrés sont contrôlés avant la lecture de la pagination")
     public RechercheVeille.Resultats rechercher(
             @Parameter(description = "Mots recherchés (syntaxe web : mots, \"expression\", or, -exclusion)") @QueryParam("q") String texte,
             @Parameter(description = "Identifiant de projet (répétable)") @QueryParam("projet") List<String> projets,
@@ -69,8 +70,7 @@ public class RechercheResource {
         Caller appelant = access.authenticated();
         CriteresRecherche criteres = new CriteresRecherche(texte, uuids(projets), nonVide(technologies), nonVide(types),
                 gravite, horizon, nonVide(profils));
-        return traduction.executer(criteres, appelant, true, ParametresPagination.entier(page, "page", 0),
-                ParametresPagination.entier(taille, "taille", TAILLE_PAR_DEFAUT));
+        return traduction.executer(criteres, appelant, true, page, taille);
     }
 
     private static List<String> nonVide(List<String> valeurs) {

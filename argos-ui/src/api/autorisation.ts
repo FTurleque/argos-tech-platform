@@ -1,6 +1,9 @@
 // Jeton porteur et classement des refus du client REST (changement connecter-ihm-oidc, ACC-09).
-// Fonctions pures, sans dépendance : testées par node:test (tests/autorisation.test.mjs).
+// Fonctions pures, sans autre dépendance que les statuts HTTP partagés : testées par node:test
+// (tests/autorisation.test.mjs).
 // Aucune règle métier : l'IHM présente les refus décidés par le serveur (arc42 §5.1).
+
+import { STATUT_INTERDIT, STATUT_NON_AUTHENTIFIE } from './statuts-http.ts'
 
 /** Routes de /api/v1 publiques côté serveur (ACC-01-S2) : aucun jeton ne leur est envoyé. */
 export const CHEMINS_PUBLICS: readonly string[] = ['/api/v1/system/info']
@@ -36,8 +39,8 @@ export type Refus = 'NON_AUTHENTIFIE' | 'COMPTE_NON_CREE' | 'INTERDIT'
  * dédié quand le compte n'a pas été créé faute d'invitation. Null pour toute autre réponse.
  */
 export function classerRefus(statut: number, corps: unknown): Refus | null {
-  if (statut === 401) return 'NON_AUTHENTIFIE'
-  if (statut !== 403) return null
+  if (statut === STATUT_NON_AUTHENTIFIE) return 'NON_AUTHENTIFIE'
+  if (statut !== STATUT_INTERDIT) return null
   const code = corps && typeof corps === 'object' ? (corps as { code?: unknown }).code : undefined
   return code === CODE_COMPTE_NON_CREE ? 'COMPTE_NON_CREE' : 'INTERDIT'
 }

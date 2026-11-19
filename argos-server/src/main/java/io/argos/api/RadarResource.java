@@ -92,7 +92,7 @@ public class RadarResource {
     @APIResponse(responseCode = "401", description = "Non authentifié")
     @APIResponse(responseCode = "404", description = "Espace inconnu ou dont l'appelant n'est pas membre")
     public List<ReferentielEspace.EntreeReferentiel> standards(@PathParam("espaceId") UUID espaceId) {
-        Caller caller = membre(espaceId);
+        Caller caller = access.member(espaceId);
         return referentiel.lister(caller.accountId(), espaceId);
     }
 
@@ -107,7 +107,7 @@ public class RadarResource {
     @APIResponse(responseCode = "404", description = "Espace inconnu ou dont l'appelant n'est pas membre")
     @APIResponse(responseCode = "409", description = "Modification concurrente de la même technologie")
     public ReferentielEspace.EntreeReferentiel enregistrer(@PathParam("espaceId") UUID espaceId, SaisieStandard saisie) {
-        Caller caller = administrateur(espaceId);
+        Caller caller = access.administrator(espaceId);
         if (saisie == null) {
             throw new DonneeInvalide("CHAMP_MANQUANT", "Le corps de la demande est obligatoire.", "cle");
         }
@@ -121,7 +121,7 @@ public class RadarResource {
     @APIResponse(responseCode = "401", description = "Non authentifié")
     @APIResponse(responseCode = "404", description = "Espace inconnu ou dont l'appelant n'est pas membre")
     public List<ReferentielEspace.Version> historique(@PathParam("espaceId") UUID espaceId, @QueryParam("cle") String cle) {
-        Caller caller = membre(espaceId);
+        Caller caller = access.member(espaceId);
         if (cle == null || cle.isBlank()) {
             throw new DonneeInvalide("CHAMP_MANQUANT", "Le paramètre cle est obligatoire.", "cle");
         }
@@ -135,7 +135,7 @@ public class RadarResource {
     @APIResponse(responseCode = "401", description = "Non authentifié")
     @APIResponse(responseCode = "404", description = "Espace inconnu ou dont l'appelant n'est pas membre")
     public List<ReferentielEspace.Suggestion> suggestions(@PathParam("espaceId") UUID espaceId) {
-        Caller caller = membre(espaceId);
+        Caller caller = access.member(espaceId);
         return referentiel.suggestions(caller.accountId(), espaceId);
     }
 
@@ -151,7 +151,7 @@ public class RadarResource {
     @APIResponse(responseCode = "409", description = "Suggestion déjà décidée")
     public List<ReferentielEspace.Suggestion> decider(@PathParam("espaceId") UUID espaceId,
             @PathParam("suggestionId") UUID suggestionId, CorpsDecision corps) {
-        Caller caller = administrateur(espaceId);
+        Caller caller = access.administrator(espaceId);
         String d = corps == null || corps.decision() == null ? "" : corps.decision().strip().toUpperCase(Locale.ROOT);
         if (!Set.of("ACCEPTER", "REJETER").contains(d)) {
             throw new DonneeInvalide("DONNEE_INVALIDE", "Décision attendue : ACCEPTER ou REJETER.", "decision");
@@ -169,7 +169,7 @@ public class RadarResource {
     @APIResponse(responseCode = "401", description = "Non authentifié")
     @APIResponse(responseCode = "404", description = "Espace inconnu ou dont l'appelant n'est pas membre")
     public Radar echeances(@PathParam("espaceId") UUID espaceId, @QueryParam("horizon") @DefaultValue("30j") String horizon) {
-        Caller caller = membre(espaceId);
+        Caller caller = access.member(espaceId);
         LocalDate depuis = LocalDate.now(ZoneId.of(fuseau));
         LocalDate jusqua = switch (horizon.strip().toLowerCase(Locale.ROOT)) {
             case "30j" -> depuis.plusDays(30);
@@ -197,7 +197,7 @@ public class RadarResource {
     @APIResponse(responseCode = "401", description = "Non authentifié")
     @APIResponse(responseCode = "404", description = "Espace inconnu ou dont l'appelant n'est pas membre")
     public List<RadarProjets.DetteVersion> dettes(@PathParam("espaceId") UUID espaceId) {
-        Caller caller = membre(espaceId);
+        Caller caller = access.member(espaceId);
         return radar.dettes(caller.accountId(), espaceId);
     }
 
@@ -208,7 +208,7 @@ public class RadarResource {
     @APIResponse(responseCode = "401", description = "Non authentifié")
     @APIResponse(responseCode = "404", description = "Espace inconnu ou dont l'appelant n'est pas membre")
     public Parametres parametres(@PathParam("espaceId") UUID espaceId) {
-        Caller caller = membre(espaceId);
+        Caller caller = access.member(espaceId);
         return new Parametres(rappels.parametres(caller.accountId(), espaceId));
     }
 
@@ -222,24 +222,8 @@ public class RadarResource {
     @APIResponse(responseCode = "403", description = "Membre non administrateur de l'espace")
     @APIResponse(responseCode = "404", description = "Espace inconnu ou dont l'appelant n'est pas membre")
     public Parametres modifierParametres(@PathParam("espaceId") UUID espaceId, Parametres corps) {
-        Caller caller = administrateur(espaceId);
+        Caller caller = access.administrator(espaceId);
         return new Parametres(rappels.modifierParametres(caller.accountId(), espaceId,
                 corps == null ? null : corps.rappelsJours()));
-    }
-
-    private Caller membre(UUID espaceId) {
-        Caller caller = access.authenticated();
-        if (!caller.memberOf(espaceId)) {
-            throw access.outOfScope();
-        }
-        return caller;
-    }
-
-    private Caller administrateur(UUID espaceId) {
-        Caller caller = membre(espaceId);
-        if (!caller.adminOf(espaceId)) {
-            throw access.forbidden();
-        }
-        return caller;
     }
 }

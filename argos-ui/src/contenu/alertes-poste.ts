@@ -1,5 +1,6 @@
 // Suivi des alertes du poste dans la couche contenu (changement notifier-sur-le-poste :
-// NOT-01, NOT-03, NOT-06). Module pur, sans import : testé directement par `node --test`.
+// NOT-01, NOT-03, NOT-06). Module pur, sans autre import que les statuts HTTP partagés : testé
+// directement par `node --test`.
 //
 // Contrat serveur (`alertes-digests`, `AlertesResource`) : le client lit les alertes du canal
 // DESKTOP à l'état EN_ATTENTE, les présente, puis confirme leur remise (POST .../remise). Une alerte
@@ -12,6 +13,8 @@
 // Le texte de la notification ne reprend pas le titre de l'alerte : le titre public d'un signal
 // nomme souvent le composant touché, et une notification ne nomme aucun projet ni composant
 // (NOT-05-S1). Seuls l'identifiant, la gravité et le nombre de projets sont transmis au poste.
+
+import { nonAutorise } from '../api/statuts-http.ts'
 
 /** Élément d'une alerte tel que le renvoie le serveur (schéma `ContenuAlerte.Element`), réduit. */
 export interface ElementAlerte {
@@ -189,7 +192,7 @@ export class SuiviAlertesPoste {
       recues = await this.d.lister()
     } catch (erreur) {
       const s = statut(erreur)
-      this.connexion = s === 401 || s === 403 ? 'NON_AUTORISE' : 'HORS_LIGNE'
+      this.connexion = nonAutorise(s) ? 'NON_AUTORISE' : 'HORS_LIGNE'
       this.echecs += 1
       this.recuesPendantCoupure = 0
       this.publier()

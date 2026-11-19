@@ -10,6 +10,12 @@ import type {
   FiltreAbonnement,
   ProfilCatalogue,
 } from '../api/veille'
+import {
+  STATUT_INTERDIT,
+  STATUT_NON_AUTHENTIFIE,
+  STATUT_REQUETE_INVALIDE,
+  STATUT_TROP_DE_DEMANDES,
+} from '../api/statuts-http.ts'
 
 /** Libellé d'un profil d'après le catalogue, ou son identifiant s'il n'y figure pas. */
 export function libelleProfil(identifiant: string, catalogue: readonly ProfilCatalogue[]): string {
@@ -101,12 +107,12 @@ export function messageErreurVeille(
   message: string,
 ): string {
   if (status === undefined) return message
-  if (status === 401) {
+  if (status === STATUT_NON_AUTHENTIFIE) {
     return operation === 'veille' ? 'Connectez-vous pour consulter votre veille.' : 'Connectez-vous pour choisir vos profils.'
   }
   // Refus métier du serveur (profil inconnu, au moins un profil actif) : son message est affiché tel quel.
-  if (status === 400) return message
-  if (status === 403) return 'Accès refusé : vos droits ne permettent pas cette opération.'
-  if (status === 429) return 'Trop de demandes en peu de temps : réessayez dans quelques instants.'
+  if (status === STATUT_REQUETE_INVALIDE) return message
+  if (status === STATUT_INTERDIT) return 'Accès refusé : vos droits ne permettent pas cette opération.'
+  if (status === STATUT_TROP_DE_DEMANDES) return 'Trop de demandes en peu de temps : réessayez dans quelques instants.'
   return `Le serveur a répondu ${status}.`
 }
