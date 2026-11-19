@@ -5,14 +5,14 @@ import { test } from 'node:test'
 import assert from 'node:assert/strict'
 import { readFileSync } from 'node:fs'
 import { decisionExpiration, decisionGarde } from '../src/session/garde.ts'
-
-const ROUTEUR = readFileSync(new URL('../src/router.ts', import.meta.url), 'utf8')
-const ROUTES = [...ROUTEUR.matchAll(/\{ path: '([^']+)', name: '([^']+)', component: \w+(, meta: \{ public: true \})? \}/g)]
-  .map((m) => ({ path: m[1], name: m[2], publique: Boolean(m[3]) }))
+import { ROUTES } from './support/routes.mjs'
 
 test('seules l’état du serveur, la connexion et l’écran de refus sont publiques', () => {
-  assert.ok(ROUTES.length >= 7, 'routes lues dans router.ts')
+  assert.equal(ROUTES.length, 13, 'routes lues dans router.ts')
   assert.deepEqual(ROUTES.filter((r) => r.publique).map((r) => r.name).sort(), ['compte-non-cree', 'connexion', 'status'])
+  const routeur = readFileSync(new URL('../src/router.ts', import.meta.url), 'utf8')
+  assert.match(routeur, /publique \? \{ path, name, component, meta: \{ public: true \} \} : \{ path, name, component \}/,
+    'seules les vues publiques portent meta.public')
 })
 
 test('ACC-07-S1 : sans session, toute vue protégée mène à l’écran de connexion avec la vue en retour', () => {

@@ -1,5 +1,5 @@
 // Vue d'inventaire du client desktop (formaliser-chaine-securite-poc, tâches 3.7 et 3.8 ; INV-01-S3, INV-06 ;
-// décisions E4, F1 et F5 du porteur du projet, 2026-11-19) : l'application Electron réelle, connectée par le
+// décisions E4, F1, F5 et G5 du porteur du projet, 2026-11-19) : l'application Electron réelle, connectée par le
 // navigateur du système, affiche la même vue que le portail web (projet choisi dans la liste des projets
 // visibles, composants inventoriés paginés, composants ignorés), lue avec le jeton porteur.
 // Données : support/donnees.ts (preparerInventaire), donnees/inventaire.sql, donnees/veille.sql.
@@ -48,17 +48,19 @@ test('3.7, 3.8 (INV-01-S3, INV-06) : projet choisi, composants paginés et compo
     await expect(inventories).toBeFocused()
 
     // Composants ignorés : même tableau que sur le web, nom hostile affiché comme texte.
-    const tableau = fenetre.getByRole('table', { name: `Composants ignorés du projet ${INVENTAIRE.projet}` })
-    const lignes = tableau.locator('tbody tr')
+    const composantsIgnores = fenetre.getByRole('table', { name: `Composants ignorés du projet ${INVENTAIRE.projet}` })
+    const lignes = composantsIgnores.locator('tbody tr')
     await expect(lignes).toHaveCount(2)
     await expect(lignes.nth(0).getByRole('cell')).toHaveText(['outil-interne', 'fr.e2e', '1.0', 'sans PURL'])
     await expect(lignes.nth(1).getByRole('cell')).toHaveText([INVENTAIRE.nomHostile, 'non renseigné', 'non renseignée', 'PURL invalide'])
-    await expect(tableau.locator('img')).toHaveCount(0)
+    await expect(composantsIgnores.locator('img')).toHaveCount(0)
     await fenetre.screenshot({ path: 'resultats/desktop-inventaire-composants-ignores.jpg', type: 'jpeg', quality: 60 })
 
-    // Liste des projets, inventaire et composants lus sur le serveur avec le jeton porteur du desktop.
+    // Liste des projets, synthèse de l'inventaire et composants lus sur le serveur avec le jeton porteur du desktop ;
+    // l'inventaire complet n'est jamais demandé (décision G5).
     await expect.poll(() => appelApiAuthentifie(desktop!, '/api/v1/projects')).toBe(true)
-    await expect.poll(() => appelApiAuthentifie(desktop!, `/api/v1/projects/${INVENTAIRE.projet}/inventory`)).toBe(true)
+    await expect.poll(() => appelApiAuthentifie(desktop!, `/api/v1/projects/${INVENTAIRE.projet}/inventory/summary`)).toBe(true)
     await expect.poll(() => appelApiAuthentifie(desktop!, `/api/v1/projects/${INVENTAIRE.projet}/inventory/components`)).toBe(true)
+    expect((await desktop.journal()).filter((r) => new URL(r.adresse).pathname.endsWith('/inventory'))).toEqual([])
     await verifierJournalLocal(desktop)
   })

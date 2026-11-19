@@ -1,14 +1,14 @@
 <script setup lang="ts">
-// Vue d'inventaire d'un projet (INV-01-S3, INV-02, INV-03, INV-06 ; décisions E4, F1 et F5 du porteur du projet,
-// 2026-11-19), commune au portail web et au client desktop : choix du projet parmi les projets visibles
-// (`GET /api/v1/projects`), synthèse de l'inventaire de référence et composants écartés faute de PURL
-// (`GET /api/v1/projects/{projectId}/inventory`), composants inventoriés paginés
-// (`GET /api/v1/projects/{projectId}/inventory/components`). Le projet affiché est celui de l'adresse
+// Vue d'inventaire d'un projet (INV-01-S3, INV-02, INV-03, INV-06 ; décisions E4, F1, F5 et G5 du porteur du
+// projet, 2026-11-19), commune au portail web et au client desktop : choix du projet parmi les projets visibles
+// (`GET /api/v1/projects`), synthèse de l'inventaire de référence et composants écartés faute de PURL, sans la
+// liste des composants (`GET /api/v1/projects/{projectId}/inventory/summary`), page de composants inventoriés
+// affichée (`GET /api/v1/projects/{projectId}/inventory/components`). Le projet affiché est celui de l'adresse
 // (`/inventaire/{id}`) ; il se choisit dans la liste, ou se désigne par son identifiant (projet au-delà de la
 // liste, lien d'une alerte). Les autres écrans y mènent par lien (« Projets concernés » du détail d'une alerte).
 import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
-import { fetchComposantsProjet, fetchInventaireProjet, fetchProjets } from '../api/inventaire'
+import { fetchComposantsProjet, fetchProjets, fetchSyntheseInventaire } from '../api/inventaire'
 import ComposantsIgnores from '../contenu/ComposantsIgnores.vue'
 import ComposantsInventories from '../contenu/ComposantsInventories.vue'
 import type { ComposantsIgnoresVue } from '../contenu/composants-ignores'
@@ -50,7 +50,7 @@ let annulationComposants = new AbortController()
 let annulationProjets = new AbortController()
 
 /** Libellé du projet affiché : celui de la liste s'il y figure, son identifiant sinon. */
-const nomProjet = computed(() => projets.value?.options.find((o) => o.id === id.value)?.libelle ?? id.value ?? '')
+const nomProjet = computed(() => projets.value?.options.find((option) => option.id === id.value)?.libelle ?? id.value ?? '')
 
 function date(iso: string | null): string {
   return iso ? new Date(iso).toLocaleString('fr-FR') : 'inconnue'
@@ -62,7 +62,7 @@ async function chargerListe(): Promise<void> {
   erreurProjets.value = ''
   const etat = await chargerProjets(fetchProjets, annulationProjets.signal)
   if (etat === null) return
-  projets.value = etat.liste
+  projets.value = etat.projets
   erreurProjets.value = etat.erreur
 }
 
@@ -108,7 +108,7 @@ async function charger(): Promise<void> {
   }
   chargement.value = true
   annonce.value = 'Chargement de l’inventaire…'
-  const etat = await chargerInventaireProjet(id.value, fetchInventaireProjet, signal)
+  const etat = await chargerInventaireProjet(id.value, fetchSyntheseInventaire, signal)
   if (etat === null) return
   chargement.value = false
   resume.value = etat.resume
@@ -236,7 +236,7 @@ onBeforeUnmount(() => {
           :page="composants"
           :projet="nomProjet"
           :chargement="chargementComposants"
-          @page="(n) => chargerPage(n, true)"
+          @page="(numero) => chargerPage(numero, true)"
         />
       </section>
       <section v-if="ignores?.etat === 'DISPONIBLE'" aria-labelledby="titre-composants-ignores">
