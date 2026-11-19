@@ -6,15 +6,19 @@ dépendances introduites par une décision du projet et enregistrées selon ADR-
 Aucun code tiers n'est repris dans les sources du serveur.
 
 Liste complète des dépendances tierces livrées et de leurs licences, avec les avis NOTICE de chacune
-de leurs archives : fichier généré argos-server/target/THIRD-PARTY.txt (décision F3 du porteur du
-projet, 2026-11-19), produit par :
+de leurs archives : fichier généré argos-server/target/THIRD-PARTY.txt (décisions F3, révisée par G1,
+et G2 du porteur du projet, 2026-11-19), produit par :
 
     mvn -B -f argos-server/pom.xml -P licences validate
+
+Le build de l'image Docker exécute la même commande ; l'image embarque ce fichier NOTICE,
+THIRD-PARTY.txt et le texte de l'Apache License 2.0 dans /opt/argos/licenses/.
 
 La commande échoue si une dépendance n'a aucune licence déclarée ou porte une licence que la liste
 blanche des licences permissives n'admet pas : ADR-0021 (point 4) exige une décision explicite pour
 tout copyleft (GPL, LGPL, AGPL, MPL, EPL, CDDL…) et refuse les licences à usage commercial restreint.
-Voir argos-server/README.md.
+Seule décision de ce type : EPL-2.0 pour neuf API Jakarta nommées que Quarkus embarque (décision G3
+du porteur du projet, 2026-11-19). Voir argos-server/README.md.
 
 org.apache.maven:maven-artifact (Maven Artifact 3.9.16, https://github.com/apache/maven)
   Dépendance non modifiée : ordre des versions Maven (ComparableVersion) pour la corrélation
