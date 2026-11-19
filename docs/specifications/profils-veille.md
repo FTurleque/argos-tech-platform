@@ -5,6 +5,7 @@
 | Préfixe d'exigences | `PRF` |
 | Spec de référence | [`/openspec/specs/profils-veille/spec.md`](/openspec/specs/profils-veille/spec.md) |
 | Changements archivés | [`2026-11-19-personnaliser-profils-et-affichage`](/openspec/changes/archive/2026-11-19-personnaliser-profils-et-affichage/proposal.md) |
+| Changements en cours | [`optimiser-ma-veille`](/openspec/changes/optimiser-ma-veille/proposal.md) — PRF-07 (latence de « Ma veille »), implémenté, non archivé |
 | Statut de la capacité | livrée ; rapprochement propre au profil `expert-metier` absent (pas de capacité `regintel`) |
 | Composants (arc42 §5) | `catalog`, `workspace`, `impact-engine`, `signal`, `API & Security`, `mcp-server` |
 
@@ -100,7 +101,9 @@ Modification des profils actifs de l'utilisateur ; la veille restituée change e
 
 ## Qualités mesurables
 
-[QUESTION] Aucune cible propre ; voir la cible de restitution du dossier v2.4 §10.
+[QUESTION] Aucune cible propre de restitution métier ; voir la cible de restitution du dossier v2.4 §10.
+
+[PROPOSITION] Latence de `GET /api/v1/me/veille` (PRF-07, changement `optimiser-ma-veille`) : p95 < 500 ms avec le jeu de référence de la campagne de performance (décisions K2 et K3 du porteur du projet, 2026-11-19 ; cible de PERF-01), contenu restitué inchangé. Mesures : [rapport de la campagne](../architecture/quality/mesure-performance-api-mcp.md).
 
 ## Diagrammes
 
@@ -158,7 +161,7 @@ Les signaux sont collectés une seule fois pour tous. Les droits passent en prem
 
 ## Critères d'acceptation
 
-Scénarios PRF-01-S1 à PRF-06-S2 de la [spec de référence](/openspec/specs/profils-veille/spec.md).
+Scénarios PRF-01-S1 à PRF-06-S2 de la [spec de référence](/openspec/specs/profils-veille/spec.md) ; PRF-07-S1 et PRF-07-S2 du [delta du changement `optimiser-ma-veille`](/openspec/changes/optimiser-ma-veille/specs/profils-veille/spec.md).
 
 ## Interprétations introduites par un changement
 
@@ -182,6 +185,7 @@ Scénarios PRF-01-S1 à PRF-06-S2 de la [spec de référence](/openspec/specs/pr
 - `GET /api/v1/me/veille` restitue, pour une fiche réglementaire, la mention « produit par l'IA » (`mentionIa`) quand le résumé vient du modèle et la mention de paternité de la source (`mentionSource` : DILA, Licence Ouverte, date de mise à jour des données). L'outil MCP `get_regulatory_changes` ne restitue pas ces deux mentions.
 - Aucun élément réel ne relève à la fois de `developpeur` et d'`expert-metier` : `GET /api/v1/me/veille` donne à chaque élément une seule catégorie de sources selon son type (`avis-securite` ou `textes-officiels`), et les manifestes publiés ne partagent aucune catégorie. [DÉCISION] (porteur du projet, 2026-11-19) : la preuve actuelle est acceptée, sans élément réel commun ni changement de la règle de rattachement ; cette décision révise D8 du 2026-11-18 et répond à Q-6 du changement `personnaliser-profils-et-affichage` (distincte de la Q-6 de `formaliser-chaine-securite-poc`). PRF-02-S1 est prouvé avec ces deux manifestes sur un élément de deux catégories (`UnionProfilsTest`), et de bout en bout avec `developpeur` et le profil de test `demonstration`, qui rangent tous deux les avis de sécurité (`ProfilDemonstrationTest`), et dans l'IHM par l'union sans doublon de deux profils et d'un abonnement (E2E `e2e/tests/veille.spec.ts` « 3.4, 3.9 ») ; tests d'intégration relancés le 2026-11-19 (25 tests, 0 échec).
 - La publication d'un profil passe par la configuration (`argos.catalogue.profils.manifestes`), donc par un redémarrage : PRF-04-S1 compare la veille restituée, catalogue enrichi, à celle que définissent les seuls profils actifs.
+- Restitution de « Ma veille » (changement `optimiser-ma-veille`, 2026-11-20) : les signaux des avis sont lus en une requête (`SignalQueries.findAll`), et les 200 impacts récents par l'index `project_impact_recents` (migration V21) ; contenu identique à celui de `lot19/base` pour le jeu de référence (réponse comparée octet pour octet), `VeilleLectureGroupeeTest` et `LectureGroupeeSignauxTest`.
 - `PreferencesIsolationTest` prouve l'isolement des préférences vis-à-vis du reste de `workspace` ; `api` peut les lire. PRF-05 est prouvé par les tests inter-espaces, pas par cette seule règle.
 
 ## Questions ouvertes
@@ -204,3 +208,4 @@ Scénarios PRF-01-S1 à PRF-06-S2 de la [spec de référence](/openspec/specs/pr
 | PRF-04 | PRF-04-S1 | DF-PRF-1 | 3.5 | `ProfilDemonstrationTest.java` (catalogue, profils actifs et `prf04S1LaVeilleDesAutresUtilisateursEstInchangee`), `UnionProfilsTest#prf04SeulsLesProfilsActifsComptent` — passent |
 | PRF-05 | PRF-05-S1 | DC-1, DF-PRF-1, DF-PRF-2 | 3.6 | `argos-server/src/test/java/io/argos/chain/ProfilsDeVeilleTest.java#prf05S1ActivationDUnProfilSansDroitSurLesProjets`, règle ArchUnit `PreferencesIsolationTest.java` — passent |
 | PRF-06 | PRF-06-S1, PRF-06-S2 | DC-2, DF-PRF-2 | 3.7 | `VeilleProfilsTest.java` (`prf06S1FicheNonValideeNiVeilleNiMcp`, `prf06S2FicheValidee`, `contratMcpMentionDeValidation`), `argos-server/src/test/java/io/argos/mcp/ReglementaireMcpTest.java`, `UnionProfilsTest.java` — passent |
+| PRF-07 | PRF-07-S1, PRF-07-S2 | [`optimiser-ma-veille`](/openspec/changes/optimiser-ma-veille/design.md) D1, D2, DC-1 | 2.1 à 2.3, 4.2 (`optimiser-ma-veille`) | S1 : `argos-server/src/test/java/io/argos/architecture/LectureGroupeeSignauxTest.java` — passe (2026-11-20) ; mesure de diagnostic du 2026-11-20 (p95 = 60,1 à 82,7 ms) ; campagne `npm --prefix e2e run test:performance` à relancer ([rapport du 2026-11-19](../architecture/quality/mesure-performance-api-mcp.md)) ; S2 : `argos-server/src/test/java/io/argos/api/veille/VeilleLectureGroupeeTest.java` — passe (2026-11-20) |

@@ -41,7 +41,7 @@ Un préfixe n'est jamais réattribué ; un identifiant d'exigence retiré n'est 
 | `abonnements-veille` | `ABO` | [fiche](abonnements-veille.md) | absente | `formaliser-chaine-securite-poc` ; `automatiser-chaine-veille` (ABO-07, ABO-08) | proposée |
 | `performance-api-mcp` | `PERF` | [fiche](performance-api-mcp.md) | absente | `automatiser-chaine-veille` | proposée |
 | `affichage-personnalise` | `AFF` | [fiche](affichage-personnalise.md) | [spec](/openspec/specs/affichage-personnalise/spec.md) | `2026-11-19-personnaliser-profils-et-affichage` (archivé) | livrée |
-| `profils-veille` | `PRF` | [fiche](profils-veille.md) | [spec](/openspec/specs/profils-veille/spec.md) | `2026-11-19-personnaliser-profils-et-affichage` (archivé) | livrée |
+| `profils-veille` | `PRF` | [fiche](profils-veille.md) | [spec](/openspec/specs/profils-veille/spec.md) | `2026-11-19-personnaliser-profils-et-affichage` (archivé) ; `optimiser-ma-veille` (PRF-07) | livrée ; PRF-07 implémentée, non archivée |
 | `comptes-acces` | `ACC` | [fiche](comptes-acces.md) | [spec](/openspec/specs/comptes-acces/spec.md) | `2026-11-17-gerer-comptes-et-acces` (archivé) ; `2026-11-18-connecter-ihm-oidc` (archivé, ACC-07 à ACC-10) | livrée |
 | `alertes-digests` | `ALR` | [fiche](alertes-digests.md) | [spec](/openspec/specs/alertes-digests/spec.md) | `2026-11-16-diffuser-alertes-et-digests` (archivé) ; `automatiser-chaine-veille` (ALR-07, proposé) | livrée |
 | `notifications-poste` | `NOT` | [fiche](notifications-poste.md) | absente | `notifier-sur-le-poste` | implémentée, non archivée |
@@ -93,14 +93,14 @@ Les diagrammes d'architecture (D-01 à D-13) sont inventoriés dans [`/docs/arch
 
 ## Bilan de couverture
 
-État au 2026-11-19.
+État au 2026-11-20.
 
 ### Inventaire OpenSpec
 
 | Élément | Nombre | Détail |
 |---|---:|---|
 | Specs de référence | 11 | `comptes-acces`, `recherche-veille`, `affichage-personnalise`, `profils-veille`, `alertes-digests`, `veille-rss-web`, `radar-standards`, `passerelle-ia`, `activite-projets`, `profil-artiste`, `veille-reglementaire` ; le code des changements actifs est présent dans `argos-server`, `argos-ui` et `argos-desktop` |
-| Changements actifs | 4 | `formaliser-chaine-securite-poc`, `notifier-sur-le-poste`, `exposer-serveur-mcp`, `automatiser-chaine-veille` (schéma `detailed-uml`) |
+| Changements actifs | 5 | `formaliser-chaine-securite-poc`, `notifier-sur-le-poste`, `exposer-serveur-mcp`, `automatiser-chaine-veille`, `optimiser-ma-veille` (schéma `detailed-uml`) |
 | Changements archivés | 11 | `2026-11-16-diffuser-alertes-et-digests`, `2026-11-16-collecter-veille-rss-web`, `2026-11-16-construire-radar-et-standards`, `2026-11-17-encadrer-appels-ia`, `2026-11-17-mesurer-activite-projets`, `2026-11-17-ajouter-profil-artiste`, `2026-11-17-suivre-veille-reglementaire`, `2026-11-17-gerer-comptes-et-acces`, `2026-11-18-connecter-ihm-oidc`, `2026-11-18-rechercher-et-filtrer`, `2026-11-19-personnaliser-profils-et-affichage` |
 
 Tous les changements utilisent le schéma `detailed-uml` : aucun changement d'un autre schéma n'est à migrer.
@@ -197,6 +197,15 @@ Les exigences ACC-07 à ACC-10 sont au statut [EXIGENCE] dans la spec de référ
 | **Total** | | **15** | **53** | **4** | **2** | **52** |
 
 Exigences au statut [PROPOSITION], issues des décisions J1 à J8 du porteur du projet (2026-11-19). Volets A (collecte et abonnements), B (inventaire) et C (impacts et performance) implémentés puis intégrés le 2026-11-19 (branche `lot18/integration`, migrations V18 à V20) ; vérifications d'intégration faites : `mvn verify` (649 tests), tests de l'IHM, parcours E2E `e2e/tests/chaine-automatisee.spec.ts` (sources et forges simulées) et deux exécutions complètes de `npm --prefix e2e test`. « Tests écrits » compte les scénarios couverts par au moins un test qui passe ; PERF-01-S1 n'est pas atteint : `GET /api/v1/me/veille` reste hors cible (p95 = 533,8 ms sur la branche intégrée, [rapport](../architecture/quality/mesure-performance-api-mcp.md), [PROPOSITION] P-18). Tâche 3.1 décochée : la contrainte INV-C3 n'est pas créée ([PROPOSITION] P-13, à valider). « Questions ouvertes » : Q-PERF-1 et Q-PERF-2 (volume et concurrence de la campagne). Matrice détaillée : [`tasks.md` du changement](/openspec/changes/automatiser-chaine-veille/tasks.md#matrice-de-traçabilité).
+
+### Couverture du lot 19
+
+| Changement | Capacité | Exigences | Scénarios | Diagrammes métier | Questions ouvertes | Tests écrits |
+|---|---|---|---|---|---|---|
+| [`optimiser-ma-veille`](/openspec/changes/optimiser-ma-veille/proposal.md) | `profils-veille` (PRF-07) | 1 | 2 | 0 | 0 | 2 |
+| **Total** | | **1** | **2** | **0** | **0** | **2** |
+
+Exigence au statut [PROPOSITION], issue de la décision K2 du porteur du projet (2026-11-19), avec le jeu de référence de la décision K3. Implémentée le 2026-11-20 (branche `lot19/optimisation`, migration V21) : lecture groupée des signaux de « Ma veille » et index des impacts récents. « Tests écrits » compte les scénarios couverts par au moins un test qui passe : PRF-07-S1 par `LectureGroupeeSignauxTest` (absence de lecture d'un signal par avis) et par une mesure de diagnostic du 2026-11-20 (p95 = 60,1 à 82,7 ms, jeu K3), PRF-07-S2 par `VeilleLectureGroupeeTest`. La campagne de référence n'est pas relancée (port 55432 occupé sur le poste ; tâche 4.2) : le rapport versionné reste celui du 2026-11-19. Matrice détaillée : [`tasks.md` du changement](/openspec/changes/optimiser-ma-veille/tasks.md#matrice-de-traçabilité).
 
 ### Capacités restant à spécifier
 
