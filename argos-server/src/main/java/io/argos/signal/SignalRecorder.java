@@ -39,8 +39,9 @@ import io.argos.ingestion.RawAdvisory;
  * <p>Idempotence : insertion conditionnelle sur la contrainte (source, identifiant externe) ;
  * la base arbitre les collectes concurrentes (COL-03-S3). Un avis connu est inchangé si l'empreinte
  * de son contenu normalisé est identique à celle de la version courante (COL-10, décision J2 du
- * 2026-11-19) ; sinon une nouvelle version est créée ; une version plus ancienne que la version
- * courante ne la remplace pas. L'empreinte du contenu brut reste enregistrée pour l'audit.
+ * 2026-11-19) ; sinon le signal est mis à jour : une nouvelle version est créée, ou, si le contenu
+ * redevient celui d'une version antérieure, le signal repointe vers cette version sans la dupliquer.
+ * Un avis plus ancien que la version courante ne la remplace pas. L'empreinte du contenu brut reste enregistrée pour l'audit.
  */
 @ApplicationScoped
 public class SignalRecorder implements AdvisorySink {
@@ -111,10 +112,16 @@ public class SignalRecorder implements AdvisorySink {
             if (advisory.modifiedAt().isBefore(current.modifiedAt())) {
                 return Outcome.IGNORED_OLDER;
             }
-            if (versionExists(c, current.id(), normalizedHash, advisory.contentHash())) {
-                return Outcome.UNCHANGED;
+            Optional<UUID> earlier = earlierVersion(c, current.id(), normalizedHash, advisory.contentHash());
+            UUID targetVersion;
+            if (earlier.isPresent()) {
+                // Contenu revenu à celui d'une version antérieure : le signal est mis à jour et repointe vers
+                // cette version, sans la dupliquer (COL-10, décision J2 ; invariant INV-A1).
+                targetVersion = earlier.get();
+            } else {
+                insertVersion(c, versionId, current.id(), current.lastVersionNo() + 1, advisory, normalizedHash);
+                targetVersion = versionId;
             }
-            insertVersion(c, versionId, current.id(), current.lastVersionNo() + 1, advisory, normalizedHash);
             try (PreparedStatement ps = c.prepareStatement("""
                     UPDATE signal SET title = ?, summary = ?, severity = ?, published_at = ?, modified_at = ?,
                            updated_at = now(), content_hash = ?, normalized_hash = ?, affected = ?::jsonb,
@@ -129,7 +136,7 @@ public class SignalRecorder implements AdvisorySink {
                 ps.setString(6, advisory.contentHash());
                 ps.setString(7, normalizedHash);
                 ps.setString(8, affectedJson);
-                ps.setObject(9, versionId);
+                ps.setObject(9, targetVersion);
                 ps.setObject(10, current.id());
                 ps.executeUpdate();
             }
@@ -222,15 +229,21 @@ public class SignalRecorder implements AdvisorySink {
         }
     }
 
-    private static boolean versionExists(Connection c, UUID signalId, String normalizedHash, String contentHash)
+    /**
+     * Version antérieure du signal dont le contenu normalisé (ou, à défaut, le contenu brut) est celui de l'avis
+     * reçu ; la plus récente si plusieurs conviennent.
+     */
+    private static Optional<UUID> earlierVersion(Connection c, UUID signalId, String normalizedHash, String contentHash)
             throws SQLException {
-        try (PreparedStatement ps = c.prepareStatement(
-                "SELECT 1 FROM signal_version WHERE signal_id = ? AND (normalized_hash = ? OR content_hash = ?)")) {
+        try (PreparedStatement ps = c.prepareStatement("""
+                SELECT id FROM signal_version WHERE signal_id = ? AND (normalized_hash = ? OR content_hash = ?)
+                ORDER BY version_no DESC LIMIT 1
+                """)) {
             ps.setObject(1, signalId);
             ps.setString(2, normalizedHash);
             ps.setString(3, contentHash);
             try (ResultSet rs = ps.executeQuery()) {
-                return rs.next();
+                return rs.next() ? Optional.of(rs.getObject(1, UUID.class)) : Optional.empty();
             }
         }
     }

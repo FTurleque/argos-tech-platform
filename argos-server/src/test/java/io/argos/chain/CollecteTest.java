@@ -274,6 +274,45 @@ class CollecteTest {
                 "la corrélation du signal modifié est déclenchée");
     }
 
+    /**
+     * J2 : un avis dont le contenu normalisé redevient celui d'une version antérieure (autre que la courante) est mis
+     * à jour ; le signal repointe vers cette version sans la dupliquer (INV-A1), et l'impact devenu sans objet est résolu.
+     */
+    @Test
+    void col10ContenuRevenuAUneVersionAnterieure() {
+        UUID espace = Api.nouvelEspace("alice", "Espace collecte J2");
+        UUID projet = projects.create(espace, "app-j2", null, null);
+        inventories.importSbom(projet, Fixtures.cyclonedx("1.6", java.time.Instant.now().minus(1, java.time.temporal.ChronoUnit.DAYS)
+                .toString(), java.util.Collections.singletonList(new String[] {"lib", "pkg:maven/org.exemple/lib@1.3.5"}),
+                List.of("lib")).getBytes(java.nio.charset.StandardCharsets.UTF_8), "ci");
+        String v1 = Fixtures.osv("GHSA-0106", "2026-11-01T00:00:00Z", "Maven", "org.exemple:lib",
+                "pkg:maven/org.exemple/lib", "0", "1.3.0");
+        Fixtures.stubOsv("GHSA-0106", "2026-11-01T00:00:00Z", v1);
+        synchronizer.synchronize("OSV");
+        String premiere = db.string("SELECT current_version_id::text FROM signal");
+        String v2 = Fixtures.osv("GHSA-0106", "2026-11-05T00:00:00Z", "Maven", "org.exemple:lib",
+                "pkg:maven/org.exemple/lib", "0", "1.4.0");
+        Fixtures.stubOsv("GHSA-0106", "2026-11-05T00:00:00Z", v2);
+        synchronizer.synchronize("OSV");
+        assertEquals(1, db.count("SELECT count(*) FROM project_impact WHERE state = 'OUVERT'"), "1.3.5 dans la plage < 1.4.0");
+
+        // La source corrige l'avis et revient à la plage < 1.3.0 (même contenu normalisé que v1, autre date).
+        String v3 = Fixtures.osv("GHSA-0106", "2026-11-07T00:00:00Z", "Maven", "org.exemple:lib",
+                "pkg:maven/org.exemple/lib", "0", "1.3.0");
+        Fixtures.stubOsv("GHSA-0106", "2026-11-07T00:00:00Z", v3);
+        SourceSynchronizer.SyncReport report = synchronizer.synchronize("OSV");
+
+        assertEquals(1, report.updated());
+        assertEquals(2, db.count("SELECT count(*) FROM signal_version"), "aucune version dupliquée (INV-A1)");
+        assertEquals(premiere, db.string("SELECT current_version_id::text FROM signal"));
+        assertEquals(OsvNormalizer.normalize(new RawAdvisory("x", v1)).normalizedHash(),
+                db.string("SELECT normalized_hash FROM signal"));
+        assertTrue(db.string("SELECT affected::text FROM signal").contains("1.3.0"));
+        assertEquals(0, db.count("SELECT count(*) FROM project_impact WHERE state IN ('OUVERT', 'CONFIRME')"),
+                "l'impact devenu sans objet n'est plus actif");
+        assertEquals(1, db.count("SELECT count(*) FROM project_impact WHERE state = 'RESOLU'"));
+    }
+
     @Test
     void col10S4RattrapageDesEmpreintesSansNouvelleVersion() {
         String brut = Fixtures.osv("GHSA-0103", "2026-11-01T00:00:00Z", "Maven", "org.exemple:lib",
