@@ -113,14 +113,14 @@ public class InventoryQueries {
     public Optional<InventoryView> inventory(UUID projectId, UUID accountId) {
         try (Connection c = dataSource.getConnection()) {
             ContexteBase.appliquer(c, new ContexteBase.Contexte(accountId, null, null));
-            Optional<InventorySummary> summary = summary(c, projectId);
-            if (summary.isEmpty()) {
+            Optional<LigneInventaire> ligne = ligne(c, projectId);
+            if (ligne.isEmpty()) {
                 return Optional.empty();
             }
-            InventorySummary resume = summary.get();
-            return Optional.of(new InventoryView(projectId, resume.origin(), resume.sourceDate(), resume.ageDays(),
-                    resume.obsolete(), resume.specVersion(), resume.importedAt(), components(c, projectId), resume.ignoredCount(),
-                    resume.ignoredComponents()));
+            LigneInventaire entete = ligne.get();
+            return Optional.of(new InventoryView(projectId, entete.origin(), entete.sourceDate(), entete.ageDays(),
+                    entete.obsolete(), entete.specVersion(), entete.importedAt(), components(c, projectId), entete.ignoredCount(),
+                    entete.ignoredComponents()));
         } catch (SQLException e) {
             throw new IllegalStateException("lecture de l'inventaire impossible", e);
         }
@@ -143,6 +143,23 @@ public class InventoryQueries {
     }
 
     private Optional<InventorySummary> summary(Connection c, UUID projectId) throws SQLException {
+        Optional<LigneInventaire> ligne = ligne(c, projectId);
+        if (ligne.isEmpty()) {
+            return Optional.empty();
+        }
+        LigneInventaire entete = ligne.get();
+        long componentCount = count(c, "SELECT count(*) FROM component WHERE project_id = ?", projectId);
+        return Optional.of(new InventorySummary(projectId, entete.origin(), entete.sourceDate(), entete.ageDays(),
+                entete.obsolete(), entete.specVersion(), entete.importedAt(), componentCount, entete.ignoredCount(),
+                entete.ignoredComponents()));
+    }
+
+    /** Ligne {@code inventory} d'un projet, commune à l'inventaire complet et à sa synthèse, sans compter les composants. */
+    private record LigneInventaire(String origin, Instant sourceDate, Long ageDays, boolean obsolete, String specVersion,
+            Instant importedAt, int ignoredCount, List<ParsedInventory.IgnoredComponent> ignoredComponents) {
+    }
+
+    private Optional<LigneInventaire> ligne(Connection c, UUID projectId) throws SQLException {
         String sql = "SELECT origin, source_date, spec_version, imported_at, ignored_count, ignored_components::text"
                 + " FROM inventory WHERE project_id = ?";
         try (PreparedStatement ps = c.prepareStatement(sql)) {
@@ -154,9 +171,8 @@ public class InventoryQueries {
                 String origin = rs.getString(1);
                 Instant sourceDate = instant(rs, 2);
                 Long age = sourceDate == null ? null : Duration.between(sourceDate, Instant.now()).toDays();
-                long componentCount = count(c, "SELECT count(*) FROM component WHERE project_id = ?", projectId);
-                return Optional.of(new InventorySummary(projectId, origin, sourceDate, age, sbomObsolete(origin, sourceDate),
-                        rs.getString(3), instant(rs, 4), componentCount, rs.getInt(5), ignored(rs.getString(6))));
+                return Optional.of(new LigneInventaire(origin, sourceDate, age, sbomObsolete(origin, sourceDate),
+                        rs.getString(3), instant(rs, 4), rs.getInt(5), ignored(rs.getString(6))));
             }
         }
     }

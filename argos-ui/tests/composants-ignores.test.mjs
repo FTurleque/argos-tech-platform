@@ -99,7 +99,7 @@ test('conversion : liste et champs bornés comme l’API, total déclaré conser
   const champ = composantsIgnores(reponse(1, [{ ...LOG4J, name: 'x'.repeat(500) }]))
   assert.equal(champ.composants[0].nom.length, MAX_CARACTERES_CHAMP)
   const unSeul = composantsIgnores(reponse(1, [LOG4J]))
-  assert.equal(syntheseComposantsIgnores(unSeul),"1 composant écarté de l'inventaire au dernier import, faute de PURL exploitable.")
+  assert.equal(syntheseComposantsIgnores(unSeul), "1 composant écarté de l'inventaire au dernier import, faute de PURL exploitable.")
   assert.equal(composantsIgnores(reponse(-3, [LOG4J])).total, 1, 'total jamais inférieur à la liste')
 })
 
