@@ -204,7 +204,7 @@ public class CollecteReglementaire {
         int fiches = 0;
         try {
             fiches = preparation.preparer(aPreparer, maintenant);
-        } catch (RuntimeException echecPreparation) {
+        } catch (IllegalStateException echecPreparation) {
             LOG.errorf(echecPreparation, "préparation des fiches réglementaires en échec");
         }
         return new Rapport(collectes, enEchec, erreur, nouveaux, connus, refuses, fiches, etat().etat(), abandonnes,

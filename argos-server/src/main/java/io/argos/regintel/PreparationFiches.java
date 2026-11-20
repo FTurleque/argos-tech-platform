@@ -98,7 +98,7 @@ public class PreparationFiches {
                     if (!domaines.isEmpty() && preparer(texte, dictionnaire.espaceId(), domaines, maintenant)) {
                         creees++;
                     }
-                } catch (RuntimeException erreur) {
+                } catch (IllegalStateException erreur) {
                     LOG.errorf(erreur, "préparation de la fiche du texte %s pour l'espace %s en échec", texte.identifiant(),
                             dictionnaire.espaceId());
                 }
