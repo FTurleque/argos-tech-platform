@@ -24,12 +24,51 @@ services:
     volumes:
       # À partir de PostgreSQL 18, l'image attend le volume sur /var/lib/postgresql.
       - argos-pgdata:/var/lib/postgresql
+      # Base de Keycloak, créée au premier démarrage du volume (profil « idp-local »).
+      - ./deploiement/postgres/creer-base-keycloak.sh:/docker-entrypoint-initdb.d/creer-base-keycloak.sh:ro
     mem_limit: ${ARGOS_DB_MEM_LIMIT:-512m}
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
       interval: 5s
       timeout: 3s
       retries: 10
+
+  # Fournisseur d'identité Keycloak (ADR-0027) pour un poste sans Keycloak existant : profil « idp-local ».
+  # Le royaume « argos » est importé au premier démarrage avec un seul compte, l'administrateur (ARGOS_ADMIN_EMAIL),
+  # au mot de passe provisoire ARGOS_ADMIN_MOT_DE_PASSE_INITIAL à changer à la première connexion.
+  keycloak:
+    image: quay.io/keycloak/keycloak:${ARGOS_KEYCLOAK_VERSION:-26.7.4}
+    profiles: ["idp-local"]
+    restart: unless-stopped
+    command: ["start", "--import-realm"]
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      KC_DB: postgres
+      KC_DB_URL: jdbc:postgresql://postgres:5432/keycloak
+      KC_DB_USERNAME: ${ARGOS_DB_USER:-argos}
+      KC_DB_PASSWORD: ${ARGOS_DB_PASSWORD:-argos}
+      KC_HTTP_ENABLED: "true"
+      # Adresse vue par le navigateur et dans les jetons ; les appels d'Argos passent par le réseau du projet.
+      KC_HOSTNAME: http://localhost:${ARGOS_KEYCLOAK_PORT:-8180}
+      KC_HOSTNAME_BACKCHANNEL_DYNAMIC: "true"
+      KC_HEALTH_ENABLED: "true"
+      KC_BOOTSTRAP_ADMIN_USERNAME: ${ARGOS_KEYCLOAK_ADMIN:-admin}
+      KC_BOOTSTRAP_ADMIN_PASSWORD: ${ARGOS_KEYCLOAK_ADMIN_MOT_DE_PASSE:-}
+      ARGOS_ADMIN_EMAIL: ${ARGOS_ADMIN_EMAIL:-}
+      ARGOS_ADMIN_MOT_DE_PASSE_INITIAL: ${ARGOS_ADMIN_MOT_DE_PASSE_INITIAL:-}
+    volumes:
+      - ./deploiement/keycloak/argos-realm.json:/opt/keycloak/data/import/argos-realm.json:ro
+    ports:
+      - "127.0.0.1:${ARGOS_KEYCLOAK_PORT:-8180}:8080"
+    mem_limit: ${ARGOS_KEYCLOAK_MEM_LIMIT:-1g}
+    healthcheck:
+      test: ["CMD-SHELL", "exec 3<>/dev/tcp/localhost/9000 && printf 'GET /health/ready HTTP/1.1\r\nHost: localhost\r\nConnection: close\r\n\r\n' >&3 && grep -q UP <&3"]
+      interval: 10s
+      timeout: 5s
+      retries: 20
+      start_period: 40s
 
   argos:
     build: .
@@ -38,6 +77,9 @@ services:
     depends_on:
       postgres:
         condition: service_healthy
+      keycloak:
+        condition: service_healthy
+        required: false
     environment:
       ARGOS_DB_URL: jdbc:postgresql://postgres:5432/${ARGOS_DB_NAME:-argos}
       ARGOS_DB_USER: ${ARGOS_DB_USER:-argos}
