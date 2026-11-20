@@ -63,10 +63,10 @@ public class SignauxAbonnements {
                     case "TECHNOLOGY" -> technologies.add(f.value());
                     case "PACKAGE" -> packages.add(f.value());
                     case "SOURCE" -> sources.add(f.value());
-                    case "PROJECT" -> projectSignals(f.value(), caller).forEach(id -> signals.find(id).ifPresent(v -> {
+                    case "PROJECT" -> signals.findAll(projectSignals(f.value(), caller)).values().forEach(v -> {
                         found.putIfAbsent(v.id(), v);
                         matchedBy.computeIfAbsent(v.id(), k -> new LinkedHashSet<>()).add(s.id());
-                    }));
+                    });
                     default -> {
                         // VENDOR, THEME, DOMAIN, SEVERITY : sans taxonomie des signaux de sécurité dans ce lot.
                     }

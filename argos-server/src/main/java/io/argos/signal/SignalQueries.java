@@ -8,6 +8,9 @@ import java.time.Instant;
 import java.time.OffsetDateTime;
 import java.util.ArrayList;
 import java.util.Collection;
+import java.util.HashMap;
+import java.util.LinkedHashMap;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
@@ -35,6 +38,13 @@ import io.argos.catalog.PackageKey;
 public class SignalQueries {
 
     private static final ObjectMapper MAPPER = new ObjectMapper();
+
+    /** Colonnes d'une vue de signal ({@link #view(ResultSet)}), sans clause {@code WHERE}. */
+    private static final String VUE = """
+            SELECT id, source, external_id, title, summary, severity, published_at, modified_at, collected_at,
+                   current_version_id, affected::text,
+                   ARRAY(SELECT alias FROM signal_alias a WHERE a.signal_id = s.id ORDER BY alias)
+            FROM signal s""";
     private static final TypeReference<List<AffectedPackage>> AFFECTED = new TypeReference<>() {
     };
 
@@ -90,13 +100,7 @@ public class SignalQueries {
 
     @Transactional
     public Optional<SignalView> find(UUID id) {
-        String sql = """
-                SELECT id, source, external_id, title, summary, severity, published_at, modified_at, collected_at,
-                       current_version_id, affected::text,
-                       ARRAY(SELECT alias FROM signal_alias a WHERE a.signal_id = s.id ORDER BY alias)
-                FROM signal s WHERE id = ?
-                """;
-        try (Connection c = dataSource.getConnection(); PreparedStatement ps = c.prepareStatement(sql)) {
+        try (Connection c = dataSource.getConnection(); PreparedStatement ps = c.prepareStatement(VUE + " WHERE id = ?")) {
             ps.setObject(1, id);
             try (ResultSet rs = ps.executeQuery()) {
                 if (!rs.next()) {
@@ -107,6 +111,40 @@ public class SignalQueries {
         } catch (SQLException e) {
             throw new IllegalStateException("lecture du signal impossible", e);
         }
+    }
+
+    /**
+     * Signaux désignés, lus en une seule requête (lecture groupée : la restitution de la veille ne lit pas les
+     * signaux un par un, changement {@code optimiser-ma-veille}). Chaque vue est identique à celle de
+     * {@link #find(UUID)} ; un identifiant inconnu est absent du résultat. Ordre du résultat : celui des
+     * identifiants donnés.
+     */
+    @Transactional
+    public Map<UUID, SignalView> findAll(Collection<UUID> ids) {
+        Map<UUID, SignalView> lus = new HashMap<>();
+        if (ids.isEmpty()) {
+            return new LinkedHashMap<>();
+        }
+        try (Connection c = dataSource.getConnection();
+                PreparedStatement ps = c.prepareStatement(VUE + " WHERE id = ANY (?)")) {
+            ps.setArray(1, c.createArrayOf("uuid", new LinkedHashSet<>(ids).toArray()));
+            try (ResultSet rs = ps.executeQuery()) {
+                while (rs.next()) {
+                    SignalView v = view(rs);
+                    lus.put(v.id(), v);
+                }
+            }
+        } catch (SQLException e) {
+            throw new IllegalStateException("lecture des signaux impossible", e);
+        }
+        Map<UUID, SignalView> ordonnes = new LinkedHashMap<>();
+        for (UUID id : ids) {
+            SignalView v = lus.get(id);
+            if (v != null) {
+                ordonnes.putIfAbsent(id, v);
+            }
+        }
+        return ordonnes;
     }
 
     @Transactional
@@ -228,7 +266,7 @@ public class SignalQueries {
         } catch (SQLException e) {
             throw new IllegalStateException("recherche de veille impossible", e);
         }
-        return ids.stream().map(this::find).flatMap(Optional::stream).toList();
+        return List.copyOf(findAll(ids).values());
     }
 
     private List<UUID> findIds(String sql, Object... params) {

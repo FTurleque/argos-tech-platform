@@ -215,9 +215,11 @@ public class VeilleProfilsResource {
                 parSignal.computeIfAbsent(i.signalId(), k -> new ArrayList<>()).add(i);
             }
         }
+        // Lecture groupée des signaux (une requête pour tous les avis), jamais un signal par avis.
+        Map<UUID, SignalQueries.SignalView> lus = signaux.findAll(parSignal.keySet());
         List<UnionProfils.Candidat<ElementVue>> candidats = new ArrayList<>();
         parSignal.forEach((signalId, vus) -> {
-            Optional<SignalQueries.SignalView> s = signaux.find(signalId);
+            Optional<SignalQueries.SignalView> s = Optional.ofNullable(lus.get(signalId));
             ImpactQueries.ImpactView premier = vus.get(0);
             List<ProjetVue> projets = vus.stream()
                     .map(i -> new ProjetVue(i.projectId(), i.projectName(), i.level())).distinct().toList();
