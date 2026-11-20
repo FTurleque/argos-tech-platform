@@ -10,10 +10,10 @@ class AvancementTest {
 
     @Test
     void pin02S1JalonAvecTotalConnu() {
-        Avancement a = Avancement.de(27, 30).orElseThrow();
-        assertEquals("27 sur 30 (90 %)", a.libelle());
-        assertEquals(90, a.pourcentage());
-        assertEquals(30, a.total());
+        Avancement avancement = Avancement.de(27, 30).orElseThrow();
+        assertEquals("27 sur 30 (90 %)", avancement.libelle());
+        assertEquals(90, avancement.pourcentage());
+        assertEquals(30, avancement.total());
     }
 
     @Test

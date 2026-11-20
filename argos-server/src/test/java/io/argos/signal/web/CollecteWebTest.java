@@ -45,7 +45,7 @@ class CollecteWebTest {
     static final String HTML = "text/html; charset=utf-8";
 
     @Inject
-    TestDb db;
+    TestDb baseDeTest;
 
     @Inject
     CollecteWeb collecte;
@@ -55,7 +55,7 @@ class CollecteWebTest {
 
     @BeforeEach
     void reset() {
-        db.reset();
+        baseDeTest.reset();
     }
 
     private static String page(String texte) {
@@ -69,7 +69,7 @@ class CollecteWebTest {
     }
 
     private void rendreEchue(UUID id) {
-        db.exec("UPDATE source_web SET prochaine_collecte_le = now() - interval '1 minute' WHERE id = '" + id + "'");
+        baseDeTest.exec("UPDATE source_web SET prochaine_collecte_le = now() - interval '1 minute' WHERE id = '" + id + "'");
     }
 
     // ------------------------------------------------------------------ course sur une même page
@@ -100,7 +100,7 @@ class CollecteWebTest {
         CollecteWeb.Rapport rapport = premiere.get(10, TimeUnit.SECONDS);
         assertEquals("ACTIVE", rapport.etat());
         assertEquals(1, rapport.nouvelles());
-        assertEquals(1, db.count("SELECT count(*) FROM actualite WHERE type = 'CHANGEMENT_PAGE'"));
+        assertEquals(1, baseDeTest.count("SELECT count(*) FROM actualite WHERE type = 'CHANGEMENT_PAGE'"));
         // Le verrou est libéré : la source est de nouveau collectable, sans nouveau changement.
         assertEquals(0, collecte.collecter(id).nouvelles());
     }
@@ -131,9 +131,9 @@ class CollecteWebTest {
 
     @Test
     void passageBorneEnNombreEtEnDuree() {
-        for (int i = 0; i < 3; i++) {
-            StubServer.on("/borne" + i, new Stub(200, page("B" + i), Map.of("Content-Type", HTML), 0));
-            rendreEchue(ajouterPage("alice", "/borne" + i));
+        for (int indice = 0; indice < 3; indice++) {
+            StubServer.on("/borne" + indice, new Stub(200, page("B" + indice), Map.of("Content-Type", HTML), 0));
+            rendreEchue(ajouterPage("alice", "/borne" + indice));
         }
         CollecteWeb instance = ClientProxy.unwrap(collecte);
         int sourcesParPassage = instance.sourcesParPassage;
@@ -149,9 +149,9 @@ class CollecteWebTest {
             long[] appels = {0};
             // Chaque lecture de l'horloge avance de 3 minutes : la deuxième source dépasserait la durée.
             instance.horloge = () -> debut.plus(Duration.ofMinutes(3 * appels[0]++));
-            db.exec("UPDATE source_web SET prochaine_collecte_le = now() - interval '1 minute'");
+            baseDeTest.exec("UPDATE source_web SET prochaine_collecte_le = now() - interval '1 minute'");
             assertEquals(1, collecte.collecterSourcesEchues().size(), "aucune source commencée après la durée maximale");
-            assertEquals(2, db.count("SELECT count(*) FROM source_web WHERE prochaine_collecte_le <= now()"),
+            assertEquals(2, baseDeTest.count("SELECT count(*) FROM source_web WHERE prochaine_collecte_le <= now()"),
                     "sources restantes toujours échues, reprises au passage suivant");
         } finally {
             instance.sourcesParPassage = sourcesParPassage;
@@ -167,7 +167,7 @@ class CollecteWebTest {
     void premiereCollecteEnEchecLaisseLaSourceEnErreur() {
         UUID alice = Api.compte("alice");
         UUID id = UUID.randomUUID();
-        db.exec("""
+        baseDeTest.exec("""
                 INSERT INTO source_web (id, portee, proprietaire_id, type, adresse, libelle, cree_par)
                 VALUES ('%1$s', 'PERSONNELLE', '%2$s', 'FLUX', 'https://exemple.test/flux', 'Flux', '%2$s')
                 """.formatted(id, alice));
@@ -175,16 +175,16 @@ class CollecteWebTest {
                 "text/html", "<html><body>pas un flux</body></html>".getBytes(StandardCharsets.UTF_8));
 
         CollecteWeb.Rapport rapport;
-        try (StockActualites.Verrou v = stock.verrouiller(id).orElseThrow()) {
+        try (StockActualites.Verrou verrou = stock.verrouiller(id).orElseThrow()) {
             rapport = collecte.premiereCollecte(id, pasUnFlux);
         }
 
         assertEquals("EN_ERREUR", rapport.etat());
-        assertEquals(1, db.count("SELECT count(*) FROM source_web WHERE id = '" + id + "' AND etat = 'EN_ERREUR'"
+        assertEquals(1, baseDeTest.count("SELECT count(*) FROM source_web WHERE id = '" + id + "' AND etat = 'EN_ERREUR'"
                 + " AND echecs_consecutifs = 1 AND derniere_erreur = '" + RecuperationRefusee.Motif.FLUX_INVALIDE.name()
                 + " : " + RecuperationRefusee.Motif.FLUX_INVALIDE.message().replace("'", "''") + "'"
                 + " AND prochaine_collecte_le > now() + interval '50 minutes'"));
-        assertEquals(0, db.count("SELECT count(*) FROM actualite"));
+        assertEquals(0, baseDeTest.count("SELECT count(*) FROM actualite"));
     }
 
     // ------------------------------------------------------------------ forme canonique des adresses
@@ -218,6 +218,6 @@ class CollecteWebTest {
         Api.en("alice").contentType(ContentType.JSON)
                 .body(Map.of("portee", "PERSONNELLE", "type", "FLUX", "adresse", variante))
                 .when().post("/api/v1/veille-web/sources").then().statusCode(409).body("code", equalTo("SOURCE_EXISTANTE"));
-        assertTrue(db.count("SELECT count(*) FROM source_web") == 1);
+        assertTrue(baseDeTest.count("SELECT count(*) FROM source_web") == 1);
     }
 }

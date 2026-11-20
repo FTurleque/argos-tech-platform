@@ -49,7 +49,7 @@ class ActiviteProjetsTest {
     private static final ZoneId PARIS = ZoneId.of("Europe/Paris");
 
     @Inject
-    TestDb db;
+    TestDb baseDeTest;
 
     @Inject
     ProjectDirectory projets;
@@ -67,13 +67,13 @@ class ActiviteProjetsTest {
     ContexteBase base;
 
     @Inject
-    SimulatedSyntheseIa ia;
+    SimulatedSyntheseIa syntheseIa;
 
     private UUID espace;
 
     @BeforeEach
     void reset() {
-        db.reset();
+        baseDeTest.reset();
         espace = Api.nouvelEspace("alice", "Équipe activité");
     }
 
@@ -162,10 +162,13 @@ class ActiviteProjetsTest {
 
         List<StubServer.Received> requetes = StubServer.received("/github/");
         assertEquals(4, requetes.size(), "une page par liste : " + requetes.stream().map(StubServer.Received::pathAndQuery).toList());
-        assertTrue(requetes.stream().allMatch(r -> "GET".equals(r.method())), "lecture seule : GET uniquement");
-        assertTrue(requetes.stream().anyMatch(r -> r.pathAndQuery().startsWith("/github/repos/org/app/issues?state=all&since=")));
-        assertTrue(requetes.stream().anyMatch(r -> r.pathAndQuery().startsWith("/github/repos/org/app/actions/runs?created=%3E%3D")));
-        assertTrue(requetes.stream().allMatch(r -> r.headers().keySet().stream().noneMatch(h -> h.equalsIgnoreCase("Authorization"))),
+        assertTrue(requetes.stream().allMatch(requete -> "GET".equals(requete.method())), "lecture seule : GET uniquement");
+        assertTrue(requetes.stream().anyMatch(requete -> requete.pathAndQuery()
+                .startsWith("/github/repos/org/app/issues?state=all&since=")));
+        assertTrue(requetes.stream().anyMatch(requete -> requete.pathAndQuery()
+                .startsWith("/github/repos/org/app/actions/runs?created=%3E%3D")));
+        assertTrue(requetes.stream().allMatch(requete -> requete.headers().keySet().stream()
+                        .noneMatch(entete -> entete.equalsIgnoreCase("Authorization"))),
                 "aucun jeton configuré, aucun envoyé");
         assertEquals(List.of("application/vnd.github+json"), requetes.get(0).headers().get("Accept"));
     }
@@ -207,7 +210,7 @@ class ActiviteProjetsTest {
                 .body("jalons", hasSize(1))
                 .body("jalons[0].titre", equalTo("Sprint 4"))
                 .body("jalons[0].avancement.libelle", equalTo("27 sur 30 (90 %)"));
-        assertTrue(StubServer.received("/gitlab/").stream().allMatch(r -> "GET".equals(r.method())));
+        assertTrue(StubServer.received("/gitlab/").stream().allMatch(requete -> "GET".equals(requete.method())));
         assertTrue(StubServer.received(base + "/issues_statistics?milestone=Sprint%204").size() == 1,
                 "le titre du jalon est encodé dans l'adresse");
     }
@@ -248,15 +251,15 @@ class ActiviteProjetsTest {
         Api.en("alice").when().get("/api/v1/projects/" + projet + "/activite/contributeurs/bob").then().statusCode(404);
 
         // Aucune identité enregistrée, et aucune colonne qui pourrait en porter (revue du schéma outillée).
-        assertEquals(0, db.count("""
+        assertEquals(0, baseDeTest.count("""
                 SELECT (SELECT count(*) FROM activite_compteur c WHERE c::text ~* '(bob|carol)')
                      + (SELECT count(*) FROM activite_jalon j WHERE j::text ~* '(bob|carol)')
                      + (SELECT count(*) FROM activite_collecte a WHERE a::text ~* '(bob|carol)')"""));
-        assertEquals(0, db.count("""
+        assertEquals(0, baseDeTest.count("""
                 SELECT count(*) FROM information_schema.columns
                 WHERE table_name IN ('activite_compteur', 'activite_jalon', 'activite_collecte')
                   AND column_name ~* '(auteur|author|user|login|assign|review|contribut|personne|person|mail|compte|account|membre|owner|par$|_by$)'"""));
-        assertEquals(20, db.count("""
+        assertEquals(20, baseDeTest.count("""
                 SELECT count(*) FROM information_schema.columns
                 WHERE table_name IN ('activite_compteur', 'activite_jalon', 'activite_collecte')"""),
                 "colonnes revues : toute nouvelle colonne impose de revoir ce test");
@@ -274,7 +277,7 @@ class ActiviteProjetsTest {
 
         Api.en("alice").when().get(url).then().statusCode(200).body("etat", equalTo("SANS_DONNEES"))
                 .body("mention", equalTo("produite par l'IA")).body("texte", nullValue());
-        assertTrue(ia.recues().isEmpty(), "aucun appel sans donnée collectée");
+        assertTrue(syntheseIa.recues().isEmpty(), "aucun appel sans donnée collectée");
 
         collecte.collecterProjet(projet, Instant.now());
         Api.en("alice").when().get(url).then().statusCode(200)
@@ -283,18 +286,18 @@ class ActiviteProjetsTest {
                 .body("texte", containsString("27 sur 30 (90 %)"))
                 .body("periode.jours", equalTo(30))
                 .body("indicateurs", hasItems("compteurs.ticketsOuverts", "compteurs.ticketsFermes", "jalons"));
-        assertEquals(1, ia.recues().size());
-        assertEquals(3, ia.recues().get(0).compteurs().ticketsOuverts(), "la synthèse reçoit les indicateurs affichés");
+        assertEquals(1, syntheseIa.recues().size());
+        assertEquals(3, syntheseIa.recues().get(0).compteurs().ticketsOuverts(), "la synthèse reçoit les indicateurs affichés");
 
-        ia.configure(SimulatedSyntheseIa.Mode.CHIFFRE_INVENTE);
+        syntheseIa.configure(SimulatedSyntheseIa.Mode.CHIFFRE_INVENTE);
         Api.en("alice").when().get(url).then().statusCode(200).body("etat", equalTo("REFUSEE")).body("texte", nullValue())
                 .body("mention", equalTo("produite par l'IA"));
-        ia.configure(SimulatedSyntheseIa.Mode.UNAVAILABLE);
+        syntheseIa.configure(SimulatedSyntheseIa.Mode.UNAVAILABLE);
         Api.en("alice").when().get(url).then().statusCode(200).body("etat", equalTo("INDISPONIBLE"));
-        ia.configure(SimulatedSyntheseIa.Mode.BUDGET_EXHAUSTED);
+        syntheseIa.configure(SimulatedSyntheseIa.Mode.BUDGET_EXHAUSTED);
         Api.en("alice").when().get(url).then().statusCode(200).body("etat", equalTo("PLAFOND_ATTEINT"));
-        assertTrue(ia.recues().isEmpty(), "plafond atteint : aucun appel");
-        ia.configure(SimulatedSyntheseIa.Mode.REFUSED);
+        assertTrue(syntheseIa.recues().isEmpty(), "plafond atteint : aucun appel");
+        syntheseIa.configure(SimulatedSyntheseIa.Mode.REFUSED);
         Api.en("alice").when().get(url).then().statusCode(200).body("etat", equalTo("REFUSEE"));
         // Les indicateurs restent consultables quel que soit l'état de la synthèse.
         Api.en("alice").when().get("/api/v1/projects/" + projet + "/activite").then().statusCode(200)
@@ -348,9 +351,9 @@ class ActiviteProjetsTest {
         depotGithub("org/app");
         UUID projet = projetGithub("org/app");
         collecte.collecterProjet(projet, Instant.now());
-        long lignes = db.count("SELECT count(*) FROM activite_compteur WHERE project_id = '" + projet + "'");
+        long lignes = baseDeTest.count("SELECT count(*) FROM activite_compteur WHERE project_id = '" + projet + "'");
         collecte.collecterProjet(projet, Instant.now());
-        assertEquals(lignes, db.count("SELECT count(*) FROM activite_compteur WHERE project_id = '" + projet + "'"));
+        assertEquals(lignes, baseDeTest.count("SELECT count(*) FROM activite_compteur WHERE project_id = '" + projet + "'"));
         Api.en("alice").when().get("/api/v1/projects/" + projet + "/activite").then().body("compteurs.ticketsOuverts", equalTo(3));
 
         StubServer.on("/github/repos/org/app/issues", Stub.status(500));
@@ -384,22 +387,22 @@ class ActiviteProjetsTest {
         // Par l'API : 404 sans révéler l'existence, refus journalisé.
         Api.en("jules").when().get("/api/v1/projects/" + projet + "/activite").then().statusCode(404);
         Api.en("jules").when().get("/api/v1/projects/" + projet + "/activite/synthese").then().statusCode(404);
-        assertEquals(1, db.count("SELECT count(*) FROM refus_acces WHERE compte_id = '" + jules
+        assertEquals(1, baseDeTest.count("SELECT count(*) FROM refus_acces WHERE compte_id = '" + jules
                 + "' AND ressource = 'GET /api/v1/projects/" + projet + "/activite' AND motif = 'NON_MEMBRE'"));
         Api.en("alice").when().get("/api/v1/projects/" + UUID.randomUUID() + "/activite").then().statusCode(404);
         io.restassured.RestAssured.given().when().get("/api/v1/projects/" + projet + "/activite").then().statusCode(401);
     }
 
     private List<Long> compterSousArgosApp(UUID compte, UUID projet) {
-        return base.executer(new ContexteBase.Contexte(compte, null, null), c -> {
-            try (Statement st = c.createStatement(); ResultSet rs = st.executeQuery("""
+        return base.executer(new ContexteBase.Contexte(compte, null, null), connexion -> {
+            try (Statement instruction = connexion.createStatement(); ResultSet resultat = instruction.executeQuery("""
                     SELECT (SELECT count(*) FROM activite_compteur WHERE project_id = '%1$s'),
                            (SELECT count(*) FROM activite_jalon WHERE project_id = '%1$s'),
                            (SELECT count(*) FROM activite_collecte WHERE project_id = '%1$s'),
                            current_user""".formatted(projet))) {
-                rs.next();
-                assertEquals("argos_app", rs.getString(4), "lecture sous argos_app, jamais sous le super-utilisateur");
-                return List.of(rs.getLong(1), rs.getLong(2), rs.getLong(3));
+                resultat.next();
+                assertEquals("argos_app", resultat.getString(4), "lecture sous argos_app, jamais sous le super-utilisateur");
+                return List.of(resultat.getLong(1), resultat.getLong(2), resultat.getLong(3));
             }
         });
     }
@@ -408,27 +411,28 @@ class ActiviteProjetsTest {
     void purgeDeLHistoriqueAuDelaDeTreizeMois() {
         UUID projet = projetGithub("org/app");
         LocalDate aujourdhui = LocalDate.of(2026, 11, 16);
-        db.exec("""
+        baseDeTest.exec("""
                 INSERT INTO activite_compteur(project_id, jour, type, valeur) VALUES
                   ('%1$s', '2025-10-15', 'TICKET_OUVERT', 4),
                   ('%1$s', '2025-10-16', 'TICKET_OUVERT', 5),
                   ('%1$s', '2026-11-10', 'TICKET_FERME', 2)""".formatted(projet));
-        db.exec("""
+        baseDeTest.exec("""
                 INSERT INTO activite_jalon(project_id, reference, titre, etat, tickets_fermes, tickets_total, releve_le) VALUES
                   ('%1$s', '1', 'ancien', 'FERME', 1, 1, '2025-09-01T00:00:00Z'),
                   ('%1$s', '2', 'récent', 'OUVERT', 1, 2, '2026-11-15T00:00:00Z')""".formatted(projet));
-        db.exec("""
+        baseDeTest.exec("""
                 INSERT INTO activite_collecte(project_id, etat, derniere_mise_a_jour, prochaine_collecte, donnees_depuis, tentee_le)
                 VALUES ('%s', 'A_JOUR', now(), now(), '2025-09-01', now())""".formatted(projet));
 
         int supprimees = purge.purger(aujourdhui);
 
         assertEquals(2, supprimees, "un compteur du 15 octobre 2025 et un jalon relevé en septembre 2025");
-        assertEquals("2025-10-16,2026-11-10", db.string(
+        assertEquals("2025-10-16,2026-11-10", baseDeTest.string(
                 "SELECT string_agg(jour::text, ',' ORDER BY jour) FROM activite_compteur WHERE project_id = '" + projet + "'"),
                 "le 16 octobre 2025 est à 13 mois exactement : conservé");
-        assertEquals("récent", db.string("SELECT string_agg(titre, ',') FROM activite_jalon WHERE project_id = '" + projet + "'"));
-        assertEquals("2025-10-16", db.string("SELECT donnees_depuis::text FROM activite_collecte WHERE project_id = '" + projet + "'"));
+        assertEquals("récent", baseDeTest.string("SELECT string_agg(titre, ',') FROM activite_jalon WHERE project_id = '" + projet + "'"));
+        assertEquals("2025-10-16", baseDeTest.string(
+                "SELECT donnees_depuis::text FROM activite_collecte WHERE project_id = '" + projet + "'"));
         assertEquals(0, purge.purger(aujourdhui), "rejouée, la purge ne supprime rien de plus");
     }
 }

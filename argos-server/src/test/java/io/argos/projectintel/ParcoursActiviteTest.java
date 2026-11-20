@@ -33,7 +33,7 @@ import io.quarkus.test.junit.QuarkusTest;
 class ParcoursActiviteTest {
 
     @Inject
-    TestDb db;
+    TestDb baseDeTest;
 
     @Inject
     ProjectDirectory projets;
@@ -43,7 +43,7 @@ class ParcoursActiviteTest {
 
     @BeforeEach
     void reset() {
-        db.reset();
+        baseDeTest.reset();
     }
 
     @Test
