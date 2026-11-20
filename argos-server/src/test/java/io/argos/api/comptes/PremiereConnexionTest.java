@@ -65,8 +65,8 @@ class PremiereConnexionTest {
         en("bob").when().get("/api/v1/espaces/" + atelier).then().statusCode(404);
         // Profil de veille par défaut transmis à la capacité profils-veille (Q-3).
         String sujetBob = sujet("bob");
-        assertTrue(observateur.crees.stream().anyMatch(e -> e.compte().sujetOidc().equals(sujetBob)
-                && "developpeur".equals(e.profilParDefaut())));
+        assertTrue(observateur.crees.stream().anyMatch(evenement -> evenement.compte().sujetOidc().equals(sujetBob)
+                && "developpeur".equals(evenement.profilParDefaut())));
         // Une seconde connexion ne crée pas de doublon.
         moi("bob").statusCode(200);
         assertEquals(1, comptes("bob"));
@@ -120,11 +120,11 @@ class PremiereConnexionTest {
     }
 
     private long compter(String sql, String valeur) throws Exception {
-        try (Connection c = dataSource.getConnection(); PreparedStatement ps = c.prepareStatement(sql)) {
-            ps.setString(1, valeur);
-            try (ResultSet rs = ps.executeQuery()) {
-                rs.next();
-                return rs.getLong(1);
+        try (Connection connexion = dataSource.getConnection(); PreparedStatement requete = connexion.prepareStatement(sql)) {
+            requete.setString(1, valeur);
+            try (ResultSet resultat = requete.executeQuery()) {
+                resultat.next();
+                return resultat.getLong(1);
             }
         }
     }

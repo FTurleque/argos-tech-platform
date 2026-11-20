@@ -43,7 +43,7 @@ import io.restassured.specification.RequestSpecification;
 class PreferencesResourceTest {
 
     @Inject
-    TestDb db;
+    TestDb baseDeTest;
 
     @Inject
     DataSource dataSource;
@@ -63,7 +63,7 @@ class PreferencesResourceTest {
     void reinitialiser() {
         ines = Api.compte("ines");
         UUID jules = Api.compte("jules");
-        db.exec("DELETE FROM workspace_preference_utilisateur WHERE compte_id IN ('" + ines + "', '" + jules + "')");
+        baseDeTest.exec("DELETE FROM workspace_preference_utilisateur WHERE compte_id IN ('" + ines + "', '" + jules + "')");
     }
 
     private static RequestSpecification ines() {
@@ -106,7 +106,7 @@ class PreferencesResourceTest {
             .body("miseEnPageChoisie", equalTo("gazette"));
         // AFF-03 : la préférence est lue sur le serveur, quel que soit le client qui la demande.
         ines().when().get("/api/v1/preferences").then().statusCode(200).body("miseEnPage", equalTo("gazette"));
-        assertEquals("gazette", db.string("SELECT mise_en_page FROM workspace_preference_utilisateur WHERE compte_id = '"
+        assertEquals("gazette", baseDeTest.string("SELECT mise_en_page FROM workspace_preference_utilisateur WHERE compte_id = '"
                 + ines + "'"), "clé des préférences : identifiant du compte Argos");
     }
 
@@ -197,29 +197,30 @@ class PreferencesResourceTest {
     void laBaseNExposeQueLesPreferencesDuCompteCourant() throws Exception {
         choisirMiseEnPage("fantaisie", 200);
         UUID jules = Api.compte("jules");
-        try (Connection c = dataSource.getConnection(); Statement s = c.createStatement()) {
-            c.setAutoCommit(false);
-            s.execute("SET LOCAL ROLE argos_app");
-            s.execute("SELECT set_config('argos.compte_courant', '" + jules + "', true)");
-            assertEquals(0, s.executeUpdate("UPDATE workspace_preference_utilisateur SET mise_en_page = 'gazette' WHERE compte_id = '"
-                    + ines + "'"), "les préférences d'un autre compte ne sont pas modifiables");
-            try (ResultSet rs = s.executeQuery("SELECT count(*) FROM workspace_preference_utilisateur")) {
-                rs.next();
-                assertEquals(0, rs.getLong(1), "les préférences d'un autre compte ne sont pas visibles");
+        try (Connection connexion = dataSource.getConnection(); Statement instruction = connexion.createStatement()) {
+            connexion.setAutoCommit(false);
+            instruction.execute("SET LOCAL ROLE argos_app");
+            instruction.execute("SELECT set_config('argos.compte_courant', '" + jules + "', true)");
+            assertEquals(0, instruction.executeUpdate(
+                    "UPDATE workspace_preference_utilisateur SET mise_en_page = 'gazette' WHERE compte_id = '"
+                    + ines + "'"),"les préférences d'un autre compte ne sont pas modifiables");
+            try (ResultSet resultat = instruction.executeQuery("SELECT count(*) FROM workspace_preference_utilisateur")) {
+                resultat.next();
+                assertEquals(0, resultat.getLong(1), "les préférences d'un autre compte ne sont pas visibles");
             }
-            c.rollback();
-            c.setAutoCommit(true);
+            connexion.rollback();
+            connexion.setAutoCommit(true);
         }
-        assertEquals("fantaisie", db.string("SELECT mise_en_page FROM workspace_preference_utilisateur WHERE compte_id = '"
+        assertEquals("fantaisie", baseDeTest.string("SELECT mise_en_page FROM workspace_preference_utilisateur WHERE compte_id = '"
                 + ines + "'"));
     }
 
     /** PRF-01, Q-3 : la création d'un compte active le profil developpeur dans ses préférences. */
     @Test
     void laCreationDUnCompteActiveLeProfilDeveloppeur() {
-        Compte compte = comptes.parSujet(db.string("SELECT sujet_oidc FROM compte WHERE id = '" + ines + "'")).orElseThrow();
+        Compte compte = comptes.parSujet(baseDeTest.string("SELECT sujet_oidc FROM compte WHERE id = '" + ines + "'")).orElseThrow();
         compteCree.fire(new CompteCree(compte, "developpeur"));
-        assertEquals("{developpeur}", db.string(
+        assertEquals("{developpeur}", baseDeTest.string(
                 "SELECT profils_actifs::text FROM workspace_preference_utilisateur WHERE compte_id = '" + ines + "'"));
         ines().when().get("/api/v1/preferences").then().statusCode(200)
             .body("profilsActifs", contains("developpeur")).body("profilsParDefaut", equalTo(false));

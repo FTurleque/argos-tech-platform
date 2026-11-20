@@ -33,7 +33,7 @@ class LimiteurDebitTest {
     void fenetresEchuesRetirees() {
         long[] maintenant = {0};
         LimiteurDebit limiteur = new LimiteurDebit(60, () -> maintenant[0]);
-        for (int i = 0; i < 255; i++) {
+        for (int tentative = 0; tentative < 255; tentative++) {
             limiteur.admettre(UUID.randomUUID());
         }
         assertEquals(255, limiteur.comptesSuivis());

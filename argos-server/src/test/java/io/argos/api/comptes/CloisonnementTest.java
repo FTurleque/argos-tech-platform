@@ -72,7 +72,7 @@ class CloisonnementTest {
 
         // Rôle applicatif sans aucun contexte : zéro ligne d'espace.
         for (String table : List.of("espace", "appartenance", "invitation")) {
-            long lignes = base.executer(Contexte.aucun(), c -> compter(c, "SELECT count(*) FROM " + table));
+            long lignes = base.executer(Contexte.aucun(), connexion -> compter(connexion, "SELECT count(*) FROM " + table));
             assertEquals(0, lignes, "lignes visibles sans contexte dans " + table);
         }
     }
@@ -85,25 +85,25 @@ class CloisonnementTest {
         Api.inviter("alice", espaceB, "invite-b@argos.test", "LECTEUR");
         Api.ajouterMembre("alice", espaceA, "frank", "LECTEUR");
         UUID frank = UUID.fromString(Api.idCompte("frank"));
-        UUID a = UUID.fromString(espaceA);
-        UUID b = UUID.fromString(espaceB);
+        UUID uuidEspaceA = UUID.fromString(espaceA);
+        UUID uuidEspaceB = UUID.fromString(espaceB);
 
         // Espace courant B transmis pour un compte non membre de B : rien.
-        Contexte frankDansB = new Contexte(frank, null, b);
+        Contexte frankDansB = new Contexte(frank, null, uuidEspaceB);
         assertEquals(0L, (long) base.executer(frankDansB,
-                c -> compter(c, "SELECT count(*) FROM invitation WHERE espace_id = '" + b + "'")));
+                connexion -> compter(connexion, "SELECT count(*) FROM invitation WHERE espace_id = '" + uuidEspaceB + "'")));
         assertEquals(0L, (long) base.executer(frankDansB,
-                c -> compter(c, "SELECT count(*) FROM appartenance WHERE espace_id = '" + b + "'")));
+                connexion -> compter(connexion, "SELECT count(*) FROM appartenance WHERE espace_id = '" + uuidEspaceB + "'")));
         assertEquals(0L, (long) base.executer(frankDansB,
-                c -> compter(c, "SELECT count(*) FROM espace WHERE id = '" + b + "'")));
+                connexion -> compter(connexion, "SELECT count(*) FROM espace WHERE id = '" + uuidEspaceB + "'")));
 
         // Espace courant A, dont il est membre : uniquement les lignes de A.
-        List<String> espacesVus = base.executer(new Contexte(frank, null, a), c -> {
+        List<String> espacesVus = base.executer(new Contexte(frank, null, uuidEspaceA), connexion -> {
             List<String> ids = new ArrayList<>();
-            try (PreparedStatement ps = c.prepareStatement("SELECT DISTINCT espace_id FROM appartenance");
-                    ResultSet rs = ps.executeQuery()) {
-                while (rs.next()) {
-                    ids.add(rs.getString(1));
+            try (PreparedStatement requete = connexion.prepareStatement("SELECT DISTINCT espace_id FROM appartenance");
+                    ResultSet resultat = requete.executeQuery()) {
+                while (resultat.next()) {
+                    ids.add(resultat.getString(1));
                 }
             }
             return ids;
@@ -112,26 +112,26 @@ class CloisonnementTest {
         assertFalse(espacesVus.contains(espaceB));
 
         // Écriture refusée par la base elle-même pour un non-administrateur (défense en profondeur).
-        long modifiees = base.executer(new Contexte(frank, null, a), c -> {
-            try (PreparedStatement ps = c.prepareStatement(
+        long modifiees = base.executer(new Contexte(frank, null, uuidEspaceA), connexion -> {
+            try (PreparedStatement requete = connexion.prepareStatement(
                     "UPDATE appartenance SET role = 'ADMINISTRATEUR' WHERE espace_id = ?")) {
-                ps.setObject(1, a);
-                return (long) ps.executeUpdate();
+                requete.setObject(1, uuidEspaceA);
+                return (long) requete.executeUpdate();
             }
         });
         assertEquals(0, modifiees);
     }
 
     private long compterEnProprietaire(String sql) throws Exception {
-        try (Connection c = dataSource.getConnection()) {
-            return compter(c, sql);
+        try (Connection connexion = dataSource.getConnection()) {
+            return compter(connexion, sql);
         }
     }
 
-    private static long compter(Connection c, String sql) throws java.sql.SQLException {
-        try (PreparedStatement ps = c.prepareStatement(sql); ResultSet rs = ps.executeQuery()) {
-            rs.next();
-            return rs.getLong(1);
+    private static long compter(Connection connexion, String sql) throws java.sql.SQLException {
+        try (PreparedStatement requete = connexion.prepareStatement(sql); ResultSet resultat = requete.executeQuery()) {
+            resultat.next();
+            return resultat.getLong(1);
         }
     }
 }

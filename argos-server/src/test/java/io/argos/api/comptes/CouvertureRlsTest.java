@@ -75,16 +75,16 @@ class CouvertureRlsTest {
         List<String> sansRls = new ArrayList<>();
         List<String> referenceAvecPerimetre = new ArrayList<>();
         Set<String> referencesConstatees = new TreeSet<>();
-        for (Table t : tables) {
-            boolean protegee = t.rls() && t.politique();
-            if (!protegee && !REFERENCE_GLOBALE.contains(t.nom())) {
-                sansRls.add(t.nom());
+        for (Table table : tables) {
+            boolean protegee = table.rls() && table.politique();
+            if (!protegee && !REFERENCE_GLOBALE.contains(table.nom())) {
+                sansRls.add(table.nom());
             }
-            if (!protegee && REFERENCE_GLOBALE.contains(t.nom())) {
-                referencesConstatees.add(t.nom());
+            if (!protegee && REFERENCE_GLOBALE.contains(table.nom())) {
+                referencesConstatees.add(table.nom());
             }
-            if (REFERENCE_GLOBALE.contains(t.nom()) && t.perimetre()) {
-                referenceAvecPerimetre.add(t.nom());
+            if (REFERENCE_GLOBALE.contains(table.nom()) && table.perimetre()) {
+                referenceAvecPerimetre.add(table.nom());
             }
         }
         assertEquals(List.of(), sansRls, "tables accessibles à argos_app sans RLS ni politique");
@@ -96,18 +96,18 @@ class CouvertureRlsTest {
 
     @Test
     void roleApplicatifSansPrivilegeDeContournement() throws SQLException {
-        try (Connection c = dataSource.getConnection();
-                PreparedStatement ps = c.prepareStatement("""
+        try (Connection connexion = dataSource.getConnection();
+                PreparedStatement requete = connexion.prepareStatement("""
                         SELECT r.rolsuper, r.rolbypassrls, r.rolcanlogin,
                                (SELECT count(*) FROM pg_class k WHERE k.relowner = r.oid) AS possede
                         FROM pg_roles r WHERE r.rolname = 'argos_app'
                         """);
-                ResultSet rs = ps.executeQuery()) {
-            assertTrue(rs.next(), "rôle argos_app absent");
-            assertFalse(rs.getBoolean("rolsuper"), "argos_app super-utilisateur");
-            assertFalse(rs.getBoolean("rolbypassrls"), "argos_app contourne la RLS");
-            assertFalse(rs.getBoolean("rolcanlogin"), "argos_app se connecte directement");
-            assertEquals(0, rs.getLong("possede"), "argos_app propriétaire d'un objet : RLS non appliquée");
+                ResultSet resultat = requete.executeQuery()) {
+            assertTrue(resultat.next(), "rôle argos_app absent");
+            assertFalse(resultat.getBoolean("rolsuper"), "argos_app super-utilisateur");
+            assertFalse(resultat.getBoolean("rolbypassrls"), "argos_app contourne la RLS");
+            assertFalse(resultat.getBoolean("rolcanlogin"), "argos_app se connecte directement");
+            assertEquals(0, resultat.getLong("possede"), "argos_app propriétaire d'un objet : RLS non appliquée");
         }
     }
 
@@ -119,17 +119,17 @@ class CouvertureRlsTest {
 
         Map<String, Long> visiblesSansContexte = new TreeMap<>();
         int peuplees = 0;
-        for (Table t : tablesAccessibles()) {
-            if (!t.rls() || !t.lecture()) {
+        for (Table table : tablesAccessibles()) {
+            if (!table.rls() || !table.lecture()) {
                 continue;
             }
-            String sql = "SELECT count(*) FROM " + identifiant(t.nom());
+            String sql = "SELECT count(*) FROM " + identifiant(table.nom());
             if (compterEnProprietaire(sql) > 0) {
                 peuplees++;
             }
-            long lignes = base.executer(Contexte.aucun(), c -> compter(c, sql));
+            long lignes = base.executer(Contexte.aucun(), connexion -> compter(connexion, sql));
             if (lignes != 0) {
-                visiblesSansContexte.put(t.nom(), lignes);
+                visiblesSansContexte.put(table.nom(), lignes);
             }
         }
         assertEquals(Map.of(), visiblesSansContexte, "lignes visibles sous argos_app sans contexte");
@@ -143,13 +143,13 @@ class CouvertureRlsTest {
         UUID alice = UUID.fromString(Api.idCompte("alice"));
         UUID id = UUID.fromString(espace);
 
-        String vuDansLaTransaction = base.executer(new Contexte(alice, null, id), c -> lire(c,
+        String vuDansLaTransaction = base.executer(new Contexte(alice, null, id), connexion -> lire(connexion,
                 "SELECT current_user || '|' || current_setting('argos.espace_courant', true)"));
         assertEquals("argos_app|" + espace, vuDansLaTransaction);
 
-        for (int i = 0; i < 5; i++) {
-            try (Connection c = dataSource.getConnection()) {
-                String apres = lire(c, "SELECT current_user || '|' || coalesce(current_setting('argos.espace_courant', true), '')");
+        for (int essai = 0; essai < 5; essai++) {
+            try (Connection connexion = dataSource.getConnection()) {
+                String apres = lire(connexion, "SELECT current_user || '|' || coalesce(current_setting('argos.espace_courant', true), '')");
                 assertFalse(apres.startsWith("argos_app|"), "rôle argos_app conservé hors transaction : " + apres);
                 assertFalse(apres.endsWith(espace), "espace courant conservé hors transaction : " + apres);
             }
@@ -180,12 +180,12 @@ class CouvertureRlsTest {
                 ORDER BY c.relname
                 """.formatted(COLONNES_DE_PERIMETRE, TABLES_DE_PERIMETRE);
         List<Table> tables = new ArrayList<>();
-        try (Connection c = dataSource.getConnection();
-                PreparedStatement ps = c.prepareStatement(sql);
-                ResultSet rs = ps.executeQuery()) {
-            while (rs.next()) {
-                tables.add(new Table(rs.getString(1), rs.getBoolean(2), rs.getBoolean(3), rs.getBoolean(4),
-                        rs.getBoolean(5)));
+        try (Connection connexion = dataSource.getConnection();
+                PreparedStatement requete = connexion.prepareStatement(sql);
+                ResultSet resultat = requete.executeQuery()) {
+            while (resultat.next()) {
+                tables.add(new Table(resultat.getString(1), resultat.getBoolean(2), resultat.getBoolean(3), resultat.getBoolean(4),
+                        resultat.getBoolean(5)));
             }
         }
         return tables;
@@ -199,22 +199,22 @@ class CouvertureRlsTest {
     }
 
     private long compterEnProprietaire(String sql) throws SQLException {
-        try (Connection c = dataSource.getConnection()) {
-            return compter(c, sql);
+        try (Connection connexion = dataSource.getConnection()) {
+            return compter(connexion, sql);
         }
     }
 
-    private static long compter(Connection c, String sql) throws SQLException {
-        try (PreparedStatement ps = c.prepareStatement(sql); ResultSet rs = ps.executeQuery()) {
-            rs.next();
-            return rs.getLong(1);
+    private static long compter(Connection connexion, String sql) throws SQLException {
+        try (PreparedStatement requete = connexion.prepareStatement(sql); ResultSet resultat = requete.executeQuery()) {
+            resultat.next();
+            return resultat.getLong(1);
         }
     }
 
-    private static String lire(Connection c, String sql) throws SQLException {
-        try (PreparedStatement ps = c.prepareStatement(sql); ResultSet rs = ps.executeQuery()) {
-            rs.next();
-            return rs.getString(1);
+    private static String lire(Connection connexion, String sql) throws SQLException {
+        try (PreparedStatement requete = connexion.prepareStatement(sql); ResultSet resultat = requete.executeQuery()) {
+            resultat.next();
+            return resultat.getString(1);
         }
     }
 }

@@ -35,7 +35,7 @@ import io.restassured.specification.RequestSpecification;
 class ParametresPaginationTest {
 
     @Inject
-    TestDb db;
+    TestDb baseDeTest;
 
     @Inject
     JeuRecherche jeu;
@@ -44,7 +44,7 @@ class ParametresPaginationTest {
 
     @BeforeEach
     void preparer() {
-        db.reset();
+        baseDeTest.reset();
         espace = Api.nouvelEspace("alice", "Équipe pagination");
     }
 
@@ -96,17 +96,17 @@ class ParametresPaginationTest {
         UUID visible = jeu.projet(espace, "Visible");
         String compte = "SELECT count(*) FROM refus_acces WHERE motif = 'NON_MEMBRE' AND compte_id = '"
                 + Api.compte("alice") + "'";
-        long refusAvant = db.count(compte);
+        long refusAvant = baseDeTest.count(compte);
 
         String inconnu = alice().queryParam("projet", UUID.randomUUID().toString()).queryParam("page", "abc")
                 .when().get("/api/v1/recherche").then().statusCode(404).body("code", equalTo("INTROUVABLE"))
                 .extract().asString();
-        assertEquals(refusAvant, db.count(compte), "projet inexistant : aucun refus d'accès à journaliser");
+        assertEquals(refusAvant, baseDeTest.count(compte), "projet inexistant : aucun refus d'accès à journaliser");
         String autreEspace = alice().queryParam("projet", secret.toString()).queryParam("page", "abc")
                 .when().get("/api/v1/recherche").then().statusCode(404).body("code", equalTo("INTROUVABLE"))
                 .extract().asString();
         assertEquals(inconnu, autreEspace, "la réponse ne distingue pas un projet inexistant d'un projet d'un autre espace");
-        assertEquals(refusAvant + 1, db.count(compte));
+        assertEquals(refusAvant + 1, baseDeTest.count(compte));
 
         alice().queryParam("projet", secret.toString()).queryParam("taille", "dix")
                 .when().get("/api/v1/recherche").then().statusCode(404);

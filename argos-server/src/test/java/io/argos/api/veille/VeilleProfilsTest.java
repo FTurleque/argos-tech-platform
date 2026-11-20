@@ -53,7 +53,7 @@ class VeilleProfilsTest {
     private static final String EN_ATTENTE = "JORFTEXT000097100002";
 
     @Inject
-    TestDb db;
+    TestDb baseDeTest;
 
     @Inject
     ReglementaireFixtures reg;
@@ -73,9 +73,9 @@ class VeilleProfilsTest {
 
     @BeforeEach
     void preparer() {
-        db.reset();
-        for (String u : List.of("ines", "jules", "oscar")) {
-            db.exec("DELETE FROM workspace_preference_utilisateur WHERE compte_id = '" + Api.compte(u) + "'");
+        baseDeTest.reset();
+        for (String utilisateur : List.of("ines", "jules", "oscar")) {
+            baseDeTest.exec("DELETE FROM workspace_preference_utilisateur WHERE compte_id = '" + Api.compte(utilisateur) + "'");
         }
         UUID espace = Api.nouvelEspace("ines", "Veille des profils");
         Api.ajouterMembre("ines", espace.toString(), "jules", "LECTEUR");
@@ -120,33 +120,33 @@ class VeilleProfilsTest {
     void prf02UnionDesDeuxProfilsSansDoublon() {
         activer("jules", "developpeur", "expert-metier");
 
-        JsonPath v = veille("jules");
-        assertEquals(List.of("developpeur", "expert-metier"), v.getList("profilsActifs"));
-        List<String> ids = identifiants(v);
+        JsonPath veille = veille("jules");
+        assertEquals(List.of("developpeur", "expert-metier"), veille.getList("profilsActifs"));
+        List<String> ids = identifiants(veille);
         assertEquals(new HashSet<>(ids).size(), ids.size(), "aucun doublon : " + ids);
         assertEquals(List.of(VALIDEE, AVIS), ids, "du plus récent au plus ancien : fiche publiée le 2026-11-02, avis"
                 + " publié le 2026-01-01 ; la fiche en attente n'est pas restituée");
 
-        assertTrue(identifiants(v).containsAll(List.of(VALIDEE, AVIS)), v.prettify());
+        assertTrue(identifiants(veille).containsAll(List.of(VALIDEE, AVIS)), veille.prettify());
         String avis = "elements.find { it.identifiant == '" + AVIS + "' }.";
-        assertEquals("AVIS_SECURITE", v.getString(avis + "type"));
-        assertEquals(List.of("developpeur"), v.getList(avis + "profils"));
-        assertEquals(List.of("securite"), v.getList(avis + "rubriques.identifiant"));
-        assertEquals(List.of(projet.toString()), v.getList(avis + "projets.projetId"));
-        assertTrue(v.getList(avis + "gardeFous", String.class).stream().anyMatch(g -> g.contains("impact")));
+        assertEquals("AVIS_SECURITE", veille.getString(avis + "type"));
+        assertEquals(List.of("developpeur"), veille.getList(avis + "profils"));
+        assertEquals(List.of("securite"), veille.getList(avis + "rubriques.identifiant"));
+        assertEquals(List.of(projet.toString()), veille.getList(avis + "projets.projetId"));
+        assertTrue(veille.getList(avis + "gardeFous", String.class).stream().anyMatch(gardeFou -> gardeFou.contains("impact")));
 
         String fiche = "elements.find { it.identifiant == '" + VALIDEE + "' }.";
-        assertEquals("FICHE_REGLEMENTAIRE", v.getString(fiche + "type"));
-        assertEquals(List.of("expert-metier"), v.getList(fiche + "profils"));
-        assertEquals(List.of("reglementation"), v.getList(fiche + "rubriques.identifiant"));
+        assertEquals("FICHE_REGLEMENTAIRE", veille.getString(fiche + "type"));
+        assertEquals(List.of("expert-metier"), veille.getList(fiche + "profils"));
+        assertEquals(List.of("reglementation"), veille.getList(fiche + "rubriques.identifiant"));
         // ADR-0023 et Licence Ouverte : mention de paternité de la source ; résumé relu, sans mention IA.
-        assertTrue(v.getString(fiche + "mentionSource").startsWith(FicheAnalyse.SOURCE), v.prettify());
-        assertNull(v.getString(fiche + "mentionIa"), v.prettify());
-        assertEquals("Réglementation", v.getString(fiche + "rubriques[0].libelle"));
-        assertEquals(FicheAnalyse.MENTION_VALIDEE, v.getString(fiche + "mentionValidation"));
-        assertEquals("2027-01-01", v.getString(fiche + "dateEffet"));
-        assertTrue(v.getString(fiche + "lien").startsWith("http"));
-        assertTrue(v.getList(fiche + "gardeFous", String.class).stream().anyMatch(g -> g.contains("avis juridique")));
+        assertTrue(veille.getString(fiche + "mentionSource").startsWith(FicheAnalyse.SOURCE), veille.prettify());
+        assertNull(veille.getString(fiche + "mentionIa"), veille.prettify());
+        assertEquals("Réglementation", veille.getString(fiche + "rubriques[0].libelle"));
+        assertEquals(FicheAnalyse.MENTION_VALIDEE, veille.getString(fiche + "mentionValidation"));
+        assertEquals("2027-01-01", veille.getString(fiche + "dateEffet"));
+        assertTrue(veille.getString(fiche + "lien").startsWith("http"));
+        assertTrue(veille.getList(fiche + "gardeFous", String.class).stream().anyMatch(gardeFou -> gardeFou.contains("avis juridique")));
     }
 
     /** PRF-02-S2 : avec le seul profil developpeur, la fiche qui ne relève que d'expert-metier n'est pas restituée. */
@@ -189,13 +189,13 @@ class VeilleProfilsTest {
         reg.origineResume(ficheValidee, "IA");
         activer("jules", "developpeur", "expert-metier");
 
-        JsonPath v = veille("jules");
+        JsonPath veille = veille("jules");
         String fiche = "elements.find { it.identifiant == '" + VALIDEE + "' }.";
-        assertEquals(ReponseIa.MENTION, v.getString(fiche + "mentionIa"), v.prettify());
-        assertTrue(v.getString(fiche + "mentionSource").startsWith(FicheAnalyse.SOURCE), v.prettify());
+        assertEquals(ReponseIa.MENTION, veille.getString(fiche + "mentionIa"), veille.prettify());
+        assertTrue(veille.getString(fiche + "mentionSource").startsWith(FicheAnalyse.SOURCE), veille.prettify());
         String avis = "elements.find { it.identifiant == '" + AVIS + "' }.";
-        assertNull(v.getString(avis + "mentionIa"), v.prettify());
-        assertNull(v.getString(avis + "mentionSource"), v.prettify());
+        assertNull(veille.getString(avis + "mentionIa"), veille.prettify());
+        assertNull(veille.getString(avis + "mentionSource"), veille.prettify());
     }
 
     /**
@@ -208,14 +208,14 @@ class VeilleProfilsTest {
                 .then().statusCode(200);
         activer("jules", "expert-metier");
 
-        JsonPath v = veille("jules");
+        JsonPath veille = veille("jules");
         String fiche = "elements.find { it.identifiant == '" + EN_ATTENTE + "' }.";
-        assertEquals(FicheAnalyse.MENTION_VALIDEE, v.getString(fiche + "mentionValidation"));
-        assertEquals(List.of("reglementation"), v.getList(fiche + "rubriques.identifiant"));
+        assertEquals(FicheAnalyse.MENTION_VALIDEE, veille.getString(fiche + "mentionValidation"));
+        assertEquals(List.of("reglementation"), veille.getList(fiche + "rubriques.identifiant"));
 
         ExtractableResponse<Response> mcp = Mcp.appeler("jules", "get_regulatory_changes", Map.of());
         List<Map<String, Object>> fiches = mcp.path("result.structuredContent.fiches");
-        Map<String, Object> validee = fiches.stream().filter(f -> EN_ATTENTE.equals(f.get("referenceOfficielle")))
+        Map<String, Object> validee = fiches.stream().filter(candidate -> EN_ATTENTE.equals(candidate.get("referenceOfficielle")))
                 .findFirst().orElseThrow(() -> new AssertionError(mcp.asString()));
         assertEquals(FicheAnalyse.MENTION_VALIDEE, validee.get("mentionValidation"));
 
@@ -227,7 +227,7 @@ class VeilleProfilsTest {
     @Test
     void contratMcpMentionDeValidation() {
         List<Map<String, Object>> outils = Mcp.lister("jules").path("result.tools");
-        Map<String, Object> outil = outils.stream().filter(o -> "get_regulatory_changes".equals(o.get("name")))
+        Map<String, Object> outil = outils.stream().filter(candidat -> "get_regulatory_changes".equals(candidat.get("name")))
                 .findFirst().orElseThrow();
         assertTrue(String.valueOf(outil.get("outputSchema")).contains("mentionValidation"), String.valueOf(outil));
     }
