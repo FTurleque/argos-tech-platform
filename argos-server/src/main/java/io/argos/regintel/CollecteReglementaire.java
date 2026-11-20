@@ -146,13 +146,13 @@ public class CollecteReglementaire {
         List<String> index;
         try {
             index = archives.index();
-        } catch (SourceException e) {
+        } catch (SourceException injoignable) {
             // Source injoignable : le premier jour non encore collecté reste à collecter ; aucun échec propre au jour.
-            LocalDate jour = jours.stream().filter(j -> !"COLLECTE".equals(suivis.getOrDefault(j, INCONNU).etat()))
+            LocalDate jour = jours.stream().filter(candidat -> !"COLLECTE".equals(suivis.getOrDefault(candidat, INCONNU).etat()))
                     .findFirst().orElse(null);
-            LOG.warnf("collecte réglementaire en échec, index injoignable : %s", e.getMessage());
-            marquerEchec(jour, e.getMessage(), false, maintenant);
-            return new Rapport(collectes, jour, e.getMessage(), 0, 0, 0, 0, etat().etat(), abandonnes, ecartees);
+            LOG.warnf("collecte réglementaire en échec, index injoignable : %s", injoignable.getMessage());
+            marquerEchec(jour, injoignable.getMessage(), false, maintenant);
+            return new Rapport(collectes, jour, injoignable.getMessage(), 0, 0, 0, 0, etat().etat(), abandonnes, ecartees);
         }
         for (LocalDate jour : jours) {
             Jour suivi = suivis.getOrDefault(jour, INCONNU);
@@ -162,24 +162,24 @@ public class CollecteReglementaire {
             ArchivesJorf.Lecture lecture;
             try {
                 lecture = archives.lire(jour, index, rejeu ? Set.of() : suivi.archivesLues());
-            } catch (SourceException e) {
+            } catch (SourceException echec) {
                 boolean abandon = !rejeu && !"COLLECTE".equals(suivi.etat()) && suivi.echecs() + 1 >= tentativesMax;
                 LOG.warnf("collecte réglementaire du %s en échec%s : %s", jour, abandon ? ", jour abandonné" : "",
-                        e.getMessage());
-                marquerEchec(jour, e.getMessage(), true, maintenant);
+                        echec.getMessage());
+                marquerEchec(jour, echec.getMessage(), true, maintenant);
                 if (abandon) {
-                    abandonner(jour, "abandonné après " + tentativesMax + " échecs consécutifs : " + e.getMessage(),
+                    abandonner(jour, "abandonné après " + tentativesMax + " échecs consécutifs : " + echec.getMessage(),
                             maintenant);
                     abandonnes.add(jour);
                     continue;
                 }
                 enEchec = jour;
-                erreur = e.getMessage();
+                erreur = echec.getMessage();
                 break;
             }
             int nouveauxDuJour = 0;
-            for (TexteJorf t : lecture.textes()) {
-                var id = textes.enregistrer(t, maintenant);
+            for (TexteJorf texteJorf : lecture.textes()) {
+                var id = textes.enregistrer(texteJorf, maintenant);
                 if (id.isPresent()) {
                     aPreparer.add(id.get());
                     nouveauxDuJour++;
@@ -204,8 +204,8 @@ public class CollecteReglementaire {
         int fiches = 0;
         try {
             fiches = preparation.preparer(aPreparer, maintenant);
-        } catch (RuntimeException e) {
-            LOG.errorf(e, "préparation des fiches réglementaires en échec");
+        } catch (RuntimeException echecPreparation) {
+            LOG.errorf(echecPreparation, "préparation des fiches réglementaires en échec");
         }
         return new Rapport(collectes, enEchec, erreur, nouveaux, connus, refuses, fiches, etat().etat(), abandonnes,
                 ecartees);
@@ -217,29 +217,29 @@ public class CollecteReglementaire {
      */
     List<LocalDate> joursACollecter(LocalDate aujourdhui) {
         LocalDate debut = aujourdhui.minusDays(Math.max(0, relectureJours - 1L));
-        try (Connection c = dataSource.getConnection(); PreparedStatement ps = c.prepareStatement("""
+        try (Connection connexion = dataSource.getConnection(); PreparedStatement requete = connexion.prepareStatement("""
                 SELECT (SELECT min(jour) FROM reg_collecte_jour WHERE etat = 'EN_ECHEC'),
                        (SELECT max(jour) FROM reg_collecte_jour WHERE etat = 'COLLECTE')
-                """); ResultSet rs = ps.executeQuery()) {
-            rs.next();
-            LocalDate echec = rs.getObject(1, LocalDate.class);
-            LocalDate collecte = rs.getObject(2, LocalDate.class);
+                """); ResultSet resultat = requete.executeQuery()) {
+            resultat.next();
+            LocalDate echec = resultat.getObject(1, LocalDate.class);
+            LocalDate collecte = resultat.getObject(2, LocalDate.class);
             if (collecte != null && collecte.plusDays(1).isBefore(debut)) {
                 debut = collecte.plusDays(1);
             }
             if (echec != null && echec.isBefore(debut)) {
                 debut = echec;
             }
-        } catch (SQLException e) {
-            throw new IllegalStateException("lecture des jours collectés impossible", e);
+        } catch (SQLException erreur) {
+            throw new IllegalStateException("lecture des jours collectés impossible", erreur);
         }
         LocalDate borne = borneReprise(aujourdhui);
         if (debut.isBefore(borne)) {
             debut = borne;
         }
         List<LocalDate> jours = new ArrayList<>();
-        for (LocalDate j = debut; !j.isAfter(aujourdhui); j = j.plusDays(1)) {
-            jours.add(j);
+        for (LocalDate jour = debut; !jour.isAfter(aujourdhui); jour = jour.plusDays(1)) {
+            jours.add(jour);
         }
         return jours;
     }
@@ -254,64 +254,65 @@ public class CollecteReglementaire {
                 UPDATE reg_collecte_jour SET etat = 'ABANDONNE', modifie_le = ?,
                     derniere_erreur = left('hors de la fenêtre de reprise : ' || coalesce(derniere_erreur, ''), 1000)
                 WHERE etat = 'EN_ECHEC' AND jour < ?
-                """, (c, ps) -> {
-            ps.setTimestamp(1, Timestamp.from(maintenant));
-            ps.setDate(2, Date.valueOf(borneReprise(aujourdhui)));
+                """, (connexion, requete) -> {
+            requete.setTimestamp(1, Timestamp.from(maintenant));
+            requete.setDate(2, Date.valueOf(borneReprise(aujourdhui)));
         });
     }
 
     private Map<LocalDate, Jour> suivis(LocalDate depuis, LocalDate jusqua) {
         Map<LocalDate, Jour> suivis = new HashMap<>();
-        try (Connection c = dataSource.getConnection(); PreparedStatement ps = c.prepareStatement(
+        try (Connection connexion = dataSource.getConnection(); PreparedStatement requete = connexion.prepareStatement(
                 "SELECT jour, etat, echecs, archives_lues FROM reg_collecte_jour WHERE jour BETWEEN ? AND ?")) {
-            ps.setDate(1, Date.valueOf(depuis));
-            ps.setDate(2, Date.valueOf(jusqua));
-            try (ResultSet rs = ps.executeQuery()) {
-                while (rs.next()) {
-                    suivis.put(rs.getObject(1, LocalDate.class), new Jour(rs.getString(2), rs.getInt(3),
-                            Set.copyOf(TextesOfficiels.tableau(rs.getArray(4)))));
+            requete.setDate(1, Date.valueOf(depuis));
+            requete.setDate(2, Date.valueOf(jusqua));
+            try (ResultSet resultat = requete.executeQuery()) {
+                while (resultat.next()) {
+                    suivis.put(resultat.getObject(1, LocalDate.class), new Jour(resultat.getString(2), resultat.getInt(3),
+                            Set.copyOf(TextesOfficiels.tableau(resultat.getArray(4)))));
                 }
             }
-        } catch (SQLException e) {
-            throw new IllegalStateException("lecture des jours collectés impossible", e);
+        } catch (SQLException erreur) {
+            throw new IllegalStateException("lecture des jours collectés impossible", erreur);
         }
         return suivis;
     }
 
     /** État de la source (administrateur plateforme). */
     public EtatSource etat() {
-        try (Connection c = dataSource.getConnection()) {
+        try (Connection connexion = dataSource.getConnection()) {
             List<LocalDate> echecs = new ArrayList<>();
             List<LocalDate> abandonnes = new ArrayList<>();
             LocalDate dernier = null;
-            try (PreparedStatement ps = c.prepareStatement(
+            try (PreparedStatement requete = connexion.prepareStatement(
                     "SELECT jour, etat FROM reg_collecte_jour WHERE etat IN ('EN_ECHEC', 'ABANDONNE') ORDER BY jour");
-                    ResultSet rs = ps.executeQuery()) {
-                while (rs.next()) {
-                    ("EN_ECHEC".equals(rs.getString(2)) ? echecs : abandonnes).add(rs.getObject(1, LocalDate.class));
+                    ResultSet resultat = requete.executeQuery()) {
+                while (resultat.next()) {
+                    ("EN_ECHEC".equals(resultat.getString(2)) ? echecs : abandonnes).add(resultat.getObject(1, LocalDate.class));
                 }
             }
-            try (PreparedStatement ps = c.prepareStatement("SELECT max(jour) FROM reg_collecte_jour WHERE etat = 'COLLECTE'");
-                    ResultSet rs = ps.executeQuery()) {
-                if (rs.next()) {
-                    dernier = rs.getObject(1, LocalDate.class);
+            try (PreparedStatement requete = connexion.prepareStatement("SELECT max(jour) FROM reg_collecte_jour WHERE etat = 'COLLECTE'");
+                    ResultSet resultat = requete.executeQuery()) {
+                if (resultat.next()) {
+                    dernier = resultat.getObject(1, LocalDate.class);
                 }
             }
-            try (PreparedStatement ps = c.prepareStatement("""
+            try (PreparedStatement requete = connexion.prepareStatement("""
                     SELECT libelle, etat, echecs_consecutifs, dernier_succes_le, dernier_echec_le, derniere_erreur
                     FROM reg_source WHERE id = ?
                     """)) {
-                ps.setString(1, SOURCE);
-                try (ResultSet rs = ps.executeQuery()) {
-                    if (!rs.next()) {
+                requete.setString(1, SOURCE);
+                try (ResultSet resultat = requete.executeQuery()) {
+                    if (!resultat.next()) {
                         throw new IllegalStateException("source " + SOURCE + " absente");
                     }
-                    return new EtatSource(SOURCE, rs.getString(1), rs.getString(2), rs.getInt(3), instant(rs.getTimestamp(4)),
-                            instant(rs.getTimestamp(5)), rs.getString(6), dernier, echecs, abandonnes, FicheAnalyse.SOURCE);
+                    return new EtatSource(SOURCE, resultat.getString(1), resultat.getString(2), resultat.getInt(3),
+                            instant(resultat.getTimestamp(4)), instant(resultat.getTimestamp(5)), resultat.getString(6), dernier,
+                            echecs, abandonnes, FicheAnalyse.SOURCE);
                 }
             }
-        } catch (SQLException e) {
-            throw new IllegalStateException("lecture de l'état de la source impossible", e);
+        } catch (SQLException erreur) {
+            throw new IllegalStateException("lecture de l'état de la source impossible", erreur);
         }
     }
 
@@ -324,12 +325,12 @@ public class CollecteReglementaire {
                                           ORDER BY a),
                     textes = reg_collecte_jour.textes + excluded.textes,
                     derniere_erreur = excluded.derniere_erreur, modifie_le = excluded.modifie_le
-                """, (c, ps) -> {
-            ps.setDate(1, Date.valueOf(jour));
-            ps.setArray(2, c.createArrayOf("varchar", lues.toArray()));
-            ps.setInt(3, nbTextes);
-            ps.setString(4, borne(remarque));
-            ps.setTimestamp(5, Timestamp.from(maintenant));
+                """, (connexion, requete) -> {
+            requete.setDate(1, Date.valueOf(jour));
+            requete.setArray(2, connexion.createArrayOf("varchar", lues.toArray()));
+            requete.setInt(3, nbTextes);
+            requete.setString(4, borne(remarque));
+            requete.setTimestamp(5, Timestamp.from(maintenant));
         });
     }
 
@@ -339,7 +340,7 @@ public class CollecteReglementaire {
      * ({@code compter}) incrémente ses échecs consécutifs ; une source injoignable ne les incrémente pas.
      */
     private void marquerEchec(LocalDate jour, String erreur, boolean compter, Instant maintenant) {
-        String e = borne(erreur);
+        String erreurBornee = borne(erreur);
         if (jour != null) {
             executer("""
                     INSERT INTO reg_collecte_jour (jour, etat, tentatives, echecs, derniere_erreur, modifie_le)
@@ -348,29 +349,29 @@ public class CollecteReglementaire {
                         etat = CASE WHEN reg_collecte_jour.etat = 'COLLECTE' THEN 'COLLECTE' ELSE 'EN_ECHEC' END,
                         tentatives = reg_collecte_jour.tentatives + 1, echecs = reg_collecte_jour.echecs + excluded.echecs,
                         derniere_erreur = excluded.derniere_erreur, modifie_le = excluded.modifie_le
-                    """, (c, ps) -> {
-                ps.setDate(1, Date.valueOf(jour));
-                ps.setInt(2, compter ? 1 : 0);
-                ps.setString(3, e);
-                ps.setTimestamp(4, Timestamp.from(maintenant));
+                    """, (connexion, requete) -> {
+                requete.setDate(1, Date.valueOf(jour));
+                requete.setInt(2, compter ? 1 : 0);
+                requete.setString(3, erreurBornee);
+                requete.setTimestamp(4, Timestamp.from(maintenant));
             });
         }
         executer("""
                 UPDATE reg_source SET etat = 'DEGRADE', echecs_consecutifs = echecs_consecutifs + 1,
                     dernier_echec_le = ?, derniere_erreur = ? WHERE id = ?
-                """, (c, ps) -> {
-            ps.setTimestamp(1, Timestamp.from(maintenant));
-            ps.setString(2, e);
-            ps.setString(3, SOURCE);
+                """, (connexion, requete) -> {
+            requete.setTimestamp(1, Timestamp.from(maintenant));
+            requete.setString(2, erreurBornee);
+            requete.setString(3, SOURCE);
         });
     }
 
     private void abandonner(LocalDate jour, String motif, Instant maintenant) {
         executer("UPDATE reg_collecte_jour SET etat = 'ABANDONNE', derniere_erreur = ?, modifie_le = ? WHERE jour = ?",
-                (c, ps) -> {
-                    ps.setString(1, borne(motif));
-                    ps.setTimestamp(2, Timestamp.from(maintenant));
-                    ps.setDate(3, Date.valueOf(jour));
+                (connexion, requete) -> {
+                    requete.setString(1, borne(motif));
+                    requete.setTimestamp(2, Timestamp.from(maintenant));
+                    requete.setDate(3, Date.valueOf(jour));
                 });
     }
 
@@ -378,34 +379,34 @@ public class CollecteReglementaire {
         executer("""
                 UPDATE reg_source SET etat = 'NOMINAL', echecs_consecutifs = 0, dernier_succes_le = ?, derniere_erreur = NULL
                 WHERE id = ?
-                """, (c, ps) -> {
-            ps.setTimestamp(1, Timestamp.from(maintenant));
-            ps.setString(2, SOURCE);
+                """, (connexion, requete) -> {
+            requete.setTimestamp(1, Timestamp.from(maintenant));
+            requete.setString(2, SOURCE);
         });
     }
 
     @FunctionalInterface
     private interface Parametrage {
-        void appliquer(Connection c, PreparedStatement ps) throws SQLException;
+        void appliquer(Connection connexion, PreparedStatement requete) throws SQLException;
     }
 
-    private void executer(String sql, Parametrage p) {
-        try (Connection c = dataSource.getConnection(); PreparedStatement ps = c.prepareStatement(sql)) {
-            p.appliquer(c, ps);
-            ps.executeUpdate();
-        } catch (SQLException e) {
-            throw new IllegalStateException("mise à jour de la collecte réglementaire impossible", e);
+    private void executer(String sql, Parametrage parametrage) {
+        try (Connection connexion = dataSource.getConnection(); PreparedStatement requete = connexion.prepareStatement(sql)) {
+            parametrage.appliquer(connexion, requete);
+            requete.executeUpdate();
+        } catch (SQLException erreur) {
+            throw new IllegalStateException("mise à jour de la collecte réglementaire impossible", erreur);
         }
     }
 
-    private static String borne(String s) {
-        if (s == null) {
+    private static String borne(String texte) {
+        if (texte == null) {
             return null;
         }
-        return s.length() <= 1000 ? s : s.substring(0, 1000);
+        return texte.length() <= 1000 ? texte : texte.substring(0, 1000);
     }
 
-    private static Instant instant(Timestamp t) {
-        return t == null ? null : t.toInstant();
+    private static Instant instant(Timestamp horodatage) {
+        return horodatage == null ? null : horodatage.toInstant();
     }
 }

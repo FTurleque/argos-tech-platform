@@ -46,47 +46,47 @@ public class AnalyseIa {
     }
 
     /** Domaine proposé parmi ceux de l'espace ; vide sans IA, sans proposition ou hors liste. */
-    public Optional<Proposition> proposerDomaine(UUID espace, TexteOfficiel t, List<Domaine> domaines) {
+    public Optional<Proposition> proposerDomaine(UUID espace, TexteOfficiel texte, List<Domaine> domaines) {
         if (domaines.isEmpty()) {
             return Optional.empty();
         }
         StringBuilder liste = new StringBuilder();
-        for (int i = 0; i < domaines.size(); i++) {
-            liste.append(i + 1).append(". ").append(domaines.get(i).libelle()).append('\n');
+        for (int position = 0; position < domaines.size(); position++) {
+            liste.append(position + 1).append(". ").append(domaines.get(position).libelle()).append('\n');
         }
-        List<EntreeIa> entrees = new ArrayList<>(entrees(t));
+        List<EntreeIa> entrees = new ArrayList<>(entrees(texte));
         entrees.add(EntreeIa.interne("domaines", liste.toString()));
-        ReponseIa r = passerelle.demander(new DemandeIa(RegistrePrompts.DOMAINE_REGLEMENTAIRE, espace, entrees, sources(t)));
-        if (!r.produit() || r.champ("domaine").isBlank() || r.champ("confiance").isBlank()) {
+        ReponseIa reponse = passerelle.demander(new DemandeIa(RegistrePrompts.DOMAINE_REGLEMENTAIRE, espace, entrees, sources(texte)));
+        if (!reponse.produit() || reponse.champ("domaine").isBlank() || reponse.champ("confiance").isBlank()) {
             return Optional.empty();
         }
-        int rang = Integer.parseInt(r.champ("domaine").split(",")[0]);
-        int confiance = Integer.parseInt(r.champ("confiance").split(",")[0]);
+        int rang = Integer.parseInt(reponse.champ("domaine").split(",")[0]);
+        int confiance = Integer.parseInt(reponse.champ("confiance").split(",")[0]);
         if (rang < 1 || rang > domaines.size() || confiance < 1 || confiance > 100) {
             return Optional.empty();
         }
-        return Optional.of(new Proposition(domaines.get(rang - 1).code(), confiance, r.champ("justification")));
+        return Optional.of(new Proposition(domaines.get(rang - 1).code(), confiance, reponse.champ("justification")));
     }
 
     /** Résumé et date d'effet proposés pour la fiche ; vide sans IA ou pour une sortie non conforme. */
-    public Optional<Fiche> preparer(UUID espace, TexteOfficiel t) {
-        ReponseIa r = passerelle.demander(new DemandeIa(RegistrePrompts.FICHE_REGLEMENTAIRE, espace, entrees(t), sources(t)));
-        if (!r.produit()) {
+    public Optional<Fiche> preparer(UUID espace, TexteOfficiel texte) {
+        ReponseIa reponse = passerelle.demander(new DemandeIa(RegistrePrompts.FICHE_REGLEMENTAIRE, espace, entrees(texte), sources(texte)));
+        if (!reponse.produit()) {
             return Optional.empty();
         }
-        return Optional.of(new Fiche(r.champ("resume"), LocalDate.parse(r.champ("dateEffet"))));
+        return Optional.of(new Fiche(reponse.champ("resume"), LocalDate.parse(reponse.champ("dateEffet"))));
     }
 
-    private static List<EntreeIa> entrees(TexteOfficiel t) {
-        String extrait = t.extrait() == null ? "" : t.extrait();
-        return List.of(EntreeIa.publique("titre", t.titre()),
-                EntreeIa.publique("nature", t.nature() == null ? "" : t.nature()),
-                EntreeIa.publique("ministere", t.ministere() == null ? "" : t.ministere()),
-                EntreeIa.publique("publication", t.datePublication().toString()),
+    private static List<EntreeIa> entrees(TexteOfficiel texte) {
+        String extrait = texte.extrait() == null ? "" : texte.extrait();
+        return List.of(EntreeIa.publique("titre", texte.titre()),
+                EntreeIa.publique("nature", texte.nature() == null ? "" : texte.nature()),
+                EntreeIa.publique("ministere", texte.ministere() == null ? "" : texte.ministere()),
+                EntreeIa.publique("publication", texte.datePublication().toString()),
                 EntreeIa.publique("texte", extrait.length() > EXTRAIT_MAX ? extrait.substring(0, EXTRAIT_MAX) : extrait));
     }
 
-    private static List<String> sources(TexteOfficiel t) {
-        return List.of(t.identifiant());
+    private static List<String> sources(TexteOfficiel texte) {
+        return List.of(texte.identifiant());
     }
 }

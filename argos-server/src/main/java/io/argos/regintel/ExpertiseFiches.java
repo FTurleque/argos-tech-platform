@@ -69,40 +69,40 @@ public class ExpertiseFiches {
     DemandesEvolution demandes;
 
     /** Corrige une fiche en attente de validation ; chaque champ modifié est historisé avec sa valeur précédente. */
-    public FicheAnalyse corriger(UUID compte, UUID id, Correction k, Instant maintenant) {
-        if (k == null) {
+    public FicheAnalyse corriger(UUID compte, UUID id, Correction correction, Instant maintenant) {
+        if (correction == null) {
             throw new DonneeInvalide("DONNEE_INVALIDE", "Indiquez au moins un champ à corriger.", null);
         }
-        String resume = k.resume() == null ? null : k.resume().strip();
+        String resume = correction.resume() == null ? null : correction.resume().strip();
         if (resume != null && (resume.isEmpty() || resume.length() > 2000)) {
             throw new DonneeInvalide("DONNEE_INVALIDE", "Le résumé compte de 1 à 2 000 caractères.", "resume");
         }
-        if (k.dateEffet() != null && Boolean.TRUE.equals(k.dateEffetAConfirmer())) {
+        if (correction.dateEffet() != null && Boolean.TRUE.equals(correction.dateEffetAConfirmer())) {
             throw new DonneeInvalide("DONNEE_INVALIDE", "Indiquez une date d'effet ou « date à confirmer », pas les deux.",
                     "dateEffet");
         }
-        Set<String> domaines = k.domaines() == null ? null : valider(k.domaines());
-        return travailler(compte, id, (c, f) -> {
-            exigerEnAttente(f);
+        Set<String> domaines = correction.domaines() == null ? null : valider(correction.domaines());
+        return travailler(compte, id, (connexion, fiche) -> {
+            exigerEnAttente(fiche);
             Map<String, Object> detail = new LinkedHashMap<>();
-            if (resume != null && !resume.equals(f.resume())) {
-                maj(c, "resume = ?, resume_origine = 'EXPERT'", id, compte, maintenant, ps -> ps.setString(1, resume));
-                detail.put("resume", Map.of("avant", valeur(f.resume()), "apres", resume));
+            if (resume != null && !resume.equals(fiche.resume())) {
+                maj(connexion, "resume = ?, resume_origine = 'EXPERT'", id, compte, maintenant, requete -> requete.setString(1, resume));
+                detail.put("resume", Map.of("avant", valeur(fiche.resume()), "apres", resume));
             }
-            if (k.dateEffet() != null && !k.dateEffet().equals(f.dateEffet())) {
-                maj(c, "date_effet = ?, date_effet_origine = 'EXPERT'", id, compte, maintenant,
-                        ps -> ps.setDate(1, Date.valueOf(k.dateEffet())));
-                detail.put("dateEffet", Map.of("avant", f.dateEffetLibelle(), "apres", k.dateEffet().toString()));
+            if (correction.dateEffet() != null && !correction.dateEffet().equals(fiche.dateEffet())) {
+                maj(connexion, "date_effet = ?, date_effet_origine = 'EXPERT'", id, compte, maintenant,
+                        requete -> requete.setDate(1, Date.valueOf(correction.dateEffet())));
+                detail.put("dateEffet", Map.of("avant", fiche.dateEffetLibelle(), "apres", correction.dateEffet().toString()));
             }
-            if (Boolean.TRUE.equals(k.dateEffetAConfirmer()) && f.dateEffet() != null) {
-                maj(c, "date_effet = NULL, date_effet_origine = NULL", id, compte, maintenant, ps -> {
+            if (Boolean.TRUE.equals(correction.dateEffetAConfirmer()) && fiche.dateEffet() != null) {
+                maj(connexion, "date_effet = NULL, date_effet_origine = NULL", id, compte, maintenant, requete -> {
                 });
-                detail.put("dateEffet", Map.of("avant", f.dateEffet().toString(), "apres", DatesTexte.DATE_A_CONFIRMER));
+                detail.put("dateEffet", Map.of("avant", fiche.dateEffet().toString(), "apres", DatesTexte.DATE_A_CONFIRMER));
             }
             if (domaines != null) {
-                Set<String> avant = new LinkedHashSet<>(f.domaines().stream().map(FicheAnalyse.DomaineRattache::code).toList());
+                Set<String> avant = new LinkedHashSet<>(fiche.domaines().stream().map(FicheAnalyse.DomaineRattache::code).toList());
                 if (!avant.equals(domaines)) {
-                    remplacerDomaines(c, f, avant, domaines);
+                    remplacerDomaines(connexion, fiche, avant, domaines);
                     detail.put("domaines", Map.of("avant", List.copyOf(avant), "apres", List.copyOf(domaines)));
                 }
             }
@@ -110,59 +110,59 @@ public class ExpertiseFiches {
                 return;
             }
             if (!detail.containsKey("resume") && !detail.containsKey("dateEffet")) {
-                maj(c, "resume = resume", id, compte, maintenant, ps -> {
+                maj(connexion, "resume = resume", id, compte, maintenant, requete -> {
                 });
             }
-            preparation.historiser(c, id, f.espaceId(), "CORRECTION", detail, compte, maintenant);
+            preparation.historiser(connexion, id, fiche.espaceId(), "CORRECTION", detail, compte, maintenant);
         });
     }
 
     /** Valide une fiche en attente : elle devient visible des membres de l'espace, le texte passe en analyse. */
     public FicheAnalyse valider(UUID compte, UUID id, Instant maintenant) {
-        return travailler(compte, id, (c, f) -> {
-            exigerEnAttente(f);
-            if (f.resume() == null) {
+        return travailler(compte, id, (connexion, fiche) -> {
+            exigerEnAttente(fiche);
+            if (fiche.resume() == null) {
                 throw new RegleViolee("RESUME_REQUIS", "Rédigez le résumé de la fiche avant de la valider.");
             }
-            if (f.domaines().isEmpty()) {
+            if (fiche.domaines().isEmpty()) {
                 throw new RegleViolee("DOMAINE_REQUIS", "Rattachez la fiche à au moins un domaine avant de la valider.");
             }
-            CycleVie.Etat suivi = CycleVie.apresValidation(f.etatSuivi());
-            maj(c, "etat_validation = 'VALIDEE', etat_suivi = ?, decide_par = argos_compte_courant(), decide_le = ?", id,
-                    compte, maintenant, ps -> {
-                        ps.setString(1, suivi.name());
-                        ps.setTimestamp(2, Timestamp.from(maintenant));
+            CycleVie.Etat suivi = CycleVie.apresValidation(fiche.etatSuivi());
+            maj(connexion, "etat_validation = 'VALIDEE', etat_suivi = ?, decide_par = argos_compte_courant(), decide_le = ?", id,
+                    compte, maintenant, requete -> {
+                        requete.setString(1, suivi.name());
+                        requete.setTimestamp(2, Timestamp.from(maintenant));
                     });
-            preparation.historiser(c, id, f.espaceId(), "VALIDATION",
-                    Map.of("etatSuivi", Map.of("avant", f.etatSuivi().name(), "apres", suivi.name())), compte, maintenant);
+            preparation.historiser(connexion, id, fiche.espaceId(), "VALIDATION",
+                    Map.of("etatSuivi", Map.of("avant", fiche.etatSuivi().name(), "apres", suivi.name())), compte, maintenant);
         });
     }
 
     /** Rejette une fiche en attente : elle n'est jamais diffusée. */
     public FicheAnalyse rejeter(UUID compte, UUID id, String motif, Instant maintenant) {
-        String m = motif == null ? "" : motif.strip();
-        if (m.isEmpty() || m.length() > 500) {
+        String motifNettoye = motif == null ? "" : motif.strip();
+        if (motifNettoye.isEmpty() || motifNettoye.length() > 500) {
             throw new DonneeInvalide("DONNEE_INVALIDE", "Indiquez le motif du rejet (500 caractères au plus).", "motif");
         }
-        return travailler(compte, id, (c, f) -> {
-            exigerEnAttente(f);
-            maj(c, "etat_validation = 'REJETEE', decide_par = argos_compte_courant(), decide_le = ?", id, compte, maintenant,
-                    ps -> ps.setTimestamp(1, Timestamp.from(maintenant)));
-            preparation.historiser(c, id, f.espaceId(), "REJET", Map.of("motif", m), compte, maintenant);
+        return travailler(compte, id, (connexion, fiche) -> {
+            exigerEnAttente(fiche);
+            maj(connexion, "etat_validation = 'REJETEE', decide_par = argos_compte_courant(), decide_le = ?", id, compte, maintenant,
+                    requete -> requete.setTimestamp(1, Timestamp.from(maintenant)));
+            preparation.historiser(connexion, id, fiche.espaceId(), "REJET", Map.of("motif", motifNettoye), compte, maintenant);
         });
     }
 
     /** Fait passer le texte à l'état demandé, dans l'ordre du cycle de vie (REG-06). */
     public FicheAnalyse transition(UUID compte, UUID id, CycleVie.Etat vers, Instant maintenant) {
-        return travailler(compte, id, (c, f) -> {
-            if (!"VALIDEE".equals(f.etatValidation())) {
+        return travailler(compte, id, (connexion, fiche) -> {
+            if (!"VALIDEE".equals(fiche.etatValidation())) {
                 throw new RegleViolee("TRANSITION_REFUSEE",
                         "Transition refusée : le suivi d'un texte commence à la validation de sa fiche.");
             }
-            CycleVie.Etat arrivee = CycleVie.transition(f.etatSuivi(), vers, f.demande() != null);
-            maj(c, "etat_suivi = ?", id, compte, maintenant, ps -> ps.setString(1, arrivee.name()));
-            preparation.historiser(c, id, f.espaceId(), "TRANSITION",
-                    Map.of("etatSuivi", Map.of("avant", f.etatSuivi().name(), "apres", arrivee.name())), compte, maintenant);
+            CycleVie.Etat arrivee = CycleVie.transition(fiche.etatSuivi(), vers, fiche.demande() != null);
+            maj(connexion, "etat_suivi = ?", id, compte, maintenant, requete -> requete.setString(1, arrivee.name()));
+            preparation.historiser(connexion, id, fiche.espaceId(), "TRANSITION",
+                    Map.of("etatSuivi", Map.of("avant", fiche.etatSuivi().name(), "apres", arrivee.name())), compte, maintenant);
         });
     }
 
@@ -172,31 +172,31 @@ public class ExpertiseFiches {
      * forge (demande inexistante : refus ; forge injoignable : lien enregistré, état non vérifié).
      */
     public FicheAnalyse associerDemande(UUID compte, UUID id, String adresse, Instant maintenant) {
-        DemandesEvolution.Demande d = demandes.reconnaitre(adresse).orElseThrow(() -> new DonneeInvalide("DEMANDE_INVALIDE",
+        DemandesEvolution.Demande demande = demandes.reconnaitre(adresse).orElseThrow(() -> new DonneeInvalide("DEMANDE_INVALIDE",
                 "Indiquez l'adresse d'un ticket ou d'une demande de fusion GitHub ou GitLab.", "adresse"));
         // Contrôle préalable, sans appel à la forge : l'état de la fiche est vérifié de nouveau dans la transaction.
         fiches.detail(compte, id).filter(FicheAnalyse::peutExpertiser).ifPresent(ExpertiseFiches::exigerImpactProduit);
         String etat;
         try {
-            etat = demandes.etat(d).orElseThrow(() -> new DonneeInvalide("DEMANDE_INTROUVABLE",
+            etat = demandes.etat(demande).orElseThrow(() -> new DonneeInvalide("DEMANDE_INTROUVABLE",
                     "Cette demande d'évolution n'existe pas ou n'est pas accessible.", "adresse"));
-        } catch (ScmException e) {
-            LOG.infof("état de la demande %s non vérifié : %s", d.adresse(), e.getMessage());
+        } catch (ScmException erreur) {
+            LOG.infof("état de la demande %s non vérifié : %s", demande.adresse(), erreur.getMessage());
             etat = null;
         }
         String etatLu = etat;
-        return travailler(compte, id, (c, f) -> {
-            exigerImpactProduit(f);
-            maj(c, "demande_url = ?, demande_forge = ?, demande_etat = ?", id, compte, maintenant, ps -> {
-                ps.setString(1, d.adresse());
-                ps.setString(2, d.forge().name());
-                ps.setString(3, etatLu);
+        return travailler(compte, id, (connexion, fiche) -> {
+            exigerImpactProduit(fiche);
+            maj(connexion, "demande_url = ?, demande_forge = ?, demande_etat = ?", id, compte, maintenant, requete -> {
+                requete.setString(1, demande.adresse());
+                requete.setString(2, demande.forge().name());
+                requete.setString(3, etatLu);
             });
             Map<String, Object> detail = new LinkedHashMap<>();
-            detail.put("avant", f.demande() == null ? "" : f.demande().adresse());
-            detail.put("apres", d.adresse());
-            detail.put("forge", d.forge().name());
-            preparation.historiser(c, id, f.espaceId(), "DEMANDE_EVOLUTION", detail, compte, maintenant);
+            detail.put("avant", fiche.demande() == null ? "" : fiche.demande().adresse());
+            detail.put("apres", demande.adresse());
+            detail.put("forge", demande.forge().name());
+            preparation.historiser(connexion, id, fiche.espaceId(), "DEMANDE_EVOLUTION", detail, compte, maintenant);
         });
     }
 
@@ -204,60 +204,60 @@ public class ExpertiseFiches {
 
     @FunctionalInterface
     private interface Travail {
-        void executer(Connection c, FicheAnalyse fiche) throws SQLException;
+        void executer(Connection connexion, FicheAnalyse fiche) throws SQLException;
     }
 
     @FunctionalInterface
     private interface Parametrage {
-        void appliquer(PreparedStatement ps) throws SQLException;
+        void appliquer(PreparedStatement requete) throws SQLException;
     }
 
     /** Exécute le travail sur la fiche visible de l'expert, dans l'espace de la fiche, et renvoie la fiche à jour. */
     private FicheAnalyse travailler(UUID compte, UUID id, Travail travail) {
         Objects.requireNonNull(compte);
         UUID espace = fiches.espaceDe(id).orElseThrow(() -> new Introuvable("Fiche introuvable."));
-        return base.executer(new Contexte(compte, null, espace), c -> {
-            FicheAnalyse f = fiches.lire(c, id, false).orElseThrow(() -> new AccesRefuse(MotifRefus.NON_MEMBRE));
-            if (!f.peutExpertiser()) {
+        return base.executer(new Contexte(compte, null, espace), connexion -> {
+            FicheAnalyse fiche = fiches.lire(connexion, id, false).orElseThrow(() -> new AccesRefuse(MotifRefus.NON_MEMBRE));
+            if (!fiche.peutExpertiser()) {
                 throw new AccesRefuse(MotifRefus.ROLE_INSUFFISANT);
             }
-            travail.executer(c, f);
-            return fiches.lire(c, id, true).orElseThrow(() -> new IllegalStateException("fiche " + id + " illisible"));
+            travail.executer(connexion, fiche);
+            return fiches.lire(connexion, id, true).orElseThrow(() -> new IllegalStateException("fiche " + id + " illisible"));
         });
     }
 
-    private static void maj(Connection c, String affectations, UUID id, UUID compte, Instant maintenant, Parametrage p)
+    private static void maj(Connection connexion, String affectations, UUID id, UUID compte, Instant maintenant, Parametrage parametrage)
             throws SQLException {
-        int nb = (int) affectations.chars().filter(ch -> ch == '?').count();
-        try (PreparedStatement ps = c.prepareStatement("UPDATE fiche_reglementaire SET " + affectations
+        int nombreParametres = (int) affectations.chars().filter(caractere -> caractere == '?').count();
+        try (PreparedStatement requete = connexion.prepareStatement("UPDATE fiche_reglementaire SET " + affectations
                 + ", modifie_par = argos_compte_courant(), modifie_le = ? WHERE id = ?")) {
-            p.appliquer(ps);
-            ps.setTimestamp(nb + 1, Timestamp.from(maintenant));
-            ps.setObject(nb + 2, id);
-            if (ps.executeUpdate() != 1) {
+            parametrage.appliquer(requete);
+            requete.setTimestamp(nombreParametres + 1, Timestamp.from(maintenant));
+            requete.setObject(nombreParametres + 2, id);
+            if (requete.executeUpdate() != 1) {
                 throw new AccesRefuse(MotifRefus.ROLE_INSUFFISANT);
             }
         }
     }
 
     /** Remplace les domaines ; l'expert doit rester expert d'au moins un domaine retenu. */
-    private static void remplacerDomaines(Connection c, FicheAnalyse f, Set<String> avant, Set<String> apres)
+    private static void remplacerDomaines(Connection connexion, FicheAnalyse fiche, Set<String> avant, Set<String> apres)
             throws SQLException {
         boolean expertRetenu = false;
-        for (String d : apres) {
-            try (PreparedStatement ps = c.prepareStatement(
+        for (String domaine : apres) {
+            try (PreparedStatement requete = connexion.prepareStatement(
                     "SELECT EXISTS (SELECT 1 FROM domaine_metier WHERE espace_id = ? AND code = ?), argos_expert_domaine(?, ?)")) {
-                ps.setObject(1, f.espaceId());
-                ps.setString(2, d);
-                ps.setObject(3, f.espaceId());
-                ps.setString(4, d);
-                try (ResultSet rs = ps.executeQuery()) {
-                    rs.next();
-                    if (!rs.getBoolean(1)) {
-                        throw new DonneeInvalide("DOMAINE_INCONNU", "Le domaine « " + d + " » n'existe pas dans l'espace.",
+                requete.setObject(1, fiche.espaceId());
+                requete.setString(2, domaine);
+                requete.setObject(3, fiche.espaceId());
+                requete.setString(4, domaine);
+                try (ResultSet resultat = requete.executeQuery()) {
+                    resultat.next();
+                    if (!resultat.getBoolean(1)) {
+                        throw new DonneeInvalide("DOMAINE_INCONNU", "Le domaine « " + domaine + " » n'existe pas dans l'espace.",
                                 "domaines");
                     }
-                    expertRetenu |= rs.getBoolean(2);
+                    expertRetenu |= resultat.getBoolean(2);
                 }
             }
         }
@@ -267,25 +267,26 @@ public class ExpertiseFiches {
         }
         // Ajouts avant retraits : l'expert reste expert de la fiche pendant tout le remplacement (politique
         // fiche_domaine_retrait réévaluée à chaque instruction) ; chaque ligne touchée est contrôlée.
-        for (String d : apres) {
-            if (!avant.contains(d)) {
-                try (PreparedStatement ps = c.prepareStatement("""
+        for (String domaine : apres) {
+            if (!avant.contains(domaine)) {
+                try (PreparedStatement requete = connexion.prepareStatement("""
                         INSERT INTO fiche_domaine (fiche_id, espace_id, domaine, origine, confiance, motif)
                         VALUES (?, ?, ?, 'EXPERT', NULL, 'choisi par l''expert métier')
                         """)) {
-                    ps.setObject(1, f.id());
-                    ps.setObject(2, f.espaceId());
-                    ps.setString(3, d);
-                    exigerUneLigne(ps.executeUpdate(), d);
+                    requete.setObject(1, fiche.id());
+                    requete.setObject(2, fiche.espaceId());
+                    requete.setString(3, domaine);
+                    exigerUneLigne(requete.executeUpdate(), domaine);
                 }
             }
         }
-        for (String d : avant) {
-            if (!apres.contains(d)) {
-                try (PreparedStatement ps = c.prepareStatement("DELETE FROM fiche_domaine WHERE fiche_id = ? AND domaine = ?")) {
-                    ps.setObject(1, f.id());
-                    ps.setString(2, d);
-                    exigerUneLigne(ps.executeUpdate(), d);
+        for (String domaine : avant) {
+            if (!apres.contains(domaine)) {
+                try (PreparedStatement requete = connexion.prepareStatement(
+                        "DELETE FROM fiche_domaine WHERE fiche_id = ? AND domaine = ?")) {
+                    requete.setObject(1, fiche.id());
+                    requete.setString(2, domaine);
+                    exigerUneLigne(requete.executeUpdate(), domaine);
                 }
             }
         }
@@ -304,31 +305,31 @@ public class ExpertiseFiches {
             throw new DonneeInvalide("DONNEE_INVALIDE", "Indiquez de 1 à 20 domaines.", "domaines");
         }
         Set<String> codes = new LinkedHashSet<>();
-        for (String d : domaines) {
-            String v = d == null ? "" : d.strip();
-            if (!v.matches("[a-z0-9][a-z0-9-]{0,63}")) {
+        for (String domaine : domaines) {
+            String codeNormalise = domaine == null ? "" : domaine.strip();
+            if (!codeNormalise.matches("[a-z0-9][a-z0-9-]{0,63}")) {
                 throw new DonneeInvalide("DONNEE_INVALIDE", "Code de domaine invalide.", "domaines");
             }
-            codes.add(v);
+            codes.add(codeNormalise);
         }
         return codes;
     }
 
-    private static void exigerImpactProduit(FicheAnalyse f) {
-        if (!"VALIDEE".equals(f.etatValidation()) || (f.etatSuivi() != CycleVie.Etat.IMPACT_PRODUIT
-                && f.etatSuivi() != CycleVie.Etat.SPECIFIE && f.etatSuivi() != CycleVie.Etat.LIVRE)) {
+    private static void exigerImpactProduit(FicheAnalyse fiche) {
+        if (!"VALIDEE".equals(fiche.etatValidation()) || (fiche.etatSuivi() != CycleVie.Etat.IMPACT_PRODUIT
+                && fiche.etatSuivi() != CycleVie.Etat.SPECIFIE && fiche.etatSuivi() != CycleVie.Etat.LIVRE)) {
             throw new RegleViolee("IMPACT_PRODUIT_REQUIS",
                     "Une demande d'évolution s'associe à un texte qualifié « impact produit ».");
         }
     }
 
-    private static void exigerEnAttente(FicheAnalyse f) {
-        if (!"EN_ATTENTE_VALIDATION".equals(f.etatValidation())) {
+    private static void exigerEnAttente(FicheAnalyse fiche) {
+        if (!"EN_ATTENTE_VALIDATION".equals(fiche.etatValidation())) {
             throw new RegleViolee("FICHE_DECIDEE", "Cette fiche a déjà été validée ou rejetée.");
         }
     }
 
-    private static String valeur(String s) {
-        return s == null ? "" : s;
+    private static String valeur(String texte) {
+        return texte == null ? "" : texte;
     }
 }

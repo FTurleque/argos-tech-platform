@@ -44,14 +44,14 @@ public final class DatesTexte {
         if (contenu == null || contenu.isBlank()) {
             return Optional.empty();
         }
-        String t = Qualification.normaliser(contenu.replace('’', '\''));
+        String texteNormalise = Qualification.normaliser(contenu.replace('’', '\''));
         TreeMap<LocalDate, String> dates = new TreeMap<>();
-        chercher(DATE_FIXE.matcher(t), dates);
-        chercher(DATE_AVANT.matcher(t), dates);
-        if (publication != null && LENDEMAIN.matcher(t).find()) {
+        chercher(DATE_FIXE.matcher(texteNormalise), dates);
+        chercher(DATE_AVANT.matcher(texteNormalise), dates);
+        if (publication != null && LENDEMAIN.matcher(texteNormalise).find()) {
             dates.putIfAbsent(publication.plusDays(1), "entre en vigueur le lendemain de sa publication");
         }
-        if (publication != null && IMMEDIATE.matcher(t).find()) {
+        if (publication != null && IMMEDIATE.matcher(texteNormalise).find()) {
             dates.putIfAbsent(publication, "entre en vigueur à la date de sa publication");
         }
         if (dates.isEmpty()) {
@@ -64,12 +64,13 @@ public final class DatesTexte {
         return Optional.of(new DateEffet(premiere.getKey(), motif.length() > 300 ? motif.substring(0, 300) : motif));
     }
 
-    private static void chercher(Matcher m, TreeMap<LocalDate, String> dates) {
-        while (m.find()) {
+    private static void chercher(Matcher correspondance, TreeMap<LocalDate, String> dates) {
+        while (correspondance.find()) {
             try {
-                LocalDate d = LocalDate.of(Integer.parseInt(m.group(3)), MOIS.get(m.group(2)), Integer.parseInt(m.group(1)));
-                dates.putIfAbsent(d, m.group());
-            } catch (DateTimeException | NumberFormatException e) {
+                LocalDate date = LocalDate.of(Integer.parseInt(correspondance.group(3)), MOIS.get(correspondance.group(2)),
+                        Integer.parseInt(correspondance.group(1)));
+                dates.putIfAbsent(date, correspondance.group());
+            } catch (DateTimeException | NumberFormatException invalide) {
                 // date impossible (31 février) : ignorée
             }
         }

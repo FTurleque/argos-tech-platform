@@ -68,8 +68,8 @@ public class FichesEnBase implements FichesReglementaires {
     // ------------------------------------------------------------------ lectures d'un membre
 
     /** Fiches visibles du compte selon les critères, des plus récentes aux plus anciennes publications. */
-    public List<FicheAnalyse> lister(UUID compte, Criteres k) {
-        return base.executer(new Contexte(compte, null, null), c -> lister(c, k, false));
+    public List<FicheAnalyse> lister(UUID compte, Criteres criteres) {
+        return base.executer(new Contexte(compte, null, null), connexion -> lister(connexion, criteres, false));
     }
 
     /**
@@ -77,25 +77,25 @@ public class FichesEnBase implements FichesReglementaires {
      * d'effet est comprise entre les bornes, dans l'ordre chronologique.
      */
     public List<FicheAnalyse> calendrier(UUID compte, UUID espace, LocalDate depuis, LocalDate jusqua) {
-        Criteres k = new Criteres(espace, null, "VALIDEE", depuis, jusqua, LIMITE_MAX);
-        return base.executer(new Contexte(compte, null, null), c -> lister(c, k, true));
+        Criteres criteres = new Criteres(espace, null, "VALIDEE", depuis, jusqua, LIMITE_MAX);
+        return base.executer(new Contexte(compte, null, null), connexion -> lister(connexion, criteres, true));
     }
 
     /** Fiche visible du compte, avec son historique. */
     public Optional<FicheAnalyse> detail(UUID compte, UUID fiche) {
-        return base.executer(new Contexte(compte, null, null), c -> lire(c, fiche, true));
+        return base.executer(new Contexte(compte, null, null), connexion -> lire(connexion, fiche, true));
     }
 
     /** Espace d'une fiche existante, lu hors RLS : distingue une fiche inconnue d'une fiche hors périmètre. */
     public Optional<UUID> espaceDe(UUID fiche) {
-        try (Connection c = dataSource.getConnection();
-                PreparedStatement ps = c.prepareStatement("SELECT espace_id FROM fiche_reglementaire WHERE id = ?")) {
-            ps.setObject(1, fiche);
-            try (ResultSet rs = ps.executeQuery()) {
-                return rs.next() ? Optional.of(rs.getObject(1, UUID.class)) : Optional.empty();
+        try (Connection connexion = dataSource.getConnection();
+                PreparedStatement requete = connexion.prepareStatement("SELECT espace_id FROM fiche_reglementaire WHERE id = ?")) {
+            requete.setObject(1, fiche);
+            try (ResultSet resultat = requete.executeQuery()) {
+                return resultat.next() ? Optional.of(resultat.getObject(1, UUID.class)) : Optional.empty();
             }
-        } catch (SQLException e) {
-            throw new IllegalStateException("lecture de la fiche impossible", e);
+        } catch (SQLException erreur) {
+            throw new IllegalStateException("lecture de la fiche impossible", erreur);
         }
     }
 
@@ -108,27 +108,28 @@ public class FichesEnBase implements FichesReglementaires {
         }
         // Fiches validées seulement, filtrées par la requête avant la limite : des fiches en attente ne
         // peuvent pas évincer de la liste les fiches diffusables (garde-fou VALIDATION_HUMAINE, MCP-07).
-        List<FicheAnalyse> visibles = base.executer(new Contexte(compte, null, null), c -> {
+        List<FicheAnalyse> visibles = base.executer(new Contexte(compte, null, null), connexion -> {
             List<FicheAnalyse> toutes = new ArrayList<>();
             for (UUID espace : espaces) {
-                toutes.addAll(lister(c, new Criteres(espace, domaine.orElse(null), "VALIDEE", null, null, LIMITE_MAX), false));
+                toutes.addAll(lister(connexion, new Criteres(espace, domaine.orElse(null), "VALIDEE", null, null, LIMITE_MAX), false));
             }
             return toutes;
         });
-        return visibles.stream().filter(f -> espaces.contains(f.espaceId()))
-                .sorted(java.util.Comparator.comparing((FicheAnalyse f) -> f.texte().datePublication()).reversed()
-                        .thenComparing(f -> f.texte().identifiant()))
+        return visibles.stream().filter(analyse -> espaces.contains(analyse.espaceId()))
+                .sorted(java.util.Comparator.comparing((FicheAnalyse analyse) -> analyse.texte().datePublication()).reversed()
+                        .thenComparing(analyse -> analyse.texte().identifiant()))
                 .limit(LIMITE_MAX)
-                .map(f -> new Fiche(f.id(), f.espaceId(), f.domaines().stream().map(FicheAnalyse.DomaineRattache::code).toList(),
-                        Etat.valueOf(f.etatValidation()), f.texte().titre(), f.texte().identifiant(), f.texte().nor(),
-                        f.resume(), f.texte().datePublication(), f.dateEffet(), "JORF", f.texte().lienPublie(), f.mentionIa(),
-                        f.mentionSource()))
+                .map(analyse -> new Fiche(analyse.id(), analyse.espaceId(),
+                        analyse.domaines().stream().map(FicheAnalyse.DomaineRattache::code).toList(),
+                        Etat.valueOf(analyse.etatValidation()), analyse.texte().titre(), analyse.texte().identifiant(),
+                        analyse.texte().nor(), analyse.resume(), analyse.texte().datePublication(), analyse.dateEffet(), "JORF",
+                        analyse.texte().lienPublie(), analyse.mentionIa(), analyse.mentionSource()))
                 .toList();
     }
 
     // ------------------------------------------------------------------ lecture commune
 
-    List<FicheAnalyse> lister(Connection c, Criteres k, boolean chronologique) throws SQLException {
+    List<FicheAnalyse> lister(Connection connexion, Criteres criteres, boolean chronologique) throws SQLException {
         String sql = "SELECT " + COLONNES_FICHE + """
                  FROM fiche_reglementaire f JOIN texte_officiel t ON t.id = f.texte_id
                 WHERE (CAST(? AS uuid) IS NULL OR f.espace_id = ?)
@@ -140,117 +141,120 @@ public class FichesEnBase implements FichesReglementaires {
                 """ + (chronologique ? " AND f.date_effet IS NOT NULL ORDER BY f.date_effet, t.identifiant"
                         : " ORDER BY t.date_publication DESC, t.identifiant") + " LIMIT ?";
         List<FicheAnalyse> fiches = new ArrayList<>();
-        try (PreparedStatement ps = c.prepareStatement(sql)) {
-            ps.setObject(1, k.espace());
-            ps.setObject(2, k.espace());
-            ps.setString(3, k.etatValidation());
-            ps.setString(4, k.etatValidation());
-            ps.setString(5, k.domaine());
-            ps.setString(6, k.domaine());
-            date(ps, 7, k.effetDepuis());
-            date(ps, 8, k.effetDepuis());
-            date(ps, 9, k.effetJusqua());
-            date(ps, 10, k.effetJusqua());
-            ps.setInt(11, Math.max(1, Math.min(LIMITE_MAX, k.limite())));
-            try (ResultSet rs = ps.executeQuery()) {
-                while (rs.next()) {
-                    fiches.add(fiche(rs, List.of(), List.of()));
+        try (PreparedStatement requete = connexion.prepareStatement(sql)) {
+            requete.setObject(1, criteres.espace());
+            requete.setObject(2, criteres.espace());
+            requete.setString(3, criteres.etatValidation());
+            requete.setString(4, criteres.etatValidation());
+            requete.setString(5, criteres.domaine());
+            requete.setString(6, criteres.domaine());
+            date(requete, 7, criteres.effetDepuis());
+            date(requete, 8, criteres.effetDepuis());
+            date(requete, 9, criteres.effetJusqua());
+            date(requete, 10, criteres.effetJusqua());
+            requete.setInt(11, Math.max(1, Math.min(LIMITE_MAX, criteres.limite())));
+            try (ResultSet resultat = requete.executeQuery()) {
+                while (resultat.next()) {
+                    fiches.add(fiche(resultat, List.of(), List.of()));
                 }
             }
         }
-        return completer(c, fiches, false);
+        return completer(connexion, fiches, false);
     }
 
-    Optional<FicheAnalyse> lire(Connection c, UUID id, boolean avecHistorique) throws SQLException {
-        try (PreparedStatement ps = c.prepareStatement("SELECT " + COLONNES_FICHE
+    Optional<FicheAnalyse> lire(Connection connexion, UUID id, boolean avecHistorique) throws SQLException {
+        try (PreparedStatement requete = connexion.prepareStatement("SELECT " + COLONNES_FICHE
                 + " FROM fiche_reglementaire f JOIN texte_officiel t ON t.id = f.texte_id WHERE f.id = ?")) {
-            ps.setObject(1, id);
-            try (ResultSet rs = ps.executeQuery()) {
-                if (!rs.next()) {
+            requete.setObject(1, id);
+            try (ResultSet resultat = requete.executeQuery()) {
+                if (!resultat.next()) {
                     return Optional.empty();
                 }
-                return Optional.of(completer(c, List.of(fiche(rs, List.of(), List.of())), avecHistorique).get(0));
+                return Optional.of(completer(connexion, List.of(fiche(resultat, List.of(), List.of())), avecHistorique).get(0));
             }
         }
     }
 
-    private List<FicheAnalyse> completer(Connection c, List<FicheAnalyse> fiches, boolean avecHistorique) throws SQLException {
+    private List<FicheAnalyse> completer(Connection connexion, List<FicheAnalyse> fiches, boolean avecHistorique) throws SQLException {
         if (fiches.isEmpty()) {
             return fiches;
         }
         Map<UUID, List<FicheAnalyse.DomaineRattache>> domaines = new LinkedHashMap<>();
         Map<UUID, List<FicheAnalyse.EvenementHistorique>> historiques = new LinkedHashMap<>();
-        java.sql.Array ids = c.createArrayOf("uuid", fiches.stream().map(FicheAnalyse::id).toArray());
-        try (PreparedStatement ps = c.prepareStatement("""
+        java.sql.Array ids = connexion.createArrayOf("uuid", fiches.stream().map(FicheAnalyse::id).toArray());
+        try (PreparedStatement requete = connexion.prepareStatement("""
                 SELECT fd.fiche_id, fd.domaine, dm.libelle, fd.origine, fd.confiance, fd.motif FROM fiche_domaine fd
                 LEFT JOIN domaine_metier dm ON dm.espace_id = fd.espace_id AND dm.code = fd.domaine
                 WHERE fd.fiche_id = ANY (?) ORDER BY fd.fiche_id, fd.domaine
                 """)) {
-            ps.setArray(1, ids);
-            try (ResultSet rs = ps.executeQuery()) {
-                while (rs.next()) {
-                    Integer confiance = rs.getObject(5) == null ? null : rs.getInt(5);
-                    domaines.computeIfAbsent(rs.getObject(1, UUID.class), x -> new ArrayList<>())
-                            .add(new FicheAnalyse.DomaineRattache(rs.getString(2), rs.getString(3), rs.getString(4), confiance,
-                                    rs.getString(6)));
+            requete.setArray(1, ids);
+            try (ResultSet lignes = requete.executeQuery()) {
+                while (lignes.next()) {
+                    Integer confiance = lignes.getObject(5) == null ? null : lignes.getInt(5);
+                    domaines.computeIfAbsent(lignes.getObject(1, UUID.class), ficheId -> new ArrayList<>())
+                            .add(new FicheAnalyse.DomaineRattache(lignes.getString(2), lignes.getString(3), lignes.getString(4), confiance,
+                                    lignes.getString(6)));
                 }
             }
         }
         if (avecHistorique) {
-            try (PreparedStatement ps = c.prepareStatement("""
+            try (PreparedStatement requete = connexion.prepareStatement("""
                     SELECT fiche_id, action, detail::text, auteur, le FROM fiche_historique
                     WHERE fiche_id = ANY (?) ORDER BY le, id
                     """)) {
-                ps.setArray(1, ids);
-                try (ResultSet rs = ps.executeQuery()) {
-                    while (rs.next()) {
-                        historiques.computeIfAbsent(rs.getObject(1, UUID.class), x -> new ArrayList<>())
-                                .add(new FicheAnalyse.EvenementHistorique(rs.getString(2), rs.getString(3),
-                                        rs.getObject(4, UUID.class), rs.getTimestamp(5).toInstant()));
+                requete.setArray(1, ids);
+                try (ResultSet lignes = requete.executeQuery()) {
+                    while (lignes.next()) {
+                        historiques.computeIfAbsent(lignes.getObject(1, UUID.class), ficheId -> new ArrayList<>())
+                                .add(new FicheAnalyse.EvenementHistorique(lignes.getString(2), lignes.getString(3),
+                                        lignes.getObject(4, UUID.class), lignes.getTimestamp(5).toInstant()));
                     }
                 }
             }
         }
         List<FicheAnalyse> resultat = new ArrayList<>();
-        for (FicheAnalyse f : fiches) {
-            resultat.add(new FicheAnalyse(f.id(), f.espaceId(), f.texte(), f.etatValidation(), f.etatSuivi(), f.libelleSuivi(),
-                    f.resume(), f.resumeOrigine(), f.mentionIa(), f.dateEffet(), f.dateEffetOrigine(), f.dateEffetLibelle(),
-                    f.motifDateEffet(), f.dateEffetIa(), f.articlesModifies(), domaines.getOrDefault(f.id(), List.of()),
-                    f.demande(), f.decideLe(), f.peutExpertiser(), f.mentionValidation(), f.mentionAvisJuridique(),
-                    f.mentionSource(), avecHistorique ? historiques.getOrDefault(f.id(), List.of()) : List.of()));
+        for (FicheAnalyse analyse : fiches) {
+            resultat.add(new FicheAnalyse(analyse.id(), analyse.espaceId(), analyse.texte(), analyse.etatValidation(),
+                    analyse.etatSuivi(), analyse.libelleSuivi(), analyse.resume(), analyse.resumeOrigine(), analyse.mentionIa(),
+                    analyse.dateEffet(), analyse.dateEffetOrigine(), analyse.dateEffetLibelle(), analyse.motifDateEffet(),
+                    analyse.dateEffetIa(), analyse.articlesModifies(), domaines.getOrDefault(analyse.id(), List.of()),
+                    analyse.demande(), analyse.decideLe(), analyse.peutExpertiser(), analyse.mentionValidation(),
+                    analyse.mentionAvisJuridique(), analyse.mentionSource(),
+                    avecHistorique ? historiques.getOrDefault(analyse.id(), List.of()) : List.of()));
         }
         return resultat;
     }
 
-    private FicheAnalyse fiche(ResultSet rs, List<FicheAnalyse.DomaineRattache> domaines,
+    private FicheAnalyse fiche(ResultSet resultat, List<FicheAnalyse.DomaineRattache> domaines,
             List<FicheAnalyse.EvenementHistorique> historique) throws SQLException {
-        UUID id = rs.getObject(1, UUID.class);
-        UUID espace = rs.getObject(2, UUID.class);
-        String validation = rs.getString(3);
-        CycleVie.Etat suivi = CycleVie.Etat.valueOf(rs.getString(4));
-        String resume = rs.getString(5);
-        String resumeOrigine = rs.getString(6);
-        LocalDate effet = rs.getObject(7, LocalDate.class);
-        String effetOrigine = rs.getString(8);
-        LocalDate effetIa = rs.getObject(9, LocalDate.class);
-        List<String> articles = TextesOfficiels.tableau(rs.getArray(10));
-        String demandeUrl = rs.getString(11);
-        String demandeForge = rs.getString(12);
-        String demandeEtat = rs.getString(13);
-        Timestamp decide = rs.getTimestamp(14);
-        boolean expert = rs.getBoolean(15);
-        TexteOfficiel t = TextesOfficiels.texte(rs, 16);
-        LocalDate miseAJour = FicheAnalyse.dateMiseAJour(rs.getString(31), instant(rs.getTimestamp(32)));
+        UUID id = resultat.getObject(1, UUID.class);
+        UUID espace = resultat.getObject(2, UUID.class);
+        String validation = resultat.getString(3);
+        CycleVie.Etat suivi = CycleVie.Etat.valueOf(resultat.getString(4));
+        String resume = resultat.getString(5);
+        String resumeOrigine = resultat.getString(6);
+        LocalDate effet = resultat.getObject(7, LocalDate.class);
+        String effetOrigine = resultat.getString(8);
+        LocalDate effetIa = resultat.getObject(9, LocalDate.class);
+        List<String> articles = TextesOfficiels.tableau(resultat.getArray(10));
+        String demandeUrl = resultat.getString(11);
+        String demandeForge = resultat.getString(12);
+        String demandeEtat = resultat.getString(13);
+        Timestamp decide = resultat.getTimestamp(14);
+        boolean expert = resultat.getBoolean(15);
+        TexteOfficiel texteOfficiel = TextesOfficiels.texte(resultat, 16);
+        LocalDate miseAJour = FicheAnalyse.dateMiseAJour(resultat.getString(31), instant(resultat.getTimestamp(32)));
         String base = legifrance.replaceAll("/+$", "");
-        FicheAnalyse.Texte texte = new FicheAnalyse.Texte(t.identifiant(), t.nature(), t.numero(), t.nor(), t.ministere(),
-                t.titre(), t.datePublication(), t.codes(), base + "/jorf/id/" + t.identifiant(),
-                base + "/loda/id/" + t.identifiant());
+        FicheAnalyse.Texte texte = new FicheAnalyse.Texte(texteOfficiel.identifiant(), texteOfficiel.nature(),
+                texteOfficiel.numero(), texteOfficiel.nor(), texteOfficiel.ministere(), texteOfficiel.titre(),
+                texteOfficiel.datePublication(), texteOfficiel.codes(), base + "/jorf/id/" + texteOfficiel.identifiant(),
+                base + "/loda/id/" + texteOfficiel.identifiant());
         String mentionValidation = switch (validation) {
             case "VALIDEE" -> FicheAnalyse.MENTION_VALIDEE;
             case "REJETEE" -> "rejetée par l'expert métier : non diffusée";
             default -> "en attente de validation par l'expert métier : non diffusée";
         };
-        String motif = "TEXTE".equals(effetOrigine) ? t.motifDateEffet()
+        String motif = "TEXTE".equals(effetOrigine) ? texteOfficiel.motifDateEffet()
                 : "EXPERT".equals(effetOrigine) ? "date corrigée par l'expert métier" : null;
         return new FicheAnalyse(id, espace, texte, validation, suivi, CycleVie.libelle(suivi), resume, resumeOrigine,
                 "IA".equals(resumeOrigine) ? ReponseIa.MENTION : null, effet, effetOrigine,
@@ -260,15 +264,15 @@ public class FichesEnBase implements FichesReglementaires {
                 FicheAnalyse.mentionSource(miseAJour), historique);
     }
 
-    private static void date(PreparedStatement ps, int i, LocalDate d) throws SQLException {
-        if (d == null) {
-            ps.setNull(i, Types.DATE);
+    private static void date(PreparedStatement requete, int position, LocalDate valeur) throws SQLException {
+        if (valeur == null) {
+            requete.setNull(position, Types.DATE);
         } else {
-            ps.setDate(i, Date.valueOf(d));
+            requete.setDate(position, Date.valueOf(valeur));
         }
     }
 
-    static Instant instant(Timestamp t) {
-        return t == null ? null : t.toInstant();
+    static Instant instant(Timestamp horodatage) {
+        return horodatage == null ? null : horodatage.toInstant();
     }
 }

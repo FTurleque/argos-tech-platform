@@ -64,11 +64,11 @@ public record FicheAnalyse(UUID id, UUID espaceId, Texte texte, String etatValid
      */
     static LocalDate dateMiseAJour(String archive, Instant collecteLe) {
         if (archive != null) {
-            Matcher m = ARCHIVE.matcher(archive);
-            if (m.matches()) {
+            Matcher correspondance = ARCHIVE.matcher(archive);
+            if (correspondance.matches()) {
                 try {
-                    return LocalDate.parse(m.group(1), DateTimeFormatter.BASIC_ISO_DATE);
-                } catch (DateTimeParseException e) {
+                    return LocalDate.parse(correspondance.group(1), DateTimeFormatter.BASIC_ISO_DATE);
+                } catch (DateTimeParseException invalide) {
                     // nom d'archive mal daté : date de collecte
                 }
             }
