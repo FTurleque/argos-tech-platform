@@ -8,6 +8,10 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 
+import org.jboss.logging.Logger;
+
+import com.fasterxml.jackson.core.JsonLocation;
+import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 
@@ -21,6 +25,7 @@ import io.argos.aigateway.PromptIa.ChampSortie;
  */
 final class ValidationSortie {
 
+    private static final Logger LOG = Logger.getLogger(ValidationSortie.class);
     private static final int ENTIER_MAX = 1000;
 
     private ValidationSortie() {
@@ -28,35 +33,59 @@ final class ValidationSortie {
 
     /** Champs validés, ou vide si la sortie n'est pas conforme. */
     static Optional<Map<String, String>> valider(ObjectMapper json, PromptIa prompt, String texte) {
-        JsonNode racine;
-        try {
-            racine = json.readTree(texte);
-        } catch (Exception illisible) {
-            return Optional.empty();
-        }
-        if (racine == null || !racine.isObject()) {
+        Optional<JsonNode> racine = lireObjet(json, texte);
+        if (racine.isEmpty()) {
             return Optional.empty();
         }
         Map<String, String> champs = new LinkedHashMap<>();
         for (ChampSortie champ : prompt.champs()) {
-            JsonNode noeud = racine.get(champ.nom());
+            JsonNode noeud = racine.get().get(champ.nom());
             if (noeud == null || noeud.isNull()) {
                 if (champ.obligatoire()) {
                     return Optional.empty();
                 }
                 continue;
             }
-            Optional<String> valeur = switch (champ.type()) {
-                case TEXTE -> texte(noeud, champ.longueurMax());
-                case DATE -> date(noeud);
-                case ENTIERS -> entiers(noeud, champ.longueurMax());
-            };
+            Optional<String> valeur = valeurDuChamp(champ, noeud);
             if (valeur.isEmpty()) {
                 return Optional.empty();
             }
             champs.put(champ.nom(), valeur.get());
         }
         return Optional.of(champs);
+    }
+
+    /**
+     * Objet JSON racine de la sortie ; vide si elle n'est pas du JSON ou pas un objet. La cause est journalisée sans
+     * le texte du modèle, qui peut reprendre des données des entrées.
+     */
+    private static Optional<JsonNode> lireObjet(ObjectMapper json, String texte) {
+        JsonNode racine;
+        try {
+            racine = json.readTree(texte);
+        } catch (JsonProcessingException illisible) {
+            JsonLocation position = illisible.getLocation();
+            LOG.debugf("sortie de modèle illisible en JSON (%s, ligne %d, colonne %d)", illisible.getClass().getSimpleName(),
+                    position == null ? -1 : position.getLineNr(), position == null ? -1 : position.getColumnNr());
+            return Optional.empty();
+        } catch (IllegalArgumentException absente) {
+            LOG.debugf("sortie de modèle absente : %s", absente.getMessage());
+            return Optional.empty();
+        }
+        if (racine == null || !racine.isObject()) {
+            LOG.debug("sortie de modèle qui n'est pas un objet JSON");
+            return Optional.empty();
+        }
+        return Optional.of(racine);
+    }
+
+    /** Valeur du champ validée selon son type ; vide si elle n'est pas conforme. */
+    private static Optional<String> valeurDuChamp(ChampSortie champ, JsonNode noeud) {
+        return switch (champ.type()) {
+            case TEXTE -> texte(noeud, champ.longueurMax());
+            case DATE -> date(noeud);
+            case ENTIERS -> entiers(noeud, champ.longueurMax());
+        };
     }
 
     private static Optional<String> texte(JsonNode noeud, int longueurMax) {
@@ -74,6 +103,7 @@ final class ValidationSortie {
         try {
             return Optional.of(LocalDate.parse(noeud.asText().strip()).toString());
         } catch (DateTimeParseException invalide) {
+            LOG.debugf("date de sortie non conforme au format AAAA-MM-JJ (position %d)", invalide.getErrorIndex());
             return Optional.empty();
         }
     }

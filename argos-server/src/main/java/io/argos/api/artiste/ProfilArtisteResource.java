@@ -72,6 +72,10 @@ public class ProfilArtisteResource {
     static final String PROFIL = RapprochementOpportunites.PROFIL;
     static final String DISCIPLINE = "discipline";
     static final String TERRITOIRE = "territoire";
+    private static final ListeSuivie DISCIPLINES = new ListeSuivie(DISCIPLINE, "DISCIPLINE_INCONNUE", "une discipline",
+            "La discipline", "Disciplines disponibles");
+    private static final ListeSuivie TERRITOIRES = new ListeSuivie(TERRITOIRE, "TERRITOIRE_INCONNU", "un territoire",
+            "Le territoire", "Territoires disponibles");
 
     @Schema(name = "ValeurListeArtiste")
     public record ValeurVue(String identifiant, String libelle) {
@@ -185,10 +189,8 @@ public class ProfilArtisteResource {
     public Suivis choisirSuivis(ChoixSuivis choix) {
         UUID compte = compteActif();
         ManifesteProfil manifesteProfil = manifeste();
-        List<String> disciplines = valider(manifesteProfil, DISCIPLINE, choix == null ? null : choix.disciplines(),
-                "DISCIPLINE_INCONNUE", "une discipline", "La discipline", "Disciplines disponibles");
-        List<String> territoires = valider(manifesteProfil, TERRITOIRE, choix.territoires(),
-                "TERRITOIRE_INCONNU", "un territoire", "Le territoire", "Territoires disponibles");
+        List<String> disciplines = valider(manifesteProfil, DISCIPLINES, choix == null ? null : choix.disciplines());
+        List<String> territoires = valider(manifesteProfil, TERRITOIRES, choix.territoires());
         List<Integer> jours = choix.rappelsJours() == null ? null : RappelsOpportunites.valider(choix.rappelsJours());
         Map<String, List<String>> objets = new LinkedHashMap<>();
         objets.put(DISCIPLINE, disciplines);
@@ -330,28 +332,39 @@ public class ProfilArtisteResource {
                 .map(valeur -> new ValeurVue(valeur.identifiant(), valeur.libelle())).toList();
     }
 
+    /**
+     * Liste d'objets suivis du profil et libellés de ses refus : code d'erreur, objet de « Choisissez au moins… »,
+     * désignation d'une valeur refusée et intitulé de la liste disponible.
+     */
+    private record ListeSuivie(String type, String code, String auMoins, String designation, String intitule) {
+    }
+
     /** Au moins une valeur, toutes dans la liste du pack ; sinon refus avec la liste disponible (ART-02-S2). */
-    private static List<String> valider(ManifesteProfil manifesteProfil, String type, List<String> demandees, String code,
-            String auMoins, String designation, String intitule) {
-        List<ValeurListe> admises = manifesteProfil.liste(type).map(ListeObjets::valeurs).orElse(List.of());
-        String disponibles = intitule + " : " + admises.stream().map(valeur -> valeur.libelle() + " (" + valeur.identifiant() + ")")
-                .collect(Collectors.joining(", ")) + ".";
+    private static List<String> valider(ManifesteProfil manifesteProfil, ListeSuivie liste, List<String> demandees) {
+        List<ValeurListe> admises = manifesteProfil.liste(liste.type()).map(ListeObjets::valeurs).orElse(List.of());
+        String disponibles = liste.intitule() + " : " + admises.stream()
+                .map(valeur -> valeur.libelle() + " (" + valeur.identifiant() + ")").collect(Collectors.joining(", ")) + ".";
         if (demandees == null || demandees.isEmpty()) {
-            throw Erreur.demandeRefusee(code, "Choisissez au moins " + auMoins + ". " + disponibles);
+            throw Erreur.demandeRefusee(liste.code(), "Choisissez au moins " + liste.auMoins() + ". " + disponibles);
         }
         if (demandees.size() > 50) {
-            throw Erreur.demandeRefusee(code, "50 valeurs au plus.");
+            throw Erreur.demandeRefusee(liste.code(), "50 valeurs au plus.");
         }
         Set<String> retenues = new LinkedHashSet<>();
         for (String demandee : demandees) {
-            String valeur = demandee == null ? "" : demandee.strip();
-            if (admises.stream().noneMatch(admise -> admise.identifiant().equals(valeur))) {
-                String affichee = valeur.length() > 64 ? valeur.substring(0, 64) + "…" : valeur;
-                throw Erreur.demandeRefusee(code, designation + " « " + affichee
-                        + " » n'est pas dans la liste du profil artiste. " + disponibles);
-            }
-            retenues.add(valeur);
+            retenues.add(valeurAdmise(admises, liste, demandee, disponibles));
         }
         return List.copyOf(retenues);
+    }
+
+    /** Valeur demandée sans espaces de bord, si elle figure dans la liste du pack ; sinon refus. */
+    private static String valeurAdmise(List<ValeurListe> admises, ListeSuivie liste, String demandee, String disponibles) {
+        String valeur = demandee == null ? "" : demandee.strip();
+        if (admises.stream().noneMatch(admise -> admise.identifiant().equals(valeur))) {
+            String affichee = valeur.length() > 64 ? valeur.substring(0, 64) + "…" : valeur;
+            throw Erreur.demandeRefusee(liste.code(), liste.designation() + " « " + affichee
+                    + " » n'est pas dans la liste du profil artiste. " + disponibles);
+        }
+        return valeur;
     }
 }

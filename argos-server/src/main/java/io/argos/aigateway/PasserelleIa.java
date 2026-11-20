@@ -74,8 +74,8 @@ public class PasserelleIa {
     public boolean disponible(UUID espaceId) {
         try {
             return active && quotas.disponible(espaceId);
-        } catch (RuntimeException erreur) {
-            LOG.infof("quotas IA illisibles : %s", erreur.getMessage());
+        } catch (IllegalStateException erreur) {
+            LOG.infof(erreur, "quotas IA illisibles : %s", erreur.getMessage());
             return false;
         }
     }
@@ -174,16 +174,26 @@ public class PasserelleIa {
             Thread.currentThread().interrupt();
             return Optional.empty();
         } catch (Exception erreur) {
-            LOG.infof("modèle %s indisponible pour la tâche %s : %s", modele, prompt.tache(), erreur.toString());
-            if (nonTransmis(erreur)) {
-                try {
-                    quotas.liberer(demande.espaceId(), demande.compteId());
-                } catch (RuntimeException erreurRestitution) {
-                    LOG.warnf("restitution du quota IA impossible : %s", erreurRestitution.getMessage());
-                }
-            }
-            return Optional.empty();
+            return isolerPanneFournisseur(demande, prompt, modele, erreur);
         }
+    }
+
+    /**
+     * Point d'isolation des pannes du fournisseur, dont le contrat ({@link FournisseurModele#executer}) laisse lever
+     * toute exception : la passerelle répond par un motif et l'appelant poursuit sans IA. Le quota est rendu quand la
+     * demande n'a pas atteint le fournisseur.
+     */
+    private Optional<FournisseurModele.Reponse> isolerPanneFournisseur(DemandeIa demande, PromptIa prompt, String modele,
+            Exception erreur) {
+        LOG.infof(erreur, "modèle %s indisponible pour la tâche %s : %s", modele, prompt.tache(), erreur.toString());
+        if (nonTransmis(erreur)) {
+            try {
+                quotas.liberer(demande.espaceId(), demande.compteId());
+            } catch (IllegalStateException erreurRestitution) {
+                LOG.warnf(erreurRestitution, "restitution du quota IA impossible : %s", erreurRestitution.getMessage());
+            }
+        }
+        return Optional.empty();
     }
 
     /** Valeur bornée à {@code argos.ia.taille-max-entree} caractères. */

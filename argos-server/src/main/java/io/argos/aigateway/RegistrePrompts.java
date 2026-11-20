@@ -113,27 +113,37 @@ public class RegistrePrompts {
     void verifier(@Observes StartupEvent demarrage) {
         try (Connection connexion = dataSource.getConnection()) {
             for (PromptIa prompt : prompts.values()) {
-                try (PreparedStatement ins = connexion.prepareStatement(
-                        "INSERT INTO ia_prompt (tache, version, empreinte) VALUES (?, ?, ?) ON CONFLICT DO NOTHING")) {
-                    ins.setString(1, prompt.tache());
-                    ins.setInt(2, prompt.version());
-                    ins.setString(3, prompt.empreinte());
-                    ins.executeUpdate();
-                }
-                try (PreparedStatement sel = connexion.prepareStatement(
-                        "SELECT empreinte FROM ia_prompt WHERE tache = ? AND version = ?")) {
-                    sel.setString(1, prompt.tache());
-                    sel.setInt(2, prompt.version());
-                    try (ResultSet resultat = sel.executeQuery()) {
-                        if (resultat.next() && !prompt.empreinte().equals(resultat.getString(1))) {
-                            throw new IllegalStateException("prompt " + prompt.tache() + " v" + prompt.version()
-                                    + " modifié sans nouvelle version : publier une version " + (prompt.version() + 1));
-                        }
-                    }
-                }
+                inscrire(connexion, prompt);
+                exigerEmpreinteInchangee(connexion, prompt);
             }
         } catch (SQLException erreur) {
             throw new IllegalStateException("registre des prompts inaccessible", erreur);
+        }
+    }
+
+    /** Inscrit l'empreinte du prompt pour sa version, sauf si cette version est déjà inscrite. */
+    private static void inscrire(Connection connexion, PromptIa prompt) throws SQLException {
+        try (PreparedStatement insertion = connexion.prepareStatement(
+                "INSERT INTO ia_prompt (tache, version, empreinte) VALUES (?, ?, ?) ON CONFLICT DO NOTHING")) {
+            insertion.setString(1, prompt.tache());
+            insertion.setInt(2, prompt.version());
+            insertion.setString(3, prompt.empreinte());
+            insertion.executeUpdate();
+        }
+    }
+
+    /** Refuse le démarrage si l'empreinte inscrite pour cette version diffère de celle du prompt courant. */
+    private static void exigerEmpreinteInchangee(Connection connexion, PromptIa prompt) throws SQLException {
+        try (PreparedStatement selection = connexion.prepareStatement(
+                "SELECT empreinte FROM ia_prompt WHERE tache = ? AND version = ?")) {
+            selection.setString(1, prompt.tache());
+            selection.setInt(2, prompt.version());
+            try (ResultSet resultat = selection.executeQuery()) {
+                if (resultat.next() && !prompt.empreinte().equals(resultat.getString(1))) {
+                    throw new IllegalStateException("prompt " + prompt.tache() + " v" + prompt.version()
+                            + " modifié sans nouvelle version : publier une version " + (prompt.version() + 1));
+                }
+            }
         }
     }
 }
