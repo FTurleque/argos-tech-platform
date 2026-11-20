@@ -41,6 +41,11 @@ import io.argos.workspace.DonneeInvalide;
 @ApplicationScoped
 public class EcheancesReglementaires {
 
+    /** Nombre maximal de jours de rappel d'un réglage. */
+    private static final int JOURS_RAPPEL_MAX = 10;
+    /** Écart maximal, en jours, entre un rappel et son échéance. */
+    private static final int ECART_RAPPEL_MAX_JOURS = 365;
+
     /**
      * Échéance à rappeler aujourd'hui, avec les experts des domaines de la fiche.
      *
@@ -171,12 +176,12 @@ public class EcheancesReglementaires {
 
     /** De 1 à 10 jours distincts entre 0 et 365, triés du plus lointain au plus proche. */
     public static List<Integer> valider(List<Integer> jours) {
-        if (jours == null || jours.isEmpty() || jours.size() > 10) {
+        if (jours == null || jours.isEmpty() || jours.size() > JOURS_RAPPEL_MAX) {
             throw new DonneeInvalide("DONNEE_INVALIDE", "Indiquez de 1 à 10 jours de rappel.", "rappelsJours");
         }
         Set<Integer> distincts = new LinkedHashSet<>();
         for (Integer jour : jours) {
-            if (jour == null || jour < 0 || jour > 365) {
+            if (jour == null || jour < 0 || jour > ECART_RAPPEL_MAX_JOURS) {
                 throw new DonneeInvalide("DONNEE_INVALIDE", "Chaque jour de rappel est compris entre 0 et 365.",
                         "rappelsJours");
             }

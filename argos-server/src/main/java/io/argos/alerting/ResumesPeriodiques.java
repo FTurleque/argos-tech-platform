@@ -23,6 +23,7 @@ import org.eclipse.microprofile.config.inject.ConfigProperty;
 import org.jboss.logging.Logger;
 
 import io.quarkus.narayana.jta.QuarkusTransaction;
+import io.quarkus.narayana.jta.QuarkusTransactionException;
 import io.quarkus.scheduler.Scheduled;
 
 import io.argos.impact.ImpactQueries;
@@ -101,19 +102,25 @@ public class ResumesPeriodiques {
         });
         List<UUID> crees = new ArrayList<>();
         for (Boite boite : boites) {
-            UUID compte = boite.compte();
-            String canal = boite.canal();
-            try {
-                composerPour(compte, canal, frequence, echeance).ifPresent(id -> {
-                    crees.add(id);
-                    emises.fire(new AlerteEmise(id, compte, canal, frequence));
-                });
-            } catch (RuntimeException erreur) {
-                LOG.errorf(erreur, "résumé %s du compte %s sur %s en échec", frequence, compte, canal);
-            }
+            composerOuJournaliser(boite, frequence, echeance, crees);
         }
         envoi.envoyer(crees, echeance);
         return crees;
+    }
+
+    /**
+     * Point d'isolation de la tâche planifiée : une panne d'accès aux données pour le résumé d'un destinataire est
+     * journalisée avec sa cause et n'empêche pas la composition des résumés des autres destinataires.
+     */
+    private void composerOuJournaliser(Boite boite, String frequence, Instant echeance, List<UUID> crees) {
+        try {
+            composerPour(boite.compte(), boite.canal(), frequence, echeance).ifPresent(id -> {
+                crees.add(id);
+                emises.fire(new AlerteEmise(id, boite.compte(), boite.canal(), frequence));
+            });
+        } catch (IllegalStateException | QuarkusTransactionException erreur) {
+            LOG.errorf(erreur, "résumé %s du compte %s sur %s en échec", frequence, boite.compte(), boite.canal());
+        }
     }
 
     private java.util.Optional<UUID> composerPour(UUID compte, String canal, String frequence, Instant echeance) {
@@ -143,11 +150,16 @@ public class ResumesPeriodiques {
                   AND e.alerte_id IS NULL AND EXISTS (SELECT 1 FROM alerte a WHERE a.nature = 'IMMEDIATE'
                       AND a.etat <> 'ANNULEE' AND a.signal_id = e.signal_id AND a.compte_id = e.compte_id)
                 """)) {
-            requete.setObject(1, boite.compte());
-            requete.setString(2, boite.canal());
-            requete.setString(3, frequence);
+            lierBoite(requete, boite, frequence);
             requete.executeUpdate();
         }
+    }
+
+    /** Lie le compte, le canal et la fréquence aux trois premières positions de la requête. */
+    private static void lierBoite(PreparedStatement requete, Boite boite, String frequence) throws java.sql.SQLException {
+        requete.setObject(1, boite.compte());
+        requete.setString(2, boite.canal());
+        requete.setString(3, frequence);
     }
 
     private static List<Element> lireEnAttente(Connection connexion, Boite boite, String frequence, Instant echeance)
@@ -157,9 +169,7 @@ public class ResumesPeriodiques {
                 WHERE compte_id = ? AND canal = ? AND frequence = ? AND alerte_id IS NULL AND enregistre_le <= ?
                 ORDER BY enregistre_le, signal_id
                 """)) {
-            requete.setObject(1, boite.compte());
-            requete.setString(2, boite.canal());
-            requete.setString(3, frequence);
+            lierBoite(requete, boite, frequence);
             requete.setObject(4, echeance.atOffset(ZoneOffset.UTC));
             try (ResultSet resultat = requete.executeQuery()) {
                 List<Element> enAttente = new ArrayList<>();
@@ -193,8 +203,8 @@ public class ResumesPeriodiques {
                 continue;
             }
             tri.retenus().add(element.signalId());
-            tri.contenus().add(MoteurAlertes.element(element.signalId(), element.titre(), element.gravite(),
-                    element.source(), element.externe(), vues, lienBase));
+            tri.contenus().add(MoteurAlertes.element(new MoteurAlertes.SignalCite(element.signalId(), element.titre(),
+                    element.gravite(), element.source(), element.externe()), vues, lienBase));
         }
         return tri;
     }

@@ -57,7 +57,7 @@ function codeAvecPkce(parametres) {
 }
 
 /**
- * URL d'autorisation à ouvrir, ou null si la demande reçue de l'IHM n'est pas acceptable.
+ * URL d'autorisation à ouvrir, ou undefined si la demande reçue de l'IHM n'est pas acceptable.
  * Acceptable : point d'autorisation de l'émetteur configuré (même origine, même chemin, sans
  * identifiants), code d'autorisation avec PKCE S256, state présent et redirection vers l'écoute
  * locale en cours. L'URL renvoyée est reconstruite : son origine et son chemin viennent de la
@@ -65,9 +65,9 @@ function codeAvecPkce(parametres) {
  * du client n'est pas contrôlé ici : le royaume n'accepte cette redirection que pour argos-ui.
  */
 function urlAutorisationSure(url, { emetteur, redirectUri }) {
-  if (typeof url !== 'string' || url.length > URL_MAX) return null;
+  if (typeof url !== 'string' || url.length > URL_MAX) return undefined;
   const urls = lireUrls(url, emetteur);
-  if (!urls || !demandeConforme(urls.demande, urls.point, redirectUri)) return null;
+  if (!urls || !demandeConforme(urls.demande, urls.point, redirectUri)) return undefined;
   for (const nom of PARAMETRES_AUTORISATION) {
     const valeur = urls.demande.searchParams.get(nom);
     if (valeur !== null) urls.point.searchParams.set(nom, valeur);
@@ -75,12 +75,12 @@ function urlAutorisationSure(url, { emetteur, redirectUri }) {
   return urls.point.toString();
 }
 
-/** URL reçue et point d'autorisation configuré, ou null si l'une des deux est illisible. */
+/** URL reçue et point d'autorisation configuré, ou undefined si l'une des deux est illisible. */
 function lireUrls(url, emetteur) {
   try {
     return { demande: new URL(url), point: pointAutorisation(emetteur) };
   } catch {
-    return null;
+    return undefined;
   }
 }
 
@@ -94,7 +94,7 @@ function demandeConforme(demande, point, redirectUri) {
 
 /** Vrai si `url` est une demande d'autorisation acceptable (voir urlAutorisationSure). */
 function demandeAcceptable(url, contexte) {
-  return urlAutorisationSure(url, contexte) !== null;
+  return urlAutorisationSure(url, contexte) !== undefined;
 }
 
 /** Vrai si la requête reçue est le retour attendu par l'écoute `courante`, encore active. */
@@ -103,12 +103,12 @@ function retourAttendu(requete, url, courante, active) {
   return url.pathname === CHEMIN_RETOUR && active && Boolean(courante.resoudre);
 }
 
-/** URL de la requête reçue par l'écoute locale, ou null si elle est illisible. */
+/** URL de la requête reçue par l'écoute locale, ou undefined si elle est illisible. */
 function lireUrlRequete(requete) {
   try {
     return new URL(requete.url, `http://${HOTE}`);
   } catch {
-    return null;
+    return undefined;
   }
 }
 

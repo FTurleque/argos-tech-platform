@@ -15,6 +15,7 @@ import jakarta.inject.Inject;
 import org.jboss.logging.Logger;
 
 import io.quarkus.narayana.jta.QuarkusTransaction;
+import io.quarkus.narayana.jta.QuarkusTransactionException;
 
 import io.argos.impact.ImpactsTraites;
 
@@ -53,10 +54,19 @@ public class AlertesSansObjet {
     DataSource dataSource;
 
     void surImpactsTraites(@Observes(during = TransactionPhase.AFTER_SUCCESS) ImpactsTraites evenement) {
+        annulerOuJournaliser(evenement.signalId());
+    }
+
+    /**
+     * Observateur d'une transaction déjà validée : une panne d'accès aux données pendant l'annulation est journalisée
+     * avec sa cause et ne remonte pas au traitement des impacts, qui reste acquis ; l'envoi revérifie l'objet de chaque
+     * alerte.
+     */
+    private void annulerOuJournaliser(UUID signalId) {
         try {
-            annuler(evenement.signalId());
-        } catch (RuntimeException erreur) {
-            LOG.errorf(erreur, "annulation des alertes sans objet du signal %s en échec", evenement.signalId());
+            annuler(signalId);
+        } catch (QuarkusTransactionException erreur) {
+            LOG.errorf(erreur, "annulation des alertes sans objet du signal %s en échec", signalId);
         }
     }
 

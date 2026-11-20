@@ -22,15 +22,15 @@ function normaliser(valeur) {
 
 /**
  * Applique une modification demandée par l'IHM ou par le menu : seules les clés connues de type
- * booléen sont prises en compte. Renvoie null si la demande ne contient aucune clé valide.
+ * booléen sont prises en compte. Renvoie undefined si la demande ne contient aucune clé valide.
  */
 function fusionner(actuels, demande) {
-  if (!demande || typeof demande !== 'object') return null;
+  if (!demande || typeof demande !== 'object') return undefined;
   const changements = {};
   for (const cle of Object.keys(DEFAUTS)) {
     if (typeof demande[cle] === 'boolean') changements[cle] = demande[cle];
   }
-  if (Object.keys(changements).length === 0) return null;
+  if (Object.keys(changements).length === 0) return undefined;
   return normaliser({ ...actuels, ...changements });
 }
 

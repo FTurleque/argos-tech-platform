@@ -37,6 +37,11 @@ const ASSETS = path.join(__dirname, '..', 'assets');
 const ARG_DEMARRAGE = '--demarrage-session';
 // Le démarrage avec la session n'est proposé que là où Electron sait le configurer.
 const DEMARRAGE_DISPONIBLE = process.platform === 'win32' || process.platform === 'darwin';
+// Taille de la fenêtre principale, en pixels : à l'ouverture, puis minimale pour garder l'IHM lisible.
+const FENETRE_LARGEUR = 1200;
+const FENETRE_HAUTEUR = 820;
+const FENETRE_LARGEUR_MIN = 820;
+const FENETRE_HAUTEUR_MIN = 560;
 
 let mainWindow = null;
 let tray = null;
@@ -83,10 +88,10 @@ function registerUiProtocol() {
 
 function createWindow() {
   mainWindow = new BrowserWindow({
-    width: 1200,
-    height: 820,
-    minWidth: 820,
-    minHeight: 560,
+    width: FENETRE_LARGEUR,
+    height: FENETRE_HAUTEUR,
+    minWidth: FENETRE_LARGEUR_MIN,
+    minHeight: FENETRE_HAUTEUR_MIN,
     title: 'ARGOS',
     icon: path.join(ASSETS, 'icon.png'),
     show: false,

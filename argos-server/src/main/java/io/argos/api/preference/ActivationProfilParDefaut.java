@@ -41,8 +41,16 @@ public class ActivationProfilParDefaut {
         try {
             preferences.activerSiAucun(evenement.compte().id(), Set.of(profil));
         } catch (RuntimeException erreur) {
-            // La création du compte n'échoue pas : les profils par défaut de la plateforme s'appliquent à la lecture.
-            LOG.errorf(erreur, "Activation du profil « %s » impossible pour le compte %s", profil, evenement.compte().id());
+            isolerEchecActivation(evenement, profil, erreur);
         }
+    }
+
+    /**
+     * Point d'isolation de l'observateur : toute erreur de l'enregistrement des préférences est journalisée, cause
+     * comprise, sans être propagée.
+     */
+    private static void isolerEchecActivation(CompteCree evenement, String profil, RuntimeException erreur) {
+        // La création du compte n'échoue pas : les profils par défaut de la plateforme s'appliquent à la lecture.
+        LOG.errorf(erreur, "Activation du profil « %s » impossible pour le compte %s", profil, evenement.compte().id());
     }
 }

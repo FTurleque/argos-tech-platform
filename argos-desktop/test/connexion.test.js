@@ -149,7 +149,8 @@ test('validation pure de la demande d’autorisation', () => {
   assert.equal(demandeAcceptable(urlAutorisation(redirectUri), { emetteur: EMETTEUR, redirectUri }), true);
   assert.equal(demandeAcceptable(urlAutorisation(redirectUri), { emetteur: `${EMETTEUR}/`, redirectUri }), true);
   assert.equal(demandeAcceptable('x'.repeat(9000), { emetteur: EMETTEUR, redirectUri }), false);
-  assert.equal(demandeAcceptable(urlAutorisation(redirectUri).replace('http://', 'http://u:p@'), { emetteur: EMETTEUR, redirectUri }), false);
+  const avecIdentifiants = urlAutorisation(redirectUri).replace('http://', 'http://u:p@');
+  assert.equal(demandeAcceptable(avecIdentifiants, { emetteur: EMETTEUR, redirectUri }), false);
   assert.equal(demandeAcceptable(42, { emetteur: EMETTEUR, redirectUri }), false);
 });
 
@@ -160,5 +161,5 @@ test('l’URL ouverte est reconstruite depuis l’émetteur configuré, avec les
   const enrichie = `${urlAutorisation(redirectUri)}&kc_idp_hint=autre#fragment`;
   assert.equal(urlAutorisationSure(enrichie, contexte), urlAutorisation(redirectUri));
   const autreChemin = urlAutorisation(redirectUri).replace('/protocol/openid-connect/auth', '/protocol/openid-connect/logout');
-  assert.equal(urlAutorisationSure(autreChemin, contexte), null);
+  assert.equal(urlAutorisationSure(autreChemin, contexte), undefined);
 });

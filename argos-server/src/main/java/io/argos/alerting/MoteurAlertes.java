@@ -17,11 +17,14 @@ import java.util.Optional;
 import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.ArrayBlockingQueue;
+import java.util.concurrent.CancellationException;
+import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Future;
 import java.util.concurrent.RejectedExecutionException;
 import java.util.concurrent.ThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.TimeoutException;
 import java.util.stream.Collectors;
 
 import javax.sql.DataSource;
@@ -39,6 +42,7 @@ import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 
 import io.quarkus.narayana.jta.QuarkusTransaction;
+import io.quarkus.narayana.jta.QuarkusTransactionException;
 import io.quarkus.runtime.LaunchMode;
 import io.quarkus.runtime.StartupEvent;
 
@@ -123,9 +127,18 @@ public class MoteurAlertes {
     }
 
     void surImpacts(@Observes ImpactsRecorded evenement) {
+        evaluerOuJournaliser(evenement);
+    }
+
+    /**
+     * Observateur synchrone de la publication des impacts : une panne d'accès aux données pendant l'évaluation des
+     * alertes est journalisée avec sa cause et ne remonte pas à l'émetteur, dont l'enregistrement des impacts reste
+     * acquis.
+     */
+    private void evaluerOuJournaliser(ImpactsRecorded evenement) {
         try {
             evaluer(evenement, Instant.now());
-        } catch (RuntimeException erreur) {
+        } catch (IllegalStateException | QuarkusTransactionException erreur) {
             LOG.errorf(erreur, "évaluation des alertes du signal %s en échec", evenement.signalId());
         }
     }
@@ -142,33 +155,51 @@ public class MoteurAlertes {
         for (Destinataires.Destinataire destinataire : candidats) {
             plan(evenement, destinataire, paquets).ifPresent(plans::add);
         }
-        boolean nouvelleAlerte = plans.stream().anyMatch(plan -> plan.immediates().keySet().stream()
-                .anyMatch(canal -> !alerteExiste(evenement.signalId(), plan.destinataire().compteId(), canal)));
-        String[] resume = nouvelleAlerte ? resumeIa(evenement, espaces) : new String[] {null, "SANS_OBJET"};
+        ResumeObtenu resume = nouvelleAlerte(evenement, plans) ? resumeIa(evenement, espaces) : ResumeObtenu.sans("SANS_OBJET");
 
         List<UUID> creees = new ArrayList<>();
         int elements = 0;
         for (Plan plan : plans) {
-            UUID compte = plan.destinataire().compteId();
-            for (Map.Entry<String, Map<UUID, ImpactQueries.ImpactView>> canal : plan.immediates().entrySet()) {
-                ContenuAlerte contenu = new ContenuAlerte(List.of(element(evenement.signalId(), evenement.signalTitle(),
-                        evenement.signalSeverity(), evenement.signalSource(), evenement.signalExternalId(), canal.getValue().values(),
-                        lienBase)),
-                        resume[0], resume[1]);
-                creerImmediate(evenement, compte, canal.getKey(), contenu, maintenant).ifPresent(id -> {
-                    creees.add(id);
-                    emises.fire(new AlerteEmise(id, compte, canal.getKey(), RegleAlerte.IMMEDIATE));
-                });
-            }
-            if (!plan.resumes().isEmpty() && !alerteExiste(evenement.signalId(), compte, null)) {
-                for (String cle : plan.resumes()) {
-                    String[] frequenceCanal = cle.split(":");
-                    elements += ajouterAuResume(evenement, compte, frequenceCanal[0], frequenceCanal[1], maintenant);
-                }
-            }
+            creees.addAll(creerImmediates(evenement, plan, resume, maintenant));
+            elements += ajouterAuxResumes(evenement, plan, maintenant);
         }
         envoi.envoyer(creees, maintenant);
         return new Bilan(List.copyOf(creees), elements);
+    }
+
+    /** Vrai si au moins un plan prévoit une alerte immédiate qui n'existe pas encore. */
+    private boolean nouvelleAlerte(ImpactsRecorded evenement, List<Plan> plans) {
+        return plans.stream().anyMatch(plan -> plan.immediates().keySet().stream()
+                .anyMatch(canal -> !alerteExiste(evenement.signalId(), plan.destinataire().compteId(), canal)));
+    }
+
+    /** Alertes immédiates du plan, une par canal ; chaque alerte créée est publiée. */
+    private List<UUID> creerImmediates(ImpactsRecorded evenement, Plan plan, ResumeObtenu resume, Instant maintenant) {
+        UUID compte = plan.destinataire().compteId();
+        List<UUID> creees = new ArrayList<>();
+        for (Map.Entry<String, Map<UUID, ImpactQueries.ImpactView>> canal : plan.immediates().entrySet()) {
+            ContenuAlerte contenu = new ContenuAlerte(List.of(element(SignalCite.depuis(evenement), canal.getValue().values(),
+                    lienBase)), resume.texte(), resume.etat());
+            creerImmediate(evenement, compte, canal.getKey(), contenu, maintenant).ifPresent(id -> {
+                creees.add(id);
+                emises.fire(new AlerteEmise(id, compte, canal.getKey(), RegleAlerte.IMMEDIATE));
+            });
+        }
+        return creees;
+    }
+
+    /** Éléments du plan ajoutés aux résumés, sauf si le destinataire a déjà reçu une alerte immédiate du signal. */
+    private int ajouterAuxResumes(ImpactsRecorded evenement, Plan plan, Instant maintenant) {
+        UUID compte = plan.destinataire().compteId();
+        if (plan.resumes().isEmpty() || alerteExiste(evenement.signalId(), compte, null)) {
+            return 0;
+        }
+        int elements = 0;
+        for (String cle : plan.resumes()) {
+            String[] frequenceCanal = cle.split(":");
+            elements += ajouterAuResume(evenement, compte, frequenceCanal[0], frequenceCanal[1], maintenant);
+        }
+        return elements;
     }
 
     private Optional<Plan> plan(ImpactsRecorded evenement, Destinataires.Destinataire destinataire, Map<UUID, String> paquets) {
@@ -181,28 +212,42 @@ public class MoteurAlertes {
         List<RegleAlerte> regles = QuarkusTransaction.requiringNew()
                 .call(() -> abonnements.activeFor(destinataire.compteId(), espacesDuCompte)).stream()
                 .map(RegleAlerte::depuis).flatMap(Optional::stream).toList();
-        Map<String, Map<UUID, ImpactQueries.ImpactView>> immediates = new LinkedHashMap<>();
-        Set<String> resumes = new LinkedHashSet<>();
+        Plan plan = new Plan(destinataire, new LinkedHashMap<>(), new LinkedHashSet<>());
         for (RegleAlerte regle : regles) {
-            List<ImpactQueries.ImpactView> concernes = visibles.stream()
-                    .filter(impact -> regle.concerne(impact.projectId().toString(), cle(impact, paquets),
-                            evenement.signalSource())).toList();
-            if (concernes.isEmpty()) {
-                continue;
-            }
-            List<ImpactQueries.ImpactView> etablis = concernes.stream()
-                    .filter(impact -> !"A_VERIFIER".equals(impact.level())).toList();
-            if (regle.immediate() && regle.seuilAtteint(evenement.signalSeverity()) && !etablis.isEmpty()) {
-                Map<UUID, ImpactQueries.ImpactView> parImpact = immediates.computeIfAbsent(regle.canal(), canal -> new LinkedHashMap<>());
-                concernes.forEach(impact -> parImpact.put(impact.id(), impact));
-            } else {
-                resumes.add(regle.frequenceResume() + ":" + regle.canal());
-            }
+            repartir(plan, regle, concernes(regle, visibles, evenement, paquets), evenement.signalSeverity());
         }
-        if (immediates.isEmpty() && resumes.isEmpty()) {
+        if (plan.immediates().isEmpty() && plan.resumes().isEmpty()) {
             return Optional.empty();
         }
-        return Optional.of(new Plan(destinataire, immediates, resumes));
+        return Optional.of(plan);
+    }
+
+    /** Impacts visibles que la règle concerne. */
+    private static List<ImpactQueries.ImpactView> concernes(RegleAlerte regle, List<ImpactQueries.ImpactView> visibles,
+            ImpactsRecorded evenement, Map<UUID, String> paquets) {
+        return visibles.stream()
+                .filter(impact -> regle.concerne(impact.projectId().toString(), cle(impact, paquets), evenement.signalSource()))
+                .toList();
+    }
+
+    /** Range les impacts concernés par la règle : alerte immédiate sur son canal, sinon résumé de sa fréquence. */
+    private static void repartir(Plan plan, RegleAlerte regle, List<ImpactQueries.ImpactView> concernes, String gravite) {
+        if (concernes.isEmpty()) {
+            return;
+        }
+        if (declencheImmediate(regle, concernes, gravite)) {
+            Map<UUID, ImpactQueries.ImpactView> parImpact = plan.immediates().computeIfAbsent(regle.canal(),
+                    canal -> new LinkedHashMap<>());
+            concernes.forEach(impact -> parImpact.put(impact.id(), impact));
+        } else {
+            plan.resumes().add(regle.frequenceResume() + ":" + regle.canal());
+        }
+    }
+
+    /** Règle immédiate, gravité minimale atteinte et au moins un impact exact ou probable (ALR-01, ALR-02). */
+    private static boolean declencheImmediate(RegleAlerte regle, List<ImpactQueries.ImpactView> concernes, String gravite) {
+        return regle.immediate() && regle.seuilAtteint(gravite)
+                && concernes.stream().anyMatch(impact -> !"A_VERIFIER".equals(impact.level()));
     }
 
     /** Clé du paquet d'un impact : celle de l'événement, sinon dérivée du PURL du composant. */
@@ -215,9 +260,18 @@ public class MoteurAlertes {
         return arobase > 4 ? impact.componentPurl().substring(0, arobase) : impact.componentPurl();
     }
 
+    /** Signal cité par un élément d'alerte ou de résumé : identifiant, titre, gravité et source. */
+    record SignalCite(UUID signalId, String titre, String gravite, String source, String externe) {
+
+        static SignalCite depuis(ImpactsRecorded evenement) {
+            return new SignalCite(evenement.signalId(), evenement.signalTitle(), evenement.signalSeverity(),
+                    evenement.signalSource(), evenement.signalExternalId());
+        }
+    }
+
     /** Élément d'alerte ou de résumé : un projet cité une fois, avec le niveau d'impact le plus fort. */
-    static ContenuAlerte.Element element(UUID signalId, String titre, String gravite, String source, String externe,
-            java.util.Collection<ImpactQueries.ImpactView> vues, String lienBase) {
+    static ContenuAlerte.Element element(SignalCite signal, java.util.Collection<ImpactQueries.ImpactView> vues,
+            String lienBase) {
         Map<UUID, ContenuAlerte.Projet> projets = new LinkedHashMap<>();
         for (ImpactQueries.ImpactView vue : vues) {
             ContenuAlerte.Projet actuel = projets.get(vue.projectId());
@@ -227,9 +281,9 @@ public class MoteurAlertes {
         }
         List<ContenuAlerte.Projet> tries = projets.values().stream()
                 .sorted(Comparator.comparing(ContenuAlerte.Projet::nom)).toList();
-        return new ContenuAlerte.Element(signalId, titre, gravite, tries,
-                List.of(new ContenuAlerte.Source(source, externe, urlSource(source, externe))),
-                lienBase.replaceAll("/+$", "") + "/signaux/" + signalId);
+        return new ContenuAlerte.Element(signal.signalId(), signal.titre(), signal.gravite(), tries,
+                List.of(new ContenuAlerte.Source(signal.source(), signal.externe(), urlSource(signal.source(), signal.externe()))),
+                lienBase.replaceAll("/+$", "") + "/signaux/" + signal.signalId());
     }
 
     private static int rangNiveau(String niveau) {
@@ -244,40 +298,53 @@ public class MoteurAlertes {
         return "OSV".equalsIgnoreCase(source) ? "https://osv.dev/vulnerability/" + externe : null;
     }
 
-    /** Résumé IA, imputé à l'un des espaces concernés et demandé avec un délai borné : {résumé, état}. */
-    private String[] resumeIa(ImpactsRecorded evenement, Set<UUID> espaces) {
+    /** Résumé IA obtenu pour une alerte : texte éventuel et état ({@code DISPONIBLE}, {@code INDISPONIBLE}…). */
+    private record ResumeObtenu(String texte, String etat) {
+
+        static ResumeObtenu sans(String etat) {
+            return new ResumeObtenu(null, etat);
+        }
+    }
+
+    /** Résumé IA, imputé à l'un des espaces concernés et demandé avec un délai borné. */
+    private ResumeObtenu resumeIa(ImpactsRecorded evenement, Set<UUID> espaces) {
         if (!resumeIa.isResolvable()) {
-            return new String[] {null, "INDISPONIBLE"};
+            return ResumeObtenu.sans("INDISPONIBLE");
         }
         ResumeIa resumeur = resumeIa.get();
         Set<UUID> concernes = espaces.stream().filter(java.util.Objects::nonNull).collect(Collectors.toUnmodifiableSet());
         if (!resumeur.budgetDisponible(concernes)) {
-            return new String[] {null, "PLAFOND_ATTEINT"};
+            return ResumeObtenu.sans("PLAFOND_ATTEINT");
         }
         Future<String> demande;
         try {
             demande = EXECUTEUR_IA.submit(() -> resumeur.resumer(evenement.signalId(), evenement.signalTitle(), concernes));
         } catch (RejectedExecutionException erreur) {
             LOG.infof("résumé IA indisponible pour le signal %s : file d'attente pleine", evenement.signalId());
-            return new String[] {null, "INDISPONIBLE"};
+            return ResumeObtenu.sans("INDISPONIBLE");
         }
+        return attendre(demande, evenement.signalId());
+    }
+
+    /** Attend le résumé demandé dans le délai borné ; une demande expirée, annulée ou interrompue est abandonnée. */
+    private ResumeObtenu attendre(Future<String> demande, UUID signalId) {
         try {
             String texte = demande.get(delaiResumeIa.toMillis(), TimeUnit.MILLISECONDS);
-            return texte == null || texte.isBlank() ? new String[] {null, "REFUSE"} : new String[] {texte, "DISPONIBLE"};
+            return texte == null || texte.isBlank() ? ResumeObtenu.sans("REFUSE") : new ResumeObtenu(texte, "DISPONIBLE");
         } catch (InterruptedException erreur) {
             demande.cancel(true);
             Thread.currentThread().interrupt();
-            return new String[] {null, "INDISPONIBLE"};
-        } catch (java.util.concurrent.ExecutionException erreur) {
+            return ResumeObtenu.sans("INDISPONIBLE");
+        } catch (ExecutionException erreur) {
             if (erreur.getCause() instanceof ResumeIa.PlafondAtteint) {
-                return new String[] {null, "PLAFOND_ATTEINT"};
+                return ResumeObtenu.sans("PLAFOND_ATTEINT");
             }
-            LOG.infof("résumé IA indisponible pour le signal %s : %s", evenement.signalId(), erreur.getCause());
-            return new String[] {null, "INDISPONIBLE"};
-        } catch (Exception erreur) {
+            LOG.infof("résumé IA indisponible pour le signal %s : %s", signalId, erreur.getCause());
+            return ResumeObtenu.sans("INDISPONIBLE");
+        } catch (TimeoutException | CancellationException erreur) {
             demande.cancel(true);
-            LOG.infof("résumé IA indisponible pour le signal %s : %s", evenement.signalId(), erreur.toString());
-            return new String[] {null, "INDISPONIBLE"};
+            LOG.infof("résumé IA indisponible pour le signal %s : %s", signalId, erreur.toString());
+            return ResumeObtenu.sans("INDISPONIBLE");
         }
     }
 

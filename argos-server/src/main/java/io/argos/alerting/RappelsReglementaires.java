@@ -7,6 +7,7 @@ import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.UUID;
 
 import jakarta.enterprise.context.ApplicationScoped;
@@ -40,6 +41,9 @@ public class RappelsReglementaires {
     /** Profil dont les utilisateurs reçoivent les rappels de leur espace. */
     static final String PROFIL = "expert-metier";
 
+    /** Longueur maximale, en caractères, du titre de la fiche repris dans le titre du rappel. */
+    private static final int TITRE_FICHE_MAX = 300;
+
     @Inject
     EcheancesReglementaires echeances;
 
@@ -67,22 +71,40 @@ public class RappelsReglementaires {
     /** Envoie les rappels du jour ; renvoie les messages créés. Une échéance en échec n'interrompt pas les autres. */
     public List<UUID> executer(LocalDate aujourdhui, Instant maintenant) {
         List<UUID> crees = new ArrayList<>();
-        List<EcheancesReglementaires.Echeance> echeancesDuJour;
-        try {
-            echeancesDuJour = echeances.echeancesDuJour(aujourdhui);
-        } catch (RuntimeException erreur) {
-            LOG.errorf(erreur, "lecture des échéances réglementaires impossible");
+        Optional<List<EcheancesReglementaires.Echeance>> echeancesDuJour = lireEcheancesOuJournaliser(aujourdhui);
+        if (echeancesDuJour.isEmpty()) {
             return crees;
         }
-        for (EcheancesReglementaires.Echeance echeance : echeancesDuJour) {
-            try {
-                crees.addAll(rappeler(echeance, maintenant));
-            } catch (RuntimeException erreur) {
-                LOG.errorf(erreur, "rappel de la fiche réglementaire %s en échec", echeance.ficheId());
-            }
+        for (EcheancesReglementaires.Echeance echeance : echeancesDuJour.get()) {
+            rappelerOuJournaliser(echeance, maintenant, crees);
         }
         envoi.envoyer(crees, maintenant);
         return List.copyOf(crees);
+    }
+
+    /**
+     * Point d'isolation de la tâche planifiée : échéances illisibles, la panne est journalisée avec sa cause et
+     * l'exécution s'achève sans rappel ; les jours de rattrapage couvrent l'exécution suivante.
+     */
+    private Optional<List<EcheancesReglementaires.Echeance>> lireEcheancesOuJournaliser(LocalDate aujourdhui) {
+        try {
+            return Optional.of(echeances.echeancesDuJour(aujourdhui));
+        } catch (IllegalStateException erreur) {
+            LOG.errorf(erreur, "lecture des échéances réglementaires impossible");
+            return Optional.empty();
+        }
+    }
+
+    /**
+     * Point d'isolation de la tâche planifiée : une panne d'accès aux données pour une échéance est journalisée avec sa
+     * cause et n'interrompt pas les rappels des autres.
+     */
+    private void rappelerOuJournaliser(EcheancesReglementaires.Echeance echeance, Instant maintenant, List<UUID> crees) {
+        try {
+            crees.addAll(rappeler(echeance, maintenant));
+        } catch (IllegalStateException erreur) {
+            LOG.errorf(erreur, "rappel de la fiche réglementaire %s en échec", echeance.ficheId());
+        }
     }
 
     private List<UUID> rappeler(EcheancesReglementaires.Echeance echeance, Instant maintenant) {
@@ -95,7 +117,7 @@ public class RappelsReglementaires {
         }
         String quand = echeance.joursRestants() == 0 ? "aujourd'hui" : echeance.joursRestants() == 1 ? "demain"
                 : "dans " + echeance.joursRestants() + " jours";
-        String titre = "Entrée en vigueur " + quand + " (" + echeance.dateEffet() + ") : " + borne(echeance.titre(), 300);
+        String titre = "Entrée en vigueur " + quand + " (" + echeance.dateEffet() + ") : " + borne(echeance.titre(), TITRE_FICHE_MAX);
         String cle = "REGLEMENTAIRE|" + echeance.ficheId() + "|" + echeance.dateEffet() + "|J-" + echeance.jourRappel();
         // L'IHM n'a pas encore d'écran réglementaire : le lien ouvre le texte officiel (comme les rappels
         // d'opportunités) ; la fiche reste consultable par l'API.
@@ -104,10 +126,11 @@ public class RappelsReglementaires {
                 titre + ". Domaines : " + String.join(", ", echeance.domaines()) + ". " + FicheAnalyse.AVIS_JURIDIQUE, null,
                 List.of(), List.of(new ContenuAlerte.Source("Journal officiel (DILA, Licence Ouverte)", echeance.identifiant(),
                         echeance.lienOfficiel())), lien)), null, "SANS_OBJET");
+        RappelsRadar.Message message = new RappelsRadar.Message("RAPPEL", cle, titre, contenu);
         List<UUID> crees = new ArrayList<>();
         comptes.forEach((compte, email) -> {
             String canal = email == null || email.isBlank() ? "DESKTOP" : "EMAIL";
-            messages.creer("RAPPEL", compte, canal, cle, titre, contenu, maintenant).ifPresent(id -> {
+            messages.creer(message, compte, canal, maintenant).ifPresent(id -> {
                 crees.add(id);
                 emises.fire(new AlerteEmise(id, compte, canal, "RAPPEL"));
             });

@@ -93,12 +93,12 @@ test('Q-2 : le démarrage avec la session s’active à la demande, sans toucher
   assert.equal(etat.reglages.demarrageSession, false);
   poste.changerReglages({ demarrageSession: true });
   assert.deepEqual(etat.reglages, { notificationsPoste: true, demarrageSession: true });
-  assert.equal(poste.changerReglages({ inconnu: true }), null);
+  assert.equal(poste.changerReglages({ inconnu: true }), undefined);
 });
 
 test('Q-2 : là où l’option est indisponible (Linux), le démarrage avec la session reste désactivé', () => {
   const { poste, etat } = doublures({ demarrageDisponible: false });
-  assert.equal(poste.changerReglages({ demarrageSession: true }), null);
+  assert.equal(poste.changerReglages({ demarrageSession: true }), undefined);
   assert.deepEqual(etat.enregistres, []);
   assert.deepEqual(poste.changerReglages({ notificationsPoste: false, demarrageSession: true }), {
     notificationsPoste: false,

@@ -15,7 +15,7 @@ test('un fichier du build est servi', () => {
 });
 
 test('impossible de sortir du dossier de l\u2019IHM', () => {
-  const inside = (file) => file === null || file === RACINE_UI || file.startsWith(RACINE_UI + path.sep);
+  const inside = (file) => file === undefined || file === RACINE_UI || file.startsWith(RACINE_UI + path.sep);
   for (const url of [
     'app://argos/../../etc/passwd',
     'app://argos/%2e%2e/%2e%2e/etc/passwd',
@@ -24,13 +24,13 @@ test('impossible de sortir du dossier de l\u2019IHM', () => {
   ]) {
     assert.ok(inside(resolveUiFile(url, RACINE_UI)), url);
   }
-  assert.equal(resolveUiFile('app://argos/..%2f..%2fsecret', RACINE_UI), null);
+  assert.equal(resolveUiFile('app://argos/..%2f..%2fsecret', RACINE_UI), undefined);
 });
 
 test('un autre hôte ou protocole est refusé', () => {
-  assert.equal(resolveUiFile('app://autre/index.html', RACINE_UI), null);
-  assert.equal(resolveUiFile('file:///opt/argos/ui/index.html', RACINE_UI), null);
-  assert.equal(resolveUiFile('pas une url', RACINE_UI), null);
+  assert.equal(resolveUiFile('app://autre/index.html', RACINE_UI), undefined);
+  assert.equal(resolveUiFile('file:///opt/argos/ui/index.html', RACINE_UI), undefined);
+  assert.equal(resolveUiFile('pas une url', RACINE_UI), undefined);
 });
 
 test('la CSP n’autorise que le serveur ARGOS configuré', () => {

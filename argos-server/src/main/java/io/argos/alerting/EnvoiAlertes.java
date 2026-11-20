@@ -27,6 +27,7 @@ import org.eclipse.microprofile.config.inject.ConfigProperty;
 import org.jboss.logging.Logger;
 
 import io.quarkus.narayana.jta.QuarkusTransaction;
+import io.quarkus.narayana.jta.QuarkusTransactionException;
 import io.quarkus.scheduler.Scheduled;
 
 /**
@@ -105,20 +106,29 @@ public class EnvoiAlertes {
         Map<String, CanalDiffusion> parCode = parCode();
         Map<UUID, Issue> issues = new HashMap<>();
         for (UUID id : ids) {
-            try {
-                issues.put(id, tenter(id, parCode, maintenant));
-            } catch (RuntimeException erreur) {
-                LOG.errorf(erreur, "diffusion de l'alerte %s en échec", id);
-            }
+            tenterOuJournaliser(id, parCode, maintenant).ifPresent(issue -> issues.put(id, issue));
         }
         return issues;
     }
 
     /**
+     * Point d'isolation de la diffusion : une panne d'accès aux données d'un message (réservation ou enregistrement
+     * de son issue) est journalisée avec sa cause et n'empêche pas la diffusion des messages suivants.
+     */
+    private Optional<Issue> tenterOuJournaliser(UUID id, Map<String, CanalDiffusion> parCode, Instant maintenant) {
+        try {
+            return Optional.of(tenter(id, parCode, maintenant));
+        } catch (IllegalStateException | QuarkusTransactionException erreur) {
+            LOG.errorf(erreur, "diffusion de l'alerte %s en échec", id);
+            return Optional.empty();
+        }
+    }
+
+    /**
      * Une tentative en trois temps : réservation du message et décompte de la tentative dans une
      * transaction courte, diffusion hors transaction (aucun verrou n'est tenu pendant l'appel SMTP),
-     * puis enregistrement de l'issue. Toute exception de la diffusion ou de la lecture du contenu
-     * compte comme un échec : le nombre de tentatives reste borné (ALR-06-S2).
+     * puis enregistrement de l'issue. Un échec du canal, un contenu illisible ou une panne de l'enregistrement
+     * du succès comptent comme une tentative en échec : le nombre de tentatives reste borné (ALR-06-S2).
      */
     private Issue tenter(UUID id, Map<String, CanalDiffusion> parCode, Instant maintenant) {
         Optional<Reservation> reservation = QuarkusTransaction.requiringNew()
@@ -130,28 +140,38 @@ public class EnvoiAlertes {
         if (reservationObtenue.epuisee()) {
             return Issue.EN_ECHEC;
         }
-        String erreur;
-        boolean definitif;
-        try {
-            parCode.get(reservationObtenue.canal()).diffuser(reservationObtenue.message(id));
-            QuarkusTransaction.requiringNew().run(() -> enregistrerSucces(id, maintenant));
+        Optional<Echec> echec = diffuser(id, reservationObtenue, parCode, maintenant);
+        if (echec.isEmpty()) {
             return Issue.ENVOYEE;
-        } catch (CanalDiffusion.EchecDiffusion echec) {
-            erreur = echec.getMessage();
-            definitif = echec.definitif();
-        } catch (ContenuIllisible illisible) {
-            erreur = "contenu du message illisible";
-            definitif = true;
-        } catch (RuntimeException imprevue) {
-            erreur = "diffusion impossible : " + imprevue.getClass().getSimpleName();
-            definitif = false;
         }
-        boolean abandon = definitif || reservationObtenue.tentatives() >= tentativesMax;
-        String motif = erreur;
+        String motif = echec.get().motif();
+        boolean abandon = echec.get().definitif() || reservationObtenue.tentatives() >= tentativesMax;
         QuarkusTransaction.requiringNew().run(() -> enregistrerEchec(id, abandon,
                 abandon ? null : maintenant.plus(delai(reservationObtenue.tentatives())), motif));
-        LOG.warnf("diffusion de l'alerte %s : tentative %d en échec (%s)", id, reservationObtenue.tentatives(), erreur);
+        LOG.warnf("diffusion de l'alerte %s : tentative %d en échec (%s)", id, reservationObtenue.tentatives(), motif);
         return abandon ? Issue.EN_ECHEC : Issue.A_RETENTER;
+    }
+
+    /** Échec d'une tentative : motif enregistré sur le message, et caractère définitif (aucune nouvelle tentative). */
+    private record Echec(String motif, boolean definitif) {
+    }
+
+    /** Diffuse le message réservé puis enregistre son envoi ; vide en cas de succès, sinon l'échec de la tentative. */
+    private Optional<Echec> diffuser(UUID id, Reservation reservation, Map<String, CanalDiffusion> parCode, Instant maintenant) {
+        try {
+            parCode.get(reservation.canal()).diffuser(reservation.message(id));
+            QuarkusTransaction.requiringNew().run(() -> enregistrerSucces(id, maintenant));
+            return Optional.empty();
+        } catch (CanalDiffusion.EchecDiffusion echec) {
+            LOG.warnf(echec, "diffusion de l'alerte %s sur le canal %s refusée", id, reservation.canal());
+            return Optional.of(new Echec(echec.getMessage(), echec.definitif()));
+        } catch (ContenuIllisible illisible) {
+            LOG.warnf(illisible, "contenu de l'alerte %s illisible", id);
+            return Optional.of(new Echec("contenu du message illisible", true));
+        } catch (IllegalStateException | QuarkusTransactionException panne) {
+            LOG.warnf(panne, "enregistrement de l'envoi de l'alerte %s impossible", id);
+            return Optional.of(new Echec("diffusion impossible : " + panne.getClass().getSimpleName(), false));
+        }
     }
 
     /** Délai avant la tentative suivante : délai initial doublé à chaque échec, plafonné. */
@@ -252,7 +272,8 @@ public class EnvoiAlertes {
         }
     }
 
-    private static void executer(Connection connexion, String sql, Object... valeurs) throws SQLException {
+    /** Exécute une mise à jour paramétrée, positions liées dans l'ordre des valeurs. */
+    static void executer(Connection connexion, String sql, Object... valeurs) throws SQLException {
         try (PreparedStatement requete = connexion.prepareStatement(sql)) {
             for (int position = 0; position < valeurs.length; position++) {
                 requete.setObject(position + 1, valeurs[position]);

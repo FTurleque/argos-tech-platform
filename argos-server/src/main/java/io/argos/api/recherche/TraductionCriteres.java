@@ -71,61 +71,103 @@ public class TraductionCriteres {
     public RechercheVeille.Criteres traduire(CriteresRecherche criteresRecus, Caller appelant, boolean verifierProjets) {
         CriteresRecherche criteres = criteresRecus == null
                 ? new CriteresRecherche(null, null, null, null, null, null, null) : criteresRecus;
+        String texte = texte(criteres).orElse(null);
+        Set<UUID> projets = projets(criteres, appelant, verifierProjets);
+        Set<String> technologies = technologies(criteres);
+        Set<String> types = typesRestreintsAuxProfils(criteres).orElse(null);
+        Set<String> gravites = gravites(criteres).orElse(null);
+        Instant depuis = depuis(criteres).orElse(null);
+        return new RechercheVeille.Criteres(texte, types, projets, technologies, gravites, depuis, null, null);
+    }
+
+    /** Texte recherché sans espaces de bord ; vide s'il est absent ou blanc. */
+    private static Optional<String> texte(CriteresRecherche criteres) {
         String texte = criteres.texte() == null || criteres.texte().isBlank() ? null : criteres.texte().strip();
         if (texte != null && texte.length() > TEXTE_MAX) {
             throw invalide("texte", "Le texte recherché compte au plus " + TEXTE_MAX + " caractères.");
         }
-        Set<UUID> projets = new LinkedHashSet<>(liste("projets", criteres.projets()));
+        return Optional.ofNullable(texte);
+    }
+
+    /** Projets filtrés ; avec {@code verifierProjets}, chacun doit être visible de l'appelant. */
+    private Set<UUID> projets(CriteresRecherche criteres, Caller appelant, boolean verifierProjets) {
+        Set<UUID> projets = new LinkedHashSet<>(validerValeurs("projets", criteres.projets()));
         if (verifierProjets) {
             projets.forEach(projet -> exigerProjetVisible(appelant, projet));
         }
+        return projets;
+    }
+
+    private static Set<String> technologies(CriteresRecherche criteres) {
         Set<String> technologies = new LinkedHashSet<>();
-        for (String technologie : liste("technologies", criteres.technologies())) {
+        for (String technologie : validerValeurs("technologies", criteres.technologies())) {
             if (technologie == null || technologie.isBlank() || technologie.strip().length() > TECHNOLOGIE_MAX) {
                 throw invalide("technologies", "Chaque technologie compte de 1 à " + TECHNOLOGIE_MAX + " caractères.");
             }
             technologies.add(technologie.strip());
         }
-        Set<String> types = null;
-        if (!liste("types", criteres.types()).isEmpty()) {
-            types = new LinkedHashSet<>();
-            for (String valeur : criteres.types()) {
-                String type = valeur == null ? "" : valeur.strip().toUpperCase(Locale.ROOT);
-                if (!RechercheVeille.TYPES.contains(type)) {
-                    throw invalide("types", "Type inconnu ; types admis : " + String.join(", ", RechercheVeille.TYPES) + ".");
-                }
-                types.add(type);
-            }
+        return technologies;
+    }
+
+    /** Types demandés, en majuscules ; vide si aucun type n'est filtré. */
+    private static Optional<Set<String>> types(CriteresRecherche criteres) {
+        if (validerValeurs("types", criteres.types()).isEmpty()) {
+            return Optional.empty();
         }
-        if (!liste("profils", criteres.profils()).isEmpty()) {
-            Set<String> categories = new LinkedHashSet<>();
-            for (String identifiant : criteres.profils()) {
-                ManifesteProfil profil = Optional.ofNullable(identifiant).map(String::strip).flatMap(profils::trouver)
-                        .orElseThrow(() -> invalide("profils", "Profil de veille inconnu ou retiré du catalogue."));
-                categories.addAll(profil.categoriesSources());
+        Set<String> types = new LinkedHashSet<>();
+        for (String valeur : criteres.types()) {
+            String type = valeur == null ? "" : valeur.strip().toUpperCase(Locale.ROOT);
+            if (!RechercheVeille.TYPES.contains(type)) {
+                throw invalide("types", "Type inconnu ; types admis : " + String.join(", ", RechercheVeille.TYPES) + ".");
             }
-            Set<String> duProfil = RechercheVeille.typesDesCategories(categories);
-            if (types == null) {
-                types = duProfil;
-            } else {
-                types.retainAll(duProfil);
-            }
+            types.add(type);
         }
-        Set<String> gravites = null;
-        if (criteres.gravite() != null && !criteres.gravite().isBlank()) {
-            if (!Gravite.reconnue(criteres.gravite())) {
-                throw invalide("gravite", "Gravité inconnue ; gravités admises : " + String.join(", ", Gravite.GRADUEES) + ".");
-            }
-            gravites = Gravite.auMoins(criteres.gravite());
+        return Optional.of(types);
+    }
+
+    /**
+     * Types demandés restreints à ceux des catégories de sources des profils demandés ; sans type demandé, les types
+     * des profils. Sans profil demandé, les types demandés tels quels ; vide si aucun type n'est filtré.
+     */
+    private Optional<Set<String>> typesRestreintsAuxProfils(CriteresRecherche criteres) {
+        Optional<Set<String>> types = types(criteres);
+        if (validerValeurs("profils", criteres.profils()).isEmpty()) {
+            return types;
         }
-        Instant depuis = null;
-        if (criteres.horizonJours() != null) {
-            if (criteres.horizonJours() < 1 || criteres.horizonJours() > HORIZON_MAX) {
-                throw invalide("horizonJours", "L'horizon est compris entre 1 et " + HORIZON_MAX + " jours.");
-            }
-            depuis = Instant.now().minus(Duration.ofDays(criteres.horizonJours()));
+        Set<String> categories = new LinkedHashSet<>();
+        for (String identifiant : criteres.profils()) {
+            ManifesteProfil profil = Optional.ofNullable(identifiant).map(String::strip).flatMap(profils::trouver)
+                    .orElseThrow(() -> invalide("profils", "Profil de veille inconnu ou retiré du catalogue."));
+            categories.addAll(profil.categoriesSources());
         }
-        return new RechercheVeille.Criteres(texte, types, projets, technologies, gravites, depuis, null, null);
+        Set<String> duProfil = RechercheVeille.typesDesCategories(categories);
+        if (types.isEmpty()) {
+            return Optional.of(duProfil);
+        }
+        types.get().retainAll(duProfil);
+        return types;
+    }
+
+    /** Gravités au moins égales à celle demandée ; vide si aucune gravité n'est filtrée. */
+    private static Optional<Set<String>> gravites(CriteresRecherche criteres) {
+        if (criteres.gravite() == null || criteres.gravite().isBlank()) {
+            return Optional.empty();
+        }
+        if (!Gravite.reconnue(criteres.gravite())) {
+            throw invalide("gravite", "Gravité inconnue ; gravités admises : " + String.join(", ", Gravite.GRADUEES) + ".");
+        }
+        return Optional.of(Gravite.auMoins(criteres.gravite()));
+    }
+
+    /** Instant de début de l'horizon demandé ; vide sans horizon. */
+    private static Optional<Instant> depuis(CriteresRecherche criteres) {
+        if (criteres.horizonJours() == null) {
+            return Optional.empty();
+        }
+        if (criteres.horizonJours() < 1 || criteres.horizonJours() > HORIZON_MAX) {
+            throw invalide("horizonJours", "L'horizon est compris entre 1 et " + HORIZON_MAX + " jours.");
+        }
+        return Optional.of(Instant.now().minus(Duration.ofDays(criteres.horizonJours())));
     }
 
     private void exigerProjetVisible(Caller appelant, UUID projet) {
@@ -138,7 +180,8 @@ public class TraductionCriteres {
         }
     }
 
-    private static <T> List<T> liste(String attribut, List<T> valeurs) {
+    /** Valeurs d'un filtre : au plus {@link #VALEURS_MAX}, aucune absente ; liste vide si le filtre est absent. */
+    private static <T> List<T> validerValeurs(String attribut, List<T> valeurs) {
         if (valeurs == null) {
             return List.of();
         }

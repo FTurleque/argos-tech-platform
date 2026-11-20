@@ -1,5 +1,6 @@
 package io.argos.aigateway;
 
+import java.io.IOException;
 import java.math.BigDecimal;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
@@ -74,8 +75,8 @@ public class PasserelleIa {
     public boolean disponible(UUID espaceId) {
         try {
             return active && quotas.disponible(espaceId);
-        } catch (RuntimeException erreur) {
-            LOG.infof("quotas IA illisibles : %s", erreur.getMessage());
+        } catch (IllegalStateException erreur) {
+            LOG.infof(erreur, "quotas IA illisibles : %s", erreur.getMessage());
             return false;
         }
     }
@@ -106,8 +107,8 @@ public class PasserelleIa {
         QuotasIa.Reservation reservation;
         try {
             reservation = quotas.reserver(demande.espaceId(), demande.compteId());
-        } catch (RuntimeException erreur) {
-            LOG.warnf("quotas IA indisponibles : %s", erreur.getMessage());
+        } catch (IllegalStateException erreur) {
+            LOG.warnf(erreur, "quotas IA indisponibles : %s", erreur.getMessage());
             return ReponseIa.refus(Issue.INDISPONIBLE, modele, prompt.version());
         }
         Optional<Issue> refusQuota = refusDeQuota(reservation);
@@ -172,17 +173,26 @@ public class PasserelleIa {
                     message(filtrees), schema(prompt))));
         } catch (InterruptedException interruption) {
             Thread.currentThread().interrupt();
+            LOG.infof(interruption, "appel du modèle %s interrompu pour la tâche %s", modele, prompt.tache());
             return Optional.empty();
-        } catch (Exception erreur) {
-            LOG.infof("modèle %s indisponible pour la tâche %s : %s", modele, prompt.tache(), erreur.toString());
-            if (nonTransmis(erreur)) {
-                try {
-                    quotas.liberer(demande.espaceId(), demande.compteId());
-                } catch (RuntimeException erreurRestitution) {
-                    LOG.warnf("restitution du quota IA impossible : %s", erreurRestitution.getMessage());
-                }
+        } catch (IOException erreur) {
+            LOG.infof(erreur, "modèle %s indisponible pour la tâche %s : %s", modele, prompt.tache(), erreur.toString());
+            rendreQuotaSiNonTransmis(demande, erreur);
+            return Optional.empty();
+        }
+    }
+
+    /**
+     * Panne du fournisseur ({@link FournisseurModele#executer}) : le quota réservé est rendu quand la demande n'a pas
+     * atteint le fournisseur ; la passerelle répond alors par un motif et l'appelant poursuit sans IA.
+     */
+    private void rendreQuotaSiNonTransmis(DemandeIa demande, IOException erreur) {
+        if (nonTransmis(erreur)) {
+            try {
+                quotas.liberer(demande.espaceId(), demande.compteId());
+            } catch (IllegalStateException erreurRestitution) {
+                LOG.warnf(erreurRestitution, "restitution du quota IA impossible : %s", erreurRestitution.getMessage());
             }
-            return Optional.empty();
         }
     }
 
@@ -280,7 +290,7 @@ public class PasserelleIa {
             journal.enregistrer(new JournalAppelsIa.Entree(prompt.tache(), prompt.version(), fournisseur.nom(),
                     brute == null ? modele : brute.modele(), espaceId, issue.name(),
                     brute == null ? 0 : brute.jetonsEntree(), brute == null ? 0 : brute.jetonsSortie(),
-                    brute == null ? BigDecimal.ZERO : BigDecimal.valueOf(brute.coutEur()), empreinte, masquees,
+                    brute == null ? BigDecimal.ZERO : brute.coutEur(), empreinte, masquees,
                     dureeMs));
         }
     }

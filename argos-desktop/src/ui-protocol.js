@@ -34,26 +34,26 @@ function contentSecurityPolicy(apiUrl, oidcUrl) {
 
 /**
  * Transforme une URL app://argos/... en chemin de fichier à l'intérieur de uiDir.
- * Renvoie null si l'URL vise un autre hôte ou sort du dossier (« ../ »).
+ * Renvoie undefined si l'URL vise un autre hôte ou sort du dossier (« ../ »).
  */
 function resolveUiFile(requestUrl, uiDir) {
   let url;
   try {
     url = new URL(requestUrl);
   } catch {
-    return null;
+    return undefined;
   }
-  if (url.protocol !== `${SCHEME}:` || url.host !== HOST) return null;
+  if (url.protocol !== `${SCHEME}:` || url.host !== HOST) return undefined;
   let relative;
   try {
     relative = decodeURIComponent(url.pathname);
   } catch {
-    return null;
+    return undefined;
   }
   if (relative === '/' || relative === '') relative = '/index.html';
   const root = path.resolve(uiDir);
   const target = path.resolve(root, '.' + relative);
-  if (target !== root && !target.startsWith(root + path.sep)) return null;
+  if (target !== root && !target.startsWith(root + path.sep)) return undefined;
   return target;
 }
 

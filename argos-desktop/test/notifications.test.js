@@ -2,7 +2,9 @@
 // Contenu des notifications et du compteur (notifier-sur-le-poste : NOT-03, NOT-05).
 const test = require('node:test');
 const assert = require('node:assert/strict');
-const { TITRE_NOTIFICATION, validerAlerte, texteNotification, libelleCompteur, infobulle, compteurValide } = require('../src/notifications');
+const {
+  TITRE_NOTIFICATION, validerAlerte, texteNotification, libelleCompteur, infobulle, compteurValide,
+} = require('../src/notifications');
 
 const ID_ALERTE = '3f2b8c1e-4d5a-4b6c-8d7e-9f0a1b2c3d4e';
 
@@ -45,7 +47,7 @@ test('une alerte invalide est rejetée', () => {
     { id: ID_ALERTE, projets: 10000 },
     { id: 42, projets: 1 },
   ]) {
-    assert.equal(validerAlerte(payload), null, JSON.stringify(payload));
+    assert.equal(validerAlerte(payload), undefined, JSON.stringify(payload));
   }
 });
 
@@ -54,5 +56,5 @@ test('NOT-03 : libellé du compteur dans la zone de notification', () => {
   assert.equal(libelleCompteur(1), '1 alerte ouverte');
   assert.equal(infobulle(3), 'ARGOS — 3 alertes ouvertes');
   assert.equal(compteurValide(3), 3);
-  for (const nombre of [-1, 1.2, NaN, '3', 10000, null]) assert.equal(compteurValide(nombre), null, String(nombre));
+  for (const nombre of [-1, 1.2, NaN, '3', 10000, null]) assert.equal(compteurValide(nombre), undefined, String(nombre));
 });

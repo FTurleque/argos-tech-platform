@@ -1,5 +1,7 @@
 package io.argos.aigateway;
 
+import java.io.IOException;
+import java.math.BigDecimal;
 import java.util.Map;
 
 /**
@@ -14,15 +16,16 @@ public interface FournisseurModele {
     }
 
     /** Réponse brute : texte produit, modèle effectif, jetons d'entrée et de sortie, coût en euros. */
-    record Reponse(String texte, String modele, int jetonsEntree, int jetonsSortie, double coutEur) {
+    record Reponse(String texte, String modele, int jetonsEntree, int jetonsSortie, BigDecimal coutEur) {
     }
 
     /** Nom court du fournisseur, tracé avec chaque appel. */
     String nom();
 
     /**
-     * Exécute la requête. Lève une exception si le fournisseur est injoignable, répond en erreur ou
-     * dépasse le délai configuré.
+     * Exécute la requête. Lève {@link IOException} si le fournisseur est injoignable, répond en erreur,
+     * renvoie une réponse illisible ou dépasse le délai configuré, et {@link InterruptedException} si
+     * l'attente de la réponse est interrompue.
      */
-    Reponse executer(Requete requete) throws Exception;
+    Reponse executer(Requete requete) throws IOException, InterruptedException;
 }
