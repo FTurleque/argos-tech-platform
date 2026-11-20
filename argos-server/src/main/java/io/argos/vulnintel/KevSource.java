@@ -67,7 +67,7 @@ public class KevSource implements EnrichmentSource {
         }
         Optional<JsonNode> root = http.getJson(URI.create(url));
         Map<String, JsonNode> index = new HashMap<>();
-        root.ifPresent(r -> r.path("vulnerabilities").forEach(v -> index.put(v.path("cveID").asText(), v)));
+        root.ifPresent(document -> document.path("vulnerabilities").forEach(entry -> index.put(entry.path("cveID").asText(), entry)));
         catalog = index;
         loadedAt = Instant.now();
         return catalog;

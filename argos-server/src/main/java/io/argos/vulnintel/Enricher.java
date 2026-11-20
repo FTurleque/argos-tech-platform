@@ -58,8 +58,8 @@ public class Enricher {
         try {
             // Nouvelle transaction : celle qui a émis l'événement est déjà validée.
             QuarkusTransaction.requiringNew().run(() -> enrich(event.signalId()));
-        } catch (RuntimeException e) {
-            LOG.warnf("enrichissement du signal %s différé : %s", event.signalId(), e.getMessage());
+        } catch (RuntimeException error) {
+            LOG.warnf("enrichissement du signal %s différé : %s", event.signalId(), error.getMessage());
         }
     }
 
@@ -72,12 +72,12 @@ public class Enricher {
             }
             for (EnrichmentSource source : sources) {
                 try {
-                    for (EnrichmentSource.Finding f : source.lookup(cve)) {
-                        save(signalId, source.id(), f);
+                    for (EnrichmentSource.Finding finding : source.lookup(cve)) {
+                        save(signalId, source.id(), finding);
                     }
-                } catch (EnrichmentUnavailableException e) {
+                } catch (EnrichmentUnavailableException error) {
                     unavailable.add(source.id());
-                    LOG.infof("source %s indisponible pour %s : %s", source.id(), cve, e.getMessage());
+                    LOG.infof("source %s indisponible pour %s : %s", source.id(), cve, error.getMessage());
                 }
             }
         }
@@ -92,15 +92,15 @@ public class Enricher {
                 WHERE a.alias LIKE 'CVE-%' AND NOT EXISTS (SELECT 1 FROM enrichment e WHERE e.signal_id = a.signal_id)
                 LIMIT ?
                 """;
-        try (Connection c = dataSource.getConnection(); PreparedStatement ps = c.prepareStatement(sql)) {
-            ps.setInt(1, limit);
-            try (ResultSet rs = ps.executeQuery()) {
-                while (rs.next()) {
-                    pending.add(rs.getObject(1, UUID.class));
+        try (Connection connection = dataSource.getConnection(); PreparedStatement statement = connection.prepareStatement(sql)) {
+            statement.setInt(1, limit);
+            try (ResultSet resultSet = statement.executeQuery()) {
+                while (resultSet.next()) {
+                    pending.add(resultSet.getObject(1, UUID.class));
                 }
             }
-        } catch (SQLException e) {
-            throw new IllegalStateException("recherche des enrichissements manquants impossible", e);
+        } catch (SQLException error) {
+            throw new IllegalStateException("recherche des enrichissements manquants impossible", error);
         }
         pending.forEach(this::enrich);
         return pending.size();
@@ -110,23 +110,23 @@ public class Enricher {
     public List<EnrichmentView> forSignal(UUID signalId) {
         List<EnrichmentView> views = new ArrayList<>();
         String sql = "SELECT source, reference, data::text, fetched_at FROM enrichment WHERE signal_id = ? ORDER BY source, reference";
-        try (Connection c = dataSource.getConnection(); PreparedStatement ps = c.prepareStatement(sql)) {
-            ps.setObject(1, signalId);
-            try (ResultSet rs = ps.executeQuery()) {
-                while (rs.next()) {
-                    views.add(new EnrichmentView(rs.getString(1), rs.getString(2), rs.getString(3),
-                            rs.getObject(4, OffsetDateTime.class).toInstant()));
+        try (Connection connection = dataSource.getConnection(); PreparedStatement statement = connection.prepareStatement(sql)) {
+            statement.setObject(1, signalId);
+            try (ResultSet resultSet = statement.executeQuery()) {
+                while (resultSet.next()) {
+                    views.add(new EnrichmentView(resultSet.getString(1), resultSet.getString(2), resultSet.getString(3),
+                            resultSet.getObject(4, OffsetDateTime.class).toInstant()));
                 }
             }
-        } catch (SQLException e) {
-            throw new IllegalStateException("lecture des enrichissements impossible", e);
+        } catch (SQLException error) {
+            throw new IllegalStateException("lecture des enrichissements impossible", error);
         }
         return views;
     }
 
     /** Vrai si le catalogue CISA KEV signale l'exploitation avérée (COL-04-S1). */
     public boolean exploited(UUID signalId) {
-        return forSignal(signalId).stream().anyMatch(e -> "KEV".equals(e.source()));
+        return forSignal(signalId).stream().anyMatch(view -> "KEV".equals(view.source()));
     }
 
     @Transactional
@@ -135,14 +135,14 @@ public class Enricher {
                 INSERT INTO enrichment(signal_id, source, reference, data, fetched_at) VALUES (?, ?, ?, ?::jsonb, now())
                 ON CONFLICT (signal_id, source, reference) DO UPDATE SET data = excluded.data, fetched_at = excluded.fetched_at
                 """;
-        try (Connection c = dataSource.getConnection(); PreparedStatement ps = c.prepareStatement(sql)) {
-            ps.setObject(1, signalId);
-            ps.setString(2, source);
-            ps.setString(3, finding.reference());
-            ps.setString(4, finding.data().toString());
-            ps.executeUpdate();
-        } catch (SQLException e) {
-            throw new IllegalStateException("enregistrement de l'enrichissement impossible", e);
+        try (Connection connection = dataSource.getConnection(); PreparedStatement statement = connection.prepareStatement(sql)) {
+            statement.setObject(1, signalId);
+            statement.setString(2, source);
+            statement.setString(3, finding.reference());
+            statement.setString(4, finding.data().toString());
+            statement.executeUpdate();
+        } catch (SQLException error) {
+            throw new IllegalStateException("enregistrement de l'enrichissement impossible", error);
         }
     }
 }
