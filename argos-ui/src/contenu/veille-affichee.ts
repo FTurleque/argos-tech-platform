@@ -61,7 +61,7 @@ function projet(concerne: ElementVeilleProfils['projets'][number]): ProjetConcer
 
 function texte(valeur: string | null | undefined): string | null {
   const nettoye = valeur?.trim()
-  return nettoye ? nettoye : null
+  return nettoye || null
 }
 
 /** Élément affiché correspondant à un élément de la veille ; aucune information reçue n'est écartée. */

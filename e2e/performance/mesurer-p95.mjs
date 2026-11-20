@@ -302,7 +302,11 @@ async function principal() {
   }
 }
 
-principal().then((code) => process.exit(code), (echec) => {
+let codeSortie
+try {
+  codeSortie = await principal()
+} catch (echec) {
   console.error(`campagne de performance en échec : ${echec?.message ?? echec}`)
-  process.exit(1)
-})
+  codeSortie = 1
+}
+process.exit(codeSortie)

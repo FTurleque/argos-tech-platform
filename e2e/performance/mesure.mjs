@@ -162,6 +162,13 @@ function cellule(valeur) {
 
 const LIBELLES_VERDICT = { DANS_LA_CIBLE: 'dans la cible', HORS_CIBLE: '**hors cible**', EN_ERREUR: '**en erreur**' }
 
+/** Verdict global en clair : campagne invalide, hors cible ou dans la cible. */
+function libelleVerdict(verdict) {
+  if (!verdict.valide) return `campagne invalide : ${verdict.enErreur.join(', ')}`
+  if (!verdict.dansLaCible) return `hors cible : ${verdict.horsCible.join(', ')}`
+  return 'toutes les opérations dans la cible'
+}
+
 /** Rapport Markdown versionné (PERF-02-S1) : date, révision, environnement, jeu de données, concurrence, mesures. */
 export function rapportMarkdown(rapport) {
   const verdict = rapport.verdict
@@ -185,9 +192,7 @@ export function rapportMarkdown(rapport) {
     `| Jeu de données | ${cellule(rapport.jeuDeDonnees.description)} |`,
     `| Appels par opération | ${rapport.parametres.appelsParOperation} (après ${rapport.parametres.echauffement} appels d’échauffement) |`,
     `| Concurrence | ${rapport.parametres.concurrence} clients simultanés |`,
-    `| Verdict | ${verdict.valide
-      ? (verdict.dansLaCible ? 'toutes les opérations dans la cible' : `hors cible : ${verdict.horsCible.join(', ')}`)
-      : `campagne invalide : ${verdict.enErreur.join(', ')}`} |`,
+    `| Verdict | ${libelleVerdict(verdict)} |`,
     `| Code de sortie | ${verdict.codeSortie} |`,
     '',
     '## Mesures par opération',
