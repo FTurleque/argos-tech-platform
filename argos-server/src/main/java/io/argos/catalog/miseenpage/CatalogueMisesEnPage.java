@@ -57,7 +57,7 @@ public class CatalogueMisesEnPage {
         if (retirees.contains(PAR_DEFAUT)) {
             throw new IllegalStateException("La mise en page par défaut « " + PAR_DEFAUT + " » ne peut pas être retirée");
         }
-        if (declarees.stream().noneMatch(m -> m.identifiant().equals(PAR_DEFAUT))) {
+        if (declarees.stream().noneMatch(miseEnPage -> miseEnPage.identifiant().equals(PAR_DEFAUT))) {
             throw new IllegalStateException("Le catalogue doit déclarer la mise en page « " + PAR_DEFAUT + " »");
         }
         this.declarees = List.copyOf(declarees);
@@ -66,28 +66,28 @@ public class CatalogueMisesEnPage {
 
     /** Mises en page publiées, dans l'ordre du catalogue. */
     public List<MiseEnPage> publiees() {
-        return declarees.stream().filter(m -> !retirees.contains(m.identifiant())).toList();
+        return declarees.stream().filter(miseEnPage -> !retirees.contains(miseEnPage.identifiant())).toList();
     }
 
     /** Vrai si la mise en page est déclarée et non retirée. */
     public boolean estPubliee(String identifiant) {
-        return identifiant != null && publiees().stream().anyMatch(m -> m.identifiant().equals(identifiant));
+        return identifiant != null && publiees().stream().anyMatch(miseEnPage -> miseEnPage.identifiant().equals(identifiant));
     }
 
     private static void valider(List<MiseEnPage> declarees) {
         List<String> erreurs = new ArrayList<>();
         Set<String> vus = new HashSet<>();
-        for (MiseEnPage m : declarees) {
-            if (m == null || m.identifiant() == null || m.identifiant().length() > LONGUEUR_MAX
-                    || !IDENTIFIANT.matcher(m.identifiant()).matches()) {
-                erreurs.add("identifiant absent ou mal formé : " + (m == null ? null : m.identifiant()));
+        for (MiseEnPage miseEnPage : declarees) {
+            if (miseEnPage == null || miseEnPage.identifiant() == null || miseEnPage.identifiant().length() > LONGUEUR_MAX
+                    || !IDENTIFIANT.matcher(miseEnPage.identifiant()).matches()) {
+                erreurs.add("identifiant absent ou mal formé : " + (miseEnPage == null ? null : miseEnPage.identifiant()));
                 continue;
             }
-            if (!vus.add(m.identifiant())) {
-                erreurs.add("mise en page déclarée deux fois : " + m.identifiant());
+            if (!vus.add(miseEnPage.identifiant())) {
+                erreurs.add("mise en page déclarée deux fois : " + miseEnPage.identifiant());
             }
-            if (m.libelle() == null || m.libelle().isBlank()) {
-                erreurs.add("libellé absent : " + m.identifiant());
+            if (miseEnPage.libelle() == null || miseEnPage.libelle().isBlank()) {
+                erreurs.add("libellé absent : " + miseEnPage.identifiant());
             }
         }
         if (!erreurs.isEmpty()) {
@@ -96,19 +96,19 @@ public class CatalogueMisesEnPage {
     }
 
     private static List<MiseEnPage> lire(ObjectMapper mapper) {
-        try (InputStream in = Thread.currentThread().getContextClassLoader().getResourceAsStream(RESSOURCE)) {
-            if (in == null) {
+        try (InputStream flux = Thread.currentThread().getContextClassLoader().getResourceAsStream(RESSOURCE)) {
+            if (flux == null) {
                 throw new IllegalStateException("Ressource absente : " + RESSOURCE);
             }
-            return analyser(mapper, in);
-        } catch (IOException e) {
-            throw new UncheckedIOException("Catalogue des mises en page illisible : " + RESSOURCE, e);
+            return analyser(mapper, flux);
+        } catch (IOException erreur) {
+            throw new UncheckedIOException("Catalogue des mises en page illisible : " + RESSOURCE, erreur);
         }
     }
 
     /** Lecture stricte : une propriété inconnue est refusée, comme pour les manifestes de profils. */
-    static List<MiseEnPage> analyser(ObjectMapper mapper, InputStream in) throws IOException {
+    static List<MiseEnPage> analyser(ObjectMapper mapper, InputStream flux) throws IOException {
         return mapper.copy().enable(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES)
-                .readValue(in, new TypeReference<List<MiseEnPage>>() { });
+                .readValue(flux, new TypeReference<List<MiseEnPage>>() { });
     }
 }

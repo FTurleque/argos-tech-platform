@@ -95,46 +95,47 @@ public class DictionnaireMetier {
 
     /** Domaines de l'espace, visibles de tout membre. */
     public List<Domaine> domaines(UUID compte, UUID espace) {
-        return base.executer(new Contexte(compte, null, espace), c -> lire(c, List.of(espace)).getOrDefault(espace, List.of()));
+        return base.executer(new Contexte(compte, null, espace),
+                connexion -> lire(connexion, List.of(espace)).getOrDefault(espace, List.of()));
     }
 
     // ------------------------------------------------------------------ écritures d'un administrateur
 
     /** Crée le domaine ou change son libellé. */
     public Domaine enregistrerDomaine(UUID compte, UUID espace, String code, String libelle) {
-        String c0 = code(code);
-        String l = libelle == null ? "" : libelle.strip();
-        if (l.isEmpty() || l.length() > 200) {
+        String codeNormalise = code(code);
+        String libelleNormalise = libelle == null ? "" : libelle.strip();
+        if (libelleNormalise.isEmpty() || libelleNormalise.length() > 200) {
             throw new DonneeInvalide("DONNEE_INVALIDE", "Indiquez un libellé de 1 à 200 caractères.", "libelle");
         }
-        return base.executer(new Contexte(compte, null, espace), c -> {
-            if (compter(c, espace) >= DOMAINES_MAX && trouver(c, espace, c0) == null) {
+        return base.executer(new Contexte(compte, null, espace), connexion -> {
+            if (compter(connexion, espace) >= DOMAINES_MAX && trouver(connexion, espace, codeNormalise) == null) {
                 throw new DonneeInvalide("DONNEE_INVALIDE", DOMAINES_MAX + " domaines au plus par espace.", "code");
             }
-            try (PreparedStatement ps = c.prepareStatement("""
+            try (PreparedStatement requete = connexion.prepareStatement("""
                     INSERT INTO domaine_metier (espace_id, code, libelle, modifie_par, modifie_le)
                     VALUES (?, ?, ?, argos_compte_courant(), ?)
                     ON CONFLICT (espace_id, code) DO UPDATE
                     SET libelle = excluded.libelle, modifie_par = excluded.modifie_par, modifie_le = excluded.modifie_le
                     """)) {
-                ps.setObject(1, espace);
-                ps.setString(2, c0);
-                ps.setString(3, l);
-                ps.setTimestamp(4, Timestamp.from(Instant.now()));
-                ps.executeUpdate();
+                requete.setObject(1, espace);
+                requete.setString(2, codeNormalise);
+                requete.setString(3, libelleNormalise);
+                requete.setTimestamp(4, Timestamp.from(Instant.now()));
+                requete.executeUpdate();
             }
-            return exiger(c, espace, c0);
+            return exiger(connexion, espace, codeNormalise);
         });
     }
 
     /** Supprime le domaine, ses règles, ses experts et ses rattachements aux fiches. */
     public void supprimerDomaine(UUID compte, UUID espace, String code) {
-        String c0 = code(code);
-        base.executer(new Contexte(compte, null, espace), c -> {
-            try (PreparedStatement ps = c.prepareStatement("DELETE FROM domaine_metier WHERE espace_id = ? AND code = ?")) {
-                ps.setObject(1, espace);
-                ps.setString(2, c0);
-                if (ps.executeUpdate() == 0) {
+        String codeNormalise = code(code);
+        base.executer(new Contexte(compte, null, espace), connexion -> {
+            try (PreparedStatement requete = connexion.prepareStatement("DELETE FROM domaine_metier WHERE espace_id = ? AND code = ?")) {
+                requete.setObject(1, espace);
+                requete.setString(2, codeNormalise);
+                if (requete.executeUpdate() == 0) {
                     throw new Introuvable("Domaine introuvable.");
                 }
             }
@@ -144,32 +145,32 @@ public class DictionnaireMetier {
 
     /** Remplace les règles du domaine ; chaque valeur est nettoyée et bornée. */
     public Domaine remplacerRegles(UUID compte, UUID espace, String code, List<Regle> regles) {
-        String c0 = code(code);
+        String codeNormalise = code(code);
         Set<Regle> valides = valider(regles);
-        return base.executer(new Contexte(compte, null, espace), c -> {
-            exiger(c, espace, c0);
-            try (PreparedStatement ps = c.prepareStatement(
+        return base.executer(new Contexte(compte, null, espace), connexion -> {
+            exiger(connexion, espace, codeNormalise);
+            try (PreparedStatement requete = connexion.prepareStatement(
                     "DELETE FROM regle_dictionnaire WHERE espace_id = ? AND domaine = ?")) {
-                ps.setObject(1, espace);
-                ps.setString(2, c0);
-                ps.executeUpdate();
+                requete.setObject(1, espace);
+                requete.setString(2, codeNormalise);
+                requete.executeUpdate();
             }
-            try (PreparedStatement ps = c.prepareStatement("""
+            try (PreparedStatement requete = connexion.prepareStatement("""
                     INSERT INTO regle_dictionnaire (espace_id, domaine, type, valeur, modifie_par, modifie_le)
                     VALUES (?, ?, ?, ?, argos_compte_courant(), ?)
                     """)) {
                 Timestamp maintenant = Timestamp.from(Instant.now());
-                for (Regle r : valides) {
-                    ps.setObject(1, espace);
-                    ps.setString(2, c0);
-                    ps.setString(3, r.type().name());
-                    ps.setString(4, r.valeur());
-                    ps.setTimestamp(5, maintenant);
-                    ps.addBatch();
+                for (Regle regle : valides) {
+                    requete.setObject(1, espace);
+                    requete.setString(2, codeNormalise);
+                    requete.setString(3, regle.type().name());
+                    requete.setString(4, regle.valeur());
+                    requete.setTimestamp(5, maintenant);
+                    requete.addBatch();
                 }
-                ps.executeBatch();
+                requete.executeBatch();
             }
-            return exiger(c, espace, c0);
+            return exiger(connexion, espace, codeNormalise);
         });
     }
 
@@ -178,48 +179,48 @@ public class DictionnaireMetier {
      * l'espace ; sinon la désignation est refusée.
      */
     public Domaine remplacerExperts(UUID compte, UUID espace, String code, List<UUID> experts) {
-        String c0 = code(code);
+        String codeNormalise = code(code);
         if (experts == null || experts.size() > EXPERTS_MAX || experts.stream().anyMatch(Objects::isNull)) {
             throw new DonneeInvalide("DONNEE_INVALIDE", "Indiquez de 0 à " + EXPERTS_MAX + " comptes.", "comptes");
         }
         Set<UUID> distincts = new LinkedHashSet<>(experts);
-        return base.executer(new Contexte(compte, null, espace), c -> {
-            exiger(c, espace, c0);
-            for (UUID e : distincts) {
-                try (PreparedStatement ps = c.prepareStatement("""
+        return base.executer(new Contexte(compte, null, espace), connexion -> {
+            exiger(connexion, espace, codeNormalise);
+            for (UUID expert : distincts) {
+                try (PreparedStatement requete = connexion.prepareStatement("""
                         SELECT 1 FROM appartenance
                         WHERE espace_id = ? AND compte_id = ? AND role IN ('CONTRIBUTEUR', 'ADMINISTRATEUR')
                         """)) {
-                    ps.setObject(1, espace);
-                    ps.setObject(2, e);
-                    try (ResultSet rs = ps.executeQuery()) {
-                        if (!rs.next()) {
+                    requete.setObject(1, espace);
+                    requete.setObject(2, expert);
+                    try (ResultSet resultat = requete.executeQuery()) {
+                        if (!resultat.next()) {
                             throw new DonneeInvalide("EXPERT_NON_MEMBRE",
                                     "Un expert doit être membre contributeur ou administrateur de l'espace.", "comptes");
                         }
                     }
                 }
             }
-            try (PreparedStatement ps = c.prepareStatement("DELETE FROM expert_domaine WHERE espace_id = ? AND domaine = ?")) {
-                ps.setObject(1, espace);
-                ps.setString(2, c0);
-                ps.executeUpdate();
+            try (PreparedStatement requete = connexion.prepareStatement("DELETE FROM expert_domaine WHERE espace_id = ? AND domaine = ?")) {
+                requete.setObject(1, espace);
+                requete.setString(2, codeNormalise);
+                requete.executeUpdate();
             }
-            try (PreparedStatement ps = c.prepareStatement("""
+            try (PreparedStatement requete = connexion.prepareStatement("""
                     INSERT INTO expert_domaine (espace_id, domaine, compte_id, modifie_par, modifie_le)
                     VALUES (?, ?, ?, argos_compte_courant(), ?)
                     """)) {
                 Timestamp maintenant = Timestamp.from(Instant.now());
-                for (UUID e : distincts) {
-                    ps.setObject(1, espace);
-                    ps.setString(2, c0);
-                    ps.setObject(3, e);
-                    ps.setTimestamp(4, maintenant);
-                    ps.addBatch();
+                for (UUID expert : distincts) {
+                    requete.setObject(1, espace);
+                    requete.setString(2, codeNormalise);
+                    requete.setObject(3, expert);
+                    requete.setTimestamp(4, maintenant);
+                    requete.addBatch();
                 }
-                ps.executeBatch();
+                requete.executeBatch();
             }
-            return exiger(c, espace, c0);
+            return exiger(connexion, espace, codeNormalise);
         });
     }
 
@@ -227,18 +228,18 @@ public class DictionnaireMetier {
 
     /** Dictionnaires de tous les espaces qui ont au moins un domaine (qualification des textes). */
     public List<DictionnaireEspace> dictionnaires() {
-        try (Connection c = dataSource.getConnection()) {
+        try (Connection connexion = dataSource.getConnection()) {
             List<UUID> espaces = new ArrayList<>();
-            try (PreparedStatement ps = c.prepareStatement("SELECT DISTINCT espace_id FROM domaine_metier ORDER BY espace_id");
-                    ResultSet rs = ps.executeQuery()) {
-                while (rs.next()) {
-                    espaces.add(rs.getObject(1, UUID.class));
+            try (PreparedStatement requete = connexion.prepareStatement("SELECT DISTINCT espace_id FROM domaine_metier ORDER BY espace_id");
+                    ResultSet resultat = requete.executeQuery()) {
+                while (resultat.next()) {
+                    espaces.add(resultat.getObject(1, UUID.class));
                 }
             }
-            Map<UUID, List<Domaine>> parEspace = lire(c, espaces);
-            return espaces.stream().map(e -> new DictionnaireEspace(e, parEspace.getOrDefault(e, List.of()))).toList();
-        } catch (SQLException e) {
-            throw new IllegalStateException("lecture des dictionnaires métier impossible", e);
+            Map<UUID, List<Domaine>> parEspace = lire(connexion, espaces);
+            return espaces.stream().map(espace -> new DictionnaireEspace(espace, parEspace.getOrDefault(espace, List.of()))).toList();
+        } catch (SQLException erreur) {
+            throw new IllegalStateException("lecture des dictionnaires métier impossible", erreur);
         }
     }
 
@@ -251,22 +252,22 @@ public class DictionnaireMetier {
         if (domaines.isEmpty()) {
             return liste;
         }
-        try (Connection c = dataSource.getConnection(); PreparedStatement ps = c.prepareStatement("""
+        try (Connection connexion = dataSource.getConnection(); PreparedStatement requete = connexion.prepareStatement("""
                 SELECT DISTINCT x.compte_id, co.email FROM expert_domaine x
                 JOIN appartenance a ON a.espace_id = x.espace_id AND a.compte_id = x.compte_id
                                    AND a.role IN ('CONTRIBUTEUR', 'ADMINISTRATEUR')
                 JOIN compte co ON co.id = x.compte_id
                 WHERE x.espace_id = ? AND x.domaine = ANY (?) ORDER BY x.compte_id
                 """)) {
-            ps.setObject(1, espace);
-            ps.setArray(2, c.createArrayOf("varchar", domaines.toArray()));
-            try (ResultSet rs = ps.executeQuery()) {
-                while (rs.next()) {
-                    liste.add(new Expert(rs.getObject(1, UUID.class), rs.getString(2)));
+            requete.setObject(1, espace);
+            requete.setArray(2, connexion.createArrayOf("varchar", domaines.toArray()));
+            try (ResultSet resultat = requete.executeQuery()) {
+                while (resultat.next()) {
+                    liste.add(new Expert(resultat.getObject(1, UUID.class), resultat.getString(2)));
                 }
             }
-        } catch (SQLException e) {
-            throw new IllegalStateException("lecture des experts impossible", e);
+        } catch (SQLException erreur) {
+            throw new IllegalStateException("lecture des experts impossible", erreur);
         }
         return liste;
     }
@@ -275,12 +276,12 @@ public class DictionnaireMetier {
 
     /** Code de domaine : minuscules, chiffres et tirets, 64 caractères au plus. */
     public static String code(String code) {
-        String c = code == null ? "" : code.strip();
-        if (!c.matches("[a-z0-9][a-z0-9-]{0,63}")) {
+        String normalise = code == null ? "" : code.strip();
+        if (!normalise.matches("[a-z0-9][a-z0-9-]{0,63}")) {
             throw new DonneeInvalide("DONNEE_INVALIDE",
                     "Code de domaine invalide : minuscules, chiffres et tirets, 64 caractères au plus.", "code");
         }
-        return c;
+        return normalise;
     }
 
     static Set<Regle> valider(List<Regle> regles) {
@@ -288,100 +289,100 @@ public class DictionnaireMetier {
             throw new DonneeInvalide("DONNEE_INVALIDE", "Indiquez de 0 à " + REGLES_MAX + " règles.", "regles");
         }
         Set<Regle> valides = new LinkedHashSet<>();
-        for (Regle r : regles) {
-            if (r == null || r.type() == null) {
+        for (Regle regle : regles) {
+            if (regle == null || regle.type() == null) {
                 throw new DonneeInvalide("DONNEE_INVALIDE", "Chaque règle a un type : NATURE, MINISTERE, NOR, CODE ou MOT_CLE.",
                         "regles");
             }
-            String v = r.valeur() == null ? "" : r.valeur().strip().replaceAll("\\s+", " ");
-            if (v.isEmpty() || v.length() > 200 || v.chars().anyMatch(Character::isISOControl)) {
+            String valeur = regle.valeur() == null ? "" : regle.valeur().strip().replaceAll("\\s+", " ");
+            if (valeur.isEmpty() || valeur.length() > 200 || valeur.chars().anyMatch(Character::isISOControl)) {
                 throw new DonneeInvalide("DONNEE_INVALIDE", "Chaque règle a une valeur de 1 à 200 caractères.", "regles");
             }
-            if (r.type() == TypeRegle.NOR) {
-                v = v.toUpperCase(Locale.ROOT);
-                if (!v.matches("[A-Z]{1,4}[A-Z0-9]{0,8}")) {
+            if (regle.type() == TypeRegle.NOR) {
+                valeur = valeur.toUpperCase(Locale.ROOT);
+                if (!valeur.matches("[A-Z]{1,4}[A-Z0-9]{0,8}")) {
                     throw new DonneeInvalide("DONNEE_INVALIDE", "Un préfixe NOR commence par des lettres (par exemple TFPF).",
                             "regles");
                 }
             }
-            if (r.type() == TypeRegle.NATURE) {
-                v = v.toUpperCase(Locale.ROOT);
+            if (regle.type() == TypeRegle.NATURE) {
+                valeur = valeur.toUpperCase(Locale.ROOT);
             }
-            valides.add(new Regle(r.type(), v));
+            valides.add(new Regle(regle.type(), valeur));
         }
         return valides;
     }
 
-    private static int compter(Connection c, UUID espace) throws SQLException {
-        try (PreparedStatement ps = c.prepareStatement("SELECT count(*) FROM domaine_metier WHERE espace_id = ?")) {
-            ps.setObject(1, espace);
-            try (ResultSet rs = ps.executeQuery()) {
-                rs.next();
-                return rs.getInt(1);
+    private static int compter(Connection connexion, UUID espace) throws SQLException {
+        try (PreparedStatement requete = connexion.prepareStatement("SELECT count(*) FROM domaine_metier WHERE espace_id = ?")) {
+            requete.setObject(1, espace);
+            try (ResultSet resultat = requete.executeQuery()) {
+                resultat.next();
+                return resultat.getInt(1);
             }
         }
     }
 
-    private static Domaine exiger(Connection c, UUID espace, String code) throws SQLException {
-        Domaine d = trouver(c, espace, code);
-        if (d == null) {
+    private static Domaine exiger(Connection connexion, UUID espace, String code) throws SQLException {
+        Domaine domaine = trouver(connexion, espace, code);
+        if (domaine == null) {
             throw new Introuvable("Domaine introuvable.");
         }
-        return d;
+        return domaine;
     }
 
-    private static Domaine trouver(Connection c, UUID espace, String code) throws SQLException {
-        return lire(c, List.of(espace)).getOrDefault(espace, List.of()).stream()
-                .filter(d -> d.code().equals(code)).findFirst().orElse(null);
+    private static Domaine trouver(Connection connexion, UUID espace, String code) throws SQLException {
+        return lire(connexion, List.of(espace)).getOrDefault(espace, List.of()).stream()
+                .filter(domaine -> domaine.code().equals(code)).findFirst().orElse(null);
     }
 
     /** Domaines des espaces, avec leurs règles et leurs experts (lus selon le contexte de la connexion). */
-    private static Map<UUID, List<Domaine>> lire(Connection c, List<UUID> espaces) throws SQLException {
+    private static Map<UUID, List<Domaine>> lire(Connection connexion, List<UUID> espaces) throws SQLException {
         Map<UUID, Map<String, String>> libelles = new LinkedHashMap<>();
         Map<String, List<Regle>> regles = new LinkedHashMap<>();
         Map<String, List<Expert>> experts = new LinkedHashMap<>();
         if (espaces.isEmpty()) {
             return Map.of();
         }
-        java.sql.Array tableau = c.createArrayOf("uuid", espaces.toArray());
-        try (PreparedStatement ps = c.prepareStatement(
+        java.sql.Array tableau = connexion.createArrayOf("uuid", espaces.toArray());
+        try (PreparedStatement requete = connexion.prepareStatement(
                 "SELECT espace_id, code, libelle FROM domaine_metier WHERE espace_id = ANY (?) ORDER BY espace_id, code")) {
-            ps.setArray(1, tableau);
-            try (ResultSet rs = ps.executeQuery()) {
-                while (rs.next()) {
-                    libelles.computeIfAbsent(rs.getObject(1, UUID.class), k -> new LinkedHashMap<>())
-                            .put(rs.getString(2), rs.getString(3));
+            requete.setArray(1, tableau);
+            try (ResultSet lignes = requete.executeQuery()) {
+                while (lignes.next()) {
+                    libelles.computeIfAbsent(lignes.getObject(1, UUID.class), cle -> new LinkedHashMap<>())
+                            .put(lignes.getString(2), lignes.getString(3));
                 }
             }
         }
-        try (PreparedStatement ps = c.prepareStatement("""
+        try (PreparedStatement requete = connexion.prepareStatement("""
                 SELECT espace_id, domaine, type, valeur FROM regle_dictionnaire WHERE espace_id = ANY (?)
                 ORDER BY espace_id, domaine, type, valeur
                 """)) {
-            ps.setArray(1, tableau);
-            try (ResultSet rs = ps.executeQuery()) {
-                while (rs.next()) {
-                    regles.computeIfAbsent(rs.getObject(1, UUID.class) + "|" + rs.getString(2), k -> new ArrayList<>())
-                            .add(new Regle(TypeRegle.valueOf(rs.getString(3)), rs.getString(4)));
+            requete.setArray(1, tableau);
+            try (ResultSet lignes = requete.executeQuery()) {
+                while (lignes.next()) {
+                    regles.computeIfAbsent(lignes.getObject(1, UUID.class) + "|" + lignes.getString(2), cle -> new ArrayList<>())
+                            .add(new Regle(TypeRegle.valueOf(lignes.getString(3)), lignes.getString(4)));
                 }
             }
         }
-        try (PreparedStatement ps = c.prepareStatement("""
+        try (PreparedStatement requete = connexion.prepareStatement("""
                 SELECT x.espace_id, x.domaine, x.compte_id, co.email FROM expert_domaine x
                 LEFT JOIN compte co ON co.id = x.compte_id
                 WHERE x.espace_id = ANY (?) ORDER BY x.espace_id, x.domaine, co.email
                 """)) {
-            ps.setArray(1, tableau);
-            try (ResultSet rs = ps.executeQuery()) {
-                while (rs.next()) {
-                    experts.computeIfAbsent(rs.getObject(1, UUID.class) + "|" + rs.getString(2), k -> new ArrayList<>())
-                            .add(new Expert(rs.getObject(3, UUID.class), rs.getString(4)));
+            requete.setArray(1, tableau);
+            try (ResultSet lignes = requete.executeQuery()) {
+                while (lignes.next()) {
+                    experts.computeIfAbsent(lignes.getObject(1, UUID.class) + "|" + lignes.getString(2), cle -> new ArrayList<>())
+                            .add(new Expert(lignes.getObject(3, UUID.class), lignes.getString(4)));
                 }
             }
         }
         Map<UUID, List<Domaine>> resultat = new LinkedHashMap<>();
         libelles.forEach((espace, domaines) -> domaines.forEach((code, libelle) -> resultat
-                .computeIfAbsent(espace, k -> new ArrayList<>())
+                .computeIfAbsent(espace, cle -> new ArrayList<>())
                 .add(new Domaine(code, libelle, regles.getOrDefault(espace + "|" + code, List.of()),
                         experts.getOrDefault(espace + "|" + code, List.of())))));
         return resultat;

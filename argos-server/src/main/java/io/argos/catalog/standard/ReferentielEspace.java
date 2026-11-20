@@ -79,13 +79,13 @@ public class ReferentielEspace {
 
     /** Référentiel de l'espace, par libellé. */
     public List<EntreeReferentiel> lister(UUID compteId, UUID espaceId) {
-        return base.executer(new Contexte(compteId, null, espaceId), c -> {
+        return base.executer(new Contexte(compteId, null, espaceId), connexion -> {
             List<EntreeReferentiel> entrees = new ArrayList<>();
-            try (PreparedStatement ps = c.prepareStatement(COLONNES + " WHERE espace_id = ? ORDER BY lower(libelle), cle")) {
-                ps.setObject(1, espaceId);
-                try (ResultSet rs = ps.executeQuery()) {
-                    while (rs.next()) {
-                        entrees.add(entree(rs));
+            try (PreparedStatement requete = connexion.prepareStatement(COLONNES + " WHERE espace_id = ? ORDER BY lower(libelle), cle")) {
+                requete.setObject(1, espaceId);
+                try (ResultSet resultat = requete.executeQuery()) {
+                    while (resultat.next()) {
+                        entrees.add(entree(resultat));
                     }
                 }
             }
@@ -98,30 +98,30 @@ public class ReferentielEspace {
      * Une saisie invalide est refusée sans rien modifier (RAD-01-S2).
      */
     public EntreeReferentiel enregistrer(UUID compteId, UUID espaceId, SaisieStandard saisie) {
-        SaisieStandard.Validee v = Objects.requireNonNull(saisie, "saisie").valider();
-        Resultat r = base.executer(new Contexte(compteId, null, espaceId),
-                c -> appliquer(c, compteId, espaceId, v, "SAISIE"));
-        r.changement().ifPresent(modifications::fire);
-        return r.entree();
+        SaisieStandard.Validee saisieValidee = Objects.requireNonNull(saisie, "saisie").valider();
+        Resultat bilan = base.executer(new Contexte(compteId, null, espaceId),
+                connexion -> appliquer(connexion, compteId, espaceId, saisieValidee, "SAISIE"));
+        bilan.changement().ifPresent(modifications::fire);
+        return bilan.entree();
     }
 
     /** Historique d'une technologie, du plus récent au plus ancien ; vide si elle est absente. */
     public List<Version> historique(UUID compteId, UUID espaceId, String cle) {
-        return base.executer(new Contexte(compteId, null, espaceId), c -> {
+        return base.executer(new Contexte(compteId, null, espaceId), connexion -> {
             List<Version> versions = new ArrayList<>();
-            try (PreparedStatement ps = c.prepareStatement("""
+            try (PreparedStatement requete = connexion.prepareStatement("""
                     SELECT h.statut, h.version_recommandee, h.responsable, h.justification, h.date_revue, h.origine,
                            h.modifie_par, h.modifie_le
                     FROM standard_historique h JOIN standard_technologie s ON s.id = h.standard_id
                     WHERE s.espace_id = ? AND s.cle = ? ORDER BY h.modifie_le DESC, h.id
                     """)) {
-                ps.setObject(1, espaceId);
-                ps.setString(2, cle);
-                try (ResultSet rs = ps.executeQuery()) {
-                    while (rs.next()) {
-                        versions.add(new Version(ReferentielStandards.Statut.valueOf(rs.getString(1)), rs.getString(2),
-                                rs.getString(3), rs.getString(4), rs.getObject(5, LocalDate.class), rs.getString(6),
-                                rs.getObject(7, UUID.class), instant(rs, 8)));
+                requete.setObject(1, espaceId);
+                requete.setString(2, cle);
+                try (ResultSet resultat = requete.executeQuery()) {
+                    while (resultat.next()) {
+                        versions.add(new Version(ReferentielStandards.Statut.valueOf(resultat.getString(1)), resultat.getString(2),
+                                resultat.getString(3), resultat.getString(4), resultat.getObject(5, LocalDate.class), resultat.getString(6),
+                                resultat.getObject(7, UUID.class), instant(resultat, 8)));
                     }
                 }
             }
@@ -134,42 +134,43 @@ public class ReferentielEspace {
      * référentiel n'est ni lu ni modifié ; la suggestion n'a d'effet qu'acceptée par un administrateur.
      */
     public UUID suggerer(UUID espaceId, String cle, String statut, String versionRecommandee, String justification) {
-        SaisieStandard.Validee v = new SaisieStandard(cle, null, statut, versionRecommandee, "IA", justification,
+        SaisieStandard.Validee saisieValidee = new SaisieStandard(cle, null, statut, versionRecommandee, "IA", justification,
                 LocalDate.now().toString(), null).valider();
         UUID id = UUID.randomUUID();
-        try (Connection c = dataSource.getConnection(); PreparedStatement ps = c.prepareStatement("""
+        try (Connection connexion = dataSource.getConnection(); PreparedStatement requete = connexion.prepareStatement("""
                 INSERT INTO standard_suggestion (id, espace_id, cle, statut, version_recommandee, justification, origine, cree_le)
                 VALUES (?, ?, ?, ?, ?, ?, 'IA', ?)
                 """)) {
-            ps.setObject(1, id);
-            ps.setObject(2, espaceId);
-            ps.setString(3, v.cle());
-            ps.setString(4, v.statut().name());
-            ps.setString(5, v.versionRecommandee());
-            ps.setString(6, v.justification());
-            ps.setObject(7, OffsetDateTime.now(ZoneOffset.UTC));
-            ps.executeUpdate();
-        } catch (SQLException e) {
-            throw new IllegalStateException("enregistrement de la suggestion impossible", e);
+            requete.setObject(1, id);
+            requete.setObject(2, espaceId);
+            requete.setString(3, saisieValidee.cle());
+            requete.setString(4, saisieValidee.statut().name());
+            requete.setString(5, saisieValidee.versionRecommandee());
+            requete.setString(6, saisieValidee.justification());
+            requete.setObject(7, OffsetDateTime.now(ZoneOffset.UTC));
+            requete.executeUpdate();
+        } catch (SQLException erreur) {
+            throw new IllegalStateException("enregistrement de la suggestion impossible", erreur);
         }
         return id;
     }
 
     /** Suggestions de l'espace, en attente d'abord. */
     public List<Suggestion> suggestions(UUID compteId, UUID espaceId) {
-        return base.executer(new Contexte(compteId, null, espaceId), c -> {
+        return base.executer(new Contexte(compteId, null, espaceId), connexion -> {
             List<Suggestion> liste = new ArrayList<>();
-            try (PreparedStatement ps = c.prepareStatement("""
+            try (PreparedStatement requete = connexion.prepareStatement("""
                     SELECT id, espace_id, cle, statut, version_recommandee, justification, origine, etat, cree_le, decide_le
                     FROM standard_suggestion WHERE espace_id = ?
                     ORDER BY (etat = 'EN_ATTENTE') DESC, cree_le DESC, id
                     """)) {
-                ps.setObject(1, espaceId);
-                try (ResultSet rs = ps.executeQuery()) {
-                    while (rs.next()) {
-                        liste.add(new Suggestion(rs.getObject(1, UUID.class), rs.getObject(2, UUID.class), rs.getString(3),
-                                ReferentielStandards.Statut.valueOf(rs.getString(4)), rs.getString(5), rs.getString(6),
-                                rs.getString(7), rs.getString(8), instant(rs, 9), instant(rs, 10)));
+                requete.setObject(1, espaceId);
+                try (ResultSet resultat = requete.executeQuery()) {
+                    while (resultat.next()) {
+                        liste.add(new Suggestion(resultat.getObject(1, UUID.class), resultat.getObject(2, UUID.class),
+                                resultat.getString(3), ReferentielStandards.Statut.valueOf(resultat.getString(4)),
+                                resultat.getString(5), resultat.getString(6),
+                                resultat.getString(7), resultat.getString(8), instant(resultat, 9), instant(resultat, 10)));
                     }
                 }
             }
@@ -186,37 +187,37 @@ public class ReferentielEspace {
      */
     public Optional<EntreeReferentiel> decider(UUID compteId, UUID espaceId, UUID suggestionId, Decision decision) {
         Objects.requireNonNull(decision, "decision");
-        Resultat r = base.executer(new Contexte(compteId, null, espaceId), c -> {
-            Suggestion s = lireSuggestion(c, espaceId, suggestionId);
+        Resultat bilan = base.executer(new Contexte(compteId, null, espaceId), connexion -> {
+            Suggestion suggestion = lireSuggestion(connexion, espaceId, suggestionId);
             Resultat resultat = null;
             if (decision.accepter()) {
-                Optional<EntreeReferentiel> existante = lire(c, espaceId, s.cle(), false);
-                SaisieStandard saisie = new SaisieStandard(s.cle(), existante.map(EntreeReferentiel::libelle).orElse(null),
-                        s.statut().name(), s.versionRecommandee(),
+                Optional<EntreeReferentiel> existante = lire(connexion, espaceId, suggestion.cle(), false);
+                SaisieStandard saisie = new SaisieStandard(suggestion.cle(), existante.map(EntreeReferentiel::libelle).orElse(null),
+                        suggestion.statut().name(), suggestion.versionRecommandee(),
                         premier(decision.responsable(), existante.map(EntreeReferentiel::responsable).orElse(null)),
-                        s.justification(),
-                        premier(decision.dateRevue(), existante.map(e -> e.dateRevue().toString()).orElse(null)),
+                        suggestion.justification(),
+                        premier(decision.dateRevue(), existante.map(entree -> entree.dateRevue().toString()).orElse(null)),
                         existante.map(EntreeReferentiel::produitCycleVie).orElse(null));
-                resultat = appliquer(c, compteId, espaceId, saisie.valider(), "SUGGESTION");
+                resultat = appliquer(connexion, compteId, espaceId, saisie.valider(), "SUGGESTION");
             }
-            try (PreparedStatement ps = c.prepareStatement("""
+            try (PreparedStatement requete = connexion.prepareStatement("""
                     UPDATE standard_suggestion SET etat = ?, decide_par = argos_compte_courant(), decide_le = now()
                     WHERE id = ? AND espace_id = ? AND etat = 'EN_ATTENTE'
                     """)) {
-                ps.setString(1, decision.accepter() ? "ACCEPTEE" : "REJETEE");
-                ps.setObject(2, suggestionId);
-                ps.setObject(3, espaceId);
-                if (ps.executeUpdate() != 1) {
+                requete.setString(1, decision.accepter() ? "ACCEPTEE" : "REJETEE");
+                requete.setObject(2, suggestionId);
+                requete.setObject(3, espaceId);
+                if (requete.executeUpdate() != 1) {
                     throw new RegleViolee("SUGGESTION_DECIDEE", "La suggestion n'est plus en attente.");
                 }
             }
             return resultat;
         });
-        if (r == null) {
+        if (bilan == null) {
             return Optional.empty();
         }
-        r.changement().ifPresent(modifications::fire);
-        return Optional.of(r.entree());
+        bilan.changement().ifPresent(modifications::fire);
+        return Optional.of(bilan.entree());
     }
 
     // ------------------------------------------------------------------ interne
@@ -225,117 +226,120 @@ public class ReferentielEspace {
     }
 
     /** Crée ou modifie l'entrée dans la transaction courante, écrit l'historique et décrit le changement éventuel. */
-    private Resultat appliquer(Connection c, UUID compteId, UUID espaceId, SaisieStandard.Validee v, String origine)
+    private Resultat appliquer(Connection connexion, UUID compteId, UUID espaceId, SaisieStandard.Validee saisieValidee, String origine)
             throws SQLException {
-        Optional<EntreeReferentiel> avant = lire(c, espaceId, v.cle(), true);
+        Optional<EntreeReferentiel> avant = lire(connexion, espaceId, saisieValidee.cle(), true);
         UUID id = avant.map(EntreeReferentiel::id).orElseGet(UUID::randomUUID);
         if (avant.isEmpty()) {
-            try (PreparedStatement ps = c.prepareStatement("""
+            try (PreparedStatement requete = connexion.prepareStatement("""
                     INSERT INTO standard_technologie (id, espace_id, cle, libelle, statut, version_recommandee, responsable,
                         justification, date_revue, produit_cycle_vie, cree_le, modifie_le, modifie_par)
                     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, now(), now(), argos_compte_courant())
                     """)) {
-                ps.setObject(1, id);
-                ps.setObject(2, espaceId);
-                ps.setString(3, v.cle());
-                lier(ps, 4, v);
-                ps.executeUpdate();
-            } catch (SQLException e) {
-                if ("23505".equals(e.getSQLState())) {
+                requete.setObject(1, id);
+                requete.setObject(2, espaceId);
+                requete.setString(3, saisieValidee.cle());
+                lier(requete, 4, saisieValidee);
+                requete.executeUpdate();
+            } catch (SQLException erreur) {
+                if ("23505".equals(erreur.getSQLState())) {
                     throw new RegleViolee("MODIFICATION_CONCURRENTE",
                             "Cette technologie vient d'être ajoutée au référentiel : rechargez puis recommencez.");
                 }
-                throw e;
+                throw erreur;
             }
         } else {
-            try (PreparedStatement ps = c.prepareStatement("""
+            try (PreparedStatement requete = connexion.prepareStatement("""
                     UPDATE standard_technologie SET libelle = ?, statut = ?, version_recommandee = ?, responsable = ?,
                         justification = ?, date_revue = ?, produit_cycle_vie = ?, modifie_le = now(),
                         modifie_par = argos_compte_courant()
                     WHERE id = ?
                     """)) {
-                lier(ps, 1, v);
-                ps.setObject(8, id);
-                ps.executeUpdate();
+                lier(requete, 1, saisieValidee);
+                requete.setObject(8, id);
+                requete.executeUpdate();
             }
         }
         UUID historiqueId = UUID.randomUUID();
-        try (PreparedStatement ps = c.prepareStatement("""
+        try (PreparedStatement requete = connexion.prepareStatement("""
                 INSERT INTO standard_historique (id, standard_id, espace_id, statut, version_recommandee, responsable,
                     justification, date_revue, origine, modifie_par, modifie_le)
                 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, argos_compte_courant(), now())
                 """)) {
-            ps.setObject(1, historiqueId);
-            ps.setObject(2, id);
-            ps.setObject(3, espaceId);
-            ps.setString(4, v.statut().name());
-            ps.setString(5, v.versionRecommandee());
-            ps.setString(6, v.responsable());
-            ps.setString(7, v.justification());
-            ps.setObject(8, v.dateRevue());
-            ps.setString(9, origine);
-            ps.executeUpdate();
+            requete.setObject(1, historiqueId);
+            requete.setObject(2, id);
+            requete.setObject(3, espaceId);
+            requete.setString(4, saisieValidee.statut().name());
+            requete.setString(5, saisieValidee.versionRecommandee());
+            requete.setString(6, saisieValidee.responsable());
+            requete.setString(7, saisieValidee.justification());
+            requete.setObject(8, saisieValidee.dateRevue());
+            requete.setString(9, origine);
+            requete.executeUpdate();
         }
-        EntreeReferentiel apres = lire(c, espaceId, v.cle(), false).orElseThrow();
+        EntreeReferentiel apres = lire(connexion, espaceId, saisieValidee.cle(), false).orElseThrow();
         Optional<StandardModifie> changement = avant
-                .filter(a -> a.statut() != apres.statut() || !Objects.equals(a.versionRecommandee(), apres.versionRecommandee()))
-                .map(a -> new StandardModifie(espaceId, apres.cle(), apres.libelle(), a.statut(), a.versionRecommandee(),
+                .filter(precedente -> precedente.statut() != apres.statut()
+                        || !Objects.equals(precedente.versionRecommandee(), apres.versionRecommandee()))
+                .map(precedente -> new StandardModifie(espaceId, apres.cle(), apres.libelle(), precedente.statut(),
+                        precedente.versionRecommandee(),
                         apres.statut(), apres.versionRecommandee(), apres.justification(), compteId, historiqueId));
         return new Resultat(apres, changement);
     }
 
-    private static void lier(PreparedStatement ps, int debut, SaisieStandard.Validee v) throws SQLException {
-        ps.setString(debut, v.libelle());
-        ps.setString(debut + 1, v.statut().name());
-        ps.setString(debut + 2, v.versionRecommandee());
-        ps.setString(debut + 3, v.responsable());
-        ps.setString(debut + 4, v.justification());
-        ps.setObject(debut + 5, v.dateRevue());
-        ps.setString(debut + 6, v.produitCycleVie());
+    private static void lier(PreparedStatement requete, int debut, SaisieStandard.Validee saisieValidee) throws SQLException {
+        requete.setString(debut, saisieValidee.libelle());
+        requete.setString(debut + 1, saisieValidee.statut().name());
+        requete.setString(debut + 2, saisieValidee.versionRecommandee());
+        requete.setString(debut + 3, saisieValidee.responsable());
+        requete.setString(debut + 4, saisieValidee.justification());
+        requete.setObject(debut + 5, saisieValidee.dateRevue());
+        requete.setString(debut + 6, saisieValidee.produitCycleVie());
     }
 
-    private static Optional<EntreeReferentiel> lire(Connection c, UUID espaceId, String cle, boolean verrouiller)
+    private static Optional<EntreeReferentiel> lire(Connection connexion, UUID espaceId, String cle, boolean verrouiller)
             throws SQLException {
-        try (PreparedStatement ps = c.prepareStatement(COLONNES + " WHERE espace_id = ? AND cle = ?"
+        try (PreparedStatement requete = connexion.prepareStatement(COLONNES + " WHERE espace_id = ? AND cle = ?"
                 + (verrouiller ? " FOR UPDATE" : ""))) {
-            ps.setObject(1, espaceId);
-            ps.setString(2, cle);
-            try (ResultSet rs = ps.executeQuery()) {
-                return rs.next() ? Optional.of(entree(rs)) : Optional.empty();
+            requete.setObject(1, espaceId);
+            requete.setString(2, cle);
+            try (ResultSet resultat = requete.executeQuery()) {
+                return resultat.next() ? Optional.of(entree(resultat)) : Optional.empty();
             }
         }
     }
 
-    private static Suggestion lireSuggestion(Connection c, UUID espaceId, UUID suggestionId) throws SQLException {
-        try (PreparedStatement ps = c.prepareStatement("""
+    private static Suggestion lireSuggestion(Connection connexion, UUID espaceId, UUID suggestionId) throws SQLException {
+        try (PreparedStatement requete = connexion.prepareStatement("""
                 SELECT id, espace_id, cle, statut, version_recommandee, justification, origine, etat, cree_le, decide_le
                 FROM standard_suggestion WHERE id = ? AND espace_id = ?
                 """)) {
-            ps.setObject(1, suggestionId);
-            ps.setObject(2, espaceId);
-            try (ResultSet rs = ps.executeQuery()) {
-                if (!rs.next()) {
+            requete.setObject(1, suggestionId);
+            requete.setObject(2, espaceId);
+            try (ResultSet resultat = requete.executeQuery()) {
+                if (!resultat.next()) {
                     throw new Introuvable("Aucune suggestion de cet espace ne porte cet identifiant.");
                 }
-                if (!"EN_ATTENTE".equals(rs.getString(8))) {
+                if (!"EN_ATTENTE".equals(resultat.getString(8))) {
                     throw new RegleViolee("SUGGESTION_DECIDEE", "La suggestion n'est plus en attente.");
                 }
-                return new Suggestion(rs.getObject(1, UUID.class), rs.getObject(2, UUID.class), rs.getString(3),
-                        ReferentielStandards.Statut.valueOf(rs.getString(4)), rs.getString(5), rs.getString(6),
-                        rs.getString(7), rs.getString(8), instant(rs, 9), instant(rs, 10));
+                return new Suggestion(resultat.getObject(1, UUID.class), resultat.getObject(2, UUID.class), resultat.getString(3),
+                        ReferentielStandards.Statut.valueOf(resultat.getString(4)), resultat.getString(5), resultat.getString(6),
+                        resultat.getString(7), resultat.getString(8), instant(resultat, 9), instant(resultat, 10));
             }
         }
     }
 
-    private static EntreeReferentiel entree(ResultSet rs) throws SQLException {
-        return new EntreeReferentiel(rs.getObject(1, UUID.class), rs.getObject(2, UUID.class), rs.getString(3),
-                rs.getString(4), ReferentielStandards.Statut.valueOf(rs.getString(5)), rs.getString(6), rs.getString(7),
-                rs.getString(8), rs.getObject(9, LocalDate.class), rs.getString(10), instant(rs, 11));
+    private static EntreeReferentiel entree(ResultSet resultat) throws SQLException {
+        return new EntreeReferentiel(resultat.getObject(1, UUID.class), resultat.getObject(2, UUID.class), resultat.getString(3),
+                resultat.getString(4), ReferentielStandards.Statut.valueOf(resultat.getString(5)), resultat.getString(6),
+                resultat.getString(7), resultat.getString(8), resultat.getObject(9, LocalDate.class), resultat.getString(10),
+                instant(resultat, 11));
     }
 
-    private static Instant instant(ResultSet rs, int colonne) throws SQLException {
-        OffsetDateTime t = rs.getObject(colonne, OffsetDateTime.class);
-        return t == null ? null : t.toInstant();
+    private static Instant instant(ResultSet resultat, int colonne) throws SQLException {
+        OffsetDateTime horodatage = resultat.getObject(colonne, OffsetDateTime.class);
+        return horodatage == null ? null : horodatage.toInstant();
     }
 
     private static String premier(String valeur, String defaut) {
