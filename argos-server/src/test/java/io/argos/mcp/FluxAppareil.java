@@ -40,16 +40,16 @@ final class FluxAppareil {
             String html = page.body();
             parcours.append(page.statusCode()).append(' ').append(page.uri()).append(" : ")
                     .append(html.replaceAll("\\s+", " "), 0, Math.min(html.length(), 1500)).append('\n');
-            Matcher f = FORMULAIRE.matcher(html);
-            if (!f.find() || !(html.contains("name=\"username\"") || html.contains("name=\"accept\"")
+            Matcher formulaire = FORMULAIRE.matcher(html);
+            if (!formulaire.find() || !(html.contains("name=\"username\"") || html.contains("name=\"accept\"")
                     || html.contains("name=\"device_user_code\""))) {
                 return parcours.toString();
             }
-            String action = f.group(1).replace("&amp;", "&");
+            String action = formulaire.group(1).replace("&amp;", "&");
             Map<String, String> champs = new LinkedHashMap<>();
-            Matcher c = CHAMP.matcher(f.group(2));
-            while (c.find()) {
-                champs.put(c.group(1), c.group(2) == null ? "" : c.group(2).replace("&amp;", "&"));
+            Matcher champ = CHAMP.matcher(formulaire.group(2));
+            while (champ.find()) {
+                champs.put(champ.group(1), champ.group(2) == null ? "" : champ.group(2).replace("&amp;", "&"));
             }
             if (champs.containsKey("device_user_code") && champs.get("device_user_code").isEmpty()) {
                 champs.put("device_user_code", pageVerification.replaceAll(".*[?&]user_code=([^&]+).*", "$1"));
@@ -63,8 +63,8 @@ final class FluxAppareil {
                 champs.remove("cancel");
             }
             String corps = champs.entrySet().stream()
-                    .map(e -> URLEncoder.encode(e.getKey(), StandardCharsets.UTF_8) + "="
-                            + URLEncoder.encode(e.getValue(), StandardCharsets.UTF_8))
+                    .map(entree -> URLEncoder.encode(entree.getKey(), StandardCharsets.UTF_8) + "="
+                            + URLEncoder.encode(entree.getValue(), StandardCharsets.UTF_8))
                     .collect(Collectors.joining("&"));
             page = client.send(HttpRequest.newBuilder(URI.create(page.uri().resolve(action).toString()))
                     .header("Content-Type", "application/x-www-form-urlencoded")
@@ -86,7 +86,7 @@ final class FluxAppareil {
             if (valeurs.isEmpty()) {
                 return Map.of();
             }
-            String cookie = valeurs.entrySet().stream().map(e -> e.getKey() + "=" + e.getValue())
+            String cookie = valeurs.entrySet().stream().map(entree -> entree.getKey() + "=" + entree.getValue())
                     .collect(Collectors.joining("; "));
             return Map.of("Cookie", List.of(cookie));
         }

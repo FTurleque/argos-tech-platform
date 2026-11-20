@@ -37,11 +37,11 @@ class ContratOutilsMcpTest {
             "get_project_context", "upcoming_releases", "get_security_alerts", "explain_change", "get_regulatory_changes");
 
     @Inject
-    TestDb db;
+    TestDb baseDeTest;
 
     @BeforeEach
     void preparer() {
-        db.reset();
+        baseDeTest.reset();
         Api.assurerCompte("karim");
     }
 
@@ -51,7 +51,7 @@ class ContratOutilsMcpTest {
         ExtractableResponse<Response> reponse = Mcp.lister("karim");
         assertEquals(200, reponse.statusCode(), reponse.asString());
         List<Map<String, Object>> outils = reponse.path("result.tools");
-        assertEquals(new TreeSet<>(OUTILS), new TreeSet<>(outils.stream().map(o -> (String) o.get("name")).toList()));
+        assertEquals(new TreeSet<>(OUTILS), new TreeSet<>(outils.stream().map(outil -> (String) outil.get("name")).toList()));
         for (Map<String, Object> outil : outils) {
             @SuppressWarnings("unchecked")
             Map<String, Object> annotations = (Map<String, Object>) outil.get("annotations");
@@ -88,7 +88,7 @@ class ContratOutilsMcpTest {
             assertNull(reponse.path("result"));
         }
         assertEquals(avant, lignes());
-        assertEquals(0, db.count("SELECT count(*) FROM mcp_appel"));
+        assertEquals(0, baseDeTest.count("SELECT count(*) FROM mcp_appel"));
     }
 
     /** Protocole 2026-07-28 : un appel d'outil s'exécute sans négociation préalable et sans session. */
@@ -130,7 +130,7 @@ class ContratOutilsMcpTest {
     }
 
     private long lignes() {
-        return db.count("SELECT (SELECT count(*) FROM espace) + (SELECT count(*) FROM appartenance)"
+        return baseDeTest.count("SELECT (SELECT count(*) FROM espace) + (SELECT count(*) FROM appartenance)"
                 + " + (SELECT count(*) FROM project) + (SELECT count(*) FROM subscription) + (SELECT count(*) FROM compte)");
     }
 }
