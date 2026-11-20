@@ -49,23 +49,23 @@ public class Opportunites {
 
     private List<Opportunite> lire(String sql, String profil, String[] disciplines, Object dernier) {
         List<Opportunite> resultat = new ArrayList<>();
-        try (Connection c = dataSource.getConnection(); PreparedStatement ps = c.prepareStatement(sql)) {
-            int i = 1;
-            ps.setString(i++, profil);
+        try (Connection connexion = dataSource.getConnection(); PreparedStatement requete = connexion.prepareStatement(sql)) {
+            int position = 1;
+            requete.setString(position++, profil);
             if (disciplines != null) {
-                ps.setArray(i++, c.createArrayOf("varchar", disciplines));
+                requete.setArray(position++, connexion.createArrayOf("varchar", disciplines));
             }
-            ps.setObject(i, dernier);
-            try (ResultSet rs = ps.executeQuery()) {
-                while (rs.next()) {
-                    resultat.add(new Opportunite(rs.getObject(1, UUID.class), rs.getObject(2, UUID.class),
-                            rs.getString(3), rs.getString(4), rs.getString(5), rs.getString(6), rs.getString(7),
-                            rs.getString(8), SourcesProfil.tableau(rs.getArray(9)), SourcesProfil.tableau(rs.getArray(10)),
-                            rs.getObject(11, LocalDate.class), SourcesProfil.instant(rs, 12)));
+            requete.setObject(position, dernier);
+            try (ResultSet lignes = requete.executeQuery()) {
+                while (lignes.next()) {
+                    resultat.add(new Opportunite(lignes.getObject(1, UUID.class), lignes.getObject(2, UUID.class),
+                            lignes.getString(3), lignes.getString(4), lignes.getString(5), lignes.getString(6), lignes.getString(7),
+                            lignes.getString(8), SourcesProfil.tableau(lignes.getArray(9)), SourcesProfil.tableau(lignes.getArray(10)),
+                            lignes.getObject(11, LocalDate.class), SourcesProfil.instant(lignes, 12)));
                 }
             }
-        } catch (SQLException e) {
-            throw new IllegalStateException("lecture des opportunités impossible", e);
+        } catch (SQLException erreur) {
+            throw new IllegalStateException("lecture des opportunités impossible", erreur);
         }
         return resultat;
     }

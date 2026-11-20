@@ -106,7 +106,7 @@ public class CollecteWeb {
             if (verrou.isEmpty()) {
                 continue;
             }
-            try (StockActualites.Verrou v = verrou.get()) {
+            try (StockActualites.Verrou verrouPose = verrou.get()) {
                 if (stock.echue(id)) {
                     stock.source(id).map(this::collecterSousVerrou).ifPresent(rapports::add);
                 }
@@ -121,7 +121,7 @@ public class CollecteWeb {
      * @throws RegleViolee {@code COLLECTE_EN_COURS} si une autre collecte de la source est en cours
      */
     public Rapport collecter(UUID sourceId) {
-        try (StockActualites.Verrou v = stock.verrouiller(sourceId).orElseThrow(() -> new RegleViolee(
+        try (StockActualites.Verrou verrouPose = stock.verrouiller(sourceId).orElseThrow(() -> new RegleViolee(
                 "COLLECTE_EN_COURS", "Une collecte de cette source est déjà en cours."))) {
             StockActualites.SourceACollecter source = stock.source(sourceId)
                     .orElseThrow(() -> new IllegalArgumentException("source web inconnue : " + sourceId));
@@ -136,10 +136,10 @@ public class CollecteWeb {
             int nouvelles = integrer(source, contenu);
             stock.succes(sourceId, frequence);
             return new Rapport(sourceId, "ACTIVE", nouvelles, null);
-        } catch (RecuperationRefusee e) {
-            return echec(sourceId, e);
-        } catch (RuntimeException e) {
-            return echecInterne(sourceId, e);
+        } catch (RecuperationRefusee refus) {
+            return echec(sourceId, refus);
+        } catch (RuntimeException erreur) {
+            return echecInterne(sourceId, erreur);
         }
     }
 
@@ -165,23 +165,23 @@ public class CollecteWeb {
             int nouvelles = integrer(source, contenu);
             stock.succes(sourceId, frequence);
             return new Rapport(sourceId, "ACTIVE", nouvelles, null);
-        } catch (RecuperationRefusee e) {
-            return echec(sourceId, e);
-        } catch (RuntimeException e) {
-            return echecInterne(sourceId, e);
+        } catch (RecuperationRefusee refus) {
+            return echec(sourceId, refus);
+        } catch (RuntimeException erreur) {
+            return echecInterne(sourceId, erreur);
         }
     }
 
-    private Rapport echec(UUID sourceId, RecuperationRefusee e) {
-        String motif = e.motifPublic();
-        LOG.infof("collecte de la source web %s en échec : %s (%s)", sourceId, e.motif(), e.getMessage());
+    private Rapport echec(UUID sourceId, RecuperationRefusee refus) {
+        String motif = refus.motifPublic();
+        LOG.infof("collecte de la source web %s en échec : %s (%s)", sourceId, refus.motif(), refus.getMessage());
         stock.echec(sourceId, motif, frequence);
         return new Rapport(sourceId, "EN_ERREUR", 0, motif);
     }
 
-    private Rapport echecInterne(UUID sourceId, RuntimeException e) {
+    private Rapport echecInterne(UUID sourceId, RuntimeException erreur) {
         String motif = "ERREUR_INTERNE : la collecte a été interrompue.";
-        LOG.errorf(e, "collecte de la source web %s interrompue", sourceId);
+        LOG.errorf(erreur, "collecte de la source web %s interrompue", sourceId);
         stock.echec(sourceId, motif, frequence);
         return new Rapport(sourceId, "EN_ERREUR", 0, motif);
     }
