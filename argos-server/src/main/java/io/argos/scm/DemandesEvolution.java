@@ -62,8 +62,8 @@ public class DemandesEvolution {
         this.githubWeb = URI.create(sansBarre(githubWeb));
         this.githubApi = sansBarre(githubApi);
         this.gitlab = URI.create(sansBarre(gitlab));
-        this.githubToken = githubToken.filter(t -> !t.isBlank());
-        this.gitlabToken = gitlabToken.filter(t -> !t.isBlank());
+        this.githubToken = githubToken.filter(jeton -> !jeton.isBlank());
+        this.gitlabToken = gitlabToken.filter(jeton -> !jeton.isBlank());
     }
 
     /** Demande désignée par l'adresse, si elle désigne un ticket ou une demande de fusion d'une forge configurée. */
@@ -74,7 +74,7 @@ public class DemandesEvolution {
         URI uri;
         try {
             uri = new URI(adresse.strip());
-        } catch (URISyntaxException e) {
+        } catch (URISyntaxException malFormee) {
             return Optional.empty();
         }
         if (uri.getRawQuery() != null || uri.getRawFragment() != null || uri.getRawUserInfo() != null
@@ -82,20 +82,23 @@ public class DemandesEvolution {
             return Optional.empty();
         }
         if (memeOrigine(uri, githubWeb)) {
-            Matcher m = GITHUB.matcher(uri.getRawPath());
-            if (m.matches() && ForgeHttp.depotGithubValide(m.group(1))) {
-                return Optional.of(new Demande(Forge.GITHUB, m.group(1), m.group(2), Integer.parseInt(m.group(3)),
-                        origine(githubWeb) + "/" + m.group(1) + "/" + m.group(2) + "/" + m.group(3)));
+            Matcher correspondance = GITHUB.matcher(uri.getRawPath());
+            if (correspondance.matches() && ForgeHttp.depotGithubValide(correspondance.group(1))) {
+                return Optional.of(new Demande(Forge.GITHUB, correspondance.group(1), correspondance.group(2),
+                        Integer.parseInt(correspondance.group(3)), origine(githubWeb) + "/" + correspondance.group(1) + "/"
+                        + correspondance.group(2) + "/" + correspondance.group(3)));
             }
         }
         if (memeOrigine(uri, gitlab)) {
             String prefixe = gitlab.getRawPath() == null ? "" : gitlab.getRawPath();
             String chemin = uri.getRawPath();
             if (chemin.startsWith(prefixe + "/")) {
-                Matcher m = GITLAB.matcher(chemin.substring(prefixe.length()));
-                if (m.matches() && m.group(1).matches("[\\w.-]+(/[\\w.-]+)+") && !m.group(1).contains("..")) {
-                    return Optional.of(new Demande(Forge.GITLAB, m.group(1), m.group(2), Integer.parseInt(m.group(3)),
-                            origine(gitlab) + prefixe + "/" + m.group(1) + "/-/" + m.group(2) + "/" + m.group(3)));
+                Matcher correspondance = GITLAB.matcher(chemin.substring(prefixe.length()));
+                if (correspondance.matches() && correspondance.group(1).matches("[\\w.-]+(/[\\w.-]+)+")
+                        && !correspondance.group(1).contains("..")) {
+                    return Optional.of(new Demande(Forge.GITLAB, correspondance.group(1), correspondance.group(2),
+                            Integer.parseInt(correspondance.group(3)), origine(gitlab) + prefixe + "/" + correspondance.group(1)
+                            + "/-/" + correspondance.group(2) + "/" + correspondance.group(3)));
                 }
             }
         }
@@ -108,32 +111,32 @@ public class DemandesEvolution {
      *
      * @throws ScmException si la forge est injoignable ou répond en erreur
      */
-    public Optional<String> etat(Demande d) {
-        URI uri = switch (d.forge()) {
-            case GITHUB -> URI.create(githubApi + "/repos/" + d.depot() + "/" + ("pull".equals(d.nature()) ? "pulls" : "issues")
-                    + "/" + d.numero());
+    public Optional<String> etat(Demande demande) {
+        URI uri = switch (demande.forge()) {
+            case GITHUB -> URI.create(githubApi + "/repos/" + demande.depot() + "/" + ("pull".equals(demande.nature()) ? "pulls" : "issues")
+                    + "/" + demande.numero());
             case GITLAB -> URI.create(origine(gitlab) + (gitlab.getRawPath() == null ? "" : gitlab.getRawPath())
-                    + "/api/v4/projects/" + URLEncoder.encode(d.depot(), StandardCharsets.UTF_8) + "/" + d.nature() + "/"
-                    + d.numero());
+                    + "/api/v4/projects/" + URLEncoder.encode(demande.depot(), StandardCharsets.UTF_8) + "/" + demande.nature() + "/"
+                    + demande.numero());
         };
-        ForgeHttp.Reponse r = http.get(uri, d.forge() == Forge.GITHUB ? githubToken : gitlabToken, d.forge() == Forge.GITHUB,
-                d.forge() == Forge.GITHUB ? "application/vnd.github+json" : null, TAILLE_MAX);
-        if (r.status() == 404) {
+        ForgeHttp.Reponse reponse = http.get(uri, demande.forge() == Forge.GITHUB ? githubToken : gitlabToken,
+                demande.forge() == Forge.GITHUB, demande.forge() == Forge.GITHUB ? "application/vnd.github+json" : null, TAILLE_MAX);
+        if (reponse.status() == 404) {
             return Optional.empty();
         }
-        if (r.status() != 200) {
-            throw new ScmException("HTTP " + r.status() + " de " + uri.getHost(), null);
+        if (reponse.status() != 200) {
+            throw new ScmException("HTTP " + reponse.status() + " de " + uri.getHost(), null);
         }
         try {
-            JsonNode n = json.readTree(r.corps());
-            String etat = n.path("state").asText("");
-            if (d.forge() == Forge.GITHUB && n.path("merged").asBoolean(false)) {
+            JsonNode noeud = json.readTree(reponse.corps());
+            String etat = noeud.path("state").asText("");
+            if (demande.forge() == Forge.GITHUB && noeud.path("merged").asBoolean(false)) {
                 etat = "merged";
             }
             etat = etat.toLowerCase(Locale.ROOT);
             return Optional.of(etat.matches("[a-z_]{1,16}") ? etat : "inconnu");
-        } catch (IOException e) {
-            throw new ScmException("réponse illisible de " + uri.getHost(), e);
+        } catch (IOException erreur) {
+            throw new ScmException("réponse illisible de " + uri.getHost(), erreur);
         }
     }
 
@@ -142,18 +145,18 @@ public class DemandesEvolution {
                 && uri.getHost().equalsIgnoreCase(attendue.getHost()) && port(uri) == port(attendue);
     }
 
-    private static int port(URI u) {
-        if (u.getPort() >= 0) {
-            return u.getPort();
+    private static int port(URI uri) {
+        if (uri.getPort() >= 0) {
+            return uri.getPort();
         }
-        return "https".equalsIgnoreCase(u.getScheme()) ? 443 : 80;
+        return "https".equalsIgnoreCase(uri.getScheme()) ? 443 : 80;
     }
 
-    private static String origine(URI u) {
-        return u.getScheme() + "://" + u.getRawAuthority();
+    private static String origine(URI uri) {
+        return uri.getScheme() + "://" + uri.getRawAuthority();
     }
 
-    private static String sansBarre(String s) {
-        return s.replaceAll("/+$", "");
+    private static String sansBarre(String valeur) {
+        return valeur.replaceAll("/+$", "");
     }
 }
