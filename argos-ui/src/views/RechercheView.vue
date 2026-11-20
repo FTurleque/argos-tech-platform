@@ -76,8 +76,8 @@ function nouveauChargement(): AbortSignal {
   return chargementCourant.signal
 }
 
-function estAnnule(e: unknown): boolean {
-  return e instanceof ApiError && e.motif === 'ANNULE'
+function estAnnule(echec: unknown): boolean {
+  return echec instanceof ApiError && echec.motif === 'ANNULE'
 }
 
 const pages = computed(() => (resultats.value ? nombrePages(resultats.value.total, resultats.value.taille) : 0))
@@ -85,11 +85,11 @@ const optionsProjets = computed(() =>
   projetsConnus(projets.value, formulaire.value.projets.map((projetId) => ({ projetId, projet: null }))),
 )
 
-function texteErreur(operation: Parameters<typeof messageErreur>[0], e: unknown): string {
-  if (e instanceof ApiError && e.motif === 'DELAI_DEPASSE') {
+function texteErreur(operation: Parameters<typeof messageErreur>[0], echec: unknown): string {
+  if (echec instanceof ApiError && echec.motif === 'DELAI_DEPASSE') {
     return "Le serveur ARGOS n'a pas répondu à temps. Précisez les mots ou les filtres, puis relancez."
   }
-  if (e instanceof ApiError) return messageErreur(operation, e.status, e.message)
+  if (echec instanceof ApiError) return messageErreur(operation, echec.status, echec.message)
   return 'Erreur inattendue.'
 }
 
@@ -107,19 +107,19 @@ async function afficher(
   erreur.value = ''
   annonce.value = 'Recherche en cours…'
   try {
-    const r =
+    const reponse =
       nouvelle.nature === 'vue'
         ? await resultatsVue(nouvelle.id, page, TAILLE_PAGE, signal)
         : await rechercher(nouvelle.criteres, page, TAILLE_PAGE, signal)
     if (signal.aborted) return
-    resultats.value = r
+    resultats.value = reponse
     source.value = nouvelle
-    projets.value = projetsConnus(projets.value, r.elements.flatMap((e) => e.projets))
-    annonce.value = annonceResultats(r.total, r.page, r.taille)
-  } catch (e) {
-    if (signal.aborted || estAnnule(e)) return
+    projets.value = projetsConnus(projets.value, reponse.elements.flatMap((element) => element.projets))
+    annonce.value = annonceResultats(reponse.total, reponse.page, reponse.taille)
+  } catch (echec) {
+    if (signal.aborted || estAnnule(echec)) return
     resultats.value = null
-    erreur.value = texteErreur(nouvelle.nature === 'vue' ? 'vue' : 'recherche', e)
+    erreur.value = texteErreur(nouvelle.nature === 'vue' ? 'vue' : 'recherche', echec)
     annonce.value = ''
   } finally {
     if (!signal.aborted) chargement.value = false
@@ -162,15 +162,15 @@ function ajouterProjet(): void {
 }
 
 function retirerProfil(profil: string): void {
-  formulaire.value.profils = formulaire.value.profils.filter((p) => p !== profil)
+  formulaire.value.profils = formulaire.value.profils.filter((actif) => actif !== profil)
 }
 
 async function chargerVues(): Promise<void> {
   erreurVues.value = ''
   try {
     vues.value = await listerVues()
-  } catch (e) {
-    erreurVues.value = texteErreur('liste', e)
+  } catch (echec) {
+    erreurVues.value = texteErreur('liste', echec)
   }
 }
 
@@ -187,8 +187,8 @@ async function enregistrer(): Promise<void> {
     annonceVues.value = `Vue « ${vue.nom} » enregistrée.`
     await chargerVues()
     await router.push(`/recherche/vues/${vue.id}`)
-  } catch (e) {
-    erreurEnregistrement.value = texteErreur('enregistrement', e)
+  } catch (echec) {
+    erreurEnregistrement.value = texteErreur('enregistrement', echec)
   }
 }
 
@@ -219,8 +219,8 @@ async function confirmerSuppression(): Promise<void> {
     if (affichee) viderResultats()
     await chargerVues()
     if (idVue.value === vue.id) await router.push('/recherche')
-  } catch (e) {
-    erreurVues.value = texteErreur('suppression', e)
+  } catch (echec) {
+    erreurVues.value = texteErreur('suppression', echec)
   }
 }
 
@@ -237,10 +237,10 @@ async function rappeler(id: string): Promise<void> {
     if (signal.aborted) return
     vueCourante.value = vue
     formulaire.value = formulaireDesCriteres(vue.criteres)
-  } catch (e) {
-    if (signal.aborted || estAnnule(e)) return
+  } catch (echec) {
+    if (signal.aborted || estAnnule(echec)) return
     resultats.value = null
-    erreur.value = texteErreur('vue', e)
+    erreur.value = texteErreur('vue', echec)
     return
   }
   await afficher({ nature: 'vue', id }, 0, false, signal)
@@ -283,9 +283,9 @@ onMounted(chargerVues)
         <div class="champ">
           <label for="recherche-periode">Période</label>
           <select id="recherche-periode" v-model="formulaire.horizonJours">
-            <option v-for="p in PERIODES" :key="String(p.jours)" :value="p.jours">{{ p.libelle }}</option>
+            <option v-for="periode in PERIODES" :key="String(periode.jours)" :value="periode.jours">{{ periode.libelle }}</option>
             <option
-              v-if="formulaire.horizonJours !== null && !PERIODES.some((p) => p.jours === formulaire.horizonJours)"
+              v-if="formulaire.horizonJours !== null && !PERIODES.some((periode) => periode.jours === formulaire.horizonJours)"
               :value="formulaire.horizonJours"
             >
               {{ libellePeriode(formulaire.horizonJours) }}
@@ -297,7 +297,7 @@ onMounted(chargerVues)
           <label for="recherche-gravite">Gravité minimale</label>
           <select id="recherche-gravite" v-model="formulaire.gravite">
             <option value="">Toutes</option>
-            <option v-for="g in GRAVITES" :key="g.code" :value="g.code">{{ g.libelle }}</option>
+            <option v-for="gravite in GRAVITES" :key="gravite.code" :value="gravite.code">{{ gravite.libelle }}</option>
           </select>
         </div>
 
@@ -316,9 +316,9 @@ onMounted(chargerVues)
 
       <fieldset class="groupe">
         <legend>Type de contenu</legend>
-        <label v-for="t in TYPES_CONTENU" :key="t.code" class="case">
-          <input v-model="formulaire.types" type="checkbox" :value="t.code" />
-          {{ t.libelle }}
+        <label v-for="typeContenu in TYPES_CONTENU" :key="typeContenu.code" class="case">
+          <input v-model="formulaire.types" type="checkbox" :value="typeContenu.code" />
+          {{ typeContenu.libelle }}
         </label>
       </fieldset>
 
@@ -327,9 +327,9 @@ onMounted(chargerVues)
         <p v-if="optionsProjets.length === 0" class="muted">
           Les projets cités par les résultats s'ajoutent ici ; vous pouvez aussi saisir l'identifiant d'un projet.
         </p>
-        <label v-for="p in optionsProjets" :key="p.projetId" class="case">
-          <input v-model="formulaire.projets" type="checkbox" :value="p.projetId" />
-          {{ p.projet ?? p.projetId }}
+        <label v-for="projet in optionsProjets" :key="projet.projetId" class="case">
+          <input v-model="formulaire.projets" type="checkbox" :value="projet.projetId" />
+          {{ projet.projet ?? projet.projetId }}
         </label>
         <div class="ajout-projet">
           <label for="recherche-projet-id">Identifiant de projet</label>
@@ -398,7 +398,7 @@ onMounted(chargerVues)
           </p>
           <p v-if="element.extrait">{{ element.extrait }}</p>
           <p v-if="element.projets.length > 0" class="muted">
-            Projets : {{ element.projets.map((p) => p.projet ?? p.projetId).join(', ') }}
+            Projets : {{ element.projets.map((projet) => projet.projet ?? projet.projetId).join(', ') }}
           </p>
         </li>
       </ol>

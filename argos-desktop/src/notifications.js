@@ -41,8 +41,8 @@ function validerAlerte(payload) {
 }
 
 /** « 1 projet », « 3 projets ». */
-function libelleProjets(n) {
-  return n === 1 ? '1 projet' : `${n} projets`;
+function libelleProjets(nombre) {
+  return nombre === 1 ? '1 projet' : `${nombre} projets`;
 }
 
 /**
@@ -58,19 +58,19 @@ function texteNotification(alerte) {
 }
 
 /** Nombre d'alertes ouvertes accepté pour le compteur, ou null. */
-function compteurValide(n) {
-  return Number.isInteger(n) && n >= 0 && n <= COMPTEUR_MAX ? n : null;
+function compteurValide(nombre) {
+  return Number.isInteger(nombre) && nombre >= 0 && nombre <= COMPTEUR_MAX ? nombre : null;
 }
 
 /** Libellé du compteur (infobulle et menu de la zone de notification, NOT-03). */
-function libelleCompteur(n) {
-  if (n === 0) return 'aucune alerte ouverte';
-  return n === 1 ? '1 alerte ouverte' : `${n} alertes ouvertes`;
+function libelleCompteur(nombre) {
+  if (nombre === 0) return 'aucune alerte ouverte';
+  return nombre === 1 ? '1 alerte ouverte' : `${nombre} alertes ouvertes`;
 }
 
 /** Infobulle de l'icône de la zone de notification. */
-function infobulle(n) {
-  return `ARGOS — ${libelleCompteur(n)}`;
+function infobulle(nombre) {
+  return `ARGOS — ${libelleCompteur(nombre)}`;
 }
 
 module.exports = {

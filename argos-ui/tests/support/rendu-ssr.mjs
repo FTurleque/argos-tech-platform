@@ -6,7 +6,7 @@
 import { dirname, join, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { createServer } from 'vite'
-import { createSSRApp, h } from 'vue'
+import { createSSRApp, h as creerNoeud } from 'vue'
 import { renderToString } from 'vue/server-renderer'
 
 const RACINE = resolve(dirname(fileURLToPath(import.meta.url)), '..', '..')
@@ -32,16 +32,16 @@ export async function ouvrirRendu() {
     /** HTML d'une mise en page du registre. */
     rendre(identifiant, veille = VEILLE_APERCU, niveauTitre = 2) {
       const composant = MISES_EN_PAGE[identifiant]
-      return renderToString(createSSRApp({ render: () => h(composant, { veille, niveauTitre }) }))
+      return renderToString(createSSRApp({ render: () => creerNoeud(composant, { veille, niveauTitre }) }))
     },
     /** HTML du sélecteur central pour un identifiant quelconque. */
     rendreSelecteur(identifiant, veille = VEILLE_APERCU) {
-      return renderToString(createSSRApp({ render: () => h(MiseEnPage, { identifiant, veille, niveauTitre: 2 }) }))
+      return renderToString(createSSRApp({ render: () => creerNoeud(MiseEnPage, { identifiant, veille, niveauTitre: 2 }) }))
     },
     /** HTML d'un composant Vue de `src/` (chemin depuis la racine de argos-ui, par exemple `/src/contenu/X.vue`). */
     async rendreComposant(chemin, props = {}) {
       const { default: composant } = await vite.ssrLoadModule(chemin)
-      return renderToString(createSSRApp({ render: () => h(composant, props) }))
+      return renderToString(createSSRApp({ render: () => creerNoeud(composant, props) }))
     },
     fermer: () => vite.close(),
   }

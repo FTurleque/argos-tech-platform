@@ -22,8 +22,8 @@ import {
   projetsConnus,
 } from '../src/api/recherche-criteres.ts'
 
-const P1 = '0b8e6c1a-2f4d-4c3e-9a1b-7d5e3f2a1c00'
-const P2 = 'a1b2c3d4-e5f6-4a7b-8c9d-0e1f2a3b4c5d'
+const PROJET_A = '0b8e6c1a-2f4d-4c3e-9a1b-7d5e3f2a1c00'
+const PROJET_B = 'a1b2c3d4-e5f6-4a7b-8c9d-0e1f2a3b4c5d'
 const source = (chemin) => readFileSync(new URL(chemin, import.meta.url), 'utf8')
 
 test('un formulaire vide ne produit aucun critère, et une page 0 de 20 éléments', () => {
@@ -34,56 +34,56 @@ test('un formulaire vide ne produit aucun critère, et une page 0 de 20 élémen
 })
 
 test('« Oracle » sur un projet et 30 jours : paramètres q, projet, horizon de l’API', () => {
-  const f = { ...formulaireVide(), texte: '  Oracle ', projets: [P1], horizonJours: 30 }
-  const criteres = criteresDuFormulaire(f)
-  assert.deepEqual(criteres, { texte: 'Oracle', projets: [P1], horizonJours: 30 })
-  const p = parametresRecherche(criteres, 2, 20)
-  assert.equal(p.get('q'), 'Oracle')
-  assert.deepEqual(p.getAll('projet'), [P1])
-  assert.equal(p.get('horizon'), '30')
-  assert.equal(p.get('page'), '2')
-  assert.equal(p.get('taille'), '20')
-  assert.equal(p.has('type'), false)
-  assert.equal(p.has('gravite'), false)
+  const formulaire = { ...formulaireVide(), texte: '  Oracle ', projets: [PROJET_A], horizonJours: 30 }
+  const criteres = criteresDuFormulaire(formulaire)
+  assert.deepEqual(criteres, { texte: 'Oracle', projets: [PROJET_A], horizonJours: 30 })
+  const parametres = parametresRecherche(criteres, 2, 20)
+  assert.equal(parametres.get('q'), 'Oracle')
+  assert.deepEqual(parametres.getAll('projet'), [PROJET_A])
+  assert.equal(parametres.get('horizon'), '30')
+  assert.equal(parametres.get('page'), '2')
+  assert.equal(parametres.get('taille'), '20')
+  assert.equal(parametres.has('type'), false)
+  assert.equal(parametres.has('gravite'), false)
 })
 
 test('les filtres répétables sont répétés, rognés et dédoublonnés ; les vides sont omis', () => {
-  const f = {
+  const formulaire = {
     texte: '',
-    projets: [P1, P2, P1, ' '],
+    projets: [PROJET_A, PROJET_B, PROJET_A, ' '],
     technologies: ' java, npm,, java ,',
     types: ['AVIS_SECURITE', 'ARTICLE'],
     gravite: 'HIGH',
     horizonJours: null,
     profils: ['securite-applicative'],
   }
-  const criteres = criteresDuFormulaire(f)
+  const criteres = criteresDuFormulaire(formulaire)
   assert.deepEqual(criteres, {
-    projets: [P1, P2],
+    projets: [PROJET_A, PROJET_B],
     technologies: ['java', 'npm'],
     types: ['AVIS_SECURITE', 'ARTICLE'],
     gravite: 'HIGH',
     profils: ['securite-applicative'],
   })
-  const p = parametresRecherche(criteres)
-  assert.deepEqual(p.getAll('projet'), [P1, P2])
-  assert.deepEqual(p.getAll('technologie'), ['java', 'npm'])
-  assert.deepEqual(p.getAll('type'), ['AVIS_SECURITE', 'ARTICLE'])
-  assert.deepEqual(p.getAll('profil'), ['securite-applicative'])
-  assert.equal(p.get('gravite'), 'HIGH')
-  assert.equal(p.has('q'), false)
-  assert.equal(p.has('horizon'), false)
+  const parametres = parametresRecherche(criteres)
+  assert.deepEqual(parametres.getAll('projet'), [PROJET_A, PROJET_B])
+  assert.deepEqual(parametres.getAll('technologie'), ['java', 'npm'])
+  assert.deepEqual(parametres.getAll('type'), ['AVIS_SECURITE', 'ARTICLE'])
+  assert.deepEqual(parametres.getAll('profil'), ['securite-applicative'])
+  assert.equal(parametres.get('gravite'), 'HIGH')
+  assert.equal(parametres.has('q'), false)
+  assert.equal(parametres.has('horizon'), false)
 })
 
 test('les mots sont encodés dans l’URL, jamais concaténés tels quels', () => {
-  const p = parametresRecherche({ texte: '"log4j" or spring -test&page=9' })
-  assert.equal(p.get('q'), '"log4j" or spring -test&page=9')
-  assert.equal(p.getAll('page').length, 1)
-  assert.match(p.toString(), /^q=%22log4j%22\+or\+spring\+-test%26page%3D9&page=0&taille=20$/)
+  const parametres = parametresRecherche({ texte: '"log4j" or spring -test&page=9' })
+  assert.equal(parametres.get('q'), '"log4j" or spring -test&page=9')
+  assert.equal(parametres.getAll('page').length, 1)
+  assert.match(parametres.toString(), /^q=%22log4j%22\+or\+spring\+-test%26page%3D9&page=0&taille=20$/)
 })
 
 test('période : « 30 derniers jours » est proposée et correspond à horizon=30', () => {
-  const trente = PERIODES.find((p) => p.jours === 30)
+  const trente = PERIODES.find((periode) => periode.jours === 30)
   assert.equal(trente?.libelle, '30 derniers jours')
   assert.equal(PERIODES[0].jours, null)
   assert.equal(libellePeriode(30), '30 derniers jours')
@@ -108,12 +108,12 @@ test('annonce des résultats pour les technologies d’assistance', () => {
 })
 
 test('vue enregistrée : corps NouvelleVue et aller-retour des critères', () => {
-  const f = { ...formulaireVide(), texte: 'Oracle', projets: [P1], horizonJours: 30, types: ['AVIS_SECURITE'] }
-  const criteres = criteresDuFormulaire(f)
+  const formulaire = { ...formulaireVide(), texte: 'Oracle', projets: [PROJET_A], horizonJours: 30, types: ['AVIS_SECURITE'] }
+  const criteres = criteresDuFormulaire(formulaire)
   const corps = corpsNouvelleVue('  Oracle 30 jours ', criteres)
   assert.deepEqual(JSON.parse(JSON.stringify(corps)), {
     nom: 'Oracle 30 jours',
-    criteres: { texte: 'Oracle', projets: [P1], types: ['AVIS_SECURITE'], horizonJours: 30 },
+    criteres: { texte: 'Oracle', projets: [PROJET_A], types: ['AVIS_SECURITE'], horizonJours: 30 },
   })
   // La vue rappelée (VueEnregistree.criteres, attributs nuls omis par le serveur) préremplit le formulaire.
   const rappel = formulaireDesCriteres(corps.criteres)
@@ -122,33 +122,33 @@ test('vue enregistrée : corps NouvelleVue et aller-retour des critères', () =>
 
 test('une vue aux critères absents ou partiels donne un formulaire complet', () => {
   assert.deepEqual(formulaireDesCriteres(null), formulaireVide())
-  const f = formulaireDesCriteres({ technologies: ['Oracle', 'java'], profils: ['expert-metier'], gravite: 'LOW' })
-  assert.equal(f.technologies, 'Oracle, java')
-  assert.deepEqual(f.profils, ['expert-metier'])
-  assert.equal(f.gravite, 'LOW')
-  assert.equal(f.horizonJours, null)
+  const formulaire = formulaireDesCriteres({ technologies: ['Oracle', 'java'], profils: ['expert-metier'], gravite: 'LOW' })
+  assert.equal(formulaire.technologies, 'Oracle, java')
+  assert.deepEqual(formulaire.profils, ['expert-metier'])
+  assert.equal(formulaire.gravite, 'LOW')
+  assert.equal(formulaire.horizonJours, null)
 })
 
 test('identifiants : seuls des UUID servent à construire une URL de vue ou un filtre projet', () => {
-  assert.ok(estUuid(P1))
-  assert.ok(estUuid(` ${P1.toUpperCase()} `))
-  for (const v of ['', '../alertes', `${P1}/resultats`, '1234', null, undefined, 42]) {
-    assert.equal(estUuid(v), false, String(v))
+  assert.ok(estUuid(PROJET_A))
+  assert.ok(estUuid(` ${PROJET_A.toUpperCase()} `))
+  for (const valeur of ['', '../alertes', `${PROJET_A}/resultats`, '1234', null, undefined, 42]) {
+    assert.equal(estUuid(valeur), false, String(valeur))
   }
 })
 
 test('projets du filtre : connus et cités, sans doublon, triés par nom, UUID seulement', () => {
   const tous = projetsConnus(
-    [{ projetId: P2, projet: null }],
+    [{ projetId: PROJET_B, projet: null }],
     [
-      { projetId: P1, projet: 'Zeta' },
-      { projetId: P2, projet: 'Alpha' },
+      { projetId: PROJET_A, projet: 'Zeta' },
+      { projetId: PROJET_B, projet: 'Alpha' },
       { projetId: 'pas-un-uuid', projet: 'X' },
     ],
   )
   assert.deepEqual(tous, [
-    { projetId: P2, projet: 'Alpha' },
-    { projetId: P1, projet: 'Zeta' },
+    { projetId: PROJET_B, projet: 'Alpha' },
+    { projetId: PROJET_A, projet: 'Zeta' },
   ])
 })
 
@@ -205,7 +205,7 @@ test('recherche : délai propre aux recherches, annulation des chargements dépa
   assert.match(client, /'DELAI_DEPASSE'/)
   assert.match(client, /'ANNULE'/)
   const vue = source('../src/views/RechercheView.vue')
-  assert.match(vue, /e\.motif === 'DELAI_DEPASSE'/)
+  assert.match(vue, /echec\.motif === 'DELAI_DEPASSE'/)
   assert.match(vue, /chargementCourant\?\.abort\(\)/)
   assert.match(vue, /if \(signal\.aborted\) return/)
   // Suppression de la vue affichée : résultats et source vidés.

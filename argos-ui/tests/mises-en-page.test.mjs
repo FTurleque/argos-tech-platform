@@ -34,58 +34,60 @@ const texte = (fragment) =>
 
 /** Fragments `<article … data-element …>…</article>` (les articles ne s'imbriquent pas). */
 function articles(page) {
-  return [...page.matchAll(/<article\b[^>]*\bdata-element\b[^>]*>[\s\S]*?<\/article>/g)].map((m) => m[0])
+  return [...page.matchAll(/<article\b[^>]*\bdata-element\b[^>]*>[\s\S]*?<\/article>/g)].map((correspondance) => correspondance[0])
 }
 
 /** Faits restitués par un article, lus par leurs marqueurs `data-champ` et `data-mention`. */
 function faits(article) {
   const champs = {}
-  for (const m of article.matchAll(/data-(champ|mention)="([\w-]+)"[^>]*>([\s\S]*?)<\/(span|li|p|dd|h[1-6])>/g)) {
-    const cle = `${m[1]}:${m[2]}`
-    ;(champs[cle] ??= []).push(texte(m[3]))
+  for (const correspondance of article.matchAll(/data-(champ|mention)="([\w-]+)"[^>]*>([\s\S]*?)<\/(span|li|p|dd|h[1-6])>/g)) {
+    const cle = `${correspondance[1]}:${correspondance[2]}`
+    ;(champs[cle] ??= []).push(texte(correspondance[3]))
   }
-  champs.liens = [...article.matchAll(/href="([^"]*)"/g)].map((m) => m[1])
+  champs.liens = [...article.matchAll(/href="([^"]*)"/g)].map((correspondance) => correspondance[1])
   return champs
 }
 
 /** Faits attendus d'un élément du modèle, indépendants de toute mise en page. */
-function faitsAttendus(e) {
+function faitsAttendus(element) {
   const attendus = {
-    'champ:type': [e.type.libelle],
-    'champ:titre': [e.titre],
-    'mention:source': [e.mentions.source.nom + (/^https?:\/\//i.test(e.mentions.source.url ?? '') ? ' (nouvelle fenêtre)' : '')],
+    'champ:type': [element.type.libelle],
+    'champ:titre': [element.titre],
+    'mention:source': [
+      element.mentions.source.nom + (/^https?:\/\//i.test(element.mentions.source.url ?? '') ? ' (nouvelle fenêtre)' : ''),
+    ],
   }
-  if (e.rubriques.length) attendus['champ:rubrique'] = e.rubriques.map((r) => r.libelle)
-  if (e.gravite) attendus['champ:gravite'] = [e.gravite.libelle]
-  if (e.resume) attendus['champ:resume'] = [e.resume]
-  if (e.action) attendus['champ:action'] = [e.action]
-  if (e.projets.length) attendus['champ:projet'] = e.projets.map((p) => p.nom)
+  if (element.rubriques.length) attendus['champ:rubrique'] = element.rubriques.map((rubrique) => rubrique.libelle)
+  if (element.gravite) attendus['champ:gravite'] = [element.gravite.libelle]
+  if (element.resume) attendus['champ:resume'] = [element.resume]
+  if (element.action) attendus['champ:action'] = [element.action]
+  if (element.projets.length) attendus['champ:projet'] = element.projets.map((projet) => projet.nom)
   else attendus['champ:sans-projet'] = ['aucun projet visible']
-  const niveaux = e.projets.filter((p) => p.niveau).map((p) => p.niveau.libelle)
+  const niveaux = element.projets.filter((projet) => projet.niveau).map((projet) => projet.niveau.libelle)
   if (niveaux.length) attendus['champ:niveau'] = niveaux
-  if (e.mentions.niveauConfiance) attendus['mention:confiance'] = [e.mentions.niveauConfiance.libelle]
-  if (e.mentions.resumeProduitParIA) attendus['mention:ia'] = ["produit par l'IA, à vérifier à la source"]
-  if (e.mentions.validation) attendus['mention:validation'] = [e.mentions.validation]
-  if (e.mentions.origines.length) attendus['mention:origine'] = [e.mentions.origines.join(' · ')]
-  if (e.mentions.attribution) attendus['mention:attribution'] = [e.mentions.attribution]
-  if (e.mentions.gardeFous.length) attendus['mention:garde-fou'] = [...e.mentions.gardeFous]
+  if (element.mentions.niveauConfiance) attendus['mention:confiance'] = [element.mentions.niveauConfiance.libelle]
+  if (element.mentions.resumeProduitParIA) attendus['mention:ia'] = ["produit par l'IA, à vérifier à la source"]
+  if (element.mentions.validation) attendus['mention:validation'] = [element.mentions.validation]
+  if (element.mentions.origines.length) attendus['mention:origine'] = [element.mentions.origines.join(' · ')]
+  if (element.mentions.attribution) attendus['mention:attribution'] = [element.mentions.attribution]
+  if (element.mentions.gardeFous.length) attendus['mention:garde-fou'] = [...element.mentions.gardeFous]
   return attendus
 }
 
 test('AFF-02 : chaque mise en page restitue tous les éléments, une fois chacun, dans l’ordre reçu', () => {
-  const titres = rendu.veilleApercu.elements.map((e) => e.titre)
+  const titres = rendu.veilleApercu.elements.map((element) => element.titre)
   for (const id of IDENTIFIANTS) {
-    const lus = articles(html[id]).map((a) => faits(a)['champ:titre']?.[0])
+    const lus = articles(html[id]).map((article) => faits(article)['champ:titre']?.[0])
     assert.deepEqual(lus, titres, id)
   }
 })
 
 test('AFF-02 : mêmes faits, mêmes liens et mêmes mentions dans les quatre mises en page', () => {
   const reference = articles(html.classique).map(faits)
-  rendu.veilleApercu.elements.forEach((e, i) => {
-    const attendus = faitsAttendus(e)
+  rendu.veilleApercu.elements.forEach((element, position) => {
+    const attendus = faitsAttendus(element)
     for (const [cle, valeurs] of Object.entries(attendus)) {
-      assert.deepEqual(reference[i][cle], valeurs, `classique, élément ${e.identifiant}, ${cle}`)
+      assert.deepEqual(reference[position][cle], valeurs, `classique, élément ${element.identifiant}, ${cle}`)
     }
   })
   for (const id of IDENTIFIANTS.slice(1)) {
@@ -114,9 +116,9 @@ test('AFF-02 : la veille réelle de /me/veille, transposée, garde ses faits et 
   const pages = {}
   for (const id of IDENTIFIANTS) pages[id] = await rendu.rendre(id, veille)
   const reference = articles(pages.classique).map(faits)
-  veille.elements.forEach((e, i) => {
-    for (const [cle, valeurs] of Object.entries(faitsAttendus(e))) {
-      assert.deepEqual(reference[i][cle], valeurs, `classique, élément ${e.identifiant}, ${cle}`)
+  veille.elements.forEach((element, position) => {
+    for (const [cle, valeurs] of Object.entries(faitsAttendus(element))) {
+      assert.deepEqual(reference[position][cle], valeurs, `classique, élément ${element.identifiant}, ${cle}`)
     }
   })
   assert.deepEqual(reference[0]['mention:attribution'], ['Source : DILA, Licence Ouverte 2.0.'])
@@ -132,7 +134,7 @@ test('AFF-02 : la veille réelle de /me/veille, transposée, garde ses faits et 
 })
 
 test('AFF-02 : la mention « résumé produit par l’IA » figure sur chaque résumé IA, et seulement sur eux', () => {
-  const attendu = rendu.veilleApercu.elements.filter((e) => e.mentions.resumeProduitParIA).length
+  const attendu = rendu.veilleApercu.elements.filter((element) => element.mentions.resumeProduitParIA).length
   assert.ok(attendu > 0)
   for (const id of IDENTIFIANTS) {
     assert.equal(html[id].match(/data-mention="ia"/g)?.length ?? 0, attendu, id)
@@ -173,8 +175,8 @@ test('liens : seules les sources http(s) sont cliquables, en nouvelle fenêtre a
 
 test('RGAA 6.1, 6.2 : chaque lien a un intitulé non vide', () => {
   for (const id of IDENTIFIANTS) {
-    for (const m of html[id].matchAll(/<a\b[^>]*>([\s\S]*?)<\/a>/g)) {
-      assert.ok(texte(m[1]).length > 0, `${id} : lien sans intitulé`)
+    for (const correspondance of html[id].matchAll(/<a\b[^>]*>([\s\S]*?)<\/a>/g)) {
+      assert.ok(texte(correspondance[1]).length > 0, `${id} : lien sans intitulé`)
     }
     assert.doesNotMatch(html[id], /<button\b/, `${id} : une mise en page ne porte aucune commande`)
   }
@@ -184,14 +186,14 @@ test('RGAA 9.1 : hiérarchie de titres sans saut, à partir du niveau demandé',
   for (const id of IDENTIFIANTS) {
     for (const niveau of [1, 2, 3]) {
       const page = niveau === 2 ? html[id] : await rendu.rendre(id, rendu.veilleApercu, niveau)
-      const niveaux = [...page.matchAll(/<h([1-6])\b/g)].map((m) => Number(m[1]))
+      const niveaux = [...page.matchAll(/<h([1-6])\b/g)].map((correspondance) => Number(correspondance[1]))
       assert.equal(niveaux[0], niveau, `${id} : premier titre`)
-      assert.ok(niveaux.every((n) => n >= niveau), `${id} : titre au-dessus du niveau demandé`)
-      niveaux.forEach((n, i) => {
-        if (i > 0) assert.ok(n <= niveaux[i - 1] + 1, `${id} : saut de h${niveaux[i - 1]} à h${n}`)
+      assert.ok(niveaux.every((niveauTitre) => niveauTitre >= niveau), `${id} : titre au-dessus du niveau demandé`)
+      niveaux.forEach((niveauTitre, position) => {
+        if (position > 0) assert.ok(niveauTitre <= niveaux[position - 1] + 1, `${id} : saut de h${niveaux[position - 1]} à h${niveauTitre}`)
       })
-      const titresElements = articles(page).map((a) => Number(/<h([1-6])\b/.exec(a)[1]))
-      assert.ok(titresElements.every((n) => n === niveau + 1), `${id} : titres des éléments au niveau ${niveau + 1}`)
+      const titresElements = articles(page).map((article) => Number(/<h([1-6])\b/.exec(article)[1]))
+      assert.ok(titresElements.every((niveauTitre) => niveauTitre === niveau + 1), `${id} : titres des éléments au niveau ${niveau + 1}`)
     }
   }
 })
@@ -199,14 +201,14 @@ test('RGAA 9.1 : hiérarchie de titres sans saut, à partir du niveau demandé',
 test('RGAA 9.2, 9.3 : région nommée par le titre principal, articles nommés par leur titre, listes structurées', () => {
   for (const id of IDENTIFIANTS) {
     const page = html[id]
-    const ids = new Set([...page.matchAll(/<h[1-6]\b[^>]*\bid="([^"]+)"/g)].map((m) => m[1]))
+    const ids = new Set([...page.matchAll(/<h[1-6]\b[^>]*\bid="([^"]+)"/g)].map((correspondance) => correspondance[1]))
     const racine = /^<section\b[^>]*aria-labelledby="([^"]+)"/.exec(page)
     assert.ok(racine && ids.has(racine[1]), `${id} : la racine est une région nommée par un titre`)
-    for (const a of articles(page)) {
-      const nom = /aria-labelledby="([^"]+)"/.exec(a)
+    for (const article of articles(page)) {
+      const nom = /aria-labelledby="([^"]+)"/.exec(article)
       assert.ok(nom && ids.has(nom[1]), `${id} : article sans nom accessible`)
     }
-    const identifiants = [...page.matchAll(/\bid="([^"]+)"/g)].map((m) => m[1])
+    const identifiants = [...page.matchAll(/\bid="([^"]+)"/g)].map((correspondance) => correspondance[1])
     assert.equal(new Set(identifiants).size, identifiants.length, `${id} : identifiants en double`)
     // Les éléments sont les items d'une liste ; aucune balise de liste n'a d'autre enfant que <li>.
     assert.equal(page.match(/<li\b[^>]*>(?:<!--\[-->)?<article\b/g)?.length, rendu.veilleApercu.elements.length, id)

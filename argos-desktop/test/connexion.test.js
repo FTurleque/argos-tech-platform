@@ -11,11 +11,11 @@ const EMETTEUR = 'http://localhost:8180/realms/argos';
 
 function urlAutorisation(redirectUri, modifs = {}) {
   const url = new URL(`${EMETTEUR}/protocol/openid-connect/auth`);
-  const p = {
+  const parametres = {
     response_type: 'code', client_id: 'argos-ui', redirect_uri: redirectUri, scope: 'openid',
     state: 'etat-1', code_challenge: 'defi-1', code_challenge_method: 'S256', ...modifs,
   };
-  for (const [k, v] of Object.entries(p)) if (v !== undefined) url.searchParams.set(k, v);
+  for (const [cle, valeur] of Object.entries(parametres)) if (valeur !== undefined) url.searchParams.set(cle, valeur);
   return url.toString();
 }
 
@@ -25,7 +25,7 @@ function lire(url) {
     http.get(url, (res) => {
       let corps = '';
       res.setEncoding('utf8');
-      res.on('data', (c) => { corps += c; });
+      res.on('data', (morceau) => { corps += morceau; });
       res.on('end', () => resolve({ status: res.statusCode, headers: res.headers, corps }));
     }).on('error', reject);
   });
@@ -73,7 +73,7 @@ test('ACC-10-S2 : la page de retour est statique et ne reprend pas les paramètr
   });
   const redirectUri = await connexion.preparer();
   await connexion.autoriser(urlAutorisation(redirectUri));
-  while (page === null) await new Promise((r) => setImmediate(r));
+  while (page === null) await new Promise((resoudre) => setImmediate(resoudre));
   assert.equal(page.status, 200);
   assert.match(page.corps, /^<!DOCTYPE html>\n<html lang="fr">/);
   assert.doesNotMatch(page.corps, /script|code|etat-1/);
@@ -130,7 +130,7 @@ test('sans écoute préparée, ou pendant une autorisation en cours, une nouvell
 test('délai dépassé ou navigateur impossible à ouvrir : null et écoute fermée', async () => {
   const minuteries = [];
   const { connexion } = installer({
-    deps: { planifier: (fn) => { minuteries.push(fn); return minuteries.length; }, annuler: () => {} },
+    deps: { planifier: (action) => { minuteries.push(action); return minuteries.length; }, annuler: () => {} },
   });
   const redirectUri = await connexion.preparer();
   const attente = connexion.autoriser(urlAutorisation(redirectUri));
@@ -139,8 +139,8 @@ test('délai dépassé ou navigateur impossible à ouvrir : null et écoute ferm
   assert.equal(connexion.enAttente(), false);
 
   const echec = installer({ ouvrir: () => Promise.reject(new Error('aucun navigateur')) });
-  const r = await echec.connexion.preparer();
-  assert.equal(await echec.connexion.autoriser(urlAutorisation(r)), null);
+  const adresseRetour = await echec.connexion.preparer();
+  assert.equal(await echec.connexion.autoriser(urlAutorisation(adresseRetour)), null);
   assert.equal(echec.connexion.enAttente(), false);
 });
 

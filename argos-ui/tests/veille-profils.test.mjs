@@ -71,9 +71,9 @@ test('origine : profils puis abonnements personnels, nommés par leurs critères
 })
 
 test('un élément sans champ abonnements (serveur antérieur) n’a que l’origine de ses profils', () => {
-  const e = element('a', [SECURITE], ['developpeur'])
-  delete e.abonnements
-  assert.deepEqual(originesElement(e, CATALOGUE), ['Profil Développeur'])
+  const elementVeille = element('a', [SECURITE], ['developpeur'])
+  delete elementVeille.abonnements
+  assert.deepEqual(originesElement(elementVeille, CATALOGUE), ['Profil Développeur'])
 })
 
 test('libellés de type, de gravité et de date', () => {

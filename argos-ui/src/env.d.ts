@@ -15,7 +15,7 @@ interface ArgosDesktopBridge {
   /** Notifie une alerte : identifiant, gravité et nombre de projets seulement (NOT-05). */
   notifyAlert(alerte: { id: string; gravite: string | null; projets: number }): Promise<boolean>
   /** Nombre d'alertes ouvertes affiché dans la zone de notification (NOT-03). */
-  setAlertCount(n: number): Promise<boolean>
+  setAlertCount(nombre: number): Promise<boolean>
   /** Abonnement aux clics sur les notifications d'alerte (NOT-02) ; renvoie de quoi se désabonner. */
   onOpenAlert(callback: (id: string) => void): () => void
   getSettings(): Promise<ArgosReglagesPoste | null>

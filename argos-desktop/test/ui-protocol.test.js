@@ -4,33 +4,33 @@ const assert = require('node:assert/strict');
 const path = require('node:path');
 const { resolveUiFile, contentSecurityPolicy, mimeType } = require('../src/ui-protocol');
 
-const UI = path.resolve('/opt/argos/ui');
+const RACINE_UI = path.resolve('/opt/argos/ui');
 
 test('la racine sert index.html', () => {
-  assert.equal(resolveUiFile('app://argos/', UI), path.join(UI, 'index.html'));
+  assert.equal(resolveUiFile('app://argos/', RACINE_UI), path.join(RACINE_UI, 'index.html'));
 });
 
 test('un fichier du build est servi', () => {
-  assert.equal(resolveUiFile('app://argos/assets/index.js', UI), path.join(UI, 'assets', 'index.js'));
+  assert.equal(resolveUiFile('app://argos/assets/index.js', RACINE_UI), path.join(RACINE_UI, 'assets', 'index.js'));
 });
 
 test('impossible de sortir du dossier de l\u2019IHM', () => {
-  const inside = (file) => file === null || file === UI || file.startsWith(UI + path.sep);
+  const inside = (file) => file === null || file === RACINE_UI || file.startsWith(RACINE_UI + path.sep);
   for (const url of [
     'app://argos/../../etc/passwd',
     'app://argos/%2e%2e/%2e%2e/etc/passwd',
     'app://argos/..%2f..%2fsecret',
     'app://argos/assets/..%5c..%5csecret',
   ]) {
-    assert.ok(inside(resolveUiFile(url, UI)), url);
+    assert.ok(inside(resolveUiFile(url, RACINE_UI)), url);
   }
-  assert.equal(resolveUiFile('app://argos/..%2f..%2fsecret', UI), null);
+  assert.equal(resolveUiFile('app://argos/..%2f..%2fsecret', RACINE_UI), null);
 });
 
 test('un autre hôte ou protocole est refusé', () => {
-  assert.equal(resolveUiFile('app://autre/index.html', UI), null);
-  assert.equal(resolveUiFile('file:///opt/argos/ui/index.html', UI), null);
-  assert.equal(resolveUiFile('pas une url', UI), null);
+  assert.equal(resolveUiFile('app://autre/index.html', RACINE_UI), null);
+  assert.equal(resolveUiFile('file:///opt/argos/ui/index.html', RACINE_UI), null);
+  assert.equal(resolveUiFile('pas une url', RACINE_UI), null);
 });
 
 test('la CSP n’autorise que le serveur ARGOS configuré', () => {

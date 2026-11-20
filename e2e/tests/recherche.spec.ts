@@ -14,7 +14,7 @@ test('RCH-01, RCH-02-S1, RCH-04-S1 : recherche « Oracle », projet Paie, 30 jou
   // 1. Mots et période : les signaux « Oracle » des 30 derniers jours, tous projets.
   await page.getByLabel('Mots recherchés').fill('Oracle')
   await page.getByLabel('Période').selectOption({ label: '30 derniers jours' })
-  const reponse = page.waitForResponse((r) => r.url().includes('/api/v1/recherche?'))
+  const reponse = page.waitForResponse((candidate) => candidate.url().includes('/api/v1/recherche?'))
   await page.getByRole('button', { name: 'Rechercher' }).click()
   // Réponse de l'API jointe au rapport : elle explique un écart d'affichage éventuel.
   await test.info().attach('reponse-recherche-oracle-30j.json', { body: await (await reponse).body(), contentType: 'application/json' })

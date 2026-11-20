@@ -20,7 +20,7 @@ import {
 
 /** Libellé d'un profil d'après le catalogue, ou son identifiant s'il n'y figure pas. */
 export function libelleProfil(identifiant: string, catalogue: readonly ProfilCatalogue[]): string {
-  return catalogue.find((p) => p.identifiant === identifiant)?.libelle ?? identifiant
+  return catalogue.find((profil) => profil.identifiant === identifiant)?.libelle ?? identifiant
 }
 
 const TYPES_FILTRE: Readonly<Record<string, string>> = {
@@ -35,8 +35,8 @@ const TYPES_FILTRE: Readonly<Record<string, string>> = {
 }
 
 /** Libellé d'un critère d'abonnement, par exemple « paquet : pkg:cargo/hyper ». */
-export function libelleFiltre(f: FiltreAbonnement): string {
-  return `${TYPES_FILTRE[f.type] ?? f.type.toLowerCase()} : ${f.value}`
+export function libelleFiltre(filtre: FiltreAbonnement): string {
+  return `${TYPES_FILTRE[filtre.type] ?? filtre.type.toLowerCase()} : ${filtre.value}`
 }
 
 /** Nom d'un abonnement personnel d'après ses critères, par exemple « Abonnement personnel (technologie : rust) ». */
@@ -54,9 +54,9 @@ export function originesElement(
   catalogue: readonly ProfilCatalogue[] = [],
   abonnements: readonly Abonnement[] = [],
 ): string[] {
-  const origines = (element.profils ?? []).map((p) => `Profil ${libelleProfil(p, catalogue)}`)
+  const origines = (element.profils ?? []).map((profil) => `Profil ${libelleProfil(profil, catalogue)}`)
   for (const id of element.abonnements ?? []) {
-    origines.push(libelleAbonnement(abonnements.find((a) => a.id === id)))
+    origines.push(libelleAbonnement(abonnements.find((abonnement) => abonnement.id === id)))
   }
   return origines
 }
@@ -99,7 +99,7 @@ export function dateLisible(iso: string | null | undefined): string | null {
  * sinon. Le serveur décide seul de la validité de l'ensemble (au moins un profil, profils publiés).
  */
 export function basculerProfil(actifs: readonly string[], identifiant: string): string[] {
-  return actifs.includes(identifiant) ? actifs.filter((p) => p !== identifiant) : [...actifs, identifiant]
+  return actifs.includes(identifiant) ? actifs.filter((profil) => profil !== identifiant) : [...actifs, identifiant]
 }
 
 /** Message affiché pour un échec d'appel de la veille ou des profils. */

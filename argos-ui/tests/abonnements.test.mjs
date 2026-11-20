@@ -69,10 +69,10 @@ test('la liste suit la réponse du serveur : remplacement après changement d’
   const liste = [abonnement('a', 'PERSONAL', 'ACTIVE'), abonnement('b', 'PERSONAL', 'ACTIVE')]
   const suspendu = { ...liste[0], state: 'SUSPENDED' }
   const apres = remplacerAbonnement(liste, suspendu)
-  assert.deepEqual(apres.map((a) => [a.id, a.state]), [['a', 'SUSPENDED'], ['b', 'ACTIVE']])
+  assert.deepEqual(apres.map((abonnement) => [abonnement.id, abonnement.state]), [['a', 'SUSPENDED'], ['b', 'ACTIVE']])
   assert.deepEqual(apres[0].filters, liste[0].filters, 'critères conservés')
   assert.equal(liste[0].state, 'ACTIVE', 'liste d’origine inchangée')
-  assert.deepEqual(retirerAbonnement(apres, 'a').map((a) => a.id), ['b'])
+  assert.deepEqual(retirerAbonnement(apres, 'a').map((abonnement) => abonnement.id), ['b'])
 })
 
 test('messages d’erreur : droits décidés par le serveur, abonnement disparu, autres statuts', () => {

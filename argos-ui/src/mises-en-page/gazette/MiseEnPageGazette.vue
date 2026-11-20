@@ -73,9 +73,9 @@ const BANDEAUX: Readonly<Record<CodeNature, string>> = {
       <section class="sommaire" :aria-labelledby="`${id}-rubriques`">
         <Titre :id="`${id}-rubriques`" :niveau="niveauElement" class="sommaire-titre">Dans ce numéro</Titre>
         <ul role="list" class="sommaire-liste">
-          <li v-for="r in rubriques" :key="cleRubrique(r.rubrique)" data-rubrique>
-            <span>{{ r.rubrique.libelle }}</span><span class="points" aria-hidden="true" /><span>{{
-              nombreElements(r.nombre)
+          <li v-for="entree in rubriques" :key="cleRubrique(entree.rubrique)" data-rubrique>
+            <span>{{ entree.rubrique.libelle }}</span><span class="points" aria-hidden="true" /><span>{{
+              nombreElements(entree.nombre)
             }}</span>
           </li>
         </ul>
@@ -105,9 +105,9 @@ const BANDEAUX: Readonly<Record<CodeNature, string>> = {
                 <div class="projets">
                   <span class="libelle">Aperçu chez :</span>
                   <ul v-if="element.projets.length" role="list" class="projets-liste">
-                    <li v-for="(p, ip) in element.projets" :key="ip">
-                      <span data-champ="projet">{{ p.nom }}</span
-                      ><template v-if="p.niveau"> (<span data-champ="niveau">{{ p.niveau.libelle }}</span>)</template>
+                    <li v-for="(projet, rangProjet) in element.projets" :key="rangProjet">
+                      <span data-champ="projet">{{ projet.nom }}</span
+                      ><template v-if="projet.niveau"> (<span data-champ="niveau">{{ projet.niveau.libelle }}</span>)</template>
                     </li>
                   </ul>
                   <span v-else data-champ="sans-projet">aucun projet visible</span>
@@ -119,9 +119,9 @@ const BANDEAUX: Readonly<Record<CodeNature, string>> = {
             </div>
             <p v-if="element.rubriques.length" class="rubriques">
               <span class="libelle">Rubriques :</span>{{ ' ' }}
-              <template v-for="(r, i) in element.rubriques" :key="cleRubrique(r)">
-                <span v-if="i > 0" aria-hidden="true"> — </span>
-                <span data-champ="rubrique">{{ r.libelle }}</span>
+              <template v-for="(rubrique, rangRubrique) in element.rubriques" :key="cleRubrique(rubrique)">
+                <span v-if="rangRubrique > 0" aria-hidden="true"> — </span>
+                <span data-champ="rubrique">{{ rubrique.libelle }}</span>
               </template>
             </p>
             <MentionsObligatoires :mentions="element.mentions" />

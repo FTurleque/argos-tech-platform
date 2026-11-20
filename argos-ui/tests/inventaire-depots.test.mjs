@@ -85,14 +85,14 @@ test('INV-10-S1 : dépôts de la synthèse, principal d’abord, origine, dates 
 })
 
 test('dépôt jamais importé, valeurs absentes ou inattendues nommées', () => {
-  const [d] = depotsInventaire(synthese([{ id: '', provider: 'AUTRE', repository: ' ', branch: null, principal: 'oui',
+  const [depot] = depotsInventaire(synthese([{ id: '', provider: 'AUTRE', repository: ' ', branch: null, principal: 'oui',
     origin: null, sourceDate: null, importedAt: null, lastFailure: { reason: '', receivedAt: null } }]))
-  assert.equal(d.cle, 'rang-0')
-  assert.equal(d.forge, 'forge non précisée')
-  assert.equal(d.depot, 'dépôt non renseigné')
-  assert.equal(d.principal, false)
-  assert.equal(d.origine, null)
-  assert.equal(d.echec, null)
+  assert.equal(depot.cle, 'rang-0')
+  assert.equal(depot.forge, 'forge non précisée')
+  assert.equal(depot.depot, 'dépôt non renseigné')
+  assert.equal(depot.principal, false)
+  assert.equal(depot.origine, null)
+  assert.equal(depot.echec, null)
 })
 
 test('aucun dépôt : projet sans dépôt, sans inventaire ou serveur antérieur', () => {
@@ -105,7 +105,7 @@ test('aucun dépôt : projet sans dépôt, sans inventaire ou serveur antérieur
 test('chargement de l’écran : les dépôts accompagnent la synthèse', async () => {
   const etat = await chargerInventaireProjet(PROJET, async () => synthese([FRONT, BACK]))
   assert.equal(etat.erreur, '')
-  assert.deepEqual(etat.depots.map((d) => d.depot), ['groupe/front', 'org/back'])
+  assert.deepEqual(etat.depots.map((depot) => depot.depot), ['groupe/front', 'org/back'])
 })
 
 test('INV-10-S1 : composant présent dans deux dépôts, une seule ligne avec ses dépôts', () => {
@@ -139,7 +139,7 @@ test('écran : tableau des dépôts et colonne conditionnelle, valeurs rendues c
   assert.match(vue, /v-if="depots\.length > 0"/)
   assert.match(vue, /:afficher-depots="afficherColonneDepots\(depots\)"/)
   assert.match(tableau, /<th v-if="afficherDepots" scope="col">Dépôts<\/th>/)
-  for (const s of [vue, tableau, source('../src/contenu/inventaire-depots.ts')]) {
-    assert.doesNotMatch(s, /v-html|innerHTML/)
+  for (const texteSource of [vue, tableau, source('../src/contenu/inventaire-depots.ts')]) {
+    assert.doesNotMatch(texteSource, /v-html|innerHTML/)
   }
 })

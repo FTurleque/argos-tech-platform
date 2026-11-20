@@ -24,17 +24,17 @@ function creerBus() {
     },
   };
   const ipcMain = {
-    handle(canal, fn) {
+    handle(canal, gestionnaire) {
       if (gestionnaires.has(canal)) throw new Error(`canal déjà déclaré : ${canal}`);
-      gestionnaires.set(canal, fn);
+      gestionnaires.set(canal, gestionnaire);
     },
   };
   /** Appel depuis un émetteur donné (par défaut la fenêtre principale). */
   async function invoquer(canal, valeur, sender = webContents) {
     appels.push({ canal, valeur });
-    const fn = gestionnaires.get(canal);
-    if (!fn) throw new Error(`aucun gestionnaire pour ${canal}`);
-    return fn({ sender }, structuredClone(valeur));
+    const gestionnaire = gestionnaires.get(canal);
+    if (!gestionnaire) throw new Error(`aucun gestionnaire pour ${canal}`);
+    return gestionnaire({ sender }, structuredClone(valeur));
   }
   const ipcRenderer = {
     invoke: (canal, valeur) => invoquer(canal, valeur),
@@ -107,7 +107,7 @@ function fabriqueNotifications() {
       this.affichee = false;
       creees.push(this);
     }
-    on(evenement, fn) { this.ecouteurs[evenement] = fn; }
+    on(evenement, ecouteur) { this.ecouteurs[evenement] = ecouteur; }
     show() { this.affichee = true; }
     cliquer() { this.ecouteurs.click?.(); }
   }

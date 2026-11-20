@@ -73,9 +73,9 @@ export function estUuid(valeur: unknown): valeur is string {
 
 function valeurs(liste: ReadonlyArray<string> | undefined): string[] {
   const vues = new Set<string>()
-  for (const v of liste ?? []) {
-    const t = typeof v === 'string' ? v.trim() : ''
-    if (t !== '') vues.add(t)
+  for (const valeur of liste ?? []) {
+    const nettoyee = typeof valeur === 'string' ? valeur.trim() : ''
+    if (nettoyee !== '') vues.add(nettoyee)
   }
   return [...vues]
 }
@@ -86,58 +86,58 @@ export function formulaireVide(): FormulaireRecherche {
 }
 
 /** Critères envoyés à l'API : valeurs rognées et dédoublonnées, filtres vides omis. */
-export function criteresDuFormulaire(f: FormulaireRecherche): CriteresRecherche {
+export function criteresDuFormulaire(formulaire: FormulaireRecherche): CriteresRecherche {
   const criteres: CriteresRecherche = {}
-  const texte = f.texte.trim()
+  const texte = formulaire.texte.trim()
   if (texte !== '') criteres.texte = texte
-  const projets = valeurs(f.projets)
+  const projets = valeurs(formulaire.projets)
   if (projets.length > 0) criteres.projets = projets
-  const technologies = valeurs(f.technologies.split(','))
+  const technologies = valeurs(formulaire.technologies.split(','))
   if (technologies.length > 0) criteres.technologies = technologies
-  const types = valeurs(f.types)
+  const types = valeurs(formulaire.types)
   if (types.length > 0) criteres.types = types
-  if (f.gravite.trim() !== '') criteres.gravite = f.gravite.trim()
-  if (f.horizonJours !== null && Number.isInteger(f.horizonJours)) criteres.horizonJours = f.horizonJours
-  const profils = valeurs(f.profils)
+  if (formulaire.gravite.trim() !== '') criteres.gravite = formulaire.gravite.trim()
+  if (formulaire.horizonJours !== null && Number.isInteger(formulaire.horizonJours)) criteres.horizonJours = formulaire.horizonJours
+  const profils = valeurs(formulaire.profils)
   if (profils.length > 0) criteres.profils = profils
   return criteres
 }
 
 /** Formulaire prérempli avec les critères d'une vue rappelée. */
-export function formulaireDesCriteres(c: CriteresRecherche | null | undefined): FormulaireRecherche {
-  const k = c ?? {}
+export function formulaireDesCriteres(criteres: CriteresRecherche | null | undefined): FormulaireRecherche {
+  const connus = criteres ?? {}
   return {
-    texte: k.texte ?? '',
-    projets: valeurs(k.projets),
-    technologies: valeurs(k.technologies).join(', '),
-    types: valeurs(k.types),
-    gravite: k.gravite ?? '',
-    horizonJours: typeof k.horizonJours === 'number' ? k.horizonJours : null,
-    profils: valeurs(k.profils),
+    texte: connus.texte ?? '',
+    projets: valeurs(connus.projets),
+    technologies: valeurs(connus.technologies).join(', '),
+    types: valeurs(connus.types),
+    gravite: connus.gravite ?? '',
+    horizonJours: typeof connus.horizonJours === 'number' ? connus.horizonJours : null,
+    profils: valeurs(connus.profils),
   }
 }
 
 /** Vrai si aucun mot ni filtre n'est saisi. */
-export function criteresVides(c: CriteresRecherche): boolean {
-  return Object.keys(c).length === 0
+export function criteresVides(criteres: CriteresRecherche): boolean {
+  return Object.keys(criteres).length === 0
 }
 
 /**
  * Paramètres de `GET /api/v1/recherche` : `q`, `projet`, `technologie`, `type`, `profil` (répétés),
  * `gravite`, `horizon`, `page`, `taille`.
  */
-export function parametresRecherche(c: CriteresRecherche, page = 0, taille = TAILLE_PAGE): URLSearchParams {
-  const p = new URLSearchParams()
-  if (c.texte) p.set('q', c.texte)
-  for (const v of c.projets ?? []) p.append('projet', v)
-  for (const v of c.technologies ?? []) p.append('technologie', v)
-  for (const v of c.types ?? []) p.append('type', v)
-  if (c.gravite) p.set('gravite', c.gravite)
-  if (c.horizonJours !== undefined) p.set('horizon', String(c.horizonJours))
-  for (const v of c.profils ?? []) p.append('profil', v)
-  p.set('page', String(page))
-  p.set('taille', String(taille))
-  return p
+export function parametresRecherche(criteres: CriteresRecherche, page = 0, taille = TAILLE_PAGE): URLSearchParams {
+  const parametres = new URLSearchParams()
+  if (criteres.texte) parametres.set('q', criteres.texte)
+  for (const projet of criteres.projets ?? []) parametres.append('projet', projet)
+  for (const technologie of criteres.technologies ?? []) parametres.append('technologie', technologie)
+  for (const type of criteres.types ?? []) parametres.append('type', type)
+  if (criteres.gravite) parametres.set('gravite', criteres.gravite)
+  if (criteres.horizonJours !== undefined) parametres.set('horizon', String(criteres.horizonJours))
+  for (const profil of criteres.profils ?? []) parametres.append('profil', profil)
+  parametres.set('page', String(page))
+  parametres.set('taille', String(taille))
+  return parametres
 }
 
 /** Paramètres de pagination seuls (`GET /api/v1/vues/{id}/resultats`). */
@@ -153,18 +153,18 @@ export function corpsNouvelleVue(nom: string, criteres: CriteresRecherche): { no
 /** Libellé d'une période (`horizonJours`). */
 export function libellePeriode(jours: number | null | undefined): string {
   if (jours === null || jours === undefined) return 'Toute période'
-  return PERIODES.find((p) => p.jours === jours)?.libelle ?? `${jours} derniers jours`
+  return PERIODES.find((periode) => periode.jours === jours)?.libelle ?? `${jours} derniers jours`
 }
 
 /** Libellé d'un type de contenu. */
 export function libelleType(code: string): string {
-  return TYPES_CONTENU.find((t) => t.code === code)?.libelle ?? code
+  return TYPES_CONTENU.find((typeContenu) => typeContenu.code === code)?.libelle ?? code
 }
 
 /** Libellé d'une gravité ; null : non précisée. */
 export function libelleGravite(code: string | null | undefined): string {
   if (!code) return 'non précisée'
-  return GRAVITES.find((g) => g.code === code)?.libelle ?? code
+  return GRAVITES.find((gravite) => gravite.code === code)?.libelle ?? code
 }
 
 /** Nombre de pages d'un total de résultats. */
@@ -193,12 +193,13 @@ export interface ProjetConnu {
  */
 export function projetsConnus(connus: ReadonlyArray<ProjetConnu>, nouveaux: ReadonlyArray<ProjetConnu>): ProjetConnu[] {
   const parId = new Map<string, ProjetConnu>()
-  for (const p of [...connus, ...nouveaux]) {
-    if (!estUuid(p.projetId)) continue
-    const deja = parId.get(p.projetId)
-    if (!deja || (!deja.projet && p.projet)) parId.set(p.projetId, { projetId: p.projetId, projet: p.projet ?? null })
+  for (const projet of [...connus, ...nouveaux]) {
+    if (!estUuid(projet.projetId)) continue
+    const deja = parId.get(projet.projetId)
+    if (!deja || (!deja.projet && projet.projet)) parId.set(projet.projetId, { projetId: projet.projetId, projet: projet.projet ?? null })
   }
-  return [...parId.values()].sort((a, b) => (a.projet ?? a.projetId).localeCompare(b.projet ?? b.projetId, 'fr'))
+  return [...parId.values()].sort((premier, second) =>
+    (premier.projet ?? premier.projetId).localeCompare(second.projet ?? second.projetId, 'fr'))
 }
 
 /** Message d'erreur affiché pour un refus de l'API, selon l'opération. */

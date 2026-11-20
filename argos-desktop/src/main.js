@@ -7,7 +7,7 @@
 
 const path = require('node:path');
 const { pathToFileURL } = require('node:url');
-const fs = require('node:fs');
+const systemeFichiers = require('node:fs');
 const {
   app, BrowserWindow, Menu, Notification, Tray, ipcMain, nativeImage, net, protocol, session, shell,
 } = require('electron');
@@ -59,8 +59,8 @@ function showMainWindow() {
 
 function isExternalWebUrl(url) {
   try {
-    const { protocol: p } = new URL(url);
-    return p === 'https:' || p === 'http:';
+    const { protocol: schema } = new URL(url);
+    return schema === 'https:' || schema === 'http:';
   } catch {
     return false;
   }
@@ -70,7 +70,7 @@ function registerUiProtocol() {
   const csp = contentSecurityPolicy(API_URL, OIDC_URL);
   protocol.handle(SCHEME, async (request) => {
     const file = resolveUiFile(request.url, UI_DIR);
-    if (!file || !fs.existsSync(file)) {
+    if (!file || !systemeFichiers.existsSync(file)) {
       return new Response('Introuvable', { status: 404 });
     }
     const response = await net.fetch(pathToFileURL(file).toString());
@@ -142,7 +142,7 @@ function appliquerDemarrage() {
 function enregistrerReglages(nouveaux) {
   reglages = nouveaux;
   try {
-    preferences.ecrire(fs, fichierReglages, reglages);
+    preferences.ecrire(systemeFichiers, fichierReglages, reglages);
   } catch (error) {
     console.error('Réglages du poste non enregistrés :', error.message);
   }
@@ -235,7 +235,7 @@ app.on('window-all-closed', () => {});
 app.whenReady().then(() => {
   app.setAppUserModelId(APP_ID); // nécessaire aux notifications sous Windows
   fichierReglages = path.join(app.getPath('userData'), 'reglages-poste.json');
-  reglages = preferences.lire(fs, fichierReglages);
+  reglages = preferences.lire(systemeFichiers, fichierReglages);
   if (!DEMARRAGE_DISPONIBLE) reglages = { ...reglages, demarrageSession: false };
   appliquerDemarrage(); // désactivé par défaut (Q-2)
   session.defaultSession.setPermissionRequestHandler((_wc, permission, callback) => {

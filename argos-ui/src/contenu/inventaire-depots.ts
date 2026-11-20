@@ -56,7 +56,7 @@ export function depotsInventaire(reponse: SyntheseInventaireProjetApi | null | u
 
 /** Noms des dépôts qui contiennent un composant, dans l'ordre du serveur ; liste vide s'ils sont absents. */
 export function depotsComposant(recus: DepotComposantApi[] | null | undefined): string[] {
-  return (Array.isArray(recus) ? recus : []).map((d) => texte(d?.repository)).filter((nom): nom is string => nom !== null)
+  return (Array.isArray(recus) ? recus : []).map((depot) => texte(depot?.repository)).filter((nom): nom is string => nom !== null)
 }
 
 /**

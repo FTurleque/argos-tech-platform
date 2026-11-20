@@ -13,8 +13,8 @@ export interface RubriqueComptee {
 }
 
 /** Clé stable d'une rubrique : deux profils peuvent déclarer le même identifiant de rubrique. */
-export function cleRubrique(r: RubriqueAffichee): string {
-  return `${r.profil}/${r.identifiant}`
+export function cleRubrique(rubrique: RubriqueAffichee): string {
+  return `${rubrique.profil}/${rubrique.identifiant}`
 }
 
 /**
@@ -24,7 +24,7 @@ export function cleRubrique(r: RubriqueAffichee): string {
 export function sommaire(veille: VeilleAffichee): RubriqueComptee[] {
   return veille.rubriques.map((rubrique) => {
     const cle = cleRubrique(rubrique)
-    const nombre = veille.elements.filter((e) => e.rubriques.some((r) => cleRubrique(r) === cle)).length
+    const nombre = veille.elements.filter((element) => element.rubriques.some((rubrique) => cleRubrique(rubrique) === cle)).length
     return { rubrique, nombre }
   })
 }
@@ -39,8 +39,8 @@ export function dateLongue(iso: string | null | undefined): string {
 }
 
 /** « 1 élément », « 3 éléments ». */
-export function nombreElements(n: number): string {
-  return `${n} ${n > 1 ? 'éléments' : 'élément'}`
+export function nombreElements(nombre: number): string {
+  return `${nombre} ${nombre > 1 ? 'éléments' : 'élément'}`
 }
 
 /** Niveau de titre des éléments : un de plus que le titre principal, sans dépasser h6. */

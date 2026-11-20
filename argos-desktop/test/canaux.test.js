@@ -8,7 +8,7 @@ const {
 } = require('../src/canaux');
 const { creerBus, creerFenetre } = require('./electron-factice');
 
-const ID = '3f2b8c1e-4d5a-4b6c-8d7e-9f0a1b2c3d4e';
+const ID_ALERTE = '3f2b8c1e-4d5a-4b6c-8d7e-9f0a1b2c3d4e';
 
 function installer() {
   const bus = creerBus();
@@ -19,15 +19,15 @@ function installer() {
     autoriser: async (url) => { etat.connexions.push(url); return '?code=c&state=s'; },
   };
   const poste = {
-    alerte: (p) => { etat.alertes.push(p); return { affichee: true }; },
-    definirCompteur: (n) => { etat.compteurs.push(n); return Number.isInteger(n) && n >= 0; },
-    changerReglages: (d) => { etat.demandes.push(d); return d?.notificationsPoste === false ? d : null; },
+    alerte: (alerte) => { etat.alertes.push(alerte); return { affichee: true }; },
+    definirCompteur: (nombre) => { etat.compteurs.push(nombre); return Number.isInteger(nombre) && nombre >= 0; },
+    changerReglages: (demande) => { etat.demandes.push(demande); return demande?.notificationsPoste === false ? demande : null; },
   };
   enregistrerCanaux(bus.ipcMain, {
     connexion,
     fenetre: () => fenetre,
     poste,
-    notifier: (n) => { etat.notifications.push(n); return true; },
+    notifier: (notification) => { etat.notifications.push(notification); return true; },
     vueReglages: () => ({ notificationsPoste: true, demarrageSession: false, demarrageSessionDisponible: true }),
   });
   return { bus, fenetre, etat };
@@ -56,7 +56,7 @@ test('ACC-10 : la connexion n’est ouverte que pour la fenêtre principale, ave
 test('un message qui ne vient pas de la fenêtre principale est refusé sans effet', async () => {
   const { bus, etat } = installer();
   const intrus = {};
-  assert.equal(await bus.invoquer(CANAUX.ALERTE, { id: ID, gravite: 'HIGH', projets: 1 }, intrus), false);
+  assert.equal(await bus.invoquer(CANAUX.ALERTE, { id: ID_ALERTE, gravite: 'HIGH', projets: 1 }, intrus), false);
   assert.equal(await bus.invoquer(CANAUX.COMPTEUR, 3, intrus), false);
   assert.equal(await bus.invoquer(CANAUX.NOTIFIER, { title: 't' }, intrus), false);
   assert.equal(await bus.invoquer(CANAUX.REGLAGES_LIRE, undefined, intrus), null);
@@ -71,10 +71,10 @@ test('sans fenêtre principale, aucun message n’est accepté', () => {
 
 test('NOT-01 / NOT-03 : alerte et compteur sont transmis au comportement du poste', async () => {
   const { bus, etat } = installer();
-  assert.equal(await bus.invoquer(CANAUX.ALERTE, { id: ID, gravite: 'HIGH', projets: 1 }), true);
+  assert.equal(await bus.invoquer(CANAUX.ALERTE, { id: ID_ALERTE, gravite: 'HIGH', projets: 1 }), true);
   assert.equal(await bus.invoquer(CANAUX.COMPTEUR, 3), true);
   assert.equal(await bus.invoquer(CANAUX.COMPTEUR, -1), false);
-  assert.deepEqual(etat.alertes, [{ id: ID, gravite: 'HIGH', projets: 1 }]);
+  assert.deepEqual(etat.alertes, [{ id: ID_ALERTE, gravite: 'HIGH', projets: 1 }]);
   assert.deepEqual(etat.compteurs, [3, -1]);
 });
 
@@ -100,10 +100,10 @@ test('notification libre : titre obligatoire, titre et corps bornés', async () 
 test('NOT-02-S1 : ouvrir une alerte remet au premier plan la fenêtre masquée ou réduite, sur cette alerte', () => {
   const bus = creerBus();
   const fenetre = creerFenetre(bus.webContents, { visible: false, reduite: true });
-  ouvrirAlerte(fenetre, ID);
+  ouvrirAlerte(fenetre, ID_ALERTE);
   assert.equal(fenetre.reduite, false);
   assert.equal(fenetre.visible, true);
   assert.equal(fenetre.auPremierPlan, true);
-  assert.deepEqual(bus.webContents.envoyes, [{ canal: CANAUX.OUVRIR_ALERTE, valeur: ID }]);
-  assert.doesNotThrow(() => { ouvrirAlerte(null, ID); afficherFenetre(null); });
+  assert.deepEqual(bus.webContents.envoyes, [{ canal: CANAUX.OUVRIR_ALERTE, valeur: ID_ALERTE }]);
+  assert.doesNotThrow(() => { ouvrirAlerte(null, ID_ALERTE); afficherFenetre(null); });
 });

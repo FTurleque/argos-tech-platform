@@ -23,8 +23,8 @@ const enCours = ref(false)
 const actifs = computed(() => preferences.value?.profilsActifs ?? [])
 const indisponibles = computed(() => preferences.value?.profilsIndisponibles ?? [])
 
-function message(operation: 'profils' | 'choix', e: unknown): string {
-  return e instanceof ApiError ? messageErreurVeille(operation, e.status, e.message) : 'Erreur inattendue.'
+function message(operation: 'profils' | 'choix', echec: unknown): string {
+  return echec instanceof ApiError ? messageErreurVeille(operation, echec.status, echec.message) : 'Erreur inattendue.'
 }
 
 async function charger(): Promise<void> {
@@ -33,8 +33,8 @@ async function charger(): Promise<void> {
     const [profils, prefs] = await Promise.all([lireCatalogueProfils(), lirePreferences()])
     catalogue.value = profils
     preferences.value = prefs
-  } catch (e) {
-    erreur.value = message('profils', e)
+  } catch (echec) {
+    erreur.value = message('profils', echec)
   }
 }
 
@@ -47,9 +47,9 @@ async function basculer(identifiant: string): Promise<void> {
   annonce.value = ''
   try {
     preferences.value = await choisirProfils(basculerProfil(actifs.value, identifiant))
-    annonce.value = `Profils actifs enregistrés : ${actifs.value.map((p) => libelleProfil(p, catalogue.value)).join(', ')}.`
-  } catch (e) {
-    erreur.value = message('choix', e)
+    annonce.value = `Profils actifs enregistrés : ${actifs.value.map((profil) => libelleProfil(profil, catalogue.value)).join(', ')}.`
+  } catch (echec) {
+    erreur.value = message('choix', echec)
   } finally {
     enCours.value = false
   }
@@ -76,21 +76,21 @@ onMounted(charger)
     <p class="sr-only" role="status" aria-live="polite">{{ annonce }}</p>
 
     <ul v-if="preferences" class="profils">
-      <li v-for="p in catalogue" :key="p.identifiant">
+      <li v-for="profil in catalogue" :key="profil.identifiant">
         <button
           type="button"
           class="profil"
-          :class="{ actif: actifs.includes(p.identifiant) }"
-          :aria-pressed="actifs.includes(p.identifiant)"
+          :class="{ actif: actifs.includes(profil.identifiant) }"
+          :aria-pressed="actifs.includes(profil.identifiant)"
           :aria-disabled="enCours"
-          @click="basculer(p.identifiant)"
+          @click="basculer(profil.identifiant)"
         >
-          <span class="coche" aria-hidden="true">{{ actifs.includes(p.identifiant) ? '✓' : '' }}</span>
+          <span class="coche" aria-hidden="true">{{ actifs.includes(profil.identifiant) ? '✓' : '' }}</span>
           <span class="texte">
-            <span class="nom">{{ p.libelle }}</span>
-            <span class="description">{{ p.description }}</span>
-            <span v-if="p.rubriques.length" class="rubriques">
-              Rubriques : {{ p.rubriques.map((r) => r.libelle).join(', ') }}
+            <span class="nom">{{ profil.libelle }}</span>
+            <span class="description">{{ profil.description }}</span>
+            <span v-if="profil.rubriques.length" class="rubriques">
+              Rubriques : {{ profil.rubriques.map((rubrique) => rubrique.libelle).join(', ') }}
             </span>
           </span>
         </button>

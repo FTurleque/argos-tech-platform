@@ -36,7 +36,7 @@ test('4.2 (RCH-02-S1, RCH-04-S1) : recherche enregistrée en vue sur le web, rap
     const idVue = /#\/recherche\/vues\/([0-9a-f-]{36})$/.exec(page.url())![1]
     // La vue est enregistrée sur le serveur, au nom d'alice.
     const vues = await api<{ id: string; nom: string }[]>('alice', '/api/v1/vues')
-    expect(vues.filter((v) => v.nom === NOM_VUE).map((v) => v.id)).toEqual([idVue])
+    expect(vues.filter((vue) => vue.nom === NOM_VUE).map((vue) => vue.id)).toEqual([idVue])
 
     // 2. Client desktop : application Electron réelle, connectée avec le même compte.
     desktop = await lancerDesktop({ dossierDonnees: testInfo.outputPath('donnees-desktop') })

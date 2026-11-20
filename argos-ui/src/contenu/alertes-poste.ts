@@ -68,7 +68,7 @@ export interface DependancesSuivi {
   /** Demande une notification système ; renvoie false si elle n'est pas affichée. */
   notifier(alerte: AlertePoste): Promise<boolean>
   /** Met à jour le compteur de la zone de notification. */
-  compteur(n: number): void
+  compteur(nombre: number): void
   /** Reçoit chaque changement d'état. */
   surEtat(etat: EtatSuivi): void
   /** Alertes ouvertes (NOT-03). */
@@ -76,7 +76,7 @@ export interface DependancesSuivi {
   /** Alertes déjà traitées : évite une seconde notification après un rechargement (NOT-06). */
   stockageTraitees?: StockageOuvertes
   /** Planifie `fn` dans `ms` millisecondes ; renvoie de quoi l'annuler. */
-  planifier?(fn: () => void, ms: number): () => void
+  planifier?(action: () => void, delai: number): () => void
 }
 
 /** Intervalle entre deux lectures quand tout va bien. */
@@ -122,15 +122,15 @@ function statut(erreur: unknown): number | undefined {
 /** Alertes du canal DESKTOP encore EN_ATTENTE, des plus anciennes aux plus récentes. */
 function alertesATraiter(recues: ReadonlyArray<AlerteRecue>): AlerteRecue[] {
   return [...recues]
-    .filter((a) => a.canal === 'DESKTOP' && a.etat === 'EN_ATTENTE')
-    .sort((a, b) => String(a.creeLe ?? '').localeCompare(String(b.creeLe ?? '')))
+    .filter((alerte) => alerte.canal === 'DESKTOP' && alerte.etat === 'EN_ATTENTE')
+    .sort((premiere, seconde) => String(premiere.creeLe ?? '').localeCompare(String(seconde.creeLe ?? '')))
 }
 
 /** Identifiants mémorisés ; stockage absent, illisible ou invalide : liste vide. */
 function lireIds(stockage: StockageOuvertes | undefined, max: number): string[] {
   try {
     const ids = stockage?.lire() ?? []
-    return Array.isArray(ids) ? ids.filter((i) => typeof i === 'string').slice(-max) : []
+    return Array.isArray(ids) ? ids.filter((identifiant) => typeof identifiant === 'string').slice(-max) : []
   } catch {
     return []
   }
@@ -149,7 +149,7 @@ function ecrireIds(stockage: StockageOuvertes | undefined, ids: string[]): void 
  * des alertes ouvertes et reprise après une coupure.
  */
 export class SuiviAlertesPoste {
-  private readonly d: DependancesSuivi
+  private readonly dependances: DependancesSuivi
   /** Alertes déjà traitées (notifiées ou remises), confirmées ou non, dans l'ordre d'arrivée. */
   private traitees: string[]
   private ouvertes: string[]
@@ -162,9 +162,9 @@ export class SuiviAlertesPoste {
   private actif = false
 
   constructor(dependances: DependancesSuivi) {
-    this.d = dependances
-    this.ouvertes = lireIds(this.d.stockage, OUVERTES_MAX)
-    this.traitees = lireIds(this.d.stockageTraitees, TRAITEES_MAX)
+    this.dependances = dependances
+    this.ouvertes = lireIds(this.dependances.stockage, OUVERTES_MAX)
+    this.traitees = lireIds(this.dependances.stockageTraitees, TRAITEES_MAX)
   }
 
   get etat(): EtatSuivi {
@@ -196,7 +196,7 @@ export class SuiviAlertesPoste {
   async cycle(): Promise<number> {
     let recues: ReadonlyArray<AlerteRecue>
     try {
-      recues = await this.d.lister()
+      recues = await this.dependances.lister()
     } catch (erreur) {
       return this.echecLecture(erreur)
     }
@@ -214,9 +214,9 @@ export class SuiviAlertesPoste {
   /** L'utilisateur a consulté l'alerte dans l'application : elle n'est plus ouverte (NOT-03). */
   marquerConsultee(id: string): void {
     const avant = this.ouvertes.length
-    this.ouvertes = this.ouvertes.filter((o) => o !== id)
+    this.ouvertes = this.ouvertes.filter((ouverte) => ouverte !== id)
     if (this.ouvertes.length !== avant) {
-      ecrireIds(this.d.stockage, this.ouvertes)
+      ecrireIds(this.dependances.stockage, this.ouvertes)
       this.publier()
     }
   }
@@ -232,9 +232,9 @@ export class SuiviAlertesPoste {
     if (!this.actif) return
     const attente = await this.cycle()
     if (!this.actif) return
-    const planifier = this.d.planifier ?? ((fn: () => void, ms: number) => {
-      const t = setTimeout(fn, ms)
-      return () => clearTimeout(t)
+    const planifier = this.dependances.planifier ?? ((action: () => void, delai: number) => {
+      const minuterie = setTimeout(action, delai)
+      return () => clearTimeout(minuterie)
     })
     this.annuler = planifier(() => void this.boucle(), attente)
   }
@@ -281,7 +281,7 @@ export class SuiviAlertesPoste {
 
   private async notifierSansEchec(alerte: AlerteRecue): Promise<void> {
     try {
-      await this.d.notifier(alertePoste(alerte))
+      await this.dependances.notifier(alertePoste(alerte))
     } catch {
       // notification refusée ou indisponible : l'alerte reste comptée et visible (NOT-01-S2)
     }
@@ -289,7 +289,7 @@ export class SuiviAlertesPoste {
 
   private async remettreSansEchec(id: string): Promise<void> {
     try {
-      await this.d.remettre(id)
+      await this.dependances.remettre(id)
     } catch {
       // confirmation perdue : l'alerte reviendra à la prochaine lecture, sans nouvelle notification
     }
@@ -298,17 +298,17 @@ export class SuiviAlertesPoste {
   private ajouterOuverte(id: string): void {
     if (this.ouvertes.includes(id)) return
     this.ouvertes = [...this.ouvertes, id].slice(-OUVERTES_MAX)
-    ecrireIds(this.d.stockage, this.ouvertes)
+    ecrireIds(this.dependances.stockage, this.ouvertes)
   }
 
   private ajouterTraitee(id: string): void {
     this.traitees = [...this.traitees, id].slice(-TRAITEES_MAX)
-    ecrireIds(this.d.stockageTraitees, this.traitees)
+    ecrireIds(this.dependances.stockageTraitees, this.traitees)
   }
 
   private publier(): void {
     const etat = this.etat
-    this.d.compteur(etat.ouvertes)
-    this.d.surEtat(etat)
+    this.dependances.compteur(etat.ouvertes)
+    this.dependances.surEtat(etat)
   }
 }

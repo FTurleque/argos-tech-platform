@@ -10,12 +10,12 @@ function fsMemoire(initial = {}) {
   const fichiers = new Map(Object.entries(initial));
   return {
     fichiers,
-    readFileSync(f) {
-      if (!fichiers.has(f)) throw Object.assign(new Error('absent'), { code: 'ENOENT' });
-      return fichiers.get(f);
+    readFileSync(fichier) {
+      if (!fichiers.has(fichier)) throw Object.assign(new Error('absent'), { code: 'ENOENT' });
+      return fichiers.get(fichier);
     },
-    writeFileSync(f, contenu) { fichiers.set(f, contenu); },
-    renameSync(de, vers) { fichiers.set(vers, fichiers.get(de)); fichiers.delete(de); },
+    writeFileSync(fichier, contenu) { fichiers.set(fichier, contenu); },
+    renameSync(source, vers) { fichiers.set(vers, fichiers.get(source)); fichiers.delete(source); },
     mkdirSync() {},
   };
 }
@@ -29,16 +29,16 @@ test('Q-2 : par défaut, notifications du poste actives et démarrage avec la se
 
 test('un fichier illisible ou des valeurs inattendues redonnent les valeurs par défaut', () => {
   assert.deepEqual(preferences.lire(fsMemoire({ [FICHIER]: '{pas du json' }), FICHIER), preferences.DEFAUTS);
-  const fs = fsMemoire({ [FICHIER]: JSON.stringify({ notificationsPoste: 'non', demarrageSession: 1, autre: true }) });
-  assert.deepEqual(preferences.lire(fs, FICHIER), preferences.DEFAUTS);
+  const systemeFichiers = fsMemoire({ [FICHIER]: JSON.stringify({ notificationsPoste: 'non', demarrageSession: 1, autre: true }) });
+  assert.deepEqual(preferences.lire(systemeFichiers, FICHIER), preferences.DEFAUTS);
 });
 
 test('NOT-04 : couper les notifications du poste est enregistré puis relu', () => {
-  const fs = fsMemoire();
+  const systemeFichiers = fsMemoire();
   const nouveaux = preferences.fusionner(preferences.DEFAUTS, { notificationsPoste: false });
-  preferences.ecrire(fs, FICHIER, nouveaux);
-  assert.deepEqual(preferences.lire(fs, FICHIER), { notificationsPoste: false, demarrageSession: false });
-  assert.ok(!fs.fichiers.has(`${FICHIER}.tmp`));
+  preferences.ecrire(systemeFichiers, FICHIER, nouveaux);
+  assert.deepEqual(preferences.lire(systemeFichiers, FICHIER), { notificationsPoste: false, demarrageSession: false });
+  assert.ok(!systemeFichiers.fichiers.has(`${FICHIER}.tmp`));
 });
 
 test('une demande sans clé valide est refusée ; les clés inconnues sont ignorées', () => {

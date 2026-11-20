@@ -56,13 +56,13 @@ function actif(): ApplicationDesktop {
 /** Lectures réussies des alertes DESKTOP en attente par l'IHM (journal de la session). */
 async function lecturesReussies(): Promise<number> {
   return (await actif().journal())
-    .filter((r) => r.adresse === LECTURE_ALERTES && r.methode === 'GET' && r.statut === 200).length
+    .filter((requete) => requete.adresse === LECTURE_ALERTES && requete.methode === 'GET' && requete.statut === 200).length
 }
 
 /** Tentatives de lecture des alertes annulées par la coupure simulée (journal de la session). */
 async function lecturesCoupees(): Promise<number> {
   return (await actif().journal())
-    .filter((r) => r.adresse === LECTURE_ALERTES && r.methode === 'GET' && r.coupee).length
+    .filter((requete) => requete.adresse === LECTURE_ALERTES && requete.methode === 'GET' && requete.coupee).length
 }
 
 async function derniereInfobulle(): Promise<string | undefined> {
@@ -90,7 +90,7 @@ function sansDetail(notification: { titre: string; corps: string }, alertes: Ale
 
 async function journalSansHoteExterne(): Promise<void> {
   const journal = await actif().journal()
-  expect(journal.filter((r) => r.refusee).map((r) => r.adresse), 'hôtes hors de la boucle locale').toEqual([])
+  expect(journal.filter((requete) => requete.refusee).map((requete) => requete.adresse), 'hôtes hors de la boucle locale').toEqual([])
 }
 
 test('NOT-01-S1, NOT-05-S1, NOT-03-S1, NOT-02-S1 : fenêtre masquée, notification, compteur, clic', async ({ page: navigateur }) => {
@@ -100,28 +100,28 @@ test('NOT-01-S1, NOT-05-S1, NOT-03-S1, NOT-02-S1 : fenêtre masquée, notificati
   await masquerFenetre(actif())
 
   // NOT-03-S1 GIVEN deux alertes ouvertes.
-  const a1 = emettreAlertePoste(compte, '01')
-  const a2 = emettreAlertePoste(compte, '02')
+  const alerte1 = emettreAlertePoste(compte, '01')
+  const alerte2 = emettreAlertePoste(compte, '02')
   await expect.poll(derniereInfobulle, { timeout: CYCLE }).toBe('ARGOS — 2 alertes ouvertes')
   const deux = await actif().notifications()
-  expect(deux.map((n) => n.titre)).toEqual([TITRE_NOTIFICATION, TITRE_NOTIFICATION])
-  expect(deux.map((n) => n.corps).sort()).toEqual(['Gravité moyenne · 2 projets', 'Gravité élevée · 1 projet'].sort())
+  expect(deux.map((notification) => notification.titre)).toEqual([TITRE_NOTIFICATION, TITRE_NOTIFICATION])
+  expect(deux.map((notification) => notification.corps).sort()).toEqual(['Gravité moyenne · 2 projets', 'Gravité élevée · 1 projet'].sort())
 
   // NOT-01-S1 : une alerte critique est émise, fenêtre toujours masquée : une notification système
   // est créée et affichée par le processus principal.
   expect((await actif().etatFenetre()).visible).toBe(false)
-  const a3 = emettreAlertePoste(compte, '03')
+  const alerte3 = emettreAlertePoste(compte, '03')
   await expect.poll(async () => (await actif().notifications()).length, { timeout: CYCLE }).toBe(3)
   expect((await actif().etatFenetre()).visible).toBe(false)
   const notifications = await actif().notifications()
   // NOT-05-S1 : titre fixe, gravité et « 3 projets », sans titre de signal ni nom de projet.
   expect(notifications[2]).toEqual({ titre: TITRE_NOTIFICATION, corps: 'Gravité critique · 3 projets' })
-  for (const n of notifications) sansDetail(n, [a1, a2, a3])
+  for (const notification of notifications) sansDetail(notification, [alerte1, alerte2, alerte3])
 
   // NOT-03-S1 THEN la zone de notification indique trois alertes ouvertes.
   await expect.poll(derniereInfobulle).toBe('ARGOS — 3 alertes ouvertes')
   // Remise confirmée au serveur pour chacune.
-  for (const a of [a1, a2, a3]) await expect.poll(() => etatAlerte(a.id)).toBe('ENVOYEE')
+  for (const alerte of [alerte1, alerte2, alerte3]) await expect.poll(() => etatAlerte(alerte.id)).toBe('ENVOYEE')
 
   // NOT-02-S1 : clic sur la notification de l'alerte critique : la fenêtre revient au premier plan
   // sur cette alerte, affichée en détail.
@@ -130,10 +130,10 @@ test('NOT-01-S1, NOT-05-S1, NOT-03-S1, NOT-02-S1 : fenêtre masquée, notificati
     const etat = await actif().etatFenetre()
     return etat.visible && !etat.reduite && etat.focus
   }).toBe(true)
-  await expect(fenetre).toHaveURL(new RegExp(`^app://argos/index\\.html#/alertes/${a3.id}$`))
-  await expect(fenetre.getByRole('heading', { level: 1, name: a3.titre })).toBeVisible()
+  await expect(fenetre).toHaveURL(new RegExp(`^app://argos/index\\.html#/alertes/${alerte3.id}$`))
+  await expect(fenetre.getByRole('heading', { level: 1, name: alerte3.titre })).toBeVisible()
   await expect(fenetre.getByText('Gravité critique', { exact: false })).toBeVisible()
-  for (const projet of a3.projets) await expect(fenetre.getByText(`${projet} (EXACT)`)).toBeVisible()
+  for (const projet of alerte3.projets) await expect(fenetre.getByText(`${projet} (EXACT)`)).toBeVisible()
   // Alerte consultée : elle n'est plus ouverte.
   await expect.poll(derniereInfobulle).toBe('ARGOS — 2 alertes ouvertes')
   await expect(fenetre.getByRole('link', { name: 'Alertes (2)' })).toBeVisible()
@@ -156,18 +156,18 @@ test('NOT-04-S1 (partie poste) : notifications du poste coupées, alerte compté
     .toEqual({ notificationsPoste: false, demarrageSession: false })
 
   await masquerFenetre(actif())
-  const a4 = emettreAlertePoste(compte, '04')
+  const alerte4 = emettreAlertePoste(compte, '04')
   // L'alerte est lue et comptée dans la zone de notification ; aucune notification n'est créée.
   await expect.poll(derniereInfobulle, { timeout: CYCLE }).toBe('ARGOS — 1 alerte ouverte')
   expect(await actif().notifications()).toEqual([])
-  await expect.poll(() => etatAlerte(a4.id)).toBe('ENVOYEE')
+  await expect.poll(() => etatAlerte(alerte4.id)).toBe('ENVOYEE')
 
   // Clic sur l'icône de la zone de notification : la fenêtre revient ; l'alerte est visible.
   await actif().cliquerZoneNotification()
   await expect.poll(async () => (await actif().etatFenetre()).visible).toBe(true)
   await fenetre.getByRole('link', { name: 'Alertes (1)' }).click()
   await expect(fenetre.getByRole('heading', { name: 'Alertes du poste' })).toBeVisible()
-  await expect(fenetre.getByRole('link', { name: a4.titre })).toBeVisible()
+  await expect(fenetre.getByRole('link', { name: alerte4.titre })).toBeVisible()
   await fenetre.screenshot({ path: 'resultats/desktop-notifications-coupees.jpg', type: 'jpeg', quality: 60 })
   expect(await actif().notifications()).toEqual([])
 
@@ -182,17 +182,17 @@ test('NOT-01-S2 (partie application) : notifications refusées par le système, 
 
     // Système sans notification disponible : Notification.isSupported renvoie faux (simulé).
     await actif().refuserNotificationsSysteme('non-supportees')
-    const a1 = emettreAlertePoste(compte, '01')
+    const alerte1 = emettreAlertePoste(compte, '01')
     await expect.poll(derniereInfobulle, { timeout: CYCLE }).toBe('ARGOS — 1 alerte ouverte')
-    await expect.poll(() => etatAlerte(a1.id)).toBe('ENVOYEE')
+    await expect.poll(() => etatAlerte(alerte1.id)).toBe('ENVOYEE')
     expect(await actif().notifications()).toEqual([])
     expect(await actif().notificationsRefusees()).toEqual([])
 
     // Réglages de Windows : la notification est demandée, le système la refuse (événement `failed` simulé).
     await actif().refuserNotificationsSysteme('reglages-windows')
-    const a3 = emettreAlertePoste(compte, '03')
+    const alerte3 = emettreAlertePoste(compte, '03')
     await expect.poll(derniereInfobulle, { timeout: CYCLE }).toBe('ARGOS — 2 alertes ouvertes')
-    await expect.poll(() => etatAlerte(a3.id)).toBe('ENVOYEE')
+    await expect.poll(() => etatAlerte(alerte3.id)).toBe('ENVOYEE')
     expect(await actif().notifications()).toEqual([])
     expect(await actif().notificationsRefusees())
       .toEqual([{ titre: TITRE_NOTIFICATION, corps: 'Gravité critique · 3 projets' }])
@@ -203,7 +203,7 @@ test('NOT-01-S2 (partie application) : notifications refusées par le système, 
     await expect.poll(async () => (await actif().etatFenetre()).visible).toBe(true)
     await fenetre.getByRole('link', { name: 'Alertes (2)' }).click()
     await expect(fenetre.getByRole('heading', { name: 'Alertes du poste' })).toBeVisible()
-    for (const a of [a1, a3]) await expect(fenetre.getByRole('link', { name: a.titre })).toBeVisible()
+    for (const alerte of [alerte1, alerte3]) await expect(fenetre.getByRole('link', { name: alerte.titre })).toBeVisible()
     await fenetre.screenshot({ path: 'resultats/desktop-notifications-refusees.jpg', type: 'jpeg', quality: 60 })
     expect(await actif().notifications()).toEqual([])
 
@@ -223,12 +223,12 @@ test('NOT-06-S1 : coupure du serveur, deux alertes émises pendant la coupure, r
 
     // Deux alertes immédiates émises pendant la coupure. Le desktop tente à nouveau de les lire et
     // cette tentative est coupée : l'état est relu après elle, les alertes restent en attente côté serveur.
-    const a5 = emettreAlertePoste(compte, '05')
-    const a6 = emettreAlertePoste(compte, '06')
+    const alerte5 = emettreAlertePoste(compte, '05')
+    const alerte6 = emettreAlertePoste(compte, '06')
     const tentativesAvant = await lecturesCoupees()
     await expect.poll(lecturesCoupees, { timeout: CYCLE }).toBeGreaterThan(tentativesAvant)
-    expect(await etatAlerte(a5.id)).toBe('EN_ATTENTE')
-    expect(await etatAlerte(a6.id)).toBe('EN_ATTENTE')
+    expect(await etatAlerte(alerte5.id)).toBe('EN_ATTENTE')
+    expect(await etatAlerte(alerte6.id)).toBe('EN_ATTENTE')
     expect(await actif().notifications()).toEqual([])
 
     // Retour de la connexion : le desktop reprend à sa tentative suivante (l'attente croissante entre
@@ -244,9 +244,9 @@ test('NOT-06-S1 : coupure du serveur, deux alertes émises pendant la coupure, r
       { titre: TITRE_NOTIFICATION, corps: 'Gravité critique · 1 projet' },
       { titre: TITRE_NOTIFICATION, corps: 'Gravité critique · 1 projet' },
     ])
-    for (const n of notifications) sansDetail(n, [a5, a6])
-    await expect.poll(() => etatAlerte(a5.id)).toBe('ENVOYEE')
-    await expect.poll(() => etatAlerte(a6.id)).toBe('ENVOYEE')
+    for (const notification of notifications) sansDetail(notification, [alerte5, alerte6])
+    await expect.poll(() => etatAlerte(alerte5.id)).toBe('ENVOYEE')
+    await expect.poll(() => etatAlerte(alerte6.id)).toBe('ENVOYEE')
     await expect.poll(derniereInfobulle).toBe('ARGOS — 2 alertes ouvertes')
 
     // Aucun doublon à la lecture suivante.
@@ -257,8 +257,8 @@ test('NOT-06-S1 : coupure du serveur, deux alertes émises pendant la coupure, r
 
     // La coupure a bien porté sur les requêtes du desktop vers l'API, et sur elles seules.
     const journal = await actif().journal()
-    const coupees = journal.filter((r) => r.coupee)
+    const coupees = journal.filter((requete) => requete.coupee)
     expect(coupees.length).toBeGreaterThan(0)
-    for (const r of coupees) expect(r.hote).toBe(hoteApi)
+    for (const requete of coupees) expect(requete.hote).toBe(hoteApi)
     await journalSansHoteExterne()
   })
