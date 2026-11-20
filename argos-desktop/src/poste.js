@@ -9,6 +9,38 @@
 const { validerAlerte, texteNotification, compteurValide, infobulle } = require('./notifications');
 const { fusionner } = require('./preferences');
 
+/** Raison du refus d'afficher l'alerte validée, ou null si elle peut être affichée. */
+function raisonRefus(dependances) {
+  if (!dependances.reglages().notificationsPoste) return 'COUPEES';
+  if (!dependances.notificationsSupportees()) return 'NON_SUPPORTEES';
+  return null;
+}
+
+/**
+ * Affiche la notification de l'alerte validée et garde sa référence dans `enCours` jusqu'au clic,
+ * à la fermeture ou à l'échec (sinon le ramasse-miettes peut détruire l'objet et le clic est perdu).
+ */
+function afficherNotification(dependances, enCours, valide) {
+  const notification = dependances.creerNotification(texteNotification(valide));
+  enCours.add(notification);
+  const liberer = () => enCours.delete(notification);
+  notification.on('click', () => {
+    liberer();
+    dependances.ouvrirAlerte(valide.id);
+  });
+  notification.on('close', liberer);
+  notification.on('failed', liberer);
+  notification.show();
+}
+
+/** Demande sans la clé demarrageSession quand l'option n'existe pas sur ce système. */
+function sansDemarrageIndisponible(demande, demarrageDisponible) {
+  if (demarrageDisponible !== false || !demande || typeof demande !== 'object') return demande;
+  // Option indisponible sur ce système : la clé est ignorée et le réglage reste désactivé.
+  const { demarrageSession: _ignore, ...reste } = demande;
+  return reste;
+}
+
 /**
  * @param {object} dependances dépendances
  * @param {() => boolean} dependances.notificationsSupportees vrai si le système sait afficher une notification
@@ -21,8 +53,7 @@ const { fusionner } = require('./preferences');
  */
 function creerPoste(dependances) {
   let compteur = 0;
-  // Références gardées tant que la notification peut être cliquée (sinon le ramasse-miettes
-  // peut détruire l'objet et le clic est perdu).
+  /** Notifications affichées qui peuvent encore être cliquées. */
   const enCours = new Set();
 
   /**
@@ -32,18 +63,9 @@ function creerPoste(dependances) {
   function alerte(payload) {
     const valide = validerAlerte(payload);
     if (!valide) return { affichee: false, raison: 'INVALIDE' };
-    if (!dependances.reglages().notificationsPoste) return { affichee: false, raison: 'COUPEES' };
-    if (!dependances.notificationsSupportees()) return { affichee: false, raison: 'NON_SUPPORTEES' };
-    const notification = dependances.creerNotification(texteNotification(valide));
-    enCours.add(notification);
-    const liberer = () => enCours.delete(notification);
-    notification.on('click', () => {
-      liberer();
-      dependances.ouvrirAlerte(valide.id);
-    });
-    notification.on('close', liberer);
-    notification.on('failed', liberer);
-    notification.show();
+    const raison = raisonRefus(dependances);
+    if (raison) return { affichee: false, raison };
+    afficherNotification(dependances, enCours, valide);
     return { affichee: true };
   }
 
@@ -56,14 +78,12 @@ function creerPoste(dependances) {
     return true;
   }
 
-  /** Modification des réglages du poste ; renvoie les réglages appliqués, ou null si refusée. */
+  /**
+   * Modification des réglages du poste ; renvoie les réglages appliqués, ou null si refusée.
+   * Le null est le contrat du canal IPC des réglages, que canaux.js transmet tel quel à l'IHM.
+   */
   function changerReglages(demande) {
-    let filtree = demande;
-    if (dependances.demarrageDisponible === false && demande && typeof demande === 'object') {
-      // Option indisponible sur ce système : la clé est ignorée et le réglage reste désactivé.
-      const { demarrageSession: _ignore, ...reste } = demande;
-      filtree = reste;
-    }
+    const filtree = sansDemarrageIndisponible(demande, dependances.demarrageDisponible);
     const nouveaux = fusionner(dependances.reglages(), filtree);
     if (!nouveaux) return null;
     if (dependances.demarrageDisponible === false) nouveaux.demarrageSession = false;
