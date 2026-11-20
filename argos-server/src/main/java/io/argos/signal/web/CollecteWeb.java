@@ -138,7 +138,7 @@ public class CollecteWeb {
             return new Rapport(sourceId, "ACTIVE", nouvelles, null);
         } catch (RecuperationRefusee refus) {
             return echec(sourceId, refus);
-        } catch (RuntimeException erreur) {
+        } catch (IllegalStateException erreur) {
             return echecInterne(sourceId, erreur);
         }
     }
@@ -167,7 +167,7 @@ public class CollecteWeb {
             return new Rapport(sourceId, "ACTIVE", nouvelles, null);
         } catch (RecuperationRefusee refus) {
             return echec(sourceId, refus);
-        } catch (RuntimeException erreur) {
+        } catch (IllegalStateException erreur) {
             return echecInterne(sourceId, erreur);
         }
     }
@@ -179,7 +179,8 @@ public class CollecteWeb {
         return new Rapport(sourceId, "EN_ERREUR", 0, motif);
     }
 
-    private Rapport echecInterne(UUID sourceId, RuntimeException erreur) {
+    /** Panne d'accès aux données pendant la collecte : la source passe {@code EN_ERREUR}, la cause est journalisée. */
+    private Rapport echecInterne(UUID sourceId, IllegalStateException erreur) {
         String motif = "ERREUR_INTERNE : la collecte a été interrompue.";
         LOG.errorf(erreur, "collecte de la source web %s interrompue", sourceId);
         stock.echec(sourceId, motif, frequence);

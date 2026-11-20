@@ -29,6 +29,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 
 import io.argos.catalog.PackageKey;
 import io.argos.ingestion.AdvisoryFeed;
+import io.argos.ingestion.AdvisoryRejectedException;
 import io.argos.ingestion.AdvisorySink;
 import io.argos.ingestion.NormalizedAdvisory;
 import io.argos.ingestion.RawAdvisory;
@@ -222,8 +223,8 @@ public class SignalRecorder implements AdvisorySink {
         }
         try {
             return Optional.of(feed.get().normalize(new RawAdvisory(externalId, rawContent)).normalizedHash());
-        } catch (RuntimeException illisible) {
-            LOG.warnf("empreinte normalisée du signal %s/%s non rattrapée : %s", sourceId, externalId,
+        } catch (AdvisoryRejectedException illisible) {
+            LOG.warnf(illisible, "empreinte normalisée du signal %s/%s non rattrapée : %s", sourceId, externalId,
                     illisible.getMessage());
             return Optional.empty();
         }

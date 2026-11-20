@@ -135,7 +135,7 @@ public class CollecteOpportunites {
             LOG.infof("collecte de la source %s en échec : %s", source.id(), erreur.getMessage());
             etat(source.id(), SourceProfil.EN_ERREUR, motif, maintenant);
             return new Rapport(source.id(), SourceProfil.EN_ERREUR, 0, 0, motif);
-        } catch (RuntimeException erreur) {
+        } catch (IllegalStateException erreur) {
             String motif = "ERREUR_INTERNE : la collecte a été interrompue.";
             LOG.errorf(erreur, "collecte de la source %s interrompue", source.id());
             etat(source.id(), SourceProfil.EN_ERREUR, motif, maintenant);
