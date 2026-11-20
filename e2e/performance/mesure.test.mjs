@@ -39,14 +39,15 @@ test('garde réseau : boucle locale admise, tout autre hôte refusé en le nomma
     ['http://localhost.exemple.com/', 'localhost.exemple.com'],
     ['http://10.0.0.5:8090/', '10.0.0.5'],
   ]) {
-    assert.throws(() => verifierHoteLocal(url), (e) => e instanceof HoteNonLocal && e.hote === hote && e.message.includes(hote))
+    assert.throws(() => verifierHoteLocal(url),
+      (erreur) => erreur instanceof HoteNonLocal && erreur.hote === hote && erreur.message.includes(hote))
   }
   assert.throws(() => verifierHoteLocal('file:///etc/passwd'), HoteNonLocal)
   assert.throws(() => verifierHoteLocal('pas une url'), HoteNonLocal)
 })
 
 test('centiles : rang le plus proche, liste vide sans valeur', () => {
-  const valeurs = Array.from({ length: 100 }, (_, i) => i + 1)
+  const valeurs = Array.from({ length: 100 }, (_, rang) => rang + 1)
   assert.equal(centile(valeurs, 50), 50)
   assert.equal(centile(valeurs, 95), 95)
   assert.equal(centile(valeurs, 100), 100)
@@ -57,14 +58,14 @@ test('centiles : rang le plus proche, liste vide sans valeur', () => {
 })
 
 test('verdict : p95 sous 500 ms dans la cible, à 500 ms ou plus hors cible, appel en échec invalide (PERF-01-S2)', () => {
-  const op = { id: 'GET /api/v1/projects', type: 'REST', libelle: 'projets' }
-  const rapides = resumerOperation(op, Array.from({ length: 100 }, () => 12))
+  const operation = { id: 'GET /api/v1/projects', type: 'REST', libelle: 'projets' }
+  const rapides = resumerOperation(operation, Array.from({ length: 100 }, () => 12))
   assert.equal(rapides.verdict, 'DANS_LA_CIBLE')
   assert.equal(rapides.appels, 100)
-  const lentes = resumerOperation(op, [...Array.from({ length: 94 }, () => 10), ...Array.from({ length: 6 }, () => SEUIL_P95_MS)])
+  const lentes = resumerOperation(operation, [...Array.from({ length: 94 }, () => 10), ...Array.from({ length: 6 }, () => SEUIL_P95_MS)])
   assert.equal(lentes.p95Ms, SEUIL_P95_MS)
   assert.equal(lentes.verdict, 'HORS_CIBLE')
-  const enErreur = resumerOperation(op, [10, 11], ['HTTP 500'])
+  const enErreur = resumerOperation(operation, [10, 11], ['HTTP 500'])
   assert.equal(enErreur.verdict, 'EN_ERREUR')
   assert.equal(enErreur.premiereErreur, 'HTTP 500')
 
@@ -80,16 +81,17 @@ test('verdict : p95 sous 500 ms dans la cible, à 500 ms ou plus hors cible, app
 
 test('opérations : consultations REST et huit outils MCP moins explain_change, exclusions motivées (PERF-01-S3)', () => {
   const ops = operationsRetenues(CONTEXTE)
-  const mcp = ops.filter((o) => o.type === 'MCP').map((o) => o.outil)
+  const mcp = ops.filter((operation) => operation.type === 'MCP').map((operation) => operation.outil)
   assert.deepEqual(mcp.sort(), ['check_dependency', 'get_project_context', 'get_regulatory_changes', 'get_security_alerts',
     'get_technology_standard', 'search_signals', 'upcoming_releases'])
-  const rest = ops.filter((o) => o.type === 'REST')
-  assert.ok(rest.every((o) => o.chemin.startsWith('/api/v1/')))
-  assert.ok(rest.some((o) => o.chemin === `/api/v1/impacts/${CONTEXTE.impact}`))
-  assert.ok(!rest.some((o) => /synchronizations|veille-web/.test(o.chemin)), 'aucune opération qui joint une source externe')
-  assert.ok(OPERATIONS_EXCLUES.some((e) => e.id.includes('explain_change') && /IA/.test(e.motif)))
-  assert.ok(OPERATIONS_EXCLUES.some((e) => e.id.includes('synchronizations')))
-  assert.ok(OPERATIONS_EXCLUES.every((e) => e.motif.length > 0))
+  const rest = ops.filter((operation) => operation.type === 'REST')
+  assert.ok(rest.every((operation) => operation.chemin.startsWith('/api/v1/')))
+  assert.ok(rest.some((operation) => operation.chemin === `/api/v1/impacts/${CONTEXTE.impact}`))
+  assert.ok(!rest.some((operation) => /synchronizations|veille-web/.test(operation.chemin)),
+    'aucune opération qui joint une source externe')
+  assert.ok(OPERATIONS_EXCLUES.some((exclue) => exclue.id.includes('explain_change') && /IA/.test(exclue.motif)))
+  assert.ok(OPERATIONS_EXCLUES.some((exclue) => exclue.id.includes('synchronizations')))
+  assert.ok(OPERATIONS_EXCLUES.every((exclue) => exclue.motif.length > 0))
 })
 
 test('paramètres : valeurs par défaut (P-9), surcharge par l’environnement, valeur invalide refusée', () => {
@@ -101,7 +103,7 @@ test('paramètres : valeurs par défaut (P-9), surcharge par l’environnement, 
 
 test('rapport Markdown : date, révision, environnement, jeu de données, concurrence, mesures et exclusions (PERF-02-S1)', () => {
   const resultats = [resumerOperation({ id: 'GET /api/v1/projects', type: 'REST', libelle: 'projets' }, [5, 6, 7])]
-  const md = rapportMarkdown({
+  const markdown = rapportMarkdown({
     date: '2026-11-19T10:00:00.000Z',
     revision: 'abc1234',
     environnement: { description: 'pile de test locale', systeme: 'win32', node: 'v24' },
@@ -113,7 +115,7 @@ test('rapport Markdown : date, révision, environnement, jeu de données, concur
   })
   for (const attendu of ['2026-11-19T10:00:00.000Z', 'abc1234', 'pile de test locale', '20 projets × 100 composants',
     '4 clients simultanés', '| GET /api/v1/projects | REST | 3 |', 'dans la cible', 'Opérations exclues', 'Code de sortie | 0']) {
-    assert.ok(md.includes(attendu), attendu)
+    assert.ok(markdown.includes(attendu), attendu)
   }
 })
 

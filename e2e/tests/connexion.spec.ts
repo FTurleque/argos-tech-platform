@@ -7,8 +7,8 @@ import { expect, saisirIdentifiants, seConnecterDepuis, test } from '../support/
 
 function appelsApi(page: Page): Request[] {
   const appels: Request[] = []
-  page.on('request', (r) => {
-    if (r.url().startsWith(`${URL_API}/api/v1/`)) appels.push(r)
+  page.on('request', (requete) => {
+    if (requete.url().startsWith(`${URL_API}/api/v1/`)) appels.push(requete)
   })
   return appels
 }
@@ -18,9 +18,9 @@ async function jetonsDansLeNavigateur(page: Page): Promise<string[]> {
   return page.evaluate(() => {
     const valeurs: string[] = [document.cookie]
     for (const stockage of [window.localStorage, window.sessionStorage]) {
-      for (let i = 0; i < stockage.length; i++) valeurs.push(stockage.getItem(stockage.key(i)!) ?? '')
+      for (let position = 0; position < stockage.length; position++) valeurs.push(stockage.getItem(stockage.key(position)!) ?? '')
     }
-    return valeurs.filter((v) => /eyJ[\w-]+\.[\w-]+\./.test(v))
+    return valeurs.filter((valeur) => /eyJ[\w-]+\.[\w-]+\./.test(valeur))
   })
 }
 
@@ -29,7 +29,7 @@ test('ACC-07-S1 : une vue protégée sans session affiche la connexion sans appe
   await page.goto('/#/recherche')
   await expect(page.getByRole('heading', { name: 'Connexion' })).toBeVisible()
   await expect(page).toHaveURL(/#\/connexion\?retour=\/recherche$/)
-  expect(appels.map((r) => r.url()).filter((u) => !u.endsWith('/api/v1/system/info'))).toEqual([])
+  expect(appels.map((requete) => requete.url()).filter((adresse) => !adresse.endsWith('/api/v1/system/info'))).toEqual([])
 })
 
 test('ACC-07-S2, ACC-08-S1, ACC-09-S1/S2 : connexion réelle, retour sur la vue, adresse nettoyée', async ({ page }) => {
@@ -52,21 +52,21 @@ test('ACC-07-S2, ACC-08-S1, ACC-09-S1/S2 : connexion réelle, retour sur la vue,
   // Jeton porteur sur /api/v1 sauf l'identité du serveur, jamais dans l'adresse (ACC-09-S1, S2).
   await page.getByRole('link', { name: 'État' }).click()
   await expect(page.getByText(/argos-server · version/)).toBeVisible()
-  const protegees = appels.filter((r) => !r.url().endsWith('/api/v1/system/info'))
+  const protegees = appels.filter((requete) => !requete.url().endsWith('/api/v1/system/info'))
   expect(protegees.length).toBeGreaterThan(0)
-  for (const r of protegees.filter((x) => x.method() !== 'OPTIONS')) {
-    expect(await r.headerValue('authorization'), r.url()).toMatch(/^Bearer eyJ/)
-    expect(r.url()).not.toMatch(/eyJ/)
+  for (const requete of protegees.filter((candidate) => candidate.method() !== 'OPTIONS')) {
+    expect(await requete.headerValue('authorization'), requete.url()).toMatch(/^Bearer eyJ/)
+    expect(requete.url()).not.toMatch(/eyJ/)
   }
-  const info = appels.filter((r) => r.url().endsWith('/api/v1/system/info') && r.method() === 'GET')
+  const info = appels.filter((requete) => requete.url().endsWith('/api/v1/system/info') && requete.method() === 'GET')
   expect(info.length).toBeGreaterThan(0)
-  for (const r of info) expect(await r.headerValue('authorization')).toBeNull()
+  for (const requete of info) expect(await requete.headerValue('authorization')).toBeNull()
 })
 
 test('ACC-07-S3 : un retour au state différent de la demande est refusé sans échange de code', async ({ page }) => {
   const echanges: string[] = []
-  page.on('request', (r) => {
-    if (r.url().endsWith('/protocol/openid-connect/token')) echanges.push(r.url())
+  page.on('request', (requete) => {
+    if (requete.url().endsWith('/protocol/openid-connect/token')) echanges.push(requete.url())
   })
   await page.goto('/#/recherche')
   await page.getByRole('button', { name: 'Se connecter' }).click()
@@ -124,7 +124,7 @@ test('ACC-08-S3 : renouvellement refusé par le fournisseur, état « session ex
   await expect(onglet.getByText(/you are logged out|vous êtes déconnecté/i).first()).toBeVisible()
   await onglet.close()
 
-  const renouvellement = page.waitForResponse((r) => r.url().endsWith('/protocol/openid-connect/token'))
+  const renouvellement = page.waitForResponse((reponse) => reponse.url().endsWith('/protocol/openid-connect/token'))
   await page.clock.fastForward('10:00')
   expect((await renouvellement).status()).toBe(400)
 

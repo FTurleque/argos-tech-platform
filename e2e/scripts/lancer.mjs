@@ -13,9 +13,9 @@ const COMPOSE = ['compose', '-f', join(E2E, 'compose.yaml')]
 const PLAYWRIGHT = join(E2E, 'node_modules', '@playwright', 'test', 'cli.js')
 
 function executer(commande, args) {
-  const r = spawnSync(commande, args, { cwd: E2E, stdio: 'inherit' })
-  if (r.error) throw r.error
-  return r.status ?? 1
+  const resultat = spawnSync(commande, args, { cwd: E2E, stdio: 'inherit' })
+  if (resultat.error) throw resultat.error
+  return resultat.status ?? 1
 }
 
 if (executer(cheminDocker(), [...COMPOSE, 'up', '-d', '--wait']) !== 0) {

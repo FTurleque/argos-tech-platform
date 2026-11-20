@@ -44,21 +44,21 @@ export function verifierHoteLocal(url) {
 /** Lit un entier positif de l'environnement, sinon la valeur par défaut. */
 export function entierPositif(valeur, defaut) {
   if (valeur === undefined || valeur === '') return defaut
-  const n = Number(valeur)
-  if (!Number.isInteger(n) || n < 1) throw new Error(`valeur entière positive attendue : « ${valeur} »`)
-  return n
+  const nombre = Number(valeur)
+  if (!Number.isInteger(nombre) || nombre < 1) throw new Error(`valeur entière positive attendue : « ${valeur} »`)
+  return nombre
 }
 
 /** Paramètres de la campagne : valeurs par défaut (P-9) surchargées par `ARGOS_PERF_*`. */
 export function parametres(env = {}) {
-  const d = PARAMETRES_PAR_DEFAUT
+  const defauts = PARAMETRES_PAR_DEFAUT
   return {
-    projets: entierPositif(env.ARGOS_PERF_PROJETS, d.projets),
-    composantsParProjet: entierPositif(env.ARGOS_PERF_COMPOSANTS, d.composantsParProjet),
-    signaux: entierPositif(env.ARGOS_PERF_SIGNAUX, d.signaux),
-    appelsParOperation: entierPositif(env.ARGOS_PERF_APPELS, d.appelsParOperation),
-    concurrence: entierPositif(env.ARGOS_PERF_CONCURRENCE, d.concurrence),
-    echauffement: entierPositif(env.ARGOS_PERF_ECHAUFFEMENT, d.echauffement),
+    projets: entierPositif(env.ARGOS_PERF_PROJETS, defauts.projets),
+    composantsParProjet: entierPositif(env.ARGOS_PERF_COMPOSANTS, defauts.composantsParProjet),
+    signaux: entierPositif(env.ARGOS_PERF_SIGNAUX, defauts.signaux),
+    appelsParOperation: entierPositif(env.ARGOS_PERF_APPELS, defauts.appelsParOperation),
+    concurrence: entierPositif(env.ARGOS_PERF_CONCURRENCE, defauts.concurrence),
+    echauffement: entierPositif(env.ARGOS_PERF_ECHAUFFEMENT, defauts.echauffement),
   }
 }
 
@@ -66,16 +66,16 @@ export function parametres(env = {}) {
  * Centile par la méthode du rang le plus proche : plus petite valeur telle qu'au moins p % des mesures lui sont
  * inférieures ou égales. Liste vide : `null`.
  */
-export function centile(valeurs, p) {
+export function centile(valeurs, pourcentage) {
   if (!Array.isArray(valeurs) || valeurs.length === 0) return null
-  if (!(p > 0 && p <= 100)) throw new Error(`centile hors de ]0, 100] : ${p}`)
-  const triees = [...valeurs].sort((a, b) => a - b)
-  const rang = Math.ceil((p / 100) * triees.length)
+  if (!(pourcentage > 0 && pourcentage <= 100)) throw new Error(`centile hors de ]0, 100] : ${pourcentage}`)
+  const triees = [...valeurs].sort((premiere, seconde) => premiere - seconde)
+  const rang = Math.ceil((pourcentage / 100) * triees.length)
   return triees[Math.max(rang, 1) - 1]
 }
 
-function arrondi(ms) {
-  return ms === null ? null : Math.round(ms * 10) / 10
+function arrondi(duree) {
+  return duree === null ? null : Math.round(duree * 10) / 10
 }
 
 /**
@@ -103,8 +103,8 @@ export function resumerOperation(operation, durees, erreurs = []) {
 
 /** Verdict global et code de sortie : 0 si toutes les opérations sont dans la cible, 1 sinon (PERF-01-S1, S2). */
 export function verdictGlobal(resultats) {
-  const horsCible = resultats.filter((r) => r.verdict === 'HORS_CIBLE').map((r) => r.id)
-  const enErreur = resultats.filter((r) => r.verdict === 'EN_ERREUR').map((r) => r.id)
+  const horsCible = resultats.filter((resultat) => resultat.verdict === 'HORS_CIBLE').map((resultat) => resultat.id)
+  const enErreur = resultats.filter((resultat) => resultat.verdict === 'EN_ERREUR').map((resultat) => resultat.id)
   const valide = resultats.length > 0 && enErreur.length === 0
   return {
     valide,
@@ -164,7 +164,7 @@ const LIBELLES_VERDICT = { DANS_LA_CIBLE: 'dans la cible', HORS_CIBLE: '**hors c
 
 /** Rapport Markdown versionné (PERF-02-S1) : date, révision, environnement, jeu de données, concurrence, mesures. */
 export function rapportMarkdown(rapport) {
-  const v = rapport.verdict
+  const verdict = rapport.verdict
   const lignes = [
     '# Mesure de la latence p95 de l’API et du serveur MCP',
     '',
@@ -185,22 +185,22 @@ export function rapportMarkdown(rapport) {
     `| Jeu de données | ${cellule(rapport.jeuDeDonnees.description)} |`,
     `| Appels par opération | ${rapport.parametres.appelsParOperation} (après ${rapport.parametres.echauffement} appels d’échauffement) |`,
     `| Concurrence | ${rapport.parametres.concurrence} clients simultanés |`,
-    `| Verdict | ${v.valide ? (v.dansLaCible ? 'toutes les opérations dans la cible' : `hors cible : ${v.horsCible.join(', ')}`) : `campagne invalide : ${v.enErreur.join(', ')}`} |`,
-    `| Code de sortie | ${v.codeSortie} |`,
+    `| Verdict | ${verdict.valide ? (verdict.dansLaCible ? 'toutes les opérations dans la cible' : `hors cible : ${verdict.horsCible.join(', ')}`) : `campagne invalide : ${verdict.enErreur.join(', ')}`} |`,
+    `| Code de sortie | ${verdict.codeSortie} |`,
     '',
     '## Mesures par opération',
     '',
     '| Opération | Type | Appels | p50 (ms) | p95 (ms) | max (ms) | Erreurs | Verdict |',
     '|---|---|---|---|---|---|---|---|',
-    ...rapport.resultats.map((r) =>
-      `| ${cellule(r.id)} | ${r.type} | ${r.appels} | ${cellule(r.p50Ms)} | ${cellule(r.p95Ms)} | ${cellule(r.maxMs)} | ${r.erreurs} | ${LIBELLES_VERDICT[r.verdict] ?? r.verdict} |`,
+    ...rapport.resultats.map((resultat) =>
+      `| ${cellule(resultat.id)} | ${resultat.type} | ${resultat.appels} | ${cellule(resultat.p50Ms)} | ${cellule(resultat.p95Ms)} | ${cellule(resultat.maxMs)} | ${resultat.erreurs} | ${LIBELLES_VERDICT[resultat.verdict] ?? resultat.verdict} |`,
     ),
     '',
     '## Opérations exclues',
     '',
     '| Opération | Motif de l’exclusion |',
     '|---|---|',
-    ...rapport.exclues.map((e) => `| ${cellule(e.id)} | ${cellule(e.motif)} |`),
+    ...rapport.exclues.map((exclue) => `| ${cellule(exclue.id)} | ${cellule(exclue.motif)} |`),
     '',
     '## Méthode',
     '',

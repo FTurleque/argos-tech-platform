@@ -34,9 +34,10 @@ for (const id of MISES_EN_PAGE) {
     test('polices embarquées chargées, aucune requête hors du poste', async ({ page }) => {
       const externes = await ouvrir(page, id)
       for (const police of POLICES[id]) {
-        expect(await page.evaluate((p) => document.fonts.check(p), police), police).toBe(true)
+        expect(await page.evaluate((nomPolice) => document.fonts.check(nomPolice), police), police).toBe(true)
       }
-      const chargees = await page.evaluate(() => [...document.fonts].filter((f) => f.status === 'loaded').map((f) => f.family))
+      const chargees = await page.evaluate(() =>
+        [...document.fonts].filter((fonte) => fonte.status === 'loaded').map((fonte) => fonte.family))
       expect(chargees.length).toBeGreaterThanOrEqual(POLICES[id].length)
       expect(externes).toEqual([])
       await page.screenshot({ path: test.info().outputPath(`${id}-bureau.png`), fullPage: true })
@@ -46,20 +47,21 @@ for (const id of MISES_EN_PAGE) {
       await ouvrir(page, id)
       const mesures = await page.evaluate(mesurerContrastes)
       expect(mesures.length).toBeGreaterThan(30)
-      const ecarts = mesures.filter((m) => m.rapport < m.seuil)
+      const ecarts = mesures.filter((mesure) => mesure.rapport < mesure.seuil)
       expect(ecarts, JSON.stringify(ecarts, null, 1)).toEqual([])
       test.info().annotations.push({
         type: 'contraste minimal',
-        description: String(Math.min(...mesures.map((m) => m.rapport))),
+        description: String(Math.min(...mesures.map((mesure) => mesure.rapport))),
       })
     })
 
     test('RGAA 12.8, 10.7 : ordre de tabulation dans l’ordre du document, focus visible et contrasté (3:1)', async ({ page }) => {
       await ouvrir(page, id)
-      const liens = await page.locator('[data-mise-en-page] a[href]').evaluateAll((as) => as.map((a) => a.getAttribute('href')))
+      const liens = await page.locator('[data-mise-en-page] a[href]')
+        .evaluateAll((ancres) => ancres.map((ancre) => ancre.getAttribute('href')))
       expect(liens.length).toBeGreaterThan(0)
       const parcourus: string[] = []
-      for (let i = 0; i < liens.length + 1; i++) {
+      for (let tabulation = 0; tabulation < liens.length + 1; tabulation++) {
         await page.keyboard.press('Tab')
         const etat = await page.evaluate(etatFocus)
         // Contraste du contour de focus sur le fond effectif de l'élément (WCAG 1.4.11, RGAA 3.3).
@@ -79,7 +81,7 @@ for (const id of MISES_EN_PAGE) {
       const debord = await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth)
       expect(debord).toBeLessThanOrEqual(0)
       const horsCadre = await page.locator('[data-mise-en-page] [data-element]').evaluateAll((els) =>
-        els.filter((e) => e.getBoundingClientRect().right > document.documentElement.clientWidth + 1).length,
+        els.filter((element) => element.getBoundingClientRect().right > document.documentElement.clientWidth + 1).length,
       )
       expect(horsCadre).toBe(0)
     })
@@ -88,7 +90,7 @@ for (const id of MISES_EN_PAGE) {
       await page.setViewportSize({ width: 375, height: 812 })
       await ouvrir(page, id)
       const gauches = await page.locator('[data-mise-en-page] [data-element]').evaluateAll((els) =>
-        els.map((e) => Math.round(e.getBoundingClientRect().left)),
+        els.map((element) => Math.round(element.getBoundingClientRect().left)),
       )
       expect(new Set(gauches).size, `positions horizontales : ${gauches.join(', ')}`).toBe(1)
       await page.screenshot({ path: `resultats/accessibilite/${id}-telephone.png` })
@@ -99,9 +101,9 @@ for (const id of MISES_EN_PAGE) {
       await ouvrir(page, id)
       await page.locator('[data-mise-en-page] [data-element]').first().hover()
       const animes = await page.locator('[data-mise-en-page], [data-mise-en-page] *').evaluateAll((els) =>
-        els.filter((e) => {
-          const s = getComputedStyle(e)
-          return s.transitionDuration.split(',').some((d) => parseFloat(d) > 0) || s.animationName !== 'none'
+        els.filter((element) => {
+          const style = getComputedStyle(element)
+          return style.transitionDuration.split(',').some((duree) => parseFloat(duree) > 0) || style.animationName !== 'none'
         }).length,
       )
       expect(animes).toBe(0)
@@ -130,9 +132,10 @@ test('AFF-02 (banc) : les quatre mises en page restituent les mêmes faits du m�
   for (const id of MISES_EN_PAGE) {
     await ouvrir(page, id)
     parMiseEnPage[id] = await page.locator('[data-mise-en-page] [data-element]').evaluateAll((articles) =>
-      articles.map((a) =>
-        [...a.querySelectorAll('[data-champ], [data-mention]')].map(
-          (e) => `${e.getAttribute('data-champ') ?? e.getAttribute('data-mention')}=${(e.textContent ?? '').replace(/\s+/g, ' ').trim()}`,
+      articles.map((article) =>
+        [...article.querySelectorAll('[data-champ], [data-mention]')].map(
+          (champ) => `${champ.getAttribute('data-champ') ?? champ.getAttribute('data-mention')}=`
+            + `${(champ.textContent ?? '').replace(/\s+/g, ' ').trim()}`,
         ),
       ),
     )

@@ -155,23 +155,23 @@ export async function lancerDesktop(options: OptionsLancement): Promise<Applicat
     return {
       app,
       fenetre,
-      journal: () => app.evaluate(() => (globalThis as unknown as DoubluresArgos).__argosE2E.journal.map((r) => ({ ...r }))),
+      journal: () => app.evaluate(() => (globalThis as unknown as DoubluresArgos).__argosE2E.journal.map((requete) => ({ ...requete }))),
       ouvertures: () => app.evaluate(() => [...(globalThis as unknown as DoubluresArgos).__argosE2E.ouvertures]),
       etatFenetre: () => app.evaluate(({ BrowserWindow }) => {
-        const f = BrowserWindow.getAllWindows()[0]
+        const fenetrePrincipale = BrowserWindow.getAllWindows()[0]
         return {
-          visible: f.isVisible(),
-          reduite: f.isMinimized(),
-          focus: f.isFocused(),
-          adresse: f.webContents.getURL(),
+          visible: fenetrePrincipale.isVisible(),
+          reduite: fenetrePrincipale.isMinimized(),
+          focus: fenetrePrincipale.isFocused(),
+          adresse: fenetrePrincipale.webContents.getURL(),
           evenements: [...(globalThis as unknown as DoubluresArgos).__argosE2E.evenements],
         }
       }),
       notifications: () => app.evaluate(() => (globalThis as unknown as DoubluresArgos).__argosE2E.notifications
-        .map((n) => ({ titre: n.title, corps: n.body }))),
-      cliquerNotification: (rang) => app.evaluate((_electron, i) => {
-        const notification = (globalThis as unknown as DoubluresArgos).__argosE2E.notifications[i]
-        if (!notification) throw new Error(`notification ${i} absente`)
+        .map((notification) => ({ titre: notification.title, corps: notification.body }))),
+      cliquerNotification: (rang) => app.evaluate((_electron, position) => {
+        const notification = (globalThis as unknown as DoubluresArgos).__argosE2E.notifications[position]
+        if (!notification) throw new Error(`notification ${position} absente`)
         notification.emit('click')
       }, rang),
       infobulles: () => app.evaluate(() => [...(globalThis as unknown as DoubluresArgos).__argosE2E.infobulles]),
@@ -180,16 +180,16 @@ export async function lancerDesktop(options: OptionsLancement): Promise<Applicat
         if (!icone) throw new Error('icône de la zone de notification non observée')
         icone.emit('click')
       }),
-      refuserNotificationsSysteme: (mode) => app.evaluate((_electron, m) => {
-        (globalThis as unknown as DoubluresArgos).__argosE2E.refus = m
+      refuserNotificationsSysteme: (mode) => app.evaluate((_electron, refus) => {
+        (globalThis as unknown as DoubluresArgos).__argosE2E.refus = refus
       }, mode),
       accepterNotificationsSysteme: () => app.evaluate(() => {
         (globalThis as unknown as DoubluresArgos).__argosE2E.refus = null
       }),
       notificationsRefusees: () => app.evaluate(() => (globalThis as unknown as DoubluresArgos).__argosE2E.refusees
-        .map((n) => ({ titre: n.title, corps: n.body }))),
-      couper: (hote) => app.evaluate((_electron, h) => {
-        (globalThis as unknown as DoubluresArgos).__argosE2E.coupures.add(h)
+        .map((notification) => ({ titre: notification.title, corps: notification.body }))),
+      couper: (hote) => app.evaluate((_electron, hoteCoupe) => {
+        (globalThis as unknown as DoubluresArgos).__argosE2E.coupures.add(hoteCoupe)
       }, hote),
       retablir: () => app.evaluate(() => {
         (globalThis as unknown as DoubluresArgos).__argosE2E.coupures.clear()
@@ -375,7 +375,7 @@ export async function connecterCompte(
   await desktop.fenetre.getByRole('button', { name: 'Se connecter' }).click()
   const urlAutorisation = new URL(await attendreOuverture(desktop, deja))
   if (avantRetour) await avantRetour()
-  const retour = navigateur.waitForResponse((r) => /^http:\/\/127\.0\.0\.1:\d+\/argos\/retour\?/.test(r.url()))
+  const retour = navigateur.waitForResponse((reponse) => /^http:\/\/127\.0\.0\.1:\d+\/argos\/retour\?/.test(reponse.url()))
   await navigateur.goto(urlAutorisation.toString())
   await saisirIdentifiants(navigateur, utilisateur)
   return { urlAutorisation, retour: await retour }
@@ -393,7 +393,7 @@ export async function ouvrirVueConnectee(
   vue: string,
 ): Promise<void> {
   const { fenetre } = desktop
-  await fenetre.evaluate((v) => { window.location.hash = `#${v}` }, vue)
+  await fenetre.evaluate((chemin) => { window.location.hash = `#${chemin}` }, vue)
   await expect(fenetre).toHaveURL((url) => url.hash === `#/connexion?retour=${vue}`)
   const { retour } = await connecterCompte(desktop, navigateur, utilisateur)
   expect(retour.status()).toBe(200)
@@ -403,9 +403,9 @@ export async function ouvrirVueConnectee(
 
 /** Vrai quand le journal contient une requête GET aboutie (200) sur ce chemin de l'API, avec le jeton porteur. */
 export async function appelApiAuthentifie(desktop: ApplicationDesktop, chemin: string | RegExp): Promise<boolean> {
-  return (await desktop.journal()).some((r) => {
-    if (r.methode !== 'GET' || !r.porteur || r.statut !== 200 || !r.adresse.startsWith(`${URL_API}/`)) return false
-    const relatif = r.adresse.slice(URL_API.length)
+  return (await desktop.journal()).some((requete) => {
+    if (requete.methode !== 'GET' || !requete.porteur || requete.statut !== 200 || !requete.adresse.startsWith(`${URL_API}/`)) return false
+    const relatif = requete.adresse.slice(URL_API.length)
     return typeof chemin === 'string' ? relatif === chemin : chemin.test(relatif)
   })
 }
@@ -413,6 +413,8 @@ export async function appelApiAuthentifie(desktop: ApplicationDesktop, chemin: s
 /** Journal de la session : aucune requête vers un hôte hors de la boucle locale, aucun document hors de app://argos. */
 export async function verifierJournalLocal(desktop: ApplicationDesktop): Promise<void> {
   const journal = await desktop.journal()
-  expect(journal.filter((r) => r.refusee).map((r) => r.adresse), 'hôtes hors de la boucle locale').toEqual([])
-  for (const r of journal.filter((x) => x.type === 'mainFrame' || x.type === 'subFrame')) expect(r.protocole, r.adresse).toBe('app:')
+  expect(journal.filter((requete) => requete.refusee).map((requete) => requete.adresse), 'hôtes hors de la boucle locale').toEqual([])
+  for (const requete of journal.filter((candidate) => candidate.type === 'mainFrame' || candidate.type === 'subFrame')) {
+    expect(requete.protocole, requete.adresse).toBe('app:')
+  }
 }
