@@ -57,18 +57,18 @@ class ManifesteArtisteTest {
 
     @Test
     void uneListeDUnTypeNonDeclareOuEnDoubleEstRefusee() {
-        ManifesteProfil m = new ManifesteProfil(1, "listes", "1.0.0", "L", "D", List.of("c"), List.of("k"),
+        ManifesteProfil manifeste = new ManifesteProfil(1, "listes", "1.0.0", "L", "D", List.of("c"), List.of("k"),
                 List.of(new Rubrique("r", "R")), List.of("discipline"), List.of(new StrategieDeclaree("s", true)),
                 List.of(), List.of(
                         new ListeObjets("territoire", List.of(new ValeurListe("a", "A"))),
                         new ListeObjets("discipline", List.of(new ValeurListe("a", "A"), new ValeurListe("a", "B"),
                                 new ValeurListe("Mal Formé", "C"))),
                         new ListeObjets("discipline", List.of())));
-        List<String> erreurs = ValidateurManifeste.erreurs(m);
-        assertTrue(erreurs.stream().anyMatch(e -> e.contains("non déclaré")), erreurs::toString);
-        assertTrue(erreurs.stream().anyMatch(e -> e.contains("valeur en double")), erreurs::toString);
-        assertTrue(erreurs.stream().anyMatch(e -> e.contains("sans identifiant valide")), erreurs::toString);
-        assertTrue(erreurs.stream().anyMatch(e -> e.contains("liste en double")), erreurs::toString);
-        assertTrue(erreurs.stream().anyMatch(e -> e.contains("liste vide")), erreurs::toString);
+        List<String> erreurs = ValidateurManifeste.erreurs(manifeste);
+        assertTrue(erreurs.stream().anyMatch(erreur -> erreur.contains("non déclaré")), erreurs::toString);
+        assertTrue(erreurs.stream().anyMatch(erreur -> erreur.contains("valeur en double")), erreurs::toString);
+        assertTrue(erreurs.stream().anyMatch(erreur -> erreur.contains("sans identifiant valide")), erreurs::toString);
+        assertTrue(erreurs.stream().anyMatch(erreur -> erreur.contains("liste en double")), erreurs::toString);
+        assertTrue(erreurs.stream().anyMatch(erreur -> erreur.contains("liste vide")), erreurs::toString);
     }
 }

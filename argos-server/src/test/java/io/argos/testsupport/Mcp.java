@@ -58,27 +58,27 @@ public final class Mcp {
         try {
             return requete.contentType("application/json").accept("application/json, text/event-stream")
                     .body(JSON.writeValueAsString(corps)).when().post("/mcp").then().extract();
-        } catch (JsonProcessingException e) {
-            throw new IllegalStateException(e);
+        } catch (JsonProcessingException erreur) {
+            throw new IllegalStateException(erreur);
         }
     }
 
     public static ExtractableResponse<Response> envoyer(RequestSpecification requete, String methode, String nom,
             Map<String, ?> params) {
-        Map<String, Object> p = new java.util.LinkedHashMap<>(params);
-        p.put("_meta", Map.of("io.modelcontextprotocol/protocolVersion", VERSION,
+        Map<String, Object> parametresComplets = new java.util.LinkedHashMap<>(params);
+        parametresComplets.put("_meta", Map.of("io.modelcontextprotocol/protocolVersion", VERSION,
                 "io.modelcontextprotocol/clientInfo", Map.of("name", "argos-tests", "version", "1"),
                 "io.modelcontextprotocol/clientCapabilities", Map.of()));
-        Map<String, Object> corps = Map.of("jsonrpc", "2.0", "id", IDS.incrementAndGet(), "method", methode, "params", p);
-        RequestSpecification r = requete.header("MCP-Protocol-Version", VERSION).header("Mcp-Method", methode)
+        Map<String, Object> corps = Map.of("jsonrpc", "2.0", "id", IDS.incrementAndGet(), "method", methode, "params", parametresComplets);
+        RequestSpecification requeteEnrichie = requete.header("MCP-Protocol-Version", VERSION).header("Mcp-Method", methode)
                 .contentType("application/json").accept("application/json, text/event-stream");
         if (nom != null) {
-            r = r.header("Mcp-Name", nom);
+            requeteEnrichie = requeteEnrichie.header("Mcp-Name", nom);
         }
         try {
-            return r.body(JSON.writeValueAsString(corps)).when().post("/mcp").then().extract();
-        } catch (JsonProcessingException e) {
-            throw new IllegalStateException(e);
+            return requeteEnrichie.body(JSON.writeValueAsString(corps)).when().post("/mcp").then().extract();
+        } catch (JsonProcessingException erreur) {
+            throw new IllegalStateException(erreur);
         }
     }
 }

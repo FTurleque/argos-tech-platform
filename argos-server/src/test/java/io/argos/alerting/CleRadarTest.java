@@ -19,10 +19,10 @@ class CleRadarTest {
     void deuxClesLonguesQuiNeDifferentQueParLaFinRestentDistinctes() {
         String debut = "RAPPEL|espace|pkg:generic/" + "x".repeat(600) + "|FIN_DE_SUPPORT|1.0|2026-12-16|";
         String j30 = RappelsRadar.cleBornee(debut + "J-30");
-        String j7 = RappelsRadar.cleBornee(debut + "J-7");
+        String cleJ7 = RappelsRadar.cleBornee(debut + "J-7");
         assertEquals(RappelsRadar.CLE_MAX, j30.length());
-        assertTrue(j7.length() <= RappelsRadar.CLE_MAX);
-        assertNotEquals(j30, j7);
+        assertTrue(cleJ7.length() <= RappelsRadar.CLE_MAX);
+        assertNotEquals(j30, cleJ7);
         assertEquals(j30, RappelsRadar.cleBornee(debut + "J-30"), "clé stable d'une exécution à l'autre");
     }
 }

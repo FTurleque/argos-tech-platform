@@ -69,7 +69,7 @@ class AlertesTest {
     private static final ZoneId PARIS = ZoneId.of("Europe/Paris");
 
     @Inject
-    TestDb db;
+    TestDb baseDeTest;
 
     @Inject
     DataSource dataSource;
@@ -112,7 +112,7 @@ class AlertesTest {
 
     @BeforeEach
     void reset() {
-        db.reset();
+        baseDeTest.reset();
         spaceA = Api.nouvelEspace("alice", "Espace A");
         versionAvis = 10;
     }
@@ -133,7 +133,7 @@ class AlertesTest {
                 .replace("\"severity\":\"HIGH\"", "\"severity\":\"" + gravite + "\"");
         Fixtures.stubOsv(id, modifie, json);
         synchronizer.synchronize("OSV");
-        return db.uuid("SELECT id FROM signal WHERE external_id = '" + id + "'");
+        return baseDeTest.uuid("SELECT id FROM signal WHERE external_id = '" + id + "'");
     }
 
     private static void regle(String utilisateur, String canal, String frequence, String filtres) {
@@ -144,7 +144,7 @@ class AlertesTest {
     }
 
     private long alertes(String condition) {
-        return db.count("SELECT count(*) FROM alerte WHERE " + condition);
+        return baseDeTest.count("SELECT count(*) FROM alerte WHERE " + condition);
     }
 
     private static Instant lundiProchain8h() {
@@ -162,8 +162,8 @@ class AlertesTest {
         assertEquals(1, alertes("nature = 'IMMEDIATE'"));
 
         SQLException doublon = assertThrows(SQLException.class, () -> {
-            try (Connection c = dataSource.getConnection(); Statement s = c.createStatement()) {
-                s.execute("""
+            try (Connection connexion = dataSource.getConnection(); Statement instruction = connexion.createStatement()) {
+                instruction.execute("""
                         INSERT INTO alerte(id, nature, compte_id, canal, signal_id, titre, contenu, etat_resume_ia, etat, cree_le)
                         SELECT gen_random_uuid(), 'IMMEDIATE', compte_id, canal, signal_id, 'doublon', contenu,
                                'SANS_OBJET', 'EN_ATTENTE', now() FROM alerte
@@ -214,7 +214,7 @@ class AlertesTest {
 
         assertEquals(0, alertes("nature = 'IMMEDIATE'"));
         assertTrue(mailbox.getMailsSentTo("alice@argos.test").isEmpty());
-        assertEquals(1, db.count("SELECT count(*) FROM resume_element WHERE frequence = 'DAILY' AND canal = 'EMAIL'"
+        assertEquals(1, baseDeTest.count("SELECT count(*) FROM resume_element WHERE frequence = 'DAILY' AND canal = 'EMAIL'"
                 + " AND signal_id = '" + signal + "'"));
 
         List<UUID> crees = resumes.composer("DAILY", Instant.now().plus(1, ChronoUnit.DAYS));
@@ -231,10 +231,10 @@ class AlertesTest {
 
         UUID signal = publier("GHSA-NOPURL", null, "CRITICAL");
 
-        assertEquals("A_VERIFIER", db.string("SELECT level FROM project_impact WHERE signal_id = '" + signal + "'"));
+        assertEquals("A_VERIFIER", baseDeTest.string("SELECT level FROM project_impact WHERE signal_id = '" + signal + "'"));
         assertEquals(0, alertes("true"));
         assertTrue(mailbox.getMailsSentTo("alice@argos.test").isEmpty());
-        assertEquals(1, db.count("SELECT count(*) FROM resume_element WHERE signal_id = '" + signal + "'"));
+        assertEquals(1, baseDeTest.count("SELECT count(*) FROM resume_element WHERE signal_id = '" + signal + "'"));
         Api.en("alice").when().get("/api/v1/me/watch")
                 .then().statusCode(200)
                 .body("find { it.signalId == '" + signal + "' }.impacts[0].level", equalTo("A_VERIFIER"));
@@ -324,11 +324,11 @@ class AlertesTest {
         assertEquals("DISPONIBLE", etatIa("GHSA-OK"));
         assertEquals(4, alertes("etat = 'ENVOYEE'"));
         assertTrue(mailbox.getMailsSentTo("alice@argos.test").stream()
-                .anyMatch(m -> m.getText().contains("Résumé (produit par l'IA, à vérifier sur les sources)")));
+                .anyMatch(message -> message.getText().contains("Résumé (produit par l'IA, à vérifier sur les sources)")));
     }
 
     private String etatIa(String externe) {
-        return db.string("SELECT a.etat_resume_ia FROM alerte a JOIN signal s ON s.id = a.signal_id"
+        return baseDeTest.string("SELECT a.etat_resume_ia FROM alerte a JOIN signal s ON s.id = a.signal_id"
                 + " WHERE s.external_id = '" + externe + "'");
     }
 
@@ -409,11 +409,11 @@ class AlertesTest {
         assertTrue(mailbox.getMailsSentTo("alice@argos.test").isEmpty(), "aucun e-mail pour une règle desktop");
 
         // Une alerte d'un autre compte est introuvable et la tentative est journalisée.
-        long refus = db.count("SELECT count(*) FROM refus_acces");
+        long refus = baseDeTest.count("SELECT count(*) FROM refus_acces");
         Api.compte("jules");
         Api.en("jules").when().get("/api/v1/alertes/" + id).then().statusCode(404);
         Api.en("jules").when().post("/api/v1/alertes/" + id + "/remise").then().statusCode(404);
-        assertEquals(refus + 2, db.count("SELECT count(*) FROM refus_acces"));
+        assertEquals(refus + 2, baseDeTest.count("SELECT count(*) FROM refus_acces"));
         Api.en("jules").when().get("/api/v1/alertes").then().statusCode(200).body("$", hasSize(0));
 
         Api.en("alice").when().post("/api/v1/alertes/" + id + "/remise")
@@ -441,7 +441,7 @@ class AlertesTest {
         projet(spaceA, "app", LIB + "@1.2.0");
         regle("alice", "email", "immediate", HAUTE);
         publier("GHSA-MAIL", LIB, "CRITICAL");
-        String id = db.string("SELECT id FROM alerte");
+        String id = baseDeTest.string("SELECT id FROM alerte");
         Api.en("alice").when().post("/api/v1/alertes/" + id + "/remise")
                 .then().statusCode(409).body("code", equalTo("CANAL_NON_DESKTOP"));
     }
@@ -456,22 +456,22 @@ class AlertesTest {
         publier("GHSA-RLSALR", LIB, "CRITICAL");
         UUID alice = Api.compte("alice");
         UUID jules = Api.compte("jules");
-        try (Connection c = dataSource.getConnection(); Statement s = c.createStatement()) {
-            c.setAutoCommit(false);
-            s.execute("SET LOCAL ROLE argos_app");
-            assertEquals("argos_app", string(s, "SELECT current_user"));
-            assertEquals(0, count(s, "SELECT count(*) FROM alerte"), "sans contexte, aucune ligne");
-            s.execute("SELECT set_config('argos.compte_courant', '" + jules + "', true)");
-            assertEquals(0, count(s, "SELECT count(*) FROM alerte"));
-            assertEquals(0, s.executeUpdate("UPDATE alerte SET etat = 'ENVOYEE'"), "aucune alerte d'autrui modifiable");
-            s.execute("SELECT set_config('argos.compte_courant', '" + alice + "', true)");
-            assertEquals(2, count(s, "SELECT count(*) FROM alerte"));
-            assertEquals(1, s.executeUpdate("UPDATE alerte SET etat = 'ENVOYEE'"), "seule l'alerte DESKTOP est remise");
+        try (Connection connexion = dataSource.getConnection(); Statement instruction = connexion.createStatement()) {
+            connexion.setAutoCommit(false);
+            instruction.execute("SET LOCAL ROLE argos_app");
+            assertEquals("argos_app", string(instruction, "SELECT current_user"));
+            assertEquals(0, count(instruction, "SELECT count(*) FROM alerte"), "sans contexte, aucune ligne");
+            instruction.execute("SELECT set_config('argos.compte_courant', '" + jules + "', true)");
+            assertEquals(0, count(instruction, "SELECT count(*) FROM alerte"));
+            assertEquals(0, instruction.executeUpdate("UPDATE alerte SET etat = 'ENVOYEE'"), "aucune alerte d'autrui modifiable");
+            instruction.execute("SELECT set_config('argos.compte_courant', '" + alice + "', true)");
+            assertEquals(2, count(instruction, "SELECT count(*) FROM alerte"));
+            assertEquals(1, instruction.executeUpdate("UPDATE alerte SET etat = 'ENVOYEE'"), "seule l'alerte DESKTOP est remise");
             SQLException ecriture = assertThrows(SQLException.class,
-                    () -> s.execute("UPDATE alerte SET titre = 'modifié'"));
+                    () -> instruction.execute("UPDATE alerte SET titre = 'modifié'"));
             assertEquals("42501", ecriture.getSQLState(), "seuls l'état et la date de remise sont modifiables");
-            c.rollback();
-            c.setAutoCommit(true);
+            connexion.rollback();
+            connexion.setAutoCommit(true);
         }
     }
 
@@ -488,7 +488,7 @@ class AlertesTest {
         UUID critique = publier("GHSA-E2E-CRIT", LIB, "CRITICAL");
         Instant fin = Instant.now();
 
-        assertEquals("EXACT", db.string("SELECT level FROM project_impact WHERE signal_id = '" + critique + "'"));
+        assertEquals("EXACT", baseDeTest.string("SELECT level FROM project_impact WHERE signal_id = '" + critique + "'"));
         assertEquals(1, alertes("canal = 'EMAIL' AND etat = 'ENVOYEE'"));
         assertEquals(1, alertes("canal = 'DESKTOP' AND etat = 'EN_ATTENTE'"));
         Duration delai = Duration.between(debut, fin);
@@ -507,25 +507,26 @@ class AlertesTest {
         String resume = mails.get(1).getText();
         assertTrue(resume.contains("GHSA-E2E-LOW"), "l'élément non alerté figure dans le résumé");
         assertFalse(resume.contains("GHSA-E2E-CRIT"), "l'élément déjà alerté n'est pas répété");
-        assertEquals(0, db.count("SELECT count(*) FROM resume_element WHERE signal_id = '" + critique + "'"));
-        assertEquals(2, db.count("SELECT count(*) FROM resume_element WHERE signal_id = '" + faible + "' AND alerte_id IS NOT NULL"));
+        assertEquals(0, baseDeTest.count("SELECT count(*) FROM resume_element WHERE signal_id = '" + critique + "'"));
+        assertEquals(2, baseDeTest.count("SELECT count(*) FROM resume_element WHERE signal_id = '" + faible
+                + "' AND alerte_id IS NOT NULL"));
         assertTrue(resumes.composer("DAILY", Instant.now().plus(2, ChronoUnit.DAYS)).isEmpty(), "rien de nouveau");
         // Diffusion répétée : aucun second envoi.
         envoi.traiterEnAttente(Instant.now().plus(2, ChronoUnit.DAYS));
         assertEquals(2, mailbox.getMailsSentTo("alice@argos.test").size());
     }
 
-    private static String string(Statement s, String sql) throws Exception {
-        try (ResultSet rs = s.executeQuery(sql)) {
-            rs.next();
-            return rs.getString(1);
+    private static String string(Statement instruction, String sql) throws Exception {
+        try (ResultSet resultat = instruction.executeQuery(sql)) {
+            resultat.next();
+            return resultat.getString(1);
         }
     }
 
-    private static long count(Statement s, String sql) throws Exception {
-        try (ResultSet rs = s.executeQuery(sql)) {
-            rs.next();
-            return rs.getLong(1);
+    private static long count(Statement instruction, String sql) throws Exception {
+        try (ResultSet resultat = instruction.executeQuery(sql)) {
+            resultat.next();
+            return resultat.getLong(1);
         }
     }
 }

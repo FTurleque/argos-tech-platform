@@ -24,8 +24,8 @@ import io.argos.testsupport.ReglementaireFixtures;
  */
 class LecteurJorfTest {
 
-    private static byte[] octets(String s) {
-        return s.getBytes(StandardCharsets.UTF_8);
+    private static byte[] octets(String texte) {
+        return texte.getBytes(StandardCharsets.UTF_8);
     }
 
     @Test
@@ -39,30 +39,31 @@ class LecteurJorfTest {
         List<TexteJorf> textes = LecteurJorf.assembler(elements);
 
         assertEquals(1, textes.size());
-        TexteJorf t = textes.get(0);
-        assertEquals("JORFTEXT000099000001", t.identifiant());
-        assertEquals("DECRET", t.nature());
-        assertEquals("2026-1101", t.numero());
-        assertEquals("TFPF2631001D", t.nor());
-        assertEquals("Ministère de la transformation et de la fonction publiques", t.ministere());
-        assertTrue(t.titre().startsWith("Décret n° 2026-1101 du 18 novembre 2026 relatif aux règles d'avancement de grade"));
-        assertEquals(LocalDate.of(2026, 11, 20), t.datePublication());
-        assertEquals(LocalDate.of(2026, 11, 18), t.dateSignature());
+        TexteJorf texteJorf = textes.get(0);
+        assertEquals("JORFTEXT000099000001", texteJorf.identifiant());
+        assertEquals("DECRET", texteJorf.nature());
+        assertEquals("2026-1101", texteJorf.numero());
+        assertEquals("TFPF2631001D", texteJorf.nor());
+        assertEquals("Ministère de la transformation et de la fonction publiques", texteJorf.ministere());
+        assertTrue(texteJorf.titre().startsWith("Décret n° 2026-1101 du 18 novembre 2026 relatif aux règles d'avancement de grade"));
+        assertEquals(LocalDate.of(2026, 11, 20), texteJorf.datePublication());
+        assertEquals(LocalDate.of(2026, 11, 18), texteJorf.dateSignature());
         assertEquals(List.of(new TexteJorf.CodeModifie("LEGITEXT000044416551", "Code général de la fonction publique")),
-                t.codesModifies(), "un seul code, le lien de citation est ignoré");
+                texteJorf.codesModifies(), "un seul code, le lien de citation est ignoré");
         assertEquals(List.of("Code général de la fonction publique, art. L. 522-24",
-                "Code général de la fonction publique, art. L. 522-25"), t.articlesModifies());
-        assertTrue(t.contenu().contains("le texte entre en vigueur le 1er janvier 2027"), t.contenu());
-        assertTrue(t.contenu().contains("Article 3 : Le présent décret entre en vigueur le 1er janvier 2027."), t.contenu());
-        assertFalse(t.contenu().contains("<p>"), "balisage réduit à du texte brut");
-        assertEquals("JORF_20261120-213004.tar.gz", t.archive());
+                "Code général de la fonction publique, art. L. 522-25"), texteJorf.articlesModifies());
+        assertTrue(texteJorf.contenu().contains("le texte entre en vigueur le 1er janvier 2027"), texteJorf.contenu());
+        assertTrue(texteJorf.contenu().contains("Article 3 : Le présent décret entre en vigueur le 1er janvier 2027."),
+                texteJorf.contenu());
+        assertFalse(texteJorf.contenu().contains("<p>"), "balisage réduit à du texte brut");
+        assertEquals("JORF_20261120-213004.tar.gz", texteJorf.archive());
     }
 
     @Test
     void doctypeEtEntiteExterneRefuses() {
         byte[] xxe = octets(ReglementaireFixtures.fichier("xxe.xml"));
-        LecteurJorf.XmlRefuse e = assertThrows(LecteurJorf.XmlRefuse.class, () -> LecteurJorf.lire(xxe, "a"));
-        assertFalse(e.getMessage().contains("root:"), "aucun contenu de fichier local");
+        LecteurJorf.XmlRefuse erreur = assertThrows(LecteurJorf.XmlRefuse.class, () -> LecteurJorf.lire(xxe, "a"));
+        assertFalse(erreur.getMessage().contains("root:"), "aucun contenu de fichier local");
         assertThrows(LecteurJorf.XmlRefuse.class, () -> LecteurJorf.lire(octets("<TEXTE_VERSION><META>"), "a"),
                 "XML mal formé");
         assertThrows(LecteurJorf.XmlRefuse.class, () -> LecteurJorf.lire(octets("""
@@ -85,10 +86,10 @@ class LecteurJorfTest {
         fichiers.put("a/texte.xml", ReglementaireFixtures.fichier("texte-paie.xml"));
         fichiers.put("a/lisezmoi.txt", "ignoré");
         fichiers.put("a/" + "x".repeat(150) + ".xml", "<nom-long/>");
-        byte[] gz = ReglementaireFixtures.archive(fichiers);
+        byte[] archive = ReglementaireFixtures.archive(fichiers);
         Map<String, String> lus = new LinkedHashMap<>();
 
-        new ArchiveTar(100, 1 << 20, 10 << 20).lire(new ByteArrayInputStream(gz),
+        new ArchiveTar(100, 1 << 20, 10 << 20).lire(new ByteArrayInputStream(archive),
                 (nom, contenu) -> lus.put(nom, new String(contenu, StandardCharsets.UTF_8)));
 
         assertEquals(1, lus.size(), lus.keySet().toString());
@@ -97,15 +98,15 @@ class LecteurJorfTest {
 
     @Test
     void archiveHorsDesBornesRefusee() {
-        byte[] gz = ReglementaireFixtures.archive(Map.of("a.xml", "x".repeat(4000), "b.xml", "y".repeat(4000)));
+        byte[] archive = ReglementaireFixtures.archive(Map.of("a.xml", "x".repeat(4000), "b.xml", "y".repeat(4000)));
         assertThrows(ArchiveTar.ArchiveInvalide.class,
-                () -> new ArchiveTar(1, 1 << 20, 1 << 20).lire(new ByteArrayInputStream(gz), (n, c) -> { }),
+                () -> new ArchiveTar(1, 1 << 20, 1 << 20).lire(new ByteArrayInputStream(archive), (nom, contenu) -> { }),
                 "nombre d'entrées");
         assertThrows(ArchiveTar.ArchiveInvalide.class,
-                () -> new ArchiveTar(100, 1 << 20, 5000).lire(new ByteArrayInputStream(gz), (n, c) -> { }),
+                () -> new ArchiveTar(100, 1 << 20, 5000).lire(new ByteArrayInputStream(archive), (nom, contenu) -> { }),
                 "volume décompressé");
         assertThrows(ArchiveTar.ArchiveInvalide.class,
                 () -> new ArchiveTar(100, 1 << 20, 1 << 20).lire(new ByteArrayInputStream(octets("pas une archive")),
-                        (n, c) -> { }), "archive illisible");
+                        (nom, contenu) -> { }), "archive illisible");
     }
 }

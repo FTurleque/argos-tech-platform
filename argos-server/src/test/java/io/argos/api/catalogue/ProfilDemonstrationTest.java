@@ -66,7 +66,7 @@ class ProfilDemonstrationTest {
     PreferencesRepository repository;
 
     @Inject
-    TestDb db;
+    TestDb baseDeTest;
 
     @Inject
     ReglementaireFixtures reg;
@@ -119,13 +119,13 @@ class ProfilDemonstrationTest {
 
         JsonPath jules = veille("jules");
         assertEquals(List.of(FICHE, AVIS), jules.getList("elements.identifiant"));
-        for (JsonPath v : List.of(ines, oscar, jules)) {
-            assertFalse(v.getList("elements.profils.flatten()").isEmpty(), v.prettify());
-            assertFalse(v.getList("profilsActifs").contains("demonstration"), v.prettify());
-            assertFalse(v.getList("elements.profils.flatten()").contains("demonstration"), v.prettify());
-            assertFalse(v.getList("elements.rubriques.profil.flatten()").contains("demonstration"), v.prettify());
-            assertFalse(v.<String>getList("elements.gardeFous.flatten()").stream()
-                    .anyMatch(g -> g.startsWith("Mention de démonstration")), v.prettify());
+        for (JsonPath veille : List.of(ines, oscar, jules)) {
+            assertFalse(veille.getList("elements.profils.flatten()").isEmpty(), veille.prettify());
+            assertFalse(veille.getList("profilsActifs").contains("demonstration"), veille.prettify());
+            assertFalse(veille.getList("elements.profils.flatten()").contains("demonstration"), veille.prettify());
+            assertFalse(veille.getList("elements.rubriques.profil.flatten()").contains("demonstration"), veille.prettify());
+            assertFalse(veille.<String>getList("elements.gardeFous.flatten()").stream()
+                    .anyMatch(gardeFou -> gardeFou.startsWith("Mention de démonstration")), veille.prettify());
         }
     }
 
@@ -135,19 +135,19 @@ class ProfilDemonstrationTest {
         preparerVeille();
         activer("ines", "developpeur", "demonstration");
 
-        JsonPath v = veille("ines");
-        assertEquals(List.of(AVIS), v.getList("elements.identifiant"), "une seule occurrence");
-        assertEquals(List.of("developpeur", "demonstration"), v.getList("elements[0].profils"));
-        assertEquals(List.of("developpeur", "demonstration"), v.getList("elements[0].rubriques.profil"));
-        assertEquals(List.of("securite", "demonstration"), v.getList("elements[0].rubriques.identifiant"));
-        assertEquals(true, v.getList("elements[0].gardeFous", String.class).stream()
-                .anyMatch(g -> g.startsWith("Mention de démonstration")));
+        JsonPath veille = veille("ines");
+        assertEquals(List.of(AVIS), veille.getList("elements.identifiant"), "une seule occurrence");
+        assertEquals(List.of("developpeur", "demonstration"), veille.getList("elements[0].profils"));
+        assertEquals(List.of("developpeur", "demonstration"), veille.getList("elements[0].rubriques.profil"));
+        assertEquals(List.of("securite", "demonstration"), veille.getList("elements[0].rubriques.identifiant"));
+        assertEquals(true, veille.getList("elements[0].gardeFous", String.class).stream()
+                .anyMatch(gardeFou -> gardeFou.startsWith("Mention de démonstration")));
     }
 
     private void preparerVeille() {
-        db.reset();
-        for (String u : List.of("ines", "jules", "oscar")) {
-            db.exec("DELETE FROM workspace_preference_utilisateur WHERE compte_id = '" + Api.compte(u) + "'");
+        baseDeTest.reset();
+        for (String utilisateur : List.of("ines", "jules", "oscar")) {
+            baseDeTest.exec("DELETE FROM workspace_preference_utilisateur WHERE compte_id = '" + Api.compte(utilisateur) + "'");
         }
         UUID espace = Api.nouvelEspace("ines", "Démonstration des profils");
         Api.ajouterMembre("ines", espace.toString(), "jules", "LECTEUR");

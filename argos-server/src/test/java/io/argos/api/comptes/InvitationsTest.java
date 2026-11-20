@@ -23,7 +23,7 @@ import io.argos.testsupport.Api;
 class InvitationsTest {
 
     @Inject
-    TestDb db;
+    TestDb baseDeTest;
 
     /** ACC-05-S1 : invité comme lecteur, l'utilisateur accepte et voit l'espace en lecture seule. */
     @Test
@@ -87,7 +87,7 @@ class InvitationsTest {
     }
 
     private long refus(String compte) {
-        return db.count("SELECT count(*) FROM refus_acces WHERE compte_id = '" + compte + "'");
+        return baseDeTest.count("SELECT count(*) FROM refus_acces WHERE compte_id = '" + compte + "'");
     }
 
     /** Une invitation révoquée ne peut plus être acceptée. */

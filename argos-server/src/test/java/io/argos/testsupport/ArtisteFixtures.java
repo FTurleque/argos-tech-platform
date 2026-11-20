@@ -20,10 +20,10 @@ public final class ArtisteFixtures {
     }
 
     /** Remet à zéro les données du profil et les préférences des utilisateurs donnés. */
-    public static void reinitialiser(TestDb db, String... utilisateurs) {
-        db.exec("TRUNCATE opportunite, source_profil, suivi_profil, suivi_rappels CASCADE");
-        for (String u : utilisateurs) {
-            db.exec("DELETE FROM workspace_preference_utilisateur WHERE compte_id = '" + Api.compte(u) + "'");
+    public static void reinitialiser(TestDb baseDeTest, String... utilisateurs) {
+        baseDeTest.exec("TRUNCATE opportunite, source_profil, suivi_profil, suivi_rappels CASCADE");
+        for (String utilisateur : utilisateurs) {
+            baseDeTest.exec("DELETE FROM workspace_preference_utilisateur WHERE compte_id = '" + Api.compte(utilisateur) + "'");
         }
     }
 

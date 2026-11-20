@@ -25,20 +25,20 @@ import io.restassured.response.Response;
 class AuthentificationMcpTest {
 
     @Inject
-    TestDb db;
+    TestDb baseDeTest;
 
     @BeforeEach
     void preparer() {
-        db.reset();
+        baseDeTest.reset();
     }
 
     /** MCP-03-S1 : un appel sans jeton est refusé comme non authentifié, sans atteindre l'outil. */
     @Test
     void mcp03S1AppelSansJeton() {
-        ExtractableResponse<Response> r = Mcp.appelerSansJeton("check_dependency",
+        ExtractableResponse<Response> reponse = Mcp.appelerSansJeton("check_dependency",
                 Map.of("ecosystem", "Maven", "name", "org.exemple:lib", "version", "1.0.0"));
-        assertEquals(401, r.statusCode());
-        assertEquals(0, db.count("SELECT count(*) FROM mcp_appel"));
+        assertEquals(401, reponse.statusCode());
+        assertEquals(0, baseDeTest.count("SELECT count(*) FROM mcp_appel"));
     }
 
     /** Un jeton invalide ou destiné à une autre application est refusé de la même façon. */
@@ -47,20 +47,20 @@ class AuthentificationMcpTest {
         assertEquals(401, Mcp.appelerAvecJeton("jeton-invalide", "get_project_context", Map.of()).statusCode());
         String autre = new KeycloakTestClient().getAccessToken("alice", "alice", "autre-application", "secret-autre");
         assertEquals(401, Mcp.appelerAvecJeton(autre, "get_project_context", Map.of()).statusCode());
-        assertEquals(0, db.count("SELECT count(*) FROM mcp_appel"));
+        assertEquals(0, baseDeTest.count("SELECT count(*) FROM mcp_appel"));
     }
 
     /** Une personne authentifiée sans compte Argos (inscription sur invitation) est refusée et journalisée. */
     @Test
     void personneSansCompteRefusee() {
-        ExtractableResponse<Response> r = Mcp.appeler("dave", "get_project_context", Map.of());
-        assertEquals(200, r.statusCode(), r.asString());
-        assertEquals(Boolean.TRUE, r.path("result.isError"));
-        assertTrue(((String) r.path("result.content[0].text")).startsWith("NON_AUTORISE"));
-        assertEquals(0, db.count("SELECT count(*) FROM compte WHERE email = 'dave@argos.test'"));
-        assertEquals(1, db.count("SELECT count(*) FROM refus_acces WHERE compte_id IS NULL AND sujet_oidc IS NOT NULL"
+        ExtractableResponse<Response> reponse = Mcp.appeler("dave", "get_project_context", Map.of());
+        assertEquals(200, reponse.statusCode(), reponse.asString());
+        assertEquals(Boolean.TRUE, reponse.path("result.isError"));
+        assertTrue(((String) reponse.path("result.content[0].text")).startsWith("NON_AUTORISE"));
+        assertEquals(0, baseDeTest.count("SELECT count(*) FROM compte WHERE email = 'dave@argos.test'"));
+        assertEquals(1, baseDeTest.count("SELECT count(*) FROM refus_acces WHERE compte_id IS NULL AND sujet_oidc IS NOT NULL"
                 + " AND ressource = 'MCP tools/call get_project_context' AND motif = 'INSCRIPTION_SUR_INVITATION'"));
-        assertEquals(1, db.count("SELECT count(*) FROM mcp_appel WHERE compte_id IS NULL AND issue = 'REFUS_ACCES'"));
+        assertEquals(1, baseDeTest.count("SELECT count(*) FROM mcp_appel WHERE compte_id IS NULL AND issue = 'REFUS_ACCES'"));
     }
 
     /**
@@ -70,17 +70,17 @@ class AuthentificationMcpTest {
      */
     @Test
     void fluxAppareilDuClientMcp() {
-        ExtractableResponse<Response> r = given().contentType("application/x-www-form-urlencoded")
+        ExtractableResponse<Response> reponse = given().contentType("application/x-www-form-urlencoded")
                 .formParam("client_id", "argos-mcp").formParam("scope", "openid")
                 .when().post(Api.urlFournisseur() + "/protocol/openid-connect/auth/device").then().extract();
-        assertEquals(200, r.statusCode(), r.asString());
-        assertNotNull(r.path("device_code"));
-        assertNotNull(r.path("user_code"));
-        assertTrue(((String) r.path("verification_uri")).contains("/device"));
+        assertEquals(200, reponse.statusCode(), reponse.asString());
+        assertNotNull(reponse.path("device_code"));
+        assertNotNull(reponse.path("user_code"));
+        assertTrue(((String) reponse.path("verification_uri")).contains("/device"));
 
         // Tant que l'utilisateur n'a pas approuvé, le jeton n'est pas délivré (RFC 8628 §3.5).
         ExtractableResponse<Response> attente = given().contentType("application/x-www-form-urlencoded")
-                .formParam("client_id", "argos-mcp").formParam("device_code", (String) r.path("device_code"))
+                .formParam("client_id", "argos-mcp").formParam("device_code", (String) reponse.path("device_code"))
                 .formParam("grant_type", "urn:ietf:params:oauth:grant-type:device_code")
                 .when().post(Api.urlFournisseur() + "/protocol/openid-connect/token").then().extract();
         assertEquals(400, attente.statusCode(), attente.asString());
@@ -108,9 +108,9 @@ class AuthentificationMcpTest {
                 .when().post(Api.urlFournisseur() + "/protocol/openid-connect/token").then().extract();
         assertEquals(200, jeton.statusCode(), jeton.asString() + "\n" + parcours);
 
-        ExtractableResponse<Response> r = Mcp.appelerAvecJeton(jeton.path("access_token"), "get_project_context", Map.of());
-        assertEquals(200, r.statusCode(), r.asString());
-        assertEquals(Boolean.FALSE, r.path("result.isError"), r.asString());
-        assertEquals(1, db.count("SELECT count(*) FROM mcp_appel WHERE issue = 'SUCCES'"));
+        ExtractableResponse<Response> reponse = Mcp.appelerAvecJeton(jeton.path("access_token"), "get_project_context", Map.of());
+        assertEquals(200, reponse.statusCode(), reponse.asString());
+        assertEquals(Boolean.FALSE, reponse.path("result.isError"), reponse.asString());
+        assertEquals(1, baseDeTest.count("SELECT count(*) FROM mcp_appel WHERE issue = 'SUCCES'"));
     }
 }

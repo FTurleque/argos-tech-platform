@@ -61,14 +61,14 @@ class ParcoursComptesEtAccesTest {
         // 4. Gina tente de lire l'espace d'Alice : introuvable, refus journalisé.
         String gina = Api.idCompte("gina");
         en("gina").when().get("/api/v1/espaces/" + espaceAlice).then().statusCode(404);
-        try (Connection c = dataSource.getConnection();
-                PreparedStatement ps = c.prepareStatement(
+        try (Connection connexion = dataSource.getConnection();
+                PreparedStatement requete = connexion.prepareStatement(
                         "SELECT count(*) FROM refus_acces WHERE compte_id = ?::uuid AND ressource = ? AND motif = 'NON_MEMBRE'")) {
-            ps.setString(1, gina);
-            ps.setString(2, "GET /api/v1/espaces/" + espaceAlice);
-            try (ResultSet rs = ps.executeQuery()) {
-                rs.next();
-                assertEquals(1, rs.getLong(1));
+            requete.setString(1, gina);
+            requete.setString(2, "GET /api/v1/espaces/" + espaceAlice);
+            try (ResultSet resultat = requete.executeQuery()) {
+                resultat.next();
+                assertEquals(1, resultat.getLong(1));
             }
         }
     }

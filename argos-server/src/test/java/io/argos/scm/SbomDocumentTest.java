@@ -17,8 +17,8 @@ class SbomDocumentTest {
     @Test
     void objetSbomTropLongNeDebordePasSurLePremierNiveau() {
         StringBuilder sbom = new StringBuilder("{\"sbom\": {");
-        for (int i = 0; i < 70; i++) {
-            sbom.append("\"c").append(i).append("\": 1, ");
+        for (int indice = 0; indice < 70; indice++) {
+            sbom.append("\"c").append(indice).append("\": 1, ");
         }
         sbom.append("\"bomFormat\": \"CycloneDX\", \"spdxVersion\": \"SPDX-2.3\"}}");
         assertEquals(SbomDocument.Format.INCONNU, format(sbom.toString()));

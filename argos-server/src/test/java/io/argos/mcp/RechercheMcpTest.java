@@ -34,7 +34,7 @@ class RechercheMcpTest {
     private static final String BASE = "result.structuredContent.";
 
     @Inject
-    TestDb db;
+    TestDb baseDeTest;
 
     @Inject
     JeuRecherche jeu;
@@ -44,7 +44,7 @@ class RechercheMcpTest {
 
     @BeforeEach
     void preparer() {
-        db.reset();
+        baseDeTest.reset();
         espaceOscar = Api.nouvelEspace("oscar", "Espace Paie MCP");
         espaceMarc = Api.nouvelEspace("marc", "Espace Portail MCP");
     }
@@ -61,15 +61,15 @@ class RechercheMcpTest {
         UUID faible = jeu.signal("GHSA-MCP-RCH-2", "Pilote", "Un correctif pour Oracle.", "LOW", ilYA(1), null);
         jeu.impact(fort, paie);
 
-        ExtractableResponse<Response> r = Mcp.appeler("oscar", "search_signals", Map.of("query", "Oracle correctif"));
-        assertEquals(Boolean.FALSE, r.path("result.isError"), r.asString());
-        assertEquals(2, (int) r.path(BASE + "nombre"));
-        assertEquals(fort.toString(), r.path(BASE + "signaux[0].signalId"));
-        assertEquals(faible.toString(), r.path(BASE + "signaux[1].signalId"));
-        assertTrue(((Number) r.path(BASE + "signaux[0].pertinence")).doubleValue()
-                > ((Number) r.path(BASE + "signaux[1].pertinence")).doubleValue());
-        assertEquals("Paie", r.path(BASE + "signaux[0].projets[0].projet"));
-        assertEquals(TexteExterne.NATURE, r.path(BASE + "signaux[0].titre.nature"));
+        ExtractableResponse<Response> reponse = Mcp.appeler("oscar", "search_signals", Map.of("query", "Oracle correctif"));
+        assertEquals(Boolean.FALSE, reponse.path("result.isError"), reponse.asString());
+        assertEquals(2, (int) reponse.path(BASE + "nombre"));
+        assertEquals(fort.toString(), reponse.path(BASE + "signaux[0].signalId"));
+        assertEquals(faible.toString(), reponse.path(BASE + "signaux[1].signalId"));
+        assertTrue(((Number) reponse.path(BASE + "signaux[0].pertinence")).doubleValue()
+                > ((Number) reponse.path(BASE + "signaux[1].pertinence")).doubleValue());
+        assertEquals("Paie", reponse.path(BASE + "signaux[0].projets[0].projet"));
+        assertEquals(TexteExterne.NATURE, reponse.path(BASE + "signaux[0].titre.nature"));
 
         // Filtres combinés : projet, gravité minimale, horizon.
         ExtractableResponse<Response> filtre = Mcp.appeler("oscar", "search_signals",
@@ -113,8 +113,8 @@ class RechercheMcpTest {
     void parametresInvalides() {
         for (Map<String, Object> arguments : List.<Map<String, Object>>of(Map.of("severity", "EXTREME"),
                 Map.of("horizon_days", 0), Map.of("project_ids", List.of("pas-un-uuid")), Map.of("query", "x".repeat(501)))) {
-            ExtractableResponse<Response> r = Mcp.appeler("oscar", "search_signals", arguments);
-            assertTrue(((String) r.path("result.content[0].text")).startsWith("PARAMETRES_INVALIDES"), r.asString());
+            ExtractableResponse<Response> reponse = Mcp.appeler("oscar", "search_signals", arguments);
+            assertTrue(((String) reponse.path("result.content[0].text")).startsWith("PARAMETRES_INVALIDES"), reponse.asString());
         }
     }
 }

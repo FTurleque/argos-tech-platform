@@ -40,22 +40,22 @@ class JournalRefusTest {
         en("frank").when().get("/api/v1/espaces/" + espaceB).then().statusCode(404);
 
         List<List<String>> lignes = new ArrayList<>();
-        try (Connection c = dataSource.getConnection();
-                PreparedStatement ps = c.prepareStatement(
+        try (Connection connexion = dataSource.getConnection();
+                PreparedStatement requete = connexion.prepareStatement(
                         "SELECT * FROM refus_acces WHERE compte_id = ?::uuid AND ressource LIKE ? ORDER BY id")) {
-            ps.setString(1, frank);
-            ps.setString(2, "%" + espaceB);
-            try (ResultSet rs = ps.executeQuery()) {
-                ResultSetMetaData meta = rs.getMetaData();
-                while (rs.next()) {
+            requete.setString(1, frank);
+            requete.setString(2, "%" + espaceB);
+            try (ResultSet resultat = requete.executeQuery()) {
+                ResultSetMetaData meta = resultat.getMetaData();
+                while (resultat.next()) {
                     List<String> valeurs = new ArrayList<>();
-                    for (int i = 1; i <= meta.getColumnCount(); i++) {
-                        valeurs.add(rs.getString(i));
+                    for (int colonne = 1; colonne <= meta.getColumnCount(); colonne++) {
+                        valeurs.add(resultat.getString(colonne));
                     }
                     lignes.add(valeurs);
-                    assertEquals("GET /api/v1/espaces/" + espaceB, rs.getString("ressource"));
-                    assertEquals("NON_MEMBRE", rs.getString("motif"));
-                    OffsetDateTime horodatage = rs.getObject("horodatage", OffsetDateTime.class);
+                    assertEquals("GET /api/v1/espaces/" + espaceB, resultat.getString("ressource"));
+                    assertEquals("NON_MEMBRE", resultat.getString("motif"));
+                    OffsetDateTime horodatage = resultat.getObject("horodatage", OffsetDateTime.class);
                     assertNotNull(horodatage);
                     assertTrue(horodatage.isAfter(avant));
                 }
@@ -75,14 +75,14 @@ class JournalRefusTest {
 
         en("frank").when().get("/api/v1/espaces/" + espace + "/invitations").then().statusCode(403);
 
-        try (Connection c = dataSource.getConnection();
-                PreparedStatement ps = c.prepareStatement(
+        try (Connection connexion = dataSource.getConnection();
+                PreparedStatement requete = connexion.prepareStatement(
                         "SELECT motif FROM refus_acces WHERE compte_id = ?::uuid AND ressource = ?")) {
-            ps.setString(1, frank);
-            ps.setString(2, "GET /api/v1/espaces/" + espace + "/invitations");
-            try (ResultSet rs = ps.executeQuery()) {
-                assertTrue(rs.next());
-                assertEquals("ROLE_INSUFFISANT", rs.getString(1));
+            requete.setString(1, frank);
+            requete.setString(2, "GET /api/v1/espaces/" + espace + "/invitations");
+            try (ResultSet resultat = requete.executeQuery()) {
+                assertTrue(resultat.next());
+                assertEquals("ROLE_INSUFFISANT", resultat.getString(1));
             }
         }
     }

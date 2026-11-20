@@ -38,7 +38,7 @@ class AgregationEtIdentiteTest {
     void agregationParJourDansLaFenetre() {
         LocalDate fin = LocalDate.of(2026, 11, 16);
         LocalDate debut = fin.minusDays(29);
-        ActiviteDepot a = new ActiviteDepot(
+        ActiviteDepot activite = new ActiviteDepot(
                 List.of(new ActiviteDepot.Ticket(Instant.parse("2026-11-10T09:00:00Z"), Instant.parse("2026-11-12T09:00:00Z")),
                         new ActiviteDepot.Ticket(Instant.parse("2026-09-01T09:00:00Z"), Instant.parse("2026-11-12T10:00:00Z")),
                         new ActiviteDepot.Ticket(Instant.parse("2026-11-10T23:30:00Z"), null)),
@@ -47,7 +47,7 @@ class AgregationEtIdentiteTest {
                         new ActiviteDepot.Pipeline(Instant.parse("2026-11-14T10:00:00Z"), ActiviteDepot.Issue.ECHOUE)),
                 List.of(new ActiviteDepot.Version(Instant.parse("2026-11-15T09:00:00Z"))), List.of(), true);
 
-        Map<LocalDate, Map<Agregation.Type, Integer>> jours = Agregation.compter(a, debut, fin, PARIS);
+        Map<LocalDate, Map<Agregation.Type, Integer>> jours = Agregation.compter(activite, debut, fin, PARIS);
 
         assertEquals(1, jours.get(LocalDate.of(2026, 11, 10)).get(Agregation.Type.TICKET_OUVERT));
         assertEquals(1, jours.get(LocalDate.of(2026, 11, 11)).get(Agregation.Type.TICKET_OUVERT),
@@ -64,13 +64,13 @@ class AgregationEtIdentiteTest {
     void pin03S1AucuneIdentiteDansLesStructuresDeLActivite() {
         List<Class<?>> structures = Stream.<Class<?>>of(ActiviteDepot.class, RepositoryActivity.class, VueActivite.class,
                         Avancement.class, SyntheseActivite.class)
-                .flatMap(c -> Stream.<Class<?>>concat(Stream.of(c), Stream.of(c.getDeclaredClasses())))
+                .flatMap(classe -> Stream.<Class<?>>concat(Stream.of(classe), Stream.of(classe.getDeclaredClasses())))
                 .filter(Class::isRecord).toList();
         assertTrue(structures.size() >= 20, "structures inspectées : " + structures);
         for (Class<?> structure : structures) {
             for (RecordComponent composant : structure.getRecordComponents()) {
                 String nom = composant.getName();
-                List<String> mots = Stream.of(nom.split("(?=\\p{Upper})")).map(m -> m.toLowerCase(Locale.ROOT)).toList();
+                List<String> mots = Stream.of(nom.split("(?=\\p{Upper})")).map(mot -> mot.toLowerCase(Locale.ROOT)).toList();
                 assertTrue(mots.stream().noneMatch(IDENTITE::contains),
                         structure.getSimpleName() + "." + nom + " désignerait une personne");
             }

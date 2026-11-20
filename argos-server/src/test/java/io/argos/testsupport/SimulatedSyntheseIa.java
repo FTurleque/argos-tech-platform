@@ -41,15 +41,15 @@ public class SimulatedSyntheseIa implements SyntheseIa {
     @Override
     public String synthetiser(VueActivite vue) {
         recues.add(vue);
-        VueActivite.Compteurs c = vue.compteurs();
+        VueActivite.Compteurs compteurs = vue.compteurs();
         return switch (mode) {
             case UNAVAILABLE -> throw new IllegalStateException("fournisseur d'IA simulé indisponible");
             case REFUSED -> "";
             case CHIFFRE_INVENTE -> "Le projet avance bien : environ 93 % du travail semble terminé.";
-            default -> "Sur " + vue.periode().jours() + " jours, " + c.ticketsOuverts() + " tickets ouverts et "
-                    + c.ticketsFermes() + " fermés ; " + c.fusionsFusionnees() + " demandes de fusion fusionnées."
-                    + vue.jalons().stream().filter(j -> j.avancement() != null).findFirst()
-                            .map(j -> " Jalon « " + j.titre() + " » : " + j.avancement().libelle() + ".").orElse("");
+            default -> "Sur " + vue.periode().jours() + " jours, " + compteurs.ticketsOuverts() + " tickets ouverts et "
+                    + compteurs.ticketsFermes() + " fermés ; " + compteurs.fusionsFusionnees() + " demandes de fusion fusionnées."
+                    + vue.jalons().stream().filter(jalon -> jalon.avancement() != null).findFirst()
+                            .map(jalon -> " Jalon « " + jalon.titre() + " » : " + jalon.avancement().libelle() + ".").orElse("");
         };
     }
 }

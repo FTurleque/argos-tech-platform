@@ -36,10 +36,10 @@ class UnionProfilsTest {
     private static final ManifesteProfil DEMONSTRATION = manifeste("demonstration");
 
     private static ManifesteProfil manifeste(String identifiant) {
-        try (InputStream in = UnionProfilsTest.class.getResourceAsStream("/catalog/profils/" + identifiant + ".json")) {
-            return MAPPER.readValue(in, ManifesteProfil.class);
-        } catch (IOException e) {
-            throw new UncheckedIOException(e);
+        try (InputStream flux = UnionProfilsTest.class.getResourceAsStream("/catalog/profils/" + identifiant + ".json")) {
+            return MAPPER.readValue(flux, ManifesteProfil.class);
+        } catch (IOException erreur) {
+            throw new UncheckedIOException(erreur);
         }
     }
 
@@ -54,13 +54,14 @@ class UnionProfilsTest {
                 List.of(candidat("commun", true, "avis-securite", "textes-officiels")));
 
         assertEquals(1, retenus.size());
-        Retenu<String> r = retenus.get(0);
-        assertEquals("contenu commun", r.contenu());
-        assertEquals(List.of("developpeur", "expert-metier"), r.profils());
+        Retenu<String> retenu = retenus.get(0);
+        assertEquals("contenu commun", retenu.contenu());
+        assertEquals(List.of("developpeur", "expert-metier"), retenu.profils());
         assertEquals(List.of(new RubriqueRetenue("developpeur", "securite", "Sécurité"),
-                new RubriqueRetenue("expert-metier", "reglementation", "Réglementation")), r.rubriques());
-        assertTrue(r.gardeFous().stream().anyMatch(g -> g.contains("avis juridique")), r.gardeFous().toString());
-        assertTrue(r.gardeFous().stream().anyMatch(g -> g.contains("ne décide jamais d'un impact")), r.gardeFous().toString());
+                new RubriqueRetenue("expert-metier", "reglementation", "Réglementation")), retenu.rubriques());
+        assertTrue(retenu.gardeFous().stream().anyMatch(gardeFou -> gardeFou.contains("avis juridique")), retenu.gardeFous().toString());
+        assertTrue(retenu.gardeFous().stream().anyMatch(gardeFou -> gardeFou.contains("ne décide jamais d'un impact")),
+                retenu.gardeFous().toString());
     }
 
     /** Le même élément atteint deux fois (deux candidats de même clé) n'est restitué qu'une fois. */
@@ -113,7 +114,7 @@ class UnionProfilsTest {
     void prf06S2ElementValide() {
         List<Retenu<String>> retenus = UnionProfils.unir(List.of(EXPERT), List.of(candidat("fiche", true, "textes-officiels")));
         assertEquals(1, retenus.size());
-        assertTrue(retenus.get(0).gardeFous().stream().anyMatch(g -> g.contains("validation par l'expert")));
+        assertTrue(retenus.get(0).gardeFous().stream().anyMatch(gardeFou -> gardeFou.contains("validation par l'expert")));
     }
 
     /**
@@ -128,7 +129,7 @@ class UnionProfilsTest {
         List<Retenu<String>> sans = UnionProfils.unir(List.of(DEVELOPPEUR), candidats);
         assertEquals(List.of("contenu avis"), sans.stream().map(Retenu::contenu).toList());
         assertEquals(List.of(new RubriqueRetenue("developpeur", "securite", "Sécurité")), sans.get(0).rubriques());
-        assertTrue(sans.get(0).gardeFous().stream().noneMatch(g -> g.contains("démonstration")));
+        assertTrue(sans.get(0).gardeFous().stream().noneMatch(gardeFou -> gardeFou.contains("démonstration")));
 
         List<Retenu<String>> avec = UnionProfils.unir(List.of(DEVELOPPEUR, DEMONSTRATION), candidats);
         assertEquals(1, avec.size());
@@ -195,6 +196,6 @@ class UnionProfilsTest {
                 List.of(parAbonnement("avis", false, Set.of(ABO_1), "avis-securite")));
         assertEquals(1, retenus.size());
         assertEquals(List.of(), retenus.get(0).rubriques());
-        assertTrue(retenus.get(0).gardeFous().stream().anyMatch(g -> g.contains("ne décide jamais d'un impact")));
+        assertTrue(retenus.get(0).gardeFous().stream().anyMatch(gardeFou -> gardeFou.contains("ne décide jamais d'un impact")));
     }
 }

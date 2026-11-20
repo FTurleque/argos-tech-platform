@@ -60,8 +60,8 @@ public class StubServer implements QuarkusTestResourceLifecycleManager {
     public Map<String, String> start() {
         try {
             server = HttpServer.create(new InetSocketAddress("localhost", 0), 0);
-        } catch (IOException e) {
-            throw new IllegalStateException(e);
+        } catch (IOException exception) {
+            throw new IllegalStateException(exception);
         }
         server.createContext("/", StubServer::handle);
         server.setExecutor(Executors.newCachedThreadPool());
@@ -119,7 +119,7 @@ public class StubServer implements QuarkusTestResourceLifecycleManager {
 
     public static List<Received> received(String prefix) {
         synchronized (RECEIVED) {
-            return RECEIVED.stream().filter(r -> r.pathAndQuery().startsWith(prefix)).toList();
+            return RECEIVED.stream().filter(request -> request.pathAndQuery().startsWith(prefix)).toList();
         }
     }
 
@@ -141,11 +141,11 @@ public class StubServer implements QuarkusTestResourceLifecycleManager {
         if (stub.delayMillis() > 0) {
             try {
                 Thread.sleep(stub.delayMillis());
-            } catch (InterruptedException e) {
+            } catch (InterruptedException interrupted) {
                 Thread.currentThread().interrupt();
             }
         }
-        stub.headers().forEach((k, v) -> exchange.getResponseHeaders().add(k, v));
+        stub.headers().forEach((name, value) -> exchange.getResponseHeaders().add(name, value));
         byte[] body = stub.octets() != null ? stub.octets() : stub.body().getBytes(StandardCharsets.UTF_8);
         exchange.sendResponseHeaders(stub.status(), body.length == 0 ? -1 : body.length);
         if (body.length > 0) {

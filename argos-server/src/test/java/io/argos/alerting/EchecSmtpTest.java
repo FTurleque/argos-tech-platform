@@ -57,16 +57,16 @@ class EchecSmtpTest {
         }
 
         private static int portFerme() {
-            try (ServerSocket s = new ServerSocket(0)) {
-                return s.getLocalPort();
-            } catch (java.io.IOException e) {
-                throw new IllegalStateException(e);
+            try (ServerSocket socket = new ServerSocket(0)) {
+                return socket.getLocalPort();
+            } catch (java.io.IOException erreur) {
+                throw new IllegalStateException(erreur);
             }
         }
     }
 
     @Inject
-    TestDb db;
+    TestDb baseDeTest;
 
     @Inject
     ProjectDirectory projects;
@@ -84,7 +84,7 @@ class EchecSmtpTest {
 
     @BeforeEach
     void reset() {
-        db.reset();
+        baseDeTest.reset();
         spaceA = Api.nouvelEspace("alice", "Espace A");
     }
 
@@ -101,19 +101,19 @@ class EchecSmtpTest {
         String json = Fixtures.osv("GHSA-SMTP", "2026-11-10T00:00:00Z", "Maven", "org.exemple:lib", LIB, "0", "1.3.0")
                 .replace("\"severity\":\"HIGH\"", "\"severity\":\"CRITICAL\"");
         Fixtures.stubOsv("GHSA-SMTP", "2026-11-10T00:00:00Z", json);
-        Instant t0 = Instant.now();
+        Instant instantDepart = Instant.now();
         synchronizer.synchronize("OSV");
 
         // Première tentative à l'émission : échec, nouvelle tentative programmée.
         assertEquals("EN_ATTENTE|1", etat());
-        UUID id = db.uuid("SELECT id FROM alerte");
-        assertEquals(Map.of(), envoi.traiterEnAttente(t0), "aucune tentative avant l'échéance");
+        UUID id = baseDeTest.uuid("SELECT id FROM alerte");
+        assertEquals(Map.of(), envoi.traiterEnAttente(instantDepart), "aucune tentative avant l'échéance");
 
-        assertEquals(EnvoiAlertes.Issue.A_RETENTER, envoi.traiterEnAttente(t0.plus(2, ChronoUnit.MINUTES)).get(id));
+        assertEquals(EnvoiAlertes.Issue.A_RETENTER, envoi.traiterEnAttente(instantDepart.plus(2, ChronoUnit.MINUTES)).get(id));
         assertEquals("EN_ATTENTE|2", etat());
-        assertEquals(EnvoiAlertes.Issue.EN_ECHEC, envoi.traiterEnAttente(t0.plus(10, ChronoUnit.MINUTES)).get(id));
+        assertEquals(EnvoiAlertes.Issue.EN_ECHEC, envoi.traiterEnAttente(instantDepart.plus(10, ChronoUnit.MINUTES)).get(id));
         assertEquals("EN_ECHEC|3", etat());
-        assertEquals(Map.of(), envoi.traiterEnAttente(t0.plus(1, ChronoUnit.DAYS)), "plus aucune tentative");
+        assertEquals(Map.of(), envoi.traiterEnAttente(instantDepart.plus(1, ChronoUnit.DAYS)), "plus aucune tentative");
 
         Api.en("alice").when().get("/api/v1/alertes")
                 .then().statusCode(200)
@@ -124,6 +124,6 @@ class EchecSmtpTest {
     }
 
     private String etat() {
-        return db.string("SELECT etat || '|' || tentatives FROM alerte");
+        return baseDeTest.string("SELECT etat || '|' || tentatives FROM alerte");
     }
 }

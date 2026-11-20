@@ -36,35 +36,36 @@ class DemandeSignauxTest {
 
     @Test
     void normalisationDesCriteres() {
-        UUID a = UUID.fromString("00000000-0000-0000-0000-00000000000a");
-        UUID b = UUID.fromString("00000000-0000-0000-0000-00000000000b");
+        UUID projetA = UUID.fromString("00000000-0000-0000-0000-00000000000a");
+        UUID projetB = UUID.fromString("00000000-0000-0000-0000-00000000000b");
         Instant avant = Instant.now();
 
-        OutilsSecurite.CriteresSignaux c = demande("  Oracle  ", Arrays.asList("rust", null, " "),
+        OutilsSecurite.CriteresSignaux criteres = demande("  Oracle  ", Arrays.asList("rust", null, " "),
                 List.of("pkg:maven/org.exemple/lib@1.0", "pas-une-purl"), List.of("osv", "Nvd"),
-                List.of(b.toString(), a.toString(), b.toString()), "HIGH", 7, null).criteres();
+                List.of(projetB.toString(), projetA.toString(), projetB.toString()), "HIGH", 7, null).criteres();
 
-        assertEquals(List.of(b, a), new ArrayList<>(c.projets()), "ordre donné, sans doublon");
-        assertEquals(20, c.limite(), "20 signaux par défaut");
-        RechercheVeille.Criteres r = c.recherche();
-        assertEquals("Oracle", r.texte());
-        assertEquals(Set.of(RechercheVeille.AVIS_SECURITE), r.types());
-        assertEquals(Set.of("rust"), r.technologies());
-        assertEquals(Set.of("pkg:maven/org.exemple/lib", "pas-une-purl"), r.paquets());
-        assertEquals(Set.of("OSV", "NVD"), r.sources());
-        assertEquals(Set.of(b, a), r.projets());
-        assertEquals(Gravite.auMoins("HIGH"), r.gravites());
-        assertTrue(!r.depuis().isBefore(avant.minus(Duration.ofDays(7))) && !r.depuis().isAfter(Instant.now().minus(Duration.ofDays(7))));
+        assertEquals(List.of(projetB, projetA), new ArrayList<>(criteres.projets()), "ordre donné, sans doublon");
+        assertEquals(20, criteres.limite(), "20 signaux par défaut");
+        RechercheVeille.Criteres recherche = criteres.recherche();
+        assertEquals("Oracle", recherche.texte());
+        assertEquals(Set.of(RechercheVeille.AVIS_SECURITE), recherche.types());
+        assertEquals(Set.of("rust"), recherche.technologies());
+        assertEquals(Set.of("pkg:maven/org.exemple/lib", "pas-une-purl"), recherche.paquets());
+        assertEquals(Set.of("OSV", "NVD"), recherche.sources());
+        assertEquals(Set.of(projetB, projetA), recherche.projets());
+        assertEquals(Gravite.auMoins("HIGH"), recherche.gravites());
+        assertTrue(!recherche.depuis().isBefore(avant.minus(Duration.ofDays(7)))
+                && !recherche.depuis().isAfter(Instant.now().minus(Duration.ofDays(7))));
     }
 
     @Test
     void motSeulSansFiltre() {
-        OutilsSecurite.CriteresSignaux c = demande("x", null, null, null, null, " ", null, 50).criteres();
+        OutilsSecurite.CriteresSignaux criteres = demande("x", null, null, null, null, " ", null, 50).criteres();
 
-        assertEquals(50, c.limite());
-        assertTrue(c.projets().isEmpty());
-        assertNull(c.recherche().gravites());
-        assertNull(c.recherche().depuis());
+        assertEquals(50, criteres.limite());
+        assertTrue(criteres.projets().isEmpty());
+        assertNull(criteres.recherche().gravites());
+        assertNull(criteres.recherche().depuis());
     }
 
     @Test
