@@ -233,7 +233,7 @@ public class VeilleProfilsResource {
             ElementVue element = new ElementVue(AVIS_SECURITE, signalId, premier.signalSource(),
                     premier.signalExternalId(), premier.signalTitle(), null,
                     signal.map(SignalQueries.SignalView::severity).orElse(null),
-                    signal.map(lu -> lu.publishedAt() != null ? lu.publishedAt() : lu.modifiedAt())
+                    signal.map(avis -> avis.publishedAt() != null ? avis.publishedAt() : avis.modifiedAt())
                             .orElse(premier.updatedAt()),
                     null, null, List.of(), List.of(), List.of(), null, projets, List.of(), null, null);
             candidats.add(new UnionProfils.Candidat<>(AVIS_SECURITE + ":" + signalId, Set.of(CATEGORIE_AVIS), false,

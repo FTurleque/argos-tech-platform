@@ -106,12 +106,12 @@ public class VeilleWebResource {
     public RestResponse<SourceWeb> creer(NouvelleSource corps) {
         Caller caller = access.authenticated();
         limiter(caller);
-        NouvelleSource b = corps == null ? new NouvelleSource(null, null, null, null, null) : corps;
-        if (b.espaceId() != null && b.portee() != null && SourceWeb.ESPACE.equalsIgnoreCase(b.portee().strip())) {
-            exigerAdministrateur(caller, b.espaceId());
+        NouvelleSource saisie = corps == null ? new NouvelleSource(null, null, null, null, null) : corps;
+        if (saisie.espaceId() != null && saisie.portee() != null && SourceWeb.ESPACE.equalsIgnoreCase(saisie.portee().strip())) {
+            exigerAdministrateur(caller, saisie.espaceId());
         }
-        SourceWeb source = sources.creer(new SourcesWeb.Demande(b.portee(), b.espaceId(), b.type(), b.adresse(),
-                b.libelle()), caller.accountId());
+        SourceWeb source = sources.creer(new SourcesWeb.Demande(saisie.portee(), saisie.espaceId(), saisie.type(), saisie.adresse(),
+                saisie.libelle()), caller.accountId());
         return RestResponse.ResponseBuilder.<SourceWeb>created(URI.create("/api/v1/veille-web/sources/" + source.id()))
                 .entity(source).build();
     }

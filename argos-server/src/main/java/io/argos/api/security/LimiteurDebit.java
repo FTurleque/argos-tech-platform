@@ -51,7 +51,7 @@ public final class LimiteurDebit {
         if (compteur.incrementAndGet() % NETTOYAGE_TOUS_LES == 0) {
             nettoyer(debutFenetre);
         }
-        Deque<Long> fenetre = appels.computeIfAbsent(compte, c -> new ArrayDeque<>());
+        Deque<Long> fenetre = appels.computeIfAbsent(compte, cle -> new ArrayDeque<>());
         synchronized (fenetre) {
             while (!fenetre.isEmpty() && fenetre.peekFirst() <= debutFenetre) {
                 fenetre.pollFirst();
@@ -66,8 +66,8 @@ public final class LimiteurDebit {
 
     /** Retire les fenêtres dont tous les appels sont échus : la mémoire suit les comptes actifs. */
     private void nettoyer(long debutFenetre) {
-        appels.entrySet().removeIf(e -> {
-            Deque<Long> fenetre = e.getValue();
+        appels.entrySet().removeIf(entree -> {
+            Deque<Long> fenetre = entree.getValue();
             synchronized (fenetre) {
                 return fenetre.isEmpty() || fenetre.peekLast() <= debutFenetre;
             }

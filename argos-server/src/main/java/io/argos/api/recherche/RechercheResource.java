@@ -71,10 +71,10 @@ public class RechercheResource {
             return null;
         }
         List<UUID> ids = new ArrayList<>();
-        for (String v : valeurs) {
+        for (String valeur : valeurs) {
             try {
-                ids.add(UUID.fromString(v.strip()));
-            } catch (IllegalArgumentException | NullPointerException e) {
+                ids.add(UUID.fromString(valeur.strip()));
+            } catch (IllegalArgumentException | NullPointerException malforme) {
                 throw new DonneeInvalide("CRITERE_INVALIDE", "Identifiant de projet UUID attendu.", "projet");
             }
         }

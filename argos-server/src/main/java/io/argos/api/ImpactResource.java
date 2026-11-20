@@ -95,10 +95,10 @@ public class ImpactResource {
         Optional<EtatImpact> atteint;
         try {
             atteint = traitementImpacts.transitionner(id, caller.accountId(), vers, motif, demande.commentaire(), Instant.now());
-        } catch (TraitementImpacts.TransitionInterdite e) {
+        } catch (TraitementImpacts.TransitionInterdite interdite) {
             throw new RegleViolee("TRANSITION_INTERDITE", "Transition vers " + vers + " impossible depuis l'état "
-                    + e.courant() + ". Transitions possibles : " + noms(e.possibles()) + ".");
-        } catch (TraitementImpacts.ModificationRefusee e) {
+                    + interdite.courant() + ". Transitions possibles : " + noms(interdite.possibles()) + ".");
+        } catch (TraitementImpacts.ModificationRefusee refusee) {
             throw access.forbidden();
         }
         if (atteint.isEmpty()) {

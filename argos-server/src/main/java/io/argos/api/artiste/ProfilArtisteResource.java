@@ -158,8 +158,8 @@ public class ProfilArtisteResource {
     @Path("/listes")
     @Operation(summary = "Disciplines et territoires du profil artiste, et jours de rappel par défaut")
     public Listes listes() {
-        ManifesteProfil m = manifeste();
-        return new Listes(vues(m, DISCIPLINE), vues(m, TERRITOIRE), rappels.rappelsParDefaut());
+        ManifesteProfil manifesteProfil = manifeste();
+        return new Listes(vues(manifesteProfil, DISCIPLINE), vues(manifesteProfil, TERRITOIRE), rappels.rappelsParDefaut());
     }
 
     @GET
@@ -184,10 +184,10 @@ public class ProfilArtisteResource {
             content = @Content(schema = @Schema(implementation = Erreur.class)))
     public Suivis choisirSuivis(ChoixSuivis choix) {
         UUID compte = compteActif();
-        ManifesteProfil m = manifeste();
-        List<String> disciplines = valider(m, DISCIPLINE, choix == null ? null : choix.disciplines(),
+        ManifesteProfil manifesteProfil = manifeste();
+        List<String> disciplines = valider(manifesteProfil, DISCIPLINE, choix == null ? null : choix.disciplines(),
                 "DISCIPLINE_INCONNUE", "une discipline", "La discipline", "Disciplines disponibles");
-        List<String> territoires = valider(m, TERRITOIRE, choix.territoires(),
+        List<String> territoires = valider(manifesteProfil, TERRITOIRE, choix.territoires(),
                 "TERRITOIRE_INCONNU", "un territoire", "Le territoire", "Territoires disponibles");
         List<Integer> jours = choix.rappelsJours() == null ? null : RappelsOpportunites.valider(choix.rappelsJours());
         Map<String, List<String>> objets = new LinkedHashMap<>();
@@ -209,17 +209,18 @@ public class ProfilArtisteResource {
             content = @Content(schema = @Schema(implementation = Erreur.class)))
     public OpportunitesVue opportunites() {
         UUID compte = compteActif();
-        SuivisProfil.Suivis s = suivis.lire(compte, PROFIL);
-        if (s.valeurs(DISCIPLINE).isEmpty() || s.valeurs(TERRITOIRE).isEmpty()) {
+        SuivisProfil.Suivis suivisCompte = suivis.lire(compte, PROFIL);
+        if (suivisCompte.valeurs(DISCIPLINE).isEmpty() || suivisCompte.valeurs(TERRITOIRE).isEmpty()) {
             return new OpportunitesVue(true,
                     "Choisissez au moins une discipline et un territoire pour recevoir les opportunités du profil artiste.",
                     List.of());
         }
-        List<OpportuniteVue> items = rapprochement.restituer(Set.copyOf(s.valeurs(DISCIPLINE)),
-                Set.copyOf(s.valeurs(TERRITOIRE)), LocalDate.now(ZoneId.of(fuseau))).stream()
-                .map(r -> new OpportuniteVue(r.id(), r.rubrique(), r.titre(), r.organisme(), r.dateLimite(),
-                        r.dateLimite() == null, r.lien(), r.disciplines(), r.territoires(), r.decision().explication(),
-                        r.resume()))
+        List<OpportuniteVue> items = rapprochement.restituer(Set.copyOf(suivisCompte.valeurs(DISCIPLINE)),
+                Set.copyOf(suivisCompte.valeurs(TERRITOIRE)), LocalDate.now(ZoneId.of(fuseau))).stream()
+                .map(opportunite -> new OpportuniteVue(opportunite.id(), opportunite.rubrique(), opportunite.titre(),
+                        opportunite.organisme(), opportunite.dateLimite(), opportunite.dateLimite() == null, opportunite.lien(),
+                        opportunite.disciplines(), opportunite.territoires(), opportunite.decision().explication(),
+                        opportunite.resume()))
                 .toList();
         return new OpportunitesVue(false, null, items);
     }
@@ -255,11 +256,12 @@ public class ProfilArtisteResource {
             content = @Content(schema = @Schema(implementation = Erreur.class)))
     @APIResponse(responseCode = "409", description = "Adresse déjà déclarée",
             content = @Content(schema = @Schema(implementation = Erreur.class)))
-    public RestResponse<SourceProfil> declarerSource(DeclarationSource d) {
+    public RestResponse<SourceProfil> declarerSource(DeclarationSource declaration) {
         Caller caller = access.operator();
-        SourceProfil s = sources.declarer(d == null ? null : new SourcesProfil.Declaration(PROFIL, d.type(), d.adresse(),
-                d.libelle(), d.rubrique(), d.disciplines(), d.territoires()), caller.accountId());
-        return RestResponse.status(RestResponse.Status.CREATED, s);
+        SourceProfil source = sources.declarer(declaration == null ? null : new SourcesProfil.Declaration(PROFIL,
+                declaration.type(), declaration.adresse(), declaration.libelle(), declaration.rubrique(),
+                declaration.disciplines(), declaration.territoires()), caller.accountId());
+        return RestResponse.status(RestResponse.Status.CREATED, source);
     }
 
     @PUT
@@ -270,11 +272,11 @@ public class ProfilArtisteResource {
             content = @Content(schema = @Schema(implementation = Erreur.class)))
     @APIResponse(responseCode = "404", description = "Source inconnue",
             content = @Content(schema = @Schema(implementation = Erreur.class)))
-    public SourceProfil enregistrerConditions(@PathParam("id") UUID id, ConditionsUsage c) {
+    public SourceProfil enregistrerConditions(@PathParam("id") UUID id, ConditionsUsage conditions) {
         Caller caller = access.operator();
         exigerSourceDuProfil(id);
-        return sources.enregistrerConditions(id, c == null ? null
-                : new SourcesProfil.Conditions(c.licence(), c.conditionsUsage(), c.conditionsUrl()),
+        return sources.enregistrerConditions(id, conditions == null ? null
+                : new SourcesProfil.Conditions(conditions.licence(), conditions.conditionsUsage(), conditions.conditionsUrl()),
                 caller.accountId(), Instant.now()).orElseThrow(() -> new Introuvable("Source introuvable."));
     }
 
@@ -294,7 +296,7 @@ public class ProfilArtisteResource {
     // ------------------------------------------------------------------ outils
 
     private void exigerSourceDuProfil(UUID id) {
-        if (sources.trouver(id).filter(s -> PROFIL.equals(s.profil())).isEmpty()) {
+        if (sources.trouver(id).filter(source -> PROFIL.equals(source.profil())).isEmpty()) {
             throw new Introuvable("Source introuvable.");
         }
     }
@@ -313,25 +315,26 @@ public class ProfilArtisteResource {
         return compte;
     }
 
-    private List<Integer> joursAppliques(SuivisProfil.Suivis s) {
-        return s.rappelsJours().orElse(rappels.rappelsParDefaut());
+    private List<Integer> joursAppliques(SuivisProfil.Suivis suivisCompte) {
+        return suivisCompte.rappelsJours().orElse(rappels.rappelsParDefaut());
     }
 
-    private Suivis vue(SuivisProfil.Suivis s) {
-        return new Suivis(s.valeurs(DISCIPLINE), s.valeurs(TERRITOIRE), joursAppliques(s), s.rappelsJours().isEmpty(),
-                !s.valeurs(DISCIPLINE).isEmpty() && !s.valeurs(TERRITOIRE).isEmpty());
+    private Suivis vue(SuivisProfil.Suivis suivisCompte) {
+        return new Suivis(suivisCompte.valeurs(DISCIPLINE), suivisCompte.valeurs(TERRITOIRE), joursAppliques(suivisCompte),
+                suivisCompte.rappelsJours().isEmpty(),
+                !suivisCompte.valeurs(DISCIPLINE).isEmpty() && !suivisCompte.valeurs(TERRITOIRE).isEmpty());
     }
 
-    private static List<ValeurVue> vues(ManifesteProfil m, String type) {
-        return m.liste(type).map(ListeObjets::valeurs).orElse(List.of()).stream()
-                .map(v -> new ValeurVue(v.identifiant(), v.libelle())).toList();
+    private static List<ValeurVue> vues(ManifesteProfil manifesteProfil, String type) {
+        return manifesteProfil.liste(type).map(ListeObjets::valeurs).orElse(List.of()).stream()
+                .map(valeur -> new ValeurVue(valeur.identifiant(), valeur.libelle())).toList();
     }
 
     /** Au moins une valeur, toutes dans la liste du pack ; sinon refus avec la liste disponible (ART-02-S2). */
-    private static List<String> valider(ManifesteProfil m, String type, List<String> demandees, String code,
+    private static List<String> valider(ManifesteProfil manifesteProfil, String type, List<String> demandees, String code,
             String auMoins, String designation, String intitule) {
-        List<ValeurListe> admises = m.liste(type).map(ListeObjets::valeurs).orElse(List.of());
-        String disponibles = intitule + " : " + admises.stream().map(v -> v.libelle() + " (" + v.identifiant() + ")")
+        List<ValeurListe> admises = manifesteProfil.liste(type).map(ListeObjets::valeurs).orElse(List.of());
+        String disponibles = intitule + " : " + admises.stream().map(valeur -> valeur.libelle() + " (" + valeur.identifiant() + ")")
                 .collect(Collectors.joining(", ")) + ".";
         if (demandees == null || demandees.isEmpty()) {
             throw Erreur.demandeRefusee(code, "Choisissez au moins " + auMoins + ". " + disponibles);
@@ -340,14 +343,14 @@ public class ProfilArtisteResource {
             throw Erreur.demandeRefusee(code, "50 valeurs au plus.");
         }
         Set<String> retenues = new LinkedHashSet<>();
-        for (String d : demandees) {
-            String v = d == null ? "" : d.strip();
-            if (admises.stream().noneMatch(a -> a.identifiant().equals(v))) {
-                String affichee = v.length() > 64 ? v.substring(0, 64) + "…" : v;
+        for (String demandee : demandees) {
+            String valeur = demandee == null ? "" : demandee.strip();
+            if (admises.stream().noneMatch(admise -> admise.identifiant().equals(valeur))) {
+                String affichee = valeur.length() > 64 ? valeur.substring(0, 64) + "…" : valeur;
                 throw Erreur.demandeRefusee(code, designation + " « " + affichee
                         + " » n'est pas dans la liste du profil artiste. " + disponibles);
             }
-            retenues.add(v);
+            retenues.add(valeur);
         }
         return List.copyOf(retenues);
     }

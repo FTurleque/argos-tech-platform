@@ -97,11 +97,11 @@ public class SignalResource {
     static Set<EtatImpact> etats(List<String> valeurs) {
         Set<EtatImpact> etats = EnumSet.noneOf(EtatImpact.class);
         if (valeurs != null) {
-            for (String v : valeurs) {
-                if (v == null || v.isBlank()) {
+            for (String valeur : valeurs) {
+                if (valeur == null || valeur.isBlank()) {
                     continue;
                 }
-                etats.add(EtatImpact.depuis(v).orElseThrow(() -> new DonneeInvalide("DONNEE_INVALIDE",
+                etats.add(EtatImpact.depuis(valeur).orElseThrow(() -> new DonneeInvalide("DONNEE_INVALIDE",
                         "État inconnu : OUVERT, CONFIRME, ECARTE ou RESOLU attendu.", "etat")));
             }
         }

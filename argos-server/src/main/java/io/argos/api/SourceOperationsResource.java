@@ -64,7 +64,7 @@ public class SourceOperationsResource {
     }
 
     private void requireSource(String id) {
-        if (operations.statuses().stream().noneMatch(s -> s.sourceId().equals(id))) {
+        if (operations.statuses().stream().noneMatch(status -> status.sourceId().equals(id))) {
             throw new NotFoundException();
         }
     }
