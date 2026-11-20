@@ -23,15 +23,15 @@ const GRAVITES = Object.freeze({
 });
 
 /**
- * Alerte reçue de l'IHM, réduite aux champs autorisés, ou null si elle est invalide. Tout autre
+ * Alerte reçue de l'IHM, réduite aux champs autorisés, ou undefined si elle est invalide. Tout autre
  * champ (titre, noms, liens) est ignoré.
- * @returns {{ id: string, gravite: string|null, projets: number } | null}
+ * @returns {{ id: string, gravite: string|null, projets: number } | undefined}
  */
 function validerAlerte(payload) {
-  if (!payload || typeof payload !== 'object') return null;
+  if (!payload || typeof payload !== 'object') return undefined;
   const { id, gravite, projets } = payload;
-  if (typeof id !== 'string' || !UUID.test(id)) return null;
-  if (!Number.isInteger(projets) || projets < 0 || projets > COMPTEUR_MAX) return null;
+  if (typeof id !== 'string' || !UUID.test(id)) return undefined;
+  if (!Number.isInteger(projets) || projets < 0 || projets > COMPTEUR_MAX) return undefined;
   const code = typeof gravite === 'string' ? gravite.trim().toUpperCase() : '';
   return {
     id: id.toLowerCase(),
@@ -57,9 +57,9 @@ function texteNotification(alerte) {
   };
 }
 
-/** Nombre d'alertes ouvertes accepté pour le compteur, ou null. */
+/** Nombre d'alertes ouvertes accepté pour le compteur, ou undefined. */
 function compteurValide(nombre) {
-  return Number.isInteger(nombre) && nombre >= 0 && nombre <= COMPTEUR_MAX ? nombre : null;
+  return Number.isInteger(nombre) && nombre >= 0 && nombre <= COMPTEUR_MAX ? nombre : undefined;
 }
 
 /** Libellé du compteur (infobulle et menu de la zone de notification, NOT-03). */

@@ -47,7 +47,7 @@ test('une alerte invalide est rejetée', () => {
     { id: ID_ALERTE, projets: 10000 },
     { id: 42, projets: 1 },
   ]) {
-    assert.equal(validerAlerte(payload), null, JSON.stringify(payload));
+    assert.equal(validerAlerte(payload), undefined, JSON.stringify(payload));
   }
 });
 
@@ -56,5 +56,5 @@ test('NOT-03 : libellé du compteur dans la zone de notification', () => {
   assert.equal(libelleCompteur(1), '1 alerte ouverte');
   assert.equal(infobulle(3), 'ARGOS — 3 alertes ouvertes');
   assert.equal(compteurValide(3), 3);
-  for (const nombre of [-1, 1.2, NaN, '3', 10000, null]) assert.equal(compteurValide(nombre), null, String(nombre));
+  for (const nombre of [-1, 1.2, NaN, '3', 10000, null]) assert.equal(compteurValide(nombre), undefined, String(nombre));
 });

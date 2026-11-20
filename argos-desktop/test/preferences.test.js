@@ -42,9 +42,9 @@ test('NOT-04 : couper les notifications du poste est enregistré puis relu', () 
 });
 
 test('une demande sans clé valide est refusée ; les clés inconnues sont ignorées', () => {
-  assert.equal(preferences.fusionner(preferences.DEFAUTS, {}), null);
-  assert.equal(preferences.fusionner(preferences.DEFAUTS, { notificationsPoste: 'false' }), null);
-  assert.equal(preferences.fusionner(preferences.DEFAUTS, null), null);
+  assert.equal(preferences.fusionner(preferences.DEFAUTS, {}), undefined);
+  assert.equal(preferences.fusionner(preferences.DEFAUTS, { notificationsPoste: 'false' }), undefined);
+  assert.equal(preferences.fusionner(preferences.DEFAUTS, null), undefined);
   assert.deepEqual(
     preferences.fusionner(preferences.DEFAUTS, { demarrageSession: true, __proto__: { x: 1 }, admin: true }),
     { notificationsPoste: true, demarrageSession: true },

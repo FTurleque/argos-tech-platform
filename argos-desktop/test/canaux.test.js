@@ -21,7 +21,7 @@ function installer() {
   const poste = {
     alerte: (alerte) => { etat.alertes.push(alerte); return { affichee: true }; },
     definirCompteur: (nombre) => { etat.compteurs.push(nombre); return Number.isInteger(nombre) && nombre >= 0; },
-    changerReglages: (demande) => { etat.demandes.push(demande); return demande?.notificationsPoste === false ? demande : null; },
+    changerReglages: (demande) => { etat.demandes.push(demande); return demande?.notificationsPoste === false ? demande : undefined; },
   };
   enregistrerCanaux(bus.ipcMain, {
     connexion,

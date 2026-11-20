@@ -71,20 +71,20 @@ function creerPoste(dependances) {
   /** Nombre d'alertes ouvertes affiché dans la zone de notification (NOT-03). */
   function definirCompteur(nombre) {
     const valide = compteurValide(nombre);
-    if (valide === null) return false;
+    if (valide === undefined) return false;
     compteur = valide;
     dependances.afficherCompteur(compteur);
     return true;
   }
 
   /**
-   * Modification des réglages du poste ; renvoie les réglages appliqués, ou null si refusée.
-   * Le null est le contrat du canal IPC des réglages, que canaux.js transmet tel quel à l'IHM.
+   * Modification des réglages du poste ; renvoie les réglages appliqués, ou undefined si refusée.
+   * Le canal IPC des réglages (canaux.js) répond alors null à l'IHM.
    */
   function changerReglages(demande) {
     const filtree = sansDemarrageIndisponible(demande, dependances.demarrageDisponible);
     const nouveaux = fusionner(dependances.reglages(), filtree);
-    if (!nouveaux) return null;
+    if (!nouveaux) return undefined;
     if (dependances.demarrageDisponible === false) nouveaux.demarrageSession = false;
     dependances.enregistrerReglages(nouveaux);
     return nouveaux;
