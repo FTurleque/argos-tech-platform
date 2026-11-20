@@ -130,85 +130,131 @@ public class CollecteReglementaire {
     }
 
     private Rapport executer(List<LocalDate> jours, boolean rejeu, Instant maintenant) {
-        List<LocalDate> collectes = new ArrayList<>();
-        List<LocalDate> abandonnes = new ArrayList<>();
-        List<String> ecartees = new ArrayList<>();
-        Set<UUID> aPreparer = new LinkedHashSet<>();
-        int nouveaux = 0;
-        int connus = 0;
-        int refuses = 0;
-        LocalDate enEchec = null;
-        String erreur = null;
         if (jours.isEmpty()) {
-            return new Rapport(collectes, null, null, 0, 0, 0, 0, etat().etat(), abandonnes, ecartees);
+            return new Rapport(List.of(), null, null, 0, 0, 0, 0, etat().etat(), List.of(), List.of());
         }
         Map<LocalDate, Jour> suivis = suivis(jours.get(0), jours.get(jours.size() - 1));
         List<String> index;
         try {
             index = archives.index();
         } catch (SourceException injoignable) {
-            // Source injoignable : le premier jour non encore collecté reste à collecter ; aucun échec propre au jour.
-            LocalDate jour = jours.stream().filter(candidat -> !"COLLECTE".equals(suivis.getOrDefault(candidat, INCONNU).etat()))
-                    .findFirst().orElse(null);
             LOG.warnf("collecte réglementaire en échec, index injoignable : %s", injoignable.getMessage());
-            marquerEchec(jour, injoignable.getMessage(), false, maintenant);
-            return new Rapport(collectes, jour, injoignable.getMessage(), 0, 0, 0, 0, etat().etat(), abandonnes, ecartees);
+            return indexInjoignable(jours, suivis, injoignable, maintenant);
         }
+        Execution execution = new Execution(index, rejeu, maintenant);
+        Passage passage = new Passage();
         for (LocalDate jour : jours) {
             Jour suivi = suivis.getOrDefault(jour, INCONNU);
             if (!rejeu && "ABANDONNE".equals(suivi.etat())) {
                 continue;
             }
-            ArchivesJorf.Lecture lecture;
-            try {
-                lecture = archives.lire(jour, index, rejeu ? Set.of() : suivi.archivesLues());
-            } catch (SourceException echec) {
-                boolean abandon = !rejeu && !"COLLECTE".equals(suivi.etat()) && suivi.echecs() + 1 >= tentativesMax;
-                LOG.warnf("collecte réglementaire du %s en échec%s : %s", jour, abandon ? ", jour abandonné" : "",
-                        echec.getMessage());
-                marquerEchec(jour, echec.getMessage(), true, maintenant);
-                if (abandon) {
-                    abandonner(jour, "abandonné après " + tentativesMax + " échecs consécutifs : " + echec.getMessage(),
-                            maintenant);
-                    abandonnes.add(jour);
-                    continue;
-                }
-                enEchec = jour;
-                erreur = echec.getMessage();
+            if (!collecterJour(jour, suivi, execution, passage)) {
                 break;
             }
-            int nouveauxDuJour = 0;
-            for (TexteJorf texteJorf : lecture.textes()) {
-                var id = textes.enregistrer(texteJorf, maintenant);
-                if (id.isPresent()) {
-                    aPreparer.add(id.get());
-                    nouveauxDuJour++;
-                } else {
-                    connus++;
-                }
-            }
-            nouveaux += nouveauxDuJour;
-            refuses += lecture.fichiersRefuses();
-            ecartees.addAll(lecture.archivesEcartees());
-            String remarque = lecture.archivesEcartees().isEmpty() ? null
-                    : "archives écartées : " + String.join(" ; ", lecture.archivesEcartees());
-            marquerCollecte(jour, lecture.archives(), nouveauxDuJour, remarque, maintenant);
-            if (rejeu) {
-                aPreparer.addAll(textes.idsDesArchives(ArchivesJorf.archivesDu(index, jour)));
-            }
-            collectes.add(jour);
         }
-        if (enEchec == null && abandonnes.isEmpty() && !collectes.isEmpty()) {
+        if (passage.enEchec == null && passage.abandonnes.isEmpty() && !passage.collectes.isEmpty()) {
             marquerSucces(maintenant);
         }
-        int fiches = 0;
+        int fiches = preparerFiches(passage.aPreparer, maintenant);
+        return new Rapport(passage.collectes, passage.enEchec, passage.erreur, passage.nouveaux, passage.connus,
+                passage.refuses, fiches, etat().etat(), passage.abandonnes, passage.ecartees);
+    }
+
+    /** Paramètres communs aux jours d'une exécution : index des archives, rejeu et instant de l'exécution. */
+    private record Execution(List<String> index, boolean rejeu, Instant maintenant) {
+    }
+
+    /** Bilan en cours d'une exécution. */
+    private static final class Passage {
+        private final List<LocalDate> collectes = new ArrayList<>();
+        private final List<LocalDate> abandonnes = new ArrayList<>();
+        private final List<String> ecartees = new ArrayList<>();
+        private final Set<UUID> aPreparer = new LinkedHashSet<>();
+        private int nouveaux;
+        private int connus;
+        private int refuses;
+        private LocalDate enEchec;
+        private String erreur;
+    }
+
+    /** Source injoignable, déjà journalisée : le premier jour non encore collecté reste à collecter ; aucun échec propre au jour. */
+    private Rapport indexInjoignable(List<LocalDate> jours, Map<LocalDate, Jour> suivis, SourceException injoignable,
+            Instant maintenant) {
+        LocalDate jour = jours.stream().filter(candidat -> !"COLLECTE".equals(suivis.getOrDefault(candidat, INCONNU).etat()))
+                .findFirst().orElse(null);
+        marquerEchec(jour, injoignable.getMessage(), false, maintenant);
+        return new Rapport(List.of(), jour, injoignable.getMessage(), 0, 0, 0, 0, etat().etat(), List.of(), List.of());
+    }
+
+    /** Collecte un jour ; faux si son échec arrête l'exécution (jour manqué, repris à l'exécution suivante). */
+    private boolean collecterJour(LocalDate jour, Jour suivi, Execution execution, Passage passage) {
+        ArchivesJorf.Lecture lecture;
         try {
-            fiches = preparation.preparer(aPreparer, maintenant);
+            lecture = archives.lire(jour, execution.index(), execution.rejeu() ? Set.of() : suivi.archivesLues());
+        } catch (SourceException echec) {
+            boolean abandon = !execution.rejeu() && !"COLLECTE".equals(suivi.etat()) && suivi.echecs() + 1 >= tentativesMax;
+            LOG.warnf("collecte réglementaire du %s en échec%s : %s", jour, abandon ? ", jour abandonné" : "", echec.getMessage());
+            return echecDuJour(jour, abandon, echec, execution, passage);
+        }
+        integrerLecture(jour, lecture, execution, passage);
+        return true;
+    }
+
+    /**
+     * Échec des archives du jour, déjà journalisé : le jour est abandonné après {@code tentativesMax} échecs consécutifs
+     * ({@code abandon}) et la collecte continue ; sinon il reste en échec et la collecte s'arrête (faux).
+     */
+    private boolean echecDuJour(LocalDate jour, boolean abandon, SourceException echec, Execution execution, Passage passage) {
+        marquerEchec(jour, echec.getMessage(), true, execution.maintenant());
+        if (abandon) {
+            abandonner(jour, "abandonné après " + tentativesMax + " échecs consécutifs : " + echec.getMessage(),
+                    execution.maintenant());
+            passage.abandonnes.add(jour);
+            return true;
+        }
+        passage.enEchec = jour;
+        passage.erreur = echec.getMessage();
+        return false;
+    }
+
+    /** Enregistre les textes lus pour le jour et marque le jour collecté. */
+    private void integrerLecture(LocalDate jour, ArchivesJorf.Lecture lecture, Execution execution, Passage passage) {
+        int nouveauxDuJour = enregistrerTextes(lecture, execution.maintenant(), passage);
+        passage.nouveaux += nouveauxDuJour;
+        passage.refuses += lecture.fichiersRefuses();
+        passage.ecartees.addAll(lecture.archivesEcartees());
+        String remarque = lecture.archivesEcartees().isEmpty() ? null
+                : "archives écartées : " + String.join(" ; ", lecture.archivesEcartees());
+        marquerCollecte(jour, lecture.archives(), nouveauxDuJour, remarque, execution.maintenant());
+        if (execution.rejeu()) {
+            passage.aPreparer.addAll(textes.idsDesArchives(ArchivesJorf.archivesDu(execution.index(), jour)));
+        }
+        passage.collectes.add(jour);
+    }
+
+    /** Enregistre les textes lus ; renvoie le nombre de textes nouveaux, à préparer. */
+    private int enregistrerTextes(ArchivesJorf.Lecture lecture, Instant maintenant, Passage passage) {
+        int nouveauxDuJour = 0;
+        for (TexteJorf texteJorf : lecture.textes()) {
+            var id = textes.enregistrer(texteJorf, maintenant);
+            if (id.isPresent()) {
+                passage.aPreparer.add(id.get());
+                nouveauxDuJour++;
+            } else {
+                passage.connus++;
+            }
+        }
+        return nouveauxDuJour;
+    }
+
+    /** Prépare les fiches des textes nouveaux ; une panne d'accès aux données est journalisée et ne compte aucune fiche. */
+    private int preparerFiches(Set<UUID> aPreparer, Instant maintenant) {
+        try {
+            return preparation.preparer(aPreparer, maintenant);
         } catch (IllegalStateException echecPreparation) {
             LOG.errorf(echecPreparation, "préparation des fiches réglementaires en échec");
+            return 0;
         }
-        return new Rapport(collectes, enEchec, erreur, nouveaux, connus, refuses, fiches, etat().etat(), abandonnes,
-                ecartees);
     }
 
     /**
