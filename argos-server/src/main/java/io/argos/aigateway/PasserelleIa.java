@@ -290,7 +290,7 @@ public class PasserelleIa {
             journal.enregistrer(new JournalAppelsIa.Entree(prompt.tache(), prompt.version(), fournisseur.nom(),
                     brute == null ? modele : brute.modele(), espaceId, issue.name(),
                     brute == null ? 0 : brute.jetonsEntree(), brute == null ? 0 : brute.jetonsSortie(),
-                    brute == null ? BigDecimal.ZERO : BigDecimal.valueOf(brute.coutEur()), empreinte, masquees,
+                    brute == null ? BigDecimal.ZERO : brute.coutEur(), empreinte, masquees,
                     dureeMs));
         }
     }

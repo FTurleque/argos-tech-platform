@@ -2,6 +2,7 @@ package io.argos.aigateway.ollama;
 
 import java.io.IOException;
 import java.io.InputStream;
+import java.math.BigDecimal;
 import java.net.URI;
 import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
@@ -100,6 +101,6 @@ public class FournisseurOllama implements FournisseurModele {
             throw new IOException("réponse d'Ollama sans message");
         }
         return new Reponse(contenu.asText(), racine.path("model").asText(demande.modele()), racine.path("prompt_eval_count").asInt(0),
-                racine.path("eval_count").asInt(0), 0.0);
+                racine.path("eval_count").asInt(0), BigDecimal.ZERO);
     }
 }

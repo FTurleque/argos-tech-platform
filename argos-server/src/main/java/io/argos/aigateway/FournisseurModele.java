@@ -1,5 +1,6 @@
 package io.argos.aigateway;
 
+import java.math.BigDecimal;
 import java.util.Map;
 
 /**
@@ -14,7 +15,7 @@ public interface FournisseurModele {
     }
 
     /** Réponse brute : texte produit, modèle effectif, jetons d'entrée et de sortie, coût en euros. */
-    record Reponse(String texte, String modele, int jetonsEntree, int jetonsSortie, double coutEur) {
+    record Reponse(String texte, String modele, int jetonsEntree, int jetonsSortie, BigDecimal coutEur) {
     }
 
     /** Nom court du fournisseur, tracé avec chaque appel. */
