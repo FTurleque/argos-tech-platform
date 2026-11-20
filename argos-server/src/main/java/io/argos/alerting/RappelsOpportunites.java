@@ -7,6 +7,7 @@ import java.time.temporal.ChronoUnit;
 import java.util.ArrayList;
 import java.util.LinkedHashSet;
 import java.util.List;
+import java.util.Optional;
 import java.util.Set;
 import java.util.UUID;
 
@@ -19,7 +20,7 @@ import org.jboss.logging.Logger;
 
 import io.argos.impact.RapprochementOpportunites;
 import io.argos.impact.ResumeOpportunite;
-import io.argos.workspace.DonneeInvalide;
+import io.argos.regintel.EcheancesReglementaires;
 import io.argos.workspace.suivi.SuivisProfil;
 import io.quarkus.scheduler.Scheduled;
 
@@ -83,22 +84,37 @@ public class RappelsOpportunites {
         if (!rapprochement.actif()) {
             return crees;
         }
-        List<SuivisProfil.Suiveur> suiveurs;
-        try {
-            suiveurs = suivis.suiveurs(RapprochementOpportunites.PROFIL);
-        } catch (RuntimeException erreur) {
-            LOG.errorf(erreur, "lecture des suiveurs du profil artiste impossible");
+        Optional<List<SuivisProfil.Suiveur>> suiveurs = lireSuiveursSansPropager();
+        if (suiveurs.isEmpty()) {
             return crees;
         }
-        for (SuivisProfil.Suiveur suiveur : suiveurs) {
-            try {
-                crees.addAll(rappeler(suiveur, aujourdhui, maintenant));
-            } catch (RuntimeException erreur) {
-                LOG.errorf(erreur, "rappels de date limite du compte %s en échec", suiveur.compteId());
-            }
+        for (SuivisProfil.Suiveur suiveur : suiveurs.get()) {
+            rappelerSansPropager(suiveur, aujourdhui, maintenant, crees);
         }
         envoi.envoyer(crees, maintenant);
         return List.copyOf(crees);
+    }
+
+    /**
+     * Point d'isolation de la tâche planifiée : suiveurs illisibles, l'échec est journalisé avec sa cause et
+     * l'exécution s'achève sans rappel ; la suivante reprend les rappels de son jour.
+     */
+    private Optional<List<SuivisProfil.Suiveur>> lireSuiveursSansPropager() {
+        try {
+            return Optional.of(suivis.suiveurs(RapprochementOpportunites.PROFIL));
+        } catch (RuntimeException erreur) {
+            LOG.errorf(erreur, "lecture des suiveurs du profil artiste impossible");
+            return Optional.empty();
+        }
+    }
+
+    /** Point d'isolation de la tâche planifiée : un compte en échec n'interrompt pas les rappels des autres. */
+    private void rappelerSansPropager(SuivisProfil.Suiveur suiveur, LocalDate aujourdhui, Instant maintenant, List<UUID> crees) {
+        try {
+            crees.addAll(rappeler(suiveur, aujourdhui, maintenant));
+        } catch (RuntimeException erreur) {
+            LOG.errorf(erreur, "rappels de date limite du compte %s en échec", suiveur.compteId());
+        }
     }
 
     private List<UUID> rappeler(SuivisProfil.Suiveur suiveur, LocalDate aujourdhui, Instant maintenant) {
@@ -119,7 +135,8 @@ public class RappelsOpportunites {
             String quand = restant == 0 ? "aujourd'hui" : restant == 1 ? "demain" : "dans " + restant + " jours";
             String titre = "Date limite " + quand + " (" + limite + ") : " + restitution.titre();
             String cle = "OPPORTUNITE|" + restitution.id() + "|" + limite + "|J-" + restant;
-            messages.creer("RAPPEL", suiveur.compteId(), canal, cle, titre, contenu(restitution, titre), maintenant).ifPresent(id -> {
+            RappelsRadar.Message message = new RappelsRadar.Message("RAPPEL", cle, titre, contenu(restitution, titre));
+            messages.creer(message, suiveur.compteId(), canal, maintenant).ifPresent(id -> {
                 crees.add(id);
                 emises.fire(new AlerteEmise(id, suiveur.compteId(), canal, "RAPPEL"));
             });
@@ -136,19 +153,11 @@ public class RappelsOpportunites {
                 lien)), null, "SANS_OBJET");
     }
 
-    /** Valide des jours de rappel : de 1 à 10 valeurs distinctes entre 0 (jour même) et 365, décroissantes. */
+    /**
+     * Valide des jours de rappel : de 1 à 10 valeurs distinctes entre 0 (jour même) et 365, décroissantes. Règle
+     * commune à tous les rappels, tenue par {@link EcheancesReglementaires#valider}.
+     */
     public static List<Integer> valider(List<Integer> jours) {
-        if (jours == null || jours.isEmpty() || jours.size() > 10) {
-            throw new DonneeInvalide("DONNEE_INVALIDE", "Indiquez de 1 à 10 jours de rappel.", "rappelsJours");
-        }
-        Set<Integer> distincts = new LinkedHashSet<>();
-        for (Integer jour : jours) {
-            if (jour == null || jour < 0 || jour > 365) {
-                throw new DonneeInvalide("DONNEE_INVALIDE", "Chaque jour de rappel est compris entre 0 et 365.",
-                        "rappelsJours");
-            }
-            distincts.add(jour);
-        }
-        return distincts.stream().sorted((gauche, droite) -> droite - gauche).toList();
+        return EcheancesReglementaires.valider(jours);
     }
 }

@@ -53,10 +53,18 @@ public class AlertesSansObjet {
     DataSource dataSource;
 
     void surImpactsTraites(@Observes(during = TransactionPhase.AFTER_SUCCESS) ImpactsTraites evenement) {
+        annulerSansPropager(evenement.signalId());
+    }
+
+    /**
+     * Observateur d'une transaction déjà validée : l'échec de l'annulation est journalisé avec sa cause et ne
+     * remonte pas au traitement des impacts, qui reste acquis ; l'envoi revérifie l'objet de chaque alerte.
+     */
+    private void annulerSansPropager(UUID signalId) {
         try {
-            annuler(evenement.signalId());
+            annuler(signalId);
         } catch (RuntimeException erreur) {
-            LOG.errorf(erreur, "annulation des alertes sans objet du signal %s en échec", evenement.signalId());
+            LOG.errorf(erreur, "annulation des alertes sans objet du signal %s en échec", signalId);
         }
     }
 
