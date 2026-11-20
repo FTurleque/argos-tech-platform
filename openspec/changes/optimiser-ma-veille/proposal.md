@@ -61,7 +61,7 @@ Aucune.
 
 ## Écarts constatés
 
-- La cause mesurée ne se limite pas à la lecture des signaux un par un (hypothèse 1, environ 200 ms par requête) : la lecture des impacts récents sous la RLS coûte environ 240 ms (hypothèse 2), et un index `(workspace_id, state, updated_at)` n'y remédie pas, le planificateur ne s'en servant pas pour ce tri (design.md, « Contexte technique »).
+- La cause mesurée ne se limite pas à la lecture des signaux un par un (hypothèse 1, environ 220 ms par requête) : la lecture des impacts récents sous la RLS coûte environ 240 ms (hypothèse 2). Un index `(workspace_id, updated_at DESC, id)` n'y remédie pas, le planificateur ne s'en servant pas pour ce tri (219 ms mesurés) ; la variante `(workspace_id, state, updated_at)` de l'hypothèse (2) n'est pas mesurée (design.md, « Contexte technique », D2).
 - La spec `performance-api-mcp` n'existe que dans le changement actif `automatiser-chaine-veille` : l'exigence de latence de « Ma veille » est ajoutée à `profils-veille`, capacité de référence (design.md, D4).
 
 ## Impact

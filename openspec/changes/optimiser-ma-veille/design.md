@@ -151,7 +151,7 @@ Aucune des deux corrections ne suffit seule à garantir une marge ; ensemble, el
 
 ## Compatibilité, migration et retour arrière
 
-Déploiement : V21 s'applique au démarrage (Flyway) ; la création de l'index verrouille la table `project_impact` en écriture le temps de sa construction (quelques dizaines de millisecondes pour 20 000 lignes). Retour arrière : `DROP INDEX project_impact_recents;` puis retrait de la ligne V21 de `flyway_schema_history` (ADR-0032 : migrations non réversibles automatiquement) ; le code de lecture groupée ne dépend pas de l'index et se retire indépendamment.
+Déploiement : V21 s'applique au démarrage (Flyway) ; la création de l'index verrouille la table `project_impact` en écriture le temps de sa construction (quelques dizaines de millisecondes pour 20 000 lignes). Sur une base volumineuse, ce verrou bloque la corrélation et les transitions d'impacts pendant toute la construction : prévoir une fenêtre de déploiement, ou un `CREATE INDEX CONCURRENTLY` exécuté hors de la transaction Flyway. Retour arrière : `DROP INDEX project_impact_recents;` puis retrait de la ligne V21 de `flyway_schema_history` (ADR-0032 : migrations non réversibles automatiquement) ; le code de lecture groupée ne dépend pas de l'index et se retire indépendamment.
 
 ## Décisions, alternatives et compromis
 
@@ -169,8 +169,8 @@ Déploiement : V21 s'applique au démarrage (Flyway) ; la création de l'index v
 - **Statut** : [DÉCISION] (décision locale de ce changement)
 - **Choix** : index sur l'ordre exact de `forWorkspaces`, sans `workspace_id` en tête.
 - **Justification** : `EXPLAIN ANALYZE` 241 ms → 7 ms ; le parcours s'arrête aux 200 premières lignes visibles.
-- **Alternatives écartées** : index `(workspace_id, state, updated_at)` ou `(workspace_id, updated_at DESC, id)` — non retenus par le planificateur pour ce tri (219 ms mesurés) ; réécrire `argos_espace_lisible` pour la rendre intégrable — modifie une règle de sécurité (ADR-0016), hors périmètre ; abaisser `LIMITE_IMPACTS` — change le contenu restitué.
-- **Compromis** : avec de nombreux espaces dont les impacts récents ne sont pas ceux de l'appelant, le parcours lit plus de lignes avant d'en trouver 200 visibles ; le planificateur revient alors au tri, plan mesuré à 241 ms pour 20 000 impacts, sans régression par rapport à `lot19/base`.
+- **Alternatives écartées** : index `(workspace_id, updated_at DESC, id)` — non retenu par le planificateur pour ce tri (219 ms mesurés) ; index `(workspace_id, state, updated_at)` de l'hypothèse (2) — non mesuré, écarté pour la même raison (le filtre `workspace_id = ANY (?)` ne garantit pas l'ordre d'un index dont `workspace_id` est en tête) ; index partiel `(updated_at DESC, id) WHERE state IN ('OUVERT', 'CONFIRME')`, aligné sur `EtatImpact.ACTIFS` — non mesuré ; à évaluer si la part d'impacts `ECARTE` ou `RESOLU` récents allonge le parcours ; réécrire `argos_espace_lisible` pour la rendre intégrable — modifie une règle de sécurité (ADR-0016), hors périmètre ; abaisser `LIMITE_IMPACTS` — change le contenu restitué.
+- **Compromis** : le jeu K3 ne compte qu'un espace. Avec plusieurs espaces dont les impacts les plus récents ne sont pas ceux de l'appelant, le parcours de l'index lit les lignes de tous les espaces avant d'en trouver 200 visibles et évalue la politique RLS sur chacune ; le planificateur, qui suppose une répartition uniforme, peut garder ce plan. Ce cas n'est pas mesuré : le comportement du plan et son coût par rapport à `lot19/base` restent à établir par `EXPLAIN ANALYZE` sur un jeu à plusieurs espaces (section « Risques »). Alternative à évaluer dans ce cas : index `(workspace_id, updated_at DESC, id)` lu par espace (`LATERAL`, `LIMIT 200` par espace, puis fusion triée).
 - **ADR** : non : décision locale.
 
 ### D3 — Aucun cache applicatif
@@ -191,6 +191,7 @@ Déploiement : V21 s'applique au démarrage (Flyway) ; la création de l'index v
 ## Risques
 
 - Plan instable si les statistiques de `project_impact` sont périmées → l'autovacuum de PostgreSQL les tient à jour ; la campagne relancée vérifie le plan effectif.
+- Index sans `workspace_id` en tête, plan non mesuré avec plusieurs espaces (D2, Compromis) → mesure `EXPLAIN ANALYZE` sur un jeu à plusieurs espaces, l'espace de l'appelant portant les impacts les plus anciens, avant de tenir PRF-07 pour acquise hors du jeu K3.
 - Base de diagnostic sur un port autre que celui de la campagne → mêmes image, migrations et jeu de données ; la campagne de référence (tâche 4.2) est la preuve retenue.
 
 ## Écarts code / tests / specs / documentation

@@ -34,6 +34,11 @@ Preuves, 2026-11-20 (branche `lot19/optimisation`) :
 - 4.2 (non faite, 2026-11-20) : la campagne ne démarre pas, le port 55432 de `e2e/compose.yaml` étant occupé sur le poste par un processus extérieur au dépôt (`docker compose up` : « ports are not available ») ; le rapport versionné reste celui du 2026-11-19. La fiche `performance-api-mcp` consigne la mesure de diagnostic et l'écart. À relancer sous le verrou de la pile E2E dès que le port est libre.
 - 3.1, 3.2 et 4.1 : `node scripts/verifier-docs.mjs` sans erreur ; `openspec validate --all --strict` valide.
 
+Preuves, 2026-11-20 (branche `lot19/integration`, après relecture indépendante) :
+
+- 2.3 : `architecture/LectureGroupeeSignauxTest` couvre les appels directs et les références de méthode (`map(signaux::find)`) dans la classe, ses lambdas et ses classes internes ; le test `laRegleDetecteUneReferenceDeMethode` vérifie la détection sur l'exemple `architecture/exemples/LectureUnitaireParReference` (3 tests, 0 échec).
+- 2.2 : design.md D2 distingue la variante mesurée `(workspace_id, updated_at DESC, id)` (219 ms) des variantes non mesurées (`(workspace_id, state, updated_at)`, index partiel) ; le plan avec plusieurs espaces n'est pas mesuré (design.md, « Risques »).
+
 ## Matrice de traçabilité
 
 | Exigence | Scénario | Conception / diagramme | Tâche | Test ou preuve | État de la preuve |
