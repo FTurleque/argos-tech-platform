@@ -24,7 +24,7 @@ Règles : aucune requête vers Internet dans les tests ; aucune dépendance nouv
 
 - [x] 4.1 Valider le changement — vérification : `openspec validate optimiser-ma-veille --strict` et `openspec validate --all --strict` réussissent
 - [x] 4.2 Relancer la campagne `npm --prefix e2e run test:performance` sous le verrou de la pile E2E, versionner le rapport régénéré et mettre à jour la fiche `performance-api-mcp` (écarts constatés) — couvre PRF-07-S1 — vérification : rapport `/docs/architecture/quality/mesure-performance-api-mcp.md`, `GET /api/v1/me/veille` dans la cible
-- [ ] 4.3 Mesurer par `EXPLAIN ANALYZE` le plan de `ImpactQueries.forWorkspaces` sur un jeu à plusieurs espaces, l'espace de l'appelant portant les impacts les plus anciens, avant l'archivage du changement ([DÉCISION] L1, 2026-11-20) — couvre PRF-07-S1 hors du jeu K3 — vérification : plan et durée consignés dans design.md (D2) ; si le coût dépasse celui de `lot19/base`, ouvrir la variante par espace (`LATERAL`)
+- [x] 4.3 Mesurer par `EXPLAIN ANALYZE` le plan de `ImpactQueries.forWorkspaces` sur un jeu à plusieurs espaces, l'espace de l'appelant portant les impacts les plus anciens, avant l'archivage du changement ([DÉCISION] L1, 2026-11-20) — couvre PRF-07-S1 hors du jeu K3 — vérification : plan et durée consignés dans design.md (D2) ; si le coût dépasse celui de `lot19/base`, ouvrir la variante par espace (`LATERAL`)
 
 Preuves, 2026-11-20 (branche `lot19/optimisation`) :
 
@@ -40,11 +40,15 @@ Preuves, 2026-11-20 (branche `lot19/integration`, après relecture indépendante
 - 2.3 : `architecture/LectureGroupeeSignauxTest` couvre les appels directs et les références de méthode (`map(signaux::find)`) dans la classe, ses lambdas et ses classes internes ; le test `laRegleDetecteUneReferenceDeMethode` vérifie la détection sur l'exemple `architecture/exemples/LectureUnitaireParReference` (3 tests, 0 échec).
 - 2.2 : design.md D2 distingue la variante mesurée `(workspace_id, updated_at DESC, id)` (219 ms) des variantes non mesurées (`(workspace_id, state, updated_at)`, index partiel) ; le plan avec plusieurs espaces n'est pas mesuré (design.md, « Risques »).
 
+Preuves, 2026-11-20 (branche `lot24/mesure-multi-espaces`) :
+
+- 4.3 : `EXPLAIN (ANALYZE, BUFFERS)` de la requête exacte de `ImpactQueries.forWorkspaces`, sous `SET LOCAL ROLE argos_app` et le compte de l'appelant (même contexte RLS que le serveur), sur PostgreSQL 18 jetable (port 55433, migrations V1 à V21) chargé de 5 espaces de 10 000 impacts (50 000 au total), l'espace de l'appelant portant les plus anciens : appelant membre du seul espace ancien, 22,9 ms avec l'index V21 contre 255 à 267 ms sans index (`lot19/base`) ; appelant membre de trois espaces, 7,2 ms contre 375 à 443 ms ; membre des cinq, 9,5 ms contre 407 à 429 ms. L'index V21 ne coûte pas plus que `lot19/base` pour un jeu d'espaces issu de `memberWorkspaces` ; variante `LATERAL` non retenue, mesurée à titre indicatif (design.md D2).
+
 ## Matrice de traçabilité
 
 | Exigence | Scénario | Conception / diagramme | Tâche | Test ou preuve | État de la preuve |
 |---|---|---|---|---|---|
-| PRF-07 | PRF-07-S1 | design.md D1, D2, « Performance et stratégie de mesure » ; DC-1 | 1.1, 2.1, 2.2, 4.2 | campagne `npm --prefix e2e run test:performance`, `/docs/architecture/quality/mesure-performance-api-mcp.md` ; `architecture/LectureGroupeeSignauxTest` | tests exécutés le 2026-11-20 ; mesure de diagnostic du 2026-11-20 (p95 = 60,1 à 82,7 ms) ; campagne de référence du 2026-11-20 (révision `7e5e36d`, jeu K3) : p50 = 63,3 ms, p95 = 85 ms ; les seize opérations dans la cible, code de sortie 0 |
+| PRF-07 | PRF-07-S1 | design.md D1, D2, « Performance et stratégie de mesure » ; DC-1 | 1.1, 2.1, 2.2, 4.2, 4.3 | campagne `npm --prefix e2e run test:performance`, `/docs/architecture/quality/mesure-performance-api-mcp.md` ; `architecture/LectureGroupeeSignauxTest` | tests exécutés le 2026-11-20 ; mesure de diagnostic du 2026-11-20 (p95 = 60,1 à 82,7 ms) ; campagne de référence du 2026-11-20 (révision `7e5e36d`, jeu K3) : p50 = 63,3 ms, p95 = 85 ms ; les seize opérations dans la cible, code de sortie 0 |
 | PRF-07 | PRF-07-S2 | design.md D1, « Sécurité et isolation » ; DC-1 | 2.1, 2.3 | `api/veille/VeilleLectureGroupeeTest` | exécuté le 2026-11-20 |
 
 ## Workflow follow-up

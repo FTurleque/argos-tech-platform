@@ -166,11 +166,24 @@ Déploiement : V21 s'applique au démarrage (Flyway) ; la création de l'index v
 
 ### D2 — Index `project_impact_recents (updated_at DESC, id)` (V21)
 
-- **Statut** : [DÉCISION] ; risque du cas à plusieurs espaces accepté par le porteur du projet (L1, 2026-11-20), mesure sur un jeu à plusieurs espaces avant l'archivage du changement
+- **Statut** : [DÉCISION] ; risque du cas à plusieurs espaces accepté par le porteur du projet (L1, 2026-11-20), puis levé par la mesure sur un jeu à plusieurs espaces (tâche 4.3, ci-dessous)
 - **Choix** : index sur l'ordre exact de `forWorkspaces`, sans `workspace_id` en tête.
 - **Justification** : `EXPLAIN ANALYZE` 241 ms → 7 ms ; le parcours s'arrête aux 200 premières lignes visibles.
 - **Alternatives écartées** : index `(workspace_id, updated_at DESC, id)` — non retenu par le planificateur pour ce tri (219 ms mesurés) ; index `(workspace_id, state, updated_at)` de l'hypothèse (2) — non mesuré, écarté pour la même raison (le filtre `workspace_id = ANY (?)` ne garantit pas l'ordre d'un index dont `workspace_id` est en tête) ; index partiel `(updated_at DESC, id) WHERE state IN ('OUVERT', 'CONFIRME')`, aligné sur `EtatImpact.ACTIFS` — non mesuré ; à évaluer si la part d'impacts `ECARTE` ou `RESOLU` récents allonge le parcours ; réécrire `argos_espace_lisible` pour la rendre intégrable — modifie une règle de sécurité (ADR-0016), hors périmètre ; abaisser `LIMITE_IMPACTS` — change le contenu restitué.
-- **Compromis** : le jeu K3 ne compte qu'un espace. Avec plusieurs espaces dont les impacts les plus récents ne sont pas ceux de l'appelant, le parcours de l'index lit les lignes de tous les espaces avant d'en trouver 200 visibles et évalue la politique RLS sur chacune ; le planificateur, qui suppose une répartition uniforme, peut garder ce plan. Ce cas n'est pas mesuré : le comportement du plan et son coût par rapport à `lot19/base` restent à établir par `EXPLAIN ANALYZE` sur un jeu à plusieurs espaces (section « Risques »). Alternative à évaluer dans ce cas : index `(workspace_id, updated_at DESC, id)` lu par espace (`LATERAL`, `LIMIT 200` par espace, puis fusion triée).
+- **Compromis** : le jeu K3 ne compte qu'un espace. Avec plusieurs espaces dont les impacts les plus récents ne sont pas ceux de l'appelant, le parcours de l'index lit les lignes de tous les espaces avant d'en trouver 200 visibles et évalue la politique RLS sur chacune. Ce cas est mesuré (tâche 4.3, ci-dessous) : l'index coûte moins que `lot19/base` pour tout jeu d'espaces issu de `memberWorkspaces`.
+- **Mesure sur plusieurs espaces (tâche 4.3, 2026-11-20)** : PostgreSQL 18 jetable (port 55433), migrations V1 à V21 appliquées dans l'ordre, 5 espaces de 10 projets, 100 composants par projet et 1 000 signaux, soit 10 000 impacts par espace et 50 000 au total, 90 % ouverts et 10 % confirmés ; l'espace 1 porte les impacts les plus anciens (J-400), les espaces 2 à 5 les plus récents (dernières heures). Requête exacte de `forWorkspaces` (même `SELECT`, mêmes filtres, `LIMIT 200`), `EXPLAIN (ANALYZE, BUFFERS)` sous `SET LOCAL ROLE argos_app` avec le contexte RLS de `RlsSession.account`, quatre exécutions, cache chaud. « Sans index » reproduit `lot19/base` (index `project_impact_recents` supprimé, statistiques rafraîchies).
+
+  | Appelant, et ensemble `workspace_id = ANY (?)` | Sans index (`lot19/base`) | Avec l'index V21 | `LATERAL` par espace (indicatif) |
+  |---|---:|---:|---:|
+  | Membre de l'espace 1 seul (le plus ancien) ; `{1}` | 255 à 267 ms | 22,4 à 23,8 ms | 7,6 à 7,9 ms |
+  | Membre des espaces 1, 3 et 5 ; `{1, 3, 5}` | 375 à 443 ms | 7,2 à 7,8 ms | 18,4 à 19,5 ms |
+  | Membre des cinq espaces ; `{1, 2, 3, 4, 5}` | 407 à 429 ms | 9,3 à 10,0 ms | 183 à 190 ms |
+
+  Plan sans index : balayage par bitmap de tous les impacts des espaces demandés (jusqu'à 50 000 lignes), politique RLS évaluée sur chacune, jointure de toutes les lignes (composants lus un par un), tri par « top-N heapsort ». Plan avec l'index V21 : `Index Scan using project_impact_recents`, arrêt aux 200 lignes visibles ; cas le plus défavorable (appelant membre du seul espace le plus ancien) : 40 000 lignes des autres espaces lues et écartées par le filtre sur `workspace_id` (`Rows Removed by Filter: 40000`, 38 323 tampons), soit 22,9 ms contre 255 ms. Cas à un seul espace de K3 : 7 ms.
+
+  Cas hors modèle d'accès : un ensemble d'espaces contenant des espaces que l'appelant ne lit pas (que `memberWorkspaces` ne produit pas) renverse le résultat : avec l'index, 335 ms pour `{1, 2, 3, 4, 5}` et un appelant membre du seul espace 1, contre 175 ms sans index, la politique RLS rejetant les 40 000 lignes visitées (la requête `LATERAL` n'y gagne rien, 331 à 334 ms, chaque espace non lisible étant lu en entier). Ce cas ne se produit que si `memberWorkspaces` cesse d'être l'ensemble des espaces dont l'appelant est membre ; il n'est pas couvert par un test.
+
+  **Conclusion** : l'index V21 ne coûte pas plus que `lot19/base` dans les cas issus du modèle d'accès réel et le gain est maintenu à plusieurs espaces (×11 dans le cas le plus défavorable, ×40 à 55 sinon) ; PRF-07 est tenue hors du jeu K3 pour ce volume (50 000 impacts, 5 espaces). La variante par espace (`LATERAL`) n'est pas retenue (variante mesurée sans être intégrée) : plus lente dès que l'appelant lit plusieurs espaces (18,4 contre 7,2 ms ; 183 contre 9,3 ms), meilleure seulement pour un seul espace ancien (7,6 contre 22,9 ms), cas qui tient déjà dans la cible. Aucun changement de code ni de migration.
 - **ADR** : non : décision locale.
 
 ### D3 — Aucun cache applicatif
@@ -191,7 +204,7 @@ Déploiement : V21 s'applique au démarrage (Flyway) ; la création de l'index v
 ## Risques
 
 - Plan instable si les statistiques de `project_impact` sont périmées → l'autovacuum de PostgreSQL les tient à jour ; la campagne relancée vérifie le plan effectif.
-- Index sans `workspace_id` en tête, plan non mesuré avec plusieurs espaces (D2, Compromis) → mesure `EXPLAIN ANALYZE` sur un jeu à plusieurs espaces, l'espace de l'appelant portant les impacts les plus anciens, avant l'archivage du changement (L1), et avant de tenir PRF-07 pour acquise hors du jeu K3.
+- Index sans `workspace_id` en tête (D2, Compromis) → mesuré sur 5 espaces et 50 000 impacts, l'espace de l'appelant portant les plus anciens (tâche 4.3) : 22,9 ms contre 255 ms sans index ; reste hors couverture un ensemble d'espaces contenant des espaces non lisibles de l'appelant (hors modèle d'accès), où le plan avec l'index coûte plus que `lot19/base` (335 contre 175 ms).
 - Base de diagnostic sur un port autre que celui de la campagne → mêmes image, migrations et jeu de données ; la campagne de référence (tâche 4.2) est la preuve retenue.
 
 ## Écarts code / tests / specs / documentation
