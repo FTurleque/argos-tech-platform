@@ -94,64 +94,68 @@ public class RappelsRadar {
 
     /** Tâche quotidienne du radar (DC-1) pour le jour donné. */
     public Bilan executer(LocalDate aujourdhui, Instant maintenant) {
-        RadarProjets.Bilan bilan = actualiserSansPropager(aujourdhui, maintenant);
+        RadarProjets.Bilan bilan = actualiserOuJournaliser(aujourdhui, maintenant);
         List<UUID> crees = new ArrayList<>();
-        for (UUID espace : espacesSuivisSansPropager()) {
-            rappelerEspaceSansPropager(espace, aujourdhui, maintenant, crees);
+        for (UUID espace : espacesSuivisOuJournaliser()) {
+            rappelerEspaceOuJournaliser(espace, aujourdhui, maintenant, crees);
         }
         envoi.envoyer(crees, maintenant);
         return new Bilan(bilan, List.copyOf(crees));
     }
 
     /**
-     * Point d'isolation de la tâche planifiée : un échec de l'actualisation est journalisé avec sa cause et les
+     * Point d'isolation de la tâche planifiée : une panne d'accès aux données pendant l'actualisation est journalisée
+     * avec sa cause et les
      * rappels partent quand même, sur le calendrier et les dettes déjà connus.
      */
-    private RadarProjets.Bilan actualiserSansPropager(LocalDate aujourdhui, Instant maintenant) {
+    private RadarProjets.Bilan actualiserOuJournaliser(LocalDate aujourdhui, Instant maintenant) {
         try {
             return radar.actualiser(aujourdhui, maintenant);
-        } catch (RuntimeException erreur) {
+        } catch (IllegalStateException erreur) {
             LOG.errorf(erreur, "actualisation du radar en échec");
             return new RadarProjets.Bilan(java.util.Map.of(), 0);
         }
     }
 
     /** Point d'isolation de la tâche planifiée : sans espaces lisibles, l'exécution s'achève sans rappel. */
-    private List<UUID> espacesSuivisSansPropager() {
+    private List<UUID> espacesSuivisOuJournaliser() {
         try {
             return radar.espacesSuivis();
-        } catch (RuntimeException erreur) {
+        } catch (IllegalStateException erreur) {
             LOG.errorf(erreur, "lecture des espaces suivis par le radar impossible");
             return List.of();
         }
     }
 
-    /** Point d'isolation de la tâche planifiée : l'échec d'un espace n'interrompt pas les rappels des autres. */
-    private void rappelerEspaceSansPropager(UUID espace, LocalDate aujourdhui, Instant maintenant, List<UUID> crees) {
+    /**
+     * Point d'isolation de la tâche planifiée : une panne d'accès aux données pour un espace est journalisée avec sa
+     * cause et n'interrompt pas les rappels des autres.
+     */
+    private void rappelerEspaceOuJournaliser(UUID espace, LocalDate aujourdhui, Instant maintenant, List<UUID> crees) {
         try {
             for (int jours : parametresTechniques(espace)) {
                 for (RadarProjets.EcheanceProjets echeance : radar.echeancesTouchant(espace, aujourdhui.plusDays(jours))) {
                     crees.addAll(rappeler(echeance, jours, maintenant));
                 }
             }
-        } catch (RuntimeException erreur) {
+        } catch (IllegalStateException erreur) {
             LOG.errorf(erreur, "rappels du radar de l'espace %s en échec", espace);
         }
     }
 
     /** Annonce un changement de standard aux membres de l'espace dont un projet utilise la technologie. */
     void surAnnonce(@Observes AnnonceStandard annonce) {
-        annoncerSansPropager(annonce);
+        annoncerOuJournaliser(annonce);
     }
 
     /**
-     * Observateur synchrone du relais d'un changement de standard : l'échec de l'annonce est journalisé avec sa
-     * cause et ne remonte pas à la modification du référentiel qui l'a déclenchée.
+     * Observateur synchrone du relais d'un changement de standard : une panne d'accès aux données pendant l'annonce
+     * est journalisée avec sa cause et ne remonte pas à la modification du référentiel qui l'a déclenchée.
      */
-    private void annoncerSansPropager(AnnonceStandard annonce) {
+    private void annoncerOuJournaliser(AnnonceStandard annonce) {
         try {
             annoncer(annonce, Instant.now());
-        } catch (RuntimeException erreur) {
+        } catch (IllegalStateException erreur) {
             LOG.errorf(erreur, "annonce du changement de standard %s en échec", annonce.cle());
         }
     }

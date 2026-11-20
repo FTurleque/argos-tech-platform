@@ -84,35 +84,38 @@ public class RappelsOpportunites {
         if (!rapprochement.actif()) {
             return crees;
         }
-        Optional<List<SuivisProfil.Suiveur>> suiveurs = lireSuiveursSansPropager();
+        Optional<List<SuivisProfil.Suiveur>> suiveurs = lireSuiveursOuJournaliser();
         if (suiveurs.isEmpty()) {
             return crees;
         }
         for (SuivisProfil.Suiveur suiveur : suiveurs.get()) {
-            rappelerSansPropager(suiveur, aujourdhui, maintenant, crees);
+            rappelerOuJournaliser(suiveur, aujourdhui, maintenant, crees);
         }
         envoi.envoyer(crees, maintenant);
         return List.copyOf(crees);
     }
 
     /**
-     * Point d'isolation de la tâche planifiée : suiveurs illisibles, l'échec est journalisé avec sa cause et
+     * Point d'isolation de la tâche planifiée : suiveurs illisibles, la panne est journalisée avec sa cause et
      * l'exécution s'achève sans rappel ; la suivante reprend les rappels de son jour.
      */
-    private Optional<List<SuivisProfil.Suiveur>> lireSuiveursSansPropager() {
+    private Optional<List<SuivisProfil.Suiveur>> lireSuiveursOuJournaliser() {
         try {
             return Optional.of(suivis.suiveurs(RapprochementOpportunites.PROFIL));
-        } catch (RuntimeException erreur) {
+        } catch (IllegalStateException erreur) {
             LOG.errorf(erreur, "lecture des suiveurs du profil artiste impossible");
             return Optional.empty();
         }
     }
 
-    /** Point d'isolation de la tâche planifiée : un compte en échec n'interrompt pas les rappels des autres. */
-    private void rappelerSansPropager(SuivisProfil.Suiveur suiveur, LocalDate aujourdhui, Instant maintenant, List<UUID> crees) {
+    /**
+     * Point d'isolation de la tâche planifiée : une panne d'accès aux données pour un compte est journalisée avec sa
+     * cause et n'interrompt pas les rappels des autres.
+     */
+    private void rappelerOuJournaliser(SuivisProfil.Suiveur suiveur, LocalDate aujourdhui, Instant maintenant, List<UUID> crees) {
         try {
             crees.addAll(rappeler(suiveur, aujourdhui, maintenant));
-        } catch (RuntimeException erreur) {
+        } catch (IllegalStateException erreur) {
             LOG.errorf(erreur, "rappels de date limite du compte %s en échec", suiveur.compteId());
         }
     }

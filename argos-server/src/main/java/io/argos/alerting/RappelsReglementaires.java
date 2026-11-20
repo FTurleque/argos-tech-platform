@@ -71,35 +71,38 @@ public class RappelsReglementaires {
     /** Envoie les rappels du jour ; renvoie les messages créés. Une échéance en échec n'interrompt pas les autres. */
     public List<UUID> executer(LocalDate aujourdhui, Instant maintenant) {
         List<UUID> crees = new ArrayList<>();
-        Optional<List<EcheancesReglementaires.Echeance>> echeancesDuJour = lireEcheancesSansPropager(aujourdhui);
+        Optional<List<EcheancesReglementaires.Echeance>> echeancesDuJour = lireEcheancesOuJournaliser(aujourdhui);
         if (echeancesDuJour.isEmpty()) {
             return crees;
         }
         for (EcheancesReglementaires.Echeance echeance : echeancesDuJour.get()) {
-            rappelerSansPropager(echeance, maintenant, crees);
+            rappelerOuJournaliser(echeance, maintenant, crees);
         }
         envoi.envoyer(crees, maintenant);
         return List.copyOf(crees);
     }
 
     /**
-     * Point d'isolation de la tâche planifiée : échéances illisibles, l'échec est journalisé avec sa cause et
+     * Point d'isolation de la tâche planifiée : échéances illisibles, la panne est journalisée avec sa cause et
      * l'exécution s'achève sans rappel ; les jours de rattrapage couvrent l'exécution suivante.
      */
-    private Optional<List<EcheancesReglementaires.Echeance>> lireEcheancesSansPropager(LocalDate aujourdhui) {
+    private Optional<List<EcheancesReglementaires.Echeance>> lireEcheancesOuJournaliser(LocalDate aujourdhui) {
         try {
             return Optional.of(echeances.echeancesDuJour(aujourdhui));
-        } catch (RuntimeException erreur) {
+        } catch (IllegalStateException erreur) {
             LOG.errorf(erreur, "lecture des échéances réglementaires impossible");
             return Optional.empty();
         }
     }
 
-    /** Point d'isolation de la tâche planifiée : une échéance en échec n'interrompt pas les rappels des autres. */
-    private void rappelerSansPropager(EcheancesReglementaires.Echeance echeance, Instant maintenant, List<UUID> crees) {
+    /**
+     * Point d'isolation de la tâche planifiée : une panne d'accès aux données pour une échéance est journalisée avec sa
+     * cause et n'interrompt pas les rappels des autres.
+     */
+    private void rappelerOuJournaliser(EcheancesReglementaires.Echeance echeance, Instant maintenant, List<UUID> crees) {
         try {
             crees.addAll(rappeler(echeance, maintenant));
-        } catch (RuntimeException erreur) {
+        } catch (IllegalStateException erreur) {
             LOG.errorf(erreur, "rappel de la fiche réglementaire %s en échec", echeance.ficheId());
         }
     }

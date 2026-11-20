@@ -23,6 +23,7 @@ import org.eclipse.microprofile.config.inject.ConfigProperty;
 import org.jboss.logging.Logger;
 
 import io.quarkus.narayana.jta.QuarkusTransaction;
+import io.quarkus.narayana.jta.QuarkusTransactionException;
 import io.quarkus.scheduler.Scheduled;
 
 import io.argos.impact.ImpactQueries;
@@ -101,23 +102,23 @@ public class ResumesPeriodiques {
         });
         List<UUID> crees = new ArrayList<>();
         for (Boite boite : boites) {
-            composerSansPropager(boite, frequence, echeance, crees);
+            composerOuJournaliser(boite, frequence, echeance, crees);
         }
         envoi.envoyer(crees, echeance);
         return crees;
     }
 
     /**
-     * Point d'isolation de la tâche planifiée : l'échec du résumé d'un destinataire est journalisé avec sa cause
-     * et n'empêche pas la composition des résumés des autres destinataires.
+     * Point d'isolation de la tâche planifiée : une panne d'accès aux données pour le résumé d'un destinataire est
+     * journalisée avec sa cause et n'empêche pas la composition des résumés des autres destinataires.
      */
-    private void composerSansPropager(Boite boite, String frequence, Instant echeance, List<UUID> crees) {
+    private void composerOuJournaliser(Boite boite, String frequence, Instant echeance, List<UUID> crees) {
         try {
             composerPour(boite.compte(), boite.canal(), frequence, echeance).ifPresent(id -> {
                 crees.add(id);
                 emises.fire(new AlerteEmise(id, boite.compte(), boite.canal(), frequence));
             });
-        } catch (RuntimeException erreur) {
+        } catch (IllegalStateException | QuarkusTransactionException erreur) {
             LOG.errorf(erreur, "résumé %s du compte %s sur %s en échec", frequence, boite.compte(), boite.canal());
         }
     }

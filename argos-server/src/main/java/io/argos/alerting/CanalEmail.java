@@ -1,5 +1,6 @@
 package io.argos.alerting;
 
+import java.util.concurrent.CompletionException;
 import java.util.stream.Collectors;
 
 import jakarta.enterprise.context.ApplicationScoped;
@@ -7,6 +8,8 @@ import jakarta.inject.Inject;
 
 import io.quarkus.mailer.Mail;
 import io.quarkus.mailer.Mailer;
+import io.smallrye.mutiny.TimeoutException;
+import io.vertx.core.VertxException;
 
 /**
  * Canal {@code EMAIL} : envoi par Quarkus Mailer vers le relais SMTP du Synology (Q-1), configuré par
@@ -31,9 +34,7 @@ public class CanalEmail implements CanalDiffusion {
         }
         try {
             mailer.send(Mail.withText(message.adresse(), sujet(message), corps(message)));
-        } catch (RuntimeException erreur) {
-            // Le mailer bloquant signale un relais injoignable, muet ou en refus par des exceptions non vérifiées de
-            // types variés (Vert.x, Mutiny) : toutes deviennent un échec de diffusion à retenter, cause conservée.
+        } catch (CompletionException | VertxException | TimeoutException erreur) {
             throw new EchecDiffusion("envoi SMTP impossible : " + erreur.getClass().getSimpleName(), false, erreur);
         }
     }

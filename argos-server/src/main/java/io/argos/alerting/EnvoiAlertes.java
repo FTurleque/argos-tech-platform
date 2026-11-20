@@ -27,6 +27,7 @@ import org.eclipse.microprofile.config.inject.ConfigProperty;
 import org.jboss.logging.Logger;
 
 import io.quarkus.narayana.jta.QuarkusTransaction;
+import io.quarkus.narayana.jta.QuarkusTransactionException;
 import io.quarkus.scheduler.Scheduled;
 
 /**
@@ -105,19 +106,19 @@ public class EnvoiAlertes {
         Map<String, CanalDiffusion> parCode = parCode();
         Map<UUID, Issue> issues = new HashMap<>();
         for (UUID id : ids) {
-            tenterSansPropager(id, parCode, maintenant).ifPresent(issue -> issues.put(id, issue));
+            tenterOuJournaliser(id, parCode, maintenant).ifPresent(issue -> issues.put(id, issue));
         }
         return issues;
     }
 
     /**
-     * Point d'isolation de la diffusion : l'échec technique d'un message (réservation ou enregistrement de son
-     * issue) est journalisé avec sa cause et n'empêche pas la diffusion des messages suivants.
+     * Point d'isolation de la diffusion : une panne d'accès aux données d'un message (réservation ou enregistrement
+     * de son issue) est journalisée avec sa cause et n'empêche pas la diffusion des messages suivants.
      */
-    private Optional<Issue> tenterSansPropager(UUID id, Map<String, CanalDiffusion> parCode, Instant maintenant) {
+    private Optional<Issue> tenterOuJournaliser(UUID id, Map<String, CanalDiffusion> parCode, Instant maintenant) {
         try {
             return Optional.of(tenter(id, parCode, maintenant));
-        } catch (RuntimeException erreur) {
+        } catch (IllegalStateException | QuarkusTransactionException erreur) {
             LOG.errorf(erreur, "diffusion de l'alerte %s en échec", id);
             return Optional.empty();
         }
@@ -126,8 +127,8 @@ public class EnvoiAlertes {
     /**
      * Une tentative en trois temps : réservation du message et décompte de la tentative dans une
      * transaction courte, diffusion hors transaction (aucun verrou n'est tenu pendant l'appel SMTP),
-     * puis enregistrement de l'issue. Toute exception de la diffusion ou de la lecture du contenu
-     * compte comme un échec : le nombre de tentatives reste borné (ALR-06-S2).
+     * puis enregistrement de l'issue. Un échec du canal, un contenu illisible ou une panne de l'enregistrement
+     * du succès comptent comme une tentative en échec : le nombre de tentatives reste borné (ALR-06-S2).
      */
     private Issue tenter(UUID id, Map<String, CanalDiffusion> parCode, Instant maintenant) {
         Optional<Reservation> reservation = QuarkusTransaction.requiringNew()
@@ -162,14 +163,14 @@ public class EnvoiAlertes {
             QuarkusTransaction.requiringNew().run(() -> enregistrerSucces(id, maintenant));
             return Optional.empty();
         } catch (CanalDiffusion.EchecDiffusion echec) {
+            LOG.warnf(echec, "diffusion de l'alerte %s sur le canal %s refusée", id, reservation.canal());
             return Optional.of(new Echec(echec.getMessage(), echec.definitif()));
         } catch (ContenuIllisible illisible) {
+            LOG.warnf(illisible, "contenu de l'alerte %s illisible", id);
             return Optional.of(new Echec("contenu du message illisible", true));
-        } catch (RuntimeException imprevue) {
-            // Une erreur imprévue d'un canal ou de l'enregistrement compte comme une tentative en échec, à retenter :
-            // le nombre de tentatives reste borné (ALR-06-S2) au lieu de laisser le message réservé sans issue.
-            LOG.warnf(imprevue, "diffusion de l'alerte %s : erreur imprévue", id);
-            return Optional.of(new Echec("diffusion impossible : " + imprevue.getClass().getSimpleName(), false));
+        } catch (IllegalStateException | QuarkusTransactionException panne) {
+            LOG.warnf(panne, "enregistrement de l'envoi de l'alerte %s impossible", id);
+            return Optional.of(new Echec("diffusion impossible : " + panne.getClass().getSimpleName(), false));
         }
     }
 

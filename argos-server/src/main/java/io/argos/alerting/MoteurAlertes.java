@@ -42,6 +42,7 @@ import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 
 import io.quarkus.narayana.jta.QuarkusTransaction;
+import io.quarkus.narayana.jta.QuarkusTransactionException;
 import io.quarkus.runtime.LaunchMode;
 import io.quarkus.runtime.StartupEvent;
 
@@ -126,17 +127,18 @@ public class MoteurAlertes {
     }
 
     void surImpacts(@Observes ImpactsRecorded evenement) {
-        evaluerSansPropager(evenement);
+        evaluerOuJournaliser(evenement);
     }
 
     /**
-     * Observateur synchrone de la publication des impacts : un échec de l'évaluation des alertes est journalisé
-     * avec sa cause et ne remonte pas à l'émetteur, dont l'enregistrement des impacts reste acquis.
+     * Observateur synchrone de la publication des impacts : une panne d'accès aux données pendant l'évaluation des
+     * alertes est journalisée avec sa cause et ne remonte pas à l'émetteur, dont l'enregistrement des impacts reste
+     * acquis.
      */
-    private void evaluerSansPropager(ImpactsRecorded evenement) {
+    private void evaluerOuJournaliser(ImpactsRecorded evenement) {
         try {
             evaluer(evenement, Instant.now());
-        } catch (RuntimeException erreur) {
+        } catch (IllegalStateException | QuarkusTransactionException erreur) {
             LOG.errorf(erreur, "évaluation des alertes du signal %s en échec", evenement.signalId());
         }
     }
