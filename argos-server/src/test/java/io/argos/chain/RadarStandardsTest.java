@@ -58,7 +58,7 @@ class RadarStandardsTest {
     private static final String POSTGRES = "pkg:generic/postgresql";
 
     @Inject
-    TestDb db;
+    TestDb baseDeTest;
 
     @Inject
     ContexteBase base;
@@ -88,7 +88,7 @@ class RadarStandardsTest {
 
     @BeforeEach
     void preparer() {
-        db.reset();
+        baseDeTest.reset();
         espace = Api.nouvelEspace("nina", "Radar de Nina");
         Api.ajouterMembre("nina", espace.toString(), "paul", "LECTEUR");
         compteAdmin = Api.compte("nina");
@@ -109,9 +109,9 @@ class RadarStandardsTest {
                 .body("responsable", equalTo("Socle Java"))
                 .body("dateRevue", equalTo("2027-06-30"))
                 .body("produitCycleVie", equalTo("spring-boot"));
-        Api.en("paul").get(chemin("/standards")).then().statusCode(200)
+        Api.enTantQue("paul").get(chemin("/standards")).then().statusCode(200)
                 .body("$", hasSize(1)).body("[0].libelle", equalTo("Spring Boot"));
-        Api.en("paul").queryParam("cle", SPRING).get(chemin("/standards/historique")).then().statusCode(200)
+        Api.enTantQue("paul").queryParam("cle", SPRING).get(chemin("/standards/historique")).then().statusCode(200)
                 .body("$", hasSize(1)).body("[0].origine", equalTo("SAISIE"));
     }
 
@@ -131,9 +131,9 @@ class RadarStandardsTest {
         enregistrer("nina", saisie(BIBLIO, "Biblio", "HOLD", null, "Front", "Non", "2027-01-31", "../../etc"))
                 .statusCode(400).body("attribut", equalTo("produitCycleVie"));
 
-        Api.en("nina").get(chemin("/standards")).then().statusCode(200)
+        Api.enTantQue("nina").get(chemin("/standards")).then().statusCode(200)
                 .body("$", hasSize(1)).body("[0].statut", equalTo("ASSESS"));
-        assertEquals(1, db.count("SELECT count(*) FROM standard_historique"));
+        assertEquals(1, baseDeTest.count("SELECT count(*) FROM standard_historique"));
     }
 
     // ------------------------------------------------------------------ RAD-02
@@ -142,15 +142,15 @@ class RadarStandardsTest {
     @Test
     void rad02S1Lecteur() {
         enregistrer("nina", saisie(SPRING, "Spring Boot", "ADOPT", "3.5", "Socle", "Validé", "2027-06-30", null)).statusCode(200);
-        long refus = db.count("SELECT count(*) FROM refus_acces");
+        long refus = baseDeTest.count("SELECT count(*) FROM refus_acces");
 
         enregistrer("paul", saisie(SPRING, "Spring Boot", "HOLD", null, "Socle", "Abandon", "2027-06-30", null))
                 .statusCode(403).body("code", equalTo("INTERDIT"));
-        Api.en("paul").contentType(ContentType.JSON).body(Map.of("rappelsJours", List.of(3)))
+        Api.enTantQue("paul").contentType(ContentType.JSON).body(Map.of("rappelsJours", List.of(3)))
                 .put(chemin("/parametres")).then().statusCode(403);
-        Api.en("marc").get(chemin("/standards")).then().statusCode(404);
-        assertEquals(refus + 3, db.count("SELECT count(*) FROM refus_acces"));
-        Api.en("nina").get(chemin("/standards")).then().body("[0].statut", equalTo("ADOPT"));
+        Api.enTantQue("marc").get(chemin("/standards")).then().statusCode(404);
+        assertEquals(refus + 3, baseDeTest.count("SELECT count(*) FROM refus_acces"));
+        Api.enTantQue("nina").get(chemin("/standards")).then().body("[0].statut", equalTo("ADOPT"));
     }
 
     /** Garde-fou en base : sous argos_app, un lecteur n'écrit rien et un non-membre ne lit rien. */
@@ -159,21 +159,21 @@ class RadarStandardsTest {
         enregistrer("nina", saisie(SPRING, "Spring Boot", "ADOPT", "3.5", "Socle", "Validé", "2027-06-30", null)).statusCode(200);
 
 
-        assertThrows(IllegalStateException.class, () -> base.executer(new Contexte(compteLecteur, null, espace), c -> {
-            try (PreparedStatement ps = c.prepareStatement(
+        assertThrows(IllegalStateException.class, () -> base.executer(new Contexte(compteLecteur, null, espace), connexion -> {
+            try (PreparedStatement requete = connexion.prepareStatement(
                     "UPDATE standard_technologie SET statut = 'HOLD', modifie_par = argos_compte_courant() WHERE espace_id = ?")) {
-                ps.setObject(1, espace);
-                if (ps.executeUpdate() == 0) {
+                requete.setObject(1, espace);
+                if (requete.executeUpdate() == 0) {
                     throw new java.sql.SQLException("aucune ligne modifiable");
                 }
             }
             return null;
         }));
-        assertEquals(0L, (long) base.executer(new Contexte(compteExterieur, null, null), c -> compter(c,
+        assertEquals(0L, (long) base.executer(new Contexte(compteExterieur, null, null), connexion -> compter(connexion,
                 "SELECT count(*) FROM standard_technologie")));
-        assertEquals(1L, (long) base.executer(new Contexte(compteLecteur, null, null), c -> compter(c,
+        assertEquals(1L, (long) base.executer(new Contexte(compteLecteur, null, null), connexion -> compter(connexion,
                 "SELECT count(*) FROM standard_technologie")));
-        assertEquals("ADOPT", db.string("SELECT statut FROM standard_technologie"));
+        assertEquals("ADOPT", baseDeTest.string("SELECT statut FROM standard_technologie"));
     }
 
     /** RAD-02-S2 : la suggestion de l'IA reste en attente, statut inchangé ; seul un administrateur l'applique. */
@@ -184,21 +184,21 @@ class RadarStandardsTest {
 
         UUID suggestion = referentiel.suggerer(espace, POSTGRES, "HOLD", null, "La version 14 a atteint sa fin de support.");
 
-        Api.en("paul").get(chemin("/suggestions")).then().statusCode(200)
+        Api.enTantQue("paul").get(chemin("/suggestions")).then().statusCode(200)
                 .body("$", hasSize(1)).body("[0].etat", equalTo("EN_ATTENTE")).body("[0].origine", equalTo("IA"))
                 .body("[0].statut", equalTo("HOLD"));
-        Api.en("paul").get(chemin("/standards")).then().body("[0].statut", equalTo("ADOPT"));
+        Api.enTantQue("paul").get(chemin("/standards")).then().body("[0].statut", equalTo("ADOPT"));
 
-        Api.en("paul").contentType(ContentType.JSON).body(Map.of("decision", "ACCEPTER"))
+        Api.enTantQue("paul").contentType(ContentType.JSON).body(Map.of("decision", "ACCEPTER"))
                 .post(chemin("/suggestions/" + suggestion + "/decision")).then().statusCode(403);
-        Api.en("nina").contentType(ContentType.JSON).body(Map.of("decision", "ACCEPTER"))
+        Api.enTantQue("nina").contentType(ContentType.JSON).body(Map.of("decision", "ACCEPTER"))
                 .post(chemin("/suggestions/" + suggestion + "/decision")).then().statusCode(200)
                 .body("[0].etat", equalTo("ACCEPTEE"));
-        Api.en("paul").get(chemin("/standards")).then().body("[0].statut", equalTo("HOLD"))
+        Api.enTantQue("paul").get(chemin("/standards")).then().body("[0].statut", equalTo("HOLD"))
                 .body("[0].responsable", equalTo("DBA"));
-        Api.en("paul").queryParam("cle", POSTGRES).get(chemin("/standards/historique")).then()
+        Api.enTantQue("paul").queryParam("cle", POSTGRES).get(chemin("/standards/historique")).then()
                 .body("$", hasSize(2)).body("[0].origine", equalTo("SUGGESTION"));
-        Api.en("nina").contentType(ContentType.JSON).body(Map.of("decision", "REJETER"))
+        Api.enTantQue("nina").contentType(ContentType.JSON).body(Map.of("decision", "REJETER"))
                 .post(chemin("/suggestions/" + suggestion + "/decision")).then().statusCode(409);
     }
 
@@ -207,30 +207,30 @@ class RadarStandardsTest {
     /** RAD-06-S1 : une bibliothèque de deux projets passe en HOLD : leurs utilisateurs reçoivent l'annonce et sa justification. */
     @Test
     void rad06S1PassageEnHold() {
-        UUID p1 = projet(espace, "Portail agent", BIBLIO + "@2.1.0");
-        UUID p2 = projet(espace, "Back-office", BIBLIO + "@2.4.0");
+        UUID projetPortail = projet(espace, "Portail agent", BIBLIO + "@2.1.0");
+        UUID projetBackOffice = projet(espace, "Back-office", BIBLIO + "@2.4.0");
         UUID espaceVoisin = Api.nouvelEspace("marc", "Voisin du radar");
         projet(espaceVoisin, "Projet voisin", BIBLIO + "@2.1.0");
         enregistrer("nina", saisie(BIBLIO, "Biblio UI", "ADOPT", "2.4", "Front", "Bibliothèque commune", "2027-06-30", null))
                 .statusCode(200);
-        assertEquals(0, db.count("SELECT count(*) FROM alerte WHERE nature = 'ANNONCE'"), "une création n'est pas annoncée");
+        assertEquals(0, baseDeTest.count("SELECT count(*) FROM alerte WHERE nature = 'ANNONCE'"), "une création n'est pas annoncée");
 
         enregistrer("nina", saisie(BIBLIO, "Biblio UI", "HOLD", null, "Front", "Plus maintenue, migrer vers Kit UI",
                 "2027-06-30", null)).statusCode(200);
 
-        assertEquals(2, db.count("SELECT count(*) FROM alerte WHERE nature = 'ANNONCE'"));
-        assertEquals(1, db.count("SELECT count(*) FROM alerte WHERE nature = 'ANNONCE' AND compte_id = '" + compteLecteur + "'"));
-        assertEquals(0, db.count("SELECT count(*) FROM alerte WHERE nature = 'ANNONCE' AND compte_id = '"
+        assertEquals(2, baseDeTest.count("SELECT count(*) FROM alerte WHERE nature = 'ANNONCE'"));
+        assertEquals(1, baseDeTest.count("SELECT count(*) FROM alerte WHERE nature = 'ANNONCE' AND compte_id = '" + compteLecteur + "'"));
+        assertEquals(0, baseDeTest.count("SELECT count(*) FROM alerte WHERE nature = 'ANNONCE' AND compte_id = '"
                 + compteExterieur + "'"));
-        String contenu = db.string("SELECT contenu::text FROM alerte WHERE compte_id = '" + compteLecteur + "'");
-        assertTrue(contenu.contains(p1.toString()) && contenu.contains(p2.toString()), contenu);
+        String contenu = baseDeTest.string("SELECT contenu::text FROM alerte WHERE compte_id = '" + compteLecteur + "'");
+        assertTrue(contenu.contains(projetPortail.toString()) && contenu.contains(projetBackOffice.toString()), contenu);
         assertFalse(contenu.contains("Projet voisin"), contenu);
         List<Mail> mails = mailbox.getMailsSentTo("paul@argos.test");
         assertEquals(1, mails.size());
         assertTrue(mails.get(0).getSubject().startsWith("[Argos] Standard modifié"), mails.get(0).getSubject());
         assertTrue(mails.get(0).getText().contains("Plus maintenue, migrer vers Kit UI"), mails.get(0).getText());
         assertTrue(mails.get(0).getText().contains("Back-office (version 2.4.0)"), mails.get(0).getText());
-        Api.en("paul").queryParam("canal", "EMAIL").get("/api/v1/alertes").then().statusCode(200)
+        Api.enTantQue("paul").queryParam("canal", "EMAIL").get("/api/v1/alertes").then().statusCode(200)
                 .body("[0].nature", equalTo("ANNONCE"));
     }
 
@@ -247,17 +247,17 @@ class RadarStandardsTest {
                 .statusCode(200);
         radar.actualiser(aujourdhui, Instant.now());
 
-        Api.en("paul").queryParam("horizon", "30j").get(chemin("/echeances")).then().statusCode(200)
+        Api.enTantQue("paul").queryParam("horizon", "30j").get(chemin("/echeances")).then().statusCode(200)
                 .body("echeances", hasSize(1))
                 .body("echeances[0].nature", equalTo("SORTIE"))
                 .body("echeances[0].version", equalTo("3"))
                 .body("echeances[0].libelle", equalTo("Biblio UI"))
                 .body("echeances[0].source", equalTo("endoflife.date"))
                 .body("sources[0].etat", equalTo("A_JOUR"));
-        Api.en("paul").queryParam("horizon", "6m").get(chemin("/echeances")).then().statusCode(200)
+        Api.enTantQue("paul").queryParam("horizon", "6m").get(chemin("/echeances")).then().statusCode(200)
                 .body("echeances", hasSize(2)).body("echeances[1].nature", equalTo("FIN_DE_SUPPORT"));
-        Api.en("paul").queryParam("horizon", "10ans").get(chemin("/echeances")).then().statusCode(400);
-        Api.en("marc").get(chemin("/echeances")).then().statusCode(404);
+        Api.enTantQue("paul").queryParam("horizon", "10ans").get(chemin("/echeances")).then().statusCode(400);
+        Api.enTantQue("marc").get(chemin("/echeances")).then().statusCode(404);
     }
 
     /** Contrat du connecteur : chemin v1, lecture tolérante, échec conservant les cycles, produit invalide jamais demandé. */
@@ -272,27 +272,27 @@ class RadarStandardsTest {
         RadarProjets.Bilan bilan = radar.actualiser(LocalDate.of(2026, 11, 16), Instant.now());
         assertEquals(Map.of("postgresql", "A_JOUR"), bilan.produits());
         assertEquals(1, StubServer.received("/endoflife/api/v1/products/postgresql").size());
-        assertEquals("2026-11-12", db.string("SELECT fin_support_le FROM cycle_vie WHERE produit = 'postgresql' AND cycle = '14'"));
-        assertEquals("17.12", db.string("SELECT derniere_version FROM cycle_vie WHERE cycle = '17'"));
+        assertEquals("2026-11-12", baseDeTest.string("SELECT fin_support_le FROM cycle_vie WHERE produit = 'postgresql' AND cycle = '14'"));
+        assertEquals("17.12", baseDeTest.string("SELECT derniere_version FROM cycle_vie WHERE cycle = '17'"));
 
         // Réponse illisible puis indisponibilité : produit EN_ERREUR, cycles déjà connus conservés.
         RadarFixtures.publier("postgresql", "<html>pas du JSON</html>");
         assertEquals(Map.of("postgresql", "EN_ERREUR"), radar.actualiser(LocalDate.of(2026, 11, 17), Instant.now()).produits());
-        StubServer.on("/endoflife/api/v1/products/postgresql", StubServer.Stub.status(503));
+        StubServer.programmer("/endoflife/api/v1/products/postgresql", StubServer.Stub.status(503));
         assertEquals(Map.of("postgresql", "EN_ERREUR"), radar.actualiser(LocalDate.of(2026, 11, 18), Instant.now()).produits());
-        assertEquals("réponse HTTP 503", db.string("SELECT derniere_erreur FROM cycle_vie_produit"));
-        assertEquals(2, db.count("SELECT count(*) FROM cycle_vie WHERE produit = 'postgresql'"));
+        assertEquals("réponse HTTP 503", baseDeTest.string("SELECT derniere_erreur FROM cycle_vie_produit"));
+        assertEquals(2, baseDeTest.count("SELECT count(*) FROM cycle_vie WHERE produit = 'postgresql'"));
 
         // Cycle mal formé ignoré, les autres gardés.
         RadarFixtures.publier("postgresql", """
                 {"result":{"releases":[{"name":"18","releaseDate":"pas-une-date","eolFrom":"2030-11-14","isEol":false},
                 {"name":{"objet":1}},{"releaseDate":"2020-01-01"}]}}""");
         radar.actualiser(LocalDate.of(2026, 11, 19), Instant.now());
-        assertEquals(1, db.count("SELECT count(*) FROM cycle_vie WHERE produit = 'postgresql'"));
-        assertEquals(null, db.string("SELECT sortie_le FROM cycle_vie WHERE cycle = '18'"));
+        assertEquals(1, baseDeTest.count("SELECT count(*) FROM cycle_vie WHERE produit = 'postgresql'"));
+        assertEquals(null, baseDeTest.string("SELECT sortie_le FROM cycle_vie WHERE cycle = '18'"));
 
         // Identifiant de produit refusé en base : aucune requête vers un chemin arbitraire.
-        assertThrows(IllegalStateException.class, () -> RadarFixtures.standard(db, espace, BIBLIO, "X", "HOLD", null, "x",
+        assertThrows(IllegalStateException.class, () -> RadarFixtures.standard(baseDeTest, espace, BIBLIO, "X", "HOLD", null, "x",
                 "../admin"));
         assertTrue(StubServer.received("/endoflife/api/v1/products/..").isEmpty());
     }
@@ -313,11 +313,12 @@ class RadarStandardsTest {
 
         RappelsRadar.Bilan bilan = rappels.executer(jour, Instant.now());
         assertEquals(2, bilan.rappels().size(), "un rappel par utilisateur de l'espace");
-        String contenu = db.string("SELECT contenu::text FROM alerte WHERE nature = 'RAPPEL' AND compte_id = '" + compteLecteur + "'");
+        String contenu = baseDeTest.string("SELECT contenu::text FROM alerte WHERE nature = 'RAPPEL' AND compte_id = '"
+                + compteLecteur + "'");
         assertTrue(contenu.contains(concerne.toString()), contenu);
         assertFalse(contenu.contains("Back-office"), contenu);
         assertEquals("Fin de support de Spring Boot 3.3 dans 30 jours (2027-03-31)",
-                db.string("SELECT titre FROM alerte WHERE compte_id = '" + compteLecteur + "'"));
+                baseDeTest.string("SELECT titre FROM alerte WHERE compte_id = '" + compteLecteur + "'"));
         List<Mail> mails = mailbox.getMailsSentTo("paul@argos.test");
         assertEquals(1, mails.size());
         assertTrue(mails.get(0).getSubject().startsWith("[Argos] Rappel d'échéance"));
@@ -327,16 +328,16 @@ class RadarStandardsTest {
         assertTrue(rappels.executer(jour.plusDays(1), Instant.now()).rappels().isEmpty());
         assertEquals(2, rappels.executer(jour.plusDays(23), Instant.now()).rappels().size());
         assertEquals(2, rappels.executer(jour.plusDays(30), Instant.now()).rappels().size());
-        assertEquals(6, db.count("SELECT count(*) FROM alerte WHERE nature = 'RAPPEL'"));
+        assertEquals(6, baseDeTest.count("SELECT count(*) FROM alerte WHERE nature = 'RAPPEL'"));
     }
 
     /** Q-1 : jours de rappel paramétrables par espace, J-30, J-7 et J0 par défaut. */
     @Test
     void rappelsParametrablesParEspace() {
-        Api.en("paul").get(chemin("/parametres")).then().statusCode(200).body("rappelsJours", equalTo(List.of(30, 7, 0)));
-        Api.en("nina").contentType(ContentType.JSON).body(Map.of("rappelsJours", List.of(400)))
+        Api.enTantQue("paul").get(chemin("/parametres")).then().statusCode(200).body("rappelsJours", equalTo(List.of(30, 7, 0)));
+        Api.enTantQue("nina").contentType(ContentType.JSON).body(Map.of("rappelsJours", List.of(400)))
                 .put(chemin("/parametres")).then().statusCode(400).body("attribut", equalTo("rappelsJours"));
-        Api.en("nina").contentType(ContentType.JSON).body(Map.of("rappelsJours", List.of(2, 15, 15)))
+        Api.enTantQue("nina").contentType(ContentType.JSON).body(Map.of("rappelsJours", List.of(2, 15, 15)))
                 .put(chemin("/parametres")).then().statusCode(200).body("rappelsJours", equalTo(List.of(15, 2)));
 
         LocalDate jour = LocalDate.of(2027, 3, 1);
@@ -366,7 +367,7 @@ class RadarStandardsTest {
         assertEquals(1, radar.actualiser(LocalDate.of(2026, 11, 12), Instant.now()).dettesCreees());
         assertEquals(0, radar.actualiser(LocalDate.of(2026, 11, 13), Instant.now()).dettesCreees(), "aucun doublon");
 
-        Api.en("paul").get(chemin("/dettes")).then().statusCode(200)
+        Api.enTantQue("paul").get(chemin("/dettes")).then().statusCode(200)
                 .body("$", hasSize(1))
                 .body("[0].projetId", equalTo(portail.toString()))
                 .body("[0].projet", equalTo("Portail agent"))
@@ -374,10 +375,10 @@ class RadarStandardsTest {
                 .body("[0].cycle", equalTo("14"))
                 .body("[0].finSupport", equalTo("2026-11-12"))
                 .body("[0].versionStandard", equalTo("17"));
-        Api.en("marc").get(chemin("/dettes")).then().statusCode(404);
+        Api.enTantQue("marc").get(chemin("/dettes")).then().statusCode(404);
 
         assertEquals(0L, (long) base.executer(new Contexte(compteExterieur, null, null),
-                c -> compter(c, "SELECT count(*) FROM dette_version")));
+                connexion -> compter(connexion, "SELECT count(*) FROM dette_version")));
     }
 
     // ------------------------------------------------------------------ outils
@@ -387,21 +388,21 @@ class RadarStandardsTest {
     }
 
     private ValidatableResponse enregistrer(String utilisateur, Map<String, Object> corps) {
-        return Api.en(utilisateur).contentType(ContentType.JSON).body(corps).put(chemin("/standards")).then();
+        return Api.enTantQue(utilisateur).contentType(ContentType.JSON).body(corps).put(chemin("/standards")).then();
     }
 
     private static Map<String, Object> saisie(String cle, String libelle, String statut, String version, String responsable,
             String justification, String dateRevue, String produit) {
-        Map<String, Object> m = new HashMap<>();
-        m.put("cle", cle);
-        m.put("libelle", libelle);
-        m.put("statut", statut);
-        m.put("versionRecommandee", version);
-        m.put("responsable", responsable);
-        m.put("justification", justification);
-        m.put("dateRevue", dateRevue);
-        m.put("produitCycleVie", produit);
-        return m;
+        Map<String, Object> champs = new HashMap<>();
+        champs.put("cle", cle);
+        champs.put("libelle", libelle);
+        champs.put("statut", statut);
+        champs.put("versionRecommandee", version);
+        champs.put("responsable", responsable);
+        champs.put("justification", justification);
+        champs.put("dateRevue", dateRevue);
+        champs.put("produitCycleVie", produit);
+        return champs;
     }
 
     private UUID projet(UUID espaceId, String nom, String purl) {
@@ -411,10 +412,10 @@ class RadarStandardsTest {
         return id;
     }
 
-    private static long compter(java.sql.Connection c, String sql) throws java.sql.SQLException {
-        try (PreparedStatement ps = c.prepareStatement(sql); ResultSet rs = ps.executeQuery()) {
-            rs.next();
-            return rs.getLong(1);
+    private static long compter(java.sql.Connection connexion, String sql) throws java.sql.SQLException {
+        try (PreparedStatement requete = connexion.prepareStatement(sql); ResultSet resultat = requete.executeQuery()) {
+            resultat.next();
+            return resultat.getLong(1);
         }
     }
 }

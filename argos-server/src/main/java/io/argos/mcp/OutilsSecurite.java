@@ -162,19 +162,21 @@ public class OutilsSecurite {
         List<Faille> failles = new ArrayList<>();
         List<UUID> signauxDuPaquet = signaux.signalsAffecting(List.of(cle));
         for (UUID id : signauxDuPaquet) {
-            signaux.find(id).flatMap(s -> correspondance(s, cle, version).map(c -> faille(s, c))).ifPresent(failles::add);
+            signaux.find(id).flatMap(signal -> correspondance(signal, cle, version).map(trouvee -> faille(signal, trouvee)))
+                    .ifPresent(failles::add);
         }
         List<StandardEspace> standards = referentiel.standards(cle, appelant.memberWorkspaces()).stream()
-                .filter(s -> appelant.memberOf(s.espaceId()))
-                .map(s -> new StandardEspace(s.espaceId(), s.statut().name(), s.versionRecommandee(), s.justification()))
+                .filter(standard -> appelant.memberOf(standard.espaceId()))
+                .map(standard -> new StandardEspace(standard.espaceId(), standard.statut().name(), standard.versionRecommandee(),
+                        standard.justification()))
                 .toList();
         List<String> recommandees = standards.stream().map(StandardEspace::versionRecommandee)
-                .filter(v -> v != null && !v.isBlank()).distinct().toList();
+                .filter(valeur -> valeur != null && !valeur.isBlank()).distinct().toList();
         String recommandee = recommandees.size() == 1 ? recommandees.get(0) : null;
         Optional<CalendrierSorties.Echeance> fin = calendrier.finDeSupport(cle, version, appelant.memberWorkspaces());
         boolean connue = !signauxDuPaquet.isEmpty() || !standards.isEmpty() || fin.isPresent();
         return new VerificationDependance(cle, version, connue, constat(connue, failles, standards, recommandees), failles,
-                standards, recommandee, fin.map(e -> new FinDeSupport(e.date().toString(), e.source())).orElse(null));
+                standards, recommandee, fin.map(echeance -> new FinDeSupport(echeance.date().toString(), echeance.source())).orElse(null));
     }
 
     private static String constat(boolean connue, List<Faille> failles, List<StandardEspace> standards,
@@ -183,32 +185,32 @@ public class OutilsSecurite {
             return "Aucune information connue d'Argos pour ce composant : ni faille, ni standard, ni fin de support."
                     + " L'absence d'information ne garantit pas l'absence de faille.";
         }
-        StringBuilder s = new StringBuilder();
-        long affectees = failles.stream().filter(f -> f.correspondance() == Correspondance.AFFECTEE).count();
-        s.append(affectees).append(" faille(s) connue(s) affectent cette version");
+        StringBuilder message = new StringBuilder();
+        long affectees = failles.stream().filter(faille -> faille.correspondance() == Correspondance.AFFECTEE).count();
+        message.append(affectees).append(" faille(s) connue(s) affectent cette version");
         if (failles.size() > affectees) {
-            s.append(", ").append(failles.size() - affectees).append(" à vérifier (plage de versions non interprétable)");
+            message.append(", ").append(failles.size() - affectees).append(" à vérifier (plage de versions non interprétable)");
         }
-        s.append('.');
+        message.append('.');
         if (standards.isEmpty()) {
-            s.append(" Aucun standard n'est défini dans vos espaces.");
+            message.append(" Aucun standard n'est défini dans vos espaces.");
         } else if (recommandees.size() > 1) {
-            s.append(" Vos espaces recommandent des versions différentes : ").append(String.join(", ", recommandees)).append('.');
+            message.append(" Vos espaces recommandent des versions différentes : ").append(String.join(", ", recommandees)).append('.');
         }
-        return s.toString();
+        return message.toString();
     }
 
-    private static Optional<Correspondance> correspondance(SignalQueries.SignalView s, String cle, String version) {
+    private static Optional<Correspondance> correspondance(SignalQueries.SignalView signal, String cle, String version) {
         Optional<Correspondance> meilleure = Optional.empty();
-        for (AffectedPackage a : s.affected()) {
-            if (!cle.equals(a.packageKey())) {
+        for (AffectedPackage paquet : signal.affected()) {
+            if (!cle.equals(paquet.packageKey())) {
                 continue;
             }
-            Optional<Boolean> affectee = MatchRules.versionAffected(a, version);
+            Optional<Boolean> affectee = MatchRules.versionAffected(paquet, version);
             if (affectee.isPresent() && !affectee.get()) {
                 continue;
             }
-            if (affectee.isPresent() && a.declaredPurl()) {
+            if (affectee.isPresent() && paquet.declaredPurl()) {
                 return Optional.of(Correspondance.AFFECTEE);
             }
             meilleure = Optional.of(Correspondance.A_VERIFIER);
@@ -216,13 +218,14 @@ public class OutilsSecurite {
         return meilleure;
     }
 
-    private Faille faille(SignalQueries.SignalView s, Correspondance correspondance) {
+    private Faille faille(SignalQueries.SignalView signal, Correspondance correspondance) {
         List<Reference> references = new ArrayList<>();
-        references.add(reference(s.source(), s.externalId()));
-        enrichissements.forSignal(s.id()).forEach(e -> references.add(reference(e.source(), e.reference())));
-        return new Faille(s.id(), s.source(), s.externalId(), s.aliases(), s.severity(), correspondance,
-                enrichissements.exploited(s.id()), references, balisage.baliser(s.source(), s.title()),
-                balisage.baliser(s.source(), s.summary()));
+        references.add(reference(signal.source(), signal.externalId()));
+        enrichissements.forSignal(signal.id())
+                .forEach(enrichissement -> references.add(reference(enrichissement.source(), enrichissement.reference())));
+        return new Faille(signal.id(), signal.source(), signal.externalId(), signal.aliases(), signal.severity(), correspondance,
+                enrichissements.exploited(signal.id()), references, balisage.baliser(signal.source(), signal.title()),
+                balisage.baliser(signal.source(), signal.summary()));
     }
 
     @Tool(name = "search_signals", structuredContent = true,
@@ -264,27 +267,28 @@ public class OutilsSecurite {
          */
         CriteresSignaux criteres() {
             String texte = requete == null || requete.isBlank() ? null : Parametres.obligatoire("query", requete);
-            List<String> t = Parametres.liste("technologies", technologies);
-            List<String> k = clesDePaquets();
-            List<String> s = Parametres.liste("sources", sources).stream().map(v -> v.toUpperCase(Locale.ROOT)).toList();
+            List<String> technologiesRetenues = Parametres.liste("technologies", technologies);
+            List<String> clesPaquets = clesDePaquets();
+            List<String> sourcesRetenues = Parametres.liste("sources", sources).stream()
+                    .map(valeur -> valeur.toUpperCase(Locale.ROOT)).toList();
             Set<UUID> ids = identifiantsDeProjets();
             Set<String> gravites = gravitesRetenues();
             Instant depuis = horizon == null ? null
                     : Instant.now().minus(Duration.ofDays(Parametres.borne("horizon_days", horizon, 30, 1, 3650)));
-            int n = Parametres.borne("limit", limite, 20, 1, 50);
+            int nombreMax = Parametres.borne("limit", limite, 20, 1, 50);
             RechercheVeille.Criteres recherche = new RechercheVeille.Criteres(texte, Set.of(RechercheVeille.AVIS_SECURITE),
-                    ids, Set.copyOf(t), gravites, depuis, Set.copyOf(k), Set.copyOf(s));
+                    ids, Set.copyOf(technologiesRetenues), gravites, depuis, Set.copyOf(clesPaquets), Set.copyOf(sourcesRetenues));
             if (sansMotNiFiltre(recherche)) {
                 throw new ParametreInvalide("query, technologies, packages, sources, project_ids, severity ou horizon_days :"
                         + " au moins un mot ou un filtre est requis.");
             }
-            return new CriteresSignaux(ids, recherche, n);
+            return new CriteresSignaux(ids, recherche, nombreMax);
         }
 
         /** Paquets en clé Argos ; une valeur qui n'est pas une PURL reconnue est gardée telle quelle. */
         private List<String> clesDePaquets() {
             return Parametres.liste("packages", paquets).stream()
-                    .map(v -> PackageKey.parse(v).map(PackageKey.Purl::key).orElse(v)).toList();
+                    .map(paquet -> PackageKey.parse(paquet).map(PackageKey.Purl::key).orElse(paquet)).toList();
         }
 
         /** Identifiants de projets, dans l'ordre donné et sans doublon. */
@@ -307,9 +311,10 @@ public class OutilsSecurite {
             return Gravite.auMoins(gravite);
         }
 
-        private static boolean sansMotNiFiltre(RechercheVeille.Criteres c) {
-            return c.texte() == null && c.technologies().isEmpty() && c.paquets().isEmpty() && c.sources().isEmpty()
-                    && c.projets().isEmpty() && c.gravites() == null && c.depuis() == null;
+        private static boolean sansMotNiFiltre(RechercheVeille.Criteres criteres) {
+            return criteres.texte() == null && criteres.technologies().isEmpty() && criteres.paquets().isEmpty()
+                    && criteres.sources().isEmpty() && criteres.projets().isEmpty()
+                    && criteres.gravites() == null && criteres.depuis() == null;
         }
     }
 
@@ -323,18 +328,20 @@ public class OutilsSecurite {
     private Signaux rechercherSignaux(Caller appelant, CriteresSignaux criteres) {
         criteres.projets().forEach(id -> exigerProjetVisible(appelant, id, inventaires));
         List<SignalResume> resultats = new ArrayList<>();
-        for (RechercheVeille.Element e : recherche.rechercher(criteres.recherche(), appelant.accountId(),
+        for (RechercheVeille.Element element : recherche.rechercher(criteres.recherche(), appelant.accountId(),
                 appelant.memberWorkspaces(), 0, criteres.limite()).elements()) {
-            signaux.find(e.id()).ifPresent(v -> resultats.add(resume(v, e)));
+            signaux.find(element.id()).ifPresent(signal -> resultats.add(resume(signal, element)));
         }
         return new Signaux(resultats.size(), resultats);
     }
 
-    private SignalResume resume(SignalQueries.SignalView s, RechercheVeille.Element e) {
-        return new SignalResume(s.id(), s.source(), s.externalId(), s.aliases(), s.severity(), texte(s.publishedAt()),
-                texte(s.modifiedAt()), s.affected().stream().map(AffectedPackage::packageKey).distinct().toList(),
-                balisage.baliser(s.source(), s.title()), balisage.baliser(s.source(), s.summary()), e.pertinence(),
-                e.projets().stream().map(vise -> new ProjetVise(vise.projetId(), vise.projet())).toList());
+    private SignalResume resume(SignalQueries.SignalView signal, RechercheVeille.Element element) {
+        return new SignalResume(signal.id(), signal.source(), signal.externalId(), signal.aliases(), signal.severity(),
+                texte(signal.publishedAt()), texte(signal.modifiedAt()),
+                signal.affected().stream().map(AffectedPackage::packageKey).distinct().toList(),
+                balisage.baliser(signal.source(), signal.title()), balisage.baliser(signal.source(), signal.summary()),
+                element.pertinence(),
+                element.projets().stream().map(vise -> new ProjetVise(vise.projetId(), vise.projet())).toList());
     }
 
     @Tool(name = "get_security_alerts", structuredContent = true,
@@ -349,24 +356,25 @@ public class OutilsSecurite {
         Map<String, Object> arguments = parametres("project_id", projet, "limit", limite);
         return garde.appeler("get_security_alerts", arguments, appelant -> {
             Optional<UUID> id = Parametres.identifiantFacultatif("project_id", projet);
-            int n = Parametres.borne("limit", limite, 50, 1, 200);
+            int nombreMax = Parametres.borne("limit", limite, 50, 1, 200);
             List<ImpactQueries.ImpactView> vues;
             if (id.isPresent()) {
                 exigerProjetVisible(appelant, id.get(), inventaires);
                 vues = impacts.forProject(id.get(), appelant.accountId(), appelant.memberWorkspaces()).stream()
-                        .limit(n).toList();
+                        .limit(nombreMax).toList();
             } else {
-                vues = impacts.forWorkspaces(appelant.accountId(), appelant.memberWorkspaces(), n);
+                vues = impacts.forWorkspaces(appelant.accountId(), appelant.memberWorkspaces(), nombreMax);
             }
             List<Alerte> alertes = vues.stream().map(this::alerte).toList();
             return new Alertes(alertes.size(), alertes);
         });
     }
 
-    private Alerte alerte(ImpactQueries.ImpactView i) {
-        return new Alerte(i.id(), i.projectId(), i.projectName(), i.workspaceId(), i.componentPurl(), i.componentVersion(),
-                i.transitive(), i.level(), i.method(), i.signalId(), i.signalSource(), i.signalExternalId(),
-                enrichissements.exploited(i.signalId()), texte(i.createdAt()), balisage.baliser(i.signalSource(), i.signalTitle()));
+    private Alerte alerte(ImpactQueries.ImpactView impact) {
+        return new Alerte(impact.id(), impact.projectId(), impact.projectName(), impact.workspaceId(), impact.componentPurl(),
+                impact.componentVersion(), impact.transitive(), impact.level(), impact.method(), impact.signalId(),
+                impact.signalSource(), impact.signalExternalId(), enrichissements.exploited(impact.signalId()),
+                texte(impact.createdAt()), balisage.baliser(impact.signalSource(), impact.signalTitle()));
     }
 
     @Tool(name = "explain_change", structuredContent = true,
@@ -380,16 +388,18 @@ public class OutilsSecurite {
         Map<String, Object> arguments = parametres("signal_id", signal);
         return garde.appeler("explain_change", arguments, appelant -> {
             UUID id = Parametres.identifiant("signal_id", signal);
-            SignalQueries.SignalView s = signaux.find(id).orElseThrow(() -> new Introuvable("signal inconnu"));
+            SignalQueries.SignalView avis = signaux.find(id).orElseThrow(() -> new Introuvable("signal inconnu"));
             List<VersionSignal> versions = signaux.versions(id).stream()
-                    .map(v -> new VersionSignal(v.versionNo(), texte(v.sourceModifiedAt()), texte(v.collectedAt()), v.contentHash()))
+                    .map(version -> new VersionSignal(version.versionNo(), texte(version.sourceModifiedAt()),
+                            texte(version.collectedAt()), version.contentHash()))
                     .toList();
             ImpactQueries.Page page = impacts.forSignal(id, appelant.accountId(), appelant.memberWorkspaces(), 0, 50);
             List<ProjetConcerne> projets = page.items().stream()
-                    .map(i -> new ProjetConcerne(i.projectId(), i.projectName(), i.componentPurl(), i.level())).toList();
-            return new ExplicationChangement(s.id(), s.source(), s.externalId(), explication(versions, page.total()),
-                    versions, page.total(), projets, balisage.baliser(s.source(), s.title()),
-                    balisage.baliser(s.source(), s.summary()));
+                    .map(impact -> new ProjetConcerne(impact.projectId(), impact.projectName(), impact.componentPurl(),
+                            impact.level())).toList();
+            return new ExplicationChangement(avis.id(), avis.source(), avis.externalId(), explication(versions, page.total()),
+                    versions, page.total(), projets, balisage.baliser(avis.source(), avis.title()),
+                    balisage.baliser(avis.source(), avis.summary()));
         });
     }
 
@@ -398,15 +408,15 @@ public class OutilsSecurite {
      * source de l'avis restent dans leurs champs propres.
      */
     private static String explication(List<VersionSignal> versions, long impactsVisibles) {
-        StringBuilder e = new StringBuilder("Avis désigné par les champs source et identifiant");
+        StringBuilder message = new StringBuilder("Avis désigné par les champs source et identifiant");
         if (versions.size() <= 1) {
-            e.append(" : une seule version collectée");
+            message.append(" : une seule version collectée");
         } else {
-            e.append(" : ").append(versions.size()).append(" versions collectées, la dernière modifiée à la source le ")
+            message.append(" : ").append(versions.size()).append(" versions collectées, la dernière modifiée à la source le ")
                     .append(versions.get(versions.size() - 1).modifieeALaSource());
         }
-        e.append(". ").append(impactsVisibles).append(" impact(s) dans vos projets.");
-        return e.toString();
+        message.append(". ").append(impactsVisibles).append(" impact(s) dans vos projets.");
+        return message.toString();
     }
 
     /**
@@ -446,8 +456,8 @@ public class OutilsSecurite {
 
     static Map<String, Object> parametres(Object... clesValeurs) {
         Map<String, Object> valeurs = new LinkedHashMap<>();
-        for (int i = 0; i < clesValeurs.length; i += 2) {
-            valeurs.put((String) clesValeurs[i], clesValeurs[i + 1]);
+        for (int position = 0; position < clesValeurs.length; position += 2) {
+            valeurs.put((String) clesValeurs[position], clesValeurs[position + 1]);
         }
         return valeurs;
     }

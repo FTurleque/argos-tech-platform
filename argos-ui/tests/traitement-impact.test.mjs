@@ -71,11 +71,11 @@ test('état et niveau : deux axes nommés séparément (COR-09)', () => {
 
 test('actions : celles du serveur pour un contributeur, aucune pour un lecteur (COR-10-S1)', () => {
   const contributeur = impactAffiche(impact())
-  assert.deepEqual(contributeur.actions.map((a) => a.libelle), ['Confirmer', 'Écarter', 'Marquer résolu'])
-  assert.deepEqual(contributeur.actions.filter((a) => a.motifObligatoire).map((a) => a.vers), ['ECARTE'])
+  assert.deepEqual(contributeur.actions.map((action) => action.libelle), ['Confirmer', 'Écarter', 'Marquer résolu'])
+  assert.deepEqual(contributeur.actions.filter((action) => action.motifObligatoire).map((action) => action.vers), ['ECARTE'])
   assert.deepEqual(impactAffiche(impact({ transitionsPossibles: [] })).actions, [])
   assert.deepEqual(impactAffiche(impact({ transitionsPossibles: undefined })).actions, [])
-  assert.deepEqual(impactAffiche(impact({ etat: 'ECARTE', transitionsPossibles: ['OUVERT'] })).actions.map((a) => a.libelle), [
+  assert.deepEqual(impactAffiche(impact({ etat: 'ECARTE', transitionsPossibles: ['OUVERT'] })).actions.map((action) => action.libelle), [
     'Rouvrir',
   ])
 })
@@ -95,7 +95,7 @@ test('historique : ordre du serveur, auteur, motif système nommé, commentaire 
     }),
   )
   assert.equal(vue.etat, 'résolu')
-  assert.deepEqual(vue.historique.map((l) => `${l.de}→${l.vers} par ${l.auteur}`), [
+  assert.deepEqual(vue.historique.map((ligne) => `${ligne.de}→${ligne.vers} par ${ligne.auteur}`), [
     'ouvert→confirmé par Jules',
     'confirmé→résolu par système',
     'résolu→ouvert par compte retiré',
@@ -121,7 +121,7 @@ test('transition : impact renvoyé par le serveur affiché, demande invalide jam
   const issue = await appliquerTransition(IMPACT, 'CONFIRME', '', 'Confirmé', poster)
   assert.deepEqual(appels, [{ id: IMPACT, corps: { vers: 'CONFIRME', commentaire: 'Confirmé' } }])
   assert.equal(issue.impact.etat, 'confirmé')
-  assert.deepEqual(issue.impact.actions.map((a) => a.vers), ['ECARTE', 'RESOLU'])
+  assert.deepEqual(issue.impact.actions.map((action) => action.vers), ['ECARTE', 'RESOLU'])
 
   const refusee = await appliquerTransition(IMPACT, 'ECARTE', '', '', poster)
   assert.equal(appels.length, 1, 'aucun appel sans motif')

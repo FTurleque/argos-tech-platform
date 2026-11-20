@@ -48,8 +48,8 @@ import io.quarkus.test.junit.QuarkusTest;
 @QuarkusTestResource(StubServer.class)
 class ScmContratEnregistreTest {
 
-    private static final String GH = "scm/enregistrees/github/";
-    private static final String GL = "scm/enregistrees/gitlab/";
+    private static final String ENREGISTREMENTS_GITHUB = "scm/enregistrees/github/";
+    private static final String ENREGISTREMENTS_GITLAB = "scm/enregistrees/gitlab/";
 
     /** Dépôt public dont les réponses GitHub ont été enregistrées. */
     private static final RepositoryRef GITHUB = new RepositoryRef("GITHUB", "CycloneDX/cyclonedx-node-npm", "main", null,
@@ -70,7 +70,7 @@ class ScmContratEnregistreTest {
     private static final String GITLAB_REQUIREMENTS = GITLAB_PROJET + "/repository/files/requirements.txt/raw?ref=master";
 
     @Inject
-    TestDb db;
+    TestDb baseDeTest;
 
     @Inject
     ProjectDirectory projects;
@@ -86,7 +86,7 @@ class ScmContratEnregistreTest {
 
     @BeforeEach
     void reset() {
-        db.reset();
+        baseDeTest.reset();
     }
 
     /** Adapter dont les jetons sont les valeurs fictives de la configuration de test. */
@@ -96,24 +96,25 @@ class ScmContratEnregistreTest {
     }
 
     private static void sert(String chemin, String reponse) {
-        StubServer.on(chemin, Fixtures.reponseEnregistree(reponse));
+        StubServer.programmer(chemin, Fixtures.reponseEnregistree(reponse));
     }
 
     private static List<String> entete(StubServer.Received requete, String nom) {
-        return requete.headers().entrySet().stream().filter(e -> e.getKey().equalsIgnoreCase(nom))
-                .flatMap(e -> e.getValue().stream()).toList();
+        return requete.headers().entrySet().stream().filter(entree -> entree.getKey().equalsIgnoreCase(nom))
+                .flatMap(entree -> entree.getValue().stream()).toList();
     }
 
     // --- GitHub -------------------------------------------------------------------------------
 
     @Test
     void githubSbomTrouveeEtTransmiseAvecJetonBearer() {
-        sert(GITHUB_SBOM, GH + "200-sbom-cyclonedx.http");
+        sert(GITHUB_SBOM, ENREGISTREMENTS_GITHUB + "200-sbom-cyclonedx.http");
 
         SbomDocument sbom = forges().latestSbom(GITHUB).orElseThrow();
 
         assertEquals(SbomDocument.Format.CYCLONEDX_JSON, sbom.format());
-        assertEquals(Fixtures.corpsEnregistre(GH + "200-sbom-cyclonedx.http"), new String(sbom.contenu(), StandardCharsets.UTF_8));
+        assertEquals(Fixtures.corpsEnregistre(ENREGISTREMENTS_GITHUB + "200-sbom-cyclonedx.http"),
+                new String(sbom.contenu(), StandardCharsets.UTF_8));
         List<StubServer.Received> requetes = StubServer.received("/github/");
         assertEquals(1, requetes.size(), "SBOM trouvée : aucun appel supplémentaire");
         assertEquals("GET", requetes.get(0).method());
@@ -125,13 +126,13 @@ class ScmContratEnregistreTest {
     void githubSbomEnregistreeImporteeDansLInventaire() {
         UUID espace = Api.nouvelEspace("alice", "Équipe A");
         UUID projet = projects.create(espace, "demo", GITHUB, List.of(GITHUB_MANIFESTE_CHEMIN));
-        sert(GITHUB_SBOM, GH + "200-sbom-cyclonedx.http");
+        sert(GITHUB_SBOM, ENREGISTREMENTS_GITHUB + "200-sbom-cyclonedx.http");
 
         InventoryService.ImportResult resultat = inventories.refresh(projet);
 
         assertEquals("IMPORTED", resultat.status(), resultat.reason());
         assertEquals("SBOM", resultat.origin());
-        Api.en("alice").when().get("/api/v1/projects/" + projet + "/inventory")
+        Api.enTantQue("alice").when().get("/api/v1/projects/" + projet + "/inventory")
                 .then().statusCode(200)
                 .body("inventory.origin", equalTo("SBOM"))
                 .body("inventory.components", hasSize(5))
@@ -146,23 +147,23 @@ class ScmContratEnregistreTest {
         UUID espace = Api.nouvelEspace("alice", "Équipe A");
         UUID projet = projects.create(espace, "demo", GITHUB,
                 List.of(GITHUB_MANIFESTE_CHEMIN, "requirements.txt", "demo/requirements.txt"));
-        sert(GITHUB_SBOM, GH + "404-fichier-absent.http");
-        sert(GITHUB_DEPOT, GH + "200-depot.http");
-        sert(GITHUB_MANIFESTE, GH + "200-manifeste-package-json.http");
-        sert(GITHUB_DEPOT + "/contents/requirements.txt?ref=main", GH + "404-fichier-absent.http");
-        sert(GITHUB_DEPOT + "/contents/demo/requirements.txt?ref=main", GH + "404-fichier-absent.http");
+        sert(GITHUB_SBOM, ENREGISTREMENTS_GITHUB + "404-fichier-absent.http");
+        sert(GITHUB_DEPOT, ENREGISTREMENTS_GITHUB + "200-depot.http");
+        sert(GITHUB_MANIFESTE, ENREGISTREMENTS_GITHUB + "200-manifeste-package-json.http");
+        sert(GITHUB_DEPOT + "/contents/requirements.txt?ref=main", ENREGISTREMENTS_GITHUB + "404-fichier-absent.http");
+        sert(GITHUB_DEPOT + "/contents/demo/requirements.txt?ref=main", ENREGISTREMENTS_GITHUB + "404-fichier-absent.http");
 
         InventoryService.ImportResult resultat = inventories.refresh(projet);
 
         assertEquals("IMPORTED", resultat.status(), resultat.reason());
         assertEquals("MANIFEST", resultat.origin());
-        Api.en("alice").when().get("/api/v1/projects/" + projet + "/inventory")
+        Api.enTantQue("alice").when().get("/api/v1/projects/" + projet + "/inventory")
                 .then().statusCode(200)
                 .body("inventory.origin", equalTo("MANIFEST"))
                 .body("inventory.components", hasSize(2))
                 .body("inventory.components.find { it.packageKey == 'pkg:npm/is-obj' }.version", equalTo("3.0.0"))
                 .body("inventory.components.find { it.packageKey == 'pkg:npm/bundle-dependencies' }.version", equalTo("1.0.2"));
-        assertEquals(1, StubServer.received(GITHUB_DEPOT).stream().filter(r -> r.pathAndQuery().equals(GITHUB_DEPOT)).count(),
+        assertEquals(1, StubServer.received(GITHUB_DEPOT).stream().filter(requete -> requete.pathAndQuery().equals(GITHUB_DEPOT)).count(),
                 "trois 404 GitHub dans un même rafraîchissement : une seule vérification du dépôt");
     }
 
@@ -170,13 +171,13 @@ class ScmContratEnregistreTest {
     void githubDepotIntrouvable() {
         RepositoryRef absent = new RepositoryRef("GITHUB", "argos-poc-inexistant-7f3a/depot-inexistant", "main", null, "bom.json");
         String depot = "/github/repos/argos-poc-inexistant-7f3a/depot-inexistant";
-        sert(depot + "/contents/bom.json?ref=main", GH + "404-depot-contenu.http");
-        sert(depot, GH + "404-depot.http");
+        sert(depot + "/contents/bom.json?ref=main", ENREGISTREMENTS_GITHUB + "404-depot-contenu.http");
+        sert(depot, ENREGISTREMENTS_GITHUB + "404-depot.http");
 
-        DepotIntrouvable e = assertThrows(DepotIntrouvable.class, () -> forges().latestSbom(absent));
+        DepotIntrouvable erreur = assertThrows(DepotIntrouvable.class, () -> forges().latestSbom(absent));
 
-        assertTrue(e.getMessage().contains("argos-poc-inexistant-7f3a/depot-inexistant"));
-        assertFalse(e.getMessage().contains(jetonGithub), "le jeton n'apparaît dans aucun message");
+        assertTrue(erreur.getMessage().contains("argos-poc-inexistant-7f3a/depot-inexistant"));
+        assertFalse(erreur.getMessage().contains(jetonGithub), "le jeton n'apparaît dans aucun message");
     }
 
     @Test
@@ -185,8 +186,8 @@ class ScmContratEnregistreTest {
         RepositoryRef absent = new RepositoryRef("GITHUB", "argos-poc-inexistant-7f3a/depot-inexistant", "main", null, "bom.json");
         UUID projet = projects.create(espace, "absent", absent, List.of("package.json"));
         String depot = "/github/repos/argos-poc-inexistant-7f3a/depot-inexistant";
-        sert(depot + "/contents/bom.json?ref=main", GH + "404-depot-contenu.http");
-        sert(depot, GH + "404-depot.http");
+        sert(depot + "/contents/bom.json?ref=main", ENREGISTREMENTS_GITHUB + "404-depot-contenu.http");
+        sert(depot, ENREGISTREMENTS_GITHUB + "404-depot.http");
 
         InventoryService.ImportResult resultat = inventories.refresh(projet);
 
@@ -197,30 +198,30 @@ class ScmContratEnregistreTest {
 
     @Test
     void githubJetonRefuse() {
-        sert(GITHUB_SBOM, GH + "401-jeton-refuse.http");
+        sert(GITHUB_SBOM, ENREGISTREMENTS_GITHUB + "401-jeton-refuse.http");
 
-        AccesRefuse e = assertThrows(AccesRefuse.class, () -> forges().latestSbom(GITHUB));
+        AccesRefuse erreur = assertThrows(AccesRefuse.class, () -> forges().latestSbom(GITHUB));
 
-        assertEquals(401, e.status());
-        assertTrue(e.getMessage().contains("jeton d'accès refusé"));
-        assertFalse(e.getMessage().contains(jetonGithub), "le jeton n'apparaît dans aucun message");
+        assertEquals(401, erreur.status());
+        assertTrue(erreur.getMessage().contains("jeton d'accès refusé"));
+        assertFalse(erreur.getMessage().contains(jetonGithub), "le jeton n'apparaît dans aucun message");
         assertEquals(1, StubServer.received("/github/").size(), "aucune vérification du dépôt après un 401");
     }
 
     @Test
     void githubLimiteDeDebitPrincipaleEtSecondaire() {
-        sert(GITHUB_SBOM, GH + "403-limite-debit.http");
+        sert(GITHUB_SBOM, ENREGISTREMENTS_GITHUB + "403-limite-debit.http");
         Instant avant = Instant.now();
         QuotaEpuise principale = assertThrows(QuotaEpuise.class, () -> forges().latestSbom(GITHUB));
         assertBorne(principale.reprise(), avant.plusSeconds(900));
 
-        sert(GITHUB_SBOM, GH + "403-limite-secondaire.http");
+        sert(GITHUB_SBOM, ENREGISTREMENTS_GITHUB + "403-limite-secondaire.http");
         avant = Instant.now();
         QuotaEpuise secondaire = assertThrows(QuotaEpuise.class, () -> forges().latestSbom(GITHUB));
         assertBorne(secondaire.reprise(), avant.plusSeconds(60));
 
         // Limite secondaire signalée par son seul message : ni Retry-After ni quota principal épuisé.
-        sert(GITHUB_SBOM, GH + "403-limite-secondaire-sans-delai.http");
+        sert(GITHUB_SBOM, ENREGISTREMENTS_GITHUB + "403-limite-secondaire-sans-delai.http");
         avant = Instant.now();
         QuotaEpuise sansDelai = assertThrows(QuotaEpuise.class, () -> forges().latestSbom(GITHUB));
         assertBorne(sansDelai.reprise(), avant.plusSeconds(3600));
@@ -231,7 +232,7 @@ class ScmContratEnregistreTest {
     @Test
     void gitlabSbomTrouveeAvecJetonPrivateToken() {
         // Artefact composé : aucun artefact de job n'est lisible anonymement sur gitlab.com (403 enregistré).
-        StubServer.on(GITLAB_SBOM, new StubServer.Stub(200, Fixtures.resource("scm/gitlab/gl-sbom-npm-npm.cdx.json"),
+        StubServer.programmer(GITLAB_SBOM, new StubServer.Stub(200, Fixtures.resource("scm/gitlab/gl-sbom-npm-npm.cdx.json"),
                 Map.of("Content-Type", "application/json"), 0));
 
         SbomDocument sbom = forges().latestSbom(GITLAB).orElseThrow();
@@ -246,20 +247,20 @@ class ScmContratEnregistreTest {
     void gitlabArtefactAbsentRepliSurLeManifeste() {
         UUID espace = Api.nouvelEspace("alice", "Équipe A");
         UUID projet = projects.create(espace, "js-npm", GITLAB, List.of("package.json", "requirements.txt"));
-        sert(GITLAB_SBOM, GL + "404-artefact-absent.http");
-        sert(GITLAB_PACKAGE, GL + "200-manifeste-package-json.http");
-        sert(GITLAB_REQUIREMENTS, GL + "404-fichier-absent.http");
+        sert(GITLAB_SBOM, ENREGISTREMENTS_GITLAB + "404-artefact-absent.http");
+        sert(GITLAB_PACKAGE, ENREGISTREMENTS_GITLAB + "200-manifeste-package-json.http");
+        sert(GITLAB_REQUIREMENTS, ENREGISTREMENTS_GITLAB + "404-fichier-absent.http");
 
         InventoryService.ImportResult resultat = inventories.refresh(projet);
 
         assertEquals("IMPORTED", resultat.status(), resultat.reason());
         assertEquals("MANIFEST", resultat.origin());
-        Api.en("alice").when().get("/api/v1/projects/" + projet + "/inventory")
+        Api.enTantQue("alice").when().get("/api/v1/projects/" + projet + "/inventory")
                 .then().statusCode(200)
                 .body("inventory.origin", equalTo("MANIFEST"))
                 .body("inventory.components", hasSize(4))
                 .body("inventory.components.find { it.packageKey == 'pkg:npm/decamelize' }.version", equalTo("1.1.1"));
-        assertTrue(StubServer.received("/gitlab/").stream().noneMatch(r -> r.pathAndQuery().equals(GITLAB_PROJET)),
+        assertTrue(StubServer.received("/gitlab/").stream().noneMatch(requete -> requete.pathAndQuery().equals(GITLAB_PROJET)),
                 "GitLab : le corps du 404 suffit, aucune vérification du projet");
     }
 
@@ -267,22 +268,22 @@ class ScmContratEnregistreTest {
     void gitlabProjetIntrouvable() {
         RepositoryRef absent = new RepositoryRef("GITLAB", "argos-poc-inexistant-7f3a/depot-inexistant", "main", null, null);
         sert("/gitlab/api/v4/projects/argos-poc-inexistant-7f3a%2Fdepot-inexistant/repository/files/package.json/raw?ref=main",
-                GL + "404-projet-fichier.http");
+                ENREGISTREMENTS_GITLAB + "404-projet-fichier.http");
 
-        DepotIntrouvable e = assertThrows(DepotIntrouvable.class, () -> forges().file(absent, "package.json"));
+        DepotIntrouvable erreur = assertThrows(DepotIntrouvable.class, () -> forges().file(absent, "package.json"));
 
-        assertTrue(e.getMessage().contains("GITLAB"));
-        assertFalse(e.getMessage().contains(jetonGitlab), "le jeton n'apparaît dans aucun message");
+        assertTrue(erreur.getMessage().contains("GITLAB"));
+        assertFalse(erreur.getMessage().contains(jetonGitlab), "le jeton n'apparaît dans aucun message");
     }
 
     @Test
     void gitlabJetonRefuseEtArtefactInterdit() {
-        sert(GITLAB_PACKAGE, GL + "401-jeton-refuse.http");
+        sert(GITLAB_PACKAGE, ENREGISTREMENTS_GITLAB + "401-jeton-refuse.http");
         AccesRefuse refuse = assertThrows(AccesRefuse.class, () -> forges().file(GITLAB, "package.json"));
         assertEquals(401, refuse.status());
         assertFalse(refuse.getMessage().contains(jetonGitlab));
 
-        sert(GITLAB_SBOM, GL + "403-artefact-interdit.http");
+        sert(GITLAB_SBOM, ENREGISTREMENTS_GITLAB + "403-artefact-interdit.http");
         AccesRefuse interdit = assertThrows(AccesRefuse.class, () -> forges().latestSbom(GITLAB));
         assertEquals(403, interdit.status(), "403 avec quota restant : accès refusé, pas limite de débit");
     }
@@ -291,11 +292,11 @@ class ScmContratEnregistreTest {
     void gitlabLimiteDeDebitInventaireConserve() {
         UUID espace = Api.nouvelEspace("alice", "Équipe A");
         UUID projet = projects.create(espace, "js-npm", GITLAB, List.of("package.json"));
-        sert(GITLAB_SBOM, GL + "404-artefact-absent.http");
-        sert(GITLAB_PACKAGE, GL + "200-manifeste-package-json.http");
+        sert(GITLAB_SBOM, ENREGISTREMENTS_GITLAB + "404-artefact-absent.http");
+        sert(GITLAB_PACKAGE, ENREGISTREMENTS_GITLAB + "200-manifeste-package-json.http");
         assertEquals("MANIFEST", inventories.refresh(projet).origin());
 
-        sert(GITLAB_SBOM, GL + "429-limite-debit.http");
+        sert(GITLAB_SBOM, ENREGISTREMENTS_GITLAB + "429-limite-debit.http");
         Instant avant = Instant.now();
         QuotaEpuise quota = assertThrows(QuotaEpuise.class, () -> forges().latestSbom(GITLAB));
         assertBorne(quota.reprise(), avant.plusSeconds(120));
@@ -303,7 +304,7 @@ class ScmContratEnregistreTest {
         InventoryService.ImportResult resultat = inventories.refresh(projet);
         assertEquals("ERROR", resultat.status());
         assertTrue(resultat.reason().contains("quota"), resultat.reason());
-        Api.en("alice").when().get("/api/v1/projects/" + projet + "/inventory")
+        Api.enTantQue("alice").when().get("/api/v1/projects/" + projet + "/inventory")
                 .then().statusCode(200)
                 .body("inventory.origin", equalTo("MANIFEST"))
                 .body("inventory.components", hasSize(4));
@@ -311,9 +312,9 @@ class ScmContratEnregistreTest {
 
     @Test
     void entetesDeTransportNonRejoues() {
-        Fixtures.ReponseHttp r = Fixtures.lireReponse(GH + "200-depot.http");
-        assertEquals(200, r.status());
-        assertFalse(r.entetes().keySet().stream().anyMatch(k -> k.equalsIgnoreCase("content-length")),
+        Fixtures.ReponseHttp reponse = Fixtures.lireReponse(ENREGISTREMENTS_GITHUB + "200-depot.http");
+        assertEquals(200, reponse.status());
+        assertFalse(reponse.entetes().keySet().stream().anyMatch(cle -> cle.equalsIgnoreCase("content-length")),
                 "les en-têtes de transport ne sont pas rejoués");
     }
 

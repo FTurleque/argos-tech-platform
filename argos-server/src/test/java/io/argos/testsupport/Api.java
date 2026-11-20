@@ -28,28 +28,28 @@ public final class Api {
         return KEYCLOAK.getAuthServerUrl();
     }
 
-    public static RequestSpecification en(String utilisateur) {
+    public static RequestSpecification enTantQue(String utilisateur) {
         return given().auth().oauth2(jeton(utilisateur));
     }
 
     public static ValidatableResponse moi(String utilisateur) {
-        return en(utilisateur).when().get("/api/v1/moi").then();
+        return enTantQue(utilisateur).when().get("/api/v1/moi").then();
     }
 
     public static String creerEspace(String admin, String nom) {
-        return en(admin).contentType(ContentType.JSON).body(Map.of("nom", nom))
+        return enTantQue(admin).contentType(ContentType.JSON).body(Map.of("nom", nom))
                 .when().post("/api/v1/espaces")
                 .then().statusCode(201).extract().path("id");
     }
 
     public static String inviter(String admin, String espaceId, String email, String role) {
-        return en(admin).contentType(ContentType.JSON).body(Map.of("email", email, "role", role))
+        return enTantQue(admin).contentType(ContentType.JSON).body(Map.of("email", email, "role", role))
                 .when().post("/api/v1/espaces/" + espaceId + "/invitations")
                 .then().statusCode(201).extract().path("id");
     }
 
     public static void accepter(String utilisateur, String invitationId) {
-        en(utilisateur).when().post("/api/v1/invitations/" + invitationId + "/acceptation")
+        enTantQue(utilisateur).when().post("/api/v1/invitations/" + invitationId + "/acceptation")
                 .then().statusCode(200);
     }
 

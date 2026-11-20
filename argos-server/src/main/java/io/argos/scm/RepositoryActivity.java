@@ -131,15 +131,15 @@ public class RepositoryActivity {
         Forge forge = new Forge(forges.githubUrl() + "/repos/" + ref.repository(), forges.githubToken(), true);
         String jour = LocalDate.ofInstant(depuis, ZoneOffset.UTC).toString();
 
-        Lot<GhIssue> issues = pages(forge, p -> "/issues?state=all&since=" + enc(depuis.toString()) + "&" + pagination(p),
+        Lot<GhIssue> issues = pages(forge, numero -> "/issues?state=all&since=" + enc(depuis.toString()) + "&" + pagination(numero),
                 GH_ISSUES, RepositoryActivity::liste, page -> true);
-        Lot<GhRun> runs = pages(forge, p -> "/actions/runs?created=" + enc(">=" + jour) + "&" + pagination(p),
+        Lot<GhRun> runs = pages(forge, numero -> "/actions/runs?created=" + enc(">=" + jour) + "&" + pagination(numero),
                 GH_RUNS, RepositoryActivity::executions, page -> true);
-        Lot<GhRelease> releases = pages(forge, p -> "/releases?" + pagination(p), GH_RELEASES, RepositoryActivity::liste,
+        Lot<GhRelease> releases = pages(forge, numero -> "/releases?" + pagination(numero), GH_RELEASES, RepositoryActivity::liste,
                 page -> contientDesDatesDepuis(page.stream().map(rel -> instant(rel.publishedAt())), depuis));
-        Lot<GhMilestone> milestones = pages(forge, p -> "/milestones?state=all&" + pagination(p), GH_MILESTONES,
+        Lot<GhMilestone> milestones = pages(forge, numero -> "/milestones?state=all&" + pagination(numero), GH_MILESTONES,
                 RepositoryActivity::liste, page -> true);
-        Lot<ActiviteDepot.Jalon> jalons = jalons(milestones.elements(), m -> jalonGithubRetenu(m, depuis),
+        Lot<ActiviteDepot.Jalon> jalons = jalons(milestones.elements(), jalon -> jalonGithubRetenu(jalon, depuis),
                 RepositoryActivity::jalonGithub);
 
         return new ActiviteDepot(ticketsGithub(issues.elements()), fusionsGithub(issues.elements()),
@@ -151,14 +151,14 @@ public class RepositoryActivity {
 
     /** Tickets GitHub : les éléments de {@code /issues} qui ne sont pas des pull requests. */
     private static List<ActiviteDepot.Ticket> ticketsGithub(List<GhIssue> issues) {
-        return issues.stream().filter(i -> i.pullRequest() == null)
-                .map(i -> new ActiviteDepot.Ticket(instant(i.createdAt()), instant(i.closedAt()))).toList();
+        return issues.stream().filter(issue -> issue.pullRequest() == null)
+                .map(issue -> new ActiviteDepot.Ticket(instant(issue.createdAt()), instant(issue.closedAt()))).toList();
     }
 
     /** Pull requests GitHub : les éléments de {@code /issues} qui portent {@code pull_request}. */
     private static List<ActiviteDepot.Fusion> fusionsGithub(List<GhIssue> issues) {
-        return issues.stream().filter(i -> i.pullRequest() != null)
-                .map(i -> new ActiviteDepot.Fusion(instant(i.createdAt()), instant(i.pullRequest().mergedAt()))).toList();
+        return issues.stream().filter(issue -> issue.pullRequest() != null)
+                .map(issue -> new ActiviteDepot.Fusion(instant(issue.createdAt()), instant(issue.pullRequest().mergedAt()))).toList();
     }
 
     private static List<GhRun> executions(GhRuns page) {
@@ -166,20 +166,20 @@ public class RepositoryActivity {
     }
 
     /** Jalon retenu : numéroté, et ouvert ou fermé depuis {@code depuis}. */
-    private static boolean jalonGithubRetenu(GhMilestone m, Instant depuis) {
-        return m.number() != null && (jalonGithubOuvert(m) || estDepuis(instant(m.closedAt()), depuis));
+    private static boolean jalonGithubRetenu(GhMilestone jalon, Instant depuis) {
+        return jalon.number() != null && (jalonGithubOuvert(jalon) || estDepuis(instant(jalon.closedAt()), depuis));
     }
 
-    private static boolean jalonGithubOuvert(GhMilestone m) {
-        return "open".equalsIgnoreCase(m.state());
+    private static boolean jalonGithubOuvert(GhMilestone jalon) {
+        return "open".equalsIgnoreCase(jalon.state());
     }
 
-    private static ActiviteDepot.Jalon jalonGithub(GhMilestone m) {
-        Instant echeance = instant(m.dueOn());
-        int fermes = Math.max(0, m.closedIssues());
-        return new ActiviteDepot.Jalon(reference(String.valueOf(m.number())), titre(m.title()), jalonGithubOuvert(m),
+    private static ActiviteDepot.Jalon jalonGithub(GhMilestone jalon) {
+        Instant echeance = instant(jalon.dueOn());
+        int fermes = Math.max(0, jalon.closedIssues());
+        return new ActiviteDepot.Jalon(reference(String.valueOf(jalon.number())), titre(jalon.title()), jalonGithubOuvert(jalon),
                 echeance == null ? null : LocalDate.ofInstant(echeance, ZoneOffset.UTC),
-                fermes, fermes + Math.max(0, m.openIssues()));
+                fermes, fermes + Math.max(0, jalon.openIssues()));
     }
 
     private static ActiviteDepot.Issue issueGithub(String conclusion) {
@@ -243,40 +243,43 @@ public class RepositoryActivity {
         Forge forge = new Forge(forges.gitlabUrl() + "/api/v4/projects/" + enc(ref.repository()), forges.gitlabToken(), false);
         String modifiesApres = "?updated_after=" + enc(depuis.toString()) + "&";
 
-        Lot<GlIssue> issues = pages(forge, p -> "/issues" + modifiesApres + pagination(p), GL_ISSUES,
+        Lot<GlIssue> issues = pages(forge, numero -> "/issues" + modifiesApres + pagination(numero), GL_ISSUES,
                 RepositoryActivity::liste, page -> true);
-        Lot<GlMergeRequest> mrs = pages(forge, p -> "/merge_requests" + modifiesApres + pagination(p), GL_MERGE_REQUESTS,
+        Lot<GlMergeRequest> mrs = pages(forge, numero -> "/merge_requests" + modifiesApres + pagination(numero), GL_MERGE_REQUESTS,
                 RepositoryActivity::liste, page -> true);
-        Lot<GlPipeline> pls = pages(forge, p -> "/pipelines" + modifiesApres + pagination(p), GL_PIPELINES,
+        Lot<GlPipeline> pls = pages(forge, numero -> "/pipelines" + modifiesApres + pagination(numero), GL_PIPELINES,
                 RepositoryActivity::liste, page -> true);
-        Lot<GlRelease> releases = pages(forge, p -> "/releases?" + pagination(p), GL_RELEASES, RepositoryActivity::liste,
+        Lot<GlRelease> releases = pages(forge, numero -> "/releases?" + pagination(numero), GL_RELEASES, RepositoryActivity::liste,
                 page -> contientDesDatesDepuis(page.stream().map(RepositoryActivity::publication), depuis));
-        Lot<GlMilestone> milestones = pages(forge, p -> "/milestones?" + pagination(p), GL_MILESTONES,
+        Lot<GlMilestone> milestones = pages(forge, numero -> "/milestones?" + pagination(numero), GL_MILESTONES,
                 RepositoryActivity::liste, page -> true);
-        Lot<ActiviteDepot.Jalon> jalons = jalons(milestones.elements(), m -> jalonGitlabRetenu(m, depuis),
-                m -> jalonGitlab(forge, m));
+        Lot<ActiviteDepot.Jalon> jalons = jalons(milestones.elements(), jalon -> jalonGitlabRetenu(jalon, depuis),
+                jalon -> jalonGitlab(forge, jalon));
 
         return new ActiviteDepot(
-                issues.elements().stream().map(i -> new ActiviteDepot.Ticket(instant(i.createdAt()), instant(i.closedAt()))).toList(),
-                mrs.elements().stream().map(m -> new ActiviteDepot.Fusion(instant(m.createdAt()), instant(m.mergedAt()))).toList(),
+                issues.elements().stream()
+                        .map(issue -> new ActiviteDepot.Ticket(instant(issue.createdAt()), instant(issue.closedAt()))).toList(),
+                mrs.elements().stream()
+                        .map(fusion -> new ActiviteDepot.Fusion(instant(fusion.createdAt()), instant(fusion.mergedAt()))).toList(),
                 pipelines(pls.elements().stream()
-                        .map(pl -> new ActiviteDepot.Pipeline(instant(pl.createdAt()), issueGitlab(pl.status()))), depuis),
+                        .map(pipeline -> new ActiviteDepot.Pipeline(instant(pipeline.createdAt()), issueGitlab(pipeline.status()))),
+                        depuis),
                 versions(releases.elements().stream().map(RepositoryActivity::publication), depuis),
                 jalons.elements(), tousComplets(issues, mrs, pls, releases, milestones, jalons));
     }
 
     /** Jalon retenu : identifié et titré, et actif ou modifié depuis {@code depuis}. */
-    private static boolean jalonGitlabRetenu(GlMilestone m, Instant depuis) {
-        return m.id() != null && m.title() != null
-                && ("active".equalsIgnoreCase(m.state()) || estDepuis(instant(m.updatedAt()), depuis));
+    private static boolean jalonGitlabRetenu(GlMilestone jalon, Instant depuis) {
+        return jalon.id() != null && jalon.title() != null
+                && ("active".equalsIgnoreCase(jalon.state()) || estDepuis(instant(jalon.updatedAt()), depuis));
     }
 
     /** Jalon GitLab et ses compteurs, lus par {@code /issues_statistics?milestone=:titre}. */
-    private ActiviteDepot.Jalon jalonGitlab(Forge forge, GlMilestone m) {
-        GlCounts counts = compteurs(lireJson(forge, "/issues_statistics?milestone=" + enc(m.title()), GL_STATISTIQUES));
+    private ActiviteDepot.Jalon jalonGitlab(Forge forge, GlMilestone jalon) {
+        GlCounts counts = compteurs(lireJson(forge, "/issues_statistics?milestone=" + enc(jalon.title()), GL_STATISTIQUES));
         int total = Math.max(0, counts.all());
-        return new ActiviteDepot.Jalon(reference(String.valueOf(m.id())), titre(m.title()), "active".equalsIgnoreCase(m.state()),
-                date(m.dueDate()), Math.min(total, Math.max(0, counts.closed())), total);
+        return new ActiviteDepot.Jalon(reference(String.valueOf(jalon.id())), titre(jalon.title()),
+                "active".equalsIgnoreCase(jalon.state()), date(jalon.dueDate()), Math.min(total, Math.max(0, counts.closed())), total);
     }
 
     private static GlCounts compteurs(GlIssuesStatistics stats) {
@@ -284,9 +287,9 @@ public class RepositoryActivity {
                 ? new GlCounts(0, 0) : stats.statistics().counts();
     }
 
-    private static Instant publication(GlRelease r) {
-        Instant publiee = instant(r.releasedAt());
-        return publiee != null ? publiee : instant(r.createdAt());
+    private static Instant publication(GlRelease version) {
+        Instant publiee = instant(version.releasedAt());
+        return publiee != null ? publiee : instant(version.createdAt());
     }
 
     private static ActiviteDepot.Issue issueGitlab(String status) {
@@ -336,8 +339,8 @@ public class RepositoryActivity {
     private <R, T> Lot<T> pages(Forge forge, IntFunction<String> chemin, TypeReference<R> type, Function<R, List<T>> contenu,
             Predicate<List<T>> continuer) {
         List<T> elements = new ArrayList<>();
-        for (int p = 1; p <= pagesMax; p++) {
-            List<T> page = contenu.apply(lireJson(forge, chemin.apply(p), type));
+        for (int numero = 1; numero <= pagesMax; numero++) {
+            List<T> page = contenu.apply(lireJson(forge, chemin.apply(numero), type));
             elements.addAll(page);
             if (page.size() < PAR_PAGE || !continuer.test(page)) {
                 return new Lot<>(elements, true);
@@ -357,31 +360,31 @@ public class RepositoryActivity {
     private <M> Lot<ActiviteDepot.Jalon> jalons(List<M> milestones, Predicate<M> retenu,
             Function<M, ActiviteDepot.Jalon> conversion) {
         List<ActiviteDepot.Jalon> jalons = new ArrayList<>();
-        for (M m : milestones) {
-            if (!retenu.test(m)) {
+        for (M jalon : milestones) {
+            if (!retenu.test(jalon)) {
                 continue;
             }
             if (jalons.size() >= jalonsMax) {
                 return new Lot<>(jalons, false);
             }
-            jalons.add(conversion.apply(m));
+            jalons.add(conversion.apply(jalon));
         }
         return new Lot<>(jalons, true);
     }
 
     /** Pipelines datés et créés depuis {@code depuis}. */
     private static List<ActiviteDepot.Pipeline> pipelines(Stream<ActiviteDepot.Pipeline> pipelines, Instant depuis) {
-        return pipelines.filter(pl -> estDepuis(pl.creeLe(), depuis)).toList();
+        return pipelines.filter(pipeline -> estDepuis(pipeline.creeLe(), depuis)).toList();
     }
 
     /** Versions publiées depuis {@code depuis} ; une date absente n'est pas retenue. */
     private static List<ActiviteDepot.Version> versions(Stream<Instant> publications, Instant depuis) {
-        return publications.filter(d -> estDepuis(d, depuis)).map(ActiviteDepot.Version::new).toList();
+        return publications.filter(date -> estDepuis(date, depuis)).map(ActiviteDepot.Version::new).toList();
     }
 
     /** Vrai si une date est absente ou postérieure à {@code depuis} : la page suivante peut encore compter. */
     private static boolean contientDesDatesDepuis(Stream<Instant> dates, Instant depuis) {
-        return dates.anyMatch(d -> d == null || !d.isBefore(depuis));
+        return dates.anyMatch(date -> date == null || !date.isBefore(depuis));
     }
 
     private static boolean estDepuis(Instant date, Instant depuis) {
@@ -390,13 +393,13 @@ public class RepositoryActivity {
 
     private <T> T lireJson(Forge forge, String chemin, TypeReference<T> type) {
         URI uri = URI.create(forge.base() + chemin);
-        ForgeHttp.Reponse r = forges.http().get(uri, forge.jeton(), forge.github(), forge.accept(), tailleMax);
-        if (r.status() != 200) {
-            throw new ScmException("HTTP " + r.status() + " de " + uri.getHost(), null);
+        ForgeHttp.Reponse reponse = forges.http().get(uri, forge.jeton(), forge.github(), forge.accept(), tailleMax);
+        if (reponse.status() != 200) {
+            throw new ScmException("HTTP " + reponse.status() + " de " + uri.getHost(), null);
         }
         try {
-            return JSON.readValue(r.corps(), type);
-        } catch (IOException e) {
+            return JSON.readValue(reponse.corps(), type);
+        } catch (IOException illisible) {
             throw new ScmException("réponse illisible de " + uri.getHost(), null);
         }
     }
@@ -407,7 +410,7 @@ public class RepositoryActivity {
         }
         try {
             return OffsetDateTime.parse(valeur.strip()).toInstant();
-        } catch (DateTimeParseException e) {
+        } catch (DateTimeParseException illisible) {
             return null;
         }
     }
@@ -418,18 +421,18 @@ public class RepositoryActivity {
         }
         try {
             return LocalDate.parse(valeur.strip());
-        } catch (DateTimeParseException e) {
+        } catch (DateTimeParseException illisible) {
             return null;
         }
     }
 
     /** Texte externe : caractères de contrôle et de mise en forme retirés, 200 caractères au plus. */
     static String titre(String brut) {
-        String t = brut == null ? "" : brut.replaceAll("[\\p{Cc}\\p{Cf}]", " ").replaceAll("\\s+", " ").strip();
-        if (t.isEmpty()) {
+        String texte = brut == null ? "" : brut.replaceAll("[\\p{Cc}\\p{Cf}]", " ").replaceAll("\\s+", " ").strip();
+        if (texte.isEmpty()) {
             return "(sans titre)";
         }
-        return t.length() > TITRE_MAX ? t.substring(0, TITRE_MAX) : t;
+        return texte.length() > TITRE_MAX ? texte.substring(0, TITRE_MAX) : texte;
     }
 
     private static String reference(String brut) {

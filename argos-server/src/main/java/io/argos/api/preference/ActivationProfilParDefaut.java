@@ -40,9 +40,9 @@ public class ActivationProfilParDefaut {
         }
         try {
             preferences.activerSiAucun(evenement.compte().id(), Set.of(profil));
-        } catch (RuntimeException e) {
+        } catch (RuntimeException erreur) {
             // La création du compte n'échoue pas : les profils par défaut de la plateforme s'appliquent à la lecture.
-            LOG.errorf(e, "Activation du profil « %s » impossible pour le compte %s", profil, evenement.compte().id());
+            LOG.errorf(erreur, "Activation du profil « %s » impossible pour le compte %s", profil, evenement.compte().id());
         }
     }
 }

@@ -41,10 +41,10 @@ function date(iso: string | null): string {
   return iso ? new Date(iso).toLocaleString('fr-FR') : ''
 }
 
-function message(e: unknown): string {
-  if (e instanceof ApiError && e.status === STATUT_NON_AUTHENTIFIE) return 'Connectez-vous pour consulter vos alertes.'
-  if (e instanceof ApiError && e.status === STATUT_INTROUVABLE) return 'Alerte introuvable.'
-  return e instanceof ApiError ? e.message : 'Erreur inattendue'
+function message(echec: unknown): string {
+  if (echec instanceof ApiError && echec.status === STATUT_NON_AUTHENTIFIE) return 'Connectez-vous pour consulter vos alertes.'
+  if (echec instanceof ApiError && echec.status === STATUT_INTROUVABLE) return 'Alerte introuvable.'
+  return echec instanceof ApiError ? echec.message : 'Erreur inattendue'
 }
 
 async function charger(): Promise<void> {
@@ -57,8 +57,8 @@ async function charger(): Promise<void> {
       alerte.value = null
       liste.value = await fetchAlertesPoste()
     }
-  } catch (e) {
-    erreur.value = message(e)
+  } catch (echec) {
+    erreur.value = message(echec)
   }
 }
 
@@ -106,10 +106,10 @@ watch(id, charger, { immediate: true })
       <p v-if="erreur" class="status status-down">{{ erreur }}</p>
       <p v-else-if="liste.length === 0" class="muted">Aucune alerte.</p>
       <ul v-else>
-        <li v-for="a in liste" :key="a.id">
-          <RouterLink :to="`/alertes/${a.id}`">{{ a.titre }}</RouterLink>
-          <span class="muted"> · gravité {{ gravite(a.gravite) }} · {{ date(a.creeLe) }}</span>
-          <span v-if="a.etat === 'ANNULEE'" class="muted"> · sans objet : impacts écartés ou résolus avant la remise</span>
+        <li v-for="alerteListee in liste" :key="alerteListee.id">
+          <RouterLink :to="`/alertes/${alerteListee.id}`">{{ alerteListee.titre }}</RouterLink>
+          <span class="muted"> · gravité {{ gravite(alerteListee.gravite) }} · {{ date(alerteListee.creeLe) }}</span>
+          <span v-if="alerteListee.etat === 'ANNULEE'" class="muted"> · sans objet : impacts écartés ou résolus avant la remise</span>
         </li>
       </ul>
     </template>

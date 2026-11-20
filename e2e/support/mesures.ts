@@ -15,57 +15,57 @@ export interface MesureContraste {
 /** Écarts de contraste de tout texte visible de la mise en page, sur son fond effectif. */
 export function mesurerContrastes(): MesureContraste[] {
   type Rgba = [number, number, number, number]
-  const lire = (c: string): Rgba => {
-    const m = c.match(/rgba?\(([^)]+)\)/)
-    if (!m) return [0, 0, 0, 0]
-    const p = m[1].split(/[\s,/]+/).filter(Boolean).map(Number)
-    return [p[0], p[1], p[2], p.length > 3 ? p[3] : 1]
+  const lire = (couleur: string): Rgba => {
+    const correspondance = couleur.match(/rgba?\(([^)]+)\)/)
+    if (!correspondance) return [0, 0, 0, 0]
+    const composantes = correspondance[1].split(/[\s,/]+/).filter(Boolean).map(Number)
+    return [composantes[0], composantes[1], composantes[2], composantes.length > 3 ? composantes[3] : 1]
   }
   const fusion = (dessus: Rgba, dessous: Rgba): Rgba => {
-    const a = dessus[3] + dessous[3] * (1 - dessus[3])
-    if (a === 0) return [0, 0, 0, 0]
-    const c = [0, 1, 2].map((i) => (dessus[i] * dessus[3] + dessous[i] * dessous[3] * (1 - dessus[3])) / a)
-    return [c[0], c[1], c[2], a]
+    const opacite = dessus[3] + dessous[3] * (1 - dessus[3])
+    if (opacite === 0) return [0, 0, 0, 0]
+    const canaux = [0, 1, 2].map((canal) => (dessus[canal] * dessus[3] + dessous[canal] * dessous[3] * (1 - dessus[3])) / opacite)
+    return [canaux[0], canaux[1], canaux[2], opacite]
   }
-  const lum = ([r, g, b]: Rgba) => {
-    const f = (v: number) => {
-      const s = v / 255
-      return s <= 0.04045 ? s / 12.92 : ((s + 0.055) / 1.055) ** 2.4
+  const lum = ([rouge, vert, bleu]: Rgba) => {
+    const lineaire = (valeur: number) => {
+      const proportion = valeur / 255
+      return proportion <= 0.04045 ? proportion / 12.92 : ((proportion + 0.055) / 1.055) ** 2.4
     }
-    return 0.2126 * f(r) + 0.7152 * f(g) + 0.0722 * f(b)
+    return 0.2126 * lineaire(rouge) + 0.7152 * lineaire(vert) + 0.0722 * lineaire(bleu)
   }
-  const rapport = (a: Rgba, b: Rgba) => {
-    const [x, y] = [lum(a), lum(b)].sort((p, q) => q - p)
-    return (x + 0.05) / (y + 0.05)
+  const rapport = (premiere: Rgba, seconde: Rgba) => {
+    const [claire, sombre] = [lum(premiere), lum(seconde)].sort((gauche, droite) => droite - gauche)
+    return (claire + 0.05) / (sombre + 0.05)
   }
-  const fond = (el: Element | null): Rgba => {
+  const fond = (depart: Element | null): Rgba => {
     const couches: Rgba[] = []
-    for (let e = el; e; e = e.parentElement) {
-      const c = lire(getComputedStyle(e).backgroundColor)
-      if (c[3] > 0) couches.push(c)
-      if (c[3] >= 1) break
+    for (let ancetre = depart; ancetre; ancetre = ancetre.parentElement) {
+      const couleur = lire(getComputedStyle(ancetre).backgroundColor)
+      if (couleur[3] > 0) couches.push(couleur)
+      if (couleur[3] >= 1) break
     }
     return couches.reduceRight<Rgba>((dessous, dessus) => fusion(dessus, dessous), [255, 255, 255, 1])
   }
   const racine = document.querySelector('[data-mise-en-page]')!
   const mesures: { texte: string; rapport: number; seuil: number; decoratif: boolean }[] = []
   const marcheur = document.createTreeWalker(racine, NodeFilter.SHOW_TEXT)
-  for (let n = marcheur.nextNode(); n; n = marcheur.nextNode()) {
-    const texte = n.textContent?.trim()
-    const el = n.parentElement
-    if (!texte || !el) continue
-    const r = el.getBoundingClientRect()
-    const s = getComputedStyle(el)
-    if (r.width * r.height < 4 || s.visibility === 'hidden' || s.display === 'none') continue
-    const taille = parseFloat(s.fontSize)
-    const gras = Number(s.fontWeight) >= 700
+  for (let noeud = marcheur.nextNode(); noeud; noeud = marcheur.nextNode()) {
+    const texte = noeud.textContent?.trim()
+    const parent = noeud.parentElement
+    if (!texte || !parent) continue
+    const cadre = parent.getBoundingClientRect()
+    const style = getComputedStyle(parent)
+    if (cadre.width * cadre.height < 4 || style.visibility === 'hidden' || style.display === 'none') continue
+    const taille = parseFloat(style.fontSize)
+    const gras = Number(style.fontWeight) >= 700
     const seuil = taille >= 24 || (gras && taille >= 18.66) ? 3 : 4.5
-    const couleur = fusion(lire(s.color), fond(el))
+    const couleur = fusion(lire(style.color), fond(parent))
     mesures.push({
       texte: texte.slice(0, 50),
-      rapport: Math.floor(rapport(couleur, fond(el)) * 100) / 100,
+      rapport: Math.floor(rapport(couleur, fond(parent)) * 100) / 100,
       seuil,
-      decoratif: !!el.closest('[aria-hidden="true"]'),
+      decoratif: !!parent.closest('[aria-hidden="true"]'),
     })
   }
   return mesures
@@ -84,42 +84,42 @@ export interface EtatFocus {
 
 /** État de l'élément qui a le focus, ou null si le focus est sur le corps du document. */
 export function etatFocus(): EtatFocus | null {
-  const el = document.activeElement as HTMLElement | null
-  if (!el || el === document.body) return null
-  const s = getComputedStyle(el)
-  const lire = (c: string): number[] => {
-    const m = c.match(/rgba?\(([^)]+)\)/)
-    if (!m) return [0, 0, 0, 0]
-    const p = m[1].split(/[\s,/]+/).filter(Boolean).map(Number)
-    return [p[0], p[1], p[2], p.length > 3 ? p[3] : 1]
+  const element = document.activeElement as HTMLElement | null
+  if (!element || element === document.body) return null
+  const style = getComputedStyle(element)
+  const lire = (couleur: string): number[] => {
+    const correspondance = couleur.match(/rgba?\(([^)]+)\)/)
+    if (!correspondance) return [0, 0, 0, 0]
+    const composantes = correspondance[1].split(/[\s,/]+/).filter(Boolean).map(Number)
+    return [composantes[0], composantes[1], composantes[2], composantes.length > 3 ? composantes[3] : 1]
   }
   const fusion = (dessus: number[], dessous: number[]): number[] => {
-    const a = dessus[3] + dessous[3] * (1 - dessus[3])
-    if (a === 0) return [0, 0, 0, 0]
-    const c = [0, 1, 2].map((i) => (dessus[i] * dessus[3] + dessous[i] * dessous[3] * (1 - dessus[3])) / a)
-    return [c[0], c[1], c[2], a]
+    const opacite = dessus[3] + dessous[3] * (1 - dessus[3])
+    if (opacite === 0) return [0, 0, 0, 0]
+    const canaux = [0, 1, 2].map((canal) => (dessus[canal] * dessus[3] + dessous[canal] * dessous[3] * (1 - dessus[3])) / opacite)
+    return [canaux[0], canaux[1], canaux[2], opacite]
   }
   const couches: number[][] = []
-  for (let e: Element | null = el; e; e = e.parentElement) {
-    const c = lire(getComputedStyle(e).backgroundColor)
-    if (c[3] > 0) couches.push(c)
-    if (c[3] >= 1) break
+  for (let ancetre: Element | null = element; ancetre; ancetre = ancetre.parentElement) {
+    const couleur = lire(getComputedStyle(ancetre).backgroundColor)
+    if (couleur[3] > 0) couches.push(couleur)
+    if (couleur[3] >= 1) break
   }
   const fond = couches.reduceRight((dessous, dessus) => fusion(dessus, dessous), [255, 255, 255, 1])
-  const contour = fusion(lire(s.outlineColor), fond)
-  const lum = (c: number[]) => {
-    const f = (v: number) => {
-      const x = v / 255
-      return x <= 0.04045 ? x / 12.92 : ((x + 0.055) / 1.055) ** 2.4
+  const contour = fusion(lire(style.outlineColor), fond)
+  const lum = (couleur: number[]) => {
+    const lineaire = (valeur: number) => {
+      const proportion = valeur / 255
+      return proportion <= 0.04045 ? proportion / 12.92 : ((proportion + 0.055) / 1.055) ** 2.4
     }
-    return 0.2126 * f(c[0]) + 0.7152 * f(c[1]) + 0.0722 * f(c[2])
+    return 0.2126 * lineaire(couleur[0]) + 0.7152 * lineaire(couleur[1]) + 0.0722 * lineaire(couleur[2])
   }
-  const [clair, sombre] = [lum(contour), lum(fond)].sort((x, y) => y - x)
+  const [clair, sombre] = [lum(contour), lum(fond)].sort((gauche, droite) => droite - gauche)
   return {
-    dansMiseEnPage: !!el.closest('[data-mise-en-page]'),
-    href: el.getAttribute('href'),
-    style: s.outlineStyle,
-    largeur: parseFloat(s.outlineWidth),
+    dansMiseEnPage: !!element.closest('[data-mise-en-page]'),
+    href: element.getAttribute('href'),
+    style: style.outlineStyle,
+    largeur: parseFloat(style.outlineWidth),
     contraste: (clair + 0.05) / (sombre + 0.05),
   }
 }

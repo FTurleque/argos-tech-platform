@@ -50,13 +50,13 @@ export function normaliserEmetteur(emetteur: string): string {
 /** Encodage base64url sans remplissage (RFC 7636, annexe A). */
 export function base64Url(octets: Uint8Array): string {
   let binaire = ''
-  for (const o of octets) binaire += String.fromCharCode(o)
+  for (const octet of octets) binaire += String.fromCharCode(octet)
   return btoa(binaire).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '')
 }
 
-/** Chaîne aléatoire base64url issue de `n` octets du générateur cryptographique. */
-export function aleatoire(n = 32, source: Crypto = globalThis.crypto): string {
-  const octets = new Uint8Array(n)
+/** Chaîne aléatoire base64url issue de `nombreOctets` octets du générateur cryptographique. */
+export function aleatoire(nombreOctets = 32, source: Crypto = globalThis.crypto): string {
+  const octets = new Uint8Array(nombreOctets)
   source.getRandomValues(octets)
   return base64Url(octets)
 }
@@ -72,21 +72,21 @@ export async function defiPkce(verificateur: string, source: Crypto = globalThis
  * (OpenID Connect Discovery §4.3) et les points d'autorisation et de jetons présents.
  */
 export function lireDecouverte(document: unknown, emetteurAttendu: string): Decouverte {
-  const d = (document ?? {}) as Record<string, unknown>
+  const decouverte = (document ?? {}) as Record<string, unknown>
   const attendu = normaliserEmetteur(emetteurAttendu)
-  if (typeof d.issuer !== 'string' || normaliserEmetteur(d.issuer) !== attendu) {
+  if (typeof decouverte.issuer !== 'string' || normaliserEmetteur(decouverte.issuer) !== attendu) {
     throw new Error('Émetteur inattendu dans le document de découverte')
   }
   for (const champ of ['authorization_endpoint', 'token_endpoint']) {
-    if (typeof d[champ] !== 'string' || !/^https?:\/\//.test(d[champ] as string)) {
+    if (typeof decouverte[champ] !== 'string' || !/^https?:\/\//.test(decouverte[champ] as string)) {
       throw new Error(`Point d'accès ${champ} absent du document de découverte`)
     }
   }
   return {
-    issuer: d.issuer,
-    authorization_endpoint: d.authorization_endpoint as string,
-    token_endpoint: d.token_endpoint as string,
-    end_session_endpoint: typeof d.end_session_endpoint === 'string' ? d.end_session_endpoint : null,
+    issuer: decouverte.issuer,
+    authorization_endpoint: decouverte.authorization_endpoint as string,
+    token_endpoint: decouverte.token_endpoint as string,
+    end_session_endpoint: typeof decouverte.end_session_endpoint === 'string' ? decouverte.end_session_endpoint : null,
   }
 }
 
@@ -97,7 +97,7 @@ export function portee(configuree: string): string {
 }
 
 /** URL d'autorisation : code d'autorisation, PKCE S256 et state (ACC-07). */
-export function construireUrlAutorisation(p: {
+export function construireUrlAutorisation(parametres: {
   pointAutorisation: string
   clientId: string
   redirectUri: string
@@ -105,23 +105,25 @@ export function construireUrlAutorisation(p: {
   state: string
   defi: string
 }): string {
-  const url = new URL(p.pointAutorisation)
+  const url = new URL(parametres.pointAutorisation)
   url.searchParams.set('response_type', 'code')
-  url.searchParams.set('client_id', p.clientId)
-  url.searchParams.set('redirect_uri', p.redirectUri)
-  url.searchParams.set('scope', portee(p.portee))
-  url.searchParams.set('state', p.state)
-  url.searchParams.set('code_challenge', p.defi)
+  url.searchParams.set('client_id', parametres.clientId)
+  url.searchParams.set('redirect_uri', parametres.redirectUri)
+  url.searchParams.set('scope', portee(parametres.portee))
+  url.searchParams.set('state', parametres.state)
+  url.searchParams.set('code_challenge', parametres.defi)
   url.searchParams.set('code_challenge_method', 'S256')
   url.searchParams.set('response_mode', 'query')
   return url.toString()
 }
 
 /** Comparaison en temps constant de deux chaînes (le state ne fuit pas par la durée). */
-function egales(a: string, b: string): boolean {
-  if (a.length !== b.length) return false
+function egales(premiere: string, seconde: string): boolean {
+  if (premiere.length !== seconde.length) return false
   let difference = 0
-  for (let i = 0; i < a.length; i += 1) difference |= a.charCodeAt(i) ^ b.charCodeAt(i)
+  for (let position = 0; position < premiere.length; position += 1) {
+    difference |= premiere.charCodeAt(position) ^ seconde.charCodeAt(position)
+  }
   return difference === 0
 }
 
@@ -140,14 +142,14 @@ export function lireRetour(
   stateAttendu: string | null,
   emetteurAttendu?: string,
 ): RetourAutorisation {
-  const p = new URLSearchParams(recherche.startsWith('?') ? recherche.slice(1) : recherche)
-  const code = p.get('code')
-  const erreur = p.get('error')
+  const parametres = new URLSearchParams(recherche.startsWith('?') ? recherche.slice(1) : recherche)
+  const code = parametres.get('code')
+  const erreur = parametres.get('error')
   if (code === null && erreur === null) return { type: 'absent' }
-  const state = p.get('state')
+  const state = parametres.get('state')
   if (!stateAttendu || state === null || !egales(state, stateAttendu)) return { type: 'state-invalide' }
   // RFC 9207 : un émetteur annoncé dans le retour doit être celui qui a reçu la demande.
-  const iss = p.get('iss')
+  const iss = parametres.get('iss')
   if (emetteurAttendu !== undefined && iss !== null && sansBarreFinale(iss) !== sansBarreFinale(emetteurAttendu)) {
     return { type: 'emetteur-invalide' }
   }
@@ -157,8 +159,8 @@ export function lireRetour(
 
 /** Vrai si la chaîne de requête porte un retour du fournisseur à traiter. */
 export function contientRetour(recherche: string): boolean {
-  const p = new URLSearchParams(recherche.startsWith('?') ? recherche.slice(1) : recherche)
-  return p.has('code') || p.has('error')
+  const parametres = new URLSearchParams(recherche.startsWith('?') ? recherche.slice(1) : recherche)
+  return parametres.has('code') || parametres.has('error')
 }
 
 /**
@@ -186,15 +188,15 @@ export function cheminInterne(chemin: unknown): string {
 
 /** Vrai si la chaîne contient un caractère de contrôle (U+0000 à U+001F, U+007F). */
 function contientControle(texte: string): boolean {
-  for (let i = 0; i < texte.length; i += 1) {
-    const c = texte.charCodeAt(i)
-    if (c < 0x20 || c === 0x7f) return true
+  for (let position = 0; position < texte.length; position += 1) {
+    const codeCaractere = texte.charCodeAt(position)
+    if (codeCaractere < 0x20 || codeCaractere === 0x7f) return true
   }
   return false
 }
 
 /** Corps du formulaire d'échange du code (RFC 6749 §4.1.3, RFC 7636 §4.5). */
-export function corpsEchangeCode(p: {
+export function corpsEchangeCode(parametres: {
   code: string
   redirectUri: string
   clientId: string
@@ -202,37 +204,37 @@ export function corpsEchangeCode(p: {
 }): URLSearchParams {
   return new URLSearchParams({
     grant_type: 'authorization_code',
-    code: p.code,
-    redirect_uri: p.redirectUri,
-    client_id: p.clientId,
-    code_verifier: p.verificateur,
+    code: parametres.code,
+    redirect_uri: parametres.redirectUri,
+    client_id: parametres.clientId,
+    code_verifier: parametres.verificateur,
   })
 }
 
 /** Corps du formulaire de renouvellement (RFC 6749 §6). */
-export function corpsRenouvellement(p: { renouvellement: string; clientId: string }): URLSearchParams {
+export function corpsRenouvellement(parametres: { renouvellement: string; clientId: string }): URLSearchParams {
   return new URLSearchParams({
     grant_type: 'refresh_token',
-    refresh_token: p.renouvellement,
-    client_id: p.clientId,
+    refresh_token: parametres.renouvellement,
+    client_id: parametres.clientId,
   })
 }
 
 /** Lit la réponse du point de jetons ; rejette une réponse sans jeton d'accès ou sans durée valide. */
 export function lireReponseJetons(reponse: unknown, maintenant: number): Jetons {
-  const r = (reponse ?? {}) as Record<string, unknown>
-  if (typeof r.access_token !== 'string' || r.access_token === '') {
+  const corps = (reponse ?? {}) as Record<string, unknown>
+  if (typeof corps.access_token !== 'string' || corps.access_token === '') {
     throw new Error('Réponse du fournisseur sans jeton d’accès')
   }
-  if (typeof r.token_type === 'string' && r.token_type.toLowerCase() !== 'bearer') {
+  if (typeof corps.token_type === 'string' && corps.token_type.toLowerCase() !== 'bearer') {
     throw new Error('Type de jeton inattendu')
   }
-  const duree = Number(r.expires_in)
+  const duree = Number(corps.expires_in)
   if (!Number.isFinite(duree) || duree <= 0) throw new Error('Durée de validité du jeton absente')
   return {
-    acces: r.access_token,
-    renouvellement: typeof r.refresh_token === 'string' && r.refresh_token !== '' ? r.refresh_token : null,
-    identite: typeof r.id_token === 'string' && r.id_token !== '' ? r.id_token : null,
+    acces: corps.access_token,
+    renouvellement: typeof corps.refresh_token === 'string' && corps.refresh_token !== '' ? corps.refresh_token : null,
+    identite: typeof corps.id_token === 'string' && corps.id_token !== '' ? corps.id_token : null,
     expireLe: maintenant + duree * 1000,
   }
 }
@@ -256,17 +258,17 @@ export function jetonValide(jetons: Jetons | null, maintenant: number): boolean 
 }
 
 /** URL de fin de session du fournisseur (OpenID Connect RP-Initiated Logout 1.0), ou null. */
-export function construireUrlDeconnexion(p: {
+export function construireUrlDeconnexion(parametres: {
   pointFinSession: string | null
   clientId: string
   jetonIdentite: string | null
   retourApresDeconnexion: string | null
 }): string | null {
-  if (!p.pointFinSession) return null
-  const url = new URL(p.pointFinSession)
-  url.searchParams.set('client_id', p.clientId)
-  if (p.jetonIdentite) url.searchParams.set('id_token_hint', p.jetonIdentite)
-  if (p.retourApresDeconnexion) url.searchParams.set('post_logout_redirect_uri', p.retourApresDeconnexion)
+  if (!parametres.pointFinSession) return null
+  const url = new URL(parametres.pointFinSession)
+  url.searchParams.set('client_id', parametres.clientId)
+  if (parametres.jetonIdentite) url.searchParams.set('id_token_hint', parametres.jetonIdentite)
+  if (parametres.retourApresDeconnexion) url.searchParams.set('post_logout_redirect_uri', parametres.retourApresDeconnexion)
   return url.toString()
 }
 

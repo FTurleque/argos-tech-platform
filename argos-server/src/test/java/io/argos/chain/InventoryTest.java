@@ -41,7 +41,7 @@ import io.quarkus.test.junit.QuarkusTest;
 class InventoryTest {
 
     @Inject
-    TestDb db;
+    TestDb baseDeTest;
 
     @Inject
     ProjectDirectory projects;
@@ -56,16 +56,16 @@ class InventoryTest {
 
     @BeforeEach
     void reset() {
-        db.reset();
+        baseDeTest.reset();
         workspace = Api.nouvelEspace("alice", "Équipe A");
     }
 
-    private static byte[] bytes(String s) {
-        return s.getBytes(StandardCharsets.UTF_8);
+    private static byte[] bytes(String texte) {
+        return texte.getBytes(StandardCharsets.UTF_8);
     }
 
     private io.restassured.specification.RequestSpecification member() {
-        return Api.en("alice");
+        return Api.enTantQue("alice");
     }
 
     @Test
@@ -74,13 +74,14 @@ class InventoryTest {
         String sbom = Fixtures.cyclonedx("1.5", "2026-11-10T00:00:00Z",
                 java.util.Collections.singletonList(new String[] {"a", "pkg:maven/org.exemple/a@1.0.0"}), List.of("a"));
         inventories.importSbom(project, bytes(sbom), "test");
-        String id = db.string("SELECT id::text FROM component");
+        String id = baseDeTest.string("SELECT id::text FROM component");
         inventories.importSbom(project, bytes(sbom), "test");
-        assertEquals(id, db.string("SELECT id::text FROM component"), "un composant inchangé garde son identité");
-        IllegalStateException e = org.junit.jupiter.api.Assertions.assertThrows(IllegalStateException.class,
-                () -> db.exec("INSERT INTO component(id, project_id, package_key, purl, version, import_id) SELECT gen_random_uuid(), "
+        assertEquals(id, baseDeTest.string("SELECT id::text FROM component"), "un composant inchangé garde son identité");
+        IllegalStateException erreur = org.junit.jupiter.api.Assertions.assertThrows(IllegalStateException.class,
+                () -> baseDeTest.exec(
+                        "INSERT INTO component(id, project_id, package_key, purl, version, import_id) SELECT gen_random_uuid(), "
                         + "project_id, package_key, purl, version, import_id FROM component"));
-        assertTrue(e.getCause().getMessage().contains("component_identity"));
+        assertTrue(erreur.getCause().getMessage().contains("component_identity"));
     }
 
     @Test
@@ -120,8 +121,8 @@ class InventoryTest {
                         + "\"version\":\"2.14.1\",\"cpe\":\"cpe:2.3:a:apache:log4j:2.14.1:*:*:*:*:*:*:*\"},"
                         + "{\"type\":\"library\",\"bom-ref\":\"a\",\"name\":\"a\",\"purl\":\"pkg:maven/org.exemple/a@1.0.0\"},"
                         + "{\"type\":\"library\",\"name\":\"illisible\",\"version\":\"3\",\"purl\":\"pas-un-purl\"}");
-        for (int i = 0; i < 120; i++) {
-            comps.append(",{\"type\":\"library\",\"name\":\"interne-").append(i).append("\"}");
+        for (int rang = 0; rang < 120; rang++) {
+            comps.append(",{\"type\":\"library\",\"name\":\"interne-").append(rang).append("\"}");
         }
         String sbom = "{\"bomFormat\":\"CycloneDX\",\"specVersion\":\"1.6\",\"version\":1,"
                 + "\"metadata\":{\"timestamp\":\"2026-11-16T00:00:00Z\",\"component\":{\"type\":\"application\",\"bom-ref\":\"root\",\"name\":\"outil\"}},"
@@ -134,7 +135,7 @@ class InventoryTest {
         assertEquals(122, result.ignored());
         assertEquals(100, result.ignoredComponents().size());
         assertEquals("log4j-core", result.ignoredComponents().get(0).name());
-        assertEquals(1, db.count("SELECT count(*) FROM component"), "l'inventaire reste fondé sur le PURL");
+        assertEquals(1, baseDeTest.count("SELECT count(*) FROM component"), "l'inventaire reste fondé sur le PURL");
         member().when().get("/api/v1/projects/" + project + "/inventory")
                 .then().statusCode(200)
                 .body("inventory.components", hasSize(1))
@@ -200,8 +201,8 @@ class InventoryTest {
     void inv04S1EtS2RepliSurLesManifestesPuisSbom() {
         RepositoryRef repo = new RepositoryRef("GITLAB", "groupe/front", "main", "sbom", "bom.json");
         UUID project = projects.create(workspace, "front", repo, List.of("package.json", "requirements.txt"));
-        StubServer.on("/gitlab/api/v4/projects/groupe%2Ffront/repository/files/package.json/raw?ref=main",
-                Stub.ok("{\"dependencies\":{\"lodash\":\"4.17.20\"}}"));
+        StubServer.programmer("/gitlab/api/v4/projects/groupe%2Ffront/repository/files/package.json/raw?ref=main",
+                Stub.succes("{\"dependencies\":{\"lodash\":\"4.17.20\"}}"));
 
         InventoryService.ImportResult fallback = inventories.refresh(project);
 
@@ -211,8 +212,8 @@ class InventoryTest {
                 .then().statusCode(200).body("inventory.origin", equalTo("MANIFEST"))
                 .body("inventory.components[0].purl", equalTo("pkg:npm/lodash@4.17.20"));
 
-        StubServer.on("/gitlab/api/v4/projects/groupe%2Ffront/jobs/artifacts/main/raw/bom.json?job=sbom",
-                Stub.ok(Fixtures.cyclonedx("1.6", "2026-11-15T00:00:00Z",
+        StubServer.programmer("/gitlab/api/v4/projects/groupe%2Ffront/jobs/artifacts/main/raw/bom.json?job=sbom",
+                Stub.succes(Fixtures.cyclonedx("1.6", "2026-11-15T00:00:00Z",
                         java.util.Collections.singletonList(new String[] {"l", "pkg:npm/lodash@4.17.21"}), List.of("l"))));
 
         InventoryService.ImportResult sbom = inventories.refresh(project);
@@ -245,25 +246,26 @@ class InventoryTest {
         UUID other = Api.nouvelEspace("jules", "Équipe B");
         UUID project = projects.create(other, "secret", null, null);
         member().when().get("/api/v1/projects/" + project + "/inventory").then().statusCode(404);
-        assertEquals(1, db.count("SELECT count(*) FROM refus_acces WHERE compte_id = '" + Api.compte("alice")
+        assertEquals(1, baseDeTest.count("SELECT count(*) FROM refus_acces WHERE compte_id = '" + Api.compte("alice")
                 + "' AND ressource = 'GET /api/v1/projects/" + project + "/inventory' AND motif = 'NON_MEMBRE'"));
     }
 
     @Test
     void contratGitLabEtGitHub() {
         RepositoryRef gitlab = new RepositoryRef("GITLAB", "groupe/api", "main", "cyclonedx", "reports/bom.json");
-        StubServer.on("/gitlab/api/v4/projects/groupe%2Fapi/jobs/artifacts/main/raw/reports/bom.json?job=cyclonedx",
-                Stub.ok("{\"bomFormat\":\"CycloneDX\"}"));
+        StubServer.programmer("/gitlab/api/v4/projects/groupe%2Fapi/jobs/artifacts/main/raw/reports/bom.json?job=cyclonedx",
+                Stub.succes("{\"bomFormat\":\"CycloneDX\"}"));
         assertEquals("{\"bomFormat\":\"CycloneDX\"}",
                 new String(repositoryFiles.latestSbom(gitlab).orElseThrow().contenu(), StandardCharsets.UTF_8));
         assertTrue(repositoryFiles.file(gitlab, "package.json").isEmpty(), "404 : fichier absent");
 
         RepositoryRef github = new RepositoryRef("GITHUB", "org/app", "main", null, "sbom/bom.json");
-        StubServer.on("/github/repos/org/app/contents/sbom/bom.json?ref=main", Stub.ok("{\"bomFormat\":\"CycloneDX\"}"));
+        StubServer.programmer("/github/repos/org/app/contents/sbom/bom.json?ref=main", Stub.succes("{\"bomFormat\":\"CycloneDX\"}"));
         assertTrue(repositoryFiles.latestSbom(github).isPresent());
         StubServer.Received request = StubServer.received("/github/repos/org/app/contents/sbom/bom.json").get(0);
         assertEquals(List.of("application/vnd.github.raw+json"), request.headers().get("Accept"));
         Map<String, List<String>> headers = StubServer.received("/gitlab/").get(0).headers();
-        assertTrue(headers.keySet().stream().noneMatch(h -> h.equalsIgnoreCase("PRIVATE-TOKEN")), "aucun jeton configuré, aucun envoyé");
+        assertTrue(headers.keySet().stream().noneMatch(entete -> entete.equalsIgnoreCase("PRIVATE-TOKEN")),
+                "aucun jeton configuré, aucun envoyé");
     }
 }

@@ -44,7 +44,7 @@ public class ActualitesWeb {
     /** Contenu externe cité tel quel, marqué non fiable (WEB-04). */
     public record ContenuExterne(String texte, String nature, boolean fiable) {
 
-        static ContenuExterne de(String texte) {
+        static ContenuExterne depuis(String texte) {
             return new ContenuExterne(texte, NATURE, false);
         }
     }
@@ -72,9 +72,9 @@ public class ActualitesWeb {
 
     /** Actualités visibles du compte, les plus récentes d'abord ; filtrées sur un espace s'il est donné. */
     public List<Actualite> lister(UUID compteId, UUID espaceId, int limite) {
-        int l = Math.min(Math.max(limite, 1), 200);
-        return base.executer(new Contexte(compteId, null, null), c -> {
-            try (PreparedStatement ps = c.prepareStatement("""
+        int limiteBornee = Math.min(Math.max(limite, 1), 200);
+        return base.executer(new Contexte(compteId, null, null), connexion -> {
+            try (PreparedStatement requete = connexion.prepareStatement("""
                     SELECT r.id, r.type, r.titre, r.lien, r.publie_le, r.recu_le, r.texte, r.empreinte FROM (
                         SELECT DISTINCT ON (a.empreinte) a.id, a.type, a.titre, a.lien, a.publie_le, a.recu_le, a.texte,
                                a.empreinte
@@ -82,21 +82,22 @@ public class ActualitesWeb {
                         ORDER BY a.empreinte, (a.espace_id IS NULL), a.recu_le, a.id) r
                     ORDER BY coalesce(r.publie_le, r.recu_le) DESC, r.id LIMIT ?
                     """)) {
-                ps.setObject(1, espaceId, Types.OTHER);
-                ps.setObject(2, espaceId, Types.OTHER);
-                ps.setInt(3, l);
-                return completer(c, lire(ps));
+                requete.setObject(1, espaceId, Types.OTHER);
+                requete.setObject(2, espaceId, Types.OTHER);
+                requete.setInt(3, limiteBornee);
+                return completer(connexion, lire(requete));
             }
         });
     }
 
     public Optional<Detail> detail(UUID id, UUID compteId) {
-        return base.executer(new Contexte(compteId, null, null), c -> {
-            try (PreparedStatement ps = c.prepareStatement(
+        return base.executer(new Contexte(compteId, null, null), connexion -> {
+            try (PreparedStatement requete = connexion.prepareStatement(
                     "SELECT a.id, a.type, a.titre, a.lien, a.publie_le, a.recu_le, a.texte, a.empreinte FROM actualite a WHERE a.id = ?")) {
-                ps.setObject(1, id);
-                return completer(c, lire(ps)).stream().findFirst()
-                        .map(a -> new Detail(a, new Resume(METHODE_RESUME, ContenuExterne.de(extrait(a.contenu().texte())))));
+                requete.setObject(1, id);
+                return completer(connexion, lire(requete)).stream().findFirst()
+                        .map(actualite -> new Detail(actualite,
+                                new Resume(METHODE_RESUME, ContenuExterne.depuis(extrait(actualite.contenu().texte())))));
             }
         });
     }
@@ -106,61 +107,61 @@ public class ActualitesWeb {
         if (texte == null || texte.isBlank()) {
             return "";
         }
-        String t = texte.strip();
-        if (t.length() <= RESUME_MAX) {
-            return t;
+        String texteNettoye = texte.strip();
+        if (texteNettoye.length() <= RESUME_MAX) {
+            return texteNettoye;
         }
-        int coupe = t.lastIndexOf(". ", RESUME_MAX);
-        return coupe > RESUME_MAX / 2 ? t.substring(0, coupe + 1) : t.substring(0, RESUME_MAX) + "…";
+        int coupe = texteNettoye.lastIndexOf(". ", RESUME_MAX);
+        return coupe > RESUME_MAX / 2 ? texteNettoye.substring(0, coupe + 1) : texteNettoye.substring(0, RESUME_MAX) + "…";
     }
 
     /** Actualité lue et son empreinte, qui regroupe les citations de tous les périmètres visibles. */
     private record Lue(Actualite actualite, String empreinte) {
     }
 
-    private static List<Lue> lire(PreparedStatement ps) throws SQLException {
+    private static List<Lue> lire(PreparedStatement requete) throws SQLException {
         List<Lue> actualites = new ArrayList<>();
-        try (ResultSet rs = ps.executeQuery()) {
-            while (rs.next()) {
-                actualites.add(new Lue(new Actualite(rs.getObject(1, UUID.class), rs.getString(2), rs.getString(3),
-                        rs.getString(4), instant(rs, 5), instant(rs, 6), ContenuExterne.de(rs.getString(7)),
-                        new ArrayList<>()), rs.getString(8)));
+        try (ResultSet resultat = requete.executeQuery()) {
+            while (resultat.next()) {
+                actualites.add(new Lue(new Actualite(resultat.getObject(1, UUID.class), resultat.getString(2), resultat.getString(3),
+                        resultat.getString(4), instant(resultat, 5), instant(resultat, 6), ContenuExterne.depuis(resultat.getString(7)),
+                        new ArrayList<>()), resultat.getString(8)));
             }
         }
         return actualites;
     }
 
     /** Ajoute les citations visibles de toutes les actualités visibles de même empreinte. */
-    private static List<Actualite> completer(Connection c, List<Lue> lues) throws SQLException {
+    private static List<Actualite> completer(Connection connexion, List<Lue> lues) throws SQLException {
         if (lues.isEmpty()) {
             return List.of();
         }
         Map<String, List<Citation>> parEmpreinte = new LinkedHashMap<>();
-        lues.forEach(l -> parEmpreinte.put(l.empreinte(), new ArrayList<>()));
-        Array empreintes = c.createArrayOf("bpchar", parEmpreinte.keySet().toArray());
-        try (PreparedStatement ps = c.prepareStatement("""
+        lues.forEach(lue -> parEmpreinte.put(lue.empreinte(), new ArrayList<>()));
+        Array empreintes = connexion.createArrayOf("bpchar", parEmpreinte.keySet().toArray());
+        try (PreparedStatement requete = connexion.prepareStatement("""
                 SELECT a.empreinte, w.id, w.libelle, w.portee, x.lien FROM actualite_source x
                 JOIN actualite a ON a.id = x.actualite_id
                 JOIN source_web w ON w.id = x.source_id
                 WHERE a.empreinte = ANY (?) ORDER BY x.recu_le, w.id
                 """)) {
-            ps.setArray(1, empreintes);
-            try (ResultSet rs = ps.executeQuery()) {
-                while (rs.next()) {
-                    parEmpreinte.get(rs.getString(1)).add(new Citation(rs.getObject(2, UUID.class), rs.getString(3),
-                            rs.getString(4), rs.getString(5)));
+            requete.setArray(1, empreintes);
+            try (ResultSet resultat = requete.executeQuery()) {
+                while (resultat.next()) {
+                    parEmpreinte.get(resultat.getString(1)).add(new Citation(resultat.getObject(2, UUID.class), resultat.getString(3),
+                            resultat.getString(4), resultat.getString(5)));
                 }
             }
         }
-        return lues.stream().map(l -> {
-            Actualite a = l.actualite();
-            return new Actualite(a.id(), a.type(), a.titre(), a.lien(), a.publieLe(), a.recuLe(), a.contenu(),
-                    List.copyOf(parEmpreinte.get(l.empreinte())));
+        return lues.stream().map(lue -> {
+            Actualite actualite = lue.actualite();
+            return new Actualite(actualite.id(), actualite.type(), actualite.titre(), actualite.lien(), actualite.publieLe(),
+                    actualite.recuLe(), actualite.contenu(), List.copyOf(parEmpreinte.get(lue.empreinte())));
         }).toList();
     }
 
-    private static Instant instant(ResultSet rs, int colonne) throws SQLException {
-        OffsetDateTime v = rs.getObject(colonne, OffsetDateTime.class);
-        return v == null ? null : v.toInstant();
+    private static Instant instant(ResultSet resultat, int colonne) throws SQLException {
+        OffsetDateTime valeur = resultat.getObject(colonne, OffsetDateTime.class);
+        return valeur == null ? null : valeur.toInstant();
     }
 }

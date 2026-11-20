@@ -45,7 +45,7 @@ class CollecteWebTest {
     static final String HTML = "text/html; charset=utf-8";
 
     @Inject
-    TestDb db;
+    TestDb baseDeTest;
 
     @Inject
     CollecteWeb collecte;
@@ -55,7 +55,7 @@ class CollecteWebTest {
 
     @BeforeEach
     void reset() {
-        db.reset();
+        baseDeTest.reset();
     }
 
     private static String page(String texte) {
@@ -63,13 +63,13 @@ class CollecteWebTest {
     }
 
     private static UUID ajouterPage(String user, String chemin) {
-        return UUID.fromString(Api.en(user).contentType(ContentType.JSON)
+        return UUID.fromString(Api.enTantQue(user).contentType(ContentType.JSON)
                 .body(Map.of("portee", "PERSONNELLE", "type", "PAGE", "adresse", StubServer.base() + chemin))
                 .when().post("/api/v1/veille-web/sources").then().statusCode(201).extract().path("id"));
     }
 
     private void rendreEchue(UUID id) {
-        db.exec("UPDATE source_web SET prochaine_collecte_le = now() - interval '1 minute' WHERE id = '" + id + "'");
+        baseDeTest.exec("UPDATE source_web SET prochaine_collecte_le = now() - interval '1 minute' WHERE id = '" + id + "'");
     }
 
     // ------------------------------------------------------------------ course sur une même page
@@ -81,9 +81,9 @@ class CollecteWebTest {
      */
     @Test
     void collecteDUneMemeSourceSerialisee() throws Exception {
-        StubServer.on("/course", new Stub(200, page("Version 1.0"), Map.of("Content-Type", HTML), 0));
+        StubServer.programmer("/course", new Stub(200, page("Version 1.0"), Map.of("Content-Type", HTML), 0));
         UUID id = ajouterPage("alice", "/course");
-        StubServer.on("/course", new Stub(200, page("Version 1.1"), Map.of("Content-Type", HTML), 600));
+        StubServer.programmer("/course", new Stub(200, page("Version 1.1"), Map.of("Content-Type", HTML), 600));
         rendreEchue(id);
 
         int requetes = StubServer.received("/course").size();
@@ -93,14 +93,14 @@ class CollecteWebTest {
 
         RegleViolee refus = assertThrows(RegleViolee.class, () -> collecte.collecter(id));
         assertEquals("COLLECTE_EN_COURS", refus.code());
-        Api.en("alice").when().post("/api/v1/veille-web/sources/" + id + "/collectes").then()
+        Api.enTantQue("alice").when().post("/api/v1/veille-web/sources/" + id + "/collectes").then()
                 .statusCode(409).body("code", equalTo("COLLECTE_EN_COURS"));
         assertEquals(List.of(), collecte.collecterSourcesEchues(), "source en cours ignorée par le planificateur");
 
         CollecteWeb.Rapport rapport = premiere.get(10, TimeUnit.SECONDS);
         assertEquals("ACTIVE", rapport.etat());
         assertEquals(1, rapport.nouvelles());
-        assertEquals(1, db.count("SELECT count(*) FROM actualite WHERE type = 'CHANGEMENT_PAGE'"));
+        assertEquals(1, baseDeTest.count("SELECT count(*) FROM actualite WHERE type = 'CHANGEMENT_PAGE'"));
         // Le verrou est libéré : la source est de nouveau collectable, sans nouveau changement.
         assertEquals(0, collecte.collecter(id).nouvelles());
     }
@@ -108,7 +108,7 @@ class CollecteWebTest {
     /** Le planificateur ne collecte que les sources échues ; une collecte repousse l'échéance. */
     @Test
     void planificateurNeCollecteQueLesSourcesEchues() {
-        StubServer.on("/echeance", new Stub(200, page("A"), Map.of("Content-Type", HTML), 0));
+        StubServer.programmer("/echeance", new Stub(200, page("A"), Map.of("Content-Type", HTML), 0));
         UUID id = ajouterPage("alice", "/echeance");
         assertEquals(List.of(), collecte.collecterSourcesEchues());
         rendreEchue(id);
@@ -131,9 +131,9 @@ class CollecteWebTest {
 
     @Test
     void passageBorneEnNombreEtEnDuree() {
-        for (int i = 0; i < 3; i++) {
-            StubServer.on("/borne" + i, new Stub(200, page("B" + i), Map.of("Content-Type", HTML), 0));
-            rendreEchue(ajouterPage("alice", "/borne" + i));
+        for (int indice = 0; indice < 3; indice++) {
+            StubServer.programmer("/borne" + indice, new Stub(200, page("B" + indice), Map.of("Content-Type", HTML), 0));
+            rendreEchue(ajouterPage("alice", "/borne" + indice));
         }
         CollecteWeb instance = ClientProxy.unwrap(collecte);
         int sourcesParPassage = instance.sourcesParPassage;
@@ -149,9 +149,9 @@ class CollecteWebTest {
             long[] appels = {0};
             // Chaque lecture de l'horloge avance de 3 minutes : la deuxième source dépasserait la durée.
             instance.horloge = () -> debut.plus(Duration.ofMinutes(3 * appels[0]++));
-            db.exec("UPDATE source_web SET prochaine_collecte_le = now() - interval '1 minute'");
+            baseDeTest.exec("UPDATE source_web SET prochaine_collecte_le = now() - interval '1 minute'");
             assertEquals(1, collecte.collecterSourcesEchues().size(), "aucune source commencée après la durée maximale");
-            assertEquals(2, db.count("SELECT count(*) FROM source_web WHERE prochaine_collecte_le <= now()"),
+            assertEquals(2, baseDeTest.count("SELECT count(*) FROM source_web WHERE prochaine_collecte_le <= now()"),
                     "sources restantes toujours échues, reprises au passage suivant");
         } finally {
             instance.sourcesParPassage = sourcesParPassage;
@@ -167,7 +167,7 @@ class CollecteWebTest {
     void premiereCollecteEnEchecLaisseLaSourceEnErreur() {
         UUID alice = Api.compte("alice");
         UUID id = UUID.randomUUID();
-        db.exec("""
+        baseDeTest.exec("""
                 INSERT INTO source_web (id, portee, proprietaire_id, type, adresse, libelle, cree_par)
                 VALUES ('%1$s', 'PERSONNELLE', '%2$s', 'FLUX', 'https://exemple.test/flux', 'Flux', '%2$s')
                 """.formatted(id, alice));
@@ -175,16 +175,16 @@ class CollecteWebTest {
                 "text/html", "<html><body>pas un flux</body></html>".getBytes(StandardCharsets.UTF_8));
 
         CollecteWeb.Rapport rapport;
-        try (StockActualites.Verrou v = stock.verrouiller(id).orElseThrow()) {
+        try (StockActualites.Verrou verrou = stock.verrouiller(id).orElseThrow()) {
             rapport = collecte.premiereCollecte(id, pasUnFlux);
         }
 
         assertEquals("EN_ERREUR", rapport.etat());
-        assertEquals(1, db.count("SELECT count(*) FROM source_web WHERE id = '" + id + "' AND etat = 'EN_ERREUR'"
+        assertEquals(1, baseDeTest.count("SELECT count(*) FROM source_web WHERE id = '" + id + "' AND etat = 'EN_ERREUR'"
                 + " AND echecs_consecutifs = 1 AND derniere_erreur = '" + RecuperationRefusee.Motif.FLUX_INVALIDE.name()
                 + " : " + RecuperationRefusee.Motif.FLUX_INVALIDE.message().replace("'", "''") + "'"
                 + " AND prochaine_collecte_le > now() + interval '50 minutes'"));
-        assertEquals(0, db.count("SELECT count(*) FROM actualite"));
+        assertEquals(0, baseDeTest.count("SELECT count(*) FROM actualite"));
     }
 
     // ------------------------------------------------------------------ forme canonique des adresses
@@ -205,19 +205,19 @@ class CollecteWebTest {
     /** Une même adresse écrite autrement (casse, fragment) ne contourne pas l'unicité. */
     @Test
     void uniciteSurLAdresseCanonique() {
-        StubServer.on("/unique.xml", new Stub(200, """
+        StubServer.programmer("/unique.xml", new Stub(200, """
                 <?xml version="1.0" encoding="utf-8"?>
                 <feed xmlns="http://www.w3.org/2005/Atom"><title>U</title><id>urn:u</id><updated>2026-11-15T10:00:00Z</updated></feed>
                 """, Map.of("Content-Type", "application/atom+xml"), 0));
         String base = StubServer.base();
         String variante = base.replace("http://localhost", "HTTP://LOCALHOST") + "/unique.xml#haut";
-        Api.en("alice").contentType(ContentType.JSON)
+        Api.enTantQue("alice").contentType(ContentType.JSON)
                 .body(Map.of("portee", "PERSONNELLE", "type", "FLUX", "adresse", base + "/unique.xml"))
                 .when().post("/api/v1/veille-web/sources").then().statusCode(201)
                 .body("adresse", equalTo(base + "/unique.xml"));
-        Api.en("alice").contentType(ContentType.JSON)
+        Api.enTantQue("alice").contentType(ContentType.JSON)
                 .body(Map.of("portee", "PERSONNELLE", "type", "FLUX", "adresse", variante))
                 .when().post("/api/v1/veille-web/sources").then().statusCode(409).body("code", equalTo("SOURCE_EXISTANTE"));
-        assertTrue(db.count("SELECT count(*) FROM source_web") == 1);
+        assertTrue(baseDeTest.count("SELECT count(*) FROM source_web") == 1);
     }
 }

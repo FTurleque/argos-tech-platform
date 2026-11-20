@@ -47,12 +47,12 @@ function aller(numero: number, bloque: boolean): void {
         </tr>
       </thead>
       <tbody>
-        <tr v-for="c in page.composants" :key="c.cle" data-composant-inventorie>
-          <td>{{ c.nom ?? 'non renseigné' }}</td>
-          <td>{{ c.version ?? 'non renseignée' }}</td>
-          <td class="purl">{{ c.purl ?? 'non renseigné' }}</td>
-          <td>{{ c.dependance }}</td>
-          <td v-if="afficherDepots" data-champ="depots-composant">{{ libelleDepotsComposant(c.depots) }}</td>
+        <tr v-for="composant in page.composants" :key="composant.cle" data-composant-inventorie>
+          <td>{{ composant.nom ?? 'non renseigné' }}</td>
+          <td>{{ composant.version ?? 'non renseignée' }}</td>
+          <td class="purl">{{ composant.purl ?? 'non renseigné' }}</td>
+          <td>{{ composant.dependance }}</td>
+          <td v-if="afficherDepots" data-champ="depots-composant">{{ libelleDepotsComposant(composant.depots) }}</td>
         </tr>
       </tbody>
     </table>

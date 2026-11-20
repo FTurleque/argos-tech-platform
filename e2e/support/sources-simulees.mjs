@@ -44,12 +44,12 @@ function lireCorps(req) {
   return new Promise((resoudre, rejeter) => {
     const morceaux = []
     let taille = 0
-    req.on('data', (m) => {
-      taille += m.length
+    req.on('data', (morceau) => {
+      taille += morceau.length
       if (taille > TAILLE_MAX_CORPS) {
         rejeter(new Error('corps trop volumineux'))
         req.destroy()
-      } else morceaux.push(m)
+      } else morceaux.push(morceau)
     })
     req.on('end', () => resoudre(Buffer.concat(morceaux).toString('utf8')))
     req.on('error', rejeter)
@@ -59,8 +59,8 @@ function lireCorps(req) {
 /** Index modified_id.csv de l'export OSV : « date,identifiant », du plus récent au plus ancien. */
 function indexOsv() {
   return [...etat.osv]
-    .sort((a, b) => b.modified.localeCompare(a.modified))
-    .map((a) => `${a.modified},${a.id}`)
+    .sort((premier, second) => second.modified.localeCompare(premier.modified))
+    .map((avis) => `${avis.modified},${avis.id}`)
     .join('\n')
 }
 
@@ -82,7 +82,7 @@ async function traiter(req, res) {
   if (/^\/osv-export\/[^/]+\/modified_id\.csv$/.test(url.pathname)) return repondre(res, 200, indexOsv(), 'text/csv')
   const vuln = /^\/osv-api\/v1\/vulns\/([^/]+)$/.exec(url.pathname)
   if (vuln) {
-    const avis = etat.osv.find((a) => a.id === decodeURIComponent(vuln[1]))
+    const avis = etat.osv.find((candidat) => candidat.id === decodeURIComponent(vuln[1]))
     return avis ? repondre(res, 200, fichier(avis.fichier)) : repondre(res, 404, '{"code":5,"message":"Bug not found."}')
   }
   if (url.pathname === '/kev.json') return repondre(res, 200, '{"title":"KEV simulé","count":0,"vulnerabilities":[]}')
@@ -101,7 +101,7 @@ async function traiter(req, res) {
 // adresses de la boucle locale, jamais sur une interface réseau.
 for (const hote of ['127.0.0.1', '::1']) {
   createServer((req, res) => {
-    traiter(req, res).catch((e) => repondre(res, 400, JSON.stringify({ message: String(e?.message ?? e) })))
+    traiter(req, res).catch((erreur) => repondre(res, 400, JSON.stringify({ message: String(erreur?.message ?? erreur) })))
   }).listen(PORT, hote, () => {
     console.log(`sources simulées sur ${hote}:${PORT}`)
   })

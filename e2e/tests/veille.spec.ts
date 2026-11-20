@@ -33,11 +33,12 @@ async function ouvrirMaVeille(page: Page, id: string): Promise<void> {
 /** Faits restitués par chaque article : champs, mentions et liens, dans l'ordre du document. */
 async function faits(page: Page): Promise<string[][]> {
   return articles(page).evaluateAll((els) =>
-    els.map((a) => [
-      ...[...a.querySelectorAll('[data-champ], [data-mention]')].map(
-        (e) => `${e.getAttribute('data-champ') ?? e.getAttribute('data-mention')}=${(e.textContent ?? '').replace(/\s+/g, ' ').trim()}`,
+    els.map((article) => [
+      ...[...article.querySelectorAll('[data-champ], [data-mention]')].map(
+        (champ) => `${champ.getAttribute('data-champ') ?? champ.getAttribute('data-mention')}=`
+          + `${(champ.textContent ?? '').replace(/\s+/g, ' ').trim()}`,
       ),
-      ...[...a.querySelectorAll('a[href]')].map((l) => `lien=${l.getAttribute('href')}`),
+      ...[...article.querySelectorAll('a[href]')].map((lien) => `lien=${lien.getAttribute('href')}`),
     ]),
   )
 }
@@ -59,7 +60,7 @@ test('3.4, 3.9 (PRF-02, PRF-02-S3) : deux profils actifs et un abonnement person
   await ouvrirMaVeille(page, 'classique')
   const reponse = await veilleDe('jules')
   expect(reponse.profilsActifs).toEqual(DEUX_PROFILS)
-  const attendus = reponse.elements.map((e) => e.titre)
+  const attendus = reponse.elements.map((element) => element.titre)
   expect([...attendus].sort()).toEqual([...UNION_JULES].sort())
   expect(new Set(attendus).size, 'aucun doublon dans la réponse du serveur').toBe(attendus.length)
   await expect(page.getByText('Profils actifs : Développeur, Expert métier')).toBeVisible()
@@ -67,7 +68,7 @@ test('3.4, 3.9 (PRF-02, PRF-02-S3) : deux profils actifs et un abonnement person
   expect(await titres(page)).toEqual(attendus)
 
   // Avis du profil developpeur, retenu aussi par l'abonnement personnel : une occurrence, rubrique et deux origines.
-  const commun = reponse.elements.find((e) => e.titre === VEILLE.avisCommun)!
+  const commun = reponse.elements.find((element) => element.titre === VEILLE.avisCommun)!
   expect(commun.profils).toEqual(['developpeur'])
   expect(commun.abonnements).toHaveLength(1)
   const avisCommun = article(page, VEILLE.avisCommun)
@@ -111,8 +112,8 @@ test('3.9, AFF-02-S2 (PRF-02-S4) : un utilisateur d’un autre espace ne voit ri
   await expect(page.locator('[data-mise-en-page="classique"]')).toBeVisible()
 
   const reponse = await veilleDe('karim')
-  expect(reponse.elements.map((e) => e.titre).sort()).toEqual([VEILLE.avisAbonne, VEILLE.avisEspaceB].sort())
-  expect(await titres(page)).toEqual(reponse.elements.map((e) => e.titre))
+  expect(reponse.elements.map((element) => element.titre).sort()).toEqual([VEILLE.avisAbonne, VEILLE.avisEspaceB].sort())
+  expect(await titres(page)).toEqual(reponse.elements.map((element) => element.titre))
   await expect(article(page, VEILLE.avisAbonne).locator('[data-champ="projet"]')).toHaveText([VEILLE.projetB])
   const texte = await page.locator('body').innerText()
   for (const absent of [VEILLE.avisCommun, VEILLE.ficheIa, VEILLE.ficheExpert, VEILLE.ficheEnAttente, VEILLE.projetA]) {
@@ -130,7 +131,7 @@ test('3.9, AFF-02-S2 (PRF-02-S4) : un utilisateur d’un autre espace ne voit ri
 test('2.4 (AFF-02-S1, AFF-02-S2) : la même veille réelle dans les quatre mises en page', async ({ page }) => {
   await fixerPreferences('jules', DEUX_PROFILS, 'classique')
   const reponse = await veilleDe('jules')
-  const liens = reponse.elements.map((e) => e.lien).filter((l): l is string => !!l)
+  const liens = reponse.elements.map((element) => element.lien).filter((lien): lien is string => !!lien)
   expect(liens.length, 'liens officiels des fiches').toBe(2)
 
   await seConnecterDepuis(page, '/affichage', 'jules')
@@ -140,18 +141,18 @@ test('2.4 (AFF-02-S1, AFF-02-S2) : la même veille réelle dans les quatre mises
     // Changement de mise en page dans l'IHM (classique, puis journal, fantaisie, gazette), puis « Ma veille ».
     await choisirMiseEnPage(page, id)
     await ouvrirMaVeille(page, id)
-    expect(await titres(page), id).toEqual(reponse.elements.map((e) => e.titre))
+    expect(await titres(page), id).toEqual(reponse.elements.map((element) => element.titre))
     parMiseEnPage[id] = await faits(page)
     // AFF-01 : la veille réelle n'est jamais annoncée comme un exemple.
     await expect(miseEnPage(page).locator('[data-exemple]')).toHaveCount(0)
     // ADR-0023 : la fiche au résumé produit par l'IA porte la mention dans chaque mise en page.
     await expect(article(page, VEILLE.ficheIa).locator('[data-mention="ia"]'), id).toBeVisible()
     // Liens externes : http(s) seulement, nouvelle fenêtre, sans référent ni accès à la fenêtre d'origine.
-    const hrefs = await miseEnPage(page).locator('[data-element] a[href]').evaluateAll((as) =>
-      as.map((a) => ({ href: a.getAttribute('href'), rel: a.getAttribute('rel'), target: a.getAttribute('target') })),
+    const hrefs = await miseEnPage(page).locator('[data-element] a[href]').evaluateAll((ancres) =>
+      ancres.map((ancre) => ({ href: ancre.getAttribute('href'), rel: ancre.getAttribute('rel'), target: ancre.getAttribute('target') })),
     )
-    expect(hrefs.map((h) => h.href), id).toEqual(liens)
-    for (const h of hrefs) expect(h, id).toMatchObject({ rel: 'noopener noreferrer', target: '_blank' })
+    expect(hrefs.map((attributs) => attributs.href), id).toEqual(liens)
+    for (const attributs of hrefs) expect(attributs, id).toMatchObject({ rel: 'noopener noreferrer', target: '_blank' })
     // AFF-02-S2 : l'impact sur le projet de l'espace B n'est restitué dans aucune mise en page.
     const texte = await page.locator('body').innerText()
     for (const absent of JAMAIS_POUR_JULES) expect(texte, id).not.toContain(absent)
@@ -177,7 +178,7 @@ test('5.2 (partie web) : « gazette » choisie sur le web, « Ma veille » affic
 
   const reponse = await veilleDe('jules')
   expect(reponse.profilsActifs).toEqual(DEUX_PROFILS)
-  expect(await titres(page)).toEqual(reponse.elements.map((e) => e.titre))
+  expect(await titres(page)).toEqual(reponse.elements.map((element) => element.titre))
   expect([...(await titres(page))].sort()).toEqual([...UNION_JULES].sort())
   await expect(article(page, VEILLE.avisCommun).locator('[data-champ="rubrique"]')).toHaveText(['Sécurité'])
   await expect(article(page, VEILLE.ficheIa).locator('[data-champ="rubrique"]')).toHaveText(['Réglementation'])
@@ -196,16 +197,16 @@ for (const id of MISES_EN_PAGE) {
     // RGAA 3.2 : contraste de chaque texte rendu sur son fond effectif.
     const mesures = await page.evaluate(mesurerContrastes)
     expect(mesures.length).toBeGreaterThan(20)
-    const ecarts = mesures.filter((m) => m.rapport < m.seuil)
+    const ecarts = mesures.filter((mesure) => mesure.rapport < mesure.seuil)
     expect(ecarts, JSON.stringify(ecarts, null, 1)).toEqual([])
-    test.info().annotations.push({ type: 'contraste minimal', description: String(Math.min(...mesures.map((m) => m.rapport))) })
+    test.info().annotations.push({ type: 'contraste minimal', description: String(Math.min(...mesures.map((mesure) => mesure.rapport))) })
 
     // RGAA 12.8, 10.7, 3.3 : ordre de tabulation dans la mise en page = ordre du document ; focus visible et contrasté.
-    const liens = await racine.locator('a[href]').evaluateAll((as) => as.map((a) => a.getAttribute('href')))
+    const liens = await racine.locator('a[href]').evaluateAll((ancres) => ancres.map((ancre) => ancre.getAttribute('href')))
     expect(liens.length).toBeGreaterThan(0)
     const parcourus: string[] = []
     let contrasteFocus = Infinity
-    for (let i = 0; i < 80; i++) {
+    for (let tabulation = 0; tabulation < 80; tabulation++) {
       await page.keyboard.press('Tab')
       const focus = await page.evaluate(etatFocus)
       if (!focus?.dansMiseEnPage) {
@@ -226,9 +227,9 @@ for (const id of MISES_EN_PAGE) {
     await expect(racine).toHaveRole('region')
     await expect(racine).toHaveAccessibleName(/.+/)
     await expect(racine.getByRole('article')).toHaveCount(reponse.elements.length)
-    for (const e of reponse.elements) {
-      await expect(racine.getByRole('article', { name: e.titre, exact: true })).toHaveCount(1)
-      await expect(racine.getByRole('heading', { name: e.titre, exact: true })).toHaveCount(1)
+    for (const element of reponse.elements) {
+      await expect(racine.getByRole('article', { name: element.titre, exact: true })).toHaveCount(1)
+      await expect(racine.getByRole('heading', { name: element.titre, exact: true })).toHaveCount(1)
     }
     for (const lien of await racine.getByRole('link').all()) {
       await expect(lien).toHaveAccessibleName(/\(nouvelle fenêtre\)$/)

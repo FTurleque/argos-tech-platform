@@ -36,7 +36,7 @@ public class UtilisateurCourant {
     public IdentiteOidc identite() {
         String nom = premier(jeton.getClaim("name"), jeton.getClaim("preferred_username"));
         Object verifie = jeton.getClaim("email_verified");
-        boolean emailVerifie = verifie instanceof Boolean b ? b : Boolean.parseBoolean(String.valueOf(verifie));
+        boolean emailVerifie = verifie instanceof Boolean booleen ? booleen : Boolean.parseBoolean(String.valueOf(verifie));
         Object email = jeton.getClaim("email");
         return new IdentiteOidc(jeton.getSubject(), nom, email == null ? null : String.valueOf(email), emailVerifie);
     }
@@ -62,9 +62,9 @@ public class UtilisateurCourant {
     }
 
     private static String premier(Object... valeurs) {
-        for (Object v : valeurs) {
-            if (v != null && !String.valueOf(v).isBlank()) {
-                return String.valueOf(v);
+        for (Object valeur : valeurs) {
+            if (valeur != null && !String.valueOf(valeur).isBlank()) {
+                return String.valueOf(valeur);
             }
         }
         return null;

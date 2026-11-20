@@ -43,7 +43,7 @@ class RappelsOpportunitesTest {
     private static final LocalDate JOUR = LocalDate.of(2027, 3, 1);
 
     @Inject
-    TestDb db;
+    TestDb baseDeTest;
 
     @Inject
     RappelsOpportunites rappels;
@@ -53,9 +53,9 @@ class RappelsOpportunitesTest {
 
     @BeforeEach
     void preparer() {
-        db.reset();
-        ArtisteFixtures.reinitialiser(db, "hugo", "jules");
-        StubServer.on(JEU, Stub.ok(reponse(
+        baseDeTest.reset();
+        ArtisteFixtures.reinitialiser(baseDeTest, "hugo", "jules");
+        StubServer.programmer(JEU, Stub.succes(reponse(
                 enregistrement("AAP-J7", "Résidence arts visuels", "Arts visuels", "Occitanie", JOUR.plusDays(7)),
                 enregistrement("AAP-J30", "Aide à la création", "Arts visuels", "France entière", JOUR.plusDays(30)),
                 enregistrement("AAP-SANS", "Appel sans date", "Arts visuels", "Occitanie", null),
@@ -74,23 +74,23 @@ class RappelsOpportunitesTest {
 
         assertEquals(2, crees.size(), "J-7 pour la résidence, J-30 pour l'aide nationale");
         String compte = Api.compte("hugo").toString();
-        assertEquals(1, db.count("SELECT count(*) FROM alerte WHERE nature = 'RAPPEL' AND compte_id = '" + compte
+        assertEquals(1, baseDeTest.count("SELECT count(*) FROM alerte WHERE nature = 'RAPPEL' AND compte_id = '" + compte
                 + "' AND titre = 'Date limite dans 7 jours (2027-03-08) : Résidence arts visuels'"));
-        String contenu = db.string("SELECT contenu::text FROM alerte WHERE compte_id = '" + compte
+        String contenu = baseDeTest.string("SELECT contenu::text FROM alerte WHERE compte_id = '" + compte
                 + "' AND titre LIKE '%Résidence arts visuels'");
         assertTrue(contenu.contains("https://www.culture.gouv.fr/AAP-J7"), contenu);
         assertTrue(contenu.contains("ne se prononce pas sur votre éligibilité"), contenu);
         List<Mail> mails = mailbox.getMailsSentTo("hugo@argos.test");
-        assertTrue(mails.stream().anyMatch(m -> m.getText().contains("2027-03-08")
-                && m.getText().contains("https://www.culture.gouv.fr/AAP-J7")),
+        assertTrue(mails.stream().anyMatch(mail -> mail.getText().contains("2027-03-08")
+                && mail.getText().contains("https://www.culture.gouv.fr/AAP-J7")),
                 () -> mails.stream().map(Mail::getText).toList().toString());
-        Api.en("hugo").queryParam("canal", "EMAIL").when().get("/api/v1/alertes").then().statusCode(200);
+        Api.enTantQue("hugo").queryParam("canal", "EMAIL").when().get("/api/v1/alertes").then().statusCode(200);
 
         assertTrue(rappels.executer(JOUR, Instant.now()).isEmpty(), "aucun second message pour le même rappel");
         assertTrue(rappels.executer(JOUR.plusDays(1), Instant.now()).isEmpty(), "J-6 : pas un jour de rappel");
         assertEquals(1, rappels.executer(JOUR.plusDays(6), Instant.now()).size(), "J-1");
         assertEquals(1, rappels.executer(JOUR.plusDays(23), Instant.now()).size(), "J-7 de l'aide nationale");
-        assertEquals(0, db.count("SELECT count(*) FROM alerte WHERE titre LIKE '%sans date%' OR titre LIKE '%Bretagne%'"),
+        assertEquals(0, baseDeTest.count("SELECT count(*) FROM alerte WHERE titre LIKE '%sans date%' OR titre LIKE '%Bretagne%'"),
                 "ni date à confirmer, ni territoire non suivi");
     }
 
@@ -98,11 +98,11 @@ class RappelsOpportunitesTest {
     @Test
     void lesJoursDeRappelSontParametrables() {
         activer("jules", "artiste");
-        Api.en("jules").contentType(ContentType.JSON)
+        Api.enTantQue("jules").contentType(ContentType.JSON)
                 .body(Map.of("disciplines", List.of("arts-visuels"), "territoires", List.of("occitanie"),
                         "rappelsJours", List.of(3, 3, 10)))
                 .when().put("/api/v1/profils/artiste/suivis").then().statusCode(200);
-        Api.en("jules").when().get("/api/v1/profils/artiste/suivis").then().statusCode(200)
+        Api.enTantQue("jules").when().get("/api/v1/profils/artiste/suivis").then().statusCode(200)
                 .body("rappelsJours", org.hamcrest.Matchers.contains(10, 3))
                 .body("rappelsParDefaut", org.hamcrest.Matchers.equalTo(false));
 

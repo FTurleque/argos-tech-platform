@@ -53,9 +53,9 @@ public class SynchronisationPlanifiee {
     public Bilan synchroniserToutes(Instant instant) {
         try {
             echeances.fire(new EcheanceSynchronisation(instant));
-        } catch (RuntimeException e) {
+        } catch (RuntimeException erreur) {
             // Le rafraîchissement des index n'empêche jamais la synchronisation (COL-04-S3, COL-09-S5).
-            LOG.warnf("rafraîchissement des index d'enrichissement en échec : %s", e.getMessage());
+            LOG.warnf("rafraîchissement des index d'enrichissement en échec : %s", erreur.getMessage());
         }
         List<SourceSynchronizer.SyncReport> rapports = new ArrayList<>();
         List<String> sautees = new ArrayList<>();
@@ -68,9 +68,9 @@ public class SynchronisationPlanifiee {
                 } else {
                     rapports.add(rapport);
                 }
-            } catch (RuntimeException e) {
+            } catch (RuntimeException erreur) {
                 enErreur.add(source);
-                LOG.errorf(e, "synchronisation planifiée de la source %s interrompue", source);
+                LOG.errorf(erreur, "synchronisation planifiée de la source %s interrompue", source);
             }
         }
         LOG.infof("synchronisation planifiée du %s : %d source(s) synchronisée(s), sautées %s, en erreur %s : %s",

@@ -6,8 +6,8 @@ const assert = require('node:assert/strict');
 const { creerPoste } = require('../src/poste');
 const preferences = require('../src/preferences');
 
-const ID = '3f2b8c1e-4d5a-4b6c-8d7e-9f0a1b2c3d4e';
-const ALERTE = { id: ID, gravite: 'CRITICAL', projets: 3 };
+const ID_ALERTE = '3f2b8c1e-4d5a-4b6c-8d7e-9f0a1b2c3d4e';
+const ALERTE = { id: ID_ALERTE, gravite: 'CRITICAL', projets: 3 };
 
 function doublures({ supportees = true, reglages = { ...preferences.DEFAUTS }, demarrageDisponible } = {}) {
   const etat = { notifications: [], compteurs: [], ouvertures: [], enregistres: [], reglages };
@@ -18,7 +18,7 @@ function doublures({ supportees = true, reglages = { ...preferences.DEFAUTS }, d
       this.affichee = false;
       etat.notifications.push(this);
     }
-    on(evenement, fn) { this.ecouteurs[evenement] = fn; }
+    on(evenement, ecouteur) { this.ecouteurs[evenement] = ecouteur; }
     show() { this.affichee = true; }
     cliquer() { this.ecouteurs.click?.(); }
   }
@@ -26,8 +26,8 @@ function doublures({ supportees = true, reglages = { ...preferences.DEFAUTS }, d
     notificationsSupportees: () => supportees,
     creerNotification: (options) => new NotificationFactice(options),
     reglages: () => etat.reglages,
-    enregistrerReglages: (r) => { etat.reglages = r; etat.enregistres.push(r); },
-    afficherCompteur: (n) => etat.compteurs.push(n),
+    enregistrerReglages: (nouveaux) => { etat.reglages = nouveaux; etat.enregistres.push(nouveaux); },
+    afficherCompteur: (nombre) => etat.compteurs.push(nombre),
     ouvrirAlerte: (id) => etat.ouvertures.push(id),
     demarrageDisponible,
   });
@@ -59,7 +59,7 @@ test('NOT-02-S1 : un clic sur la notification ouvre la fenêtre sur cette alerte
   poste.alerte(ALERTE);
   assert.equal(poste.notificationsEnCours(), 1);
   etat.notifications[0].cliquer();
-  assert.deepEqual(etat.ouvertures, [ID]);
+  assert.deepEqual(etat.ouvertures, [ID_ALERTE]);
   assert.equal(poste.notificationsEnCours(), 0);
 });
 

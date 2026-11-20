@@ -70,16 +70,16 @@ public class InventoryStore {
             return;
         }
         String origin = remplacements.get(remplacements.size() - 1).origin();
-        try (Connection c = dataSource.getConnection()) {
-            verrouiller(c, projectId);
-            for (Remplacement r : remplacements) {
+        try (Connection connexion = dataSource.getConnection()) {
+            verrouiller(connexion, projectId);
+            for (Remplacement remplacement : remplacements) {
                 UUID importId = UUID.randomUUID();
-                ecrireEntete(c, projectId, r, importId);
-                ecrireOccurrences(c, projectId, r, importId);
+                ecrireEntete(connexion, projectId, remplacement, importId);
+                ecrireOccurrences(connexion, projectId, remplacement, importId);
             }
-            reconstituer(c, projectId);
-        } catch (SQLException e) {
-            throw new IllegalStateException("enregistrement de l'inventaire impossible", e);
+            reconstituer(connexion, projectId);
+        } catch (SQLException erreur) {
+            throw new IllegalStateException("enregistrement de l'inventaire impossible", erreur);
         }
         replaced.fire(new InventoryReplaced(projectId, origin));
     }
@@ -93,19 +93,19 @@ public class InventoryStore {
     @Transactional
     public boolean detacherDepot(UUID projectId, UUID repositoryId) {
         boolean retire;
-        try (Connection c = dataSource.getConnection()) {
-            verrouiller(c, projectId);
+        try (Connection connexion = dataSource.getConnection()) {
+            verrouiller(connexion, projectId);
             // Les occurrences et le dernier import du dépôt disparaissent avec lui (ON DELETE CASCADE, V19).
-            try (PreparedStatement ps = c.prepareStatement("DELETE FROM project_repository WHERE id = ? AND project_id = ?")) {
-                ps.setObject(1, repositoryId);
-                ps.setObject(2, projectId);
-                retire = ps.executeUpdate() == 1;
+            try (PreparedStatement requete = connexion.prepareStatement("DELETE FROM project_repository WHERE id = ? AND project_id = ?")) {
+                requete.setObject(1, repositoryId);
+                requete.setObject(2, projectId);
+                retire = requete.executeUpdate() == 1;
             }
-            if (retire && exists(c, "SELECT 1 FROM inventory WHERE project_id = ?", projectId)) {
-                reconstituer(c, projectId);
+            if (retire && exists(connexion, "SELECT 1 FROM inventory WHERE project_id = ?", projectId)) {
+                reconstituer(connexion, projectId);
             }
-        } catch (SQLException e) {
-            throw new IllegalStateException("retrait du dépôt impossible", e);
+        } catch (SQLException erreur) {
+            throw new IllegalStateException("retrait du dépôt impossible", erreur);
         }
         if (retire) {
             replaced.fire(new InventoryReplaced(projectId, null));
@@ -128,13 +128,13 @@ public class InventoryStore {
      */
     @Transactional
     public void recorrelationTerminee(UUID projectId, UUID importId) {
-        try (Connection c = dataSource.getConnection(); PreparedStatement ps = c.prepareStatement(
+        try (Connection connexion = dataSource.getConnection(); PreparedStatement requete = connexion.prepareStatement(
                 "UPDATE inventory SET recorrelation_pending = false WHERE project_id = ? AND import_id = ?")) {
-            ps.setObject(1, projectId);
-            ps.setObject(2, importId);
-            ps.executeUpdate();
-        } catch (SQLException e) {
-            throw new IllegalStateException("effacement du marqueur de recorrélation impossible", e);
+            requete.setObject(1, projectId);
+            requete.setObject(2, importId);
+            requete.executeUpdate();
+        } catch (SQLException erreur) {
+            throw new IllegalStateException("effacement du marqueur de recorrélation impossible", erreur);
         }
     }
 
@@ -147,24 +147,24 @@ public class InventoryStore {
     /** Enregistre un import refusé ou en erreur, rattaché au dépôt concerné s'il est connu (INV-05, INV-07-S2). */
     @Transactional(Transactional.TxType.REQUIRES_NEW)
     public void recordFailure(UUID projectId, UUID repositoryId, String reason, String sourceRef) {
-        try (Connection c = dataSource.getConnection(); PreparedStatement ps = c.prepareStatement("""
+        try (Connection connexion = dataSource.getConnection(); PreparedStatement requete = connexion.prepareStatement("""
                 INSERT INTO inventory_import_failure(id, project_id, repository_id, reason, source_ref, received_at)
                 VALUES (?, ?, ?, ?, ?, ?)
                 """)) {
-            ps.setObject(1, UUID.randomUUID());
-            ps.setObject(2, projectId);
-            ps.setObject(3, repositoryId);
-            ps.setString(4, reason.length() > 1000 ? reason.substring(0, 1000) : reason);
-            ps.setString(5, cut(sourceRef));
-            ps.setObject(6, Instant.now().atOffset(ZoneOffset.UTC));
-            ps.executeUpdate();
-        } catch (SQLException e) {
-            throw new IllegalStateException("enregistrement de l'échec d'import impossible", e);
+            requete.setObject(1, UUID.randomUUID());
+            requete.setObject(2, projectId);
+            requete.setObject(3, repositoryId);
+            requete.setString(4, reason.length() > 1000 ? reason.substring(0, 1000) : reason);
+            requete.setString(5, cut(sourceRef));
+            requete.setObject(6, Instant.now().atOffset(ZoneOffset.UTC));
+            requete.executeUpdate();
+        } catch (SQLException erreur) {
+            throw new IllegalStateException("enregistrement de l'échec d'import impossible", erreur);
         }
     }
 
-    private static void verrouiller(Connection c, UUID projectId) throws SQLException {
-        try (PreparedStatement lock = c.prepareStatement("SELECT pg_advisory_xact_lock(hashtext(?))")) {
+    private static void verrouiller(Connection connexion, UUID projectId) throws SQLException {
+        try (PreparedStatement lock = connexion.prepareStatement("SELECT pg_advisory_xact_lock(hashtext(?))")) {
             lock.setString(1, "inventory:" + projectId);
             lock.execute();
         }
@@ -174,8 +174,8 @@ public class InventoryStore {
      * Ligne de synthèse {@code inventory} (créée si besoin : les composants la référencent) et dernier import du
      * dépôt ({@code repository_inventory}).
      */
-    private static void ecrireEntete(Connection c, UUID projectId, Remplacement r, UUID importId) throws SQLException {
-        try (PreparedStatement ps = c.prepareStatement("""
+    private static void ecrireEntete(Connection connexion, UUID projectId, Remplacement remplacement, UUID importId) throws SQLException {
+        try (PreparedStatement requete = connexion.prepareStatement("""
                 INSERT INTO inventory(project_id, origin, source_date, spec_version, source_ref, import_id, imported_at,
                     ignored_count, ignored_components)
                 VALUES (?, ?, ?, ?, ?, ?, now(), ?, ?::jsonb)
@@ -184,13 +184,13 @@ public class InventoryStore {
                     import_id = excluded.import_id, imported_at = excluded.imported_at,
                     ignored_count = excluded.ignored_count, ignored_components = excluded.ignored_components
                 """)) {
-            setEntete(ps, projectId, r, importId);
-            ps.executeUpdate();
+            setEntete(requete, projectId, remplacement, importId);
+            requete.executeUpdate();
         }
-        if (r.repositoryId() == null) {
+        if (remplacement.repositoryId() == null) {
             return;
         }
-        try (PreparedStatement ps = c.prepareStatement("""
+        try (PreparedStatement requete = connexion.prepareStatement("""
                 INSERT INTO repository_inventory(project_id, origin, source_date, spec_version, source_ref, import_id,
                     imported_at, ignored_count, ignored_components, repository_id)
                 VALUES (?, ?, ?, ?, ?, ?, now(), ?, ?::jsonb, ?)
@@ -199,22 +199,22 @@ public class InventoryStore {
                     import_id = excluded.import_id, imported_at = excluded.imported_at,
                     ignored_count = excluded.ignored_count, ignored_components = excluded.ignored_components
                 """)) {
-            setEntete(ps, projectId, r, importId);
-            ps.setObject(9, r.repositoryId());
-            ps.executeUpdate();
+            setEntete(requete, projectId, remplacement, importId);
+            requete.setObject(9, remplacement.repositoryId());
+            requete.executeUpdate();
         }
     }
 
-    private static void setEntete(PreparedStatement ps, UUID projectId, Remplacement r, UUID importId) throws SQLException {
-        ParsedInventory parsed = r.parsed();
-        ps.setObject(1, projectId);
-        ps.setString(2, r.origin());
-        ps.setObject(3, parsed.sourceDate() == null ? null : parsed.sourceDate().atOffset(ZoneOffset.UTC));
-        ps.setString(4, parsed.specVersion());
-        ps.setString(5, cut(r.sourceRef()));
-        ps.setObject(6, importId);
-        ps.setInt(7, parsed.ignoredCount());
-        ps.setString(8, ignoredJson(parsed));
+    private static void setEntete(PreparedStatement requete, UUID projectId, Remplacement remplacement, UUID importId) throws SQLException {
+        ParsedInventory parsed = remplacement.parsed();
+        requete.setObject(1, projectId);
+        requete.setString(2, remplacement.origin());
+        requete.setObject(3, parsed.sourceDate() == null ? null : parsed.sourceDate().atOffset(ZoneOffset.UTC));
+        requete.setString(4, parsed.specVersion());
+        requete.setString(5, cut(remplacement.sourceRef()));
+        requete.setObject(6, importId);
+        requete.setInt(7, parsed.ignoredCount());
+        requete.setString(8, ignoredJson(parsed));
     }
 
     /**
@@ -222,24 +222,25 @@ public class InventoryStore {
      * version), anciennes occurrences de l'emplacement supprimées. Un import dans un dépôt supprime aussi les
      * occurrences sans dépôt, antérieures au rattachement d'un dépôt ([PROPOSITION] P-B1).
      */
-    private static void ecrireOccurrences(Connection c, UUID projectId, Remplacement r, UUID importId) throws SQLException {
-        try (PreparedStatement ps = c.prepareStatement(r.repositoryId() == null
+    private static void ecrireOccurrences(Connection connexion, UUID projectId, Remplacement remplacement, UUID importId)
+            throws SQLException {
+        try (PreparedStatement requete = connexion.prepareStatement(remplacement.repositoryId() == null
                 ? "DELETE FROM component_occurrence WHERE project_id = ? AND repository_id IS NULL"
                 : "DELETE FROM component_occurrence WHERE project_id = ? AND (repository_id = ? OR repository_id IS NULL)")) {
-            ps.setObject(1, projectId);
-            if (r.repositoryId() != null) {
-                ps.setObject(2, r.repositoryId());
+            requete.setObject(1, projectId);
+            if (remplacement.repositoryId() != null) {
+                requete.setObject(2, remplacement.repositoryId());
             }
-            ps.executeUpdate();
+            requete.executeUpdate();
         }
-        try (PreparedStatement composant = c.prepareStatement("""
+        try (PreparedStatement composant = connexion.prepareStatement("""
                 INSERT INTO component(id, project_id, package_key, purl, version, transitive, import_id)
                 VALUES (?, ?, ?, ?, ?, ?, ?)
                 ON CONFLICT (project_id, package_key, (coalesce(version, '')))
                 DO UPDATE SET purl = excluded.purl, import_id = excluded.import_id
                 RETURNING id
                 """);
-                PreparedStatement occurrence = c.prepareStatement("""
+                PreparedStatement occurrence = connexion.prepareStatement("""
                         INSERT INTO component_occurrence(component_id, repository_id, project_id, transitive, import_id)
                         VALUES (?, ?, ?, ?, ?)
                         ON CONFLICT (component_id, (coalesce(repository_id, '00000000-0000-0000-0000-000000000000'::uuid)))
@@ -247,7 +248,7 @@ public class InventoryStore {
                             WHEN component_occurrence.transitive = false OR excluded.transitive = false THEN false
                             ELSE coalesce(component_occurrence.transitive, excluded.transitive) END
                         """)) {
-            for (ParsedInventory.Item item : r.parsed().components()) {
+            for (ParsedInventory.Item item : remplacement.parsed().components()) {
                 composant.setObject(1, UUID.randomUUID());
                 composant.setObject(2, projectId);
                 composant.setString(3, item.packageKey());
@@ -256,12 +257,12 @@ public class InventoryStore {
                 setTransitive(composant, 6, item.transitive());
                 composant.setObject(7, importId);
                 UUID componentId;
-                try (ResultSet rs = composant.executeQuery()) {
-                    rs.next();
-                    componentId = rs.getObject(1, UUID.class);
+                try (ResultSet resultat = composant.executeQuery()) {
+                    resultat.next();
+                    componentId = resultat.getObject(1, UUID.class);
                 }
                 occurrence.setObject(1, componentId);
-                occurrence.setObject(2, r.repositoryId());
+                occurrence.setObject(2, remplacement.repositoryId());
                 occurrence.setObject(3, projectId);
                 setTransitive(occurrence, 4, item.transitive());
                 occurrence.setObject(5, importId);
@@ -277,27 +278,27 @@ public class InventoryStore {
      * principal importé, du dernier dépôt importé) et la somme des composants ignorés, puis pose le marqueur de
      * recorrélation avec un nouvel identifiant d'import.
      */
-    private static void reconstituer(Connection c, UUID projectId) throws SQLException {
-        try (PreparedStatement ps = c.prepareStatement("""
+    private static void reconstituer(Connection connexion, UUID projectId) throws SQLException {
+        try (PreparedStatement requete = connexion.prepareStatement("""
                 DELETE FROM component c WHERE c.project_id = ?
                   AND NOT EXISTS (SELECT 1 FROM component_occurrence o WHERE o.component_id = c.id)
                 """)) {
-            ps.setObject(1, projectId);
-            ps.executeUpdate();
+            requete.setObject(1, projectId);
+            requete.executeUpdate();
         }
-        try (PreparedStatement ps = c.prepareStatement("""
+        try (PreparedStatement requete = connexion.prepareStatement("""
                 UPDATE component c SET transitive = agg.transitive
                 FROM (SELECT component_id, CASE WHEN bool_or(transitive = false) THEN false
                                                 WHEN bool_or(transitive) THEN true END AS transitive
                       FROM component_occurrence WHERE project_id = ? GROUP BY component_id) agg
                 WHERE c.id = agg.component_id AND c.transitive IS DISTINCT FROM agg.transitive
                 """)) {
-            ps.setObject(1, projectId);
-            ps.executeUpdate();
+            requete.setObject(1, projectId);
+            requete.executeUpdate();
         }
-        Optional<UUID> reference = depotDeReference(c, projectId);
+        Optional<UUID> reference = depotDeReference(connexion, projectId);
         if (reference.isPresent()) {
-            try (PreparedStatement ps = c.prepareStatement("""
+            try (PreparedStatement requete = connexion.prepareStatement("""
                     UPDATE inventory i SET origin = ri.origin, source_date = ri.source_date, spec_version = ri.spec_version,
                         source_ref = ri.source_ref, imported_at = ri.imported_at,
                         ignored_count = (SELECT coalesce(sum(t.ignored_count), 0) FROM repository_inventory t
@@ -311,46 +312,46 @@ public class InventoryStore {
                                   ORDER BY rang_depot, t.imported_at DESC, x.rang LIMIT 100) e)
                     FROM repository_inventory ri WHERE i.project_id = ? AND ri.repository_id = ?
                     """)) {
-                ps.setObject(1, projectId);
-                ps.setObject(2, reference.get());
-                ps.executeUpdate();
+                requete.setObject(1, projectId);
+                requete.setObject(2, reference.get());
+                requete.executeUpdate();
             }
         }
-        try (PreparedStatement ps = c.prepareStatement(
+        try (PreparedStatement requete = connexion.prepareStatement(
                 "UPDATE inventory SET import_id = ?, recorrelation_pending = true WHERE project_id = ?")) {
-            ps.setObject(1, UUID.randomUUID());
-            ps.setObject(2, projectId);
-            ps.executeUpdate();
+            requete.setObject(1, UUID.randomUUID());
+            requete.setObject(2, projectId);
+            requete.executeUpdate();
         }
     }
 
     /** Dépôt dont la synthèse reprend l'origine : le principal s'il a un import, sinon le dernier importé. */
-    private static Optional<UUID> depotDeReference(Connection c, UUID projectId) throws SQLException {
-        try (PreparedStatement ps = c.prepareStatement("""
+    private static Optional<UUID> depotDeReference(Connection connexion, UUID projectId) throws SQLException {
+        try (PreparedStatement requete = connexion.prepareStatement("""
                 SELECT ri.repository_id FROM repository_inventory ri JOIN project_repository r ON r.id = ri.repository_id
                 WHERE ri.project_id = ? ORDER BY r.principal DESC, ri.imported_at DESC, ri.repository_id LIMIT 1
                 """)) {
-            ps.setObject(1, projectId);
-            try (ResultSet rs = ps.executeQuery()) {
-                return rs.next() ? Optional.of(rs.getObject(1, UUID.class)) : Optional.empty();
+            requete.setObject(1, projectId);
+            try (ResultSet resultat = requete.executeQuery()) {
+                return resultat.next() ? Optional.of(resultat.getObject(1, UUID.class)) : Optional.empty();
             }
         }
     }
 
-    private static boolean exists(Connection c, String sql, UUID projectId) throws SQLException {
-        try (PreparedStatement ps = c.prepareStatement(sql)) {
-            ps.setObject(1, projectId);
-            try (ResultSet rs = ps.executeQuery()) {
-                return rs.next();
+    private static boolean exists(Connection connexion, String sql, UUID projectId) throws SQLException {
+        try (PreparedStatement requete = connexion.prepareStatement(sql)) {
+            requete.setObject(1, projectId);
+            try (ResultSet resultat = requete.executeQuery()) {
+                return resultat.next();
             }
         }
     }
 
-    private static void setTransitive(PreparedStatement ps, int index, Boolean transitive) throws SQLException {
+    private static void setTransitive(PreparedStatement requete, int index, Boolean transitive) throws SQLException {
         if (transitive == null) {
-            ps.setNull(index, Types.BOOLEAN);
+            requete.setNull(index, Types.BOOLEAN);
         } else {
-            ps.setBoolean(index, transitive);
+            requete.setBoolean(index, transitive);
         }
     }
 
@@ -359,8 +360,8 @@ public class InventoryStore {
         List<ParsedInventory.IgnoredComponent> ignored = parsed.ignoredComponents() == null ? List.of() : parsed.ignoredComponents();
         try {
             return MAPPER.writeValueAsString(ignored.subList(0, Math.min(ignored.size(), ParsedInventory.MAX_SIGNALED)));
-        } catch (JsonProcessingException e) {
-            throw new IllegalStateException("sérialisation des composants ignorés impossible", e);
+        } catch (JsonProcessingException erreur) {
+            throw new IllegalStateException("sérialisation des composants ignorés impossible", erreur);
         }
     }
 

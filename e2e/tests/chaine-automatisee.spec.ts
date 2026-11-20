@@ -49,18 +49,18 @@ async function synthese(): Promise<Synthese> {
 
 async function etatImpact(externe: string): Promise<string | undefined> {
   const impacts = await impactsChaine(['OUVERT', 'CONFIRME', 'ECARTE', 'RESOLU'])
-  return impacts.find((i) => i.signalExternalId === externe)?.etat
+  return impacts.find((impact) => impact.signalExternalId === externe)?.etat
 }
 
 /** Identifiant de l'alerte DESKTOP de gina pour l'avis donné (son titre reprend celui de l'avis), ou undefined. */
 async function alertePour(avis: AvisSimule): Promise<string | undefined> {
   const numero = avis.id.slice(-4)
-  return (await alertesChaine()).find((a) => a.titre.includes(`faille fictive ${numero}`))?.id
+  return (await alertesChaine()).find((alerte) => alerte.titre.includes(`faille fictive ${numero}`))?.id
 }
 
 async function abonnementDeGina(): Promise<AbonnementApi> {
   const abonnements = await api<AbonnementApi[]>(COMPTE_CHAINE, '/api/v1/subscriptions')
-  const personnel = abonnements.find((s) => s.scope === 'PERSONAL')
+  const personnel = abonnements.find((abonnement) => abonnement.scope === 'PERSONAL')
   if (!personnel) throw new Error('abonnement personnel de gina absent')
   return personnel
 }
@@ -84,9 +84,10 @@ test('chaîne automatisée : collecte et import planifiés, recorrélation, trai
     // Aucune route ne déclenche ces traitements : seules les échéances planifiées interrogent les sources simulées.
     await expect.poll(async () => {
       const recues = await requetesSources()
-      return ['/osv-export/Maven/modified_id.csv', CHAINE.sbomGitlab, CHAINE.sbomGithub].every((c) => recues.includes(`GET ${c}`))
+      return ['/osv-export/Maven/modified_id.csv', CHAINE.sbomGitlab, CHAINE.sbomGithub].every((chemin) => recues.includes(`GET ${chemin}`))
     }, ECHEANCE).toBe(true)
-    await expect.poll(async () => (await synthese()).summary?.repositories.filter((d) => d.importedAt).length ?? 0, ECHEANCE).toBe(2)
+    await expect.poll(async () => (await synthese()).summary?.repositories.filter((depot) => depot.importedAt).length ?? 0, ECHEANCE)
+      .toBe(2)
     expect((await synthese()).summary?.componentCount, 'union des dépôts : lib, commun (une fois) et outil').toBe(3)
     await expect.poll(async () => etatImpact(AVIS_CHAINE.lib.id), ECHEANCE).toBe('OUVERT')
     expect(await etatImpact(AVIS_CHAINE.nouveau.id), 'nouveau absent de l’inventaire : aucun impact').toBeUndefined()
@@ -104,7 +105,8 @@ test('chaîne automatisée : collecte et import planifiés, recorrélation, trai
     await programmerSources([AVIS_CHAINE.lib, AVIS_CHAINE.nouveau], FORGES_V2)
     await expect.poll(async () => etatImpact(AVIS_CHAINE.nouveau.id), ECHEANCE).toBe('OUVERT')
     const recues = await requetesSources()
-    expect(recues.filter((r) => r.startsWith('GET /osv-api/')), 'aucun avis relu : recorrélation sur les avis connus').toEqual([])
+    expect(recues.filter((requete) => requete.startsWith('GET /osv-api/')), 'aucun avis relu : recorrélation sur les avis connus')
+      .toEqual([])
   })
 
   await test.step('confirmation d’un impact par un contributeur dans l’IHM (COR-10-S1)', async () => {
@@ -126,7 +128,7 @@ test('chaîne automatisée : collecte et import planifiés, recorrélation, trai
   await test.step('composant retiré par l’import suivant : impact résolu par le système (COR-11-S1, INV-09-S2)', async () => {
     await programmerSources([AVIS_CHAINE.lib, AVIS_CHAINE.nouveau], FORGES_V3)
     await expect.poll(async () => etatImpact(AVIS_CHAINE.lib.id), ECHEANCE).toBe('RESOLU')
-    expect((await impactsChaine()).map((i) => i.signalExternalId), 'liste par défaut : impacts ouverts et confirmés')
+    expect((await impactsChaine()).map((impact) => impact.signalExternalId), 'liste par défaut : impacts ouverts et confirmés')
       .toEqual([AVIS_CHAINE.nouveau.id])
     // La session vit en mémoire (jetons hors du stockage) : rechargement par la navigation de l'application.
     const alerte = await alertePour(AVIS_CHAINE.lib)

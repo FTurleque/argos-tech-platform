@@ -64,13 +64,13 @@ class RelaisMuetTest {
     private static ServerSocket ouvrir() {
         try {
             return new ServerSocket(0, 50, InetAddress.getLoopbackAddress());
-        } catch (java.io.IOException e) {
-            throw new IllegalStateException(e);
+        } catch (java.io.IOException erreur) {
+            throw new IllegalStateException(erreur);
         }
     }
 
     @Inject
-    TestDb db;
+    TestDb baseDeTest;
 
     @Inject
     ProjectDirectory projects;
@@ -88,7 +88,7 @@ class RelaisMuetTest {
 
     @BeforeEach
     void reset() {
-        db.reset();
+        baseDeTest.reset();
         spaceA = Api.nouvelEspace("alice", "Espace A");
     }
 
@@ -97,7 +97,7 @@ class RelaisMuetTest {
         UUID project = projects.create(spaceA, "app", null, null);
         inventories.importSbom(project, Fixtures.cyclonedx("1.6", Instant.now().minus(1, ChronoUnit.DAYS).toString(),
                 List.<String[]>of(new String[] {"c0", LIB + "@1.2.0"}), List.of("c0")).getBytes(StandardCharsets.UTF_8), "ci");
-        Api.en("alice").contentType(ContentType.JSON)
+        Api.enTantQue("alice").contentType(ContentType.JSON)
                 .body("{\"scope\":\"PERSONAL\",\"filters\":[{\"type\":\"SEVERITY\",\"value\":\"HIGH\"}],"
                         + "\"channel\":\"email\",\"frequency\":\"immediate\",\"mandatory\":false}")
                 .when().post("/api/v1/subscriptions").then().statusCode(201);
@@ -105,27 +105,27 @@ class RelaisMuetTest {
         String json = Fixtures.osv("GHSA-MUET", "2026-11-10T00:00:00Z", "Maven", "org.exemple:lib", LIB, "0", "1.3.0")
                 .replace("\"severity\":\"HIGH\"", "\"severity\":\"CRITICAL\"");
         Fixtures.stubOsv("GHSA-MUET", "2026-11-10T00:00:00Z", json);
-        Instant t0 = Instant.now();
+        Instant instantDepart = Instant.now();
         synchronizer.synchronize("OSV");
 
-        assertEquals("EN_ATTENTE|1", db.string("SELECT etat || '|' || tentatives FROM alerte"));
-        UUID id = db.uuid("SELECT id FROM alerte");
+        assertEquals("EN_ATTENTE|1", baseDeTest.string("SELECT etat || '|' || tentatives FROM alerte"));
+        UUID id = baseDeTest.uuid("SELECT id FROM alerte");
         long debut = System.nanoTime();
-        assertEquals(EnvoiAlertes.Issue.EN_ECHEC, envoi.traiterEnAttente(t0.plus(5, ChronoUnit.MINUTES)).get(id));
+        assertEquals(EnvoiAlertes.Issue.EN_ECHEC, envoi.traiterEnAttente(instantDepart.plus(5, ChronoUnit.MINUTES)).get(id));
         assertTrue(System.nanoTime() - debut < 30_000_000_000L, "tentative bornée par quarkus.mailer.timeout");
-        assertEquals("EN_ECHEC|2|true", db.string(
+        assertEquals("EN_ECHEC|2|true", baseDeTest.string(
                 "SELECT etat || '|' || tentatives || '|' || (prochain_essai IS NULL) FROM alerte"));
-        assertEquals(Map.of(), envoi.traiterEnAttente(t0.plus(1, ChronoUnit.DAYS)), "plus aucune tentative");
+        assertEquals(Map.of(), envoi.traiterEnAttente(instantDepart.plus(1, ChronoUnit.DAYS)), "plus aucune tentative");
     }
 
     @Test
     void contenuIllisibleCompteUneTentativeEtPasseEnEchec() {
-        UUID compte = db.uuid("SELECT id FROM compte WHERE email = 'alice@argos.test'");
+        UUID compte = baseDeTest.uuid("SELECT id FROM compte WHERE email = 'alice@argos.test'");
         UUID id = UUID.randomUUID();
-        db.exec("INSERT INTO alerte(id, nature, compte_id, canal, fin_periode, titre, contenu, etat_resume_ia, etat, cree_le) "
+        baseDeTest.exec("INSERT INTO alerte(id, nature, compte_id, canal, fin_periode, titre, contenu, etat_resume_ia, etat, cree_le) "
                 + "VALUES ('" + id + "', 'DAILY', '" + compte + "', 'EMAIL', now(), 'Résumé', '{\"inconnu\":1}', "
                 + "'SANS_OBJET', 'EN_ATTENTE', now())");
         assertEquals(EnvoiAlertes.Issue.EN_ECHEC, envoi.envoyer(List.of(id), Instant.now()).get(id));
-        assertEquals("EN_ECHEC|1", db.string("SELECT etat || '|' || tentatives FROM alerte"));
+        assertEquals("EN_ECHEC|1", baseDeTest.string("SELECT etat || '|' || tentatives FROM alerte"));
     }
 }

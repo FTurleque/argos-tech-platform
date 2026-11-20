@@ -61,7 +61,7 @@ class ProjetMultiDepotsTest {
     private static final String LIB = "pkg:maven/org.exemple/lib";
 
     @Inject
-    TestDb db;
+    TestDb baseDeTest;
 
     @Inject
     DataSource dataSource;
@@ -86,7 +86,7 @@ class ProjetMultiDepotsTest {
 
     @BeforeEach
     void reset() {
-        db.reset();
+        baseDeTest.reset();
         espaceA = Api.nouvelEspace("alice", "Équipe A");
         espaceB = Api.nouvelEspace("jules", "Équipe B");
     }
@@ -94,8 +94,8 @@ class ProjetMultiDepotsTest {
     /** SBOM CycloneDX 1.6 générée à {@code date}, le premier composant direct, les autres transitifs. */
     private static String sbom(Instant date, String... purls) {
         List<String[]> composants = new ArrayList<>();
-        for (int i = 0; i < purls.length; i++) {
-            composants.add(new String[] {"c" + i, purls[i]});
+        for (int rang = 0; rang < purls.length; rang++) {
+            composants.add(new String[] {"c" + rang, purls[rang]});
         }
         return Fixtures.cyclonedx("1.6", date.toString(), composants, List.of("c0"));
     }
@@ -111,7 +111,7 @@ class ProjetMultiDepotsTest {
     }
 
     private UUID depot(UUID projet, String nom) {
-        return projects.depots(projet).stream().filter(d -> d.ref().repository().equals(nom)).findFirst().orElseThrow().id();
+        return projects.depots(projet).stream().filter(depot -> depot.ref().repository().equals(nom)).findFirst().orElseThrow().id();
     }
 
     @Test
@@ -119,16 +119,16 @@ class ProjetMultiDepotsTest {
         UUID projet = projetDeuxDepots(espaceA);
         Instant dateFront = recent();
         Instant dateBack = recent().minus(1, ChronoUnit.DAYS);
-        StubServer.on(FRONT_SBOM, Stub.ok(sbom(dateFront, "pkg:npm/a@1.0.0", "pkg:npm/b@2.0.0")));
+        StubServer.programmer(FRONT_SBOM, Stub.succes(sbom(dateFront, "pkg:npm/a@1.0.0", "pkg:npm/b@2.0.0")));
         // b : transitif dans front, direct dans back ; il est direct pour le projet.
-        StubServer.on(BACK_SBOM, Stub.ok(sbom(dateBack, "pkg:npm/b@2.0.0", "pkg:maven/org.exemple/c@3.0.0")));
+        StubServer.programmer(BACK_SBOM, Stub.succes(sbom(dateBack, "pkg:npm/b@2.0.0", "pkg:maven/org.exemple/c@3.0.0")));
 
         InventoryService.ImportProjet resultat = inventories.importerProjet(projet);
 
-        assertEquals(List.of("IMPORTED", "IMPORTED"), resultat.depots().stream().map(d -> d.result().status()).toList());
+        assertEquals(List.of("IMPORTED", "IMPORTED"), resultat.depots().stream().map(depot -> depot.result().status()).toList());
         assertEquals("groupe/front", resultat.depots().get(0).repository(), "dépôt principal d'abord");
         String chemin = "/api/v1/projects/" + projet + "/inventory";
-        Api.en("alice").when().get(chemin + "/components")
+        Api.enTantQue("alice").when().get(chemin + "/components")
                 .then().statusCode(200)
                 .body("total", equalTo(3))
                 .body("items.purl", contains("pkg:npm/a@1.0.0", "pkg:npm/b@2.0.0", "pkg:maven/org.exemple/c@3.0.0"))
@@ -136,7 +136,7 @@ class ProjetMultiDepotsTest {
                 .body("items.find { it.purl == 'pkg:npm/b@2.0.0' }.transitive", equalTo(false))
                 .body("items.find { it.purl == 'pkg:npm/a@1.0.0' }.repositories.repository", contains("groupe/front"))
                 .body("items.find { it.purl == 'pkg:maven/org.exemple/c@3.0.0' }.repositories.provider", contains("GITHUB"));
-        Api.en("alice").when().get(chemin + "/summary")
+        Api.enTantQue("alice").when().get(chemin + "/summary")
                 .then().statusCode(200)
                 .body("summary.componentCount", equalTo(3))
                 .body("summary.origin", equalTo("SBOM"))
@@ -153,51 +153,51 @@ class ProjetMultiDepotsTest {
                 .body("summary.repositories[1].repository", equalTo("org/back"))
                 .body("summary.repositories[1].principal", equalTo(false))
                 .body("summary.repositories[1].sourceDate", equalTo(dateBack.toString()));
-        assertEquals(3, db.count("SELECT count(*) FROM component WHERE project_id = '" + projet + "'"),
+        assertEquals(3, baseDeTest.count("SELECT count(*) FROM component WHERE project_id = '" + projet + "'"),
                 "un composant présent dans deux dépôts n'est enregistré qu'une fois (INV-B2)");
-        assertEquals(4, db.count("SELECT count(*) FROM component_occurrence WHERE project_id = '" + projet + "'"));
+        assertEquals(4, baseDeTest.count("SELECT count(*) FROM component_occurrence WHERE project_id = '" + projet + "'"));
     }
 
     @Test
     void inv10S2ImportRefusePourUnSeulDepot() {
         UUID projet = projetDeuxDepots(espaceA);
-        StubServer.on(FRONT_SBOM, Stub.ok(sbom(recent(), "pkg:npm/a@1.0.0", "pkg:npm/b@2.0.0")));
-        StubServer.on(BACK_SBOM, Stub.ok(sbom(recent(), "pkg:maven/org.exemple/c@3.0.0", "pkg:npm/b@2.0.0")));
+        StubServer.programmer(FRONT_SBOM, Stub.succes(sbom(recent(), "pkg:npm/a@1.0.0", "pkg:npm/b@2.0.0")));
+        StubServer.programmer(BACK_SBOM, Stub.succes(sbom(recent(), "pkg:maven/org.exemple/c@3.0.0", "pkg:npm/b@2.0.0")));
         inventories.importerProjet(projet);
 
-        StubServer.on(FRONT_SBOM, Stub.ok("{\"bomFormat\":\"CycloneDX\",\"specVersion\":\"1.4\",\"components\":[]}"));
-        StubServer.on(BACK_SBOM, Stub.ok(sbom(recent(), "pkg:maven/org.exemple/c@3.1.0")));
+        StubServer.programmer(FRONT_SBOM, Stub.succes("{\"bomFormat\":\"CycloneDX\",\"specVersion\":\"1.4\",\"components\":[]}"));
+        StubServer.programmer(BACK_SBOM, Stub.succes(sbom(recent(), "pkg:maven/org.exemple/c@3.1.0")));
 
         InventoryService.ImportProjet resultat = inventories.importerProjet(projet);
 
-        assertEquals(List.of("REJECTED", "IMPORTED"), resultat.depots().stream().map(d -> d.result().status()).toList());
+        assertEquals(List.of("REJECTED", "IMPORTED"), resultat.depots().stream().map(depot -> depot.result().status()).toList());
         String chemin = "/api/v1/projects/" + projet + "/inventory";
-        Api.en("alice").when().get(chemin + "/components")
+        Api.enTantQue("alice").when().get(chemin + "/components")
                 .then().statusCode(200)
                 .body("items.purl", contains("pkg:npm/a@1.0.0", "pkg:npm/b@2.0.0", "pkg:maven/org.exemple/c@3.1.0"))
                 .body("items.find { it.purl == 'pkg:npm/b@2.0.0' }.repositories.repository", contains("groupe/front"));
-        Api.en("alice").when().get(chemin + "/summary")
+        Api.enTantQue("alice").when().get(chemin + "/summary")
                 .then().statusCode(200)
                 .body("summary.repositories[0].lastFailure.reason", containsString("1.4"))
                 .body("summary.repositories[0].lastFailure.receivedAt", notNullValue())
                 .body("summary.repositories[1].lastFailure", nullValue());
         assertEquals(depot(projet, "groupe/front"),
-                db.uuid("SELECT repository_id FROM inventory_import_failure WHERE project_id = '" + projet + "'"),
+                baseDeTest.uuid("SELECT repository_id FROM inventory_import_failure WHERE project_id = '" + projet + "'"),
                 "l'échec est rattaché au dépôt refusé");
     }
 
     @Test
     void inv10S3DepotDetacheEtImpactsDuComposant() {
         UUID projet = projetDeuxDepots(espaceA);
-        StubServer.on(FRONT_SBOM, Stub.ok(sbom(recent(), LIB + "@1.2.0", "pkg:npm/b@2.0.0")));
-        StubServer.on(BACK_SBOM, Stub.ok(sbom(recent(), "pkg:maven/org.exemple/c@3.0.0", "pkg:npm/b@2.0.0")));
+        StubServer.programmer(FRONT_SBOM, Stub.succes(sbom(recent(), LIB + "@1.2.0", "pkg:npm/b@2.0.0")));
+        StubServer.programmer(BACK_SBOM, Stub.succes(sbom(recent(), "pkg:maven/org.exemple/c@3.0.0", "pkg:npm/b@2.0.0")));
         inventories.importerProjet(projet);
         publier("GHSA-INV10", "0", "1.3.0");
         assertEquals(1, ouverts(projet, "alice").size(), "impact sur le composant présent seulement dans front");
 
         assertTrue(inventories.detacherDepot(projet, depot(projet, "groupe/front")));
 
-        Api.en("alice").when().get("/api/v1/projects/" + projet + "/inventory/components")
+        Api.enTantQue("alice").when().get("/api/v1/projects/" + projet + "/inventory/components")
                 .then().statusCode(200)
                 .body("items.purl", contains("pkg:npm/b@2.0.0", "pkg:maven/org.exemple/c@3.0.0"))
                 .body("items.find { it.purl == 'pkg:npm/b@2.0.0' }.repositories.repository", contains("org/back"));
@@ -205,7 +205,7 @@ class ProjetMultiDepotsTest {
         // Intégration avec le volet C (COR-11-S1) : l'impact reste enregistré, résolu par le système.
         assertEquals(1, impacts.forProject(projet, Api.compte("alice"), Set.of(queries.workspaceOf(projet).orElseThrow()),
                 Set.of(io.argos.impact.EtatImpact.RESOLU)).size());
-        Api.en("alice").when().get("/api/v1/projects/" + projet + "/inventory/summary")
+        Api.enTantQue("alice").when().get("/api/v1/projects/" + projet + "/inventory/summary")
                 .then().statusCode(200)
                 .body("summary.repositories.repository", contains("org/back"))
                 .body("summary.componentCount", equalTo(2));
@@ -216,12 +216,12 @@ class ProjetMultiDepotsTest {
     void niveauFondeSurLaMeilleureOccurrence() {
         UUID projet = projetDeuxDepots(espaceA);
         Instant obsolete = Instant.now().minus(40, ChronoUnit.DAYS);
-        StubServer.on(FRONT_SBOM, Stub.ok(sbom(obsolete, LIB + "@1.2.0")));
-        StubServer.on(BACK_SBOM, Stub.ok(sbom(recent(), LIB + "@1.2.0")));
+        StubServer.programmer(FRONT_SBOM, Stub.succes(sbom(obsolete, LIB + "@1.2.0")));
+        StubServer.programmer(BACK_SBOM, Stub.succes(sbom(recent(), LIB + "@1.2.0")));
         UUID seul = projects.create(espaceA, "obsolète seul", new RepositoryRef("GITLAB", "groupe/ancien", "main", "sbom",
                 "bom.json"), List.of("package.json"));
-        StubServer.on("/gitlab/api/v4/projects/groupe%2Fancien/jobs/artifacts/main/raw/bom.json?job=sbom",
-                Stub.ok(sbom(obsolete, LIB + "@1.2.0")));
+        StubServer.programmer("/gitlab/api/v4/projects/groupe%2Fancien/jobs/artifacts/main/raw/bom.json?job=sbom",
+                Stub.succes(sbom(obsolete, LIB + "@1.2.0")));
         inventories.importerProjet(projet);
         inventories.importerProjet(seul);
 
@@ -236,15 +236,15 @@ class ProjetMultiDepotsTest {
     @Test
     void depotsCloisonnesEntreEspaces() throws SQLException {
         UUID projet = projetDeuxDepots(espaceB);
-        StubServer.on(FRONT_SBOM, Stub.ok(sbom(recent(), "pkg:npm/a@1.0.0")));
-        StubServer.on(BACK_SBOM, Stub.ok(sbom(recent(), "pkg:npm/b@2.0.0")));
+        StubServer.programmer(FRONT_SBOM, Stub.succes(sbom(recent(), "pkg:npm/a@1.0.0")));
+        StubServer.programmer(BACK_SBOM, Stub.succes(sbom(recent(), "pkg:npm/b@2.0.0")));
         inventories.importerProjet(projet);
         String chemin = "/api/v1/projects/" + projet + "/inventory/summary";
 
-        String refus = Api.en("alice").when().get(chemin).then().statusCode(404).extract().asString();
+        String refus = Api.enTantQue("alice").when().get(chemin).then().statusCode(404).extract().asString();
         assertTrue(!refus.contains("groupe/front") && !refus.contains("org/back"), "le refus ne révèle aucun dépôt");
         given().when().get(chemin).then().statusCode(401);
-        Api.en("jules").when().get(chemin).then().statusCode(200).body("summary.repositories", hasSize(2));
+        Api.enTantQue("jules").when().get(chemin).then().statusCode(200).body("summary.repositories", hasSize(2));
         assertTrue(queries.summary(projet, Api.compte("alice")).isEmpty());
 
         for (String table : List.of("project_repository", "repository_inventory", "component_occurrence")) {
@@ -254,20 +254,20 @@ class ProjetMultiDepotsTest {
     }
 
     private long compterSousArgosApp(UUID compte, String table, UUID projet) throws SQLException {
-        try (Connection c = dataSource.getConnection()) {
-            c.setAutoCommit(false);
+        try (Connection connexion = dataSource.getConnection()) {
+            connexion.setAutoCommit(false);
             try {
-                ContexteBase.appliquer(c, new ContexteBase.Contexte(compte, null, null));
-                try (PreparedStatement ps = c.prepareStatement("SELECT count(*) FROM " + table + " WHERE project_id = ?")) {
-                    ps.setObject(1, projet);
-                    try (ResultSet rs = ps.executeQuery()) {
-                        rs.next();
-                        return rs.getLong(1);
+                ContexteBase.appliquer(connexion, new ContexteBase.Contexte(compte, null, null));
+                try (PreparedStatement requete = connexion.prepareStatement("SELECT count(*) FROM " + table + " WHERE project_id = ?")) {
+                    requete.setObject(1, projet);
+                    try (ResultSet resultat = requete.executeQuery()) {
+                        resultat.next();
+                        return resultat.getLong(1);
                     }
                 }
             } finally {
-                c.rollback();
-                c.setAutoCommit(true);
+                connexion.rollback();
+                connexion.setAutoCommit(true);
             }
         }
     }

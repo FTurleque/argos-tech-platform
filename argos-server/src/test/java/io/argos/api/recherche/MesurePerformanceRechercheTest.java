@@ -55,7 +55,7 @@ class MesurePerformanceRechercheTest {
     static final long CIBLE_Q05_MS = 500;
 
     @Inject
-    TestDb db;
+    TestDb baseDeTest;
 
     @Inject
     JeuRecherche jeu;
@@ -65,7 +65,7 @@ class MesurePerformanceRechercheTest {
 
     @Test
     void campagneDeRecherchesFiltrees() throws IOException {
-        db.reset();
+        baseDeTest.reset();
         UUID espaceA = Api.nouvelEspace("oscar", "Mesure A");
         UUID espaceB = Api.nouvelEspace("marc", "Mesure B");
         UUID oscar = Api.compte("oscar");
@@ -95,8 +95,8 @@ class MesurePerformanceRechercheTest {
         campagne.put("page 10", Map.of("q", "Kubernetes", "page", 10));
         Map<String, Object> pireCas = Map.of("q", "veille");
 
-        for (int i = 0; i < ECHAUFFEMENT; i++) {
-            campagne.values().forEach(p -> appeler(jeton, p));
+        for (int iteration = 0; iteration < ECHAUFFEMENT; iteration++) {
+            campagne.values().forEach(criteres -> appeler(jeton, criteres));
             appeler(jeton, pireCas);
         }
 
@@ -109,10 +109,10 @@ class MesurePerformanceRechercheTest {
         rapport.append(String.format("%-40s %8s %8s %8s %8s%n", "requête", "total", "p50", "p95", "max"));
         List<Long> toutes = new ArrayList<>();
         for (Map.Entry<String, Map<String, Object>> requete : campagne.entrySet()) {
-            Mesure m = mesurer(jeton, requete.getValue());
-            toutes.addAll(m.durees());
-            rapport.append(String.format("%-40s %8d %8d %8d %8d%n", requete.getKey(), m.total(), centile(m.durees(), 50),
-                    centile(m.durees(), 95), max(m.durees())));
+            Mesure mesure = mesurer(jeton, requete.getValue());
+            toutes.addAll(mesure.durees());
+            rapport.append(String.format("%-40s %8d %8d %8d %8d%n", requete.getKey(), mesure.total(), centile(mesure.durees(), 50),
+                    centile(mesure.durees(), 95), max(mesure.durees())));
         }
         long p95 = centile(toutes, 95);
         rapport.append(String.format("%n%-40s %8s %8d %8d %8d%n", "campagne (toutes requêtes)", "", centile(toutes, 50), p95,
@@ -128,9 +128,9 @@ class MesurePerformanceRechercheTest {
         System.out.println(rapport);
 
         // Contrôles fonctionnels sur le volume : résultats attendus et cloisonnement.
-        Response r = appeler(jeton, Map.of("q", "Oracle"));
-        assertTrue(r.jsonPath().getLong("total") >= ACTUALITES_PAR_ESPACE / 100, r.asString());
-        assertFalse(r.asString().contains(espaceB.toString()));
+        Response reponse = appeler(jeton, Map.of("q", "Oracle"));
+        assertTrue(reponse.jsonPath().getLong("total") >= ACTUALITES_PAR_ESPACE / 100, reponse.asString());
+        assertFalse(reponse.asString().contains(espaceB.toString()));
         assertEquals(0, appeler(jeton, Map.of("q", "Portail")).jsonPath().getLong("total"));
         assertTrue(p95 < CIBLE_Q05_MS, "p95 de la campagne : " + p95 + " ms");
     }
@@ -141,19 +141,19 @@ class MesurePerformanceRechercheTest {
     private static Mesure mesurer(String jeton, Map<String, Object> parametres) {
         List<Long> durees = new ArrayList<>();
         long total = 0;
-        for (int i = 0; i < REPETITIONS; i++) {
+        for (int iteration = 0; iteration < REPETITIONS; iteration++) {
             long debut = System.nanoTime();
-            Response r = appeler(jeton, parametres);
+            Response reponse = appeler(jeton, parametres);
             durees.add((System.nanoTime() - debut) / 1_000_000L);
-            total = r.jsonPath().getLong("total");
+            total = reponse.jsonPath().getLong("total");
         }
         return new Mesure(total, durees);
     }
 
     private static Response appeler(String jeton, Map<String, Object> parametres) {
-        Response r = given().auth().oauth2(jeton).queryParams(parametres).when().get("/api/v1/recherche");
-        assertEquals(200, r.statusCode(), r.asString());
-        return r;
+        Response reponse = given().auth().oauth2(jeton).queryParams(parametres).when().get("/api/v1/recherche");
+        assertEquals(200, reponse.statusCode(), reponse.asString());
+        return reponse;
     }
 
     private static long centile(List<Long> valeurs, int centile) {
@@ -228,10 +228,10 @@ class MesurePerformanceRechercheTest {
     }
 
     private void executer(String sql) {
-        try (Connection c = dataSource.getConnection(); Statement s = c.createStatement()) {
-            s.execute(sql);
-        } catch (SQLException e) {
-            throw new IllegalStateException(sql, e);
+        try (Connection connexion = dataSource.getConnection(); Statement instruction = connexion.createStatement()) {
+            instruction.execute(sql);
+        } catch (SQLException erreur) {
+            throw new IllegalStateException(sql, erreur);
         }
     }
 }

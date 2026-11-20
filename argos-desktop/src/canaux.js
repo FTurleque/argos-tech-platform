@@ -52,34 +52,34 @@ function ouvrirAlerte(fenetre, id) {
 /**
  * Déclare les canaux du processus principal.
  * @param {{handle: Function}} ipcMain
- * @param {object} d dépendances
- * @param {() => object|null} d.fenetre fenêtre principale courante
- * @param {ReturnType<import('./poste').creerPoste>} d.poste comportement du poste
- * @param {(n: {title: string, body: string}) => boolean} d.notifier notification libre déjà bornée
- * @param {() => object} d.vueReglages réglages présentés à l'IHM
- * @param {ReturnType<import('./connexion').creerConnexion>} d.connexion connexion OIDC (ACC-10)
+ * @param {object} dependances dépendances
+ * @param {() => object|null} dependances.fenetre fenêtre principale courante
+ * @param {ReturnType<import('./poste').creerPoste>} dependances.poste comportement du poste
+ * @param {(n: {title: string, body: string}) => boolean} dependances.notifier notification libre déjà bornée
+ * @param {() => object} dependances.vueReglages réglages présentés à l'IHM
+ * @param {ReturnType<import('./connexion').creerConnexion>} dependances.connexion connexion OIDC (ACC-10)
  */
-function enregistrerCanaux(ipcMain, d) {
+function enregistrerCanaux(ipcMain, dependances) {
   const garde = (refus, traitement) => (event, valeur) => (
-    depuisFenetre(d.fenetre(), event) ? traitement(valeur) : refus
+    depuisFenetre(dependances.fenetre(), event) ? traitement(valeur) : refus
   );
 
   ipcMain.handle(CANAUX.NOTIFIER, garde(false, (payload) => {
     const notification = bornerNotification(payload);
-    return notification ? d.notifier(notification) : false;
+    return notification ? dependances.notifier(notification) : false;
   }));
   // Alerte reçue par l'IHM : notification limitée à un titre générique, à la gravité et au
   // nombre de projets (NOT-05).
-  ipcMain.handle(CANAUX.ALERTE, garde(false, (payload) => d.poste.alerte(payload).affichee));
-  ipcMain.handle(CANAUX.COMPTEUR, garde(false, (n) => d.poste.definirCompteur(n)));
-  ipcMain.handle(CANAUX.REGLAGES_LIRE, garde(null, () => d.vueReglages()));
+  ipcMain.handle(CANAUX.ALERTE, garde(false, (payload) => dependances.poste.alerte(payload).affichee));
+  ipcMain.handle(CANAUX.COMPTEUR, garde(false, (nombre) => dependances.poste.definirCompteur(nombre)));
+  ipcMain.handle(CANAUX.REGLAGES_LIRE, garde(null, () => dependances.vueReglages()));
   ipcMain.handle(CANAUX.REGLAGES_ECRIRE, garde(null, (demande) => (
-    d.poste.changerReglages(demande) ? d.vueReglages() : null
+    dependances.poste.changerReglages(demande) ? dependances.vueReglages() : null
   )));
   // Connexion OIDC (changement connecter-ihm-oidc, ACC-10) : écoute locale puis navigateur du système.
-  ipcMain.handle(CANAUX.CONNEXION_PREPARER, garde(null, () => d.connexion.preparer()));
+  ipcMain.handle(CANAUX.CONNEXION_PREPARER, garde(null, () => dependances.connexion.preparer()));
   ipcMain.handle(CANAUX.CONNEXION_AUTORISER, garde(null, (url) => (
-    typeof url === 'string' ? d.connexion.autoriser(url) : null
+    typeof url === 'string' ? dependances.connexion.autoriser(url) : null
   )));
 }
 

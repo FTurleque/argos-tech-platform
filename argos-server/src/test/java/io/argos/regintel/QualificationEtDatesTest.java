@@ -41,36 +41,37 @@ class QualificationEtDatesTest {
 
     @Test
     void reg02S1CodeSuiviModifieRattacheAuDomaineCarriere() {
-        TexteOfficiel t = decret("Décret relatif à l'avancement", "TFPF2631001D", "Ministère de la fonction publique",
+        TexteOfficiel texte = decret("Décret relatif à l'avancement", "TFPF2631001D", "Ministère de la fonction publique",
                 List.of(new TexteOfficiel.Code("LEGITEXT000044416551", "Code général de la fonction publique")));
-        DictionnaireEspace d = dictionnaire(
+        DictionnaireEspace dictionnaire = dictionnaire(
                 domaine("carriere", new Regle(TypeRegle.CODE, "code général de la fonction publique")),
                 domaine("paie", new Regle(TypeRegle.MOT_CLE, "cotisation")));
 
-        List<Qualification.Rattachement> r = Qualification.qualifier(t, d);
+        List<Qualification.Rattachement> rattachements = Qualification.qualifier(texte, dictionnaire);
 
-        assertEquals(List.of(new Qualification.Rattachement("carriere", "code modifié : Code général de la fonction publique")), r);
+        assertEquals(List.of(new Qualification.Rattachement("carriere", "code modifié : Code général de la fonction publique")),
+                rattachements);
     }
 
     @Test
     void chaqueTypeDeRegle() {
-        TexteOfficiel t = decret("Arrêté fixant le taux de la cotisation vieillesse", "ECOS2631002A", "Ministère de l'Économie",
+        TexteOfficiel texte = decret("Arrêté fixant le taux de la cotisation vieillesse", "ECOS2631002A", "Ministère de l'Économie",
                 List.of(new TexteOfficiel.Code("LEGITEXT000006073189", "Code de la sécurité sociale")));
-        assertEquals("nature : DECRET", Qualification.motif(t, new Regle(TypeRegle.NATURE, "DÉCRET")));
-        assertEquals("ministère : Ministère de l'Économie", Qualification.motif(t, new Regle(TypeRegle.MINISTERE, "economie")));
-        assertEquals("NOR : ECOS2631002A", Qualification.motif(t, new Regle(TypeRegle.NOR, "ECOS")));
+        assertEquals("nature : DECRET", Qualification.motif(texte, new Regle(TypeRegle.NATURE, "DÉCRET")));
+        assertEquals("ministère : Ministère de l'Économie", Qualification.motif(texte, new Regle(TypeRegle.MINISTERE, "economie")));
+        assertEquals("NOR : ECOS2631002A", Qualification.motif(texte, new Regle(TypeRegle.NOR, "ECOS")));
         assertEquals("code modifié : Code de la sécurité sociale",
-                Qualification.motif(t, new Regle(TypeRegle.CODE, "LEGITEXT000006073189")));
+                Qualification.motif(texte, new Regle(TypeRegle.CODE, "LEGITEXT000006073189")));
         assertEquals("mot-clé du titre : cotisation vieillesse",
-                Qualification.motif(t, new Regle(TypeRegle.MOT_CLE, "cotisation vieillesse")));
-        assertEquals(null, Qualification.motif(t, new Regle(TypeRegle.MOT_CLE, "cotis")), "mot entier seulement");
-        assertEquals(null, Qualification.motif(t, new Regle(TypeRegle.NOR, "TFPF")));
+                Qualification.motif(texte, new Regle(TypeRegle.MOT_CLE, "cotisation vieillesse")));
+        assertEquals(null, Qualification.motif(texte, new Regle(TypeRegle.MOT_CLE, "cotis")), "mot entier seulement");
+        assertEquals(null, Qualification.motif(texte, new Regle(TypeRegle.NOR, "TFPF")));
     }
 
     @Test
     void aucuneRegleAucunRattachement() {
-        TexteOfficiel t = decret("Décision portant nomination", "AGRG2631003S", "Ministère de l'agriculture", List.of());
-        assertTrue(Qualification.qualifier(t, dictionnaire(domaine("paie", new Regle(TypeRegle.MOT_CLE, "cotisation"))))
+        TexteOfficiel texte = decret("Décision portant nomination", "AGRG2631003S", "Ministère de l'agriculture", List.of());
+        assertTrue(Qualification.qualifier(texte, dictionnaire(domaine("paie", new Regle(TypeRegle.MOT_CLE, "cotisation"))))
                 .isEmpty());
     }
 
@@ -78,10 +79,10 @@ class QualificationEtDatesTest {
 
     @Test
     void reg03S1DateExtraiteDistincteDeLaPublication() {
-        DatesTexte.DateEffet d = DatesTexte.dateEffet(PUBLICATION,
+        DatesTexte.DateEffet dateEffet = DatesTexte.dateEffet(PUBLICATION,
                 "Entrée en vigueur : le texte entre en vigueur le 1er janvier 2027.").orElseThrow();
-        assertEquals(LocalDate.of(2027, 1, 1), d.date());
-        assertTrue(d.motif().contains("1er janvier 2027"), d.motif());
+        assertEquals(LocalDate.of(2027, 1, 1), dateEffet.date());
+        assertTrue(dateEffet.motif().contains("1er janvier 2027"), dateEffet.motif());
     }
 
     @Test
@@ -121,9 +122,9 @@ class QualificationEtDatesTest {
 
     @Test
     void reg06S2TransitionInvalide() {
-        RegleViolee e = assertThrows(RegleViolee.class,
+        RegleViolee erreur = assertThrows(RegleViolee.class,
                 () -> CycleVie.transition(CycleVie.Etat.NOUVEAU, CycleVie.Etat.LIVRE, true));
-        assertEquals("TRANSITION_REFUSEE", e.code());
+        assertEquals("TRANSITION_REFUSEE", erreur.code());
         assertThrows(RegleViolee.class, () -> CycleVie.transition(CycleVie.Etat.NOUVEAU, CycleVie.Etat.EN_ANALYSE, false),
                 "seule la validation de la fiche fait passer en analyse");
         assertThrows(RegleViolee.class, () -> CycleVie.transition(CycleVie.Etat.SANS_IMPACT, CycleVie.Etat.IMPACT_PRODUIT, false));

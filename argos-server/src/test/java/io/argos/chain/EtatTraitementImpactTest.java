@@ -57,7 +57,7 @@ class EtatTraitementImpactTest {
     private static final String LIB = "pkg:maven/org.exemple/lib";
 
     @Inject
-    TestDb db;
+    TestDb baseDeTest;
 
     @Inject
     DataSource dataSource;
@@ -80,7 +80,7 @@ class EtatTraitementImpactTest {
     /** alice administre A, jules y est CONTRIBUTEUR, karim LECTEUR ; ines administre B. */
     @BeforeEach
     void reset() {
-        db.reset();
+        baseDeTest.reset();
         spaceA = Api.nouvelEspace("alice", "Espace traitement A");
         spaceB = Api.nouvelEspace("ines", "Espace traitement B");
         Api.compte("jules");
@@ -97,8 +97,8 @@ class EtatTraitementImpactTest {
 
     private void importer(UUID projet, Instant genere, String... purls) {
         List<String[]> composants = new ArrayList<>();
-        for (int i = 0; i < purls.length; i++) {
-            composants.add(new String[] {"c" + i, purls[i]});
+        for (int rang = 0; rang < purls.length; rang++) {
+            composants.add(new String[] {"c" + rang, purls[rang]});
         }
         inventories.importSbom(projet, Fixtures.cyclonedx("1.6", genere.toString(), composants, List.of("c0"))
                 .getBytes(StandardCharsets.UTF_8), "ci");
@@ -108,7 +108,7 @@ class EtatTraitementImpactTest {
         String json = Fixtures.osv(id, "2026-11-10T00:00:00Z", "Maven", "org.exemple:lib", purl, introduit, corrige);
         Fixtures.stubOsv(id, "2026-11-10T00:00:00Z", json);
         synchronizer.synchronize("OSV");
-        return db.uuid("SELECT id FROM signal WHERE external_id = '" + id + "'");
+        return baseDeTest.uuid("SELECT id FROM signal WHERE external_id = '" + id + "'");
     }
 
     private static Instant recent() {
@@ -116,21 +116,21 @@ class EtatTraitementImpactTest {
     }
 
     private UUID impactDe(UUID projet) {
-        return db.uuid("SELECT id FROM project_impact WHERE project_id = '" + projet + "'");
+        return baseDeTest.uuid("SELECT id FROM project_impact WHERE project_id = '" + projet + "'");
     }
 
     private static io.restassured.response.ValidatableResponse transition(String utilisateur, UUID impact,
             Map<String, ?> corps) {
-        return Api.en(utilisateur).contentType(ContentType.JSON).body(corps)
+        return Api.enTantQue(utilisateur).contentType(ContentType.JSON).body(corps)
                 .when().post("/api/v1/impacts/" + impact + "/transitions").then();
     }
 
     private String etat(UUID impact) {
-        return db.string("SELECT state FROM project_impact WHERE id = '" + impact + "'");
+        return baseDeTest.string("SELECT state FROM project_impact WHERE id = '" + impact + "'");
     }
 
     private long transitions(UUID impact) {
-        return db.count("SELECT count(*) FROM project_impact_transition WHERE impact_id = '" + impact + "'");
+        return baseDeTest.count("SELECT count(*) FROM project_impact_transition WHERE impact_id = '" + impact + "'");
     }
 
     @Test
@@ -140,13 +140,13 @@ class EtatTraitementImpactTest {
         UUID impact = impactDe(projet);
 
         assertEquals("OUVERT", etat(impact));
-        Api.en("karim").when().get("/api/v1/impacts/" + impact)
+        Api.enTantQue("karim").when().get("/api/v1/impacts/" + impact)
                 .then().statusCode(200)
                 .body("level", equalTo("EXACT"))
                 .body("etat", equalTo("OUVERT"))
                 .body("historique", empty())
                 .body("transitionsPossibles", empty());
-        Api.en("jules").when().get("/api/v1/impacts/" + impact)
+        Api.enTantQue("jules").when().get("/api/v1/impacts/" + impact)
                 .then().statusCode(200)
                 .body("transitionsPossibles", equalTo(List.of("CONFIRME", "ECARTE", "RESOLU")));
     }
@@ -163,7 +163,7 @@ class EtatTraitementImpactTest {
         engine.correlate(signal, java.util.Optional.of(projet));
 
         assertEquals(impact, impactDe(projet), "même impact (COR-07)");
-        assertEquals("PROBABLE", db.string("SELECT level FROM project_impact WHERE id = '" + impact + "'"));
+        assertEquals("PROBABLE", baseDeTest.string("SELECT level FROM project_impact WHERE id = '" + impact + "'"));
         assertEquals("CONFIRME", etat(impact));
     }
 
@@ -172,7 +172,7 @@ class EtatTraitementImpactTest {
         UUID projet = projet(spaceA, "app", recent(), LIB + "@1.2.0");
         publier("GHSA-ETAT-3", null, "0", "1.3.0");
         UUID impact = impactDe(projet);
-        assertEquals("A_VERIFIER", db.string("SELECT level FROM project_impact WHERE id = '" + impact + "'"));
+        assertEquals("A_VERIFIER", baseDeTest.string("SELECT level FROM project_impact WHERE id = '" + impact + "'"));
 
         transition("jules", impact, Map.of("vers", "CONFIRME", "commentaire", "Version confirmée en production"))
                 .statusCode(200)
@@ -200,7 +200,7 @@ class EtatTraitementImpactTest {
 
         assertEquals("OUVERT", etat(impact));
         assertEquals(0, transitions(impact));
-        assertEquals(1, db.count("SELECT count(*) FROM refus_acces WHERE compte_id = '" + Api.compte("karim")
+        assertEquals(1, baseDeTest.count("SELECT count(*) FROM refus_acces WHERE compte_id = '" + Api.compte("karim")
                 + "' AND ressource = 'POST /api/v1/impacts/" + impact + "/transitions' AND motif = 'ROLE_INSUFFISANT'"));
     }
 
@@ -251,7 +251,7 @@ class EtatTraitementImpactTest {
 
         assertTrue(!corps.contains(projetB.toString()) && !corps.contains("GHSA-ETAT-7"), "le refus ne révèle rien");
         assertEquals("OUVERT", etat(impactB));
-        assertEquals(1, db.count("SELECT count(*) FROM refus_acces WHERE compte_id = '" + Api.compte("alice")
+        assertEquals(1, baseDeTest.count("SELECT count(*) FROM refus_acces WHERE compte_id = '" + Api.compte("alice")
                 + "' AND ressource = 'POST /api/v1/impacts/" + impactB + "/transitions' AND motif = 'NON_MEMBRE'"));
         transition("alice", UUID.randomUUID(), Map.of("vers", "CONFIRME")).statusCode(404);
         given().contentType(ContentType.JSON).body(Map.of("vers", "CONFIRME"))
@@ -269,7 +269,7 @@ class EtatTraitementImpactTest {
         importer(projet, recent(), "pkg:maven/org.autre/outil@1.0.0");
 
         assertEquals("RESOLU", etat(impact));
-        Api.en("karim").when().get("/api/v1/impacts/" + impact)
+        Api.enTantQue("karim").when().get("/api/v1/impacts/" + impact)
                 .then().statusCode(200)
                 .body("etat", equalTo("RESOLU"))
                 .body("signalId", equalTo(signal.toString()))
@@ -321,7 +321,7 @@ class EtatTraitementImpactTest {
                 .statusCode(409).body("code", equalTo("TRANSITION_INTERDITE"));
         assertEquals("RESOLU", etat(impact));
         assertEquals(1, transitions(impact));
-        Api.en("jules").when().get("/api/v1/impacts/" + impact)
+        Api.enTantQue("jules").when().get("/api/v1/impacts/" + impact)
                 .then().statusCode(200).body("transitionsPossibles", hasSize(0));
     }
 
@@ -330,36 +330,36 @@ class EtatTraitementImpactTest {
         UUID projet = projet(spaceA, "app", recent(), LIB + "@1.0.0", LIB + "@1.1.0", LIB + "@1.2.0");
         UUID signal = publier("GHSA-ETAT-9", LIB, "0", "1.3.0");
         List<UUID> ids = new ArrayList<>();
-        for (String v : List.of("1.0.0", "1.1.0", "1.2.0")) {
-            ids.add(db.uuid("SELECT i.id FROM project_impact i JOIN component c ON c.id = i.component_id"
-                    + " WHERE i.project_id = '" + projet + "' AND c.version = '" + v + "'"));
+        for (String version : List.of("1.0.0", "1.1.0", "1.2.0")) {
+            ids.add(baseDeTest.uuid("SELECT i.id FROM project_impact i JOIN component c ON c.id = i.component_id"
+                    + " WHERE i.project_id = '" + projet + "' AND c.version = '" + version + "'"));
         }
         transition("jules", ids.get(1), Map.of("vers", "ECARTE", "motif", "Code mort")).statusCode(200);
         transition("jules", ids.get(2), Map.of("vers", "RESOLU", "commentaire", "Corrigé")).statusCode(200);
         String chemin = "/api/v1/signals/" + signal + "/impacts";
 
-        Api.en("jules").queryParam("etat", "OUVERT").when().get(chemin)
+        Api.enTantQue("jules").queryParam("etat", "OUVERT").when().get(chemin)
                 .then().statusCode(200).body("total", equalTo(1)).body("items[0].id", equalTo(ids.get(0).toString()))
                 .body("items[0].etat", equalTo("OUVERT"));
-        Api.en("jules").when().get(chemin)
+        Api.enTantQue("jules").when().get(chemin)
                 .then().statusCode(200).body("total", equalTo(1)).body("items[0].etat", equalTo("OUVERT"))
                 .body("items[0].historique", nullValue());
-        Api.en("jules").queryParam("etat", "ECARTE").queryParam("etat", "resolu").when().get(chemin)
+        Api.enTantQue("jules").queryParam("etat", "ECARTE").queryParam("etat", "resolu").when().get(chemin)
                 .then().statusCode(200).body("total", equalTo(2));
-        Api.en("jules").queryParam("etat", "INCONNU").when().get(chemin)
+        Api.enTantQue("jules").queryParam("etat", "INCONNU").when().get(chemin)
                 .then().statusCode(400).body("code", equalTo("DONNEE_INVALIDE")).body("attribut", equalTo("etat"));
 
         // Liste des impacts du projet (COR-12-S2 au sens strict) : même filtre, même défaut.
         String projetChemin = "/api/v1/projects/" + projet + "/impacts";
-        Api.en("jules").queryParam("etat", "OUVERT").when().get(projetChemin)
+        Api.enTantQue("jules").queryParam("etat", "OUVERT").when().get(projetChemin)
                 .then().statusCode(200).body("$", hasSize(1)).body("[0].id", equalTo(ids.get(0).toString()));
-        Api.en("karim").when().get(projetChemin)
+        Api.enTantQue("karim").when().get(projetChemin)
                 .then().statusCode(200).body("$", hasSize(1)).body("[0].etat", equalTo("OUVERT"));
-        Api.en("jules").queryParam("etat", "ECARTE").queryParam("etat", "RESOLU").when().get(projetChemin)
+        Api.enTantQue("jules").queryParam("etat", "ECARTE").queryParam("etat", "RESOLU").when().get(projetChemin)
                 .then().statusCode(200).body("$", hasSize(2));
-        Api.en("jules").queryParam("etat", "INCONNU").when().get(projetChemin)
+        Api.enTantQue("jules").queryParam("etat", "INCONNU").when().get(projetChemin)
                 .then().statusCode(400).body("code", equalTo("DONNEE_INVALIDE"));
-        Api.en("ines").when().get(projetChemin).then().statusCode(404);
+        Api.enTantQue("ines").when().get(projetChemin).then().statusCode(404);
     }
 
     /**
@@ -373,26 +373,28 @@ class EtatTraitementImpactTest {
         UUID impact = impactDe(projet);
         String majEtat = "UPDATE project_impact SET state = 'ECARTE' WHERE id = '" + impact + "'";
 
-        assertEquals(0, (int) this.<Integer>sousArgosApp(Api.compte("karim"), s -> s.executeUpdate(majEtat)), "lecteur : aucune ligne");
-        assertEquals(0, (int) this.<Integer>sousArgosApp(Api.compte("ines"), s -> s.executeUpdate(majEtat)), "non-membre : aucune ligne");
+        assertEquals(0, (int) this.<Integer>sousArgosApp(Api.compte("karim"), instruction -> instruction.executeUpdate(majEtat)),
+                "lecteur : aucune ligne");
+        assertEquals(0, (int) this.<Integer>sousArgosApp(Api.compte("ines"), instruction -> instruction.executeUpdate(majEtat)),
+                "non-membre : aucune ligne");
         assertEquals("OUVERT", etat(impact));
         UUID karim = Api.compte("karim");
-        SQLException refus = assertThrows(SQLException.class, () -> sousArgosApp(karim, s -> s.executeUpdate(
+        SQLException refus = assertThrows(SQLException.class, () -> sousArgosApp(karim, instruction -> instruction.executeUpdate(
                 "INSERT INTO project_impact_transition(id, impact_id, workspace_id, from_state, to_state, actor_account_id,"
                         + " actor_system, reason, occurred_at) VALUES (gen_random_uuid(), '" + impact + "', '" + spaceA
                         + "', 'OUVERT', 'ECARTE', '" + karim + "', false, 'forcé', now())")));
         assertEquals("42501", refus.getSQLState(), "politique d'insertion de l'historique");
         SQLException colonne = assertThrows(SQLException.class, () -> sousArgosApp(Api.compte("jules"),
-                s -> s.executeUpdate("UPDATE project_impact SET level = 'EXACT' WHERE id = '" + impact + "'")));
+                instruction -> instruction.executeUpdate("UPDATE project_impact SET level = 'EXACT' WHERE id = '" + impact + "'")));
         assertEquals("42501", colonne.getSQLState(), "seule la colonne state est modifiable");
 
-        assertEquals(1, (int) this.<Integer>sousArgosApp(Api.compte("jules"), s -> s.executeUpdate(
+        assertEquals(1, (int) this.<Integer>sousArgosApp(Api.compte("jules"), instruction -> instruction.executeUpdate(
                 "UPDATE project_impact SET state = 'CONFIRME' WHERE id = '" + impact + "'")), "contributeur");
 
         transition("jules", impact, Map.of("vers", "RESOLU")).statusCode(200);
-        assertEquals(1L, (long) sousArgosApp(Api.compte("karim"), s -> compter(s,
+        assertEquals(1L, (long) sousArgosApp(Api.compte("karim"), instruction -> compter(instruction,
                 "SELECT count(*) FROM project_impact_transition")), "historique lisible d'un membre");
-        assertEquals(0L, (long) sousArgosApp(Api.compte("ines"), s -> compter(s,
+        assertEquals(0L, (long) sousArgosApp(Api.compte("ines"), instruction -> compter(instruction,
                 "SELECT count(*) FROM project_impact_transition")), "historique invisible d'un non-membre");
     }
 
@@ -405,8 +407,8 @@ class EtatTraitementImpactTest {
         UUID projet = projet(spaceA, "app", recent(), LIB + "@1.2.0");
         publier("GHSA-ETAT-V20", LIB, "0", "1.3.0");
         UUID impact = impactDe(projet);
-        db.exec("DELETE FROM project_impact_transition");
-        db.exec("""
+        baseDeTest.exec("DELETE FROM project_impact_transition");
+        baseDeTest.exec("""
                 CREATE TEMP TABLE copie AS SELECT * FROM project_impact;
                 DELETE FROM project_impact;
                 INSERT INTO project_impact(id, signal_id, signal_version_id, project_id, workspace_id, component_id, level,
@@ -417,16 +419,16 @@ class EtatTraitementImpactTest {
                 """);
 
         assertEquals("OUVERT", etat(impact));
-        assertEquals(LIB + "|" + LIB + "@1.2.0|1.2.0", db.string("SELECT package_key || '|' || component_purl || '|'"
+        assertEquals(LIB + "|" + LIB + "@1.2.0|1.2.0", baseDeTest.string("SELECT package_key || '|' || component_purl || '|'"
                 + " || component_version FROM project_impact WHERE id = '" + impact + "'"));
-        db.exec("UPDATE project_impact SET state = 'RESOLU' WHERE id = '" + impact + "'");
-        db.exec("DELETE FROM component WHERE project_id = '" + projet + "'");
-        assertEquals(1, db.count("SELECT count(*) FROM project_impact WHERE id = '" + impact
+        baseDeTest.exec("UPDATE project_impact SET state = 'RESOLU' WHERE id = '" + impact + "'");
+        baseDeTest.exec("DELETE FROM component WHERE project_id = '" + projet + "'");
+        assertEquals(1, baseDeTest.count("SELECT count(*) FROM project_impact WHERE id = '" + impact
                 + "' AND component_id IS NULL AND component_purl = '" + LIB + "@1.2.0'"));
-        IllegalStateException e = assertThrows(IllegalStateException.class,
-                () -> db.exec("UPDATE project_impact SET state = 'CLOS'"));
-        assertEquals("23514", ((SQLException) e.getCause()).getSQLState());
-        IllegalStateException motif = assertThrows(IllegalStateException.class, () -> db.exec(
+        IllegalStateException erreur = assertThrows(IllegalStateException.class,
+                () -> baseDeTest.exec("UPDATE project_impact SET state = 'CLOS'"));
+        assertEquals("23514", ((SQLException) erreur.getCause()).getSQLState());
+        IllegalStateException motif = assertThrows(IllegalStateException.class, () -> baseDeTest.exec(
                 "INSERT INTO project_impact_transition(id, impact_id, workspace_id, from_state, to_state, actor_system,"
                         + " occurred_at) VALUES (gen_random_uuid(), '" + impact + "', '" + spaceA
                         + "', 'OUVERT', 'ECARTE', true, now())"));
@@ -435,7 +437,7 @@ class EtatTraitementImpactTest {
 
     @Test
     void contratOpenApiDesTransitions() {
-        Api.en("alice").queryParam("format", "json")
+        Api.enTantQue("alice").queryParam("format", "json")
                 .when().get("/q/openapi")
                 .then().statusCode(200)
                 .body("paths.'/api/v1/impacts/{id}/transitions'.post.responses.keySet()",
@@ -450,32 +452,32 @@ class EtatTraitementImpactTest {
     }
 
     private interface Requete<T> {
-        T executer(Statement s) throws SQLException;
+        T executer(Statement instruction) throws SQLException;
     }
 
     /** Exécute la requête sous argos_app avec le compte donné, dans une transaction validée si elle réussit. */
     private <T> T sousArgosApp(UUID compte, Requete<T> requete) throws SQLException {
-        try (Connection c = dataSource.getConnection(); Statement s = c.createStatement()) {
-            c.setAutoCommit(false);
+        try (Connection connexion = dataSource.getConnection(); Statement instruction = connexion.createStatement()) {
+            connexion.setAutoCommit(false);
             try {
-                s.execute("SET LOCAL ROLE argos_app");
-                s.execute("SELECT set_config('argos.compte_courant', '" + compte + "', true)");
-                T resultat = requete.executer(s);
-                c.commit();
+                instruction.execute("SET LOCAL ROLE argos_app");
+                instruction.execute("SELECT set_config('argos.compte_courant', '" + compte + "', true)");
+                T resultat = requete.executer(instruction);
+                connexion.commit();
                 return resultat;
-            } catch (SQLException e) {
-                c.rollback();
-                throw e;
+            } catch (SQLException erreur) {
+                connexion.rollback();
+                throw erreur;
             } finally {
-                c.setAutoCommit(true);
+                connexion.setAutoCommit(true);
             }
         }
     }
 
-    private static long compter(Statement s, String sql) throws SQLException {
-        try (ResultSet rs = s.executeQuery(sql)) {
-            rs.next();
-            return rs.getLong(1);
+    private static long compter(Statement instruction, String sql) throws SQLException {
+        try (ResultSet resultat = instruction.executeQuery(sql)) {
+            resultat.next();
+            return resultat.getLong(1);
         }
     }
 }

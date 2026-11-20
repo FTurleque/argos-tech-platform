@@ -20,20 +20,20 @@ public final class ArtisteFixtures {
     }
 
     /** Remet à zéro les données du profil et les préférences des utilisateurs donnés. */
-    public static void reinitialiser(TestDb db, String... utilisateurs) {
-        db.exec("TRUNCATE opportunite, source_profil, suivi_profil, suivi_rappels CASCADE");
-        for (String u : utilisateurs) {
-            db.exec("DELETE FROM workspace_preference_utilisateur WHERE compte_id = '" + Api.compte(u) + "'");
+    public static void reinitialiser(TestDb baseDeTest, String... utilisateurs) {
+        baseDeTest.exec("TRUNCATE opportunite, source_profil, suivi_profil, suivi_rappels CASCADE");
+        for (String utilisateur : utilisateurs) {
+            baseDeTest.exec("DELETE FROM workspace_preference_utilisateur WHERE compte_id = '" + Api.compte(utilisateur) + "'");
         }
     }
 
     public static void activer(String utilisateur, String... profils) {
-        Api.en(utilisateur).contentType(ContentType.JSON).body(Map.of("profilsActifs", List.of(profils)))
+        Api.enTantQue(utilisateur).contentType(ContentType.JSON).body(Map.of("profilsActifs", List.of(profils)))
                 .when().put("/api/v1/preferences/profils").then().statusCode(200);
     }
 
     public static void suivre(String utilisateur, List<String> disciplines, List<String> territoires) {
-        Api.en(utilisateur).contentType(ContentType.JSON)
+        Api.enTantQue(utilisateur).contentType(ContentType.JSON)
                 .body(Map.of("disciplines", disciplines, "territoires", territoires))
                 .when().put("/api/v1/profils/artiste/suivis").then().statusCode(200);
     }
@@ -53,7 +53,7 @@ public final class ArtisteFixtures {
     /** Déclare une source (administrateur plateforme) et renvoie son identifiant. */
     public static String declarer(String type, String adresse, String rubrique, List<String> disciplines,
             List<String> territoires) {
-        return Api.en("alice").contentType(ContentType.JSON)
+        return Api.enTantQue("alice").contentType(ContentType.JSON)
                 .body(Map.of("type", type, "adresse", adresse, "libelle", "Source " + type, "rubrique", rubrique,
                         "disciplines", disciplines, "territoires", territoires))
                 .when().post("/api/v1/profils/artiste/sources")
@@ -62,7 +62,7 @@ public final class ArtisteFixtures {
 
     /** Enregistre les conditions d'usage vérifiées d'une source (administrateur plateforme). */
     public static void verifier(String source) {
-        Api.en("alice").contentType(ContentType.JSON)
+        Api.enTantQue("alice").contentType(ContentType.JSON)
                 .body(Map.of("licence", "Licence Ouverte Etalab 2.0",
                         "conditionsUsage", "Réutilisation libre avec mention de la source.",
                         "conditionsUrl", "https://www.etalab.gouv.fr/licence-ouverte-open-licence/"))
@@ -72,6 +72,6 @@ public final class ArtisteFixtures {
 
     /** Lance la collecte du profil (administrateur plateforme). */
     public static void collecter() {
-        Api.en("alice").when().post("/api/v1/profils/artiste/collectes").then().statusCode(200);
+        Api.enTantQue("alice").when().post("/api/v1/profils/artiste/collectes").then().statusCode(200);
     }
 }

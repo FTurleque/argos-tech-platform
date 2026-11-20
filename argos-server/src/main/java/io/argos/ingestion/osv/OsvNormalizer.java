@@ -34,8 +34,8 @@ public final class OsvNormalizer {
         JsonNode root;
         try {
             root = MAPPER.readTree(raw.content());
-        } catch (JsonProcessingException e) {
-            throw new AdvisoryRejectedException("contenu JSON illisible", e);
+        } catch (JsonProcessingException error) {
+            throw new AdvisoryRejectedException("contenu JSON illisible", error);
         }
         if (root == null || !root.isObject()) {
             throw new AdvisoryRejectedException("l'avis n'est pas un objet JSON");
@@ -48,9 +48,9 @@ public final class OsvNormalizer {
         Instant published = instant(root, "published", false);
 
         List<String> aliases = new ArrayList<>();
-        root.path("aliases").forEach(a -> {
-            if (a.isTextual() && !a.asText().isBlank()) {
-                aliases.add(a.asText());
+        root.path("aliases").forEach(alias -> {
+            if (alias.isTextual() && !alias.asText().isBlank()) {
+                aliases.add(alias.asText());
             }
         });
 
@@ -59,8 +59,8 @@ public final class OsvNormalizer {
             throw new AdvisoryRejectedException("champ affected non conforme");
         }
         List<Affected> affected = new ArrayList<>();
-        for (JsonNode a : affectedNode) {
-            affected.add(affected(a));
+        for (JsonNode affectedEntry : affectedNode) {
+            affected.add(affected(affectedEntry));
         }
         // Avis retiré (champ OSV « withdrawn ») : le signal et son historique sont conservés, mais il
         // ne déclare plus aucun paquet affecté ; la corrélation retire donc les impacts qu'il portait.
@@ -77,8 +77,8 @@ public final class OsvNormalizer {
                 List.copyOf(aliases), List.copyOf(affected), withdrawnAt, raw.content(), sha256(raw.content()));
     }
 
-    private static Affected affected(JsonNode a) {
-        JsonNode pkg = a.path("package");
+    private static Affected affected(JsonNode entry) {
+        JsonNode pkg = entry.path("package");
         String ecosystem = text(pkg, "ecosystem");
         String name = text(pkg, "name");
         String purl = text(pkg, "purl");
@@ -86,19 +86,19 @@ public final class OsvNormalizer {
             throw new AdvisoryRejectedException("paquet affecté sans nom ni PURL");
         }
         List<Range> ranges = new ArrayList<>();
-        for (JsonNode r : a.path("ranges")) {
-            String type = text(r, "type");
+        for (JsonNode range : entry.path("ranges")) {
+            String type = text(range, "type");
             String introduced = null;
             boolean open = false;
-            for (JsonNode e : r.path("events")) {
-                if (e.has("introduced")) {
-                    introduced = e.get("introduced").asText();
+            for (JsonNode event : range.path("events")) {
+                if (event.has("introduced")) {
+                    introduced = event.get("introduced").asText();
                     open = true;
-                } else if (e.has("fixed") && open) {
-                    ranges.add(new Range(type, introduced, e.get("fixed").asText(), null));
+                } else if (event.has("fixed") && open) {
+                    ranges.add(new Range(type, introduced, event.get("fixed").asText(), null));
                     open = false;
-                } else if (e.has("last_affected") && open) {
-                    ranges.add(new Range(type, introduced, null, e.get("last_affected").asText()));
+                } else if (event.has("last_affected") && open) {
+                    ranges.add(new Range(type, introduced, null, event.get("last_affected").asText()));
                     open = false;
                 }
             }
@@ -107,7 +107,7 @@ public final class OsvNormalizer {
             }
         }
         List<String> versions = new ArrayList<>();
-        a.path("versions").forEach(v -> versions.add(v.asText()));
+        entry.path("versions").forEach(version -> versions.add(version.asText()));
         return new Affected(ecosystem, name, purl, List.copyOf(ranges), List.copyOf(versions));
     }
 
@@ -130,7 +130,7 @@ public final class OsvNormalizer {
             return declared;
         }
         List<String> parts = new ArrayList<>();
-        root.path("severity").forEach(s -> parts.add(text(s, "type") + ":" + text(s, "score")));
+        root.path("severity").forEach(entry -> parts.add(text(entry, "type") + ":" + text(entry, "score")));
         return parts.isEmpty() ? null : String.join(" ", parts);
     }
 
@@ -144,22 +144,22 @@ public final class OsvNormalizer {
         }
         try {
             return Instant.parse(value);
-        } catch (DateTimeParseException e) {
-            throw new AdvisoryRejectedException("date " + field + " illisible", e);
+        } catch (DateTimeParseException error) {
+            throw new AdvisoryRejectedException("date " + field + " illisible", error);
         }
     }
 
     private static String text(JsonNode node, String field) {
-        JsonNode v = node.get(field);
-        return v == null || v.isNull() ? null : v.asText();
+        JsonNode value = node.get(field);
+        return value == null || value.isNull() ? null : value.asText();
     }
 
     static String sha256(String content) {
         try {
             return HexFormat.of().formatHex(MessageDigest.getInstance("SHA-256")
                     .digest(content.getBytes(StandardCharsets.UTF_8)));
-        } catch (NoSuchAlgorithmException e) {
-            throw new IllegalStateException("SHA-256 indisponible", e);
+        } catch (NoSuchAlgorithmException error) {
+            throw new IllegalStateException("SHA-256 indisponible", error);
         }
     }
 }

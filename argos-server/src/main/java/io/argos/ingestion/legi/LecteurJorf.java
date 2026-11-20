@@ -61,12 +61,12 @@ public final class LecteurJorf {
     }
 
     static XMLInputFactory fabrique() {
-        XMLInputFactory f = XMLInputFactory.newFactory();
-        f.setProperty(XMLInputFactory.SUPPORT_DTD, false);
-        f.setProperty(XMLInputFactory.IS_SUPPORTING_EXTERNAL_ENTITIES, false);
-        f.setProperty(XMLInputFactory.IS_REPLACING_ENTITY_REFERENCES, false);
-        f.setProperty(XMLInputFactory.IS_COALESCING, true);
-        return f;
+        XMLInputFactory fabriqueXml = XMLInputFactory.newFactory();
+        fabriqueXml.setProperty(XMLInputFactory.SUPPORT_DTD, false);
+        fabriqueXml.setProperty(XMLInputFactory.IS_SUPPORTING_EXTERNAL_ENTITIES, false);
+        fabriqueXml.setProperty(XMLInputFactory.IS_REPLACING_ENTITY_REFERENCES, false);
+        fabriqueXml.setProperty(XMLInputFactory.IS_COALESCING, true);
+        return fabriqueXml;
     }
 
     /**
@@ -75,30 +75,30 @@ public final class LecteurJorf {
      * @throws XmlRefuse pour un fichier mal formé ou qui déclare un type de document
      */
     public static Optional<Element> lire(byte[] xml, String archive) {
-        XMLStreamReader r = null;
+        XMLStreamReader lecteur = null;
         try {
-            r = FABRIQUE.createXMLStreamReader(new ByteArrayInputStream(xml));
-            Lecture l = new Lecture();
-            while (r.hasNext()) {
-                int evenement = r.next();
+            lecteur = FABRIQUE.createXMLStreamReader(new ByteArrayInputStream(xml));
+            Lecture lecture = new Lecture();
+            while (lecteur.hasNext()) {
+                int evenement = lecteur.next();
                 switch (evenement) {
                     case XMLStreamConstants.DTD -> throw new XmlRefuse("déclaration DOCTYPE refusée", null);
                     case XMLStreamConstants.ENTITY_REFERENCE -> throw new XmlRefuse("référence d'entité refusée", null);
-                    case XMLStreamConstants.START_ELEMENT -> l.debut(r);
-                    case XMLStreamConstants.CHARACTERS, XMLStreamConstants.CDATA -> l.texte(r.getText());
-                    case XMLStreamConstants.END_ELEMENT -> l.fin();
+                    case XMLStreamConstants.START_ELEMENT -> lecture.debut(lecteur);
+                    case XMLStreamConstants.CHARACTERS, XMLStreamConstants.CDATA -> lecture.texte(lecteur.getText());
+                    case XMLStreamConstants.END_ELEMENT -> lecture.fin();
                     default -> {
                     }
                 }
             }
-            return l.resultat(archive);
-        } catch (XMLStreamException e) {
-            throw new XmlRefuse("XML mal formé : " + e.getMessage(), e);
+            return lecture.resultat(archive);
+        } catch (XMLStreamException erreur) {
+            throw new XmlRefuse("XML mal formé : " + erreur.getMessage(), erreur);
         } finally {
-            if (r != null) {
+            if (lecteur != null) {
                 try {
-                    r.close();
-                } catch (XMLStreamException e) {
+                    lecteur.close();
+                } catch (XMLStreamException ignoree) {
                     // fermeture sans effet sur le résultat
                 }
             }
@@ -112,47 +112,47 @@ public final class LecteurJorf {
     public static List<TexteJorf> assembler(Collection<Element> elements) {
         Map<String, TexteJorf> textes = new LinkedHashMap<>();
         Map<String, StringBuilder> articles = new LinkedHashMap<>();
-        for (Element e : elements) {
-            if (e instanceof Version v) {
-                textes.putIfAbsent(v.texte().identifiant(), v.texte());
-            } else if (e instanceof Article a) {
-                StringBuilder b = articles.computeIfAbsent(a.cidTexte(), k -> new StringBuilder());
-                if (b.length() < CONTENU_MAX) {
-                    b.append(a.numero() == null ? "Article" : "Article " + a.numero()).append(" : ").append(a.contenu())
-                            .append('\n');
+        for (Element element : elements) {
+            if (element instanceof Version version) {
+                textes.putIfAbsent(version.texte().identifiant(), version.texte());
+            } else if (element instanceof Article article) {
+                StringBuilder contenu = articles.computeIfAbsent(article.cidTexte(), cidTexte -> new StringBuilder());
+                if (contenu.length() < CONTENU_MAX) {
+                    contenu.append(article.numero() == null ? "Article" : "Article " + article.numero())
+                            .append(" : ").append(article.contenu()).append('\n');
                 }
             }
         }
         List<TexteJorf> resultat = new ArrayList<>();
-        for (TexteJorf t : textes.values()) {
-            StringBuilder b = new StringBuilder(t.contenu());
-            StringBuilder art = articles.get(t.identifiant());
+        for (TexteJorf texte : textes.values()) {
+            StringBuilder contenu = new StringBuilder(texte.contenu());
+            StringBuilder art = articles.get(texte.identifiant());
             if (art != null) {
-                if (b.length() > 0) {
-                    b.append('\n');
+                if (contenu.length() > 0) {
+                    contenu.append('\n');
                 }
-                b.append(art);
+                contenu.append(art);
             }
-            resultat.add(t.avec(borner(b.toString().strip(), CONTENU_MAX), t.archive()));
+            resultat.add(texte.avec(borner(contenu.toString().strip(), CONTENU_MAX), texte.archive()));
         }
         return resultat;
     }
 
-    static String borner(String s, int max) {
-        if (s == null) {
+    static String borner(String valeur, int max) {
+        if (valeur == null) {
             return null;
         }
-        String propre = s.replaceAll("[\\p{Cntrl}&&[^\n]]", " ").replaceAll("[ \\t]+", " ").strip();
+        String propre = valeur.replaceAll("[\\p{Cntrl}&&[^\n]]", " ").replaceAll("[ \\t]+", " ").strip();
         return propre.length() <= max ? propre : propre.substring(0, max);
     }
 
-    private static LocalDate date(String s) {
-        if (s == null || s.isBlank() || s.startsWith("2999")) {
+    private static LocalDate date(String valeur) {
+        if (valeur == null || valeur.isBlank() || valeur.startsWith("2999")) {
             return null;
         }
         try {
-            return LocalDate.parse(s.strip());
-        } catch (DateTimeParseException e) {
+            return LocalDate.parse(valeur.strip());
+        } catch (DateTimeParseException illisible) {
             return null;
         }
     }
@@ -172,43 +172,43 @@ public final class LecteurJorf {
         private Map<String, String> lien;
         private final StringBuilder texteLien = new StringBuilder();
 
-        void debut(XMLStreamReader r) {
-            String nom = r.getLocalName();
+        void debut(XMLStreamReader lecteur) {
+            String nom = lecteur.getLocalName();
             if (racine == null) {
                 racine = nom;
             }
             chemin.push(nom);
             if ("LIEN".equals(nom) && codes.size() + articlesModifies.size() < LIENS_MAX) {
                 lien = new LinkedHashMap<>();
-                for (int i = 0; i < r.getAttributeCount(); i++) {
-                    lien.put(r.getAttributeLocalName(i), r.getAttributeValue(i));
+                for (int indice = 0; indice < lecteur.getAttributeCount(); indice++) {
+                    lien.put(lecteur.getAttributeLocalName(indice), lecteur.getAttributeValue(indice));
                 }
                 texteLien.setLength(0);
             }
             if ("TEXTE".equals(nom) && "CONTEXTE".equals(parent(1)) && cidContexte == null) {
-                cidContexte = r.getAttributeValue(null, "cid");
+                cidContexte = lecteur.getAttributeValue(null, "cid");
             }
             if ("br".equalsIgnoreCase(nom) || "p".equalsIgnoreCase(nom)) {
                 texte("\n");
             }
         }
 
-        void texte(String t) {
+        void texte(String fragment) {
             if (chemin.isEmpty()) {
                 return;
             }
             String courant = chemin.peek();
             if (lien != null) {
-                ajouter(texteLien, t, CHAMP_MAX);
+                ajouter(texteLien, fragment, CHAMP_MAX);
                 return;
             }
             if (dans("NOTICE") || dans("NOTA")) {
-                ajouter(notice, t, CONTENU_MAX);
+                ajouter(notice, fragment, CONTENU_MAX);
             } else if ("ARTICLE".equals(racine) && dans("BLOC_TEXTUEL")) {
-                ajouter(contenuArticle, t, CONTENU_MAX);
+                ajouter(contenuArticle, fragment, CONTENU_MAX);
             } else if (!termines.contains(courant)) {
-                StringBuilder b = champs.computeIfAbsent(courant, k -> new StringBuilder());
-                ajouter(b, t, TITRE_MAX);
+                StringBuilder valeurChamp = champs.computeIfAbsent(courant, nomChamp -> new StringBuilder());
+                ajouter(valeurChamp, fragment, TITRE_MAX);
             }
         }
 
@@ -242,7 +242,7 @@ public final class LecteurJorf {
                 return;
             }
             String code = libelle;
-            if (codes.stream().noneMatch(c -> c.identifiant().equals(cid))) {
+            if (codes.stream().noneMatch(codeModifie -> codeModifie.identifiant().equals(cid))) {
                 codes.add(new TexteJorf.CodeModifie(cid, code));
             }
             String num = lien.get("num");
@@ -260,17 +260,17 @@ public final class LecteurJorf {
         }
 
         private String champ(String nom) {
-            StringBuilder b = champs.get(nom);
-            if (b == null) {
+            StringBuilder valeurChamp = champs.get(nom);
+            if (valeurChamp == null) {
                 return null;
             }
-            String v = borner(b.toString(), TITRE_MAX);
-            return v.isEmpty() ? null : v;
+            String valeurBornee = borner(valeurChamp.toString(), TITRE_MAX);
+            return valeurBornee.isEmpty() ? null : valeurBornee;
         }
 
-        private static void ajouter(StringBuilder b, String t, int max) {
-            if (b.length() < max) {
-                b.append(t, 0, Math.min(t.length(), max - b.length()));
+        private static void ajouter(StringBuilder cible, String fragment, int max) {
+            if (cible.length() < max) {
+                cible.append(fragment, 0, Math.min(fragment.length(), max - cible.length()));
             }
         }
 
@@ -293,8 +293,8 @@ public final class LecteurJorf {
             return Optional.empty();
         }
 
-        private static String borne(String v) {
-            return v == null ? null : borner(v, CHAMP_MAX);
+        private static String borne(String valeur) {
+            return valeur == null ? null : borner(valeur, CHAMP_MAX);
         }
     }
 }

@@ -51,8 +51,8 @@ export interface AutorisationClient {
 let autorisation: AutorisationClient = { jeton: () => null, surRefus: () => {} }
 
 /** Branche le client sur la session de l'IHM (appelé une fois au démarrage, avant tout appel). */
-export function configurerAutorisation(a: AutorisationClient): void {
-  autorisation = a
+export function configurerAutorisation(nouvelleAutorisation: AutorisationClient): void {
+  autorisation = nouvelleAutorisation
 }
 
 /** Corps d'une demande refusée (schéma `Erreur`). */

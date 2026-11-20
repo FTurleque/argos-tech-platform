@@ -280,3 +280,10 @@ sequenceDiagram
 
 La tâche est portée par `alerting` parce que les règles de modules (§5.6) interdisent à `release-radar` d’appeler `inventory` ou `alerting` : `release-radar` ne connaît ni les inventaires ni les messages, `impact` confronte le calendrier aux inventaires, `alerting` émet les messages.
 
+## 8.16 Conventions de code
+
+Nommage (décisions du porteur du projet, 2026-11-20) : aucun identifiant d'une ou deux lettres n'est déclaré dans le code Java, TypeScript, JavaScript et Vue. Seuls sont admis `id` et les paramètres de type générique (`T`, `K`, `V`, `E`, `R`…). La règle couvre les types (classes, records, interfaces, énumérations, types TypeScript), les méthodes et les fonctions, les noms locaux des imports, les variables locales, les champs, les paramètres de méthode, de lambda et de callback, les variables de catch et de boucle. Le nom dit ce que l'élément contient ou fait (`connexion`, `requete`, `resultat`, `erreur`, `signal`, `ligne`, `depuis`, `calculer`, `enTantQue`, `ImpactLu`…), en français quand le fichier est en français ; une variable de catch inutilisée s'appelle `ignoree` ou nomme sa cause.
+
+Un nom court qui relève d'un contrat externe garde son nom : propriété JSON de l'API (composants `de` de `TransitionView` et `le` de `EvenementHistorique`), signature d'une API tierce reproduite par une doublure de test (`on()` d'Electron). Ces exceptions sont inscrites, avec leur raison, dans la liste blanche en tête de `scripts/verifier-nommage.mjs`, qui reste minimale : une entrée devenue inutile fait échouer le contrôle. Les clés et propriétés d'objets et d'interfaces, les colonnes SQL et les clés de configuration ne sont pas des déclarations d'identifiants et ne sont pas contrôlées.
+
+Contrôle : `node scripts/verifier-nommage.mjs` analyse les fichiers suivis par Git et liste chaque violation (`fichier:ligne:nom`, code de sortie 1) ; ses tests (`node --test scripts/*.test.mjs`) l'exécutent sur tout le dépôt.

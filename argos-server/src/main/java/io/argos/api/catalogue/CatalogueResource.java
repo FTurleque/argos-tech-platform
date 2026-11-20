@@ -54,8 +54,8 @@ public class CatalogueResource {
     @Operation(summary = "Mises en page publiées au catalogue")
     public List<MiseEnPageVue> misesEnPage() {
         return misesEnPage.publiees().stream()
-                .map(m -> new MiseEnPageVue(m.identifiant(), m.libelle(), m.description(),
-                        CatalogueMisesEnPage.PAR_DEFAUT.equals(m.identifiant())))
+                .map(miseEnPage -> new MiseEnPageVue(miseEnPage.identifiant(), miseEnPage.libelle(), miseEnPage.description(),
+                        CatalogueMisesEnPage.PAR_DEFAUT.equals(miseEnPage.identifiant())))
                 .toList();
     }
 
@@ -66,9 +66,9 @@ public class CatalogueResource {
         return profils.publies().stream().map(CatalogueResource::vue).toList();
     }
 
-    private static ProfilVue vue(ManifesteProfil m) {
-        return new ProfilVue(m.identifiant(), m.libelle(), m.description(), m.version(),
-                m.rubriques().stream().map(r -> new RubriqueVue(r.identifiant(), r.libelle())).toList(),
-                m.gardeFous().stream().map(GardeFou::description).toList());
+    private static ProfilVue vue(ManifesteProfil manifeste) {
+        return new ProfilVue(manifeste.identifiant(), manifeste.libelle(), manifeste.description(), manifeste.version(),
+                manifeste.rubriques().stream().map(rubrique -> new RubriqueVue(rubrique.identifiant(), rubrique.libelle())).toList(),
+                manifeste.gardeFous().stream().map(GardeFou::description).toList());
     }
 }

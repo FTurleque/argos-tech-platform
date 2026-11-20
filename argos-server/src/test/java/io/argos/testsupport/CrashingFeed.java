@@ -66,7 +66,7 @@ public class CrashingFeed implements AdvisoryFeed {
     @Override
     public List<FeedEntry> changesSince(String position) {
         synchronized (entries) {
-            return entries.stream().filter(e -> e.isAfter(position)).sorted(FeedEntry.ORDER).toList();
+            return entries.stream().filter(entry -> entry.isAfter(position)).sorted(FeedEntry.ORDER).toList();
         }
     }
 

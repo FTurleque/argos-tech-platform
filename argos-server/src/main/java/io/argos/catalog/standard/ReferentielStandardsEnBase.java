@@ -42,20 +42,20 @@ public class ReferentielStandardsEnBase implements ReferentielStandards {
         if (cle == null || espaces.isEmpty()) {
             return standards;
         }
-        try (Connection c = dataSource.getConnection(); PreparedStatement ps = c.prepareStatement("""
+        try (Connection connexion = dataSource.getConnection(); PreparedStatement requete = connexion.prepareStatement("""
                 SELECT espace_id, cle, statut, version_recommandee, justification FROM standard_technologie
                 WHERE cle = ? AND espace_id = ANY (?) ORDER BY espace_id
                 """)) {
-            ps.setString(1, cle);
-            ps.setArray(2, c.createArrayOf("uuid", espaces.toArray()));
-            try (ResultSet rs = ps.executeQuery()) {
-                while (rs.next()) {
-                    standards.add(new Standard(rs.getObject(1, UUID.class), rs.getString(2), Statut.valueOf(rs.getString(3)),
-                            rs.getString(4), rs.getString(5)));
+            requete.setString(1, cle);
+            requete.setArray(2, connexion.createArrayOf("uuid", espaces.toArray()));
+            try (ResultSet resultat = requete.executeQuery()) {
+                while (resultat.next()) {
+                    standards.add(new Standard(resultat.getObject(1, UUID.class), resultat.getString(2),
+                            Statut.valueOf(resultat.getString(3)), resultat.getString(4), resultat.getString(5)));
                 }
             }
-        } catch (SQLException e) {
-            throw new IllegalStateException("lecture du référentiel impossible", e);
+        } catch (SQLException erreur) {
+            throw new IllegalStateException("lecture du référentiel impossible", erreur);
         }
         return standards;
     }
@@ -66,20 +66,20 @@ public class ReferentielStandardsEnBase implements ReferentielStandards {
         if (espaces.isEmpty()) {
             return liste;
         }
-        try (Connection c = dataSource.getConnection(); PreparedStatement ps = c.prepareStatement("""
+        try (Connection connexion = dataSource.getConnection(); PreparedStatement requete = connexion.prepareStatement("""
                 SELECT espace_id, cle, libelle, statut, version_recommandee, produit_cycle_vie FROM standard_technologie
                 WHERE espace_id = ANY (?) AND (NOT ? OR produit_cycle_vie IS NOT NULL) ORDER BY espace_id, cle
                 """)) {
-            ps.setArray(1, c.createArrayOf("uuid", espaces.toArray()));
-            ps.setBoolean(2, avecProduitSeulement);
-            try (ResultSet rs = ps.executeQuery()) {
-                while (rs.next()) {
-                    liste.add(new TechnologieSuivie(rs.getObject(1, UUID.class), rs.getString(2), rs.getString(3),
-                            Statut.valueOf(rs.getString(4)), rs.getString(5), rs.getString(6)));
+            requete.setArray(1, connexion.createArrayOf("uuid", espaces.toArray()));
+            requete.setBoolean(2, avecProduitSeulement);
+            try (ResultSet resultat = requete.executeQuery()) {
+                while (resultat.next()) {
+                    liste.add(new TechnologieSuivie(resultat.getObject(1, UUID.class), resultat.getString(2), resultat.getString(3),
+                            Statut.valueOf(resultat.getString(4)), resultat.getString(5), resultat.getString(6)));
                 }
             }
-        } catch (SQLException e) {
-            throw new IllegalStateException("lecture du référentiel impossible", e);
+        } catch (SQLException erreur) {
+            throw new IllegalStateException("lecture du référentiel impossible", erreur);
         }
         return liste;
     }
@@ -98,13 +98,13 @@ public class ReferentielStandardsEnBase implements ReferentielStandards {
 
     private <T> List<T> lireListe(String sql, Class<T> type) {
         List<T> liste = new ArrayList<>();
-        try (Connection c = dataSource.getConnection(); PreparedStatement ps = c.prepareStatement(sql);
-                ResultSet rs = ps.executeQuery()) {
-            while (rs.next()) {
-                liste.add(rs.getObject(1, type));
+        try (Connection connexion = dataSource.getConnection(); PreparedStatement requete = connexion.prepareStatement(sql);
+                ResultSet resultat = requete.executeQuery()) {
+            while (resultat.next()) {
+                liste.add(resultat.getObject(1, type));
             }
-        } catch (SQLException e) {
-            throw new IllegalStateException("lecture du référentiel impossible", e);
+        } catch (SQLException erreur) {
+            throw new IllegalStateException("lecture du référentiel impossible", erreur);
         }
         return liste;
     }

@@ -56,7 +56,7 @@ class ProfilArtisteTest {
     private static final String ATOM = "application/atom+xml";
 
     @Inject
-    TestDb db;
+    TestDb baseDeTest;
 
     @Inject
     ContexteBase base;
@@ -68,8 +68,8 @@ class ProfilArtisteTest {
 
     @BeforeEach
     void reset() {
-        db.reset();
-        ArtisteFixtures.reinitialiser(db, "hugo", "jules");
+        baseDeTest.reset();
+        ArtisteFixtures.reinitialiser(baseDeTest, "hugo", "jules");
         aujourdhui = LocalDate.now(ZoneId.of("Europe/Paris"));
     }
 
@@ -79,17 +79,17 @@ class ProfilArtisteTest {
     @Test
     void art01S1ActivationAjouteLesCinqRubriquesArtiste() {
         activer("hugo", "developpeur");
-        Api.en("hugo").when().get("/api/v1/preferences/rubriques").then().statusCode(200)
+        Api.enTantQue("hugo").when().get("/api/v1/preferences/rubriques").then().statusCode(200)
                 .body("profil", not(hasItem("artiste")))
                 .body("identifiant", contains("securite", "versions", "fins-de-support"));
 
         activer("hugo", "developpeur", "artiste");
 
-        Api.en("hugo").when().get("/api/v1/preferences/rubriques").then().statusCode(200)
+        Api.enTantQue("hugo").when().get("/api/v1/preferences/rubriques").then().statusCode(200)
                 .body("identifiant", contains("securite", "versions", "fins-de-support", "appels-residences",
                         "aides-creation", "droits-remunerations", "statut-social-fiscal", "evenements"))
                 .body("findAll { it.profil == 'artiste' }", hasSize(5));
-        Api.en("hugo").when().get("/api/v1/catalogue/profils").then().statusCode(200)
+        Api.enTantQue("hugo").when().get("/api/v1/catalogue/profils").then().statusCode(200)
                 .body("find { it.identifiant == 'artiste' }.gardeFous", hasItem(containsString("éligibilité")));
     }
 
@@ -98,11 +98,11 @@ class ProfilArtisteTest {
     void lActivationNAAucunEffetSurLesAutresUtilisateurs() {
         activer("jules", "developpeur");
         activer("hugo", "developpeur", "artiste");
-        Api.en("jules").when().get("/api/v1/preferences").then().statusCode(200)
+        Api.enTantQue("jules").when().get("/api/v1/preferences").then().statusCode(200)
                 .body("profilsActifs", contains("developpeur"));
-        Api.en("jules").when().get("/api/v1/preferences/rubriques").then().statusCode(200)
+        Api.enTantQue("jules").when().get("/api/v1/preferences/rubriques").then().statusCode(200)
                 .body("profil", not(hasItem("artiste")));
-        Api.en("jules").when().get("/api/v1/profils/artiste/opportunites").then().statusCode(409)
+        Api.enTantQue("jules").when().get("/api/v1/profils/artiste/opportunites").then().statusCode(409)
                 .body("code", equalTo("PROFIL_INACTIF"));
     }
 
@@ -112,20 +112,20 @@ class ProfilArtisteTest {
     @Test
     void art02S1ChoixEnregistres() {
         activer("hugo", "developpeur", "artiste");
-        Api.en("hugo").when().get("/api/v1/profils/artiste/opportunites").then().statusCode(200)
+        Api.enTantQue("hugo").when().get("/api/v1/profils/artiste/opportunites").then().statusCode(200)
                 .body("suivisRequis", equalTo(true)).body("items", hasSize(0));
 
         suivre("hugo", List.of("arts-visuels"), List.of("occitanie"));
 
-        Api.en("hugo").when().get("/api/v1/profils/artiste/suivis").then().statusCode(200)
+        Api.enTantQue("hugo").when().get("/api/v1/profils/artiste/suivis").then().statusCode(200)
                 .body("disciplines", contains("arts-visuels"))
                 .body("territoires", contains("occitanie"))
                 .body("rappelsJours", contains(30, 7, 1))
                 .body("rappelsParDefaut", equalTo(true))
                 .body("complets", equalTo(true));
-        assertEquals(2, db.count("SELECT count(*) FROM suivi_profil WHERE profil = 'artiste' AND compte_id = '"
+        assertEquals(2, baseDeTest.count("SELECT count(*) FROM suivi_profil WHERE profil = 'artiste' AND compte_id = '"
                 + Api.compte("hugo") + "'"));
-        Api.en("hugo").when().get("/api/v1/profils/artiste/listes").then().statusCode(200)
+        Api.enTantQue("hugo").when().get("/api/v1/profils/artiste/listes").then().statusCode(200)
                 .body("disciplines", hasSize(6)).body("territoires.identifiant", hasItem("occitanie"));
     }
 
@@ -133,28 +133,28 @@ class ProfilArtisteTest {
     @Test
     void art02S2DisciplineHorsListeRefusee() {
         activer("hugo", "developpeur", "artiste");
-        Api.en("hugo").contentType(ContentType.JSON)
+        Api.enTantQue("hugo").contentType(ContentType.JSON)
                 .body(Map.of("disciplines", List.of("sculpture-sur-glace"), "territoires", List.of("occitanie")))
                 .when().put("/api/v1/profils/artiste/suivis").then().statusCode(400)
                 .body("code", equalTo("DISCIPLINE_INCONNUE"))
                 .body("message", containsString("Arts visuels (arts-visuels)"))
                 .body("message", containsString("Design et métiers d'art (design-metiers-art)"));
-        Api.en("hugo").contentType(ContentType.JSON)
+        Api.enTantQue("hugo").contentType(ContentType.JSON)
                 .body(Map.of("disciplines", List.of("musique"), "territoires", List.of()))
                 .when().put("/api/v1/profils/artiste/suivis").then().statusCode(400)
                 .body("code", equalTo("TERRITOIRE_INCONNU"));
-        Api.en("hugo").contentType(ContentType.JSON)
+        Api.enTantQue("hugo").contentType(ContentType.JSON)
                 .body(Map.of("disciplines", List.of("musique"), "territoires", List.of("occitanie"),
                         "rappelsJours", List.of(400)))
                 .when().put("/api/v1/profils/artiste/suivis").then().statusCode(400);
-        assertEquals(0, db.count("SELECT count(*) FROM suivi_profil"));
+        assertEquals(0, baseDeTest.count("SELECT count(*) FROM suivi_profil"));
     }
 
     /** Les suivis sont réservés à un utilisateur dont le profil artiste est actif. */
     @Test
     void lesSuivisExigentLeProfilActif() {
         activer("hugo", "developpeur");
-        Api.en("hugo").contentType(ContentType.JSON)
+        Api.enTantQue("hugo").contentType(ContentType.JSON)
                 .body(Map.of("disciplines", List.of("musique"), "territoires", List.of("occitanie")))
                 .when().put("/api/v1/profils/artiste/suivis").then().statusCode(409)
                 .body("code", equalTo("PROFIL_INACTIF"));
@@ -168,34 +168,34 @@ class ProfilArtisteTest {
         UUID hugo = Api.compte("hugo");
         UUID jules = Api.compte("jules");
 
-        long vusParJules = base.executer(new Contexte(jules, null, null), c -> {
-            try (PreparedStatement ps = c.prepareStatement("SELECT current_user, count(*) FROM suivi_profil GROUP BY 1");
-                    ResultSet rs = ps.executeQuery()) {
-                return rs.next() ? rs.getLong(2) : 0L;
+        long vusParJules = base.executer(new Contexte(jules, null, null), connexion -> {
+            try (PreparedStatement requete = connexion.prepareStatement("SELECT current_user, count(*) FROM suivi_profil GROUP BY 1");
+                    ResultSet resultat = requete.executeQuery()) {
+                return resultat.next() ? resultat.getLong(2) : 0L;
             }
         });
         assertEquals(0L, vusParJules);
-        long vusParHugo = base.executer(new Contexte(hugo, null, null), c -> {
-            try (PreparedStatement ps = c.prepareStatement("SELECT current_user, count(*) FROM suivi_profil GROUP BY 1");
-                    ResultSet rs = ps.executeQuery()) {
-                assertTrue(rs.next());
-                assertEquals("argos_app", rs.getString(1));
-                return rs.getLong(2);
+        long vusParHugo = base.executer(new Contexte(hugo, null, null), connexion -> {
+            try (PreparedStatement requete = connexion.prepareStatement("SELECT current_user, count(*) FROM suivi_profil GROUP BY 1");
+                    ResultSet resultat = requete.executeQuery()) {
+                assertTrue(resultat.next());
+                assertEquals("argos_app", resultat.getString(1));
+                return resultat.getLong(2);
             }
         });
         assertEquals(2L, vusParHugo);
-        assertThrows(IllegalStateException.class, () -> base.executer(new Contexte(jules, null, null), c -> {
-            try (PreparedStatement ps = c.prepareStatement("""
+        assertThrows(IllegalStateException.class, () -> base.executer(new Contexte(jules, null, null), connexion -> {
+            try (PreparedStatement requete = connexion.prepareStatement("""
                     INSERT INTO suivi_profil (compte_id, profil, type_objet, valeurs) VALUES (?, 'artiste', 'x', '{a}')
                     """)) {
-                ps.setObject(1, hugo);
-                return ps.executeUpdate();
+                requete.setObject(1, hugo);
+                return requete.executeUpdate();
             }
         }), "écrire les suivis d'un autre compte est refusé par la politique RLS");
-        long modifies = base.executer(new Contexte(jules, null, null), c -> {
-            try (PreparedStatement ps = c.prepareStatement("DELETE FROM suivi_profil WHERE compte_id = ?")) {
-                ps.setObject(1, hugo);
-                return (long) ps.executeUpdate();
+        long modifies = base.executer(new Contexte(jules, null, null), connexion -> {
+            try (PreparedStatement requete = connexion.prepareStatement("DELETE FROM suivi_profil WHERE compte_id = ?")) {
+                requete.setObject(1, hugo);
+                return (long) requete.executeUpdate();
             }
         });
         assertEquals(0L, modifies);
@@ -211,8 +211,8 @@ class ProfilArtisteTest {
         try {
             java.util.concurrent.CountDownLatch depart = new java.util.concurrent.CountDownLatch(1);
             List<java.util.concurrent.Future<SuivisProfil.Suivis>> resultats = new java.util.ArrayList<>();
-            for (int i = 0; i < 8; i++) {
-                String discipline = i % 2 == 0 ? "musique" : "arts-visuels";
+            for (int rang = 0; rang < 8; rang++) {
+                String discipline = rang % 2 == 0 ? "musique" : "arts-visuels";
                 resultats.add(pool.submit(() -> {
                     depart.await();
                     return suivis.remplacer(hugo, "artiste",
@@ -220,8 +220,8 @@ class ProfilArtisteTest {
                 }));
             }
             depart.countDown();
-            for (java.util.concurrent.Future<SuivisProfil.Suivis> r : resultats) {
-                assertEquals(List.of("france"), r.get(30, java.util.concurrent.TimeUnit.SECONDS).valeurs("territoire"));
+            for (java.util.concurrent.Future<SuivisProfil.Suivis> resultat : resultats) {
+                assertEquals(List.of("france"), resultat.get(30, java.util.concurrent.TimeUnit.SECONDS).valeurs("territoire"));
             }
         } finally {
             pool.shutdownNow();
@@ -234,7 +234,7 @@ class ProfilArtisteTest {
     /** ART-03-S1 et S2 : seules les opportunités ouvertes de la discipline et du territoire suivis sont restituées. */
     @Test
     void art03RapprochementParDisciplineTerritoireEtDateLimite() {
-        StubServer.on(JEU, Stub.ok(reponse(
+        StubServer.programmer(JEU, Stub.succes(reponse(
                 enregistrement("AAP-OCC", "Résidence arts visuels Occitanie", "Arts visuels", "Occitanie",
                         aujourdhui.plusDays(20)),
                 enregistrement("AAP-PASSE", "Appel clos", "Arts visuels", "Occitanie", aujourdhui.minusDays(1)),
@@ -245,12 +245,12 @@ class ProfilArtisteTest {
         String source = declarer("DATA_CULTURE", StubServer.base() + JEU, "appels-residences", List.of(), List.of());
         verifier(source);
         ArtisteFixtures.collecter();
-        assertEquals(6, db.count("SELECT count(*) FROM opportunite"));
+        assertEquals(6, baseDeTest.count("SELECT count(*) FROM opportunite"));
 
         activer("hugo", "developpeur", "artiste");
         suivre("hugo", List.of("arts-visuels"), List.of("occitanie"));
 
-        Api.en("hugo").when().get("/api/v1/profils/artiste/opportunites").then().statusCode(200)
+        Api.enTantQue("hugo").when().get("/api/v1/profils/artiste/opportunites").then().statusCode(200)
                 .body("suivisRequis", equalTo(false))
                 .body("items.titre", contains("Résidence arts visuels Occitanie", "Aide nationale", "Résidence sans date"))
                 .body("items[0].dateLimite", equalTo(aujourdhui.plusDays(20).toString()))
@@ -268,18 +268,18 @@ class ProfilArtisteTest {
     /** ART-05-S1 : une source sans conditions d'usage enregistrées n'est pas collectée et l'indique. */
     @Test
     void art05S1SourceNonVerifieeNonCollectee() {
-        StubServer.on("/organisme/rss", new Stub(200, VeilleWebTest.atom("Appels de l'organisme",
+        StubServer.programmer("/organisme/rss", new Stub(200, VeilleWebTest.atom("Appels de l'organisme",
                 VeilleWebTest.entree("Résidence de création", "https://organisme.test/residence", "Critères")),
                 Map.of("Content-Type", ATOM), 0));
         String source = declarer("FLUX", StubServer.base() + "/organisme/rss", "appels-residences",
                 List.of("arts-visuels"), List.of("occitanie"));
 
-        Api.en("alice").when().post("/api/v1/profils/artiste/collectes").then().statusCode(200)
+        Api.enTantQue("alice").when().post("/api/v1/profils/artiste/collectes").then().statusCode(200)
                 .body("find { it.sourceId == '" + source + "' }.etat", equalTo("CONDITIONS_A_VERIFIER"));
 
         assertTrue(StubServer.received("/organisme/rss").isEmpty(), "aucune requête vers une source non vérifiée");
-        assertEquals(0, db.count("SELECT count(*) FROM opportunite"));
-        Api.en("alice").when().get("/api/v1/profils/artiste/sources").then().statusCode(200)
+        assertEquals(0, baseDeTest.count("SELECT count(*) FROM opportunite"));
+        Api.enTantQue("alice").when().get("/api/v1/profils/artiste/sources").then().statusCode(200)
                 .body("find { it.id == '" + source + "' }.etat", equalTo("CONDITIONS_A_VERIFIER"))
                 .body("find { it.id == '" + source + "' }.licence", nullValue());
 
@@ -287,45 +287,45 @@ class ProfilArtisteTest {
         ArtisteFixtures.collecter();
 
         assertEquals(1, StubServer.received("/organisme/rss").size());
-        assertEquals(1, db.count("SELECT count(*) FROM opportunite WHERE date_limite IS NULL"
+        assertEquals(1, baseDeTest.count("SELECT count(*) FROM opportunite WHERE date_limite IS NULL"
                 + " AND 'arts-visuels' = ANY (disciplines) AND 'occitanie' = ANY (territoires)"));
-        Api.en("alice").when().get("/api/v1/profils/artiste/sources").then().statusCode(200)
+        Api.enTantQue("alice").when().get("/api/v1/profils/artiste/sources").then().statusCode(200)
                 .body("find { it.id == '" + source + "' }.etat", equalTo("ACTIVE"))
                 .body("find { it.id == '" + source + "' }.licence", equalTo("Licence Ouverte Etalab 2.0"));
         ArtisteFixtures.collecter();
-        assertEquals(1, db.count("SELECT count(*) FROM opportunite"), "seconde collecte dédupliquée");
+        assertEquals(1, baseDeTest.count("SELECT count(*) FROM opportunite"), "seconde collecte dédupliquée");
     }
 
     /** Le registre des sources est réservé à l'administrateur plateforme ; refus journalisé. */
     @Test
     void lesSourcesSontReserveesALAdministrateurPlateforme() {
         Api.compte("hugo");
-        long refusAvant = db.count("SELECT count(*) FROM refus_acces");
-        Api.en("hugo").contentType(ContentType.JSON)
+        long refusAvant = baseDeTest.count("SELECT count(*) FROM refus_acces");
+        Api.enTantQue("hugo").contentType(ContentType.JSON)
                 .body(Map.of("type", "FLUX", "adresse", "https://organisme.test/rss", "rubrique", "evenements"))
                 .when().post("/api/v1/profils/artiste/sources").then().statusCode(403);
-        Api.en("hugo").when().get("/api/v1/profils/artiste/sources").then().statusCode(403);
-        Api.en("hugo").when().post("/api/v1/profils/artiste/collectes").then().statusCode(403);
-        assertEquals(refusAvant + 3, db.count("SELECT count(*) FROM refus_acces"));
+        Api.enTantQue("hugo").when().get("/api/v1/profils/artiste/sources").then().statusCode(403);
+        Api.enTantQue("hugo").when().post("/api/v1/profils/artiste/collectes").then().statusCode(403);
+        assertEquals(refusAvant + 3, baseDeTest.count("SELECT count(*) FROM refus_acces"));
     }
 
     /** SSRF : hôte non admis pour data.culture.gouv.fr refusé ; adresse locale refusée à la collecte. */
     @Test
     void lesAdressesDesSourcesSontControlees() {
-        Api.en("alice").contentType(ContentType.JSON)
+        Api.enTantQue("alice").contentType(ContentType.JSON)
                 .body(Map.of("type", "DATA_CULTURE", "adresse", "https://exemple.test/api", "rubrique", "aides-creation"))
                 .when().post("/api/v1/profils/artiste/sources").then().statusCode(400)
                 .body("code", equalTo("HOTE_NON_ADMIS"));
-        Api.en("alice").contentType(ContentType.JSON)
+        Api.enTantQue("alice").contentType(ContentType.JSON)
                 .body(Map.of("type", "FLUX", "adresse", "file:///etc/passwd", "rubrique", "aides-creation"))
                 .when().post("/api/v1/profils/artiste/sources").then().statusCode(400);
-        Api.en("alice").contentType(ContentType.JSON)
+        Api.enTantQue("alice").contentType(ContentType.JSON)
                 .body(Map.of("type", "FLUX", "adresse", "https://organisme.test/rss", "rubrique", "inconnue"))
                 .when().post("/api/v1/profils/artiste/sources").then().statusCode(400)
                 .body("code", equalTo("RUBRIQUE_INCONNUE"));
         String locale = declarer("FLUX", "http://127.0.0.1:9/rss", "evenements", List.of("musique"), List.of("france"));
         verifier(locale);
-        Api.en("alice").when().post("/api/v1/profils/artiste/collectes").then().statusCode(200)
+        Api.enTantQue("alice").when().post("/api/v1/profils/artiste/collectes").then().statusCode(200)
                 .body("find { it.sourceId == '" + locale + "' }.etat", equalTo("EN_ERREUR"))
                 .body("find { it.sourceId == '" + locale + "' }.erreur", containsString("ADRESSE_INTERDITE"));
     }
@@ -335,7 +335,7 @@ class ProfilArtisteTest {
     /** ART-06-S1 : le résumé présente les critères tels qu'énoncés, renvoie au texte officiel et ne juge pas l'éligibilité. */
     @Test
     void art06S1ResumeSansAvisDEligibilite() {
-        StubServer.on(JEU, Stub.ok(reponse("""
+        StubServer.programmer(JEU, Stub.succes(reponse("""
                 {"identifiant": "AAP-X", "titre": "<img src=x onerror=alert(1)>Résidence", "organisme": "Région",
                  "criteres": "<p>Être artiste professionnel ; <script>vol()</script>projet en Occitanie.</p>",
                  "lien": "javascript:alert(1)", "discipline": "Arts visuels", "region": "Occitanie",
@@ -345,21 +345,21 @@ class ProfilArtisteTest {
         ArtisteFixtures.collecter();
         activer("hugo", "developpeur", "artiste");
         suivre("hugo", List.of("arts-visuels"), List.of("occitanie"));
-        String x = db.string("SELECT id FROM opportunite WHERE titre = 'Résidence'");
-        String y = db.string("SELECT id FROM opportunite WHERE titre = 'Résidence officielle'");
+        String residence = baseDeTest.string("SELECT id FROM opportunite WHERE titre = 'Résidence'");
+        String residenceOfficielle = baseDeTest.string("SELECT id FROM opportunite WHERE titre = 'Résidence officielle'");
 
-        Api.en("hugo").when().get("/api/v1/profils/artiste/opportunites/" + x + "/resume").then().statusCode(200)
+        Api.enTantQue("hugo").when().get("/api/v1/profils/artiste/opportunites/" + residence + "/resume").then().statusCode(200)
                 .body("criteres", equalTo("Être artiste professionnel ; projet en Occitanie."))
                 .body("texteOfficiel", nullValue())
                 .body("mention", containsString("ne se prononce pas sur votre éligibilité"))
                 .body("keySet()", not(hasItem("eligible")));
-        Api.en("hugo").when().get("/api/v1/profils/artiste/opportunites/" + y + "/resume").then().statusCode(200)
+        Api.enTantQue("hugo").when().get("/api/v1/profils/artiste/opportunites/" + residenceOfficielle + "/resume").then().statusCode(200)
                 .body("criteres", equalTo("Artistes professionnels résidant en France."))
                 .body("texteOfficiel", equalTo("https://www.culture.gouv.fr/AAP-Y"))
                 .body("keySet()", hasItems("titre", "organisme", "criteres", "dateLimite", "texteOfficiel", "mention"));
-        Api.en("hugo").when().get("/api/v1/profils/artiste/opportunites").then().statusCode(200)
+        Api.enTantQue("hugo").when().get("/api/v1/profils/artiste/opportunites").then().statusCode(200)
                 .body("items.resume.mention", hasItem(containsString("éligibilité")));
-        Api.en("hugo").when().get("/api/v1/profils/artiste/opportunites/" + UUID.randomUUID() + "/resume")
+        Api.enTantQue("hugo").when().get("/api/v1/profils/artiste/opportunites/" + UUID.randomUUID() + "/resume")
                 .then().statusCode(404);
     }
 }

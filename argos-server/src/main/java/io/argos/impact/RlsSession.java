@@ -19,15 +19,15 @@ final class RlsSession {
     private RlsSession() {
     }
 
-    static void account(Connection c, UUID accountId) throws SQLException {
-        try (Statement st = c.createStatement()) {
-            st.execute("SET LOCAL ROLE argos_app");
+    static void account(Connection connexion, UUID accountId) throws SQLException {
+        try (Statement instruction = connexion.createStatement()) {
+            instruction.execute("SET LOCAL ROLE argos_app");
         }
-        try (PreparedStatement ps = c.prepareStatement(
+        try (PreparedStatement requete = connexion.prepareStatement(
                 "SELECT set_config('argos.compte_courant', ?, true), set_config('argos.sujet_courant', '', true),"
                         + " set_config('argos.email_courant', '', true), set_config('argos.espace_courant', '', true)")) {
-            ps.setString(1, accountId == null ? "" : accountId.toString());
-            ps.execute();
+            requete.setString(1, accountId == null ? "" : accountId.toString());
+            requete.execute();
         }
     }
 }

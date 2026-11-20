@@ -152,8 +152,8 @@ class MatchRulesTest {
     @Test
     void mavenQualificatifsConnus() {
         List<String> ordre = List.of("1-alpha", "1-beta", "1-milestone", "1-rc", "1-snapshot", "1", "1-sp");
-        for (int i = 0; i + 1 < ordre.size(); i++) {
-            mavenAvant(ordre.get(i), ordre.get(i + 1));
+        for (int rang = 0; rang + 1 < ordre.size(); rang++) {
+            mavenAvant(ordre.get(rang), ordre.get(rang + 1));
         }
         mavenEgales("1-ga", "1");
         mavenEgales("1-final", "1");

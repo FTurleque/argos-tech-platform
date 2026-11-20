@@ -74,10 +74,10 @@ public class MoteurAlertes {
      * commun. Une demande expirée est annulée (interruption) ; une file pleine vaut résumé indisponible.
      */
     private static final ExecutorService EXECUTEUR_IA = new ThreadPoolExecutor(2, 2, 60, TimeUnit.SECONDS,
-            new ArrayBlockingQueue<>(16), r -> {
-                Thread t = new Thread(r, "argos-resume-ia");
-                t.setDaemon(true);
-                return t;
+            new ArrayBlockingQueue<>(16), tache -> {
+                Thread fil = new Thread(tache, "argos-resume-ia");
+                fil.setDaemon(true);
+                return fil;
             }, new ThreadPoolExecutor.AbortPolicy());
 
     @Inject
@@ -125,44 +125,45 @@ public class MoteurAlertes {
     void surImpacts(@Observes ImpactsRecorded evenement) {
         try {
             evaluer(evenement, Instant.now());
-        } catch (RuntimeException e) {
-            LOG.errorf(e, "évaluation des alertes du signal %s en échec", evenement.signalId());
+        } catch (RuntimeException erreur) {
+            LOG.errorf(erreur, "évaluation des alertes du signal %s en échec", evenement.signalId());
         }
     }
 
     /** Évalue les règles de chaque destinataire possible pour les impacts publiés. */
-    public Bilan evaluer(ImpactsRecorded e, Instant maintenant) {
-        Set<UUID> espaces = e.impacts().stream().map(ImpactsRecorded.Item::workspaceId)
+    public Bilan evaluer(ImpactsRecorded evenement, Instant maintenant) {
+        Set<UUID> espaces = evenement.impacts().stream().map(ImpactsRecorded.Item::workspaceId)
                 .collect(Collectors.toCollection(LinkedHashSet::new));
         Map<UUID, String> paquets = new LinkedHashMap<>();
-        e.impacts().forEach(i -> paquets.put(i.impactId(), i.packageKey()));
+        evenement.impacts().forEach(impact -> paquets.put(impact.impactId(), impact.packageKey()));
         List<Destinataires.Destinataire> candidats = QuarkusTransaction.requiringNew()
                 .call(() -> destinataires.membres(espaces));
         List<Plan> plans = new ArrayList<>();
-        for (Destinataires.Destinataire d : candidats) {
-            plan(e, d, paquets).ifPresent(plans::add);
+        for (Destinataires.Destinataire destinataire : candidats) {
+            plan(evenement, destinataire, paquets).ifPresent(plans::add);
         }
-        boolean nouvelleAlerte = plans.stream().anyMatch(p -> p.immediates().keySet().stream()
-                .anyMatch(canal -> !alerteExiste(e.signalId(), p.destinataire().compteId(), canal)));
-        String[] resume = nouvelleAlerte ? resumeIa(e, espaces) : new String[] {null, "SANS_OBJET"};
+        boolean nouvelleAlerte = plans.stream().anyMatch(plan -> plan.immediates().keySet().stream()
+                .anyMatch(canal -> !alerteExiste(evenement.signalId(), plan.destinataire().compteId(), canal)));
+        String[] resume = nouvelleAlerte ? resumeIa(evenement, espaces) : new String[] {null, "SANS_OBJET"};
 
         List<UUID> creees = new ArrayList<>();
         int elements = 0;
-        for (Plan p : plans) {
-            UUID compte = p.destinataire().compteId();
-            for (Map.Entry<String, Map<UUID, ImpactQueries.ImpactView>> canal : p.immediates().entrySet()) {
-                ContenuAlerte contenu = new ContenuAlerte(List.of(element(e.signalId(), e.signalTitle(),
-                        e.signalSeverity(), e.signalSource(), e.signalExternalId(), canal.getValue().values(), lienBase)),
+        for (Plan plan : plans) {
+            UUID compte = plan.destinataire().compteId();
+            for (Map.Entry<String, Map<UUID, ImpactQueries.ImpactView>> canal : plan.immediates().entrySet()) {
+                ContenuAlerte contenu = new ContenuAlerte(List.of(element(evenement.signalId(), evenement.signalTitle(),
+                        evenement.signalSeverity(), evenement.signalSource(), evenement.signalExternalId(), canal.getValue().values(),
+                        lienBase)),
                         resume[0], resume[1]);
-                creerImmediate(e, compte, canal.getKey(), contenu, maintenant).ifPresent(id -> {
+                creerImmediate(evenement, compte, canal.getKey(), contenu, maintenant).ifPresent(id -> {
                     creees.add(id);
                     emises.fire(new AlerteEmise(id, compte, canal.getKey(), RegleAlerte.IMMEDIATE));
                 });
             }
-            if (!p.resumes().isEmpty() && !alerteExiste(e.signalId(), compte, null)) {
-                for (String cle : p.resumes()) {
-                    String[] fc = cle.split(":");
-                    elements += ajouterAuResume(e, compte, fc[0], fc[1], maintenant);
+            if (!plan.resumes().isEmpty() && !alerteExiste(evenement.signalId(), compte, null)) {
+                for (String cle : plan.resumes()) {
+                    String[] frequenceCanal = cle.split(":");
+                    elements += ajouterAuResume(evenement, compte, frequenceCanal[0], frequenceCanal[1], maintenant);
                 }
             }
         }
@@ -170,57 +171,58 @@ public class MoteurAlertes {
         return new Bilan(List.copyOf(creees), elements);
     }
 
-    private Optional<Plan> plan(ImpactsRecorded e, Destinataires.Destinataire d, Map<UUID, String> paquets) {
-        Set<UUID> espacesDuCompte = QuarkusTransaction.requiringNew().call(() -> destinataires.espacesDe(d.compteId()));
+    private Optional<Plan> plan(ImpactsRecorded evenement, Destinataires.Destinataire destinataire, Map<UUID, String> paquets) {
+        Set<UUID> espacesDuCompte = QuarkusTransaction.requiringNew().call(() -> destinataires.espacesDe(destinataire.compteId()));
         List<ImpactQueries.ImpactView> visibles = QuarkusTransaction.requiringNew()
-                .call(() -> impacts.forSignals(List.of(e.signalId()), d.compteId(), espacesDuCompte));
+                .call(() -> impacts.forSignals(List.of(evenement.signalId()), destinataire.compteId(), espacesDuCompte));
         if (visibles.isEmpty()) {
             return Optional.empty();
         }
         List<RegleAlerte> regles = QuarkusTransaction.requiringNew()
-                .call(() -> abonnements.activeFor(d.compteId(), espacesDuCompte)).stream()
+                .call(() -> abonnements.activeFor(destinataire.compteId(), espacesDuCompte)).stream()
                 .map(RegleAlerte::depuis).flatMap(Optional::stream).toList();
         Map<String, Map<UUID, ImpactQueries.ImpactView>> immediates = new LinkedHashMap<>();
         Set<String> resumes = new LinkedHashSet<>();
-        for (RegleAlerte r : regles) {
+        for (RegleAlerte regle : regles) {
             List<ImpactQueries.ImpactView> concernes = visibles.stream()
-                    .filter(i -> r.concerne(i.projectId().toString(), cle(i, paquets), e.signalSource())).toList();
+                    .filter(impact -> regle.concerne(impact.projectId().toString(), cle(impact, paquets),
+                            evenement.signalSource())).toList();
             if (concernes.isEmpty()) {
                 continue;
             }
             List<ImpactQueries.ImpactView> etablis = concernes.stream()
-                    .filter(i -> !"A_VERIFIER".equals(i.level())).toList();
-            if (r.immediate() && r.seuilAtteint(e.signalSeverity()) && !etablis.isEmpty()) {
-                Map<UUID, ImpactQueries.ImpactView> parImpact = immediates.computeIfAbsent(r.canal(), k -> new LinkedHashMap<>());
-                concernes.forEach(i -> parImpact.put(i.id(), i));
+                    .filter(impact -> !"A_VERIFIER".equals(impact.level())).toList();
+            if (regle.immediate() && regle.seuilAtteint(evenement.signalSeverity()) && !etablis.isEmpty()) {
+                Map<UUID, ImpactQueries.ImpactView> parImpact = immediates.computeIfAbsent(regle.canal(), canal -> new LinkedHashMap<>());
+                concernes.forEach(impact -> parImpact.put(impact.id(), impact));
             } else {
-                resumes.add(r.frequenceResume() + ":" + r.canal());
+                resumes.add(regle.frequenceResume() + ":" + regle.canal());
             }
         }
         if (immediates.isEmpty() && resumes.isEmpty()) {
             return Optional.empty();
         }
-        return Optional.of(new Plan(d, immediates, resumes));
+        return Optional.of(new Plan(destinataire, immediates, resumes));
     }
 
     /** Clé du paquet d'un impact : celle de l'événement, sinon dérivée du PURL du composant. */
-    private static String cle(ImpactQueries.ImpactView i, Map<UUID, String> paquets) {
-        String cle = paquets.get(i.id());
-        if (cle != null || i.componentPurl() == null) {
+    private static String cle(ImpactQueries.ImpactView impact, Map<UUID, String> paquets) {
+        String cle = paquets.get(impact.id());
+        if (cle != null || impact.componentPurl() == null) {
             return cle;
         }
-        int at = i.componentPurl().lastIndexOf('@');
-        return at > 4 ? i.componentPurl().substring(0, at) : i.componentPurl();
+        int arobase = impact.componentPurl().lastIndexOf('@');
+        return arobase > 4 ? impact.componentPurl().substring(0, arobase) : impact.componentPurl();
     }
 
     /** Élément d'alerte ou de résumé : un projet cité une fois, avec le niveau d'impact le plus fort. */
     static ContenuAlerte.Element element(UUID signalId, String titre, String gravite, String source, String externe,
             java.util.Collection<ImpactQueries.ImpactView> vues, String lienBase) {
         Map<UUID, ContenuAlerte.Projet> projets = new LinkedHashMap<>();
-        for (ImpactQueries.ImpactView v : vues) {
-            ContenuAlerte.Projet actuel = projets.get(v.projectId());
-            if (actuel == null || rangNiveau(v.level()) < rangNiveau(actuel.niveau())) {
-                projets.put(v.projectId(), new ContenuAlerte.Projet(v.projectId(), v.projectName(), v.level()));
+        for (ImpactQueries.ImpactView vue : vues) {
+            ContenuAlerte.Projet actuel = projets.get(vue.projectId());
+            if (actuel == null || rangNiveau(vue.level()) < rangNiveau(actuel.niveau())) {
+                projets.put(vue.projectId(), new ContenuAlerte.Projet(vue.projectId(), vue.projectName(), vue.level()));
             }
         }
         List<ContenuAlerte.Projet> tries = projets.values().stream()
@@ -243,38 +245,38 @@ public class MoteurAlertes {
     }
 
     /** Résumé IA, imputé à l'un des espaces concernés et demandé avec un délai borné : {résumé, état}. */
-    private String[] resumeIa(ImpactsRecorded e, Set<UUID> espaces) {
+    private String[] resumeIa(ImpactsRecorded evenement, Set<UUID> espaces) {
         if (!resumeIa.isResolvable()) {
             return new String[] {null, "INDISPONIBLE"};
         }
-        ResumeIa ia = resumeIa.get();
+        ResumeIa resumeur = resumeIa.get();
         Set<UUID> concernes = espaces.stream().filter(java.util.Objects::nonNull).collect(Collectors.toUnmodifiableSet());
-        if (!ia.budgetDisponible(concernes)) {
+        if (!resumeur.budgetDisponible(concernes)) {
             return new String[] {null, "PLAFOND_ATTEINT"};
         }
         Future<String> demande;
         try {
-            demande = EXECUTEUR_IA.submit(() -> ia.resumer(e.signalId(), e.signalTitle(), concernes));
-        } catch (RejectedExecutionException ex) {
-            LOG.infof("résumé IA indisponible pour le signal %s : file d'attente pleine", e.signalId());
+            demande = EXECUTEUR_IA.submit(() -> resumeur.resumer(evenement.signalId(), evenement.signalTitle(), concernes));
+        } catch (RejectedExecutionException erreur) {
+            LOG.infof("résumé IA indisponible pour le signal %s : file d'attente pleine", evenement.signalId());
             return new String[] {null, "INDISPONIBLE"};
         }
         try {
             String texte = demande.get(delaiResumeIa.toMillis(), TimeUnit.MILLISECONDS);
             return texte == null || texte.isBlank() ? new String[] {null, "REFUSE"} : new String[] {texte, "DISPONIBLE"};
-        } catch (InterruptedException ex) {
+        } catch (InterruptedException erreur) {
             demande.cancel(true);
             Thread.currentThread().interrupt();
             return new String[] {null, "INDISPONIBLE"};
-        } catch (java.util.concurrent.ExecutionException ex) {
-            if (ex.getCause() instanceof ResumeIa.PlafondAtteint) {
+        } catch (java.util.concurrent.ExecutionException erreur) {
+            if (erreur.getCause() instanceof ResumeIa.PlafondAtteint) {
                 return new String[] {null, "PLAFOND_ATTEINT"};
             }
-            LOG.infof("résumé IA indisponible pour le signal %s : %s", e.signalId(), ex.getCause());
+            LOG.infof("résumé IA indisponible pour le signal %s : %s", evenement.signalId(), erreur.getCause());
             return new String[] {null, "INDISPONIBLE"};
-        } catch (Exception ex) {
+        } catch (Exception erreur) {
             demande.cancel(true);
-            LOG.infof("résumé IA indisponible pour le signal %s : %s", e.signalId(), ex.toString());
+            LOG.infof("résumé IA indisponible pour le signal %s : %s", evenement.signalId(), erreur.toString());
             return new String[] {null, "INDISPONIBLE"};
         }
     }
@@ -282,25 +284,25 @@ public class MoteurAlertes {
     /** Vrai si une alerte immédiate existe pour ce signal et ce destinataire, sur ce canal ou sur l'un d'eux. */
     boolean alerteExiste(UUID signalId, UUID compteId, String canal) {
         return QuarkusTransaction.requiringNew().call(() -> {
-            try (Connection c = dataSource.getConnection(); PreparedStatement ps = c.prepareStatement("""
+            try (Connection connexion = dataSource.getConnection(); PreparedStatement requete = connexion.prepareStatement("""
                     SELECT 1 FROM alerte WHERE nature = 'IMMEDIATE' AND signal_id = ? AND compte_id = ?
                       AND etat <> 'ANNULEE' AND (?::varchar IS NULL OR canal = ?::varchar)
                     """)) {
-                ps.setObject(1, signalId);
-                ps.setObject(2, compteId);
-                ps.setString(3, canal);
-                ps.setString(4, canal);
-                try (ResultSet rs = ps.executeQuery()) {
-                    return rs.next();
+                requete.setObject(1, signalId);
+                requete.setObject(2, compteId);
+                requete.setString(3, canal);
+                requete.setString(4, canal);
+                try (ResultSet resultat = requete.executeQuery()) {
+                    return resultat.next();
                 }
             }
         });
     }
 
-    private Optional<UUID> creerImmediate(ImpactsRecorded e, UUID compte, String canal, ContenuAlerte contenu,
+    private Optional<UUID> creerImmediate(ImpactsRecorded evenement, UUID compte, String canal, ContenuAlerte contenu,
             Instant maintenant) {
         return QuarkusTransaction.requiringNew().call(() -> {
-            try (Connection c = dataSource.getConnection(); PreparedStatement ps = c.prepareStatement("""
+            try (Connection connexion = dataSource.getConnection(); PreparedStatement requete = connexion.prepareStatement("""
                     INSERT INTO alerte(id, nature, compte_id, canal, signal_id, titre, gravite, contenu, resume_ia,
                                        etat_resume_ia, etat, cree_le)
                     VALUES (?, 'IMMEDIATE', ?, ?, ?, ?, ?, ?::jsonb, ?, ?, 'EN_ATTENTE', ?)
@@ -312,41 +314,41 @@ public class MoteurAlertes {
                         WHERE alerte.etat = 'ANNULEE'
                     RETURNING id
                     """)) {
-                ps.setObject(1, UUID.randomUUID());
-                ps.setObject(2, compte);
-                ps.setString(3, canal);
-                ps.setObject(4, e.signalId());
-                ps.setString(5, e.signalTitle() == null ? e.signalExternalId() : e.signalTitle());
-                ps.setString(6, e.signalSeverity());
-                ps.setString(7, json(contenu));
-                ps.setString(8, contenu.resumeIa());
-                ps.setString(9, contenu.etatResumeIa());
-                ps.setObject(10, maintenant.atOffset(ZoneOffset.UTC));
-                try (ResultSet rs = ps.executeQuery()) {
-                    return rs.next() ? Optional.of(rs.getObject(1, UUID.class)) : Optional.<UUID>empty();
+                requete.setObject(1, UUID.randomUUID());
+                requete.setObject(2, compte);
+                requete.setString(3, canal);
+                requete.setObject(4, evenement.signalId());
+                requete.setString(5, evenement.signalTitle() == null ? evenement.signalExternalId() : evenement.signalTitle());
+                requete.setString(6, evenement.signalSeverity());
+                requete.setString(7, json(contenu));
+                requete.setString(8, contenu.resumeIa());
+                requete.setString(9, contenu.etatResumeIa());
+                requete.setObject(10, maintenant.atOffset(ZoneOffset.UTC));
+                try (ResultSet resultat = requete.executeQuery()) {
+                    return resultat.next() ? Optional.of(resultat.getObject(1, UUID.class)) : Optional.<UUID>empty();
                 }
             }
         });
     }
 
-    private int ajouterAuResume(ImpactsRecorded e, UUID compte, String frequence, String canal, Instant maintenant) {
+    private int ajouterAuResume(ImpactsRecorded evenement, UUID compte, String frequence, String canal, Instant maintenant) {
         return QuarkusTransaction.requiringNew().call(() -> {
-            try (Connection c = dataSource.getConnection(); PreparedStatement ps = c.prepareStatement("""
+            try (Connection connexion = dataSource.getConnection(); PreparedStatement requete = connexion.prepareStatement("""
                     INSERT INTO resume_element(compte_id, signal_id, frequence, canal, titre, gravite, source,
                                                identifiant_externe, enregistre_le)
                     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
                     ON CONFLICT DO NOTHING
                     """)) {
-                ps.setObject(1, compte);
-                ps.setObject(2, e.signalId());
-                ps.setString(3, frequence);
-                ps.setString(4, canal);
-                ps.setString(5, e.signalTitle() == null ? e.signalExternalId() : e.signalTitle());
-                ps.setString(6, e.signalSeverity());
-                ps.setString(7, e.signalSource());
-                ps.setString(8, e.signalExternalId());
-                ps.setObject(9, maintenant.atOffset(ZoneOffset.UTC));
-                return ps.executeUpdate();
+                requete.setObject(1, compte);
+                requete.setObject(2, evenement.signalId());
+                requete.setString(3, frequence);
+                requete.setString(4, canal);
+                requete.setString(5, evenement.signalTitle() == null ? evenement.signalExternalId() : evenement.signalTitle());
+                requete.setString(6, evenement.signalSeverity());
+                requete.setString(7, evenement.signalSource());
+                requete.setString(8, evenement.signalExternalId());
+                requete.setObject(9, maintenant.atOffset(ZoneOffset.UTC));
+                return requete.executeUpdate();
             }
         });
     }
@@ -354,8 +356,8 @@ public class MoteurAlertes {
     static String json(Object valeur) throws SQLException {
         try {
             return JSON.writeValueAsString(valeur);
-        } catch (JsonProcessingException ex) {
-            throw new SQLException("sérialisation du contenu impossible", ex);
+        } catch (JsonProcessingException erreur) {
+            throw new SQLException("sérialisation du contenu impossible", erreur);
         }
     }
 }

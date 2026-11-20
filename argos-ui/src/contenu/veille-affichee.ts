@@ -50,16 +50,18 @@ const NIVEAUX: Readonly<Record<string, string>> = {
   POSSIBLE: 'correspondance possible',
 }
 
-function projet(p: ElementVeilleProfils['projets'][number]): ProjetConcerne {
+function projet(concerne: ElementVeilleProfils['projets'][number]): ProjetConcerne {
   return {
-    nom: p.projet ?? p.projetId,
-    niveau: p.niveau ? { code: p.niveau, libelle: NIVEAUX[p.niveau.toUpperCase()] ?? p.niveau.toLowerCase() } : null,
+    nom: concerne.projet ?? concerne.projetId,
+    niveau: concerne.niveau
+      ? { code: concerne.niveau, libelle: NIVEAUX[concerne.niveau.toUpperCase()] ?? concerne.niveau.toLowerCase() }
+      : null,
   }
 }
 
 function texte(valeur: string | null | undefined): string | null {
-  const t = valeur?.trim()
-  return t ? t : null
+  const nettoye = valeur?.trim()
+  return nettoye || null
 }
 
 /** Élément affiché correspondant à un élément de la veille ; aucune information reçue n'est écartée. */
@@ -75,7 +77,9 @@ export function elementAffiche(
     resume,
     type: nature(element.type),
     gravite: gravite(element.gravite),
-    rubriques: (element.rubriques ?? []).map((r) => ({ profil: r.profil, identifiant: r.identifiant, libelle: r.libelle })),
+    rubriques: (element.rubriques ?? []).map((rubrique) => (
+      { profil: rubrique.profil, identifiant: rubrique.identifiant, libelle: rubrique.libelle }
+    )),
     projets: (element.projets ?? []).map(projet),
     action: null,
     mentions: {
@@ -102,19 +106,21 @@ export function rubriquesDuSommaire(
 ): RubriqueAffichee[] {
   const vues = new Set<string>()
   const resultat: RubriqueAffichee[] = []
-  const ajouter = (r: RubriqueAffichee): void => {
-    const cle = `${r.profil}/${r.identifiant}`
+  const ajouter = (rubrique: RubriqueAffichee): void => {
+    const cle = `${rubrique.profil}/${rubrique.identifiant}`
     if (vues.has(cle)) return
     vues.add(cle)
-    resultat.push(r)
+    resultat.push(rubrique)
   }
   for (const profil of veille.profilsActifs ?? []) {
-    for (const r of catalogue.find((p) => p.identifiant === profil)?.rubriques ?? []) {
-      ajouter({ profil, identifiant: r.identifiant, libelle: r.libelle })
+    for (const rubrique of catalogue.find((profilCatalogue) => profilCatalogue.identifiant === profil)?.rubriques ?? []) {
+      ajouter({ profil, identifiant: rubrique.identifiant, libelle: rubrique.libelle })
     }
   }
   for (const element of veille.elements ?? []) {
-    for (const r of element.rubriques ?? []) ajouter({ profil: r.profil, identifiant: r.identifiant, libelle: r.libelle })
+    for (const rubrique of element.rubriques ?? []) {
+      ajouter({ profil: rubrique.profil, identifiant: rubrique.identifiant, libelle: rubrique.libelle })
+    }
   }
   return resultat
 }
@@ -130,6 +136,6 @@ export function veilleAffichee(
     exemple: false,
     composeeLe,
     rubriques: rubriquesDuSommaire(veille, catalogue),
-    elements: (veille.elements ?? []).map((e) => elementAffiche(e, catalogue, abonnements)),
+    elements: (veille.elements ?? []).map((element) => elementAffiche(element, catalogue, abonnements)),
   }
 }

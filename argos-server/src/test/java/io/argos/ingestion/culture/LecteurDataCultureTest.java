@@ -31,17 +31,17 @@ class LecteurDataCultureTest {
                   {"titre": "Aide sans date", "region": "Bretagne ; Normandie", "date_limite": "bientôt"}
                 ]}""", 10);
         assertEquals(2, lus.size());
-        LecteurDataCulture.Enregistrement a = lus.get(0);
-        assertEquals("AAP-1", a.identifiant());
-        assertEquals("Résidence arts visuels", a.titre());
-        assertEquals("Artistes professionnels", a.criteres());
-        assertEquals(List.of("Arts visuels", "Design"), a.disciplines());
-        assertEquals(List.of("Occitanie"), a.territoires());
-        assertEquals(LocalDate.of(2026, 12, 6), a.dateLimite());
-        LecteurDataCulture.Enregistrement b = lus.get(1);
-        assertEquals("Aide sans date", b.identifiant(), "sans identifiant : le titre en tient lieu");
-        assertEquals(List.of("Bretagne", "Normandie"), b.territoires());
-        assertNull(b.dateLimite(), "date illisible : date à confirmer");
+        LecteurDataCulture.Enregistrement premier = lus.get(0);
+        assertEquals("AAP-1", premier.identifiant());
+        assertEquals("Résidence arts visuels", premier.titre());
+        assertEquals("Artistes professionnels", premier.criteres());
+        assertEquals(List.of("Arts visuels", "Design"), premier.disciplines());
+        assertEquals(List.of("Occitanie"), premier.territoires());
+        assertEquals(LocalDate.of(2026, 12, 6), premier.dateLimite());
+        LecteurDataCulture.Enregistrement second = lus.get(1);
+        assertEquals("Aide sans date", second.identifiant(), "sans identifiant : le titre en tient lieu");
+        assertEquals(List.of("Bretagne", "Normandie"), second.territoires());
+        assertNull(second.dateLimite(), "date illisible : date à confirmer");
     }
 
     @Test

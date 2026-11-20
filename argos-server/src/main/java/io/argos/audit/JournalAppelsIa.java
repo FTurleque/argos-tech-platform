@@ -38,29 +38,29 @@ public class JournalAppelsIa {
     @Inject
     DataSource dataSource;
 
-    public void enregistrer(Entree e) {
-        try (Connection c = dataSource.getConnection();
-                PreparedStatement ps = c.prepareStatement("""
+    public void enregistrer(Entree entree) {
+        try (Connection connexion = dataSource.getConnection();
+                PreparedStatement requete = connexion.prepareStatement("""
                         INSERT INTO ia_appel (tache, version_prompt, fournisseur, modele, espace_id, issue, jetons_entree,
                                               jetons_sortie, cout_eur, empreinte_entrees, donnees_masquees, duree_ms)
                         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                         """)) {
-            ps.setString(1, borne(e.tache(), LONGUEUR_MAX));
-            ps.setInt(2, e.versionPrompt());
-            ps.setString(3, borne(e.fournisseur(), 32));
-            ps.setString(4, borne(e.modele(), LONGUEUR_MAX_MODELE));
-            ps.setObject(5, e.espaceId());
-            ps.setString(6, e.issue());
-            ps.setInt(7, Math.max(e.jetonsEntree(), 0));
-            ps.setInt(8, Math.max(e.jetonsSortie(), 0));
-            ps.setBigDecimal(9, e.coutEur() == null ? BigDecimal.ZERO : e.coutEur());
-            ps.setString(10, e.empreinteEntrees());
-            ps.setInt(11, Math.max(e.donneesMasquees(), 0));
-            ps.setInt(12, (int) Math.min(Math.max(e.dureeMs(), 0), Integer.MAX_VALUE));
-            ps.executeUpdate();
-        } catch (SQLException ex) {
+            requete.setString(1, borne(entree.tache(), LONGUEUR_MAX));
+            requete.setInt(2, entree.versionPrompt());
+            requete.setString(3, borne(entree.fournisseur(), 32));
+            requete.setString(4, borne(entree.modele(), LONGUEUR_MAX_MODELE));
+            requete.setObject(5, entree.espaceId());
+            requete.setString(6, entree.issue());
+            requete.setInt(7, Math.max(entree.jetonsEntree(), 0));
+            requete.setInt(8, Math.max(entree.jetonsSortie(), 0));
+            requete.setBigDecimal(9, entree.coutEur() == null ? BigDecimal.ZERO : entree.coutEur());
+            requete.setString(10, entree.empreinteEntrees());
+            requete.setInt(11, Math.max(entree.donneesMasquees(), 0));
+            requete.setInt(12, (int) Math.min(Math.max(entree.dureeMs(), 0), Integer.MAX_VALUE));
+            requete.executeUpdate();
+        } catch (SQLException erreur) {
             // La demande a déjà été traitée ; l'échec de sa trace reste visible dans les journaux.
-            LOG.errorf(ex, "Appel IA non journalisé : %s v%d %s", e.tache(), e.versionPrompt(), e.issue());
+            LOG.errorf(erreur, "Appel IA non journalisé : %s v%d %s", entree.tache(), entree.versionPrompt(), entree.issue());
         }
     }
 

@@ -48,10 +48,10 @@ class CatalogueMisesEnPageTest {
 
     @Test
     void unIdentifiantEnDoubleEstRefuse() {
-        IllegalStateException e = assertThrows(IllegalStateException.class, () -> new CatalogueMisesEnPage(
+        IllegalStateException erreur = assertThrows(IllegalStateException.class, () -> new CatalogueMisesEnPage(
                 List.of(new MiseEnPage("classique", "Classique", null), new MiseEnPage("classique", "Bis", null)),
                 Set.of()));
-        assertTrue(e.getMessage().contains("deux fois"));
+        assertTrue(erreur.getMessage().contains("deux fois"));
     }
 
     @Test

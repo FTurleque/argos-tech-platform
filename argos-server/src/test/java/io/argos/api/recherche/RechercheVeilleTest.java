@@ -44,7 +44,7 @@ class RechercheVeilleTest {
     private static final int STATUT_HORIZON_NON_ENTIER = 404;
 
     @Inject
-    TestDb db;
+    TestDb baseDeTest;
 
     @Inject
     JeuRecherche jeu;
@@ -62,7 +62,7 @@ class RechercheVeilleTest {
 
     @BeforeEach
     void preparer() {
-        db.reset();
+        baseDeTest.reset();
         espaceOscar = Api.nouvelEspace("oscar", "Espace Paie");
         espaceMarc = Api.nouvelEspace("marc", "Espace Portail");
         oscar = Api.compte("oscar");
@@ -74,12 +74,12 @@ class RechercheVeilleTest {
     }
 
     private static JsonPath rechercher(String utilisateur, Map<String, ?> parametres) {
-        return Api.en(utilisateur).queryParams(parametres).when().get("/api/v1/recherche")
+        return Api.enTantQue(utilisateur).queryParams(parametres).when().get("/api/v1/recherche")
                 .then().statusCode(200).extract().jsonPath();
     }
 
-    private static List<String> ids(JsonPath r) {
-        return r.getList("elements.id", String.class);
+    private static List<String> ids(JsonPath resultats) {
+        return resultats.getList("elements.id", String.class);
     }
 
     /** RCH-01-S1 : « Oracle correctif » renvoie les éléments correspondants, les plus pertinents d'abord. */
@@ -91,14 +91,14 @@ class RechercheVeilleTest {
                 "Ce pilote accompagne un correctif publié pour Oracle.", "LOW", ilYA(1), null);
         UUID horsSujet = jeu.signal("GHSA-RCH1-0003", "Faille d'un serveur web", "Aucun rapport.", "LOW", ilYA(1), null);
 
-        JsonPath r = rechercher("oscar", Map.of("q", "Oracle correctif"));
-        assertEquals(List.of(fort.toString(), faible.toString()), ids(r), r.prettify());
-        assertEquals(2, r.getInt("total"));
-        assertNull(r.get("message"));
-        assertTrue(r.getDouble("elements[0].pertinence") > r.getDouble("elements[1].pertinence"));
-        assertFalse(ids(r).contains(horsSujet.toString()));
-        assertEquals("AVIS_SECURITE", r.getString("elements[0].type"));
-        assertEquals("GHSA-RCH1-0001", r.getString("elements[0].identifiant"));
+        JsonPath resultats = rechercher("oscar", Map.of("q", "Oracle correctif"));
+        assertEquals(List.of(fort.toString(), faible.toString()), ids(resultats), resultats.prettify());
+        assertEquals(2, resultats.getInt("total"));
+        assertNull(resultats.get("message"));
+        assertTrue(resultats.getDouble("elements[0].pertinence") > resultats.getDouble("elements[1].pertinence"));
+        assertFalse(ids(resultats).contains(horsSujet.toString()));
+        assertEquals("AVIS_SECURITE", resultats.getString("elements[0].type"));
+        assertEquals("GHSA-RCH1-0001", resultats.getString("elements[0].identifiant"));
     }
 
     /** Q-1 : racines françaises et anglaises, identifiants d'avis ; actualités web comprises. */
@@ -123,10 +123,10 @@ class RechercheVeilleTest {
     @Test
     void rch01S2AucunResultat() {
         jeu.signal("GHSA-RCH1-0004", "Oracle correctif", "Correctif.", "LOW", ilYA(1), null);
-        JsonPath r = rechercher("oscar", Map.of("q", "motabsentdetoutelement"));
-        assertEquals(0, r.getList("elements").size());
-        assertEquals(0, r.getInt("total"));
-        assertEquals(RechercheVeille.AUCUN_RESULTAT, r.getString("message"));
+        JsonPath resultats = rechercher("oscar", Map.of("q", "motabsentdetoutelement"));
+        assertEquals(0, resultats.getList("elements").size());
+        assertEquals(0, resultats.getInt("total"));
+        assertEquals(RechercheVeille.AUCUN_RESULTAT, resultats.getString("message"));
     }
 
     /** RCH-02-S1 : projet Paie, technologie Oracle et horizon 30 jours : seuls les éléments satisfaisant les trois. */
@@ -149,9 +149,9 @@ class RechercheVeilleTest {
         UUID article = jeu.actualite(source, "Nouvelle version majeure", "Annonce sans le nom.", null, ilYA(4));
         jeu.rapprochement(article, paie, "Oracle");
 
-        JsonPath r = rechercher("oscar", Map.of("projet", paie.toString(), "technologie", "Oracle", "horizon", 30));
-        assertEquals(Set.of(attendu.toString(), article.toString()), Set.copyOf(ids(r)), r.prettify());
-        assertTrue(r.getList("elements.projets.projet").stream().allMatch(p -> p.toString().contains("Paie")));
+        JsonPath resultats = rechercher("oscar", Map.of("projet", paie.toString(), "technologie", "Oracle", "horizon", 30));
+        assertEquals(Set.of(attendu.toString(), article.toString()), Set.copyOf(ids(resultats)), resultats.prettify());
+        assertTrue(resultats.getList("elements.projets.projet").stream().allMatch(projet -> projet.toString().contains("Paie")));
 
         // Technologie reconnue par l'écosystème du paquet affecté (java → Maven).
         assertEquals(List.of(parPaquet.toString()), ids(rechercher("oscar",
@@ -183,7 +183,7 @@ class RechercheVeilleTest {
 
         JsonPath oscarVoit = rechercher("oscar", Map.of("q", "Portail"));
         assertEquals(0, oscarVoit.getInt("total"), oscarVoit.prettify());
-        String brut = Api.en("oscar").queryParam("q", "Portail").get("/api/v1/recherche").asString();
+        String brut = Api.enTantQue("oscar").queryParam("q", "Portail").get("/api/v1/recherche").asString();
         for (UUID invisible : List.of(signal, actualiteMarc, personnelle, portail)) {
             assertFalse(brut.contains(invisible.toString()), invisible.toString());
         }
@@ -193,10 +193,10 @@ class RechercheVeilleTest {
         assertTrue(marcVoit.getList("elements.projets.projet").toString().contains("Portail"));
 
         // Filtre sur un projet d'un autre espace : refus non révélé, journalisé.
-        long refus = db.count("SELECT count(*) FROM refus_acces WHERE motif = 'NON_MEMBRE'");
-        Api.en("oscar").queryParam("projet", portail.toString()).get("/api/v1/recherche").then().statusCode(404)
+        long refus = baseDeTest.count("SELECT count(*) FROM refus_acces WHERE motif = 'NON_MEMBRE'");
+        Api.enTantQue("oscar").queryParam("projet", portail.toString()).get("/api/v1/recherche").then().statusCode(404)
                 .body("code", equalTo("INTROUVABLE"));
-        assertEquals(refus + 1, db.count("SELECT count(*) FROM refus_acces WHERE motif = 'NON_MEMBRE'"));
+        assertEquals(refus + 1, baseDeTest.count("SELECT count(*) FROM refus_acces WHERE motif = 'NON_MEMBRE'"));
     }
 
     /**
@@ -210,20 +210,20 @@ class RechercheVeilleTest {
         jeu.impact(signal, portail);
         UUID actualiteMarc = jeu.actualite(jeu.sourceEspace(espaceMarc, marc), "Portail interne", "Texte.", null, ilYA(1));
 
-        RechercheVeille.Resultats r = recherche.rechercher(new RechercheVeille.Criteres("Portail or publique", null, null,
+        RechercheVeille.Resultats resultats = recherche.rechercher(new RechercheVeille.Criteres("Portail or publique", null, null,
                 null, null, null, null, null), oscar, Set.of(espaceOscar, espaceMarc), 0, 20);
-        assertEquals(List.of(signal), r.elements().stream().map(RechercheVeille.Element::id).toList());
-        assertEquals(List.of(), r.elements().get(0).projets(), "projet d'un autre espace cité");
+        assertEquals(List.of(signal), resultats.elements().stream().map(RechercheVeille.Element::id).toList());
+        assertEquals(List.of(), resultats.elements().get(0).projets(), "projet d'un autre espace cité");
 
-        List<UUID> selection = base.executer(new Contexte(oscar, null, null), c -> {
+        List<UUID> selection = base.executer(new Contexte(oscar, null, null), connexion -> {
             List<UUID> trouves = new ArrayList<>();
-            try (PreparedStatement ps = c.prepareStatement("""
+            try (PreparedStatement requete = connexion.prepareStatement("""
                     SELECT current_user, id FROM argos_rechercher_veille(argos_requete_recherche('Portail'), NULL, NULL,
                         NULL, NULL, NULL, NULL, NULL, NULL, NULL)
-                    """); ResultSet rs = ps.executeQuery()) {
-                while (rs.next()) {
-                    assertEquals("argos_app", rs.getString(1));
-                    trouves.add(rs.getObject(2, UUID.class));
+                    """); ResultSet resultat = requete.executeQuery()) {
+                while (resultat.next()) {
+                    assertEquals("argos_app", resultat.getString(1));
+                    trouves.add(resultat.getObject(2, UUID.class));
                 }
             }
             return trouves;
@@ -232,12 +232,12 @@ class RechercheVeilleTest {
         assertFalse(selection.contains(signal), "rattaché seulement par le nom d'un projet invisible");
 
         // Sans compte courant, la sélection ne renvoie rien.
-        long sansContexte = base.executer(Contexte.aucun(), c -> {
-            try (PreparedStatement ps = c.prepareStatement("""
+        long sansContexte = base.executer(Contexte.aucun(), connexion -> {
+            try (PreparedStatement requete = connexion.prepareStatement("""
                     SELECT count(*) FROM argos_rechercher_veille(NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL)
-                    """); ResultSet rs = ps.executeQuery()) {
-                rs.next();
-                return rs.getLong(1);
+                    """); ResultSet resultat = requete.executeQuery()) {
+                resultat.next();
+                return resultat.getLong(1);
             }
         });
         assertEquals(0, sansContexte);
@@ -252,66 +252,66 @@ class RechercheVeilleTest {
         jeu.impact(attendu, paie);
 
         Map<String, Object> criteres = Map.of("texte", "Oracle", "projets", List.of(paie.toString()), "horizonJours", 30);
-        String id = Api.en("oscar").contentType(ContentType.JSON)
+        String id = Api.enTantQue("oscar").contentType(ContentType.JSON)
                 .body(Map.of("nom", "Sécurité de mes projets", "criteres", criteres))
                 .post("/api/v1/vues").then().statusCode(201)
                 .body("nom", equalTo("Sécurité de mes projets"))
                 .body("criteres.texte", equalTo("Oracle"))
                 .extract().path("id");
 
-        Api.en("oscar").get("/api/v1/vues").then().statusCode(200).body("size()", equalTo(1)).body("[0].id", equalTo(id));
-        Api.en("oscar").get("/api/v1/vues/" + id).then().statusCode(200).body("criteres.horizonJours", equalTo(30));
-        JsonPath r = Api.en("oscar").get("/api/v1/vues/" + id + "/resultats").then().statusCode(200).extract().jsonPath();
-        assertEquals(List.of(attendu.toString()), ids(r), r.prettify());
-        assertFalse(ids(r).contains(ecarte.toString()));
-        assertEquals(ids(rechercher("oscar", Map.of("q", "Oracle", "projet", paie.toString(), "horizon", 30))), ids(r));
+        Api.enTantQue("oscar").get("/api/v1/vues").then().statusCode(200).body("size()", equalTo(1)).body("[0].id", equalTo(id));
+        Api.enTantQue("oscar").get("/api/v1/vues/" + id).then().statusCode(200).body("criteres.horizonJours", equalTo(30));
+        JsonPath resultats = Api.enTantQue("oscar").get("/api/v1/vues/" + id + "/resultats").then().statusCode(200).extract().jsonPath();
+        assertEquals(List.of(attendu.toString()), ids(resultats), resultats.prettify());
+        assertFalse(ids(resultats).contains(ecarte.toString()));
+        assertEquals(ids(rechercher("oscar", Map.of("q", "Oracle", "projet", paie.toString(), "horizon", 30))), ids(resultats));
 
         // Nom unique par utilisateur ; suppression par l'auteur.
-        Api.en("oscar").contentType(ContentType.JSON).body(Map.of("nom", "Sécurité de mes projets", "criteres", criteres))
+        Api.enTantQue("oscar").contentType(ContentType.JSON).body(Map.of("nom", "Sécurité de mes projets", "criteres", criteres))
                 .post("/api/v1/vues").then().statusCode(409).body("code", equalTo("VUE_EXISTANTE"));
-        Api.en("oscar").delete("/api/v1/vues/" + id).then().statusCode(204);
-        Api.en("oscar").get("/api/v1/vues/" + id).then().statusCode(404);
+        Api.enTantQue("oscar").delete("/api/v1/vues/" + id).then().statusCode(204);
+        Api.enTantQue("oscar").get("/api/v1/vues/" + id).then().statusCode(404);
     }
 
     /** RCH-04-S2 : la vue d'un autre utilisateur est refusée, le refus journalisé ; elle reste intacte. */
     @Test
     void rch04S2VueDUnAutreUtilisateur() {
-        String id = Api.en("oscar").contentType(ContentType.JSON)
+        String id = Api.enTantQue("oscar").contentType(ContentType.JSON)
                 .body(Map.of("nom", "Ma veille", "criteres", Map.of("texte", "Oracle")))
                 .post("/api/v1/vues").then().statusCode(201).extract().path("id");
 
-        long avant = db.count("SELECT count(*) FROM refus_acces WHERE motif = 'NON_MEMBRE' AND ressource LIKE '%/api/v1/vues/%'");
-        String refusee = Api.en("marc").get("/api/v1/vues/" + id).then().statusCode(404)
+        long avant = baseDeTest.count("SELECT count(*) FROM refus_acces WHERE motif = 'NON_MEMBRE' AND ressource LIKE '%/api/v1/vues/%'");
+        String refusee = Api.enTantQue("marc").get("/api/v1/vues/" + id).then().statusCode(404)
                 .body("code", equalTo("INTROUVABLE")).extract().asString();
-        Api.en("marc").get("/api/v1/vues/" + id + "/resultats").then().statusCode(404);
-        Api.en("marc").delete("/api/v1/vues/" + id).then().statusCode(404);
-        assertEquals(avant + 3, db.count(
+        Api.enTantQue("marc").get("/api/v1/vues/" + id + "/resultats").then().statusCode(404);
+        Api.enTantQue("marc").delete("/api/v1/vues/" + id).then().statusCode(404);
+        assertEquals(avant + 3, baseDeTest.count(
                 "SELECT count(*) FROM refus_acces WHERE motif = 'NON_MEMBRE' AND ressource LIKE '%/api/v1/vues/%'"));
-        Api.en("marc").get("/api/v1/vues").then().statusCode(200).body("size()", equalTo(0));
-        Api.en("oscar").get("/api/v1/vues/" + id).then().statusCode(200);
+        Api.enTantQue("marc").get("/api/v1/vues").then().statusCode(200).body("size()", equalTo(0));
+        Api.enTantQue("oscar").get("/api/v1/vues/" + id).then().statusCode(200);
 
         // Une vue inexistante est seulement introuvable, sans refus journalisé.
-        String inexistante = Api.en("marc").get("/api/v1/vues/" + UUID.randomUUID()).then().statusCode(404)
+        String inexistante = Api.enTantQue("marc").get("/api/v1/vues/" + UUID.randomUUID()).then().statusCode(404)
                 .extract().asString();
         // Même réponse dans les deux cas : l'existence de la vue n'est pas révélée.
         assertEquals(refusee, inexistante);
-        assertEquals(avant + 3, db.count(
+        assertEquals(avant + 3, baseDeTest.count(
                 "SELECT count(*) FROM refus_acces WHERE motif = 'NON_MEMBRE' AND ressource LIKE '%/api/v1/vues/%'"));
 
         // Sous argos_app, marc ne lit ni ne supprime la vue d'oscar.
-        long visibles = base.executer(new Contexte(marc, null, null), c -> {
-            try (PreparedStatement ps = c.prepareStatement("DELETE FROM workspace_vue WHERE id = ?::uuid")) {
-                ps.setString(1, id);
-                ps.executeUpdate();
+        long visibles = base.executer(new Contexte(marc, null, null), connexion -> {
+            try (PreparedStatement requete = connexion.prepareStatement("DELETE FROM workspace_vue WHERE id = ?::uuid")) {
+                requete.setString(1, id);
+                requete.executeUpdate();
             }
-            try (PreparedStatement ps = c.prepareStatement("SELECT count(*) FROM workspace_vue");
-                    ResultSet rs = ps.executeQuery()) {
-                rs.next();
-                return rs.getLong(1);
+            try (PreparedStatement requete = connexion.prepareStatement("SELECT count(*) FROM workspace_vue");
+                    ResultSet resultat = requete.executeQuery()) {
+                resultat.next();
+                return resultat.getLong(1);
             }
         });
         assertEquals(0, visibles);
-        assertEquals(1, db.count("SELECT count(*) FROM workspace_vue WHERE id = '" + id + "'"));
+        assertEquals(1, baseDeTest.count("SELECT count(*) FROM workspace_vue WHERE id = '" + id + "'"));
     }
 
     /**
@@ -320,47 +320,47 @@ class RechercheVeilleTest {
      */
     @Test
     void horizonNonEntier() {
-        Api.en("oscar").queryParam("horizon", "abc").get("/api/v1/recherche").then().statusCode(STATUT_HORIZON_NON_ENTIER);
+        Api.enTantQue("oscar").queryParam("horizon", "abc").get("/api/v1/recherche").then().statusCode(STATUT_HORIZON_NON_ENTIER);
     }
 
     /** Entrées non fiables : filtres refusés, saisie jamais interprétée comme SQL, liens non http écartés. */
     @Test
     void entreesNonFiables() {
-        Api.en("oscar").queryParam("type", "INCONNU").get("/api/v1/recherche").then().statusCode(400)
+        Api.enTantQue("oscar").queryParam("type", "INCONNU").get("/api/v1/recherche").then().statusCode(400)
                 .body("code", equalTo("CRITERE_INVALIDE")).body("attribut", equalTo("types"));
-        Api.en("oscar").queryParam("gravite", "EXTREME").get("/api/v1/recherche").then().statusCode(400);
-        Api.en("oscar").queryParam("horizon", 0).get("/api/v1/recherche").then().statusCode(400);
-        Api.en("oscar").queryParam("projet", "pas-un-uuid").get("/api/v1/recherche").then().statusCode(400);
-        Api.en("oscar").queryParam("profil", "inconnu").get("/api/v1/recherche").then().statusCode(400);
-        Api.en("oscar").queryParam("q", "x".repeat(501)).get("/api/v1/recherche").then().statusCode(400);
-        Api.en("oscar").queryParam("taille", 1000).get("/api/v1/recherche").then().statusCode(400);
-        Api.en("oscar").contentType(ContentType.JSON).body(Map.of("nom", " ", "criteres", Map.of()))
+        Api.enTantQue("oscar").queryParam("gravite", "EXTREME").get("/api/v1/recherche").then().statusCode(400);
+        Api.enTantQue("oscar").queryParam("horizon", 0).get("/api/v1/recherche").then().statusCode(400);
+        Api.enTantQue("oscar").queryParam("projet", "pas-un-uuid").get("/api/v1/recherche").then().statusCode(400);
+        Api.enTantQue("oscar").queryParam("profil", "inconnu").get("/api/v1/recherche").then().statusCode(400);
+        Api.enTantQue("oscar").queryParam("q", "x".repeat(501)).get("/api/v1/recherche").then().statusCode(400);
+        Api.enTantQue("oscar").queryParam("taille", 1000).get("/api/v1/recherche").then().statusCode(400);
+        Api.enTantQue("oscar").contentType(ContentType.JSON).body(Map.of("nom", " ", "criteres", Map.of()))
                 .post("/api/v1/vues").then().statusCode(400);
 
         UUID signal = jeu.signal("GHSA-RCH-SQL", "Oracle", "Texte.", "LOW", ilYA(1), null);
         for (String saisie : List.of("'; DROP TABLE signal; --", "\" or 1=1 --", "a & | ! ( ) : *", "\\")) {
-            Api.en("oscar").queryParam("q", saisie).get("/api/v1/recherche").then().statusCode(200);
+            Api.enTantQue("oscar").queryParam("q", saisie).get("/api/v1/recherche").then().statusCode(200);
         }
-        assertEquals(1, db.count("SELECT count(*) FROM signal WHERE id = '" + signal + "'"));
+        assertEquals(1, baseDeTest.count("SELECT count(*) FROM signal WHERE id = '" + signal + "'"));
 
         UUID source = jeu.sourceEspace(espaceOscar, oscar);
         jeu.actualite(source, "Lien piégé", "Texte.", "javascript:alert(1)", ilYA(1));
-        JsonPath r = rechercher("oscar", Map.of("q", "piégé"));
-        assertEquals(1, r.getInt("total"));
-        assertNull(r.get("elements[0].lien"));
+        JsonPath resultats = rechercher("oscar", Map.of("q", "piégé"));
+        assertEquals(1, resultats.getInt("total"));
+        assertNull(resultats.get("elements[0].lien"));
     }
 
     /** Pagination : pages successives sans doublon, total constant. */
     @Test
     void pagination() {
-        for (int i = 0; i < 5; i++) {
-            jeu.signal("GHSA-RCH-PAGE-" + i, "Oracle faille " + i, "Correctif.", "LOW", ilYA(i + 1), null);
+        for (int rang = 0; rang < 5; rang++) {
+            jeu.signal("GHSA-RCH-PAGE-" + rang, "Oracle faille " + rang, "Correctif.", "LOW", ilYA(rang + 1), null);
         }
         List<String> vus = new ArrayList<>();
         for (int page = 0; page < 3; page++) {
-            JsonPath r = rechercher("oscar", Map.of("q", "Oracle", "taille", 2, "page", page));
-            assertEquals(5, r.getInt("total"));
-            vus.addAll(ids(r));
+            JsonPath resultats = rechercher("oscar", Map.of("q", "Oracle", "taille", 2, "page", page));
+            assertEquals(5, resultats.getInt("total"));
+            vus.addAll(ids(resultats));
         }
         assertEquals(5, Set.copyOf(vus).size());
         assertEquals(5, rechercher("oscar", Map.of("q", "Oracle", "taille", 2, "page", 9)).getInt("total"));

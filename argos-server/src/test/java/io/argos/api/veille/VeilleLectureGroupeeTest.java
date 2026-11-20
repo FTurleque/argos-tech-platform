@@ -49,7 +49,7 @@ class VeilleLectureGroupeeTest {
     private static final int AVIS = 6;
 
     @Inject
-    TestDb db;
+    TestDb baseDeTest;
 
     @Inject
     DataSource dataSource;
@@ -67,12 +67,12 @@ class VeilleLectureGroupeeTest {
 
     @BeforeEach
     void preparer() {
-        db.reset();
+        baseDeTest.reset();
         supprimerPreferences(Api.compte("jules"));
         espace = Api.nouvelEspace("ines", "Lecture groupée");
         Api.ajouterMembre("ines", espace.toString(), "jules", "LECTEUR");
         autreEspace = Api.nouvelEspace("oscar", "Lecture groupée, autre espace");
-        Api.en("jules").contentType(ContentType.JSON).body(Map.of("profilsActifs", List.of("developpeur")))
+        Api.enTantQue("jules").contentType(ContentType.JSON).body(Map.of("profilsActifs", List.of("developpeur")))
                 .when().put("/api/v1/preferences/profils").then().statusCode(200);
 
         signauxIds.clear();
@@ -86,7 +86,7 @@ class VeilleLectureGroupeeTest {
             // L'avis 3 n'a pas de date de publication : sa date restituée est celle de modification.
             String publie = numero == 3 ? "NULL" : "now() - interval '" + (numero * 3) + " days'";
             // Contrainte signal_current_version_fk différée : le signal et sa version dans une même transaction.
-            db.exec("""
+            baseDeTest.exec("""
                     BEGIN;
                     INSERT INTO signal (id, source, external_id, title, summary, severity, published_at, modified_at,
                                         collected_at, updated_at, content_hash, affected, current_version_id)
@@ -98,7 +98,7 @@ class VeilleLectureGroupeeTest {
                     COMMIT;
                     """.formatted(signalId, versionId, numero, numero % 2 == 0 ? "CRITICAL" : "HIGH", publie,
                     numero * 5));
-            db.exec("INSERT INTO signal_alias (signal_id, alias) VALUES ('%s', 'CVE-2099-%04d')".formatted(signalId,
+            baseDeTest.exec("INSERT INTO signal_alias (signal_id, alias) VALUES ('%s', 'CVE-2099-%04d')".formatted(signalId,
                     numero));
             signauxIds.add(signalId);
         }
@@ -113,7 +113,7 @@ class VeilleLectureGroupeeTest {
         }
         impact(AVIS + 1, "etranger", autreEspace, "CONFIRME", rang++);
         // Impact écarté : jamais restitué (COR-12-S2), même s'il est le plus récent.
-        db.exec("UPDATE project_impact SET state = 'ECARTE', updated_at = now() + interval '1 hour' WHERE id = '"
+        baseDeTest.exec("UPDATE project_impact SET state = 'ECARTE', updated_at = now() + interval '1 hour' WHERE id = '"
                 + id("lg-impact-2-p3") + "'");
     }
 
@@ -131,14 +131,14 @@ class VeilleLectureGroupeeTest {
     private void projet(String nom, UUID espaceProjet) {
         UUID projetId = id("lg-projet-" + nom);
         UUID importId = id("lg-import-" + nom);
-        db.exec("INSERT INTO project (id, workspace_id, name) VALUES ('%s', '%s', 'Projet %s')".formatted(projetId,
+        baseDeTest.exec("INSERT INTO project (id, workspace_id, name) VALUES ('%s', '%s', 'Projet %s')".formatted(projetId,
                 espaceProjet, nom));
-        db.exec("""
+        baseDeTest.exec("""
                 INSERT INTO inventory (project_id, origin, source_date, spec_version, source_ref, import_id, imported_at)
                 VALUES ('%s', 'SBOM', now() - interval '1 day', '1.6', 'test', '%s', now())
                 """.formatted(projetId, importId));
         for (int numero = 1; numero <= AVIS + 1; numero++) {
-            db.exec("""
+            baseDeTest.exec("""
                     INSERT INTO component (id, project_id, package_key, purl, version, transitive, import_id)
                     VALUES ('%s', '%s', 'pkg:maven/org.lg/lib-%d', 'pkg:maven/org.lg/lib-%d@1.0.0', '1.0.0', false, '%s')
                     """.formatted(id("lg-composant-" + nom + "-" + numero), projetId, numero, numero, importId));
@@ -146,7 +146,7 @@ class VeilleLectureGroupeeTest {
     }
 
     private void impact(int numero, String projet, UUID espaceProjet, String etat, int rang) {
-        db.exec("""
+        baseDeTest.exec("""
                 INSERT INTO project_impact (id, signal_id, signal_version_id, project_id, workspace_id, component_id,
                                             level, method, transitive, inventory_origin, inventory_date, provenance,
                                             created_at, updated_at, state)
@@ -197,7 +197,7 @@ class VeilleLectureGroupeeTest {
      */
     @Test
     void prf07ContenuIdentiqueAuCalculDeReference() throws SQLException {
-        JsonPath veille = Api.en("jules").when().get("/api/v1/me/veille").then().statusCode(200).extract().jsonPath();
+        JsonPath veille = Api.enTantQue("jules").when().get("/api/v1/me/veille").then().statusCode(200).extract().jsonPath();
         List<Attendu> attendus = attendus();
         assertEquals(AVIS, attendus.size(), "jeu de données : un avis par signal impactant l'espace");
 

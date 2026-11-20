@@ -37,50 +37,50 @@ public class GestionErreurs {
     JournalRefus journal;
 
     @ServerExceptionMapper
-    public RestResponse<Erreur> accesRefuse(AccesRefuse e, ContainerRequestContext requete) {
+    public RestResponse<Erreur> accesRefuse(AccesRefuse erreur, ContainerRequestContext requete) {
         journal.enregistrer(utilisateur.compteResolu().map(Compte::id).orElse(null), utilisateur.sujet(),
-                ressource(requete), e.motif().name());
-        if (e.motif() == MotifRefus.NON_MEMBRE) {
-            return RestResponse.status(Status.NOT_FOUND, new Erreur("INTROUVABLE", e.getMessage()));
+                ressource(requete), erreur.motif().name());
+        if (erreur.motif() == MotifRefus.NON_MEMBRE) {
+            return RestResponse.status(Status.NOT_FOUND, new Erreur("INTROUVABLE", erreur.getMessage()));
         }
-        return RestResponse.status(Status.FORBIDDEN, new Erreur("INTERDIT", e.getMessage()));
+        return RestResponse.status(Status.FORBIDDEN, new Erreur("INTERDIT", erreur.getMessage()));
     }
 
     @ServerExceptionMapper
-    public RestResponse<Erreur> inscriptionRefusee(InscriptionRefusee e, ContainerRequestContext requete) {
+    public RestResponse<Erreur> inscriptionRefusee(InscriptionRefusee erreur, ContainerRequestContext requete) {
         journal.enregistrer(null, utilisateur.sujet(), ressource(requete), "INSCRIPTION_SUR_INVITATION");
-        return RestResponse.status(Status.FORBIDDEN, new Erreur("INSCRIPTION_SUR_INVITATION", e.getMessage()));
+        return RestResponse.status(Status.FORBIDDEN, new Erreur("INSCRIPTION_SUR_INVITATION", erreur.getMessage()));
     }
 
     /** Ressource absente pour le compte courant, sans refus d'accès à un espace : non journalisée. */
     @ServerExceptionMapper
-    public RestResponse<Erreur> introuvable(Introuvable e) {
-        return RestResponse.status(Status.NOT_FOUND, new Erreur("INTROUVABLE", e.getMessage()));
+    public RestResponse<Erreur> introuvable(Introuvable erreur) {
+        return RestResponse.status(Status.NOT_FOUND, new Erreur("INTROUVABLE", erreur.getMessage()));
     }
 
     @ServerExceptionMapper
-    public RestResponse<Erreur> regleViolee(RegleViolee e) {
-        return RestResponse.status(Status.CONFLICT, new Erreur(e.code(), e.getMessage()));
+    public RestResponse<Erreur> regleViolee(RegleViolee erreur) {
+        return RestResponse.status(Status.CONFLICT, new Erreur(erreur.code(), erreur.getMessage()));
     }
 
     /** Demande d'abonnement refusée : attribut manquant ou invalide (ABO-01-S1, ABO-02-S2). */
     @ServerExceptionMapper
-    public RestResponse<Erreur> abonnementRefuse(SubscriptionRejectedException e) {
-        return RestResponse.status(Status.BAD_REQUEST, new Erreur("ABONNEMENT_INVALIDE", e.getMessage(), e.attribute()));
+    public RestResponse<Erreur> abonnementRefuse(SubscriptionRejectedException erreur) {
+        return RestResponse.status(Status.BAD_REQUEST, new Erreur("ABONNEMENT_INVALIDE", erreur.getMessage(), erreur.attribute()));
     }
 
     /** Donnée invalide, y compris une adresse de veille web refusée (WEB-01-S2, WEB-03-S1). */
     @ServerExceptionMapper
-    public RestResponse<Erreur> donneeInvalide(DonneeInvalide e) {
-        return RestResponse.status(Status.BAD_REQUEST, new Erreur(e.code(), e.getMessage(), e.attribut()));
+    public RestResponse<Erreur> donneeInvalide(DonneeInvalide erreur) {
+        return RestResponse.status(Status.BAD_REQUEST, new Erreur(erreur.code(), erreur.getMessage(), erreur.attribut()));
     }
 
     /** Limite de débit atteinte : refus journalisé (motif {@code LIMITE_DEBIT}), réponse 429. */
     @ServerExceptionMapper
-    public RestResponse<Erreur> limiteDebit(LimiteDebitAtteinte e, ContainerRequestContext requete) {
+    public RestResponse<Erreur> limiteDebit(LimiteDebitAtteinte erreur, ContainerRequestContext requete) {
         journal.enregistrer(utilisateur.compteResolu().map(Compte::id).orElse(null), utilisateur.sujet(),
                 ressource(requete), "LIMITE_DEBIT");
-        return RestResponse.ResponseBuilder.create(Status.TOO_MANY_REQUESTS, new Erreur("LIMITE_DEBIT", e.getMessage()))
+        return RestResponse.ResponseBuilder.create(Status.TOO_MANY_REQUESTS, new Erreur("LIMITE_DEBIT", erreur.getMessage()))
                 .header("Retry-After", "60").build();
     }
 

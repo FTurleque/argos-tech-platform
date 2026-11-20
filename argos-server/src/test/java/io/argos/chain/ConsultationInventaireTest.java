@@ -42,7 +42,7 @@ import io.quarkus.test.junit.QuarkusTest;
 class ConsultationInventaireTest {
 
     @Inject
-    TestDb db;
+    TestDb baseDeTest;
 
     @Inject
     ProjectDirectory projects;
@@ -58,21 +58,21 @@ class ConsultationInventaireTest {
 
     @BeforeEach
     void reset() {
-        db.reset();
+        baseDeTest.reset();
         espaceA = Api.nouvelEspace("alice", "Équipe A");
         espaceB = Api.nouvelEspace("jules", "Équipe B");
     }
 
-    private static byte[] bytes(String s) {
-        return s.getBytes(StandardCharsets.UTF_8);
+    private static byte[] bytes(String texte) {
+        return texte.getBytes(StandardCharsets.UTF_8);
     }
 
-    /** SBOM de {@code n} composants npm {@code paquet-NN} (le premier est direct, les autres transitifs). */
-    private void importer(UUID projet, int n) {
+    /** SBOM de {@code nombre} composants npm {@code paquet-NN} (le premier est direct, les autres transitifs). */
+    private void importer(UUID projet, int nombre) {
         List<String[]> composants = new ArrayList<>();
-        for (int i = n; i >= 1; i--) {
-            String nom = "paquet-%02d".formatted(i);
-            composants.add(new String[] {nom, "pkg:npm/" + nom + "@1.0." + i});
+        for (int rang = nombre; rang >= 1; rang--) {
+            String nom = "paquet-%02d".formatted(rang);
+            composants.add(new String[] {nom, "pkg:npm/" + nom + "@1.0." + rang});
         }
         String sbom = Fixtures.cyclonedx("1.6", "2026-11-18T00:00:00Z", composants, List.of("paquet-01"));
         assertEquals("IMPORTED", inventories.importSbom(projet, bytes(sbom), "ci").status());
@@ -84,7 +84,7 @@ class ConsultationInventaireTest {
         UUID compta = projects.create(espaceA, "Comptabilité", null, null);
         UUID secret = projects.create(espaceB, "Secret", null, null);
 
-        Api.en("alice").when().get("/api/v1/projects")
+        Api.enTantQue("alice").when().get("/api/v1/projects")
                 .then().statusCode(200)
                 .body("total", equalTo(2))
                 .body("page", equalTo(0))
@@ -93,7 +93,7 @@ class ConsultationInventaireTest {
                 .body("items.id", contains(compta.toString(), paie.toString()))
                 .body("items.workspaceId", contains(espaceA.toString(), espaceA.toString()))
                 .body("items.workspaceName", contains("Équipe A", "Équipe A"));
-        Api.en("jules").when().get("/api/v1/projects")
+        Api.enTantQue("jules").when().get("/api/v1/projects")
                 .then().statusCode(200)
                 .body("total", equalTo(1))
                 .body("items.id", contains(secret.toString()))
@@ -109,11 +109,11 @@ class ConsultationInventaireTest {
         UUID apiB = projects.create(espaceB, "api", null, null);
         UUID web = projects.create(espaceB, "web", null, null);
 
-        Api.en("alice").when().get("/api/v1/projects")
+        Api.enTantQue("alice").when().get("/api/v1/projects")
                 .then().statusCode(200)
                 .body("total", equalTo(3))
                 .body("items.id", contains(apiA.toString(), apiB.toString(), web.toString()));
-        Api.en("alice").queryParam("page", 1).queryParam("size", 2).when().get("/api/v1/projects")
+        Api.enTantQue("alice").queryParam("page", 1).queryParam("size", 2).when().get("/api/v1/projects")
                 .then().statusCode(200)
                 .body("total", equalTo(3))
                 .body("page", equalTo(1))
@@ -141,7 +141,7 @@ class ConsultationInventaireTest {
         UUID projet = projects.create(espaceA, "api", null, null);
         importer(projet, 25);
 
-        Api.en("alice").queryParam("page", 0).queryParam("size", 10)
+        Api.enTantQue("alice").queryParam("page", 0).queryParam("size", 10)
                 .when().get("/api/v1/projects/" + projet + "/inventory/components")
                 .then().statusCode(200)
                 .body("projectId", equalTo(projet.toString()))
@@ -156,17 +156,17 @@ class ConsultationInventaireTest {
                 .body("items[0].transitive", equalTo(false))
                 .body("items[1].transitive", equalTo(true))
                 .body("items[9].name", equalTo("paquet-10"));
-        Api.en("alice").queryParam("page", 2).queryParam("size", 10)
+        Api.enTantQue("alice").queryParam("page", 2).queryParam("size", 10)
                 .when().get("/api/v1/projects/" + projet + "/inventory/components")
                 .then().statusCode(200)
                 .body("total", equalTo(25))
                 .body("items.name", contains("paquet-21", "paquet-22", "paquet-23", "paquet-24", "paquet-25"));
-        Api.en("alice").when().get("/api/v1/projects/" + projet + "/inventory/components")
+        Api.enTantQue("alice").when().get("/api/v1/projects/" + projet + "/inventory/components")
                 .then().statusCode(200)
                 .body("size", equalTo(InventoryQueries.DEFAULT_PAGE_SIZE))
                 .body("items", hasSize(25));
         // L'inventaire complet reste restitué par le point d'accès existant (clients actuels).
-        Api.en("alice").when().get("/api/v1/projects/" + projet + "/inventory")
+        Api.enTantQue("alice").when().get("/api/v1/projects/" + projet + "/inventory")
                 .then().statusCode(200)
                 .body("inventory.components", hasSize(25));
     }
@@ -180,8 +180,8 @@ class ConsultationInventaireTest {
                 new String[] {"a", "pkg:maven/org.exemple/a@1.0"},
                 new String[] {"b1", "pkg:maven/org.exemple/b@1.0"}), List.of("a"));
         inventories.importSbom(projet, bytes(sbom), "ci");
-        for (int i = 0; i < 2; i++) {
-            Api.en("alice").when().get("/api/v1/projects/" + projet + "/inventory/components")
+        for (int passage = 0; passage < 2; passage++) {
+            Api.enTantQue("alice").when().get("/api/v1/projects/" + projet + "/inventory/components")
                     .then().statusCode(200)
                     .body("items.name", contains("org.exemple/a", "org.exemple/b", "org.exemple/b"))
                     .body("items.version", contains("1.0", "1.0", "2.0"));
@@ -194,19 +194,19 @@ class ConsultationInventaireTest {
         importer(projet, 3);
         String chemin = "/api/v1/projects/" + projet + "/inventory/components";
 
-        Api.en("alice").queryParam("size", 0).when().get(chemin)
+        Api.enTantQue("alice").queryParam("size", 0).when().get(chemin)
                 .then().statusCode(200).body("size", equalTo(1)).body("items", hasSize(1));
-        Api.en("alice").queryParam("size", -5).when().get(chemin)
+        Api.enTantQue("alice").queryParam("size", -5).when().get(chemin)
                 .then().statusCode(200).body("size", equalTo(1));
-        Api.en("alice").queryParam("size", 100_000).when().get(chemin)
+        Api.enTantQue("alice").queryParam("size", 100_000).when().get(chemin)
                 .then().statusCode(200).body("size", equalTo(InventoryQueries.MAX_PAGE_SIZE)).body("items", hasSize(3));
-        Api.en("alice").queryParam("page", -1).queryParam("size", 2).when().get(chemin)
+        Api.enTantQue("alice").queryParam("page", -1).queryParam("size", 2).when().get(chemin)
                 .then().statusCode(200).body("page", equalTo(0)).body("items.name", contains("paquet-01", "paquet-02"));
-        Api.en("alice").queryParam("page", 7).when().get(chemin)
+        Api.enTantQue("alice").queryParam("page", 7).when().get(chemin)
                 .then().statusCode(200).body("page", equalTo(7)).body("total", equalTo(3)).body("items", empty());
-        Api.en("alice").queryParam("size", 100_000).when().get("/api/v1/projects")
+        Api.enTantQue("alice").queryParam("size", 100_000).when().get("/api/v1/projects")
                 .then().statusCode(200).body("size", equalTo(InventoryQueries.MAX_PAGE_SIZE));
-        Api.en("alice").queryParam("page", -3).queryParam("size", 0).when().get("/api/v1/projects")
+        Api.enTantQue("alice").queryParam("page", -3).queryParam("size", 0).when().get("/api/v1/projects")
                 .then().statusCode(200).body("page", equalTo(0)).body("size", equalTo(1));
     }
 
@@ -216,18 +216,18 @@ class ConsultationInventaireTest {
         importer(projet, 3);
         String chemin = "/api/v1/projects/" + projet + "/inventory/components";
 
-        Api.en("alice").queryParam("page", "abc").when().get(chemin)
+        Api.enTantQue("alice").queryParam("page", "abc").when().get(chemin)
                 .then().statusCode(400).body("code", equalTo("DONNEE_INVALIDE")).body("attribut", equalTo("page"));
-        Api.en("alice").queryParam("size", "1.5").when().get(chemin)
+        Api.enTantQue("alice").queryParam("size", "1.5").when().get(chemin)
                 .then().statusCode(400).body("attribut", equalTo("size"));
-        Api.en("alice").queryParam("page", "abc").when().get("/api/v1/projects")
+        Api.enTantQue("alice").queryParam("page", "abc").when().get("/api/v1/projects")
                 .then().statusCode(400).body("code", equalTo("DONNEE_INVALIDE")).body("attribut", equalTo("page"));
-        Api.en("alice").queryParam("size", "x").when().get("/api/v1/projects")
+        Api.enTantQue("alice").queryParam("size", "x").when().get("/api/v1/projects")
                 .then().statusCode(400).body("attribut", equalTo("size"));
         // Un entier hors des bornes de int est saturé puis borné, comme toute autre valeur hors bornes.
-        Api.en("alice").queryParam("size", "99999999999").when().get(chemin)
+        Api.enTantQue("alice").queryParam("size", "99999999999").when().get(chemin)
                 .then().statusCode(200).body("size", equalTo(InventoryQueries.MAX_PAGE_SIZE));
-        Api.en("alice").queryParam("page", "-99999999999").queryParam("size", "").when().get(chemin)
+        Api.enTantQue("alice").queryParam("page", "-99999999999").queryParam("size", "").when().get(chemin)
                 .then().statusCode(200).body("page", equalTo(0)).body("size", equalTo(InventoryQueries.DEFAULT_PAGE_SIZE));
     }
 
@@ -237,9 +237,9 @@ class ConsultationInventaireTest {
         importer(secret, 2);
         UUID inconnu = UUID.randomUUID();
 
-        Api.en("alice").when().get("/api/v1/projects/" + inconnu + "/inventory/components").then().statusCode(404);
-        Api.en("alice").when().get("/api/v1/projects/" + secret + "/inventory/components").then().statusCode(404);
-        assertEquals(1, db.count("SELECT count(*) FROM refus_acces WHERE compte_id = '" + Api.compte("alice")
+        Api.enTantQue("alice").when().get("/api/v1/projects/" + inconnu + "/inventory/components").then().statusCode(404);
+        Api.enTantQue("alice").when().get("/api/v1/projects/" + secret + "/inventory/components").then().statusCode(404);
+        assertEquals(1, baseDeTest.count("SELECT count(*) FROM refus_acces WHERE compte_id = '" + Api.compte("alice")
                 + "' AND ressource = 'GET /api/v1/projects/" + secret + "/inventory/components' AND motif = 'NON_MEMBRE'"));
         given().when().get("/api/v1/projects/" + secret + "/inventory/components").then().statusCode(401);
     }
@@ -247,7 +247,7 @@ class ConsultationInventaireTest {
     @Test
     void projetSansInventairePageVide() {
         UUID projet = projects.create(espaceA, "neuf", null, null);
-        Api.en("alice").when().get("/api/v1/projects/" + projet + "/inventory/components")
+        Api.enTantQue("alice").when().get("/api/v1/projects/" + projet + "/inventory/components")
                 .then().statusCode(200)
                 .body("total", equalTo(0))
                 .body("items", empty());
@@ -268,10 +268,10 @@ class ConsultationInventaireTest {
                 + "\"dependencies\":[{\"ref\":\"root\",\"dependsOn\":[\"a\"]}]}";
         assertEquals("IMPORTED", inventories.importSbom(projet, bytes(sbom), "ci").status());
         String chemin = "/api/v1/projects/" + projet + "/inventory";
-        io.restassured.path.json.JsonPath complet = Api.en("alice").when().get(chemin)
+        io.restassured.path.json.JsonPath complet = Api.enTantQue("alice").when().get(chemin)
                 .then().statusCode(200).extract().jsonPath();
 
-        Api.en("alice").when().get(chemin + "/summary")
+        Api.enTantQue("alice").when().get(chemin + "/summary")
                 .then().statusCode(200)
                 .body("projectId", equalTo(projet.toString()))
                 .body("status", equalTo("AVAILABLE"))
@@ -302,11 +302,11 @@ class ConsultationInventaireTest {
         UUID projet = projects.create(espaceA, "manuel", null, null);
         importer(projet, 2);
         String chemin = "/api/v1/projects/" + projet + "/inventory";
-        Api.en("alice").when().get(chemin + "/summary")
+        Api.enTantQue("alice").when().get(chemin + "/summary")
                 .then().statusCode(200)
                 .body("summary.componentCount", equalTo(2))
                 .body("summary.repositories", empty());
-        Api.en("alice").when().get(chemin + "/components")
+        Api.enTantQue("alice").when().get(chemin + "/components")
                 .then().statusCode(200)
                 .body("items", hasSize(2))
                 .body("items[0].repositories", empty())
@@ -316,7 +316,7 @@ class ConsultationInventaireTest {
     @Test
     void syntheseProjetSansInventaire() {
         UUID projet = projects.create(espaceA, "neuf", null, null);
-        Api.en("alice").when().get("/api/v1/projects/" + projet + "/inventory/summary")
+        Api.enTantQue("alice").when().get("/api/v1/projects/" + projet + "/inventory/summary")
                 .then().statusCode(200)
                 .body("projectId", equalTo(projet.toString()))
                 .body("status", equalTo("NO_SBOM"))
@@ -330,20 +330,20 @@ class ConsultationInventaireTest {
         importer(secret, 3);
         String chemin = "/api/v1/projects/" + secret + "/inventory/summary";
 
-        Api.en("alice").when().get("/api/v1/projects/" + UUID.randomUUID() + "/inventory/summary").then().statusCode(404);
-        String refus = Api.en("alice").when().get(chemin).then().statusCode(404).extract().asString();
+        Api.enTantQue("alice").when().get("/api/v1/projects/" + UUID.randomUUID() + "/inventory/summary").then().statusCode(404);
+        String refus = Api.enTantQue("alice").when().get(chemin).then().statusCode(404).extract().asString();
         assertTrue(!refus.contains("paquet-") && !refus.contains("Secret"), "le refus ne révèle rien de l'inventaire");
-        assertEquals(1, db.count("SELECT count(*) FROM refus_acces WHERE compte_id = '" + Api.compte("alice")
+        assertEquals(1, baseDeTest.count("SELECT count(*) FROM refus_acces WHERE compte_id = '" + Api.compte("alice")
                 + "' AND ressource = 'GET " + chemin + "' AND motif = 'NON_MEMBRE'"));
         given().when().get(chemin).then().statusCode(401);
-        Api.en("jules").when().get(chemin).then().statusCode(200).body("summary.componentCount", equalTo(3));
+        Api.enTantQue("jules").when().get(chemin).then().statusCode(200).body("summary.componentCount", equalTo(3));
         assertTrue(queries.summary(secret, Api.compte("alice")).isEmpty(), "synthèse d'un autre espace invisible sous argos_app");
         assertEquals(3, queries.summary(secret, Api.compte("jules")).orElseThrow().componentCount());
     }
 
     @Test
     void contratOpenApi() {
-        Api.en("alice").queryParam("format", "json").when().get("/q/openapi")
+        Api.enTantQue("alice").queryParam("format", "json").when().get("/q/openapi")
                 .then().statusCode(200)
                 .body("paths.'/api/v1/projects'.get", notNullValue())
                 .body("paths.'/api/v1/projects'.get.parameters.name", hasItems("page", "size"))

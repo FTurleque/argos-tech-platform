@@ -19,8 +19,8 @@ class LecteursTest {
     private final LecteurFlux flux = new LecteurFlux();
     private final LecteurPage page = new LecteurPage();
 
-    private static byte[] utf8(String s) {
-        return s.getBytes(StandardCharsets.UTF_8);
+    private static byte[] utf8(String texte) {
+        return texte.getBytes(StandardCharsets.UTF_8);
     }
 
     @Test
@@ -34,10 +34,10 @@ class LecteursTest {
                 </feed>"""));
         assertEquals("Blog", atom.titre());
         assertEquals(1, atom.elements().size());
-        LecteurFlux.ElementFlux e = atom.elements().get(0);
-        assertEquals("https://blog.exemple.test/v2", e.lien());
-        assertFalse(e.texte().contains("<"), "balises retirées");
-        assertTrue(e.texte().contains("Nouveautés"));
+        LecteurFlux.ElementFlux element = atom.elements().get(0);
+        assertEquals("https://blog.exemple.test/v2", element.lien());
+        assertFalse(element.texte().contains("<"), "balises retirées");
+        assertTrue(element.texte().contains("Nouveautés"));
 
         LecteurFlux.Flux rss = flux.lire(utf8("""
                 <rss version="2.0"><channel><title>Notes</title><link>https://exemple.test</link><description>d</description>
@@ -60,9 +60,9 @@ class LecteursTest {
                     <updated>2026-11-10T10:00:00Z</updated>
                     <content type="html">&amp;lt;script&amp;gt;alert(1)&amp;lt;/script&amp;gt;</content></entry>
                 </feed>"""));
-        LecteurFlux.ElementFlux e = atom.elements().get(0);
-        assertEquals("<script>alert(1)</script>", e.texte());
-        assertEquals("Alerte <img src=x onerror=alert(1)>", e.titre());
+        LecteurFlux.ElementFlux element = atom.elements().get(0);
+        assertEquals("<script>alert(1)</script>", element.texte());
+        assertEquals("Alerte <img src=x onerror=alert(1)>", element.titre());
     }
 
     @Test

@@ -57,7 +57,7 @@ public class PreparationFiches {
     DictionnaireMetier dictionnaire;
 
     @Inject
-    AnalyseIa ia;
+    AnalyseIa analyseIa;
 
     @Inject
     DataSource dataSource;
@@ -79,151 +79,154 @@ public class PreparationFiches {
         List<TexteOfficiel> lus = textes.lire(idsTextes);
         List<DictionnaireEspace> dictionnaires = dictionnaire.dictionnaires();
         int creees = 0;
-        for (DictionnaireEspace d : dictionnaires) {
+        for (DictionnaireEspace dictionnaire : dictionnaires) {
             int propositions = 0;
-            for (TexteOfficiel t : lus) {
+            for (TexteOfficiel texte : lus) {
                 try {
                     List<Domaine> domaines = new ArrayList<>();
-                    for (Qualification.Rattachement r : Qualification.qualifier(t, d)) {
-                        domaines.add(new Domaine(r.domaine(), "REGLE", null, r.motif()));
+                    for (Qualification.Rattachement rattachement : Qualification.qualifier(texte, dictionnaire)) {
+                        domaines.add(new Domaine(rattachement.domaine(), "REGLE", null, rattachement.motif()));
                     }
-                    if (domaines.isEmpty() && propositions < propositionsMax && natureEligible(t) && !existe(t.id(), d.espaceId())) {
+                    if (domaines.isEmpty() && propositions < propositionsMax && natureEligible(texte)
+                            && !existe(texte.id(), dictionnaire.espaceId())) {
                         propositions++;
-                        Optional<AnalyseIa.Proposition> p = ia.proposerDomaine(d.espaceId(), t, d.domaines());
-                        p.ifPresent(x -> domaines.add(new Domaine(x.domaine(), "IA", x.confiance(),
-                                "proposé par l'IA : " + borne(x.justification(), 450))));
+                        Optional<AnalyseIa.Proposition> propositionIa = analyseIa.proposerDomaine(dictionnaire.espaceId(), texte,
+                                dictionnaire.domaines());
+                        propositionIa.ifPresent(proposition -> domaines.add(new Domaine(proposition.domaine(), "IA",
+                                proposition.confiance(), "proposé par l'IA : " + borne(proposition.justification(), 450))));
                     }
-                    if (!domaines.isEmpty() && preparer(t, d.espaceId(), domaines, maintenant)) {
+                    if (!domaines.isEmpty() && preparer(texte, dictionnaire.espaceId(), domaines, maintenant)) {
                         creees++;
                     }
-                } catch (RuntimeException e) {
-                    LOG.errorf(e, "préparation de la fiche du texte %s pour l'espace %s en échec", t.identifiant(), d.espaceId());
+                } catch (RuntimeException erreur) {
+                    LOG.errorf(erreur, "préparation de la fiche du texte %s pour l'espace %s en échec", texte.identifiant(),
+                            dictionnaire.espaceId());
                 }
             }
         }
         return creees;
     }
 
-    private boolean natureEligible(TexteOfficiel t) {
-        Set<String> natures = naturesIa.stream().map(n -> n.strip().toUpperCase(Locale.ROOT)).collect(Collectors.toSet());
-        return t.nature() != null && natures.contains(t.nature().toUpperCase(Locale.ROOT));
+    private boolean natureEligible(TexteOfficiel texte) {
+        Set<String> natures = naturesIa.stream().map(nature -> nature.strip().toUpperCase(Locale.ROOT)).collect(Collectors.toSet());
+        return texte.nature() != null && natures.contains(texte.nature().toUpperCase(Locale.ROOT));
     }
 
     record Domaine(String code, String origine, Integer confiance, String motif) {
     }
 
     /** Crée la fiche du texte pour l'espace si elle n'existe pas ; vrai si elle vient d'être créée. */
-    boolean preparer(TexteOfficiel t, UUID espace, List<Domaine> domaines, Instant maintenant) {
-        if (existe(t.id(), espace)) {
+    boolean preparer(TexteOfficiel texte, UUID espace, List<Domaine> domaines, Instant maintenant) {
+        if (existe(texte.id(), espace)) {
             return false;
         }
-        Optional<AnalyseIa.Fiche> produite = ia.preparer(espace, t);
+        Optional<AnalyseIa.Fiche> produite = analyseIa.preparer(espace, texte);
         String resume = produite.map(AnalyseIa.Fiche::resume).orElse(null);
         UUID id = UUID.randomUUID();
-        try (Connection c = dataSource.getConnection()) {
-            c.setAutoCommit(false);
+        try (Connection connexion = dataSource.getConnection()) {
+            connexion.setAutoCommit(false);
             try {
-                try (PreparedStatement ps = c.prepareStatement("""
+                try (PreparedStatement requete = connexion.prepareStatement("""
                         INSERT INTO fiche_reglementaire (id, texte_id, espace_id, resume, resume_origine, date_effet,
                             date_effet_origine, date_effet_ia, articles_modifies, cree_le, modifie_le)
                         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                         ON CONFLICT (texte_id, espace_id) DO NOTHING
                         """)) {
-                    ps.setObject(1, id);
-                    ps.setObject(2, t.id());
-                    ps.setObject(3, espace);
-                    ps.setString(4, resume);
-                    ps.setString(5, resume == null ? "AUCUN" : "IA");
-                    ps.setDate(6, t.dateEffet() == null ? null : Date.valueOf(t.dateEffet()));
-                    ps.setString(7, t.dateEffet() == null ? null : "TEXTE");
-                    ps.setDate(8, produite.map(f -> Date.valueOf(f.dateEffet())).orElse(null));
-                    ps.setArray(9, c.createArrayOf("varchar", t.articlesModifies().toArray()));
-                    ps.setTimestamp(10, Timestamp.from(maintenant));
-                    ps.setTimestamp(11, Timestamp.from(maintenant));
-                    if (ps.executeUpdate() == 0) {
-                        c.rollback();
+                    requete.setObject(1, id);
+                    requete.setObject(2, texte.id());
+                    requete.setObject(3, espace);
+                    requete.setString(4, resume);
+                    requete.setString(5, resume == null ? "AUCUN" : "IA");
+                    requete.setDate(6, texte.dateEffet() == null ? null : Date.valueOf(texte.dateEffet()));
+                    requete.setString(7, texte.dateEffet() == null ? null : "TEXTE");
+                    requete.setDate(8, produite.map(ficheIa -> Date.valueOf(ficheIa.dateEffet())).orElse(null));
+                    requete.setArray(9, connexion.createArrayOf("varchar", texte.articlesModifies().toArray()));
+                    requete.setTimestamp(10, Timestamp.from(maintenant));
+                    requete.setTimestamp(11, Timestamp.from(maintenant));
+                    if (requete.executeUpdate() == 0) {
+                        connexion.rollback();
                         return false;
                     }
                 }
-                try (PreparedStatement ps = c.prepareStatement("""
+                try (PreparedStatement requete = connexion.prepareStatement("""
                         INSERT INTO fiche_domaine (fiche_id, espace_id, domaine, origine, confiance, motif)
                         VALUES (?, ?, ?, ?, ?, ?) ON CONFLICT DO NOTHING
                         """)) {
-                    for (Domaine d : domaines) {
-                        ps.setObject(1, id);
-                        ps.setObject(2, espace);
-                        ps.setString(3, d.code());
-                        ps.setString(4, d.origine());
-                        if (d.confiance() == null) {
-                            ps.setNull(5, java.sql.Types.INTEGER);
+                    for (Domaine domaine : domaines) {
+                        requete.setObject(1, id);
+                        requete.setObject(2, espace);
+                        requete.setString(3, domaine.code());
+                        requete.setString(4, domaine.origine());
+                        if (domaine.confiance() == null) {
+                            requete.setNull(5, java.sql.Types.INTEGER);
                         } else {
-                            ps.setInt(5, d.confiance());
+                            requete.setInt(5, domaine.confiance());
                         }
-                        ps.setString(6, borne(d.motif(), 500));
-                        ps.addBatch();
+                        requete.setString(6, borne(domaine.motif(), 500));
+                        requete.addBatch();
                     }
-                    ps.executeBatch();
+                    requete.executeBatch();
                 }
                 Map<String, Object> detail = new LinkedHashMap<>();
                 detail.put("resume", resume == null ? "à rédiger par l'expert" : "produit par l'IA");
-                detail.put("dateEffet", t.dateEffet() == null ? DatesTexte.DATE_A_CONFIRMER : t.dateEffet().toString());
-                detail.put("domaines", domaines.stream().map(d -> {
-                    Map<String, Object> m = new HashMap<>();
-                    m.put("code", d.code());
-                    m.put("origine", d.origine());
-                    if (d.confiance() != null) {
-                        m.put("confiance", d.confiance());
+                detail.put("dateEffet", texte.dateEffet() == null ? DatesTexte.DATE_A_CONFIRMER : texte.dateEffet().toString());
+                detail.put("domaines", domaines.stream().map(domaine -> {
+                    Map<String, Object> description = new HashMap<>();
+                    description.put("code", domaine.code());
+                    description.put("origine", domaine.origine());
+                    if (domaine.confiance() != null) {
+                        description.put("confiance", domaine.confiance());
                     }
-                    return m;
+                    return description;
                 }).toList());
-                historiser(c, id, espace, "PREPARATION", detail, null, maintenant);
-                c.commit();
+                historiser(connexion, id, espace, "PREPARATION", detail, null, maintenant);
+                connexion.commit();
                 return true;
-            } catch (SQLException | RuntimeException e) {
-                c.rollback();
-                throw e;
+            } catch (SQLException | RuntimeException erreur) {
+                connexion.rollback();
+                throw erreur;
             }
-        } catch (SQLException e) {
-            throw new IllegalStateException("préparation de la fiche impossible", e);
+        } catch (SQLException erreur) {
+            throw new IllegalStateException("préparation de la fiche impossible", erreur);
         }
     }
 
     private boolean existe(UUID texte, UUID espace) {
-        try (Connection c = dataSource.getConnection(); PreparedStatement ps = c.prepareStatement(
+        try (Connection connexion = dataSource.getConnection(); PreparedStatement requete = connexion.prepareStatement(
                 "SELECT 1 FROM fiche_reglementaire WHERE texte_id = ? AND espace_id = ?")) {
-            ps.setObject(1, texte);
-            ps.setObject(2, espace);
-            try (ResultSet rs = ps.executeQuery()) {
-                return rs.next();
+            requete.setObject(1, texte);
+            requete.setObject(2, espace);
+            try (ResultSet resultat = requete.executeQuery()) {
+                return resultat.next();
             }
-        } catch (SQLException e) {
-            throw new IllegalStateException("lecture des fiches impossible", e);
+        } catch (SQLException erreur) {
+            throw new IllegalStateException("lecture des fiches impossible", erreur);
         }
     }
 
-    void historiser(Connection c, UUID fiche, UUID espace, String action, Map<String, Object> detail, UUID auteur,
-            Instant le) throws SQLException {
-        try (PreparedStatement ps = c.prepareStatement("""
+    void historiser(Connection connexion, UUID fiche, UUID espace, String action, Map<String, Object> detail, UUID auteur,
+            Instant moment) throws SQLException {
+        try (PreparedStatement requete = connexion.prepareStatement("""
                 INSERT INTO fiche_historique (id, fiche_id, espace_id, action, detail, auteur, le)
                 VALUES (?, ?, ?, ?, ?::jsonb, ?, ?)
                 """)) {
-            ps.setObject(1, UUID.randomUUID());
-            ps.setObject(2, fiche);
-            ps.setObject(3, espace);
-            ps.setString(4, action);
-            ps.setString(5, json.writeValueAsString(detail));
-            ps.setObject(6, auteur);
-            ps.setTimestamp(7, Timestamp.from(le));
-            ps.executeUpdate();
-        } catch (JsonProcessingException e) {
-            throw new IllegalStateException(e);
+            requete.setObject(1, UUID.randomUUID());
+            requete.setObject(2, fiche);
+            requete.setObject(3, espace);
+            requete.setString(4, action);
+            requete.setString(5, json.writeValueAsString(detail));
+            requete.setObject(6, auteur);
+            requete.setTimestamp(7, Timestamp.from(moment));
+            requete.executeUpdate();
+        } catch (JsonProcessingException serialisation) {
+            throw new IllegalStateException(serialisation);
         }
     }
 
-    private static String borne(String s, int max) {
-        if (s == null) {
+    private static String borne(String texte, int max) {
+        if (texte == null) {
             return "";
         }
-        return s.length() <= max ? s : s.substring(0, max);
+        return texte.length() <= max ? texte : texte.substring(0, max);
     }
 }

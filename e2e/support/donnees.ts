@@ -64,7 +64,7 @@ export async function preparerRecherche(): Promise<string> {
   // Première connexion d'alice : compte administrateur plateforme créé sans invitation.
   await api('alice', '/api/v1/moi')
   const espaces = await api<{ id: string; nom: string }[]>('alice', '/api/v1/espaces')
-  const espace = espaces.find((e) => e.nom === ESPACE_E2E) ?? (await api<{ id: string }>('alice', '/api/v1/espaces', {
+  const espace = espaces.find((candidat) => candidat.nom === ESPACE_E2E) ?? (await api<{ id: string }>('alice', '/api/v1/espaces', {
     method: 'POST',
     body: JSON.stringify({ nom: ESPACE_E2E }),
   }))
@@ -97,7 +97,7 @@ export const INVENTAIRE = {
 export async function preparerInventaire(): Promise<void> {
   await api('alice', '/api/v1/moi')
   const espaces = await api<{ id: string; nom: string }[]>('alice', '/api/v1/espaces')
-  const espace = espaces.find((e) => e.nom === ESPACE_INVENTAIRE) ?? (await api<{ id: string }>('alice', '/api/v1/espaces', {
+  const espace = espaces.find((candidat) => candidat.nom === ESPACE_INVENTAIRE) ?? (await api<{ id: string }>('alice', '/api/v1/espaces', {
     method: 'POST',
     body: JSON.stringify({ nom: ESPACE_INVENTAIRE }),
   }))
@@ -147,7 +147,7 @@ interface Espace {
 
 async function espaceNomme(utilisateur: string, nom: string): Promise<Espace> {
   const espaces = await api<Espace[]>(utilisateur, '/api/v1/espaces')
-  return espaces.find((e) => e.nom === nom) ?? (await api<Espace>(utilisateur, '/api/v1/espaces', {
+  return espaces.find((candidat) => candidat.nom === nom) ?? (await api<Espace>(utilisateur, '/api/v1/espaces', {
     method: 'POST',
     body: JSON.stringify({ nom }),
   }))
@@ -168,7 +168,7 @@ async function assurerCompte(utilisateur: string): Promise<void> {
 async function assurerMembre(admin: string, espace: Espace, utilisateur: string, role: string): Promise<void> {
   if ((await statut(utilisateur, '/api/v1/moi')) === 200) {
     const siens = await api<Espace[]>(utilisateur, '/api/v1/espaces')
-    if (siens.some((e) => e.id === espace.id)) return
+    if (siens.some((sien) => sien.id === espace.id)) return
   }
   const invitation = await api<{ id: string }>(admin, `/api/v1/espaces/${espace.id}/invitations`, {
     method: 'POST',
@@ -189,15 +189,17 @@ export async function preparerVeille(): Promise<void> {
   await api('alice', '/api/v1/moi')
   await assurerCompte('ines')
   await assurerCompte('karim')
-  const a = await espaceNomme('ines', ESPACE_VEILLE_A)
-  const b = await espaceNomme('karim', ESPACE_VEILLE_B)
-  await assurerMembre('ines', a, 'jules', 'LECTEUR')
+  const espaceA = await espaceNomme('ines', ESPACE_VEILLE_A)
+  const espaceB = await espaceNomme('karim', ESPACE_VEILLE_B)
+  await assurerMembre('ines', espaceA, 'jules', 'LECTEUR')
   const ines = await api<{ id: string }>('ines', '/api/v1/moi')
-  sql('veille.sql', { espace_a: a.id, espace_b: b.id, ines: ines.id })
+  sql('veille.sql', { espace_a: espaceA.id, espace_b: espaceB.id, ines: ines.id })
 
   const abonnements = await api<Abonnement[]>('jules', '/api/v1/subscriptions')
   const existant = abonnements.some(
-    (s) => s.scope === 'PERSONAL' && PAQUETS_ABONNEMENT.every((p) => s.filters.some((f) => f.type === 'PACKAGE' && f.value === p)),
+    (abonnement) => abonnement.scope === 'PERSONAL' && PAQUETS_ABONNEMENT.every(
+      (paquet) => abonnement.filters.some((filtre) => filtre.type === 'PACKAGE' && filtre.value === paquet),
+    ),
   )
   if (!existant) {
     await api('jules', '/api/v1/subscriptions', {
@@ -399,7 +401,7 @@ export async function preparerChaine(): Promise<string> {
   await assurerMembre(COMPTE_CHAINE_ADMIN, espace, COMPTE_CHAINE, 'CONTRIBUTEUR')
   sql('chaine.sql', { espace: espace.id })
   const abonnements = await api<Abonnement[]>(COMPTE_CHAINE, '/api/v1/subscriptions')
-  if (!abonnements.some((s) => s.scope === 'PERSONAL')) {
+  if (!abonnements.some((abonnement) => abonnement.scope === 'PERSONAL')) {
     await api(COMPTE_CHAINE, '/api/v1/subscriptions', {
       method: 'POST',
       body: JSON.stringify({
@@ -425,7 +427,7 @@ export interface ImpactChaine {
 
 /** Impacts du projet de la chaîne aux états donnés (GET /api/v1/projects/{id}/impacts, COR-12-S2). */
 export async function impactsChaine(etats: string[] = []): Promise<ImpactChaine[]> {
-  const requete = etats.map((e) => `etat=${encodeURIComponent(e)}`).join('&')
+  const requete = etats.map((etat) => `etat=${encodeURIComponent(etat)}`).join('&')
   return api<ImpactChaine[]>(COMPTE_CHAINE, `/api/v1/projects/${CHAINE.projet}/impacts${requete ? `?${requete}` : ''}`)
 }
 

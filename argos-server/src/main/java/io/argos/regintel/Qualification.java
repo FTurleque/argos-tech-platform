@@ -31,11 +31,11 @@ public final class Qualification {
     /** Domaines de l'espace rattachés au texte, une fois chacun, avec le motif de la première règle satisfaite. */
     public static List<Rattachement> qualifier(TexteOfficiel texte, DictionnaireEspace dictionnaire) {
         Map<String, Rattachement> rattachements = new LinkedHashMap<>();
-        for (Domaine d : dictionnaire.domaines()) {
-            for (Regle r : d.regles()) {
-                String motif = motif(texte, r);
+        for (Domaine domaine : dictionnaire.domaines()) {
+            for (Regle regle : domaine.regles()) {
+                String motif = motif(texte, regle);
                 if (motif != null) {
-                    rattachements.putIfAbsent(d.code(), new Rattachement(d.code(), motif));
+                    rattachements.putIfAbsent(domaine.code(), new Rattachement(domaine.code(), motif));
                     break;
                 }
             }
@@ -44,24 +44,26 @@ public final class Qualification {
     }
 
     /** Motif si la règle s'applique au texte, sinon {@code null}. */
-    static String motif(TexteOfficiel t, Regle r) {
-        String v = r.valeur();
-        return switch (r.type()) {
-            case NATURE -> t.nature() != null && normaliser(t.nature()).equals(normaliser(v)) ? "nature : " + t.nature() : null;
-            case MINISTERE -> t.ministere() != null && normaliser(t.ministere()).contains(normaliser(v))
-                    ? "ministère : " + t.ministere() : null;
-            case NOR -> t.nor() != null && t.nor().toUpperCase(Locale.ROOT).startsWith(v.toUpperCase(Locale.ROOT))
-                    ? "NOR : " + t.nor() : null;
-            case CODE -> t.codes().stream()
-                    .filter(c -> c.identifiant().equalsIgnoreCase(v) || normaliser(c.libelle()).equals(normaliser(v)))
-                    .findFirst().map(c -> "code modifié : " + c.libelle()).orElse(null);
-            case MOT_CLE -> contientMot(normaliser(t.titre()), normaliser(v)) ? "mot-clé du titre : " + v : null;
+    static String motif(TexteOfficiel texte, Regle regle) {
+        String valeur = regle.valeur();
+        return switch (regle.type()) {
+            case NATURE -> texte.nature() != null && normaliser(texte.nature()).equals(normaliser(valeur))
+                    ? "nature : " + texte.nature() : null;
+            case MINISTERE -> texte.ministere() != null && normaliser(texte.ministere()).contains(normaliser(valeur))
+                    ? "ministère : " + texte.ministere() : null;
+            case NOR -> texte.nor() != null && texte.nor().toUpperCase(Locale.ROOT).startsWith(valeur.toUpperCase(Locale.ROOT))
+                    ? "NOR : " + texte.nor() : null;
+            case CODE -> texte.codes().stream()
+                    .filter(codeModifie -> codeModifie.identifiant().equalsIgnoreCase(valeur)
+                            || normaliser(codeModifie.libelle()).equals(normaliser(valeur)))
+                    .findFirst().map(codeModifie -> "code modifié : " + codeModifie.libelle()).orElse(null);
+            case MOT_CLE -> contientMot(normaliser(texte.titre()), normaliser(valeur)) ? "mot-clé du titre : " + valeur : null;
         };
     }
 
     /** Minuscules sans accents, espaces réduits. */
-    static String normaliser(String s) {
-        String sansAccents = DIACRITIQUES.matcher(Normalizer.normalize(s, Normalizer.Form.NFD)).replaceAll("");
+    static String normaliser(String texte) {
+        String sansAccents = DIACRITIQUES.matcher(Normalizer.normalize(texte, Normalizer.Form.NFD)).replaceAll("");
         return sansAccents.toLowerCase(Locale.ROOT).replaceAll("[^\\p{Alnum}]+", " ").strip();
     }
 

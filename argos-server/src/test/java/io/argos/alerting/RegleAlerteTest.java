@@ -32,23 +32,23 @@ class RegleAlerteTest {
 
     @Test
     void graviteMinimale() {
-        RegleAlerte r = regle("EMAIL", "IMMEDIATE", new Filter("SEVERITY", "HIGH"));
-        assertTrue(r.seuilAtteint("CRITICAL"));
-        assertTrue(r.seuilAtteint("high"));
-        assertFalse(r.seuilAtteint("MODERATE"));
-        assertFalse(r.seuilAtteint(null), "gravité inconnue : seuil non atteint");
-        assertFalse(r.seuilAtteint("CVSS_V3:CVSS:3.1/AV:N/AC:L"), "vecteur non gradué");
+        RegleAlerte regle = regle("EMAIL", "IMMEDIATE", new Filter("SEVERITY", "HIGH"));
+        assertTrue(regle.seuilAtteint("CRITICAL"));
+        assertTrue(regle.seuilAtteint("high"));
+        assertFalse(regle.seuilAtteint("MODERATE"));
+        assertFalse(regle.seuilAtteint(null), "gravité inconnue : seuil non atteint");
+        assertFalse(regle.seuilAtteint("CVSS_V3:CVSS:3.1/AV:N/AC:L"), "vecteur non gradué");
         assertTrue(regle("EMAIL", "IMMEDIATE", new Filter("PROJECT", "x")).seuilAtteint(null), "sans minimum");
     }
 
     @Test
     void criteresCumulatifsEntreTypesEtAlternatifsDansUnType() {
         UUID projet = UUID.randomUUID();
-        RegleAlerte r = regle("EMAIL", "IMMEDIATE", new Filter("PROJECT", projet.toString()),
+        RegleAlerte regle = regle("EMAIL", "IMMEDIATE", new Filter("PROJECT", projet.toString()),
                 new Filter("PROJECT", UUID.randomUUID().toString()), new Filter("TECHNOLOGY", "java"));
-        assertTrue(r.concerne(projet.toString(), PAQUET, "OSV"));
-        assertFalse(r.concerne(UUID.randomUUID().toString(), PAQUET, "OSV"), "autre projet");
-        assertFalse(r.concerne(projet.toString(), "pkg:npm/lodash", "OSV"), "autre technologie");
+        assertTrue(regle.concerne(projet.toString(), PAQUET, "OSV"));
+        assertFalse(regle.concerne(UUID.randomUUID().toString(), PAQUET, "OSV"), "autre projet");
+        assertFalse(regle.concerne(projet.toString(), "pkg:npm/lodash", "OSV"), "autre technologie");
 
         RegleAlerte paquet = regle("EMAIL", "DAILY", new Filter("PACKAGE", PAQUET + "@1.2.0"), new Filter("SOURCE", "osv"));
         assertTrue(paquet.concerne(projet.toString(), PAQUET, "OSV"));
@@ -75,8 +75,8 @@ class RegleAlerteTest {
 
     @Test
     void sujetSansRetourALaLigneVenuDuTitreExterne() {
-        MessageAlerte m = new MessageAlerte(UUID.randomUUID(), "IMMEDIATE", UUID.randomUUID(), "a@argos.test", "EMAIL",
+        MessageAlerte message = new MessageAlerte(UUID.randomUUID(), "IMMEDIATE", UUID.randomUUID(), "a@argos.test", "EMAIL",
                 "Faille\r\nBcc: intrus@exemple.test", "CRITICAL", new ContenuAlerte(List.of(), null, "SANS_OBJET"));
-        assertEquals("[Argos] Alerte CRITICAL : Faille Bcc: intrus@exemple.test", CanalEmail.sujet(m));
+        assertEquals("[Argos] Alerte CRITICAL : Faille Bcc: intrus@exemple.test", CanalEmail.sujet(message));
     }
 }

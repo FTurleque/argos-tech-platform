@@ -38,7 +38,7 @@ class MiseEnPageRetireeTest {
         // Préférence enregistrée avant le retrait.
         repository.enregistrerMiseEnPage(Api.compte("ines"), "fantaisie");
 
-        Api.en("ines")
+        Api.enTantQue("ines")
             .when().get("/api/v1/preferences")
             .then()
             .statusCode(200)
@@ -50,9 +50,9 @@ class MiseEnPageRetireeTest {
 
     @Test
     void uneMiseEnPageRetireeNePeutPlusEtreChoisie() {
-        Api.en("ines").when().get("/api/v1/catalogue/mises-en-page")
+        Api.enTantQue("ines").when().get("/api/v1/catalogue/mises-en-page")
             .then().statusCode(200).body("identifiant", not(hasItem("fantaisie")));
-        Api.en("ines").contentType(ContentType.JSON).body("{\"miseEnPage\":\"fantaisie\"}")
+        Api.enTantQue("ines").contentType(ContentType.JSON).body("{\"miseEnPage\":\"fantaisie\"}")
             .when().put("/api/v1/preferences/mise-en-page")
             .then().statusCode(400).body("code", equalTo("MISE_EN_PAGE_INCONNUE"));
     }

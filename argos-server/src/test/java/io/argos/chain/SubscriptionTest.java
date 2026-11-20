@@ -44,7 +44,7 @@ class SubscriptionTest {
     private static final String RUST = "[{\"type\":\"TECHNOLOGY\",\"value\":\"rust\"}]";
 
     @Inject
-    TestDb db;
+    TestDb baseDeTest;
 
     @Inject
     ProjectDirectory projects;
@@ -62,24 +62,24 @@ class SubscriptionTest {
     CorrelationEngine engine;
 
     /** Espace administré par karim. */
-    private UUID rh;
+    private UUID espaceRh;
     /** Espace administré par oscar. */
     private UUID paie;
 
     @BeforeEach
     void reset() {
-        db.reset();
-        rh = Api.nouvelEspace("karim", "Équipe RH");
+        baseDeTest.reset();
+        espaceRh = Api.nouvelEspace("karim", "Équipe RH");
         paie = Api.nouvelEspace("oscar", "Équipe Paie");
     }
 
     private static RequestSpecification as(String user) {
-        return Api.en(user).contentType(ContentType.JSON);
+        return Api.enTantQue(user).contentType(ContentType.JSON);
     }
 
     /** Fait de l'utilisateur un lecteur de l'espace, par invitation acceptée. */
     private void membre(String user, UUID espace) {
-        Api.ajouterMembre(espace.equals(rh) ? "karim" : "oscar", espace.toString(), user, "LECTEUR");
+        Api.ajouterMembre(espace.equals(espaceRh) ? "karim" : "oscar", espace.toString(), user, "LECTEUR");
     }
 
     private static String personal(String filters) {
@@ -102,7 +102,7 @@ class SubscriptionTest {
         as("alice").body("{\"filters\":" + RUST + ",\"channel\":\"in_app\",\"frequency\":\"daily\",\"mandatory\":false}")
                 .when().post("/api/v1/subscriptions")
                 .then().statusCode(400).body("attribut", equalTo("scope"));
-        assertEquals(0, db.count("SELECT count(*) FROM subscription"));
+        assertEquals(0, baseDeTest.count("SELECT count(*) FROM subscription"));
     }
 
     @Test
@@ -130,34 +130,34 @@ class SubscriptionTest {
         as("alice").body("{\"scope\":\"PERSONAL\",\"filters\":" + RUST + ",\"channel\":\"x\",\"frequency\":\"daily\"}")
                 .when().post("/api/v1/subscriptions")
                 .then().statusCode(400).body("attribut", equalTo("mandatory"));
-        assertEquals(0, db.count("SELECT count(*) FROM subscription"));
+        assertEquals(0, baseDeTest.count("SELECT count(*) FROM subscription"));
     }
 
     @Test
     void abo06SeulLAdministrateurDeLEspaceCreeUnAbonnementTeam() {
-        membre("jules", rh);
-        as("jules").body(team(rh, JAVA, true)).when().post("/api/v1/subscriptions").then().statusCode(403);
-        assertEquals(1, db.count("SELECT count(*) FROM refus_acces WHERE compte_id = '" + Api.compte("jules")
+        membre("jules", espaceRh);
+        as("jules").body(team(espaceRh, JAVA, true)).when().post("/api/v1/subscriptions").then().statusCode(403);
+        assertEquals(1, baseDeTest.count("SELECT count(*) FROM refus_acces WHERE compte_id = '" + Api.compte("jules")
                 + "' AND ressource = 'POST /api/v1/subscriptions' AND motif = 'ROLE_INSUFFISANT'"));
-        as("karim").body(team(rh, JAVA, true)).when().post("/api/v1/subscriptions")
-                .then().statusCode(201).body("ownerWorkspaceId", equalTo(rh.toString()));
+        as("karim").body(team(espaceRh, JAVA, true)).when().post("/api/v1/subscriptions")
+                .then().statusCode(201).body("ownerWorkspaceId", equalTo(espaceRh.toString()));
     }
 
     @Test
     void abo03S1NouveauMembreHeriteDuSocleTeam() {
         publish("GHSA-JAVA", "Maven", "org.exemple:lib", "pkg:maven/org.exemple/lib");
-        as("karim").body(team(rh, JAVA, true)).when().post("/api/v1/subscriptions").then().statusCode(201);
+        as("karim").body(team(espaceRh, JAVA, true)).when().post("/api/v1/subscriptions").then().statusCode(201);
 
         Api.compte("lina");
         as("lina").when().get("/api/v1/me/watch").then().statusCode(200).body("$", empty());
-        membre("lina", rh);
+        membre("lina", espaceRh);
         as("lina").when().get("/api/v1/me/watch").then().statusCode(200).body("externalId", hasItem("GHSA-JAVA"));
     }
 
     @Test
     void abo04S1TechnologieHorsPerimetreDeLEquipe() {
         publish("GHSA-RUST", "crates.io", "hyper", "pkg:cargo/hyper");
-        membre("marc", rh);
+        membre("marc", espaceRh);
         as("marc").body(personal("[{\"type\":\"TECHNOLOGY\",\"value\":\"Rust\"}]"))
                 .when().post("/api/v1/subscriptions").then().statusCode(201);
 
@@ -171,9 +171,9 @@ class SubscriptionTest {
                 java.util.Collections.singletonList(new String[] {"h", "pkg:cargo/hyper@0.14.0"}), List.of("h"))
                 .getBytes(StandardCharsets.UTF_8), "ci");
         publish("GHSA-RUST2", "crates.io", "hyper", "pkg:cargo/hyper");
-        assertEquals(1, db.count("SELECT count(*) FROM project_impact WHERE project_id = '" + projetPaie + "'"));
+        assertEquals(1, baseDeTest.count("SELECT count(*) FROM project_impact WHERE project_id = '" + projetPaie + "'"));
 
-        membre("nina", rh);
+        membre("nina", espaceRh);
         as("nina").body(personal("[{\"type\":\"TECHNOLOGY\",\"value\":\"rust\"},{\"type\":\"PROJECT\",\"value\":\""
                 + projetPaie + "\"}]")).when().post("/api/v1/subscriptions").then().statusCode(201);
 
@@ -181,7 +181,7 @@ class SubscriptionTest {
                 .body("externalId", hasItem("GHSA-RUST2"))
                 .body("find { it.externalId == 'GHSA-RUST2' }.impacts", hasSize(0));
         // Les droits de nina sont inchangés : l'impact du projet de l'espace Paie reste inaccessible.
-        UUID impact = db.uuid("SELECT id FROM project_impact");
+        UUID impact = baseDeTest.uuid("SELECT id FROM project_impact");
         as("nina").when().get("/api/v1/impacts/" + impact).then().statusCode(404);
         as("nina").when().get("/api/v1/projects/" + projetPaie + "/inventory").then().statusCode(404);
         // Un membre de l'espace Paie voit l'impact.
@@ -192,11 +192,11 @@ class SubscriptionTest {
 
     @Test
     void abo06TeamObligatoireNonQuittableEtFacultatifQuittable() {
-        String mandatory = as("karim").body(team(rh, JAVA, true))
+        String mandatory = as("karim").body(team(espaceRh, JAVA, true))
                 .when().post("/api/v1/subscriptions").then().statusCode(201).extract().path("id");
-        String optional = as("karim").body(team(rh, "[{\"type\":\"TECHNOLOGY\",\"value\":\"python\"}]", false))
+        String optional = as("karim").body(team(espaceRh, "[{\"type\":\"TECHNOLOGY\",\"value\":\"python\"}]", false))
                 .when().post("/api/v1/subscriptions").then().statusCode(201).extract().path("id");
-        membre("lina", rh);
+        membre("lina", espaceRh);
         membre("paul", paie);
 
         as("lina").when().post("/api/v1/subscriptions/" + mandatory + "/leave").then().statusCode(409)
@@ -220,7 +220,7 @@ class SubscriptionTest {
     }
 
     private UUID projetRhAvecLib() {
-        UUID projet = projects.create(rh, "portail-rh", null, null);
+        UUID projet = projects.create(espaceRh, "portail-rh", null, null);
         inventories.importSbom(projet, Fixtures.cyclonedx("1.6", Instant.now().minus(1, ChronoUnit.DAYS).toString(),
                 java.util.Collections.singletonList(new String[] {"lib", "pkg:maven/org.exemple/lib@1.2.0"}), List.of("lib"))
                 .getBytes(StandardCharsets.UTF_8), "ci");
@@ -228,13 +228,13 @@ class SubscriptionTest {
     }
 
     private long alertesDe(String user) {
-        return db.count("SELECT count(*) FROM alerte WHERE compte_id = '" + Api.compte(user) + "'");
+        return baseDeTest.count("SELECT count(*) FROM alerte WHERE compte_id = '" + Api.compte(user) + "'");
     }
 
     @Test
     void abo07S1EtS2SuspensionPuisReactivationSansRejeu() {
         UUID projet = projetRhAvecLib();
-        membre("jules", rh);
+        membre("jules", espaceRh);
         String id = as("jules").body(personalEmailImmediat(DEUX_PAQUETS))
                 .when().post("/api/v1/subscriptions").then().statusCode(201).extract().path("id");
 
@@ -249,41 +249,41 @@ class SubscriptionTest {
                 .body("state", equalTo("SUSPENDED"));
 
         publish("GHSA-SUSP1", "Maven", "org.exemple:lib", "pkg:maven/org.exemple/lib");
-        assertEquals(1, db.count("SELECT count(*) FROM project_impact"), "le signal est corrélé");
+        assertEquals(1, baseDeTest.count("SELECT count(*) FROM project_impact"), "le signal est corrélé");
         assertEquals(0, alertesDe("jules"), "aucune alerte au titre d'un abonnement suspendu");
-        assertEquals(0, db.count("SELECT count(*) FROM resume_element WHERE compte_id = '" + Api.compte("jules") + "'"));
+        assertEquals(0, baseDeTest.count("SELECT count(*) FROM resume_element WHERE compte_id = '" + Api.compte("jules") + "'"));
 
         as("jules").when().post("/api/v1/subscriptions/" + id + "/reactivation").then().statusCode(200)
                 .body("state", equalTo("ACTIVE")).body("filters", hasSize(2));
         publish("GHSA-SUSP2", "Maven", "org.exemple:lib", "pkg:maven/org.exemple/lib");
 
         assertEquals(1, alertesDe("jules"));
-        assertEquals(1, db.count("SELECT count(*) FROM alerte a JOIN signal s ON s.id = a.signal_id WHERE a.compte_id = '"
+        assertEquals(1, baseDeTest.count("SELECT count(*) FROM alerte a JOIN signal s ON s.id = a.signal_id WHERE a.compte_id = '"
                 + Api.compte("jules") + "' AND s.external_id = 'GHSA-SUSP2'"));
-        assertEquals(0, db.count("SELECT count(*) FROM alerte a JOIN signal s ON s.id = a.signal_id"
+        assertEquals(0, baseDeTest.count("SELECT count(*) FROM alerte a JOIN signal s ON s.id = a.signal_id"
                 + " WHERE s.external_id = 'GHSA-SUSP1'"), "la période de suspension n'est pas rejouée");
 
         // Recorrélation du projet après la réactivation (import quotidien, J4) : impact inchangé, aucune alerte
         // pour le signal corrélé pendant la suspension ([PROPOSITION] PI-4, intégration du 2026-11-19).
         engine.correlateProject(projet);
-        assertEquals(0, db.count("SELECT count(*) FROM alerte a JOIN signal s ON s.id = a.signal_id"
+        assertEquals(0, baseDeTest.count("SELECT count(*) FROM alerte a JOIN signal s ON s.id = a.signal_id"
                 + " WHERE s.external_id = 'GHSA-SUSP1'"), "la recorrélation ne rejoue pas la période de suspension");
         assertEquals(1, alertesDe("jules"));
     }
 
     @Test
     void abo07S3SuspensionDUnTeamParUnContributeurRefusee() {
-        String id = as("karim").body(team(rh, JAVA, true)).when().post("/api/v1/subscriptions")
+        String id = as("karim").body(team(espaceRh, JAVA, true)).when().post("/api/v1/subscriptions")
                 .then().statusCode(201).extract().path("id");
-        Api.ajouterMembre("karim", rh.toString(), "jules", "CONTRIBUTEUR");
+        Api.ajouterMembre("karim", espaceRh.toString(), "jules", "CONTRIBUTEUR");
 
         as("jules").when().post("/api/v1/subscriptions/" + id + "/suspension").then().statusCode(403);
         as("jules").when().post("/api/v1/subscriptions/" + id + "/reactivation").then().statusCode(403);
         as("jules").when().delete("/api/v1/subscriptions/" + id).then().statusCode(403);
 
-        assertEquals(1, db.count("SELECT count(*) FROM refus_acces WHERE compte_id = '" + Api.compte("jules")
+        assertEquals(1, baseDeTest.count("SELECT count(*) FROM refus_acces WHERE compte_id = '" + Api.compte("jules")
                 + "' AND ressource = 'POST /api/v1/subscriptions/" + id + "/suspension' AND motif = 'ROLE_INSUFFISANT'"));
-        assertEquals("ACTIVE", db.string("SELECT state FROM subscription WHERE id = '" + id + "'"));
+        assertEquals("ACTIVE", baseDeTest.string("SELECT state FROM subscription WHERE id = '" + id + "'"));
         // Un non-membre ne voit pas l'abonnement : 404, sans le révéler.
         Api.compte("paul");
         as("paul").when().post("/api/v1/subscriptions/" + id + "/suspension").then().statusCode(404);
@@ -296,11 +296,11 @@ class SubscriptionTest {
 
     @Test
     void abo07S3RlsRefuseLaModificationParUnContributeurSousArgosApp() throws Exception {
-        String id = as("karim").body(team(rh, JAVA, true)).when().post("/api/v1/subscriptions")
+        String id = as("karim").body(team(espaceRh, JAVA, true)).when().post("/api/v1/subscriptions")
                 .then().statusCode(201).extract().path("id");
         String personnel = as("jules").body(personal(RUST)).when().post("/api/v1/subscriptions")
                 .then().statusCode(201).extract().path("id");
-        Api.ajouterMembre("karim", rh.toString(), "jules", "CONTRIBUTEUR");
+        Api.ajouterMembre("karim", espaceRh.toString(), "jules", "CONTRIBUTEUR");
 
         // Même si la couche API se trompait, la base refuse sous argos_app (politiques V18).
         assertEquals(0, sousArgosApp("jules", "UPDATE subscription SET state = 'SUSPENDED' WHERE id = '" + id + "'"));
@@ -313,25 +313,25 @@ class SubscriptionTest {
         java.sql.SQLException refus = org.junit.jupiter.api.Assertions.assertThrows(java.sql.SQLException.class,
                 () -> sousArgosApp("jules", "UPDATE subscription SET filters = '[]' WHERE id = '" + personnel + "'"));
         assertEquals("42501", refus.getSQLState(), "privilège UPDATE limité à la colonne state");
-        assertEquals("SUSPENDED", db.string("SELECT state FROM subscription WHERE id = '" + id + "'"));
-        assertEquals(1, db.count("SELECT jsonb_array_length(filters) FROM subscription WHERE id = '" + personnel + "'"));
+        assertEquals("SUSPENDED", baseDeTest.string("SELECT state FROM subscription WHERE id = '" + id + "'"));
+        assertEquals(1, baseDeTest.count("SELECT jsonb_array_length(filters) FROM subscription WHERE id = '" + personnel + "'"));
     }
 
     /** Exécute une écriture dans une transaction sous argos_app avec le compte donné ; renvoie le nombre de lignes. */
     private int sousArgosApp(String user, String sql) throws java.sql.SQLException {
         UUID compte = Api.compte(user);
-        try (java.sql.Connection c = dataSource.getConnection()) {
-            c.setAutoCommit(false);
-            try (java.sql.Statement st = c.createStatement()) {
-                st.execute("SET LOCAL ROLE argos_app");
-                st.execute("SELECT set_config('argos.compte_courant', '" + compte + "', true), "
+        try (java.sql.Connection connexion = dataSource.getConnection()) {
+            connexion.setAutoCommit(false);
+            try (java.sql.Statement requete = connexion.createStatement()) {
+                requete.execute("SET LOCAL ROLE argos_app");
+                requete.execute("SELECT set_config('argos.compte_courant', '" + compte + "', true), "
                         + "set_config('argos.espace_courant', '', true)");
-                int lignes = st.executeUpdate(sql);
-                c.commit();
+                int lignes = requete.executeUpdate(sql);
+                connexion.commit();
                 return lignes;
-            } catch (java.sql.SQLException e) {
-                c.rollback();
-                throw e;
+            } catch (java.sql.SQLException erreur) {
+                connexion.rollback();
+                throw erreur;
             }
         }
     }
@@ -350,7 +350,7 @@ class SubscriptionTest {
                 .body("find { it.id == '" + suspendu + "' }.state", equalTo("SUSPENDED"));
         // Le retrait d'un PERSONAL est une suspension (P-8) : critères conservés, réactivable.
         as("jules").when().post("/api/v1/subscriptions/" + actif + "/leave").then().statusCode(204);
-        assertEquals("SUSPENDED", db.string("SELECT state FROM subscription WHERE id = '" + actif + "'"));
+        assertEquals("SUSPENDED", baseDeTest.string("SELECT state FROM subscription WHERE id = '" + actif + "'"));
         as("jules").when().post("/api/v1/subscriptions/" + actif + "/leave").then().statusCode(204);
         as("jules").when().post("/api/v1/subscriptions/" + actif + "/reactivation").then().statusCode(200)
                 .body("state", equalTo("ACTIVE")).body("filters[0].value", equalTo("rust"));
@@ -367,7 +367,7 @@ class SubscriptionTest {
         as("jules").when().get("/api/v1/subscriptions").then().statusCode(200).body("id", not(hasItem(id)));
         as("jules").when().post("/api/v1/subscriptions/" + id + "/reactivation").then().statusCode(404);
         as("jules").when().delete("/api/v1/subscriptions/" + id).then().statusCode(404);
-        assertEquals(0, db.count("SELECT count(*) FROM subscription WHERE id = '" + id + "'"));
+        assertEquals(0, baseDeTest.count("SELECT count(*) FROM subscription WHERE id = '" + id + "'"));
     }
 
     @Test
@@ -384,24 +384,24 @@ class SubscriptionTest {
         as("ines").when().post("/api/v1/subscriptions/" + id + "/suspension").then().statusCode(404);
 
         assertEquals(corpsInconnu, corpsAutre, "même réponse que pour un abonnement inexistant");
-        assertEquals("ACTIVE", db.string("SELECT state FROM subscription WHERE id = '" + id + "'"));
-        assertEquals(1, db.count("SELECT count(*) FROM subscription WHERE id = '" + id + "'"));
+        assertEquals("ACTIVE", baseDeTest.string("SELECT state FROM subscription WHERE id = '" + id + "'"));
+        assertEquals(1, baseDeTest.count("SELECT count(*) FROM subscription WHERE id = '" + id + "'"));
     }
 
     @Test
     void abo08S3SuppressionDUnTeamFacultatifQuitteParDesMembres() {
-        String id = as("karim").body(team(rh, JAVA, false)).when().post("/api/v1/subscriptions")
+        String id = as("karim").body(team(espaceRh, JAVA, false)).when().post("/api/v1/subscriptions")
                 .then().statusCode(201).extract().path("id");
-        membre("lina", rh);
-        membre("marc", rh);
+        membre("lina", espaceRh);
+        membre("marc", espaceRh);
         as("lina").when().post("/api/v1/subscriptions/" + id + "/leave").then().statusCode(204);
         as("marc").when().post("/api/v1/subscriptions/" + id + "/leave").then().statusCode(204);
-        assertEquals(2, db.count("SELECT count(*) FROM subscription_opt_out WHERE subscription_id = '" + id + "'"));
+        assertEquals(2, baseDeTest.count("SELECT count(*) FROM subscription_opt_out WHERE subscription_id = '" + id + "'"));
 
         as("karim").when().delete("/api/v1/subscriptions/" + id).then().statusCode(204);
 
-        assertEquals(0, db.count("SELECT count(*) FROM subscription WHERE id = '" + id + "'"));
-        assertEquals(0, db.count("SELECT count(*) FROM subscription_opt_out WHERE subscription_id = '" + id + "'"));
+        assertEquals(0, baseDeTest.count("SELECT count(*) FROM subscription WHERE id = '" + id + "'"));
+        assertEquals(0, baseDeTest.count("SELECT count(*) FROM subscription_opt_out WHERE subscription_id = '" + id + "'"));
         for (String user : List.of("karim", "lina", "marc")) {
             as(user).when().get("/api/v1/subscriptions").then().statusCode(200).body("id", not(hasItem(id)));
         }
@@ -409,7 +409,7 @@ class SubscriptionTest {
 
     @Test
     void contratOpenApiDesActionsSurLesAbonnements() {
-        Api.en("alice").queryParam("format", "json")
+        Api.enTantQue("alice").queryParam("format", "json")
                 .when().get("/q/openapi")
                 .then().statusCode(200)
                 .body("paths.'/api/v1/subscriptions'.get", notNullValue())

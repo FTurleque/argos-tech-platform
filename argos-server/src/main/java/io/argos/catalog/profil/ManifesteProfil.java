@@ -64,12 +64,12 @@ public record ManifesteProfil(
 
     /** Liste des valeurs admises pour un type d'objet suivi. */
     public Optional<ListeObjets> liste(String typeObjet) {
-        return listes.stream().filter(l -> l != null && typeObjet.equals(l.typeObjet())).findFirst();
+        return listes.stream().filter(liste -> liste != null && typeObjet.equals(liste.typeObjet())).findFirst();
     }
 
     /** Vrai si le profil déclare ce garde-fou. */
     public boolean impose(TypeGardeFou type) {
-        return gardeFous.stream().anyMatch(g -> g != null && g.type() == type);
+        return gardeFous.stream().anyMatch(gardeFou -> gardeFou != null && gardeFou.type() == type);
     }
 
     /**

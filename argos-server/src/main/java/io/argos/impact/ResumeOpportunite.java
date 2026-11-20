@@ -38,15 +38,16 @@ public final class ResumeOpportunite {
     private ResumeOpportunite() {
     }
 
-    public static Resume de(Opportunite o) {
-        String criteres = o.criteres() == null ? "" : o.criteres().strip();
+    public static Resume depuis(Opportunite opportunite) {
+        String criteres = opportunite.criteres() == null ? "" : opportunite.criteres().strip();
         boolean tronques = criteres.length() > CRITERES_MAX;
         if (tronques) {
             criteres = criteres.substring(0, CRITERES_MAX) + " […]";
         }
-        String organisme = o.organisme() != null ? o.organisme() : o.sourceLibelle();
-        return new Resume(o.titre(), organisme,
+        String organisme = opportunite.organisme() != null ? opportunite.organisme() : opportunite.sourceLibelle();
+        return new Resume(opportunite.titre(), organisme,
                 criteres.isEmpty() ? "Critères non fournis par la source : consultez le texte officiel." : criteres,
-                tronques, o.dateLimite() == null ? "à confirmer" : o.dateLimite().toString(), o.lien(), MENTION);
+                tronques, opportunite.dateLimite() == null ? "à confirmer" : opportunite.dateLimite().toString(),
+                opportunite.lien(), MENTION);
     }
 }

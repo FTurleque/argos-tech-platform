@@ -179,14 +179,14 @@ public class RadarResource {
         };
         List<ReferentielEspace.EntreeReferentiel> entrees = referentiel.lister(caller.accountId(), espaceId);
         java.util.Map<String, String> libelles = new java.util.HashMap<>();
-        entrees.forEach(e -> libelles.put(e.cle(), e.libelle()));
+        entrees.forEach(entree -> libelles.put(entree.cle(), entree.libelle()));
         List<EcheanceRadar> echeances = libelles.isEmpty() ? List.of()
                 : calendrier.echeances(libelles.keySet(), Set.of(espaceId), depuis, jusqua).stream()
-                        .map(e -> new EcheanceRadar(e.cle(), libelles.get(e.cle()), e.version(), e.nature().name(), e.date(),
-                                e.source(), e.note()))
+                        .map(echeance -> new EcheanceRadar(echeance.cle(), libelles.get(echeance.cle()), echeance.version(),
+                                echeance.nature().name(), echeance.date(), echeance.source(), echeance.note()))
                         .toList();
         List<String> produits = entrees.stream().map(ReferentielEspace.EntreeReferentiel::produitCycleVie)
-                .filter(p -> p != null).distinct().toList();
+                .filter(produit -> produit != null).distinct().toList();
         return new Radar(horizon.strip().toLowerCase(Locale.ROOT), depuis, jusqua, echeances, cycles.etats(produits));
     }
 

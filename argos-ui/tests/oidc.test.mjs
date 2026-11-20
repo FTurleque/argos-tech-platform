@@ -40,7 +40,7 @@ test('le défi est le SHA-256 base64url du vérificateur, sans remplissage', asy
 test('valeurs aléatoires : 43 caractères base64url pour 32 octets, toutes différentes', () => {
   const valeurs = new Set(Array.from({ length: 50 }, () => aleatoire(32)))
   assert.equal(valeurs.size, 50)
-  for (const v of valeurs) assert.match(v, /^[A-Za-z0-9_-]{43}$/)
+  for (const valeur of valeurs) assert.match(valeur, /^[A-Za-z0-9_-]{43}$/)
   assert.equal(base64Url(new Uint8Array([0xfb, 0xff])), '-_8')
 })
 

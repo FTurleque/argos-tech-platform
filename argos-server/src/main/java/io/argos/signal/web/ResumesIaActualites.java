@@ -88,81 +88,81 @@ public class ResumesIaActualites {
         if (detail.isEmpty()) {
             return Optional.empty();
         }
-        ActualitesWeb.Actualite a = detail.get().actualite();
-        List<String> sources = sources(a);
-        String cle = cle(actualiteId, a);
+        ActualitesWeb.Actualite actualite = detail.get().actualite();
+        List<String> sources = sources(actualite);
+        String cle = cle(actualiteId, actualite);
         EnCache connu = lireCache(cle);
         if (connu != null) {
             return Optional.of(new ResumeIaActualite("DISPONIBLE", connu.methode(), connu.texte(), connu.mention(), sources));
         }
         UUID espace = espaceImpute(actualiteId, compteId);
-        ReponseIa r = passerelle.demander(new DemandeIa(RegistrePrompts.RESUME_ACTUALITE, espace,
-                List.of(EntreeIa.publique("titre", a.titre()),
-                        EntreeIa.publique("texte", a.contenu().texte())),
+        ReponseIa reponse = passerelle.demander(new DemandeIa(RegistrePrompts.RESUME_ACTUALITE, espace,
+                List.of(EntreeIa.publique("titre", actualite.titre()),
+                        EntreeIa.publique("texte", actualite.contenu().texte())),
                 sources, compteId));
-        if (r.produit()) {
-            EnCache produit = new EnCache("IA_V" + r.versionPrompt(), r.champ("resume"), r.mention(),
+        if (reponse.produit()) {
+            EnCache produit = new EnCache("IA_V" + reponse.versionPrompt(), reponse.champ("resume"), reponse.mention(),
                     Instant.now().plus(dureeCache));
             ecrireCache(cle, produit);
             return Optional.of(new ResumeIaActualite("DISPONIBLE", produit.methode(), produit.texte(), produit.mention(),
-                    r.sources()));
+                    reponse.sources()));
         }
-        String etat = r.plafondAtteint() ? "PLAFOND_ATTEINT"
-                : r.issue() == ReponseIa.Issue.INDISPONIBLE || r.issue() == ReponseIa.Issue.DESACTIVEE ? "INDISPONIBLE"
+        String etat = reponse.plafondAtteint() ? "PLAFOND_ATTEINT"
+                : reponse.issue() == ReponseIa.Issue.INDISPONIBLE || reponse.issue() == ReponseIa.Issue.DESACTIVEE ? "INDISPONIBLE"
                 : "REFUSE";
         return Optional.of(new ResumeIaActualite(etat, ActualitesWeb.METHODE_RESUME,
                 detail.get().resume().extrait().texte(), null, sources));
     }
 
     /** Clé du cache : actualité, empreinte du contenu transmis, version du prompt et modèle de la tâche. */
-    private String cle(UUID actualiteId, ActualitesWeb.Actualite a) {
-        int version = registre.prompt(RegistrePrompts.RESUME_ACTUALITE).map(p -> p.version()).orElse(0);
-        String contenu = a.titre() + "\u0000" + a.contenu().texte();
+    private String cle(UUID actualiteId, ActualitesWeb.Actualite actualite) {
+        int version = registre.prompt(RegistrePrompts.RESUME_ACTUALITE).map(prompt -> prompt.version()).orElse(0);
+        String contenu = actualite.titre() + "\u0000" + actualite.contenu().texte();
         String empreinte;
         try {
             empreinte = java.util.HexFormat.of().formatHex(java.security.MessageDigest.getInstance("SHA-256")
                     .digest(contenu.getBytes(java.nio.charset.StandardCharsets.UTF_8)));
-        } catch (java.security.NoSuchAlgorithmException e) {
-            throw new IllegalStateException(e);
+        } catch (java.security.NoSuchAlgorithmException erreur) {
+            throw new IllegalStateException(erreur);
         }
         return actualiteId + "|" + empreinte + "|" + version + "|" + passerelle.modele(RegistrePrompts.RESUME_ACTUALITE);
     }
 
     private synchronized EnCache lireCache(String cle) {
-        EnCache e = cache.get(cle);
-        if (e != null && e.expire().isBefore(Instant.now())) {
+        EnCache entree = cache.get(cle);
+        if (entree != null && entree.expire().isBefore(Instant.now())) {
             cache.remove(cle);
             return null;
         }
-        return e;
+        return entree;
     }
 
-    private synchronized void ecrireCache(String cle, EnCache e) {
-        cache.put(cle, e);
+    private synchronized void ecrireCache(String cle, EnCache entree) {
+        cache.put(cle, entree);
         while (cache.size() > Math.max(tailleCache, 0)) {
             cache.remove(cache.keySet().iterator().next());
         }
     }
 
     private UUID espaceImpute(UUID actualiteId, UUID compteId) {
-        return base.executer(new Contexte(compteId, null, null), c -> {
-            try (PreparedStatement ps = c.prepareStatement("SELECT espace_id FROM actualite WHERE id = ?")) {
-                ps.setObject(1, actualiteId);
-                try (ResultSet rs = ps.executeQuery()) {
-                    return rs.next() ? rs.getObject(1, UUID.class) : null;
+        return base.executer(new Contexte(compteId, null, null), connexion -> {
+            try (PreparedStatement requete = connexion.prepareStatement("SELECT espace_id FROM actualite WHERE id = ?")) {
+                requete.setObject(1, actualiteId);
+                try (ResultSet resultat = requete.executeQuery()) {
+                    return resultat.next() ? resultat.getObject(1, UUID.class) : null;
                 }
             }
         });
     }
 
-    private static List<String> sources(ActualitesWeb.Actualite a) {
+    private static List<String> sources(ActualitesWeb.Actualite actualite) {
         Set<String> liens = new LinkedHashSet<>();
-        if (a.lien() != null) {
-            liens.add(a.lien());
+        if (actualite.lien() != null) {
+            liens.add(actualite.lien());
         }
-        a.sources().forEach(s -> {
-            if (s.lien() != null) {
-                liens.add(s.lien());
+        actualite.sources().forEach(source -> {
+            if (source.lien() != null) {
+                liens.add(source.lien());
             }
         });
         return new ArrayList<>(liens);

@@ -49,13 +49,13 @@ public class CyclesDeVie {
                 List<ClientEndoflife.Cycle> cycles = client.cycles(produit);
                 remplacer(produit, cycles, maintenant);
                 etats.put(produit, "A_JOUR");
-            } catch (ClientEndoflife.SourceIndisponible e) {
-                LOG.warnf("synchronisation endoflife.date du produit %s en échec : %s", produit, e.getMessage());
-                echec(produit, e.getMessage(), maintenant);
+            } catch (ClientEndoflife.SourceIndisponible erreur) {
+                LOG.warnf("synchronisation endoflife.date du produit %s en échec : %s", produit, erreur.getMessage());
+                echec(produit, erreur.getMessage(), maintenant);
                 etats.put(produit, "EN_ERREUR");
-            } catch (RuntimeException e) {
+            } catch (RuntimeException erreur) {
                 // Erreur de base ou réponse inattendue : le produit passe en erreur, les autres continuent.
-                LOG.errorf(e, "synchronisation du produit %s interrompue", produit);
+                LOG.errorf(erreur, "synchronisation du produit %s interrompue", produit);
                 echec(produit, "erreur interne de synchronisation", maintenant);
                 etats.put(produit, "EN_ERREUR");
             }
@@ -67,8 +67,8 @@ public class CyclesDeVie {
     private void echec(String produit, String motif, Instant maintenant) {
         try {
             marquerEchec(produit, motif == null ? "motif inconnu" : motif, maintenant);
-        } catch (RuntimeException e) {
-            LOG.errorf(e, "échec de synchronisation du produit %s non enregistré", produit);
+        } catch (RuntimeException erreur) {
+            LOG.errorf(erreur, "échec de synchronisation du produit %s non enregistré", produit);
         }
     }
 
@@ -78,90 +78,90 @@ public class CyclesDeVie {
         if (produits.isEmpty()) {
             return liste;
         }
-        try (Connection c = dataSource.getConnection(); PreparedStatement ps = c.prepareStatement("""
+        try (Connection connexion = dataSource.getConnection(); PreparedStatement requete = connexion.prepareStatement("""
                 SELECT produit, etat, derniere_synchro_le, dernier_succes_le, derniere_erreur FROM cycle_vie_produit
                 WHERE produit = ANY (?) ORDER BY produit
                 """)) {
-            ps.setArray(1, c.createArrayOf("varchar", produits.toArray()));
-            try (ResultSet rs = ps.executeQuery()) {
-                while (rs.next()) {
-                    liste.add(new EtatProduit(rs.getString(1), rs.getString(2), instant(rs, 3), instant(rs, 4),
-                            rs.getString(5)));
+            requete.setArray(1, connexion.createArrayOf("varchar", produits.toArray()));
+            try (ResultSet resultat = requete.executeQuery()) {
+                while (resultat.next()) {
+                    liste.add(new EtatProduit(resultat.getString(1), resultat.getString(2), instant(resultat, 3), instant(resultat, 4),
+                            resultat.getString(5)));
                 }
             }
-        } catch (SQLException e) {
-            throw new IllegalStateException("lecture de la fraîcheur du calendrier impossible", e);
+        } catch (SQLException erreur) {
+            throw new IllegalStateException("lecture de la fraîcheur du calendrier impossible", erreur);
         }
         return liste;
     }
 
     private void remplacer(String produit, List<ClientEndoflife.Cycle> cycles, Instant maintenant) {
-        try (Connection c = dataSource.getConnection()) {
-            boolean autoCommit = c.getAutoCommit();
-            c.setAutoCommit(false);
+        try (Connection connexion = dataSource.getConnection()) {
+            boolean autoCommit = connexion.getAutoCommit();
+            connexion.setAutoCommit(false);
             try {
-                try (PreparedStatement ps = c.prepareStatement("""
+                try (PreparedStatement requete = connexion.prepareStatement("""
                         INSERT INTO cycle_vie_produit (produit, etat, derniere_synchro_le, dernier_succes_le)
                         VALUES (?, 'A_JOUR', ?, ?)
                         ON CONFLICT (produit) DO UPDATE SET etat = 'A_JOUR', derniere_synchro_le = excluded.derniere_synchro_le,
                             dernier_succes_le = excluded.dernier_succes_le, derniere_erreur = NULL
                         """)) {
-                    OffsetDateTime t = maintenant.atOffset(ZoneOffset.UTC);
-                    ps.setString(1, produit);
-                    ps.setObject(2, t);
-                    ps.setObject(3, t);
-                    ps.executeUpdate();
+                    OffsetDateTime horodatage = maintenant.atOffset(ZoneOffset.UTC);
+                    requete.setString(1, produit);
+                    requete.setObject(2, horodatage);
+                    requete.setObject(3, horodatage);
+                    requete.executeUpdate();
                 }
-                try (PreparedStatement ps = c.prepareStatement("DELETE FROM cycle_vie WHERE produit = ?")) {
-                    ps.setString(1, produit);
-                    ps.executeUpdate();
+                try (PreparedStatement requete = connexion.prepareStatement("DELETE FROM cycle_vie WHERE produit = ?")) {
+                    requete.setString(1, produit);
+                    requete.executeUpdate();
                 }
-                try (PreparedStatement ps = c.prepareStatement("""
+                try (PreparedStatement requete = connexion.prepareStatement("""
                         INSERT INTO cycle_vie (produit, cycle, sortie_le, fin_support_le, en_fin_support, derniere_version,
                             derniere_version_le) VALUES (?, ?, ?, ?, ?, ?, ?) ON CONFLICT DO NOTHING
                         """)) {
-                    for (ClientEndoflife.Cycle cy : cycles) {
-                        ps.setString(1, produit);
-                        ps.setString(2, cy.cycle());
-                        ps.setObject(3, cy.sortie());
-                        ps.setObject(4, cy.finSupport());
-                        ps.setBoolean(5, cy.enFinSupport());
-                        ps.setString(6, cy.derniereVersion());
-                        ps.setObject(7, cy.derniereVersionLe());
-                        ps.addBatch();
+                    for (ClientEndoflife.Cycle cycle : cycles) {
+                        requete.setString(1, produit);
+                        requete.setString(2, cycle.cycle());
+                        requete.setObject(3, cycle.sortie());
+                        requete.setObject(4, cycle.finSupport());
+                        requete.setBoolean(5, cycle.enFinSupport());
+                        requete.setString(6, cycle.derniereVersion());
+                        requete.setObject(7, cycle.derniereVersionLe());
+                        requete.addBatch();
                     }
-                    ps.executeBatch();
+                    requete.executeBatch();
                 }
-                c.commit();
-            } catch (SQLException | RuntimeException e) {
-                c.rollback();
-                throw e;
+                connexion.commit();
+            } catch (SQLException | RuntimeException erreur) {
+                connexion.rollback();
+                throw erreur;
             } finally {
-                c.setAutoCommit(autoCommit);
+                connexion.setAutoCommit(autoCommit);
             }
-        } catch (SQLException e) {
-            throw new IllegalStateException("enregistrement du calendrier impossible", e);
+        } catch (SQLException erreur) {
+            throw new IllegalStateException("enregistrement du calendrier impossible", erreur);
         }
     }
 
     private void marquerEchec(String produit, String motif, Instant maintenant) {
-        try (Connection c = dataSource.getConnection(); PreparedStatement ps = c.prepareStatement("""
+        try (Connection connexion = dataSource.getConnection(); PreparedStatement requete = connexion.prepareStatement("""
                 INSERT INTO cycle_vie_produit (produit, etat, derniere_synchro_le, derniere_erreur)
                 VALUES (?, 'EN_ERREUR', ?, ?)
                 ON CONFLICT (produit) DO UPDATE SET etat = 'EN_ERREUR', derniere_synchro_le = excluded.derniere_synchro_le,
                     derniere_erreur = excluded.derniere_erreur
                 """)) {
-            ps.setString(1, produit);
-            ps.setObject(2, maintenant.atOffset(ZoneOffset.UTC));
-            ps.setString(3, motif.length() > 1000 ? motif.substring(0, 1000) : motif);
-            ps.executeUpdate();
-        } catch (SQLException e) {
-            throw new IllegalStateException("enregistrement de l'échec de synchronisation impossible", e);
+            requete.setString(1, produit);
+            requete.setObject(2, maintenant.atOffset(ZoneOffset.UTC));
+            requete.setString(3, motif.length() > 1000 ? motif.substring(0, 1000) : motif);
+            requete.executeUpdate();
+        } catch (SQLException erreur) {
+            throw new IllegalStateException("enregistrement de l'échec de synchronisation impossible", erreur);
         }
     }
 
-    private static Instant instant(ResultSet rs, int colonne) throws SQLException {
-        OffsetDateTime t = rs.getObject(colonne, OffsetDateTime.class);
-        return t == null ? null : t.toInstant();
+    private static Instant instant(ResultSet resultat, int colonne) throws SQLException {
+        OffsetDateTime horodatage = resultat.getObject(colonne, OffsetDateTime.class);
+        return horodatage == null ? null : horodatage.toInstant();
     }
 }

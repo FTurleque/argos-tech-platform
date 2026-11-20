@@ -26,14 +26,14 @@ final class Deduplication {
     private Deduplication() {
     }
 
-    static String article(ElementFlux e) {
-        if (e.lien() != null) {
-            return LecteurPage.empreinte("lien:" + normaliser(e.lien()));
+    static String article(ElementFlux element) {
+        if (element.lien() != null) {
+            return LecteurPage.empreinte("lien:" + normaliser(element.lien()));
         }
-        if (e.identifiant() != null) {
-            return LecteurPage.empreinte("id:" + e.identifiant());
+        if (element.identifiant() != null) {
+            return LecteurPage.empreinte("id:" + element.identifiant());
         }
-        return LecteurPage.empreinte("contenu:" + e.titre() + "\n" + e.texte());
+        return LecteurPage.empreinte("contenu:" + element.titre() + "\n" + element.texte());
     }
 
     static String changementPage(String adressePage, String empreinteContenu) {
@@ -49,10 +49,10 @@ final class Deduplication {
      */
     static String adresse(String adresse) {
         try {
-            URI u = new URI(adresse.strip()).normalize();
-            return base(u) + chemin(u) + (u.getRawQuery() == null ? "" : "?" + u.getRawQuery());
-        } catch (URISyntaxException e) {
-            throw new IllegalArgumentException("adresse mal formée", e);
+            URI uri = new URI(adresse.strip()).normalize();
+            return base(uri) + chemin(uri) + (uri.getRawQuery() == null ? "" : "?" + uri.getRawQuery());
+        } catch (URISyntaxException erreur) {
+            throw new IllegalArgumentException("adresse mal formée", erreur);
         }
     }
 
@@ -62,35 +62,35 @@ final class Deduplication {
      */
     static String normaliser(String lien) {
         try {
-            URI u = new URI(lien.strip()).normalize();
-            String chemin = chemin(u);
+            URI uri = new URI(lien.strip()).normalize();
+            String chemin = chemin(uri);
             if (chemin.length() > 1 && chemin.endsWith("/")) {
                 chemin = chemin.substring(0, chemin.length() - 1);
             }
             List<String> parametres = new ArrayList<>();
-            if (u.getRawQuery() != null) {
-                for (String p : u.getRawQuery().split("&")) {
-                    if (!p.isEmpty() && !p.toLowerCase(Locale.ROOT).startsWith("utm_")) {
-                        parametres.add(p);
+            if (uri.getRawQuery() != null) {
+                for (String parametre : uri.getRawQuery().split("&")) {
+                    if (!parametre.isEmpty() && !parametre.toLowerCase(Locale.ROOT).startsWith("utm_")) {
+                        parametres.add(parametre);
                     }
                 }
             }
-            return base(u) + chemin + (parametres.isEmpty() ? "" : "?" + String.join("&", parametres));
-        } catch (URISyntaxException e) {
+            return base(uri) + chemin + (parametres.isEmpty() ? "" : "?" + String.join("&", parametres));
+        } catch (URISyntaxException malFormee) {
             return lien.strip();
         }
     }
 
     /** Schéma, hôte en minuscules et port s'il n'est pas celui du schéma. */
-    private static String base(URI u) {
-        String schema = u.getScheme() == null ? "" : u.getScheme().toLowerCase(Locale.ROOT);
-        String hote = u.getHost() == null ? "" : u.getHost().toLowerCase(Locale.ROOT);
-        int port = u.getPort();
+    private static String base(URI uri) {
+        String schema = uri.getScheme() == null ? "" : uri.getScheme().toLowerCase(Locale.ROOT);
+        String hote = uri.getHost() == null ? "" : uri.getHost().toLowerCase(Locale.ROOT);
+        int port = uri.getPort();
         boolean parDefaut = port < 0 || (port == 80 && "http".equals(schema)) || (port == 443 && "https".equals(schema));
         return schema + "://" + hote + (parDefaut ? "" : ":" + port);
     }
 
-    private static String chemin(URI u) {
-        return u.getRawPath() == null || u.getRawPath().isEmpty() ? "/" : u.getRawPath();
+    private static String chemin(URI uri) {
+        return uri.getRawPath() == null || uri.getRawPath().isEmpty() ? "/" : uri.getRawPath();
     }
 }

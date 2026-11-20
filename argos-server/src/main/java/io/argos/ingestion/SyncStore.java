@@ -195,14 +195,14 @@ public class SyncStore {
                        c.position
                 FROM source s LEFT JOIN sync_cursor c ON c.source_id = s.id ORDER BY s.id
                 """;
-        try (Connection c = dataSource.getConnection(); PreparedStatement ps = c.prepareStatement(sql);
-                ResultSet rs = ps.executeQuery()) {
-            while (rs.next()) {
-                states.add(new SourceState(rs.getString(1), rs.getString(2), rs.getString(3), rs.getInt(4),
-                        instant(rs, 5), instant(rs, 6), rs.getString(7), rs.getString(8)));
+        try (Connection connection = dataSource.getConnection(); PreparedStatement statement = connection.prepareStatement(sql);
+                ResultSet resultSet = statement.executeQuery()) {
+            while (resultSet.next()) {
+                states.add(new SourceState(resultSet.getString(1), resultSet.getString(2), resultSet.getString(3), resultSet.getInt(4),
+                        instant(resultSet, 5), instant(resultSet, 6), resultSet.getString(7), resultSet.getString(8)));
             }
-        } catch (SQLException e) {
-            throw new IllegalStateException("lecture de l'état des sources impossible", e);
+        } catch (SQLException error) {
+            throw new IllegalStateException("lecture de l'état des sources impossible", error);
         }
         return states;
     }
@@ -214,16 +214,16 @@ public class SyncStore {
                 SELECT id, source_id, external_id, reason, received_at FROM ingestion_failure
                 WHERE source_id = ? ORDER BY received_at
                 """;
-        try (Connection c = dataSource.getConnection(); PreparedStatement ps = c.prepareStatement(sql)) {
-            ps.setString(1, sourceId);
-            try (ResultSet rs = ps.executeQuery()) {
-                while (rs.next()) {
-                    failures.add(new Failure(rs.getObject(1, UUID.class), rs.getString(2), rs.getString(3),
-                            rs.getString(4), instant(rs, 5)));
+        try (Connection connection = dataSource.getConnection(); PreparedStatement statement = connection.prepareStatement(sql)) {
+            statement.setString(1, sourceId);
+            try (ResultSet resultSet = statement.executeQuery()) {
+                while (resultSet.next()) {
+                    failures.add(new Failure(resultSet.getObject(1, UUID.class), resultSet.getString(2), resultSet.getString(3),
+                            resultSet.getString(4), instant(resultSet, 5)));
                 }
             }
-        } catch (SQLException e) {
-            throw new IllegalStateException("lecture de la zone d'échec impossible", e);
+        } catch (SQLException error) {
+            throw new IllegalStateException("lecture de la zone d'échec impossible", error);
         }
         return failures;
     }
@@ -232,16 +232,16 @@ public class SyncStore {
     public List<OpsEvent> events(String sourceId) {
         List<OpsEvent> events = new ArrayList<>();
         String sql = "SELECT id, kind, source_id, detail, occurred_at FROM ops_event WHERE source_id = ? ORDER BY occurred_at";
-        try (Connection c = dataSource.getConnection(); PreparedStatement ps = c.prepareStatement(sql)) {
-            ps.setString(1, sourceId);
-            try (ResultSet rs = ps.executeQuery()) {
-                while (rs.next()) {
-                    events.add(new OpsEvent(rs.getObject(1, UUID.class), rs.getString(2), rs.getString(3),
-                            rs.getString(4), instant(rs, 5)));
+        try (Connection connection = dataSource.getConnection(); PreparedStatement statement = connection.prepareStatement(sql)) {
+            statement.setString(1, sourceId);
+            try (ResultSet resultSet = statement.executeQuery()) {
+                while (resultSet.next()) {
+                    events.add(new OpsEvent(resultSet.getObject(1, UUID.class), resultSet.getString(2), resultSet.getString(3),
+                            resultSet.getString(4), instant(resultSet, 5)));
                 }
             }
-        } catch (SQLException e) {
-            throw new IllegalStateException("lecture des événements d'exploitation impossible", e);
+        } catch (SQLException error) {
+            throw new IllegalStateException("lecture des événements d'exploitation impossible", error);
         }
         return events;
     }
@@ -252,33 +252,33 @@ public class SyncStore {
     }
 
     private Optional<String> queryString(String sql, Object... params) {
-        try (Connection c = dataSource.getConnection(); PreparedStatement ps = c.prepareStatement(sql)) {
-            bind(ps, params);
-            try (ResultSet rs = ps.executeQuery()) {
-                return rs.next() ? Optional.ofNullable(rs.getString(1)) : Optional.empty();
+        try (Connection connection = dataSource.getConnection(); PreparedStatement statement = connection.prepareStatement(sql)) {
+            bind(statement, params);
+            try (ResultSet resultSet = statement.executeQuery()) {
+                return resultSet.next() ? Optional.ofNullable(resultSet.getString(1)) : Optional.empty();
             }
-        } catch (SQLException e) {
-            throw new IllegalStateException("requête de collecte en échec", e);
+        } catch (SQLException error) {
+            throw new IllegalStateException("requête de collecte en échec", error);
         }
     }
 
     private int update(String sql, Object... params) {
-        try (Connection c = dataSource.getConnection(); PreparedStatement ps = c.prepareStatement(sql)) {
-            bind(ps, params);
-            return ps.execute() ? 0 : ps.getUpdateCount();
-        } catch (SQLException e) {
-            throw new IllegalStateException("écriture de collecte en échec", e);
+        try (Connection connection = dataSource.getConnection(); PreparedStatement statement = connection.prepareStatement(sql)) {
+            bind(statement, params);
+            return statement.execute() ? 0 : statement.getUpdateCount();
+        } catch (SQLException error) {
+            throw new IllegalStateException("écriture de collecte en échec", error);
         }
     }
 
-    private static void bind(PreparedStatement ps, Object... params) throws SQLException {
-        for (int i = 0; i < params.length; i++) {
-            ps.setObject(i + 1, params[i]);
+    private static void bind(PreparedStatement statement, Object... params) throws SQLException {
+        for (int index = 0; index < params.length; index++) {
+            statement.setObject(index + 1, params[index]);
         }
     }
 
-    private static Instant instant(ResultSet rs, int column) throws SQLException {
-        OffsetDateTime value = rs.getObject(column, OffsetDateTime.class);
+    private static Instant instant(ResultSet resultSet, int column) throws SQLException {
+        OffsetDateTime value = resultSet.getObject(column, OffsetDateTime.class);
         return value == null ? null : value.toInstant();
     }
 

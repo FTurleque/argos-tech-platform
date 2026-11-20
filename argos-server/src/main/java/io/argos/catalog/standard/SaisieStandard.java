@@ -36,39 +36,40 @@ public record SaisieStandard(String cle, String libelle, String statut, String v
 
     /** Contrôle la saisie ; {@link DonneeInvalide} nomme le premier champ manquant ou invalide. */
     public Validee valider() {
-        String c = obligatoire("cle", cle, 500);
-        PackageKey.Purl purl = PackageKey.parse(c).orElseThrow(() -> new DonneeInvalide("DONNEE_INVALIDE",
+        String cleValidee = obligatoire("cle", cle, 500);
+        PackageKey.Purl purl = PackageKey.parse(cleValidee).orElseThrow(() -> new DonneeInvalide("DONNEE_INVALIDE",
                 "La clé doit être un PURL sans version, par exemple pkg:maven/org.springframework.boot/spring-boot.", "cle"));
         if (purl.version() != null) {
             throw new DonneeInvalide("DONNEE_INVALIDE", "La clé ne doit pas porter de version : la version recommandée "
                     + "se saisit à part.", "cle");
         }
         String nomParDefaut = purl.key().substring(purl.key().lastIndexOf('/') + 1);
-        String l = facultatif("libelle", libelle, 200);
-        ReferentielStandards.Statut s = statut(obligatoire("statut", statut, 8));
-        String v = facultatif("versionRecommandee", versionRecommandee, 100);
-        if (s == ReferentielStandards.Statut.ADOPT && v == null) {
+        String libelleValide = facultatif("libelle", libelle, 200);
+        ReferentielStandards.Statut statutValide = statut(obligatoire("statut", statut, 8));
+        String versionValidee = facultatif("versionRecommandee", versionRecommandee, 100);
+        if (statutValide == ReferentielStandards.Statut.ADOPT && versionValidee == null) {
             throw manquant("versionRecommandee", "La version recommandée est obligatoire pour le statut ADOPT.");
         }
-        String r = obligatoire("responsable", responsable, 200);
-        String j = obligatoire("justification", justification, 2000);
-        LocalDate d = date(obligatoire("dateRevue", dateRevue, 10));
-        String p = facultatif("produitCycleVie", produitCycleVie, 100);
-        if (p != null) {
-            p = p.toLowerCase(Locale.ROOT);
-            if (!PRODUIT.matcher(p).matches()) {
+        String responsableValide = obligatoire("responsable", responsable, 200);
+        String justificationValidee = obligatoire("justification", justification, 2000);
+        LocalDate dateRevueValidee = date(obligatoire("dateRevue", dateRevue, 10));
+        String produitValide = facultatif("produitCycleVie", produitCycleVie, 100);
+        if (produitValide != null) {
+            produitValide = produitValide.toLowerCase(Locale.ROOT);
+            if (!PRODUIT.matcher(produitValide).matches()) {
                 throw new DonneeInvalide("DONNEE_INVALIDE", "Identifiant de produit endoflife.date invalide "
                         + "(lettres minuscules, chiffres, « . », « _ », « + » et « - »).", "produitCycleVie");
             }
         }
-        return new Validee(purl.key(), l == null ? nomParDefaut : l, s, v, r, j, d, p);
+        return new Validee(purl.key(), libelleValide == null ? nomParDefaut : libelleValide, statutValide, versionValidee,
+                responsableValide, justificationValidee, dateRevueValidee, produitValide);
     }
 
     /** Statut saisi ; {@link DonneeInvalide} sur le champ {@code statut} s'il n'est pas reconnu. */
     static ReferentielStandards.Statut statut(String valeur) {
         try {
             return ReferentielStandards.Statut.valueOf(valeur.strip().toUpperCase(Locale.ROOT));
-        } catch (IllegalArgumentException e) {
+        } catch (IllegalArgumentException inconnu) {
             throw new DonneeInvalide("DONNEE_INVALIDE", "Statut inconnu : ADOPT, TRIAL, ASSESS ou HOLD.", "statut");
         }
     }
@@ -76,33 +77,33 @@ public record SaisieStandard(String cle, String libelle, String statut, String v
     static LocalDate date(String valeur) {
         try {
             return LocalDate.parse(valeur);
-        } catch (DateTimeParseException e) {
+        } catch (DateTimeParseException invalide) {
             throw new DonneeInvalide("DONNEE_INVALIDE", "La date de revue doit être au format AAAA-MM-JJ.", "dateRevue");
         }
     }
 
     static String obligatoire(String champ, String valeur, int longueurMax) {
-        String v = facultatif(champ, valeur, longueurMax);
-        if (v == null) {
+        String saisie = facultatif(champ, valeur, longueurMax);
+        if (saisie == null) {
             throw manquant(champ, "Le champ " + champ + " est obligatoire.");
         }
-        return v;
+        return saisie;
     }
 
     static String facultatif(String champ, String valeur, int longueurMax) {
         if (valeur == null || valeur.isBlank()) {
             return null;
         }
-        String v = valeur.strip();
-        if (v.length() > longueurMax) {
+        String nettoyee = valeur.strip();
+        if (nettoyee.length() > longueurMax) {
             throw new DonneeInvalide("DONNEE_INVALIDE", "Le champ " + champ + " dépasse " + longueurMax + " caractères.",
                     champ);
         }
-        if (CONTROLE.matcher(v).find()) {
+        if (CONTROLE.matcher(nettoyee).find()) {
             throw new DonneeInvalide("DONNEE_INVALIDE", "Le champ " + champ + " contient des caractères de contrôle.",
                     champ);
         }
-        return v;
+        return nettoyee;
     }
 
     private static DonneeInvalide manquant(String champ, String message) {

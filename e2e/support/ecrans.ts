@@ -42,12 +42,13 @@ export function article(page: Page, titre: string): Locator {
 }
 
 export async function titres(page: Page): Promise<string[]> {
-  return page.locator('[data-mise-en-page] [data-element] [data-champ="titre"]').allTextContents().then((t) => t.map((x) => x.trim()))
+  return page.locator('[data-mise-en-page] [data-element] [data-champ="titre"]').allTextContents()
+    .then((textes) => textes.map((texte) => texte.trim()))
 }
 
 /** Capture légère : JPEG de la fenêtre, mise en page en haut de l'écran. */
 export async function capture(page: Page, nom: string): Promise<void> {
-  await miseEnPage(page).first().evaluate((el) => el.scrollIntoView({ block: 'start' }))
+  await miseEnPage(page).first().evaluate((element) => element.scrollIntoView({ block: 'start' }))
   await page.screenshot({ path: `resultats/${nom}.jpg`, type: 'jpeg', quality: 60 })
 }
 

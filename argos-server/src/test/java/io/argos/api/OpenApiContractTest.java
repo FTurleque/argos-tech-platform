@@ -19,7 +19,7 @@ class OpenApiContractTest {
 
     @Test
     void lesOperationsDesPreferencesEtDuCatalogueSontPubliees() {
-        Api.en("alice").queryParam("format", "json")
+        Api.enTantQue("alice").queryParam("format", "json")
             .when().get("/q/openapi")
             .then()
             .statusCode(200)
@@ -37,7 +37,7 @@ class OpenApiContractTest {
      */
     @Test
     void laVeilleParProfilsExposeSesChamps() {
-        Api.en("alice").queryParam("format", "json")
+        Api.enTantQue("alice").queryParam("format", "json")
             .when().get("/q/openapi")
             .then()
             .statusCode(200)
@@ -51,7 +51,7 @@ class OpenApiContractTest {
 
     @Test
     void lesSchemasExposentLesChampsAttendus() {
-        Api.en("alice").queryParam("format", "json")
+        Api.enTantQue("alice").queryParam("format", "json")
             .when().get("/q/openapi")
             .then()
             .statusCode(200)

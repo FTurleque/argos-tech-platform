@@ -59,13 +59,13 @@ function texte(valeur: unknown, defaut: string): string {
 
 /** Impact mis en forme ; les actions ne sont proposées que si le serveur en renvoie pour l'utilisateur. */
 export function impactAffiche(impact: ImpactApi): ImpactAffiche {
-  const historique = (impact.historique ?? []).map((t) => ({
-    de: libelleEtat(t.de),
-    vers: libelleEtat(t.vers),
-    auteur: t.systeme ? 'système' : texte(t.auteur, 'compte retiré'),
-    motif: libelleMotif(t.motif, t.systeme),
-    commentaire: t.commentaire ?? null,
-    date: t.date ?? null,
+  const historique = (impact.historique ?? []).map((transition) => ({
+    de: libelleEtat(transition.de),
+    vers: libelleEtat(transition.vers),
+    auteur: transition.systeme ? 'système' : texte(transition.auteur, 'compte retiré'),
+    motif: libelleMotif(transition.motif, transition.systeme),
+    commentaire: transition.commentaire ?? null,
+    date: transition.date ?? null,
   }))
   const actions = (impact.transitionsPossibles ?? []).map((vers) => ({
     vers,
@@ -85,8 +85,8 @@ export function impactAffiche(impact: ImpactApi): ImpactAffiche {
 }
 
 /** Message affiché après un refus du serveur. */
-export function messageRefusTransition(e: unknown): string {
-  const erreur = (e ?? {}) as ErreurAppel
+export function messageRefusTransition(cause: unknown): string {
+  const erreur = (cause ?? {}) as ErreurAppel
   switch (erreur.status) {
     case STATUT_INTERDIT:
       return 'Votre rôle dans cet espace ne permet pas de changer l’état de cet impact.'
@@ -118,7 +118,7 @@ export async function appliquerTransition(
   if ('erreur' in demande) return demande
   try {
     return { impact: impactAffiche(await poster(impactId, demande.corps)) }
-  } catch (e) {
-    return { erreur: messageRefusTransition(e) }
+  } catch (erreur) {
+    return { erreur: messageRefusTransition(erreur) }
   }
 }

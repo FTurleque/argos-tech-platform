@@ -47,7 +47,7 @@ if (iDepot >= 0 && (args[iDepot + 1] === undefined || args[iDepot + 1].startsWit
 }
 const DEPOT = resolve(iDepot >= 0 ? args[iDepot + 1]
   : (process.env.MAVEN_REPO_LOCAL ?? join(homedir(), '.m2', 'repository')));
-const positionnels = args.filter((_, i) => iDepot < 0 || (i !== iDepot && i !== iDepot + 1));
+const positionnels = args.filter((_, position) => iDepot < 0 || (position !== iDepot && position !== iDepot + 1));
 const BOM = resolve(positionnels[0] ?? join(RACINE, 'argos-server', 'target', 'bom.json'));
 const SORTIE = join(dirname(BOM), 'THIRD-PARTY.txt');
 // Textes de licence versionnés, et dossier où sont copiés ceux des licences retenues (target/licenses/).
@@ -55,8 +55,8 @@ const TEXTES_VERSIONNES = join(RACINE, 'argos-server', 'licenses');
 const SORTIE_TEXTES = join(dirname(BOM), 'licenses');
 // Garde-fou : le dossier de sortie est vidé avant la copie ; il ne doit jamais être celui des textes versionnés
 // (cas d'un inventaire placé directement dans argos-server/, par exemple argos-server/bom.json).
-const memeDossier = (a, b) => (process.platform === 'win32' ? resolve(a).toLowerCase() === resolve(b).toLowerCase()
-  : resolve(a) === resolve(b));
+const memeDossier = (premier, second) => (process.platform === 'win32' ? resolve(premier).toLowerCase() === resolve(second).toLowerCase()
+  : resolve(premier) === resolve(second));
 if (memeDossier(SORTIE_TEXTES, TEXTES_VERSIONNES)) {
   arreter(`Le dossier de sortie des textes (${SORTIE_TEXTES}) est celui des textes versionnés : `
     + "placer l'inventaire CycloneDX hors de argos-server/ (par défaut argos-server/target/bom.json).");
@@ -157,7 +157,8 @@ function titulairesDe(entrees) {
 // Adresse du code source déclarée dans l'inventaire CycloneDX (référence « vcs », à défaut « website »).
 function sourceDe(composant) {
   const references = composant.externalReferences ?? [];
-  return (references.find((r) => r.type === 'vcs') ?? references.find((r) => r.type === 'website'))?.url ?? null;
+  return (references.find((reference) => reference.type === 'vcs')
+    ?? references.find((reference) => reference.type === 'website'))?.url ?? null;
 }
 
 function choixDe(composant) {
@@ -172,6 +173,40 @@ function statut(licence, composant) {
   return null;
 }
 
+// Position du premier caractère qui n'est pas un blanc à partir de `debut`.
+function finBlancs(texte, debut) {
+  let rang = debut;
+  while (rang < texte.length && /\s/.test(texte[rang])) rang++;
+  return rang;
+}
+
+// Découpe `texte` sur le mot `mot` (sans distinction de casse) entouré de blancs, comme
+// `texte.split(/\s+MOT\s+/i)`, mais en temps linéaire : une longue suite de blancs n'est lue qu'une fois.
+function decouperSurMot(texte, mot) {
+  const motif = new RegExp(`^${mot}$`, 'i');
+  const morceaux = [];
+  let debutMorceau = 0;
+  let rang = 0;
+  while (rang < texte.length) {
+    const finAvant = finBlancs(texte, rang);
+    if (finAvant === rang) {
+      rang++;
+      continue;
+    }
+    const finMot = finAvant + mot.length;
+    const finApres = finBlancs(texte, finMot);
+    if (finMot <= texte.length && finApres > finMot && motif.test(texte.slice(finAvant, finMot))) {
+      morceaux.push(texte.slice(debutMorceau, rang));
+      debutMorceau = finApres;
+      rang = finApres;
+    } else {
+      rang = finAvant;
+    }
+  }
+  morceaux.push(texte.slice(debutMorceau));
+  return morceaux;
+}
+
 // Licences déclarées d'un composant CycloneDX. Chaque entrée « license » s'ajoute aux autres (ET) ; une
 // expression SPDX se découpe en alternatives (OR) dont chacune est une liste cumulative (AND).
 // Résultat : liste d'alternatives, chacune étant la liste des licences qui s'appliquent ensemble.
@@ -182,15 +217,15 @@ function alternativesDe(composant) {
     if (entree.license) {
       cumul.push(entree.license.id ?? entree.license.name ?? '');
     } else if (entree.expression) {
-      const branches = entree.expression.replaceAll(/[()]/g, ' ').split(/\s+OR\s+/i)
-        .map((b) => b.split(/\s+AND\s+/i).map((l) => l.trim()).filter(Boolean));
+      const branches = decouperSurMot(entree.expression.replaceAll(/[()]/g, ' '), 'OR')
+        .map((branche) => decouperSurMot(branche, 'AND').map((licence) => licence.trim()).filter(Boolean));
       alternatives = alternatives ?? [[]];
-      alternatives = alternatives.flatMap((a) => branches.map((b) => [...a, ...b]));
+      alternatives = alternatives.flatMap((alternative) => branches.map((branche) => [...alternative, ...branche]));
     }
   }
-  const declarees = cumul.map((l) => l.trim()).filter(Boolean);
-  if (alternatives) return alternatives.map((a) => [...declarees, ...a]);
-  if (declarees.length > 1 && choixDe(composant)) return declarees.map((l) => [l]);
+  const declarees = cumul.map((licence) => licence.trim()).filter(Boolean);
+  if (alternatives) return alternatives.map((alternative) => [...declarees, ...alternative]);
+  if (declarees.length > 1 && choixDe(composant)) return declarees.map((licence) => [licence]);
   return declarees.length > 0 ? [declarees] : [];
 }
 
@@ -200,15 +235,15 @@ function alternativesDe(composant) {
 function lireEntrees(cheminArchive, filtre) {
   const zip = readFileSync(cheminArchive);
   let fin = -1;
-  for (let i = zip.length - 22; i >= Math.max(0, zip.length - 65557); i--) {
-    if (zip.readUInt32LE(i) === 0x06054b50) { fin = i; break; }
+  for (let position = zip.length - 22; position >= Math.max(0, zip.length - 65557); position--) {
+    if (zip.readUInt32LE(position) === 0x06054b50) { fin = position; break; }
   }
   if (fin < 0) throw new Error('fin du répertoire central introuvable');
   const nombre = zip.readUInt16LE(fin + 10);
   let pos = zip.readUInt32LE(fin + 16);
   if (nombre === 0xffff || pos === 0xffffffff) throw new Error('archive ZIP64 non prise en charge');
   const entrees = [];
-  for (let n = 0; n < nombre; n++) {
+  for (let rang = 0; rang < nombre; rang++) {
     if (zip.readUInt32LE(pos) !== 0x02014b50) throw new Error('répertoire central invalide');
     const methode = zip.readUInt16LE(pos + 10);
     const tailleCompressee = zip.readUInt32LE(pos + 20);
@@ -228,7 +263,7 @@ function lireEntrees(cheminArchive, filtre) {
     }
     pos += 46 + lgNom + lgExtra + lgCommentaire;
   }
-  return entrees.sort((a, b) => a.nom.localeCompare(b.nom));
+  return entrees.sort((premiere, seconde) => premiere.nom.localeCompare(seconde.nom));
 }
 
 const EST_NOTICE = (nom) => /^META-INF\/NOTICE(\.txt|\.md)?$/i.test(nom);
@@ -268,23 +303,23 @@ const avis = [];
 const ecarts = [];
 // Fichier de texte de licence → dépendances couvertes (coordonnées et détail : titulaires ou code source).
 const couverture = new Map();
-const composants = [...(bom.components ?? [])].sort((a, b) =>
-  `${a.group}:${a.name}:${a.version}`.localeCompare(`${b.group}:${b.name}:${b.version}`));
+const composants = [...(bom.components ?? [])].sort((premier, second) =>
+  `${premier.group}:${premier.name}:${premier.version}`.localeCompare(`${second.group}:${second.name}:${second.version}`));
 
-for (const c of composants) {
-  const coordonnees = coordonneesDe(c);
-  const alternatives = alternativesDe(c);
-  const retenue = alternatives.find((a) => a.every((l) => statut(l, c)));
-  const declarees = alternatives.map((a) => a.join(' ET ')).join(' OU ');
+for (const composant of composants) {
+  const coordonnees = coordonneesDe(composant);
+  const alternatives = alternativesDe(composant);
+  const retenue = alternatives.find((alternative) => alternative.every((licence) => statut(licence, composant)));
+  const declarees = alternatives.map((alternative) => alternative.join(' ET ')).join(' OU ');
   if (alternatives.length === 0) {
     ecarts.push(`${coordonnees} : aucune licence déclarée`);
   } else if (!retenue) {
-    const refusees = [...new Set(alternatives.flat().filter((l) => !statut(l, c)))];
+    const refusees = [...new Set(alternatives.flat().filter((licence) => !statut(licence, composant)))];
     ecarts.push(`${coordonnees} : licence non admise sans décision explicite (${refusees.join(', ')}) — ${declarees}`);
   }
   let licencesArchive = [];
-  if (c.group && c.version) {
-    const archive = cheminArchive(c);
+  if (composant.group && composant.version) {
+    const archive = cheminArchive(composant);
     if (existsSync(archive)) {
       try {
         const entrees = lireEntrees(archive, (nom) => EST_NOTICE(nom) || EST_LICENCE(nom));
@@ -299,9 +334,10 @@ for (const c of composants) {
       ecarts.push(`${coordonnees} : archive absente du dépôt Maven local (${archive})`);
     }
   }
-  const choix = alternatives.length > 1 && choixDe(c) ? `\n    choix              : ${choixDe(c)}` : '';
+  const choix = alternatives.length > 1 && choixDe(composant) ? `\n    choix              : ${choixDe(composant)}` : '';
   const texteRetenue = retenue
-    ? retenue.map((l) => (statut(l, c) === 'admise' ? l : `${l} [${statut(l, c)}]`)).join(' ET ')
+    ? retenue.map((licence) => (statut(licence, composant) === 'admise' ? licence : `${licence} [${statut(licence, composant)}]`))
+      .join(' ET ')
     : '(aucune admissible)';
   lignes.push(`${coordonnees}\n    licences déclarées : ${declarees || '(aucune)'}${choix}\n    licence retenue    : ${texteRetenue}`);
   for (const licence of retenue ?? []) {
@@ -314,17 +350,17 @@ for (const c of composants) {
     let detail = '';
     if (texte.attribution) {
       const titulaires = titulairesDe(licencesArchive);
-      const connu = TITULAIRES.get(`${c.group}:${c.name}`);
+      const connu = TITULAIRES.get(`${composant.group}:${composant.name}`);
       if (titulaires.length === 0 && connu) titulaires.push(connu);
       if (titulaires.length === 0) {
         ecarts.push(`${coordonnees} : titulaire des droits introuvable (licence ${licence} : ni fichier LICENSE `
           + 'dans l\'archive, ni entrée dans TITULAIRES)');
       }
-      detail = titulaires.map((t) => `\n    titulaire : ${t}`).join('');
+      detail = titulaires.map((titulaire) => `\n    titulaire : ${titulaire}`).join('');
     } else if (texte.source) {
-      const source = sourceDe(c);
+      const source = sourceDe(composant);
       detail = `\n    code source : ${source ?? '(adresse non déclarée)'} ; archive de sources `
-        + `${c.name}-${c.version}-sources.jar du dépôt Maven Central`;
+        + `${composant.name}-${composant.version}-sources.jar du dépôt Maven Central`;
     }
     if (!couverture.has(texte.fichier)) couverture.set(texte.fichier, []);
     couverture.get(texte.fichier).push(`${coordonnees}${detail}`);
@@ -332,7 +368,7 @@ for (const c of composants) {
 }
 
 // Textes des licences retenues, copiés depuis argos-server/licenses/ (dossier recréé à chaque exécution).
-const fichiersTextes = [...couverture.keys()].sort((a, b) => a.localeCompare(b, "en"));
+const fichiersTextes = [...couverture.keys()].sort((premier, second) => premier.localeCompare(second, "en"));
 rmSync(SORTIE_TEXTES, { recursive: true, force: true });
 mkdirSync(SORTIE_TEXTES, { recursive: true });
 for (const fichier of fichiersTextes) {
@@ -373,10 +409,10 @@ const partieAvis = [
 // code source à indiquer (Apache-2.0 : liste en section 1, avis NOTICE en section 2).
 function couvertes(fichier) {
   const dependances = couverture.get(fichier);
-  if (TEXTES.find((t) => t.fichier === fichier).detail === false) {
+  if (TEXTES.find((texte) => texte.fichier === fichier).detail === false) {
     return `  ${dependances.length} dépendances (licence retenue en section 1, avis NOTICE en section 2)`;
   }
-  return dependances.map((l) => `  ${l.replaceAll('\n    ', '\n      ')}`).join('\n');
+  return dependances.map((dependance) => `  ${dependance.replaceAll('\n    ', '\n      ')}`).join('\n');
 }
 
 const partieTextes = [
@@ -398,7 +434,7 @@ console.log(`${fichiersTextes.length} textes de licence copiés : ${SORTIE_TEXTE
 
 if (ecarts.length > 0) {
   console.error(`\n${ecarts.length} dépendance(s) non conforme(s) à ADR-0021 :`);
-  for (const e of ecarts) console.error(`  - ${e}`);
+  for (const ecart of ecarts) console.error(`  - ${ecart}`);
   process.exit(1);
 }
 console.log('Aucune licence absente ni non admise.');

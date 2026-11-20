@@ -57,12 +57,12 @@ public class ResumeIaPasserelle implements ResumeIa {
     }
 
     private String demander(String titre, UUID espaceId) {
-        ReponseIa r = passerelle.demander(new DemandeIa(RegistrePrompts.RESUME_ALERTE, espaceId,
+        ReponseIa reponse = passerelle.demander(new DemandeIa(RegistrePrompts.RESUME_ALERTE, espaceId,
                 List.of(EntreeIa.publique("titre", titre)), List.of()));
-        return switch (r.issue()) {
-            case PRODUIT -> r.champ("resume");
-            case INDISPONIBLE, DESACTIVEE -> throw new IllegalStateException("passerelle IA : " + r.issue());
-            case PLAFOND_INSTANCE, QUOTA_ESPACE, QUOTA_COMPTE -> throw new PlafondAtteint("passerelle IA : " + r.issue());
+        return switch (reponse.issue()) {
+            case PRODUIT -> reponse.champ("resume");
+            case INDISPONIBLE, DESACTIVEE -> throw new IllegalStateException("passerelle IA : " + reponse.issue());
+            case PLAFOND_INSTANCE, QUOTA_ESPACE, QUOTA_COMPTE -> throw new PlafondAtteint("passerelle IA : " + reponse.issue());
             default -> "";
         };
     }

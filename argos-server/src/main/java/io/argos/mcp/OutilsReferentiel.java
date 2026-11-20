@@ -64,9 +64,9 @@ public class OutilsReferentiel {
         return garde.appeler("get_technology_standard", parametres("ecosystem", ecosysteme, "name", nom), appelant -> {
             String cle = Parametres.cle(ecosysteme, nom);
             List<OutilsSecurite.StandardEspace> standards = referentiel.standards(cle, appelant.memberWorkspaces()).stream()
-                    .filter(s -> appelant.memberOf(s.espaceId()))
-                    .map(s -> new OutilsSecurite.StandardEspace(s.espaceId(), s.statut().name(), s.versionRecommandee(),
-                            s.justification()))
+                    .filter(standard -> appelant.memberOf(standard.espaceId()))
+                    .map(standard -> new OutilsSecurite.StandardEspace(standard.espaceId(), standard.statut().name(),
+                            standard.versionRecommandee(), standard.justification()))
                     .toList();
             return new StandardTechnologique(cle, !standards.isEmpty(), standards.isEmpty()
                     ? "Aucun standard n'est défini pour cette technologie dans vos espaces." : null, standards);
@@ -90,17 +90,18 @@ public class OutilsReferentiel {
                     if (cle.isPresent()) {
                         cles.add(cle.get());
                     } else {
-                        ProjetsVisibles.du(appelant.accountId(), inventaires)
+                        ProjetsVisibles.duCompte(appelant.accountId(), inventaires)
                                 .filter(projet -> appelant.memberOf(projet.workspaceId()))
                                 .forEach(projet -> inventaires.inventory(projet.id(), appelant.accountId())
-                                        .ifPresent(i -> i.components().forEach(c -> cles.add(c.packageKey()))));
+                                        .ifPresent(vue -> vue.components().forEach(composant -> cles.add(composant.packageKey()))));
                     }
                     LocalDate aujourdhui = LocalDate.now();
                     LocalDate jusqua = aujourdhui.plusDays(jours);
                     List<Echeance> echeances = cles.isEmpty() ? List.of()
                             : calendrier.echeances(cles, appelant.memberWorkspaces(), aujourdhui, jusqua).stream()
-                                    .map(e -> new Echeance(e.cle(), e.version(), e.nature().name(), e.date().toString(),
-                                            e.source(), balisage.baliser(e.source(), e.note())))
+                                    .map(echeance -> new Echeance(echeance.cle(), echeance.version(), echeance.nature().name(),
+                                            echeance.date().toString(), echeance.source(),
+                                            balisage.baliser(echeance.source(), echeance.note())))
                                     .toList();
                     return new Echeances(jusqua.toString(), echeances.size(),
                             echeances.isEmpty() ? "Aucune échéance connue d'Argos sur cet horizon." : null, echeances);

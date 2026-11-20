@@ -138,8 +138,8 @@ async function verifierCompte(): Promise<void> {
   try {
     etatSession.compte = await fetchMoi()
     etatSession.compteNonCree = false
-  } catch (e) {
-    if (e instanceof ApiError && e.status === STATUT_INTERDIT && e.code === CODE_COMPTE_NON_CREE) {
+  } catch (erreur) {
+    if (erreur instanceof ApiError && erreur.status === STATUT_INTERDIT && erreur.code === CODE_COMPTE_NON_CREE) {
       etatSession.compteNonCree = true
     }
   }
@@ -197,12 +197,12 @@ export function installerSession(router: Router): void {
       if (decision.type === 'connexion') void router.push({ name: 'connexion', query: { retour: decision.retour } })
     },
   )
-  router.beforeEach((to) => {
+  router.beforeEach((destination) => {
     const decision = decisionGarde({
-      publique: to.meta.public === true,
+      publique: destination.meta.public === true,
       connecte: etatSession.etat === 'CONNECTE',
       compteNonCree: etatSession.compteNonCree,
-      chemin: to.fullPath,
+      chemin: destination.fullPath,
     })
     if (decision.type === 'connexion') return { name: 'connexion', query: { retour: decision.retour } }
     if (decision.type === 'compte-non-cree') return { name: 'compte-non-cree' }

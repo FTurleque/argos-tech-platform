@@ -40,7 +40,7 @@ class CloisonnementMcpTest {
     private static final String LIB = "pkg:maven/org.exemple/cloison";
 
     @Inject
-    TestDb db;
+    TestDb baseDeTest;
 
     @Inject
     ProjectDirectory projets;
@@ -64,7 +64,7 @@ class CloisonnementMcpTest {
 
     @BeforeEach
     void preparer() {
-        db.reset();
+        baseDeTest.reset();
         espaceA = Api.nouvelEspace("lina", "Espace de Lina");
         espaceB = Api.nouvelEspace("marc", "Espace de Marc");
         projetP = projets.create(espaceB, "Projet Pluton confidentiel", null, null);
@@ -73,35 +73,35 @@ class CloisonnementMcpTest {
         String json = Fixtures.osv("GHSA-MCP4", "2026-11-10T00:00:00Z", "Maven", "org.exemple:cloison", LIB, "0", "1.3.0");
         Fixtures.stubOsv("GHSA-MCP4", "2026-11-10T00:00:00Z", json);
         synchronisation.synchronize("OSV");
-        signal = db.uuid("SELECT id FROM signal WHERE external_id = 'GHSA-MCP4'");
-        assertEquals(1, db.count("SELECT count(*) FROM project_impact WHERE project_id = '" + projetP + "'"));
+        signal = baseDeTest.uuid("SELECT id FROM signal WHERE external_id = 'GHSA-MCP4'");
+        assertEquals(1, baseDeTest.count("SELECT count(*) FROM project_impact WHERE project_id = '" + projetP + "'"));
     }
 
     /** MCP-04-S1 : alertes d'un projet d'un autre espace refusées, sans aucune information, refus journalisé. */
     @Test
     void mcp04S1ProjetDUnAutreEspace() {
-        ExtractableResponse<Response> r = Mcp.appeler("lina", "get_security_alerts", Map.of("project_id", projetP.toString()));
-        assertEquals(Boolean.TRUE, r.path("result.isError"), r.asString());
-        assertTrue(((String) r.path("result.content[0].text")).startsWith("INTROUVABLE"));
-        assertAucuneInformationSurP(r.asString());
+        ExtractableResponse<Response> reponse = Mcp.appeler("lina", "get_security_alerts", Map.of("project_id", projetP.toString()));
+        assertEquals(Boolean.TRUE, reponse.path("result.isError"), reponse.asString());
+        assertTrue(((String) reponse.path("result.content[0].text")).startsWith("INTROUVABLE"));
+        assertAucuneInformationSurP(reponse.asString());
         UUID lina = Api.compte("lina");
-        assertEquals(1, db.count("SELECT count(*) FROM refus_acces WHERE compte_id = '" + lina
+        assertEquals(1, baseDeTest.count("SELECT count(*) FROM refus_acces WHERE compte_id = '" + lina
                 + "' AND ressource = 'MCP tools/call get_security_alerts' AND motif = 'NON_MEMBRE'"));
-        assertEquals(1, db.count("SELECT count(*) FROM mcp_appel WHERE compte_id = '" + lina
+        assertEquals(1, baseDeTest.count("SELECT count(*) FROM mcp_appel WHERE compte_id = '" + lina
                 + "' AND outil = 'get_security_alerts' AND issue = 'REFUS_ACCES'"));
 
         // Le membre de l'espace B voit l'alerte.
-        ExtractableResponse<Response> m = Mcp.appeler("marc", "get_security_alerts", Map.of("project_id", projetP.toString()));
-        assertEquals(1, (int) m.path("result.structuredContent.nombre"), m.asString());
-        assertEquals("Projet Pluton confidentiel", m.path("result.structuredContent.alertes[0].projet"));
+        ExtractableResponse<Response> reponseMarc = Mcp.appeler("marc", "get_security_alerts", Map.of("project_id", projetP.toString()));
+        assertEquals(1, (int) reponseMarc.path("result.structuredContent.nombre"), reponseMarc.asString());
+        assertEquals("Projet Pluton confidentiel", reponseMarc.path("result.structuredContent.alertes[0].projet"));
     }
 
     /** Sans projet désigné, seules les alertes des espaces de l'appelant sont renvoyées. */
     @Test
     void alertesLimiteesAuxEspacesDeLAppelant() {
-        ExtractableResponse<Response> r = Mcp.appeler("lina", "get_security_alerts", Map.of());
-        assertEquals(0, (int) r.path("result.structuredContent.nombre"), r.asString());
-        assertAucuneInformationSurP(r.asString());
+        ExtractableResponse<Response> reponse = Mcp.appeler("lina", "get_security_alerts", Map.of());
+        assertEquals(0, (int) reponse.path("result.structuredContent.nombre"), reponse.asString());
+        assertAucuneInformationSurP(reponse.asString());
         assertEquals(1, (int) Mcp.appeler("marc", "get_security_alerts", Map.of()).path("result.structuredContent.nombre"));
     }
 
@@ -125,9 +125,10 @@ class CloisonnementMcpTest {
     /** Un projet inexistant reçoit la même réponse, sans entrée au journal des refus. */
     @Test
     void projetInexistant() {
-        ExtractableResponse<Response> r = Mcp.appeler("lina", "get_security_alerts", Map.of("project_id", UUID.randomUUID().toString()));
-        assertTrue(((String) r.path("result.content[0].text")).startsWith("INTROUVABLE"), r.asString());
-        assertEquals(0, db.count("SELECT count(*) FROM refus_acces"));
+        ExtractableResponse<Response> reponse = Mcp.appeler("lina", "get_security_alerts",
+                Map.of("project_id", UUID.randomUUID().toString()));
+        assertTrue(((String) reponse.path("result.content[0].text")).startsWith("INTROUVABLE"), reponse.asString());
+        assertEquals(0, baseDeTest.count("SELECT count(*) FROM refus_acces"));
     }
 
     /**
@@ -140,13 +141,13 @@ class CloisonnementMcpTest {
         UUID lina = Api.compte("lina");
         assertTrue(impacts.forWorkspaces(lina, Set.of(espaceB), 50).isEmpty());
         assertTrue(impacts.forProject(projetP, lina, Set.of(espaceB)).isEmpty());
-        assertFalse(ProjetsVisibles.du(lina, inventaireQueries).anyMatch(p -> p.id().equals(projetP)));
+        assertFalse(ProjetsVisibles.duCompte(lina, inventaireQueries).anyMatch(projet -> projet.id().equals(projetP)));
         assertTrue(inventaireQueries.inventory(projetP, lina).isEmpty());
         assertTrue(inventaireQueries.summary(projetP, lina).isEmpty());
 
         UUID marc = Api.compte("marc");
         assertEquals(1, impacts.forWorkspaces(marc, Set.of(espaceB), 50).size());
-        assertTrue(ProjetsVisibles.du(marc, inventaireQueries).anyMatch(p -> p.id().equals(projetP)));
+        assertTrue(ProjetsVisibles.duCompte(marc, inventaireQueries).anyMatch(projet -> projet.id().equals(projetP)));
         assertEquals(1, inventaireQueries.summary(projetP, marc).orElseThrow().componentCount());
         assertFalse(espaceA.equals(espaceB));
     }
@@ -178,17 +179,17 @@ class CloisonnementMcpTest {
      */
     @Test
     void projetsLusPageApresPage() {
-        for (int i = 1; i <= InventoryQueries.MAX_PAGE_SIZE + 4; i++) {
-            projets.create(espaceB, "Lot %03d".formatted(i), null, null);
+        for (int indice = 1; indice <= InventoryQueries.MAX_PAGE_SIZE + 4; indice++) {
+            projets.create(espaceB, "Lot %03d".formatted(indice), null, null);
         }
         UUID dernier = projets.create(espaceB, "Zéphyr", null, null);
         UUID marc = Api.compte("marc");
 
-        List<UUID> lus = ProjetsVisibles.du(marc, inventaireQueries).map(InventoryQueries.ProjectItem::id).toList();
+        List<UUID> lus = ProjetsVisibles.duCompte(marc, inventaireQueries).map(InventoryQueries.ProjectItem::id).toList();
         assertEquals(InventoryQueries.MAX_PAGE_SIZE + 6, lus.size());
         assertEquals(lus.size(), Set.copyOf(lus).size(), "aucun projet lu deux fois");
         assertEquals(dernier, lus.get(lus.size() - 1));
-        assertEquals(0L, ProjetsVisibles.du(Api.compte("lina"), inventaireQueries).count());
+        assertEquals(0L, ProjetsVisibles.duCompte(Api.compte("lina"), inventaireQueries).count());
 
         ExtractableResponse<Response> detail = Mcp.appeler("marc", "get_project_context", Map.of("project_id", dernier.toString()));
         assertEquals(1, (int) detail.path("result.structuredContent.nombre"), detail.asString());

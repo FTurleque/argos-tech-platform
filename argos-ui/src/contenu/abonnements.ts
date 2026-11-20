@@ -71,12 +71,12 @@ export function confirmationSuppression(abonnement: Abonnement): string {
 
 /** Liste après une suspension ou une réactivation : l'abonnement renvoyé par le serveur remplace l'ancien. */
 export function remplacerAbonnement(liste: readonly Abonnement[], modifie: Abonnement): Abonnement[] {
-  return liste.map((a) => (a.id === modifie.id ? modifie : a))
+  return liste.map((abonnement) => (abonnement.id === modifie.id ? modifie : abonnement))
 }
 
 /** Liste après une suppression confirmée par le serveur. */
 export function retirerAbonnement(liste: readonly Abonnement[], id: string): Abonnement[] {
-  return liste.filter((a) => a.id !== id)
+  return liste.filter((abonnement) => abonnement.id !== id)
 }
 
 /** Message affiché pour une action refusée ou en échec. */

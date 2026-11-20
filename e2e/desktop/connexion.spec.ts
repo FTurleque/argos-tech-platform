@@ -59,20 +59,20 @@ test('ACC-10-S1, S2, S4 : connexion par le navigateur du système et retour sur 
   // 127.0.0.1 sur un port choisi par le système.
   expect(urlAutorisation.origin).toBe(ORIGINE_EMETTEUR)
   expect(urlAutorisation.pathname).toBe(`${new URL(EMETTEUR).pathname}/protocol/openid-connect/auth`)
-  const p = urlAutorisation.searchParams
-  expect(p.get('response_type')).toBe('code')
-  expect(p.get('client_id')).toBe('argos-ui')
-  expect(p.get('code_challenge_method')).toBe('S256')
-  expect(p.get('code_challenge')).toBeTruthy()
-  expect(p.get('state')).toBeTruthy()
-  redirectUri = p.get('redirect_uri') ?? ''
+  const parametres = urlAutorisation.searchParams
+  expect(parametres.get('response_type')).toBe('code')
+  expect(parametres.get('client_id')).toBe('argos-ui')
+  expect(parametres.get('code_challenge_method')).toBe('S256')
+  expect(parametres.get('code_challenge')).toBeTruthy()
+  expect(parametres.get('state')).toBeTruthy()
+  redirectUri = parametres.get('redirect_uri') ?? ''
   const port = Number(/^http:\/\/127\.0\.0\.1:(\d+)\/argos\/retour$/.exec(redirectUri)?.[1])
   expect(port).toBeGreaterThan(0)
 
   // ACC-10-S2 : le fournisseur redirige vers l'écoute locale, qui répond par une page statique.
   const adresseRetour = new URL(retour.url())
   expect(`${adresseRetour.origin}${adresseRetour.pathname}`).toBe(redirectUri)
-  expect(adresseRetour.searchParams.get('state')).toBe(p.get('state'))
+  expect(adresseRetour.searchParams.get('state')).toBe(parametres.get('state'))
   expect(adresseRetour.searchParams.get('code')).toBeTruthy()
   expect(retour.status()).toBe(200)
   const entetes = retour.headers()
@@ -103,8 +103,8 @@ test('ACC-10-S1, S2, S4 : connexion par le navigateur du système et retour sur 
   await expect(fenetre.getByRole('button', { name: 'Se déconnecter' })).toBeVisible()
   await expect(fenetre).toHaveURL(/^app:\/\/argos\/index\.html#\/recherche$/)
   // Appel API authentifié par le jeton porteur, accepté par le serveur.
-  await expect.poll(async () => (await client.journal()).some((r) => (
-    r.adresse === `${URL_API}/api/v1/moi` && r.methode === 'GET' && r.porteur && r.statut === 200
+  await expect.poll(async () => (await client.journal()).some((requete) => (
+    requete.adresse === `${URL_API}/api/v1/moi` && requete.methode === 'GET' && requete.porteur && requete.statut === 200
   ))).toBe(true)
   await fenetre.screenshot({ path: 'resultats/desktop-connexion-recherche.jpg', type: 'jpeg', quality: 60 })
 
@@ -118,9 +118,9 @@ test('ACC-10-S1, S2, S4 : connexion par le navigateur du système et retour sur 
     let signaler: () => void = () => {}
     const recues = new Promise<void>((resolve) => { signaler = resolve })
     const delai = setTimeout(() => signaler(), 5_000)
-    document.addEventListener('securitypolicyviolation', (e) => {
-      violations.push(e.effectiveDirective)
-      if (attendues.every((d) => violations.includes(d))) signaler()
+    document.addEventListener('securitypolicyviolation', (evenement) => {
+      violations.push(evenement.effectiveDirective)
+      if (attendues.every((directive) => violations.includes(directive))) signaler()
     })
     let connexionBloquee = false
     try {
@@ -143,8 +143,8 @@ test('ACC-10-S1, S2, S4 : connexion par le navigateur du système et retour sur 
     clearTimeout(delai)
     externe.remove()
     enLigne.remove()
-    const w = window as unknown as { __scriptEnLigneE2E?: boolean }
-    return { connexionBloquee, scriptExterne, scriptEnLigne: w.__scriptEnLigneE2E === true, violations }
+    const fenetreE2E = window as unknown as { __scriptEnLigneE2E?: boolean }
+    return { connexionBloquee, scriptExterne, scriptEnLigne: fenetreE2E.__scriptEnLigneE2E === true, violations }
   }, cible)
   expect(controle.connexionBloquee).toBe(true)
   expect(controle.scriptExterne).toBe('bloqué')
@@ -155,17 +155,20 @@ test('ACC-10-S1, S2, S4 : connexion par le navigateur du système et retour sur 
   // document hors du protocole interne (la page du fournisseur ne s'affiche jamais dans la fenêtre),
   // vers l'émetteur seulement la découverte et l'échange du code, rien vers l'origine bloquée.
   const journal = await client.journal()
-  expect(journal.filter((r) => r.refusee).map((r) => r.adresse), 'hôtes hors de la boucle locale').toEqual([])
-  expect(journal.filter((r) => r.type === 'mainFrame' || r.type === 'subFrame').map((r) => r.protocole))
+  expect(journal.filter((requete) => requete.refusee).map((requete) => requete.adresse), 'hôtes hors de la boucle locale').toEqual([])
+  expect(journal.filter((requete) => requete.type === 'mainFrame' || requete.type === 'subFrame').map((requete) => requete.protocole))
     .toEqual(expect.arrayContaining(['app:']))
-  for (const r of journal.filter((x) => x.type === 'mainFrame' || x.type === 'subFrame')) expect(r.protocole, r.adresse).toBe('app:')
-  const versEmetteur = new Set(journal.filter((r) => r.adresse.startsWith(ORIGINE_EMETTEUR)).map((r) => r.adresse))
+  for (const requete of journal.filter((candidate) => candidate.type === 'mainFrame' || candidate.type === 'subFrame')) {
+    expect(requete.protocole, requete.adresse).toBe('app:')
+  }
+  const versEmetteur = new Set(journal.filter((requete) => requete.adresse.startsWith(ORIGINE_EMETTEUR)).map((requete) => requete.adresse))
   expect([...versEmetteur].sort()).toEqual([
     `${EMETTEUR}/.well-known/openid-configuration`,
     `${EMETTEUR}/protocol/openid-connect/token`,
   ])
-  expect(journal.filter((r) => r.adresse.startsWith(new URL(URL_IHM).origin))).toEqual([])
-  const origines = new Set(journal.map((r) => (r.protocole === 'app:' ? 'app://argos' : `${r.protocole}//${r.hote}`)))
+  expect(journal.filter((requete) => requete.adresse.startsWith(new URL(URL_IHM).origin))).toEqual([])
+  const origines = new Set(journal.map((requete) =>
+    (requete.protocole === 'app:' ? 'app://argos' : `${requete.protocole}//${requete.hote}`)))
   for (const origine of origines) {
     expect(['app://argos', new URL(URL_API).origin, ORIGINE_EMETTEUR, 'file://'], origine).toContain(origine)
   }

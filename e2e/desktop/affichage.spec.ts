@@ -89,7 +89,7 @@ test('5.2 : developpeur + expert-metier, « gazette » choisie sur le web, retro
     expect(reponse.profilsActifs).toEqual(DEUX_PROFILS)
     await expect(fenetre.getByText('Profils actifs : Développeur, Expert métier')).toBeVisible()
     const affiches = await titres(fenetre)
-    expect(affiches).toEqual(reponse.elements.map((e) => e.titre))
+    expect(affiches).toEqual(reponse.elements.map((element) => element.titre))
     expect([...affiches].sort()).toEqual([...UNION_JULES].sort())
     expect(new Set(affiches).size, 'aucun doublon').toBe(affiches.length)
     // Rubriques des deux profils ; l'avis du seul abonnement n'en porte pas ; mention IA conservée.

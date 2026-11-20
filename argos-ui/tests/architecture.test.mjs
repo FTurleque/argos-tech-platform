@@ -61,7 +61,7 @@ export function violations(chemin, source) {
 
 test('aucune mise en page n’importe le client API ni un autre module de la couche contenu', () => {
   const toutes = fichiers(MISES_EN_PAGE).flatMap((chemin) =>
-    violations(chemin, readFileSync(chemin, 'utf8')).map((e) => `${relative(RACINE, chemin)} : ${e}`),
+    violations(chemin, readFileSync(chemin, 'utf8')).map((violation) => `${relative(RACINE, chemin)} : ${violation}`),
   )
   assert.deepEqual(toutes, [])
 })
@@ -77,15 +77,15 @@ test('la règle détecte un import du client API et un appel réseau', () => {
     "fetch('/api/v1/veille')",
   ].join('\n')
   const erreurs = violations(chemin, source)
-  assert.equal(erreurs.filter((e) => e.includes('src' + sep + 'api')).length, 2, erreurs.join('\n'))
-  assert.ok(erreurs.some((e) => e.includes('apercu')), erreurs.join('\n'))
-  assert.ok(erreurs.some((e) => e.startsWith('axios')), erreurs.join('\n'))
-  assert.ok(erreurs.some((e) => e.includes('appel réseau')), erreurs.join('\n'))
+  assert.equal(erreurs.filter((erreur) => erreur.includes('src' + sep + 'api')).length, 2, erreurs.join('\n'))
+  assert.ok(erreurs.some((erreur) => erreur.includes('apercu')), erreurs.join('\n'))
+  assert.ok(erreurs.some((erreur) => erreur.startsWith('axios')), erreurs.join('\n'))
+  assert.ok(erreurs.some((erreur) => erreur.includes('appel réseau')), erreurs.join('\n'))
 })
 
 test('chaque mise en page affiche chaque élément avec les mentions obligatoires', () => {
   const composants = fichiers(MISES_EN_PAGE).filter(
-    (c) => dirname(c) !== MISES_EN_PAGE && /^MiseEnPage[A-Z]\w*\.vue$/.test(c.slice(dirname(c).length + 1)),
+    (candidat) => dirname(candidat) !== MISES_EN_PAGE && /^MiseEnPage[A-Z]\w*\.vue$/.test(candidat.slice(dirname(candidat).length + 1)),
   )
   assert.ok(composants.length >= 4, 'les quatre mises en page initiales existent')
   for (const chemin of composants) {
@@ -102,7 +102,7 @@ test('le registre déclare les quatre mises en page initiales, et chaque dossier
   for (const id of ['classique', 'journal', 'fantaisie', 'gazette']) {
     assert.match(registre, new RegExp(`^\\s+${id}: `, 'm'), `${id} absent du registre`)
   }
-  const dossiers = readdirSync(MISES_EN_PAGE).filter((n) => statSync(join(MISES_EN_PAGE, n)).isDirectory())
+  const dossiers = readdirSync(MISES_EN_PAGE).filter((nom) => statSync(join(MISES_EN_PAGE, nom)).isDirectory())
   for (const dossier of dossiers) {
     assert.match(registre, new RegExp(`^\\s+${dossier}: `, 'm'), `${dossier} n'est pas enregistrée`)
   }

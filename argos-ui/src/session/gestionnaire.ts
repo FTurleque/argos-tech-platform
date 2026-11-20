@@ -67,7 +67,7 @@ export interface DependancesSession {
   fetch: (url: string, init?: RequestInit) => Promise<Response>
   transport: TransportConnexion
   maintenant?: () => number
-  planifier?: (fn: () => void, ms: number) => unknown
+  planifier?: (action: () => void, delai: number) => unknown
   annuler?: (minuterie: unknown) => void
   crypto?: Crypto
   /** Appelé à chaque changement d'état, avec un message à afficher le cas échéant. */
@@ -75,9 +75,9 @@ export interface DependancesSession {
 }
 
 export class GestionnaireSession {
-  #d: DependancesSession
+  #dependances: DependancesSession
   #maintenant: () => number
-  #planifier: (fn: () => void, ms: number) => unknown
+  #planifier: (action: () => void, delai: number) => unknown
   #annuler: (minuterie: unknown) => void
   #crypto: Crypto
   #decouverte: Decouverte | null = null
@@ -88,12 +88,12 @@ export class GestionnaireSession {
   /** Numéro de la tentative de connexion en cours : une tentative relancée rend caduque la précédente. */
   #tentative = 0
 
-  constructor(d: DependancesSession) {
-    this.#d = d
-    this.#maintenant = d.maintenant ?? (() => Date.now())
-    this.#planifier = d.planifier ?? ((fn, ms) => setTimeout(fn, ms))
-    this.#annuler = d.annuler ?? ((m) => clearTimeout(m as ReturnType<typeof setTimeout>))
-    this.#crypto = d.crypto ?? globalThis.crypto
+  constructor(dependances: DependancesSession) {
+    this.#dependances = dependances
+    this.#maintenant = dependances.maintenant ?? (() => Date.now())
+    this.#planifier = dependances.planifier ?? ((action, delai) => setTimeout(action, delai))
+    this.#annuler = dependances.annuler ?? ((minuterie) => clearTimeout(minuterie as ReturnType<typeof setTimeout>))
+    this.#crypto = dependances.crypto ?? globalThis.crypto
   }
 
   get etat(): EtatSession {
@@ -125,14 +125,14 @@ export class GestionnaireSession {
       demande = {
         state: aleatoire(32, this.#crypto),
         verificateur,
-        redirectUri: await this.#d.transport.preparer(),
+        redirectUri: await this.#dependances.transport.preparer(),
         retour: cheminInterne(retour),
       }
       url = construireUrlAutorisation({
         pointAutorisation: decouverte.authorization_endpoint,
-        clientId: this.#d.config.clientId,
+        clientId: this.#dependances.config.clientId,
         redirectUri: demande.redirectUri,
-        portee: this.#d.config.portee,
+        portee: this.#dependances.config.portee,
         state: demande.state,
         defi: await defiPkce(verificateur, this.#crypto),
       })
@@ -143,7 +143,7 @@ export class GestionnaireSession {
     if (caduque()) return null
     let recherche: string | null
     try {
-      recherche = await this.#d.transport.lancer(url, demande)
+      recherche = await this.#dependances.transport.lancer(url, demande)
     } catch {
       // Une connexion relancée entre-temps ferme l'écoute précédente : son échec n'est pas affiché.
       if (!caduque()) this.#changer('ERREUR', 'La connexion n’a pas pu être lancée.')
@@ -155,7 +155,7 @@ export class GestionnaireSession {
 
   /** Reprend, au chargement de la page, un retour du fournisseur laissé dans l'adresse (web). */
   async reprendre(): Promise<string | null> {
-    const enAttente = this.#d.transport.reprendre()
+    const enAttente = this.#dependances.transport.reprendre()
     if (!enAttente) return null
     if (!enAttente.demande) {
       this.#changer('ERREUR', 'Retour de connexion inattendu : aucune connexion n’était en cours.')
@@ -169,7 +169,7 @@ export class GestionnaireSession {
    * planifie le renouvellement. Renvoie la vue à afficher, ou null en cas d'échec.
    */
   async terminer(recherche: string, demande: DemandeAutorisation): Promise<string | null> {
-    const retour = lireRetour(recherche, demande.state, this.#decouverte?.issuer ?? this.#d.config.emetteur)
+    const retour = lireRetour(recherche, demande.state, this.#decouverte?.issuer ?? this.#dependances.config.emetteur)
     if (retour.type === 'refus') {
       this.#changer('REFUSEE', messageRefus(retour.erreur))
       return null
@@ -184,7 +184,7 @@ export class GestionnaireSession {
       const jetons = await this.#demanderJetons(decouverte.token_endpoint, corpsEchangeCode({
         code: retour.code,
         redirectUri: demande.redirectUri,
-        clientId: this.#d.config.clientId,
+        clientId: this.#dependances.config.clientId,
         verificateur: demande.verificateur,
       }))
       this.#installer(jetons)
@@ -207,7 +207,7 @@ export class GestionnaireSession {
     try {
       const jetons = await this.#demanderJetons(this.#decouverte.token_endpoint, corpsRenouvellement({
         renouvellement,
-        clientId: this.#d.config.clientId,
+        clientId: this.#dependances.config.clientId,
       }))
       // Le fournisseur peut ne pas renvoyer de nouveau jeton d'identité ou de renouvellement.
       this.#installer({
@@ -236,17 +236,17 @@ export class GestionnaireSession {
     this.#changer('ANONYME', null)
     const url = construireUrlDeconnexion({
       pointFinSession: this.#decouverte?.end_session_endpoint ?? null,
-      clientId: this.#d.config.clientId,
+      clientId: this.#dependances.config.clientId,
       jetonIdentite: identite,
-      retourApresDeconnexion: this.#d.transport.retourApresDeconnexion(),
+      retourApresDeconnexion: this.#dependances.transport.retourApresDeconnexion(),
     })
-    if (url) this.#d.transport.deconnecter(url)
+    if (url) this.#dependances.transport.deconnecter(url)
   }
 
   async #decouvrir(): Promise<Decouverte> {
     if (this.#decouverte) return this.#decouverte
-    const emetteur = normaliserEmetteur(this.#d.config.emetteur)
-    const reponse = await this.#d.fetch(`${emetteur}/.well-known/openid-configuration`, {
+    const emetteur = normaliserEmetteur(this.#dependances.config.emetteur)
+    const reponse = await this.#dependances.fetch(`${emetteur}/.well-known/openid-configuration`, {
       headers: { Accept: 'application/json' },
     })
     if (!reponse.ok) throw new Error(`découverte : ${reponse.status}`)
@@ -255,7 +255,7 @@ export class GestionnaireSession {
   }
 
   async #demanderJetons(point: string, corps: URLSearchParams): Promise<Jetons> {
-    const reponse = await this.#d.fetch(point, {
+    const reponse = await this.#dependances.fetch(point, {
       method: 'POST',
       headers: { 'Content-Type': 'application/x-www-form-urlencoded', Accept: 'application/json' },
       body: corps.toString(),
@@ -284,6 +284,6 @@ export class GestionnaireSession {
   #changer(etat: EtatSession, message: string | null): void {
     this.#etat = etat
     this.#message = message
-    this.#d.surEtat?.(etat, message)
+    this.#dependances.surEtat?.(etat, message)
   }
 }

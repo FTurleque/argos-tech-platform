@@ -60,16 +60,16 @@ async function requete(url, init = {}) {
   return fetch(url, { ...init, redirect: 'manual' })
 }
 
-function attendre(ms) {
-  return new Promise((resoudre) => setTimeout(resoudre, ms))
+function attendre(duree) {
+  return new Promise((resoudre) => setTimeout(resoudre, duree))
 }
 
 async function pret() {
   try {
-    const r = await requete(`${URL_API}/q/health/ready`)
-    return r.ok
-  } catch (e) {
-    if (e?.name === 'HoteNonLocal') throw e
+    const reponse = await requete(`${URL_API}/q/health/ready`)
+    return reponse.ok
+  } catch (echec) {
+    if (echec?.name === 'HoteNonLocal') throw echec
     return false
   }
 }
@@ -129,35 +129,35 @@ async function demarrerServeur() {
 }
 
 async function jeton(utilisateur) {
-  const r = await requete(`${EMETTEUR}/protocol/openid-connect/token`, {
+  const reponse = await requete(`${EMETTEUR}/protocol/openid-connect/token`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
     body: new URLSearchParams({ grant_type: 'password', client_id: CLIENT_TEST.id, client_secret: CLIENT_TEST.secret,
       username: utilisateur, password: utilisateur }),
   })
-  if (!r.ok) throw new Error(`jeton de ${utilisateur} : ${r.status}`)
-  return (await r.json()).access_token
+  if (!reponse.ok) throw new Error(`jeton de ${utilisateur} : ${reponse.status}`)
+  return (await reponse.json()).access_token
 }
 
 async function api(token, chemin, init = {}) {
-  const r = await requete(`${URL_API}${chemin}`, {
+  const reponse = await requete(`${URL_API}${chemin}`, {
     ...init,
     headers: { Accept: 'application/json', ...(init.body ? { 'Content-Type': 'application/json' } : {}),
       Authorization: `Bearer ${token}` },
   })
-  if (!r.ok) throw new Error(`${init.method ?? 'GET'} ${chemin} : ${r.status}`)
-  return r.status === 204 ? null : r.json()
+  if (!reponse.ok) throw new Error(`${init.method ?? 'GET'} ${chemin} : ${reponse.status}`)
+  return reponse.status === 204 ? null : reponse.json()
 }
 
 /** Espace d'alice, jeu de données SQL et abonnement personnel ; renvoie les identifiants de référence. */
-async function preparer(token, p) {
+async function preparer(token, reglages) {
   await api(token, '/api/v1/moi')
   const espaces = await api(token, '/api/v1/espaces')
-  const espace = espaces.find((e) => e.nom === ESPACE)
+  const espace = espaces.find((candidat) => candidat.nom === ESPACE)
     ?? (await api(token, '/api/v1/espaces', { method: 'POST', body: JSON.stringify({ nom: ESPACE }) }))
   execFileSync(cheminDocker(), [...COMPOSE, 'exec', '-T', 'postgres', 'psql', '-U', 'argos', '-d', 'argos',
-    '-v', 'ON_ERROR_STOP=1', '-q', '-v', `espace=${espace.id}`, '-v', `projets=${p.projets}`,
-    '-v', `composants=${p.composantsParProjet}`, '-v', `signaux=${p.signaux}`],
+    '-v', 'ON_ERROR_STOP=1', '-q', '-v', `espace=${espace.id}`, '-v', `projets=${reglages.projets}`,
+    '-v', `composants=${reglages.composantsParProjet}`, '-v', `signaux=${reglages.signaux}`],
   { cwd: E2E, input: readFileSync(join(ICI, 'donnees-performance.sql')), stdio: ['pipe', 'pipe', 'inherit'] })
   const abonnements = await api(token, '/api/v1/subscriptions')
   if (abonnements.length === 0) {
@@ -166,7 +166,7 @@ async function preparer(token, p) {
       mandatory: false }) })
   }
   const projets = await api(token, '/api/v1/projects?size=200')
-  const projet = (projets.items ?? projets).find((x) => x.name === 'Projet performance 001')
+  const projet = (projets.items ?? projets).find((candidat) => candidat.name === 'Projet performance 001')
   if (!projet) throw new Error('projet de référence absent : jeu de données non chargé')
   const recherche = await api(token, '/api/v1/recherche?q=PERF-2099-00001&type=AVIS_SECURITE')
   const signal = (recherche.elements ?? recherche.items ?? [])[0]?.id
@@ -185,16 +185,16 @@ async function appelMcp(token, outil, args) {
     _meta: { 'io.modelcontextprotocol/protocolVersion': VERSION_MCP,
       'io.modelcontextprotocol/clientInfo': { name: 'argos-performance', version: '1' },
       'io.modelcontextprotocol/clientCapabilities': {} } } }
-  const r = await requete(`${URL_API}/mcp`, {
+  const reponse = await requete(`${URL_API}/mcp`, {
     method: 'POST',
     headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json',
       Accept: 'application/json, text/event-stream', 'MCP-Protocol-Version': VERSION_MCP, 'Mcp-Method': 'tools/call',
       'Mcp-Name': outil },
     body: JSON.stringify(corps),
   })
-  const texte = await r.text()
-  if (!r.ok) return `HTTP ${r.status}`
-  const json = texte.includes('data:') ? texte.split('\n').filter((l) => l.startsWith('data:')).pop().slice(5) : texte
+  const texte = await reponse.text()
+  if (!reponse.ok) return `HTTP ${reponse.status}`
+  const json = texte.includes('data:') ? texte.split('\n').filter((ligne) => ligne.startsWith('data:')).pop().slice(5) : texte
   const message = JSON.parse(json)
   if (message.error) return `JSON-RPC ${message.error.code} ${message.error.message}`
   if (message.result?.isError) return `outil en erreur : ${JSON.stringify(message.result.content).slice(0, 200)}`
@@ -202,20 +202,20 @@ async function appelMcp(token, outil, args) {
 }
 
 async function appelRest(token, chemin) {
-  const r = await requete(`${URL_API}${chemin}`, { headers: { Accept: 'application/json', Authorization: `Bearer ${token}` } })
-  await r.arrayBuffer()
-  return r.ok ? null : `HTTP ${r.status}`
+  const reponse = await requete(`${URL_API}${chemin}`, { headers: { Accept: 'application/json', Authorization: `Bearer ${token}` } })
+  await reponse.arrayBuffer()
+  return reponse.ok ? null : `HTTP ${reponse.status}`
 }
 
 /** Mesure une opération : échauffement, puis `appels` appels répartis sur `concurrence` clients. */
-async function mesurer(operation, token, p) {
+async function mesurer(operation, token, reglages) {
   const appeler = operation.type === 'MCP'
     ? () => appelMcp(token, operation.outil, operation.args)
     : () => appelRest(token, operation.chemin)
-  for (let i = 0; i < p.echauffement; i++) await appeler()
+  for (let tour = 0; tour < reglages.echauffement; tour++) await appeler()
   const durees = []
   const erreurs = []
-  let restant = p.appelsParOperation
+  let restant = reglages.appelsParOperation
   async function client() {
     while (restant > 0) {
       restant--
@@ -223,15 +223,15 @@ async function mesurer(operation, token, p) {
       let erreur
       try {
         erreur = await appeler()
-      } catch (e) {
-        if (e?.name === 'HoteNonLocal') throw e
-        erreur = String(e?.message ?? e)
+      } catch (echec) {
+        if (echec?.name === 'HoteNonLocal') throw echec
+        erreur = String(echec?.message ?? echec)
       }
       durees.push(performance.now() - debut)
       if (erreur) erreurs.push(erreur)
     }
   }
-  await Promise.all(Array.from({ length: p.concurrence }, client))
+  await Promise.all(Array.from({ length: reglages.concurrence }, client))
   return resumerOperation(operation, durees, erreurs)
 }
 
@@ -246,7 +246,7 @@ function revision() {
 }
 
 async function principal() {
-  const p = parametres(process.env)
+  const reglages = parametres(process.env)
   verifierHoteLocal(URL_API)
   verifierHoteLocal(EMETTEUR)
   let baseDemarree = false
@@ -258,12 +258,13 @@ async function principal() {
     baseDemarree = !enMarche
     serveur = await demarrerServeur()
     const token = await jeton('alice')
-    const contexte = await preparer(token, p)
+    const contexte = await preparer(token, reglages)
     const resultats = []
     for (const operation of operationsRetenues(contexte)) {
-      const r = await mesurer(operation, token, p)
-      console.log(`${r.id.padEnd(48)} p50 ${String(r.p50Ms).padStart(7)} ms  p95 ${String(r.p95Ms).padStart(7)} ms  ${r.verdict}`)
-      resultats.push(r)
+      const resultat = await mesurer(operation, token, reglages)
+      console.log(`${resultat.id.padEnd(48)} p50 ${String(resultat.p50Ms).padStart(7)} ms  `
+        + `p95 ${String(resultat.p95Ms).padStart(7)} ms  ${resultat.verdict}`)
+      resultats.push(resultat)
     }
     const date = new Date().toISOString()
     const rapport = {
@@ -276,13 +277,14 @@ async function principal() {
         serveurReutilise: serveur === null,
       },
       jeuDeDonnees: {
-        description: `${p.projets} projets × ${p.composantsParProjet} composants, ${p.signaux} avis, ${p.projets * p.signaux} impacts (un espace)`,
-        projets: p.projets,
-        composantsParProjet: p.composantsParProjet,
-        signaux: p.signaux,
-        impacts: p.projets * p.signaux,
+        description: `${reglages.projets} projets × ${reglages.composantsParProjet} composants, ${reglages.signaux} avis, `
+          + `${reglages.projets * reglages.signaux} impacts (un espace)`,
+        projets: reglages.projets,
+        composantsParProjet: reglages.composantsParProjet,
+        signaux: reglages.signaux,
+        impacts: reglages.projets * reglages.signaux,
       },
-      parametres: p,
+      parametres: reglages,
       resultats,
       exclues: OPERATIONS_EXCLUES,
       verdict: verdictGlobal(resultats),
@@ -300,7 +302,11 @@ async function principal() {
   }
 }
 
-principal().then((code) => process.exit(code), (e) => {
-  console.error(`campagne de performance en échec : ${e?.message ?? e}`)
-  process.exit(1)
-})
+let codeSortie
+try {
+  codeSortie = await principal()
+} catch (echec) {
+  console.error(`campagne de performance en échec : ${echec?.message ?? echec}`)
+  codeSortie = 1
+}
+process.exit(codeSortie)

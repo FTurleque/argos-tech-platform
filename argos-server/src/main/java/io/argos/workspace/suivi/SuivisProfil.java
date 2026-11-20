@@ -68,7 +68,7 @@ public class SuivisProfil {
     /** Suivis enregistrés du compte pour le profil. */
     public Suivis lire(UUID compte, String profil) {
         Objects.requireNonNull(compte);
-        return base.executer(new Contexte(compte, null, null), c -> lire(c, compte, profil));
+        return base.executer(new Contexte(compte, null, null), connexion -> lire(connexion, compte, profil));
     }
 
     /**
@@ -77,46 +77,46 @@ public class SuivisProfil {
      */
     public Suivis remplacer(UUID compte, String profil, Map<String, List<String>> objets) {
         Objects.requireNonNull(compte);
-        return base.executer(new Contexte(compte, null, null), c -> {
-            verrouiller(c, compte, profil);
-            try (PreparedStatement ps = c.prepareStatement(
+        return base.executer(new Contexte(compte, null, null), connexion -> {
+            verrouiller(connexion, compte, profil);
+            try (PreparedStatement requete = connexion.prepareStatement(
                     "DELETE FROM suivi_profil WHERE compte_id = argos_compte_courant() AND profil = ?")) {
-                ps.setString(1, profil);
-                ps.executeUpdate();
+                requete.setString(1, profil);
+                requete.executeUpdate();
             }
-            try (PreparedStatement ps = c.prepareStatement("""
+            try (PreparedStatement requete = connexion.prepareStatement("""
                     INSERT INTO suivi_profil (compte_id, profil, type_objet, valeurs, modifie_le)
                     VALUES (argos_compte_courant(), ?, ?, ?, now())
                     """)) {
-                for (Map.Entry<String, List<String>> e : objets.entrySet()) {
-                    if (e.getValue().isEmpty()) {
+                for (Map.Entry<String, List<String>> entree : objets.entrySet()) {
+                    if (entree.getValue().isEmpty()) {
                         continue;
                     }
-                    ps.setString(1, profil);
-                    ps.setString(2, e.getKey());
-                    ps.setArray(3, c.createArrayOf("varchar", e.getValue().toArray()));
-                    ps.addBatch();
+                    requete.setString(1, profil);
+                    requete.setString(2, entree.getKey());
+                    requete.setArray(3, connexion.createArrayOf("varchar", entree.getValue().toArray()));
+                    requete.addBatch();
                 }
-                ps.executeBatch();
+                requete.executeBatch();
             }
-            return lire(c, compte, profil);
+            return lire(connexion, compte, profil);
         });
     }
 
     /** Remplace les jours de rappel du compte pour le profil (valeurs validées par l'appelant). */
     public Suivis remplacerRappels(UUID compte, String profil, List<Integer> jours) {
         Objects.requireNonNull(compte);
-        return base.executer(new Contexte(compte, null, null), c -> {
-            try (PreparedStatement ps = c.prepareStatement("""
+        return base.executer(new Contexte(compte, null, null), connexion -> {
+            try (PreparedStatement requete = connexion.prepareStatement("""
                     INSERT INTO suivi_rappels (compte_id, profil, jours, modifie_le)
                     VALUES (argos_compte_courant(), ?, ?, now())
                     ON CONFLICT (compte_id, profil) DO UPDATE SET jours = excluded.jours, modifie_le = now()
                     """)) {
-                ps.setString(1, profil);
-                ps.setArray(2, c.createArrayOf("integer", jours.toArray()));
-                ps.executeUpdate();
+                requete.setString(1, profil);
+                requete.setArray(2, connexion.createArrayOf("integer", jours.toArray()));
+                requete.executeUpdate();
             }
-            return lire(c, compte, profil);
+            return lire(connexion, compte, profil);
         });
     }
 
@@ -135,55 +135,55 @@ public class SuivisProfil {
                 ORDER BY c.id
                 """;
         List<Suiveur> resultat = new ArrayList<>();
-        try (Connection c = dataSource.getConnection()) {
-            try (PreparedStatement ps = c.prepareStatement(sql)) {
-                ps.setString(1, profil);
-                ps.setString(2, profil);
-                try (ResultSet rs = ps.executeQuery()) {
-                    while (rs.next()) {
-                        comptes.add(rs.getObject(1, UUID.class));
-                        emails.add(rs.getString(2));
+        try (Connection connexion = dataSource.getConnection()) {
+            try (PreparedStatement requete = connexion.prepareStatement(sql)) {
+                requete.setString(1, profil);
+                requete.setString(2, profil);
+                try (ResultSet lignes = requete.executeQuery()) {
+                    while (lignes.next()) {
+                        comptes.add(lignes.getObject(1, UUID.class));
+                        emails.add(lignes.getString(2));
                     }
                 }
             }
-            for (int i = 0; i < comptes.size(); i++) {
-                resultat.add(new Suiveur(comptes.get(i), emails.get(i), lire(c, comptes.get(i), profil)));
+            for (int position = 0; position < comptes.size(); position++) {
+                resultat.add(new Suiveur(comptes.get(position), emails.get(position), lire(connexion, comptes.get(position), profil)));
             }
-        } catch (SQLException e) {
-            throw new IllegalStateException("lecture des suiveurs du profil " + profil + " impossible", e);
+        } catch (SQLException erreur) {
+            throw new IllegalStateException("lecture des suiveurs du profil " + profil + " impossible", erreur);
         }
         return resultat;
     }
 
     /** Verrou transactionnel sur le couple compte et profil, libéré à la fin de la transaction. */
-    private static void verrouiller(Connection c, UUID compte, String profil) throws SQLException {
-        try (PreparedStatement ps = c.prepareStatement("SELECT pg_advisory_xact_lock(hashtextextended(?, 0))")) {
-            ps.setString(1, "suivi_profil:" + compte + ":" + profil);
-            ps.executeQuery().close();
+    private static void verrouiller(Connection connexion, UUID compte, String profil) throws SQLException {
+        try (PreparedStatement requete = connexion.prepareStatement("SELECT pg_advisory_xact_lock(hashtextextended(?, 0))")) {
+            requete.setString(1, "suivi_profil:" + compte + ":" + profil);
+            requete.executeQuery().close();
         }
     }
 
-    private static Suivis lire(Connection c, UUID compte, String profil) throws SQLException {
+    private static Suivis lire(Connection connexion, UUID compte, String profil) throws SQLException {
         Map<String, List<String>> objets = new LinkedHashMap<>();
-        try (PreparedStatement ps = c.prepareStatement(
+        try (PreparedStatement requete = connexion.prepareStatement(
                 "SELECT type_objet, valeurs FROM suivi_profil WHERE compte_id = ? AND profil = ? ORDER BY type_objet")) {
-            ps.setObject(1, compte);
-            ps.setString(2, profil);
-            try (ResultSet rs = ps.executeQuery()) {
-                while (rs.next()) {
-                    Array valeurs = rs.getArray(2);
-                    objets.put(rs.getString(1), Arrays.asList((String[]) valeurs.getArray()));
+            requete.setObject(1, compte);
+            requete.setString(2, profil);
+            try (ResultSet lignes = requete.executeQuery()) {
+                while (lignes.next()) {
+                    Array valeurs = lignes.getArray(2);
+                    objets.put(lignes.getString(1), Arrays.asList((String[]) valeurs.getArray()));
                 }
             }
         }
         Optional<List<Integer>> rappels = Optional.empty();
-        try (PreparedStatement ps = c.prepareStatement(
+        try (PreparedStatement requete = connexion.prepareStatement(
                 "SELECT jours FROM suivi_rappels WHERE compte_id = ? AND profil = ?")) {
-            ps.setObject(1, compte);
-            ps.setString(2, profil);
-            try (ResultSet rs = ps.executeQuery()) {
-                if (rs.next()) {
-                    rappels = Optional.of(Arrays.asList((Integer[]) rs.getArray(1).getArray()));
+            requete.setObject(1, compte);
+            requete.setString(2, profil);
+            try (ResultSet lignes = requete.executeQuery()) {
+                if (lignes.next()) {
+                    rappels = Optional.of(Arrays.asList((Integer[]) lignes.getArray(1).getArray()));
                 }
             }
         }

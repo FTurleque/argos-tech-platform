@@ -33,9 +33,9 @@ class CatalogueProfilsTest {
         assertEquals(List.of("developpeur", "expert-metier"),
                 catalogue.publies().stream().map(ManifesteProfil::identifiant).toList());
         ManifesteProfil expert = catalogue.trouver("expert-metier").orElseThrow();
-        assertTrue(expert.gardeFous().stream().anyMatch(g -> g.type() == TypeGardeFou.VALIDATION_HUMAINE),
+        assertTrue(expert.gardeFous().stream().anyMatch(gardeFou -> gardeFou.type() == TypeGardeFou.VALIDATION_HUMAINE),
                 "expert-metier impose la validation par l'expert (ADR-0018)");
-        assertTrue(catalogue.publies().stream().allMatch(m -> m.strategies().stream()
+        assertTrue(catalogue.publies().stream().allMatch(manifeste -> manifeste.strategies().stream()
                 .allMatch(StrategieDeclaree::deterministe)), "stratégies déterministes (ADR-0013)");
     }
 
@@ -50,28 +50,28 @@ class CatalogueProfilsTest {
 
     @Test
     void ajouterUnProfilNeModifiePasLesAutres() {
-        ManifesteProfil a = valide("a");
-        CatalogueProfils avant = new CatalogueProfils(List.of(a), Set.of());
-        CatalogueProfils apres = new CatalogueProfils(List.of(a, valide("demonstration")), Set.of());
+        ManifesteProfil manifeste = valide("a");
+        CatalogueProfils avant = new CatalogueProfils(List.of(manifeste), Set.of());
+        CatalogueProfils apres = new CatalogueProfils(List.of(manifeste, valide("demonstration")), Set.of());
         assertEquals(avant.trouver("a"), apres.trouver("a"));
         assertTrue(apres.estPublie("demonstration"));
     }
 
     @Test
     void uneStrategieNonDeterministeEstRefusee() {
-        ManifesteProfil m = new ManifesteProfil(1, "ia", "1.0.0", "IA", "Rapprochement par l'IA",
+        ManifesteProfil manifeste = new ManifesteProfil(1, "ia", "1.0.0", "IA", "Rapprochement par l'IA",
                 List.of("c"), List.of("k"), List.of(new Rubrique("r", "R")), List.of("o"),
                 List.of(new StrategieDeclaree("llm", false)), List.of());
-        ManifesteInvalideException e = assertThrows(ManifesteInvalideException.class,
-                () -> new CatalogueProfils(List.of(m), Set.of()));
-        assertTrue(e.erreurs().stream().anyMatch(err -> err.contains("non déterministe")), e.getMessage());
+        ManifesteInvalideException erreur = assertThrows(ManifesteInvalideException.class,
+                () -> new CatalogueProfils(List.of(manifeste), Set.of()));
+        assertTrue(erreur.erreurs().stream().anyMatch(err -> err.contains("non déterministe")), erreur.getMessage());
     }
 
     @Test
     void unManifesteIncompletEstRefuse() {
-        ManifesteProfil m = new ManifesteProfil(2, "Mauvais Id", null, "", null,
+        ManifesteProfil manifeste = new ManifesteProfil(2, "Mauvais Id", null, "", null,
                 null, null, null, null, null, null);
-        List<String> erreurs = ValidateurManifeste.erreurs(m);
+        List<String> erreurs = ValidateurManifeste.erreurs(manifeste);
         assertTrue(erreurs.size() >= 8, () -> erreurs.toString());
     }
 
@@ -96,10 +96,10 @@ class CatalogueProfilsTest {
     /** Une rubrique ne range que des catégories de sources déclarées par le profil (PRF-02). */
     @Test
     void uneRubriqueNeRangeQueDesCategoriesDuProfil() {
-        ManifesteProfil m = new ManifesteProfil(1, "rubriques", "1.0.0", "R", "Rubriques",
+        ManifesteProfil manifeste = new ManifesteProfil(1, "rubriques", "1.0.0", "R", "Rubriques",
                 List.of("c"), List.of("k"), List.of(new Rubrique("r", "R", List.of("c", "autre"))), List.of("o"),
                 List.of(new StrategieDeclaree("s", true)), List.of());
-        List<String> erreurs = ValidateurManifeste.erreurs(m);
+        List<String> erreurs = ValidateurManifeste.erreurs(manifeste);
         assertEquals(List.of("catégorie de la rubrique r absente de categoriesSources : autre"), erreurs);
     }
 

@@ -47,9 +47,9 @@ const rubriques = computed(() => sommaire(props.veille))
       <aside class="sommaire" :aria-labelledby="`${id}-rubriques`">
         <Titre :id="`${id}-rubriques`" :niveau="niveauElement" class="sommaire-titre">Rubriques</Titre>
         <ul role="list" class="sommaire-liste">
-          <li v-for="r in rubriques" :key="cleRubrique(r.rubrique)" data-rubrique>
-            <span>{{ r.rubrique.libelle }}</span>
-            <span class="compte">{{ nombreElements(r.nombre) }}</span>
+          <li v-for="entree in rubriques" :key="cleRubrique(entree.rubrique)" data-rubrique>
+            <span>{{ entree.rubrique.libelle }}</span>
+            <span class="compte">{{ nombreElements(entree.nombre) }}</span>
           </li>
         </ul>
       </aside>
@@ -70,9 +70,9 @@ const rubriques = computed(() => sommaire(props.veille))
             <div class="projets">
               <span class="libelle">Concerne :</span>
               <ul v-if="element.projets.length" role="list" class="puces">
-                <li v-for="(p, ip) in element.projets" :key="ip" class="puce">
-                  <span data-champ="projet">{{ p.nom }}</span
-                  ><template v-if="p.niveau"> · <span data-champ="niveau">{{ p.niveau.libelle }}</span></template>
+                <li v-for="(projet, rangProjet) in element.projets" :key="rangProjet" class="puce">
+                  <span data-champ="projet">{{ projet.nom }}</span
+                  ><template v-if="projet.niveau"> · <span data-champ="niveau">{{ projet.niveau.libelle }}</span></template>
                 </li>
               </ul>
               <span v-else data-champ="sans-projet">aucun projet visible</span>
@@ -82,8 +82,8 @@ const rubriques = computed(() => sommaire(props.veille))
             </p>
             <p v-if="element.rubriques.length" class="rubriques">
               <span class="libelle">Rubriques :</span>
-              <span v-for="r in element.rubriques" :key="cleRubrique(r)" class="rubrique" data-champ="rubrique">{{
-                r.libelle
+              <span v-for="rubrique in element.rubriques" :key="cleRubrique(rubrique)" class="rubrique" data-champ="rubrique">{{
+                rubrique.libelle
               }}</span>
             </p>
             <MentionsObligatoires :mentions="element.mentions" />

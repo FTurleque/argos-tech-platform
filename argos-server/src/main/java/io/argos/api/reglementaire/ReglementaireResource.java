@@ -297,7 +297,7 @@ public class ReglementaireResource {
         CycleVie.Etat vers;
         try {
             vers = CycleVie.Etat.valueOf(corps == null || corps.etat() == null ? "" : corps.etat().strip().toUpperCase(Locale.ROOT));
-        } catch (IllegalArgumentException e) {
+        } catch (IllegalArgumentException inconnu) {
             throw Erreur.demandeRefusee("ETAT_INCONNU",
                     "État inconnu : NOUVEAU, EN_ANALYSE, SANS_IMPACT, IMPACT_PRODUIT, SPECIFIE ou LIVRE.");
         }
@@ -390,7 +390,7 @@ public class ReglementaireResource {
         }
         try {
             return LocalDate.parse(valeur.strip());
-        } catch (DateTimeParseException e) {
+        } catch (DateTimeParseException malformee) {
             throw Erreur.demandeRefusee("DONNEE_INVALIDE", "Date « " + nom + " » attendue au format AAAA-MM-JJ.");
         }
     }

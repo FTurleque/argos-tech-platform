@@ -108,8 +108,8 @@ public class PreferencesResource {
         }
         try {
             return resolution.resoudre(preferences.remplacerProfils(compte(), demandes));
-        } catch (AucunProfilActifException e) {
-            throw Erreur.demandeRefusee(AU_MOINS_UN_PROFIL, e.getMessage());
+        } catch (AucunProfilActifException refus) {
+            throw Erreur.demandeRefusee(AU_MOINS_UN_PROFIL, refus.getMessage());
         }
     }
 

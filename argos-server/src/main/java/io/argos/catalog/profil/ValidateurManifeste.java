@@ -21,75 +21,75 @@ public final class ValidateurManifeste {
     }
 
     /** Erreurs du manifeste ; liste vide s'il est valide. */
-    public static List<String> erreurs(ManifesteProfil m) {
+    public static List<String> erreurs(ManifesteProfil manifeste) {
         List<String> erreurs = new ArrayList<>();
-        if (m.formatManifeste() != ManifesteProfil.FORMAT_COURANT) {
-            erreurs.add("format de manifeste " + m.formatManifeste() + " non pris en charge (attendu : "
+        if (manifeste.formatManifeste() != ManifesteProfil.FORMAT_COURANT) {
+            erreurs.add("format de manifeste " + manifeste.formatManifeste() + " non pris en charge (attendu : "
                     + ManifesteProfil.FORMAT_COURANT + ")");
         }
-        if (m.identifiant() == null || !IDENTIFIANT.matcher(m.identifiant()).matches()) {
-            erreurs.add("identifiant absent ou mal formé : " + m.identifiant());
+        if (manifeste.identifiant() == null || !IDENTIFIANT.matcher(manifeste.identifiant()).matches()) {
+            erreurs.add("identifiant absent ou mal formé : " + manifeste.identifiant());
         }
-        exigerTexte(erreurs, "version", m.version());
-        exigerTexte(erreurs, "libelle", m.libelle());
-        exigerTexte(erreurs, "description", m.description());
-        exigerNonVide(erreurs, "categoriesSources", m.categoriesSources());
-        exigerNonVide(erreurs, "connecteurs", m.connecteurs());
-        exigerNonVide(erreurs, "typesObjetsSuivis", m.typesObjetsSuivis());
-        exigerNonVide(erreurs, "rubriques", m.rubriques());
-        exigerNonVide(erreurs, "strategies", m.strategies());
+        exigerTexte(erreurs, "version", manifeste.version());
+        exigerTexte(erreurs, "libelle", manifeste.libelle());
+        exigerTexte(erreurs, "description", manifeste.description());
+        exigerNonVide(erreurs, "categoriesSources", manifeste.categoriesSources());
+        exigerNonVide(erreurs, "connecteurs", manifeste.connecteurs());
+        exigerNonVide(erreurs, "typesObjetsSuivis", manifeste.typesObjetsSuivis());
+        exigerNonVide(erreurs, "rubriques", manifeste.rubriques());
+        exigerNonVide(erreurs, "strategies", manifeste.strategies());
 
         Set<String> rubriques = new HashSet<>();
-        for (Rubrique r : m.rubriques()) {
-            if (r == null || r.identifiant() == null || !IDENTIFIANT.matcher(r.identifiant()).matches()) {
+        for (Rubrique rubrique : manifeste.rubriques()) {
+            if (rubrique == null || rubrique.identifiant() == null || !IDENTIFIANT.matcher(rubrique.identifiant()).matches()) {
                 erreurs.add("rubrique sans identifiant valide");
                 continue;
             }
-            if (!rubriques.add(r.identifiant())) {
-                erreurs.add("rubrique en double : " + r.identifiant());
+            if (!rubriques.add(rubrique.identifiant())) {
+                erreurs.add("rubrique en double : " + rubrique.identifiant());
             }
-            exigerTexte(erreurs, "libellé de la rubrique " + r.identifiant(), r.libelle());
-            for (String categorie : r.categories()) {
-                if (categorie == null || !m.categoriesSources().contains(categorie)) {
-                    erreurs.add("catégorie de la rubrique " + r.identifiant() + " absente de categoriesSources : "
+            exigerTexte(erreurs, "libellé de la rubrique " + rubrique.identifiant(), rubrique.libelle());
+            for (String categorie : rubrique.categories()) {
+                if (categorie == null || !manifeste.categoriesSources().contains(categorie)) {
+                    erreurs.add("catégorie de la rubrique " + rubrique.identifiant() + " absente de categoriesSources : "
                             + categorie);
                 }
             }
         }
-        for (StrategieDeclaree s : m.strategies()) {
-            if (s == null || s.identifiant() == null || s.identifiant().isBlank()) {
+        for (StrategieDeclaree strategie : manifeste.strategies()) {
+            if (strategie == null || strategie.identifiant() == null || strategie.identifiant().isBlank()) {
                 erreurs.add("stratégie sans identifiant");
-            } else if (!s.deterministe()) {
-                erreurs.add("stratégie non déterministe refusée (ADR-0013) : " + s.identifiant());
+            } else if (!strategie.deterministe()) {
+                erreurs.add("stratégie non déterministe refusée (ADR-0013) : " + strategie.identifiant());
             }
         }
         Set<String> types = new HashSet<>();
-        for (ListeObjets l : m.listes()) {
-            if (l == null || l.typeObjet() == null || !m.typesObjetsSuivis().contains(l.typeObjet())) {
+        for (ListeObjets liste : manifeste.listes()) {
+            if (liste == null || liste.typeObjet() == null || !manifeste.typesObjetsSuivis().contains(liste.typeObjet())) {
                 erreurs.add("liste d'un type d'objet non déclaré dans typesObjetsSuivis : "
-                        + (l == null ? null : l.typeObjet()));
+                        + (liste == null ? null : liste.typeObjet()));
                 continue;
             }
-            if (!types.add(l.typeObjet())) {
-                erreurs.add("liste en double : " + l.typeObjet());
+            if (!types.add(liste.typeObjet())) {
+                erreurs.add("liste en double : " + liste.typeObjet());
             }
-            if (l.valeurs().isEmpty()) {
-                erreurs.add("liste vide : " + l.typeObjet());
+            if (liste.valeurs().isEmpty()) {
+                erreurs.add("liste vide : " + liste.typeObjet());
             }
             Set<String> valeurs = new HashSet<>();
-            for (ValeurListe v : l.valeurs()) {
-                if (v == null || v.identifiant() == null || !IDENTIFIANT.matcher(v.identifiant()).matches()) {
-                    erreurs.add("valeur sans identifiant valide dans la liste " + l.typeObjet());
+            for (ValeurListe valeur : liste.valeurs()) {
+                if (valeur == null || valeur.identifiant() == null || !IDENTIFIANT.matcher(valeur.identifiant()).matches()) {
+                    erreurs.add("valeur sans identifiant valide dans la liste " + liste.typeObjet());
                     continue;
                 }
-                if (!valeurs.add(v.identifiant())) {
-                    erreurs.add("valeur en double dans la liste " + l.typeObjet() + " : " + v.identifiant());
+                if (!valeurs.add(valeur.identifiant())) {
+                    erreurs.add("valeur en double dans la liste " + liste.typeObjet() + " : " + valeur.identifiant());
                 }
-                exigerTexte(erreurs, "libellé de la valeur " + v.identifiant(), v.libelle());
+                exigerTexte(erreurs, "libellé de la valeur " + valeur.identifiant(), valeur.libelle());
             }
         }
-        for (GardeFou g : m.gardeFous()) {
-            if (g == null || g.type() == null) {
+        for (GardeFou gardeFou : manifeste.gardeFous()) {
+            if (gardeFou == null || gardeFou.type() == null) {
                 erreurs.add("garde-fou sans type connu");
             }
         }

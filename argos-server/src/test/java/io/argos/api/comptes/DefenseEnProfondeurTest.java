@@ -53,7 +53,7 @@ class DefenseEnProfondeurTest {
     DataSource dataSource;
 
     @Inject
-    TestDb db;
+    TestDb baseDeTest;
 
     @Inject
     ComptesService comptes;
@@ -63,24 +63,24 @@ class DefenseEnProfondeurTest {
 
     private Compte compte(String utilisateur) {
         UUID id = Api.compte(utilisateur);
-        return comptes.parSujet(db.string("SELECT sujet_oidc FROM compte WHERE id = '" + id + "'")).orElseThrow();
+        return comptes.parSujet(baseDeTest.string("SELECT sujet_oidc FROM compte WHERE id = '" + id + "'")).orElseThrow();
     }
 
-    private static String etatSql(RuntimeException e) {
-        Throwable t = e;
-        while (t != null && !(t instanceof SQLException)) {
-            t = t.getCause();
+    private static String etatSql(RuntimeException erreur) {
+        Throwable cause = erreur;
+        while (cause != null && !(cause instanceof SQLException)) {
+            cause = cause.getCause();
         }
-        return t == null ? null : ((SQLException) t).getSQLState();
+        return cause == null ? null : ((SQLException) cause).getSQLState();
     }
 
     private void executerSql(Contexte contexte, String sql, Object... parametres) {
-        base.executer(contexte, c -> {
-            try (PreparedStatement ps = c.prepareStatement(sql)) {
-                for (int i = 0; i < parametres.length; i++) {
-                    ps.setObject(i + 1, parametres[i]);
+        base.executer(contexte, connexion -> {
+            try (PreparedStatement requete = connexion.prepareStatement(sql)) {
+                for (int indice = 0; indice < parametres.length; indice++) {
+                    requete.setObject(indice + 1, parametres[indice]);
                 }
-                ps.executeUpdate();
+                requete.executeUpdate();
             }
             throw new Annulation();
         });
@@ -115,8 +115,8 @@ class DefenseEnProfondeurTest {
                 espace));
         assertThrows(Annulation.class, () -> executerSql(destinataire,
                 "UPDATE invitation SET etat = 'ACCEPTEE', destinataire_id = argos_compte_courant() WHERE id = ?", invitation));
-        assertEquals("LECTEUR", db.string("SELECT role FROM invitation WHERE id = '" + invitation + "'"));
-        assertEquals("EN_ATTENTE", db.string("SELECT etat FROM invitation WHERE id = '" + invitation + "'"));
+        assertEquals("LECTEUR", baseDeTest.string("SELECT role FROM invitation WHERE id = '" + invitation + "'"));
+        assertEquals("EN_ATTENTE", baseDeTest.string("SELECT etat FROM invitation WHERE id = '" + invitation + "'"));
     }
 
     /** argos_app ne lit ni le journal des refus ni les comptes sans lien avec le compte courant. */
@@ -127,14 +127,16 @@ class DefenseEnProfondeurTest {
         Contexte contexte = new Contexte(erin.id(), null, "erin@argos.test", null);
 
         RuntimeException journal = assertThrows(RuntimeException.class,
-                () -> base.executer(contexte, c -> compter(c, "SELECT count(*) FROM refus_acces")));
+                () -> base.executer(contexte, connexion -> compter(connexion, "SELECT count(*) FROM refus_acces")));
         assertEquals("42501", etatSql(journal), "aucun droit d'argos_app sur le journal des refus");
-        assertEquals(1L, (long) base.executer(contexte, c -> compter(c, "SELECT count(*) FROM compte WHERE id = '" + erin.id() + "'")));
-        assertEquals(0L, (long) base.executer(contexte, c -> compter(c, "SELECT count(*) FROM compte WHERE id = '" + jules + "'")),
+        assertEquals(1L, (long) base.executer(contexte,
+                connexion -> compter(connexion, "SELECT count(*) FROM compte WHERE id = '" + erin.id() + "'")));
+        assertEquals(0L, (long) base.executer(contexte,
+                connexion -> compter(connexion, "SELECT count(*) FROM compte WHERE id = '" + jules + "'")),
                 "un compte sans espace commun ni invitation n'est pas lisible");
-        assertEquals(0L, (long) base.executer(Contexte.aucun(), c -> compter(c, "SELECT count(*) FROM compte")),
+        assertEquals(0L, (long) base.executer(Contexte.aucun(), connexion -> compter(connexion, "SELECT count(*) FROM compte")),
                 "sans contexte, aucun compte");
-        assertEquals("f", db.string("SELECT has_function_privilege('public', 'argos_est_membre(uuid)', 'EXECUTE')::text")
+        assertEquals("f", baseDeTest.string("SELECT has_function_privilege('public', 'argos_est_membre(uuid)', 'EXECUTE')::text")
                 .substring(0, 1));
     }
 
@@ -147,11 +149,11 @@ class DefenseEnProfondeurTest {
         Api.ajouterMembre("alice", espace.toString(), "erin", "ADMINISTRATEUR");
 
         ExecutorService executeur = Executors.newSingleThreadExecutor();
-        try (Connection autre = dataSource.getConnection(); Statement st = autre.createStatement()) {
+        try (Connection autre = dataSource.getConnection(); Statement instruction = autre.createStatement()) {
             // Transaction concurrente : erin perd son rôle d'administratrice, sans être encore validée.
             autre.setAutoCommit(false);
-            st.execute("SELECT 1 FROM espace WHERE id = '" + espace + "' FOR UPDATE");
-            st.executeUpdate("UPDATE appartenance SET role = 'LECTEUR' WHERE espace_id = '" + espace
+            instruction.execute("SELECT 1 FROM espace WHERE id = '" + espace + "' FOR UPDATE");
+            instruction.executeUpdate("UPDATE appartenance SET role = 'LECTEUR' WHERE espace_id = '" + espace
                     + "' AND compte_id = '" + erin.id() + "'");
 
             Future<?> retrait = executeur.submit(() -> espaces.changerRole(alice, espace, alice.id(), Role.LECTEUR));
@@ -160,20 +162,20 @@ class DefenseEnProfondeurTest {
             autre.commit();
             autre.setAutoCommit(true);
 
-            ExecutionException e = assertThrows(ExecutionException.class, () -> retrait.get(30, TimeUnit.SECONDS));
-            RegleViolee regle = assertInstanceOf(RegleViolee.class, e.getCause());
+            ExecutionException erreur = assertThrows(ExecutionException.class, () -> retrait.get(30, TimeUnit.SECONDS));
+            RegleViolee regle = assertInstanceOf(RegleViolee.class, erreur.getCause());
             assertEquals("DERNIER_ADMINISTRATEUR", regle.code());
         } finally {
             executeur.shutdownNow();
         }
-        assertEquals(1, db.count("SELECT count(*) FROM appartenance WHERE espace_id = '" + espace
+        assertEquals(1, baseDeTest.count("SELECT count(*) FROM appartenance WHERE espace_id = '" + espace
                 + "' AND role = 'ADMINISTRATEUR'"));
     }
 
-    private static long compter(Connection c, String sql) throws SQLException {
-        try (PreparedStatement ps = c.prepareStatement(sql); ResultSet rs = ps.executeQuery()) {
-            rs.next();
-            return rs.getLong(1);
+    private static long compter(Connection connexion, String sql) throws SQLException {
+        try (PreparedStatement requete = connexion.prepareStatement(sql); ResultSet resultat = requete.executeQuery()) {
+            resultat.next();
+            return resultat.getLong(1);
         }
     }
 }

@@ -52,7 +52,7 @@ class CorrelationTest {
     private static final String LIB = "pkg:maven/org.exemple/lib";
 
     @Inject
-    TestDb db;
+    TestDb baseDeTest;
 
     @Inject
     DataSource dataSource;
@@ -80,7 +80,7 @@ class CorrelationTest {
 
     @BeforeEach
     void reset() {
-        db.reset();
+        baseDeTest.reset();
         spaceA = Api.nouvelEspace("alice", "Espace A");
         spaceB = Api.nouvelEspace("jules", "Espace B");
     }
@@ -89,10 +89,10 @@ class CorrelationTest {
         UUID project = projects.create(workspace, name, null, null);
         List<String[]> components = new java.util.ArrayList<>();
         List<String> direct = new java.util.ArrayList<>();
-        for (int i = 0; i < purls.length; i++) {
-            components.add(new String[] {"c" + i, purls[i]});
-            if (i == 0) {
-                direct.add("c" + i);
+        for (int rang = 0; rang < purls.length; rang++) {
+            components.add(new String[] {"c" + rang, purls[rang]});
+            if (rang == 0) {
+                direct.add("c" + rang);
             }
         }
         inventories.importSbom(project, Fixtures.cyclonedx("1.6", generated.toString(), components, direct)
@@ -104,7 +104,7 @@ class CorrelationTest {
         String json = Fixtures.osv(id, "2026-11-10T00:00:00Z", "Maven", "org.exemple:lib", purl, introduced, fixed);
         Fixtures.stubOsv(id, "2026-11-10T00:00:00Z", json);
         synchronizer.synchronize("OSV");
-        return db.uuid("SELECT id FROM signal WHERE external_id = '" + id + "'");
+        return baseDeTest.uuid("SELECT id FROM signal WHERE external_id = '" + id + "'");
     }
 
     private static Instant fresh() {
@@ -112,7 +112,7 @@ class CorrelationTest {
     }
 
     private long impactsOf(UUID project) {
-        return db.count("SELECT count(*) FROM project_impact WHERE project_id = '" + project + "'");
+        return baseDeTest.count("SELECT count(*) FROM project_impact WHERE project_id = '" + project + "'");
     }
 
     @Test
@@ -126,8 +126,8 @@ class CorrelationTest {
         assertEquals(1, impactsOf(inRange));
         assertEquals(0, impactsOf(outOfRange));
         assertEquals(0, impactsOf(without));
-        assertEquals(signal, db.uuid("SELECT signal_id FROM project_impact"));
-        assertEquals(LIB + "@1.2.0", db.string("SELECT c.purl FROM project_impact i JOIN component c ON c.id = i.component_id"));
+        assertEquals(signal, baseDeTest.uuid("SELECT signal_id FROM project_impact"));
+        assertEquals(LIB + "@1.2.0", baseDeTest.string("SELECT c.purl FROM project_impact i JOIN component c ON c.id = i.component_id"));
     }
 
     @Test
@@ -137,7 +137,7 @@ class CorrelationTest {
         publish("GHSA-COR3", LIB, "0", "1.3.0");
 
         assertEquals(1, impactsOf(project));
-        assertEquals("t", db.string("SELECT transitive::text FROM project_impact").substring(0, 1));
+        assertEquals("t", baseDeTest.string("SELECT transitive::text FROM project_impact").substring(0, 1));
     }
 
     @Test
@@ -156,10 +156,10 @@ class CorrelationTest {
         Fixtures.stubOsv("GHSA-LODASH", "2026-11-11T00:00:00Z", lodash);
         synchronizer.synchronize("OSV");
 
-        assertEquals("EXACT", db.string("SELECT level FROM project_impact WHERE project_id = '" + exact + "'"));
-        assertEquals("PROBABLE", db.string("SELECT level FROM project_impact WHERE project_id = '" + obsolete + "'"));
-        assertEquals("PROBABLE", db.string("SELECT level FROM project_impact WHERE project_id = '" + manifest + "'"));
-        assertEquals("A_VERIFIER", db.string("SELECT level FROM project_impact WHERE project_id = '" + npmUnknownVersion + "'"));
+        assertEquals("EXACT", baseDeTest.string("SELECT level FROM project_impact WHERE project_id = '" + exact + "'"));
+        assertEquals("PROBABLE", baseDeTest.string("SELECT level FROM project_impact WHERE project_id = '" + obsolete + "'"));
+        assertEquals("PROBABLE", baseDeTest.string("SELECT level FROM project_impact WHERE project_id = '" + manifest + "'"));
+        assertEquals("A_VERIFIER", baseDeTest.string("SELECT level FROM project_impact WHERE project_id = '" + npmUnknownVersion + "'"));
     }
 
     @Test
@@ -168,16 +168,16 @@ class CorrelationTest {
 
         publish("GHSA-NOPURL", null, "0", "1.3.0");
 
-        assertEquals("A_VERIFIER", db.string("SELECT level FROM project_impact WHERE project_id = '" + project + "'"));
+        assertEquals("A_VERIFIER", baseDeTest.string("SELECT level FROM project_impact WHERE project_id = '" + project + "'"));
     }
 
     @Test
     void cor03S1EtS2ProvenanceConsultableEtIntegrite() {
         UUID project = projectWithSbom(spaceA, "app", fresh(), LIB + "@1.2.0");
         UUID signal = publish("GHSA-PROV", LIB, "0", "1.3.0");
-        UUID impact = db.uuid("SELECT id FROM project_impact");
+        UUID impact = baseDeTest.uuid("SELECT id FROM project_impact");
 
-        Api.en("alice")
+        Api.enTantQue("alice")
                 .when().get("/api/v1/impacts/" + impact)
                 .then().statusCode(200)
                 .body("signalId", equalTo(signal.toString()))
@@ -195,7 +195,7 @@ class CorrelationTest {
         ImpactQueries.IntegrityReport report = impacts.integrity();
         assertEquals(1, report.impacts());
         assertTrue(report.intact());
-        Api.en("alice")
+        Api.enTantQue("alice")
                 .when().get("/api/v1/ops/impacts/integrity")
                 .then().statusCode(200).body("withoutSignal", equalTo(0)).body("withoutMethod", equalTo(0))
                 .body("impacts", equalTo(1));
@@ -210,7 +210,7 @@ class CorrelationTest {
         UUID project = projectWithSbom(spaceA, "app", fresh(), LIB + "@1.2.0");
         UUID signal = publish("GHSA-WITHDRAWN", LIB, "0", "1.3.0");
         assertEquals(1, impactsOf(project));
-        UUID impact = db.uuid("SELECT id FROM project_impact");
+        UUID impact = baseDeTest.uuid("SELECT id FROM project_impact");
 
         String retire = Fixtures.osv("GHSA-WITHDRAWN", "2026-11-12T00:00:00Z", "Maven", "org.exemple:lib", LIB, "0", "1.3.0")
                 .replaceFirst("\\{", "{\"withdrawn\":\"2026-11-12T00:00:00Z\",");
@@ -221,31 +221,31 @@ class CorrelationTest {
         assertEquals(1, impactsOf(project), "l'impact n'est pas supprimé");
         assertEquals("RESOLU", stateOf(impact));
         assertEquals("AVIS_RETIRE", lastReason(impact));
-        assertEquals(2, db.count("SELECT count(*) FROM signal_version WHERE signal_id = '" + signal + "'"));
+        assertEquals(2, baseDeTest.count("SELECT count(*) FROM signal_version WHERE signal_id = '" + signal + "'"));
 
         UUID autre = projectWithSbom(spaceA, "tardif", fresh(), LIB + "@1.0.0");
         assertEquals(0, impactsOf(autre), "ni pour un inventaire importé après le retrait");
     }
 
     private long activeImpactsOf(UUID project) {
-        return db.count("SELECT count(*) FROM project_impact WHERE project_id = '" + project
+        return baseDeTest.count("SELECT count(*) FROM project_impact WHERE project_id = '" + project
                 + "' AND state IN ('OUVERT', 'CONFIRME')");
     }
 
     private String stateOf(UUID impact) {
-        return db.string("SELECT state FROM project_impact WHERE id = '" + impact + "'");
+        return baseDeTest.string("SELECT state FROM project_impact WHERE id = '" + impact + "'");
     }
 
     /** Motif de la dernière transition faite par le système. */
     private String lastReason(UUID impact) {
-        return db.string("SELECT reason FROM project_impact_transition WHERE impact_id = '" + impact
+        return baseDeTest.string("SELECT reason FROM project_impact_transition WHERE impact_id = '" + impact
                 + "' AND actor_system ORDER BY occurred_at DESC, id LIMIT 1");
     }
 
     private void reimport(UUID project, String... purls) {
         List<String[]> components = new java.util.ArrayList<>();
-        for (int i = 0; i < purls.length; i++) {
-            components.add(new String[] {"c" + i, purls[i]});
+        for (int rang = 0; rang < purls.length; rang++) {
+            components.add(new String[] {"c" + rang, purls[rang]});
         }
         inventories.importSbom(project, Fixtures.cyclonedx("1.6", fresh().toString(), components, List.of("c0"))
                 .getBytes(StandardCharsets.UTF_8), "ci");
@@ -258,15 +258,15 @@ class CorrelationTest {
         String avis = Fixtures.osv("GHSA-COR11-1", "2026-11-10T00:00:00Z", "npm", "exemple", "pkg:npm/exemple", "0", "2.0.0");
         Fixtures.stubOsv("GHSA-COR11-1", "2026-11-10T00:00:00Z", avis);
         synchronizer.synchronize("OSV");
-        UUID impact = db.uuid("SELECT id FROM project_impact");
-        db.exec("UPDATE project_impact SET state = 'CONFIRME' WHERE id = '" + impact + "'");
+        UUID impact = baseDeTest.uuid("SELECT id FROM project_impact");
+        baseDeTest.exec("UPDATE project_impact SET state = 'CONFIRME' WHERE id = '" + impact + "'");
 
         reimport(project, "pkg:npm/autre@1.0.0");
 
         assertEquals("RESOLU", stateOf(impact));
         assertEquals("COMPOSANT_RETIRE", lastReason(impact));
-        assertEquals("CONFIRME", db.string("SELECT from_state FROM project_impact_transition WHERE impact_id = '" + impact + "'"));
-        assertEquals(1, db.count("SELECT count(*) FROM project_impact_transition WHERE impact_id = '" + impact
+        assertEquals("CONFIRME", baseDeTest.string("SELECT from_state FROM project_impact_transition WHERE impact_id = '" + impact + "'"));
+        assertEquals(1, baseDeTest.count("SELECT count(*) FROM project_impact_transition WHERE impact_id = '" + impact
                 + "' AND actor_system AND actor_account_id IS NULL"));
         Optional<ImpactQueries.ImpactView> vue = impacts.find(impact, Api.compte("alice"), Set.of(spaceA));
         assertTrue(vue.isPresent(), "l'impact résolu reste consultable");
@@ -282,7 +282,7 @@ class CorrelationTest {
         String avis = Fixtures.osv("GHSA-COR11-2", "2026-11-10T00:00:00Z", "npm", "exemple", "pkg:npm/exemple", "0", "2.0.0");
         Fixtures.stubOsv("GHSA-COR11-2", "2026-11-10T00:00:00Z", avis);
         synchronizer.synchronize("OSV");
-        UUID impact = db.uuid("SELECT id FROM project_impact");
+        UUID impact = baseDeTest.uuid("SELECT id FROM project_impact");
 
         reimport(project, "pkg:npm/exemple@2.1.0");
 
@@ -296,7 +296,7 @@ class CorrelationTest {
     void cor11S3AvisModifieEtCor11S5ImpactResoluDeNouveauVerifie() {
         UUID project = projectWithSbom(spaceA, "app", fresh(), LIB + "@1.2.0");
         UUID signal = publish("GHSA-COR11-3", LIB, "0", "1.3.0");
-        UUID impact = db.uuid("SELECT id FROM project_impact");
+        UUID impact = baseDeTest.uuid("SELECT id FROM project_impact");
 
         String corrige = Fixtures.osv("GHSA-COR11-3", "2026-11-12T00:00:00Z", "Maven", "org.exemple:lib", LIB, "0", "1.1.0");
         Fixtures.stubOsv("GHSA-COR11-3", "2026-11-12T00:00:00Z", corrige);
@@ -312,9 +312,9 @@ class CorrelationTest {
 
         assertEquals("OUVERT", stateOf(impact));
         assertEquals("DE_NOUVEAU_VERIFIE", lastReason(impact));
-        assertEquals(1, db.count("SELECT count(*) FROM project_impact WHERE signal_id = '" + signal + "'"),
+        assertEquals(1, baseDeTest.count("SELECT count(*) FROM project_impact WHERE signal_id = '" + signal + "'"),
                 "un seul impact pour ce signal, ce projet et ce composant (COR-07)");
-        assertEquals(2, db.count("SELECT count(*) FROM project_impact_transition WHERE impact_id = '" + impact + "'"));
+        assertEquals(2, baseDeTest.count("SELECT count(*) FROM project_impact_transition WHERE impact_id = '" + impact + "'"));
     }
 
     /** COR-11-S4 : un impact écarté n'est jamais modifié par le système, même si son composant est retiré. */
@@ -322,14 +322,14 @@ class CorrelationTest {
     void cor11S4ImpactEcarteJamaisModifieParLeSysteme() {
         UUID project = projectWithSbom(spaceA, "app", fresh(), LIB + "@1.2.0", "pkg:maven/org.autre/outil@1.0.0");
         UUID signal = publish("GHSA-COR11-4", LIB, "0", "1.3.0");
-        UUID impact = db.uuid("SELECT id FROM project_impact");
-        db.exec("UPDATE project_impact SET state = 'ECARTE' WHERE id = '" + impact + "'");
+        UUID impact = baseDeTest.uuid("SELECT id FROM project_impact");
+        baseDeTest.exec("UPDATE project_impact SET state = 'ECARTE' WHERE id = '" + impact + "'");
 
         reimport(project, "pkg:maven/org.autre/outil@1.0.0");
         engine.correlate(signal, Optional.empty());
 
         assertEquals("ECARTE", stateOf(impact));
-        assertEquals(0, db.count("SELECT count(*) FROM project_impact_transition WHERE impact_id = '" + impact + "'"));
+        assertEquals(0, baseDeTest.count("SELECT count(*) FROM project_impact_transition WHERE impact_id = '" + impact + "'"));
         assertTrue(impacts.integrity().intact(), "un impact écarté sans composant respecte INV-C3");
 
         // Le composant revient à la même version : l'impact écarté le retrouve, sans doublon, et reste écarté.
@@ -344,7 +344,7 @@ class CorrelationTest {
     void composantRevenuRouvreLImpactSansDoublon() {
         UUID project = projectWithSbom(spaceA, "app", fresh(), LIB + "@1.2.0", "pkg:maven/org.autre/outil@1.0.0");
         publish("GHSA-COR11-6", LIB, "0", "1.3.0");
-        UUID impact = db.uuid("SELECT id FROM project_impact");
+        UUID impact = baseDeTest.uuid("SELECT id FROM project_impact");
 
         reimport(project, "pkg:maven/org.autre/outil@1.0.0");
         assertEquals("RESOLU", stateOf(impact));
@@ -353,14 +353,14 @@ class CorrelationTest {
         assertEquals(1, impactsOf(project));
         assertEquals("OUVERT", stateOf(impact));
         assertEquals("DE_NOUVEAU_VERIFIE", lastReason(impact));
-        assertTrue(db.uuid("SELECT component_id FROM project_impact WHERE id = '" + impact + "'") != null);
+        assertTrue(baseDeTest.uuid("SELECT component_id FROM project_impact WHERE id = '" + impact + "'") != null);
     }
 
     @Test
     void cor07S1CorrelationRejoueeSansDoublon() {
         UUID project = projectWithSbom(spaceA, "app", fresh(), LIB + "@1.2.0");
         UUID signal = publish("GHSA-REPLAY", LIB, "0", "1.3.0");
-        String impact = db.string("SELECT id::text FROM project_impact");
+        String impact = baseDeTest.string("SELECT id::text FROM project_impact");
 
         CorrelationEngine.CorrelationReport again = engine.correlate(signal, Optional.empty());
         engine.correlateProject(project);
@@ -368,31 +368,31 @@ class CorrelationTest {
         assertEquals(0, again.created());
         assertEquals(1, again.updated());
         assertEquals(1, impactsOf(project));
-        assertEquals(impact, db.string("SELECT id::text FROM project_impact"));
+        assertEquals(impact, baseDeTest.string("SELECT id::text FROM project_impact"));
     }
 
     @Test
     void migrationUniciteDuTriplet() {
         projectWithSbom(spaceA, "app", fresh(), LIB + "@1.2.0");
         publish("GHSA-UNIQ", LIB, "0", "1.3.0");
-        IllegalStateException e = assertThrows(IllegalStateException.class, () -> db.exec("""
+        IllegalStateException erreur = assertThrows(IllegalStateException.class, () -> baseDeTest.exec("""
                 INSERT INTO project_impact(id, signal_id, signal_version_id, project_id, workspace_id, component_id, level,
                        method, inventory_origin, provenance, created_at, updated_at)
                 SELECT gen_random_uuid(), signal_id, signal_version_id, project_id, workspace_id, component_id, level, method,
                        inventory_origin, provenance, now(), now() FROM project_impact
                 """));
-        assertTrue(e.getCause().getMessage().contains("project_impact_triplet_uk"));
+        assertTrue(erreur.getCause().getMessage().contains("project_impact_triplet_uk"));
     }
 
     @Test
     void correlationDeclencheeParUnNouvelInventaire() {
         UUID signal = publish("GHSA-LATE", LIB, "0", "1.3.0");
-        assertEquals(0, db.count("SELECT count(*) FROM project_impact"));
+        assertEquals(0, baseDeTest.count("SELECT count(*) FROM project_impact"));
 
         UUID project = projectWithSbom(spaceA, "tardif", fresh(), LIB + "@1.0.0");
 
         assertEquals(1, impactsOf(project));
-        assertEquals(signal, db.uuid("SELECT signal_id FROM project_impact"));
+        assertEquals(signal, baseDeTest.uuid("SELECT signal_id FROM project_impact"));
     }
 
     @Test
@@ -437,27 +437,27 @@ class CorrelationTest {
 
     @Test
     void cor08S1EtS2ConsultationFiltreeEtRefusJournalise() {
-        UUID a = projectWithSbom(spaceA, "a", fresh(), LIB + "@1.2.0");
-        UUID b = projectWithSbom(spaceB, "b", fresh(), LIB + "@1.1.0");
+        UUID projetA = projectWithSbom(spaceA, "a", fresh(), LIB + "@1.2.0");
+        UUID projetB = projectWithSbom(spaceB, "b", fresh(), LIB + "@1.1.0");
         UUID signal = publish("GHSA-SPACES", LIB, "0", "1.3.0");
-        UUID impactB = db.uuid("SELECT id FROM project_impact WHERE project_id = '" + b + "'");
+        UUID impactB = baseDeTest.uuid("SELECT id FROM project_impact WHERE project_id = '" + projetB + "'");
 
-        Api.en("alice")
+        Api.enTantQue("alice")
                 .when().get("/api/v1/signals/" + signal + "/impacts")
                 .then().statusCode(200).body("items", hasSize(1)).body("total", equalTo(1))
-                .body("items[0].projectId", equalTo(a.toString()));
+                .body("items[0].projectId", equalTo(projetA.toString()));
 
-        String body = Api.en("alice")
+        String body = Api.enTantQue("alice")
                 .when().get("/api/v1/impacts/" + impactB)
                 .then().statusCode(404).extract().asString();
-        assertTrue(!body.contains(b.toString()) && !body.contains("GHSA-SPACES"), "le refus ne révèle rien de l'impact");
+        assertTrue(!body.contains(projetB.toString()) && !body.contains("GHSA-SPACES"), "le refus ne révèle rien de l'impact");
         UUID alice = Api.compte("alice");
-        assertEquals(1, db.count("SELECT count(*) FROM refus_acces WHERE compte_id = '" + alice
+        assertEquals(1, baseDeTest.count("SELECT count(*) FROM refus_acces WHERE compte_id = '" + alice
                 + "' AND ressource = 'GET /api/v1/impacts/" + impactB + "' AND motif = 'NON_MEMBRE' AND horodatage IS NOT NULL"));
 
-        Api.en("alice")
+        Api.enTantQue("alice")
                 .when().get("/api/v1/impacts/" + UUID.randomUUID()).then().statusCode(404);
-        assertEquals(1, db.count("SELECT count(*) FROM refus_acces"), "un impact inexistant n'est pas un refus");
+        assertEquals(1, baseDeTest.count("SELECT count(*) FROM refus_acces"), "un impact inexistant n'est pas un refus");
         given().when().get("/api/v1/signals/" + signal + "/impacts").then().statusCode(401);
     }
 
@@ -467,19 +467,19 @@ class CorrelationTest {
      */
     @Test
     void rlsAppliqueeSurLeCheminApplicatif() {
-        UUID a = projectWithSbom(spaceA, "a", fresh(), LIB + "@1.2.0");
-        UUID b = projectWithSbom(spaceB, "b", fresh(), LIB + "@1.1.0");
+        UUID projetA = projectWithSbom(spaceA, "a", fresh(), LIB + "@1.2.0");
+        UUID projetB = projectWithSbom(spaceB, "b", fresh(), LIB + "@1.1.0");
         UUID signal = publish("GHSA-RLS-APP", LIB, "0", "1.3.0");
-        UUID impactB = db.uuid("SELECT id FROM project_impact WHERE project_id = '" + b + "'");
+        UUID impactB = baseDeTest.uuid("SELECT id FROM project_impact WHERE project_id = '" + projetB + "'");
         UUID alice = Api.compte("alice");
         Set<UUID> perimetreErrone = Set.of(spaceA, spaceB);
 
         assertTrue(impacts.find(impactB, alice, perimetreErrone).isEmpty(), "impact d'un espace non membre masqué");
         ImpactQueries.Page page = impacts.forSignal(signal, alice, perimetreErrone, 0, 50);
         assertEquals(1, page.total());
-        assertEquals(a, page.items().get(0).projectId());
+        assertEquals(projetA, page.items().get(0).projectId());
         assertEquals(1, impacts.forSignals(List.of(signal), alice, perimetreErrone).size());
-        assertTrue(impacts.forProject(b, alice, perimetreErrone).isEmpty());
+        assertTrue(impacts.forProject(projetB, alice, perimetreErrone).isEmpty());
         assertTrue(impacts.find(impactB, Api.compte("jules"), Set.of(spaceB)).isPresent(), "un membre de l'espace B le voit");
         assertEquals("argos_app", rolePendantUneLecture(alice));
     }
@@ -490,41 +490,41 @@ class CorrelationTest {
         projectWithSbom(spaceB, "b", fresh(), LIB + "@1.1.0");
         publish("GHSA-RLS", LIB, "0", "1.3.0");
         UUID alice = Api.compte("alice");
-        try (Connection c = dataSource.getConnection(); Statement s = c.createStatement()) {
-            c.setAutoCommit(false);
-            s.execute("SET LOCAL ROLE argos_app");
-            assertEquals("f", string(s, "SELECT rolsuper::text FROM pg_roles WHERE rolname = current_user").substring(0, 1));
-            assertEquals(0, count(s, "SELECT count(*) FROM project_impact"), "sans contexte, aucune ligne");
-            s.execute("SELECT set_config('argos.compte_courant', '" + alice + "', true)");
-            assertEquals(1, count(s, "SELECT count(*) FROM project_impact"), "seulement les espaces dont le compte est membre");
-            assertEquals(0, count(s, "SELECT count(*) FROM project_impact WHERE workspace_id = '" + spaceB + "'"));
-            s.execute("SELECT set_config('argos.espace_courant', '" + spaceB + "', true)");
-            assertEquals(0, count(s, "SELECT count(*) FROM project_impact"), "espace courant dont le compte n'est pas membre");
-            c.rollback();
-            c.setAutoCommit(true);
+        try (Connection connexion = dataSource.getConnection(); Statement requete = connexion.createStatement()) {
+            connexion.setAutoCommit(false);
+            requete.execute("SET LOCAL ROLE argos_app");
+            assertEquals("f", string(requete, "SELECT rolsuper::text FROM pg_roles WHERE rolname = current_user").substring(0, 1));
+            assertEquals(0, count(requete, "SELECT count(*) FROM project_impact"), "sans contexte, aucune ligne");
+            requete.execute("SELECT set_config('argos.compte_courant', '" + alice + "', true)");
+            assertEquals(1, count(requete, "SELECT count(*) FROM project_impact"), "seulement les espaces dont le compte est membre");
+            assertEquals(0, count(requete, "SELECT count(*) FROM project_impact WHERE workspace_id = '" + spaceB + "'"));
+            requete.execute("SELECT set_config('argos.espace_courant', '" + spaceB + "', true)");
+            assertEquals(0, count(requete, "SELECT count(*) FROM project_impact"), "espace courant dont le compte n'est pas membre");
+            connexion.rollback();
+            connexion.setAutoCommit(true);
         }
     }
 
     private String rolePendantUneLecture(UUID compte) {
         return io.quarkus.narayana.jta.QuarkusTransaction.requiringNew().call(() -> {
             impacts.forProject(UUID.randomUUID(), compte, Set.of(spaceA));
-            try (Connection c = dataSource.getConnection(); Statement s = c.createStatement()) {
-                return string(s, "SELECT current_user");
+            try (Connection connexion = dataSource.getConnection(); Statement requete = connexion.createStatement()) {
+                return string(requete, "SELECT current_user");
             }
         });
     }
 
-    private static String string(Statement s, String sql) throws Exception {
-        try (ResultSet rs = s.executeQuery(sql)) {
-            rs.next();
-            return rs.getString(1);
+    private static String string(Statement requete, String sql) throws Exception {
+        try (ResultSet resultat = requete.executeQuery(sql)) {
+            resultat.next();
+            return resultat.getString(1);
         }
     }
 
-    private static long count(Statement s, String sql) throws Exception {
-        try (ResultSet rs = s.executeQuery(sql)) {
-            rs.next();
-            return rs.getLong(1);
+    private static long count(Statement requete, String sql) throws Exception {
+        try (ResultSet resultat = requete.executeQuery(sql)) {
+            resultat.next();
+            return resultat.getLong(1);
         }
     }
 }

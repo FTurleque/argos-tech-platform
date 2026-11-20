@@ -83,8 +83,8 @@ public class SourcesWeb {
 
     /** Valide l'adresse et son contenu, enregistre la source puis intègre sa première collecte. */
     public SourceWeb creer(Demande demande, UUID compteId) {
-        Demande d = valider(demande);
-        boolean personnelle = SourceWeb.PERSONNELLE.equals(d.portee());
+        Demande demandeValidee = valider(demande);
+        boolean personnelle = SourceWeb.PERSONNELLE.equals(demandeValidee.portee());
         if (personnelle) {
             verifierLimite(compteId);
         }
@@ -92,55 +92,55 @@ public class SourcesWeb {
         String titre;
         String adresse;
         try {
-            adresse = normaliser(d.adresse());
+            adresse = normaliser(demandeValidee.adresse());
             contenu = recuperateur.recuperer(adresse);
-            titre = SourceWeb.FLUX.equals(d.type()) ? lecteurFlux.lire(contenu.octets()).titre()
+            titre = SourceWeb.FLUX.equals(demandeValidee.type()) ? lecteurFlux.lire(contenu.octets()).titre()
                     : lecteurPage.lire(contenu.octets(), contenu.typeContenu(), contenu.adresseFinale().toString()).titre();
-        } catch (RecuperationRefusee e) {
-            LOG.infof("ajout de source web refusé pour le compte %s : %s (%s)", compteId, e.motif(), e.getMessage());
-            throw new DonneeInvalide(e.motif().name(), e.message(), "adresse");
+        } catch (RecuperationRefusee refus) {
+            LOG.infof("ajout de source web refusé pour le compte %s : %s (%s)", compteId, refus.motif(), refus.getMessage());
+            throw new DonneeInvalide(refus.motif().name(), refus.message(), "adresse");
         }
-        String libelle = d.libelle() != null ? d.libelle()
+        String libelle = demandeValidee.libelle() != null ? demandeValidee.libelle()
                 : !titre.isBlank() ? titre : contenu.adresseFinale().getHost();
         UUID id = UUID.randomUUID();
-        UUID espace = personnelle ? null : d.espaceId();
+        UUID espace = personnelle ? null : demandeValidee.espaceId();
         try (StockActualites.Verrou verrou = stock.verrouiller(id).orElseThrow(
                 () -> new IllegalStateException("verrou de la source " + id + " indisponible"))) {
-            inserer(d, compteId, personnelle, adresse, libelle, id, espace);
+            inserer(demandeValidee, compteId, personnelle, adresse, libelle, id, espace);
             collecte.premiereCollecte(id, contenu);
         }
         return trouver(id, compteId).orElseThrow();
     }
 
-    private void inserer(Demande d, UUID compteId, boolean personnelle, String adresse, String libelle, UUID id,
+    private void inserer(Demande demande, UUID compteId, boolean personnelle, String adresse, String libelle, UUID id,
             UUID espace) {
-        base.executer(new Contexte(compteId, null, espace), c -> {
+        base.executer(new Contexte(compteId, null, espace), connexion -> {
             if (personnelle) {
-                try (PreparedStatement ps = c.prepareStatement("SELECT pg_advisory_xact_lock(hashtext(?))")) {
-                    ps.setString(1, "source_web:" + compteId);
-                    ps.execute();
+                try (PreparedStatement requete = connexion.prepareStatement("SELECT pg_advisory_xact_lock(hashtext(?))")) {
+                    requete.setString(1, "source_web:" + compteId);
+                    requete.execute();
                 }
-                if (compterPersonnelles(c) >= sourcesPersonnellesMax) {
+                if (compterPersonnelles(connexion) >= sourcesPersonnellesMax) {
                     throw limite();
                 }
             }
-            try (PreparedStatement ps = c.prepareStatement("""
+            try (PreparedStatement requete = connexion.prepareStatement("""
                     INSERT INTO source_web (id, portee, espace_id, proprietaire_id, type, adresse, libelle, cree_par)
                     VALUES (?, ?, ?, ?, ?, ?, ?, argos_compte_courant())
                     """)) {
-                ps.setObject(1, id);
-                ps.setString(2, d.portee());
-                ps.setObject(3, espace);
-                ps.setObject(4, personnelle ? compteId : null);
-                ps.setString(5, d.type());
-                ps.setString(6, adresse);
-                ps.setString(7, couper(libelle, 200));
-                ps.executeUpdate();
-            } catch (SQLException e) {
-                if ("23505".equals(e.getSQLState())) {
+                requete.setObject(1, id);
+                requete.setString(2, demande.portee());
+                requete.setObject(3, espace);
+                requete.setObject(4, personnelle ? compteId : null);
+                requete.setString(5, demande.type());
+                requete.setString(6, adresse);
+                requete.setString(7, couper(libelle, 200));
+                requete.executeUpdate();
+            } catch (SQLException erreur) {
+                if ("23505".equals(erreur.getSQLState())) {
                     throw new RegleViolee("SOURCE_EXISTANTE", "Cette adresse est déjà suivie.");
                 }
-                throw e;
+                throw erreur;
             }
             return null;
         });
@@ -148,21 +148,21 @@ public class SourcesWeb {
 
     /** Sources visibles du compte : les siennes et celles des espaces dont il est membre. */
     public List<SourceWeb> visibles(UUID compteId) {
-        return base.executer(new Contexte(compteId, null, null), c -> lire(c,
+        return base.executer(new Contexte(compteId, null, null), connexion -> lire(connexion,
                 "SELECT " + COLONNES + " FROM source_web ORDER BY portee, libelle, id"));
     }
 
     public Optional<SourceWeb> trouver(UUID id, UUID compteId) {
         return base.executer(new Contexte(compteId, null, null),
-                c -> lire(c, "SELECT " + COLONNES + " FROM source_web WHERE id = ?", id)).stream().findFirst();
+                connexion -> lire(connexion, "SELECT " + COLONNES + " FROM source_web WHERE id = ?", id)).stream().findFirst();
     }
 
     /** Supprime une source visible ; renvoie faux si la politique RLS l'a refusé. */
     public boolean supprimer(SourceWeb source, UUID compteId) {
-        return base.executer(new Contexte(compteId, null, source.espaceId()), c -> {
-            try (PreparedStatement ps = c.prepareStatement("DELETE FROM source_web WHERE id = ?")) {
-                ps.setObject(1, source.id());
-                return ps.executeUpdate() == 1;
+        return base.executer(new Contexte(compteId, null, source.espaceId()), connexion -> {
+            try (PreparedStatement requete = connexion.prepareStatement("DELETE FROM source_web WHERE id = ?")) {
+                requete.setObject(1, source.id());
+                return requete.executeUpdate() == 1;
             }
         });
     }
@@ -179,35 +179,35 @@ public class SourcesWeb {
                 "Nombre maximal de sources personnelles atteint (" + sourcesPersonnellesMax + ").");
     }
 
-    private static long compterPersonnelles(Connection c) throws SQLException {
-        try (PreparedStatement ps = c.prepareStatement(
+    private static long compterPersonnelles(Connection connexion) throws SQLException {
+        try (PreparedStatement requete = connexion.prepareStatement(
                 "SELECT count(*) FROM source_web WHERE portee = 'PERSONNELLE' AND proprietaire_id = argos_compte_courant()");
-                ResultSet rs = ps.executeQuery()) {
-            rs.next();
-            return rs.getLong(1);
+                ResultSet resultat = requete.executeQuery()) {
+            resultat.next();
+            return resultat.getLong(1);
         }
     }
 
-    static Demande valider(Demande d) {
-        if (d == null) {
+    static Demande valider(Demande demande) {
+        if (demande == null) {
             throw new DonneeInvalide("DONNEE_INVALIDE", "Demande vide.", "adresse");
         }
-        String portee = d.portee() == null ? "" : d.portee().strip().toUpperCase(Locale.ROOT);
+        String portee = demande.portee() == null ? "" : demande.portee().strip().toUpperCase(Locale.ROOT);
         if (!portee.equals(SourceWeb.ESPACE) && !portee.equals(SourceWeb.PERSONNELLE)) {
             throw new DonneeInvalide("DONNEE_INVALIDE", "Portée attendue : ESPACE ou PERSONNELLE.", "portee");
         }
-        if (portee.equals(SourceWeb.ESPACE) && d.espaceId() == null) {
+        if (portee.equals(SourceWeb.ESPACE) && demande.espaceId() == null) {
             throw new DonneeInvalide("DONNEE_INVALIDE", "Espace obligatoire pour une source d'espace.", "espaceId");
         }
-        if (portee.equals(SourceWeb.PERSONNELLE) && d.espaceId() != null) {
+        if (portee.equals(SourceWeb.PERSONNELLE) && demande.espaceId() != null) {
             throw new DonneeInvalide("DONNEE_INVALIDE", "Une source personnelle n'a pas d'espace.", "espaceId");
         }
-        String type = d.type() == null ? SourceWeb.FLUX : d.type().strip().toUpperCase(Locale.ROOT);
+        String type = demande.type() == null ? SourceWeb.FLUX : demande.type().strip().toUpperCase(Locale.ROOT);
         if (!type.equals(SourceWeb.FLUX) && !type.equals(SourceWeb.PAGE)) {
             throw new DonneeInvalide("DONNEE_INVALIDE", "Type attendu : FLUX ou PAGE.", "type");
         }
-        String libelle = d.libelle() == null || d.libelle().isBlank() ? null : d.libelle().strip();
-        return new Demande(portee, d.espaceId(), type, d.adresse(), libelle);
+        String libelle = demande.libelle() == null || demande.libelle().isBlank() ? null : demande.libelle().strip();
+        return new Demande(portee, demande.espaceId(), type, demande.adresse(), libelle);
     }
 
     /**
@@ -218,30 +218,30 @@ public class SourcesWeb {
         return Deduplication.adresse(GardeAdresses.analyser(adresse).toString());
     }
 
-    private static List<SourceWeb> lire(Connection c, String sql, Object... parametres) throws SQLException {
+    private static List<SourceWeb> lire(Connection connexion, String sql, Object... parametres) throws SQLException {
         List<SourceWeb> sources = new ArrayList<>();
-        try (PreparedStatement ps = c.prepareStatement(sql)) {
-            for (int i = 0; i < parametres.length; i++) {
-                ps.setObject(i + 1, parametres[i]);
+        try (PreparedStatement requete = connexion.prepareStatement(sql)) {
+            for (int indice = 0; indice < parametres.length; indice++) {
+                requete.setObject(indice + 1, parametres[indice]);
             }
-            try (ResultSet rs = ps.executeQuery()) {
-                while (rs.next()) {
-                    sources.add(new SourceWeb(rs.getObject(1, UUID.class), rs.getString(2), rs.getObject(3, UUID.class),
-                            rs.getObject(4, UUID.class), rs.getString(5), rs.getString(6), rs.getString(7),
-                            rs.getString(8), rs.getInt(9), rs.getString(10), instant(rs, 11), instant(rs, 12),
-                            instant(rs, 13), instant(rs, 14)));
+            try (ResultSet resultat = requete.executeQuery()) {
+                while (resultat.next()) {
+                    sources.add(new SourceWeb(resultat.getObject(1, UUID.class), resultat.getString(2), resultat.getObject(3, UUID.class),
+                            resultat.getObject(4, UUID.class), resultat.getString(5), resultat.getString(6), resultat.getString(7),
+                            resultat.getString(8), resultat.getInt(9), resultat.getString(10), instant(resultat, 11), instant(resultat, 12),
+                            instant(resultat, 13), instant(resultat, 14)));
                 }
             }
         }
         return sources;
     }
 
-    private static Instant instant(ResultSet rs, int colonne) throws SQLException {
-        OffsetDateTime v = rs.getObject(colonne, OffsetDateTime.class);
-        return v == null ? null : v.toInstant();
+    private static Instant instant(ResultSet resultat, int colonne) throws SQLException {
+        OffsetDateTime valeur = resultat.getObject(colonne, OffsetDateTime.class);
+        return valeur == null ? null : valeur.toInstant();
     }
 
-    private static String couper(String v, int max) {
-        return v == null || v.length() <= max ? v : v.substring(0, max);
+    private static String couper(String valeur, int max) {
+        return valeur == null || valeur.length() <= max ? valeur : valeur.substring(0, max);
     }
 }

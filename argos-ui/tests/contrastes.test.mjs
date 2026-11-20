@@ -65,8 +65,9 @@ test('AFF-05-S1 : un couple sous le seuil est signalé, un jeton inconnu est ref
 for (const [id, palette] of Object.entries(PALETTES)) {
   test(`${id} : chaque couple déclaré atteint le seuil AA`, () => {
     const ecarts = controlerPalette(palette.COULEURS, palette.PAIRES)
-      .filter((r) => !r.conforme)
-      .map((r) => `${r.paire.premierPlan} sur ${r.paire.fond} (${r.paire.role}) : ${arrondiInferieur(r.rapport)}:1 < ${r.seuil}:1`)
+      .filter((resultat) => !resultat.conforme)
+      .map((resultat) => `${resultat.paire.premierPlan} sur ${resultat.paire.fond} (${resultat.paire.role}) : `
+        + `${arrondiInferieur(resultat.rapport)}:1 < ${resultat.seuil}:1`)
     assert.deepEqual(ecarts, [])
   })
 
@@ -78,7 +79,8 @@ for (const [id, palette] of Object.entries(PALETTES)) {
     const COULEUR_NOMMEE = /:[^;{}]*?(?<![\w-])(white|black|red|blue|green|gray|grey|yellow|orange|purple|pink|brown)(?![\w-])/i
     assert.doesNotMatch(sansCommentaires, COULEUR_NOMMEE, 'couleur nommée en dur')
     const jetons = new Set(Object.keys(palette.COULEURS))
-    const inconnus = [...sansCommentaires.matchAll(/var\(--([\w-]+)\)/g)].map((m) => m[1]).filter((n) => !jetons.has(n))
+    const inconnus = [...sansCommentaires.matchAll(/var\(--([\w-]+)\)/g)].map((correspondance) => correspondance[1])
+      .filter((nom) => !jetons.has(nom))
     assert.deepEqual(inconnus, [], 'variable absente de la palette')
     for (const valeur of Object.values(palette.COULEURS)) {
       assert.match(valeur, /^#([0-9a-f]{3}|[0-9a-f]{6}|[0-9a-f]{8})$/i)
@@ -87,9 +89,10 @@ for (const [id, palette] of Object.entries(PALETTES)) {
 
   test(`${id} : chaque jeton de premier plan ou de fond employé en texte figure dans un couple contrôlé`, () => {
     const css = style(id)
-    const couverts = new Set([...palette.PAIRES.flatMap((p) => [p.premierPlan, p.fond]), ...(palette.FONDS_SANS_TEXTE ?? [])])
-    const employes = [...css.matchAll(/(?:^|[\s;{])(?:color|background(?:-color)?)\s*:\s*var\(--([\w-]+)\)/gm)].map((m) => m[1])
-    assert.deepEqual([...new Set(employes)].filter((j) => !couverts.has(j)), [])
+    const couverts = new Set([...palette.PAIRES.flatMap((paire) => [paire.premierPlan, paire.fond]), ...(palette.FONDS_SANS_TEXTE ?? [])])
+    const employes = [...css.matchAll(/(?:^|[\s;{])(?:color|background(?:-color)?)\s*:\s*var\(--([\w-]+)\)/gm)]
+      .map((correspondance) => correspondance[1])
+    assert.deepEqual([...new Set(employes)].filter((jeton) => !couverts.has(jeton)), [])
   })
 
   test(`${id} : animations et transitions seulement sans préférence de mouvement réduit (RGAA 13.8)`, () => {
@@ -101,6 +104,6 @@ for (const [id, palette] of Object.entries(PALETTES)) {
 
   test(`${id} : contour de focus visible sur les liens`, () => {
     assert.match(style(id), /:deep\(a:focus-visible\)\s*\{[^}]*outline:\s*3px solid var\(--focus\)/)
-    assert.ok(palette.PAIRES.some((p) => p.premierPlan === 'focus' && p.usage === 'composant'))
+    assert.ok(palette.PAIRES.some((paire) => paire.premierPlan === 'focus' && paire.usage === 'composant'))
   })
 }

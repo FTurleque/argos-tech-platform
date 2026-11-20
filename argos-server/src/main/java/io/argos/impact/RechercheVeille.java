@@ -123,42 +123,42 @@ public class RechercheVeille {
 
     @Transactional
     public Resultats rechercher(Criteres criteres, UUID compteId, Set<UUID> espaces, int page, int taille) {
-        int p = Math.max(page, 0);
-        int t = Math.min(Math.max(taille, 1), TAILLE_MAX);
+        int pageBornee = Math.max(page, 0);
+        int tailleBornee = Math.min(Math.max(taille, 1), TAILLE_MAX);
         if (criteres.types() != null && criteres.types().isEmpty()) {
-            return new Resultats(List.of(), p, t, 0, AUCUN_RESULTAT);
+            return new Resultats(List.of(), pageBornee, tailleBornee, 0, AUCUN_RESULTAT);
         }
-        try (Connection c = dataSource.getConnection()) {
-            RlsSession.account(c, compteId);
+        try (Connection connexion = dataSource.getConnection()) {
+            RlsSession.account(connexion, compteId);
             List<Candidat> candidats = new ArrayList<>();
             long total = 0;
             // Sélection matérialisée une fois : le total la compte, la page en garde les meilleurs (tri partiel).
-            try (PreparedStatement ps = c.prepareStatement("WITH r AS MATERIALIZED (SELECT * " + selection() + ")"
+            try (PreparedStatement requete = connexion.prepareStatement("WITH r AS MATERIALIZED (SELECT * " + selection() + ")"
                     + " SELECT r.type, r.id, r.rang, (SELECT count(*) FROM r) FROM r"
                     + " ORDER BY r.rang DESC, r.date_ref DESC NULLS LAST, r.id LIMIT ? OFFSET ?")) {
-                int n = parametres(c, ps, criteres);
-                ps.setInt(n, t);
-                ps.setLong(n + 1, (long) p * t);
-                try (ResultSet rs = ps.executeQuery()) {
-                    while (rs.next()) {
-                        candidats.add(new Candidat(rs.getString(1), rs.getObject(2, UUID.class), rs.getDouble(3)));
-                        total = rs.getLong(4);
+                int positionSuivante = parametres(connexion, requete, criteres);
+                requete.setInt(positionSuivante, tailleBornee);
+                requete.setLong(positionSuivante + 1, (long) pageBornee * tailleBornee);
+                try (ResultSet resultat = requete.executeQuery()) {
+                    while (resultat.next()) {
+                        candidats.add(new Candidat(resultat.getString(1), resultat.getObject(2, UUID.class), resultat.getDouble(3)));
+                        total = resultat.getLong(4);
                     }
                 }
             }
-            if (candidats.isEmpty() && p > 0) {
-                try (PreparedStatement ps = c.prepareStatement("SELECT count(*) " + selection())) {
-                    parametres(c, ps, criteres);
-                    try (ResultSet rs = ps.executeQuery()) {
-                        rs.next();
-                        total = rs.getLong(1);
+            if (candidats.isEmpty() && pageBornee > 0) {
+                try (PreparedStatement requete = connexion.prepareStatement("SELECT count(*) " + selection())) {
+                    parametres(connexion, requete, criteres);
+                    try (ResultSet resultat = requete.executeQuery()) {
+                        resultat.next();
+                        total = resultat.getLong(1);
                     }
                 }
             }
-            List<Element> elements = restituer(c, candidats, espaces);
-            return new Resultats(elements, p, t, total, total == 0 ? AUCUN_RESULTAT : null);
-        } catch (SQLException e) {
-            throw new IllegalStateException("recherche de veille impossible", e);
+            List<Element> elements = restituer(connexion, candidats, espaces);
+            return new Resultats(elements, pageBornee, tailleBornee, total, total == 0 ? AUCUN_RESULTAT : null);
+        } catch (SQLException erreur) {
+            throw new IllegalStateException("recherche de veille impossible", erreur);
         }
     }
 
@@ -170,108 +170,109 @@ public class RechercheVeille {
     }
 
     /** Lie les critères aux dix paramètres de la sélection ; renvoie l'indice du paramètre suivant. */
-    private static int parametres(Connection c, PreparedStatement ps, Criteres k) throws SQLException {
-        ps.setString(1, vide(k.texte()) ? null : k.texte().strip());
-        if (k.depuis() == null) {
-            ps.setNull(2, Types.TIMESTAMP_WITH_TIMEZONE);
+    private static int parametres(Connection connexion, PreparedStatement requete, Criteres criteres) throws SQLException {
+        requete.setString(1, vide(criteres.texte()) ? null : criteres.texte().strip());
+        if (criteres.depuis() == null) {
+            requete.setNull(2, Types.TIMESTAMP_WITH_TIMEZONE);
         } else {
-            ps.setTimestamp(2, Timestamp.from(k.depuis()));
+            requete.setTimestamp(2, Timestamp.from(criteres.depuis()));
         }
-        tableau(c, ps, 3, "varchar", k.types());
-        tableau(c, ps, 4, "uuid", k.projets());
-        Set<String> technologies = minuscules(k.technologies());
+        tableau(connexion, requete, 3, "varchar", criteres.types());
+        tableau(connexion, requete, 4, "uuid", criteres.projets());
+        Set<String> technologies = minuscules(criteres.technologies());
         if (technologies.isEmpty()) {
-            ps.setString(5, null);
-            tableau(c, ps, 6, "varchar", null);
-            tableau(c, ps, 7, "varchar", null);
+            requete.setString(5, null);
+            tableau(connexion, requete, 6, "varchar", null);
+            tableau(connexion, requete, 7, "varchar", null);
         } else {
-            ps.setString(5, String.join(" or ", technologies.stream()
+            requete.setString(5, String.join(" or ", technologies.stream()
                     .map(tech -> "\"" + tech.replace("\"", " ") + "\"").toList()));
             Set<String> termes = new LinkedHashSet<>();
             Set<String> ecosystemes = new LinkedHashSet<>();
             for (String tech : technologies) {
                 termes.addAll(SignalQueries.technologyTerms(tech));
-                SignalQueries.ecosystemsOf(tech).forEach(e -> ecosystemes.add(e.toLowerCase(Locale.ROOT)));
+                SignalQueries.ecosystemsOf(tech).forEach(ecosysteme -> ecosystemes.add(ecosysteme.toLowerCase(Locale.ROOT)));
             }
-            tableau(c, ps, 6, "varchar", termes);
-            tableau(c, ps, 7, "varchar", ecosystemes);
+            tableau(connexion, requete, 6, "varchar", termes);
+            tableau(connexion, requete, 7, "varchar", ecosystemes);
         }
-        tableau(c, ps, 8, "varchar", k.gravites());
-        tableau(c, ps, 9, "varchar", k.paquets());
-        tableau(c, ps, 10, "varchar", k.sources());
+        tableau(connexion, requete, 8, "varchar", criteres.gravites());
+        tableau(connexion, requete, 9, "varchar", criteres.paquets());
+        tableau(connexion, requete, 10, "varchar", criteres.sources());
         return 11;
     }
 
     /** Relit sous la RLS les éléments de la page, dans l'ordre de pertinence, avec leurs projets visibles. */
-    private static List<Element> restituer(Connection c, List<Candidat> candidats, Set<UUID> espaces) throws SQLException {
-        List<UUID> signaux = candidats.stream().filter(k -> AVIS_SECURITE.equals(k.type())).map(Candidat::id).toList();
-        List<UUID> actualites = candidats.stream().filter(k -> !AVIS_SECURITE.equals(k.type())).map(Candidat::id).toList();
+    private static List<Element> restituer(Connection connexion, List<Candidat> candidats, Set<UUID> espaces) throws SQLException {
+        List<UUID> signaux = candidats.stream().filter(candidat -> AVIS_SECURITE.equals(candidat.type())).map(Candidat::id).toList();
+        List<UUID> actualites = candidats.stream().filter(candidat -> !AVIS_SECURITE.equals(candidat.type())).map(Candidat::id).toList();
         Map<UUID, Element> lus = new HashMap<>();
         Map<UUID, List<ProjetVise>> projets = new HashMap<>();
         if (!signaux.isEmpty()) {
-            projets.putAll(projets(c, """
+            projets.putAll(projets(connexion, """
                     SELECT DISTINCT i.signal_id, p.id, p.name FROM project_impact i JOIN project p ON p.id = i.project_id
                     WHERE i.signal_id = ANY (?) AND i.workspace_id = ANY (?) ORDER BY p.name, p.id
                     """, signaux, espaces));
-            try (PreparedStatement ps = c.prepareStatement("""
+            try (PreparedStatement requete = connexion.prepareStatement("""
                     SELECT id, source, external_id, title, left(summary, ?), severity, coalesce(published_at, modified_at)
                     FROM signal WHERE id = ANY (?)
                     """)) {
-                ps.setInt(1, EXTRAIT_MAX);
-                ps.setArray(2, c.createArrayOf("uuid", signaux.toArray()));
-                try (ResultSet rs = ps.executeQuery()) {
-                    while (rs.next()) {
-                        UUID id = rs.getObject(1, UUID.class);
-                        lus.put(id, new Element(AVIS_SECURITE, id, rs.getString(2), rs.getString(3), rs.getString(4),
-                                rs.getString(5), rs.getString(6), instant(rs, 7), null, 0, List.of()));
+                requete.setInt(1, EXTRAIT_MAX);
+                requete.setArray(2, connexion.createArrayOf("uuid", signaux.toArray()));
+                try (ResultSet resultat = requete.executeQuery()) {
+                    while (resultat.next()) {
+                        UUID id = resultat.getObject(1, UUID.class);
+                        lus.put(id, new Element(AVIS_SECURITE, id, resultat.getString(2), resultat.getString(3), resultat.getString(4),
+                                resultat.getString(5), resultat.getString(6), instant(resultat, 7), null, 0, List.of()));
                     }
                 }
             }
         }
         if (!actualites.isEmpty()) {
-            projets.putAll(projets(c, """
+            projets.putAll(projets(connexion, """
                     SELECT DISTINCT ai.actualite_id, p.id, p.name FROM actualite_impact ai JOIN project p ON p.id = ai.project_id
                     WHERE ai.actualite_id = ANY (?) AND ai.workspace_id = ANY (?) ORDER BY p.name, p.id
                     """, actualites, espaces));
             // Lecture sous la RLS : une actualité que l'appelant ne voit pas n'est pas restituée.
-            try (PreparedStatement ps = c.prepareStatement("""
+            try (PreparedStatement requete = connexion.prepareStatement("""
                     SELECT id, type, titre, left(texte, ?), lien, coalesce(publie_le, recu_le) FROM actualite WHERE id = ANY (?)
                     """)) {
-                ps.setInt(1, EXTRAIT_MAX);
-                ps.setArray(2, c.createArrayOf("uuid", actualites.toArray()));
-                try (ResultSet rs = ps.executeQuery()) {
-                    while (rs.next()) {
-                        UUID id = rs.getObject(1, UUID.class);
-                        lus.put(id, new Element(rs.getString(2), id, "WEB", null, rs.getString(3), rs.getString(4), null,
-                                instant(rs, 6), lienSur(rs.getString(5)), 0, List.of()));
+                requete.setInt(1, EXTRAIT_MAX);
+                requete.setArray(2, connexion.createArrayOf("uuid", actualites.toArray()));
+                try (ResultSet resultat = requete.executeQuery()) {
+                    while (resultat.next()) {
+                        UUID id = resultat.getObject(1, UUID.class);
+                        lus.put(id, new Element(resultat.getString(2), id, "WEB", null, resultat.getString(3), resultat.getString(4), null,
+                                instant(resultat, 6), lienSur(resultat.getString(5)), 0, List.of()));
                     }
                 }
             }
         }
         List<Element> elements = new ArrayList<>();
-        for (Candidat k : candidats) {
-            Element e = lus.get(k.id());
-            if (e != null) {
-                elements.add(new Element(e.type(), e.id(), e.source(), e.identifiant(), e.titre(), e.extrait(),
-                        e.gravite(), e.date(), e.lien(), k.rang(), projets.getOrDefault(k.id(), List.of())));
+        for (Candidat candidat : candidats) {
+            Element element = lus.get(candidat.id());
+            if (element != null) {
+                elements.add(new Element(element.type(), element.id(), element.source(), element.identifiant(), element.titre(),
+                        element.extrait(), element.gravite(), element.date(), element.lien(), candidat.rang(),
+                        projets.getOrDefault(candidat.id(), List.of())));
             }
         }
         return elements;
     }
 
-    private static Map<UUID, List<ProjetVise>> projets(Connection c, String sql, List<UUID> ids, Set<UUID> espaces)
+    private static Map<UUID, List<ProjetVise>> projets(Connection connexion, String sql, List<UUID> ids, Set<UUID> espaces)
             throws SQLException {
         Map<UUID, List<ProjetVise>> projets = new LinkedHashMap<>();
         if (espaces.isEmpty()) {
             return projets;
         }
-        try (PreparedStatement ps = c.prepareStatement(sql)) {
-            ps.setArray(1, c.createArrayOf("uuid", ids.toArray()));
-            ps.setArray(2, c.createArrayOf("uuid", espaces.toArray()));
-            try (ResultSet rs = ps.executeQuery()) {
-                while (rs.next()) {
-                    projets.computeIfAbsent(rs.getObject(1, UUID.class), k -> new ArrayList<>())
-                            .add(new ProjetVise(rs.getObject(2, UUID.class), rs.getString(3)));
+        try (PreparedStatement requete = connexion.prepareStatement(sql)) {
+            requete.setArray(1, connexion.createArrayOf("uuid", ids.toArray()));
+            requete.setArray(2, connexion.createArrayOf("uuid", espaces.toArray()));
+            try (ResultSet resultat = requete.executeQuery()) {
+                while (resultat.next()) {
+                    projets.computeIfAbsent(resultat.getObject(1, UUID.class), cle -> new ArrayList<>())
+                            .add(new ProjetVise(resultat.getObject(2, UUID.class), resultat.getString(3)));
                 }
             }
         }
@@ -283,34 +284,34 @@ public class RechercheVeille {
         return lien != null && LIEN_HTTP.matcher(lien.strip()).matches() ? lien.strip() : null;
     }
 
-    private static void tableau(Connection c, PreparedStatement ps, int indice, String type, Collection<?> valeurs)
+    private static void tableau(Connection connexion, PreparedStatement requete, int indice, String type, Collection<?> valeurs)
             throws SQLException {
         if (valeurs == null || valeurs.isEmpty()) {
-            ps.setNull(indice, Types.ARRAY);
+            requete.setNull(indice, Types.ARRAY);
         } else {
-            Array a = c.createArrayOf(type, valeurs.toArray());
-            ps.setArray(indice, a);
+            Array tableau = connexion.createArrayOf(type, valeurs.toArray());
+            requete.setArray(indice, tableau);
         }
     }
 
     private static Set<String> minuscules(Set<String> valeurs) {
         Set<String> resultat = new LinkedHashSet<>();
         if (valeurs != null) {
-            for (String v : valeurs) {
-                if (!vide(v)) {
-                    resultat.add(v.strip().toLowerCase(Locale.ROOT));
+            for (String valeur : valeurs) {
+                if (!vide(valeur)) {
+                    resultat.add(valeur.strip().toLowerCase(Locale.ROOT));
                 }
             }
         }
         return resultat;
     }
 
-    private static boolean vide(String s) {
-        return s == null || s.isBlank();
+    private static boolean vide(String texte) {
+        return texte == null || texte.isBlank();
     }
 
-    private static Instant instant(ResultSet rs, int column) throws SQLException {
-        OffsetDateTime value = rs.getObject(column, OffsetDateTime.class);
+    private static Instant instant(ResultSet resultat, int column) throws SQLException {
+        OffsetDateTime value = resultat.getObject(column, OffsetDateTime.class);
         return value == null ? null : value.toInstant();
     }
 }

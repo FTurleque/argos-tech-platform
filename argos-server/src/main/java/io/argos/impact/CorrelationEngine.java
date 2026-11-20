@@ -93,16 +93,16 @@ public class CorrelationEngine {
     void onSignalChanged(@Observes(during = TransactionPhase.AFTER_SUCCESS) SignalChanged event) {
         try {
             correlate(event.signalId(), Optional.empty());
-        } catch (RuntimeException e) {
-            LOG.errorf(e, "corrélation du signal %s en échec", event.signalId());
+        } catch (RuntimeException erreur) {
+            LOG.errorf(erreur, "corrélation du signal %s en échec", event.signalId());
         }
     }
 
     void onInventoryReplaced(@Observes(during = TransactionPhase.AFTER_SUCCESS) InventoryReplaced event) {
         try {
             correlateProject(event.projectId());
-        } catch (RuntimeException e) {
-            LOG.errorf(e, "corrélation du projet %s en échec", event.projectId());
+        } catch (RuntimeException erreur) {
+            LOG.errorf(erreur, "corrélation du projet %s en échec", event.projectId());
         }
     }
 
@@ -138,34 +138,34 @@ public class CorrelationEngine {
 
     /** Corrèle un signal avec tous les projets, ou avec un seul projet. */
     public CorrelationReport correlate(UUID signalId, Optional<UUID> projectId) {
-        Deterministic d = QuarkusTransaction.requiringNew().call(() -> deterministic(signalId, projectId));
-        publish(d.recorded());
-        if (d.resolved() > 0) {
+        Deterministic outcome = QuarkusTransaction.requiringNew().call(() -> deterministic(signalId, projectId));
+        publish(outcome.recorded());
+        if (outcome.resolved() > 0) {
             try {
                 impactsTraites.fire(new ImpactsTraites(signalId));
-            } catch (RuntimeException e) {
-                LOG.errorf(e, "publication des impacts résolus du signal %s en échec", signalId);
+            } catch (RuntimeException erreur) {
+                LOG.errorf(erreur, "publication des impacts résolus du signal %s en échec", signalId);
             }
         }
         String status = "NONE";
         List<ComplementaryAnalysis.Suggestion> suggestions = List.of();
         if (analysis.isResolvable()) {
-            ComplementaryAnalysis a = analysis.get();
-            if (!a.budgetAvailable()) {
+            ComplementaryAnalysis complementary = analysis.get();
+            if (!complementary.budgetAvailable()) {
                 status = "BUDGET_EXHAUSTED";
             } else {
                 try {
                     // Les suggestions sont informatives : elles ne créent aucun impact (COR-04).
-                    suggestions = List.copyOf(a.analyze(signalId, d.impactIds()));
+                    suggestions = List.copyOf(complementary.analyze(signalId, outcome.impactIds()));
                     status = "DONE";
-                } catch (RuntimeException e) {
+                } catch (RuntimeException erreur) {
                     status = "UNAVAILABLE";
-                    LOG.infof("analyse complémentaire indisponible pour le signal %s : %s", signalId, e.getMessage());
+                    LOG.infof("analyse complémentaire indisponible pour le signal %s : %s", signalId, erreur.getMessage());
                 }
             }
         }
-        return new CorrelationReport(signalId, d.created(), d.updated(), d.resolved(), d.reopened(), d.impactIds(),
-                status, suggestions);
+        return new CorrelationReport(signalId, outcome.created(), outcome.updated(), outcome.resolved(), outcome.reopened(),
+                outcome.impactIds(), status, suggestions);
     }
 
     /**
@@ -178,19 +178,19 @@ public class CorrelationEngine {
         }
         try {
             impactsRecorded.fire(recorded);
-        } catch (RuntimeException e) {
-            LOG.errorf(e, "publication des impacts du signal %s en échec", recorded.signalId());
+        } catch (RuntimeException erreur) {
+            LOG.errorf(erreur, "publication des impacts du signal %s en échec", recorded.signalId());
         }
     }
 
     private List<UUID> signalsWithActiveImpacts(UUID projectId) throws SQLException {
         List<UUID> ids = new ArrayList<>();
-        try (Connection c = dataSource.getConnection(); PreparedStatement ps = c.prepareStatement(
+        try (Connection connexion = dataSource.getConnection(); PreparedStatement requete = connexion.prepareStatement(
                 "SELECT DISTINCT signal_id FROM project_impact WHERE project_id = ? AND state IN ('OUVERT', 'CONFIRME')")) {
-            ps.setObject(1, projectId);
-            try (ResultSet rs = ps.executeQuery()) {
-                while (rs.next()) {
-                    ids.add(rs.getObject(1, UUID.class));
+            requete.setObject(1, projectId);
+            try (ResultSet resultat = requete.executeQuery()) {
+                while (resultat.next()) {
+                    ids.add(resultat.getObject(1, UUID.class));
                 }
             }
         }
@@ -201,8 +201,8 @@ public class CorrelationEngine {
         SignalQueries.SignalView signal = signals.find(signalId)
                 .orElseThrow(() -> new IllegalArgumentException("signal inconnu : " + signalId));
         Map<String, List<AffectedPackage>> byKey = new HashMap<>();
-        for (AffectedPackage a : signal.affected()) {
-            byKey.computeIfAbsent(a.packageKey(), k -> new ArrayList<>()).add(a);
+        for (AffectedPackage affected : signal.affected()) {
+            byKey.computeIfAbsent(affected.packageKey(), key -> new ArrayList<>()).add(affected);
         }
         Instant now = Instant.now();
         int created = 0;
@@ -213,24 +213,24 @@ public class CorrelationEngine {
         // paquet est résolu comme composant retiré, et non comme version hors plage.
         Set<String> stillAffected = new HashSet<>();
         List<ImpactsRecorded.Item> items = new ArrayList<>();
-        try (Connection c = dataSource.getConnection()) {
+        try (Connection connexion = dataSource.getConnection()) {
             // Traitement technique, hors rôle applicatif. Le verrou par signal sérialise une corrélation
             // globale et une corrélation par projet du même signal : la résolution des impacts devenus
             // caducs ne peut pas résoudre un impact validé entre-temps par l'autre traitement.
-            try (PreparedStatement lock = c.prepareStatement("SELECT pg_advisory_xact_lock(hashtext(?))")) {
+            try (PreparedStatement lock = connexion.prepareStatement("SELECT pg_advisory_xact_lock(hashtext(?))")) {
                 lock.setString(1, "project_impact:" + signalId);
                 lock.execute();
             }
-            for (InventoryQueries.ComponentMatch m : inventories.componentsMatching(byKey.keySet(), projectId)) {
-                Optional<Match> best = best(byKey.get(m.packageKey()), m);
+            for (InventoryQueries.ComponentMatch component : inventories.componentsMatching(byKey.keySet(), projectId)) {
+                Optional<Match> best = best(byKey.get(component.packageKey()), component);
                 if (best.isEmpty()) {
                     continue;
                 }
-                stillAffected.add(m.projectId() + " " + m.packageKey());
-                reattach(c, signalId, m);
-                Optional<Precedent> avant = precedent(c, signalId, m);
+                stillAffected.add(component.projectId() + " " + component.packageKey());
+                reattach(connexion, signalId, component);
+                Optional<Precedent> avant = precedent(connexion, signalId, component);
                 UUID id = UUID.randomUUID();
-                try (PreparedStatement ps = c.prepareStatement("""
+                try (PreparedStatement requete = connexion.prepareStatement("""
                         INSERT INTO project_impact(id, signal_id, signal_version_id, project_id, workspace_id, component_id,
                                level, method, transitive, inventory_origin, inventory_date, provenance, created_at, updated_at)
                         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?::jsonb, now(), now())
@@ -241,37 +241,37 @@ public class CorrelationEngine {
                                provenance = excluded.provenance, component_id = excluded.component_id, updated_at = now()
                         RETURNING id, (xmax = 0), state
                         """)) {
-                    ps.setObject(1, id);
-                    ps.setObject(2, signalId);
-                    ps.setObject(3, signal.currentVersionId());
-                    ps.setObject(4, m.projectId());
-                    ps.setObject(5, m.workspaceId());
-                    ps.setObject(6, m.componentId());
-                    ps.setString(7, best.get().level().name());
-                    ps.setString(8, MatchRules.METHOD);
-                    if (m.transitive() == null) {
-                        ps.setNull(9, Types.BOOLEAN);
+                    requete.setObject(1, id);
+                    requete.setObject(2, signalId);
+                    requete.setObject(3, signal.currentVersionId());
+                    requete.setObject(4, component.projectId());
+                    requete.setObject(5, component.workspaceId());
+                    requete.setObject(6, component.componentId());
+                    requete.setString(7, best.get().level().name());
+                    requete.setString(8, MatchRules.METHOD);
+                    if (component.transitive() == null) {
+                        requete.setNull(9, Types.BOOLEAN);
                     } else {
-                        ps.setBoolean(9, m.transitive());
+                        requete.setBoolean(9, component.transitive());
                     }
-                    ps.setString(10, m.inventoryOrigin());
-                    ps.setObject(11, m.inventoryDate() == null ? null : m.inventoryDate().atOffset(ZoneOffset.UTC));
-                    ps.setString(12, provenance(signal, m, best.get()).toString());
-                    try (ResultSet rs = ps.executeQuery()) {
-                        rs.next();
-                        UUID impactId = rs.getObject(1, UUID.class);
-                        EtatImpact etat = EtatImpact.valueOf(rs.getString(3));
-                        boolean change = avant.map(a -> a.reactive() || !a.level().equals(best.get().level().name())
-                                || !a.signalVersionId().equals(signal.currentVersionId())).orElse(true);
+                    requete.setString(10, component.inventoryOrigin());
+                    requete.setObject(11, component.inventoryDate() == null ? null : component.inventoryDate().atOffset(ZoneOffset.UTC));
+                    requete.setString(12, provenance(signal, component, best.get()).toString());
+                    try (ResultSet resultat = requete.executeQuery()) {
+                        resultat.next();
+                        UUID impactId = resultat.getObject(1, UUID.class);
+                        EtatImpact etat = EtatImpact.valueOf(resultat.getString(3));
+                        boolean change = avant.map(precedent -> precedent.reactive() || !precedent.level().equals(best.get().level().name())
+                                || !precedent.signalVersionId().equals(signal.currentVersionId())).orElse(true);
                         kept.add(impactId);
-                        if (rs.getBoolean(2)) {
+                        if (resultat.getBoolean(2)) {
                             created++;
                         } else {
                             updated++;
                         }
                         // Seul un impact résolu par le système redevient ouvert ; une résolution humaine est respectée (J5).
-                        if (etat == EtatImpact.RESOLU && TraitementImpacts.resoluParLeSysteme(c, impactId)
-                                && TraitementImpacts.systeme(c, impactId, m.workspaceId(),
+                        if (etat == EtatImpact.RESOLU && TraitementImpacts.resoluParLeSysteme(connexion, impactId)
+                                && TraitementImpacts.systeme(connexion, impactId, component.workspaceId(),
                                 EtatImpact.RESOLU, EtatImpact.OUVERT, MotifSysteme.DE_NOUVEAU_VERIFIE, now)) {
                             reopened++;
                             etat = EtatImpact.OUVERT;
@@ -282,13 +282,13 @@ public class CorrelationEngine {
                         // précédente), de niveau changé ou porté par une nouvelle version de l'avis est publié : une recorrélation sans changement (import quotidien) ne produit aucune alerte,
                         // notamment au titre d'un abonnement réactivé (ABO-07-S2, [PROPOSITION] PI-4).
                         if (EtatImpact.ACTIFS.contains(etat) && change) {
-                            items.add(new ImpactsRecorded.Item(impactId, m.projectId(), m.workspaceId(),
-                                    best.get().level().name(), m.packageKey()));
+                            items.add(new ImpactsRecorded.Item(impactId, component.projectId(), component.workspaceId(),
+                                    best.get().level().name(), component.packageKey()));
                         }
                     }
                 }
             }
-            int resolved = resolveStale(c, signal, projectId, kept, stillAffected, now);
+            int resolved = resolveStale(connexion, signal, projectId, kept, stillAffected, now);
             return new Deterministic(created, updated, resolved, reopened, List.copyOf(kept), new ImpactsRecorded(signalId,
                     signal.title(), signal.severity(), signal.source(), signal.externalId(), items));
         }
@@ -299,20 +299,21 @@ public class CorrelationEngine {
     }
 
     /** État de l'impact existant pour ce signal, ce projet et ce composant, s'il existe. */
-    private static Optional<Precedent> precedent(Connection c, UUID signalId, InventoryQueries.ComponentMatch m)
+    private static Optional<Precedent> precedent(Connection connexion, UUID signalId, InventoryQueries.ComponentMatch component)
             throws SQLException {
-        try (PreparedStatement ps = c.prepareStatement("""
+        try (PreparedStatement requete = connexion.prepareStatement("""
                 SELECT i.level, i.signal_version_id,
                        EXISTS (SELECT 1 FROM project_impact_transition t WHERE t.impact_id = i.id
                                AND t.to_state IN ('OUVERT', 'CONFIRME') AND t.occurred_at > i.updated_at)
                 FROM project_impact i
                 WHERE i.signal_id = ? AND i.project_id = ? AND i.component_id = ?
                 """)) {
-            ps.setObject(1, signalId);
-            ps.setObject(2, m.projectId());
-            ps.setObject(3, m.componentId());
-            try (ResultSet rs = ps.executeQuery()) {
-                return rs.next() ? Optional.of(new Precedent(rs.getString(1), rs.getObject(2, UUID.class), rs.getBoolean(3)))
+            requete.setObject(1, signalId);
+            requete.setObject(2, component.projectId());
+            requete.setObject(3, component.componentId());
+            try (ResultSet resultat = requete.executeQuery()) {
+                return resultat.next() ? Optional.of(new Precedent(resultat.getString(1), resultat.getObject(2, UUID.class),
+                        resultat.getBoolean(3)))
                         : Optional.empty();
             }
         }
@@ -323,8 +324,8 @@ public class CorrelationEngine {
      * version avant son retrait (composant nul), s'il n'existe pas déjà d'impact pour ce composant : l'upsert qui suit
      * met alors à jour cet impact, avec son historique, au lieu d'en créer un second.
      */
-    private static void reattach(Connection c, UUID signalId, InventoryQueries.ComponentMatch m) throws SQLException {
-        try (PreparedStatement ps = c.prepareStatement("""
+    private static void reattach(Connection connexion, UUID signalId, InventoryQueries.ComponentMatch component) throws SQLException {
+        try (PreparedStatement requete = connexion.prepareStatement("""
                 UPDATE project_impact SET component_id = ?, updated_at = now()
                 WHERE id = (SELECT i.id FROM project_impact i
                             WHERE i.signal_id = ? AND i.project_id = ? AND i.component_id IS NULL AND i.package_key = ?
@@ -333,15 +334,15 @@ public class CorrelationEngine {
                   AND NOT EXISTS (SELECT 1 FROM project_impact j
                                   WHERE j.signal_id = ? AND j.project_id = ? AND j.component_id = ?)
                 """)) {
-            ps.setObject(1, m.componentId());
-            ps.setObject(2, signalId);
-            ps.setObject(3, m.projectId());
-            ps.setString(4, m.packageKey());
-            ps.setString(5, m.version());
-            ps.setObject(6, signalId);
-            ps.setObject(7, m.projectId());
-            ps.setObject(8, m.componentId());
-            ps.executeUpdate();
+            requete.setObject(1, component.componentId());
+            requete.setObject(2, signalId);
+            requete.setObject(3, component.projectId());
+            requete.setString(4, component.packageKey());
+            requete.setString(5, component.version());
+            requete.setObject(6, signalId);
+            requete.setObject(7, component.projectId());
+            requete.setObject(8, component.componentId());
+            requete.executeUpdate();
         }
     }
 
@@ -349,57 +350,58 @@ public class CorrelationEngine {
      * Résout les impacts ouverts ou confirmés du signal (et du projet donné) qui ne sont plus vérifiés, avec le motif
      * qui l'explique (COR-11). Les impacts écartés et déjà résolus ne sont pas touchés.
      */
-    private int resolveStale(Connection c, SignalQueries.SignalView signal, Optional<UUID> projectId, List<UUID> kept,
+    private int resolveStale(Connection connexion, SignalQueries.SignalView signal, Optional<UUID> projectId, List<UUID> kept,
             Set<String> stillAffected, Instant now) throws SQLException {
         record Stale(UUID id, UUID workspaceId, UUID projectId, EtatImpact etat, UUID componentId, String packageKey) {
         }
         List<Stale> stale = new ArrayList<>();
-        try (PreparedStatement ps = c.prepareStatement("""
+        try (PreparedStatement requete = connexion.prepareStatement("""
                 SELECT id, workspace_id, project_id, state, component_id, package_key FROM project_impact
                 WHERE signal_id = ? AND (?::uuid IS NULL OR project_id = ?::uuid) AND state IN ('OUVERT', 'CONFIRME')
                   AND NOT (id = ANY (?))
                 ORDER BY id
                 """)) {
-            ps.setObject(1, signal.id());
-            ps.setObject(2, projectId.orElse(null));
-            ps.setObject(3, projectId.orElse(null));
-            ps.setArray(4, c.createArrayOf("uuid", kept.toArray()));
-            try (ResultSet rs = ps.executeQuery()) {
-                while (rs.next()) {
-                    stale.add(new Stale(rs.getObject(1, UUID.class), rs.getObject(2, UUID.class),
-                            rs.getObject(3, UUID.class), EtatImpact.valueOf(rs.getString(4)), rs.getObject(5, UUID.class),
-                            rs.getString(6)));
+            requete.setObject(1, signal.id());
+            requete.setObject(2, projectId.orElse(null));
+            requete.setObject(3, projectId.orElse(null));
+            requete.setArray(4, connexion.createArrayOf("uuid", kept.toArray()));
+            try (ResultSet resultat = requete.executeQuery()) {
+                while (resultat.next()) {
+                    stale.add(new Stale(resultat.getObject(1, UUID.class), resultat.getObject(2, UUID.class),
+                            resultat.getObject(3, UUID.class), EtatImpact.valueOf(resultat.getString(4)), resultat.getObject(5, UUID.class),
+                            resultat.getString(6)));
                 }
             }
         }
         int resolved = 0;
-        for (Stale s : stale) {
+        for (Stale staleImpact : stale) {
             MotifSysteme motif;
             if (signal.affected().isEmpty()) {
                 // Avis retiré par sa source (OSV « withdrawn ») : il ne déclare plus aucun paquet affecté.
                 motif = MotifSysteme.AVIS_RETIRE;
-            } else if (s.componentId() != null) {
+            } else if (staleImpact.componentId() != null) {
                 motif = MotifSysteme.AVIS_MODIFIE;
-            } else if (!stillAffected.contains(s.projectId() + " " + s.packageKey())
-                    && packagePresent(c, s.projectId(), s.packageKey())) {
+            } else if (!stillAffected.contains(staleImpact.projectId() + " " + staleImpact.packageKey())
+                    && packagePresent(connexion, staleImpact.projectId(), staleImpact.packageKey())) {
                 motif = MotifSysteme.VERSION_HORS_PLAGE;
             } else {
                 motif = MotifSysteme.COMPOSANT_RETIRE;
             }
-            if (TraitementImpacts.systeme(c, s.id(), s.workspaceId(), s.etat(), EtatImpact.RESOLU, motif, now)) {
+            if (TraitementImpacts.systeme(connexion, staleImpact.id(), staleImpact.workspaceId(), staleImpact.etat(),
+                    EtatImpact.RESOLU, motif, now)) {
                 resolved++;
             }
         }
         return resolved;
     }
 
-    private static boolean packagePresent(Connection c, UUID projectId, String packageKey) throws SQLException {
-        try (PreparedStatement ps = c.prepareStatement(
+    private static boolean packagePresent(Connection connexion, UUID projectId, String packageKey) throws SQLException {
+        try (PreparedStatement requete = connexion.prepareStatement(
                 "SELECT 1 FROM component WHERE project_id = ? AND package_key = ? LIMIT 1")) {
-            ps.setObject(1, projectId);
-            ps.setString(2, packageKey);
-            try (ResultSet rs = ps.executeQuery()) {
-                return rs.next();
+            requete.setObject(1, projectId);
+            requete.setString(2, packageKey);
+            try (ResultSet resultat = requete.executeQuery()) {
+                return resultat.next();
             }
         }
     }
@@ -408,33 +410,33 @@ public class CorrelationEngine {
     }
 
     /** Niveau le plus fort parmi les entrées de l'avis pour ce paquet. */
-    private static Optional<Match> best(List<AffectedPackage> candidates, InventoryQueries.ComponentMatch m) {
+    private static Optional<Match> best(List<AffectedPackage> candidates, InventoryQueries.ComponentMatch component) {
         Match best = null;
-        for (AffectedPackage a : candidates) {
-            Optional<MatchRules.Level> level = MatchRules.evaluate(a, m.version(), !m.inventoryObsolete());
+        for (AffectedPackage candidate : candidates) {
+            Optional<MatchRules.Level> level = MatchRules.evaluate(candidate, component.version(), !component.inventoryObsolete());
             if (level.isPresent() && (best == null || level.get().ordinal() < best.level().ordinal())) {
-                best = new Match(level.get(), a);
+                best = new Match(level.get(), candidate);
             }
         }
         return Optional.ofNullable(best);
     }
 
-    private static ObjectNode provenance(SignalQueries.SignalView signal, InventoryQueries.ComponentMatch m, Match match) {
-        ObjectNode p = MAPPER.createObjectNode();
-        p.put("signalSource", signal.source());
-        p.put("signalExternalId", signal.externalId());
-        p.put("signalVersionId", signal.currentVersionId().toString());
-        p.put("packageKey", m.packageKey());
-        p.put("componentPurl", m.purl());
-        p.put("componentVersion", m.version());
-        p.put("declaredPurl", match.affected().declaredPurl());
-        p.set("affectedRanges", MAPPER.valueToTree(match.affected().ranges()));
-        p.set("affectedVersions", MAPPER.valueToTree(match.affected().versions()));
-        p.put("inventoryOrigin", m.inventoryOrigin());
-        p.put("inventoryDate", m.inventoryDate() == null ? null : m.inventoryDate().toString());
-        p.put("inventoryObsolete", m.inventoryObsolete());
-        p.put("method", MatchRules.METHOD);
-        p.put("strategy", MatchRules.STRATEGY);
-        return p;
+    private static ObjectNode provenance(SignalQueries.SignalView signal, InventoryQueries.ComponentMatch component, Match match) {
+        ObjectNode provenance = MAPPER.createObjectNode();
+        provenance.put("signalSource", signal.source());
+        provenance.put("signalExternalId", signal.externalId());
+        provenance.put("signalVersionId", signal.currentVersionId().toString());
+        provenance.put("packageKey", component.packageKey());
+        provenance.put("componentPurl", component.purl());
+        provenance.put("componentVersion", component.version());
+        provenance.put("declaredPurl", match.affected().declaredPurl());
+        provenance.set("affectedRanges", MAPPER.valueToTree(match.affected().ranges()));
+        provenance.set("affectedVersions", MAPPER.valueToTree(match.affected().versions()));
+        provenance.put("inventoryOrigin", component.inventoryOrigin());
+        provenance.put("inventoryDate", component.inventoryDate() == null ? null : component.inventoryDate().toString());
+        provenance.put("inventoryObsolete", component.inventoryObsolete());
+        provenance.put("method", MatchRules.METHOD);
+        provenance.put("strategy", MatchRules.STRATEGY);
+        return provenance;
     }
 }

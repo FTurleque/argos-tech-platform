@@ -37,14 +37,15 @@ class ActiviteStore {
     /** Date de prochaine collecte du projet, absente s'il n'a jamais été collecté. */
     @Transactional
     Optional<Instant> prochaineCollecte(UUID projectId) {
-        try (Connection c = dataSource.getConnection();
-                PreparedStatement ps = c.prepareStatement("SELECT prochaine_collecte FROM activite_collecte WHERE project_id = ?")) {
-            ps.setObject(1, projectId);
-            try (ResultSet rs = ps.executeQuery()) {
-                return rs.next() ? Optional.of(rs.getTimestamp(1).toInstant()) : Optional.empty();
+        try (Connection connexion = dataSource.getConnection();
+                PreparedStatement requete = connexion.prepareStatement(
+                        "SELECT prochaine_collecte FROM activite_collecte WHERE project_id = ?")) {
+            requete.setObject(1, projectId);
+            try (ResultSet resultat = requete.executeQuery()) {
+                return resultat.next() ? Optional.of(resultat.getTimestamp(1).toInstant()) : Optional.empty();
             }
-        } catch (SQLException e) {
-            throw new IllegalStateException("lecture de l'état de collecte impossible", e);
+        } catch (SQLException erreur) {
+            throw new IllegalStateException("lecture de l'état de collecte impossible", erreur);
         }
     }
 
@@ -55,49 +56,49 @@ class ActiviteStore {
     @Transactional
     void enregistrer(UUID projectId, LocalDate debut, LocalDate fin, Map<LocalDate, Map<Agregation.Type, Integer>> compteurs,
             List<ActiviteDepot.Jalon> jalons, boolean complet, Instant maintenant, Instant prochaine) {
-        try (Connection c = dataSource.getConnection()) {
-            try (PreparedStatement ps = c.prepareStatement(
+        try (Connection connexion = dataSource.getConnection()) {
+            try (PreparedStatement requete = connexion.prepareStatement(
                     "DELETE FROM activite_compteur WHERE project_id = ? AND jour BETWEEN ? AND ?")) {
-                ps.setObject(1, projectId);
-                ps.setDate(2, Date.valueOf(debut));
-                ps.setDate(3, Date.valueOf(fin));
-                ps.executeUpdate();
+                requete.setObject(1, projectId);
+                requete.setDate(2, Date.valueOf(debut));
+                requete.setDate(3, Date.valueOf(fin));
+                requete.executeUpdate();
             }
-            try (PreparedStatement ps = c.prepareStatement(
+            try (PreparedStatement requete = connexion.prepareStatement(
                     "INSERT INTO activite_compteur(project_id, jour, type, valeur) VALUES (?, ?, ?, ?)")) {
                 for (Map.Entry<LocalDate, Map<Agregation.Type, Integer>> jour : compteurs.entrySet()) {
                     for (Map.Entry<Agregation.Type, Integer> type : jour.getValue().entrySet()) {
-                        ps.setObject(1, projectId);
-                        ps.setDate(2, Date.valueOf(jour.getKey()));
-                        ps.setString(3, type.getKey().name());
-                        ps.setInt(4, type.getValue());
-                        ps.addBatch();
+                        requete.setObject(1, projectId);
+                        requete.setDate(2, Date.valueOf(jour.getKey()));
+                        requete.setString(3, type.getKey().name());
+                        requete.setInt(4, type.getValue());
+                        requete.addBatch();
                     }
                 }
-                ps.executeBatch();
+                requete.executeBatch();
             }
-            try (PreparedStatement ps = c.prepareStatement("DELETE FROM activite_jalon WHERE project_id = ?")) {
-                ps.setObject(1, projectId);
-                ps.executeUpdate();
+            try (PreparedStatement requete = connexion.prepareStatement("DELETE FROM activite_jalon WHERE project_id = ?")) {
+                requete.setObject(1, projectId);
+                requete.executeUpdate();
             }
-            try (PreparedStatement ps = c.prepareStatement("""
+            try (PreparedStatement requete = connexion.prepareStatement("""
                     INSERT INTO activite_jalon(project_id, reference, titre, etat, echeance, tickets_fermes, tickets_total, releve_le)
                     VALUES (?, ?, ?, ?, ?, ?, ?, ?) ON CONFLICT (project_id, reference) DO NOTHING
                     """)) {
-                for (ActiviteDepot.Jalon j : jalons) {
-                    ps.setObject(1, projectId);
-                    ps.setString(2, j.reference());
-                    ps.setString(3, j.titre());
-                    ps.setString(4, j.ouvert() ? "OUVERT" : "FERME");
-                    ps.setDate(5, j.echeance() == null ? null : Date.valueOf(j.echeance()));
-                    ps.setInt(6, j.ticketsFermes());
-                    ps.setInt(7, j.ticketsTotal());
-                    ps.setTimestamp(8, Timestamp.from(maintenant));
-                    ps.addBatch();
+                for (ActiviteDepot.Jalon jalon : jalons) {
+                    requete.setObject(1, projectId);
+                    requete.setString(2, jalon.reference());
+                    requete.setString(3, jalon.titre());
+                    requete.setString(4, jalon.ouvert() ? "OUVERT" : "FERME");
+                    requete.setDate(5, jalon.echeance() == null ? null : Date.valueOf(jalon.echeance()));
+                    requete.setInt(6, jalon.ticketsFermes());
+                    requete.setInt(7, jalon.ticketsTotal());
+                    requete.setTimestamp(8, Timestamp.from(maintenant));
+                    requete.addBatch();
                 }
-                ps.executeBatch();
+                requete.executeBatch();
             }
-            try (PreparedStatement ps = c.prepareStatement("""
+            try (PreparedStatement requete = connexion.prepareStatement("""
                     INSERT INTO activite_collecte(project_id, etat, derniere_mise_a_jour, prochaine_collecte, complet,
                                                   donnees_depuis, motif, tentee_le)
                     VALUES (?, 'A_JOUR', ?, ?, ?, ?, NULL, ?)
@@ -107,16 +108,16 @@ class ActiviteStore {
                         donnees_depuis = LEAST(activite_collecte.donnees_depuis, excluded.donnees_depuis),
                         motif = NULL, tentee_le = excluded.tentee_le
                     """)) {
-                ps.setObject(1, projectId);
-                ps.setTimestamp(2, Timestamp.from(maintenant));
-                ps.setTimestamp(3, Timestamp.from(prochaine));
-                ps.setBoolean(4, complet);
-                ps.setDate(5, Date.valueOf(debut));
-                ps.setTimestamp(6, Timestamp.from(maintenant));
-                ps.executeUpdate();
+                requete.setObject(1, projectId);
+                requete.setTimestamp(2, Timestamp.from(maintenant));
+                requete.setTimestamp(3, Timestamp.from(prochaine));
+                requete.setBoolean(4, complet);
+                requete.setDate(5, Date.valueOf(debut));
+                requete.setTimestamp(6, Timestamp.from(maintenant));
+                requete.executeUpdate();
             }
-        } catch (SQLException e) {
-            throw new IllegalStateException("enregistrement de l'activité impossible", e);
+        } catch (SQLException erreur) {
+            throw new IllegalStateException("enregistrement de l'activité impossible", erreur);
         }
     }
 
@@ -126,21 +127,21 @@ class ActiviteStore {
      */
     @Transactional
     void reporter(UUID projectId, String etat, Instant prochaine, String motif, Instant maintenant) {
-        try (Connection c = dataSource.getConnection(); PreparedStatement ps = c.prepareStatement("""
+        try (Connection connexion = dataSource.getConnection(); PreparedStatement requete = connexion.prepareStatement("""
                 INSERT INTO activite_collecte(project_id, etat, derniere_mise_a_jour, prochaine_collecte, complet,
                                               donnees_depuis, motif, tentee_le)
                 VALUES (?, ?, NULL, ?, true, NULL, ?, ?)
                 ON CONFLICT (project_id) DO UPDATE SET etat = excluded.etat,
                     prochaine_collecte = excluded.prochaine_collecte, motif = excluded.motif, tentee_le = excluded.tentee_le
                 """)) {
-            ps.setObject(1, projectId);
-            ps.setString(2, etat);
-            ps.setTimestamp(3, Timestamp.from(prochaine));
-            ps.setString(4, motif == null ? null : motif.length() > MOTIF_MAX ? motif.substring(0, MOTIF_MAX) : motif);
-            ps.setTimestamp(5, Timestamp.from(maintenant));
-            ps.executeUpdate();
-        } catch (SQLException e) {
-            throw new IllegalStateException("report de la collecte impossible", e);
+            requete.setObject(1, projectId);
+            requete.setString(2, etat);
+            requete.setTimestamp(3, Timestamp.from(prochaine));
+            requete.setString(4, motif == null ? null : motif.length() > MOTIF_MAX ? motif.substring(0, MOTIF_MAX) : motif);
+            requete.setTimestamp(5, Timestamp.from(maintenant));
+            requete.executeUpdate();
+        } catch (SQLException erreur) {
+            throw new IllegalStateException("report de la collecte impossible", erreur);
         }
     }
 
@@ -153,23 +154,23 @@ class ActiviteStore {
     @Transactional
     int purger(LocalDate limite, Instant limiteInstant) {
         int supprimees = 0;
-        try (Connection c = dataSource.getConnection()) {
-            try (PreparedStatement ps = c.prepareStatement("DELETE FROM activite_compteur WHERE jour < ?")) {
-                ps.setDate(1, Date.valueOf(limite));
-                supprimees += ps.executeUpdate();
+        try (Connection connexion = dataSource.getConnection()) {
+            try (PreparedStatement requete = connexion.prepareStatement("DELETE FROM activite_compteur WHERE jour < ?")) {
+                requete.setDate(1, Date.valueOf(limite));
+                supprimees += requete.executeUpdate();
             }
-            try (PreparedStatement ps = c.prepareStatement("DELETE FROM activite_jalon WHERE releve_le < ?")) {
-                ps.setTimestamp(1, Timestamp.from(limiteInstant));
-                supprimees += ps.executeUpdate();
+            try (PreparedStatement requete = connexion.prepareStatement("DELETE FROM activite_jalon WHERE releve_le < ?")) {
+                requete.setTimestamp(1, Timestamp.from(limiteInstant));
+                supprimees += requete.executeUpdate();
             }
-            try (PreparedStatement ps = c.prepareStatement(
+            try (PreparedStatement requete = connexion.prepareStatement(
                     "UPDATE activite_collecte SET donnees_depuis = ? WHERE donnees_depuis < ?")) {
-                ps.setDate(1, Date.valueOf(limite));
-                ps.setDate(2, Date.valueOf(limite));
-                ps.executeUpdate();
+                requete.setDate(1, Date.valueOf(limite));
+                requete.setDate(2, Date.valueOf(limite));
+                requete.executeUpdate();
             }
-        } catch (SQLException e) {
-            throw new IllegalStateException("purge de l'activité impossible", e);
+        } catch (SQLException erreur) {
+            throw new IllegalStateException("purge de l'activité impossible", erreur);
         }
         return supprimees;
     }

@@ -46,26 +46,26 @@ final class FiltreDonnees {
     }
 
     static Resultat filtrer(String valeur) {
-        for (Pattern p : SECRETS) {
-            if (p.matcher(valeur).find()) {
+        for (Pattern secret : SECRETS) {
+            if (secret.matcher(valeur).find()) {
                 return new Resultat("", 0, true);
             }
         }
         int[] masquees = {0};
-        String t = masquer(valeur, COURRIEL, "[courriel masqué]", masquees);
-        t = masquer(t, IBAN, "[IBAN masqué]", masquees);
-        t = masquer(t, TELEPHONE, "[téléphone masqué]", masquees);
-        return new Resultat(t, masquees[0], false);
+        String texte = masquer(valeur, COURRIEL, "[courriel masqué]", masquees);
+        texte = masquer(texte, IBAN, "[IBAN masqué]", masquees);
+        texte = masquer(texte, TELEPHONE, "[téléphone masqué]", masquees);
+        return new Resultat(texte, masquees[0], false);
     }
 
     private static String masquer(String texte, Pattern motif, String remplacement, int[] compteur) {
-        Matcher m = motif.matcher(texte);
-        StringBuilder b = new StringBuilder();
-        while (m.find()) {
+        Matcher correspondance = motif.matcher(texte);
+        StringBuilder texteMasque = new StringBuilder();
+        while (correspondance.find()) {
             compteur[0]++;
-            m.appendReplacement(b, Matcher.quoteReplacement(remplacement));
+            correspondance.appendReplacement(texteMasque, Matcher.quoteReplacement(remplacement));
         }
-        m.appendTail(b);
-        return b.toString();
+        correspondance.appendTail(texteMasque);
+        return texteMasque.toString();
     }
 }

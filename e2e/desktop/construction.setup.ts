@@ -19,14 +19,14 @@ const VITE = join(DOSSIER_IHM, 'node_modules', 'vite', 'bin', 'vite.js')
 /** Exécute un script JS de argos-ui/node_modules par le Node courant ; lève une erreur en cas d'échec. */
 function executerOutil(script: string, args: string[]): void {
   if (!existsSync(script)) throw new Error(`${script} absent : exécutez « npm --prefix argos-ui ci »`)
-  const r = spawnSync(process.execPath, [script, ...args], {
+  const resultat = spawnSync(process.execPath, [script, ...args], {
     cwd: DOSSIER_IHM,
     stdio: 'pipe',
     encoding: 'utf8',
     env: { ...process.env, VITE_ARGOS_API_URL: URL_API, VITE_ARGOS_OIDC_ISSUER: EMETTEUR },
   })
-  if (r.error) throw r.error
-  if (r.status !== 0) throw new Error(`Construction de argos-ui en échec (${script}) :\n${r.stdout}\n${r.stderr}`)
+  if (resultat.error) throw resultat.error
+  if (resultat.status !== 0) throw new Error(`Construction de argos-ui en échec (${script}) :\n${resultat.stdout}\n${resultat.stderr}`)
 }
 
 setup('IHM construite pour le client desktop', () => {

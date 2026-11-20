@@ -107,9 +107,9 @@ public class RadarProjets {
         Map<String, String> produits;
         try {
             produits = cycles.synchroniser(referentiel.produitsSuivis(), maintenant);
-        } catch (RuntimeException e) {
+        } catch (RuntimeException erreur) {
             // La dette se calcule alors sur le calendrier déjà connu.
-            LOG.errorf(e, "synchronisation du calendrier en échec");
+            LOG.errorf(erreur, "synchronisation du calendrier en échec");
             produits = Map.of();
         }
         return new Bilan(produits, enregistrerDettes(aujourdhui, maintenant));
@@ -124,15 +124,15 @@ public class RadarProjets {
         List<UUID> espaces;
         try {
             espaces = referentiel.espacesSuivis();
-        } catch (RuntimeException e) {
-            LOG.errorf(e, "lecture des espaces suivis par le radar impossible");
+        } catch (RuntimeException erreur) {
+            LOG.errorf(erreur, "lecture des espaces suivis par le radar impossible");
             return 0;
         }
         for (UUID espace : espaces) {
             try {
                 creees += enregistrerDettes(espace, aujourdhui, maintenant);
-            } catch (RuntimeException e) {
-                LOG.errorf(e, "dettes de version de l'espace %s en échec", espace);
+            } catch (RuntimeException erreur) {
+                LOG.errorf(erreur, "dettes de version de l'espace %s en échec", espace);
             }
         }
         return creees;
@@ -141,13 +141,13 @@ public class RadarProjets {
     private int enregistrerDettes(UUID espace, LocalDate aujourdhui, Instant maintenant) {
         int creees = 0;
         Map<String, TechnologieSuivie> parCle = technologies(espace);
-        for (InventoryQueries.ComponentMatch m : composants(espace, parCle)) {
-            if (m.version() == null) {
+        for (InventoryQueries.ComponentMatch composant : composants(espace, parCle)) {
+            if (composant.version() == null) {
                 continue;
             }
-            Optional<CalendrierSorties.Echeance> fin = calendrier.finDeSupport(m.packageKey(), m.version(), Set.of(espace));
+            Optional<CalendrierSorties.Echeance> fin = calendrier.finDeSupport(composant.packageKey(), composant.version(), Set.of(espace));
             if (fin.isPresent() && !fin.get().date().isAfter(aujourdhui)) {
-                creees += enregistrerDette(m, fin.get(), parCle.get(m.packageKey()).versionRecommandee(), maintenant);
+                creees += enregistrerDette(composant, fin.get(), parCle.get(composant.packageKey()).versionRecommandee(), maintenant);
             }
         }
         return creees;
@@ -160,19 +160,19 @@ public class RadarProjets {
             return List.of();
         }
         List<CalendrierSorties.Echeance> echeances = calendrier.echeances(parCle.keySet(), Set.of(espace), jour, jour)
-                .stream().filter(e -> e.nature() != CalendrierSorties.Nature.CORRECTIF).toList();
+                .stream().filter(echeance -> echeance.nature() != CalendrierSorties.Nature.CORRECTIF).toList();
         if (echeances.isEmpty()) {
             return List.of();
         }
         List<InventoryQueries.ComponentMatch> composants = composants(espace, parCle);
         Map<UUID, String> noms = nomsProjets(composants);
         List<EcheanceProjets> resultat = new ArrayList<>();
-        for (CalendrierSorties.Echeance e : echeances) {
-            List<ProjetConcerne> projets = concernes(composants, noms, e.cle(),
-                    e.nature() == CalendrierSorties.Nature.FIN_DE_SUPPORT ? e.version() : null);
+        for (CalendrierSorties.Echeance echeance : echeances) {
+            List<ProjetConcerne> projets = concernes(composants, noms, echeance.cle(),
+                    echeance.nature() == CalendrierSorties.Nature.FIN_DE_SUPPORT ? echeance.version() : null);
             if (!projets.isEmpty()) {
-                resultat.add(new EcheanceProjets(espace, parCle.get(e.cle()).libelle(), e.cle(), e.version(),
-                        e.nature().name(), e.date(), e.source(), projets));
+                resultat.add(new EcheanceProjets(espace, parCle.get(echeance.cle()).libelle(), echeance.cle(), echeance.version(),
+                        echeance.nature().name(), echeance.date(), echeance.source(), projets));
             }
         }
         return resultat;
@@ -188,52 +188,52 @@ public class RadarProjets {
         try {
             List<InventoryQueries.ComponentMatch> composants = inventaires
                     .componentsMatching(List.of(changement.cle()), Optional.empty()).stream()
-                    .filter(m -> changement.espaceId().equals(m.workspaceId())).toList();
+                    .filter(composant -> changement.espaceId().equals(composant.workspaceId())).toList();
             List<ProjetConcerne> projets = concernes(composants, nomsProjets(composants), changement.cle(), null);
             if (!projets.isEmpty()) {
                 annonces.fire(new AnnonceStandard(changement.espaceId(), changement.cle(), changement.libelle(),
                         changement.ancienStatut().name(), changement.ancienneVersion(), changement.statut().name(),
                         changement.versionRecommandee(), changement.justification(), projets, changement.historiqueId()));
             }
-        } catch (RuntimeException e) {
-            LOG.errorf(e, "annonce du changement de standard %s en échec", changement.cle());
+        } catch (RuntimeException erreur) {
+            LOG.errorf(erreur, "annonce du changement de standard %s en échec", changement.cle());
         }
     }
 
     /** Dettes de version de l'espace visibles du compte (RLS, ADR-0016). */
     public List<DetteVersion> dettes(UUID compteId, UUID espaceId) {
-        try (Connection c = dataSource.getConnection()) {
-            boolean autoCommit = c.getAutoCommit();
-            c.setAutoCommit(false);
+        try (Connection connexion = dataSource.getConnection()) {
+            boolean autoCommit = connexion.getAutoCommit();
+            connexion.setAutoCommit(false);
             try {
-                RlsSession.account(c, compteId);
+                RlsSession.account(connexion, compteId);
                 List<DetteVersion> liste = new ArrayList<>();
-                try (PreparedStatement ps = c.prepareStatement("""
+                try (PreparedStatement requete = connexion.prepareStatement("""
                         SELECT d.id, d.project_id, p.name, d.cle, d.version, d.cycle, d.fin_support_le, d.version_standard,
                                d.source, d.cree_le
                         FROM dette_version d JOIN project p ON p.id = d.project_id
                         WHERE d.workspace_id = ? ORDER BY d.fin_support_le, p.name, d.cle
                         """)) {
-                    ps.setObject(1, espaceId);
-                    try (ResultSet rs = ps.executeQuery()) {
-                        while (rs.next()) {
-                            liste.add(new DetteVersion(rs.getObject(1, UUID.class), rs.getObject(2, UUID.class),
-                                    rs.getString(3), rs.getString(4), rs.getString(5), rs.getString(6),
-                                    rs.getObject(7, LocalDate.class), rs.getString(8), rs.getString(9),
-                                    rs.getObject(10, OffsetDateTime.class).toInstant()));
+                    requete.setObject(1, espaceId);
+                    try (ResultSet resultat = requete.executeQuery()) {
+                        while (resultat.next()) {
+                            liste.add(new DetteVersion(resultat.getObject(1, UUID.class), resultat.getObject(2, UUID.class),
+                                    resultat.getString(3), resultat.getString(4), resultat.getString(5), resultat.getString(6),
+                                    resultat.getObject(7, LocalDate.class), resultat.getString(8), resultat.getString(9),
+                                    resultat.getObject(10, OffsetDateTime.class).toInstant()));
                         }
                     }
                 }
-                c.commit();
+                connexion.commit();
                 return liste;
-            } catch (SQLException | RuntimeException e) {
-                c.rollback();
-                throw e;
+            } catch (SQLException | RuntimeException erreur) {
+                connexion.rollback();
+                throw erreur;
             } finally {
-                c.setAutoCommit(autoCommit);
+                connexion.setAutoCommit(autoCommit);
             }
-        } catch (SQLException e) {
-            throw new IllegalStateException("lecture des dettes de version impossible", e);
+        } catch (SQLException erreur) {
+            throw new IllegalStateException("lecture des dettes de version impossible", erreur);
         }
     }
 
@@ -241,7 +241,7 @@ public class RadarProjets {
 
     private Map<String, TechnologieSuivie> technologies(UUID espace) {
         Map<String, TechnologieSuivie> parCle = new LinkedHashMap<>();
-        referentiel.technologies(List.of(espace), true).forEach(t -> parCle.put(t.cle(), t));
+        referentiel.technologies(List.of(espace), true).forEach(technologie -> parCle.put(technologie.cle(), technologie));
         return parCle;
     }
 
@@ -250,22 +250,22 @@ public class RadarProjets {
             return List.of();
         }
         return inventaires.componentsMatching(parCle.keySet(), Optional.empty()).stream()
-                .filter(m -> espace.equals(m.workspaceId())).toList();
+                .filter(composant -> espace.equals(composant.workspaceId())).toList();
     }
 
     /** Projets qui utilisent la clé ; pour une fin de support, seulement ceux dont la version est du cycle. */
     private static List<ProjetConcerne> concernes(List<InventoryQueries.ComponentMatch> composants, Map<UUID, String> noms,
             String cle, String cycle) {
         Map<UUID, ProjetConcerne> parProjet = new LinkedHashMap<>();
-        for (InventoryQueries.ComponentMatch m : composants) {
-            if (!m.packageKey().equals(cle)) {
+        for (InventoryQueries.ComponentMatch composant : composants) {
+            if (!composant.packageKey().equals(cle)) {
                 continue;
             }
-            if (cycle != null && (m.version() == null || !CalendrierEndoflife.appartient(m.version(), cycle))) {
+            if (cycle != null && (composant.version() == null || !CalendrierEndoflife.appartient(composant.version(), cycle))) {
                 continue;
             }
-            parProjet.putIfAbsent(m.projectId(), new ProjetConcerne(m.projectId(), noms.getOrDefault(m.projectId(), "?"),
-                    m.version()));
+            parProjet.putIfAbsent(composant.projectId(), new ProjetConcerne(composant.projectId(), 
+                    noms.getOrDefault(composant.projectId(), "?"), composant.version()));
         }
         return parProjet.values().stream().sorted(Comparator.comparing(ProjetConcerne::nom)).toList();
     }
@@ -277,42 +277,42 @@ public class RadarProjets {
         if (ids.isEmpty()) {
             return noms;
         }
-        try (Connection c = dataSource.getConnection();
-                PreparedStatement ps = c.prepareStatement("SELECT id, name FROM project WHERE id = ANY (?)")) {
-            ps.setArray(1, c.createArrayOf("uuid", ids.toArray()));
-            try (ResultSet rs = ps.executeQuery()) {
-                while (rs.next()) {
-                    noms.put(rs.getObject(1, UUID.class), rs.getString(2));
+        try (Connection connexion = dataSource.getConnection();
+                PreparedStatement requete = connexion.prepareStatement("SELECT id, name FROM project WHERE id = ANY (?)")) {
+            requete.setArray(1, connexion.createArrayOf("uuid", ids.toArray()));
+            try (ResultSet resultat = requete.executeQuery()) {
+                while (resultat.next()) {
+                    noms.put(resultat.getObject(1, UUID.class), resultat.getString(2));
                 }
             }
-        } catch (SQLException e) {
-            throw new IllegalStateException("lecture des projets impossible", e);
+        } catch (SQLException erreur) {
+            throw new IllegalStateException("lecture des projets impossible", erreur);
         }
         return noms;
     }
 
-    private int enregistrerDette(InventoryQueries.ComponentMatch m, CalendrierSorties.Echeance fin, String versionStandard,
+    private int enregistrerDette(InventoryQueries.ComponentMatch composant, CalendrierSorties.Echeance fin, String versionStandard,
             Instant maintenant) {
-        try (Connection c = dataSource.getConnection(); PreparedStatement ps = c.prepareStatement("""
+        try (Connection connexion = dataSource.getConnection(); PreparedStatement requete = connexion.prepareStatement("""
                 INSERT INTO dette_version (id, project_id, workspace_id, component_id, cle, version, cycle, fin_support_le,
                     version_standard, source, cree_le)
                 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                 ON CONFLICT (project_id, component_id) DO NOTHING
                 """)) {
-            ps.setObject(1, UUID.randomUUID());
-            ps.setObject(2, m.projectId());
-            ps.setObject(3, m.workspaceId());
-            ps.setObject(4, m.componentId());
-            ps.setString(5, m.packageKey());
-            ps.setString(6, m.version());
-            ps.setString(7, fin.version());
-            ps.setObject(8, fin.date());
-            ps.setString(9, versionStandard);
-            ps.setString(10, fin.source());
-            ps.setObject(11, maintenant.atOffset(ZoneOffset.UTC));
-            return ps.executeUpdate();
-        } catch (SQLException e) {
-            throw new IllegalStateException("enregistrement de la dette de version impossible", e);
+            requete.setObject(1, UUID.randomUUID());
+            requete.setObject(2, composant.projectId());
+            requete.setObject(3, composant.workspaceId());
+            requete.setObject(4, composant.componentId());
+            requete.setString(5, composant.packageKey());
+            requete.setString(6, composant.version());
+            requete.setString(7, fin.version());
+            requete.setObject(8, fin.date());
+            requete.setString(9, versionStandard);
+            requete.setString(10, fin.source());
+            requete.setObject(11, maintenant.atOffset(ZoneOffset.UTC));
+            return requete.executeUpdate();
+        } catch (SQLException erreur) {
+            throw new IllegalStateException("enregistrement de la dette de version impossible", erreur);
         }
     }
 }

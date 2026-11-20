@@ -93,8 +93,8 @@ class ModuleBoundariesTest {
     void mcpNeLitQueLaSecuriteDeLApi() {
         noClasses().that().resideInAPackage(ROOT + ".mcp..")
                 .should().dependOnClassesThat(DescribedPredicate.describe("classes de api hors api.security",
-                        (JavaClass c) -> c.getPackageName().startsWith(ROOT + ".api")
-                                && !c.getPackageName().startsWith(ROOT + ".api.security")))
+                        (JavaClass classe) -> classe.getPackageName().startsWith(ROOT + ".api")
+                                && !classe.getPackageName().startsWith(ROOT + ".api.security")))
                 .because("arc42 §5 : dans le module api, mcp ne dépend que de api.security")
                 .check(classes);
     }
@@ -108,9 +108,9 @@ class ModuleBoundariesTest {
     void seuleLaPasserelleConnaitLeFournisseur() {
         noClasses().that().resideOutsideOfPackage(ROOT + ".aigateway..")
                 .should().dependOnClassesThat(DescribedPredicate.describe("fournisseur de modèles",
-                        (JavaClass c) -> c.getPackageName().startsWith(ROOT + ".aigateway.ollama")
-                                || c.getName().startsWith(ROOT + ".aigateway.FournisseurModele")
-                                || c.getName().equals(ROOT + ".aigateway.QuotasIa")))
+                        (JavaClass classe) -> classe.getPackageName().startsWith(ROOT + ".aigateway.ollama")
+                                || classe.getName().startsWith(ROOT + ".aigateway.FournisseurModele")
+                                || classe.getName().equals(ROOT + ".aigateway.QuotasIa")))
                 .because("arc42 §5.5 : seule l'AI Gateway appelle le fournisseur et tient les quotas")
                 .check(classes);
     }
@@ -128,8 +128,9 @@ class ModuleBoundariesTest {
         noClasses().that().resideInAPackage(ROOT + ".signal..")
                 .should().dependOnClassesThat(DescribedPredicate.describe(
                         "classes de workspace hors ContexteBase, DonneeInvalide et RegleViolee",
-                        (JavaClass c) -> c.getPackageName().startsWith(ROOT + ".workspace")
-                                && autorisees.stream().noneMatch(a -> c.getName().equals(a) || c.getName().startsWith(a + "$"))))
+                        (JavaClass classe) -> classe.getPackageName().startsWith(ROOT + ".workspace")
+                                && autorisees.stream().noneMatch(autorisee -> classe.getName().equals(autorisee)
+                                        || classe.getName().startsWith(autorisee + "$"))))
                 .because("arc42 §5 : dans le module workspace, signal ne dépend que de ContexteBase et des erreurs communes")
                 .check(classes);
     }
@@ -145,8 +146,9 @@ class ModuleBoundariesTest {
         noClasses().that().resideInAPackage(ROOT + ".projectintel..")
                 .should().dependOnClassesThat(DescribedPredicate.describe(
                         "classes de workspace hors ContexteBase et DonneeInvalide",
-                        (JavaClass c) -> c.getPackageName().startsWith(ROOT + ".workspace")
-                                && autorisees.stream().noneMatch(a -> c.getName().equals(a) || c.getName().startsWith(a + "$"))))
+                        (JavaClass classe) -> classe.getPackageName().startsWith(ROOT + ".workspace")
+                                && autorisees.stream().noneMatch(autorisee -> classe.getName().equals(autorisee)
+                                        || classe.getName().startsWith(autorisee + "$"))))
                 .because("arc42 §5 : dans le module workspace, projectintel ne dépend que de ContexteBase et DonneeInvalide")
                 .check(classes);
     }
@@ -165,8 +167,9 @@ class ModuleBoundariesTest {
         noClasses().that().resideInAPackage(ROOT + ".catalog..")
                 .should().dependOnClassesThat(DescribedPredicate.describe(
                         "classes de workspace hors ContexteBase, DonneeInvalide, RegleViolee et Introuvable",
-                        (JavaClass c) -> c.getPackageName().startsWith(ROOT + ".workspace")
-                                && autorisees.stream().noneMatch(a -> c.getName().equals(a) || c.getName().startsWith(a + "$"))))
+                        (JavaClass classe) -> classe.getPackageName().startsWith(ROOT + ".workspace")
+                                && autorisees.stream().noneMatch(autorisee -> classe.getName().equals(autorisee)
+                                        || classe.getName().startsWith(autorisee + "$"))))
                 .because("arc42 §5 : dans le module workspace, catalog ne dépend que de ContexteBase et des erreurs communes")
                 .check(classes);
         noClasses().that().resideInAPackage(ROOT + ".catalog..")
@@ -192,8 +195,9 @@ class ModuleBoundariesTest {
         noClasses().that().resideInAPackage(ROOT + ".regintel..")
                 .should().dependOnClassesThat(DescribedPredicate.describe(
                         "classes de workspace hors ContexteBase et erreurs communes",
-                        (JavaClass c) -> c.getPackageName().startsWith(ROOT + ".workspace")
-                                && autorisees.stream().noneMatch(a -> c.getName().equals(a) || c.getName().startsWith(a + "$"))))
+                        (JavaClass classe) -> classe.getPackageName().startsWith(ROOT + ".workspace")
+                                && autorisees.stream().noneMatch(autorisee -> classe.getName().equals(autorisee)
+                                        || classe.getName().startsWith(autorisee + "$"))))
                 .because("arc42 §5 : dans le module workspace, regintel ne dépend que de ContexteBase et des erreurs communes")
                 .check(classes);
     }

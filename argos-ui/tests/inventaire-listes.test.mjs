@@ -37,9 +37,11 @@ class ErreurApi extends Error {
   }
 }
 
-function composantApi(i, transitive = true) {
-  const nom = `paquet-${String(i).padStart(2, '0')}`
-  return { id: `id-${i}`, name: nom, version: `1.0.${i}`, purl: `pkg:npm/${nom}@1.0.${i}`, packageKey: `pkg:npm/${nom}`, transitive }
+function composantApi(rang, transitive = true) {
+  const nom = `paquet-${String(rang).padStart(2, '0')}`
+  return {
+    id: `id-${rang}`, name: nom, version: `1.0.${rang}`, purl: `pkg:npm/${nom}@1.0.${rang}`, packageKey: `pkg:npm/${nom}`, transitive,
+  }
 }
 
 function pageApi(page, size, total, items) {
@@ -88,8 +90,8 @@ test('choix du projet : libellé nom puis espace, ordre du serveur, entrées san
 test('choix du projet : synthèses (aucun projet, un, plusieurs, liste limitée) et messages d’erreur', () => {
   assert.equal(syntheseProjets(listeProjets({ items: [], total: 0 })), 'Aucun projet dans vos espaces.')
   assert.equal(syntheseProjets(listeProjets(null)), 'Aucun projet dans vos espaces.')
-  const un = listeProjets({ items: [{ id: PROJET, name: 'Paie', workspaceName: 'A' }], total: 1 })
-  assert.equal(syntheseProjets(un), '1 projet dans vos espaces.')
+  const unique = listeProjets({ items: [{ id: PROJET, name: 'Paie', workspaceName: 'A' }], total: 1 })
+  assert.equal(syntheseProjets(unique), '1 projet dans vos espaces.')
   const deux = listeProjets({ items: [{ id: PROJET, name: 'Paie' }, { id: AUTRE, name: 'RH' }], total: 2 })
   assert.equal(syntheseProjets(deux), '2 projets dans vos espaces.')
   const limite = listeProjets({ items: [{ id: PROJET, name: 'Paie' }, { id: AUTRE, name: 'RH' }], total: 250 })
@@ -118,18 +120,22 @@ test('choix du projet : chargement, erreur puis nouvelle tentative, annulation',
 })
 
 test('composants : conversion d’une page, dépendance nommée, total et nombre de pages', () => {
-  const p = pageComposants(pageApi(1, 20, 25, [composantApi(21, false), composantApi(22), { ...composantApi(23), transitive: null, version: null, purl: '' }]))
-  assert.equal(p.page, 1)
-  assert.equal(p.taille, 20)
-  assert.equal(p.total, 25)
-  assert.equal(p.pages, 2)
-  assert.deepEqual(p.composants[0], { cle: 'id-21', nom: 'paquet-21', version: '1.0.21', purl: 'pkg:npm/paquet-21@1.0.21', dependance: 'directe', depots: [] })
-  assert.equal(p.composants[1].dependance, 'transitive')
-  assert.equal(p.composants[2].dependance, 'inconnue')
-  assert.equal(p.composants[2].version, null)
-  assert.equal(p.composants[2].purl, null)
-  assert.equal(syntheseComposants(p), '25 composants inventoriés ; composants 21 à 23 affichés.')
-  assert.equal(libellePage(p), 'Page 2 sur 2')
+  const page = pageComposants(pageApi(1, 20, 25, [
+    composantApi(21, false), composantApi(22), { ...composantApi(23), transitive: null, version: null, purl: '' },
+  ]))
+  assert.equal(page.page, 1)
+  assert.equal(page.taille, 20)
+  assert.equal(page.total, 25)
+  assert.equal(page.pages, 2)
+  assert.deepEqual(page.composants[0], {
+    cle: 'id-21', nom: 'paquet-21', version: '1.0.21', purl: 'pkg:npm/paquet-21@1.0.21', dependance: 'directe', depots: [],
+  })
+  assert.equal(page.composants[1].dependance, 'transitive')
+  assert.equal(page.composants[2].dependance, 'inconnue')
+  assert.equal(page.composants[2].version, null)
+  assert.equal(page.composants[2].purl, null)
+  assert.equal(syntheseComposants(page), '25 composants inventoriés ; composants 21 à 23 affichés.')
+  assert.equal(libellePage(page), 'Page 2 sur 2')
   const longue = 'pkg:maven/' + 'x'.repeat(600) + '@1'
   assert.equal(pageComposants(pageApi(0, 20, 1, [{ ...composantApi(1), purl: longue }])).composants[0].purl, longue, 'PURL restitué entier')
 })
@@ -139,8 +145,8 @@ test('composants : état vide, valeurs incohérentes du serveur et messages d’
   assert.deepEqual(vide, { composants: [], page: 0, taille: 20, total: 0, pages: 1 })
   assert.equal(syntheseComposants(vide), 'Aucun composant inventorié.')
   assert.equal(libellePage(vide), 'Page 1 sur 1')
-  const un = pageComposants(pageApi(0, 20, 1, [composantApi(1)]))
-  assert.equal(syntheseComposants(un), '1 composant inventorié ; composants 1 à 1 affichés.')
+  const unique = pageComposants(pageApi(0, 20, 1, [composantApi(1)]))
+  assert.equal(syntheseComposants(unique), '1 composant inventorié ; composants 1 à 1 affichés.')
   const incoherent = pageComposants({ items: [composantApi(1), composantApi(2)], page: -2, size: 0, total: -1 })
   assert.equal(incoherent.page, 0)
   assert.equal(incoherent.taille, 1)
@@ -201,7 +207,7 @@ test('rendu : tableau à en-têtes de colonne, légende avec la page, valeurs é
   const html = await rendu.rendreComposant('/src/contenu/ComposantsInventories.vue', { page, projet: 'Paie — Équipe A' })
   assert.match(html, /<table[^>]*tabindex="-1"/)
   assert.match(html, /<caption[^>]*>Composants inventoriés du projet Paie — Équipe A, page 1 sur 3<\/caption>/)
-  const entetes = [...html.matchAll(/<th scope="col"[^>]*>([^<]*)<\/th>/g)].map((m) => m[1])
+  const entetes = [...html.matchAll(/<th scope="col"[^>]*>([^<]*)<\/th>/g)].map((correspondance) => correspondance[1])
   assert.deepEqual(entetes, ['Nom', 'Version', 'PURL', 'Dépendance'])
   assert.equal([...html.matchAll(/data-composant-inventorie/g)].length, 2)
   assert.match(html, /<td[^>]*>paquet-01<\/td><td[^>]*>1\.0\.1<\/td><td[^>]*>pkg:npm\/paquet-01@1\.0\.1<\/td><td[^>]*>directe<\/td>/)
@@ -244,9 +250,9 @@ test('sécurité et accessibilité de l’écran : appels par appelerApi, aucun 
   assert.doesNotMatch(api, /\bfetch\s*\(/)
   const composant = source('../src/contenu/ComposantsInventories.vue')
   const vue = source('../src/views/InventaireView.vue')
-  for (const s of [composant, vue]) {
-    assert.doesNotMatch(s, /v-html/)
-    assert.doesNotMatch(s, /\bfetch\s*\(/)
+  for (const texteSource of [composant, vue]) {
+    assert.doesNotMatch(texteSource, /v-html/)
+    assert.doesNotMatch(texteSource, /\bfetch\s*\(/)
   }
   assert.match(vue, /<label for="choix-projet">Projet<\/label>/)
   assert.match(vue, /<select\s+id="choix-projet"/)

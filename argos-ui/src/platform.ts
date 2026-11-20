@@ -36,8 +36,8 @@ export async function notifierAlerte(alerte: AlerteNotifiable): Promise<boolean>
 }
 
 /** Compteur d'alertes ouvertes dans la zone de notification (NOT-03). */
-export function afficherCompteur(n: number): void {
-  void window.argosDesktop?.setAlertCount(n)
+export function afficherCompteur(nombre: number): void {
+  void window.argosDesktop?.setAlertCount(nombre)
 }
 
 /** Clic sur la notification d'une alerte (NOT-02) ; renvoie de quoi se désabonner. */

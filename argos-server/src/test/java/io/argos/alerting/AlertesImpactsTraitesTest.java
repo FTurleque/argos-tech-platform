@@ -43,7 +43,7 @@ class AlertesImpactsTraitesTest {
     private static final String HAUTE = "[{\"type\":\"SEVERITY\",\"value\":\"HIGH\"}]";
 
     @Inject
-    TestDb db;
+    TestDb baseDeTest;
 
     @Inject
     ProjectDirectory projects;
@@ -72,7 +72,7 @@ class AlertesImpactsTraitesTest {
     /** alice administre l'espace ; jules y est LECTEUR (destinataire), karim CONTRIBUTEUR (traite les impacts). */
     @BeforeEach
     void reset() {
-        db.reset();
+        baseDeTest.reset();
         espace = Api.nouvelEspace("alice", "Espace alertes traitées");
         Api.compte("jules");
         Api.compte("karim");
@@ -89,8 +89,8 @@ class AlertesImpactsTraitesTest {
 
     private void importer(UUID projet, Instant genere, String... purls) {
         List<String[]> composants = new java.util.ArrayList<>();
-        for (int i = 0; i < purls.length; i++) {
-            composants.add(new String[] {"c" + i, purls[i]});
+        for (int indice = 0; indice < purls.length; indice++) {
+            composants.add(new String[] {"c" + indice, purls[indice]});
         }
         inventories.importSbom(projet, Fixtures.cyclonedx("1.6", genere.toString(), composants, List.of("c0"))
                 .getBytes(StandardCharsets.UTF_8), "ci");
@@ -102,23 +102,23 @@ class AlertesImpactsTraitesTest {
                 .replace("\"severity\":\"HIGH\"", "\"severity\":\"CRITICAL\"");
         Fixtures.stubOsv(id, modifie, json);
         synchronizer.synchronize("OSV");
-        return db.uuid("SELECT id FROM signal WHERE external_id = '" + id + "'");
+        return baseDeTest.uuid("SELECT id FROM signal WHERE external_id = '" + id + "'");
     }
 
     private static void regle(String utilisateur, String canal, String frequence) {
-        Api.en(utilisateur).contentType(ContentType.JSON)
+        Api.enTantQue(utilisateur).contentType(ContentType.JSON)
                 .body("{\"scope\":\"PERSONAL\",\"filters\":" + HAUTE + ",\"channel\":\"" + canal + "\",\"frequency\":\""
                         + frequence + "\",\"mandatory\":false}")
                 .when().post("/api/v1/subscriptions").then().statusCode(201);
     }
 
     private static void transition(String utilisateur, UUID impact, Map<String, String> corps) {
-        Api.en(utilisateur).contentType(ContentType.JSON).body(corps)
+        Api.enTantQue(utilisateur).contentType(ContentType.JSON).body(corps)
                 .when().post("/api/v1/impacts/" + impact + "/transitions").then().statusCode(200);
     }
 
     private long alertes(String condition) {
-        return db.count("SELECT count(*) FROM alerte WHERE " + condition);
+        return baseDeTest.count("SELECT count(*) FROM alerte WHERE " + condition);
     }
 
     private static Instant recent() {
@@ -131,12 +131,12 @@ class AlertesImpactsTraitesTest {
         regle("jules", "desktop", "immediate");
         UUID signal = publier("GHSA-ALR7-1", "1.3.0");
         assertEquals(1, alertes("canal = 'DESKTOP' AND etat = 'EN_ATTENTE'"), "alerte en attente de remise au poste");
-        UUID impact = db.uuid("SELECT id FROM project_impact WHERE project_id = '" + projet + "'");
+        UUID impact = baseDeTest.uuid("SELECT id FROM project_impact WHERE project_id = '" + projet + "'");
 
         transition("karim", impact, Map.of("vers", "ECARTE", "motif", "Bibliothèque non chargée en production"));
 
         assertEquals(1, alertes("canal = 'DESKTOP' AND etat = 'ANNULEE'"));
-        Api.en("jules").queryParam("canal", "DESKTOP").queryParam("etat", "EN_ATTENTE")
+        Api.enTantQue("jules").queryParam("canal", "DESKTOP").queryParam("etat", "EN_ATTENTE")
                 .when().get("/api/v1/alertes").then().statusCode(200).body("$", empty());
 
         // Rouvert par un contributeur puis recorrélé : l'impact redevient éligible (ALR-07, ALR-01).
@@ -152,16 +152,16 @@ class AlertesImpactsTraitesTest {
         regle("jules", "email", "immediate");
         publier("GHSA-ALR7-2", "1.3.0");
         assertEquals(1, alertes("canal = 'EMAIL' AND etat = 'ENVOYEE'"));
-        UUID impact = db.uuid("SELECT id FROM project_impact");
+        UUID impact = baseDeTest.uuid("SELECT id FROM project_impact");
         // Alerte en attente d'une nouvelle tentative d'envoi, comme après un échec SMTP.
-        db.exec("UPDATE alerte SET etat = 'EN_ATTENTE', envoye_le = NULL, prochain_essai = now() - interval '1 minute'");
+        baseDeTest.exec("UPDATE alerte SET etat = 'EN_ATTENTE', envoye_le = NULL, prochain_essai = now() - interval '1 minute'");
         mailbox.clear();
 
         transition("karim", impact, Map.of("vers", "ECARTE", "motif", "Faux positif"));
         assertEquals(1, alertes("canal = 'EMAIL' AND etat = 'ANNULEE'"));
 
         // Garde-fou de l'envoi, si l'annulation n'avait pas eu lieu : l'alerte n'est pas diffusée.
-        db.exec("UPDATE alerte SET etat = 'EN_ATTENTE'");
+        baseDeTest.exec("UPDATE alerte SET etat = 'EN_ATTENTE'");
         Map<UUID, EnvoiAlertes.Issue> issues = envoi.traiterEnAttente(Instant.now());
         assertEquals(List.of(EnvoiAlertes.Issue.IGNOREE), List.copyOf(issues.values()));
         assertEquals(1, alertes("canal = 'EMAIL' AND etat = 'ANNULEE'"));
@@ -172,13 +172,13 @@ class AlertesImpactsTraitesTest {
     void impactEcarteJamaisEvalueParUneNouvelleCorrelation() {
         UUID projet = projet("app", recent(), LIB + "@1.2.0");
         publier("GHSA-ALR7-3", "1.3.0");
-        UUID impact = db.uuid("SELECT id FROM project_impact WHERE project_id = '" + projet + "'");
+        UUID impact = baseDeTest.uuid("SELECT id FROM project_impact WHERE project_id = '" + projet + "'");
         transition("karim", impact, Map.of("vers", "ECARTE", "motif", "Code mort"));
         regle("jules", "email", "immediate");
 
         publier("GHSA-ALR7-3", "1.4.0");
 
-        assertEquals("ECARTE", db.string("SELECT state FROM project_impact WHERE id = '" + impact + "'"));
+        assertEquals("ECARTE", baseDeTest.string("SELECT state FROM project_impact WHERE id = '" + impact + "'"));
         assertEquals(0, alertes("nature = 'IMMEDIATE'"), "aucune alerte pour un impact écarté");
         assertTrue(mailbox.getMailsSentTo("jules@argos.test").isEmpty());
     }
@@ -188,19 +188,19 @@ class AlertesImpactsTraitesTest {
         UUID projet = projet("app", Instant.now().minus(40, ChronoUnit.DAYS), LIB + "@1.2.0", "pkg:maven/org.autre/outil@1.0.0");
         regle("jules", "email", "daily");
         publier("GHSA-ALR7-4", "1.3.0");
-        UUID impact = db.uuid("SELECT id FROM project_impact WHERE project_id = '" + projet + "'");
-        assertEquals("PROBABLE", db.string("SELECT level FROM project_impact WHERE id = '" + impact + "'"));
-        assertEquals(1, db.count("SELECT count(*) FROM resume_element WHERE frequence = 'DAILY'"));
+        UUID impact = baseDeTest.uuid("SELECT id FROM project_impact WHERE project_id = '" + projet + "'");
+        assertEquals("PROBABLE", baseDeTest.string("SELECT level FROM project_impact WHERE id = '" + impact + "'"));
+        assertEquals(1, baseDeTest.count("SELECT count(*) FROM resume_element WHERE frequence = 'DAILY'"));
 
         // Résolu par le système avant l'heure du résumé : le composant quitte l'inventaire.
         importer(projet, recent(), "pkg:maven/org.autre/outil@1.0.0");
-        assertEquals("RESOLU", db.string("SELECT state FROM project_impact WHERE id = '" + impact + "'"));
+        assertEquals("RESOLU", baseDeTest.string("SELECT state FROM project_impact WHERE id = '" + impact + "'"));
 
         List<UUID> crees = resumes.composer("DAILY", Instant.now().plus(1, ChronoUnit.DAYS));
 
         assertTrue(crees.isEmpty(), "aucun résumé sans élément restant (ALR-04)");
         assertEquals(0, alertes("nature = 'DAILY'"));
-        assertEquals(0, db.count("SELECT count(*) FROM resume_element"), "élément retiré du résumé");
+        assertEquals(0, baseDeTest.count("SELECT count(*) FROM resume_element"), "élément retiré du résumé");
         assertTrue(mailbox.getMailsSentTo("jules@argos.test").isEmpty());
     }
 }

@@ -39,21 +39,21 @@ public class JournalAppelsMcp {
     public void enregistrer(UUID compteId, String sujetOidc, String outil, String parametresJson, long dureeMs,
             Issue issue) {
         String outilBorne = outil.length() > LONGUEUR_MAX_OUTIL ? outil.substring(0, LONGUEUR_MAX_OUTIL) : outil;
-        try (Connection c = dataSource.getConnection();
-                PreparedStatement ps = c.prepareStatement("""
+        try (Connection connexion = dataSource.getConnection();
+                PreparedStatement requete = connexion.prepareStatement("""
                         INSERT INTO mcp_appel (compte_id, sujet_oidc, outil, parametres, duree_ms, issue)
                         VALUES (?, ?, ?, ?::jsonb, ?, ?)
                         """)) {
-            ps.setObject(1, compteId);
-            ps.setString(2, compteId == null ? sujetOidc : null);
-            ps.setString(3, outilBorne);
-            ps.setString(4, parametresJson);
-            ps.setInt(5, (int) Math.min(Math.max(dureeMs, 0), Integer.MAX_VALUE));
-            ps.setString(6, issue.name());
-            ps.executeUpdate();
-        } catch (SQLException e) {
+            requete.setObject(1, compteId);
+            requete.setString(2, compteId == null ? sujetOidc : null);
+            requete.setString(3, outilBorne);
+            requete.setString(4, parametresJson);
+            requete.setInt(5, (int) Math.min(Math.max(dureeMs, 0), Integer.MAX_VALUE));
+            requete.setString(6, issue.name());
+            requete.executeUpdate();
+        } catch (SQLException erreur) {
             // L'appel a déjà été traité ; l'échec de sa trace reste visible dans les journaux.
-            LOG.errorf(e, "Appel MCP non journalisé : %s %s", outilBorne, issue);
+            LOG.errorf(erreur, "Appel MCP non journalisé : %s %s", outilBorne, issue);
         }
     }
 }

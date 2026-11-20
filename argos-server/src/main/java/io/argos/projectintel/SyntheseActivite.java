@@ -44,10 +44,10 @@ public class SyntheseActivite {
     private static final Pattern NOMBRE = Pattern.compile("\\d+");
 
     private static final ExecutorService EXECUTEUR_IA = new ThreadPoolExecutor(1, 2, 60, TimeUnit.SECONDS,
-            new ArrayBlockingQueue<>(8), r -> {
-                Thread t = new Thread(r, "argos-synthese-activite");
-                t.setDaemon(true);
-                return t;
+            new ArrayBlockingQueue<>(8), tache -> {
+                Thread fil = new Thread(tache, "argos-synthese-activite");
+                fil.setDaemon(true);
+                return fil;
             }, new ThreadPoolExecutor.AbortPolicy());
 
     /**
@@ -65,7 +65,7 @@ public class SyntheseActivite {
     }
 
     @Inject
-    Instance<SyntheseIa> ia;
+    Instance<SyntheseIa> syntheseIa;
 
     @ConfigProperty(name = "argos.activite.synthese.delai-max", defaultValue = "PT20S")
     Duration delaiMax;
@@ -76,29 +76,29 @@ public class SyntheseActivite {
         if (vue.fraicheur().derniereMiseAJour() == null) {
             return new Synthese("SANS_DONNEES", null, MENTION, vue.periode(), sources);
         }
-        if (!ia.isResolvable()) {
+        if (!syntheseIa.isResolvable()) {
             return new Synthese("INDISPONIBLE", null, MENTION, vue.periode(), sources);
         }
-        SyntheseIa modele = ia.get();
+        SyntheseIa modele = syntheseIa.get();
         if (!modele.budgetDisponible()) {
             return new Synthese("PLAFOND_ATTEINT", null, MENTION, vue.periode(), sources);
         }
         Future<String> demande;
         try {
             demande = EXECUTEUR_IA.submit(() -> modele.synthetiser(vue));
-        } catch (RejectedExecutionException e) {
+        } catch (RejectedExecutionException saturation) {
             return new Synthese("INDISPONIBLE", null, MENTION, vue.periode(), sources);
         }
         String texte;
         try {
             texte = demande.get(delaiMax.toMillis(), TimeUnit.MILLISECONDS);
-        } catch (InterruptedException e) {
+        } catch (InterruptedException interruption) {
             demande.cancel(true);
             Thread.currentThread().interrupt();
             return new Synthese("INDISPONIBLE", null, MENTION, vue.periode(), sources);
-        } catch (Exception e) {
+        } catch (Exception erreur) {
             demande.cancel(true);
-            LOG.infof("synthèse de l'activité du projet %s indisponible : %s", vue.projectId(), e.toString());
+            LOG.infof("synthèse de l'activité du projet %s indisponible : %s", vue.projectId(), erreur.toString());
             return new Synthese("INDISPONIBLE", null, MENTION, vue.periode(), sources);
         }
         String propre = nettoyer(texte);
@@ -125,28 +125,29 @@ public class SyntheseActivite {
      */
     static boolean fondeeSurLesIndicateurs(String texte, VueActivite vue) {
         Set<String> admis = new HashSet<>();
-        VueActivite.Compteurs c = vue.compteurs();
-        for (int v : new int[] {c.ticketsOuverts(), c.ticketsFermes(), c.fusionsOuvertes(), c.fusionsFusionnees(),
-                c.pipelinesReussis(), c.pipelinesEchoues(), c.pipelinesAutres(), c.versionsPubliees(), vue.periode().jours()}) {
-            admis.add(String.valueOf(v));
+        VueActivite.Compteurs compteurs = vue.compteurs();
+        for (int valeur : new int[] {compteurs.ticketsOuverts(), compteurs.ticketsFermes(), compteurs.fusionsOuvertes(),
+                compteurs.fusionsFusionnees(), compteurs.pipelinesReussis(), compteurs.pipelinesEchoues(),
+                compteurs.pipelinesAutres(), compteurs.versionsPubliees(), vue.periode().jours()}) {
+            admis.add(String.valueOf(valeur));
         }
         dates(admis, vue.periode().debut());
         dates(admis, vue.periode().fin());
-        for (VueActivite.Jalon j : vue.jalons()) {
-            admis.add(String.valueOf(j.ticketsFermes()));
-            admis.add(String.valueOf(j.ticketsTotal()));
-            if (j.avancement() != null) {
-                admis.add(String.valueOf(j.avancement().pourcentage()));
+        for (VueActivite.Jalon jalon : vue.jalons()) {
+            admis.add(String.valueOf(jalon.ticketsFermes()));
+            admis.add(String.valueOf(jalon.ticketsTotal()));
+            if (jalon.avancement() != null) {
+                admis.add(String.valueOf(jalon.avancement().pourcentage()));
             }
-            dates(admis, j.echeance());
-            Matcher titre = NOMBRE.matcher(j.titre() == null ? "" : j.titre());
+            dates(admis, jalon.echeance());
+            Matcher titre = NOMBRE.matcher(jalon.titre() == null ? "" : jalon.titre());
             while (titre.find()) {
                 admis.add(sansZeros(titre.group()));
             }
         }
-        Matcher m = NOMBRE.matcher(texte);
-        while (m.find()) {
-            if (!admis.contains(sansZeros(m.group()))) {
+        Matcher correspondance = NOMBRE.matcher(texte);
+        while (correspondance.find()) {
+            if (!admis.contains(sansZeros(correspondance.group()))) {
                 return false;
             }
         }
@@ -170,7 +171,7 @@ public class SyntheseActivite {
         if (texte == null) {
             return "";
         }
-        String t = texte.replaceAll("[\\p{Cc}&&[^\\n]]|\\p{Cf}", "").strip();
-        return t.length() > LONGUEUR_MAX ? t.substring(0, LONGUEUR_MAX) : t;
+        String nettoye = texte.replaceAll("[\\p{Cc}&&[^\\n]]|\\p{Cf}", "").strip();
+        return nettoye.length() > LONGUEUR_MAX ? nettoye.substring(0, LONGUEUR_MAX) : nettoye;
     }
 }

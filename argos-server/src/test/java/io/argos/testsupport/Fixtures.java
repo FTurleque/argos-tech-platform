@@ -23,13 +23,13 @@ public final class Fixtures {
 
     /** Fichier de {@code src/test/resources/fixtures}. */
     public static String resource(String path) {
-        try (InputStream in = Fixtures.class.getResourceAsStream("/fixtures/" + path)) {
-            if (in == null) {
+        try (InputStream flux = Fixtures.class.getResourceAsStream("/fixtures/" + path)) {
+            if (flux == null) {
                 throw new IllegalArgumentException("fixture absente : " + path);
             }
-            return new String(in.readAllBytes(), StandardCharsets.UTF_8);
-        } catch (IOException e) {
-            throw new UncheckedIOException(e);
+            return new String(flux.readAllBytes(), StandardCharsets.UTF_8);
+        } catch (IOException erreur) {
+            throw new UncheckedIOException(erreur);
         }
     }
 
@@ -82,17 +82,17 @@ public final class Fixtures {
         }
         Map<String, String> entetes = new LinkedHashMap<>();
         long maintenant = Instant.now().getEpochSecond();
-        for (int i = 1; i < lignes.length; i++) {
-            int deuxPoints = lignes[i].indexOf(':');
+        for (int numeroLigne = 1; numeroLigne < lignes.length; numeroLigne++) {
+            int deuxPoints = lignes[numeroLigne].indexOf(':');
             if (deuxPoints <= 0) {
                 continue;
             }
-            String nom = lignes[i].substring(0, deuxPoints).strip();
+            String nom = lignes[numeroLigne].substring(0, deuxPoints).strip();
             if (ENTETES_TRANSPORT.contains(nom.toLowerCase(Locale.ROOT))) {
                 continue;
             }
-            String valeur = MAINTENANT.matcher(lignes[i].substring(deuxPoints + 1).strip())
-                    .replaceAll(m -> Long.toString(maintenant + Long.parseLong(m.group(1))));
+            String valeur = MAINTENANT.matcher(lignes[numeroLigne].substring(deuxPoints + 1).strip())
+                    .replaceAll(correspondance -> Long.toString(maintenant + Long.parseLong(correspondance.group(1))));
             entetes.put(nom, valeur);
         }
         return new ReponseHttp(Integer.parseInt(statut[1]), entetes, brut.substring(fin + saut));
@@ -104,7 +104,7 @@ public final class Fixtures {
      */
     public static String osv(String id, String modified, String ecosystem, String name, String purl, String introduced,
             String fixed, String... aliases) {
-        String aliasJson = Arrays.stream(aliases).map(a -> "\"" + a + "\"").collect(Collectors.joining(","));
+        String aliasJson = Arrays.stream(aliases).map(alias -> "\"" + alias + "\"").collect(Collectors.joining(","));
         String events = "{\"introduced\":\"" + introduced + "\"}" + (fixed == null ? "" : ",{\"fixed\":\"" + fixed + "\"}");
         return """
                 {"id":"%s","modified":"%s","published":"2026-01-01T00:00:00Z","aliases":[%s],
@@ -120,18 +120,18 @@ public final class Fixtures {
     public static void stubOsv(Map<String, String> advisoriesById, Map<String, String> modifiedById) {
         List<Map.Entry<String, String>> sorted = new ArrayList<>(modifiedById.entrySet());
         sorted.sort(Map.Entry.<String, String>comparingByValue().reversed());
-        String csv = sorted.stream().map(e -> e.getValue() + "," + e.getKey()).collect(Collectors.joining("\n"));
-        StubServer.on("/osv-export/Maven/modified_id.csv", StubServer.Stub.ok(csv));
-        advisoriesById.forEach((id, json) -> StubServer.on("/osv-api/v1/vulns/" + id, StubServer.Stub.ok(json)));
+        String csv = sorted.stream().map(entree -> entree.getValue() + "," + entree.getKey()).collect(Collectors.joining("\n"));
+        StubServer.programmer("/osv-export/Maven/modified_id.csv", StubServer.Stub.succes(csv));
+        advisoriesById.forEach((id, json) -> StubServer.programmer("/osv-api/v1/vulns/" + id, StubServer.Stub.succes(json)));
     }
 
     /** Raccourci : avis et dates déclarés ensemble (id → {modified, json}). */
     public static void stubOsv(String... idModifiedJson) {
         Map<String, String> json = new LinkedHashMap<>();
         Map<String, String> modified = new LinkedHashMap<>();
-        for (int i = 0; i < idModifiedJson.length; i += 3) {
-            modified.put(idModifiedJson[i], idModifiedJson[i + 1]);
-            json.put(idModifiedJson[i], idModifiedJson[i + 2]);
+        for (int indice = 0; indice < idModifiedJson.length; indice += 3) {
+            modified.put(idModifiedJson[indice], idModifiedJson[indice + 1]);
+            json.put(idModifiedJson[indice], idModifiedJson[indice + 2]);
         }
         stubOsv(json, modified);
     }
@@ -142,9 +142,10 @@ public final class Fixtures {
      */
     public static String cyclonedx(String specVersion, String timestamp, List<String[]> components, List<String> direct) {
         String comps = components.stream()
-                .map(c -> "{\"type\":\"library\",\"bom-ref\":\"" + c[0] + "\",\"name\":\"" + c[0] + "\",\"purl\":\"" + c[1] + "\"}")
+                .map(composant -> "{\"type\":\"library\",\"bom-ref\":\"" + composant[0] + "\",\"name\":\"" + composant[0]
+                        + "\",\"purl\":\"" + composant[1] + "\"}")
                 .collect(Collectors.joining(","));
-        String dependsOn = direct.stream().map(d -> "\"" + d + "\"").collect(Collectors.joining(","));
+        String dependsOn = direct.stream().map(dependance -> "\"" + dependance + "\"").collect(Collectors.joining(","));
         String metadata = "{" + (timestamp == null ? "" : "\"timestamp\":\"" + timestamp + "\",")
                 + "\"component\":{\"type\":\"application\",\"bom-ref\":\"root\",\"name\":\"app\"}}";
         return """

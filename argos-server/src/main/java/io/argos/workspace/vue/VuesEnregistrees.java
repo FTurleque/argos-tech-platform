@@ -58,14 +58,14 @@ public class VuesEnregistrees {
 
     /** Vues du compte, par nom. */
     public List<Vue> lister(UUID compteId) {
-        return base.executer(new Contexte(compteId, null, null), c -> {
+        return base.executer(new Contexte(compteId, null, null), connexion -> {
             List<Vue> vues = new ArrayList<>();
-            try (PreparedStatement ps = c.prepareStatement(
+            try (PreparedStatement requete = connexion.prepareStatement(
                     "SELECT id, nom, criteres::text, cree_le FROM workspace_vue WHERE compte_id = ? ORDER BY nom, id")) {
-                ps.setObject(1, compteId);
-                try (ResultSet rs = ps.executeQuery()) {
-                    while (rs.next()) {
-                        vues.add(vue(rs));
+                requete.setObject(1, compteId);
+                try (ResultSet resultat = requete.executeQuery()) {
+                    while (resultat.next()) {
+                        vues.add(vue(resultat));
                     }
                 }
             }
@@ -75,62 +75,63 @@ public class VuesEnregistrees {
 
     /** Enregistre une vue ; nom unique par compte, nombre de vues borné ({@code argos.recherche.vues-max}). */
     public Vue creer(UUID compteId, String nom, String criteresJson) {
-        String n = nom == null ? "" : nom.strip();
-        if (n.isEmpty() || n.length() > NOM_MAX) {
+        String nomPropre = nom == null ? "" : nom.strip();
+        if (nomPropre.isEmpty() || nomPropre.length() > NOM_MAX) {
             throw new DonneeInvalide("DONNEE_INVALIDE", "Le nom de la vue compte de 1 à " + NOM_MAX + " caractères.", "nom");
         }
         if (criteresJson == null || criteresJson.length() > CRITERES_MAX) {
             throw new DonneeInvalide("DONNEE_INVALIDE", "Critères de la vue absents ou trop longs.", "criteres");
         }
         UUID id = UUID.randomUUID();
-        return base.executer(new Contexte(compteId, null, null), c -> {
+        return base.executer(new Contexte(compteId, null, null), connexion -> {
             // Créations concurrentes du même compte sérialisées : le plafond ne peut pas être dépassé.
-            try (PreparedStatement ps = c.prepareStatement("SELECT pg_advisory_xact_lock(hashtext(?))")) {
-                ps.setString(1, "workspace_vue:" + compteId);
-                ps.execute();
+            try (PreparedStatement requete = connexion.prepareStatement("SELECT pg_advisory_xact_lock(hashtext(?))")) {
+                requete.setString(1, "workspace_vue:" + compteId);
+                requete.execute();
             }
-            try (PreparedStatement ps = c.prepareStatement("SELECT count(*), count(*) FILTER (WHERE nom = ?) FROM workspace_vue")) {
-                ps.setString(1, n);
-                try (ResultSet rs = ps.executeQuery()) {
-                    rs.next();
-                    if (rs.getLong(2) > 0) {
+            try (PreparedStatement requete = connexion.prepareStatement(
+                    "SELECT count(*), count(*) FILTER (WHERE nom = ?) FROM workspace_vue")) {
+                requete.setString(1, nomPropre);
+                try (ResultSet resultat = requete.executeQuery()) {
+                    resultat.next();
+                    if (resultat.getLong(2) > 0) {
                         throw new RegleViolee("VUE_EXISTANTE", "Vous avez déjà une vue nommée ainsi.");
                     }
-                    if (rs.getLong(1) >= vuesMax) {
+                    if (resultat.getLong(1) >= vuesMax) {
                         throw new RegleViolee("LIMITE_VUES", "Nombre maximal de vues enregistrées atteint (" + vuesMax + ").");
                     }
                 }
             }
-            try (PreparedStatement ps = c.prepareStatement("""
+            try (PreparedStatement requete = connexion.prepareStatement("""
                     INSERT INTO workspace_vue (id, compte_id, nom, criteres) VALUES (?, ?, ?, ?::jsonb)
                     RETURNING id, nom, criteres::text, cree_le
                     """)) {
-                ps.setObject(1, id);
-                ps.setObject(2, compteId);
-                ps.setString(3, n);
-                ps.setString(4, criteresJson);
-                try (ResultSet rs = ps.executeQuery()) {
-                    rs.next();
-                    return vue(rs);
+                requete.setObject(1, id);
+                requete.setObject(2, compteId);
+                requete.setString(3, nomPropre);
+                requete.setString(4, criteresJson);
+                try (ResultSet resultat = requete.executeQuery()) {
+                    resultat.next();
+                    return vue(resultat);
                 }
-            } catch (SQLException e) {
-                if ("23505".equals(e.getSQLState())) {
+            } catch (SQLException erreur) {
+                if ("23505".equals(erreur.getSQLState())) {
                     // Création concurrente du même nom : l'unicité est garantie par la base.
                     throw new RegleViolee("VUE_EXISTANTE", "Vous avez déjà une vue nommée ainsi.");
                 }
-                throw e;
+                throw erreur;
             }
         });
     }
 
     /** Vue du compte ; refus journalisé si elle appartient à un autre compte, « introuvable » si elle n'existe pas. */
     public Vue trouver(UUID compteId, UUID id) {
-        Optional<Vue> vue = base.executer(new Contexte(compteId, null, null), c -> {
-            try (PreparedStatement ps = c.prepareStatement(
+        Optional<Vue> vue = base.executer(new Contexte(compteId, null, null), connexion -> {
+            try (PreparedStatement requete = connexion.prepareStatement(
                     "SELECT id, nom, criteres::text, cree_le FROM workspace_vue WHERE id = ?")) {
-                ps.setObject(1, id);
-                try (ResultSet rs = ps.executeQuery()) {
-                    return rs.next() ? Optional.of(vue(rs)) : Optional.empty();
+                requete.setObject(1, id);
+                try (ResultSet resultat = requete.executeQuery()) {
+                    return resultat.next() ? Optional.of(vue(resultat)) : Optional.empty();
                 }
             }
         });
@@ -139,10 +140,10 @@ public class VuesEnregistrees {
 
     /** Supprime une vue du compte ; mêmes refus que {@link #trouver}. */
     public void supprimer(UUID compteId, UUID id) {
-        int supprimees = base.executer(new Contexte(compteId, null, null), c -> {
-            try (PreparedStatement ps = c.prepareStatement("DELETE FROM workspace_vue WHERE id = ?")) {
-                ps.setObject(1, id);
-                return ps.executeUpdate();
+        int supprimees = base.executer(new Contexte(compteId, null, null), connexion -> {
+            try (PreparedStatement requete = connexion.prepareStatement("DELETE FROM workspace_vue WHERE id = ?")) {
+                requete.setObject(1, id);
+                return requete.executeUpdate();
             }
         });
         if (supprimees == 0) {
@@ -155,19 +156,20 @@ public class VuesEnregistrees {
      * faut journaliser ; rien de la vue n'est restitué.
      */
     private RuntimeException refus(UUID id) {
-        try (Connection c = dataSource.getConnection();
-                PreparedStatement ps = c.prepareStatement("SELECT 1 FROM workspace_vue WHERE id = ?")) {
-            ps.setObject(1, id);
-            try (ResultSet rs = ps.executeQuery()) {
-                return rs.next() ? new AccesRefuse(MotifRefus.NON_MEMBRE) : new Introuvable("Ressource introuvable.");
+        try (Connection connexion = dataSource.getConnection();
+                PreparedStatement requete = connexion.prepareStatement("SELECT 1 FROM workspace_vue WHERE id = ?")) {
+            requete.setObject(1, id);
+            try (ResultSet resultat = requete.executeQuery()) {
+                return resultat.next() ? new AccesRefuse(MotifRefus.NON_MEMBRE) : new Introuvable("Ressource introuvable.");
             }
-        } catch (SQLException e) {
-            throw new IllegalStateException("lecture de la vue impossible", e);
+        } catch (SQLException erreur) {
+            throw new IllegalStateException("lecture de la vue impossible", erreur);
         }
     }
 
-    private static Vue vue(ResultSet rs) throws SQLException {
-        OffsetDateTime cree = rs.getObject(4, OffsetDateTime.class);
-        return new Vue(rs.getObject(1, UUID.class), rs.getString(2), rs.getString(3), cree == null ? null : cree.toInstant());
+    private static Vue vue(ResultSet resultat) throws SQLException {
+        OffsetDateTime cree = resultat.getObject(4, OffsetDateTime.class);
+        return new Vue(resultat.getObject(1, UUID.class), resultat.getString(2), resultat.getString(3),
+                cree == null ? null : cree.toInstant());
     }
 }

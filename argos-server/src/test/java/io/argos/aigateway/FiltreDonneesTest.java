@@ -26,30 +26,30 @@ class FiltreDonneesTest {
                 "Authorization: Bearer abcdefghijklmnopqrstuvwxyz012345",
                 "password=Sup3rSecret!",
                 "mot de passe : hunter2hunter2");
-        for (String s : secrets) {
-            assertTrue(FiltreDonnees.filtrer(s).secret(), s);
+        for (String secret : secrets) {
+            assertTrue(FiltreDonnees.filtrer(secret).secret(), secret);
         }
     }
 
     @Test
     void donneesPersonnellesMasquees() {
-        FiltreDonnees.Resultat r = FiltreDonnees.filtrer(
+        FiltreDonnees.Resultat resultat = FiltreDonnees.filtrer(
                 "Contact : jean.dupont@exemple.fr ou 06 12 34 56 78, IBAN FR76 3000 6000 0112 3456 7890 189.");
-        assertFalse(r.secret());
-        assertEquals(3, r.masquees(), r.texte());
-        assertFalse(r.texte().contains("jean.dupont"));
-        assertFalse(r.texte().contains("06 12 34 56 78"));
-        assertFalse(r.texte().contains("3000 6000"));
-        assertTrue(r.texte().contains("[courriel masqué]"));
+        assertFalse(resultat.secret());
+        assertEquals(3, resultat.masquees(), resultat.texte());
+        assertFalse(resultat.texte().contains("jean.dupont"));
+        assertFalse(resultat.texte().contains("06 12 34 56 78"));
+        assertFalse(resultat.texte().contains("3000 6000"));
+        assertTrue(resultat.texte().contains("[courriel masqué]"));
     }
 
     @Test
     void identifiantsPublicsConserves() {
         String texte = "CVE-2026-12345 touche org.exemple:lib 1.2.3 (GHSA-abcd-efgh-ijkl), corrigé en 1.3.0 le 2026-11-15 ; "
                 + "hôte 192.168.10.20.";
-        FiltreDonnees.Resultat r = FiltreDonnees.filtrer(texte);
-        assertFalse(r.secret());
-        assertEquals(0, r.masquees(), r.texte());
-        assertEquals(texte, r.texte());
+        FiltreDonnees.Resultat resultat = FiltreDonnees.filtrer(texte);
+        assertFalse(resultat.secret());
+        assertEquals(0, resultat.masquees(), resultat.texte());
+        assertEquals(texte, resultat.texte());
     }
 }

@@ -45,7 +45,7 @@ class EmpreinteNormaliseeTest {
             List<String> cles = new ArrayList<>((java.util.Set<String>) map.keySet());
             Collections.reverse(cles);
             Map<String, Object> resultat = new LinkedHashMap<>();
-            cles.forEach(k -> resultat.put(k, inverse(map.get(k))));
+            cles.forEach(cle -> resultat.put(cle, inverse(map.get(cle))));
             return resultat;
         }
         if (noeud instanceof List<?> liste) {
@@ -59,13 +59,13 @@ class EmpreinteNormaliseeTest {
         String brut = Fixtures.resource("osv/GHSA-jfh8-c2jp-5v3q.json");
         String reorganise = reorganise(brut);
 
-        NormalizedAdvisory a = avis(brut);
-        NormalizedAdvisory b = avis(reorganise);
+        NormalizedAdvisory avisBrut = avis(brut);
+        NormalizedAdvisory avisReorganise = avis(reorganise);
 
-        assertNotEquals(a.contentHash(), b.contentHash(), "contenus bruts différents");
-        assertEquals(a.normalizedHash(), b.normalizedHash());
-        assertEquals(64, a.normalizedHash().length());
-        assertTrue(a.normalizedHash().matches("[0-9a-f]{64}"));
+        assertNotEquals(avisBrut.contentHash(), avisReorganise.contentHash(), "contenus bruts différents");
+        assertEquals(avisBrut.normalizedHash(), avisReorganise.normalizedHash());
+        assertEquals(64, avisBrut.normalizedHash().length());
+        assertTrue(avisBrut.normalizedHash().matches("[0-9a-f]{64}"));
     }
 
     @Test
@@ -85,23 +85,23 @@ class EmpreinteNormaliseeTest {
 
     @Test
     void col10S2SeuleLaDateDeModificationChange() {
-        String v1 = Fixtures.osv("GHSA-MOD", "2026-11-01T00:00:00Z", "Maven", "org.exemple:lib",
+        String versionInitiale = Fixtures.osv("GHSA-MOD", "2026-11-01T00:00:00Z", "Maven", "org.exemple:lib",
                 "pkg:maven/org.exemple/lib", "0", "1.3.0");
-        String v2 = Fixtures.osv("GHSA-MOD", "2026-11-09T12:00:00Z", "Maven", "org.exemple:lib",
+        String versionModifiee = Fixtures.osv("GHSA-MOD", "2026-11-09T12:00:00Z", "Maven", "org.exemple:lib",
                 "pkg:maven/org.exemple/lib", "0", "1.3.0");
 
-        assertNotEquals(avis(v1).contentHash(), avis(v2).contentHash());
-        assertEquals(avis(v1).normalizedHash(), avis(v2).normalizedHash());
+        assertNotEquals(avis(versionInitiale).contentHash(), avis(versionModifiee).contentHash());
+        assertEquals(avis(versionInitiale).normalizedHash(), avis(versionModifiee).normalizedHash());
     }
 
     @Test
     void col10S3PlageAffecteeModifieeChangeLEmpreinte() {
-        String v1 = Fixtures.osv("GHSA-PLG", "2026-11-01T00:00:00Z", "Maven", "org.exemple:lib",
+        String versionInitiale = Fixtures.osv("GHSA-PLG", "2026-11-01T00:00:00Z", "Maven", "org.exemple:lib",
                 "pkg:maven/org.exemple/lib", "0", "1.3.0");
-        String v2 = Fixtures.osv("GHSA-PLG", "2026-11-05T00:00:00Z", "Maven", "org.exemple:lib",
+        String versionModifiee = Fixtures.osv("GHSA-PLG", "2026-11-05T00:00:00Z", "Maven", "org.exemple:lib",
                 "pkg:maven/org.exemple/lib", "0", "1.4.0");
 
-        assertNotEquals(avis(v1).normalizedHash(), avis(v2).normalizedHash());
+        assertNotEquals(avis(versionInitiale).normalizedHash(), avis(versionModifiee).normalizedHash());
     }
 
     @Test

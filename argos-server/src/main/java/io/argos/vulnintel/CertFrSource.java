@@ -66,9 +66,9 @@ public class CertFrSource implements EnrichmentSource {
         }
         String feed = http.get(URI.create(feedUrl)).orElse("");
         Set<String> references = new LinkedHashSet<>();
-        Matcher m = REFERENCE.matcher(feed);
-        while (m.find()) {
-            references.add(m.group());
+        Matcher matcher = REFERENCE.matcher(feed);
+        while (matcher.find()) {
+            references.add(matcher.group());
         }
         Map<String, List<Finding>> built = new HashMap<>();
         String base = baseUrl.endsWith("/") ? baseUrl : baseUrl + "/";
@@ -78,10 +78,10 @@ public class CertFrSource implements EnrichmentSource {
                 data.put("reference", reference);
                 data.put("title", avis.path("title").asText(null));
                 data.put("url", base + reference + "/");
-                for (JsonNode c : avis.path("cves")) {
-                    String name = c.path("name").asText();
+                for (JsonNode cve : avis.path("cves")) {
+                    String name = cve.path("name").asText();
                     if (!name.isBlank()) {
-                        built.computeIfAbsent(name, k -> new ArrayList<>()).add(new Finding(reference, data));
+                        built.computeIfAbsent(name, key -> new ArrayList<>()).add(new Finding(reference, data));
                     }
                 }
             });

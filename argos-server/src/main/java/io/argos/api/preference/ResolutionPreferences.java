@@ -41,8 +41,8 @@ public class ResolutionPreferences {
         }
     }
 
-    public PreferencesEffectives resoudre(PreferencesUtilisateur p) {
-        String choisie = p.miseEnPage().orElse(null);
+    public PreferencesEffectives resoudre(PreferencesUtilisateur enregistrees) {
+        String choisie = enregistrees.miseEnPage().orElse(null);
         boolean indisponible = choisie != null && !misesEnPage.estPubliee(choisie);
         String appliquee = choisie != null && !indisponible ? choisie : CatalogueMisesEnPage.PAR_DEFAUT;
         String message = indisponible
@@ -51,7 +51,7 @@ public class ResolutionPreferences {
 
         List<String> publies = new ArrayList<>();
         List<String> ignores = new ArrayList<>();
-        for (String profil : p.profilsActifs()) {
+        for (String profil : enregistrees.profilsActifs()) {
             (profils.estPublie(profil) ? publies : ignores).add(profil);
         }
         boolean parDefaut = publies.isEmpty();

@@ -9,14 +9,14 @@ import { ROUTES } from './support/routes.mjs'
 
 test('seules l’état du serveur, la connexion et l’écran de refus sont publiques', () => {
   assert.equal(ROUTES.length, 13, 'routes lues dans router.ts')
-  assert.deepEqual(ROUTES.filter((r) => r.publique).map((r) => r.name).sort(), ['compte-non-cree', 'connexion', 'status'])
+  assert.deepEqual(ROUTES.filter((route) => route.publique).map((route) => route.name).sort(), ['compte-non-cree', 'connexion', 'status'])
   const routeur = readFileSync(new URL('../src/router.ts', import.meta.url), 'utf8')
   assert.match(routeur, /publique \? \{ path, name, component, meta: \{ public: true \} \} : \{ path, name, component \}/,
     'seules les vues publiques portent meta.public')
 })
 
 test('ACC-07-S1 : sans session, toute vue protégée mène à l’écran de connexion avec la vue en retour', () => {
-  for (const route of ROUTES.filter((r) => !r.publique)) {
+  for (const route of ROUTES.filter((candidate) => !candidate.publique)) {
     assert.deepEqual(
       decisionGarde({ publique: false, connecte: false, compteNonCree: false, chemin: route.path }),
       { type: 'connexion', retour: route.path },

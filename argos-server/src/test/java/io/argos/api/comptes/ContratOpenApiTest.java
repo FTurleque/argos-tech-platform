@@ -1,6 +1,6 @@
 package io.argos.api.comptes;
 
-import static io.argos.testsupport.Api.en;
+import static io.argos.testsupport.Api.enTantQue;
 import static org.hamcrest.Matchers.hasKey;
 import static org.hamcrest.Matchers.notNullValue;
 
@@ -15,7 +15,7 @@ class ContratOpenApiTest {
 
     @Test
     void contratPublie() {
-        ValidatableResponse contrat = en("alice").queryParam("format", "json")
+        ValidatableResponse contrat = enTantQue("alice").queryParam("format", "json")
                 .when().get("/q/openapi")
                 .then().statusCode(200);
 

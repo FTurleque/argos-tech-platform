@@ -33,7 +33,7 @@ import io.quarkus.test.junit.QuarkusTest;
 class ParcoursActiviteTest {
 
     @Inject
-    TestDb db;
+    TestDb baseDeTest;
 
     @Inject
     ProjectDirectory projets;
@@ -43,7 +43,7 @@ class ParcoursActiviteTest {
 
     @BeforeEach
     void reset() {
-        db.reset();
+        baseDeTest.reset();
     }
 
     @Test
@@ -56,7 +56,7 @@ class ParcoursActiviteTest {
         // Passage du planificateur : le projet jamais collecté est échu.
         assertEquals(new CollecteActivite.Bilan(1, 0, 0), collecte.collecter(Instant.now()));
 
-        String activite = Api.en("jules").queryParam("jours", 30).when().get("/api/v1/projects/" + projet + "/activite")
+        String activite = Api.enTantQue("jules").queryParam("jours", 30).when().get("/api/v1/projects/" + projet + "/activite")
                 .then().statusCode(200)
                 .body("periode.jours", equalTo(30))
                 .body("compteurs.ticketsOuverts", equalTo(3))
@@ -68,7 +68,7 @@ class ParcoursActiviteTest {
                 .body("jalons[0].avancement.libelle", equalTo("27 sur 30 (90 %)"))
                 .body("fraicheur.etat", equalTo("A_JOUR"))
                 .extract().asString();
-        String synthese = Api.en("jules").when().get("/api/v1/projects/" + projet + "/activite/synthese")
+        String synthese = Api.enTantQue("jules").when().get("/api/v1/projects/" + projet + "/activite/synthese")
                 .then().statusCode(200)
                 .body("etat", equalTo("DISPONIBLE"))
                 .body("mention", equalTo("produite par l'IA"))

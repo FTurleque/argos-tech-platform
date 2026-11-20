@@ -17,7 +17,7 @@ async function changer(cle: 'notificationsPoste' | 'demarrageSession', valeur: b
 }
 
 onMounted(async () => {
-  desabonner = surChangementReglages((r) => { reglages.value = r })
+  desabonner = surChangementReglages((nouveaux) => { reglages.value = nouveaux })
   reglages.value = await lireReglagesPoste()
 })
 onUnmounted(() => desabonner())

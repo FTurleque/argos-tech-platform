@@ -58,14 +58,14 @@ public class ContexteBase {
                 T resultat = travail.executer(connexion);
                 connexion.commit();
                 return resultat;
-            } catch (SQLException | RuntimeException e) {
+            } catch (SQLException | RuntimeException erreur) {
                 connexion.rollback();
-                throw e;
+                throw erreur;
             } finally {
                 connexion.setAutoCommit(autoCommit);
             }
-        } catch (SQLException e) {
-            throw new IllegalStateException("Accès à la base impossible", e);
+        } catch (SQLException erreur) {
+            throw new IllegalStateException("Accès à la base impossible", erreur);
         }
     }
 
@@ -74,19 +74,19 @@ public class ContexteBase {
      * rôle {@code argos_app} et paramètres locaux à la transaction.
      */
     public static void appliquer(Connection connexion, Contexte contexte) throws SQLException {
-        try (Statement st = connexion.createStatement()) {
-            st.execute("SET LOCAL ROLE argos_app");
+        try (Statement instruction = connexion.createStatement()) {
+            instruction.execute("SET LOCAL ROLE argos_app");
         }
-        try (PreparedStatement ps = connexion.prepareStatement(
+        try (PreparedStatement requete = connexion.prepareStatement(
                 "SELECT set_config('argos.compte_courant', ?, true),"
                         + " set_config('argos.sujet_courant', ?, true),"
                         + " set_config('argos.email_courant', ?, true),"
                         + " set_config('argos.espace_courant', ?, true)")) {
-            ps.setString(1, texte(contexte.compteId()));
-            ps.setString(2, contexte.sujet() == null ? "" : contexte.sujet());
-            ps.setString(3, contexte.email() == null ? "" : contexte.email());
-            ps.setString(4, texte(contexte.espaceId()));
-            ps.execute();
+            requete.setString(1, texte(contexte.compteId()));
+            requete.setString(2, contexte.sujet() == null ? "" : contexte.sujet());
+            requete.setString(3, contexte.email() == null ? "" : contexte.email());
+            requete.setString(4, texte(contexte.espaceId()));
+            requete.execute();
         }
     }
 
