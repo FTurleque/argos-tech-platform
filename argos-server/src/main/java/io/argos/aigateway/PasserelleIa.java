@@ -1,5 +1,6 @@
 package io.argos.aigateway;
 
+import java.io.IOException;
 import java.math.BigDecimal;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
@@ -106,8 +107,8 @@ public class PasserelleIa {
         QuotasIa.Reservation reservation;
         try {
             reservation = quotas.reserver(demande.espaceId(), demande.compteId());
-        } catch (RuntimeException erreur) {
-            LOG.warnf("quotas IA indisponibles : %s", erreur.getMessage());
+        } catch (IllegalStateException erreur) {
+            LOG.warnf(erreur, "quotas IA indisponibles : %s", erreur.getMessage());
             return ReponseIa.refus(Issue.INDISPONIBLE, modele, prompt.version());
         }
         Optional<Issue> refusQuota = refusDeQuota(reservation);
@@ -172,20 +173,20 @@ public class PasserelleIa {
                     message(filtrees), schema(prompt))));
         } catch (InterruptedException interruption) {
             Thread.currentThread().interrupt();
+            LOG.infof(interruption, "appel du modèle %s interrompu pour la tâche %s", modele, prompt.tache());
             return Optional.empty();
-        } catch (Exception erreur) {
-            return isolerPanneFournisseur(demande, prompt, modele, erreur);
+        } catch (IOException erreur) {
+            LOG.infof(erreur, "modèle %s indisponible pour la tâche %s : %s", modele, prompt.tache(), erreur.toString());
+            rendreQuotaSiNonTransmis(demande, erreur);
+            return Optional.empty();
         }
     }
 
     /**
-     * Point d'isolation des pannes du fournisseur, dont le contrat ({@link FournisseurModele#executer}) laisse lever
-     * toute exception : la passerelle répond par un motif et l'appelant poursuit sans IA. Le quota est rendu quand la
-     * demande n'a pas atteint le fournisseur.
+     * Panne du fournisseur ({@link FournisseurModele#executer}) : le quota réservé est rendu quand la demande n'a pas
+     * atteint le fournisseur ; la passerelle répond alors par un motif et l'appelant poursuit sans IA.
      */
-    private Optional<FournisseurModele.Reponse> isolerPanneFournisseur(DemandeIa demande, PromptIa prompt, String modele,
-            Exception erreur) {
-        LOG.infof(erreur, "modèle %s indisponible pour la tâche %s : %s", modele, prompt.tache(), erreur.toString());
+    private void rendreQuotaSiNonTransmis(DemandeIa demande, IOException erreur) {
         if (nonTransmis(erreur)) {
             try {
                 quotas.liberer(demande.espaceId(), demande.compteId());
@@ -193,7 +194,6 @@ public class PasserelleIa {
                 LOG.warnf(erreurRestitution, "restitution du quota IA impossible : %s", erreurRestitution.getMessage());
             }
         }
-        return Optional.empty();
     }
 
     /** Valeur bornée à {@code argos.ia.taille-max-entree} caractères. */
