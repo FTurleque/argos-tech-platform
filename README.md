@@ -69,6 +69,19 @@ Tests de bout en bout du portail web (Playwright, Keycloak et PostgreSQL de test
 
 Liste des dépendances tierces du serveur, de leurs licences et de leurs avis NOTICE (commande dédiée, hors `mvn verify`) : voir [`argos-server/README.md`](argos-server/README.md#licences-des-dépendances).
 
+### Vérifications locales
+
+```bash
+mvn -B -f argos-server/pom.xml verify                       # tests du serveur (Docker requis)
+npm --prefix argos-ui test && npm --prefix argos-ui run build
+npm --prefix argos-desktop test
+node --test scripts/*.test.mjs "e2e/performance/*.test.mjs"
+node scripts/verifier-docs.mjs                              # liens, Mermaid, identifiants d'exigences
+node scripts/verifier-nommage.mjs                           # aucun identifiant d'une ou deux lettres
+```
+
+`node scripts/verifier-nommage.mjs` applique la règle de nommage d'[arc42 §8.16](docs/architecture/arc42/08-concepts-transverses.md#816-conventions-de-code) ; `node --test scripts/*.test.mjs` l'exécute aussi sur tout le dépôt. Le contrôle est en Node pur : il ne fait pas partie de `mvn verify`, l'image Maven du build Docker n'ayant pas Node.
+
 ### Argos complet sous Docker (PC ou Synology)
 
 ```bash

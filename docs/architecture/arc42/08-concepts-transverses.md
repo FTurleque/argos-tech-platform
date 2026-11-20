@@ -280,3 +280,10 @@ sequenceDiagram
 
 La tâche est portée par `alerting` parce que les règles de modules (§5.6) interdisent à `release-radar` d’appeler `inventory` ou `alerting` : `release-radar` ne connaît ni les inventaires ni les messages, `impact` confronte le calendrier aux inventaires, `alerting` émet les messages.
 
+## 8.16 Conventions de code
+
+Nommage (décisions du porteur du projet, 2026-11-20) : aucun identifiant d'une ou deux lettres n'est déclaré dans le code Java, TypeScript, JavaScript et Vue. Seuls sont admis `id` et les paramètres de type générique (`T`, `K`, `V`, `E`, `R`…). La règle couvre les variables locales, les champs, les paramètres de méthode, de lambda et de callback, les variables de catch et de boucle. Le nom dit ce que la variable contient (`connexion`, `requete`, `resultat`, `erreur`, `signal`, `ligne`…), en français quand le fichier est en français ; une variable de catch inutilisée s'appelle `ignoree` ou nomme sa cause.
+
+Ce qui fait partie d'un contrat ou reste visible hors du fichier garde son nom : composants de record, champs publics, méthodes, propriétés JSON, colonnes SQL, clés de configuration, props et emits Vue, exports. Les exceptions de ce type sont inscrites, avec leur raison, dans la liste blanche en tête de `scripts/verifier-nommage.mjs`.
+
+Contrôle : `node scripts/verifier-nommage.mjs` analyse les fichiers suivis par Git et liste chaque violation (`fichier:ligne:nom`, code de sortie 1) ; ses tests (`node --test scripts/*.test.mjs`) l'exécutent sur tout le dépôt.
