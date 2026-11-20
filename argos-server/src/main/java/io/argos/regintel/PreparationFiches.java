@@ -50,6 +50,9 @@ public class PreparationFiches {
 
     private static final Logger LOG = Logger.getLogger(PreparationFiches.class);
 
+    /** Longueur maximale, en caractères, de la justification de l'IA reprise dans le motif d'un domaine proposé. */
+    private static final int JUSTIFICATION_IA_MAX = 450;
+
     @Inject
     TextesOfficiels textes;
 
@@ -79,32 +82,56 @@ public class PreparationFiches {
         List<TexteOfficiel> lus = textes.lire(idsTextes);
         List<DictionnaireEspace> dictionnaires = dictionnaire.dictionnaires();
         int creees = 0;
-        for (DictionnaireEspace dictionnaire : dictionnaires) {
-            int propositions = 0;
-            for (TexteOfficiel texte : lus) {
-                try {
-                    List<Domaine> domaines = new ArrayList<>();
-                    for (Qualification.Rattachement rattachement : Qualification.qualifier(texte, dictionnaire)) {
-                        domaines.add(new Domaine(rattachement.domaine(), "REGLE", null, rattachement.motif()));
-                    }
-                    if (domaines.isEmpty() && propositions < propositionsMax && natureEligible(texte)
-                            && !existe(texte.id(), dictionnaire.espaceId())) {
-                        propositions++;
-                        Optional<AnalyseIa.Proposition> propositionIa = analyseIa.proposerDomaine(dictionnaire.espaceId(), texte,
-                                dictionnaire.domaines());
-                        propositionIa.ifPresent(proposition -> domaines.add(new Domaine(proposition.domaine(), "IA",
-                                proposition.confiance(), "proposé par l'IA : " + borne(proposition.justification(), 450))));
-                    }
-                    if (!domaines.isEmpty() && preparer(texte, dictionnaire.espaceId(), domaines, maintenant)) {
-                        creees++;
-                    }
-                } catch (IllegalStateException erreur) {
-                    LOG.errorf(erreur, "préparation de la fiche du texte %s pour l'espace %s en échec", texte.identifiant(),
-                            dictionnaire.espaceId());
+        for (DictionnaireEspace dictionnaireEspace : dictionnaires) {
+            creees += preparerPourEspace(dictionnaireEspace, lus, maintenant);
+        }
+        return creees;
+    }
+
+    /**
+     * Prépare les fiches des textes pour un espace ; renvoie le nombre de fiches créées. Une panne d'accès aux données
+     * sur un texte est journalisée et n'arrête pas les textes suivants.
+     */
+    private int preparerPourEspace(DictionnaireEspace dictionnaireEspace, List<TexteOfficiel> lus, Instant maintenant) {
+        int creees = 0;
+        int propositions = 0;
+        for (TexteOfficiel texte : lus) {
+            try {
+                List<Domaine> domaines = domainesParRegles(texte, dictionnaireEspace);
+                if (domaines.isEmpty() && propositionIaPossible(texte, dictionnaireEspace, propositions)) {
+                    propositions++;
+                    proposerParIa(texte, dictionnaireEspace).ifPresent(domaines::add);
                 }
+                if (!domaines.isEmpty() && preparer(texte, dictionnaireEspace.espaceId(), domaines, maintenant)) {
+                    creees++;
+                }
+            } catch (IllegalStateException erreur) {
+                LOG.errorf(erreur, "préparation de la fiche du texte %s pour l'espace %s en échec", texte.identifiant(),
+                        dictionnaireEspace.espaceId());
             }
         }
         return creees;
+    }
+
+    /** Domaines rattachés au texte par les règles du dictionnaire (liste modifiable). */
+    private static List<Domaine> domainesParRegles(TexteOfficiel texte, DictionnaireEspace dictionnaireEspace) {
+        List<Domaine> domaines = new ArrayList<>();
+        for (Qualification.Rattachement rattachement : Qualification.qualifier(texte, dictionnaireEspace)) {
+            domaines.add(new Domaine(rattachement.domaine(), "REGLE", null, rattachement.motif()));
+        }
+        return domaines;
+    }
+
+    /** Vrai si l'IA peut encore proposer un domaine pour ce texte dans cet espace, et que sa fiche n'existe pas. */
+    private boolean propositionIaPossible(TexteOfficiel texte, DictionnaireEspace dictionnaireEspace, int propositions) {
+        return propositions < propositionsMax && natureEligible(texte) && !existe(texte.id(), dictionnaireEspace.espaceId());
+    }
+
+    /** Domaine proposé par l'IA, marqué comme tel avec sa confiance (REG-02-S2). */
+    private Optional<Domaine> proposerParIa(TexteOfficiel texte, DictionnaireEspace dictionnaireEspace) {
+        return analyseIa.proposerDomaine(dictionnaireEspace.espaceId(), texte, dictionnaireEspace.domaines())
+                .map(proposition -> new Domaine(proposition.domaine(), "IA", proposition.confiance(),
+                        "proposé par l'IA : " + borne(proposition.justification(), JUSTIFICATION_IA_MAX)));
     }
 
     private boolean natureEligible(TexteOfficiel texte) {
