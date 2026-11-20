@@ -41,7 +41,8 @@ import io.quarkiverse.mcp.server.ToolCallException;
  *       l'établissement de l'appelant, car le refus est journalisé avec son compte.</li>
  *   <li>Une ressource d'un autre espace est refusée comme introuvable, sans rien révéler, et le refus
  *       est journalisé (MCP-04, ACC-06).</li>
- *   <li>Une erreur inattendue ne renvoie aucune donnée partielle.</li>
+ *   <li>Une panne d'accès aux données répond {@code INDISPONIBLE}, journalisée avec sa cause, sans aucune
+ *       donnée partielle.</li>
  * </ul>
  */
 @ApplicationScoped
@@ -113,10 +114,11 @@ public class GardeAppels {
             // Ressource inexistante : même réponse qu'un refus, sans entrée au journal des refus.
             journalAppels.enregistrer(compte, null, outil, parametresJson, millisecondes(debut), Issue.INTROUVABLE);
             throw new ToolCallException("INTROUVABLE : ressource introuvable dans votre périmètre.");
-        } catch (RuntimeException erreur) {
+        } catch (IllegalStateException erreur) {
             LOG.errorf(erreur, "Échec de l'outil MCP %s", outil);
             journalAppels.enregistrer(compte, null, outil, parametresJson, millisecondes(debut), Issue.ERREUR);
-            throw new ToolCallException("INDISPONIBLE : Argos ne peut pas répondre pour le moment ; aucune donnée partielle n'est renvoyée.");
+            throw new ToolCallException(
+                    "INDISPONIBLE : Argos ne peut pas répondre pour le moment ; aucune donnée partielle n'est renvoyée.");
         }
     }
 
