@@ -22,7 +22,7 @@
 // par l'API) n'est pas renommé : il va dans la liste blanche, avec sa raison.
 // Code de sortie : 0 sans violation, 1 sinon (liste fichier:ligne:nom).
 
-import { readFileSync } from 'node:fs';
+import { existsSync, readFileSync } from 'node:fs';
 import { spawnSync } from 'node:child_process';
 import { dirname, relative, resolve, sep } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
@@ -518,8 +518,20 @@ export function analyserFichier(fichier, source) {
     .map((violation) => ({ fichier, ...violation }));
 }
 
+// Git appelé par son chemin absolu, pris parmi des emplacements fixes : le contrôle ne dépend pas du PATH.
+// ARGOS_GIT désigne un autre emplacement.
+const EMPLACEMENTS_GIT = ['C:/Program Files/Git/cmd/git.exe', '/usr/bin/git', '/usr/local/bin/git', '/opt/homebrew/bin/git'];
+
+function cheminGit() {
+  const choisi = process.env.ARGOS_GIT ?? EMPLACEMENTS_GIT.find((chemin) => existsSync(chemin));
+  if (!choisi || !existsSync(choisi)) {
+    throw new Error('Git introuvable : installez-le ou indiquez son chemin dans ARGOS_GIT.');
+  }
+  return choisi;
+}
+
 function fichiersSuivis() {
-  const resultat = spawnSync('git', ['ls-files', '-z'], { cwd: RACINE, encoding: 'utf8', maxBuffer: 64 * 1024 * 1024 });
+  const resultat = spawnSync(cheminGit(), ['ls-files', '-z'], { cwd: RACINE, encoding: 'utf8', maxBuffer: 64 * 1024 * 1024 });
   if (resultat.status !== 0) throw new Error(`git ls-files a échoué : ${resultat.stderr}`);
   return resultat.stdout.split('\0').filter((fichier) => EXTENSIONS.test(fichier) && !EXCLUS.test(fichier));
 }
