@@ -98,28 +98,28 @@ public class RappelsRadar {
         RadarProjets.Bilan bilan;
         try {
             bilan = radar.actualiser(aujourdhui, maintenant);
-        } catch (RuntimeException e) {
+        } catch (RuntimeException erreur) {
             // Les rappels partent quand même, sur le calendrier et les dettes déjà connus.
-            LOG.errorf(e, "actualisation du radar en échec");
+            LOG.errorf(erreur, "actualisation du radar en échec");
             bilan = new RadarProjets.Bilan(java.util.Map.of(), 0);
         }
         List<UUID> crees = new ArrayList<>();
         List<UUID> espaces;
         try {
             espaces = radar.espacesSuivis();
-        } catch (RuntimeException e) {
-            LOG.errorf(e, "lecture des espaces suivis par le radar impossible");
+        } catch (RuntimeException erreur) {
+            LOG.errorf(erreur, "lecture des espaces suivis par le radar impossible");
             espaces = List.of();
         }
         for (UUID espace : espaces) {
             try {
                 for (int jours : parametresTechniques(espace)) {
-                    for (RadarProjets.EcheanceProjets ep : radar.echeancesTouchant(espace, aujourdhui.plusDays(jours))) {
-                        crees.addAll(rappeler(ep, jours, maintenant));
+                    for (RadarProjets.EcheanceProjets echeance : radar.echeancesTouchant(espace, aujourdhui.plusDays(jours))) {
+                        crees.addAll(rappeler(echeance, jours, maintenant));
                     }
                 }
-            } catch (RuntimeException e) {
-                LOG.errorf(e, "rappels du radar de l'espace %s en échec", espace);
+            } catch (RuntimeException erreur) {
+                LOG.errorf(erreur, "rappels du radar de l'espace %s en échec", espace);
             }
         }
         envoi.envoyer(crees, maintenant);
@@ -130,17 +130,17 @@ public class RappelsRadar {
     void surAnnonce(@Observes AnnonceStandard annonce) {
         try {
             Instant maintenant = Instant.now();
-            AnnonceStandard ch = annonce;
-            String titre = "Changement de standard : " + ch.libelle() + " passe de " + ch.ancienStatut()
-                    + version(ch.ancienneVersion()) + " à " + ch.statut() + version(ch.versionRecommandee());
-            String detail = titre + ". Justification : " + ch.justification();
+            AnnonceStandard changement = annonce;
+            String titre = "Changement de standard : " + changement.libelle() + " passe de " + changement.ancienStatut()
+                    + version(changement.ancienneVersion()) + " à " + changement.statut() + version(changement.versionRecommandee());
+            String detail = titre + ". Justification : " + changement.justification();
             // L'entrée d'historique identifie le changement : relayé deux fois, il ne produit qu'un message.
-            String cle = "ANNONCE|" + ch.espaceId() + "|" + ch.historiqueId();
+            String cle = "ANNONCE|" + changement.espaceId() + "|" + changement.historiqueId();
             List<UUID> crees = creerPourMembres("ANNONCE", annonce.espaceId(), cle, titre,
-                    contenu(detail, annonce.projets(), "Référentiel de l'espace", ch.cle(), annonce.espaceId()), maintenant);
+                    contenu(detail, annonce.projets(), "Référentiel de l'espace", changement.cle(), annonce.espaceId()), maintenant);
             envoi.envoyer(crees, maintenant);
-        } catch (RuntimeException e) {
-            LOG.errorf(e, "annonce du changement de standard %s en échec", annonce.cle());
+        } catch (RuntimeException erreur) {
+            LOG.errorf(erreur, "annonce du changement de standard %s en échec", annonce.cle());
         }
     }
 
@@ -148,7 +148,7 @@ public class RappelsRadar {
 
     /** Jours de rappel de l'espace, lus sous le contexte du compte (membre). */
     public List<Integer> parametres(UUID compteId, UUID espaceId) {
-        return base.executer(new Contexte(compteId, null, espaceId), c -> lireParametres(c, espaceId));
+        return base.executer(new Contexte(compteId, null, espaceId), connexion -> lireParametres(connexion, espaceId));
     }
 
     /**
@@ -160,45 +160,45 @@ public class RappelsRadar {
             throw new DonneeInvalide("DONNEE_INVALIDE", "Indiquez de 1 à 10 jours de rappel.", "rappelsJours");
         }
         Set<Integer> distincts = new LinkedHashSet<>();
-        for (Integer j : jours) {
-            if (j == null || j < 0 || j > 365) {
+        for (Integer jour : jours) {
+            if (jour == null || jour < 0 || jour > 365) {
                 throw new DonneeInvalide("DONNEE_INVALIDE", "Chaque jour de rappel est compris entre 0 et 365.",
                         "rappelsJours");
             }
-            distincts.add(j);
+            distincts.add(jour);
         }
-        Integer[] valeurs = distincts.stream().sorted((a, b) -> b - a).toArray(Integer[]::new);
-        return base.executer(new Contexte(compteId, null, espaceId), c -> {
-            try (PreparedStatement ps = c.prepareStatement("""
+        Integer[] valeurs = distincts.stream().sorted((gauche, droite) -> droite - gauche).toArray(Integer[]::new);
+        return base.executer(new Contexte(compteId, null, espaceId), connexion -> {
+            try (PreparedStatement requete = connexion.prepareStatement("""
                     INSERT INTO radar_parametres (espace_id, rappels_jours, modifie_par, modifie_le)
                     VALUES (?, ?, argos_compte_courant(), now())
                     ON CONFLICT (espace_id) DO UPDATE SET rappels_jours = excluded.rappels_jours,
                         modifie_par = excluded.modifie_par, modifie_le = excluded.modifie_le
                     """)) {
-                ps.setObject(1, espaceId);
-                ps.setArray(2, c.createArrayOf("integer", valeurs));
-                ps.executeUpdate();
+                requete.setObject(1, espaceId);
+                requete.setArray(2, connexion.createArrayOf("integer", valeurs));
+                requete.executeUpdate();
             }
-            return lireParametres(c, espaceId);
+            return lireParametres(connexion, espaceId);
         });
     }
 
     private List<Integer> parametresTechniques(UUID espaceId) {
-        try (Connection c = dataSource.getConnection()) {
-            return lireParametres(c, espaceId);
-        } catch (SQLException e) {
-            throw new IllegalStateException("lecture des paramètres du radar impossible", e);
+        try (Connection connexion = dataSource.getConnection()) {
+            return lireParametres(connexion, espaceId);
+        } catch (SQLException erreur) {
+            throw new IllegalStateException("lecture des paramètres du radar impossible", erreur);
         }
     }
 
-    private static List<Integer> lireParametres(Connection c, UUID espaceId) throws SQLException {
-        try (PreparedStatement ps = c.prepareStatement("SELECT rappels_jours FROM radar_parametres WHERE espace_id = ?")) {
-            ps.setObject(1, espaceId);
-            try (ResultSet rs = ps.executeQuery()) {
-                if (!rs.next()) {
+    private static List<Integer> lireParametres(Connection connexion, UUID espaceId) throws SQLException {
+        try (PreparedStatement requete = connexion.prepareStatement("SELECT rappels_jours FROM radar_parametres WHERE espace_id = ?")) {
+            requete.setObject(1, espaceId);
+            try (ResultSet resultat = requete.executeQuery()) {
+                if (!resultat.next()) {
                     return RAPPELS_PAR_DEFAUT;
                 }
-                Array tableau = rs.getArray(1);
+                Array tableau = resultat.getArray(1);
                 return Arrays.stream((Integer[]) tableau.getArray()).toList();
             }
         }
@@ -206,26 +206,28 @@ public class RappelsRadar {
 
     // ------------------------------------------------------------------ messages
 
-    private List<UUID> rappeler(RadarProjets.EcheanceProjets ep, int jours, Instant maintenant) {
-        RadarProjets.EcheanceProjets e = ep;
-        String quoi = switch (e.nature()) {
+    private List<UUID> rappeler(RadarProjets.EcheanceProjets echeanceProjets, int jours, Instant maintenant) {
+        RadarProjets.EcheanceProjets echeance = echeanceProjets;
+        String quoi = switch (echeance.nature()) {
             case "FIN_DE_SUPPORT" -> "Fin de support de ";
             case "SORTIE" -> "Sortie de ";
             default -> "Échéance de ";
         };
-        String quand = jours == 0 ? "aujourd'hui (" + e.date() + ")" : "dans " + jours + " jours (" + e.date() + ")";
-        String titre = quoi + ep.libelle() + " " + e.version() + " " + quand;
-        String cle = "RAPPEL|" + ep.espaceId() + "|" + e.cle() + "|" + e.nature() + "|" + e.version() + "|" + e.date()
+        String quand = jours == 0 ? "aujourd'hui (" + echeance.date() + ")" : "dans " + jours + " jours (" + echeance.date() + ")";
+        String titre = quoi + echeanceProjets.libelle() + " " + echeance.version() + " " + quand;
+        String cle = "RAPPEL|" + echeanceProjets.espaceId() + "|" + echeance.cle() + "|" + echeance.nature() + "|"
+                + echeance.version() + "|" + echeance.date()
                 + "|J-" + jours;
-        return creerPourMembres("RAPPEL", ep.espaceId(), cle, titre,
-                contenu(titre, ep.projets(), e.source(), e.cle() + " " + e.version(), ep.espaceId()), maintenant);
+        return creerPourMembres("RAPPEL", echeanceProjets.espaceId(), cle, titre,
+                contenu(titre, echeanceProjets.projets(), echeance.source(), echeance.cle() + " " + echeance.version(),
+                        echeanceProjets.espaceId()), maintenant);
     }
 
     private ContenuAlerte contenu(String titre, List<RadarProjets.ProjetConcerne> projets, String source,
             String identifiant, UUID espaceId) {
         List<ContenuAlerte.Projet> cites = projets.stream()
-                .map(p -> new ContenuAlerte.Projet(p.id(), p.nom(), p.version() == null ? "version inconnue"
-                        : "version " + p.version()))
+                .map(projet -> new ContenuAlerte.Projet(projet.id(), projet.nom(), projet.version() == null ? "version inconnue"
+                        : "version " + projet.version()))
                 .toList();
         String url = "endoflife.date".equals(source) ? "https://endoflife.date" : null;
         return new ContenuAlerte(List.of(new ContenuAlerte.Element(null, titre, null, cites,
@@ -237,11 +239,11 @@ public class RappelsRadar {
     private List<UUID> creerPourMembres(String nature, UUID espaceId, String cle, String titre, ContenuAlerte contenu,
             Instant maintenant) {
         List<UUID> crees = new ArrayList<>();
-        for (Destinataires.Destinataire d : destinataires.membres(Set.of(espaceId))) {
-            String canal = d.email() == null || d.email().isBlank() ? "DESKTOP" : "EMAIL";
-            creer(nature, d.compteId(), canal, cle, titre, contenu, maintenant).ifPresent(id -> {
+        for (Destinataires.Destinataire destinataire : destinataires.membres(Set.of(espaceId))) {
+            String canal = destinataire.email() == null || destinataire.email().isBlank() ? "DESKTOP" : "EMAIL";
+            creer(nature, destinataire.compteId(), canal, cle, titre, contenu, maintenant).ifPresent(id -> {
                 crees.add(id);
-                emises.fire(new AlerteEmise(id, d.compteId(), canal, nature));
+                emises.fire(new AlerteEmise(id, destinataire.compteId(), canal, nature));
             });
         }
         return crees;
@@ -254,25 +256,25 @@ public class RappelsRadar {
      */
     Optional<UUID> creer(String nature, UUID compte, String canal, String cle, String titre, ContenuAlerte contenu,
             Instant maintenant) {
-        try (Connection c = dataSource.getConnection(); PreparedStatement ps = c.prepareStatement("""
+        try (Connection connexion = dataSource.getConnection(); PreparedStatement requete = connexion.prepareStatement("""
                 INSERT INTO alerte (id, nature, compte_id, canal, cle_radar, titre, contenu, etat_resume_ia, etat, cree_le)
                 VALUES (?, ?, ?, ?, ?, ?, ?::jsonb, 'SANS_OBJET', 'EN_ATTENTE', ?)
                 ON CONFLICT (compte_id, canal, cle_radar) WHERE nature IN ('RAPPEL', 'ANNONCE') DO NOTHING
                 RETURNING id
                 """)) {
-            ps.setObject(1, UUID.randomUUID());
-            ps.setString(2, nature);
-            ps.setObject(3, compte);
-            ps.setString(4, canal);
-            ps.setString(5, cleBornee(cle));
-            ps.setString(6, titre);
-            ps.setString(7, MoteurAlertes.json(contenu));
-            ps.setObject(8, maintenant.atOffset(ZoneOffset.UTC));
-            try (ResultSet rs = ps.executeQuery()) {
-                return rs.next() ? Optional.of(rs.getObject(1, UUID.class)) : Optional.empty();
+            requete.setObject(1, UUID.randomUUID());
+            requete.setString(2, nature);
+            requete.setObject(3, compte);
+            requete.setString(4, canal);
+            requete.setString(5, cleBornee(cle));
+            requete.setString(6, titre);
+            requete.setString(7, MoteurAlertes.json(contenu));
+            requete.setObject(8, maintenant.atOffset(ZoneOffset.UTC));
+            try (ResultSet resultat = requete.executeQuery()) {
+                return resultat.next() ? Optional.of(resultat.getObject(1, UUID.class)) : Optional.empty();
             }
-        } catch (SQLException e) {
-            throw new IllegalStateException("enregistrement d'un message du radar impossible", e);
+        } catch (SQLException erreur) {
+            throw new IllegalStateException("enregistrement d'un message du radar impossible", erreur);
         }
     }
 
@@ -289,12 +291,12 @@ public class RappelsRadar {
                     .digest(cle.getBytes(java.nio.charset.StandardCharsets.UTF_8));
             String hex = java.util.HexFormat.of().formatHex(empreinte);
             return cle.substring(0, CLE_MAX - hex.length() - 1) + "#" + hex;
-        } catch (java.security.NoSuchAlgorithmException e) {
-            throw new IllegalStateException("SHA-256 indisponible", e);
+        } catch (java.security.NoSuchAlgorithmException erreur) {
+            throw new IllegalStateException("SHA-256 indisponible", erreur);
         }
     }
 
-    private static String version(String v) {
-        return v == null ? "" : " (" + v + ")";
+    private static String version(String valeur) {
+        return valeur == null ? "" : " (" + valeur + ")";
     }
 }

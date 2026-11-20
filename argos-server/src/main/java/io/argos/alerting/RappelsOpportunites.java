@@ -86,29 +86,29 @@ public class RappelsOpportunites {
         List<SuivisProfil.Suiveur> suiveurs;
         try {
             suiveurs = suivis.suiveurs(RapprochementOpportunites.PROFIL);
-        } catch (RuntimeException e) {
-            LOG.errorf(e, "lecture des suiveurs du profil artiste impossible");
+        } catch (RuntimeException erreur) {
+            LOG.errorf(erreur, "lecture des suiveurs du profil artiste impossible");
             return crees;
         }
-        for (SuivisProfil.Suiveur s : suiveurs) {
+        for (SuivisProfil.Suiveur suiveur : suiveurs) {
             try {
-                crees.addAll(rappeler(s, aujourdhui, maintenant));
-            } catch (RuntimeException e) {
-                LOG.errorf(e, "rappels de date limite du compte %s en échec", s.compteId());
+                crees.addAll(rappeler(suiveur, aujourdhui, maintenant));
+            } catch (RuntimeException erreur) {
+                LOG.errorf(erreur, "rappels de date limite du compte %s en échec", suiveur.compteId());
             }
         }
         envoi.envoyer(crees, maintenant);
         return List.copyOf(crees);
     }
 
-    private List<UUID> rappeler(SuivisProfil.Suiveur s, LocalDate aujourdhui, Instant maintenant) {
+    private List<UUID> rappeler(SuivisProfil.Suiveur suiveur, LocalDate aujourdhui, Instant maintenant) {
         List<UUID> crees = new ArrayList<>();
-        Set<Integer> jours = new LinkedHashSet<>(s.suivis().rappelsJours().orElse(rappelsParDefaut));
-        Set<String> disciplines = Set.copyOf(s.suivis().valeurs("discipline"));
-        Set<String> territoires = Set.copyOf(s.suivis().valeurs("territoire"));
-        String canal = s.email() == null || s.email().isBlank() ? "DESKTOP" : "EMAIL";
-        for (RapprochementOpportunites.Restitution r : rapprochement.restituer(disciplines, territoires, aujourdhui)) {
-            LocalDate limite = r.dateLimite();
+        Set<Integer> jours = new LinkedHashSet<>(suiveur.suivis().rappelsJours().orElse(rappelsParDefaut));
+        Set<String> disciplines = Set.copyOf(suiveur.suivis().valeurs("discipline"));
+        Set<String> territoires = Set.copyOf(suiveur.suivis().valeurs("territoire"));
+        String canal = suiveur.email() == null || suiveur.email().isBlank() ? "DESKTOP" : "EMAIL";
+        for (RapprochementOpportunites.Restitution restitution : rapprochement.restituer(disciplines, territoires, aujourdhui)) {
+            LocalDate limite = restitution.dateLimite();
             if (limite == null) {
                 continue;
             }
@@ -117,22 +117,22 @@ public class RappelsOpportunites {
                 continue;
             }
             String quand = restant == 0 ? "aujourd'hui" : restant == 1 ? "demain" : "dans " + restant + " jours";
-            String titre = "Date limite " + quand + " (" + limite + ") : " + r.titre();
-            String cle = "OPPORTUNITE|" + r.id() + "|" + limite + "|J-" + restant;
-            messages.creer("RAPPEL", s.compteId(), canal, cle, titre, contenu(r, titre), maintenant).ifPresent(id -> {
+            String titre = "Date limite " + quand + " (" + limite + ") : " + restitution.titre();
+            String cle = "OPPORTUNITE|" + restitution.id() + "|" + limite + "|J-" + restant;
+            messages.creer("RAPPEL", suiveur.compteId(), canal, cle, titre, contenu(restitution, titre), maintenant).ifPresent(id -> {
                 crees.add(id);
-                emises.fire(new AlerteEmise(id, s.compteId(), canal, "RAPPEL"));
+                emises.fire(new AlerteEmise(id, suiveur.compteId(), canal, "RAPPEL"));
             });
         }
         return crees;
     }
 
-    private ContenuAlerte contenu(RapprochementOpportunites.Restitution r, String titre) {
-        String officiel = r.lien();
+    private ContenuAlerte contenu(RapprochementOpportunites.Restitution restitution, String titre) {
+        String officiel = restitution.lien();
         String lien = officiel != null ? officiel
-                : lienBase.replaceAll("/+$", "") + "/profils/artiste/opportunites/" + r.id();
+                : lienBase.replaceAll("/+$", "") + "/profils/artiste/opportunites/" + restitution.id();
         return new ContenuAlerte(List.of(new ContenuAlerte.Element(null, titre + ". " + ResumeOpportunite.MENTION, null,
-                List.of(), List.of(new ContenuAlerte.Source(r.sourceLibelle(), r.organisme(), officiel)),
+                List.of(), List.of(new ContenuAlerte.Source(restitution.sourceLibelle(), restitution.organisme(), officiel)),
                 lien)), null, "SANS_OBJET");
     }
 
@@ -142,13 +142,13 @@ public class RappelsOpportunites {
             throw new DonneeInvalide("DONNEE_INVALIDE", "Indiquez de 1 à 10 jours de rappel.", "rappelsJours");
         }
         Set<Integer> distincts = new LinkedHashSet<>();
-        for (Integer j : jours) {
-            if (j == null || j < 0 || j > 365) {
+        for (Integer jour : jours) {
+            if (jour == null || jour < 0 || jour > 365) {
                 throw new DonneeInvalide("DONNEE_INVALIDE", "Chaque jour de rappel est compris entre 0 et 365.",
                         "rappelsJours");
             }
-            distincts.add(j);
+            distincts.add(jour);
         }
-        return distincts.stream().sorted((a, b) -> b - a).toList();
+        return distincts.stream().sorted((gauche, droite) -> droite - gauche).toList();
     }
 }

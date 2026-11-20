@@ -31,50 +31,50 @@ public class CanalEmail implements CanalDiffusion {
         }
         try {
             mailer.send(Mail.withText(message.adresse(), sujet(message), corps(message)));
-        } catch (RuntimeException e) {
-            throw new EchecDiffusion("envoi SMTP impossible : " + e.getClass().getSimpleName(), false, e);
+        } catch (RuntimeException erreur) {
+            throw new EchecDiffusion("envoi SMTP impossible : " + erreur.getClass().getSimpleName(), false, erreur);
         }
     }
 
     /** Sujet : nature, gravité et titre. */
-    static String sujet(MessageAlerte m) {
-        String prefixe = switch (m.nature()) {
+    static String sujet(MessageAlerte message) {
+        String prefixe = switch (message.nature()) {
             case "DAILY" -> "[Argos] Résumé quotidien";
             case "WEEKLY" -> "[Argos] Résumé hebdomadaire";
             case "RAPPEL" -> "[Argos] Rappel d'échéance";
             case "ANNONCE" -> "[Argos] Standard modifié";
-            default -> "[Argos] Alerte" + (m.gravite() == null ? "" : " " + m.gravite());
+            default -> "[Argos] Alerte" + (message.gravite() == null ? "" : " " + message.gravite());
         };
         // Le titre vient d'une source externe : aucun retour à la ligne ne doit atteindre l'en-tête.
-        return (prefixe + " : " + m.titre()).replaceAll("[\r\n\t]+", " ").strip();
+        return (prefixe + " : " + message.titre()).replaceAll("[\r\n\t]+", " ").strip();
     }
 
     /** Corps texte : pour chaque élément, titre, gravité, projets, sources et lien ; puis l'état du résumé IA. */
-    static String corps(MessageAlerte m) {
-        StringBuilder b = new StringBuilder();
-        ContenuAlerte c = m.contenu();
+    static String corps(MessageAlerte message) {
+        StringBuilder texte = new StringBuilder();
+        ContenuAlerte contenu = message.contenu();
         // Rappels et annonces du radar : aucune gravité, projets cités avec la version utilisée.
-        boolean radar = "RAPPEL".equals(m.nature()) || "ANNONCE".equals(m.nature());
-        if ("IMMEDIATE".equals(m.nature())) {
-            if (c.resumeIa() != null) {
-                b.append("Résumé (").append(c.mentionResumeIa()).append(", à vérifier sur les sources) :\n")
-                        .append(c.resumeIa()).append("\n\n");
+        boolean radar = "RAPPEL".equals(message.nature()) || "ANNONCE".equals(message.nature());
+        if ("IMMEDIATE".equals(message.nature())) {
+            if (contenu.resumeIa() != null) {
+                texte.append("Résumé (").append(contenu.mentionResumeIa()).append(", à vérifier sur les sources) :\n")
+                        .append(contenu.resumeIa()).append("\n\n");
             } else {
-                b.append("Résumé IA non disponible.\n\n");
+                texte.append("Résumé IA non disponible.\n\n");
             }
         }
-        for (ContenuAlerte.Element e : c.elements()) {
-            b.append("• ").append(e.titre()).append('\n');
-            if (e.gravite() != null || !radar) {
-                b.append("  Gravité : ").append(e.gravite() == null ? "non précisée" : e.gravite()).append('\n');
+        for (ContenuAlerte.Element element : contenu.elements()) {
+            texte.append("• ").append(element.titre()).append('\n');
+            if (element.gravite() != null || !radar) {
+                texte.append("  Gravité : ").append(element.gravite() == null ? "non précisée" : element.gravite()).append('\n');
             }
-            b.append("  Projets : ").append(e.projets().stream()
-                    .map(p -> p.nom() + " (" + p.niveau() + ")").collect(Collectors.joining(", "))).append('\n');
-            b.append("  Sources : ").append(e.sources().stream()
-                    .map(s -> s.nom() + " " + s.identifiant() + (s.url() == null ? "" : " <" + s.url() + ">"))
+            texte.append("  Projets : ").append(element.projets().stream()
+                    .map(projet -> projet.nom() + " (" + projet.niveau() + ")").collect(Collectors.joining(", "))).append('\n');
+            texte.append("  Sources : ").append(element.sources().stream()
+                    .map(source -> source.nom() + " " + source.identifiant() + (source.url() == null ? "" : " <" + source.url() + ">"))
                     .collect(Collectors.joining(", "))).append('\n');
-            b.append("  Voir dans Argos : ").append(e.lien()).append("\n\n");
+            texte.append("  Voir dans Argos : ").append(element.lien()).append("\n\n");
         }
-        return b.toString();
+        return texte.toString();
     }
 }

@@ -57,17 +57,17 @@ public final class RegleAlerte {
         this.frequence = frequence;
         int minimale = 0;
         boolean applicable = false;
-        for (SubscriptionRequest.Filter f : filtres) {
-            String type = f.type().toUpperCase(Locale.ROOT);
-            String valeur = f.value().strip();
+        for (SubscriptionRequest.Filter filtre : filtres) {
+            String type = filtre.type().toUpperCase(Locale.ROOT);
+            String valeur = filtre.value().strip();
             applicable |= TYPES_IMPACT.contains(type);
             switch (type) {
                 case "PROJECT" -> projets.add(valeur.toLowerCase(Locale.ROOT));
                 case "PACKAGE" -> paquets.add(sansVersion(valeur));
                 case "SOURCE" -> sources.add(valeur.toUpperCase(Locale.ROOT));
                 case "TECHNOLOGY" -> {
-                    String t = valeur.toLowerCase(Locale.ROOT);
-                    typesPurl.addAll(TECHNOLOGIES.getOrDefault(t, Set.of(t)));
+                    String minuscule = valeur.toLowerCase(Locale.ROOT);
+                    typesPurl.addAll(TECHNOLOGIES.getOrDefault(minuscule, Set.of(minuscule)));
                 }
                 case "SEVERITY" -> {
                     int rang = Gravite.rang(valeur);
@@ -88,12 +88,12 @@ public final class RegleAlerte {
     }
 
     static Optional<RegleAlerte> depuis(String canal, String frequence, List<SubscriptionRequest.Filter> filtres) {
-        String c = canal == null ? "" : canal.strip().toUpperCase(Locale.ROOT);
-        String f = frequence == null ? "" : frequence.strip().toUpperCase(Locale.ROOT);
-        if (!CANAUX.contains(c) || !Set.of(IMMEDIATE, DAILY, WEEKLY).contains(f)) {
+        String canalNormalise = canal == null ? "" : canal.strip().toUpperCase(Locale.ROOT);
+        String frequenceNormalisee = frequence == null ? "" : frequence.strip().toUpperCase(Locale.ROOT);
+        if (!CANAUX.contains(canalNormalise) || !Set.of(IMMEDIATE, DAILY, WEEKLY).contains(frequenceNormalisee)) {
             return Optional.empty();
         }
-        return Optional.of(new RegleAlerte(c, f, filtres));
+        return Optional.of(new RegleAlerte(canalNormalise, frequenceNormalisee, filtres));
     }
 
     public String canal() {
@@ -136,8 +136,8 @@ public final class RegleAlerte {
     }
 
     private static String sansVersion(String paquet) {
-        int at = paquet.indexOf('@', paquet.startsWith("pkg:npm/@") ? 9 : 0);
-        return at < 0 ? paquet : paquet.substring(0, at);
+        int arobase = paquet.indexOf('@', paquet.startsWith("pkg:npm/@") ? 9 : 0);
+        return arobase < 0 ? paquet : paquet.substring(0, arobase);
     }
 
     private static String typePurl(String clePaquet) {

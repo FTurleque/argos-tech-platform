@@ -49,25 +49,25 @@ public class ConsultationAlertes {
 
     /** Alertes du compte, des plus récentes aux plus anciennes, filtrées par canal et état s'ils sont donnés. */
     public List<AlerteVue> lister(UUID compteId, String canal, String etat, int limite) {
-        int n = Math.min(Math.max(limite, 1), 200);
-        return base.executer(new ContexteBase.Contexte(compteId, null, null), c -> {
+        int limiteBornee = Math.min(Math.max(limite, 1), 200);
+        return base.executer(new ContexteBase.Contexte(compteId, null, null), connexion -> {
             List<AlerteVue> vues = new ArrayList<>();
-            try (PreparedStatement ps = c.prepareStatement(COLONNES + """
+            try (PreparedStatement requete = connexion.prepareStatement(COLONNES + """
                      WHERE compte_id = ? AND (?::varchar IS NULL OR canal = ?::varchar)
                        AND (?::varchar IS NULL OR etat = ?::varchar)
                      ORDER BY cree_le DESC, id LIMIT ?
                     """)) {
-                String cn = normaliser(canal);
-                String et = normaliser(etat);
-                ps.setObject(1, compteId);
-                ps.setString(2, cn);
-                ps.setString(3, cn);
-                ps.setString(4, et);
-                ps.setString(5, et);
-                ps.setInt(6, n);
-                try (ResultSet rs = ps.executeQuery()) {
-                    while (rs.next()) {
-                        vues.add(vue(rs));
+                String canalNormalise = normaliser(canal);
+                String etatNormalise = normaliser(etat);
+                requete.setObject(1, compteId);
+                requete.setString(2, canalNormalise);
+                requete.setString(3, canalNormalise);
+                requete.setString(4, etatNormalise);
+                requete.setString(5, etatNormalise);
+                requete.setInt(6, limiteBornee);
+                try (ResultSet resultat = requete.executeQuery()) {
+                    while (resultat.next()) {
+                        vues.add(vue(resultat));
                     }
                 }
             }
@@ -77,26 +77,26 @@ public class ConsultationAlertes {
 
     /** Alerte du compte. */
     public Optional<AlerteVue> obtenir(UUID compteId, UUID alerteId) {
-        return base.executer(new ContexteBase.Contexte(compteId, null, null), c -> lire(c, compteId, alerteId));
+        return base.executer(new ContexteBase.Contexte(compteId, null, null), connexion -> lire(connexion, compteId, alerteId));
     }
 
     /** Confirme la remise d'une alerte {@code DESKTOP} du compte : elle passe {@code ENVOYEE}. */
     public Remise remettre(UUID compteId, UUID alerteId) {
-        return base.executer(new ContexteBase.Contexte(compteId, null, null), c -> {
-            Optional<AlerteVue> vue = lire(c, compteId, alerteId);
+        return base.executer(new ContexteBase.Contexte(compteId, null, null), connexion -> {
+            Optional<AlerteVue> vue = lire(connexion, compteId, alerteId);
             if (vue.isEmpty()) {
                 return Remise.INTROUVABLE;
             }
             if (!"DESKTOP".equals(vue.get().canal())) {
                 return Remise.CANAL_NON_DESKTOP;
             }
-            try (PreparedStatement ps = c.prepareStatement("""
+            try (PreparedStatement requete = connexion.prepareStatement("""
                     UPDATE alerte SET etat = 'ENVOYEE', envoye_le = coalesce(envoye_le, now())
                     WHERE id = ? AND compte_id = ? AND canal = 'DESKTOP'
                     """)) {
-                ps.setObject(1, alerteId);
-                ps.setObject(2, compteId);
-                ps.executeUpdate();
+                requete.setObject(1, alerteId);
+                requete.setObject(2, compteId);
+                requete.executeUpdate();
             }
             return Remise.REMISE;
         });
@@ -104,23 +104,23 @@ public class ConsultationAlertes {
 
     /** Existence d'une alerte, lue hors rôle applicatif pour journaliser un refus ; jamais restituée. */
     public boolean existe(UUID alerteId) {
-        try (Connection c = dataSource.getConnection(); PreparedStatement ps = c.prepareStatement(
+        try (Connection connexion = dataSource.getConnection(); PreparedStatement requete = connexion.prepareStatement(
                 "SELECT 1 FROM alerte WHERE id = ?")) {
-            ps.setObject(1, alerteId);
-            try (ResultSet rs = ps.executeQuery()) {
-                return rs.next();
+            requete.setObject(1, alerteId);
+            try (ResultSet resultat = requete.executeQuery()) {
+                return resultat.next();
             }
-        } catch (SQLException e) {
-            throw new IllegalStateException("lecture de l'alerte impossible", e);
+        } catch (SQLException erreur) {
+            throw new IllegalStateException("lecture de l'alerte impossible", erreur);
         }
     }
 
-    private static Optional<AlerteVue> lire(Connection c, UUID compteId, UUID alerteId) throws SQLException {
-        try (PreparedStatement ps = c.prepareStatement(COLONNES + " WHERE id = ? AND compte_id = ?")) {
-            ps.setObject(1, alerteId);
-            ps.setObject(2, compteId);
-            try (ResultSet rs = ps.executeQuery()) {
-                return rs.next() ? Optional.of(vue(rs)) : Optional.empty();
+    private static Optional<AlerteVue> lire(Connection connexion, UUID compteId, UUID alerteId) throws SQLException {
+        try (PreparedStatement requete = connexion.prepareStatement(COLONNES + " WHERE id = ? AND compte_id = ?")) {
+            requete.setObject(1, alerteId);
+            requete.setObject(2, compteId);
+            try (ResultSet resultat = requete.executeQuery()) {
+                return resultat.next() ? Optional.of(vue(resultat)) : Optional.empty();
             }
         }
     }
@@ -129,19 +129,19 @@ public class ConsultationAlertes {
         return valeur == null || valeur.isBlank() ? null : valeur.strip().toUpperCase(Locale.ROOT);
     }
 
-    private static AlerteVue vue(ResultSet rs) throws SQLException {
+    private static AlerteVue vue(ResultSet resultat) throws SQLException {
         ContenuAlerte contenu;
         try {
-            contenu = MoteurAlertes.JSON.readValue(rs.getString(7), ContenuAlerte.class);
-        } catch (JsonProcessingException e) {
-            throw new SQLException("contenu d'alerte illisible", e);
+            contenu = MoteurAlertes.JSON.readValue(resultat.getString(7), ContenuAlerte.class);
+        } catch (JsonProcessingException erreur) {
+            throw new SQLException("contenu d'alerte illisible", erreur);
         }
-        return new AlerteVue(rs.getObject(1, UUID.class), rs.getString(2), rs.getString(3), rs.getString(4),
-                rs.getString(5), rs.getString(6), contenu, rs.getInt(8), instant(rs, 9), instant(rs, 10));
+        return new AlerteVue(resultat.getObject(1, UUID.class), resultat.getString(2), resultat.getString(3), resultat.getString(4),
+                resultat.getString(5), resultat.getString(6), contenu, resultat.getInt(8), instant(resultat, 9), instant(resultat, 10));
     }
 
-    private static Instant instant(ResultSet rs, int colonne) throws SQLException {
-        OffsetDateTime v = rs.getObject(colonne, OffsetDateTime.class);
-        return v == null ? null : v.toInstant();
+    private static Instant instant(ResultSet resultat, int colonne) throws SQLException {
+        OffsetDateTime horodatage = resultat.getObject(colonne, OffsetDateTime.class);
+        return horodatage == null ? null : horodatage.toInstant();
     }
 }

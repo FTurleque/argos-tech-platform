@@ -40,15 +40,15 @@ public class Destinataires {
                 SELECT DISTINCT c.id, c.email FROM appartenance a JOIN compte c ON c.id = a.compte_id
                 WHERE a.espace_id = ANY (?) ORDER BY c.id
                 """;
-        try (Connection c = dataSource.getConnection(); PreparedStatement ps = c.prepareStatement(sql)) {
-            ps.setArray(1, c.createArrayOf("uuid", espaces.toArray()));
-            try (ResultSet rs = ps.executeQuery()) {
-                while (rs.next()) {
-                    result.add(new Destinataire(rs.getObject(1, UUID.class), rs.getString(2)));
+        try (Connection connexion = dataSource.getConnection(); PreparedStatement requete = connexion.prepareStatement(sql)) {
+            requete.setArray(1, connexion.createArrayOf("uuid", espaces.toArray()));
+            try (ResultSet resultat = requete.executeQuery()) {
+                while (resultat.next()) {
+                    result.add(new Destinataire(resultat.getObject(1, UUID.class), resultat.getString(2)));
                 }
             }
-        } catch (SQLException e) {
-            throw new IllegalStateException("lecture des destinataires impossible", e);
+        } catch (SQLException erreur) {
+            throw new IllegalStateException("lecture des destinataires impossible", erreur);
         }
         return result;
     }
@@ -65,16 +65,16 @@ public class Destinataires {
                 JOIN workspace_preference_utilisateur p ON p.compte_id = c.id
                 WHERE a.espace_id = ? AND ? = ANY (p.profils_actifs) ORDER BY c.id
                 """;
-        try (Connection c = dataSource.getConnection(); PreparedStatement ps = c.prepareStatement(sql)) {
-            ps.setObject(1, espace);
-            ps.setString(2, profil);
-            try (ResultSet rs = ps.executeQuery()) {
-                while (rs.next()) {
-                    result.add(new Destinataire(rs.getObject(1, UUID.class), rs.getString(2)));
+        try (Connection connexion = dataSource.getConnection(); PreparedStatement requete = connexion.prepareStatement(sql)) {
+            requete.setObject(1, espace);
+            requete.setString(2, profil);
+            try (ResultSet resultat = requete.executeQuery()) {
+                while (resultat.next()) {
+                    result.add(new Destinataire(resultat.getObject(1, UUID.class), resultat.getString(2)));
                 }
             }
-        } catch (SQLException e) {
-            throw new IllegalStateException("lecture des destinataires impossible", e);
+        } catch (SQLException erreur) {
+            throw new IllegalStateException("lecture des destinataires impossible", erreur);
         }
         return result;
     }
@@ -82,16 +82,16 @@ public class Destinataires {
     /** Espaces dont le compte est membre, relus à chaque évaluation : une révocation s'applique aussitôt. */
     public Set<UUID> espacesDe(UUID compteId) {
         Set<UUID> result = new HashSet<>();
-        try (Connection c = dataSource.getConnection();
-                PreparedStatement ps = c.prepareStatement("SELECT espace_id FROM appartenance WHERE compte_id = ?")) {
-            ps.setObject(1, compteId);
-            try (ResultSet rs = ps.executeQuery()) {
-                while (rs.next()) {
-                    result.add(rs.getObject(1, UUID.class));
+        try (Connection connexion = dataSource.getConnection();
+                PreparedStatement requete = connexion.prepareStatement("SELECT espace_id FROM appartenance WHERE compte_id = ?")) {
+            requete.setObject(1, compteId);
+            try (ResultSet resultat = requete.executeQuery()) {
+                while (resultat.next()) {
+                    result.add(resultat.getObject(1, UUID.class));
                 }
             }
-        } catch (SQLException e) {
-            throw new IllegalStateException("lecture des appartenances impossible", e);
+        } catch (SQLException erreur) {
+            throw new IllegalStateException("lecture des appartenances impossible", erreur);
         }
         return result;
     }
