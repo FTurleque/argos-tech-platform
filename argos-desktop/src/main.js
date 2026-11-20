@@ -22,13 +22,16 @@ const http = require('node:http');
 const APP_ID = 'io.argos.desktop';
 const DEV = process.argv.includes('--dev');
 const DEV_URL = process.env.ARGOS_UI_DEV_URL || 'http://localhost:5173';
+// Réglages fixés à l'emballage : champ `argos` du package.json livré (`apiUrl`, `oidcUrl`), renseigné par
+// `electron-builder -c.extraMetadata.argos.apiUrl=…` ; la variable d'environnement garde la priorité.
+const REGLAGES_EMBALLES = require('../package.json').argos || {};
 // URL du serveur ARGOS : sert uniquement à la politique de sécurité du contenu.
 // L'IHM lit la sienne au moment du build (VITE_ARGOS_API_URL).
-const API_URL = process.env.ARGOS_API_URL || 'http://localhost:8080';
+const API_URL = process.env.ARGOS_API_URL || REGLAGES_EMBALLES.apiUrl || 'http://localhost:8080';
 // Émetteur OIDC (royaume Keycloak) : origine ajoutée à la CSP et seule destination acceptée pour
 // l'autorisation ouverte dans le navigateur du système (changement connecter-ihm-oidc, ACC-10).
 // L'IHM lit le sien au moment du build (VITE_ARGOS_OIDC_ISSUER) ; les deux doivent coïncider.
-const OIDC_URL = process.env.ARGOS_OIDC_URL || 'http://localhost:8180/realms/argos';
+const OIDC_URL = process.env.ARGOS_OIDC_URL || REGLAGES_EMBALLES.oidcUrl || 'http://localhost:8180/realms/argos';
 const UI_DIR = app.isPackaged
   ? path.join(process.resourcesPath, 'ui')
   : path.join(__dirname, '..', '..', 'argos-ui', 'dist');

@@ -26,6 +26,27 @@ Argos répond sur <http://localhost:8080>. Pour l'arrêter : `docker compose dow
 
 Pour développer, ne lancez que la base (`docker compose up -d postgres`) et suivez la section « Démarrage local » du [README](../../README.md).
 
+### Avec Keycloak sur le même poste (profil `idp-local`)
+
+Sans fournisseur d'identité existant, le profil `idp-local` ajoute un conteneur Keycloak (ADR-0027) et sa base, dans le même PostgreSQL. Dans `.env` : `ARGOS_OIDC_URL=http://keycloak:8080/realms/argos`, `ARGOS_ADMIN_EMAIL`, `ARGOS_ADMIN_MOT_DE_PASSE_INITIAL` (provisoire, à changer à la première connexion) et `ARGOS_KEYCLOAK_ADMIN_MOT_DE_PASSE` (console d'administration de Keycloak), puis :
+
+```bash
+docker compose --profile idp-local up -d --build
+```
+
+Keycloak répond sur <http://localhost:8180> (`ARGOS_KEYCLOAK_PORT`), Argos sur le port `ARGOS_PORT`. Le royaume importé ([`deploiement/keycloak/argos-realm.json`](../../deploiement/keycloak/argos-realm.json)) déclare les clients `argos-server`, `argos-ui` et `argos-mcp` et un seul compte, l'administrateur. Les adresses de retour de `argos-ui` visent `http://localhost:8088` : avec un autre `ARGOS_PORT`, adaptez-les dans la console Keycloak (le royaume n'est importé qu'une fois). La base de Keycloak est créée au premier démarrage du volume PostgreSQL ; sur un volume existant, créez-la à la main (`CREATE DATABASE keycloak`).
+
+Client desktop pour un serveur sur un autre port que 8080 :
+
+```powershell
+$env:VITE_ARGOS_API_URL = 'http://localhost:8088'
+npm --prefix argos-desktop run dist -- '-c.extraMetadata.argos.apiUrl=http://localhost:8088'
+```
+
+L'installateur est écrit dans `argos-desktop/release/` ; `"ARGOS Setup 0.1.0.exe" /S` l'installe sans interface dans le profil de l'utilisateur. Il n'est pas signé : Windows SmartScreen peut demander une confirmation.
+
+Les recettes à dérouler avec cette installation sont dans [`recette-poste.md`](recette-poste.md).
+
 ## Sur le Synology DS1522+
 
 Prérequis : DSM 7.2 ou plus récent, paquet **Container Manager** installé depuis le Centre de paquets.
