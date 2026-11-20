@@ -79,32 +79,38 @@ public class CollecteActivite {
         int echecs = 0;
         Map<String, QuotaEpuise> quotas = new HashMap<>();
         for (ProjectDirectory.Project projet : projets.withRepository()) {
-            try {
-                Optional<Instant> prochaine = store.prochaineCollecte(projet.id());
-                if (prochaine.isPresent() && prochaine.get().isAfter(maintenant)) {
-                    continue;
-                }
-                RepositoryRef depot = projet.repository().orElseThrow();
-                String forge = depot.provider().toUpperCase(Locale.ROOT);
-                QuotaEpuise quota = quotas.get(forge);
-                if (quota != null && quota.reprise().isAfter(maintenant)) {
-                    store.reporter(projet.id(), "REPORTEE_QUOTA", quota.reprise(), quota.getMessage(), maintenant);
-                    reportees++;
-                    continue;
-                }
-                Issue issue = collecterDepot(projet.id(), depot, maintenant, epuisement -> quotas.put(forge, epuisement));
-                switch (issue) {
-                    case A_JOUR -> aJour++;
-                    case REPORTEE_QUOTA -> reportees++;
-                    case ECHEC -> echecs++;
-                    default -> { }
-                }
-            } catch (IllegalStateException erreur) {
-                echecs++;
-                LOG.errorf(erreur, "collecte de l'activité du projet %s en échec", projet.id());
+            switch (collecterSiEchu(projet, maintenant, quotas)) {
+                case A_JOUR -> aJour++;
+                case REPORTEE_QUOTA -> reportees++;
+                case ECHEC -> echecs++;
+                default -> { }
             }
         }
         return new Bilan(aJour, reportees, echecs);
+    }
+
+    /**
+     * Collecte un projet s'il est échu ({@code NON_ECHUE} sinon) ; un quota épuisé sur sa forge pendant ce passage
+     * reporte sa collecte. Une panne d'accès aux données est journalisée et compte comme un échec.
+     */
+    private Issue collecterSiEchu(ProjectDirectory.Project projet, Instant maintenant, Map<String, QuotaEpuise> quotas) {
+        try {
+            Optional<Instant> prochaine = store.prochaineCollecte(projet.id());
+            if (prochaine.isPresent() && prochaine.get().isAfter(maintenant)) {
+                return Issue.NON_ECHUE;
+            }
+            RepositoryRef depot = projet.repository().orElseThrow();
+            String forge = depot.provider().toUpperCase(Locale.ROOT);
+            QuotaEpuise quota = quotas.get(forge);
+            if (quota != null && quota.reprise().isAfter(maintenant)) {
+                store.reporter(projet.id(), "REPORTEE_QUOTA", quota.reprise(), quota.getMessage(), maintenant);
+                return Issue.REPORTEE_QUOTA;
+            }
+            return collecterDepot(projet.id(), depot, maintenant, epuisement -> quotas.put(forge, epuisement));
+        } catch (IllegalStateException erreur) {
+            LOG.errorf(erreur, "collecte de l'activité du projet %s en échec", projet.id());
+            return Issue.ECHEC;
+        }
     }
 
     /** Collecte immédiate d'un projet, échue ou non. */
