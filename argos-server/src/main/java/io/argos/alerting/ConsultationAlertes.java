@@ -90,14 +90,10 @@ public class ConsultationAlertes {
             if (!"DESKTOP".equals(vue.get().canal())) {
                 return Remise.CANAL_NON_DESKTOP;
             }
-            try (PreparedStatement requete = connexion.prepareStatement("""
+            EnvoiAlertes.executer(connexion, """
                     UPDATE alerte SET etat = 'ENVOYEE', envoye_le = coalesce(envoye_le, now())
                     WHERE id = ? AND compte_id = ? AND canal = 'DESKTOP'
-                    """)) {
-                requete.setObject(1, alerteId);
-                requete.setObject(2, compteId);
-                requete.executeUpdate();
-            }
+                    """, alerteId, compteId);
             return Remise.REMISE;
         });
     }

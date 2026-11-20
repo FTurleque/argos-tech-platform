@@ -32,6 +32,8 @@ public class CanalEmail implements CanalDiffusion {
         try {
             mailer.send(Mail.withText(message.adresse(), sujet(message), corps(message)));
         } catch (RuntimeException erreur) {
+            // Le mailer bloquant signale un relais injoignable, muet ou en refus par des exceptions non vérifiées de
+            // types variés (Vert.x, Mutiny) : toutes deviennent un échec de diffusion à retenter, cause conservée.
             throw new EchecDiffusion("envoi SMTP impossible : " + erreur.getClass().getSimpleName(), false, erreur);
         }
     }
@@ -56,25 +58,35 @@ public class CanalEmail implements CanalDiffusion {
         // Rappels et annonces du radar : aucune gravité, projets cités avec la version utilisée.
         boolean radar = "RAPPEL".equals(message.nature()) || "ANNONCE".equals(message.nature());
         if ("IMMEDIATE".equals(message.nature())) {
-            if (contenu.resumeIa() != null) {
-                texte.append("Résumé (").append(contenu.mentionResumeIa()).append(", à vérifier sur les sources) :\n")
-                        .append(contenu.resumeIa()).append("\n\n");
-            } else {
-                texte.append("Résumé IA non disponible.\n\n");
-            }
+            ajouterResumeIa(texte, contenu);
         }
         for (ContenuAlerte.Element element : contenu.elements()) {
-            texte.append("• ").append(element.titre()).append('\n');
-            if (element.gravite() != null || !radar) {
-                texte.append("  Gravité : ").append(element.gravite() == null ? "non précisée" : element.gravite()).append('\n');
-            }
-            texte.append("  Projets : ").append(element.projets().stream()
-                    .map(projet -> projet.nom() + " (" + projet.niveau() + ")").collect(Collectors.joining(", "))).append('\n');
-            texte.append("  Sources : ").append(element.sources().stream()
-                    .map(source -> source.nom() + " " + source.identifiant() + (source.url() == null ? "" : " <" + source.url() + ">"))
-                    .collect(Collectors.joining(", "))).append('\n');
-            texte.append("  Voir dans Argos : ").append(element.lien()).append("\n\n");
+            ajouterElement(texte, element, radar);
         }
         return texte.toString();
+    }
+
+    /** Résumé IA d'une alerte immédiate, avec sa mention, ou son absence. */
+    private static void ajouterResumeIa(StringBuilder texte, ContenuAlerte contenu) {
+        if (contenu.resumeIa() != null) {
+            texte.append("Résumé (").append(contenu.mentionResumeIa()).append(", à vérifier sur les sources) :\n")
+                    .append(contenu.resumeIa()).append("\n\n");
+        } else {
+            texte.append("Résumé IA non disponible.\n\n");
+        }
+    }
+
+    /** Titre, gravité (omise pour le radar quand elle est absente), projets, sources et lien d'un élément. */
+    private static void ajouterElement(StringBuilder texte, ContenuAlerte.Element element, boolean radar) {
+        texte.append("• ").append(element.titre()).append('\n');
+        if (element.gravite() != null || !radar) {
+            texte.append("  Gravité : ").append(element.gravite() == null ? "non précisée" : element.gravite()).append('\n');
+        }
+        texte.append("  Projets : ").append(element.projets().stream()
+                .map(projet -> projet.nom() + " (" + projet.niveau() + ")").collect(Collectors.joining(", "))).append('\n');
+        texte.append("  Sources : ").append(element.sources().stream()
+                .map(source -> source.nom() + " " + source.identifiant() + (source.url() == null ? "" : " <" + source.url() + ">"))
+                .collect(Collectors.joining(", "))).append('\n');
+        texte.append("  Voir dans Argos : ").append(element.lien()).append("\n\n");
     }
 }

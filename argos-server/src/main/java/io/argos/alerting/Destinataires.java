@@ -32,25 +32,13 @@ public class Destinataires {
 
     /** Membres d'au moins un des espaces, une fois chacun. */
     public List<Destinataire> membres(Set<UUID> espaces) {
-        List<Destinataire> result = new ArrayList<>();
         if (espaces.isEmpty()) {
-            return result;
+            return new ArrayList<>();
         }
-        String sql = """
+        return lire("""
                 SELECT DISTINCT c.id, c.email FROM appartenance a JOIN compte c ON c.id = a.compte_id
                 WHERE a.espace_id = ANY (?) ORDER BY c.id
-                """;
-        try (Connection connexion = dataSource.getConnection(); PreparedStatement requete = connexion.prepareStatement(sql)) {
-            requete.setArray(1, connexion.createArrayOf("uuid", espaces.toArray()));
-            try (ResultSet resultat = requete.executeQuery()) {
-                while (resultat.next()) {
-                    result.add(new Destinataire(resultat.getObject(1, UUID.class), resultat.getString(2)));
-                }
-            }
-        } catch (SQLException erreur) {
-            throw new IllegalStateException("lecture des destinataires impossible", erreur);
-        }
-        return result;
+                """, (connexion, requete) -> requete.setArray(1, connexion.createArrayOf("uuid", espaces.toArray())));
     }
 
     /**
@@ -59,24 +47,36 @@ public class Destinataires {
      * qui suivent ce profil.
      */
     public List<Destinataire> membresAvecProfil(UUID espace, String profil) {
-        List<Destinataire> result = new ArrayList<>();
-        String sql = """
+        return lire("""
                 SELECT c.id, c.email FROM appartenance a JOIN compte c ON c.id = a.compte_id
                 JOIN workspace_preference_utilisateur p ON p.compte_id = c.id
                 WHERE a.espace_id = ? AND ? = ANY (p.profils_actifs) ORDER BY c.id
-                """;
+                """, (connexion, requete) -> {
+                    requete.setObject(1, espace);
+                    requete.setString(2, profil);
+                });
+    }
+
+    /** Liaison des paramètres d'une requête de destinataires. */
+    @FunctionalInterface
+    private interface Parametres {
+        void lier(Connection connexion, PreparedStatement requete) throws SQLException;
+    }
+
+    /** Destinataires (compte, e-mail) lus par la requête donnée. */
+    private List<Destinataire> lire(String sql, Parametres parametres) {
+        List<Destinataire> lus = new ArrayList<>();
         try (Connection connexion = dataSource.getConnection(); PreparedStatement requete = connexion.prepareStatement(sql)) {
-            requete.setObject(1, espace);
-            requete.setString(2, profil);
+            parametres.lier(connexion, requete);
             try (ResultSet resultat = requete.executeQuery()) {
                 while (resultat.next()) {
-                    result.add(new Destinataire(resultat.getObject(1, UUID.class), resultat.getString(2)));
+                    lus.add(new Destinataire(resultat.getObject(1, UUID.class), resultat.getString(2)));
                 }
             }
         } catch (SQLException erreur) {
             throw new IllegalStateException("lecture des destinataires impossible", erreur);
         }
-        return result;
+        return lus;
     }
 
     /** Espaces dont le compte est membre, relus à chaque évaluation : une révocation s'applique aussitôt. */

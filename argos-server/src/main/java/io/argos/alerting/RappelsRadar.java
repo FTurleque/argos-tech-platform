@@ -11,7 +11,6 @@ import java.time.ZoneId;
 import java.time.ZoneOffset;
 import java.util.ArrayList;
 import java.util.Arrays;
-import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Optional;
 import java.util.Set;
@@ -31,9 +30,9 @@ import io.quarkus.scheduler.Scheduled;
 
 import io.argos.impact.AnnonceStandard;
 import io.argos.impact.RadarProjets;
+import io.argos.regintel.EcheancesReglementaires;
 import io.argos.workspace.ContexteBase;
 import io.argos.workspace.ContexteBase.Contexte;
-import io.argos.workspace.DonneeInvalide;
 
 /**
  * Rappels d'échéance du radar (RAD-04) et annonces de changement de standard (RAD-06).
@@ -95,53 +94,78 @@ public class RappelsRadar {
 
     /** Tâche quotidienne du radar (DC-1) pour le jour donné. */
     public Bilan executer(LocalDate aujourdhui, Instant maintenant) {
-        RadarProjets.Bilan bilan;
-        try {
-            bilan = radar.actualiser(aujourdhui, maintenant);
-        } catch (RuntimeException erreur) {
-            // Les rappels partent quand même, sur le calendrier et les dettes déjà connus.
-            LOG.errorf(erreur, "actualisation du radar en échec");
-            bilan = new RadarProjets.Bilan(java.util.Map.of(), 0);
-        }
+        RadarProjets.Bilan bilan = actualiserSansPropager(aujourdhui, maintenant);
         List<UUID> crees = new ArrayList<>();
-        List<UUID> espaces;
-        try {
-            espaces = radar.espacesSuivis();
-        } catch (RuntimeException erreur) {
-            LOG.errorf(erreur, "lecture des espaces suivis par le radar impossible");
-            espaces = List.of();
-        }
-        for (UUID espace : espaces) {
-            try {
-                for (int jours : parametresTechniques(espace)) {
-                    for (RadarProjets.EcheanceProjets echeance : radar.echeancesTouchant(espace, aujourdhui.plusDays(jours))) {
-                        crees.addAll(rappeler(echeance, jours, maintenant));
-                    }
-                }
-            } catch (RuntimeException erreur) {
-                LOG.errorf(erreur, "rappels du radar de l'espace %s en échec", espace);
-            }
+        for (UUID espace : espacesSuivisSansPropager()) {
+            rappelerEspaceSansPropager(espace, aujourdhui, maintenant, crees);
         }
         envoi.envoyer(crees, maintenant);
         return new Bilan(bilan, List.copyOf(crees));
     }
 
+    /**
+     * Point d'isolation de la tâche planifiée : un échec de l'actualisation est journalisé avec sa cause et les
+     * rappels partent quand même, sur le calendrier et les dettes déjà connus.
+     */
+    private RadarProjets.Bilan actualiserSansPropager(LocalDate aujourdhui, Instant maintenant) {
+        try {
+            return radar.actualiser(aujourdhui, maintenant);
+        } catch (RuntimeException erreur) {
+            LOG.errorf(erreur, "actualisation du radar en échec");
+            return new RadarProjets.Bilan(java.util.Map.of(), 0);
+        }
+    }
+
+    /** Point d'isolation de la tâche planifiée : sans espaces lisibles, l'exécution s'achève sans rappel. */
+    private List<UUID> espacesSuivisSansPropager() {
+        try {
+            return radar.espacesSuivis();
+        } catch (RuntimeException erreur) {
+            LOG.errorf(erreur, "lecture des espaces suivis par le radar impossible");
+            return List.of();
+        }
+    }
+
+    /** Point d'isolation de la tâche planifiée : l'échec d'un espace n'interrompt pas les rappels des autres. */
+    private void rappelerEspaceSansPropager(UUID espace, LocalDate aujourdhui, Instant maintenant, List<UUID> crees) {
+        try {
+            for (int jours : parametresTechniques(espace)) {
+                for (RadarProjets.EcheanceProjets echeance : radar.echeancesTouchant(espace, aujourdhui.plusDays(jours))) {
+                    crees.addAll(rappeler(echeance, jours, maintenant));
+                }
+            }
+        } catch (RuntimeException erreur) {
+            LOG.errorf(erreur, "rappels du radar de l'espace %s en échec", espace);
+        }
+    }
+
     /** Annonce un changement de standard aux membres de l'espace dont un projet utilise la technologie. */
     void surAnnonce(@Observes AnnonceStandard annonce) {
+        annoncerSansPropager(annonce);
+    }
+
+    /**
+     * Observateur synchrone du relais d'un changement de standard : l'échec de l'annonce est journalisé avec sa
+     * cause et ne remonte pas à la modification du référentiel qui l'a déclenchée.
+     */
+    private void annoncerSansPropager(AnnonceStandard annonce) {
         try {
-            Instant maintenant = Instant.now();
-            AnnonceStandard changement = annonce;
-            String titre = "Changement de standard : " + changement.libelle() + " passe de " + changement.ancienStatut()
-                    + version(changement.ancienneVersion()) + " à " + changement.statut() + version(changement.versionRecommandee());
-            String detail = titre + ". Justification : " + changement.justification();
-            // L'entrée d'historique identifie le changement : relayé deux fois, il ne produit qu'un message.
-            String cle = "ANNONCE|" + changement.espaceId() + "|" + changement.historiqueId();
-            List<UUID> crees = creerPourMembres("ANNONCE", annonce.espaceId(), cle, titre,
-                    contenu(detail, annonce.projets(), "Référentiel de l'espace", changement.cle(), annonce.espaceId()), maintenant);
-            envoi.envoyer(crees, maintenant);
+            annoncer(annonce, Instant.now());
         } catch (RuntimeException erreur) {
             LOG.errorf(erreur, "annonce du changement de standard %s en échec", annonce.cle());
         }
+    }
+
+    private void annoncer(AnnonceStandard changement, Instant maintenant) {
+        String titre = "Changement de standard : " + changement.libelle() + " passe de " + changement.ancienStatut()
+                + version(changement.ancienneVersion()) + " à " + changement.statut() + version(changement.versionRecommandee());
+        String detail = titre + ". Justification : " + changement.justification();
+        // L'entrée d'historique identifie le changement : relayé deux fois, il ne produit qu'un message.
+        String cle = "ANNONCE|" + changement.espaceId() + "|" + changement.historiqueId();
+        ContenuAlerte contenu = contenu(detail, changement.projets(), "Référentiel de l'espace", changement.cle(),
+                changement.espaceId());
+        List<UUID> crees = creerPourMembres(new Message("ANNONCE", cle, titre, contenu), changement.espaceId(), maintenant);
+        envoi.envoyer(crees, maintenant);
     }
 
     // ------------------------------------------------------------------ paramètres
@@ -156,18 +180,7 @@ public class RappelsRadar {
      * entre 0 (jour de l'échéance) et 365.
      */
     public List<Integer> modifierParametres(UUID compteId, UUID espaceId, List<Integer> jours) {
-        if (jours == null || jours.isEmpty() || jours.size() > 10) {
-            throw new DonneeInvalide("DONNEE_INVALIDE", "Indiquez de 1 à 10 jours de rappel.", "rappelsJours");
-        }
-        Set<Integer> distincts = new LinkedHashSet<>();
-        for (Integer jour : jours) {
-            if (jour == null || jour < 0 || jour > 365) {
-                throw new DonneeInvalide("DONNEE_INVALIDE", "Chaque jour de rappel est compris entre 0 et 365.",
-                        "rappelsJours");
-            }
-            distincts.add(jour);
-        }
-        Integer[] valeurs = distincts.stream().sorted((gauche, droite) -> droite - gauche).toArray(Integer[]::new);
+        Integer[] valeurs = EcheancesReglementaires.valider(jours).toArray(Integer[]::new);
         return base.executer(new Contexte(compteId, null, espaceId), connexion -> {
             try (PreparedStatement requete = connexion.prepareStatement("""
                     INSERT INTO radar_parametres (espace_id, rappels_jours, modifie_par, modifie_le)
@@ -218,9 +231,9 @@ public class RappelsRadar {
         String cle = "RAPPEL|" + echeanceProjets.espaceId() + "|" + echeance.cle() + "|" + echeance.nature() + "|"
                 + echeance.version() + "|" + echeance.date()
                 + "|J-" + jours;
-        return creerPourMembres("RAPPEL", echeanceProjets.espaceId(), cle, titre,
-                contenu(titre, echeanceProjets.projets(), echeance.source(), echeance.cle() + " " + echeance.version(),
-                        echeanceProjets.espaceId()), maintenant);
+        ContenuAlerte contenu = contenu(titre, echeanceProjets.projets(), echeance.source(),
+                echeance.cle() + " " + echeance.version(), echeanceProjets.espaceId());
+        return creerPourMembres(new Message("RAPPEL", cle, titre, contenu), echeanceProjets.espaceId(), maintenant);
     }
 
     private ContenuAlerte contenu(String titre, List<RadarProjets.ProjetConcerne> projets, String source,
@@ -235,15 +248,23 @@ public class RappelsRadar {
                 lienBase.replaceAll("/+$", "") + "/espaces/" + espaceId + "/radar")), null, "SANS_OBJET");
     }
 
+    /**
+     * Rappel ou annonce à enregistrer pour chaque destinataire.
+     *
+     * @param nature {@code RAPPEL} ou {@code ANNONCE}
+     * @param cle clé d'idempotence : une même clé ne produit qu'un message par destinataire et canal
+     */
+    record Message(String nature, String cle, String titre, ContenuAlerte contenu) {
+    }
+
     /** Un message par membre de l'espace, sur son canal ; aucun doublon pour une même clé. */
-    private List<UUID> creerPourMembres(String nature, UUID espaceId, String cle, String titre, ContenuAlerte contenu,
-            Instant maintenant) {
+    private List<UUID> creerPourMembres(Message message, UUID espaceId, Instant maintenant) {
         List<UUID> crees = new ArrayList<>();
         for (Destinataires.Destinataire destinataire : destinataires.membres(Set.of(espaceId))) {
             String canal = destinataire.email() == null || destinataire.email().isBlank() ? "DESKTOP" : "EMAIL";
-            creer(nature, destinataire.compteId(), canal, cle, titre, contenu, maintenant).ifPresent(id -> {
+            creer(message, destinataire.compteId(), canal, maintenant).ifPresent(id -> {
                 crees.add(id);
-                emises.fire(new AlerteEmise(id, destinataire.compteId(), canal, nature));
+                emises.fire(new AlerteEmise(id, destinataire.compteId(), canal, message.nature()));
             });
         }
         return crees;
@@ -252,10 +273,9 @@ public class RappelsRadar {
     /**
      * Enregistre un rappel ou une annonce pour un destinataire et un canal ; vide si la clé
      * d'idempotence a déjà produit un message. Partagé avec les rappels de date limite
-     * ({@link RappelsOpportunites}).
+     * ({@link RappelsOpportunites}) et les rappels réglementaires ({@link RappelsReglementaires}).
      */
-    Optional<UUID> creer(String nature, UUID compte, String canal, String cle, String titre, ContenuAlerte contenu,
-            Instant maintenant) {
+    Optional<UUID> creer(Message message, UUID compte, String canal, Instant maintenant) {
         try (Connection connexion = dataSource.getConnection(); PreparedStatement requete = connexion.prepareStatement("""
                 INSERT INTO alerte (id, nature, compte_id, canal, cle_radar, titre, contenu, etat_resume_ia, etat, cree_le)
                 VALUES (?, ?, ?, ?, ?, ?, ?::jsonb, 'SANS_OBJET', 'EN_ATTENTE', ?)
@@ -263,12 +283,12 @@ public class RappelsRadar {
                 RETURNING id
                 """)) {
             requete.setObject(1, UUID.randomUUID());
-            requete.setString(2, nature);
+            requete.setString(2, message.nature());
             requete.setObject(3, compte);
             requete.setString(4, canal);
-            requete.setString(5, cleBornee(cle));
-            requete.setString(6, titre);
-            requete.setString(7, MoteurAlertes.json(contenu));
+            requete.setString(5, cleBornee(message.cle()));
+            requete.setString(6, message.titre());
+            requete.setString(7, MoteurAlertes.json(message.contenu()));
             requete.setObject(8, maintenant.atOffset(ZoneOffset.UTC));
             try (ResultSet resultat = requete.executeQuery()) {
                 return resultat.next() ? Optional.of(resultat.getObject(1, UUID.class)) : Optional.empty();
