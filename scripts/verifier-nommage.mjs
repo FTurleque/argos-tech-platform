@@ -558,7 +558,7 @@ function typesJs(code, ajouter) {
   }
 }
 
-const MODIFICATEURS_MEMBRE = String.raw`(?:(?:static|readonly|declare|override|public|private|protected|abstract|async`
+const MODIFICATEURS_MEMBRE = '(?:(?:static|readonly|declare|override|public|private|protected|abstract|async'
   + String.raw`|accessor|get|set)\s+)*`;
 const DECORATEURS = String.raw`(?:@[\w$.]+(?:\([^)]*\))?\s*)*`;
 const SIGNATURE_METHODE = new RegExp(
