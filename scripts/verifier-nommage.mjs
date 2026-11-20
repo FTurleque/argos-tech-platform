@@ -6,14 +6,20 @@
 //   sans argument : fichiers .java, .ts, .vue, .js et .mjs suivis par Git (git ls-files), hors
 //   node_modules, dist, target, e2e/resultats et fichiers générés.
 // Déclarations contrôlées :
-//   - Java : variables locales et champs (`Type nom =` ou `;`), paramètres de méthode, de constructeur
-//     et de record, paramètres de lambda (`x ->`, `(a, b) ->`), variables de catch, variables de boucle
-//     (for et for-each), variables de motif (`instanceof Type nom`) ;
-//   - TS, JS et Vue : `const`, `let`, `var` (déstructuration comprise), paramètres de fonctions, de
-//     méthodes et de fonctions fléchées, variables de catch, champs de classe à modificateur, variables
-//     `v-for` et `v-slot` des gabarits Vue et fonctions fléchées de leurs directives.
-// Ignorés : commentaires, chaînes, blocs de texte et gabarits (SQL compris), noms de méthodes, clés et
-// propriétés d'objets (contrats JSON), `id`, paramètres de type générique, liste blanche ci-dessous.
+//   - Java : types (class, record, interface, enum, @interface), méthodes, variables locales et champs
+//     (`Type nom =` ou `;`, déclarateurs multiples `int a = 1, b;` compris), paramètres de méthode, de
+//     constructeur et de record, paramètres de lambda (`x ->`, `(a, b) ->`), variables de catch,
+//     variables de boucle (for et for-each), variables de motif (`instanceof Type nom`) ;
+//   - TS, JS et Vue : types (class, interface, enum, `type Nom =`), fonctions et méthodes (classes,
+//     interfaces, objets littéraux), noms locaux des imports (`import nom`, `{ a as nom }`,
+//     `* as nom`), `const`, `let`, `var` (déstructuration comprise), paramètres de fonctions, de
+//     méthodes, de signatures de méthode d'interface et de fonctions fléchées, variables de catch,
+//     champs de classe (avec ou sans modificateur), variables `v-for` et `v-slot` des gabarits Vue et
+//     fonctions fléchées de leurs directives.
+// Ignorés : commentaires, chaînes, blocs de texte et gabarits (SQL compris), appels, clés et propriétés
+// d'objets et d'interfaces (contrats JSON), `id`, paramètres de type générique, liste blanche ci-dessous.
+// Un élément public au nom court qui relève d'un contrat (propriété JSON, accesseur de record exposé
+// par l'API) n'est pas renommé : il va dans la liste blanche, avec sa raison.
 // Code de sortie : 0 sans violation, 1 sinon (liste fichier:ligne:nom).
 
 import { readFileSync } from 'node:fs';
@@ -30,6 +36,12 @@ export const LISTE_BLANCHE = [
     raison: 'composant du record public TransitionView, propriété JSON « de » de l\'historique' },
   { fichier: 'argos-server/src/main/java/io/argos/regintel/FicheAnalyse.java', nom: 'le',
     raison: 'composant du record public EvenementHistorique, propriété JSON « le »' },
+  { fichier: 'argos-desktop/test/electron-factice.js', nom: 'on',
+    raison: 'doublure de l\'API Electron : méthode on() d\'ipcRenderer et de Notification' },
+  { fichier: 'argos-desktop/test/poste.test.js', nom: 'on',
+    raison: 'doublure de l\'API Electron : méthode on() de Notification' },
+  { fichier: 'e2e/support/electron.ts', nom: 'on',
+    raison: 'signature de l\'API Electron : méthode on() de BrowserWindow' },
 ];
 
 const EXTENSIONS = /\.(java|ts|vue|js|mjs)$/;
@@ -290,26 +302,138 @@ function declarationsJs(code, ajouter) {
     const avant = code.slice(Math.max(0, rang - 200), rang);
     let parametres = /^\s*(?::\s*[^;{}=]*?)?\s*=>/.test(apres);
     if (!parametres && /^\s*(?::\s*[^;{}=]*?)?\s*\{/.test(apres)) {
-      const nomFonction = new RegExp(`(?:\\bfunction\\s*\\*?\\s*(?:${IDENT})?|(${IDENT}))\\s*(?:<[^<>]*>)?\\s*$`).exec(avant);
-      parametres = Boolean(nomFonction) && !MOTS_AVANT_PARENTHESE.has(nomFonction[1] ?? '');
+      const nomFonction = new RegExp(`(?:\\bfunction\\s*\\*?\\s*(${IDENT})?|(${IDENT}))\\s*(?:<[^<>]*>)?\\s*$`).exec(avant);
+      parametres = Boolean(nomFonction) && !MOTS_AVANT_PARENTHESE.has(nomFonction[2] ?? '');
+      // Nom de la fonction (`function nom(`) ou de la méthode (`nom(…) {` dans une classe ou un objet).
+      const nom = nomFonction?.[1] ?? nomFonction?.[2];
+      if (parametres && nom) ajouter(nom, rang - avant.length + nomFonction.index + nomFonction[0].lastIndexOf(nom));
     }
     if (!parametres) continue;
     for (const morceau of decouper(code.slice(rang + 1, fin), rang + 1)) lier(code, morceau.texte, morceau.position, ajouter);
+  }
+  importsJs(code, ajouter);
+  typesJs(code, ajouter);
+  membresDeCorps(code, ajouter);
+}
+
+// Noms locaux des imports : `import nom from`, `import { a, b as nom } from`, `import * as nom from`.
+function importsJs(code, ajouter) {
+  const instruction = /(?<![\w$.])import[ \t]+(?:type\s+)?(?![\s(])([^;]*?)\s+from\b/g;
+  let trouve;
+  while ((trouve = instruction.exec(code))) {
+    const clause = trouve[1];
+    const debutClause = trouve.index + trouve[0].indexOf(clause);
+    const accolade = clause.indexOf('{');
+    const tete = accolade >= 0 ? clause.slice(0, accolade) : clause;
+    const nomTete = new RegExp(`(?:\\*\\s*as\\s+)?(${IDENT})\\s*,?\\s*$`).exec(tete)
+      ?? new RegExp(`^\\s*(${IDENT})`).exec(tete);
+    if (nomTete) ajouter(nomTete[1], debutClause + nomTete.index + nomTete[0].lastIndexOf(nomTete[1]));
+    if (accolade < 0) continue;
+    const fin = fermante(clause, accolade);
+    for (const morceau of decouper(clause.slice(accolade + 1, fin < 0 ? clause.length : fin), debutClause + accolade + 1)) {
+      const local = new RegExp(`(${IDENT})\\s*$`).exec(morceau.texte);
+      if (local) ajouter(local[1], morceau.position + local.index);
+    }
+  }
+}
+
+// Déclarations de types TS : `class Nom`, `interface Nom`, `enum Nom`, `type Nom =`.
+function typesJs(code, ajouter) {
+  const declaration = new RegExp(`(?<![\\w$.])(?:(?:class|interface|enum)\\s+(${IDENT})`
+    + `|type\\s+(${IDENT})\\s*(?:<[^=;]*>)?\\s*=(?!=))`, 'g');
+  let trouve;
+  while ((trouve = declaration.exec(code))) {
+    const nom = trouve[1] ?? trouve[2];
+    ajouter(nom, trouve.index + trouve[0].indexOf(nom, trouve[0].search(/\s/)));
+  }
+}
+
+// Membres des corps de classe et d'interface : champs de classe (avec ou sans modificateur), noms et
+// paramètres des méthodes et des signatures de méthode. Les propriétés d'interface restent des contrats.
+function membresDeCorps(code, ajouter) {
+  const entete = new RegExp(`(?<![\\w$.])(class|interface)\\b(?:\\s+${IDENT})?(?:\\s*<[^{;]*?>)?`
+    + `(?:\\s+(?:extends|implements)\\b[^{;]*)?\\s*\\{`, 'g');
+  const modificateurs = '(?:(?:static|readonly|declare|override|public|private|protected|abstract|async|accessor|get|set)\\s+)*';
+  const decorateurs = '(?:@[\\w$.]+(?:\\([^)]*\\))?\\s*)*';
+  const methode = new RegExp(`^\\s*${decorateurs}${modificateurs}\\*?\\s*#?(${IDENT})\\s*\\??\\s*(?:<[^()]*?>)?\\s*\\(`);
+  const champ = new RegExp(`^\\s*${decorateurs}${modificateurs}#?(${IDENT})\\s*[?!]?\\s*[:=;]`);
+  let trouve;
+  while ((trouve = entete.exec(code))) {
+    const classe = trouve[1] === 'class';
+    const ouverture = trouve.index + trouve[0].length - 1;
+    const fermeture = fermante(code, ouverture);
+    if (fermeture < 0) continue;
+    const examiner = (debut) => {
+      const ligne = code.slice(debut, fermeture).split('\n', 1)[0];
+      const signature = methode.exec(ligne);
+      if (signature) {
+        if (signature[1] === 'constructor') return;
+        ajouter(signature[1], debut + signature[0].lastIndexOf(signature[1]));
+        const parenthese = debut + signature[0].length - 1;
+        const finParametres = fermante(code, parenthese);
+        if (finParametres > 0 && !/^\s*(?::\s*[^;{}=]*?)?\s*(?:\{|=>)/.test(code.slice(finParametres + 1, finParametres + 400))) {
+          for (const morceau of decouper(code.slice(parenthese + 1, finParametres), parenthese + 1)) {
+            lier(code, morceau.texte, morceau.position, ajouter);
+          }
+        }
+        return;
+      }
+      const propriete = classe ? champ.exec(ligne) : null;
+      if (propriete && !['constructor', 'static'].includes(propriete[1])) {
+        ajouter(propriete[1], debut + propriete[0].lastIndexOf(propriete[1]));
+      }
+    };
+    let profondeur = 0;
+    examiner(ouverture + 1);
+    for (let rang = ouverture + 1; rang < fermeture; rang++) {
+      const caractere = code[rang];
+      if ('([{'.includes(caractere)) profondeur++;
+      else if (')]}'.includes(caractere)) {
+        profondeur--;
+        if (profondeur === 0 && caractere === '}') examiner(rang + 1);
+      } else if (profondeur === 0 && (caractere === ';' || caractere === '\n')) examiner(rang + 1);
+    }
+  }
+}
+
+// Déclarateurs Java suivant le premier : `int a = 1, b = 2;`, `int c, d;`, `for (int i = 0, j = 0; …)`.
+// Dans une liste de paramètres, l'élément suivant porte son type (`String a, int b`) et n'est pas lié ici.
+function declarateursSuivants(code, debut, ajouter) {
+  let profondeur = 0;
+  for (let rang = debut; rang < code.length; rang++) {
+    const caractere = code[rang];
+    if ('([{'.includes(caractere)) profondeur++;
+    else if (')]}'.includes(caractere) && --profondeur < 0) return;
+    else if (caractere === ';' && profondeur === 0) return;
+    else if (caractere === '-' && code[rang + 1] === '>' && profondeur === 0) return;
+    else if (caractere === ',' && profondeur === 0) {
+      const nom = new RegExp(`^\\s*(${IDENT})\\s*(?=[=,;)])`).exec(code.slice(rang + 1, rang + 200));
+      if (nom) ajouter(nom[1], rang + 1 + nom[0].indexOf(nom[1]));
+    }
   }
 }
 
 function declarationsJava(code, ajouter) {
   let trouve;
   const type = `${IDENT}(?:\\s*\\.\\s*${IDENT})*(?:\\s*<[^;(){}=&|!+*/%]*?>)?(?:\\s*\\[\\s*\\])*(?:\\s*\\.\\.\\.)?`;
-  const declaration = new RegExp(`(?<![\\w$.@])(${type})\\s+(${IDENT})(?=\\s*(?:[=;,:)&|?]|->))`, 'g');
+  const declaration = new RegExp(`(?<![\\w$.@])(${type})\\s+(${IDENT})(?=\\s*(?:[=;,:)&|?(]|->))`, 'g');
   while ((trouve = declaration.exec(code))) {
     const premierMot = /^[\w$]+/.exec(trouve[1])[0];
-    if (MOTS_NON_TYPES.has(premierMot)) {
+    // Un type générique commence par une majuscule (`List<…>`) : `g(a < b, c > d)` est un appel.
+    const chevron = trouve[1].indexOf('<');
+    const generiqueInvalide = chevron >= 0 && !/(?:^|\.)\s*[A-Z][\w$]*\s*$/.test(trouve[1].slice(0, chevron));
+    if (MOTS_NON_TYPES.has(premierMot) || generiqueInvalide) {
       declaration.lastIndex = trouve.index + premierMot.length;
       continue;
     }
-    ajouter(trouve[2], trouve.index + trouve[0].length - trouve[2].length);
+    const finNom = trouve.index + trouve[0].length;
+    ajouter(trouve[2], finNom - trouve[2].length);
+    const suite = /^\s*(.)/.exec(code.slice(finNom, finNom + 50))?.[1];
+    // `Type nom(` : méthode (ses paramètres sont des déclarations repérées à part).
+    if (suite === '=' || suite === ',') declarateursSuivants(code, finNom, ajouter);
   }
+  const typeDeclare = new RegExp(`(?<![\\w$.])(?:class|record|interface|enum|@\\s*interface)\\s+(${IDENT})`, 'g');
+  while ((trouve = typeDeclare.exec(code))) ajouter(trouve[1], trouve.index + trouve[0].length - trouve[1].length);
   const fleche = new RegExp(`(?<![\\w$.])(${IDENT})\\s*->`, 'g');
   while ((trouve = fleche.exec(code))) {
     const instruction = code.slice(0, trouve.index).split(/[;{}]/).at(-1).trim();
