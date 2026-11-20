@@ -131,15 +131,30 @@ public class CollecteWeb {
 
     private Rapport collecterSousVerrou(StockActualites.SourceACollecter source) {
         UUID sourceId = source.id();
+        return consignerEchecs(sourceId, "collecte", () -> integrerAvecSucces(sourceId, source,
+                recuperateur.recuperer(URI.create(source.adresse()))));
+    }
+
+    /** Intègre le contenu et marque la collecte de la source réussie. */
+    private Rapport integrerAvecSucces(UUID sourceId, StockActualites.SourceACollecter source, RecuperateurWeb.Contenu contenu) {
+        int nouvelles = integrer(source, contenu);
+        stock.succes(sourceId, frequence);
+        return new Rapport(sourceId, "ACTIVE", nouvelles, null);
+    }
+
+    /**
+     * Exécute une collecte ; un refus de récupération (WARN) ou une panne d'accès aux données (ERROR) est journalisé
+     * avec sa cause, puis la source passe {@code EN_ERREUR}.
+     */
+    private Rapport consignerEchecs(UUID sourceId, String collecte, Supplier<Rapport> collecteAExecuter) {
         try {
-            RecuperateurWeb.Contenu contenu = recuperateur.recuperer(URI.create(source.adresse()));
-            int nouvelles = integrer(source, contenu);
-            stock.succes(sourceId, frequence);
-            return new Rapport(sourceId, "ACTIVE", nouvelles, null);
+            return collecteAExecuter.get();
         } catch (RecuperationRefusee refus) {
+            LOG.warnf("%s de la source web %s refusée : %s (%s)", collecte, sourceId, refus.motif(), refus.getMessage());
             return echec(sourceId, refus);
         } catch (IllegalStateException erreur) {
-            return echecInterne(sourceId, erreur);
+            LOG.errorf(erreur, "%s de la source web %s interrompue par une panne d'accès aux données", collecte, sourceId);
+            return echecInterne(sourceId);
         }
     }
 
@@ -160,29 +175,20 @@ public class CollecteWeb {
      * motif, reprise par le planificateur après l'attente d'un échec.
      */
     Rapport premiereCollecte(UUID sourceId, RecuperateurWeb.Contenu contenu) {
-        try {
-            StockActualites.SourceACollecter source = stock.source(sourceId).orElseThrow();
-            int nouvelles = integrer(source, contenu);
-            stock.succes(sourceId, frequence);
-            return new Rapport(sourceId, "ACTIVE", nouvelles, null);
-        } catch (RecuperationRefusee refus) {
-            return echec(sourceId, refus);
-        } catch (IllegalStateException erreur) {
-            return echecInterne(sourceId, erreur);
-        }
+        return consignerEchecs(sourceId, "première collecte",
+                () -> integrerAvecSucces(sourceId, stock.source(sourceId).orElseThrow(), contenu));
     }
 
+    /** Refus de récupération ou de lecture, déjà journalisé : la source passe {@code EN_ERREUR} avec le motif générique du refus. */
     private Rapport echec(UUID sourceId, RecuperationRefusee refus) {
         String motif = refus.motifPublic();
-        LOG.infof("collecte de la source web %s en échec : %s (%s)", sourceId, refus.motif(), refus.getMessage());
         stock.echec(sourceId, motif, frequence);
         return new Rapport(sourceId, "EN_ERREUR", 0, motif);
     }
 
-    /** Panne d'accès aux données pendant la collecte : la source passe {@code EN_ERREUR}, la cause est journalisée. */
-    private Rapport echecInterne(UUID sourceId, IllegalStateException erreur) {
+    /** Panne d'accès aux données pendant la collecte, déjà journalisée : la source passe {@code EN_ERREUR}. */
+    private Rapport echecInterne(UUID sourceId) {
         String motif = "ERREUR_INTERNE : la collecte a été interrompue.";
-        LOG.errorf(erreur, "collecte de la source web %s interrompue", sourceId);
         stock.echec(sourceId, motif, frequence);
         return new Rapport(sourceId, "EN_ERREUR", 0, motif);
     }

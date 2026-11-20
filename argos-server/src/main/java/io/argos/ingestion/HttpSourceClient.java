@@ -16,6 +16,7 @@ import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.inject.Inject;
 
 import org.eclipse.microprofile.config.inject.ConfigProperty;
+import org.jboss.logging.Logger;
 
 /**
  * Client HTTP des sources d'avis : délai maximal, classification des erreurs et lecture de
@@ -24,6 +25,8 @@ import org.eclipse.microprofile.config.inject.ConfigProperty;
  */
 @ApplicationScoped
 public class HttpSourceClient {
+
+    private static final Logger LOG = Logger.getLogger(HttpSourceClient.class);
 
     private final HttpClient client;
     private final Duration timeout;
@@ -79,6 +82,7 @@ public class HttpSourceClient {
                 Duration delay = Duration.between(ZonedDateTime.now(date.getZone()), date);
                 return Optional.of(delay.isNegative() ? Duration.ZERO : delay);
             } catch (DateTimeParseException notDate) {
+                LOG.debugf("en-tête Retry-After ignorée : ni nombre de secondes ni date HTTP (%s)", notDate.getMessage());
                 return Optional.empty();
             }
         }
