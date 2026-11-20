@@ -101,19 +101,25 @@ public class ResumesPeriodiques {
         });
         List<UUID> crees = new ArrayList<>();
         for (Boite boite : boites) {
-            UUID compte = boite.compte();
-            String canal = boite.canal();
-            try {
-                composerPour(compte, canal, frequence, echeance).ifPresent(id -> {
-                    crees.add(id);
-                    emises.fire(new AlerteEmise(id, compte, canal, frequence));
-                });
-            } catch (RuntimeException erreur) {
-                LOG.errorf(erreur, "résumé %s du compte %s sur %s en échec", frequence, compte, canal);
-            }
+            composerSansPropager(boite, frequence, echeance, crees);
         }
         envoi.envoyer(crees, echeance);
         return crees;
+    }
+
+    /**
+     * Point d'isolation de la tâche planifiée : l'échec du résumé d'un destinataire est journalisé avec sa cause
+     * et n'empêche pas la composition des résumés des autres destinataires.
+     */
+    private void composerSansPropager(Boite boite, String frequence, Instant echeance, List<UUID> crees) {
+        try {
+            composerPour(boite.compte(), boite.canal(), frequence, echeance).ifPresent(id -> {
+                crees.add(id);
+                emises.fire(new AlerteEmise(id, boite.compte(), boite.canal(), frequence));
+            });
+        } catch (RuntimeException erreur) {
+            LOG.errorf(erreur, "résumé %s du compte %s sur %s en échec", frequence, boite.compte(), boite.canal());
+        }
     }
 
     private java.util.Optional<UUID> composerPour(UUID compte, String canal, String frequence, Instant echeance) {
@@ -193,8 +199,8 @@ public class ResumesPeriodiques {
                 continue;
             }
             tri.retenus().add(element.signalId());
-            tri.contenus().add(MoteurAlertes.element(element.signalId(), element.titre(), element.gravite(),
-                    element.source(), element.externe(), vues, lienBase));
+            tri.contenus().add(MoteurAlertes.element(new MoteurAlertes.SignalCite(element.signalId(), element.titre(),
+                    element.gravite(), element.source(), element.externe()), vues, lienBase));
         }
         return tri;
     }
