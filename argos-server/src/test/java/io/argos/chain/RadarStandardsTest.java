@@ -58,7 +58,7 @@ class RadarStandardsTest {
     private static final String POSTGRES = "pkg:generic/postgresql";
 
     @Inject
-    TestDb db;
+    TestDb baseDeTest;
 
     @Inject
     ContexteBase base;
@@ -88,7 +88,7 @@ class RadarStandardsTest {
 
     @BeforeEach
     void preparer() {
-        db.reset();
+        baseDeTest.reset();
         espace = Api.nouvelEspace("nina", "Radar de Nina");
         Api.ajouterMembre("nina", espace.toString(), "paul", "LECTEUR");
         compteAdmin = Api.compte("nina");
@@ -133,7 +133,7 @@ class RadarStandardsTest {
 
         Api.en("nina").get(chemin("/standards")).then().statusCode(200)
                 .body("$", hasSize(1)).body("[0].statut", equalTo("ASSESS"));
-        assertEquals(1, db.count("SELECT count(*) FROM standard_historique"));
+        assertEquals(1, baseDeTest.count("SELECT count(*) FROM standard_historique"));
     }
 
     // ------------------------------------------------------------------ RAD-02
@@ -142,14 +142,14 @@ class RadarStandardsTest {
     @Test
     void rad02S1Lecteur() {
         enregistrer("nina", saisie(SPRING, "Spring Boot", "ADOPT", "3.5", "Socle", "Validé", "2027-06-30", null)).statusCode(200);
-        long refus = db.count("SELECT count(*) FROM refus_acces");
+        long refus = baseDeTest.count("SELECT count(*) FROM refus_acces");
 
         enregistrer("paul", saisie(SPRING, "Spring Boot", "HOLD", null, "Socle", "Abandon", "2027-06-30", null))
                 .statusCode(403).body("code", equalTo("INTERDIT"));
         Api.en("paul").contentType(ContentType.JSON).body(Map.of("rappelsJours", List.of(3)))
                 .put(chemin("/parametres")).then().statusCode(403);
         Api.en("marc").get(chemin("/standards")).then().statusCode(404);
-        assertEquals(refus + 3, db.count("SELECT count(*) FROM refus_acces"));
+        assertEquals(refus + 3, baseDeTest.count("SELECT count(*) FROM refus_acces"));
         Api.en("nina").get(chemin("/standards")).then().body("[0].statut", equalTo("ADOPT"));
     }
 
@@ -159,21 +159,21 @@ class RadarStandardsTest {
         enregistrer("nina", saisie(SPRING, "Spring Boot", "ADOPT", "3.5", "Socle", "Validé", "2027-06-30", null)).statusCode(200);
 
 
-        assertThrows(IllegalStateException.class, () -> base.executer(new Contexte(compteLecteur, null, espace), c -> {
-            try (PreparedStatement ps = c.prepareStatement(
+        assertThrows(IllegalStateException.class, () -> base.executer(new Contexte(compteLecteur, null, espace), connexion -> {
+            try (PreparedStatement requete = connexion.prepareStatement(
                     "UPDATE standard_technologie SET statut = 'HOLD', modifie_par = argos_compte_courant() WHERE espace_id = ?")) {
-                ps.setObject(1, espace);
-                if (ps.executeUpdate() == 0) {
+                requete.setObject(1, espace);
+                if (requete.executeUpdate() == 0) {
                     throw new java.sql.SQLException("aucune ligne modifiable");
                 }
             }
             return null;
         }));
-        assertEquals(0L, (long) base.executer(new Contexte(compteExterieur, null, null), c -> compter(c,
+        assertEquals(0L, (long) base.executer(new Contexte(compteExterieur, null, null), connexion -> compter(connexion,
                 "SELECT count(*) FROM standard_technologie")));
-        assertEquals(1L, (long) base.executer(new Contexte(compteLecteur, null, null), c -> compter(c,
+        assertEquals(1L, (long) base.executer(new Contexte(compteLecteur, null, null), connexion -> compter(connexion,
                 "SELECT count(*) FROM standard_technologie")));
-        assertEquals("ADOPT", db.string("SELECT statut FROM standard_technologie"));
+        assertEquals("ADOPT", baseDeTest.string("SELECT statut FROM standard_technologie"));
     }
 
     /** RAD-02-S2 : la suggestion de l'IA reste en attente, statut inchangé ; seul un administrateur l'applique. */
@@ -207,23 +207,23 @@ class RadarStandardsTest {
     /** RAD-06-S1 : une bibliothèque de deux projets passe en HOLD : leurs utilisateurs reçoivent l'annonce et sa justification. */
     @Test
     void rad06S1PassageEnHold() {
-        UUID p1 = projet(espace, "Portail agent", BIBLIO + "@2.1.0");
-        UUID p2 = projet(espace, "Back-office", BIBLIO + "@2.4.0");
+        UUID projetPortail = projet(espace, "Portail agent", BIBLIO + "@2.1.0");
+        UUID projetBackOffice = projet(espace, "Back-office", BIBLIO + "@2.4.0");
         UUID espaceVoisin = Api.nouvelEspace("marc", "Voisin du radar");
         projet(espaceVoisin, "Projet voisin", BIBLIO + "@2.1.0");
         enregistrer("nina", saisie(BIBLIO, "Biblio UI", "ADOPT", "2.4", "Front", "Bibliothèque commune", "2027-06-30", null))
                 .statusCode(200);
-        assertEquals(0, db.count("SELECT count(*) FROM alerte WHERE nature = 'ANNONCE'"), "une création n'est pas annoncée");
+        assertEquals(0, baseDeTest.count("SELECT count(*) FROM alerte WHERE nature = 'ANNONCE'"), "une création n'est pas annoncée");
 
         enregistrer("nina", saisie(BIBLIO, "Biblio UI", "HOLD", null, "Front", "Plus maintenue, migrer vers Kit UI",
                 "2027-06-30", null)).statusCode(200);
 
-        assertEquals(2, db.count("SELECT count(*) FROM alerte WHERE nature = 'ANNONCE'"));
-        assertEquals(1, db.count("SELECT count(*) FROM alerte WHERE nature = 'ANNONCE' AND compte_id = '" + compteLecteur + "'"));
-        assertEquals(0, db.count("SELECT count(*) FROM alerte WHERE nature = 'ANNONCE' AND compte_id = '"
+        assertEquals(2, baseDeTest.count("SELECT count(*) FROM alerte WHERE nature = 'ANNONCE'"));
+        assertEquals(1, baseDeTest.count("SELECT count(*) FROM alerte WHERE nature = 'ANNONCE' AND compte_id = '" + compteLecteur + "'"));
+        assertEquals(0, baseDeTest.count("SELECT count(*) FROM alerte WHERE nature = 'ANNONCE' AND compte_id = '"
                 + compteExterieur + "'"));
-        String contenu = db.string("SELECT contenu::text FROM alerte WHERE compte_id = '" + compteLecteur + "'");
-        assertTrue(contenu.contains(p1.toString()) && contenu.contains(p2.toString()), contenu);
+        String contenu = baseDeTest.string("SELECT contenu::text FROM alerte WHERE compte_id = '" + compteLecteur + "'");
+        assertTrue(contenu.contains(projetPortail.toString()) && contenu.contains(projetBackOffice.toString()), contenu);
         assertFalse(contenu.contains("Projet voisin"), contenu);
         List<Mail> mails = mailbox.getMailsSentTo("paul@argos.test");
         assertEquals(1, mails.size());
@@ -272,27 +272,27 @@ class RadarStandardsTest {
         RadarProjets.Bilan bilan = radar.actualiser(LocalDate.of(2026, 11, 16), Instant.now());
         assertEquals(Map.of("postgresql", "A_JOUR"), bilan.produits());
         assertEquals(1, StubServer.received("/endoflife/api/v1/products/postgresql").size());
-        assertEquals("2026-11-12", db.string("SELECT fin_support_le FROM cycle_vie WHERE produit = 'postgresql' AND cycle = '14'"));
-        assertEquals("17.12", db.string("SELECT derniere_version FROM cycle_vie WHERE cycle = '17'"));
+        assertEquals("2026-11-12", baseDeTest.string("SELECT fin_support_le FROM cycle_vie WHERE produit = 'postgresql' AND cycle = '14'"));
+        assertEquals("17.12", baseDeTest.string("SELECT derniere_version FROM cycle_vie WHERE cycle = '17'"));
 
         // Réponse illisible puis indisponibilité : produit EN_ERREUR, cycles déjà connus conservés.
         RadarFixtures.publier("postgresql", "<html>pas du JSON</html>");
         assertEquals(Map.of("postgresql", "EN_ERREUR"), radar.actualiser(LocalDate.of(2026, 11, 17), Instant.now()).produits());
         StubServer.on("/endoflife/api/v1/products/postgresql", StubServer.Stub.status(503));
         assertEquals(Map.of("postgresql", "EN_ERREUR"), radar.actualiser(LocalDate.of(2026, 11, 18), Instant.now()).produits());
-        assertEquals("réponse HTTP 503", db.string("SELECT derniere_erreur FROM cycle_vie_produit"));
-        assertEquals(2, db.count("SELECT count(*) FROM cycle_vie WHERE produit = 'postgresql'"));
+        assertEquals("réponse HTTP 503", baseDeTest.string("SELECT derniere_erreur FROM cycle_vie_produit"));
+        assertEquals(2, baseDeTest.count("SELECT count(*) FROM cycle_vie WHERE produit = 'postgresql'"));
 
         // Cycle mal formé ignoré, les autres gardés.
         RadarFixtures.publier("postgresql", """
                 {"result":{"releases":[{"name":"18","releaseDate":"pas-une-date","eolFrom":"2030-11-14","isEol":false},
                 {"name":{"objet":1}},{"releaseDate":"2020-01-01"}]}}""");
         radar.actualiser(LocalDate.of(2026, 11, 19), Instant.now());
-        assertEquals(1, db.count("SELECT count(*) FROM cycle_vie WHERE produit = 'postgresql'"));
-        assertEquals(null, db.string("SELECT sortie_le FROM cycle_vie WHERE cycle = '18'"));
+        assertEquals(1, baseDeTest.count("SELECT count(*) FROM cycle_vie WHERE produit = 'postgresql'"));
+        assertEquals(null, baseDeTest.string("SELECT sortie_le FROM cycle_vie WHERE cycle = '18'"));
 
         // Identifiant de produit refusé en base : aucune requête vers un chemin arbitraire.
-        assertThrows(IllegalStateException.class, () -> RadarFixtures.standard(db, espace, BIBLIO, "X", "HOLD", null, "x",
+        assertThrows(IllegalStateException.class, () -> RadarFixtures.standard(baseDeTest, espace, BIBLIO, "X", "HOLD", null, "x",
                 "../admin"));
         assertTrue(StubServer.received("/endoflife/api/v1/products/..").isEmpty());
     }
@@ -313,11 +313,12 @@ class RadarStandardsTest {
 
         RappelsRadar.Bilan bilan = rappels.executer(jour, Instant.now());
         assertEquals(2, bilan.rappels().size(), "un rappel par utilisateur de l'espace");
-        String contenu = db.string("SELECT contenu::text FROM alerte WHERE nature = 'RAPPEL' AND compte_id = '" + compteLecteur + "'");
+        String contenu = baseDeTest.string("SELECT contenu::text FROM alerte WHERE nature = 'RAPPEL' AND compte_id = '"
+                + compteLecteur + "'");
         assertTrue(contenu.contains(concerne.toString()), contenu);
         assertFalse(contenu.contains("Back-office"), contenu);
         assertEquals("Fin de support de Spring Boot 3.3 dans 30 jours (2027-03-31)",
-                db.string("SELECT titre FROM alerte WHERE compte_id = '" + compteLecteur + "'"));
+                baseDeTest.string("SELECT titre FROM alerte WHERE compte_id = '" + compteLecteur + "'"));
         List<Mail> mails = mailbox.getMailsSentTo("paul@argos.test");
         assertEquals(1, mails.size());
         assertTrue(mails.get(0).getSubject().startsWith("[Argos] Rappel d'échéance"));
@@ -327,7 +328,7 @@ class RadarStandardsTest {
         assertTrue(rappels.executer(jour.plusDays(1), Instant.now()).rappels().isEmpty());
         assertEquals(2, rappels.executer(jour.plusDays(23), Instant.now()).rappels().size());
         assertEquals(2, rappels.executer(jour.plusDays(30), Instant.now()).rappels().size());
-        assertEquals(6, db.count("SELECT count(*) FROM alerte WHERE nature = 'RAPPEL'"));
+        assertEquals(6, baseDeTest.count("SELECT count(*) FROM alerte WHERE nature = 'RAPPEL'"));
     }
 
     /** Q-1 : jours de rappel paramétrables par espace, J-30, J-7 et J0 par défaut. */
@@ -377,7 +378,7 @@ class RadarStandardsTest {
         Api.en("marc").get(chemin("/dettes")).then().statusCode(404);
 
         assertEquals(0L, (long) base.executer(new Contexte(compteExterieur, null, null),
-                c -> compter(c, "SELECT count(*) FROM dette_version")));
+                connexion -> compter(connexion, "SELECT count(*) FROM dette_version")));
     }
 
     // ------------------------------------------------------------------ outils
@@ -392,16 +393,16 @@ class RadarStandardsTest {
 
     private static Map<String, Object> saisie(String cle, String libelle, String statut, String version, String responsable,
             String justification, String dateRevue, String produit) {
-        Map<String, Object> m = new HashMap<>();
-        m.put("cle", cle);
-        m.put("libelle", libelle);
-        m.put("statut", statut);
-        m.put("versionRecommandee", version);
-        m.put("responsable", responsable);
-        m.put("justification", justification);
-        m.put("dateRevue", dateRevue);
-        m.put("produitCycleVie", produit);
-        return m;
+        Map<String, Object> champs = new HashMap<>();
+        champs.put("cle", cle);
+        champs.put("libelle", libelle);
+        champs.put("statut", statut);
+        champs.put("versionRecommandee", version);
+        champs.put("responsable", responsable);
+        champs.put("justification", justification);
+        champs.put("dateRevue", dateRevue);
+        champs.put("produitCycleVie", produit);
+        return champs;
     }
 
     private UUID projet(UUID espaceId, String nom, String purl) {
@@ -411,10 +412,10 @@ class RadarStandardsTest {
         return id;
     }
 
-    private static long compter(java.sql.Connection c, String sql) throws java.sql.SQLException {
-        try (PreparedStatement ps = c.prepareStatement(sql); ResultSet rs = ps.executeQuery()) {
-            rs.next();
-            return rs.getLong(1);
+    private static long compter(java.sql.Connection connexion, String sql) throws java.sql.SQLException {
+        try (PreparedStatement requete = connexion.prepareStatement(sql); ResultSet resultat = requete.executeQuery()) {
+            resultat.next();
+            return resultat.getLong(1);
         }
     }
 }

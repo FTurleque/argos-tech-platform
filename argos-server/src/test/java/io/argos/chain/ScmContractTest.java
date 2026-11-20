@@ -56,7 +56,7 @@ class ScmContractTest {
     private static final String GITHUB_SBOM = "/github/repos/org/app/contents/sbom/bom.json?ref=main";
 
     @Inject
-    TestDb db;
+    TestDb baseDeTest;
 
     @Inject
     ProjectDirectory projects;
@@ -76,7 +76,7 @@ class ScmContractTest {
 
     @BeforeEach
     void reset() {
-        db.reset();
+        baseDeTest.reset();
     }
 
     /** Adapter construit avec des jetons de test, pour vérifier leur transmission. */
@@ -171,18 +171,18 @@ class ScmContractTest {
     void redirectionNonSuivieEtJetonAbsentDuMessage() {
         StubServer.on(GITHUB_SBOM, new Stub(302, "", Map.of("Location", StubServer.base() + "/ailleurs/bom.json"), 0));
 
-        ScmException e = assertThrows(ScmException.class, () -> avecJetons(1_048_576).latestSbom(GITHUB));
+        ScmException erreur = assertThrows(ScmException.class, () -> avecJetons(1_048_576).latestSbom(GITHUB));
 
-        assertTrue(e.getMessage().contains("302"));
-        assertFalse(e.getMessage().contains(jetonGithub), "le jeton n'apparaît dans aucun message");
+        assertTrue(erreur.getMessage().contains("302"));
+        assertFalse(erreur.getMessage().contains(jetonGithub), "le jeton n'apparaît dans aucun message");
         assertTrue(StubServer.received("/ailleurs").isEmpty(), "la redirection n'est pas suivie");
     }
 
     @Test
     void reponseAuDelaDeLaTailleMaximaleRefusee() {
         StubServer.on(GITHUB_SBOM, fixture(200, "scm/gitlab/gl-sbom-npm-npm.cdx.json", Map.of()));
-        ScmException e = assertThrows(ScmException.class, () -> avecJetons(64).latestSbom(GITHUB));
-        assertTrue(e.getMessage().contains("taille maximale"));
+        ScmException erreur = assertThrows(ScmException.class, () -> avecJetons(64).latestSbom(GITHUB));
+        assertTrue(erreur.getMessage().contains("taille maximale"));
     }
 
     @Test
@@ -252,7 +252,7 @@ class ScmContractTest {
     }
 
     private static List<String> entete(StubServer.Received requete, String nom) {
-        return requete.headers().entrySet().stream().filter(e -> e.getKey().equalsIgnoreCase(nom))
-                .flatMap(e -> e.getValue().stream()).toList();
+        return requete.headers().entrySet().stream().filter(entree -> entree.getKey().equalsIgnoreCase(nom))
+                .flatMap(entree -> entree.getValue().stream()).toList();
     }
 }

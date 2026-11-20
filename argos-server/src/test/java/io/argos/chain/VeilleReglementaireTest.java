@@ -61,7 +61,7 @@ class VeilleReglementaireTest {
     static final String PAIE = "JORFTEXT000099000002";
 
     @Inject
-    TestDb db;
+    TestDb baseDeTest;
 
     @Inject
     CollecteReglementaire collecte;
@@ -84,7 +84,7 @@ class VeilleReglementaireTest {
 
     @BeforeEach
     void preparer() {
-        db.reset();
+        baseDeTest.reset();
         espace = Api.nouvelEspace("hugo", "Espace RH réglementaire");
         Api.ajouterMembre("hugo", espace.toString(), "ines", "CONTRIBUTEUR");
         Api.ajouterMembre("hugo", espace.toString(), "jules", "LECTEUR");
@@ -112,9 +112,9 @@ class VeilleReglementaireTest {
                 .body(Map.of("regles", List.of(Map.of("type", "CODE", "valeur", "Code général de la fonction publique"))))
                 .when().put(chemin("/domaines/carriere/regles")).then().statusCode(200)
                 .body("regles[0].type", equalTo("CODE"));
-        for (String d : List.of("carriere", "paie")) {
+        for (String domaine : List.of("carriere", "paie")) {
             Api.en("hugo").contentType(ContentType.JSON).body(Map.of("comptes", List.of(ines.toString())))
-                    .when().put(chemin("/domaines/" + d + "/experts")).then().statusCode(200)
+                    .when().put(chemin("/domaines/" + domaine + "/experts")).then().statusCode(200)
                     .body("experts[0].compteId", equalTo(ines.toString()));
         }
     }
@@ -122,12 +122,12 @@ class VeilleReglementaireTest {
     private Map<String, Object> fiche(String utilisateur, String identifiant) {
         List<Map<String, Object>> fiches = Api.en(utilisateur).when().get("/api/v1/reglementaire/fiches")
                 .then().statusCode(200).extract().jsonPath().getList("$");
-        return fiches.stream().filter(f -> identifiant.equals(((Map<?, ?>) f.get("texte")).get("identifiant")))
+        return fiches.stream().filter(fiche -> identifiant.equals(((Map<?, ?>) fiche.get("texte")).get("identifiant")))
                 .findFirst().orElse(null);
     }
 
     private String idFiche(String identifiant) {
-        return db.string("SELECT f.id::text FROM fiche_reglementaire f JOIN texte_officiel t ON t.id = f.texte_id"
+        return baseDeTest.string("SELECT f.id::text FROM fiche_reglementaire f JOIN texte_officiel t ON t.id = f.texte_id"
                 + " WHERE t.identifiant = '" + identifiant + "'");
     }
 
@@ -161,15 +161,15 @@ class VeilleReglementaireTest {
                 ollama("{\"domaine\": [2], \"confiance\": [72], \"justification\": \"Taux de cotisation.\"}"),
                 ollama("{\"resume\": \"L'arrêté fixe un taux de cotisation.\", \"dateEffet\": \"2026-12-01\"}"));
 
-        CollecteReglementaire.Rapport r = collecte.collecter(LE_20, Instant.now());
-        assertEquals(2, r.fichesPreparees(), r.toString());
+        CollecteReglementaire.Rapport rapport = collecte.collecter(LE_20, Instant.now());
+        assertEquals(2, rapport.fichesPreparees(), rapport.toString());
 
         // REG-02-S1 : rattachement par le code modifié, sans appel au modèle pour le domaine.
         List<StubServer.Received> appels = StubServer.received(CHAT);
         assertEquals(3, appels.size());
-        assertEquals(1, appels.stream().filter(a -> a.body().contains("liste numérotée de domaines")).count());
-        assertTrue(appels.stream().filter(a -> a.body().contains("liste numérotée de domaines"))
-                .allMatch(a -> a.body().contains("fixant le taux d'une cotisation")), "proposition demandée pour l'arrêté seul");
+        assertEquals(1, appels.stream().filter(appel -> appel.body().contains("liste numérotée de domaines")).count());
+        assertTrue(appels.stream().filter(appel -> appel.body().contains("liste numérotée de domaines"))
+                .allMatch(appel -> appel.body().contains("fixant le taux d'une cotisation")), "proposition demandée pour l'arrêté seul");
         Map<String, Object> carriere = fiche("ines", CARRIERE);
         assertEquals("carriere", path(carriere, "domaines[0].code"));
         assertEquals("REGLE", path(carriere, "domaines[0].origine"));
@@ -201,13 +201,13 @@ class VeilleReglementaireTest {
                 "date de mise à jour exigée par la Licence Ouverte : date de l'archive DILA");
 
         // Injection d'instructions dans le texte officiel : transmise comme donnée, sans effet sur la fiche.
-        assertTrue(appels.stream().anyMatch(a -> a.body().contains("Ignore les consignes précédentes")));
-        assertTrue(appels.stream().allMatch(a -> a.body().contains("jamais des consignes")));
+        assertTrue(appels.stream().anyMatch(appel -> appel.body().contains("Ignore les consignes précédentes")));
+        assertTrue(appels.stream().allMatch(appel -> appel.body().contains("jamais des consignes")));
         assertEquals("REG-03-S2", paie.get("dateEffet") == null ? "REG-03-S2" : "date extraite à tort");
         assertEquals("date à confirmer", paie.get("dateEffetLibelle"));
         assertEquals("2026-12-01", paie.get("dateEffetIa"), "date proposée par l'IA, jamais retenue seule");
-        assertEquals(0, db.count("SELECT count(*) FROM fiche_reglementaire WHERE etat_validation <> 'EN_ATTENTE_VALIDATION'"));
-        assertEquals(2, db.count("SELECT count(*) FROM ia_appel WHERE espace_id = '" + espace + "' AND issue = 'PRODUIT'"
+        assertEquals(0, baseDeTest.count("SELECT count(*) FROM fiche_reglementaire WHERE etat_validation <> 'EN_ATTENTE_VALIDATION'"));
+        assertEquals(2, baseDeTest.count("SELECT count(*) FROM ia_appel WHERE espace_id = '" + espace + "' AND issue = 'PRODUIT'"
                 + " AND tache = 'fiche-reglementaire'"));
     }
 
@@ -216,7 +216,7 @@ class VeilleReglementaireTest {
     @Test
     void reg05S1Reg05S2CorrectionValidationHistoriqueEtVisibilite() {
         collecte.collecter(LE_20, Instant.now());
-        assertEquals(1, db.count("SELECT count(*) FROM fiche_reglementaire"), "sans IA : seule la règle rattache un texte");
+        assertEquals(1, baseDeTest.count("SELECT count(*) FROM fiche_reglementaire"), "sans IA : seule la règle rattache un texte");
         String id = idFiche(CARRIERE);
 
         // REG-05-S2 : fiche en attente invisible d'un non-expert, y compris par son identifiant.
@@ -255,7 +255,7 @@ class VeilleReglementaireTest {
                 .when().post("/api/v1/reglementaire/fiches/" + id + "/transitions").then().statusCode(403);
         Api.en("ines").contentType(ContentType.JSON).body(Map.of("resume", "Après validation"))
                 .when().put("/api/v1/reglementaire/fiches/" + id).then().statusCode(409).body("code", equalTo("FICHE_DECIDEE"));
-        assertTrue(db.count("SELECT count(*) FROM refus_acces WHERE ressource LIKE '%/reglementaire/fiches/%'") >= 3,
+        assertTrue(baseDeTest.count("SELECT count(*) FROM refus_acces WHERE ressource LIKE '%/reglementaire/fiches/%'") >= 3,
                 "refus journalisés");
     }
 
@@ -286,23 +286,23 @@ class VeilleReglementaireTest {
         Api.en("ines").contentType(ContentType.JSON).body(Map.of("domaines", List.of("paie")))
                 .when().put("/api/v1/reglementaire/fiches/" + id).then().statusCode(200)
                 .body("domaines.code", contains("paie"));
-        assertEquals("paie", db.string("SELECT string_agg(domaine, ',' ORDER BY domaine) FROM fiche_domaine WHERE fiche_id = '"
+        assertEquals("paie", baseDeTest.string("SELECT string_agg(domaine, ',' ORDER BY domaine) FROM fiche_domaine WHERE fiche_id = '"
                 + id + "'"), "état en base conforme à l'historique");
-        assertTrue(db.string("SELECT detail::text FROM fiche_historique WHERE fiche_id = '" + id + "' AND action = 'CORRECTION'")
+        assertTrue(baseDeTest.string("SELECT detail::text FROM fiche_historique WHERE fiche_id = '" + id + "' AND action = 'CORRECTION'")
                 .contains("\"apres\": [\"paie\"]"));
     }
 
     @Test
     void rejeuDUnJourPrepareLesFichesManquantes() {
         collecte.collecter(LE_20, Instant.now());
-        long preparees = db.count("SELECT count(*) FROM fiche_reglementaire");
+        long preparees = baseDeTest.count("SELECT count(*) FROM fiche_reglementaire");
         assertTrue(preparees >= 1);
-        db.exec("DELETE FROM fiche_reglementaire");
+        baseDeTest.exec("DELETE FROM fiche_reglementaire");
 
-        CollecteReglementaire.Rapport r = collecte.rejouer(LE_20, Instant.now());
+        CollecteReglementaire.Rapport rapport = collecte.rejouer(LE_20, Instant.now());
 
-        assertEquals(0, r.textesNouveaux());
-        assertEquals(preparees, r.fichesPreparees(), "fiches préparées de nouveau pour les textes connus du jour");
+        assertEquals(0, rapport.textesNouveaux());
+        assertEquals(preparees, rapport.fichesPreparees(), "fiches préparées de nouveau pour les textes connus du jour");
         assertEquals(0, collecte.rejouer(LE_20, Instant.now()).fichesPreparees(), "aucune fiche en double");
     }
 
@@ -313,41 +313,41 @@ class VeilleReglementaireTest {
         UUID texte = reg.texte("JORFTEXT000099200001", "Décret de test validé", LocalDate.of(2026, 11, 2),
                 LocalDate.of(2027, 1, 1));
         String id = reg.fiche(texte, espace, "carriere", "VALIDEE", "Résumé relu", ines).toString();
-        String f = "/api/v1/reglementaire/fiches/" + id;
+        String urlFiche = "/api/v1/reglementaire/fiches/" + id;
 
         // REG-06-S2 (par l'API) : transition hors de l'ordre refusée, état inchangé.
         Api.en("ines").contentType(ContentType.JSON).body(Map.of("etat", "LIVRE"))
-                .when().post(f + "/transitions").then().statusCode(409).body("code", equalTo("TRANSITION_REFUSEE"));
-        Api.en("ines").when().get(f).then().body("etatSuivi", equalTo("EN_ANALYSE"));
+                .when().post(urlFiche + "/transitions").then().statusCode(409).body("code", equalTo("TRANSITION_REFUSEE"));
+        Api.en("ines").when().get(urlFiche).then().body("etatSuivi", equalTo("EN_ANALYSE"));
         Api.en("ines").contentType(ContentType.JSON).body(Map.of("etat", "INCONNU"))
-                .when().post(f + "/transitions").then().statusCode(400);
+                .when().post(urlFiche + "/transitions").then().statusCode(400);
         // Demande d'évolution refusée avant « impact produit ».
         Api.en("ines").contentType(ContentType.JSON).body(Map.of("adresse", "https://github.com/argos/app/issues/42"))
-                .when().put(f + "/demande-evolution").then().statusCode(409).body("code", equalTo("IMPACT_PRODUIT_REQUIS"));
+                .when().put(urlFiche + "/demande-evolution").then().statusCode(409).body("code", equalTo("IMPACT_PRODUIT_REQUIS"));
 
         // REG-06-S1 : en analyse → impact produit.
         Api.en("ines").contentType(ContentType.JSON).body(Map.of("etat", "IMPACT_PRODUIT"))
-                .when().post(f + "/transitions").then().statusCode(200).body("etatSuivi", equalTo("IMPACT_PRODUIT"));
+                .when().post(urlFiche + "/transitions").then().statusCode(200).body("etatSuivi", equalTo("IMPACT_PRODUIT"));
         Api.en("ines").contentType(ContentType.JSON).body(Map.of("etat", "SPECIFIE"))
-                .when().post(f + "/transitions").then().statusCode(409).body("code", equalTo("DEMANDE_EVOLUTION_REQUISE"));
+                .when().post(urlFiche + "/transitions").then().statusCode(409).body("code", equalTo("DEMANDE_EVOLUTION_REQUISE"));
 
         // REG-08-S1 : demande GitHub associée, état lu par l'API GitHub simulée.
         StubServer.on("/github/repos/argos/app/issues/42", Stub.ok("{\"number\": 42, \"state\": \"open\"}"));
         Api.en("ines").contentType(ContentType.JSON).body(Map.of("adresse", "https://jira.exemple.fr/browse/ARG-1"))
-                .when().put(f + "/demande-evolution").then().statusCode(400).body("code", equalTo("DEMANDE_INVALIDE"));
+                .when().put(urlFiche + "/demande-evolution").then().statusCode(400).body("code", equalTo("DEMANDE_INVALIDE"));
         Api.en("ines").contentType(ContentType.JSON).body(Map.of("adresse", "https://github.com/argos/app/issues/404"))
-                .when().put(f + "/demande-evolution").then().statusCode(400).body("code", equalTo("DEMANDE_INTROUVABLE"));
+                .when().put(urlFiche + "/demande-evolution").then().statusCode(400).body("code", equalTo("DEMANDE_INTROUVABLE"));
         Api.en("ines").contentType(ContentType.JSON).body(Map.of("adresse", "https://github.com/argos/app/issues/42"))
-                .when().put(f + "/demande-evolution").then().statusCode(200)
+                .when().put(urlFiche + "/demande-evolution").then().statusCode(200)
                 .body("demande.adresse", equalTo("https://github.com/argos/app/issues/42"))
                 .body("demande.forge", equalTo("GITHUB")).body("demande.etat", equalTo("open"));
-        Api.en("jules").when().get(f).then().statusCode(200)
+        Api.en("jules").when().get(urlFiche).then().statusCode(200)
                 .body("demande.adresse", equalTo("https://github.com/argos/app/issues/42"));
 
         Api.en("ines").contentType(ContentType.JSON).body(Map.of("etat", "SPECIFIE"))
-                .when().post(f + "/transitions").then().statusCode(200).body("etatSuivi", equalTo("SPECIFIE"));
+                .when().post(urlFiche + "/transitions").then().statusCode(200).body("etatSuivi", equalTo("SPECIFIE"));
         Api.en("ines").contentType(ContentType.JSON).body(Map.of("etat", "LIVRE"))
-                .when().post(f + "/transitions").then().statusCode(200).body("etatSuivi", equalTo("LIVRE"))
+                .when().post(urlFiche + "/transitions").then().statusCode(200).body("etatSuivi", equalTo("LIVRE"))
                 .body("historique.action", hasItem("DEMANDE_EVOLUTION"));
     }
 
@@ -371,14 +371,14 @@ class VeilleReglementaireTest {
         List<UUID> crees = rappels.executer(j30, Instant.now());
 
         assertEquals(2, crees.size(), "l'experte et le membre au profil expert-metier ; ni lina, ni la fiche en attente");
-        assertEquals(1, db.count("SELECT count(*) FROM alerte WHERE nature = 'RAPPEL' AND compte_id = '" + jules
+        assertEquals(1, baseDeTest.count("SELECT count(*) FROM alerte WHERE nature = 'RAPPEL' AND compte_id = '" + jules
                 + "' AND titre = 'Entrée en vigueur dans 30 jours (2027-01-01) : Décret entrant en vigueur le 1er janvier'"));
-        assertEquals(0, db.count("SELECT count(*) FROM alerte WHERE compte_id = '" + Api.compte("lina") + "'"));
-        String contenu = db.string("SELECT contenu::text FROM alerte WHERE compte_id = '" + jules + "'");
+        assertEquals(0, baseDeTest.count("SELECT count(*) FROM alerte WHERE compte_id = '" + Api.compte("lina") + "'"));
+        String contenu = baseDeTest.string("SELECT contenu::text FROM alerte WHERE compte_id = '" + jules + "'");
         assertTrue(contenu.contains("https://www.legifrance.gouv.fr/jorf/id/JORFTEXT000099300001"), contenu);
         assertTrue(contenu.contains("avis juridique"), contenu);
         List<Mail> mails = mailbox.getMailsSentTo("jules@argos.test");
-        assertTrue(mails.stream().anyMatch(m -> m.getText().contains("2027-01-01")),
+        assertTrue(mails.stream().anyMatch(mail -> mail.getText().contains("2027-01-01")),
                 () -> mails.stream().map(Mail::getText).toList().toString());
         assertTrue(rappels.executer(j30, Instant.now()).isEmpty(), "aucun second message pour le même rappel");
         assertTrue(rappels.executer(j30.plusDays(1), Instant.now()).isEmpty(), "J-29 : pas un jour de rappel");
@@ -389,7 +389,7 @@ class VeilleReglementaireTest {
                 LocalDate.of(2027, 1, 10));
         reg.fiche(tardif, espace, "carriere", "VALIDEE", "Résumé", ines);
         assertEquals(2, rappels.executer(LocalDate.of(2026, 12, 12), Instant.now()).size(), "J-30 rattrapé à J-29");
-        assertEquals(1, db.count("SELECT count(*) FROM alerte WHERE compte_id = '" + jules
+        assertEquals(1, baseDeTest.count("SELECT count(*) FROM alerte WHERE compte_id = '" + jules
                 + "' AND titre = 'Entrée en vigueur dans 29 jours (2027-01-10) : Décret au rappel manqué'"));
         assertTrue(rappels.executer(LocalDate.of(2026, 12, 13), Instant.now()).isEmpty(), "aucun second rappel J-30");
         assertTrue(rappels.executer(LocalDate.of(2026, 12, 14), Instant.now()).isEmpty(), "hors du rattrapage");
@@ -414,10 +414,10 @@ class VeilleReglementaireTest {
 
     @Test
     void rlsSousArgosApp() {
-        UUID t1 = reg.texte("JORFTEXT000099400001", "Décret validé", LocalDate.of(2026, 11, 2), null);
-        UUID t2 = reg.texte("JORFTEXT000099400002", "Décret en attente", LocalDate.of(2026, 11, 2), null);
-        UUID validee = reg.fiche(t1, espace, "carriere", "VALIDEE", "Résumé", ines);
-        UUID enAttente = reg.fiche(t2, espace, "carriere", "EN_ATTENTE_VALIDATION", "Résumé", null);
+        UUID texteValide = reg.texte("JORFTEXT000099400001", "Décret validé", LocalDate.of(2026, 11, 2), null);
+        UUID texteEnAttente = reg.texte("JORFTEXT000099400002", "Décret en attente", LocalDate.of(2026, 11, 2), null);
+        UUID validee = reg.fiche(texteValide, espace, "carriere", "VALIDEE", "Résumé", ines);
+        UUID enAttente = reg.fiche(texteEnAttente, espace, "carriere", "EN_ATTENTE_VALIDATION", "Résumé", null);
         UUID karim = Api.compte("karim");
 
         assertEquals(1, compter(jules, null, "SELECT count(*) FROM fiche_reglementaire"), "non-expert : fiche validée seule");
@@ -427,7 +427,7 @@ class VeilleReglementaireTest {
         assertEquals(0, compter(jules, null, "SELECT count(*) FROM fiche_historique WHERE fiche_id = '" + enAttente + "'"));
         assertEquals(2, compter(jules, null, "SELECT count(*) FROM domaine_metier"), "domaines lisibles des membres");
         assertEquals(0, compter(karim, null, "SELECT count(*) FROM domaine_metier"));
-        assertEquals(1, compter(jules, null, "SELECT count(*) FROM texte_officiel WHERE id = '" + t2 + "'"),
+        assertEquals(1, compter(jules, null, "SELECT count(*) FROM texte_officiel WHERE id = '" + texteEnAttente + "'"),
                 "textes officiels : données publiques");
 
         assertEquals(0, ecrire(jules, espace, "UPDATE fiche_reglementaire SET etat_validation = 'VALIDEE',"
@@ -441,7 +441,7 @@ class VeilleReglementaireTest {
                 + " (id, fiche_id, espace_id, action, detail, auteur, le) VALUES (gen_random_uuid(), '" + validee + "', '"
                 + espace + "', 'CORRECTION', '{}', argos_compte_courant(), now())"));
         assertThrows(RuntimeException.class, () -> ecrire(ines, espace, "INSERT INTO fiche_reglementaire (id, texte_id,"
-                + " espace_id, resume_origine, cree_le, modifie_le) VALUES (gen_random_uuid(), '" + t1 + "', '" + espace
+                + " espace_id, resume_origine, cree_le, modifie_le) VALUES (gen_random_uuid(), '" + texteValide + "', '" + espace
                 + "', 'AUCUN', now(), now())"), "aucune création de fiche sous argos_app");
         assertThrows(RuntimeException.class, () -> ecrire(ines, espace, "INSERT INTO domaine_metier (espace_id, code,"
                 + " libelle, modifie_par, modifie_le) VALUES ('" + espace + "', 'retraite', 'Retraite', argos_compte_courant(), now())"),
@@ -485,18 +485,18 @@ class VeilleReglementaireTest {
     }
 
     private long compter(UUID compte, UUID esp, String sql) {
-        return base.executer(new Contexte(compte, null, esp), c -> {
-            try (PreparedStatement ps = c.prepareStatement(sql); ResultSet rs = ps.executeQuery()) {
-                rs.next();
-                return rs.getLong(1);
+        return base.executer(new Contexte(compte, null, esp), connexion -> {
+            try (PreparedStatement requete = connexion.prepareStatement(sql); ResultSet resultat = requete.executeQuery()) {
+                resultat.next();
+                return resultat.getLong(1);
             }
         });
     }
 
     private int ecrire(UUID compte, UUID esp, String sql) {
-        return base.executer(new Contexte(compte, null, esp), c -> {
-            try (PreparedStatement ps = c.prepareStatement(sql)) {
-                return ps.executeUpdate();
+        return base.executer(new Contexte(compte, null, esp), connexion -> {
+            try (PreparedStatement requete = connexion.prepareStatement(sql)) {
+                return requete.executeUpdate();
             }
         });
     }
@@ -508,8 +508,8 @@ class VeilleReglementaireTest {
             String nom = partie.replaceAll("\\[\\d+]", "");
             courant = ((Map<String, Object>) courant).get(nom);
             if (partie.contains("[")) {
-                int i = Integer.parseInt(partie.replaceAll(".*\\[(\\d+)]", "$1"));
-                courant = ((List<Object>) courant).get(i);
+                int indice = Integer.parseInt(partie.replaceAll(".*\\[(\\d+)]", "$1"));
+                courant = ((List<Object>) courant).get(indice);
             }
         }
         return courant;
