@@ -17,13 +17,13 @@ final class Parametres {
      * (par exemple {@code Maven} et {@code org.exemple:lib}), ou par un PURL passé comme nom.
      */
     static String cle(String ecosysteme, String nom) {
-        String n = obligatoire("name", nom);
-        if (n.startsWith("pkg:")) {
-            return PackageKey.parse(n).map(PackageKey.Purl::key)
+        String nomValide = obligatoire("name", nom);
+        if (nomValide.startsWith("pkg:")) {
+            return PackageKey.parse(nomValide).map(PackageKey.Purl::key)
                     .orElseThrow(() -> new ParametreInvalide("name : PURL non conforme."));
         }
-        String e = obligatoire("ecosystem", ecosysteme);
-        return PackageKey.fromEcosystem(e, n).orElseThrow(() -> new ParametreInvalide(
+        String ecosystemeValide = obligatoire("ecosystem", ecosysteme);
+        return PackageKey.fromEcosystem(ecosystemeValide, nomValide).orElseThrow(() -> new ParametreInvalide(
                 "ecosystem et name : écosystème inconnu ou nom incomplet (Maven attend groupe:artefact)."));
     }
 
@@ -47,7 +47,7 @@ final class Parametres {
     static UUID identifiant(String nom, String valeur) {
         try {
             return UUID.fromString(obligatoire(nom, valeur));
-        } catch (IllegalArgumentException e) {
+        } catch (IllegalArgumentException malforme) {
             throw new ParametreInvalide(nom + " : identifiant UUID attendu.");
         }
     }
@@ -57,11 +57,11 @@ final class Parametres {
     }
 
     static int borne(String nom, Integer valeur, int defaut, int min, int max) {
-        int v = valeur == null ? defaut : valeur;
-        if (v < min || v > max) {
+        int retenue = valeur == null ? defaut : valeur;
+        if (retenue < min || retenue > max) {
             throw new ParametreInvalide(nom + " : valeur attendue entre " + min + " et " + max + ".");
         }
-        return v;
+        return retenue;
     }
 
     static List<String> liste(String nom, List<String> valeurs) {
@@ -71,6 +71,6 @@ final class Parametres {
         if (valeurs.size() > 50) {
             throw new ParametreInvalide(nom + " : 50 valeurs au plus.");
         }
-        return valeurs.stream().filter(v -> v != null && !v.isBlank()).map(v -> obligatoire(nom, v)).toList();
+        return valeurs.stream().filter(valeur -> valeur != null && !valeur.isBlank()).map(valeur -> obligatoire(nom, valeur)).toList();
     }
 }

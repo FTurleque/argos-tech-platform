@@ -64,12 +64,12 @@ public class OutilsProjets {
             if (id.isPresent()) {
                 OutilsSecurite.exigerProjetVisible(appelant, id.get(), inventaires);
                 List<ContexteProjet> projetDemande = ProjetsVisibles.du(appelant.accountId(), inventaires)
-                        .filter(p -> p.id().equals(id.get())).limit(1).map(p -> detail(appelant, p)).toList();
+                        .filter(visible -> visible.id().equals(id.get())).limit(1).map(visible -> detail(appelant, visible)).toList();
                 return new ContexteProjets(projetDemande.size(), projetDemande);
             }
             List<ContexteProjet> projets = ProjetsVisibles.du(appelant.accountId(), inventaires)
-                    .filter(p -> appelant.memberOf(p.workspaceId())).limit(PROJETS_MAX)
-                    .map(p -> resume(appelant, p)).toList();
+                    .filter(visible -> appelant.memberOf(visible.workspaceId())).limit(PROJETS_MAX)
+                    .map(visible -> resume(appelant, visible)).toList();
             return new ContexteProjets(projets.size(), projets);
         });
     }
@@ -80,10 +80,11 @@ public class OutilsProjets {
         List<InventoryQueries.ComponentView> composants = inventaire.map(InventoryQueries.InventoryView::components)
                 .orElse(List.of());
         return new ContexteProjet(projet.id(), projet.name(), projet.workspaceId(),
-                inventaire.map(i -> new Inventaire(i.origin(), texte(i.sourceDate()), i.ageDays(), i.obsolete(),
-                        i.components().size())).orElse(null),
+                inventaire.map(vue -> new Inventaire(vue.origin(), texte(vue.sourceDate()), vue.ageDays(), vue.obsolete(),
+                        vue.components().size())).orElse(null),
                 alertesParNiveau(appelant, projet),
-                composants.stream().limit(COMPOSANTS_MAX).map(c -> new Composant(c.purl(), c.version(), c.transitive())).toList(),
+                composants.stream().limit(COMPOSANTS_MAX)
+                        .map(composant -> new Composant(composant.purl(), composant.version(), composant.transitive())).toList(),
                 composants.size() > COMPOSANTS_MAX);
     }
 
@@ -91,8 +92,8 @@ public class OutilsProjets {
     private ContexteProjet resume(Caller appelant, InventoryQueries.ProjectItem projet) {
         Optional<InventoryQueries.InventorySummary> synthese = inventaires.summary(projet.id(), appelant.accountId());
         return new ContexteProjet(projet.id(), projet.name(), projet.workspaceId(),
-                synthese.map(s -> new Inventaire(s.origin(), texte(s.sourceDate()), s.ageDays(), s.obsolete(),
-                        Math.toIntExact(s.componentCount()))).orElse(null),
+                synthese.map(bilan -> new Inventaire(bilan.origin(), texte(bilan.sourceDate()), bilan.ageDays(), bilan.obsolete(),
+                        Math.toIntExact(bilan.componentCount()))).orElse(null),
                 alertesParNiveau(appelant, projet), List.of(), false);
     }
 
