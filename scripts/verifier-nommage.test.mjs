@@ -209,6 +209,68 @@ test('Vue : script, v-for, v-slot et fonctions fléchées des directives', () =>
   ]);
 });
 
+test('TS : préfixes de paramètre (décorateurs, modificateurs, reste) et annotation de type de retour', () => {
+  const source = [
+    'class Service {',
+    '  constructor(@Inject(JETON) private readonly ab: Depot, @Optionnel public cd = 1) {}',
+    '}',
+    'function lire(\t...rs) {}',
+    'function ecrire(ef): Promise<Map<string, number>> { return ef }',
+    'const traiter = (gh): Resultat => gh',
+    'appeler(ij): valeur = { }',
+    'function exporter(kl): { nom: string } { return kl }',
+  ].join('\n');
+  assert.deepEqual(noms(source, 'ts'), ['ab', 'cd', 'rs', 'ef', 'gh', 'kl']);
+});
+
+test('TS/JS : imports sur plusieurs lignes, `type` modificateur ou nom, et import sans `from`', () => {
+  const source = [
+    'import type ab from \'./a\'',
+    'import type from \'./b\'',
+    'import cd',
+    '',
+    '  from \'./c\'',
+    'import ef; const resultat = 1 from',
+    'import\tgh, { ij as kl } from \'./d\'',
+  ].join('\n');
+  assert.deepEqual(analyserSource(source, 'ts'), [
+    { ligne: 1, nom: 'ab' }, { ligne: 3, nom: 'cd' }, { ligne: 7, nom: 'gh' }, { ligne: 7, nom: 'kl' },
+  ]);
+});
+
+test('Vue : formes de v-for (parenthèses, blancs, in et of)', () => {
+  const source = [
+    '<template>',
+    '  <li v-for="ab in liste" />',
+    '  <li v-for="  ( cd , ef )  of liste" />',
+    '  <li v-for="gh\tin\tliste" />',
+    '  <li v-for="(ij, index) in liste" />',
+    '  <li v-for=" in liste" />',
+    '  <li v-for="kl" />',
+    '</template>',
+  ].join('\n');
+  assert.deepEqual(analyserSource(source, 'vue'), [
+    { ligne: 2, nom: 'ab' }, { ligne: 3, nom: 'cd' }, { ligne: 3, nom: 'ef' }, { ligne: 4, nom: 'gh' }, { ligne: 5, nom: 'ij' },
+  ]);
+});
+
+test('performance : une ligne pathologique longue est analysée en moins de 200 ms', () => {
+  const blancs = ' '.repeat(50000);
+  const cas = [
+    [`import ab${blancs}x;`, 'ts'],
+    [`import ab${'\t '.repeat(25000)}`, 'ts'],
+    [`<template>\n  <li v-for="ab${blancs}x"></li>\n</template>`, 'vue'],
+    [`<template>\n  <li v-for="(ab,${blancs}"></li>\n</template>`, 'vue'],
+    [`function lire(${'@Decore '.repeat(10000)}ab) {}`, 'ts'],
+  ];
+  for (const [source, langage] of cas) {
+    const debut = performance.now();
+    analyserSource(source, langage);
+    const duree = performance.now() - debut;
+    assert.ok(duree < 200, `${source.slice(0, 30)}… analysé en ${Math.round(duree)} ms`);
+  }
+});
+
 test('liste blanche : chaque entrée est commentée et ne vaut que pour son fichier', () => {
   for (const entree of LISTE_BLANCHE) {
     assert.ok(entree.fichier && entree.nom && entree.raison, JSON.stringify(entree));
