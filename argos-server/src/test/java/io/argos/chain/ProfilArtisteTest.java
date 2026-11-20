@@ -56,7 +56,7 @@ class ProfilArtisteTest {
     private static final String ATOM = "application/atom+xml";
 
     @Inject
-    TestDb db;
+    TestDb baseDeTest;
 
     @Inject
     ContexteBase base;
@@ -68,8 +68,8 @@ class ProfilArtisteTest {
 
     @BeforeEach
     void reset() {
-        db.reset();
-        ArtisteFixtures.reinitialiser(db, "hugo", "jules");
+        baseDeTest.reset();
+        ArtisteFixtures.reinitialiser(baseDeTest, "hugo", "jules");
         aujourdhui = LocalDate.now(ZoneId.of("Europe/Paris"));
     }
 
@@ -123,7 +123,7 @@ class ProfilArtisteTest {
                 .body("rappelsJours", contains(30, 7, 1))
                 .body("rappelsParDefaut", equalTo(true))
                 .body("complets", equalTo(true));
-        assertEquals(2, db.count("SELECT count(*) FROM suivi_profil WHERE profil = 'artiste' AND compte_id = '"
+        assertEquals(2, baseDeTest.count("SELECT count(*) FROM suivi_profil WHERE profil = 'artiste' AND compte_id = '"
                 + Api.compte("hugo") + "'"));
         Api.en("hugo").when().get("/api/v1/profils/artiste/listes").then().statusCode(200)
                 .body("disciplines", hasSize(6)).body("territoires.identifiant", hasItem("occitanie"));
@@ -147,7 +147,7 @@ class ProfilArtisteTest {
                 .body(Map.of("disciplines", List.of("musique"), "territoires", List.of("occitanie"),
                         "rappelsJours", List.of(400)))
                 .when().put("/api/v1/profils/artiste/suivis").then().statusCode(400);
-        assertEquals(0, db.count("SELECT count(*) FROM suivi_profil"));
+        assertEquals(0, baseDeTest.count("SELECT count(*) FROM suivi_profil"));
     }
 
     /** Les suivis sont réservés à un utilisateur dont le profil artiste est actif. */
@@ -168,34 +168,34 @@ class ProfilArtisteTest {
         UUID hugo = Api.compte("hugo");
         UUID jules = Api.compte("jules");
 
-        long vusParJules = base.executer(new Contexte(jules, null, null), c -> {
-            try (PreparedStatement ps = c.prepareStatement("SELECT current_user, count(*) FROM suivi_profil GROUP BY 1");
-                    ResultSet rs = ps.executeQuery()) {
-                return rs.next() ? rs.getLong(2) : 0L;
+        long vusParJules = base.executer(new Contexte(jules, null, null), connexion -> {
+            try (PreparedStatement requete = connexion.prepareStatement("SELECT current_user, count(*) FROM suivi_profil GROUP BY 1");
+                    ResultSet resultat = requete.executeQuery()) {
+                return resultat.next() ? resultat.getLong(2) : 0L;
             }
         });
         assertEquals(0L, vusParJules);
-        long vusParHugo = base.executer(new Contexte(hugo, null, null), c -> {
-            try (PreparedStatement ps = c.prepareStatement("SELECT current_user, count(*) FROM suivi_profil GROUP BY 1");
-                    ResultSet rs = ps.executeQuery()) {
-                assertTrue(rs.next());
-                assertEquals("argos_app", rs.getString(1));
-                return rs.getLong(2);
+        long vusParHugo = base.executer(new Contexte(hugo, null, null), connexion -> {
+            try (PreparedStatement requete = connexion.prepareStatement("SELECT current_user, count(*) FROM suivi_profil GROUP BY 1");
+                    ResultSet resultat = requete.executeQuery()) {
+                assertTrue(resultat.next());
+                assertEquals("argos_app", resultat.getString(1));
+                return resultat.getLong(2);
             }
         });
         assertEquals(2L, vusParHugo);
-        assertThrows(IllegalStateException.class, () -> base.executer(new Contexte(jules, null, null), c -> {
-            try (PreparedStatement ps = c.prepareStatement("""
+        assertThrows(IllegalStateException.class, () -> base.executer(new Contexte(jules, null, null), connexion -> {
+            try (PreparedStatement requete = connexion.prepareStatement("""
                     INSERT INTO suivi_profil (compte_id, profil, type_objet, valeurs) VALUES (?, 'artiste', 'x', '{a}')
                     """)) {
-                ps.setObject(1, hugo);
-                return ps.executeUpdate();
+                requete.setObject(1, hugo);
+                return requete.executeUpdate();
             }
         }), "écrire les suivis d'un autre compte est refusé par la politique RLS");
-        long modifies = base.executer(new Contexte(jules, null, null), c -> {
-            try (PreparedStatement ps = c.prepareStatement("DELETE FROM suivi_profil WHERE compte_id = ?")) {
-                ps.setObject(1, hugo);
-                return (long) ps.executeUpdate();
+        long modifies = base.executer(new Contexte(jules, null, null), connexion -> {
+            try (PreparedStatement requete = connexion.prepareStatement("DELETE FROM suivi_profil WHERE compte_id = ?")) {
+                requete.setObject(1, hugo);
+                return (long) requete.executeUpdate();
             }
         });
         assertEquals(0L, modifies);
@@ -211,8 +211,8 @@ class ProfilArtisteTest {
         try {
             java.util.concurrent.CountDownLatch depart = new java.util.concurrent.CountDownLatch(1);
             List<java.util.concurrent.Future<SuivisProfil.Suivis>> resultats = new java.util.ArrayList<>();
-            for (int i = 0; i < 8; i++) {
-                String discipline = i % 2 == 0 ? "musique" : "arts-visuels";
+            for (int rang = 0; rang < 8; rang++) {
+                String discipline = rang % 2 == 0 ? "musique" : "arts-visuels";
                 resultats.add(pool.submit(() -> {
                     depart.await();
                     return suivis.remplacer(hugo, "artiste",
@@ -220,8 +220,8 @@ class ProfilArtisteTest {
                 }));
             }
             depart.countDown();
-            for (java.util.concurrent.Future<SuivisProfil.Suivis> r : resultats) {
-                assertEquals(List.of("france"), r.get(30, java.util.concurrent.TimeUnit.SECONDS).valeurs("territoire"));
+            for (java.util.concurrent.Future<SuivisProfil.Suivis> resultat : resultats) {
+                assertEquals(List.of("france"), resultat.get(30, java.util.concurrent.TimeUnit.SECONDS).valeurs("territoire"));
             }
         } finally {
             pool.shutdownNow();
@@ -245,7 +245,7 @@ class ProfilArtisteTest {
         String source = declarer("DATA_CULTURE", StubServer.base() + JEU, "appels-residences", List.of(), List.of());
         verifier(source);
         ArtisteFixtures.collecter();
-        assertEquals(6, db.count("SELECT count(*) FROM opportunite"));
+        assertEquals(6, baseDeTest.count("SELECT count(*) FROM opportunite"));
 
         activer("hugo", "developpeur", "artiste");
         suivre("hugo", List.of("arts-visuels"), List.of("occitanie"));
@@ -278,7 +278,7 @@ class ProfilArtisteTest {
                 .body("find { it.sourceId == '" + source + "' }.etat", equalTo("CONDITIONS_A_VERIFIER"));
 
         assertTrue(StubServer.received("/organisme/rss").isEmpty(), "aucune requête vers une source non vérifiée");
-        assertEquals(0, db.count("SELECT count(*) FROM opportunite"));
+        assertEquals(0, baseDeTest.count("SELECT count(*) FROM opportunite"));
         Api.en("alice").when().get("/api/v1/profils/artiste/sources").then().statusCode(200)
                 .body("find { it.id == '" + source + "' }.etat", equalTo("CONDITIONS_A_VERIFIER"))
                 .body("find { it.id == '" + source + "' }.licence", nullValue());
@@ -287,26 +287,26 @@ class ProfilArtisteTest {
         ArtisteFixtures.collecter();
 
         assertEquals(1, StubServer.received("/organisme/rss").size());
-        assertEquals(1, db.count("SELECT count(*) FROM opportunite WHERE date_limite IS NULL"
+        assertEquals(1, baseDeTest.count("SELECT count(*) FROM opportunite WHERE date_limite IS NULL"
                 + " AND 'arts-visuels' = ANY (disciplines) AND 'occitanie' = ANY (territoires)"));
         Api.en("alice").when().get("/api/v1/profils/artiste/sources").then().statusCode(200)
                 .body("find { it.id == '" + source + "' }.etat", equalTo("ACTIVE"))
                 .body("find { it.id == '" + source + "' }.licence", equalTo("Licence Ouverte Etalab 2.0"));
         ArtisteFixtures.collecter();
-        assertEquals(1, db.count("SELECT count(*) FROM opportunite"), "seconde collecte dédupliquée");
+        assertEquals(1, baseDeTest.count("SELECT count(*) FROM opportunite"), "seconde collecte dédupliquée");
     }
 
     /** Le registre des sources est réservé à l'administrateur plateforme ; refus journalisé. */
     @Test
     void lesSourcesSontReserveesALAdministrateurPlateforme() {
         Api.compte("hugo");
-        long refusAvant = db.count("SELECT count(*) FROM refus_acces");
+        long refusAvant = baseDeTest.count("SELECT count(*) FROM refus_acces");
         Api.en("hugo").contentType(ContentType.JSON)
                 .body(Map.of("type", "FLUX", "adresse", "https://organisme.test/rss", "rubrique", "evenements"))
                 .when().post("/api/v1/profils/artiste/sources").then().statusCode(403);
         Api.en("hugo").when().get("/api/v1/profils/artiste/sources").then().statusCode(403);
         Api.en("hugo").when().post("/api/v1/profils/artiste/collectes").then().statusCode(403);
-        assertEquals(refusAvant + 3, db.count("SELECT count(*) FROM refus_acces"));
+        assertEquals(refusAvant + 3, baseDeTest.count("SELECT count(*) FROM refus_acces"));
     }
 
     /** SSRF : hôte non admis pour data.culture.gouv.fr refusé ; adresse locale refusée à la collecte. */
@@ -345,15 +345,15 @@ class ProfilArtisteTest {
         ArtisteFixtures.collecter();
         activer("hugo", "developpeur", "artiste");
         suivre("hugo", List.of("arts-visuels"), List.of("occitanie"));
-        String x = db.string("SELECT id FROM opportunite WHERE titre = 'Résidence'");
-        String y = db.string("SELECT id FROM opportunite WHERE titre = 'Résidence officielle'");
+        String residence = baseDeTest.string("SELECT id FROM opportunite WHERE titre = 'Résidence'");
+        String residenceOfficielle = baseDeTest.string("SELECT id FROM opportunite WHERE titre = 'Résidence officielle'");
 
-        Api.en("hugo").when().get("/api/v1/profils/artiste/opportunites/" + x + "/resume").then().statusCode(200)
+        Api.en("hugo").when().get("/api/v1/profils/artiste/opportunites/" + residence + "/resume").then().statusCode(200)
                 .body("criteres", equalTo("Être artiste professionnel ; projet en Occitanie."))
                 .body("texteOfficiel", nullValue())
                 .body("mention", containsString("ne se prononce pas sur votre éligibilité"))
                 .body("keySet()", not(hasItem("eligible")));
-        Api.en("hugo").when().get("/api/v1/profils/artiste/opportunites/" + y + "/resume").then().statusCode(200)
+        Api.en("hugo").when().get("/api/v1/profils/artiste/opportunites/" + residenceOfficielle + "/resume").then().statusCode(200)
                 .body("criteres", equalTo("Artistes professionnels résidant en France."))
                 .body("texteOfficiel", equalTo("https://www.culture.gouv.fr/AAP-Y"))
                 .body("keySet()", hasItems("titre", "organisme", "criteres", "dateLimite", "texteOfficiel", "mention"));

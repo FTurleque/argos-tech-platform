@@ -42,15 +42,15 @@ import io.quarkus.test.junit.QuarkusTest;
 class ParcoursArtisteTest {
 
     @Inject
-    TestDb db;
+    TestDb baseDeTest;
 
     @Inject
     RappelsOpportunites rappels;
 
     @Test
     void developpeurActiveArtisteRecoitUnAppelPuisSonRappelSansChangerSaVeille() {
-        db.reset();
-        ArtisteFixtures.reinitialiser(db, "hugo");
+        baseDeTest.reset();
+        ArtisteFixtures.reinitialiser(baseDeTest, "hugo");
         LocalDate aujourdhui = LocalDate.now(ZoneId.of("Europe/Paris"));
 
         // 1. Utilisateur développeur : état de sa veille avant l'activation du profil artiste.
@@ -60,7 +60,7 @@ class ParcoursArtisteTest {
         String veilleAvant = Api.en("hugo").get("/api/v1/me/watch").then().statusCode(200).extract().asString();
         String abonnementsAvant = Api.en("hugo").get("/api/v1/subscriptions").then().statusCode(200)
                 .extract().asString();
-        long signauxAvant = db.count("SELECT count(*) FROM signal");
+        long signauxAvant = baseDeTest.count("SELECT count(*) FROM signal");
 
         // 2. L'administratrice plateforme déclare et vérifie la source data.culture.gouv.fr (simulée).
         StubServer.on(JEU, Stub.ok(reponse(
@@ -99,6 +99,6 @@ class ParcoursArtisteTest {
         assertEquals(veilleAvant, Api.en("hugo").get("/api/v1/me/watch").then().statusCode(200).extract().asString());
         assertEquals(abonnementsAvant, Api.en("hugo").get("/api/v1/subscriptions").then().statusCode(200)
                 .extract().asString());
-        assertEquals(signauxAvant, db.count("SELECT count(*) FROM signal"), "une opportunité n'est pas un signal");
+        assertEquals(signauxAvant, baseDeTest.count("SELECT count(*) FROM signal"), "une opportunité n'est pas un signal");
     }
 }

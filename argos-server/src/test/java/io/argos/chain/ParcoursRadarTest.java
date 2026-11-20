@@ -42,7 +42,7 @@ class ParcoursRadarTest {
     private static final String POSTGRES = "pkg:generic/postgresql";
 
     @Inject
-    TestDb db;
+    TestDb baseDeTest;
 
     @Inject
     ProjectDirectory projets;
@@ -55,7 +55,7 @@ class ParcoursRadarTest {
 
     @Test
     void referentielInventaireDetteRappelEtRadar() {
-        db.reset();
+        baseDeTest.reset();
         LocalDate aujourdhui = LocalDate.now();
         UUID espace = Api.nouvelEspace("lina", "Parcours radar");
         Api.ajouterMembre("lina", espace.toString(), "karim", "LECTEUR");

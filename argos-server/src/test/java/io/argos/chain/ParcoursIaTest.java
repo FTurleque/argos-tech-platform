@@ -64,7 +64,7 @@ class ParcoursIaTest {
     static final String HAUTE = "[{\"type\":\"SEVERITY\",\"value\":\"HIGH\"}]";
 
     @Inject
-    TestDb db;
+    TestDb baseDeTest;
 
     @Inject
     ProjectDirectory projects;
@@ -95,7 +95,7 @@ class ParcoursIaTest {
 
     @BeforeEach
     void reset() {
-        db.reset();
+        baseDeTest.reset();
         resumeIa.configure(SimulatedResumeIa.Mode.PASSERELLE);
         spaceA = Api.nouvelEspace("alice", "Espace IA");
         versionAvis = 10;
@@ -106,8 +106,8 @@ class ParcoursIaTest {
             return Stub.ok(new ObjectMapper().writeValueAsString(Map.of("model", "qwen2.5:1.5b",
                     "message", Map.of("role", "assistant", "content", contenu), "done", true,
                     "prompt_eval_count", 30, "eval_count", 12)));
-        } catch (Exception e) {
-            throw new IllegalStateException(e);
+        } catch (Exception erreur) {
+            throw new IllegalStateException(erreur);
         }
     }
 
@@ -126,7 +126,7 @@ class ParcoursIaTest {
                 .replace("\"severity\":\"HIGH\"", "\"severity\":\"CRITICAL\"");
         Fixtures.stubOsv(id, modifie, json);
         synchronizer.synchronize("OSV");
-        return db.uuid("SELECT id FROM signal WHERE external_id = '" + id + "'");
+        return baseDeTest.uuid("SELECT id FROM signal WHERE external_id = '" + id + "'");
     }
 
     private static void regle(String canal) {
@@ -161,7 +161,7 @@ class ParcoursIaTest {
         assertTrue(corps.contains("GHSA-IA-OK"), corps);
 
         assertEquals(1, StubServer.received(CHAT).size(), "un seul appel pour toutes les alertes du signal");
-        assertEquals(1, db.count("SELECT count(*) FROM ia_appel WHERE tache = 'resume-alerte' AND issue = 'PRODUIT'"
+        assertEquals(1, baseDeTest.count("SELECT count(*) FROM ia_appel WHERE tache = 'resume-alerte' AND issue = 'PRODUIT'"
                 + " AND espace_id = '" + spaceA + "' AND modele = 'qwen2.5:1.5b' AND version_prompt = 1"
                 + " AND jetons_entree = 30 AND jetons_sortie = 12 AND cout_eur = 0"));
     }
@@ -172,13 +172,13 @@ class ParcoursIaTest {
     void iag02S1DonneeConfidentielleRefuseeEtJournalisee() {
         StubServer.on(CHAT, ollama("{\"resume\": \"interdit\"}"));
 
-        ReponseIa r = passerelle.demander(new DemandeIa(RegistrePrompts.RESUME_ALERTE, spaceA,
+        ReponseIa reponse = passerelle.demander(new DemandeIa(RegistrePrompts.RESUME_ALERTE, spaceA,
                 List.of(EntreeIa.publique("titre", "Avis"), new EntreeIa("contexte", "Clé de chiffrement du projet",
                         ClasseDonnee.CONFIDENTIAL)), List.of()));
 
-        assertEquals(ReponseIa.Issue.REFUS_CLASSE, r.issue());
+        assertEquals(ReponseIa.Issue.REFUS_CLASSE, reponse.issue());
         assertTrue(StubServer.received(CHAT).isEmpty());
-        assertEquals(1, db.count("SELECT count(*) FROM ia_appel WHERE issue = 'REFUS_CLASSE' AND espace_id = '" + spaceA + "'"));
+        assertEquals(1, baseDeTest.count("SELECT count(*) FROM ia_appel WHERE issue = 'REFUS_CLASSE' AND espace_id = '" + spaceA + "'"));
     }
 
     // ------------------------------------------------------------------ 4.2 c) plafond atteint, alerte sans résumé
@@ -188,12 +188,12 @@ class ParcoursIaTest {
         projet(spaceA, "app", LIB + "@1.2.0");
         regle("email");
         StubServer.on(CHAT, ollama("{\"resume\": \"ne doit pas être demandé\"}"));
-        db.exec("INSERT INTO ia_quota_jour (jour, portee, appels) VALUES ('" + LocalDate.now(fuseau) + "', '" + spaceA
+        baseDeTest.exec("INSERT INTO ia_quota_jour (jour, portee, appels) VALUES ('" + LocalDate.now(fuseau) + "', '" + spaceA
                 + "', 100)");
 
         publier("GHSA-IA-QUOTA");
 
-        assertEquals(1, db.count("SELECT count(*) FROM alerte WHERE etat = 'ENVOYEE' AND etat_resume_ia = 'PLAFOND_ATTEINT'"
+        assertEquals(1, baseDeTest.count("SELECT count(*) FROM alerte WHERE etat = 'ENVOYEE' AND etat_resume_ia = 'PLAFOND_ATTEINT'"
                 + " AND resume_ia IS NULL"));
         assertTrue(StubServer.received(CHAT).isEmpty(), "aucun appel au-delà du quota de l'espace");
         assertTrue(mailbox.getMailsSentTo("alice@argos.test").get(0).getText().contains("Résumé IA non disponible."));
@@ -208,8 +208,8 @@ class ParcoursIaTest {
 
         publier("GHSA-IA-PANNE");
 
-        assertEquals(1, db.count("SELECT count(*) FROM alerte WHERE etat = 'ENVOYEE' AND etat_resume_ia = 'INDISPONIBLE'"));
-        assertEquals(1, db.count("SELECT count(*) FROM ia_appel WHERE issue = 'INDISPONIBLE'"));
+        assertEquals(1, baseDeTest.count("SELECT count(*) FROM alerte WHERE etat = 'ENVOYEE' AND etat_resume_ia = 'INDISPONIBLE'"));
+        assertEquals(1, baseDeTest.count("SELECT count(*) FROM ia_appel WHERE issue = 'INDISPONIBLE'"));
     }
 
     // ------------------------------------------------------------------ IAG-05 : veille web
@@ -233,14 +233,14 @@ class ParcoursIaTest {
         String message = StubServer.received(CHAT).get(0).body();
         assertTrue(message.contains("classe=\\\"PUBLIC\\\""), message);
         assertTrue(message.contains(VeilleWebTest.PIEGE), "le piège reste une donnée balisée");
-        assertEquals(1, db.count("SELECT count(*) FROM ia_appel WHERE tache = 'resume-actualite' AND issue = 'PRODUIT'"
+        assertEquals(1, baseDeTest.count("SELECT count(*) FROM ia_appel WHERE tache = 'resume-actualite' AND issue = 'PRODUIT'"
                 + " AND espace_id = '" + spaceA + "'"));
 
         // Un non-membre ne peut ni lire ni faire résumer l'actualité ; le refus est journalisé.
-        long refus = db.count("SELECT count(*) FROM refus_acces");
+        long refus = baseDeTest.count("SELECT count(*) FROM refus_acces");
         Api.compte("jules");
         Api.en("jules").when().post("/api/v1/veille-web/actualites/" + id + "/resume-ia").then().statusCode(404);
-        assertEquals(refus + 1, db.count("SELECT count(*) FROM refus_acces"));
+        assertEquals(refus + 1, baseDeTest.count("SELECT count(*) FROM refus_acces"));
         assertEquals(1, StubServer.received(CHAT).size());
 
         // Le résumé produit est gardé : une nouvelle demande ne sollicite pas le modèle.
@@ -251,7 +251,7 @@ class ParcoursIaTest {
                 .body("texte", equalTo("Quarkus 3.40 est une version LTS."))
                 .body("mention", equalTo("produit par l'IA"));
         assertEquals(1, StubServer.received(CHAT).size(), "résumé gardé en mémoire : aucun nouvel appel");
-        assertEquals(1, db.count("SELECT coalesce(sum(appels), 0) FROM ia_quota_jour WHERE portee = 'INSTANCE'"));
+        assertEquals(1, baseDeTest.count("SELECT coalesce(sum(appels), 0) FROM ia_quota_jour WHERE portee = 'INSTANCE'"));
     }
 
     /** Sans IA disponible, ou au-delà du quota du compte, la réponse reprend l'extrait déterministe, sans mention. */
@@ -272,7 +272,7 @@ class ParcoursIaTest {
                 .body("texte", startsWith("Quarkus 3.41 apporte des corrections."));
 
         UUID alice = Api.compte("alice");
-        db.exec("INSERT INTO ia_quota_jour (jour, portee, appels) VALUES ('" + LocalDate.now(fuseau) + "', 'C"
+        baseDeTest.exec("INSERT INTO ia_quota_jour (jour, portee, appels) VALUES ('" + LocalDate.now(fuseau) + "', 'C"
                 + alice.toString().replace("-", "") + "', 20) ON CONFLICT (jour, portee) DO UPDATE SET appels = 20");
         StubServer.on(CHAT, ollama("{\"resume\": \"ne doit pas être demandé\"}"));
         int recues = StubServer.received(CHAT).size();
@@ -282,7 +282,7 @@ class ParcoursIaTest {
                 .body("methode", equalTo("EXTRAIT_V1"))
                 .body("mention", nullValue());
         assertEquals(recues, StubServer.received(CHAT).size(), "aucun appel au-delà du quota du compte");
-        assertEquals(1, db.count("SELECT count(*) FROM ia_appel WHERE tache = 'resume-actualite' AND issue = 'QUOTA_COMPTE'"));
+        assertEquals(1, baseDeTest.count("SELECT count(*) FROM ia_appel WHERE tache = 'resume-actualite' AND issue = 'QUOTA_COMPTE'"));
     }
 
     // ------------------------------------------------------------------ analyse complémentaire de la corrélation
@@ -295,8 +295,8 @@ class ParcoursIaTest {
         projet(spaceB, "projet-confidentiel-b", null);
         resumeIa.configure(SimulatedResumeIa.Mode.AVAILABLE);
         UUID signal = publier("GHSA-IA-ANALYSE");
-        List<UUID> impacts = List.of(db.uuid("SELECT id FROM project_impact WHERE signal_id = '" + signal + "'"));
-        long impactsAvant = db.count("SELECT count(*) FROM project_impact");
+        List<UUID> impacts = List.of(baseDeTest.uuid("SELECT id FROM project_impact WHERE signal_id = '" + signal + "'"));
+        long impactsAvant = baseDeTest.count("SELECT count(*) FROM project_impact");
         StubServer.reset();
         StubServer.on(CHAT, ollama("{\"projets\": [1, 7], \"justification\": \"Même bibliothèque probable.\"}"));
 
@@ -310,8 +310,8 @@ class ParcoursIaTest {
         assertTrue(message.contains("classe=\\\"INTERNAL\\\""), message);
         assertFalse(message.contains("projet-confidentiel-b"), "aucun projet d'un autre espace");
         assertFalse(message.contains(". app\\n"), "le projet déjà touché n'est pas candidat");
-        assertEquals(impactsAvant, db.count("SELECT count(*) FROM project_impact"), "aucun impact créé (COR-04)");
-        assertEquals(1, db.count("SELECT count(*) FROM ia_appel WHERE tache = 'analyse-correlation' AND espace_id = '"
+        assertEquals(impactsAvant, baseDeTest.count("SELECT count(*) FROM project_impact"), "aucun impact créé (COR-04)");
+        assertEquals(1, baseDeTest.count("SELECT count(*) FROM ia_appel WHERE tache = 'analyse-correlation' AND espace_id = '"
                 + spaceA + "'"));
     }
 }

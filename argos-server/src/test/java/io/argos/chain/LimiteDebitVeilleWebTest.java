@@ -41,11 +41,11 @@ class LimiteDebitVeilleWebTest {
     }
 
     @Inject
-    TestDb db;
+    TestDb baseDeTest;
 
     @BeforeEach
     void preparer() {
-        db.reset();
+        baseDeTest.reset();
     }
 
     private static ValidatableResponse ajouter(String user, String adresse) {
@@ -74,11 +74,11 @@ class LimiteDebitVeilleWebTest {
         Api.en("nina").when().post("/api/v1/veille-web/sources/" + id + "/collectes").then().statusCode(429)
                 .body("code", equalTo("LIMITE_DEBIT"));
 
-        assertEquals(1, db.count("SELECT count(*) FROM refus_acces WHERE compte_id = '" + nina
+        assertEquals(1, baseDeTest.count("SELECT count(*) FROM refus_acces WHERE compte_id = '" + nina
                 + "' AND motif = 'LIMITE_DEBIT' AND ressource = 'POST /api/v1/veille-web/sources'"));
-        assertEquals(1, db.count("SELECT count(*) FROM refus_acces WHERE compte_id = '" + nina
+        assertEquals(1, baseDeTest.count("SELECT count(*) FROM refus_acces WHERE compte_id = '" + nina
                 + "' AND motif = 'LIMITE_DEBIT' AND ressource = 'POST /api/v1/veille-web/sources/" + id + "/collectes'"));
-        assertEquals(1, db.count("SELECT count(*) FROM source_web"), "aucune source créée au-delà de la limite");
+        assertEquals(1, baseDeTest.count("SELECT count(*) FROM source_web"), "aucune source créée au-delà de la limite");
 
         // La limite est propre à chaque compte ; les lectures ne sont pas limitées.
         Api.assurerCompte("oscar");
