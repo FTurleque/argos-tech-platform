@@ -117,7 +117,7 @@ Tous les changements utilisent le schéma `detailed-uml` : aucun changement d'un
 
 « Questions ouvertes » : Q-COL-1, Q-COL-2, Q-INV-1, Q-INV-2, Q-COR-2 et Q-ABO-1 sont levées par les décisions J1 à J7 du porteur du projet (2026-11-19), reprises par le changement `automatiser-chaine-veille` (voir « Couverture du lot 18 »).
 
-Toutes les exigences sont au statut [PROPOSITION] : elles dérivent d'ADR « Proposé » ou de baselines « à valider » ; la formulation d'INV-06 dérive des décisions F1, F5 et G5 du porteur du projet (2026-11-19). Les tests écrits sont ceux d'`argos-server/src/test/java/io/argos/chain/` (hors `ProfilsDeVeilleTest`) et `architecture/SubscriptionIsolationTest.java`, exécutés par `mvn -B -f argos-server/pom.xml verify` avec des jetons réels du Keycloak des Dev Services et la RLS appliquée sous le rôle `argos_app`. Matrice détaillée : [`tasks.md` du changement](/openspec/changes/formaliser-chaine-securite-poc/tasks.md#matrice-de-traçabilité).
+Toutes les exigences sont au statut [PROPOSITION] : elles dérivent d'ADR « Proposé » ou de baselines « à valider » ; la formulation d'INV-06 dérive des décisions F1, F5 et G5 du porteur du projet (2026-11-19). Les tests écrits sont ceux d'`argos-server/src/test/java/io/argos/chain/` (hors `ProfilsDeVeilleTest`) et `architecture/SubscriptionIsolationTest.java`, exécutés par `mvn -B -f argos-server/pom.xml verify` avec des jetons réels du Keycloak des Dev Services et la RLS appliquée sous le rôle `argos_app`. Matrice détaillée : [`tasks.md` du changement](/openspec/changes/archive/2026-11-20-formaliser-chaine-securite-poc/tasks.md#matrice-de-traçabilité).
 
 ### Couverture de [`personnaliser-profils-et-affichage`](/openspec/changes/archive/2026-11-19-personnaliser-profils-et-affichage/proposal.md) (archivé)
 
@@ -135,7 +135,7 @@ Les exigences AFF-01 à AFF-05 et PRF-01 à PRF-06 sont au statut [EXIGENCE] dan
 |---|---|---|---|---|---|---|
 | [`gerer-comptes-et-acces`](/openspec/changes/archive/2026-11-17-gerer-comptes-et-acces/proposal.md) (archivé) | `comptes-acces` | 6 | 11 | 1 | 0 | 37 |
 | [`diffuser-alertes-et-digests`](/openspec/changes/archive/2026-11-16-diffuser-alertes-et-digests/proposal.md) (archivé) | `alertes-digests` | 6 | 9 | 1 | 2 | 26 |
-| [`notifier-sur-le-poste`](/openspec/changes/notifier-sur-le-poste/proposal.md) | `notifications-poste` | 6 | 7 | 1 | 0 | 56 |
+| [`notifier-sur-le-poste`](/openspec/changes/archive/2026-11-20-notifier-sur-le-poste/proposal.md) | `notifications-poste` | 6 | 7 | 1 | 0 | 56 |
 | **Total** | | **18** | **27** | **3** | **2** | **119** |
 
 Dans ce tableau, « Tests écrits » compte les méthodes de test qui passent : `comptes-acces` (11 scénarios couverts, dont la couverture RLS du schéma par `CouvertureRlsTest`), `alertes-digests` (9 scénarios couverts, classes `AlertesTest`, `EchecSmtpTest`, `RelaisMuetTest` et `RegleAlerteTest`) et `notifications-poste` (7 scénarios couverts par des tests unitaires et d'intégration simulée : `argos-desktop/test/`, `argos-ui/tests/alertes-poste.test.mjs` et `argos-ui/tests/reprise-poste.test.mjs`, et 4 parcours E2E de l'application Electron réelle, `e2e/desktop/notifications.spec.ts`).
@@ -144,12 +144,12 @@ Dans ce tableau, « Tests écrits » compte les méthodes de test qui passent : 
 
 | Changement | Capacité | Exigences | Scénarios | Diagrammes métier | Questions ouvertes | Tests écrits |
 |---|---|---|---|---|---|---|
-| [`exposer-serveur-mcp`](/openspec/changes/exposer-serveur-mcp/proposal.md) | `serveur-mcp` | 7 | 9 | 1 | 0 | 9 |
+| [`exposer-serveur-mcp`](/openspec/changes/archive/2026-11-20-exposer-serveur-mcp/proposal.md) | `serveur-mcp` | 7 | 9 | 1 | 0 | 9 |
 | [`encadrer-appels-ia`](/openspec/changes/archive/2026-11-17-encadrer-appels-ia/proposal.md) (archivé) | `passerelle-ia` | 5 | 6 | 1 | 0 | 6 |
 | [`suivre-veille-reglementaire`](/openspec/changes/archive/2026-11-17-suivre-veille-reglementaire/proposal.md) (archivé) | `veille-reglementaire` | 8 | 13 | 1 | 0 | 13 |
 | **Total** | | **20** | **28** | **3** | **0** | **28** |
 
-Pour `exposer-serveur-mcp`, « Tests écrits » compte les scénarios MCP-01-S1 à MCP-07-S1 couverts par un test qui passe (`argos-server/src/test/java/io/argos/mcp/`) ; MCP-02-S1 s'appuie sur le référentiel des standards et le calendrier réels (`construire-radar-et-standards`) ; MCP-07-S1 sur les fiches réglementaires réelles (`suivre-veille-reglementaire`). MCP-02-S1, MCP-03-S1, MCP-04-S1 et MCP-05-S1 sont aussi parcourus de bout en bout, et le journal des appels de MCP-06 y est contrôlé, au niveau du protocole par `e2e/mcp/parcours-mcp.spec.ts` (client configuré par `e2e/donnees/mcp.json`) ; la tâche 5.2, qui exige Claude Code réel, reste ouverte. Matrice détaillée : [`tasks.md` du changement](/openspec/changes/exposer-serveur-mcp/tasks.md#matrice-de-traçabilité).
+Pour `exposer-serveur-mcp`, « Tests écrits » compte les scénarios MCP-01-S1 à MCP-07-S1 couverts par un test qui passe (`argos-server/src/test/java/io/argos/mcp/`) ; MCP-02-S1 s'appuie sur le référentiel des standards et le calendrier réels (`construire-radar-et-standards`) ; MCP-07-S1 sur les fiches réglementaires réelles (`suivre-veille-reglementaire`). MCP-02-S1, MCP-03-S1, MCP-04-S1 et MCP-05-S1 sont aussi parcourus de bout en bout, et le journal des appels de MCP-06 y est contrôlé, au niveau du protocole par `e2e/mcp/parcours-mcp.spec.ts` (client configuré par `e2e/donnees/mcp.json`) ; la tâche 5.2, qui exige Claude Code réel, reste ouverte. Matrice détaillée : [`tasks.md` du changement](/openspec/changes/archive/2026-11-20-exposer-serveur-mcp/tasks.md#matrice-de-traçabilité).
 
 Pour `suivre-veille-reglementaire`, « Tests écrits » compte les scénarios REG-01-S1 à REG-08-S1 couverts par un test qui passe, avec les archives JORF, l'API Ollama et l'API GitHub simulées par un serveur HTTP local (`LecteurJorfTest`, `CollecteReglementaireTest`, `QualificationEtDatesTest`, `VeilleReglementaireTest`, `ParcoursReglementaireTest`) ; les quatre questions sont répondues (2026-11-17). Matrice détaillée : [`tasks.md` du changement](/openspec/changes/archive/2026-11-17-suivre-veille-reglementaire/tasks.md#matrice-de-traçabilité).
 
@@ -188,7 +188,7 @@ Les exigences ACC-07 à ACC-10 sont au statut [EXIGENCE] dans la spec de référ
 
 | Changement | Capacité | Exigences | Scénarios | Diagrammes métier | Questions ouvertes | Tests écrits |
 |---|---|---|---|---|---|---|
-| [`automatiser-chaine-veille`](/openspec/changes/automatiser-chaine-veille/proposal.md) | `collecte-avis-securite` (COL-09, COL-10) | 2 | 9 | 0 (DF-COL-1, DF-COL-2 mis à jour) | 0 | 9 |
+| [`automatiser-chaine-veille`](/openspec/changes/archive/2026-11-20-automatiser-chaine-veille/proposal.md) | `collecte-avis-securite` (COL-09, COL-10) | 2 | 9 | 0 (DF-COL-1, DF-COL-2 mis à jour) | 0 | 9 |
 | | `inventaire-sbom` (INV-07 à INV-10) | 4 | 14 | 1 (DF-INV-4 ; DF-INV-1 mis à jour) | 0 | 14 |
 | | `correlation-impact` (COR-09 à COR-12) | 4 | 15 | 1 (DF-COR-4) | 0 | 15 |
 | | `abonnements-veille` (ABO-07, ABO-08) | 2 | 7 | 1 (DF-ABO-3) | 0 | 7 |
@@ -196,16 +196,16 @@ Les exigences ACC-07 à ACC-10 sont au statut [EXIGENCE] dans la spec de référ
 | | `performance-api-mcp` (PERF-01, PERF-02) | 2 | 6 | 1 (DF-PERF-1) | 2 | 5 |
 | **Total** | | **15** | **53** | **4** | **2** | **52** |
 
-Exigences au statut [PROPOSITION], issues des décisions J1 à J8 du porteur du projet (2026-11-19). Volets A (collecte et abonnements), B (inventaire) et C (impacts et performance) implémentés puis intégrés le 2026-11-19 (branche `lot18/integration`, migrations V18 à V20) ; vérifications d'intégration faites : `mvn verify` (649 tests), tests de l'IHM, parcours E2E `e2e/tests/chaine-automatisee.spec.ts` (sources et forges simulées) et deux exécutions complètes de `npm --prefix e2e test`. « Tests écrits » compte les scénarios couverts par au moins un test qui passe ; PERF-01-S1 n'est pas atteint : `GET /api/v1/me/veille` reste hors cible (p95 = 533,8 ms sur la branche intégrée, [rapport](../architecture/quality/mesure-performance-api-mcp.md), [PROPOSITION] P-18). Tâche 3.1 décochée : la contrainte INV-C3 n'est pas créée ([PROPOSITION] P-13, à valider). « Questions ouvertes » : Q-PERF-1 et Q-PERF-2 (volume et concurrence de la campagne). Matrice détaillée : [`tasks.md` du changement](/openspec/changes/automatiser-chaine-veille/tasks.md#matrice-de-traçabilité).
+Exigences au statut [PROPOSITION], issues des décisions J1 à J8 du porteur du projet (2026-11-19). Volets A (collecte et abonnements), B (inventaire) et C (impacts et performance) implémentés puis intégrés le 2026-11-19 (branche `lot18/integration`, migrations V18 à V20) ; vérifications d'intégration faites : `mvn verify` (649 tests), tests de l'IHM, parcours E2E `e2e/tests/chaine-automatisee.spec.ts` (sources et forges simulées) et deux exécutions complètes de `npm --prefix e2e test`. « Tests écrits » compte les scénarios couverts par au moins un test qui passe ; PERF-01-S1 n'est pas atteint : `GET /api/v1/me/veille` reste hors cible (p95 = 533,8 ms sur la branche intégrée, [rapport](../architecture/quality/mesure-performance-api-mcp.md), [PROPOSITION] P-18). Tâche 3.1 décochée : la contrainte INV-C3 n'est pas créée ([PROPOSITION] P-13, à valider). « Questions ouvertes » : Q-PERF-1 et Q-PERF-2 (volume et concurrence de la campagne). Matrice détaillée : [`tasks.md` du changement](/openspec/changes/archive/2026-11-20-automatiser-chaine-veille/tasks.md#matrice-de-traçabilité).
 
 ### Couverture du lot 19
 
 | Changement | Capacité | Exigences | Scénarios | Diagrammes métier | Questions ouvertes | Tests écrits |
 |---|---|---|---|---|---|---|
-| [`optimiser-ma-veille`](/openspec/changes/optimiser-ma-veille/proposal.md) | `profils-veille` (PRF-07) | 1 | 2 | 0 | 0 | 2 |
+| [`optimiser-ma-veille`](/openspec/changes/archive/2026-11-20-optimiser-ma-veille/proposal.md) | `profils-veille` (PRF-07) | 1 | 2 | 0 | 0 | 2 |
 | **Total** | | **1** | **2** | **0** | **0** | **2** |
 
-Exigence au statut [PROPOSITION], issue de la décision K2 du porteur du projet (2026-11-19), avec le jeu de référence de la décision K3. Implémentée le 2026-11-20 (branche `lot19/optimisation`, migration V21) : lecture groupée des signaux de « Ma veille » et index des impacts récents. « Tests écrits » compte les scénarios couverts par au moins un test qui passe : PRF-07-S1 par `LectureGroupeeSignauxTest` (absence de lecture d'un signal par avis) et par une mesure de diagnostic du 2026-11-20 (p95 = 60,1 à 82,7 ms, jeu K3), PRF-07-S2 par `VeilleLectureGroupeeTest`. La campagne de référence du 2026-11-20 (révision `7e5e36d`) le confirme : p95 = 85 ms, seize opérations sur seize dans la cible. Matrice détaillée : [`tasks.md` du changement](/openspec/changes/optimiser-ma-veille/tasks.md#matrice-de-traçabilité).
+Exigence au statut [PROPOSITION], issue de la décision K2 du porteur du projet (2026-11-19), avec le jeu de référence de la décision K3. Implémentée le 2026-11-20 (branche `lot19/optimisation`, migration V21) : lecture groupée des signaux de « Ma veille » et index des impacts récents. « Tests écrits » compte les scénarios couverts par au moins un test qui passe : PRF-07-S1 par `LectureGroupeeSignauxTest` (absence de lecture d'un signal par avis) et par une mesure de diagnostic du 2026-11-20 (p95 = 60,1 à 82,7 ms, jeu K3), PRF-07-S2 par `VeilleLectureGroupeeTest`. La campagne de référence du 2026-11-20 (révision `7e5e36d`) le confirme : p95 = 85 ms, seize opérations sur seize dans la cible. Matrice détaillée : [`tasks.md` du changement](/openspec/changes/archive/2026-11-20-optimiser-ma-veille/tasks.md#matrice-de-traçabilité).
 
 ### Capacités restant à spécifier
 

@@ -5,7 +5,7 @@
 | Préfixe d'exigences | `ALR` |
 | Spec de référence | [`/openspec/specs/alertes-digests/spec.md`](/openspec/specs/alertes-digests/spec.md) |
 | Changements archivés | [`2026-11-16-diffuser-alertes-et-digests`](/openspec/changes/archive/2026-11-16-diffuser-alertes-et-digests/proposal.md) |
-| Changement en cours | [`automatiser-chaine-veille`](/openspec/changes/automatiser-chaine-veille/specs/alertes-digests/spec.md) — proposé ; ALR-07 implémenté et intégré le 2026-11-19 (volets A, B et C réunis) |
+| Changement en cours | [`automatiser-chaine-veille`](/openspec/changes/archive/2026-11-20-automatiser-chaine-veille/specs/alertes-digests/spec.md) — proposé ; ALR-07 implémenté et intégré le 2026-11-19 (volets A, B et C réunis) |
 | Statut de la capacité | livrée ; implémentation et tests dans `argos-server` |
 | Composants (arc42 §5) | `alerting`, `workspace`, `impact-engine` |
 
@@ -71,7 +71,7 @@ Configuration par variables d'environnement (aucun secret versionné) :
 | Résumés quotidien (08:00) et hebdomadaire (lundi 08:00), Europe/Paris, paramétrables ; aucun résumé sans élément nouveau | ALR-04 | ABO-02 (fréquence) ; [DÉCISION] du 2026-11-16 (Q-3) | [EXISTANT] |
 | Résumé IA demandé avec un délai borné ; alerte envoyée sans lui s'il est indisponible, refusé ou au-delà du plafond, avec mention dans le message | ALR-05 | baseline v2.3 §6 ; QS-10 | [EXISTANT] |
 | Diffusion par e-mail (relais SMTP du Synology) et vers le client desktop ; nouvelles tentatives bornées puis état « en échec » | ALR-06 | ADR-0022 (Proposé) ; [DÉCISION] du 2026-11-16 (Q-1) | [EXISTANT] |
-| Aucune alerte immédiate ni mention dans un résumé pour un impact `écarté` ou `résolu` ; un impact rouvert redevient éligible ; un abonnement suspendu ne produit aucune notification (ABO-07) | ALR-07 | décisions J5 et J7 du porteur du projet, 2026-11-19 | [PROPOSITION] — changement [`automatiser-chaine-veille`](/openspec/changes/automatiser-chaine-veille/specs/alertes-digests/spec.md) |
+| Aucune alerte immédiate ni mention dans un résumé pour un impact `écarté` ou `résolu` ; un impact rouvert redevient éligible ; un abonnement suspendu ne produit aucune notification (ABO-07) | ALR-07 | décisions J5 et J7 du porteur du projet, 2026-11-19 | [PROPOSITION] — changement [`automatiser-chaine-veille`](/openspec/changes/archive/2026-11-20-automatiser-chaine-veille/specs/alertes-digests/spec.md) |
 
 ## Droits d'accès et restrictions
 

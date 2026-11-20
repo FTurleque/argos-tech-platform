@@ -8,7 +8,7 @@
 
 ## Contexte
 
-- arc42 [§9.3](../arc42/09-decisions.md#93-décisions-encore-à-formaliser-après-la-baseline-v24) range le « mécanisme précis de scheduling/jobs » parmi les décisions à formaliser ; la décision D4 du changement [`formaliser-chaine-securite-poc`](/openspec/changes/formaliser-chaine-securite-poc/design.md) le signale comme candidat à ADR.
+- arc42 [§9.3](../arc42/09-decisions.md#93-décisions-encore-à-formaliser-après-la-baseline-v24) range le « mécanisme précis de scheduling/jobs » parmi les décisions à formaliser ; la décision D4 du changement [`formaliser-chaine-securite-poc`](/openspec/changes/archive/2026-11-20-formaliser-chaine-securite-poc/design.md) le signale comme candidat à ADR.
 - Le serveur emploie déjà l'extension `quarkus-scheduler` (licence Apache-2.0, [`argos-server/pom.xml`](/argos-server/pom.xml)), introduite par le changement `diffuser-alertes-et-digests` puis réutilisée par les lots suivants. Onze méthodes `@Scheduled` existent :
 
 | Identité | Déclenchement (réglage, valeur par défaut) | Classe |

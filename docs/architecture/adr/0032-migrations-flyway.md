@@ -8,7 +8,7 @@
 
 ## Contexte
 
-- arc42 [§9.3](../arc42/09-decisions.md#93-décisions-encore-à-formaliser-après-la-baseline-v24) range « Flyway ou Liquibase » parmi les décisions à formaliser ; la décision D4 du changement [`formaliser-chaine-securite-poc`](/openspec/changes/formaliser-chaine-securite-poc/design.md) le signale comme candidat à ADR.
+- arc42 [§9.3](../arc42/09-decisions.md#93-décisions-encore-à-formaliser-après-la-baseline-v24) range « Flyway ou Liquibase » parmi les décisions à formaliser ; la décision D4 du changement [`formaliser-chaine-securite-poc`](/openspec/changes/archive/2026-11-20-formaliser-chaine-securite-poc/design.md) le signale comme candidat à ADR.
 - Le serveur emploie Flyway depuis sa première version, qualifié de « choix provisoire » dans [`argos-server/pom.xml`](/argos-server/pom.xml) et [`application.properties`](/argos-server/src/main/resources/application.properties) :
   - extensions `quarkus-flyway` et `flyway-database-postgresql` (Flyway Community, licence Apache-2.0) ;
   - `quarkus.flyway.migrate-at-start=true`, `quarkus.flyway.locations=db/migration` : le serveur applique les migrations en attente à son démarrage, avant de servir des requêtes ;

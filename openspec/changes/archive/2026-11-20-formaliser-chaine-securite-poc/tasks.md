@@ -26,6 +26,7 @@
 - [x] 3.1 Créer les migrations `INVENTORY`, `COMPONENT` — couvre INV-01, INV-02 — vérification : test d'intégration PostgreSQL passe
 - [ ] 3.2 Implémenter la récupération des SBOM et manifestes dans `scm-connector` — couvre INV-01, INV-04 — vérification : test de contrat GitLab/GitHub enregistré passe
   - [DÉCISION] La vérification attend une capture sur un dépôt pilote réel ; les réponses enregistrées sur des dépôts publics ne suffisent pas ; la tâche 3.2 reste ouverte — porteur du projet, 2026-11-18.
+  - [DÉCISION] Le changement est archivé avec cette tâche ouverte : la vérification réelle devient la recette R-4 de `docs/deploiement/recette-poste.md`, déroulée avec l'application installée ; tout écart ouvre un nouveau changement — porteur du projet, 2026-11-20.
 - [x] 3.3 Implémenter validation et import CycloneDX, transitivité et remplacement — couvre INV-01-S1, INV-01-S2, INV-02-S1, INV-05-S1 — vérification : tests avec SBOM valides, transitives et invalides passent
 - [x] 3.4 Implémenter âge, absence de SBOM et repli manifestes — couvre INV-03-S1, INV-03-S2, INV-04-S1, INV-04-S2 — vérification : tests d'intégration passent
 - [x] 3.5 Mettre à jour la fiche `inventaire-sbom` et le glossaire (« Inventaire », « Composant ») — vérification : `node scripts/verifier-docs.mjs` sans erreur
@@ -63,6 +64,7 @@
 - [x] 4.6 Implémenter la consultation filtrée et la journalisation des refus — couvre COR-08-S1, COR-08-S2 — vérification : tests inter-espaces REST passent
 - [ ] 4.7 Constituer le jeu de référence annoté et mesurer précision et rappel — couvre COR-01, COR-02 — vérification : rapport de mesure versionné (baseline v2.3 §6 critère 3) (mesure partielle du 2026-11-18 : [rapport](/docs/architecture/quality/mesure-correlation-jeu-reference.md))
   - [DÉCISION] Le jeu composé ne suffit pas au critère 3 : la mesure se fait sur les inventaires des projets pilotes, avec la tâche 7.1 ; la tâche 4.7 reste ouverte — porteur du projet, 2026-11-18.
+  - [DÉCISION] Le changement est archivé avec cette tâche ouverte : la vérification réelle devient la recette R-5 de `docs/deploiement/recette-poste.md`, déroulée avec l'application installée ; tout écart ouvre un nouveau changement — porteur du projet, 2026-11-20.
 - [x] 4.8 Mettre à jour la fiche `correlation-impact` (preuves, niveaux définis) — vérification : `node scripts/verifier-docs.mjs` sans erreur
 - [x] 4.9 Ordonner les qualificatifs inconnus des versions Maven selon `ComparableVersion` (décision D5 du porteur du projet, 2026-11-18, Q-COR-3) — couvre COR-01-S5 — vérification : `chain/MatchRulesTest` et `chain/JeuReferenceCorrelationTest` passent
 - [x] 4.10 Comparer toutes les versions Maven avec `ComparableVersion` de la bibliothèque `maven-artifact` et retirer l'adaptation `MavenVersionOrder` et l'ordre mixte — couvre COR-01-S5, COR-02 — vérification : `chain/MatchRulesTest` (dont `#mavenCasUsuels`, `#mavenQualificatifsConnus`, `#mavenQualificatifsInconnus`, `#mavenCasse`, `#mavenSeparateurs`, `#ordreGeneriqueInchangeHorsMaven`, `#versionsEnumereesMavenSelonComparableVersion`) et `chain/JeuReferenceCorrelationTest` passent
@@ -88,6 +90,7 @@
 ## 7. Vérifications d'intégration
 
 - [ ] 7.1 Exécuter la chaîne avis critique de test → signal → impact sur les deux projets pilotes — couvre baseline v2.3 §6 critères 1 à 3 — vérification : scénario E2E consigné avec ses résultats
+  - [DÉCISION] Le changement est archivé avec cette tâche ouverte : la vérification réelle devient la recette R-5 de `docs/deploiement/recette-poste.md`, déroulée avec l'application installée ; tout écart ouvre un nouveau changement — porteur du projet, 2026-11-20.
 - [x] 7.2 Valider le changement — vérification : `openspec validate formaliser-chaine-securite-poc --strict` réussit et `node scripts/verifier-docs.mjs` sans erreur
 
 ## Matrice de traçabilité
@@ -147,4 +150,4 @@ Tâches non réalisées et raison :
 - Basculer dans les quatre fiches durables les statuts [PROPOSITION] de ce changement en [EXIGENCE] (après validation des ADR et arbitrages) ou en [EXISTANT] (après preuve par test).
 - Archiver le changement uniquement sur demande explicite, après revue et levée des arbitrages du groupe 1 (`openspec archive formaliser-chaine-securite-poc`).
 - Après archivage, vérifier que la section Purpose des quatre specs principales contient le lien vers leur fiche durable.
-- Après archivage, remplacer dans les fiches et dans `/docs/specifications/README.md` les liens vers `/openspec/changes/formaliser-chaine-securite-poc/` par les specs principales ou le dossier d'archive, puis exécuter `node scripts/verifier-docs.mjs`.
+- Après archivage, remplacer dans les fiches et dans `/docs/specifications/README.md` les liens vers `/openspec/changes/archive/2026-11-20-formaliser-chaine-securite-poc/` par les specs principales ou le dossier d'archive, puis exécuter `node scripts/verifier-docs.mjs`.
