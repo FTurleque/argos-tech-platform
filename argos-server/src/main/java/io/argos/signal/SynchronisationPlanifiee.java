@@ -22,7 +22,8 @@ import io.quarkus.scheduler.Scheduled;
  * <p>Une source déjà en cours de synchronisation (lancée à la demande ou par une échéance précédente) est
  * sautée : l'exclusion repose sur l'index unique {@code sync_run_one_running} et le battement de cœur
  * ({@code argos.ingestion.running-expiry}), pas sur le planificateur (COL-09-S2). Une source dégradée est
- * retentée à chaque échéance (COL-09-S4). L'échec d'une source n'empêche pas la synchronisation des autres.
+ * retentée à chaque échéance (COL-09-S4). Une panne d'accès aux données sur une source est journalisée et n'empêche
+ * pas la synchronisation des autres.
  *
  * <p>Le planificateur est désactivé dans le profil de test ; la pile E2E désactive la tâche
  * ({@code ARGOS_INGESTION_PLANIFICATION_CADENCE=off}).
@@ -51,12 +52,7 @@ public class SynchronisationPlanifiee {
 
     /** Rafraîchit les index d'enrichissement puis synchronise chaque source enregistrée (méthode testable). */
     public Bilan synchroniserToutes(Instant instant) {
-        try {
-            echeances.fire(new EcheanceSynchronisation(instant));
-        } catch (RuntimeException erreur) {
-            // Le rafraîchissement des index n'empêche jamais la synchronisation (COL-04-S3, COL-09-S5).
-            LOG.warnf("rafraîchissement des index d'enrichissement en échec : %s", erreur.getMessage());
-        }
+        echeances.fire(new EcheanceSynchronisation(instant));
         List<SourceSynchronizer.SyncReport> rapports = new ArrayList<>();
         List<String> sautees = new ArrayList<>();
         List<String> enErreur = new ArrayList<>();
@@ -68,7 +64,7 @@ public class SynchronisationPlanifiee {
                 } else {
                     rapports.add(rapport);
                 }
-            } catch (RuntimeException erreur) {
+            } catch (IllegalStateException erreur) {
                 enErreur.add(source);
                 LOG.errorf(erreur, "synchronisation planifiée de la source %s interrompue", source);
             }

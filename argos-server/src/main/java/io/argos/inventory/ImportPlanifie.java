@@ -63,7 +63,7 @@ public class ImportPlanifie {
             try {
                 store.relancerRecorrelation(projet);
                 relancees++;
-            } catch (RuntimeException erreur) {
+            } catch (IllegalStateException erreur) {
                 LOG.errorf(erreur, "relance de la recorrélation du projet %s en échec", projet);
             }
         }
@@ -86,7 +86,7 @@ public class ImportPlanifie {
                         default -> conserves++;
                     }
                 }
-            } catch (RuntimeException erreur) {
+            } catch (IllegalStateException erreur) {
                 enEchec++;
                 LOG.errorf(erreur, "import planifié de l'inventaire du projet %s en échec", projet);
             }

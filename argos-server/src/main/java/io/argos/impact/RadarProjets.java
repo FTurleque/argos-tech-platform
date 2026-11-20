@@ -107,7 +107,7 @@ public class RadarProjets {
         Map<String, String> produits;
         try {
             produits = cycles.synchroniser(referentiel.produitsSuivis(), maintenant);
-        } catch (RuntimeException erreur) {
+        } catch (IllegalStateException erreur) {
             // La dette se calcule alors sur le calendrier déjà connu.
             LOG.errorf(erreur, "synchronisation du calendrier en échec");
             produits = Map.of();
@@ -124,14 +124,14 @@ public class RadarProjets {
         List<UUID> espaces;
         try {
             espaces = referentiel.espacesSuivis();
-        } catch (RuntimeException erreur) {
+        } catch (IllegalStateException erreur) {
             LOG.errorf(erreur, "lecture des espaces suivis par le radar impossible");
             return 0;
         }
         for (UUID espace : espaces) {
             try {
                 creees += enregistrerDettes(espace, aujourdhui, maintenant);
-            } catch (RuntimeException erreur) {
+            } catch (IllegalStateException erreur) {
                 LOG.errorf(erreur, "dettes de version de l'espace %s en échec", espace);
             }
         }
@@ -195,7 +195,7 @@ public class RadarProjets {
                         changement.ancienStatut().name(), changement.ancienneVersion(), changement.statut().name(),
                         changement.versionRecommandee(), changement.justification(), projets, changement.historiqueId()));
             }
-        } catch (RuntimeException erreur) {
+        } catch (IllegalStateException erreur) {
             LOG.errorf(erreur, "annonce du changement de standard %s en échec", changement.cle());
         }
     }

@@ -28,6 +28,7 @@ import org.jboss.logging.Logger;
 
 import io.argos.signal.web.ActualiteRecue;
 import io.quarkus.narayana.jta.QuarkusTransaction;
+import io.quarkus.narayana.jta.QuarkusTransactionException;
 
 /**
  * Rapprochement d'une actualité web avec les projets par nom de technologie (WEB-06, ADR-0013) :
@@ -67,7 +68,7 @@ public class RapprochementActualites {
         }
         try {
             QuarkusTransaction.requiringNew().run(() -> rapprocher(evenement.actualiteId(), evenement.espaceId()));
-        } catch (RuntimeException erreur) {
+        } catch (IllegalStateException | QuarkusTransactionException erreur) {
             LOG.errorf(erreur, "rapprochement de l'actualité %s en échec", evenement.actualiteId());
         }
     }

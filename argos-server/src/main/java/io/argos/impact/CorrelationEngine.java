@@ -32,6 +32,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 
 import io.quarkus.narayana.jta.QuarkusTransaction;
+import io.quarkus.narayana.jta.QuarkusTransactionException;
 
 import io.argos.inventory.InventoryQueries;
 import io.argos.inventory.InventoryReplaced;
@@ -93,7 +94,7 @@ public class CorrelationEngine {
     void onSignalChanged(@Observes(during = TransactionPhase.AFTER_SUCCESS) SignalChanged event) {
         try {
             correlate(event.signalId(), Optional.empty());
-        } catch (RuntimeException erreur) {
+        } catch (IllegalStateException | QuarkusTransactionException erreur) {
             LOG.errorf(erreur, "corrélation du signal %s en échec", event.signalId());
         }
     }
@@ -101,7 +102,7 @@ public class CorrelationEngine {
     void onInventoryReplaced(@Observes(during = TransactionPhase.AFTER_SUCCESS) InventoryReplaced event) {
         try {
             correlateProject(event.projectId());
-        } catch (RuntimeException erreur) {
+        } catch (IllegalStateException | QuarkusTransactionException erreur) {
             LOG.errorf(erreur, "corrélation du projet %s en échec", event.projectId());
         }
     }
@@ -141,11 +142,7 @@ public class CorrelationEngine {
         Deterministic outcome = QuarkusTransaction.requiringNew().call(() -> deterministic(signalId, projectId));
         publish(outcome.recorded());
         if (outcome.resolved() > 0) {
-            try {
-                impactsTraites.fire(new ImpactsTraites(signalId));
-            } catch (RuntimeException erreur) {
-                LOG.errorf(erreur, "publication des impacts résolus du signal %s en échec", signalId);
-            }
+            impactsTraites.fire(new ImpactsTraites(signalId));
         }
         String status = "NONE";
         List<ComplementaryAnalysis.Suggestion> suggestions = List.of();
@@ -158,9 +155,9 @@ public class CorrelationEngine {
                     // Les suggestions sont informatives : elles ne créent aucun impact (COR-04).
                     suggestions = List.copyOf(complementary.analyze(signalId, outcome.impactIds()));
                     status = "DONE";
-                } catch (RuntimeException erreur) {
+                } catch (IllegalStateException erreur) {
                     status = "UNAVAILABLE";
-                    LOG.infof("analyse complémentaire indisponible pour le signal %s : %s", signalId, erreur.getMessage());
+                    LOG.infof(erreur, "analyse complémentaire indisponible pour le signal %s : %s", signalId, erreur.getMessage());
                 }
             }
         }
@@ -170,17 +167,14 @@ public class CorrelationEngine {
 
     /**
      * Publie les impacts enregistrés, après la validation de leur transaction et avant l'analyse
-     * complémentaire : un échec du traitement des alertes n'affecte ni les impacts ni la corrélation.
+     * complémentaire. L'observateur des alertes journalise lui-même une panne d'accès aux données : elle n'affecte ni
+     * les impacts ni la corrélation.
      */
     private void publish(ImpactsRecorded recorded) {
         if (recorded.impacts().isEmpty()) {
             return;
         }
-        try {
-            impactsRecorded.fire(recorded);
-        } catch (RuntimeException erreur) {
-            LOG.errorf(erreur, "publication des impacts du signal %s en échec", recorded.signalId());
-        }
+        impactsRecorded.fire(recorded);
     }
 
     private List<UUID> signalsWithActiveImpacts(UUID projectId) throws SQLException {
@@ -200,98 +194,152 @@ public class CorrelationEngine {
     private Deterministic deterministic(UUID signalId, Optional<UUID> projectId) throws SQLException {
         SignalQueries.SignalView signal = signals.find(signalId)
                 .orElseThrow(() -> new IllegalArgumentException("signal inconnu : " + signalId));
+        Map<String, List<AffectedPackage>> byKey = parPaquet(signal);
+        Instant now = Instant.now();
+        Bilan bilan = new Bilan();
+        try (Connection connexion = dataSource.getConnection()) {
+            verrouillerSignal(connexion, signalId);
+            for (InventoryQueries.ComponentMatch component : inventories.componentsMatching(byKey.keySet(), projectId)) {
+                Optional<Match> best = best(byKey.get(component.packageKey()), component);
+                if (best.isPresent()) {
+                    correlerComposant(connexion, new Correspondance(signalId, signal, component, best.get(), now), bilan);
+                }
+            }
+            int resolved = resolveStale(connexion, signal, projectId, bilan.kept, bilan.stillAffected, now);
+            return new Deterministic(bilan.created, bilan.updated, resolved, bilan.reopened, List.copyOf(bilan.kept),
+                    new ImpactsRecorded(signalId, signal.title(), signal.severity(), signal.source(), signal.externalId(),
+                            bilan.items));
+        }
+    }
+
+    /** Entrées de l'avis regroupées par clé de paquet. */
+    private static Map<String, List<AffectedPackage>> parPaquet(SignalQueries.SignalView signal) {
         Map<String, List<AffectedPackage>> byKey = new HashMap<>();
         for (AffectedPackage affected : signal.affected()) {
             byKey.computeIfAbsent(affected.packageKey(), key -> new ArrayList<>()).add(affected);
         }
-        Instant now = Instant.now();
-        int created = 0;
-        int updated = 0;
-        int reopened = 0;
-        List<UUID> kept = new ArrayList<>();
+        return byKey;
+    }
+
+    /**
+     * Traitement technique, hors rôle applicatif. Le verrou par signal sérialise une corrélation globale et une
+     * corrélation par projet du même signal : la résolution des impacts devenus caducs ne peut pas résoudre un impact
+     * validé entre-temps par l'autre traitement.
+     */
+    private static void verrouillerSignal(Connection connexion, UUID signalId) throws SQLException {
+        try (PreparedStatement lock = connexion.prepareStatement("SELECT pg_advisory_xact_lock(hashtext(?))")) {
+            lock.setString(1, "project_impact:" + signalId);
+            lock.execute();
+        }
+    }
+
+    /** Correspondance vérifiée entre le signal et un composant de l'inventaire, au même instant de corrélation. */
+    private record Correspondance(UUID signalId, SignalQueries.SignalView signal, InventoryQueries.ComponentMatch component,
+            Match best, Instant now) {
+    }
+
+    /** Résultat de l'upsert d'un impact : identifiant, vrai s'il vient d'être créé, et état enregistré. */
+    private record Upsert(UUID impactId, boolean inserted, EtatImpact etat) {
+    }
+
+    /** Bilan en cours d'une corrélation déterministe. */
+    private static final class Bilan {
+        private int created;
+        private int updated;
+        private int reopened;
+        private final List<UUID> kept = new ArrayList<>();
         // Paquets (projet + clé) pour lesquels un composant reste affecté : un impact de l'ancienne version de ce
         // paquet est résolu comme composant retiré, et non comme version hors plage.
-        Set<String> stillAffected = new HashSet<>();
-        List<ImpactsRecorded.Item> items = new ArrayList<>();
-        try (Connection connexion = dataSource.getConnection()) {
-            // Traitement technique, hors rôle applicatif. Le verrou par signal sérialise une corrélation
-            // globale et une corrélation par projet du même signal : la résolution des impacts devenus
-            // caducs ne peut pas résoudre un impact validé entre-temps par l'autre traitement.
-            try (PreparedStatement lock = connexion.prepareStatement("SELECT pg_advisory_xact_lock(hashtext(?))")) {
-                lock.setString(1, "project_impact:" + signalId);
-                lock.execute();
-            }
-            for (InventoryQueries.ComponentMatch component : inventories.componentsMatching(byKey.keySet(), projectId)) {
-                Optional<Match> best = best(byKey.get(component.packageKey()), component);
-                if (best.isEmpty()) {
-                    continue;
-                }
-                stillAffected.add(component.projectId() + " " + component.packageKey());
-                reattach(connexion, signalId, component);
-                Optional<Precedent> avant = precedent(connexion, signalId, component);
-                UUID id = UUID.randomUUID();
-                try (PreparedStatement requete = connexion.prepareStatement("""
-                        INSERT INTO project_impact(id, signal_id, signal_version_id, project_id, workspace_id, component_id,
-                               level, method, transitive, inventory_origin, inventory_date, provenance, created_at, updated_at)
-                        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?::jsonb, now(), now())
-                        ON CONFLICT (signal_id, project_id, component_id) DO UPDATE SET
-                               signal_version_id = excluded.signal_version_id, level = excluded.level,
-                               method = excluded.method, transitive = excluded.transitive,
-                               inventory_origin = excluded.inventory_origin, inventory_date = excluded.inventory_date,
-                               provenance = excluded.provenance, component_id = excluded.component_id, updated_at = now()
-                        RETURNING id, (xmax = 0), state
-                        """)) {
-                    requete.setObject(1, id);
-                    requete.setObject(2, signalId);
-                    requete.setObject(3, signal.currentVersionId());
-                    requete.setObject(4, component.projectId());
-                    requete.setObject(5, component.workspaceId());
-                    requete.setObject(6, component.componentId());
-                    requete.setString(7, best.get().level().name());
-                    requete.setString(8, MatchRules.METHOD);
-                    if (component.transitive() == null) {
-                        requete.setNull(9, Types.BOOLEAN);
-                    } else {
-                        requete.setBoolean(9, component.transitive());
-                    }
-                    requete.setString(10, component.inventoryOrigin());
-                    requete.setObject(11, component.inventoryDate() == null ? null : component.inventoryDate().atOffset(ZoneOffset.UTC));
-                    requete.setString(12, provenance(signal, component, best.get()).toString());
-                    try (ResultSet resultat = requete.executeQuery()) {
-                        resultat.next();
-                        UUID impactId = resultat.getObject(1, UUID.class);
-                        EtatImpact etat = EtatImpact.valueOf(resultat.getString(3));
-                        boolean change = avant.map(precedent -> precedent.reactive() || !precedent.level().equals(best.get().level().name())
-                                || !precedent.signalVersionId().equals(signal.currentVersionId())).orElse(true);
-                        kept.add(impactId);
-                        if (resultat.getBoolean(2)) {
-                            created++;
-                        } else {
-                            updated++;
-                        }
-                        // Seul un impact résolu par le système redevient ouvert ; une résolution humaine est respectée (J5).
-                        if (etat == EtatImpact.RESOLU && TraitementImpacts.resoluParLeSysteme(connexion, impactId)
-                                && TraitementImpacts.systeme(connexion, impactId, component.workspaceId(),
-                                EtatImpact.RESOLU, EtatImpact.OUVERT, MotifSysteme.DE_NOUVEAU_VERIFIE, now)) {
-                            reopened++;
-                            etat = EtatImpact.OUVERT;
-                            change = true;
-                        }
-                        // Un impact écarté reste enregistré et à jour, mais n'est publié à aucune alerte (ALR-07).
-                        // Seul un impact nouveau, rouvert (par le système, ou par un utilisateur depuis la corrélation
-                        // précédente), de niveau changé ou porté par une nouvelle version de l'avis est publié : une recorrélation sans changement (import quotidien) ne produit aucune alerte,
-                        // notamment au titre d'un abonnement réactivé (ABO-07-S2, [PROPOSITION] PI-4).
-                        if (EtatImpact.ACTIFS.contains(etat) && change) {
-                            items.add(new ImpactsRecorded.Item(impactId, component.projectId(), component.workspaceId(),
-                                    best.get().level().name(), component.packageKey()));
-                        }
-                    }
-                }
-            }
-            int resolved = resolveStale(connexion, signal, projectId, kept, stillAffected, now);
-            return new Deterministic(created, updated, resolved, reopened, List.copyOf(kept), new ImpactsRecorded(signalId,
-                    signal.title(), signal.severity(), signal.source(), signal.externalId(), items));
+        private final Set<String> stillAffected = new HashSet<>();
+        private final List<ImpactsRecorded.Item> items = new ArrayList<>();
+    }
+
+    /** Enregistre ou met à jour l'impact d'un composant affecté, le rouvre si besoin et le publie s'il a changé. */
+    private void correlerComposant(Connection connexion, Correspondance correspondance, Bilan bilan) throws SQLException {
+        InventoryQueries.ComponentMatch component = correspondance.component();
+        bilan.stillAffected.add(component.projectId() + " " + component.packageKey());
+        reattach(connexion, correspondance.signalId(), component);
+        Optional<Precedent> avant = precedent(connexion, correspondance.signalId(), component);
+        Upsert upsert = upsert(connexion, correspondance);
+        boolean change = avant.map(precedent -> aChange(precedent, correspondance)).orElse(true);
+        bilan.kept.add(upsert.impactId());
+        if (upsert.inserted()) {
+            bilan.created++;
+        } else {
+            bilan.updated++;
         }
+        EtatImpact etat = upsert.etat();
+        if (rouvrirSiResoluParLeSysteme(connexion, upsert, correspondance)) {
+            bilan.reopened++;
+            etat = EtatImpact.OUVERT;
+            change = true;
+        }
+        // Un impact écarté reste enregistré et à jour, mais n'est publié à aucune alerte (ALR-07).
+        // Seul un impact nouveau, rouvert (par le système, ou par un utilisateur depuis la corrélation
+        // précédente), de niveau changé ou porté par une nouvelle version de l'avis est publié : une
+        // recorrélation sans changement (import quotidien) ne produit aucune alerte,
+        // notamment au titre d'un abonnement réactivé (ABO-07-S2, [PROPOSITION] PI-4).
+        if (EtatImpact.ACTIFS.contains(etat) && change) {
+            bilan.items.add(new ImpactsRecorded.Item(upsert.impactId(), component.projectId(), component.workspaceId(),
+                    correspondance.best().level().name(), component.packageKey()));
+        }
+    }
+
+    /** Vrai si l'impact existant est redevenu actif, a changé de niveau ou porte une autre version de l'avis. */
+    private static boolean aChange(Precedent precedent, Correspondance correspondance) {
+        return precedent.reactive() || !precedent.level().equals(correspondance.best().level().name())
+                || !precedent.signalVersionId().equals(correspondance.signal().currentVersionId());
+    }
+
+    /** Seul un impact résolu par le système redevient ouvert ; une résolution humaine est respectée (J5). */
+    private static boolean rouvrirSiResoluParLeSysteme(Connection connexion, Upsert upsert, Correspondance correspondance)
+            throws SQLException {
+        return upsert.etat() == EtatImpact.RESOLU && TraitementImpacts.resoluParLeSysteme(connexion, upsert.impactId())
+                && TraitementImpacts.systeme(connexion, upsert.impactId(), correspondance.component().workspaceId(),
+                EtatImpact.RESOLU, EtatImpact.OUVERT, MotifSysteme.DE_NOUVEAU_VERIFIE, correspondance.now());
+    }
+
+    /** Crée l'impact du triplet signal + projet + composant, ou met à jour l'impact existant (COR-07). */
+    private static Upsert upsert(Connection connexion, Correspondance correspondance) throws SQLException {
+        try (PreparedStatement requete = connexion.prepareStatement("""
+                INSERT INTO project_impact(id, signal_id, signal_version_id, project_id, workspace_id, component_id,
+                       level, method, transitive, inventory_origin, inventory_date, provenance, created_at, updated_at)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?::jsonb, now(), now())
+                ON CONFLICT (signal_id, project_id, component_id) DO UPDATE SET
+                       signal_version_id = excluded.signal_version_id, level = excluded.level,
+                       method = excluded.method, transitive = excluded.transitive,
+                       inventory_origin = excluded.inventory_origin, inventory_date = excluded.inventory_date,
+                       provenance = excluded.provenance, component_id = excluded.component_id, updated_at = now()
+                RETURNING id, (xmax = 0), state
+                """)) {
+            lierImpact(requete, UUID.randomUUID(), correspondance);
+            try (ResultSet resultat = requete.executeQuery()) {
+                resultat.next();
+                return new Upsert(resultat.getObject(1, UUID.class), resultat.getBoolean(2),
+                        EtatImpact.valueOf(resultat.getString(3)));
+            }
+        }
+    }
+
+    private static void lierImpact(PreparedStatement requete, UUID id, Correspondance correspondance) throws SQLException {
+        InventoryQueries.ComponentMatch component = correspondance.component();
+        SignalQueries.SignalView signal = correspondance.signal();
+        requete.setObject(1, id);
+        requete.setObject(2, correspondance.signalId());
+        requete.setObject(3, signal.currentVersionId());
+        requete.setObject(4, component.projectId());
+        requete.setObject(5, component.workspaceId());
+        requete.setObject(6, component.componentId());
+        requete.setString(7, correspondance.best().level().name());
+        requete.setString(8, MatchRules.METHOD);
+        if (component.transitive() == null) {
+            requete.setNull(9, Types.BOOLEAN);
+        } else {
+            requete.setBoolean(9, component.transitive());
+        }
+        requete.setString(10, component.inventoryOrigin());
+        requete.setObject(11, component.inventoryDate() == null ? null : component.inventoryDate().atOffset(ZoneOffset.UTC));
+        requete.setString(12, provenance(signal, component, correspondance.best()).toString());
     }
 
     /** Impact existant : niveau, version de l'avis, et vrai s'il est redevenu actif depuis sa dernière corrélation. */

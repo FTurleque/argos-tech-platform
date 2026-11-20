@@ -92,20 +92,25 @@ public class SourceSynchronizer {
                     return counters.report(sourceId, "RETRYABLE", attempts, "attente interrompue");
                 }
                 store.resume(runId);
-            } catch (RuntimeException unexpected) {
-                // Toute autre erreur (bogue d'un normaliseur, curseur illisible, base indisponible) termine
-                // le traitement en échec : il ne reste jamais RUNNING et la source change d'état (COL-07).
+            } catch (IllegalStateException panne) {
+                // Une panne d'accès aux données (curseur, enregistrement d'un avis) termine le traitement en échec :
+                // il ne reste pas RUNNING et la source change d'état (COL-07).
                 SourceException error = new SourceException(SourceException.Kind.PERMANENT, null, null,
-                        "erreur inattendue : " + unexpected.getClass().getSimpleName(), unexpected);
-                LOG.errorf(unexpected, "synchronisation %s, tentative %d interrompue par une erreur inattendue",
+                        "panne d'accès aux données : " + panne.getClass().getSimpleName(), panne);
+                LOG.errorf(panne, "synchronisation %s, tentative %d interrompue par une panne d'accès aux données",
                         sourceId, attempts);
-                try {
-                    store.recordAttempt(runId, attempts, error);
-                } catch (RuntimeException ignored) {
-                    LOG.warnf("tentative %d de la synchronisation %s non enregistrée", attempts, sourceId);
-                }
+                enregistrerTentativeOuJournaliser(sourceId, runId, attempts, error);
                 return failed(sourceId, runId, attempts, "PERMANENT", error, counters);
             }
+        }
+    }
+
+    /** Enregistre la tentative ; une nouvelle panne d'accès aux données est journalisée avec sa cause. */
+    private void enregistrerTentativeOuJournaliser(String sourceId, UUID runId, int attempts, SourceException error) {
+        try {
+            store.recordAttempt(runId, attempts, error);
+        } catch (IllegalStateException panne) {
+            LOG.warnf(panne, "tentative %d de la synchronisation %s non enregistrée", attempts, sourceId);
         }
     }
 

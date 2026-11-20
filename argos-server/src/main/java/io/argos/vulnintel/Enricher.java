@@ -23,6 +23,7 @@ import jakarta.transaction.Transactional;
 import org.jboss.logging.Logger;
 
 import io.quarkus.narayana.jta.QuarkusTransaction;
+import io.quarkus.narayana.jta.QuarkusTransactionException;
 
 import io.argos.signal.SignalChanged;
 import io.argos.signal.SignalQueries;
@@ -58,8 +59,8 @@ public class Enricher {
         try {
             // Nouvelle transaction : celle qui a émis l'événement est déjà validée.
             QuarkusTransaction.requiringNew().run(() -> enrich(event.signalId()));
-        } catch (RuntimeException error) {
-            LOG.warnf("enrichissement du signal %s différé : %s", event.signalId(), error.getMessage());
+        } catch (IllegalStateException | QuarkusTransactionException error) {
+            LOG.warnf(error, "enrichissement du signal %s différé : %s", event.signalId(), error.getMessage());
         }
     }
 

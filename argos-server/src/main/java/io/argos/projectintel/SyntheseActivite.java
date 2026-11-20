@@ -7,11 +7,14 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
 import java.util.concurrent.ArrayBlockingQueue;
+import java.util.concurrent.CancellationException;
+import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Future;
 import java.util.concurrent.RejectedExecutionException;
 import java.util.concurrent.ThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.TimeoutException;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
@@ -96,9 +99,9 @@ public class SyntheseActivite {
             demande.cancel(true);
             Thread.currentThread().interrupt();
             return new Synthese("INDISPONIBLE", null, MENTION, vue.periode(), sources);
-        } catch (Exception erreur) {
+        } catch (ExecutionException | TimeoutException | CancellationException erreur) {
             demande.cancel(true);
-            LOG.infof("synthèse de l'activité du projet %s indisponible : %s", vue.projectId(), erreur.toString());
+            LOG.infof(erreur, "synthèse de l'activité du projet %s indisponible : %s", vue.projectId(), erreur.toString());
             return new Synthese("INDISPONIBLE", null, MENTION, vue.periode(), sources);
         }
         String propre = nettoyer(texte);

@@ -47,9 +47,9 @@ public class CrashingFeed implements AdvisoryFeed {
         failure.set(null);
     }
 
-    /** La prochaine lecture d'avis lève cette exception inattendue (bogue simulé), une seule fois. */
-    public void failOnceWith(RuntimeException unexpected) {
-        failure.set(unexpected);
+    /** La prochaine lecture d'avis lève cette panne simulée, une seule fois. */
+    public void failOnceWith(RuntimeException panne) {
+        failure.set(panne);
     }
 
     public List<String> fetched() {
@@ -72,9 +72,9 @@ public class CrashingFeed implements AdvisoryFeed {
 
     @Override
     public RawAdvisory fetch(FeedEntry entry) {
-        RuntimeException unexpected = failure.getAndSet(null);
-        if (unexpected != null) {
-            throw unexpected;
+        RuntimeException panne = failure.getAndSet(null);
+        if (panne != null) {
+            throw panne;
         }
         if (crashAfter.get() >= 0 && fetched.size() >= crashAfter.get()) {
             crashAfter.set(-1);
