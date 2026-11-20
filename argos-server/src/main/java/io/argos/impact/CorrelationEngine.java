@@ -32,6 +32,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 
 import io.quarkus.narayana.jta.QuarkusTransaction;
+import io.quarkus.narayana.jta.QuarkusTransactionException;
 
 import io.argos.inventory.InventoryQueries;
 import io.argos.inventory.InventoryReplaced;
@@ -93,7 +94,7 @@ public class CorrelationEngine {
     void onSignalChanged(@Observes(during = TransactionPhase.AFTER_SUCCESS) SignalChanged event) {
         try {
             correlate(event.signalId(), Optional.empty());
-        } catch (RuntimeException erreur) {
+        } catch (IllegalStateException | QuarkusTransactionException erreur) {
             LOG.errorf(erreur, "corrélation du signal %s en échec", event.signalId());
         }
     }
@@ -101,7 +102,7 @@ public class CorrelationEngine {
     void onInventoryReplaced(@Observes(during = TransactionPhase.AFTER_SUCCESS) InventoryReplaced event) {
         try {
             correlateProject(event.projectId());
-        } catch (RuntimeException erreur) {
+        } catch (IllegalStateException | QuarkusTransactionException erreur) {
             LOG.errorf(erreur, "corrélation du projet %s en échec", event.projectId());
         }
     }
@@ -141,11 +142,7 @@ public class CorrelationEngine {
         Deterministic outcome = QuarkusTransaction.requiringNew().call(() -> deterministic(signalId, projectId));
         publish(outcome.recorded());
         if (outcome.resolved() > 0) {
-            try {
-                impactsTraites.fire(new ImpactsTraites(signalId));
-            } catch (RuntimeException erreur) {
-                LOG.errorf(erreur, "publication des impacts résolus du signal %s en échec", signalId);
-            }
+            impactsTraites.fire(new ImpactsTraites(signalId));
         }
         String status = "NONE";
         List<ComplementaryAnalysis.Suggestion> suggestions = List.of();
@@ -158,9 +155,9 @@ public class CorrelationEngine {
                     // Les suggestions sont informatives : elles ne créent aucun impact (COR-04).
                     suggestions = List.copyOf(complementary.analyze(signalId, outcome.impactIds()));
                     status = "DONE";
-                } catch (RuntimeException erreur) {
+                } catch (IllegalStateException erreur) {
                     status = "UNAVAILABLE";
-                    LOG.infof("analyse complémentaire indisponible pour le signal %s : %s", signalId, erreur.getMessage());
+                    LOG.infof(erreur, "analyse complémentaire indisponible pour le signal %s : %s", signalId, erreur.getMessage());
                 }
             }
         }
@@ -170,17 +167,14 @@ public class CorrelationEngine {
 
     /**
      * Publie les impacts enregistrés, après la validation de leur transaction et avant l'analyse
-     * complémentaire : un échec du traitement des alertes n'affecte ni les impacts ni la corrélation.
+     * complémentaire. L'observateur des alertes journalise lui-même une panne d'accès aux données : elle n'affecte ni
+     * les impacts ni la corrélation.
      */
     private void publish(ImpactsRecorded recorded) {
         if (recorded.impacts().isEmpty()) {
             return;
         }
-        try {
-            impactsRecorded.fire(recorded);
-        } catch (RuntimeException erreur) {
-            LOG.errorf(erreur, "publication des impacts du signal %s en échec", recorded.signalId());
-        }
+        impactsRecorded.fire(recorded);
     }
 
     private List<UUID> signalsWithActiveImpacts(UUID projectId) throws SQLException {
@@ -279,7 +273,8 @@ public class CorrelationEngine {
                         }
                         // Un impact écarté reste enregistré et à jour, mais n'est publié à aucune alerte (ALR-07).
                         // Seul un impact nouveau, rouvert (par le système, ou par un utilisateur depuis la corrélation
-                        // précédente), de niveau changé ou porté par une nouvelle version de l'avis est publié : une recorrélation sans changement (import quotidien) ne produit aucune alerte,
+                        // précédente), de niveau changé ou porté par une nouvelle version de l'avis est publié : une
+                        // recorrélation sans changement (import quotidien) ne produit aucune alerte,
                         // notamment au titre d'un abonnement réactivé (ABO-07-S2, [PROPOSITION] PI-4).
                         if (EtatImpact.ACTIFS.contains(etat) && change) {
                             items.add(new ImpactsRecorded.Item(impactId, component.projectId(), component.workspaceId(),
