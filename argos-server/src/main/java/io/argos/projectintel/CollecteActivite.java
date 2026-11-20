@@ -99,7 +99,7 @@ public class CollecteActivite {
                     case ECHEC -> echecs++;
                     default -> { }
                 }
-            } catch (RuntimeException erreur) {
+            } catch (IllegalStateException erreur) {
                 echecs++;
                 LOG.errorf(erreur, "collecte de l'activité du projet %s en échec", projet.id());
             }
