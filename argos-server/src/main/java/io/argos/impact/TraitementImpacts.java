@@ -104,7 +104,7 @@ public class TraitementImpacts {
         }
         try (Connection connexion = dataSource.getConnection()) {
             RlsSession.account(connexion, compteId);
-            Optional<Lu> lecture = lire(connexion, impactId);
+            Optional<ImpactLu> lecture = lire(connexion, impactId);
             if (lecture.isEmpty()) {
                 return Optional.empty();
             }
@@ -116,7 +116,7 @@ public class TraitementImpacts {
             }
             if (!changer(connexion, impactId, depart, vers)) {
                 // Aucune ligne modifiée : état changé entre-temps (409), ou refus de la politique RLS.
-                EtatImpact maintenantLu = lire(connexion, impactId).map(Lu::etat).orElse(depart);
+                EtatImpact maintenantLu = lire(connexion, impactId).map(ImpactLu::etat).orElse(depart);
                 if (maintenantLu != depart) {
                     throw new TransitionInterdite(maintenantLu);
                 }
@@ -167,16 +167,16 @@ public class TraitementImpacts {
         return true;
     }
 
-    private record Lu(EtatImpact etat, UUID espace, UUID signal, boolean composantPresent) {
+    private record ImpactLu(EtatImpact etat, UUID espace, UUID signal, boolean composantPresent) {
     }
 
-    private static Optional<Lu> lire(Connection connexion, UUID impactId) throws SQLException {
+    private static Optional<ImpactLu> lire(Connection connexion, UUID impactId) throws SQLException {
         try (PreparedStatement requete = connexion.prepareStatement(
                 "SELECT state, workspace_id, signal_id, component_id IS NOT NULL FROM project_impact WHERE id = ?")) {
             requete.setObject(1, impactId);
             try (ResultSet resultat = requete.executeQuery()) {
                 return resultat.next()
-                        ? Optional.of(new Lu(EtatImpact.valueOf(resultat.getString(1)), resultat.getObject(2, UUID.class),
+                        ? Optional.of(new ImpactLu(EtatImpact.valueOf(resultat.getString(1)), resultat.getObject(2, UUID.class),
                                 resultat.getObject(3, UUID.class), resultat.getBoolean(4)))
                         : Optional.empty();
             }

@@ -61,10 +61,10 @@ public class InventoryService {
     }
 
     /** Lecture d'un dépôt : son issue et, s'il est importé, l'inventaire à écrire. */
-    private record Lu(ImportResult result, Optional<InventoryStore.Remplacement> remplacement) {
+    private record InventaireLu(ImportResult result, Optional<InventoryStore.Remplacement> remplacement) {
 
-        static Lu sans(ImportResult result) {
-            return new Lu(result, Optional.empty());
+        static InventaireLu sans(ImportResult result) {
+            return new InventaireLu(result, Optional.empty());
         }
     }
 
@@ -154,9 +154,9 @@ public class InventoryService {
             RepositoryRef ref = depot.ref();
             String forge = ref.provider() == null ? "" : ref.provider().toUpperCase(Locale.ROOT);
             QuotaEpuise quota = quotas.get(forge);
-            Lu lecture;
+            InventaireLu lecture;
             if (quota != null) {
-                lecture = Lu.sans(new ImportResult("DEFERRED", null, 0, 0, quota.getMessage()));
+                lecture = InventaireLu.sans(new ImportResult("DEFERRED", null, 0, 0, quota.getMessage()));
             } else {
                 lecture = lire(projectId, depot, rencontre -> quotas.put(forge, rencontre));
             }
@@ -177,7 +177,7 @@ public class InventoryService {
     }
 
     /** Lit un dépôt : SBOM, sinon inventaire SBOM conservé, sinon manifestes. */
-    private Lu lire(UUID projectId, ProjectDirectory.Depot depot, java.util.function.Consumer<QuotaEpuise> surQuota) {
+    private InventaireLu lire(UUID projectId, ProjectDirectory.Depot depot, java.util.function.Consumer<QuotaEpuise> surQuota) {
         RepositoryRef repo = depot.ref();
         String sourceRef = repo.provider() + ":" + repo.repository() + "@" + repo.branch();
         try {
@@ -188,7 +188,7 @@ public class InventoryService {
                 return lireSbom(projectId, depot.id(), sourceRef, sbom.get());
             }
             if (queries.originDepot(depot.id()).filter("SBOM"::equals).isPresent()) {
-                return Lu.sans(new ImportResult("KEPT", "SBOM", 0, 0, "aucune nouvelle SBOM disponible"));
+                return InventaireLu.sans(new ImportResult("KEPT", "SBOM", 0, 0, "aucune nouvelle SBOM disponible"));
             }
             Map<String, byte[]> manifests = new LinkedHashMap<>();
             for (String path : depot.manifestPaths()) {
@@ -197,29 +197,29 @@ public class InventoryService {
                 }
             }
             if (manifests.isEmpty()) {
-                return Lu.sans(new ImportResult("NONE", null, 0, 0, "ni SBOM ni manifeste lisible"));
+                return InventaireLu.sans(new ImportResult("NONE", null, 0, 0, "ni SBOM ni manifeste lisible"));
             }
             Optional<ParsedInventory> parsed = parseManifests(projectId, depot.id(), manifests);
             if (parsed.isEmpty()) {
-                return Lu.sans(new ImportResult("NONE", null, 0, 0, "aucun manifeste lisible"));
+                return InventaireLu.sans(new ImportResult("NONE", null, 0, 0, "aucun manifeste lisible"));
             }
-            return new Lu(new ImportResult("IMPORTED", "MANIFEST", parsed.get().components().size(), 0, null),
+            return new InventaireLu(new ImportResult("IMPORTED", "MANIFEST", parsed.get().components().size(), 0, null),
                     Optional.of(new InventoryStore.Remplacement(depot.id(), "MANIFEST", parsed.get(),
                             String.join(",", manifests.keySet()))));
         } catch (QuotaEpuise epuisement) {
             surQuota.accept(epuisement);
             store.recordFailure(projectId, depot.id(), epuisement.getMessage(), sourceRef);
             LOG.infof("import de l'inventaire du dépôt %s reporté : %s", sourceRef, epuisement.getMessage());
-            return Lu.sans(new ImportResult("ERROR", null, 0, 0, epuisement.getMessage()));
+            return InventaireLu.sans(new ImportResult("ERROR", null, 0, 0, epuisement.getMessage()));
         } catch (ScmException erreur) {
             store.recordFailure(projectId, depot.id(), erreur.getMessage(), sourceRef);
             LOG.warnf("import de l'inventaire du dépôt %s impossible : %s", sourceRef, erreur.getMessage());
-            return Lu.sans(new ImportResult("ERROR", null, 0, 0, erreur.getMessage()));
+            return InventaireLu.sans(new ImportResult("ERROR", null, 0, 0, erreur.getMessage()));
         }
     }
 
     /** SBOM lue dans un dépôt : refusée si elle n'est pas en CycloneDX JSON (INV-01, INV-05), sinon analysée. */
-    private Lu lireSbom(UUID projectId, UUID repositoryId, String sourceRef, SbomDocument sbom) {
+    private InventaireLu lireSbom(UUID projectId, UUID repositoryId, String sourceRef, SbomDocument sbom) {
         SbomDocument.Format format = sbom.format();
         String reason;
         if (format != SbomDocument.Format.CYCLONEDX_JSON && format != SbomDocument.Format.INCONNU) {
@@ -227,7 +227,7 @@ public class InventoryService {
         } else {
             try {
                 ParsedInventory parsed = CycloneDxParser.parse(sbom.contenu(), maxBytes);
-                return new Lu(new ImportResult("IMPORTED", "SBOM", parsed.components().size(), parsed.ignoredCount(), null,
+                return new InventaireLu(new ImportResult("IMPORTED", "SBOM", parsed.components().size(), parsed.ignoredCount(), null,
                         parsed.ignoredComponents()),
                         Optional.of(new InventoryStore.Remplacement(repositoryId, "SBOM", parsed, sourceRef)));
             } catch (InvalidDocumentException erreur) {
@@ -236,7 +236,7 @@ public class InventoryService {
         }
         store.recordFailure(projectId, repositoryId, reason, sourceRef);
         LOG.infof("SBOM refusée pour le projet %s : %s", projectId, reason);
-        return Lu.sans(new ImportResult("REJECTED", null, 0, 0, reason));
+        return InventaireLu.sans(new ImportResult("REJECTED", null, 0, 0, reason));
     }
 
     /** Inventaire de repli des manifestes lisibles ; vide si aucun ne l'est (chaque refus est enregistré). */

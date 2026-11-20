@@ -122,7 +122,7 @@ public class CollecteOpportunites {
                 throw new RecuperationRefusee(RecuperationRefusee.Motif.ADRESSE_INTERDITE, "hôte non admis");
             }
             RecuperateurWeb.Contenu contenu = recuperateur.recuperer(URI.create(source.adresse()));
-            List<Lu> lus = lire(source, profil, contenu);
+            List<OpportuniteLue> lus = lire(source, profil, contenu);
             int[] bilan = enregistrer(source, lus, maintenant);
             etat(source.id(), SourceProfil.ACTIVE, null, maintenant);
             return new Rapport(source.id(), SourceProfil.ACTIVE, bilan[0], bilan[1], null);
@@ -144,17 +144,17 @@ public class CollecteOpportunites {
     }
 
     /** Élément lu et ramené aux listes du profil. */
-    record Lu(String identifiant, String titre, String organisme, String criteres, String lien,
+    record OpportuniteLue(String identifiant, String titre, String organisme, String criteres, String lien,
             List<String> disciplines, List<String> territoires, LocalDate dateLimite) {
     }
 
-    List<Lu> lire(SourceProfil source, ManifesteProfil profil, RecuperateurWeb.Contenu contenu) {
-        List<Lu> lus = new ArrayList<>();
+    List<OpportuniteLue> lire(SourceProfil source, ManifesteProfil profil, RecuperateurWeb.Contenu contenu) {
+        List<OpportuniteLue> lus = new ArrayList<>();
         if (SourceProfil.DATA_CULTURE.equals(source.type())) {
             LecteurDataCulture.Champs champs = new LecteurDataCulture.Champs(champIdentifiant, champTitre,
                     champOrganisme, champCriteres, champLien, champDiscipline, champTerritoire, champDateLimite);
             for (LecteurDataCulture.Enregistrement enregistrement : LecteurDataCulture.lire(contenu.octets(), champs, elementsMax)) {
-                lus.add(new Lu(enregistrement.identifiant(), enregistrement.titre(), enregistrement.organisme(), enregistrement.criteres(),
+                lus.add(new OpportuniteLue(enregistrement.identifiant(), enregistrement.titre(), enregistrement.organisme(), enregistrement.criteres(),
                         CorrespondanceListes.lienSur(enregistrement.lien()),
                         ouDeclarees(CorrespondanceListes.identifiants(enregistrement.disciplines(), profil.liste("discipline")),
                                 source.disciplines()),
@@ -168,7 +168,7 @@ public class CollecteOpportunites {
         for (LecteurFlux.ElementFlux element : elements.size() > elementsMax ? elements.subList(0, elementsMax) : elements) {
             String lien = CorrespondanceListes.lienSur(element.lien());
             String identifiant = lien != null ? lien : element.identifiant() != null ? element.identifiant() : element.titre();
-            lus.add(new Lu(identifiant, element.titre(), source.libelle(), element.texte() == null ? "" : element.texte(), lien,
+            lus.add(new OpportuniteLue(identifiant, element.titre(), source.libelle(), element.texte() == null ? "" : element.texte(), lien,
                     source.disciplines(), source.territoires(), null));
         }
         return lus;
@@ -179,7 +179,7 @@ public class CollecteOpportunites {
     }
 
     /** Insère ou met à jour les opportunités ; renvoie {nouvelles, mises à jour}. */
-    private int[] enregistrer(SourceProfil source, List<Lu> lus, Instant maintenant) {
+    private int[] enregistrer(SourceProfil source, List<OpportuniteLue> lus, Instant maintenant) {
         int nouvelles = 0;
         int misesAJour = 0;
         String sql = """
@@ -193,7 +193,7 @@ public class CollecteOpportunites {
                 RETURNING (xmax = 0)
                 """;
         try (Connection connexion = dataSource.getConnection(); PreparedStatement requete = connexion.prepareStatement(sql)) {
-            for (Lu element : lus) {
+            for (OpportuniteLue element : lus) {
                 requete.setObject(1, UUID.randomUUID());
                 requete.setObject(2, source.id());
                 requete.setString(3, LecteurPage.empreinte("opportunite:" + element.identifiant()));
