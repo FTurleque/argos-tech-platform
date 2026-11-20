@@ -64,7 +64,13 @@ services:
       - "127.0.0.1:${ARGOS_KEYCLOAK_PORT:-8180}:8080"
     mem_limit: ${ARGOS_KEYCLOAK_MEM_LIMIT:-1g}
     healthcheck:
-      test: ["CMD-SHELL", "exec 3<>/dev/tcp/localhost/9000 && printf 'GET /health/ready HTTP/1.1\r\nHost: localhost\r\nConnection: close\r\n\r\n' >&3 && grep -q UP <&3"]
+      test:
+        - CMD-SHELL
+        - |
+          set -e
+          exec 3<>/dev/tcp/localhost/9000
+          printf 'GET /health/ready HTTP/1.1\r\nHost: localhost\r\nConnection: close\r\n\r\n' >&3
+          grep -q UP <&3
       interval: 10s
       timeout: 5s
       retries: 20
