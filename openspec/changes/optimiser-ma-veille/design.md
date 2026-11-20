@@ -166,7 +166,7 @@ Déploiement : V21 s'applique au démarrage (Flyway) ; la création de l'index v
 
 ### D2 — Index `project_impact_recents (updated_at DESC, id)` (V21)
 
-- **Statut** : [DÉCISION] (décision locale de ce changement)
+- **Statut** : [DÉCISION] ; risque du cas à plusieurs espaces accepté par le porteur du projet (L1, 2026-11-20), mesure sur un jeu à plusieurs espaces avant l'archivage du changement
 - **Choix** : index sur l'ordre exact de `forWorkspaces`, sans `workspace_id` en tête.
 - **Justification** : `EXPLAIN ANALYZE` 241 ms → 7 ms ; le parcours s'arrête aux 200 premières lignes visibles.
 - **Alternatives écartées** : index `(workspace_id, updated_at DESC, id)` — non retenu par le planificateur pour ce tri (219 ms mesurés) ; index `(workspace_id, state, updated_at)` de l'hypothèse (2) — non mesuré, écarté pour la même raison (le filtre `workspace_id = ANY (?)` ne garantit pas l'ordre d'un index dont `workspace_id` est en tête) ; index partiel `(updated_at DESC, id) WHERE state IN ('OUVERT', 'CONFIRME')`, aligné sur `EtatImpact.ACTIFS` — non mesuré ; à évaluer si la part d'impacts `ECARTE` ou `RESOLU` récents allonge le parcours ; réécrire `argos_espace_lisible` pour la rendre intégrable — modifie une règle de sécurité (ADR-0016), hors périmètre ; abaisser `LIMITE_IMPACTS` — change le contenu restitué.
@@ -182,7 +182,7 @@ Déploiement : V21 s'applique au démarrage (Flyway) ; la création de l'index v
 
 ### D4 — Exigence portée par `profils-veille`
 
-- **Statut** : [DÉCISION] (décision locale de ce changement)
+- **Statut** : [DÉCISION] confirmée par le porteur du projet (L2, 2026-11-20)
 - **Choix** : PRF-07 ajoutée à la capacité de référence `profils-veille`.
 - **Justification** : `performance-api-mcp` n'existe que dans le changement actif `automatiser-chaine-veille` ; une exigence modifiée ou ajoutée à cette capacité lierait l'archivage de ce changement au sien. PRF-07 cite PERF-01 comme cible.
 - **Alternatives écartées** : delta sur `performance-api-mcp` — dépendance d'archivage.
@@ -191,7 +191,7 @@ Déploiement : V21 s'applique au démarrage (Flyway) ; la création de l'index v
 ## Risques
 
 - Plan instable si les statistiques de `project_impact` sont périmées → l'autovacuum de PostgreSQL les tient à jour ; la campagne relancée vérifie le plan effectif.
-- Index sans `workspace_id` en tête, plan non mesuré avec plusieurs espaces (D2, Compromis) → mesure `EXPLAIN ANALYZE` sur un jeu à plusieurs espaces, l'espace de l'appelant portant les impacts les plus anciens, avant de tenir PRF-07 pour acquise hors du jeu K3.
+- Index sans `workspace_id` en tête, plan non mesuré avec plusieurs espaces (D2, Compromis) → mesure `EXPLAIN ANALYZE` sur un jeu à plusieurs espaces, l'espace de l'appelant portant les impacts les plus anciens, avant l'archivage du changement (L1), et avant de tenir PRF-07 pour acquise hors du jeu K3.
 - Base de diagnostic sur un port autre que celui de la campagne → mêmes image, migrations et jeu de données ; la campagne de référence (tâche 4.2) est la preuve retenue.
 
 ## Écarts code / tests / specs / documentation

@@ -24,6 +24,7 @@ Règles : aucune requête vers Internet dans les tests ; aucune dépendance nouv
 
 - [x] 4.1 Valider le changement — vérification : `openspec validate optimiser-ma-veille --strict` et `openspec validate --all --strict` réussissent
 - [ ] 4.2 Relancer la campagne `npm --prefix e2e run test:performance` sous le verrou de la pile E2E, versionner le rapport régénéré et mettre à jour la fiche `performance-api-mcp` (écarts constatés) — couvre PRF-07-S1 — vérification : rapport `/docs/architecture/quality/mesure-performance-api-mcp.md`, `GET /api/v1/me/veille` dans la cible
+- [ ] 4.3 Mesurer par `EXPLAIN ANALYZE` le plan de `ImpactQueries.forWorkspaces` sur un jeu à plusieurs espaces, l'espace de l'appelant portant les impacts les plus anciens, avant l'archivage du changement ([DÉCISION] L1, 2026-11-20) — couvre PRF-07-S1 hors du jeu K3 — vérification : plan et durée consignés dans design.md (D2) ; si le coût dépasse celui de `lot19/base`, ouvrir la variante par espace (`LATERAL`)
 
 Preuves, 2026-11-20 (branche `lot19/optimisation`) :
 
