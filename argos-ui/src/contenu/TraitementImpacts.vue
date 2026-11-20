@@ -49,7 +49,7 @@ async function detailler(id: string): Promise<void> {
 }
 
 function remplacer(impact: ImpactAffiche): void {
-  impacts.value = impacts.value.map((i) => (i.id === impact.id ? impact : i))
+  impacts.value = impacts.value.map((courant) => (courant.id === impact.id ? impact : courant))
 }
 
 function choisir(impactId: string, action: ActionTransition): void {

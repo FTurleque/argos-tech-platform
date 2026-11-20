@@ -64,7 +64,7 @@ function formater(iso: string | null): string {
       <dt>À savoir</dt>
       <dd>
         <ul class="mentions-garde-fous">
-          <li v-for="(g, i) in mentions.gardeFous" :key="i" data-mention="garde-fou">{{ g }}</li>
+          <li v-for="(gardeFou, rang) in mentions.gardeFous" :key="rang" data-mention="garde-fou">{{ gardeFou }}</li>
         </ul>
       </dd>
     </div>

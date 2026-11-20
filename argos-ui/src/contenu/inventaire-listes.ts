@@ -32,8 +32,8 @@ function entierPositif(valeur: unknown): number {
   return typeof valeur === 'number' && Number.isInteger(valeur) && valeur >= 0 ? valeur : 0
 }
 
-function annule(e: unknown, signal?: AbortSignal): boolean {
-  return signal?.aborted === true || ((e ?? {}) as ErreurAppel).motif === 'ANNULE'
+function annule(erreur: unknown, signal?: AbortSignal): boolean {
+  return signal?.aborted === true || ((erreur ?? {}) as ErreurAppel).motif === 'ANNULE'
 }
 
 // ------------------------------------------------------------------ Choix du projet
@@ -100,9 +100,9 @@ export async function chargerProjets(
     const reponse = await lire(signal)
     if (signal?.aborted) return null
     return { projets: listeProjets(reponse), erreur: '' }
-  } catch (e) {
-    if (annule(e, signal)) return null
-    return { projets: null, erreur: messageErreurProjets(((e ?? {}) as ErreurAppel).status) }
+  } catch (erreur) {
+    if (annule(erreur, signal)) return null
+    return { projets: null, erreur: messageErreurProjets(((erreur ?? {}) as ErreurAppel).status) }
   }
 }
 
@@ -218,8 +218,8 @@ export async function chargerComposants(
       if (signal?.aborted) return null
     }
     return { page: resultat, erreur: '' }
-  } catch (e) {
-    if (annule(e, signal)) return null
-    return { page: null, erreur: messageErreurComposants(((e ?? {}) as ErreurAppel).status) }
+  } catch (erreur) {
+    if (annule(erreur, signal)) return null
+    return { page: null, erreur: messageErreurComposants(((erreur ?? {}) as ErreurAppel).status) }
   }
 }

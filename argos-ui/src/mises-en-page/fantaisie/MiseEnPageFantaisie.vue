@@ -72,8 +72,8 @@ const TEINTES = ['carte', 'menthe', 'jaune', 'rose', 'lavande'] as const
       <section class="sommaire" :aria-labelledby="`${id}-rubriques`">
         <Titre :id="`${id}-rubriques`" :niveau="niveauElement" class="sommaire-titre">Au sommaire</Titre>
         <ul role="list" class="sommaire-liste">
-          <li v-for="r in rubriques" :key="cleRubrique(r.rubrique)" data-rubrique>
-            {{ r.rubrique.libelle }} <span class="compte">{{ nombreElements(r.nombre) }}</span>
+          <li v-for="entree in rubriques" :key="cleRubrique(entree.rubrique)" data-rubrique>
+            {{ entree.rubrique.libelle }} <span class="compte">{{ nombreElements(entree.nombre) }}</span>
           </li>
         </ul>
       </section>
@@ -101,12 +101,12 @@ const TEINTES = ['carte', 'menthe', 'jaune', 'rose', 'lavande'] as const
               <span class="libelle">Qui est concerné ?</span>
               <ul v-if="element.projets.length" role="list" class="etiquettes">
                 <li
-                  v-for="(p, i) in element.projets"
-                  :key="i"
-                  :class="['etiquette', `penche-${i % 3}`, { probable: p.niveau?.code === 'PROBABLE' }]"
+                  v-for="(projet, rangProjet) in element.projets"
+                  :key="rangProjet"
+                  :class="['etiquette', `penche-${rangProjet % 3}`, { probable: projet.niveau?.code === 'PROBABLE' }]"
                 >
-                  <span data-champ="projet">{{ p.nom }}</span
-                  ><template v-if="p.niveau"> · <span data-champ="niveau">{{ p.niveau.libelle }}</span></template>
+                  <span data-champ="projet">{{ projet.nom }}</span
+                  ><template v-if="projet.niveau"> · <span data-champ="niveau">{{ projet.niveau.libelle }}</span></template>
                 </li>
               </ul>
               <span v-else data-champ="sans-projet">aucun projet visible</span>
@@ -116,8 +116,8 @@ const TEINTES = ['carte', 'menthe', 'jaune', 'rose', 'lavande'] as const
             </p>
             <p v-if="element.rubriques.length" class="rubriques">
               <span class="libelle">Rubriques :</span>
-              <span v-for="r in element.rubriques" :key="cleRubrique(r)" class="rubrique" data-champ="rubrique">{{
-                r.libelle
+              <span v-for="rubrique in element.rubriques" :key="cleRubrique(rubrique)" class="rubrique" data-champ="rubrique">{{
+                rubrique.libelle
               }}</span>
             </p>
             <MentionsObligatoires :mentions="element.mentions" />

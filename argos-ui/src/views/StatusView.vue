@@ -16,9 +16,9 @@ async function refresh(): Promise<void> {
   try {
     info.value = await fetchSystemInfo()
     state.value = 'up'
-  } catch (e) {
+  } catch (echec) {
     info.value = null
-    error.value = e instanceof ApiError ? e.message : 'Erreur inattendue'
+    error.value = echec instanceof ApiError ? echec.message : 'Erreur inattendue'
     state.value = 'down'
   }
 }

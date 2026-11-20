@@ -17,13 +17,13 @@ const erreur = ref('')
 const enCours = ref(false)
 
 const resolue = computed(() => resoudreMiseEnPage(preferences.value, IDENTIFIANTS_MISES_EN_PAGE))
-const choix = computed(() => catalogue.value.filter((m) => IDENTIFIANTS_MISES_EN_PAGE.includes(m.identifiant)))
+const choix = computed(() => catalogue.value.filter((miseEnPage) => IDENTIFIANTS_MISES_EN_PAGE.includes(miseEnPage.identifiant)))
 
-function message(e: unknown): string {
-  if (e instanceof ApiError && e.status === STATUT_NON_AUTHENTIFIE) {
+function message(echec: unknown): string {
+  if (echec instanceof ApiError && echec.status === STATUT_NON_AUTHENTIFIE) {
     return 'Connectez-vous pour enregistrer votre mise en page. La mise en page « classique » s’applique.'
   }
-  return e instanceof ApiError ? e.message : 'Erreur inattendue'
+  return echec instanceof ApiError ? echec.message : 'Erreur inattendue'
 }
 
 async function charger(): Promise<void> {
@@ -32,9 +32,9 @@ async function charger(): Promise<void> {
     const [prefs, misesEnPage] = await Promise.all([lirePreferences(), fetchMisesEnPage()])
     preferences.value = prefs
     catalogue.value = misesEnPage
-  } catch (e) {
+  } catch (echec) {
     preferences.value = null
-    erreur.value = message(e)
+    erreur.value = message(echec)
   }
 }
 
@@ -43,8 +43,8 @@ async function choisir(identifiant: string): Promise<void> {
   erreur.value = ''
   try {
     preferences.value = await choisirMiseEnPage(identifiant)
-  } catch (e) {
-    erreur.value = message(e)
+  } catch (echec) {
+    erreur.value = message(echec)
   } finally {
     enCours.value = false
   }
@@ -66,17 +66,17 @@ onMounted(charger)
 
     <div v-if="choix.length" class="actions" role="radiogroup" aria-label="Mises en page disponibles">
       <button
-        v-for="m in choix"
-        :key="m.identifiant"
+        v-for="miseEnPage in choix"
+        :key="miseEnPage.identifiant"
         type="button"
         role="radio"
-        :aria-checked="m.identifiant === resolue.identifiant"
-        :class="{ secondary: m.identifiant !== resolue.identifiant }"
+        :aria-checked="miseEnPage.identifiant === resolue.identifiant"
+        :class="{ secondary: miseEnPage.identifiant !== resolue.identifiant }"
         :disabled="enCours"
-        :title="m.description"
-        @click="choisir(m.identifiant)"
+        :title="miseEnPage.description"
+        @click="choisir(miseEnPage.identifiant)"
       >
-        {{ m.libelle }}
+        {{ miseEnPage.libelle }}
       </button>
     </div>
   </section>

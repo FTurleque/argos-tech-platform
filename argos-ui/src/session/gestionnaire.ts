@@ -67,7 +67,7 @@ export interface DependancesSession {
   fetch: (url: string, init?: RequestInit) => Promise<Response>
   transport: TransportConnexion
   maintenant?: () => number
-  planifier?: (fn: () => void, ms: number) => unknown
+  planifier?: (action: () => void, delai: number) => unknown
   annuler?: (minuterie: unknown) => void
   crypto?: Crypto
   /** Appelé à chaque changement d'état, avec un message à afficher le cas échéant. */
@@ -77,7 +77,7 @@ export interface DependancesSession {
 export class GestionnaireSession {
   #d: DependancesSession
   #maintenant: () => number
-  #planifier: (fn: () => void, ms: number) => unknown
+  #planifier: (action: () => void, delai: number) => unknown
   #annuler: (minuterie: unknown) => void
   #crypto: Crypto
   #decouverte: Decouverte | null = null
@@ -88,12 +88,12 @@ export class GestionnaireSession {
   /** Numéro de la tentative de connexion en cours : une tentative relancée rend caduque la précédente. */
   #tentative = 0
 
-  constructor(d: DependancesSession) {
-    this.#d = d
-    this.#maintenant = d.maintenant ?? (() => Date.now())
-    this.#planifier = d.planifier ?? ((fn, ms) => setTimeout(fn, ms))
-    this.#annuler = d.annuler ?? ((m) => clearTimeout(m as ReturnType<typeof setTimeout>))
-    this.#crypto = d.crypto ?? globalThis.crypto
+  constructor(dependances: DependancesSession) {
+    this.#d = dependances
+    this.#maintenant = dependances.maintenant ?? (() => Date.now())
+    this.#planifier = dependances.planifier ?? ((action, delai) => setTimeout(action, delai))
+    this.#annuler = dependances.annuler ?? ((minuterie) => clearTimeout(minuterie as ReturnType<typeof setTimeout>))
+    this.#crypto = dependances.crypto ?? globalThis.crypto
   }
 
   get etat(): EtatSession {

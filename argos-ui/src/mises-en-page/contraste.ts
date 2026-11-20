@@ -39,28 +39,30 @@ const HEX = /^#([0-9a-f]{3}|[0-9a-f]{6})$/i
 
 /** Composantes [r, g, b] (0 à 255) d'une couleur `#rgb` ou `#rrggbb`. */
 export function composantes(couleur: string): readonly [number, number, number] {
-  const m = HEX.exec(couleur.trim())
-  if (!m) throw new Error(`Couleur non reconnue : « ${couleur} » (attendu : #rgb ou #rrggbb)`)
-  const hex = m[1].length === 3 ? [...m[1]].map((c) => c + c).join('') : m[1]
-  return [0, 2, 4].map((i) => parseInt(hex.slice(i, i + 2), 16)) as unknown as readonly [number, number, number]
+  const correspondance = HEX.exec(couleur.trim())
+  if (!correspondance) throw new Error(`Couleur non reconnue : « ${couleur} » (attendu : #rgb ou #rrggbb)`)
+  const hex = correspondance[1].length === 3 ? [...correspondance[1]].map((chiffre) => chiffre + chiffre).join('') : correspondance[1]
+  return [0, 2, 4].map((position) => parseInt(hex.slice(position, position + 2), 16)) as unknown as readonly [number, number, number]
 }
 
 function lineaire(canal: number): number {
-  const c = canal / 255
-  return c <= 0.04045 ? c / 12.92 : ((c + 0.055) / 1.055) ** 2.4
+  const proportion = canal / 255
+  return proportion <= 0.04045 ? proportion / 12.92 : ((proportion + 0.055) / 1.055) ** 2.4
 }
 
 /** Luminance relative WCAG (0 pour le noir, 1 pour le blanc). */
 export function luminance(couleur: string): number {
-  const [r, g, b] = composantes(couleur)
-  return 0.2126 * lineaire(r) + 0.7152 * lineaire(g) + 0.0722 * lineaire(b)
+  const [rouge, vert, bleu] = composantes(couleur)
+  return 0.2126 * lineaire(rouge) + 0.7152 * lineaire(vert) + 0.0722 * lineaire(bleu)
 }
 
 /** Rapport de contraste WCAG entre deux couleurs, de 1 à 21. */
-export function rapportContraste(a: string, b: string): number {
-  const la = luminance(a)
-  const lb = luminance(b)
-  const [claire, foncee] = la >= lb ? [la, lb] : [lb, la]
+export function rapportContraste(premiere: string, seconde: string): number {
+  const luminancePremiere = luminance(premiere)
+  const luminanceSeconde = luminance(seconde)
+  const [claire, foncee] = luminancePremiere >= luminanceSeconde
+    ? [luminancePremiere, luminanceSeconde]
+    : [luminanceSeconde, luminancePremiere]
   return (claire + 0.05) / (foncee + 0.05)
 }
 

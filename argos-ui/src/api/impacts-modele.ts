@@ -106,7 +106,7 @@ export function libelleMotif(motif: string | null | undefined, systeme: boolean)
 /** Chemin des impacts d'un signal, tous états confondus ; `null` si l'identifiant n'est pas un UUID. */
 export function cheminImpactsSignal(signalId: unknown): string | null {
   if (!estUuid(signalId)) return null
-  const etats = ETATS_IMPACT.map((e) => `etat=${e}`).join('&')
+  const etats = ETATS_IMPACT.map((etat) => `etat=${etat}`).join('&')
   return `/api/v1/signals/${encodeURIComponent(signalId.trim())}/impacts?${etats}&size=200`
 }
 
@@ -139,14 +139,14 @@ export function demandeTransition(
   commentaire: string,
 ): { corps: DemandeTransitionApi } | { erreur: string } {
   if (!(ETATS_IMPACT as readonly string[]).includes(vers)) return { erreur: 'Transition inconnue.' }
-  const m = motif.trim()
-  const c = commentaire.trim()
-  if (vers === 'ECARTE' && m === '') return { erreur: 'Indiquez le motif pour écarter cet impact.' }
-  if (m.length > LONGUEUR_MAX_TEXTE || c.length > LONGUEUR_MAX_TEXTE) {
+  const motifNettoye = motif.trim()
+  const commentaireNettoye = commentaire.trim()
+  if (vers === 'ECARTE' && motifNettoye === '') return { erreur: 'Indiquez le motif pour écarter cet impact.' }
+  if (motifNettoye.length > LONGUEUR_MAX_TEXTE || commentaireNettoye.length > LONGUEUR_MAX_TEXTE) {
     return { erreur: `Le motif et le commentaire sont limités à ${LONGUEUR_MAX_TEXTE} caractères.` }
   }
   const corps: DemandeTransitionApi = { vers }
-  if (m !== '') corps.motif = m
-  if (c !== '') corps.commentaire = c
+  if (motifNettoye !== '') corps.motif = motifNettoye
+  if (commentaireNettoye !== '') corps.commentaire = commentaireNettoye
   return { corps }
 }

@@ -86,8 +86,8 @@ export async function chargerInventaireProjet(
     const reponse = await lire(projetId, signal)
     if (signal?.aborted) return null
     return { resume: resumeInventaire(reponse), ignores: composantsIgnores(reponse), depots: depotsInventaire(reponse), erreur: '' }
-  } catch (e) {
-    const erreur = (e ?? {}) as ErreurAppel
+  } catch (cause) {
+    const erreur = (cause ?? {}) as ErreurAppel
     if (signal?.aborted || erreur.motif === 'ANNULE') return null
     return { resume: null, ignores: null, depots: [], erreur: messageErreurInventaire(erreur.status) }
   }

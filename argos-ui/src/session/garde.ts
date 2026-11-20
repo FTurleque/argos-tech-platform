@@ -8,7 +8,7 @@ export type DecisionGarde =
   | { type: 'connexion'; retour: string }
   | { type: 'compte-non-cree' }
 
-export function decisionGarde(p: {
+export function decisionGarde(parametres: {
   /** La vue est publique (état du serveur, connexion, refus). */
   publique: boolean
   /** Session ouverte (jetons valides en mémoire). */
@@ -18,9 +18,9 @@ export function decisionGarde(p: {
   /** Chemin complet demandé, rendu après la connexion. */
   chemin: string
 }): DecisionGarde {
-  if (p.publique) return { type: 'afficher' }
-  if (p.connecte && p.compteNonCree) return { type: 'compte-non-cree' }
-  if (!p.connecte) return { type: 'connexion', retour: p.chemin }
+  if (parametres.publique) return { type: 'afficher' }
+  if (parametres.connecte && parametres.compteNonCree) return { type: 'compte-non-cree' }
+  if (!parametres.connecte) return { type: 'connexion', retour: parametres.chemin }
   return { type: 'afficher' }
 }
 
@@ -29,6 +29,6 @@ export function decisionGarde(p: {
  * réponse 401) : une vue protégée cède la place à l'écran de connexion, qui présente l'état
  * « session expirée » et garde la vue en retour (ACC-08-S3, ACC-09-S3) ; une vue publique reste.
  */
-export function decisionExpiration(p: { publique: boolean; chemin: string }): DecisionGarde {
-  return decisionGarde({ publique: p.publique, connecte: false, compteNonCree: false, chemin: p.chemin })
+export function decisionExpiration(parametres: { publique: boolean; chemin: string }): DecisionGarde {
+  return decisionGarde({ publique: parametres.publique, connecte: false, compteNonCree: false, chemin: parametres.chemin })
 }

@@ -166,7 +166,7 @@ onBeforeUnmount(() => {
         aria-describedby="etat-projets erreur-choix-projet"
       >
         <option value="">— Choisir un projet —</option>
-        <option v-for="o in projets?.options ?? []" :key="o.id" :value="o.id">{{ o.libelle }}</option>
+        <option v-for="option in projets?.options ?? []" :key="option.id" :value="option.id">{{ option.libelle }}</option>
       </select>
       <button type="submit">Afficher l’inventaire</button>
       <p id="etat-projets" class="muted aide">
@@ -240,16 +240,18 @@ onBeforeUnmount(() => {
             </tr>
           </thead>
           <tbody>
-            <tr v-for="d in depots" :key="d.cle" data-depot-projet>
+            <tr v-for="depot in depots" :key="depot.cle" data-depot-projet>
               <td>
-                {{ d.depot }} <span class="muted">({{ d.forge }}<template v-if="d.branche">, {{ d.branche }}</template>)</span>
-                <strong v-if="d.principal"> · principal</strong>
+                {{ depot.depot }} <span class="muted"
+                  >({{ depot.forge }}<template v-if="depot.branche">, {{ depot.branche }}</template>)</span
+                >
+                <strong v-if="depot.principal"> · principal</strong>
               </td>
-              <td>{{ d.origine ?? 'aucun import réussi' }}</td>
-              <td>{{ d.origine ? date(d.dateSource) : '—' }}</td>
-              <td>{{ d.importeLe ? date(d.importeLe) : '—' }}</td>
+              <td>{{ depot.origine ?? 'aucun import réussi' }}</td>
+              <td>{{ depot.origine ? date(depot.dateSource) : '—' }}</td>
+              <td>{{ depot.importeLe ? date(depot.importeLe) : '—' }}</td>
               <td>
-                <template v-if="d.echec">{{ d.echec.motif }} <span class="muted">({{ date(d.echec.date) }})</span></template>
+                <template v-if="depot.echec">{{ depot.echec.motif }} <span class="muted">({{ date(depot.echec.date) }})</span></template>
                 <template v-else>aucun</template>
               </td>
             </tr>

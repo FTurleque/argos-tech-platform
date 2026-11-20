@@ -53,7 +53,7 @@ const affichee = computed(() =>
   veille.value ? veilleAffichee(veille.value, catalogue.value, abonnements.value, composeeLe.value) : null,
 )
 const profilsActifs = computed(() =>
-  (veille.value?.profilsActifs ?? []).map((p) => libelleProfil(p, catalogue.value)).join(', '),
+  (veille.value?.profilsActifs ?? []).map((profil) => libelleProfil(profil, catalogue.value)).join(', '),
 )
 
 let chargementCourant: AbortController | null = null
@@ -83,9 +83,9 @@ async function charger(): Promise<void> {
     composeeLe.value = new Date().toISOString()
   } else {
     veille.value = null
-    const e = resultatVeille.reason
+    const echec = resultatVeille.reason
     erreur.value =
-      e instanceof ApiError ? messageErreurVeille('veille', e.status, e.message) : 'Erreur inattendue.'
+      echec instanceof ApiError ? messageErreurVeille('veille', echec.status, echec.message) : 'Erreur inattendue.'
   }
 }
 
@@ -95,9 +95,9 @@ async function rechargerVeille(): Promise<void> {
     veille.value = await lireVeille()
     composeeLe.value = new Date().toISOString()
     erreur.value = ''
-  } catch (e) {
+  } catch (echec) {
     erreur.value =
-      e instanceof ApiError ? messageErreurVeille('veille', e.status, e.message) : 'Erreur inattendue.'
+      echec instanceof ApiError ? messageErreurVeille('veille', echec.status, echec.message) : 'Erreur inattendue.'
   }
 }
 
@@ -129,10 +129,10 @@ async function agir(abonnement: Abonnement, action: ActionAbonnement): Promise<v
     }
     // Les éléments de « Ma veille » dépendent des abonnements actifs (P-4) : ils sont relus après l'action.
     await rechargerVeille()
-  } catch (e) {
-    const statut = e instanceof ApiError ? e.status : undefined
+  } catch (echec) {
+    const statut = echec instanceof ApiError ? echec.status : undefined
     erreurAbonnement.value =
-      e instanceof ApiError ? messageErreurAbonnement(statut, e.message) : 'Erreur inattendue.'
+      echec instanceof ApiError ? messageErreurAbonnement(statut, echec.message) : 'Erreur inattendue.'
     if (statut === STATUT_INTROUVABLE) await charger()
   } finally {
     actionEnCours.value = null
