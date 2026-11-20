@@ -74,7 +74,7 @@ class RechercheVeilleTest {
     }
 
     private static JsonPath rechercher(String utilisateur, Map<String, ?> parametres) {
-        return Api.en(utilisateur).queryParams(parametres).when().get("/api/v1/recherche")
+        return Api.enTantQue(utilisateur).queryParams(parametres).when().get("/api/v1/recherche")
                 .then().statusCode(200).extract().jsonPath();
     }
 
@@ -183,7 +183,7 @@ class RechercheVeilleTest {
 
         JsonPath oscarVoit = rechercher("oscar", Map.of("q", "Portail"));
         assertEquals(0, oscarVoit.getInt("total"), oscarVoit.prettify());
-        String brut = Api.en("oscar").queryParam("q", "Portail").get("/api/v1/recherche").asString();
+        String brut = Api.enTantQue("oscar").queryParam("q", "Portail").get("/api/v1/recherche").asString();
         for (UUID invisible : List.of(signal, actualiteMarc, personnelle, portail)) {
             assertFalse(brut.contains(invisible.toString()), invisible.toString());
         }
@@ -194,7 +194,7 @@ class RechercheVeilleTest {
 
         // Filtre sur un projet d'un autre espace : refus non révélé, journalisé.
         long refus = baseDeTest.count("SELECT count(*) FROM refus_acces WHERE motif = 'NON_MEMBRE'");
-        Api.en("oscar").queryParam("projet", portail.toString()).get("/api/v1/recherche").then().statusCode(404)
+        Api.enTantQue("oscar").queryParam("projet", portail.toString()).get("/api/v1/recherche").then().statusCode(404)
                 .body("code", equalTo("INTROUVABLE"));
         assertEquals(refus + 1, baseDeTest.count("SELECT count(*) FROM refus_acces WHERE motif = 'NON_MEMBRE'"));
     }
@@ -252,46 +252,46 @@ class RechercheVeilleTest {
         jeu.impact(attendu, paie);
 
         Map<String, Object> criteres = Map.of("texte", "Oracle", "projets", List.of(paie.toString()), "horizonJours", 30);
-        String id = Api.en("oscar").contentType(ContentType.JSON)
+        String id = Api.enTantQue("oscar").contentType(ContentType.JSON)
                 .body(Map.of("nom", "Sécurité de mes projets", "criteres", criteres))
                 .post("/api/v1/vues").then().statusCode(201)
                 .body("nom", equalTo("Sécurité de mes projets"))
                 .body("criteres.texte", equalTo("Oracle"))
                 .extract().path("id");
 
-        Api.en("oscar").get("/api/v1/vues").then().statusCode(200).body("size()", equalTo(1)).body("[0].id", equalTo(id));
-        Api.en("oscar").get("/api/v1/vues/" + id).then().statusCode(200).body("criteres.horizonJours", equalTo(30));
-        JsonPath resultats = Api.en("oscar").get("/api/v1/vues/" + id + "/resultats").then().statusCode(200).extract().jsonPath();
+        Api.enTantQue("oscar").get("/api/v1/vues").then().statusCode(200).body("size()", equalTo(1)).body("[0].id", equalTo(id));
+        Api.enTantQue("oscar").get("/api/v1/vues/" + id).then().statusCode(200).body("criteres.horizonJours", equalTo(30));
+        JsonPath resultats = Api.enTantQue("oscar").get("/api/v1/vues/" + id + "/resultats").then().statusCode(200).extract().jsonPath();
         assertEquals(List.of(attendu.toString()), ids(resultats), resultats.prettify());
         assertFalse(ids(resultats).contains(ecarte.toString()));
         assertEquals(ids(rechercher("oscar", Map.of("q", "Oracle", "projet", paie.toString(), "horizon", 30))), ids(resultats));
 
         // Nom unique par utilisateur ; suppression par l'auteur.
-        Api.en("oscar").contentType(ContentType.JSON).body(Map.of("nom", "Sécurité de mes projets", "criteres", criteres))
+        Api.enTantQue("oscar").contentType(ContentType.JSON).body(Map.of("nom", "Sécurité de mes projets", "criteres", criteres))
                 .post("/api/v1/vues").then().statusCode(409).body("code", equalTo("VUE_EXISTANTE"));
-        Api.en("oscar").delete("/api/v1/vues/" + id).then().statusCode(204);
-        Api.en("oscar").get("/api/v1/vues/" + id).then().statusCode(404);
+        Api.enTantQue("oscar").delete("/api/v1/vues/" + id).then().statusCode(204);
+        Api.enTantQue("oscar").get("/api/v1/vues/" + id).then().statusCode(404);
     }
 
     /** RCH-04-S2 : la vue d'un autre utilisateur est refusée, le refus journalisé ; elle reste intacte. */
     @Test
     void rch04S2VueDUnAutreUtilisateur() {
-        String id = Api.en("oscar").contentType(ContentType.JSON)
+        String id = Api.enTantQue("oscar").contentType(ContentType.JSON)
                 .body(Map.of("nom", "Ma veille", "criteres", Map.of("texte", "Oracle")))
                 .post("/api/v1/vues").then().statusCode(201).extract().path("id");
 
         long avant = baseDeTest.count("SELECT count(*) FROM refus_acces WHERE motif = 'NON_MEMBRE' AND ressource LIKE '%/api/v1/vues/%'");
-        String refusee = Api.en("marc").get("/api/v1/vues/" + id).then().statusCode(404)
+        String refusee = Api.enTantQue("marc").get("/api/v1/vues/" + id).then().statusCode(404)
                 .body("code", equalTo("INTROUVABLE")).extract().asString();
-        Api.en("marc").get("/api/v1/vues/" + id + "/resultats").then().statusCode(404);
-        Api.en("marc").delete("/api/v1/vues/" + id).then().statusCode(404);
+        Api.enTantQue("marc").get("/api/v1/vues/" + id + "/resultats").then().statusCode(404);
+        Api.enTantQue("marc").delete("/api/v1/vues/" + id).then().statusCode(404);
         assertEquals(avant + 3, baseDeTest.count(
                 "SELECT count(*) FROM refus_acces WHERE motif = 'NON_MEMBRE' AND ressource LIKE '%/api/v1/vues/%'"));
-        Api.en("marc").get("/api/v1/vues").then().statusCode(200).body("size()", equalTo(0));
-        Api.en("oscar").get("/api/v1/vues/" + id).then().statusCode(200);
+        Api.enTantQue("marc").get("/api/v1/vues").then().statusCode(200).body("size()", equalTo(0));
+        Api.enTantQue("oscar").get("/api/v1/vues/" + id).then().statusCode(200);
 
         // Une vue inexistante est seulement introuvable, sans refus journalisé.
-        String inexistante = Api.en("marc").get("/api/v1/vues/" + UUID.randomUUID()).then().statusCode(404)
+        String inexistante = Api.enTantQue("marc").get("/api/v1/vues/" + UUID.randomUUID()).then().statusCode(404)
                 .extract().asString();
         // Même réponse dans les deux cas : l'existence de la vue n'est pas révélée.
         assertEquals(refusee, inexistante);
@@ -320,26 +320,26 @@ class RechercheVeilleTest {
      */
     @Test
     void horizonNonEntier() {
-        Api.en("oscar").queryParam("horizon", "abc").get("/api/v1/recherche").then().statusCode(STATUT_HORIZON_NON_ENTIER);
+        Api.enTantQue("oscar").queryParam("horizon", "abc").get("/api/v1/recherche").then().statusCode(STATUT_HORIZON_NON_ENTIER);
     }
 
     /** Entrées non fiables : filtres refusés, saisie jamais interprétée comme SQL, liens non http écartés. */
     @Test
     void entreesNonFiables() {
-        Api.en("oscar").queryParam("type", "INCONNU").get("/api/v1/recherche").then().statusCode(400)
+        Api.enTantQue("oscar").queryParam("type", "INCONNU").get("/api/v1/recherche").then().statusCode(400)
                 .body("code", equalTo("CRITERE_INVALIDE")).body("attribut", equalTo("types"));
-        Api.en("oscar").queryParam("gravite", "EXTREME").get("/api/v1/recherche").then().statusCode(400);
-        Api.en("oscar").queryParam("horizon", 0).get("/api/v1/recherche").then().statusCode(400);
-        Api.en("oscar").queryParam("projet", "pas-un-uuid").get("/api/v1/recherche").then().statusCode(400);
-        Api.en("oscar").queryParam("profil", "inconnu").get("/api/v1/recherche").then().statusCode(400);
-        Api.en("oscar").queryParam("q", "x".repeat(501)).get("/api/v1/recherche").then().statusCode(400);
-        Api.en("oscar").queryParam("taille", 1000).get("/api/v1/recherche").then().statusCode(400);
-        Api.en("oscar").contentType(ContentType.JSON).body(Map.of("nom", " ", "criteres", Map.of()))
+        Api.enTantQue("oscar").queryParam("gravite", "EXTREME").get("/api/v1/recherche").then().statusCode(400);
+        Api.enTantQue("oscar").queryParam("horizon", 0).get("/api/v1/recherche").then().statusCode(400);
+        Api.enTantQue("oscar").queryParam("projet", "pas-un-uuid").get("/api/v1/recherche").then().statusCode(400);
+        Api.enTantQue("oscar").queryParam("profil", "inconnu").get("/api/v1/recherche").then().statusCode(400);
+        Api.enTantQue("oscar").queryParam("q", "x".repeat(501)).get("/api/v1/recherche").then().statusCode(400);
+        Api.enTantQue("oscar").queryParam("taille", 1000).get("/api/v1/recherche").then().statusCode(400);
+        Api.enTantQue("oscar").contentType(ContentType.JSON).body(Map.of("nom", " ", "criteres", Map.of()))
                 .post("/api/v1/vues").then().statusCode(400);
 
         UUID signal = jeu.signal("GHSA-RCH-SQL", "Oracle", "Texte.", "LOW", ilYA(1), null);
         for (String saisie : List.of("'; DROP TABLE signal; --", "\" or 1=1 --", "a & | ! ( ) : *", "\\")) {
-            Api.en("oscar").queryParam("q", saisie).get("/api/v1/recherche").then().statusCode(200);
+            Api.enTantQue("oscar").queryParam("q", saisie).get("/api/v1/recherche").then().statusCode(200);
         }
         assertEquals(1, baseDeTest.count("SELECT count(*) FROM signal WHERE id = '" + signal + "'"));
 

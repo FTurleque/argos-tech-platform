@@ -97,7 +97,7 @@ class RelaisMuetTest {
         UUID project = projects.create(spaceA, "app", null, null);
         inventories.importSbom(project, Fixtures.cyclonedx("1.6", Instant.now().minus(1, ChronoUnit.DAYS).toString(),
                 List.<String[]>of(new String[] {"c0", LIB + "@1.2.0"}), List.of("c0")).getBytes(StandardCharsets.UTF_8), "ci");
-        Api.en("alice").contentType(ContentType.JSON)
+        Api.enTantQue("alice").contentType(ContentType.JSON)
                 .body("{\"scope\":\"PERSONAL\",\"filters\":[{\"type\":\"SEVERITY\",\"value\":\"HIGH\"}],"
                         + "\"channel\":\"email\",\"frequency\":\"immediate\",\"mandatory\":false}")
                 .when().post("/api/v1/subscriptions").then().statusCode(201);

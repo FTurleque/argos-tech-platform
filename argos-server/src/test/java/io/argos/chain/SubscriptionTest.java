@@ -74,7 +74,7 @@ class SubscriptionTest {
     }
 
     private static RequestSpecification as(String user) {
-        return Api.en(user).contentType(ContentType.JSON);
+        return Api.enTantQue(user).contentType(ContentType.JSON);
     }
 
     /** Fait de l'utilisateur un lecteur de l'espace, par invitation acceptée. */
@@ -409,7 +409,7 @@ class SubscriptionTest {
 
     @Test
     void contratOpenApiDesActionsSurLesAbonnements() {
-        Api.en("alice").queryParam("format", "json")
+        Api.enTantQue("alice").queryParam("format", "json")
                 .when().get("/q/openapi")
                 .then().statusCode(200)
                 .body("paths.'/api/v1/subscriptions'.get", notNullValue())

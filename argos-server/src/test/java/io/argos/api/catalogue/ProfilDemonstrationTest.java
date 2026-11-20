@@ -95,7 +95,7 @@ class ProfilDemonstrationTest {
     void prf04S1LesProfilsActifsDesAutresUtilisateursSontInchanges() {
         repository.enregistrerProfils(Api.compte("ines"), Set.of("developpeur"));
 
-        Api.en("ines").when().get("/api/v1/preferences")
+        Api.enTantQue("ines").when().get("/api/v1/preferences")
             .then().statusCode(200)
             .body("profilsActifs", contains("developpeur"));
     }
@@ -166,11 +166,11 @@ class ProfilDemonstrationTest {
     }
 
     private static void activer(String utilisateur, String... profils) {
-        Api.en(utilisateur).contentType(ContentType.JSON).body(Map.of("profilsActifs", List.of(profils)))
+        Api.enTantQue(utilisateur).contentType(ContentType.JSON).body(Map.of("profilsActifs", List.of(profils)))
                 .when().put("/api/v1/preferences/profils").then().statusCode(200);
     }
 
     private static JsonPath veille(String utilisateur) {
-        return Api.en(utilisateur).when().get("/api/v1/me/veille").then().statusCode(200).extract().jsonPath();
+        return Api.enTantQue(utilisateur).when().get("/api/v1/me/veille").then().statusCode(200).extract().jsonPath();
     }
 }

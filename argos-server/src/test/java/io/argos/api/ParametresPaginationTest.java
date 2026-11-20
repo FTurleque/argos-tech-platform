@@ -49,7 +49,7 @@ class ParametresPaginationTest {
     }
 
     private static RequestSpecification alice() {
-        return Api.en("alice");
+        return Api.enTantQue("alice");
     }
 
     private static void refuse(ValidatableResponse reponse, String attribut) {

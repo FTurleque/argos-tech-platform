@@ -121,7 +121,7 @@ class EtatTraitementImpactTest {
 
     private static io.restassured.response.ValidatableResponse transition(String utilisateur, UUID impact,
             Map<String, ?> corps) {
-        return Api.en(utilisateur).contentType(ContentType.JSON).body(corps)
+        return Api.enTantQue(utilisateur).contentType(ContentType.JSON).body(corps)
                 .when().post("/api/v1/impacts/" + impact + "/transitions").then();
     }
 
@@ -140,13 +140,13 @@ class EtatTraitementImpactTest {
         UUID impact = impactDe(projet);
 
         assertEquals("OUVERT", etat(impact));
-        Api.en("karim").when().get("/api/v1/impacts/" + impact)
+        Api.enTantQue("karim").when().get("/api/v1/impacts/" + impact)
                 .then().statusCode(200)
                 .body("level", equalTo("EXACT"))
                 .body("etat", equalTo("OUVERT"))
                 .body("historique", empty())
                 .body("transitionsPossibles", empty());
-        Api.en("jules").when().get("/api/v1/impacts/" + impact)
+        Api.enTantQue("jules").when().get("/api/v1/impacts/" + impact)
                 .then().statusCode(200)
                 .body("transitionsPossibles", equalTo(List.of("CONFIRME", "ECARTE", "RESOLU")));
     }
@@ -269,7 +269,7 @@ class EtatTraitementImpactTest {
         importer(projet, recent(), "pkg:maven/org.autre/outil@1.0.0");
 
         assertEquals("RESOLU", etat(impact));
-        Api.en("karim").when().get("/api/v1/impacts/" + impact)
+        Api.enTantQue("karim").when().get("/api/v1/impacts/" + impact)
                 .then().statusCode(200)
                 .body("etat", equalTo("RESOLU"))
                 .body("signalId", equalTo(signal.toString()))
@@ -321,7 +321,7 @@ class EtatTraitementImpactTest {
                 .statusCode(409).body("code", equalTo("TRANSITION_INTERDITE"));
         assertEquals("RESOLU", etat(impact));
         assertEquals(1, transitions(impact));
-        Api.en("jules").when().get("/api/v1/impacts/" + impact)
+        Api.enTantQue("jules").when().get("/api/v1/impacts/" + impact)
                 .then().statusCode(200).body("transitionsPossibles", hasSize(0));
     }
 
@@ -338,28 +338,28 @@ class EtatTraitementImpactTest {
         transition("jules", ids.get(2), Map.of("vers", "RESOLU", "commentaire", "Corrigé")).statusCode(200);
         String chemin = "/api/v1/signals/" + signal + "/impacts";
 
-        Api.en("jules").queryParam("etat", "OUVERT").when().get(chemin)
+        Api.enTantQue("jules").queryParam("etat", "OUVERT").when().get(chemin)
                 .then().statusCode(200).body("total", equalTo(1)).body("items[0].id", equalTo(ids.get(0).toString()))
                 .body("items[0].etat", equalTo("OUVERT"));
-        Api.en("jules").when().get(chemin)
+        Api.enTantQue("jules").when().get(chemin)
                 .then().statusCode(200).body("total", equalTo(1)).body("items[0].etat", equalTo("OUVERT"))
                 .body("items[0].historique", nullValue());
-        Api.en("jules").queryParam("etat", "ECARTE").queryParam("etat", "resolu").when().get(chemin)
+        Api.enTantQue("jules").queryParam("etat", "ECARTE").queryParam("etat", "resolu").when().get(chemin)
                 .then().statusCode(200).body("total", equalTo(2));
-        Api.en("jules").queryParam("etat", "INCONNU").when().get(chemin)
+        Api.enTantQue("jules").queryParam("etat", "INCONNU").when().get(chemin)
                 .then().statusCode(400).body("code", equalTo("DONNEE_INVALIDE")).body("attribut", equalTo("etat"));
 
         // Liste des impacts du projet (COR-12-S2 au sens strict) : même filtre, même défaut.
         String projetChemin = "/api/v1/projects/" + projet + "/impacts";
-        Api.en("jules").queryParam("etat", "OUVERT").when().get(projetChemin)
+        Api.enTantQue("jules").queryParam("etat", "OUVERT").when().get(projetChemin)
                 .then().statusCode(200).body("$", hasSize(1)).body("[0].id", equalTo(ids.get(0).toString()));
-        Api.en("karim").when().get(projetChemin)
+        Api.enTantQue("karim").when().get(projetChemin)
                 .then().statusCode(200).body("$", hasSize(1)).body("[0].etat", equalTo("OUVERT"));
-        Api.en("jules").queryParam("etat", "ECARTE").queryParam("etat", "RESOLU").when().get(projetChemin)
+        Api.enTantQue("jules").queryParam("etat", "ECARTE").queryParam("etat", "RESOLU").when().get(projetChemin)
                 .then().statusCode(200).body("$", hasSize(2));
-        Api.en("jules").queryParam("etat", "INCONNU").when().get(projetChemin)
+        Api.enTantQue("jules").queryParam("etat", "INCONNU").when().get(projetChemin)
                 .then().statusCode(400).body("code", equalTo("DONNEE_INVALIDE"));
-        Api.en("ines").when().get(projetChemin).then().statusCode(404);
+        Api.enTantQue("ines").when().get(projetChemin).then().statusCode(404);
     }
 
     /**
@@ -437,7 +437,7 @@ class EtatTraitementImpactTest {
 
     @Test
     void contratOpenApiDesTransitions() {
-        Api.en("alice").queryParam("format", "json")
+        Api.enTantQue("alice").queryParam("format", "json")
                 .when().get("/q/openapi")
                 .then().statusCode(200)
                 .body("paths.'/api/v1/impacts/{id}/transitions'.post.responses.keySet()",

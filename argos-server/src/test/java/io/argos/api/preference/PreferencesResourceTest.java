@@ -67,7 +67,7 @@ class PreferencesResourceTest {
     }
 
     private static RequestSpecification ines() {
-        return Api.en("ines");
+        return Api.enTantQue("ines");
     }
 
     private static void choisirMiseEnPage(String miseEnPage, int statut) {
@@ -189,7 +189,7 @@ class PreferencesResourceTest {
         choisirMiseEnPage("fantaisie", 200);
         assertEquals(Optional.of("fantaisie"), preferences.lire(ines).miseEnPage());
         assertEquals(Optional.empty(), preferences.lire(Api.compte("jules")).miseEnPage());
-        Api.en("jules").when().get("/api/v1/preferences").then().statusCode(200).body("miseEnPage", equalTo("classique"));
+        Api.enTantQue("jules").when().get("/api/v1/preferences").then().statusCode(200).body("miseEnPage", equalTo("classique"));
     }
 
     /** La RLS n'expose à argos_app que les préférences du compte courant (garde-fou en base). */

@@ -103,7 +103,7 @@ class CollecteTest {
                 .anyMatch(paquet -> paquet.packageKey().equals("pkg:maven/org.apache.logging.log4j/log4j-core")
                         && paquet.ranges().stream().anyMatch(plage -> "2.15.0".equals(plage.fixed()))));
 
-        Api.en("alice")
+        Api.enTantQue("alice")
                 .when().get("/api/v1/signals/" + signal.id())
                 .then().statusCode(200)
                 .body("signal.source", equalTo("OSV"))
@@ -111,7 +111,7 @@ class CollecteTest {
                 .body("signal.collectedAt", notNullValue())
                 .body("signal.currentVersionId", equalTo(signal.currentVersionId().toString()))
                 .body("versions.versionNo", hasItem(1));
-        String body = Api.en("alice")
+        String body = Api.enTantQue("alice")
                 .when().get("/api/v1/signals/" + signal.id() + "/versions/" + signal.currentVersionId() + "/raw")
                 .then().statusCode(200).extract().asString();
         assertEquals(raw, body);
@@ -214,7 +214,7 @@ class CollecteTest {
                 baseDeTest.string("SELECT reason FROM ingestion_failure WHERE external_id = 'GHSA-000B'"));
         assertEquals(avisB, baseDeTest.string("SELECT raw_content FROM ingestion_failure"));
         assertEquals("OSV", baseDeTest.string("SELECT source_id FROM ingestion_failure"));
-        Api.en("alice")
+        Api.enTantQue("alice")
                 .when().get("/api/v1/ops/sources/OSV/rejected")
                 .then().statusCode(200).body("[0].externalId", equalTo("GHSA-000B"))
                 .body("[0].reason", equalTo("identifiant externe absent"));

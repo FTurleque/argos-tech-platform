@@ -55,15 +55,15 @@ class ParcoursArtisteTest {
 
         // 1. Utilisateur développeur : état de sa veille avant l'activation du profil artiste.
         activer("hugo", "developpeur");
-        String rubriquesAvant = Api.en("hugo").get("/api/v1/preferences/rubriques").then().statusCode(200)
+        String rubriquesAvant = Api.enTantQue("hugo").get("/api/v1/preferences/rubriques").then().statusCode(200)
                 .extract().asString();
-        String veilleAvant = Api.en("hugo").get("/api/v1/me/watch").then().statusCode(200).extract().asString();
-        String abonnementsAvant = Api.en("hugo").get("/api/v1/subscriptions").then().statusCode(200)
+        String veilleAvant = Api.enTantQue("hugo").get("/api/v1/me/watch").then().statusCode(200).extract().asString();
+        String abonnementsAvant = Api.enTantQue("hugo").get("/api/v1/subscriptions").then().statusCode(200)
                 .extract().asString();
         long signauxAvant = baseDeTest.count("SELECT count(*) FROM signal");
 
         // 2. L'administratrice plateforme déclare et vérifie la source data.culture.gouv.fr (simulée).
-        StubServer.on(JEU, Stub.ok(reponse(
+        StubServer.programmer(JEU, Stub.succes(reponse(
                 enregistrement("AAP-OCC-7", "Résidence arts visuels en Occitanie", "Arts visuels", "Occitanie",
                         aujourdhui.plusDays(7)))));
         verifier(declarer("DATA_CULTURE", StubServer.base() + JEU, "appels-residences", List.of(), List.of()));
@@ -74,7 +74,7 @@ class ParcoursArtisteTest {
 
         // 4. Collecte : l'appel correspondant est restitué avec sa date limite.
         ArtisteFixtures.collecter();
-        Api.en("hugo").get("/api/v1/profils/artiste/opportunites").then().statusCode(200)
+        Api.enTantQue("hugo").get("/api/v1/profils/artiste/opportunites").then().statusCode(200)
                 .body("items", hasSize(1))
                 .body("items[0].titre", equalTo("Résidence arts visuels en Occitanie"))
                 .body("items[0].dateLimite", equalTo(aujourdhui.plusDays(7).toString()))
@@ -83,21 +83,21 @@ class ParcoursArtisteTest {
         // 5. Tâche quotidienne des rappels : J-7 aujourd'hui.
         List<UUID> crees = rappels.executer(aujourdhui, Instant.now());
         assertEquals(1, crees.size());
-        Api.en("hugo").get("/api/v1/alertes").then().statusCode(200)
+        Api.enTantQue("hugo").get("/api/v1/alertes").then().statusCode(200)
                 .body("findAll { it.nature == 'RAPPEL' }.titre", contains("Date limite dans 7 jours ("
                         + aujourdhui.plusDays(7) + ") : Résidence arts visuels en Occitanie"));
 
         // 6. La veille développeur est inchangée : rubriques du profil développeur, veille, abonnements, signaux.
-        Api.en("hugo").get("/api/v1/preferences/rubriques").then().statusCode(200)
+        Api.enTantQue("hugo").get("/api/v1/preferences/rubriques").then().statusCode(200)
                 .body("findAll { it.profil == 'developpeur' }.identifiant",
                         contains("securite", "versions", "fins-de-support"))
                 .body("findAll { it.profil == 'artiste' }", hasSize(5));
-        String rubriquesDeveloppeur = Api.en("hugo").get("/api/v1/preferences/rubriques").then().extract()
+        String rubriquesDeveloppeur = Api.enTantQue("hugo").get("/api/v1/preferences/rubriques").then().extract()
                 .jsonPath().getList("findAll { it.profil == 'developpeur' }").toString();
         assertEquals(io.restassured.path.json.JsonPath.from(rubriquesAvant).getList("$").toString(),
                 rubriquesDeveloppeur);
-        assertEquals(veilleAvant, Api.en("hugo").get("/api/v1/me/watch").then().statusCode(200).extract().asString());
-        assertEquals(abonnementsAvant, Api.en("hugo").get("/api/v1/subscriptions").then().statusCode(200)
+        assertEquals(veilleAvant, Api.enTantQue("hugo").get("/api/v1/me/watch").then().statusCode(200).extract().asString());
+        assertEquals(abonnementsAvant, Api.enTantQue("hugo").get("/api/v1/subscriptions").then().statusCode(200)
                 .extract().asString());
         assertEquals(signauxAvant, baseDeTest.count("SELECT count(*) FROM signal"), "une opportunité n'est pas un signal");
     }

@@ -56,12 +56,12 @@ class EnrichmentTest {
 
     @Test
     void col04S1ExploitationAvereeSignaleeParKev() {
-        StubServer.on("/kev.json", Stub.ok(Fixtures.resource("enrichment/kev-extrait.json")));
+        StubServer.programmer("/kev.json", Stub.succes(Fixtures.resource("enrichment/kev-extrait.json")));
 
         UUID signal = collectLog4Shell();
 
         assertTrue(enricher.exploited(signal));
-        Api.en("alice").when().get("/api/v1/signals/" + signal)
+        Api.enTantQue("alice").when().get("/api/v1/signals/" + signal)
                 .then().statusCode(200)
                 .body("exploited", equalTo(true))
                 .body("enrichments.find { it.source == 'KEV' }.reference", equalTo("CVE-2021-44228"));
@@ -69,7 +69,7 @@ class EnrichmentTest {
 
     @Test
     void col04S2NvdRattacheAuSignalExistant() {
-        StubServer.on("/nvd?cveId=CVE-2021-44228", Stub.ok(Fixtures.resource("enrichment/nvd-CVE-2021-44228.json")));
+        StubServer.programmer("/nvd?cveId=CVE-2021-44228", Stub.succes(Fixtures.resource("enrichment/nvd-CVE-2021-44228.json")));
 
         UUID signal = collectLog4Shell();
 
@@ -81,29 +81,29 @@ class EnrichmentTest {
 
     @Test
     void col04S3SourceSecondaireIndisponible() {
-        StubServer.on("/epss?cve=CVE-2021-44228", Stub.status(503));
+        StubServer.programmer("/epss?cve=CVE-2021-44228", Stub.status(503));
 
         UUID signal = collectLog4Shell();
 
         assertEquals(1, baseDeTest.count("SELECT count(*) FROM signal"));
         assertEquals(0, baseDeTest.count("SELECT count(*) FROM enrichment WHERE source = 'EPSS'"));
-        Api.en("alice").when().get("/api/v1/signals/" + signal)
+        Api.enTantQue("alice").when().get("/api/v1/signals/" + signal)
                 .then().statusCode(200).body("signal.externalId", equalTo(LOG4SHELL));
 
         // Au cycle suivant, la source répond : l'enrichissement manquant est rattrapé.
-        StubServer.on("/epss?cve=CVE-2021-44228", Stub.ok(Fixtures.resource("enrichment/epss-CVE-2021-44228.json")));
+        StubServer.programmer("/epss?cve=CVE-2021-44228", Stub.succes(Fixtures.resource("enrichment/epss-CVE-2021-44228.json")));
         assertEquals(1, enricher.retryMissing(10));
         assertEquals(1, baseDeTest.count("SELECT count(*) FROM enrichment WHERE source = 'EPSS'"));
     }
 
     @Test
     void enrichissementCertFrDepuisLeFluxEtLeContenuJson() {
-        StubServer.on("/certfr/feed/", Stub.ok(Fixtures.resource("enrichment/certfr-feed.xml")));
-        StubServer.on("/certfr/CERTFR-2026-AVI-1500/json/", Stub.ok(Fixtures.resource("enrichment/CERTFR-2026-AVI-1500.json")));
+        StubServer.programmer("/certfr/feed/", Stub.succes(Fixtures.resource("enrichment/certfr-feed.xml")));
+        StubServer.programmer("/certfr/CERTFR-2026-AVI-1500/json/", Stub.succes(Fixtures.resource("enrichment/CERTFR-2026-AVI-1500.json")));
         String json = Fixtures.osv("GHSA-HTTPD", "2026-11-12T00:00:00Z", "Maven", "org.exemple:httpd-wrapper",
                 "pkg:maven/org.exemple/httpd-wrapper", "0", "2.0.0", "CVE-2026-109163");
         Fixtures.stubOsv("GHSA-HTTPD", "2026-11-12T00:00:00Z", json);
-        StubServer.on("/certfr/feed/", Stub.ok(Fixtures.resource("enrichment/certfr-feed.xml")));
+        StubServer.programmer("/certfr/feed/", Stub.succes(Fixtures.resource("enrichment/certfr-feed.xml")));
 
         synchronizer.synchronize("OSV");
 
@@ -115,7 +115,7 @@ class EnrichmentTest {
         assertTrue(StubServer.received("/certfr/").stream()
                 .allMatch(requete -> requete.pathAndQuery().equals("/certfr/feed/")
                         || requete.pathAndQuery().matches("/certfr/CERTFR-\\d{4}-AVI-\\d+/json/")));
-        Api.en("alice").when().get("/api/v1/signals/" + signal)
+        Api.enTantQue("alice").when().get("/api/v1/signals/" + signal)
                 .then().statusCode(200).body("enrichments.source", hasItem("CERTFR"));
     }
 }

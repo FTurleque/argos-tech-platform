@@ -109,9 +109,9 @@ class RadarStandardsTest {
                 .body("responsable", equalTo("Socle Java"))
                 .body("dateRevue", equalTo("2027-06-30"))
                 .body("produitCycleVie", equalTo("spring-boot"));
-        Api.en("paul").get(chemin("/standards")).then().statusCode(200)
+        Api.enTantQue("paul").get(chemin("/standards")).then().statusCode(200)
                 .body("$", hasSize(1)).body("[0].libelle", equalTo("Spring Boot"));
-        Api.en("paul").queryParam("cle", SPRING).get(chemin("/standards/historique")).then().statusCode(200)
+        Api.enTantQue("paul").queryParam("cle", SPRING).get(chemin("/standards/historique")).then().statusCode(200)
                 .body("$", hasSize(1)).body("[0].origine", equalTo("SAISIE"));
     }
 
@@ -131,7 +131,7 @@ class RadarStandardsTest {
         enregistrer("nina", saisie(BIBLIO, "Biblio", "HOLD", null, "Front", "Non", "2027-01-31", "../../etc"))
                 .statusCode(400).body("attribut", equalTo("produitCycleVie"));
 
-        Api.en("nina").get(chemin("/standards")).then().statusCode(200)
+        Api.enTantQue("nina").get(chemin("/standards")).then().statusCode(200)
                 .body("$", hasSize(1)).body("[0].statut", equalTo("ASSESS"));
         assertEquals(1, baseDeTest.count("SELECT count(*) FROM standard_historique"));
     }
@@ -146,11 +146,11 @@ class RadarStandardsTest {
 
         enregistrer("paul", saisie(SPRING, "Spring Boot", "HOLD", null, "Socle", "Abandon", "2027-06-30", null))
                 .statusCode(403).body("code", equalTo("INTERDIT"));
-        Api.en("paul").contentType(ContentType.JSON).body(Map.of("rappelsJours", List.of(3)))
+        Api.enTantQue("paul").contentType(ContentType.JSON).body(Map.of("rappelsJours", List.of(3)))
                 .put(chemin("/parametres")).then().statusCode(403);
-        Api.en("marc").get(chemin("/standards")).then().statusCode(404);
+        Api.enTantQue("marc").get(chemin("/standards")).then().statusCode(404);
         assertEquals(refus + 3, baseDeTest.count("SELECT count(*) FROM refus_acces"));
-        Api.en("nina").get(chemin("/standards")).then().body("[0].statut", equalTo("ADOPT"));
+        Api.enTantQue("nina").get(chemin("/standards")).then().body("[0].statut", equalTo("ADOPT"));
     }
 
     /** Garde-fou en base : sous argos_app, un lecteur n'écrit rien et un non-membre ne lit rien. */
@@ -184,21 +184,21 @@ class RadarStandardsTest {
 
         UUID suggestion = referentiel.suggerer(espace, POSTGRES, "HOLD", null, "La version 14 a atteint sa fin de support.");
 
-        Api.en("paul").get(chemin("/suggestions")).then().statusCode(200)
+        Api.enTantQue("paul").get(chemin("/suggestions")).then().statusCode(200)
                 .body("$", hasSize(1)).body("[0].etat", equalTo("EN_ATTENTE")).body("[0].origine", equalTo("IA"))
                 .body("[0].statut", equalTo("HOLD"));
-        Api.en("paul").get(chemin("/standards")).then().body("[0].statut", equalTo("ADOPT"));
+        Api.enTantQue("paul").get(chemin("/standards")).then().body("[0].statut", equalTo("ADOPT"));
 
-        Api.en("paul").contentType(ContentType.JSON).body(Map.of("decision", "ACCEPTER"))
+        Api.enTantQue("paul").contentType(ContentType.JSON).body(Map.of("decision", "ACCEPTER"))
                 .post(chemin("/suggestions/" + suggestion + "/decision")).then().statusCode(403);
-        Api.en("nina").contentType(ContentType.JSON).body(Map.of("decision", "ACCEPTER"))
+        Api.enTantQue("nina").contentType(ContentType.JSON).body(Map.of("decision", "ACCEPTER"))
                 .post(chemin("/suggestions/" + suggestion + "/decision")).then().statusCode(200)
                 .body("[0].etat", equalTo("ACCEPTEE"));
-        Api.en("paul").get(chemin("/standards")).then().body("[0].statut", equalTo("HOLD"))
+        Api.enTantQue("paul").get(chemin("/standards")).then().body("[0].statut", equalTo("HOLD"))
                 .body("[0].responsable", equalTo("DBA"));
-        Api.en("paul").queryParam("cle", POSTGRES).get(chemin("/standards/historique")).then()
+        Api.enTantQue("paul").queryParam("cle", POSTGRES).get(chemin("/standards/historique")).then()
                 .body("$", hasSize(2)).body("[0].origine", equalTo("SUGGESTION"));
-        Api.en("nina").contentType(ContentType.JSON).body(Map.of("decision", "REJETER"))
+        Api.enTantQue("nina").contentType(ContentType.JSON).body(Map.of("decision", "REJETER"))
                 .post(chemin("/suggestions/" + suggestion + "/decision")).then().statusCode(409);
     }
 
@@ -230,7 +230,7 @@ class RadarStandardsTest {
         assertTrue(mails.get(0).getSubject().startsWith("[Argos] Standard modifié"), mails.get(0).getSubject());
         assertTrue(mails.get(0).getText().contains("Plus maintenue, migrer vers Kit UI"), mails.get(0).getText());
         assertTrue(mails.get(0).getText().contains("Back-office (version 2.4.0)"), mails.get(0).getText());
-        Api.en("paul").queryParam("canal", "EMAIL").get("/api/v1/alertes").then().statusCode(200)
+        Api.enTantQue("paul").queryParam("canal", "EMAIL").get("/api/v1/alertes").then().statusCode(200)
                 .body("[0].nature", equalTo("ANNONCE"));
     }
 
@@ -247,17 +247,17 @@ class RadarStandardsTest {
                 .statusCode(200);
         radar.actualiser(aujourdhui, Instant.now());
 
-        Api.en("paul").queryParam("horizon", "30j").get(chemin("/echeances")).then().statusCode(200)
+        Api.enTantQue("paul").queryParam("horizon", "30j").get(chemin("/echeances")).then().statusCode(200)
                 .body("echeances", hasSize(1))
                 .body("echeances[0].nature", equalTo("SORTIE"))
                 .body("echeances[0].version", equalTo("3"))
                 .body("echeances[0].libelle", equalTo("Biblio UI"))
                 .body("echeances[0].source", equalTo("endoflife.date"))
                 .body("sources[0].etat", equalTo("A_JOUR"));
-        Api.en("paul").queryParam("horizon", "6m").get(chemin("/echeances")).then().statusCode(200)
+        Api.enTantQue("paul").queryParam("horizon", "6m").get(chemin("/echeances")).then().statusCode(200)
                 .body("echeances", hasSize(2)).body("echeances[1].nature", equalTo("FIN_DE_SUPPORT"));
-        Api.en("paul").queryParam("horizon", "10ans").get(chemin("/echeances")).then().statusCode(400);
-        Api.en("marc").get(chemin("/echeances")).then().statusCode(404);
+        Api.enTantQue("paul").queryParam("horizon", "10ans").get(chemin("/echeances")).then().statusCode(400);
+        Api.enTantQue("marc").get(chemin("/echeances")).then().statusCode(404);
     }
 
     /** Contrat du connecteur : chemin v1, lecture tolérante, échec conservant les cycles, produit invalide jamais demandé. */
@@ -278,7 +278,7 @@ class RadarStandardsTest {
         // Réponse illisible puis indisponibilité : produit EN_ERREUR, cycles déjà connus conservés.
         RadarFixtures.publier("postgresql", "<html>pas du JSON</html>");
         assertEquals(Map.of("postgresql", "EN_ERREUR"), radar.actualiser(LocalDate.of(2026, 11, 17), Instant.now()).produits());
-        StubServer.on("/endoflife/api/v1/products/postgresql", StubServer.Stub.status(503));
+        StubServer.programmer("/endoflife/api/v1/products/postgresql", StubServer.Stub.status(503));
         assertEquals(Map.of("postgresql", "EN_ERREUR"), radar.actualiser(LocalDate.of(2026, 11, 18), Instant.now()).produits());
         assertEquals("réponse HTTP 503", baseDeTest.string("SELECT derniere_erreur FROM cycle_vie_produit"));
         assertEquals(2, baseDeTest.count("SELECT count(*) FROM cycle_vie WHERE produit = 'postgresql'"));
@@ -334,10 +334,10 @@ class RadarStandardsTest {
     /** Q-1 : jours de rappel paramétrables par espace, J-30, J-7 et J0 par défaut. */
     @Test
     void rappelsParametrablesParEspace() {
-        Api.en("paul").get(chemin("/parametres")).then().statusCode(200).body("rappelsJours", equalTo(List.of(30, 7, 0)));
-        Api.en("nina").contentType(ContentType.JSON).body(Map.of("rappelsJours", List.of(400)))
+        Api.enTantQue("paul").get(chemin("/parametres")).then().statusCode(200).body("rappelsJours", equalTo(List.of(30, 7, 0)));
+        Api.enTantQue("nina").contentType(ContentType.JSON).body(Map.of("rappelsJours", List.of(400)))
                 .put(chemin("/parametres")).then().statusCode(400).body("attribut", equalTo("rappelsJours"));
-        Api.en("nina").contentType(ContentType.JSON).body(Map.of("rappelsJours", List.of(2, 15, 15)))
+        Api.enTantQue("nina").contentType(ContentType.JSON).body(Map.of("rappelsJours", List.of(2, 15, 15)))
                 .put(chemin("/parametres")).then().statusCode(200).body("rappelsJours", equalTo(List.of(15, 2)));
 
         LocalDate jour = LocalDate.of(2027, 3, 1);
@@ -367,7 +367,7 @@ class RadarStandardsTest {
         assertEquals(1, radar.actualiser(LocalDate.of(2026, 11, 12), Instant.now()).dettesCreees());
         assertEquals(0, radar.actualiser(LocalDate.of(2026, 11, 13), Instant.now()).dettesCreees(), "aucun doublon");
 
-        Api.en("paul").get(chemin("/dettes")).then().statusCode(200)
+        Api.enTantQue("paul").get(chemin("/dettes")).then().statusCode(200)
                 .body("$", hasSize(1))
                 .body("[0].projetId", equalTo(portail.toString()))
                 .body("[0].projet", equalTo("Portail agent"))
@@ -375,7 +375,7 @@ class RadarStandardsTest {
                 .body("[0].cycle", equalTo("14"))
                 .body("[0].finSupport", equalTo("2026-11-12"))
                 .body("[0].versionStandard", equalTo("17"));
-        Api.en("marc").get(chemin("/dettes")).then().statusCode(404);
+        Api.enTantQue("marc").get(chemin("/dettes")).then().statusCode(404);
 
         assertEquals(0L, (long) base.executer(new Contexte(compteExterieur, null, null),
                 connexion -> compter(connexion, "SELECT count(*) FROM dette_version")));
@@ -388,7 +388,7 @@ class RadarStandardsTest {
     }
 
     private ValidatableResponse enregistrer(String utilisateur, Map<String, Object> corps) {
-        return Api.en(utilisateur).contentType(ContentType.JSON).body(corps).put(chemin("/standards")).then();
+        return Api.enTantQue(utilisateur).contentType(ContentType.JSON).body(corps).put(chemin("/standards")).then();
     }
 
     private static Map<String, Object> saisie(String cle, String libelle, String statut, String version, String responsable,

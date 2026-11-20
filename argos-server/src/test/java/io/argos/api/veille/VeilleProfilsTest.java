@@ -99,13 +99,13 @@ class VeilleProfilsTest {
     }
 
     private static void activer(String utilisateur, String... profils) {
-        Api.en(utilisateur).contentType(ContentType.JSON)
+        Api.enTantQue(utilisateur).contentType(ContentType.JSON)
                 .body(Map.of("profilsActifs", List.of(profils)))
                 .when().put("/api/v1/preferences/profils").then().statusCode(200);
     }
 
     private static JsonPath veille(String utilisateur) {
-        return Api.en(utilisateur).when().get("/api/v1/me/veille").then().statusCode(200).extract().jsonPath();
+        return Api.enTantQue(utilisateur).when().get("/api/v1/me/veille").then().statusCode(200).extract().jsonPath();
     }
 
     private static List<String> identifiants(JsonPath veille) {
@@ -167,7 +167,7 @@ class VeilleProfilsTest {
     void prf06S1FicheNonValideeNiVeilleNiMcp() {
         activer("jules", "developpeur", "expert-metier");
         activer("oscar", "developpeur", "expert-metier");
-        assertEquals(1, Api.en("oscar").queryParam("etat", "EN_ATTENTE_VALIDATION")
+        assertEquals(1, Api.enTantQue("oscar").queryParam("etat", "EN_ATTENTE_VALIDATION")
                 .when().get("/api/v1/reglementaire/fiches").then().statusCode(200)
                 .extract().jsonPath().getList("$").size(), "l'expert voit la fiche en attente dans la file de relecture");
 
@@ -204,7 +204,7 @@ class VeilleProfilsTest {
      */
     @Test
     void prf06S2FicheValidee() {
-        Api.en("oscar").when().post("/api/v1/reglementaire/fiches/" + ficheEnAttente + "/validation")
+        Api.enTantQue("oscar").when().post("/api/v1/reglementaire/fiches/" + ficheEnAttente + "/validation")
                 .then().statusCode(200);
         activer("jules", "expert-metier");
 

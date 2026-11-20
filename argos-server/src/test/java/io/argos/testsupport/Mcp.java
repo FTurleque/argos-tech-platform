@@ -29,12 +29,12 @@ public final class Mcp {
 
     /** {@code tools/list} pour l'utilisateur. */
     public static ExtractableResponse<Response> lister(String utilisateur) {
-        return envoyer(Api.en(utilisateur), "tools/list", null, Map.of());
+        return envoyer(Api.enTantQue(utilisateur), "tools/list", null, Map.of());
     }
 
     /** {@code tools/call} pour l'utilisateur. */
     public static ExtractableResponse<Response> appeler(String utilisateur, String outil, Map<String, ?> arguments) {
-        return envoyer(Api.en(utilisateur), "tools/call", outil, Map.of("name", outil, "arguments", arguments));
+        return envoyer(Api.enTantQue(utilisateur), "tools/call", outil, Map.of("name", outil, "arguments", arguments));
     }
 
     /** {@code tools/call} sans aucun jeton. */

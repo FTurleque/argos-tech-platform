@@ -105,12 +105,12 @@ class RecorrelationImportTest {
     void inv09S1NouveauComposantAffecteSansNouvelleCollecte() {
         UUID signal = publier("GHSA-INV9-1");
         UUID projet = projects.create(espace, "app", DEPOT, List.of("package.json"));
-        StubServer.on(DEPOT_SBOM, Stub.ok(sbom("pkg:npm/autre@1.0.0")));
+        StubServer.programmer(DEPOT_SBOM, Stub.succes(sbom("pkg:npm/autre@1.0.0")));
         importPlanifie.importer(Instant.parse("2026-11-20T02:00:00Z"));
         assertTrue(ouverts(projet).isEmpty());
         int collectes = StubServer.received("/osv-").size();
 
-        StubServer.on(DEPOT_SBOM, Stub.ok(sbom("pkg:npm/autre@1.0.0", LIB + "@1.5.0")));
+        StubServer.programmer(DEPOT_SBOM, Stub.succes(sbom("pkg:npm/autre@1.0.0", LIB + "@1.5.0")));
         importPlanifie.importer(Instant.parse("2026-11-21T02:00:00Z"));
 
         List<ImpactQueries.ImpactView> apres = ouverts(projet);
@@ -125,11 +125,11 @@ class RecorrelationImportTest {
     void inv09S2ComposantRetire() {
         publier("GHSA-INV9-2");
         UUID projet = projects.create(espace, "app", DEPOT, List.of("package.json"));
-        StubServer.on(DEPOT_SBOM, Stub.ok(sbom("pkg:npm/autre@1.0.0", LIB + "@1.5.0")));
+        StubServer.programmer(DEPOT_SBOM, Stub.succes(sbom("pkg:npm/autre@1.0.0", LIB + "@1.5.0")));
         importPlanifie.importer(Instant.parse("2026-11-20T02:00:00Z"));
         assertEquals(1, ouverts(projet).size());
 
-        StubServer.on(DEPOT_SBOM, Stub.ok(sbom("pkg:npm/autre@1.0.0")));
+        StubServer.programmer(DEPOT_SBOM, Stub.succes(sbom("pkg:npm/autre@1.0.0")));
         importPlanifie.importer(Instant.parse("2026-11-21T02:00:00Z"));
 
         assertTrue(ouverts(projet).isEmpty(), "l'impact du composant retiré n'est plus compté parmi les impacts ouverts");
@@ -160,17 +160,17 @@ class RecorrelationImportTest {
     void inv09S3ImportRefuseOuInventaireConserveSansRecorrelation() {
         publier("GHSA-INV9-4");
         UUID projet = projects.create(espace, "app", DEPOT, List.of("package.json"));
-        StubServer.on(DEPOT_SBOM, Stub.ok(sbom(LIB + "@1.5.0")));
+        StubServer.programmer(DEPOT_SBOM, Stub.succes(sbom(LIB + "@1.5.0")));
         importPlanifie.importer(Instant.parse("2026-11-20T02:00:00Z"));
         String impactAvant = baseDeTest.string("SELECT id::text || '/' || updated_at::text FROM project_impact WHERE project_id = '"
                 + projet + "'");
         String importAvant = baseDeTest.string("SELECT import_id::text FROM inventory WHERE project_id = '" + projet + "'");
 
         // SBOM refusée (CycloneDX 1.4, INV-05).
-        StubServer.on(DEPOT_SBOM, Stub.ok("{\"bomFormat\":\"CycloneDX\",\"specVersion\":\"1.4\",\"components\":[]}"));
+        StubServer.programmer(DEPOT_SBOM, Stub.succes("{\"bomFormat\":\"CycloneDX\",\"specVersion\":\"1.4\",\"components\":[]}"));
         ImportPlanifie.Bilan refus = importPlanifie.importer(Instant.parse("2026-11-21T02:00:00Z"));
         // Aucune nouvelle SBOM : inventaire SBOM conservé (artefact absent).
-        StubServer.on(DEPOT_SBOM, Fixtures.reponseEnregistree("scm/enregistrees/gitlab/404-artefact-absent.http"));
+        StubServer.programmer(DEPOT_SBOM, Fixtures.reponseEnregistree("scm/enregistrees/gitlab/404-artefact-absent.http"));
         ImportPlanifie.Bilan conserve = importPlanifie.importer(Instant.parse("2026-11-22T02:00:00Z"));
 
         assertEquals(1, refus.refuses());

@@ -1,6 +1,6 @@
 package io.argos.api.comptes;
 
-import static io.argos.testsupport.Api.en;
+import static io.argos.testsupport.Api.enTantQue;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
@@ -37,7 +37,7 @@ class JournalRefusTest {
         String frank = Api.idCompte("frank");
         OffsetDateTime avant = OffsetDateTime.now().minusSeconds(5);
 
-        en("frank").when().get("/api/v1/espaces/" + espaceB).then().statusCode(404);
+        enTantQue("frank").when().get("/api/v1/espaces/" + espaceB).then().statusCode(404);
 
         List<List<String>> lignes = new ArrayList<>();
         try (Connection connexion = dataSource.getConnection();
@@ -73,7 +73,7 @@ class JournalRefusTest {
         Api.ajouterMembre("alice", espace, "frank", "LECTEUR");
         String frank = Api.idCompte("frank");
 
-        en("frank").when().get("/api/v1/espaces/" + espace + "/invitations").then().statusCode(403);
+        enTantQue("frank").when().get("/api/v1/espaces/" + espace + "/invitations").then().statusCode(403);
 
         try (Connection connexion = dataSource.getConnection();
                 PreparedStatement requete = connexion.prepareStatement(

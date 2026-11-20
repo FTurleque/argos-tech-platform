@@ -106,7 +106,7 @@ class ContratOutilsMcpTest {
      */
     @Test
     void initializeAncienneVersionOuvreUneSessionSansRemplacerLeJeton() {
-        ExtractableResponse<Response> init = Mcp.initialiser(Api.en("karim"), "2025-06-18");
+        ExtractableResponse<Response> init = Mcp.initialiser(Api.enTantQue("karim"), "2025-06-18");
         assertEquals(200, init.statusCode(), init.asString());
         assertEquals("2025-06-18", init.path("result.protocolVersion"), init.asString());
         String session = init.header("Mcp-Session-Id");
@@ -122,7 +122,7 @@ class ContratOutilsMcpTest {
     /** Découverte sans état : version de protocole 2026-07-28 et capacité « outils » annoncées. */
     @Test
     void decouverteDuServeur() {
-        ExtractableResponse<Response> reponse = Mcp.envoyer(Api.en("karim"), "server/discover", null, Map.of());
+        ExtractableResponse<Response> reponse = Mcp.envoyer(Api.enTantQue("karim"), "server/discover", null, Map.of());
         assertEquals(200, reponse.statusCode(), reponse.asString());
         assertTrue(reponse.asString().contains(Mcp.VERSION), reponse.asString());
         assertNotNull(reponse.path("result.capabilities.tools"), reponse.asString());

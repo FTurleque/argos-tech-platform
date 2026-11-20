@@ -136,12 +136,12 @@ class SynchronisationPlanifieeTest {
     @Test
     void col09S5IndexCertFrRafraichiAChaqueEcheanceSansBloquer() {
         // Index CERT-FR chargé plus tôt, alors qu'aucun avis ne citait la CVE : mis en cache (6 h).
-        StubServer.on("/certfr/feed/", Stub.ok("<rss version=\"2.0\"><channel></channel></rss>"));
+        StubServer.programmer("/certfr/feed/", Stub.succes("<rss version=\"2.0\"><channel></channel></rss>"));
         assertTrue(certFr.lookup("CVE-2026-109163").isEmpty());
 
         // Le CERT-FR publie ensuite l'avis : l'échéance relit l'index avant l'enrichissement.
-        StubServer.on("/certfr/feed/", Stub.ok(Fixtures.resource("enrichment/certfr-feed.xml")));
-        StubServer.on("/certfr/CERTFR-2026-AVI-1500/json/", Stub.ok(Fixtures.resource("enrichment/CERTFR-2026-AVI-1500.json")));
+        StubServer.programmer("/certfr/feed/", Stub.succes(Fixtures.resource("enrichment/certfr-feed.xml")));
+        StubServer.programmer("/certfr/CERTFR-2026-AVI-1500/json/", Stub.succes(Fixtures.resource("enrichment/CERTFR-2026-AVI-1500.json")));
         Fixtures.stubOsv("GHSA-PL05", "2026-11-18T10:00:00Z", avis("GHSA-PL05", "2026-11-18T10:00:00Z", "CVE-2026-109163"));
 
         planification.synchroniserToutes(INSTANT_INITIAL);
@@ -152,7 +152,7 @@ class SynchronisationPlanifieeTest {
                 "index CERT-FR relu à l'échéance");
 
         // CERT-FR indisponible : les signaux de l'échéance suivante sont enregistrés quand même (COL-04-S3).
-        StubServer.on("/certfr/feed/", Stub.status(503));
+        StubServer.programmer("/certfr/feed/", Stub.status(503));
         Fixtures.stubOsv("GHSA-PL05", "2026-11-18T10:00:00Z", avis("GHSA-PL05", "2026-11-18T10:00:00Z", "CVE-2026-109163"),
                 "GHSA-PL06", "2026-11-19T08:30:00Z", avis("GHSA-PL06", "2026-11-19T08:30:00Z", "CVE-2026-109163"));
 

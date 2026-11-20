@@ -82,7 +82,7 @@ class CollecteReglementaireTest {
 
     @Test
     void reg01S2SourceIndisponiblePuisRepriseDuJourManque() {
-        StubServer.on(ReglementaireFixtures.INDEX, Stub.status(503));
+        StubServer.programmer(ReglementaireFixtures.INDEX, Stub.status(503));
 
         CollecteReglementaire.Rapport echec = collecte.collecter(LE_20, Instant.now());
 
@@ -112,14 +112,14 @@ class CollecteReglementaireTest {
     void archivePublieeApresLePassageDeLaCollecteLueAuPassageSuivant() {
         // Le 20 à 06:30, l'archive du 20 (publiée à 21:30) n'est pas encore dans l'index.
         ReglementaireFixtures.servirArchives(ReglementaireFixtures.archiveDu20(), ReglementaireFixtures.archiveDu21());
-        StubServer.on(ReglementaireFixtures.INDEX, Stub.ok(index("JORF_20261119-213012.tar.gz")));
+        StubServer.programmer(ReglementaireFixtures.INDEX, Stub.succes(index("JORF_20261119-213012.tar.gz")));
         CollecteReglementaire.Rapport le20 = collecte.collecter(LE_20, Instant.now());
         assertEquals(0, le20.textesNouveaux());
         assertEquals(LE_20, collecte.etat().dernierJourCollecte());
 
         // Le 21 à 06:30, l'archive du 20 est publiée : elle est lue, le jour 20 restant dans la fenêtre.
-        StubServer.on(ReglementaireFixtures.INDEX,
-                Stub.ok(index("JORF_20261119-213012.tar.gz", "JORF_20261120-213004.tar.gz")));
+        StubServer.programmer(ReglementaireFixtures.INDEX,
+                Stub.succes(index("JORF_20261119-213012.tar.gz", "JORF_20261120-213004.tar.gz")));
         CollecteReglementaire.Rapport le21 = collecte.collecter(LE_21, Instant.now());
         assertEquals(2, le21.textesNouveaux(), "archive tardive du 20 lue le 21");
         assertEquals(1, baseDeTest.count("SELECT count(*) FROM texte_officiel WHERE identifiant = 'JORFTEXT000099000001'"));
@@ -131,7 +131,7 @@ class CollecteReglementaireTest {
     @Test
     void archiveEnErreurPermanenteEcarteeSansBloquerLesJoursSuivants() {
         ReglementaireFixtures.servirArchives(ReglementaireFixtures.archiveDu20(), ReglementaireFixtures.archiveDu21());
-        StubServer.on(ARCHIVE_20, Stub.status(404));
+        StubServer.programmer(ARCHIVE_20, Stub.status(404));
 
         CollecteReglementaire.Rapport rapport = collecte.collecter(LE_21, Instant.now());
 
@@ -151,7 +151,7 @@ class CollecteReglementaireTest {
     @Test
     void jourEnEchecRepeteAbandonnePuisRejoue() {
         ReglementaireFixtures.servirArchives(ReglementaireFixtures.archiveDu20(), ReglementaireFixtures.archiveDu21());
-        StubServer.on(ARCHIVE_20, Stub.status(503));
+        StubServer.programmer(ARCHIVE_20, Stub.status(503));
 
         for (int tentative = 1; tentative < 5; tentative++) {
             CollecteReglementaire.Rapport rapport = collecte.collecter(LE_21, Instant.now());
@@ -198,18 +198,18 @@ class CollecteReglementaireTest {
     @Test
     void etatEtRejeuReservesALAdministrateurPlateforme() {
         Api.assurerCompte("paul");
-        Api.en("paul").when().get("/api/v1/reglementaire/collecte").then().statusCode(403);
-        Api.en("alice").when().get("/api/v1/reglementaire/collecte").then().statusCode(200)
+        Api.enTantQue("paul").when().get("/api/v1/reglementaire/collecte").then().statusCode(403);
+        Api.enTantQue("alice").when().get("/api/v1/reglementaire/collecte").then().statusCode(200)
                 .body("etat", org.hamcrest.Matchers.equalTo("NOMINAL"));
         ReglementaireFixtures.servirArchives(ReglementaireFixtures.archiveDu20(), ReglementaireFixtures.archiveDu21());
         String hier = LocalDate.now().minusDays(2).toString();
-        Api.en("alice").contentType("application/json").body("{\"jour\":\"" + hier + "\"}")
+        Api.enTantQue("alice").contentType("application/json").body("{\"jour\":\"" + hier + "\"}")
                 .when().post("/api/v1/reglementaire/collectes").then().statusCode(200)
                 .body("joursCollectes", org.hamcrest.Matchers.contains(hier))
                 .body("textesNouveaux", org.hamcrest.Matchers.equalTo(0));
-        Api.en("paul").contentType("application/json").body("{}")
+        Api.enTantQue("paul").contentType("application/json").body("{}")
                 .when().post("/api/v1/reglementaire/collectes").then().statusCode(403);
-        Api.en("alice").contentType("application/json").body("{\"jour\":\"2999-01-01\"}")
+        Api.enTantQue("alice").contentType("application/json").body("{\"jour\":\"2999-01-01\"}")
                 .when().post("/api/v1/reglementaire/collectes").then().statusCode(400);
     }
 }

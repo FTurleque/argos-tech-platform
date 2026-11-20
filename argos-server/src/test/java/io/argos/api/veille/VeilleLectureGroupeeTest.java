@@ -72,7 +72,7 @@ class VeilleLectureGroupeeTest {
         espace = Api.nouvelEspace("ines", "Lecture groupée");
         Api.ajouterMembre("ines", espace.toString(), "jules", "LECTEUR");
         autreEspace = Api.nouvelEspace("oscar", "Lecture groupée, autre espace");
-        Api.en("jules").contentType(ContentType.JSON).body(Map.of("profilsActifs", List.of("developpeur")))
+        Api.enTantQue("jules").contentType(ContentType.JSON).body(Map.of("profilsActifs", List.of("developpeur")))
                 .when().put("/api/v1/preferences/profils").then().statusCode(200);
 
         signauxIds.clear();
@@ -197,7 +197,7 @@ class VeilleLectureGroupeeTest {
      */
     @Test
     void prf07ContenuIdentiqueAuCalculDeReference() throws SQLException {
-        JsonPath veille = Api.en("jules").when().get("/api/v1/me/veille").then().statusCode(200).extract().jsonPath();
+        JsonPath veille = Api.enTantQue("jules").when().get("/api/v1/me/veille").then().statusCode(200).extract().jsonPath();
         List<Attendu> attendus = attendus();
         assertEquals(AVIS, attendus.size(), "jeu de données : un avis par signal impactant l'espace");
 

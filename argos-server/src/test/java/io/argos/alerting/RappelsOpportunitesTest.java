@@ -55,7 +55,7 @@ class RappelsOpportunitesTest {
     void preparer() {
         baseDeTest.reset();
         ArtisteFixtures.reinitialiser(baseDeTest, "hugo", "jules");
-        StubServer.on(JEU, Stub.ok(reponse(
+        StubServer.programmer(JEU, Stub.succes(reponse(
                 enregistrement("AAP-J7", "Résidence arts visuels", "Arts visuels", "Occitanie", JOUR.plusDays(7)),
                 enregistrement("AAP-J30", "Aide à la création", "Arts visuels", "France entière", JOUR.plusDays(30)),
                 enregistrement("AAP-SANS", "Appel sans date", "Arts visuels", "Occitanie", null),
@@ -84,7 +84,7 @@ class RappelsOpportunitesTest {
         assertTrue(mails.stream().anyMatch(mail -> mail.getText().contains("2027-03-08")
                 && mail.getText().contains("https://www.culture.gouv.fr/AAP-J7")),
                 () -> mails.stream().map(Mail::getText).toList().toString());
-        Api.en("hugo").queryParam("canal", "EMAIL").when().get("/api/v1/alertes").then().statusCode(200);
+        Api.enTantQue("hugo").queryParam("canal", "EMAIL").when().get("/api/v1/alertes").then().statusCode(200);
 
         assertTrue(rappels.executer(JOUR, Instant.now()).isEmpty(), "aucun second message pour le même rappel");
         assertTrue(rappels.executer(JOUR.plusDays(1), Instant.now()).isEmpty(), "J-6 : pas un jour de rappel");
@@ -98,11 +98,11 @@ class RappelsOpportunitesTest {
     @Test
     void lesJoursDeRappelSontParametrables() {
         activer("jules", "artiste");
-        Api.en("jules").contentType(ContentType.JSON)
+        Api.enTantQue("jules").contentType(ContentType.JSON)
                 .body(Map.of("disciplines", List.of("arts-visuels"), "territoires", List.of("occitanie"),
                         "rappelsJours", List.of(3, 3, 10)))
                 .when().put("/api/v1/profils/artiste/suivis").then().statusCode(200);
-        Api.en("jules").when().get("/api/v1/profils/artiste/suivis").then().statusCode(200)
+        Api.enTantQue("jules").when().get("/api/v1/profils/artiste/suivis").then().statusCode(200)
                 .body("rappelsJours", org.hamcrest.Matchers.contains(10, 3))
                 .body("rappelsParDefaut", org.hamcrest.Matchers.equalTo(false));
 

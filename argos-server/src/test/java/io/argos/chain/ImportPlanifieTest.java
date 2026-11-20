@@ -113,9 +113,9 @@ class ImportPlanifieTest {
     }
 
     private static void servirForgesNominales() {
-        StubServer.on(GITLAB_SBOM, new Stub(200, Fixtures.resource("scm/gitlab/gl-sbom-npm-npm.cdx.json"),
+        StubServer.programmer(GITLAB_SBOM, new Stub(200, Fixtures.resource("scm/gitlab/gl-sbom-npm-npm.cdx.json"),
                 Map.of("Content-Type", "application/json"), 0));
-        StubServer.on(GITHUB_SBOM, Fixtures.reponseEnregistree("scm/enregistrees/github/200-sbom-cyclonedx.http"));
+        StubServer.programmer(GITHUB_SBOM, Fixtures.reponseEnregistree("scm/enregistrees/github/200-sbom-cyclonedx.http"));
     }
 
     private long composants(UUID projet) {
@@ -133,14 +133,14 @@ class ImportPlanifieTest {
         assertEquals(2, bilan.projets());
         assertEquals(2, bilan.importes());
         assertEquals(0, bilan.erreurs());
-        JsonPath gitlab = Api.en("alice").when().get("/api/v1/projects/" + web + "/inventory/summary")
+        JsonPath gitlab = Api.enTantQue("alice").when().get("/api/v1/projects/" + web + "/inventory/summary")
                 .then().statusCode(200).extract().jsonPath();
         assertEquals("SBOM", gitlab.getString("summary.origin"));
         assertEquals("2026-11-15T06:12:44Z", gitlab.getString("summary.sourceDate"), "date de la source enregistrée");
         assertNotNull(gitlab.getString("summary.importedAt"), "date d'import enregistrée");
         assertEquals("GITLAB:gitlab-org/security-products/tests/js-npm@master",
                 baseDeTest.string("SELECT source_ref FROM repository_inventory WHERE project_id = '" + web + "'"), "origine enregistrée");
-        JsonPath github = Api.en("alice").when().get("/api/v1/projects/" + outil + "/inventory/summary")
+        JsonPath github = Api.enTantQue("alice").when().get("/api/v1/projects/" + outil + "/inventory/summary")
                 .then().statusCode(200).extract().jsonPath();
         assertEquals("SBOM", github.getString("summary.origin"));
         assertEquals(5, github.getInt("summary.componentCount"));
@@ -160,7 +160,7 @@ class ImportPlanifieTest {
         importPlanifie.importer(Instant.parse("2026-11-20T02:00:00Z"));
         long avant = composants(web);
         String importAvant = baseDeTest.string("SELECT import_id::text FROM inventory WHERE project_id = '" + web + "'");
-        StubServer.on(GITLAB_SBOM, Stub.status(503));
+        StubServer.programmer(GITLAB_SBOM, Stub.status(503));
         baseDeTest.exec("DELETE FROM component_occurrence WHERE project_id = '" + outil + "'");
         baseDeTest.exec("DELETE FROM component WHERE project_id = '" + outil + "'");
 
@@ -176,7 +176,7 @@ class ImportPlanifieTest {
         assertFalse(motif.contains("jeton-fictif"), "aucun jeton dans le motif");
         assertEquals(baseDeTest.string("SELECT id::text FROM project_repository WHERE project_id = '" + web + "'"),
                 baseDeTest.string("SELECT repository_id::text FROM inventory_import_failure WHERE project_id = '" + web + "'"));
-        Api.en("alice").when().get("/api/v1/projects/" + web + "/inventory/summary")
+        Api.enTantQue("alice").when().get("/api/v1/projects/" + web + "/inventory/summary")
                 .then().statusCode(200)
                 .body("summary.repositories[0].lastFailure.reason", org.hamcrest.Matchers.containsString("503"));
         StubServer.Received requete = StubServer.received(GITLAB_SBOM).get(0);
@@ -196,14 +196,14 @@ class ImportPlanifieTest {
             int statut = given().contentType("application/json").header("X-Gitlab-Event", "Pipeline Hook").body(corps)
                     .when().post(chemin).then().extract().statusCode();
             assertEquals(401, statut, "client non authentifié refusé : " + chemin);
-            int authentifie = Api.en("alice").contentType("application/json").body(corps).when().post(chemin)
+            int authentifie = Api.enTantQue("alice").contentType("application/json").body(corps).when().post(chemin)
                     .then().extract().statusCode();
             assertTrue(authentifie == 404 || authentifie == 405, "aucune route d'import : " + chemin + " → " + authentifie);
         }
         assertEquals(0, composants(projet), "aucun import déclenché");
         assertTrue(StubServer.received("/gitlab/").isEmpty(), "aucune forge interrogée");
 
-        Map<String, Map<String, Object>> chemins2 = Api.en("alice").queryParam("format", "json").when().get("/q/openapi")
+        Map<String, Map<String, Object>> chemins2 = Api.enTantQue("alice").queryParam("format", "json").when().get("/q/openapi")
                 .then().statusCode(200).extract().jsonPath().getMap("paths");
         chemins2.forEach((chemin, operations) -> {
             assertFalse(chemin.toLowerCase().matches(".*(hook|pipeline).*"), "route entrante inattendue : " + chemin);

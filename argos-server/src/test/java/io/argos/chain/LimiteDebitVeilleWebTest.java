@@ -49,14 +49,14 @@ class LimiteDebitVeilleWebTest {
     }
 
     private static ValidatableResponse ajouter(String user, String adresse) {
-        return Api.en(user).contentType(ContentType.JSON)
+        return Api.enTantQue(user).contentType(ContentType.JSON)
                 .body(Map.of("portee", "PERSONNELLE", "type", "FLUX", "adresse", adresse))
                 .when().post("/api/v1/veille-web/sources").then();
     }
 
     @Test
     void ajoutsEtCollectesLimitesParCompte() {
-        StubServer.on("/limite.xml", new Stub(200, """
+        StubServer.programmer("/limite.xml", new Stub(200, """
                 <?xml version="1.0" encoding="utf-8"?>
                 <feed xmlns="http://www.w3.org/2005/Atom"><title>L</title><id>urn:l</id><updated>2026-11-15T10:00:00Z</updated></feed>
                 """, Map.of("Content-Type", "application/atom+xml"), 0));
@@ -65,13 +65,13 @@ class LimiteDebitVeilleWebTest {
         // Un ajout refusé compte comme un ajout réussi.
         ajouter("nina", "http://192.168.1.1/flux").statusCode(400);
         String id = ajouter("nina", StubServer.base() + "/limite.xml").statusCode(201).extract().path("id");
-        Api.en("nina").when().post("/api/v1/veille-web/sources/" + id + "/collectes").then().statusCode(200);
+        Api.enTantQue("nina").when().post("/api/v1/veille-web/sources/" + id + "/collectes").then().statusCode(200);
 
         ajouter("nina", "http://192.168.1.2/flux").statusCode(429)
                 .header("Retry-After", "60")
                 .body("code", equalTo("LIMITE_DEBIT"))
                 .body("message", equalTo("Nombre maximal de requêtes par minute atteint, réessayez plus tard."));
-        Api.en("nina").when().post("/api/v1/veille-web/sources/" + id + "/collectes").then().statusCode(429)
+        Api.enTantQue("nina").when().post("/api/v1/veille-web/sources/" + id + "/collectes").then().statusCode(429)
                 .body("code", equalTo("LIMITE_DEBIT"));
 
         assertEquals(1, baseDeTest.count("SELECT count(*) FROM refus_acces WHERE compte_id = '" + nina
@@ -83,6 +83,6 @@ class LimiteDebitVeilleWebTest {
         // La limite est propre à chaque compte ; les lectures ne sont pas limitées.
         Api.assurerCompte("oscar");
         ajouter("oscar", "http://192.168.1.3/flux").statusCode(400);
-        Api.en("nina").when().get("/api/v1/veille-web/sources").then().statusCode(200);
+        Api.enTantQue("nina").when().get("/api/v1/veille-web/sources").then().statusCode(200);
     }
 }

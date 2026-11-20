@@ -30,16 +30,6 @@ export const LISTE_BLANCHE = [
     raison: 'composant du record public TransitionView, propriété JSON « de » de l\'historique' },
   { fichier: 'argos-server/src/main/java/io/argos/regintel/FicheAnalyse.java', nom: 'le',
     raison: 'composant du record public EvenementHistorique, propriété JSON « le »' },
-  { fichier: 'argos-server/src/test/java/io/argos/chain/JeuReferenceCorrelationTest.java', nom: 'vp',
-    raison: 'composant du record Compte (accesseur vp())' },
-  { fichier: 'argos-server/src/test/java/io/argos/chain/JeuReferenceCorrelationTest.java', nom: 'fp',
-    raison: 'composant du record Compte (accesseur fp())' },
-  { fichier: 'argos-server/src/test/java/io/argos/chain/JeuReferenceCorrelationTest.java', nom: 'fn',
-    raison: 'composant du record Compte (accesseur fn())' },
-  { fichier: 'argos-server/src/test/java/io/argos/testsupport/RecordingSleeper.java', nom: 'at',
-    raison: 'composant du record public Wait (accesseur at())' },
-  { fichier: 'argos-server/src/test/java/io/argos/testsupport/StubServer.java', nom: 'at',
-    raison: 'composant du record public Received (accesseur at())' },
 ];
 
 const EXTENSIONS = /\.(java|ts|vue|js|mjs)$/;

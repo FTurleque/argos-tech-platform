@@ -77,7 +77,7 @@ class ActiviteProjetsTest {
         espace = Api.nouvelEspace("alice", "Équipe activité");
     }
 
-    private static String il(int jours) {
+    private static String ilYa(int jours) {
         return Instant.now().minus(jours, ChronoUnit.DAYS).truncatedTo(ChronoUnit.SECONDS).toString();
     }
 
@@ -88,7 +88,7 @@ class ActiviteProjetsTest {
      */
     static void depotGithub(String depot) {
         String base = "/github/repos/" + depot;
-        StubServer.on(base + "/issues", Stub.ok("""
+        StubServer.programmer(base + "/issues", Stub.succes("""
                 [
                  {"number":1,"title":"Bug","user":{"login":"bob"},"assignee":{"login":"carol"},"created_at":"%s","closed_at":null},
                  {"number":2,"title":"Doc","user":{"login":"bob"},"created_at":"%s","closed_at":"%s"},
@@ -98,21 +98,21 @@ class ActiviteProjetsTest {
                   "pull_request":{"url":"x","merged_at":"%s"}},
                  {"number":6,"title":"PR2","user":{"login":"carol"},"created_at":"%s","closed_at":null,
                   "pull_request":{"url":"y","merged_at":null}}
-                ]""".formatted(il(5), il(10), il(8), il(40), il(3), il(1), il(6), il(4), il(4), il(2))));
-        StubServer.on(base + "/actions/runs", Stub.ok("""
+                ]""".formatted(ilYa(5), ilYa(10), ilYa(8), ilYa(40), ilYa(3), ilYa(1), ilYa(6), ilYa(4), ilYa(4), ilYa(2))));
+        StubServer.programmer(base + "/actions/runs", Stub.succes("""
                 {"total_count":3,"workflow_runs":[
                   {"created_at":"%s","status":"completed","conclusion":"success","actor":{"login":"bob"}},
                   {"created_at":"%s","status":"completed","conclusion":"failure","actor":{"login":"carol"}},
-                  {"created_at":"%s","status":"in_progress","conclusion":null}]}""".formatted(il(2), il(3), il(0))));
-        StubServer.on(base + "/releases", Stub.ok("""
+                  {"created_at":"%s","status":"in_progress","conclusion":null}]}""".formatted(ilYa(2), ilYa(3), ilYa(0))));
+        StubServer.programmer(base + "/releases", Stub.succes("""
                 [{"tag_name":"v0.9","published_at":"%s","draft":false,"author":{"login":"bob"}},
                  {"tag_name":"brouillon","published_at":null,"draft":true},
-                 {"tag_name":"v0.1","published_at":"%s","draft":false}]""".formatted(il(6), il(200))));
-        StubServer.on(base + "/milestones", Stub.ok("""
+                 {"tag_name":"v0.1","published_at":"%s","draft":false}]""".formatted(ilYa(6), ilYa(200))));
+        StubServer.programmer(base + "/milestones", Stub.succes("""
                 [{"number":7,"title":"v1.0","state":"open","due_on":"2026-12-01T08:00:00Z","open_issues":3,
                   "closed_issues":27,"creator":{"login":"bob"}},
                  {"number":2,"title":"v0.5","state":"closed","closed_at":"%s","open_issues":0,"closed_issues":4}]
-                """.formatted(il(300))));
+                """.formatted(ilYa(300))));
     }
 
     private UUID projetGithub(String depot) {
@@ -127,7 +127,7 @@ class ActiviteProjetsTest {
         assertEquals(CollecteActivite.Issue.A_JOUR, collecte.collecterProjet(projet, Instant.now()));
 
         LocalDate aujourdhui = LocalDate.now(PARIS);
-        Api.en("alice").queryParam("jours", 30).when().get("/api/v1/projects/" + projet + "/activite")
+        Api.enTantQue("alice").queryParam("jours", 30).when().get("/api/v1/projects/" + projet + "/activite")
                 .then().statusCode(200)
                 .body("periode.jours", equalTo(30))
                 .body("periode.fin", equalTo(aujourdhui.toString()))
@@ -148,10 +148,10 @@ class ActiviteProjetsTest {
                 .body("fraicheur.complet", equalTo(true))
                 .body("fraicheur.derniereMiseAJour", not(nullValue()));
         // Sur 7 jours, seuls les événements de la semaine comptent.
-        Api.en("alice").queryParam("jours", 7).when().get("/api/v1/projects/" + projet + "/activite")
+        Api.enTantQue("alice").queryParam("jours", 7).when().get("/api/v1/projects/" + projet + "/activite")
                 .then().statusCode(200).body("compteurs.ticketsOuverts", equalTo(2)).body("compteurs.ticketsFermes", equalTo(1))
                 .body("compteurs.versionsPubliees", equalTo(1));
-        Api.en("alice").queryParam("jours", 400).when().get("/api/v1/projects/" + projet + "/activite")
+        Api.enTantQue("alice").queryParam("jours", 400).when().get("/api/v1/projects/" + projet + "/activite")
                 .then().statusCode(400).body("code", equalTo("PERIODE_INVALIDE"));
     }
 
@@ -176,28 +176,28 @@ class ActiviteProjetsTest {
     @Test
     void contratGitlab() {
         String base = "/gitlab/api/v4/projects/groupe%2Fapp";
-        StubServer.on(base + "/issues", Stub.ok("""
+        StubServer.programmer(base + "/issues", Stub.succes("""
                 [{"iid":1,"author":{"username":"bob"},"created_at":"%s","closed_at":"%s"},
-                 {"iid":2,"assignees":[{"username":"carol"}],"created_at":"%s","closed_at":null}]""".formatted(il(9), il(2), il(4))));
-        StubServer.on(base + "/merge_requests", Stub.ok("""
+                 {"iid":2,"assignees":[{"username":"carol"}],"created_at":"%s","closed_at":null}]""".formatted(ilYa(9), ilYa(2), ilYa(4))));
+        StubServer.programmer(base + "/merge_requests", Stub.succes("""
                 [{"iid":3,"author":{"username":"bob"},"created_at":"%s","merged_at":"%s","merged_by":{"username":"carol"}}]"""
-                .formatted(il(6), il(5))));
-        StubServer.on(base + "/pipelines", Stub.ok("""
+                .formatted(ilYa(6), ilYa(5))));
+        StubServer.programmer(base + "/pipelines", Stub.succes("""
                 [{"id":1,"status":"success","created_at":"%s"},{"id":2,"status":"failed","created_at":"%s"},
                  {"id":3,"status":"canceled","created_at":"%s"},{"id":4,"status":"success","created_at":"%s"}]"""
-                .formatted(il(1), il(2), il(3), il(45))));
-        StubServer.on(base + "/releases", Stub.ok("""
-                [{"tag_name":"v2","released_at":"%s","author":{"username":"bob"}}]""".formatted(il(3))));
-        StubServer.on(base + "/milestones", Stub.ok("""
+                .formatted(ilYa(1), ilYa(2), ilYa(3), ilYa(45))));
+        StubServer.programmer(base + "/releases", Stub.succes("""
+                [{"tag_name":"v2","released_at":"%s","author":{"username":"bob"}}]""".formatted(ilYa(3))));
+        StubServer.programmer(base + "/milestones", Stub.succes("""
                 [{"id":11,"iid":1,"title":"Sprint 4","state":"active","due_date":"2026-12-15","updated_at":"%s"},
-                 {"id":12,"iid":2,"title":"Ancien","state":"closed","updated_at":"%s"}]""".formatted(il(1), il(100))));
-        StubServer.on(base + "/issues_statistics", Stub.ok("""
+                 {"id":12,"iid":2,"title":"Ancien","state":"closed","updated_at":"%s"}]""".formatted(ilYa(1), ilYa(100))));
+        StubServer.programmer(base + "/issues_statistics", Stub.succes("""
                 {"statistics":{"counts":{"all":30,"closed":27,"opened":3}}}"""));
         UUID projet = projets.create(espace, "app", new RepositoryRef("GITLAB", "groupe/app", "main", null, null), List.of());
 
         assertEquals(CollecteActivite.Issue.A_JOUR, collecte.collecterProjet(projet, Instant.now()));
 
-        Api.en("alice").when().get("/api/v1/projects/" + projet + "/activite")
+        Api.enTantQue("alice").when().get("/api/v1/projects/" + projet + "/activite")
                 .then().statusCode(200)
                 .body("compteurs.ticketsOuverts", equalTo(2))
                 .body("compteurs.ticketsFermes", equalTo(1))
@@ -220,20 +220,20 @@ class ActiviteProjetsTest {
         depotGithub("org/app");
         UUID avecJalon = projetGithub("org/app");
         collecte.collecterProjet(avecJalon, Instant.now());
-        Api.en("alice").when().get("/api/v1/projects/" + avecJalon + "/activite")
+        Api.enTantQue("alice").when().get("/api/v1/projects/" + avecJalon + "/activite")
                 .then().statusCode(200)
                 .body("jalons[0].ticketsFermes", equalTo(27))
                 .body("jalons[0].ticketsTotal", equalTo(30))
                 .body("jalons[0].avancement.libelle", equalTo("27 sur 30 (90 %)"))
                 .body("jalons[0].avancement.pourcentage", equalTo(90));
 
-        StubServer.on("/github/repos/org/sans-jalon/issues", Stub.ok("[]"));
-        StubServer.on("/github/repos/org/sans-jalon/actions/runs", Stub.ok("{\"workflow_runs\":[]}"));
-        StubServer.on("/github/repos/org/sans-jalon/releases", Stub.ok("[]"));
-        StubServer.on("/github/repos/org/sans-jalon/milestones", Stub.ok("[]"));
+        StubServer.programmer("/github/repos/org/sans-jalon/issues", Stub.succes("[]"));
+        StubServer.programmer("/github/repos/org/sans-jalon/actions/runs", Stub.succes("{\"workflow_runs\":[]}"));
+        StubServer.programmer("/github/repos/org/sans-jalon/releases", Stub.succes("[]"));
+        StubServer.programmer("/github/repos/org/sans-jalon/milestones", Stub.succes("[]"));
         UUID sansJalon = projetGithub("org/sans-jalon");
         collecte.collecterProjet(sansJalon, Instant.now());
-        String corps = Api.en("alice").when().get("/api/v1/projects/" + sansJalon + "/activite")
+        String corps = Api.enTantQue("alice").when().get("/api/v1/projects/" + sansJalon + "/activite")
                 .then().statusCode(200).body("jalons", empty()).extract().asString();
         assertFalse(corps.contains("%") || corps.contains("pourcentage") || corps.contains("avancement"),
                 "aucun pourcentage d'avancement sans jalon : " + corps);
@@ -245,10 +245,10 @@ class ActiviteProjetsTest {
         UUID projet = projetGithub("org/app");
         collecte.collecterProjet(projet, Instant.now());
 
-        String corps = Api.en("alice").queryParam("contributeur", "bob").when().get("/api/v1/projects/" + projet + "/activite")
+        String corps = Api.enTantQue("alice").queryParam("contributeur", "bob").when().get("/api/v1/projects/" + projet + "/activite")
                 .then().statusCode(200).body("compteurs.ticketsOuverts", equalTo(3)).extract().asString();
         assertFalse(corps.contains("bob") || corps.contains("carol"), "aucune identité restituée : " + corps);
-        Api.en("alice").when().get("/api/v1/projects/" + projet + "/activite/contributeurs/bob").then().statusCode(404);
+        Api.enTantQue("alice").when().get("/api/v1/projects/" + projet + "/activite/contributeurs/bob").then().statusCode(404);
 
         // Aucune identité enregistrée, et aucune colonne qui pourrait en porter (revue du schéma outillée).
         assertEquals(0, baseDeTest.count("""
@@ -263,7 +263,7 @@ class ActiviteProjetsTest {
                 SELECT count(*) FROM information_schema.columns
                 WHERE table_name IN ('activite_compteur', 'activite_jalon', 'activite_collecte')"""),
                 "colonnes revues : toute nouvelle colonne impose de revoir ce test");
-        Api.en("alice").queryParam("format", "json").when().get("/q/openapi").then().statusCode(200)
+        Api.enTantQue("alice").queryParam("format", "json").when().get("/q/openapi").then().statusCode(200)
                 .body("paths.keySet().findAll { it.contains('/activite') }", hasSize(2))
                 .body("paths.'/api/v1/projects/{projectId}/activite'.get.parameters.name", hasItems("jours"))
                 .body("paths.'/api/v1/projects/{projectId}/activite'.get.parameters.name", not(hasItems("contributeur")));
@@ -275,12 +275,12 @@ class ActiviteProjetsTest {
         UUID projet = projetGithub("org/app");
         String url = "/api/v1/projects/" + projet + "/activite/synthese";
 
-        Api.en("alice").when().get(url).then().statusCode(200).body("etat", equalTo("SANS_DONNEES"))
+        Api.enTantQue("alice").when().get(url).then().statusCode(200).body("etat", equalTo("SANS_DONNEES"))
                 .body("mention", equalTo("produite par l'IA")).body("texte", nullValue());
         assertTrue(syntheseIa.recues().isEmpty(), "aucun appel sans donnée collectée");
 
         collecte.collecterProjet(projet, Instant.now());
-        Api.en("alice").when().get(url).then().statusCode(200)
+        Api.enTantQue("alice").when().get(url).then().statusCode(200)
                 .body("etat", equalTo("DISPONIBLE"))
                 .body("mention", equalTo("produite par l'IA"))
                 .body("texte", containsString("27 sur 30 (90 %)"))
@@ -290,17 +290,17 @@ class ActiviteProjetsTest {
         assertEquals(3, syntheseIa.recues().get(0).compteurs().ticketsOuverts(), "la synthèse reçoit les indicateurs affichés");
 
         syntheseIa.configure(SimulatedSyntheseIa.Mode.CHIFFRE_INVENTE);
-        Api.en("alice").when().get(url).then().statusCode(200).body("etat", equalTo("REFUSEE")).body("texte", nullValue())
+        Api.enTantQue("alice").when().get(url).then().statusCode(200).body("etat", equalTo("REFUSEE")).body("texte", nullValue())
                 .body("mention", equalTo("produite par l'IA"));
         syntheseIa.configure(SimulatedSyntheseIa.Mode.UNAVAILABLE);
-        Api.en("alice").when().get(url).then().statusCode(200).body("etat", equalTo("INDISPONIBLE"));
+        Api.enTantQue("alice").when().get(url).then().statusCode(200).body("etat", equalTo("INDISPONIBLE"));
         syntheseIa.configure(SimulatedSyntheseIa.Mode.BUDGET_EXHAUSTED);
-        Api.en("alice").when().get(url).then().statusCode(200).body("etat", equalTo("PLAFOND_ATTEINT"));
+        Api.enTantQue("alice").when().get(url).then().statusCode(200).body("etat", equalTo("PLAFOND_ATTEINT"));
         assertTrue(syntheseIa.recues().isEmpty(), "plafond atteint : aucun appel");
         syntheseIa.configure(SimulatedSyntheseIa.Mode.REFUSED);
-        Api.en("alice").when().get(url).then().statusCode(200).body("etat", equalTo("REFUSEE"));
+        Api.enTantQue("alice").when().get(url).then().statusCode(200).body("etat", equalTo("REFUSEE"));
         // Les indicateurs restent consultables quel que soit l'état de la synthèse.
-        Api.en("alice").when().get("/api/v1/projects/" + projet + "/activite").then().statusCode(200)
+        Api.enTantQue("alice").when().get("/api/v1/projects/" + projet + "/activite").then().statusCode(200)
                 .body("compteurs.ticketsOuverts", equalTo(3));
     }
 
@@ -314,21 +314,21 @@ class ActiviteProjetsTest {
 
         Instant reinitialisation = Instant.now().plus(2, ChronoUnit.HOURS).truncatedTo(ChronoUnit.SECONDS);
         StubServer.reset();
-        StubServer.on("/github/repos/org/app/issues", new Stub(403, "{\"message\":\"API rate limit exceeded\"}",
+        StubServer.programmer("/github/repos/org/app/issues", new Stub(403, "{\"message\":\"API rate limit exceeded\"}",
                 Map.of("x-ratelimit-remaining", "0", "x-ratelimit-reset", String.valueOf(reinitialisation.getEpochSecond())), 0));
 
         CollecteActivite.Bilan bilan = collecte.collecter(Instant.now());
 
         assertEquals(new CollecteActivite.Bilan(0, 2, 0), bilan, "le second projet GitHub est reporté sans appel");
         assertEquals(1, StubServer.received("/github/").size(), "aucun appel après le quota épuisé");
-        Api.en("alice").when().get("/api/v1/projects/" + projet + "/activite")
+        Api.enTantQue("alice").when().get("/api/v1/projects/" + projet + "/activite")
                 .then().statusCode(200)
                 .body("fraicheur.etat", equalTo("REPORTEE_QUOTA"))
                 .body("fraicheur.derniereMiseAJour", equalTo(premiere.toString()))
                 .body("fraicheur.prochaineCollecte", equalTo(reinitialisation.toString()))
                 .body("fraicheur.motif", containsString("quota"))
                 .body("compteurs.ticketsOuverts", equalTo(2));
-        Api.en("alice").when().get("/api/v1/projects/" + autre + "/activite")
+        Api.enTantQue("alice").when().get("/api/v1/projects/" + autre + "/activite")
                 .then().statusCode(200).body("fraicheur.etat", equalTo("REPORTEE_QUOTA"))
                 .body("fraicheur.derniereMiseAJour", nullValue());
 
@@ -336,12 +336,12 @@ class ActiviteProjetsTest {
         assertEquals(new CollecteActivite.Bilan(0, 0, 0), collecte.collecter(reinitialisation.minusSeconds(60)));
         assertEquals(1, StubServer.received("/github/").size());
         depotGithub("org/app");
-        StubServer.on("/github/repos/org/autre/issues", Stub.ok("[]"));
-        StubServer.on("/github/repos/org/autre/actions/runs", Stub.ok("{\"workflow_runs\":[]}"));
-        StubServer.on("/github/repos/org/autre/releases", Stub.ok("[]"));
-        StubServer.on("/github/repos/org/autre/milestones", Stub.ok("[]"));
+        StubServer.programmer("/github/repos/org/autre/issues", Stub.succes("[]"));
+        StubServer.programmer("/github/repos/org/autre/actions/runs", Stub.succes("{\"workflow_runs\":[]}"));
+        StubServer.programmer("/github/repos/org/autre/releases", Stub.succes("[]"));
+        StubServer.programmer("/github/repos/org/autre/milestones", Stub.succes("[]"));
         assertEquals(new CollecteActivite.Bilan(2, 0, 0), collecte.collecter(reinitialisation.plusSeconds(1)));
-        Api.en("alice").when().get("/api/v1/projects/" + projet + "/activite")
+        Api.enTantQue("alice").when().get("/api/v1/projects/" + projet + "/activite")
                 .then().statusCode(200).body("fraicheur.etat", equalTo("A_JOUR"))
                 .body("fraicheur.derniereMiseAJour", equalTo(reinitialisation.plusSeconds(1).toString()));
     }
@@ -354,15 +354,15 @@ class ActiviteProjetsTest {
         long lignes = baseDeTest.count("SELECT count(*) FROM activite_compteur WHERE project_id = '" + projet + "'");
         collecte.collecterProjet(projet, Instant.now());
         assertEquals(lignes, baseDeTest.count("SELECT count(*) FROM activite_compteur WHERE project_id = '" + projet + "'"));
-        Api.en("alice").when().get("/api/v1/projects/" + projet + "/activite").then().body("compteurs.ticketsOuverts", equalTo(3));
+        Api.enTantQue("alice").when().get("/api/v1/projects/" + projet + "/activite").then().body("compteurs.ticketsOuverts", equalTo(3));
 
-        StubServer.on("/github/repos/org/app/issues", Stub.status(500));
+        StubServer.programmer("/github/repos/org/app/issues", Stub.status(500));
         assertEquals(CollecteActivite.Issue.ECHEC, collecte.collecterProjet(projet, Instant.now()));
-        Api.en("alice").when().get("/api/v1/projects/" + projet + "/activite").then().statusCode(200)
+        Api.enTantQue("alice").when().get("/api/v1/projects/" + projet + "/activite").then().statusCode(200)
                 .body("fraicheur.etat", equalTo("ECHEC")).body("fraicheur.motif", equalTo("HTTP 500 de localhost"))
                 .body("compteurs.ticketsOuverts", equalTo(3));
         // Redirection non suivie : le jeton ne part jamais vers un autre hôte.
-        StubServer.on("/github/repos/org/app/issues", new Stub(302, "", Map.of("Location", "http://ailleurs.example/"), 0));
+        StubServer.programmer("/github/repos/org/app/issues", new Stub(302, "", Map.of("Location", "http://ailleurs.example/"), 0));
         assertEquals(CollecteActivite.Issue.ECHEC, collecte.collecterProjet(projet, Instant.now()));
     }
 
@@ -385,11 +385,11 @@ class ActiviteProjetsTest {
         assertNull(vueJules.fraicheur().derniereMiseAJour());
 
         // Par l'API : 404 sans révéler l'existence, refus journalisé.
-        Api.en("jules").when().get("/api/v1/projects/" + projet + "/activite").then().statusCode(404);
-        Api.en("jules").when().get("/api/v1/projects/" + projet + "/activite/synthese").then().statusCode(404);
+        Api.enTantQue("jules").when().get("/api/v1/projects/" + projet + "/activite").then().statusCode(404);
+        Api.enTantQue("jules").when().get("/api/v1/projects/" + projet + "/activite/synthese").then().statusCode(404);
         assertEquals(1, baseDeTest.count("SELECT count(*) FROM refus_acces WHERE compte_id = '" + jules
                 + "' AND ressource = 'GET /api/v1/projects/" + projet + "/activite' AND motif = 'NON_MEMBRE'"));
-        Api.en("alice").when().get("/api/v1/projects/" + UUID.randomUUID() + "/activite").then().statusCode(404);
+        Api.enTantQue("alice").when().get("/api/v1/projects/" + UUID.randomUUID() + "/activite").then().statusCode(404);
         io.restassured.RestAssured.given().when().get("/api/v1/projects/" + projet + "/activite").then().statusCode(401);
     }
 

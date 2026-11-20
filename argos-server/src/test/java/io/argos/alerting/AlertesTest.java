@@ -137,7 +137,7 @@ class AlertesTest {
     }
 
     private static void regle(String utilisateur, String canal, String frequence, String filtres) {
-        Api.en(utilisateur).contentType(ContentType.JSON)
+        Api.enTantQue(utilisateur).contentType(ContentType.JSON)
                 .body("{\"scope\":\"PERSONAL\",\"filters\":" + filtres + ",\"channel\":\"" + canal + "\",\"frequency\":\""
                         + frequence + "\",\"mandatory\":false}")
                 .when().post("/api/v1/subscriptions").then().statusCode(201);
@@ -198,7 +198,7 @@ class AlertesTest {
 
     @Test
     void graviteMinimaleInconnueRefuseeALaCreationDeLaRegle() {
-        Api.en("alice").contentType(ContentType.JSON)
+        Api.enTantQue("alice").contentType(ContentType.JSON)
                 .body("{\"scope\":\"PERSONAL\",\"filters\":[{\"type\":\"SEVERITY\",\"value\":\"URGENTE\"}],"
                         + "\"channel\":\"email\",\"frequency\":\"immediate\",\"mandatory\":false}")
                 .when().post("/api/v1/subscriptions")
@@ -235,7 +235,7 @@ class AlertesTest {
         assertEquals(0, alertes("true"));
         assertTrue(mailbox.getMailsSentTo("alice@argos.test").isEmpty());
         assertEquals(1, baseDeTest.count("SELECT count(*) FROM resume_element WHERE signal_id = '" + signal + "'"));
-        Api.en("alice").when().get("/api/v1/me/watch")
+        Api.enTantQue("alice").when().get("/api/v1/me/watch")
                 .then().statusCode(200)
                 .body("find { it.signalId == '" + signal + "' }.impacts[0].level", equalTo("A_VERIFIER"));
     }
@@ -247,7 +247,7 @@ class AlertesTest {
         projet(spaceA, "projet-a", LIB + "@1.2.0");
         projet(spaceB, "projet-b", LIB + "@1.1.0");
         // Socle TEAM obligatoire de l'espace A : ses membres en héritent (ABO-03).
-        Api.en("alice").contentType(ContentType.JSON)
+        Api.enTantQue("alice").contentType(ContentType.JSON)
                 .body("{\"scope\":\"TEAM\",\"teamWorkspaceId\":\"" + spaceA + "\",\"filters\":" + HAUTE
                         + ",\"channel\":\"email\",\"frequency\":\"immediate\",\"mandatory\":true}")
                 .when().post("/api/v1/subscriptions").then().statusCode(201);
@@ -364,7 +364,7 @@ class AlertesTest {
         assertTrue(mail.getSubject().startsWith("[Argos] Résumé hebdomadaire : 2 éléments cette semaine"), mail.getSubject());
         assertTrue(mail.getText().contains("OSV GHSA-HEBDO1"));
         assertTrue(mail.getText().contains("OSV GHSA-HEBDO2"));
-        Api.en("alice").when().get("/api/v1/alertes/" + crees.get(0))
+        Api.enTantQue("alice").when().get("/api/v1/alertes/" + crees.get(0))
                 .then().statusCode(200)
                 .body("nature", equalTo("WEEKLY"))
                 .body("contenu.elements", hasSize(2))
@@ -394,7 +394,7 @@ class AlertesTest {
         regle("alice", "desktop", "immediate", HAUTE);
         publier("GHSA-POSTE", LIB, "CRITICAL");
 
-        String id = Api.en("alice").queryParam("canal", "desktop").queryParam("etat", "EN_ATTENTE")
+        String id = Api.enTantQue("alice").queryParam("canal", "desktop").queryParam("etat", "EN_ATTENTE")
                 .when().get("/api/v1/alertes")
                 .then().statusCode(200)
                 .body("$", hasSize(1))
@@ -411,20 +411,20 @@ class AlertesTest {
         // Une alerte d'un autre compte est introuvable et la tentative est journalisée.
         long refus = baseDeTest.count("SELECT count(*) FROM refus_acces");
         Api.compte("jules");
-        Api.en("jules").when().get("/api/v1/alertes/" + id).then().statusCode(404);
-        Api.en("jules").when().post("/api/v1/alertes/" + id + "/remise").then().statusCode(404);
+        Api.enTantQue("jules").when().get("/api/v1/alertes/" + id).then().statusCode(404);
+        Api.enTantQue("jules").when().post("/api/v1/alertes/" + id + "/remise").then().statusCode(404);
         assertEquals(refus + 2, baseDeTest.count("SELECT count(*) FROM refus_acces"));
-        Api.en("jules").when().get("/api/v1/alertes").then().statusCode(200).body("$", hasSize(0));
+        Api.enTantQue("jules").when().get("/api/v1/alertes").then().statusCode(200).body("$", hasSize(0));
 
-        Api.en("alice").when().post("/api/v1/alertes/" + id + "/remise")
+        Api.enTantQue("alice").when().post("/api/v1/alertes/" + id + "/remise")
                 .then().statusCode(200).body("etat", equalTo("ENVOYEE")).body("envoyeLe", notNullValue());
-        Api.en("alice").queryParam("canal", "DESKTOP").queryParam("etat", "EN_ATTENTE")
+        Api.enTantQue("alice").queryParam("canal", "DESKTOP").queryParam("etat", "EN_ATTENTE")
                 .when().get("/api/v1/alertes").then().statusCode(200).body("$", hasSize(0));
     }
 
     @Test
     void contratOpenApiDesAlertes() {
-        Api.en("alice").queryParam("format", "json")
+        Api.enTantQue("alice").queryParam("format", "json")
                 .when().get("/q/openapi")
                 .then().statusCode(200)
                 .body("paths.'/api/v1/alertes'.get", notNullValue())
@@ -442,7 +442,7 @@ class AlertesTest {
         regle("alice", "email", "immediate", HAUTE);
         publier("GHSA-MAIL", LIB, "CRITICAL");
         String id = baseDeTest.string("SELECT id FROM alerte");
-        Api.en("alice").when().post("/api/v1/alertes/" + id + "/remise")
+        Api.enTantQue("alice").when().post("/api/v1/alertes/" + id + "/remise")
                 .then().statusCode(409).body("code", equalTo("CANAL_NON_DESKTOP"));
     }
 

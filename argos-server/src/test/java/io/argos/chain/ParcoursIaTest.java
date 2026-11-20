@@ -103,7 +103,7 @@ class ParcoursIaTest {
 
     static Stub ollama(String contenu) {
         try {
-            return Stub.ok(new ObjectMapper().writeValueAsString(Map.of("model", "qwen2.5:1.5b",
+            return Stub.succes(new ObjectMapper().writeValueAsString(Map.of("model", "qwen2.5:1.5b",
                     "message", Map.of("role", "assistant", "content", contenu), "done", true,
                     "prompt_eval_count", 30, "eval_count", 12)));
         } catch (Exception erreur) {
@@ -130,7 +130,7 @@ class ParcoursIaTest {
     }
 
     private static void regle(String canal) {
-        Api.en("alice").contentType(ContentType.JSON)
+        Api.enTantQue("alice").contentType(ContentType.JSON)
                 .body("{\"scope\":\"PERSONAL\",\"filters\":" + HAUTE + ",\"channel\":\"" + canal
                         + "\",\"frequency\":\"immediate\",\"mandatory\":false}")
                 .when().post("/api/v1/subscriptions").then().statusCode(201);
@@ -143,11 +143,11 @@ class ParcoursIaTest {
         projet(spaceA, "app", LIB + "@1.2.0");
         regle("email");
         regle("desktop");
-        StubServer.on(CHAT, ollama("{\"resume\": \"Faille critique dans org.exemple:lib, corrigée en 1.3.0.\"}"));
+        StubServer.programmer(CHAT, ollama("{\"resume\": \"Faille critique dans org.exemple:lib, corrigée en 1.3.0.\"}"));
 
         publier("GHSA-IA-OK");
 
-        Api.en("alice").queryParam("canal", "desktop").queryParam("etat", "EN_ATTENTE")
+        Api.enTantQue("alice").queryParam("canal", "desktop").queryParam("etat", "EN_ATTENTE")
                 .when().get("/api/v1/alertes")
                 .then().statusCode(200)
                 .body("$", hasSize(1))
@@ -170,7 +170,7 @@ class ParcoursIaTest {
 
     @Test
     void iag02S1DonneeConfidentielleRefuseeEtJournalisee() {
-        StubServer.on(CHAT, ollama("{\"resume\": \"interdit\"}"));
+        StubServer.programmer(CHAT, ollama("{\"resume\": \"interdit\"}"));
 
         ReponseIa reponse = passerelle.demander(new DemandeIa(RegistrePrompts.RESUME_ALERTE, spaceA,
                 List.of(EntreeIa.publique("titre", "Avis"), new EntreeIa("contexte", "Clé de chiffrement du projet",
@@ -187,7 +187,7 @@ class ParcoursIaTest {
     void iag03S1QuotaDEspaceEpuiseAlerteDiffuseeSansResume() {
         projet(spaceA, "app", LIB + "@1.2.0");
         regle("email");
-        StubServer.on(CHAT, ollama("{\"resume\": \"ne doit pas être demandé\"}"));
+        StubServer.programmer(CHAT, ollama("{\"resume\": \"ne doit pas être demandé\"}"));
         baseDeTest.exec("INSERT INTO ia_quota_jour (jour, portee, appels) VALUES ('" + LocalDate.now(fuseau) + "', '" + spaceA
                 + "', 100)");
 
@@ -197,7 +197,7 @@ class ParcoursIaTest {
                 + " AND resume_ia IS NULL"));
         assertTrue(StubServer.received(CHAT).isEmpty(), "aucun appel au-delà du quota de l'espace");
         assertTrue(mailbox.getMailsSentTo("alice@argos.test").get(0).getText().contains("Résumé IA non disponible."));
-        Api.en("alice").when().get("/api/v1/alertes").then().statusCode(200)
+        Api.enTantQue("alice").when().get("/api/v1/alertes").then().statusCode(200)
                 .body("[0].contenu.mentionResumeIa", nullValue());
     }
 
@@ -216,14 +216,14 @@ class ParcoursIaTest {
 
     @Test
     void iag05S1ResumeIaDUneActualiteWebAvecMentionEtSources() {
-        StubServer.on("/ia/atom.xml", VeilleWebTest.contenu(VeilleWebTest.ATOM, VeilleWebTest.atom("Blog",
+        StubServer.programmer("/ia/atom.xml", VeilleWebTest.contenu(VeilleWebTest.ATOM, VeilleWebTest.atom("Blog",
                 VeilleWebTest.entree("Quarkus 3.40 LTS", "https://blog.exemple.test/quarkus-340",
                         "Quarkus 3.40 devient la version de support long. " + VeilleWebTest.PIEGE))));
         VeilleWebTest.ajouterFlux("alice", "ESPACE", spaceA, "/ia/atom.xml");
         String id = VeilleWebTest.actualites("alice").extract().path("[0].id");
-        StubServer.on(CHAT, ollama("{\"resume\": \"Quarkus 3.40 est une version LTS.\"}"));
+        StubServer.programmer(CHAT, ollama("{\"resume\": \"Quarkus 3.40 est une version LTS.\"}"));
 
-        Api.en("alice").when().post("/api/v1/veille-web/actualites/" + id + "/resume-ia")
+        Api.enTantQue("alice").when().post("/api/v1/veille-web/actualites/" + id + "/resume-ia")
                 .then().statusCode(200)
                 .body("etat", equalTo("DISPONIBLE"))
                 .body("methode", equalTo("IA_V1"))
@@ -239,13 +239,13 @@ class ParcoursIaTest {
         // Un non-membre ne peut ni lire ni faire résumer l'actualité ; le refus est journalisé.
         long refus = baseDeTest.count("SELECT count(*) FROM refus_acces");
         Api.compte("jules");
-        Api.en("jules").when().post("/api/v1/veille-web/actualites/" + id + "/resume-ia").then().statusCode(404);
+        Api.enTantQue("jules").when().post("/api/v1/veille-web/actualites/" + id + "/resume-ia").then().statusCode(404);
         assertEquals(refus + 1, baseDeTest.count("SELECT count(*) FROM refus_acces"));
         assertEquals(1, StubServer.received(CHAT).size());
 
         // Le résumé produit est gardé : une nouvelle demande ne sollicite pas le modèle.
-        StubServer.on(CHAT, Stub.status(503));
-        Api.en("alice").when().post("/api/v1/veille-web/actualites/" + id + "/resume-ia")
+        StubServer.programmer(CHAT, Stub.status(503));
+        Api.enTantQue("alice").when().post("/api/v1/veille-web/actualites/" + id + "/resume-ia")
                 .then().statusCode(200)
                 .body("etat", equalTo("DISPONIBLE"))
                 .body("texte", equalTo("Quarkus 3.40 est une version LTS."))
@@ -257,14 +257,14 @@ class ParcoursIaTest {
     /** Sans IA disponible, ou au-delà du quota du compte, la réponse reprend l'extrait déterministe, sans mention. */
     @Test
     void resumeIaDUneActualiteSansIaOuAuDelaDuQuotaDuCompte() {
-        StubServer.on("/ia/atom2.xml", VeilleWebTest.contenu(VeilleWebTest.ATOM, VeilleWebTest.atom("Blog",
+        StubServer.programmer("/ia/atom2.xml", VeilleWebTest.contenu(VeilleWebTest.ATOM, VeilleWebTest.atom("Blog",
                 VeilleWebTest.entree("Quarkus 3.41", "https://blog.exemple.test/quarkus-341",
                         "Quarkus 3.41 apporte des corrections."))));
         VeilleWebTest.ajouterFlux("alice", "ESPACE", spaceA, "/ia/atom2.xml");
         String id = VeilleWebTest.actualites("alice").extract().path("[0].id");
 
-        StubServer.on(CHAT, Stub.status(503));
-        Api.en("alice").when().post("/api/v1/veille-web/actualites/" + id + "/resume-ia")
+        StubServer.programmer(CHAT, Stub.status(503));
+        Api.enTantQue("alice").when().post("/api/v1/veille-web/actualites/" + id + "/resume-ia")
                 .then().statusCode(200)
                 .body("etat", equalTo("INDISPONIBLE"))
                 .body("methode", equalTo("EXTRAIT_V1"))
@@ -274,9 +274,9 @@ class ParcoursIaTest {
         UUID alice = Api.compte("alice");
         baseDeTest.exec("INSERT INTO ia_quota_jour (jour, portee, appels) VALUES ('" + LocalDate.now(fuseau) + "', 'C"
                 + alice.toString().replace("-", "") + "', 20) ON CONFLICT (jour, portee) DO UPDATE SET appels = 20");
-        StubServer.on(CHAT, ollama("{\"resume\": \"ne doit pas être demandé\"}"));
+        StubServer.programmer(CHAT, ollama("{\"resume\": \"ne doit pas être demandé\"}"));
         int recues = StubServer.received(CHAT).size();
-        Api.en("alice").when().post("/api/v1/veille-web/actualites/" + id + "/resume-ia")
+        Api.enTantQue("alice").when().post("/api/v1/veille-web/actualites/" + id + "/resume-ia")
                 .then().statusCode(200)
                 .body("etat", equalTo("PLAFOND_ATTEINT"))
                 .body("methode", equalTo("EXTRAIT_V1"))
@@ -298,7 +298,7 @@ class ParcoursIaTest {
         List<UUID> impacts = List.of(baseDeTest.uuid("SELECT id FROM project_impact WHERE signal_id = '" + signal + "'"));
         long impactsAvant = baseDeTest.count("SELECT count(*) FROM project_impact");
         StubServer.reset();
-        StubServer.on(CHAT, ollama("{\"projets\": [1, 7], \"justification\": \"Même bibliothèque probable.\"}"));
+        StubServer.programmer(CHAT, ollama("{\"projets\": [1, 7], \"justification\": \"Même bibliothèque probable.\"}"));
 
         assertTrue(analyse.budgetAvailable());
         List<ComplementaryAnalysis.Suggestion> suggestions = analyse.analyze(signal, impacts);

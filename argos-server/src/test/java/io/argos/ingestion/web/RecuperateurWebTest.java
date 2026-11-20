@@ -52,7 +52,7 @@ class RecuperateurWebTest {
         }
     }
 
-    private static RecuperateurWeb.Reponse ok(String corps) {
+    private static RecuperateurWeb.Reponse succes(String corps) {
         return new RecuperateurWeb.Reponse(200, Optional.empty(), Optional.of("application/atom+xml"),
                 new ByteArrayInputStream(corps.getBytes(StandardCharsets.UTF_8)));
     }
@@ -77,7 +77,7 @@ class RecuperateurWebTest {
 
     @Test
     void adressePriveeRefuseeSansAucuneRequete() {
-        TransportSimule transport = new TransportSimule(uri -> ok("jamais"));
+        TransportSimule transport = new TransportSimule(uri -> succes("jamais"));
         RecuperationRefusee refus = assertThrows(RecuperationRefusee.class,
                 () -> recuperateur(transport, 1000).recuperer("http://192.168.1.1/flux"));
         assertEquals(Motif.ADRESSE_INTERDITE, refus.motif());
@@ -97,7 +97,7 @@ class RecuperateurWebTest {
     @Test
     void redirectionPubliqueSuivieEtNombreDeRedirectionsBorne() {
         TransportSimule suivie = new TransportSimule(uri -> uri.getHost().equals("flux.exemple.test")
-                ? redirection("https://autre.exemple.test/flux") : ok("<feed/>"));
+                ? redirection("https://autre.exemple.test/flux") : succes("<feed/>"));
         RecuperateurWeb.Contenu contenu = recuperateur(suivie, 1000).recuperer("https://flux.exemple.test/");
         assertEquals(URI.create("https://autre.exemple.test/flux"), contenu.adresseFinale());
         assertArrayEquals("<feed/>".getBytes(StandardCharsets.UTF_8), contenu.octets());
@@ -115,7 +115,7 @@ class RecuperateurWebTest {
         assertEquals(Motif.DELAI_DEPASSE, assertThrows(RecuperationRefusee.class,
                 () -> recuperateur(lent, 1000).recuperer("https://flux.exemple.test/")).motif());
 
-        TransportSimule gros = new TransportSimule(uri -> ok("x".repeat(5000)));
+        TransportSimule gros = new TransportSimule(uri -> succes("x".repeat(5000)));
         assertEquals(Motif.CONTENU_TROP_VOLUMINEUX, assertThrows(RecuperationRefusee.class,
                 () -> recuperateur(gros, 1000).recuperer("https://flux.exemple.test/")).motif());
     }

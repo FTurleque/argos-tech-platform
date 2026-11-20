@@ -72,15 +72,15 @@ class ParcoursReglementaireTest {
     @Test
     void decretCollecteQualifiePrepareCorrigeValideEtDiffuse() {
         String urlEspace = "/api/v1/reglementaire/espaces/" + espace;
-        Api.en("hugo").contentType(ContentType.JSON).body(Map.of("libelle", "Carrière"))
+        Api.enTantQue("hugo").contentType(ContentType.JSON).body(Map.of("libelle", "Carrière"))
                 .when().put(urlEspace + "/domaines/carriere").then().statusCode(200);
-        Api.en("hugo").contentType(ContentType.JSON)
+        Api.enTantQue("hugo").contentType(ContentType.JSON)
                 .body(Map.of("regles", List.of(Map.of("type", "CODE", "valeur", "LEGITEXT000044416551"))))
                 .when().put(urlEspace + "/domaines/carriere/regles").then().statusCode(200);
-        Api.en("hugo").contentType(ContentType.JSON).body(Map.of("comptes", List.of(ines.toString())))
+        Api.enTantQue("hugo").contentType(ContentType.JSON).body(Map.of("comptes", List.of(ines.toString())))
                 .when().put(urlEspace + "/domaines/carriere/experts").then().statusCode(200);
         ReglementaireFixtures.servirArchives(ReglementaireFixtures.archiveDu20(), ReglementaireFixtures.archiveDu21());
-        StubServer.on(VeilleReglementaireTest.CHAT, ollama(
+        StubServer.programmer(VeilleReglementaireTest.CHAT, ollama(
                 "{\"resume\": \"Le décret modifie les règles d'avancement de grade.\", \"dateEffet\": \"2027-01-01\"}"));
 
         // 1. Collecte du décret de test et rattachement au domaine par le dictionnaire.
@@ -90,28 +90,28 @@ class ParcoursReglementaireTest {
                 "seul le décret relève du dictionnaire ; la proposition IA pour l arrêté est non conforme au schéma");
 
         // 2. Fiche préparée par l'IA, en attente : visible de l'experte seule, ni en REST ni en MCP pour jules.
-        String id = Api.en("ines").when().get("/api/v1/reglementaire/fiches").then().statusCode(200)
+        String id = Api.enTantQue("ines").when().get("/api/v1/reglementaire/fiches").then().statusCode(200)
                 .body("$", hasSize(1))
                 .body("[0].texte.identifiant", equalTo(VeilleReglementaireTest.CARRIERE))
                 .body("[0].domaines[0].code", equalTo("carriere"))
                 .body("[0].mentionIa", equalTo("produit par l'IA"))
                 .body("[0].etatValidation", equalTo("EN_ATTENTE_VALIDATION"))
                 .extract().path("[0].id");
-        Api.en("jules").when().get("/api/v1/reglementaire/fiches").then().statusCode(200).body("$", hasSize(0));
+        Api.enTantQue("jules").when().get("/api/v1/reglementaire/fiches").then().statusCode(200).body("$", hasSize(0));
         assertEquals(0, (int) Mcp.appeler("jules", "get_regulatory_changes", Map.of()).path("result.structuredContent.nombre"));
 
         // 3. L'experte corrige la date d'effet, puis valide.
-        Api.en("ines").contentType(ContentType.JSON).body(Map.of("dateEffet", "2027-02-01"))
+        Api.enTantQue("ines").contentType(ContentType.JSON).body(Map.of("dateEffet", "2027-02-01"))
                 .when().put("/api/v1/reglementaire/fiches/" + id).then().statusCode(200);
-        Api.en("ines").when().post("/api/v1/reglementaire/fiches/" + id + "/validation").then().statusCode(200)
+        Api.enTantQue("ines").when().post("/api/v1/reglementaire/fiches/" + id + "/validation").then().statusCode(200)
                 .body("etatValidation", equalTo("VALIDEE"));
 
         // 4. Visible d'un utilisateur du domaine par l'API REST, avec sa mention de validation et l'historique.
-        Api.en("jules").when().get("/api/v1/reglementaire/fiches?domaine=carriere").then().statusCode(200)
+        Api.enTantQue("jules").when().get("/api/v1/reglementaire/fiches?domaine=carriere").then().statusCode(200)
                 .body("$", hasSize(1))
                 .body("[0].dateEffet", equalTo("2027-02-01"))
                 .body("[0].mentionValidation", equalTo("validée par l'expert métier"));
-        Api.en("jules").when().get("/api/v1/reglementaire/fiches/" + id).then().statusCode(200)
+        Api.enTantQue("jules").when().get("/api/v1/reglementaire/fiches/" + id).then().statusCode(200)
                 .body("historique.action", org.hamcrest.Matchers.contains("PREPARATION", "CORRECTION", "VALIDATION"));
 
         // 5. Visible par le serveur MCP, avec les garde-fous du profil expert-metier.

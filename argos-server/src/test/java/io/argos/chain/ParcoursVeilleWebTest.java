@@ -65,7 +65,7 @@ class ParcoursVeilleWebTest {
 
         // 1. Ajout d'un flux d'espace par l'administrateur : la source est créée, ses articles apparaissent.
         String commun = entree("Angular 19", "https://blog.exemple.test/angular-19", "Sortie d'Angular 19.");
-        StubServer.on("/equipe.xml", contenu(ATOM, atom("Flux équipe", commun,
+        StubServer.programmer("/equipe.xml", contenu(ATOM, atom("Flux équipe", commun,
                 entree("Note", "https://exemple.test/piege", PIEGE))));
         ajouter("karim", source("ESPACE", espace, "FLUX", StubServer.base() + "/equipe.xml")).statusCode(201);
 
@@ -74,25 +74,25 @@ class ParcoursVeilleWebTest {
                 .body("code", equalTo("ADRESSE_INTERDITE"));
 
         // 3. Le même article par un second flux (personnel) : restitué une fois, avec les deux sources.
-        StubServer.on("/perso.xml", contenu(ATOM, atom("Flux perso", commun)));
+        StubServer.programmer("/perso.xml", contenu(ATOM, atom("Flux perso", commun)));
         ajouter("karim", source("PERSONNELLE", null, "FLUX", StubServer.base() + "/perso.xml")).statusCode(201);
-        ValidatableResponse liste = Api.en("karim").when().get("/api/v1/veille-web/actualites").then().statusCode(200)
+        ValidatableResponse liste = Api.enTantQue("karim").when().get("/api/v1/veille-web/actualites").then().statusCode(200)
                 .body("", hasSize(2))
                 .body("find { it.titre == 'Angular 19' }.sources", hasSize(2));
         // Un lecteur de l'espace voit l'article, mais pas la source personnelle de karim.
-        Api.en("nina").when().get("/api/v1/veille-web/actualites").then().statusCode(200)
+        Api.enTantQue("nina").when().get("/api/v1/veille-web/actualites").then().statusCode(200)
                 .body("", hasSize(2))
                 .body("find { it.titre == 'Angular 19' }.sources", hasSize(1))
                 .body("find { it.titre == 'Angular 19' }.sources[0].libelle", equalTo("Flux équipe"));
 
         // 4. Article piégé : cité comme donnée non fiable, aucun impact modifié ; Angular rapproché « à vérifier ».
         String piege = liste.extract().path("find { it.titre == 'Note' }.id");
-        Api.en("nina").when().get("/api/v1/veille-web/actualites/" + piege).then().statusCode(200)
+        Api.enTantQue("nina").when().get("/api/v1/veille-web/actualites/" + piege).then().statusCode(200)
                 .body("resume.extrait.texte", containsString(PIEGE))
                 .body("resume.extrait.fiable", equalTo(false))
                 .body("rapprochements", hasSize(0));
         String angular = liste.extract().path("find { it.titre == 'Angular 19' }.id");
-        Api.en("nina").when().get("/api/v1/veille-web/actualites/" + angular).then().statusCode(200)
+        Api.enTantQue("nina").when().get("/api/v1/veille-web/actualites/" + angular).then().statusCode(200)
                 .body("rapprochements[0].niveau", equalTo("A_VERIFIER"));
         assertEquals(0, baseDeTest.count("SELECT count(*) FROM project_impact"));
         assertEquals(2, baseDeTest.count("SELECT count(*) FROM source_web"));
@@ -100,7 +100,7 @@ class ParcoursVeilleWebTest {
 
     @Test
     void contratOpenApiPublie() {
-        ValidatableResponse contrat = Api.en("alice").queryParam("format", "json").when().get("/q/openapi").then()
+        ValidatableResponse contrat = Api.enTantQue("alice").queryParam("format", "json").when().get("/q/openapi").then()
                 .statusCode(200);
         operation(contrat, "/api/v1/veille-web/sources", "post", "201", "400", "401", "403", "404", "409");
         operation(contrat, "/api/v1/veille-web/sources", "get", "200", "401");

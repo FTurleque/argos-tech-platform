@@ -1,6 +1,6 @@
 package io.argos.api.comptes;
 
-import static io.argos.testsupport.Api.en;
+import static io.argos.testsupport.Api.enTantQue;
 import static org.hamcrest.Matchers.equalTo;
 import static org.hamcrest.Matchers.hasItem;
 import static org.hamcrest.Matchers.not;
@@ -46,19 +46,19 @@ class CloisonnementTest {
         Api.inviter("alice", espaceB, "secret-b@argos.test", "LECTEUR");
         Api.ajouterMembre("alice", espaceA, "frank", "CONTRIBUTEUR");
 
-        en("frank").when().get("/api/v1/espaces/" + espaceA).then().statusCode(200);
+        enTantQue("frank").when().get("/api/v1/espaces/" + espaceA).then().statusCode(200);
         for (String chemin : List.of("", "/membres", "/invitations")) {
-            en("frank").when().get("/api/v1/espaces/" + espaceB + chemin)
+            enTantQue("frank").when().get("/api/v1/espaces/" + espaceB + chemin)
                     .then().statusCode(404)
                     .body("code", equalTo("INTROUVABLE"))
                     .body(not(containsString("confidentiel")))
                     .body(not(containsString("secret-b")));
         }
-        en("frank").contentType(ContentType.JSON).body(Map.of("email", "x@argos.test", "role", "LECTEUR"))
+        enTantQue("frank").contentType(ContentType.JSON).body(Map.of("email", "x@argos.test", "role", "LECTEUR"))
                 .when().post("/api/v1/espaces/" + espaceB + "/invitations").then().statusCode(404);
-        en("frank").when().get("/api/v1/espaces").then().statusCode(200).body("id", not(hasItem(espaceB)));
+        enTantQue("frank").when().get("/api/v1/espaces").then().statusCode(200).body("id", not(hasItem(espaceB)));
         // Un espace inexistant répond comme un espace d'autrui (Q-4).
-        en("frank").when().get("/api/v1/espaces/" + UUID.randomUUID()).then().statusCode(404);
+        enTantQue("frank").when().get("/api/v1/espaces/" + UUID.randomUUID()).then().statusCode(404);
     }
 
     /** ACC-04-S2 : sous le rôle applicatif, une requête sans espace courant ne renvoie aucune ligne. */

@@ -95,7 +95,7 @@ class ScmContractTest {
 
     @Test
     void gitlabArtefactCycloneDxDuJobEtJetonPrivateToken() {
-        StubServer.on(GITLAB_SBOM, fixture(200, "scm/gitlab/gl-sbom-npm-npm.cdx.json", Map.of("Content-Type", "application/json")));
+        StubServer.programmer(GITLAB_SBOM, fixture(200, "scm/gitlab/gl-sbom-npm-npm.cdx.json", Map.of("Content-Type", "application/json")));
 
         SbomDocument sbom = avecJetons(1_048_576).latestSbom(GITLAB).orElseThrow();
 
@@ -109,9 +109,9 @@ class ScmContractTest {
 
     @Test
     void gitlabFichierBrutEt404Absent() {
-        StubServer.on("/gitlab/api/v4/projects/groupe%2Ffront/repository/files/package.json/raw?ref=main",
+        StubServer.programmer("/gitlab/api/v4/projects/groupe%2Ffront/repository/files/package.json/raw?ref=main",
                 fixture(200, "scm/gitlab/manifeste-package.json", Map.of("Content-Type", "text/plain; charset=utf-8")));
-        StubServer.on("/gitlab/api/v4/projects/groupe%2Ffront/repository/files/requirements.txt/raw?ref=main",
+        StubServer.programmer("/gitlab/api/v4/projects/groupe%2Ffront/repository/files/requirements.txt/raw?ref=main",
                 fixture(404, "scm/gitlab/404-file.json", Map.of("Content-Type", "application/json")));
 
         assertEquals(Fixtures.resource("scm/gitlab/manifeste-package.json"),
@@ -128,7 +128,7 @@ class ScmContractTest {
 
     @Test
     void githubContenuBrutAvecJetonBearer() {
-        StubServer.on(GITHUB_SBOM, fixture(200, "scm/gitlab/gl-sbom-npm-npm.cdx.json", Map.of()));
+        StubServer.programmer(GITHUB_SBOM, fixture(200, "scm/gitlab/gl-sbom-npm-npm.cdx.json", Map.of()));
 
         SbomDocument sbom = avecJetons(1_048_576).latestSbom(GITHUB).orElseThrow();
 
@@ -141,27 +141,27 @@ class ScmContractTest {
 
     @Test
     void githubSpdxEtCycloneDxXmlReconnus() {
-        StubServer.on(GITHUB_SBOM, fixture(200, "scm/github/dependency-graph-sbom.json", Map.of()));
+        StubServer.programmer(GITHUB_SBOM, fixture(200, "scm/github/dependency-graph-sbom.json", Map.of()));
         assertEquals(SbomDocument.Format.SPDX_JSON, repositoryFiles.latestSbom(GITHUB).orElseThrow().format());
 
-        StubServer.on(GITHUB_SBOM, fixture(200, "scm/github/bom.cdx.xml", Map.of()));
+        StubServer.programmer(GITHUB_SBOM, fixture(200, "scm/github/bom.cdx.xml", Map.of()));
         assertEquals(SbomDocument.Format.CYCLONEDX_XML, repositoryFiles.latestSbom(GITHUB).orElseThrow().format());
 
-        StubServer.on(GITHUB_SBOM, Stub.ok("SPDXVersion: SPDX-2.3\nDataLicense: CC0-1.0\n"));
+        StubServer.programmer(GITHUB_SBOM, Stub.succes("SPDXVersion: SPDX-2.3\nDataLicense: CC0-1.0\n"));
         assertEquals(SbomDocument.Format.SPDX_TAG_VALUE, repositoryFiles.latestSbom(GITHUB).orElseThrow().format());
 
-        StubServer.on(GITHUB_SBOM, Stub.ok("{\"name\":\"pas une SBOM\"}"));
+        StubServer.programmer(GITHUB_SBOM, Stub.succes("{\"name\":\"pas une SBOM\"}"));
         assertEquals(SbomDocument.Format.INCONNU, repositoryFiles.latestSbom(GITHUB).orElseThrow().format());
     }
 
     @Test
     void github404AbsentEt403QuotaEpuise() {
-        StubServer.on(GITHUB_SBOM, fixture(404, "scm/github/404.json", Map.of("Content-Type", "application/json")));
-        StubServer.on("/github/repos/org/app", Stub.ok("{\"full_name\":\"org/app\"}"));
+        StubServer.programmer(GITHUB_SBOM, fixture(404, "scm/github/404.json", Map.of("Content-Type", "application/json")));
+        StubServer.programmer("/github/repos/org/app", Stub.succes("{\"full_name\":\"org/app\"}"));
         assertTrue(repositoryFiles.latestSbom(GITHUB).isEmpty(), "404 GitHub sur un dépôt existant : SBOM absente");
 
         long reset = Instant.now().plusSeconds(900).getEpochSecond();
-        StubServer.on(GITHUB_SBOM, fixture(403, "scm/github/403-rate-limit.json",
+        StubServer.programmer(GITHUB_SBOM, fixture(403, "scm/github/403-rate-limit.json",
                 Map.of("x-ratelimit-remaining", "0", "x-ratelimit-reset", Long.toString(reset))));
         QuotaEpuise quota = assertThrows(QuotaEpuise.class, () -> repositoryFiles.latestSbom(GITHUB));
         assertEquals(reset, quota.reprise().getEpochSecond());
@@ -169,7 +169,7 @@ class ScmContractTest {
 
     @Test
     void redirectionNonSuivieEtJetonAbsentDuMessage() {
-        StubServer.on(GITHUB_SBOM, new Stub(302, "", Map.of("Location", StubServer.base() + "/ailleurs/bom.json"), 0));
+        StubServer.programmer(GITHUB_SBOM, new Stub(302, "", Map.of("Location", StubServer.base() + "/ailleurs/bom.json"), 0));
 
         ScmException erreur = assertThrows(ScmException.class, () -> avecJetons(1_048_576).latestSbom(GITHUB));
 
@@ -180,7 +180,7 @@ class ScmContractTest {
 
     @Test
     void reponseAuDelaDeLaTailleMaximaleRefusee() {
-        StubServer.on(GITHUB_SBOM, fixture(200, "scm/gitlab/gl-sbom-npm-npm.cdx.json", Map.of()));
+        StubServer.programmer(GITHUB_SBOM, fixture(200, "scm/gitlab/gl-sbom-npm-npm.cdx.json", Map.of()));
         ScmException erreur = assertThrows(ScmException.class, () -> avecJetons(64).latestSbom(GITHUB));
         assertTrue(erreur.getMessage().contains("taille maximale"));
     }
@@ -188,7 +188,7 @@ class ScmContractTest {
     @Test
     void cheminsHostilesNeSortentPasDuDepot() {
         RepositoryRef hostile = new RepositoryRef("GITHUB", "org/app", "main", null, "../../../orgs/x/../bom.json");
-        StubServer.on("/github/repos/org/app/contents/orgs/x/bom.json?ref=main", Stub.ok("{}"));
+        StubServer.programmer("/github/repos/org/app/contents/orgs/x/bom.json?ref=main", Stub.succes("{}"));
         assertTrue(repositoryFiles.latestSbom(hostile).isPresent());
 
         assertThrows(ScmException.class,
@@ -202,13 +202,13 @@ class ScmContractTest {
     void inventaireDepuisGitlabAvecTransitivite() {
         UUID espace = Api.nouvelEspace("alice", "Équipe A");
         UUID projet = projects.create(espace, "front", GITLAB, List.of("package.json"));
-        StubServer.on(GITLAB_SBOM, fixture(200, "scm/gitlab/gl-sbom-npm-npm.cdx.json", Map.of()));
+        StubServer.programmer(GITLAB_SBOM, fixture(200, "scm/gitlab/gl-sbom-npm-npm.cdx.json", Map.of()));
 
         InventoryService.ImportResult resultat = inventories.refresh(projet);
 
         assertEquals("IMPORTED", resultat.status());
         assertEquals("SBOM", resultat.origin());
-        Api.en("alice").when().get("/api/v1/projects/" + projet + "/inventory")
+        Api.enTantQue("alice").when().get("/api/v1/projects/" + projet + "/inventory")
                 .then().statusCode(200)
                 .body("inventory.origin", equalTo("SBOM"))
                 .body("inventory.sourceDate", equalTo("2026-11-15T06:12:44Z"))
@@ -221,24 +221,24 @@ class ScmContractTest {
     void sbomSpdxRefuseeAvecMotifEtInventaireConserve() {
         UUID espace = Api.nouvelEspace("alice", "Équipe A");
         UUID projet = projects.create(espace, "app", GITHUB, List.of("requirements.txt"));
-        StubServer.on(GITHUB_SBOM, fixture(404, "scm/github/404.json", Map.of()));
-        StubServer.on("/github/repos/org/app", Stub.ok("{\"full_name\":\"org/app\"}"));
-        StubServer.on("/github/repos/org/app/contents/requirements.txt?ref=main",
+        StubServer.programmer(GITHUB_SBOM, fixture(404, "scm/github/404.json", Map.of()));
+        StubServer.programmer("/github/repos/org/app", Stub.succes("{\"full_name\":\"org/app\"}"));
+        StubServer.programmer("/github/repos/org/app/contents/requirements.txt?ref=main",
                 fixture(200, "scm/github/requirements.txt", Map.of()));
 
         InventoryService.ImportResult repli = inventories.refresh(projet);
         assertEquals("MANIFEST", repli.origin());
 
-        StubServer.on(GITHUB_SBOM, fixture(200, "scm/github/dependency-graph-sbom.json", Map.of()));
+        StubServer.programmer(GITHUB_SBOM, fixture(200, "scm/github/dependency-graph-sbom.json", Map.of()));
         InventoryService.ImportResult refus = inventories.refresh(projet);
 
         assertEquals("REJECTED", refus.status());
         assertTrue(refus.reason().contains("SPDX JSON"));
-        Api.en("alice").when().get("/api/v1/projects/" + projet + "/inventory/failures")
+        Api.enTantQue("alice").when().get("/api/v1/projects/" + projet + "/inventory/failures")
                 .then().statusCode(200)
                 .body("[0].reason", containsString("SPDX JSON non acceptée"))
                 .body("[0].sourceRef", equalTo("GITHUB:org/app@main"));
-        Api.en("alice").when().get("/api/v1/projects/" + projet + "/inventory")
+        Api.enTantQue("alice").when().get("/api/v1/projects/" + projet + "/inventory")
                 .then().statusCode(200)
                 .body("inventory.origin", equalTo("MANIFEST"))
                 .body("inventory.components", hasSize(2));
@@ -247,7 +247,7 @@ class ScmContractTest {
     @Test
     void contenuServiTelQuel() {
         byte[] octets = Fixtures.resource("scm/github/bom.cdx.xml").getBytes(StandardCharsets.UTF_8);
-        StubServer.on(GITHUB_SBOM, Stub.octets(octets));
+        StubServer.programmer(GITHUB_SBOM, Stub.octets(octets));
         assertArrayEquals(octets, repositoryFiles.latestSbom(GITHUB).orElseThrow().contenu());
     }
 

@@ -63,7 +63,7 @@ class CollecteWebTest {
     }
 
     private static UUID ajouterPage(String user, String chemin) {
-        return UUID.fromString(Api.en(user).contentType(ContentType.JSON)
+        return UUID.fromString(Api.enTantQue(user).contentType(ContentType.JSON)
                 .body(Map.of("portee", "PERSONNELLE", "type", "PAGE", "adresse", StubServer.base() + chemin))
                 .when().post("/api/v1/veille-web/sources").then().statusCode(201).extract().path("id"));
     }
@@ -81,9 +81,9 @@ class CollecteWebTest {
      */
     @Test
     void collecteDUneMemeSourceSerialisee() throws Exception {
-        StubServer.on("/course", new Stub(200, page("Version 1.0"), Map.of("Content-Type", HTML), 0));
+        StubServer.programmer("/course", new Stub(200, page("Version 1.0"), Map.of("Content-Type", HTML), 0));
         UUID id = ajouterPage("alice", "/course");
-        StubServer.on("/course", new Stub(200, page("Version 1.1"), Map.of("Content-Type", HTML), 600));
+        StubServer.programmer("/course", new Stub(200, page("Version 1.1"), Map.of("Content-Type", HTML), 600));
         rendreEchue(id);
 
         int requetes = StubServer.received("/course").size();
@@ -93,7 +93,7 @@ class CollecteWebTest {
 
         RegleViolee refus = assertThrows(RegleViolee.class, () -> collecte.collecter(id));
         assertEquals("COLLECTE_EN_COURS", refus.code());
-        Api.en("alice").when().post("/api/v1/veille-web/sources/" + id + "/collectes").then()
+        Api.enTantQue("alice").when().post("/api/v1/veille-web/sources/" + id + "/collectes").then()
                 .statusCode(409).body("code", equalTo("COLLECTE_EN_COURS"));
         assertEquals(List.of(), collecte.collecterSourcesEchues(), "source en cours ignorée par le planificateur");
 
@@ -108,7 +108,7 @@ class CollecteWebTest {
     /** Le planificateur ne collecte que les sources échues ; une collecte repousse l'échéance. */
     @Test
     void planificateurNeCollecteQueLesSourcesEchues() {
-        StubServer.on("/echeance", new Stub(200, page("A"), Map.of("Content-Type", HTML), 0));
+        StubServer.programmer("/echeance", new Stub(200, page("A"), Map.of("Content-Type", HTML), 0));
         UUID id = ajouterPage("alice", "/echeance");
         assertEquals(List.of(), collecte.collecterSourcesEchues());
         rendreEchue(id);
@@ -132,7 +132,7 @@ class CollecteWebTest {
     @Test
     void passageBorneEnNombreEtEnDuree() {
         for (int indice = 0; indice < 3; indice++) {
-            StubServer.on("/borne" + indice, new Stub(200, page("B" + indice), Map.of("Content-Type", HTML), 0));
+            StubServer.programmer("/borne" + indice, new Stub(200, page("B" + indice), Map.of("Content-Type", HTML), 0));
             rendreEchue(ajouterPage("alice", "/borne" + indice));
         }
         CollecteWeb instance = ClientProxy.unwrap(collecte);
@@ -205,17 +205,17 @@ class CollecteWebTest {
     /** Une même adresse écrite autrement (casse, fragment) ne contourne pas l'unicité. */
     @Test
     void uniciteSurLAdresseCanonique() {
-        StubServer.on("/unique.xml", new Stub(200, """
+        StubServer.programmer("/unique.xml", new Stub(200, """
                 <?xml version="1.0" encoding="utf-8"?>
                 <feed xmlns="http://www.w3.org/2005/Atom"><title>U</title><id>urn:u</id><updated>2026-11-15T10:00:00Z</updated></feed>
                 """, Map.of("Content-Type", "application/atom+xml"), 0));
         String base = StubServer.base();
         String variante = base.replace("http://localhost", "HTTP://LOCALHOST") + "/unique.xml#haut";
-        Api.en("alice").contentType(ContentType.JSON)
+        Api.enTantQue("alice").contentType(ContentType.JSON)
                 .body(Map.of("portee", "PERSONNELLE", "type", "FLUX", "adresse", base + "/unique.xml"))
                 .when().post("/api/v1/veille-web/sources").then().statusCode(201)
                 .body("adresse", equalTo(base + "/unique.xml"));
-        Api.en("alice").contentType(ContentType.JSON)
+        Api.enTantQue("alice").contentType(ContentType.JSON)
                 .body(Map.of("portee", "PERSONNELLE", "type", "FLUX", "adresse", variante))
                 .when().post("/api/v1/veille-web/sources").then().statusCode(409).body("code", equalTo("SOURCE_EXISTANTE"));
         assertTrue(baseDeTest.count("SELECT count(*) FROM source_web") == 1);

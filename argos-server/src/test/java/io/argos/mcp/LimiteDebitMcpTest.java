@@ -74,11 +74,11 @@ class LimiteDebitMcpTest {
     void initialisationsLimitees() {
         Api.assurerCompte("nina");
         for (int tentative = 0; tentative < 3; tentative++) {
-            ExtractableResponse<Response> acceptee = Mcp.initialiser(Api.en("nina"), "2025-06-18");
+            ExtractableResponse<Response> acceptee = Mcp.initialiser(Api.enTantQue("nina"), "2025-06-18");
             assertEquals(200, acceptee.statusCode(), acceptee.asString());
             assertNotNull(acceptee.path("result.protocolVersion"), acceptee.asString());
         }
-        ExtractableResponse<Response> refus = Mcp.initialiser(Api.en("nina"), "2025-06-18");
+        ExtractableResponse<Response> refus = Mcp.initialiser(Api.enTantQue("nina"), "2025-06-18");
         assertNull(refus.path("result"), refus.asString());
         assertTrue(refus.asString().contains("LIMITE_DEBIT"), refus.asString());
         assertNull(refus.header("Mcp-Session-Id"), "aucune session ouverte au-delà de la limite");

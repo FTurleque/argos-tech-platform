@@ -62,7 +62,7 @@ class ParcoursRadarTest {
         String base = "/api/v1/radar/espaces/" + espace;
 
         // 1. Référentiel : PostgreSQL en ADOPT 17, relié au produit endoflife.date « postgresql ».
-        Api.en("lina").contentType(ContentType.JSON).body(Map.of("cle", POSTGRES, "libelle", "PostgreSQL",
+        Api.enTantQue("lina").contentType(ContentType.JSON).body(Map.of("cle", POSTGRES, "libelle", "PostgreSQL",
                 "statut", "ADOPT", "versionRecommandee", "17", "responsable", "DBA",
                 "justification", "Version supportée la plus récente", "dateRevue", "2027-06-30",
                 "produitCycleVie", "postgresql")).put(base + "/standards").then().statusCode(200);
@@ -83,15 +83,15 @@ class ParcoursRadarTest {
         assertEquals(2, bilan.rappels().size());
 
         // 4. Restitution au membre lecteur : radar, dette, rappel.
-        Api.en("karim").queryParam("horizon", "30j").get(base + "/echeances").then().statusCode(200)
+        Api.enTantQue("karim").queryParam("horizon", "30j").get(base + "/echeances").then().statusCode(200)
                 .body("echeances", hasSize(1))
                 .body("echeances[0].nature", equalTo("FIN_DE_SUPPORT"))
                 .body("echeances[0].version", equalTo("14"))
                 .body("echeances[0].date", equalTo(aujourdhui.toString()));
-        Api.en("karim").get(base + "/dettes").then().statusCode(200)
+        Api.enTantQue("karim").get(base + "/dettes").then().statusCode(200)
                 .body("$", hasSize(1)).body("[0].projet", equalTo("Portail agent"))
                 .body("[0].versionStandard", equalTo("17"));
-        Api.en("karim").get("/api/v1/alertes").then().statusCode(200)
+        Api.enTantQue("karim").get("/api/v1/alertes").then().statusCode(200)
                 .body("findAll { it.nature == 'RAPPEL' }", hasSize(1))
                 .body("find { it.nature == 'RAPPEL' }.titre",
                         equalTo("Fin de support de PostgreSQL 14 aujourd'hui (" + aujourdhui + ")"))

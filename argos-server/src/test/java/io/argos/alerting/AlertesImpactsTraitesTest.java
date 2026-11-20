@@ -106,14 +106,14 @@ class AlertesImpactsTraitesTest {
     }
 
     private static void regle(String utilisateur, String canal, String frequence) {
-        Api.en(utilisateur).contentType(ContentType.JSON)
+        Api.enTantQue(utilisateur).contentType(ContentType.JSON)
                 .body("{\"scope\":\"PERSONAL\",\"filters\":" + HAUTE + ",\"channel\":\"" + canal + "\",\"frequency\":\""
                         + frequence + "\",\"mandatory\":false}")
                 .when().post("/api/v1/subscriptions").then().statusCode(201);
     }
 
     private static void transition(String utilisateur, UUID impact, Map<String, String> corps) {
-        Api.en(utilisateur).contentType(ContentType.JSON).body(corps)
+        Api.enTantQue(utilisateur).contentType(ContentType.JSON).body(corps)
                 .when().post("/api/v1/impacts/" + impact + "/transitions").then().statusCode(200);
     }
 
@@ -136,7 +136,7 @@ class AlertesImpactsTraitesTest {
         transition("karim", impact, Map.of("vers", "ECARTE", "motif", "Bibliothèque non chargée en production"));
 
         assertEquals(1, alertes("canal = 'DESKTOP' AND etat = 'ANNULEE'"));
-        Api.en("jules").queryParam("canal", "DESKTOP").queryParam("etat", "EN_ATTENTE")
+        Api.enTantQue("jules").queryParam("canal", "DESKTOP").queryParam("etat", "EN_ATTENTE")
                 .when().get("/api/v1/alertes").then().statusCode(200).body("$", empty());
 
         // Rouvert par un contributeur puis recorrélé : l'impact redevient éligible (ALR-07, ALR-01).

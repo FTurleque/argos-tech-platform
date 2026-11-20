@@ -61,18 +61,18 @@ class ActiviteDepotCaracterisationTest {
     }
 
     private static void githubVide() {
-        StubServer.on(DEPOT_GITHUB + "/issues", Stub.ok("[]"));
-        StubServer.on(DEPOT_GITHUB + "/actions/runs", Stub.ok("{\"workflow_runs\":[]}"));
-        StubServer.on(DEPOT_GITHUB + "/releases", Stub.ok("[]"));
-        StubServer.on(DEPOT_GITHUB + "/milestones", Stub.ok("[]"));
+        StubServer.programmer(DEPOT_GITHUB + "/issues", Stub.succes("[]"));
+        StubServer.programmer(DEPOT_GITHUB + "/actions/runs", Stub.succes("{\"workflow_runs\":[]}"));
+        StubServer.programmer(DEPOT_GITHUB + "/releases", Stub.succes("[]"));
+        StubServer.programmer(DEPOT_GITHUB + "/milestones", Stub.succes("[]"));
     }
 
     private static void gitlabVide() {
-        StubServer.on(PROJET_GITLAB + "/issues", Stub.ok("[]"));
-        StubServer.on(PROJET_GITLAB + "/merge_requests", Stub.ok("[]"));
-        StubServer.on(PROJET_GITLAB + "/pipelines", Stub.ok("[]"));
-        StubServer.on(PROJET_GITLAB + "/releases", Stub.ok("[]"));
-        StubServer.on(PROJET_GITLAB + "/milestones", Stub.ok("[]"));
+        StubServer.programmer(PROJET_GITLAB + "/issues", Stub.succes("[]"));
+        StubServer.programmer(PROJET_GITLAB + "/merge_requests", Stub.succes("[]"));
+        StubServer.programmer(PROJET_GITLAB + "/pipelines", Stub.succes("[]"));
+        StubServer.programmer(PROJET_GITLAB + "/releases", Stub.succes("[]"));
+        StubServer.programmer(PROJET_GITLAB + "/milestones", Stub.succes("[]"));
     }
 
     private static List<String> requetes(String prefixe) {
@@ -81,11 +81,11 @@ class ActiviteDepotCaracterisationTest {
 
     @Test
     void githubConversionEtOrdreDesRequetes() {
-        StubServer.on(DEPOT_GITHUB + "/issues", Stub.ok("""
+        StubServer.programmer(DEPOT_GITHUB + "/issues", Stub.succes("""
                 [{"created_at":"2026-01-05T10:00:00Z","closed_at":"2026-01-06T10:00:00Z"},
                  {"created_at":"2026-01-07T10:00:00Z","closed_at":null,"pull_request":{"merged_at":"2026-01-08T10:00:00Z"}},
                  {"created_at":"pas une date","closed_at":""}]"""));
-        StubServer.on(DEPOT_GITHUB + "/actions/runs", Stub.ok("""
+        StubServer.programmer(DEPOT_GITHUB + "/actions/runs", Stub.succes("""
                 {"workflow_runs":[{"created_at":"2026-01-02T00:00:00Z","conclusion":"success"},
                   {"created_at":"2026-01-02T00:00:00Z","conclusion":"timed_out"},
                   {"created_at":"2026-01-02T00:00:00Z","conclusion":"STARTUP_FAILURE"},
@@ -93,10 +93,10 @@ class ActiviteDepotCaracterisationTest {
                   {"created_at":"2026-01-02T00:00:00Z","conclusion":null},
                   {"created_at":"2025-12-31T23:59:59Z","conclusion":"success"},
                   {"created_at":null,"conclusion":"success"}]}"""));
-        StubServer.on(DEPOT_GITHUB + "/releases", Stub.ok("""
+        StubServer.programmer(DEPOT_GITHUB + "/releases", Stub.succes("""
                 [{"published_at":"2026-01-03T00:00:00Z","draft":false},{"published_at":"2026-01-04T00:00:00Z","draft":true},
                  {"published_at":"2025-06-01T00:00:00Z","draft":false},{"published_at":null,"draft":false}]"""));
-        StubServer.on(DEPOT_GITHUB + "/milestones", Stub.ok("""
+        StubServer.programmer(DEPOT_GITHUB + "/milestones", Stub.succes("""
                 [{"number":7,"title":"  v1.0\\u0007 ","state":"OPEN","due_on":"2026-12-01T08:00:00Z","open_issues":3,"closed_issues":27},
                  {"number":8,"title":"","state":"closed","closed_at":"2026-01-10T00:00:00Z","open_issues":-1,"closed_issues":-4},
                  {"number":9,"title":"vieux","state":"closed","closed_at":"2025-01-10T00:00:00Z"},
@@ -125,7 +125,7 @@ class ActiviteDepotCaracterisationTest {
     @Test
     void githubTicketsTronquesAuNombreMaximalDePages() {
         githubVide();
-        StubServer.on(DEPOT_GITHUB + "/issues", Stub.ok(repete(100, "{\"created_at\":\"2026-01-05T10:00:00Z\"}")));
+        StubServer.programmer(DEPOT_GITHUB + "/issues", Stub.succes(repete(100, "{\"created_at\":\"2026-01-05T10:00:00Z\"}")));
 
         ActiviteDepot lecture = github(activite(2, 50));
 
@@ -137,8 +137,8 @@ class ActiviteDepotCaracterisationTest {
     @Test
     void githubExecutionsTronqueesAuNombreMaximalDePages() {
         githubVide();
-        StubServer.on(DEPOT_GITHUB + "/actions/runs",
-                Stub.ok("{\"workflow_runs\":" + repete(100, "{\"created_at\":\"2026-01-05T10:00:00Z\",\"conclusion\":\"success\"}") + "}"));
+        StubServer.programmer(DEPOT_GITHUB + "/actions/runs",
+                Stub.succes("{\"workflow_runs\":" + repete(100, "{\"created_at\":\"2026-01-05T10:00:00Z\",\"conclusion\":\"success\"}") + "}"));
 
         ActiviteDepot lecture = github(activite(2, 50));
 
@@ -150,9 +150,9 @@ class ActiviteDepotCaracterisationTest {
     @Test
     void githubExecutionsSansListeEtPagePleineSuivie() {
         githubVide();
-        StubServer.on(DEPOT_GITHUB + "/actions/runs",
-                Stub.ok("{\"workflow_runs\":" + repete(100, "{\"created_at\":\"2026-01-05T10:00:00Z\",\"conclusion\":\"success\"}") + "}"),
-                Stub.ok("{}"));
+        StubServer.programmer(DEPOT_GITHUB + "/actions/runs",
+                Stub.succes("{\"workflow_runs\":" + repete(100, "{\"created_at\":\"2026-01-05T10:00:00Z\",\"conclusion\":\"success\"}") + "}"),
+                Stub.succes("{}"));
 
         ActiviteDepot lecture = github(activite(3, 50));
 
@@ -164,7 +164,7 @@ class ActiviteDepotCaracterisationTest {
     @Test
     void githubVersionsArreteesDesQuUnePagePleineEstAncienne() {
         githubVide();
-        StubServer.on(DEPOT_GITHUB + "/releases", Stub.ok(repete(100, "{\"published_at\":\"2025-01-05T10:00:00Z\",\"draft\":false}")));
+        StubServer.programmer(DEPOT_GITHUB + "/releases", Stub.succes(repete(100, "{\"published_at\":\"2025-01-05T10:00:00Z\",\"draft\":false}")));
 
         ActiviteDepot lecture = github(activite(5, 50));
 
@@ -176,7 +176,7 @@ class ActiviteDepotCaracterisationTest {
     @Test
     void githubJalonsBornes() {
         githubVide();
-        StubServer.on(DEPOT_GITHUB + "/milestones", Stub.ok("""
+        StubServer.programmer(DEPOT_GITHUB + "/milestones", Stub.succes("""
                 [{"number":1,"title":"a","state":"open"},{"number":2,"title":"b","state":"open"}]"""));
 
         ActiviteDepot lecture = github(activite(5, 1));
@@ -188,19 +188,19 @@ class ActiviteDepotCaracterisationTest {
     @Test
     void gitlabConversionJalonsBornesEtStatistiques() {
         gitlabVide();
-        StubServer.on(PROJET_GITLAB + "/releases", Stub.ok("""
+        StubServer.programmer(PROJET_GITLAB + "/releases", Stub.succes("""
                 [{"released_at":null,"created_at":"2026-01-04T00:00:00Z"},{"released_at":"2025-01-04T00:00:00Z","created_at":"2026-01-04T00:00:00Z"}]"""));
-        StubServer.on(PROJET_GITLAB + "/pipelines", Stub.ok("""
+        StubServer.programmer(PROJET_GITLAB + "/pipelines", Stub.succes("""
                 [{"created_at":"2026-01-02T00:00:00Z","status":"SUCCESS"},{"created_at":"2026-01-02T00:00:00Z","status":"failed"},
                  {"created_at":"2026-01-02T00:00:00Z","status":null},{"created_at":"2025-01-02T00:00:00Z","status":"failed"}]"""));
-        StubServer.on(PROJET_GITLAB + "/milestones", Stub.ok("""
+        StubServer.programmer(PROJET_GITLAB + "/milestones", Stub.succes("""
                 [{"id":11,"title":"Sprint 4","state":"active","due_date":"2026-12-15"},
                  {"id":12,"title":null,"state":"active"},
                  {"id":13,"title":"Ferme","state":"closed","updated_at":"2026-01-09T00:00:00Z","due_date":"invalide"},
                  {"id":14,"title":"Encore","state":"active"}]"""));
-        StubServer.on(PROJET_GITLAB + "/issues_statistics?milestone=Sprint%204",
-                Stub.ok("{\"statistics\":{\"counts\":{\"all\":3,\"closed\":9}}}"));
-        StubServer.on(PROJET_GITLAB + "/issues_statistics?milestone=Ferme", Stub.ok("{}"));
+        StubServer.programmer(PROJET_GITLAB + "/issues_statistics?milestone=Sprint%204",
+                Stub.succes("{\"statistics\":{\"counts\":{\"all\":3,\"closed\":9}}}"));
+        StubServer.programmer(PROJET_GITLAB + "/issues_statistics?milestone=Ferme", Stub.succes("{}"));
 
         ActiviteDepot lecture = gitlab(activite(5, 2));
 
@@ -222,7 +222,7 @@ class ActiviteDepotCaracterisationTest {
     @Test
     void gitlabFusionsTronqueesAuNombreMaximalDePages() {
         gitlabVide();
-        StubServer.on(PROJET_GITLAB + "/merge_requests", Stub.ok(repete(100, "{\"created_at\":\"2026-01-05T10:00:00Z\"}")));
+        StubServer.programmer(PROJET_GITLAB + "/merge_requests", Stub.succes(repete(100, "{\"created_at\":\"2026-01-05T10:00:00Z\"}")));
 
         ActiviteDepot lecture = gitlab(activite(1, 50));
 
@@ -233,10 +233,10 @@ class ActiviteDepotCaracterisationTest {
     @Test
     void erreursDeForgeEtDepotsInvalides() {
         RepositoryActivity activite = activite(5, 5);
-        StubServer.on(DEPOT_GITHUB + "/issues", Stub.status(500));
+        StubServer.programmer(DEPOT_GITHUB + "/issues", Stub.status(500));
         assertEquals("HTTP 500 de localhost", assertThrows(ScmException.class, () -> github(activite)).getMessage());
 
-        StubServer.on(DEPOT_GITHUB + "/issues", Stub.ok("{pas du json"));
+        StubServer.programmer(DEPOT_GITHUB + "/issues", Stub.succes("{pas du json"));
         assertEquals("réponse illisible de localhost", assertThrows(ScmException.class, () -> github(activite)).getMessage());
 
         assertEquals("dépôt GitHub invalide : attendu owner/repo", assertThrows(ScmException.class,

@@ -1,6 +1,6 @@
 package io.argos.api.comptes;
 
-import static io.argos.testsupport.Api.en;
+import static io.argos.testsupport.Api.enTantQue;
 import static org.hamcrest.Matchers.equalTo;
 import static org.hamcrest.Matchers.hasItem;
 import static org.hamcrest.Matchers.not;
@@ -31,28 +31,28 @@ class InvitationsTest {
         String atelier = Api.creerEspace("alice", "Atelier");
         String invitation = Api.inviter("alice", atelier, "Erin@Argos.test", "LECTEUR");
 
-        en("alice").when().get("/api/v1/espaces/" + atelier + "/invitations").then().statusCode(200)
+        enTantQue("alice").when().get("/api/v1/espaces/" + atelier + "/invitations").then().statusCode(200)
                 .body("find { it.id == '" + invitation + "' }.etat", equalTo("EN_ATTENTE"))
                 .body("find { it.id == '" + invitation + "' }.email", equalTo("erin@argos.test"));
-        en("erin").when().get("/api/v1/invitations").then().statusCode(200).body("id", hasItem(invitation));
+        enTantQue("erin").when().get("/api/v1/invitations").then().statusCode(200).body("id", hasItem(invitation));
 
-        en("erin").when().post("/api/v1/invitations/" + invitation + "/acceptation")
+        enTantQue("erin").when().post("/api/v1/invitations/" + invitation + "/acceptation")
                 .then().statusCode(200)
                 .body("id", equalTo(atelier))
                 .body("role", equalTo("LECTEUR"));
 
         // Lecture autorisée.
-        en("erin").when().get("/api/v1/espaces/" + atelier).then().statusCode(200).body("nom", equalTo("Atelier"));
-        en("erin").when().get("/api/v1/espaces/" + atelier + "/membres").then().statusCode(200);
+        enTantQue("erin").when().get("/api/v1/espaces/" + atelier).then().statusCode(200).body("nom", equalTo("Atelier"));
+        enTantQue("erin").when().get("/api/v1/espaces/" + atelier + "/membres").then().statusCode(200);
         // Écriture refusée : le lecteur n'invite pas et ne gère pas les rôles.
-        en("erin").contentType(ContentType.JSON).body(Map.of("email", "x@argos.test", "role", "LECTEUR"))
+        enTantQue("erin").contentType(ContentType.JSON).body(Map.of("email", "x@argos.test", "role", "LECTEUR"))
                 .when().post("/api/v1/espaces/" + atelier + "/invitations")
                 .then().statusCode(403);
-        en("erin").when().get("/api/v1/espaces/" + atelier + "/invitations").then().statusCode(403);
+        enTantQue("erin").when().get("/api/v1/espaces/" + atelier + "/invitations").then().statusCode(403);
         // Une invitation ne sert qu'une fois : 409, conformément au contrat OpenAPI.
-        en("erin").when().post("/api/v1/invitations/" + invitation + "/acceptation").then().statusCode(409)
+        enTantQue("erin").when().post("/api/v1/invitations/" + invitation + "/acceptation").then().statusCode(409)
                 .body("code", equalTo("INVITATION_INACTIVE"));
-        en("alice").when().get("/api/v1/espaces/" + atelier + "/invitations").then().statusCode(200)
+        enTantQue("alice").when().get("/api/v1/espaces/" + atelier + "/invitations").then().statusCode(200)
                 .body("find { it.id == '" + invitation + "' }.etat", equalTo("ACCEPTEE"));
     }
 
@@ -62,13 +62,13 @@ class InvitationsTest {
         String atelier = Api.creerEspace("alice", "Atelier révocable");
         Api.ajouterMembre("alice", atelier, "erin", "LECTEUR");
         String erin = Api.idCompte("erin");
-        en("erin").when().get("/api/v1/espaces/" + atelier).then().statusCode(200);
+        enTantQue("erin").when().get("/api/v1/espaces/" + atelier).then().statusCode(200);
 
-        en("alice").when().delete("/api/v1/espaces/" + atelier + "/membres/" + erin).then().statusCode(204);
+        enTantQue("alice").when().delete("/api/v1/espaces/" + atelier + "/membres/" + erin).then().statusCode(204);
 
-        en("erin").when().get("/api/v1/espaces/" + atelier).then().statusCode(404);
-        en("erin").when().get("/api/v1/espaces").then().statusCode(200).body("id", not(hasItem(atelier)));
-        en("alice").when().get("/api/v1/espaces/" + atelier + "/membres").then().statusCode(200)
+        enTantQue("erin").when().get("/api/v1/espaces/" + atelier).then().statusCode(404);
+        enTantQue("erin").when().get("/api/v1/espaces").then().statusCode(200).body("id", not(hasItem(atelier)));
+        enTantQue("alice").when().get("/api/v1/espaces/" + atelier + "/membres").then().statusCode(200)
                 .body("compteId", not(hasItem(erin)));
     }
 
@@ -81,8 +81,8 @@ class InvitationsTest {
 
         String erin = Api.idCompte("erin");
         long refusAvant = refus(erin);
-        en("erin").when().post("/api/v1/invitations/" + pourUnTiers + "/acceptation").then().statusCode(404);
-        en("erin").when().post("/api/v1/invitations/" + java.util.UUID.randomUUID() + "/acceptation").then().statusCode(404);
+        enTantQue("erin").when().post("/api/v1/invitations/" + pourUnTiers + "/acceptation").then().statusCode(404);
+        enTantQue("erin").when().post("/api/v1/invitations/" + java.util.UUID.randomUUID() + "/acceptation").then().statusCode(404);
         assertEquals(refusAvant, refus(erin), "une invitation introuvable n'est pas un refus d'accès à un espace");
     }
 
@@ -96,10 +96,10 @@ class InvitationsTest {
         Api.assurerCompte("erin");
         String atelier = Api.creerEspace("alice", "Atelier fermé");
         String invitation = Api.inviter("alice", atelier, "erin@argos.test", "CONTRIBUTEUR");
-        en("alice").when().delete("/api/v1/espaces/" + atelier + "/invitations/" + invitation).then().statusCode(204);
+        enTantQue("alice").when().delete("/api/v1/espaces/" + atelier + "/invitations/" + invitation).then().statusCode(204);
 
-        en("erin").when().post("/api/v1/invitations/" + invitation + "/acceptation").then().statusCode(409)
+        enTantQue("erin").when().post("/api/v1/invitations/" + invitation + "/acceptation").then().statusCode(409)
                 .body("code", equalTo("INVITATION_INACTIVE"));
-        en("erin").when().get("/api/v1/espaces/" + atelier).then().statusCode(404);
+        enTantQue("erin").when().get("/api/v1/espaces/" + atelier).then().statusCode(404);
     }
 }

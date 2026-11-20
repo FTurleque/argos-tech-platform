@@ -65,7 +65,7 @@ class InventoryTest {
     }
 
     private io.restassured.specification.RequestSpecification member() {
-        return Api.en("alice");
+        return Api.enTantQue("alice");
     }
 
     @Test
@@ -201,8 +201,8 @@ class InventoryTest {
     void inv04S1EtS2RepliSurLesManifestesPuisSbom() {
         RepositoryRef repo = new RepositoryRef("GITLAB", "groupe/front", "main", "sbom", "bom.json");
         UUID project = projects.create(workspace, "front", repo, List.of("package.json", "requirements.txt"));
-        StubServer.on("/gitlab/api/v4/projects/groupe%2Ffront/repository/files/package.json/raw?ref=main",
-                Stub.ok("{\"dependencies\":{\"lodash\":\"4.17.20\"}}"));
+        StubServer.programmer("/gitlab/api/v4/projects/groupe%2Ffront/repository/files/package.json/raw?ref=main",
+                Stub.succes("{\"dependencies\":{\"lodash\":\"4.17.20\"}}"));
 
         InventoryService.ImportResult fallback = inventories.refresh(project);
 
@@ -212,8 +212,8 @@ class InventoryTest {
                 .then().statusCode(200).body("inventory.origin", equalTo("MANIFEST"))
                 .body("inventory.components[0].purl", equalTo("pkg:npm/lodash@4.17.20"));
 
-        StubServer.on("/gitlab/api/v4/projects/groupe%2Ffront/jobs/artifacts/main/raw/bom.json?job=sbom",
-                Stub.ok(Fixtures.cyclonedx("1.6", "2026-11-15T00:00:00Z",
+        StubServer.programmer("/gitlab/api/v4/projects/groupe%2Ffront/jobs/artifacts/main/raw/bom.json?job=sbom",
+                Stub.succes(Fixtures.cyclonedx("1.6", "2026-11-15T00:00:00Z",
                         java.util.Collections.singletonList(new String[] {"l", "pkg:npm/lodash@4.17.21"}), List.of("l"))));
 
         InventoryService.ImportResult sbom = inventories.refresh(project);
@@ -253,14 +253,14 @@ class InventoryTest {
     @Test
     void contratGitLabEtGitHub() {
         RepositoryRef gitlab = new RepositoryRef("GITLAB", "groupe/api", "main", "cyclonedx", "reports/bom.json");
-        StubServer.on("/gitlab/api/v4/projects/groupe%2Fapi/jobs/artifacts/main/raw/reports/bom.json?job=cyclonedx",
-                Stub.ok("{\"bomFormat\":\"CycloneDX\"}"));
+        StubServer.programmer("/gitlab/api/v4/projects/groupe%2Fapi/jobs/artifacts/main/raw/reports/bom.json?job=cyclonedx",
+                Stub.succes("{\"bomFormat\":\"CycloneDX\"}"));
         assertEquals("{\"bomFormat\":\"CycloneDX\"}",
                 new String(repositoryFiles.latestSbom(gitlab).orElseThrow().contenu(), StandardCharsets.UTF_8));
         assertTrue(repositoryFiles.file(gitlab, "package.json").isEmpty(), "404 : fichier absent");
 
         RepositoryRef github = new RepositoryRef("GITHUB", "org/app", "main", null, "sbom/bom.json");
-        StubServer.on("/github/repos/org/app/contents/sbom/bom.json?ref=main", Stub.ok("{\"bomFormat\":\"CycloneDX\"}"));
+        StubServer.programmer("/github/repos/org/app/contents/sbom/bom.json?ref=main", Stub.succes("{\"bomFormat\":\"CycloneDX\"}"));
         assertTrue(repositoryFiles.latestSbom(github).isPresent());
         StubServer.Received request = StubServer.received("/github/repos/org/app/contents/sbom/bom.json").get(0);
         assertEquals(List.of("application/vnd.github.raw+json"), request.headers().get("Accept"));

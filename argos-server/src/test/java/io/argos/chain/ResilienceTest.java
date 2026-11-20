@@ -70,8 +70,8 @@ class ResilienceTest {
     @Test
     void col06S1LimitationDeDebitAvecRetryAfter() {
         Fixtures.stubOsv("GHSA-R1", "2026-11-01T00:00:00Z", advisory("GHSA-R1", "2026-11-01T00:00:00Z"));
-        StubServer.on(CSV, new Stub(429, "", Map.of("Retry-After", "7"), 0),
-                Stub.ok("2026-11-01T00:00:00Z,GHSA-R1"));
+        StubServer.programmer(CSV, new Stub(429, "", Map.of("Retry-After", "7"), 0),
+                Stub.succes("2026-11-01T00:00:00Z,GHSA-R1"));
 
         SourceSynchronizer.SyncReport report = synchronizer.synchronize("OSV");
 
@@ -82,7 +82,7 @@ class ResilienceTest {
         assertEquals(Duration.ofSeconds(7), waits.get(0).duration());
         List<StubServer.Received> requests = StubServer.received(CSV);
         assertEquals(2, requests.size());
-        assertFalse(requests.get(1).at().isBefore(waits.get(0).at()),
+        assertFalse(requests.get(1).instant().isBefore(waits.get(0).instant()),
                 "la seconde requête ne part qu'après l'attente imposée par Retry-After");
         assertEquals(1, baseDeTest.count("SELECT count(*) FROM sync_attempt WHERE http_status = 429 AND retry_after_seconds = 7"));
     }
@@ -92,7 +92,7 @@ class ResilienceTest {
         Fixtures.stubOsv("GHSA-R2", "2026-11-01T00:00:00Z", advisory("GHSA-R2", "2026-11-01T00:00:00Z"));
         synchronizer.synchronize("OSV");
         String cursor = store.cursor("OSV").orElseThrow();
-        StubServer.on(CSV, Stub.status(503));
+        StubServer.programmer(CSV, Stub.status(503));
 
         SourceSynchronizer.SyncReport report = synchronizer.synchronize("OSV");
 
@@ -108,8 +108,8 @@ class ResilienceTest {
     @Test
     void delaiDepasseTraiteCommeErreurTransitoire() {
         Fixtures.stubOsv("GHSA-R3", "2026-11-01T00:00:00Z", advisory("GHSA-R3", "2026-11-01T00:00:00Z"));
-        StubServer.on(CSV, new Stub(200, "2026-11-01T00:00:00Z,GHSA-R3", Map.of(), 2_000),
-                Stub.ok("2026-11-01T00:00:00Z,GHSA-R3"));
+        StubServer.programmer(CSV, new Stub(200, "2026-11-01T00:00:00Z,GHSA-R3", Map.of(), 2_000),
+                Stub.succes("2026-11-01T00:00:00Z,GHSA-R3"));
 
         SourceSynchronizer.SyncReport report = synchronizer.synchronize("OSV");
 
@@ -120,7 +120,7 @@ class ResilienceTest {
 
     @Test
     void col06S3ErreurPermanenteSansNouvelleTentative() {
-        StubServer.on(CSV, Stub.status(401));
+        StubServer.programmer(CSV, Stub.status(401));
 
         SourceSynchronizer.SyncReport report = synchronizer.synchronize("OSV");
 
@@ -134,7 +134,7 @@ class ResilienceTest {
 
     @Test
     void col07S1EtS2SourceDegradeePuisRetourALaNormale() {
-        StubServer.on(CSV, Stub.status(403));
+        StubServer.programmer(CSV, Stub.status(403));
         synchronizer.synchronize("OSV");
         assertEquals("FAILING", baseDeTest.string("SELECT state FROM source WHERE id = 'OSV'"));
         synchronizer.synchronize("OSV");
@@ -143,12 +143,12 @@ class ResilienceTest {
         assertEquals("DEGRADED", baseDeTest.string("SELECT state FROM source WHERE id = 'OSV'"));
         assertEquals(1, baseDeTest.count("SELECT count(*) FROM ops_event WHERE kind = 'SOURCE_DEGRADED' AND occurred_at IS NOT NULL"));
 
-        Api.en("alice")
+        Api.enTantQue("alice")
                 .when().get("/api/v1/ops/sources")
                 .then().statusCode(200).body("find { it.sourceId == 'OSV' }.state", equalTo("DEGRADED"))
                 .body("find { it.sourceId == 'OSV' }.consecutiveFailures", equalTo(3));
         Api.compte("jules");
-        Api.en("jules").when().get("/api/v1/ops/sources").then().statusCode(403);
+        Api.enTantQue("jules").when().get("/api/v1/ops/sources").then().statusCode(403);
 
         Fixtures.stubOsv("GHSA-R4", "2026-11-01T00:00:00Z", advisory("GHSA-R4", "2026-11-01T00:00:00Z"));
         SourceSynchronizer.SyncReport report = synchronizer.synchronize("OSV");
@@ -164,7 +164,7 @@ class ResilienceTest {
         Fixtures.stubOsv("GHSA-P1", "2026-11-01T00:00:00Z", advisory("GHSA-P1", "2026-11-01T00:00:00Z"),
                 "GHSA-P2", "2026-11-02T00:00:00Z", advisory("GHSA-P2", "2026-11-02T00:00:00Z"),
                 "GHSA-P3", "2026-11-03T00:00:00Z", advisory("GHSA-P3", "2026-11-03T00:00:00Z"));
-        StubServer.on("/osv-api/v1/vulns/GHSA-P2", Stub.status(500));
+        StubServer.programmer("/osv-api/v1/vulns/GHSA-P2", Stub.status(500));
 
         SourceSynchronizer.SyncReport failed = synchronizer.synchronize("OSV");
 
@@ -172,7 +172,7 @@ class ResilienceTest {
         assertEquals("2026-11-01T00:00:00Z|GHSA-P1", store.cursor("OSV").orElseThrow());
         assertEquals(1, baseDeTest.count("SELECT count(*) FROM signal"));
 
-        StubServer.on("/osv-api/v1/vulns/GHSA-P2", Stub.ok(advisory("GHSA-P2", "2026-11-02T00:00:00Z")));
+        StubServer.programmer("/osv-api/v1/vulns/GHSA-P2", Stub.succes(advisory("GHSA-P2", "2026-11-02T00:00:00Z")));
         SourceSynchronizer.SyncReport resumed = synchronizer.synchronize("OSV");
 
         assertEquals("SUCCEEDED", resumed.state());
@@ -258,8 +258,8 @@ class ResilienceTest {
     @Test
     void retryAfterBorneParLeDelaiMaximal() {
         Fixtures.stubOsv("GHSA-R9", "2026-11-01T00:00:00Z", advisory("GHSA-R9", "2026-11-01T00:00:00Z"));
-        StubServer.on(CSV, new Stub(429, "", Map.of("Retry-After", "86400"), 0),
-                Stub.ok("2026-11-01T00:00:00Z,GHSA-R9"));
+        StubServer.programmer(CSV, new Stub(429, "", Map.of("Retry-After", "86400"), 0),
+                Stub.succes("2026-11-01T00:00:00Z,GHSA-R9"));
 
         SourceSynchronizer.SyncReport report = synchronizer.synchronize("OSV");
 

@@ -38,7 +38,7 @@ public final class RadarFixtures {
 
     /** Programme la réponse endoflife.date d'un produit. */
     public static void publier(String produit, String corps) {
-        StubServer.on("/endoflife/api/v1/products/" + produit, StubServer.Stub.ok(corps));
+        StubServer.programmer("/endoflife/api/v1/products/" + produit, StubServer.Stub.succes(corps));
     }
 
     /** Insère une entrée du référentiel, au nom du créateur de l'espace. */

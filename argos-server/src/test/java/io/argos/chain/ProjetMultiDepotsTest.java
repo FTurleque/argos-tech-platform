@@ -119,16 +119,16 @@ class ProjetMultiDepotsTest {
         UUID projet = projetDeuxDepots(espaceA);
         Instant dateFront = recent();
         Instant dateBack = recent().minus(1, ChronoUnit.DAYS);
-        StubServer.on(FRONT_SBOM, Stub.ok(sbom(dateFront, "pkg:npm/a@1.0.0", "pkg:npm/b@2.0.0")));
+        StubServer.programmer(FRONT_SBOM, Stub.succes(sbom(dateFront, "pkg:npm/a@1.0.0", "pkg:npm/b@2.0.0")));
         // b : transitif dans front, direct dans back ; il est direct pour le projet.
-        StubServer.on(BACK_SBOM, Stub.ok(sbom(dateBack, "pkg:npm/b@2.0.0", "pkg:maven/org.exemple/c@3.0.0")));
+        StubServer.programmer(BACK_SBOM, Stub.succes(sbom(dateBack, "pkg:npm/b@2.0.0", "pkg:maven/org.exemple/c@3.0.0")));
 
         InventoryService.ImportProjet resultat = inventories.importerProjet(projet);
 
         assertEquals(List.of("IMPORTED", "IMPORTED"), resultat.depots().stream().map(depot -> depot.result().status()).toList());
         assertEquals("groupe/front", resultat.depots().get(0).repository(), "dépôt principal d'abord");
         String chemin = "/api/v1/projects/" + projet + "/inventory";
-        Api.en("alice").when().get(chemin + "/components")
+        Api.enTantQue("alice").when().get(chemin + "/components")
                 .then().statusCode(200)
                 .body("total", equalTo(3))
                 .body("items.purl", contains("pkg:npm/a@1.0.0", "pkg:npm/b@2.0.0", "pkg:maven/org.exemple/c@3.0.0"))
@@ -136,7 +136,7 @@ class ProjetMultiDepotsTest {
                 .body("items.find { it.purl == 'pkg:npm/b@2.0.0' }.transitive", equalTo(false))
                 .body("items.find { it.purl == 'pkg:npm/a@1.0.0' }.repositories.repository", contains("groupe/front"))
                 .body("items.find { it.purl == 'pkg:maven/org.exemple/c@3.0.0' }.repositories.provider", contains("GITHUB"));
-        Api.en("alice").when().get(chemin + "/summary")
+        Api.enTantQue("alice").when().get(chemin + "/summary")
                 .then().statusCode(200)
                 .body("summary.componentCount", equalTo(3))
                 .body("summary.origin", equalTo("SBOM"))
@@ -161,22 +161,22 @@ class ProjetMultiDepotsTest {
     @Test
     void inv10S2ImportRefusePourUnSeulDepot() {
         UUID projet = projetDeuxDepots(espaceA);
-        StubServer.on(FRONT_SBOM, Stub.ok(sbom(recent(), "pkg:npm/a@1.0.0", "pkg:npm/b@2.0.0")));
-        StubServer.on(BACK_SBOM, Stub.ok(sbom(recent(), "pkg:maven/org.exemple/c@3.0.0", "pkg:npm/b@2.0.0")));
+        StubServer.programmer(FRONT_SBOM, Stub.succes(sbom(recent(), "pkg:npm/a@1.0.0", "pkg:npm/b@2.0.0")));
+        StubServer.programmer(BACK_SBOM, Stub.succes(sbom(recent(), "pkg:maven/org.exemple/c@3.0.0", "pkg:npm/b@2.0.0")));
         inventories.importerProjet(projet);
 
-        StubServer.on(FRONT_SBOM, Stub.ok("{\"bomFormat\":\"CycloneDX\",\"specVersion\":\"1.4\",\"components\":[]}"));
-        StubServer.on(BACK_SBOM, Stub.ok(sbom(recent(), "pkg:maven/org.exemple/c@3.1.0")));
+        StubServer.programmer(FRONT_SBOM, Stub.succes("{\"bomFormat\":\"CycloneDX\",\"specVersion\":\"1.4\",\"components\":[]}"));
+        StubServer.programmer(BACK_SBOM, Stub.succes(sbom(recent(), "pkg:maven/org.exemple/c@3.1.0")));
 
         InventoryService.ImportProjet resultat = inventories.importerProjet(projet);
 
         assertEquals(List.of("REJECTED", "IMPORTED"), resultat.depots().stream().map(depot -> depot.result().status()).toList());
         String chemin = "/api/v1/projects/" + projet + "/inventory";
-        Api.en("alice").when().get(chemin + "/components")
+        Api.enTantQue("alice").when().get(chemin + "/components")
                 .then().statusCode(200)
                 .body("items.purl", contains("pkg:npm/a@1.0.0", "pkg:npm/b@2.0.0", "pkg:maven/org.exemple/c@3.1.0"))
                 .body("items.find { it.purl == 'pkg:npm/b@2.0.0' }.repositories.repository", contains("groupe/front"));
-        Api.en("alice").when().get(chemin + "/summary")
+        Api.enTantQue("alice").when().get(chemin + "/summary")
                 .then().statusCode(200)
                 .body("summary.repositories[0].lastFailure.reason", containsString("1.4"))
                 .body("summary.repositories[0].lastFailure.receivedAt", notNullValue())
@@ -189,15 +189,15 @@ class ProjetMultiDepotsTest {
     @Test
     void inv10S3DepotDetacheEtImpactsDuComposant() {
         UUID projet = projetDeuxDepots(espaceA);
-        StubServer.on(FRONT_SBOM, Stub.ok(sbom(recent(), LIB + "@1.2.0", "pkg:npm/b@2.0.0")));
-        StubServer.on(BACK_SBOM, Stub.ok(sbom(recent(), "pkg:maven/org.exemple/c@3.0.0", "pkg:npm/b@2.0.0")));
+        StubServer.programmer(FRONT_SBOM, Stub.succes(sbom(recent(), LIB + "@1.2.0", "pkg:npm/b@2.0.0")));
+        StubServer.programmer(BACK_SBOM, Stub.succes(sbom(recent(), "pkg:maven/org.exemple/c@3.0.0", "pkg:npm/b@2.0.0")));
         inventories.importerProjet(projet);
         publier("GHSA-INV10", "0", "1.3.0");
         assertEquals(1, ouverts(projet, "alice").size(), "impact sur le composant présent seulement dans front");
 
         assertTrue(inventories.detacherDepot(projet, depot(projet, "groupe/front")));
 
-        Api.en("alice").when().get("/api/v1/projects/" + projet + "/inventory/components")
+        Api.enTantQue("alice").when().get("/api/v1/projects/" + projet + "/inventory/components")
                 .then().statusCode(200)
                 .body("items.purl", contains("pkg:npm/b@2.0.0", "pkg:maven/org.exemple/c@3.0.0"))
                 .body("items.find { it.purl == 'pkg:npm/b@2.0.0' }.repositories.repository", contains("org/back"));
@@ -205,7 +205,7 @@ class ProjetMultiDepotsTest {
         // Intégration avec le volet C (COR-11-S1) : l'impact reste enregistré, résolu par le système.
         assertEquals(1, impacts.forProject(projet, Api.compte("alice"), Set.of(queries.workspaceOf(projet).orElseThrow()),
                 Set.of(io.argos.impact.EtatImpact.RESOLU)).size());
-        Api.en("alice").when().get("/api/v1/projects/" + projet + "/inventory/summary")
+        Api.enTantQue("alice").when().get("/api/v1/projects/" + projet + "/inventory/summary")
                 .then().statusCode(200)
                 .body("summary.repositories.repository", contains("org/back"))
                 .body("summary.componentCount", equalTo(2));
@@ -216,12 +216,12 @@ class ProjetMultiDepotsTest {
     void niveauFondeSurLaMeilleureOccurrence() {
         UUID projet = projetDeuxDepots(espaceA);
         Instant obsolete = Instant.now().minus(40, ChronoUnit.DAYS);
-        StubServer.on(FRONT_SBOM, Stub.ok(sbom(obsolete, LIB + "@1.2.0")));
-        StubServer.on(BACK_SBOM, Stub.ok(sbom(recent(), LIB + "@1.2.0")));
+        StubServer.programmer(FRONT_SBOM, Stub.succes(sbom(obsolete, LIB + "@1.2.0")));
+        StubServer.programmer(BACK_SBOM, Stub.succes(sbom(recent(), LIB + "@1.2.0")));
         UUID seul = projects.create(espaceA, "obsolète seul", new RepositoryRef("GITLAB", "groupe/ancien", "main", "sbom",
                 "bom.json"), List.of("package.json"));
-        StubServer.on("/gitlab/api/v4/projects/groupe%2Fancien/jobs/artifacts/main/raw/bom.json?job=sbom",
-                Stub.ok(sbom(obsolete, LIB + "@1.2.0")));
+        StubServer.programmer("/gitlab/api/v4/projects/groupe%2Fancien/jobs/artifacts/main/raw/bom.json?job=sbom",
+                Stub.succes(sbom(obsolete, LIB + "@1.2.0")));
         inventories.importerProjet(projet);
         inventories.importerProjet(seul);
 
@@ -236,15 +236,15 @@ class ProjetMultiDepotsTest {
     @Test
     void depotsCloisonnesEntreEspaces() throws SQLException {
         UUID projet = projetDeuxDepots(espaceB);
-        StubServer.on(FRONT_SBOM, Stub.ok(sbom(recent(), "pkg:npm/a@1.0.0")));
-        StubServer.on(BACK_SBOM, Stub.ok(sbom(recent(), "pkg:npm/b@2.0.0")));
+        StubServer.programmer(FRONT_SBOM, Stub.succes(sbom(recent(), "pkg:npm/a@1.0.0")));
+        StubServer.programmer(BACK_SBOM, Stub.succes(sbom(recent(), "pkg:npm/b@2.0.0")));
         inventories.importerProjet(projet);
         String chemin = "/api/v1/projects/" + projet + "/inventory/summary";
 
-        String refus = Api.en("alice").when().get(chemin).then().statusCode(404).extract().asString();
+        String refus = Api.enTantQue("alice").when().get(chemin).then().statusCode(404).extract().asString();
         assertTrue(!refus.contains("groupe/front") && !refus.contains("org/back"), "le refus ne révèle aucun dépôt");
         given().when().get(chemin).then().statusCode(401);
-        Api.en("jules").when().get(chemin).then().statusCode(200).body("summary.repositories", hasSize(2));
+        Api.enTantQue("jules").when().get(chemin).then().statusCode(200).body("summary.repositories", hasSize(2));
         assertTrue(queries.summary(projet, Api.compte("alice")).isEmpty());
 
         for (String table : List.of("project_repository", "repository_inventory", "component_occurrence")) {

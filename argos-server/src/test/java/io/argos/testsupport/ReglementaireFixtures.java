@@ -98,10 +98,10 @@ public class ReglementaireFixtures {
 
     /** Programme l'index (tiré de {@code index.html}) et les archives des 19, 20 et 21 novembre 2026. */
     public static void servirArchives(Map<String, String> du20, Map<String, String> du21) {
-        StubServer.on(INDEX, Stub.ok(fichier("index.html")));
-        StubServer.on("/jorf/JORF_20261119-213012.tar.gz", Stub.octets(archive(Map.of())));
-        StubServer.on("/jorf/JORF_20261120-213004.tar.gz", Stub.octets(archive(du20)));
-        StubServer.on("/jorf/JORF_20261121-213010.tar.gz", Stub.octets(archive(du21)));
+        StubServer.programmer(INDEX, Stub.succes(fichier("index.html")));
+        StubServer.programmer("/jorf/JORF_20261119-213012.tar.gz", Stub.octets(archive(Map.of())));
+        StubServer.programmer("/jorf/JORF_20261120-213004.tar.gz", Stub.octets(archive(du20)));
+        StubServer.programmer("/jorf/JORF_20261121-213010.tar.gz", Stub.octets(archive(du21)));
     }
 
     /** Archive du 20 novembre 2026 : décret « carrière » (avec son article) et arrêté « paie ». */

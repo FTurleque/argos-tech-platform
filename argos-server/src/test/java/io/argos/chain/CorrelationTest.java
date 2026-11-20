@@ -177,7 +177,7 @@ class CorrelationTest {
         UUID signal = publish("GHSA-PROV", LIB, "0", "1.3.0");
         UUID impact = baseDeTest.uuid("SELECT id FROM project_impact");
 
-        Api.en("alice")
+        Api.enTantQue("alice")
                 .when().get("/api/v1/impacts/" + impact)
                 .then().statusCode(200)
                 .body("signalId", equalTo(signal.toString()))
@@ -195,7 +195,7 @@ class CorrelationTest {
         ImpactQueries.IntegrityReport report = impacts.integrity();
         assertEquals(1, report.impacts());
         assertTrue(report.intact());
-        Api.en("alice")
+        Api.enTantQue("alice")
                 .when().get("/api/v1/ops/impacts/integrity")
                 .then().statusCode(200).body("withoutSignal", equalTo(0)).body("withoutMethod", equalTo(0))
                 .body("impacts", equalTo(1));
@@ -442,12 +442,12 @@ class CorrelationTest {
         UUID signal = publish("GHSA-SPACES", LIB, "0", "1.3.0");
         UUID impactB = baseDeTest.uuid("SELECT id FROM project_impact WHERE project_id = '" + projetB + "'");
 
-        Api.en("alice")
+        Api.enTantQue("alice")
                 .when().get("/api/v1/signals/" + signal + "/impacts")
                 .then().statusCode(200).body("items", hasSize(1)).body("total", equalTo(1))
                 .body("items[0].projectId", equalTo(projetA.toString()));
 
-        String body = Api.en("alice")
+        String body = Api.enTantQue("alice")
                 .when().get("/api/v1/impacts/" + impactB)
                 .then().statusCode(404).extract().asString();
         assertTrue(!body.contains(projetB.toString()) && !body.contains("GHSA-SPACES"), "le refus ne révèle rien de l'impact");
@@ -455,7 +455,7 @@ class CorrelationTest {
         assertEquals(1, baseDeTest.count("SELECT count(*) FROM refus_acces WHERE compte_id = '" + alice
                 + "' AND ressource = 'GET /api/v1/impacts/" + impactB + "' AND motif = 'NON_MEMBRE' AND horodatage IS NOT NULL"));
 
-        Api.en("alice")
+        Api.enTantQue("alice")
                 .when().get("/api/v1/impacts/" + UUID.randomUUID()).then().statusCode(404);
         assertEquals(1, baseDeTest.count("SELECT count(*) FROM refus_acces"), "un impact inexistant n'est pas un refus");
         given().when().get("/api/v1/signals/" + signal + "/impacts").then().statusCode(401);

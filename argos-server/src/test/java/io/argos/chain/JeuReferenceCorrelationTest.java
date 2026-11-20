@@ -95,18 +95,18 @@ class JeuReferenceCorrelationTest {
     }
 
     /** Vrais positifs, faux positifs, faux négatifs d'une catégorie. */
-    record Compte(int vp, int fp, int fn) {
+    record Compte(int vraisPositifs, int fauxPositifs, int fauxNegatifs) {
 
         String precision() {
-            return taux(vp, vp + fp);
+            return taux(vraisPositifs, vraisPositifs + fauxPositifs);
         }
 
         String rappel() {
-            return taux(vp, vp + fn);
+            return taux(vraisPositifs, vraisPositifs + fauxNegatifs);
         }
 
         String ligne() {
-            return vp + "/" + fp + "/" + fn + " précision " + precision() + " rappel " + rappel();
+            return vraisPositifs + "/" + fauxPositifs + "/" + fauxNegatifs + " précision " + precision() + " rappel " + rappel();
         }
     }
 
@@ -177,11 +177,11 @@ class JeuReferenceCorrelationTest {
         private void compterNiveau(String niveau, String attendu, String observe) {
             Compte compte = parNiveau.get(niveau);
             if (attendu.equals(niveau) && observe.equals(niveau)) {
-                parNiveau.put(niveau, new Compte(compte.vp() + 1, compte.fp(), compte.fn()));
+                parNiveau.put(niveau, new Compte(compte.vraisPositifs() + 1, compte.fauxPositifs(), compte.fauxNegatifs()));
             } else if (observe.equals(niveau)) {
-                parNiveau.put(niveau, new Compte(compte.vp(), compte.fp() + 1, compte.fn()));
+                parNiveau.put(niveau, new Compte(compte.vraisPositifs(), compte.fauxPositifs() + 1, compte.fauxNegatifs()));
             } else if (attendu.equals(niveau)) {
-                parNiveau.put(niveau, new Compte(compte.vp(), compte.fp(), compte.fn() + 1));
+                parNiveau.put(niveau, new Compte(compte.vraisPositifs(), compte.fauxPositifs(), compte.fauxNegatifs() + 1));
             }
         }
 

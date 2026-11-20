@@ -103,14 +103,14 @@ class VeilleAbonnementsPersonnelsTest {
     }
 
     private static void activer(String utilisateur, String... profils) {
-        Api.en(utilisateur).contentType(ContentType.JSON)
+        Api.enTantQue(utilisateur).contentType(ContentType.JSON)
                 .body(Map.of("profilsActifs", List.of(profils)))
                 .when().put("/api/v1/preferences/profils").then().statusCode(200);
     }
 
     private static String abonnement(String utilisateur, String scope, UUID espace, String type, String valeur) {
         String equipe = espace == null ? "" : ",\"teamWorkspaceId\":\"" + espace + "\"";
-        return Api.en(utilisateur).contentType(ContentType.JSON)
+        return Api.enTantQue(utilisateur).contentType(ContentType.JSON)
                 .body("{\"scope\":\"" + scope + "\"" + equipe + ",\"filters\":[{\"type\":\"" + type + "\",\"value\":\""
                         + valeur + "\"}],\"channel\":\"in_app\",\"frequency\":\"daily\",\"mandatory\":false}")
                 .when().post("/api/v1/subscriptions").then().statusCode(201).extract().path("id");
@@ -121,7 +121,7 @@ class VeilleAbonnementsPersonnelsTest {
     }
 
     private static JsonPath veille(String utilisateur) {
-        return Api.en(utilisateur).when().get("/api/v1/me/veille").then().statusCode(200).extract().jsonPath();
+        return Api.enTantQue(utilisateur).when().get("/api/v1/me/veille").then().statusCode(200).extract().jsonPath();
     }
 
     private static List<String> identifiants(JsonPath veille) {
@@ -197,7 +197,7 @@ class VeilleAbonnementsPersonnelsTest {
         assertEquals(List.of(VALIDEE), identifiants(veille("jules")), "l'abonnement de karim ne s'applique pas à jules");
 
         personnel("jules", "PROJECT", projetB.toString());
-        String brut = Api.en("jules").when().get("/api/v1/me/veille").then().statusCode(200).extract().asString();
+        String brut = Api.enTantQue("jules").when().get("/api/v1/me/veille").then().statusCode(200).extract().asString();
         assertEquals(List.of(VALIDEE), identifiants(veille("jules")), "projet de l'espace B : rien n'est retenu");
         assertFalse(brut.contains(projetB.toString()), brut);
         assertFalse(brut.contains("rh-app"), brut);
@@ -217,12 +217,12 @@ class VeilleAbonnementsPersonnelsTest {
         activer("jules", "expert-metier");
         abonnement("ines", "TEAM", espaceA, "TECHNOLOGY", "rust");
         assertEquals(List.of(VALIDEE), identifiants(veille("jules")));
-        assertTrue(Api.en("jules").when().get("/api/v1/me/watch").then().statusCode(200).extract().jsonPath()
+        assertTrue(Api.enTantQue("jules").when().get("/api/v1/me/watch").then().statusCode(200).extract().jsonPath()
                 .getList("externalId").contains(AVIS_B), "le socle TEAM figure dans /me/watch");
 
         String rust = personnel("jules", "TECHNOLOGY", "rust");
         assertTrue(identifiants(veille("jules")).contains(AVIS_B));
-        Api.en("jules").when().post("/api/v1/subscriptions/" + rust + "/leave").then().statusCode(204);
+        Api.enTantQue("jules").when().post("/api/v1/subscriptions/" + rust + "/leave").then().statusCode(204);
         assertEquals(List.of(VALIDEE), identifiants(veille("jules")));
     }
 }

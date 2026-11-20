@@ -121,8 +121,8 @@ public final class Fixtures {
         List<Map.Entry<String, String>> sorted = new ArrayList<>(modifiedById.entrySet());
         sorted.sort(Map.Entry.<String, String>comparingByValue().reversed());
         String csv = sorted.stream().map(entree -> entree.getValue() + "," + entree.getKey()).collect(Collectors.joining("\n"));
-        StubServer.on("/osv-export/Maven/modified_id.csv", StubServer.Stub.ok(csv));
-        advisoriesById.forEach((id, json) -> StubServer.on("/osv-api/v1/vulns/" + id, StubServer.Stub.ok(json)));
+        StubServer.programmer("/osv-export/Maven/modified_id.csv", StubServer.Stub.succes(csv));
+        advisoriesById.forEach((id, json) -> StubServer.programmer("/osv-api/v1/vulns/" + id, StubServer.Stub.succes(json)));
     }
 
     /** Raccourci : avis et dates déclarés ensemble (id → {modified, json}). */

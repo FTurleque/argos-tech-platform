@@ -124,14 +124,14 @@ class MigrationDepotsTest {
         assertEquals(1, baseDeTest.count("SELECT count(*) FROM project_repository"), "reprise rejouée sans effet");
         assertEquals(4, baseDeTest.count("SELECT count(*) FROM component_occurrence"));
 
-        Api.en("alice").when().get("/api/v1/projects/" + projet + "/inventory/summary")
+        Api.enTantQue("alice").when().get("/api/v1/projects/" + projet + "/inventory/summary")
                 .then().statusCode(200)
                 .body("summary.componentCount", equalTo(2))
                 .body("summary.repositories", hasSize(1))
                 .body("summary.repositories[0].repository", equalTo("groupe/historique"))
                 .body("summary.repositories[0].principal", equalTo(true))
                 .body("summary.repositories[0].origin", equalTo("SBOM"));
-        Api.en("alice").when().get("/api/v1/projects/" + projet + "/inventory/components")
+        Api.enTantQue("alice").when().get("/api/v1/projects/" + projet + "/inventory/components")
                 .then().statusCode(200)
                 .body("items.find { it.purl == '" + LIB + "@1.2.0' }.repositories.repository", hasSize(1));
     }

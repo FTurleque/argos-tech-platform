@@ -96,7 +96,7 @@ class ScmContratEnregistreTest {
     }
 
     private static void sert(String chemin, String reponse) {
-        StubServer.on(chemin, Fixtures.reponseEnregistree(reponse));
+        StubServer.programmer(chemin, Fixtures.reponseEnregistree(reponse));
     }
 
     private static List<String> entete(StubServer.Received requete, String nom) {
@@ -132,7 +132,7 @@ class ScmContratEnregistreTest {
 
         assertEquals("IMPORTED", resultat.status(), resultat.reason());
         assertEquals("SBOM", resultat.origin());
-        Api.en("alice").when().get("/api/v1/projects/" + projet + "/inventory")
+        Api.enTantQue("alice").when().get("/api/v1/projects/" + projet + "/inventory")
                 .then().statusCode(200)
                 .body("inventory.origin", equalTo("SBOM"))
                 .body("inventory.components", hasSize(5))
@@ -157,7 +157,7 @@ class ScmContratEnregistreTest {
 
         assertEquals("IMPORTED", resultat.status(), resultat.reason());
         assertEquals("MANIFEST", resultat.origin());
-        Api.en("alice").when().get("/api/v1/projects/" + projet + "/inventory")
+        Api.enTantQue("alice").when().get("/api/v1/projects/" + projet + "/inventory")
                 .then().statusCode(200)
                 .body("inventory.origin", equalTo("MANIFEST"))
                 .body("inventory.components", hasSize(2))
@@ -232,7 +232,7 @@ class ScmContratEnregistreTest {
     @Test
     void gitlabSbomTrouveeAvecJetonPrivateToken() {
         // Artefact composé : aucun artefact de job n'est lisible anonymement sur gitlab.com (403 enregistré).
-        StubServer.on(GITLAB_SBOM, new StubServer.Stub(200, Fixtures.resource("scm/gitlab/gl-sbom-npm-npm.cdx.json"),
+        StubServer.programmer(GITLAB_SBOM, new StubServer.Stub(200, Fixtures.resource("scm/gitlab/gl-sbom-npm-npm.cdx.json"),
                 Map.of("Content-Type", "application/json"), 0));
 
         SbomDocument sbom = forges().latestSbom(GITLAB).orElseThrow();
@@ -255,7 +255,7 @@ class ScmContratEnregistreTest {
 
         assertEquals("IMPORTED", resultat.status(), resultat.reason());
         assertEquals("MANIFEST", resultat.origin());
-        Api.en("alice").when().get("/api/v1/projects/" + projet + "/inventory")
+        Api.enTantQue("alice").when().get("/api/v1/projects/" + projet + "/inventory")
                 .then().statusCode(200)
                 .body("inventory.origin", equalTo("MANIFEST"))
                 .body("inventory.components", hasSize(4))
@@ -304,7 +304,7 @@ class ScmContratEnregistreTest {
         InventoryService.ImportResult resultat = inventories.refresh(projet);
         assertEquals("ERROR", resultat.status());
         assertTrue(resultat.reason().contains("quota"), resultat.reason());
-        Api.en("alice").when().get("/api/v1/projects/" + projet + "/inventory")
+        Api.enTantQue("alice").when().get("/api/v1/projects/" + projet + "/inventory")
                 .then().statusCode(200)
                 .body("inventory.origin", equalTo("MANIFEST"))
                 .body("inventory.components", hasSize(4));

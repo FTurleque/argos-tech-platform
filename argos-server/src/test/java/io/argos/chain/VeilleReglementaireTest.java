@@ -104,23 +104,23 @@ class VeilleReglementaireTest {
 
     /** Domaines « Carrière » (règle : code général de la fonction publique) et « Paie » (sans règle), experte ines. */
     private void configurer() {
-        Api.en("hugo").contentType(ContentType.JSON).body(Map.of("libelle", "Carrière"))
+        Api.enTantQue("hugo").contentType(ContentType.JSON).body(Map.of("libelle", "Carrière"))
                 .when().put(chemin("/domaines/carriere")).then().statusCode(200).body("code", equalTo("carriere"));
-        Api.en("hugo").contentType(ContentType.JSON).body(Map.of("libelle", "Paie"))
+        Api.enTantQue("hugo").contentType(ContentType.JSON).body(Map.of("libelle", "Paie"))
                 .when().put(chemin("/domaines/paie")).then().statusCode(200);
-        Api.en("hugo").contentType(ContentType.JSON)
+        Api.enTantQue("hugo").contentType(ContentType.JSON)
                 .body(Map.of("regles", List.of(Map.of("type", "CODE", "valeur", "Code général de la fonction publique"))))
                 .when().put(chemin("/domaines/carriere/regles")).then().statusCode(200)
                 .body("regles[0].type", equalTo("CODE"));
         for (String domaine : List.of("carriere", "paie")) {
-            Api.en("hugo").contentType(ContentType.JSON).body(Map.of("comptes", List.of(ines.toString())))
+            Api.enTantQue("hugo").contentType(ContentType.JSON).body(Map.of("comptes", List.of(ines.toString())))
                     .when().put(chemin("/domaines/" + domaine + "/experts")).then().statusCode(200)
                     .body("experts[0].compteId", equalTo(ines.toString()));
         }
     }
 
     private Map<String, Object> fiche(String utilisateur, String identifiant) {
-        List<Map<String, Object>> fiches = Api.en(utilisateur).when().get("/api/v1/reglementaire/fiches")
+        List<Map<String, Object>> fiches = Api.enTantQue(utilisateur).when().get("/api/v1/reglementaire/fiches")
                 .then().statusCode(200).extract().jsonPath().getList("$");
         return fiches.stream().filter(fiche -> identifiant.equals(((Map<?, ?>) fiche.get("texte")).get("identifiant")))
                 .findFirst().orElse(null);
@@ -135,20 +135,20 @@ class VeilleReglementaireTest {
 
     @Test
     void dictionnaireReserveALAdministrateurEtExpertsMembres() {
-        Api.en("jules").when().get(chemin("/domaines")).then().statusCode(200).body("$", hasSize(2));
-        Api.en("karim").when().get(chemin("/domaines")).then().statusCode(404);
-        Api.en("ines").contentType(ContentType.JSON).body(Map.of("libelle", "Retraite"))
+        Api.enTantQue("jules").when().get(chemin("/domaines")).then().statusCode(200).body("$", hasSize(2));
+        Api.enTantQue("karim").when().get(chemin("/domaines")).then().statusCode(404);
+        Api.enTantQue("ines").contentType(ContentType.JSON).body(Map.of("libelle", "Retraite"))
                 .when().put(chemin("/domaines/retraite")).then().statusCode(403);
-        Api.en("hugo").contentType(ContentType.JSON).body(Map.of("libelle", "x"))
+        Api.enTantQue("hugo").contentType(ContentType.JSON).body(Map.of("libelle", "x"))
                 .when().put(chemin("/domaines/Code Invalide")).then().statusCode(400);
-        Api.en("hugo").contentType(ContentType.JSON).body(Map.of("comptes", List.of(jules.toString())))
+        Api.enTantQue("hugo").contentType(ContentType.JSON).body(Map.of("comptes", List.of(jules.toString())))
                 .when().put(chemin("/domaines/paie/experts")).then().statusCode(400)
                 .body("code", equalTo("EXPERT_NON_MEMBRE"));
-        Api.en("hugo").contentType(ContentType.JSON)
+        Api.enTantQue("hugo").contentType(ContentType.JSON)
                 .body(Map.of("regles", List.of(Map.of("type", "NOR", "valeur", "12-pas-un-nor"))))
                 .when().put(chemin("/domaines/paie/regles")).then().statusCode(400);
-        Api.en("hugo").when().get(chemin("/rappels")).then().statusCode(200).body("rappelsJours", contains(90, 30, 7));
-        Api.en("ines").contentType(ContentType.JSON).body(Map.of("rappelsJours", List.of(15)))
+        Api.enTantQue("hugo").when().get(chemin("/rappels")).then().statusCode(200).body("rappelsJours", contains(90, 30, 7));
+        Api.enTantQue("ines").contentType(ContentType.JSON).body(Map.of("rappelsJours", List.of(15)))
                 .when().put(chemin("/rappels")).then().statusCode(403);
     }
 
@@ -156,7 +156,7 @@ class VeilleReglementaireTest {
 
     @Test
     void reg02S1Reg02S2Reg04S1QualificationPuisFichesPrepareesParLIa() {
-        StubServer.on(CHAT,
+        StubServer.programmer(CHAT,
                 ollama("{\"resume\": \"Le décret modifie les règles d'avancement de grade.\", \"dateEffet\": \"2027-01-01\"}"),
                 ollama("{\"domaine\": [2], \"confiance\": [72], \"justification\": \"Taux de cotisation.\"}"),
                 ollama("{\"resume\": \"L'arrêté fixe un taux de cotisation.\", \"dateEffet\": \"2026-12-01\"}"));
@@ -220,28 +220,28 @@ class VeilleReglementaireTest {
         String id = idFiche(CARRIERE);
 
         // REG-05-S2 : fiche en attente invisible d'un non-expert, y compris par son identifiant.
-        Api.en("jules").when().get("/api/v1/reglementaire/fiches").then().statusCode(200).body("$", hasSize(0));
-        Api.en("jules").when().get("/api/v1/reglementaire/fiches/" + id).then().statusCode(404);
-        Api.en("karim").when().get("/api/v1/reglementaire/fiches/" + id).then().statusCode(404);
-        Api.en("jules").contentType(ContentType.JSON).body(Map.of("resume", "x"))
+        Api.enTantQue("jules").when().get("/api/v1/reglementaire/fiches").then().statusCode(200).body("$", hasSize(0));
+        Api.enTantQue("jules").when().get("/api/v1/reglementaire/fiches/" + id).then().statusCode(404);
+        Api.enTantQue("karim").when().get("/api/v1/reglementaire/fiches/" + id).then().statusCode(404);
+        Api.enTantQue("jules").contentType(ContentType.JSON).body(Map.of("resume", "x"))
                 .when().put("/api/v1/reglementaire/fiches/" + id).then().statusCode(404);
 
-        Api.en("ines").when().get("/api/v1/reglementaire/fiches/" + id).then().statusCode(200)
+        Api.enTantQue("ines").when().get("/api/v1/reglementaire/fiches/" + id).then().statusCode(200)
                 .body("resumeOrigine", equalTo("AUCUN")).body("mentionIa", nullValue()).body("peutExpertiser", equalTo(true));
-        Api.en("ines").when().post("/api/v1/reglementaire/fiches/" + id + "/validation").then().statusCode(409)
+        Api.enTantQue("ines").when().post("/api/v1/reglementaire/fiches/" + id + "/validation").then().statusCode(409)
                 .body("code", equalTo("RESUME_REQUIS"));
 
         // REG-05-S1 : l'expert corrige la date d'effet et rédige le résumé, puis valide.
-        Api.en("ines").contentType(ContentType.JSON)
+        Api.enTantQue("ines").contentType(ContentType.JSON)
                 .body(Map.of("resume", "Le décret modifie l'avancement de grade.", "dateEffet", "2027-02-01"))
                 .when().put("/api/v1/reglementaire/fiches/" + id).then().statusCode(200)
                 .body("dateEffet", equalTo("2027-02-01")).body("dateEffetOrigine", equalTo("EXPERT"))
                 .body("etatValidation", equalTo("EN_ATTENTE_VALIDATION"));
-        Api.en("jules").when().post("/api/v1/reglementaire/fiches/" + id + "/validation").then().statusCode(404);
-        Api.en("ines").when().post("/api/v1/reglementaire/fiches/" + id + "/validation").then().statusCode(200)
+        Api.enTantQue("jules").when().post("/api/v1/reglementaire/fiches/" + id + "/validation").then().statusCode(404);
+        Api.enTantQue("ines").when().post("/api/v1/reglementaire/fiches/" + id + "/validation").then().statusCode(200)
                 .body("etatValidation", equalTo("VALIDEE")).body("etatSuivi", equalTo("EN_ANALYSE"));
 
-        Api.en("jules").when().get("/api/v1/reglementaire/fiches/" + id).then().statusCode(200)
+        Api.enTantQue("jules").when().get("/api/v1/reglementaire/fiches/" + id).then().statusCode(200)
                 .body("etatValidation", equalTo("VALIDEE"))
                 .body("mentionValidation", equalTo("validée par l'expert métier"))
                 .body("resume", equalTo("Le décret modifie l'avancement de grade."))
@@ -250,10 +250,10 @@ class VeilleReglementaireTest {
                 .body("historique[1].detail", containsString("\"avant\": \"2027-01-01\""))
                 .body("historique[1].detail", containsString("\"apres\": \"2027-02-01\""))
                 .body("historique[1].auteur", equalTo(ines.toString()));
-        Api.en("karim").when().get("/api/v1/reglementaire/fiches/" + id).then().statusCode(404);
-        Api.en("jules").contentType(ContentType.JSON).body(Map.of("etat", "SANS_IMPACT"))
+        Api.enTantQue("karim").when().get("/api/v1/reglementaire/fiches/" + id).then().statusCode(404);
+        Api.enTantQue("jules").contentType(ContentType.JSON).body(Map.of("etat", "SANS_IMPACT"))
                 .when().post("/api/v1/reglementaire/fiches/" + id + "/transitions").then().statusCode(403);
-        Api.en("ines").contentType(ContentType.JSON).body(Map.of("resume", "Après validation"))
+        Api.enTantQue("ines").contentType(ContentType.JSON).body(Map.of("resume", "Après validation"))
                 .when().put("/api/v1/reglementaire/fiches/" + id).then().statusCode(409).body("code", equalTo("FICHE_DECIDEE"));
         assertTrue(baseDeTest.count("SELECT count(*) FROM refus_acces WHERE ressource LIKE '%/reglementaire/fiches/%'") >= 3,
                 "refus journalisés");
@@ -263,15 +263,15 @@ class VeilleReglementaireTest {
     void correctionDesDomainesEtRejet() {
         collecte.collecter(LE_20, Instant.now());
         String id = idFiche(CARRIERE);
-        Api.en("ines").contentType(ContentType.JSON).body(Map.of("domaines", List.of("carriere", "paie")))
+        Api.enTantQue("ines").contentType(ContentType.JSON).body(Map.of("domaines", List.of("carriere", "paie")))
                 .when().put("/api/v1/reglementaire/fiches/" + id).then().statusCode(200)
                 .body("domaines.code", contains("carriere", "paie")).body("domaines[1].origine", equalTo("EXPERT"));
-        Api.en("ines").contentType(ContentType.JSON).body(Map.of("domaines", List.of("inconnu")))
+        Api.enTantQue("ines").contentType(ContentType.JSON).body(Map.of("domaines", List.of("inconnu")))
                 .when().put("/api/v1/reglementaire/fiches/" + id).then().statusCode(400);
-        Api.en("ines").contentType(ContentType.JSON).body(Map.of("motif", "Hors du périmètre de l'espace."))
+        Api.enTantQue("ines").contentType(ContentType.JSON).body(Map.of("motif", "Hors du périmètre de l'espace."))
                 .when().post("/api/v1/reglementaire/fiches/" + id + "/rejet").then().statusCode(200)
                 .body("etatValidation", equalTo("REJETEE"));
-        Api.en("jules").when().get("/api/v1/reglementaire/fiches/" + id).then().statusCode(404);
+        Api.enTantQue("jules").when().get("/api/v1/reglementaire/fiches/" + id).then().statusCode(404);
     }
 
     @Test
@@ -283,7 +283,7 @@ class VeilleReglementaireTest {
         reg.rattacher(id, espace, "retraite");
 
         // {carriere (ines), retraite (hugo)} corrigé par ines en {paie (ines)} : les deux retraits ont lieu.
-        Api.en("ines").contentType(ContentType.JSON).body(Map.of("domaines", List.of("paie")))
+        Api.enTantQue("ines").contentType(ContentType.JSON).body(Map.of("domaines", List.of("paie")))
                 .when().put("/api/v1/reglementaire/fiches/" + id).then().statusCode(200)
                 .body("domaines.code", contains("paie"));
         assertEquals("paie", baseDeTest.string("SELECT string_agg(domaine, ',' ORDER BY domaine) FROM fiche_domaine WHERE fiche_id = '"
@@ -316,37 +316,37 @@ class VeilleReglementaireTest {
         String urlFiche = "/api/v1/reglementaire/fiches/" + id;
 
         // REG-06-S2 (par l'API) : transition hors de l'ordre refusée, état inchangé.
-        Api.en("ines").contentType(ContentType.JSON).body(Map.of("etat", "LIVRE"))
+        Api.enTantQue("ines").contentType(ContentType.JSON).body(Map.of("etat", "LIVRE"))
                 .when().post(urlFiche + "/transitions").then().statusCode(409).body("code", equalTo("TRANSITION_REFUSEE"));
-        Api.en("ines").when().get(urlFiche).then().body("etatSuivi", equalTo("EN_ANALYSE"));
-        Api.en("ines").contentType(ContentType.JSON).body(Map.of("etat", "INCONNU"))
+        Api.enTantQue("ines").when().get(urlFiche).then().body("etatSuivi", equalTo("EN_ANALYSE"));
+        Api.enTantQue("ines").contentType(ContentType.JSON).body(Map.of("etat", "INCONNU"))
                 .when().post(urlFiche + "/transitions").then().statusCode(400);
         // Demande d'évolution refusée avant « impact produit ».
-        Api.en("ines").contentType(ContentType.JSON).body(Map.of("adresse", "https://github.com/argos/app/issues/42"))
+        Api.enTantQue("ines").contentType(ContentType.JSON).body(Map.of("adresse", "https://github.com/argos/app/issues/42"))
                 .when().put(urlFiche + "/demande-evolution").then().statusCode(409).body("code", equalTo("IMPACT_PRODUIT_REQUIS"));
 
         // REG-06-S1 : en analyse → impact produit.
-        Api.en("ines").contentType(ContentType.JSON).body(Map.of("etat", "IMPACT_PRODUIT"))
+        Api.enTantQue("ines").contentType(ContentType.JSON).body(Map.of("etat", "IMPACT_PRODUIT"))
                 .when().post(urlFiche + "/transitions").then().statusCode(200).body("etatSuivi", equalTo("IMPACT_PRODUIT"));
-        Api.en("ines").contentType(ContentType.JSON).body(Map.of("etat", "SPECIFIE"))
+        Api.enTantQue("ines").contentType(ContentType.JSON).body(Map.of("etat", "SPECIFIE"))
                 .when().post(urlFiche + "/transitions").then().statusCode(409).body("code", equalTo("DEMANDE_EVOLUTION_REQUISE"));
 
         // REG-08-S1 : demande GitHub associée, état lu par l'API GitHub simulée.
-        StubServer.on("/github/repos/argos/app/issues/42", Stub.ok("{\"number\": 42, \"state\": \"open\"}"));
-        Api.en("ines").contentType(ContentType.JSON).body(Map.of("adresse", "https://jira.exemple.fr/browse/ARG-1"))
+        StubServer.programmer("/github/repos/argos/app/issues/42", Stub.succes("{\"number\": 42, \"state\": \"open\"}"));
+        Api.enTantQue("ines").contentType(ContentType.JSON).body(Map.of("adresse", "https://jira.exemple.fr/browse/ARG-1"))
                 .when().put(urlFiche + "/demande-evolution").then().statusCode(400).body("code", equalTo("DEMANDE_INVALIDE"));
-        Api.en("ines").contentType(ContentType.JSON).body(Map.of("adresse", "https://github.com/argos/app/issues/404"))
+        Api.enTantQue("ines").contentType(ContentType.JSON).body(Map.of("adresse", "https://github.com/argos/app/issues/404"))
                 .when().put(urlFiche + "/demande-evolution").then().statusCode(400).body("code", equalTo("DEMANDE_INTROUVABLE"));
-        Api.en("ines").contentType(ContentType.JSON).body(Map.of("adresse", "https://github.com/argos/app/issues/42"))
+        Api.enTantQue("ines").contentType(ContentType.JSON).body(Map.of("adresse", "https://github.com/argos/app/issues/42"))
                 .when().put(urlFiche + "/demande-evolution").then().statusCode(200)
                 .body("demande.adresse", equalTo("https://github.com/argos/app/issues/42"))
                 .body("demande.forge", equalTo("GITHUB")).body("demande.etat", equalTo("open"));
-        Api.en("jules").when().get(urlFiche).then().statusCode(200)
+        Api.enTantQue("jules").when().get(urlFiche).then().statusCode(200)
                 .body("demande.adresse", equalTo("https://github.com/argos/app/issues/42"));
 
-        Api.en("ines").contentType(ContentType.JSON).body(Map.of("etat", "SPECIFIE"))
+        Api.enTantQue("ines").contentType(ContentType.JSON).body(Map.of("etat", "SPECIFIE"))
                 .when().post(urlFiche + "/transitions").then().statusCode(200).body("etatSuivi", equalTo("SPECIFIE"));
-        Api.en("ines").contentType(ContentType.JSON).body(Map.of("etat", "LIVRE"))
+        Api.enTantQue("ines").contentType(ContentType.JSON).body(Map.of("etat", "LIVRE"))
                 .when().post(urlFiche + "/transitions").then().statusCode(200).body("etatSuivi", equalTo("LIVRE"))
                 .body("historique.action", hasItem("DEMANDE_EVOLUTION"));
     }
@@ -395,18 +395,18 @@ class VeilleReglementaireTest {
         assertTrue(rappels.executer(LocalDate.of(2026, 12, 14), Instant.now()).isEmpty(), "hors du rattrapage");
 
         // Jours de rappel réglés par l'administrateur de l'espace.
-        Api.en("hugo").contentType(ContentType.JSON).body(Map.of("rappelsJours", List.of(45, 400)))
+        Api.enTantQue("hugo").contentType(ContentType.JSON).body(Map.of("rappelsJours", List.of(45, 400)))
                 .when().put(chemin("/rappels")).then().statusCode(400);
-        Api.en("hugo").contentType(ContentType.JSON).body(Map.of("rappelsJours", List.of(45)))
+        Api.enTantQue("hugo").contentType(ContentType.JSON).body(Map.of("rappelsJours", List.of(45)))
                 .when().put(chemin("/rappels")).then().statusCode(200).body("rappelsJours", contains(45));
         assertEquals(2, rappels.executer(LocalDate.of(2026, 11, 17), Instant.now()).size(), "J-45");
 
         // Calendrier : fiches validées datées seulement, dans l'ordre chronologique.
-        Api.en("lina").queryParam("depuis", "2026-11-01").queryParam("jusqua", "2027-12-31")
+        Api.enTantQue("lina").queryParam("depuis", "2026-11-01").queryParam("jusqua", "2027-12-31")
                 .when().get("/api/v1/reglementaire/calendrier").then().statusCode(200)
                 .body("$", hasSize(2)).body("[0].texte.identifiant", equalTo("JORFTEXT000099300001"))
                 .body("[0].dateEffet", equalTo("2027-01-01")).body("[1].dateEffet", equalTo("2027-01-10"));
-        Api.en("lina").queryParam("depuis", "pas-une-date").when().get("/api/v1/reglementaire/calendrier")
+        Api.enTantQue("lina").queryParam("depuis", "pas-une-date").when().get("/api/v1/reglementaire/calendrier")
                 .then().statusCode(400);
     }
 
@@ -473,7 +473,7 @@ class VeilleReglementaireTest {
 
     @Test
     void contratOpenApi() {
-        Api.en("alice").queryParam("format", "json").when().get("/q/openapi").then().statusCode(200)
+        Api.enTantQue("alice").queryParam("format", "json").when().get("/q/openapi").then().statusCode(200)
                 .body("paths.'/api/v1/reglementaire/fiches'.get", notNullValue())
                 .body("paths.'/api/v1/reglementaire/fiches/{id}/validation'.post", notNullValue())
                 .body("paths.'/api/v1/reglementaire/fiches/{id}/transitions'.post.responses.'409'", notNullValue())

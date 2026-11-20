@@ -17,7 +17,7 @@ import io.quarkus.test.Mock;
 public class RecordingSleeper extends Sleeper {
 
     /** Attente demandée. */
-    public record Wait(Duration duration, Instant at) {
+    public record Wait(Duration duration, Instant instant) {
     }
 
     private final List<Wait> waits = Collections.synchronizedList(new ArrayList<>());

@@ -86,7 +86,7 @@ class ReglementaireMcpTest {
     void gardeFouIndependantDeLaSource() {
         reg.expert(espace, "paie", oscar);
         fiche(espace, "JORFTEXT000099100005", "EN_ATTENTE_VALIDATION");
-        assertEquals(1, Api.en("oscar").queryParam("etat", "EN_ATTENTE_VALIDATION").when().get("/api/v1/reglementaire/fiches")
+        assertEquals(1, Api.enTantQue("oscar").queryParam("etat", "EN_ATTENTE_VALIDATION").when().get("/api/v1/reglementaire/fiches")
                 .then().statusCode(200).extract().jsonPath().getList("$").size(), "l'expert voit la fiche en attente");
 
         ExtractableResponse<Response> reponse = Mcp.appeler("oscar", "get_regulatory_changes", Map.of());
