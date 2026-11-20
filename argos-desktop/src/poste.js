@@ -10,16 +10,16 @@ const { validerAlerte, texteNotification, compteurValide, infobulle } = require(
 const { fusionner } = require('./preferences');
 
 /**
- * @param {object} d dépendances
- * @param {() => boolean} d.notificationsSupportees vrai si le système sait afficher une notification
- * @param {(options: {title: string, body: string}) => {on: Function, show: Function}} d.creerNotification
- * @param {() => {notificationsPoste: boolean, demarrageSession: boolean}} d.reglages réglages courants
- * @param {(reglages: object) => void} d.enregistrerReglages persiste et applique les réglages
- * @param {(n: number) => void} d.afficherCompteur met à jour la zone de notification
- * @param {(id: string) => void} d.ouvrirAlerte remet la fenêtre au premier plan sur l'alerte
- * @param {boolean} [d.demarrageDisponible] faux là où le démarrage avec la session n'existe pas
+ * @param {object} dependances dépendances
+ * @param {() => boolean} dependances.notificationsSupportees vrai si le système sait afficher une notification
+ * @param {(options: {title: string, body: string}) => {on: Function, show: Function}} dependances.creerNotification
+ * @param {() => {notificationsPoste: boolean, demarrageSession: boolean}} dependances.reglages réglages courants
+ * @param {(reglages: object) => void} dependances.enregistrerReglages persiste et applique les réglages
+ * @param {(n: number) => void} dependances.afficherCompteur met à jour la zone de notification
+ * @param {(id: string) => void} dependances.ouvrirAlerte remet la fenêtre au premier plan sur l'alerte
+ * @param {boolean} [dependances.demarrageDisponible] faux là où le démarrage avec la session n'existe pas
  */
-function creerPoste(d) {
+function creerPoste(dependances) {
   let compteur = 0;
   // Références gardées tant que la notification peut être cliquée (sinon le ramasse-miettes
   // peut détruire l'objet et le clic est perdu).
@@ -32,14 +32,14 @@ function creerPoste(d) {
   function alerte(payload) {
     const valide = validerAlerte(payload);
     if (!valide) return { affichee: false, raison: 'INVALIDE' };
-    if (!d.reglages().notificationsPoste) return { affichee: false, raison: 'COUPEES' };
-    if (!d.notificationsSupportees()) return { affichee: false, raison: 'NON_SUPPORTEES' };
-    const notification = d.creerNotification(texteNotification(valide));
+    if (!dependances.reglages().notificationsPoste) return { affichee: false, raison: 'COUPEES' };
+    if (!dependances.notificationsSupportees()) return { affichee: false, raison: 'NON_SUPPORTEES' };
+    const notification = dependances.creerNotification(texteNotification(valide));
     enCours.add(notification);
     const liberer = () => enCours.delete(notification);
     notification.on('click', () => {
       liberer();
-      d.ouvrirAlerte(valide.id);
+      dependances.ouvrirAlerte(valide.id);
     });
     notification.on('close', liberer);
     notification.on('failed', liberer);
@@ -48,26 +48,26 @@ function creerPoste(d) {
   }
 
   /** Nombre d'alertes ouvertes affiché dans la zone de notification (NOT-03). */
-  function definirCompteur(n) {
-    const valide = compteurValide(n);
+  function definirCompteur(nombre) {
+    const valide = compteurValide(nombre);
     if (valide === null) return false;
     compteur = valide;
-    d.afficherCompteur(compteur);
+    dependances.afficherCompteur(compteur);
     return true;
   }
 
   /** Modification des réglages du poste ; renvoie les réglages appliqués, ou null si refusée. */
   function changerReglages(demande) {
     let filtree = demande;
-    if (d.demarrageDisponible === false && demande && typeof demande === 'object') {
+    if (dependances.demarrageDisponible === false && demande && typeof demande === 'object') {
       // Option indisponible sur ce système : la clé est ignorée et le réglage reste désactivé.
       const { demarrageSession: _ignore, ...reste } = demande;
       filtree = reste;
     }
-    const nouveaux = fusionner(d.reglages(), filtree);
+    const nouveaux = fusionner(dependances.reglages(), filtree);
     if (!nouveaux) return null;
-    if (d.demarrageDisponible === false) nouveaux.demarrageSession = false;
-    d.enregistrerReglages(nouveaux);
+    if (dependances.demarrageDisponible === false) nouveaux.demarrageSession = false;
+    dependances.enregistrerReglages(nouveaux);
     return nouveaux;
   }
 

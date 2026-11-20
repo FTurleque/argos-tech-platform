@@ -49,9 +49,9 @@ function pointAutorisation(emetteur) {
 }
 
 /** Vrai si les paramètres demandent un code d'autorisation avec PKCE S256 et un state. */
-function codeAvecPkce(p) {
-  const pkce = p.get('code_challenge_method') === 'S256' && Boolean(p.get('code_challenge'));
-  return p.get('response_type') === 'code' && pkce && Boolean(p.get('state'));
+function codeAvecPkce(parametres) {
+  const pkce = parametres.get('code_challenge_method') === 'S256' && Boolean(parametres.get('code_challenge'));
+  return parametres.get('response_type') === 'code' && pkce && Boolean(parametres.get('state'));
 }
 
 /**
@@ -102,19 +102,19 @@ function retourAttendu(requete, url, courante, active) {
 }
 
 /**
- * @param {object} d dépendances
- * @param {{createServer: Function}} d.http module node:http
- * @param {(url: string) => unknown} d.ouvrirNavigateur ouvre l'URL dans le navigateur du système
- * @param {string} d.emetteur URL du royaume (ARGOS_OIDC_URL)
- * @param {() => void} [d.afficherFenetre] remet la fenêtre principale au premier plan
- * @param {number} [d.delaiMaxMs] durée d'attente maximale du retour
- * @param {Function} [d.planifier] setTimeout injectable
- * @param {Function} [d.annuler] clearTimeout injectable
+ * @param {object} dependances dépendances
+ * @param {{createServer: Function}} dependances.http module node:http
+ * @param {(url: string) => unknown} dependances.ouvrirNavigateur ouvre l'URL dans le navigateur du système
+ * @param {string} dependances.emetteur URL du royaume (ARGOS_OIDC_URL)
+ * @param {() => void} [dependances.afficherFenetre] remet la fenêtre principale au premier plan
+ * @param {number} [dependances.delaiMaxMs] durée d'attente maximale du retour
+ * @param {Function} [dependances.planifier] setTimeout injectable
+ * @param {Function} [dependances.annuler] clearTimeout injectable
  */
-function creerConnexion(d) {
-  const planifier = d.planifier ?? setTimeout;
-  const annuler = d.annuler ?? clearTimeout;
-  const delaiMaxMs = d.delaiMaxMs ?? DELAI_MAX_MS;
+function creerConnexion(dependances) {
+  const planifier = dependances.planifier ?? setTimeout;
+  const annuler = dependances.annuler ?? clearTimeout;
+  const delaiMaxMs = dependances.delaiMaxMs ?? DELAI_MAX_MS;
   /** Écoute en cours : { serveur, redirectUri, resoudre, minuterie } ; une seule à la fois. */
   let ecoute = null;
 
@@ -132,7 +132,7 @@ function creerConnexion(d) {
     fermer(null);
     return new Promise((resolve) => {
       const courante = { serveur: null, redirectUri: null, resoudre: null, minuterie: null };
-      const serveur = d.http.createServer((requete, reponse) => {
+      const serveur = dependances.http.createServer((requete, reponse) => {
         let url;
         try {
           url = new URL(requete.url, `http://${HOTE}`);
@@ -146,7 +146,7 @@ function creerConnexion(d) {
         }
         reponse.writeHead(200, ENTETES_PAGE);
         reponse.end(PAGE_RETOUR);
-        if (d.afficherFenetre) d.afficherFenetre();
+        if (dependances.afficherFenetre) dependances.afficherFenetre();
         fermer(url.search.slice(0, RECHERCHE_MAX));
       });
       courante.serveur = serveur;
@@ -169,14 +169,14 @@ function creerConnexion(d) {
   function autoriser(url) {
     const courante = ecoute;
     if (!courante || courante.resoudre) return Promise.resolve(null);
-    const sure = urlAutorisationSure(url, { emetteur: d.emetteur, redirectUri: courante.redirectUri });
+    const sure = urlAutorisationSure(url, { emetteur: dependances.emetteur, redirectUri: courante.redirectUri });
     if (!sure) return Promise.resolve(null);
     return new Promise((resolve) => {
       courante.resoudre = resolve;
       courante.minuterie = planifier(() => { if (ecoute === courante) fermer(null); }, delaiMaxMs);
       const echec = () => { if (ecoute === courante) fermer(null); };
       try {
-        Promise.resolve(d.ouvrirNavigateur(sure)).catch(echec);
+        Promise.resolve(dependances.ouvrirNavigateur(sure)).catch(echec);
       } catch {
         echec();
       }

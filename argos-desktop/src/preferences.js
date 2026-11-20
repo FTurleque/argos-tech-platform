@@ -35,20 +35,20 @@ function fusionner(actuels, demande) {
 }
 
 /** Lit les réglages ; fichier absent ou illisible : valeurs par défaut. */
-function lire(fs, fichier) {
+function lire(systemeFichiers, fichier) {
   try {
-    return normaliser(JSON.parse(fs.readFileSync(fichier, 'utf8')));
+    return normaliser(JSON.parse(systemeFichiers.readFileSync(fichier, 'utf8')));
   } catch {
     return { ...DEFAUTS };
   }
 }
 
 /** Écrit les réglages par un fichier temporaire renommé, pour ne jamais laisser un fichier tronqué. */
-function ecrire(fs, fichier, reglages) {
-  fs.mkdirSync(path.dirname(fichier), { recursive: true });
+function ecrire(systemeFichiers, fichier, reglages) {
+  systemeFichiers.mkdirSync(path.dirname(fichier), { recursive: true });
   const temporaire = `${fichier}.tmp`;
-  fs.writeFileSync(temporaire, JSON.stringify(normaliser(reglages), null, 2), 'utf8');
-  fs.renameSync(temporaire, fichier);
+  systemeFichiers.writeFileSync(temporaire, JSON.stringify(normaliser(reglages), null, 2), 'utf8');
+  systemeFichiers.renameSync(temporaire, fichier);
 }
 
 module.exports = { DEFAUTS, normaliser, fusionner, lire, ecrire };

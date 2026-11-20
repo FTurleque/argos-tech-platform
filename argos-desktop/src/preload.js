@@ -31,7 +31,7 @@ contextBridge.exposeInMainWorld('argosDesktop', {
     projets: Number(alerte?.projets),
   }),
   /** Nombre d'alertes ouvertes affiché dans la zone de notification (NOT-03). */
-  setAlertCount: (n) => ipcRenderer.invoke('argos:alert-count', Number(n)),
+  setAlertCount: (nombre) => ipcRenderer.invoke('argos:alert-count', Number(nombre)),
   /** Appelé avec l'identifiant de l'alerte quand l'utilisateur clique sur sa notification (NOT-02). */
   onOpenAlert: (callback) => ecouter(
     'argos:open-alert',
