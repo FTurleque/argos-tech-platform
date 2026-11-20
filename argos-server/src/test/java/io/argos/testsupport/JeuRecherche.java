@@ -28,43 +28,43 @@ public class JeuRecherche {
         UUID id = UUID.randomUUID();
         UUID version = UUID.randomUUID();
         String empreinte = String.format("%064x", Math.abs((long) id.hashCode()));
-        transaction(c -> {
-            try (PreparedStatement ps = c.prepareStatement("SET CONSTRAINTS ALL DEFERRED")) {
-                ps.execute();
+        transaction(connexion -> {
+            try (PreparedStatement requete = connexion.prepareStatement("SET CONSTRAINTS ALL DEFERRED")) {
+                requete.execute();
             }
-            try (PreparedStatement ps = c.prepareStatement("""
+            try (PreparedStatement requete = connexion.prepareStatement("""
                     INSERT INTO signal (id, source, external_id, title, summary, severity, published_at, modified_at,
                                         collected_at, updated_at, content_hash, affected, current_version_id)
                     VALUES (?, 'OSV', ?, ?, ?, ?, ?, ?, now(), now(), ?, '[]', ?)
                     """)) {
-                ps.setObject(1, id);
-                ps.setString(2, identifiant);
-                ps.setString(3, titre);
-                ps.setString(4, resume);
-                ps.setString(5, gravite);
-                ps.setTimestamp(6, Timestamp.from(publieLe));
-                ps.setTimestamp(7, Timestamp.from(publieLe));
-                ps.setString(8, empreinte);
-                ps.setObject(9, version);
-                ps.executeUpdate();
+                requete.setObject(1, id);
+                requete.setString(2, identifiant);
+                requete.setString(3, titre);
+                requete.setString(4, resume);
+                requete.setString(5, gravite);
+                requete.setTimestamp(6, Timestamp.from(publieLe));
+                requete.setTimestamp(7, Timestamp.from(publieLe));
+                requete.setString(8, empreinte);
+                requete.setObject(9, version);
+                requete.executeUpdate();
             }
-            try (PreparedStatement ps = c.prepareStatement("""
+            try (PreparedStatement requete = connexion.prepareStatement("""
                     INSERT INTO signal_version (id, signal_id, version_no, content_hash, source_modified_at, collected_at, raw_content)
                     VALUES (?, ?, 1, ?, ?, now(), '{}')
                     """)) {
-                ps.setObject(1, version);
-                ps.setObject(2, id);
-                ps.setString(3, empreinte);
-                ps.setTimestamp(4, Timestamp.from(publieLe));
-                ps.executeUpdate();
+                requete.setObject(1, version);
+                requete.setObject(2, id);
+                requete.setString(3, empreinte);
+                requete.setTimestamp(4, Timestamp.from(publieLe));
+                requete.executeUpdate();
             }
             if (paquet != null) {
-                try (PreparedStatement ps = c.prepareStatement(
+                try (PreparedStatement requete = connexion.prepareStatement(
                         "INSERT INTO signal_package (signal_id, package_key, ecosystem) VALUES (?, ?, ?)")) {
-                    ps.setObject(1, id);
-                    ps.setString(2, paquet);
-                    ps.setString(3, paquet.startsWith("pkg:maven/") ? "Maven" : paquet.startsWith("pkg:npm/") ? "npm" : null);
-                    ps.executeUpdate();
+                    requete.setObject(1, id);
+                    requete.setString(2, paquet);
+                    requete.setString(3, paquet.startsWith("pkg:maven/") ? "Maven" : paquet.startsWith("pkg:npm/") ? "npm" : null);
+                    requete.executeUpdate();
                 }
             }
         });
@@ -74,24 +74,24 @@ public class JeuRecherche {
     /** Projet d'un espace, avec un inventaire d'un composant. */
     public UUID projet(UUID espace, String nom) {
         UUID id = UUID.randomUUID();
-        transaction(c -> {
-            try (PreparedStatement ps = c.prepareStatement("INSERT INTO project (id, workspace_id, name) VALUES (?, ?, ?)")) {
-                ps.setObject(1, id);
-                ps.setObject(2, espace);
-                ps.setString(3, nom);
-                ps.executeUpdate();
+        transaction(connexion -> {
+            try (PreparedStatement requete = connexion.prepareStatement("INSERT INTO project (id, workspace_id, name) VALUES (?, ?, ?)")) {
+                requete.setObject(1, id);
+                requete.setObject(2, espace);
+                requete.setString(3, nom);
+                requete.executeUpdate();
             }
-            try (PreparedStatement ps = c.prepareStatement(
+            try (PreparedStatement requete = connexion.prepareStatement(
                     "INSERT INTO inventory VALUES (?, 'SBOM', now(), '1.6', 'test', gen_random_uuid(), now())")) {
-                ps.setObject(1, id);
-                ps.executeUpdate();
+                requete.setObject(1, id);
+                requete.executeUpdate();
             }
-            try (PreparedStatement ps = c.prepareStatement("""
+            try (PreparedStatement requete = connexion.prepareStatement("""
                     INSERT INTO component (id, project_id, package_key, purl, version, import_id)
                     VALUES (gen_random_uuid(), ?, 'pkg:maven/org.test/composant', 'pkg:maven/org.test/composant@1', '1', gen_random_uuid())
                     """)) {
-                ps.setObject(1, id);
-                ps.executeUpdate();
+                requete.setObject(1, id);
+                requete.executeUpdate();
             }
         });
         return id;
@@ -99,8 +99,8 @@ public class JeuRecherche {
 
     /** Impact d'un signal sur le composant du projet. */
     public void impact(UUID signal, UUID projet) {
-        transaction(c -> {
-            try (PreparedStatement ps = c.prepareStatement("""
+        transaction(connexion -> {
+            try (PreparedStatement requete = connexion.prepareStatement("""
                     INSERT INTO project_impact (id, signal_id, signal_version_id, project_id, workspace_id, component_id,
                                                 level, method, inventory_origin, provenance, created_at, updated_at)
                     SELECT gen_random_uuid(), s.id, s.current_version_id, p.id, p.workspace_id, c.id, 'EXACT', 'PURL_EXACT',
@@ -108,9 +108,9 @@ public class JeuRecherche {
                     FROM signal s, project p JOIN component c ON c.project_id = p.id
                     WHERE s.id = ? AND p.id = ?
                     """)) {
-                ps.setObject(1, signal);
-                ps.setObject(2, projet);
-                ps.executeUpdate();
+                requete.setObject(1, signal);
+                requete.setObject(2, projet);
+                requete.executeUpdate();
             }
         });
     }
@@ -127,18 +127,18 @@ public class JeuRecherche {
 
     private UUID source(String portee, UUID espace, UUID proprietaire, UUID creePar) {
         UUID id = UUID.randomUUID();
-        transaction(c -> {
-            try (PreparedStatement ps = c.prepareStatement("""
+        transaction(connexion -> {
+            try (PreparedStatement requete = connexion.prepareStatement("""
                     INSERT INTO source_web (id, portee, espace_id, proprietaire_id, type, adresse, libelle, cree_par)
                     VALUES (?, ?, ?, ?, 'FLUX', ?, 'Flux de test', ?)
                     """)) {
-                ps.setObject(1, id);
-                ps.setString(2, portee);
-                ps.setObject(3, espace);
-                ps.setObject(4, proprietaire);
-                ps.setString(5, "https://flux.test/" + id);
-                ps.setObject(6, creePar);
-                ps.executeUpdate();
+                requete.setObject(1, id);
+                requete.setString(2, portee);
+                requete.setObject(3, espace);
+                requete.setObject(4, proprietaire);
+                requete.setString(5, "https://flux.test/" + id);
+                requete.setObject(6, creePar);
+                requete.executeUpdate();
             }
         });
         return id;
@@ -147,27 +147,27 @@ public class JeuRecherche {
     /** Actualité reçue par une source (périmètre de la source), citée par elle. */
     public UUID actualite(UUID source, String titre, String texte, String lien, Instant publieLe) {
         UUID id = UUID.randomUUID();
-        transaction(c -> {
-            try (PreparedStatement ps = c.prepareStatement("""
+        transaction(connexion -> {
+            try (PreparedStatement requete = connexion.prepareStatement("""
                     INSERT INTO actualite (id, espace_id, proprietaire_id, empreinte, type, titre, lien, texte, publie_le, recu_le)
                     SELECT ?, s.espace_id, s.proprietaire_id, md5(?::text), 'ARTICLE', ?, ?, ?, ?, now()
                     FROM source_web s WHERE s.id = ?
                     """)) {
-                ps.setObject(1, id);
-                ps.setString(2, id.toString());
-                ps.setString(3, titre);
-                ps.setString(4, lien);
-                ps.setString(5, texte);
-                ps.setTimestamp(6, Timestamp.from(publieLe));
-                ps.setObject(7, source);
-                ps.executeUpdate();
+                requete.setObject(1, id);
+                requete.setString(2, id.toString());
+                requete.setString(3, titre);
+                requete.setString(4, lien);
+                requete.setString(5, texte);
+                requete.setTimestamp(6, Timestamp.from(publieLe));
+                requete.setObject(7, source);
+                requete.executeUpdate();
             }
-            try (PreparedStatement ps = c.prepareStatement(
+            try (PreparedStatement requete = connexion.prepareStatement(
                     "INSERT INTO actualite_source (actualite_id, source_id, lien, recu_le) VALUES (?, ?, ?, now())")) {
-                ps.setObject(1, id);
-                ps.setObject(2, source);
-                ps.setString(3, lien);
-                ps.executeUpdate();
+                requete.setObject(1, id);
+                requete.setObject(2, source);
+                requete.setString(3, lien);
+                requete.executeUpdate();
             }
         });
         return id;
@@ -175,40 +175,40 @@ public class JeuRecherche {
 
     /** Rapprochement « à vérifier » d'une actualité d'espace avec un projet du même espace. */
     public void rapprochement(UUID actualite, UUID projet, String technologie) {
-        transaction(c -> {
-            try (PreparedStatement ps = c.prepareStatement("""
+        transaction(connexion -> {
+            try (PreparedStatement requete = connexion.prepareStatement("""
                     INSERT INTO actualite_impact (id, actualite_id, project_id, workspace_id, technologie, niveau, methode, cree_le)
                     SELECT gen_random_uuid(), a.id, p.id, p.workspace_id, ?, 'A_VERIFIER', 'NOM_TECHNOLOGIE', now()
                     FROM actualite a, project p WHERE a.id = ? AND p.id = ?
                     """)) {
-                ps.setString(1, technologie);
-                ps.setObject(2, actualite);
-                ps.setObject(3, projet);
-                ps.executeUpdate();
+                requete.setString(1, technologie);
+                requete.setObject(2, actualite);
+                requete.setObject(3, projet);
+                requete.executeUpdate();
             }
         });
     }
 
     @FunctionalInterface
     interface Travail {
-        void executer(Connection c) throws SQLException;
+        void executer(Connection connexion) throws SQLException;
     }
 
     private void transaction(Travail travail) {
-        try (Connection c = dataSource.getConnection()) {
-            boolean auto = c.getAutoCommit();
-            c.setAutoCommit(false);
+        try (Connection connexion = dataSource.getConnection()) {
+            boolean auto = connexion.getAutoCommit();
+            connexion.setAutoCommit(false);
             try {
-                travail.executer(c);
-                c.commit();
-            } catch (SQLException | RuntimeException e) {
-                c.rollback();
-                throw e;
+                travail.executer(connexion);
+                connexion.commit();
+            } catch (SQLException | RuntimeException erreur) {
+                connexion.rollback();
+                throw erreur;
             } finally {
-                c.setAutoCommit(auto);
+                connexion.setAutoCommit(auto);
             }
-        } catch (SQLException e) {
-            throw new IllegalStateException("jeu de recherche impossible à écrire", e);
+        } catch (SQLException erreur) {
+            throw new IllegalStateException("jeu de recherche impossible à écrire", erreur);
         }
     }
 }

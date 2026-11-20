@@ -71,7 +71,7 @@ public class SimulatedResumeIa implements ResumeIa {
             case SLOW -> {
                 try {
                     Thread.sleep(5_000);
-                } catch (InterruptedException e) {
+                } catch (InterruptedException interruption) {
                     Thread.currentThread().interrupt();
                 }
                 return "résumé trop tardif";

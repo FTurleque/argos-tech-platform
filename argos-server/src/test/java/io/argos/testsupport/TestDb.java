@@ -76,29 +76,29 @@ public class TestDb {
     }
 
     public void exec(String sql) {
-        try (Connection c = dataSource.getConnection(); Statement s = c.createStatement()) {
-            s.execute(sql);
-        } catch (SQLException e) {
-            throw new IllegalStateException(sql, e);
+        try (Connection connection = dataSource.getConnection(); Statement statement = connection.createStatement()) {
+            statement.execute(sql);
+        } catch (SQLException exception) {
+            throw new IllegalStateException(sql, exception);
         }
     }
 
     public long count(String sql) {
-        try (Connection c = dataSource.getConnection(); Statement s = c.createStatement();
-                ResultSet rs = s.executeQuery(sql)) {
-            rs.next();
-            return rs.getLong(1);
-        } catch (SQLException e) {
-            throw new IllegalStateException(sql, e);
+        try (Connection connection = dataSource.getConnection(); Statement statement = connection.createStatement();
+                ResultSet resultSet = statement.executeQuery(sql)) {
+            resultSet.next();
+            return resultSet.getLong(1);
+        } catch (SQLException exception) {
+            throw new IllegalStateException(sql, exception);
         }
     }
 
     public String string(String sql) {
-        try (Connection c = dataSource.getConnection(); Statement s = c.createStatement();
-                ResultSet rs = s.executeQuery(sql)) {
-            return rs.next() ? rs.getString(1) : null;
-        } catch (SQLException e) {
-            throw new IllegalStateException(sql, e);
+        try (Connection connection = dataSource.getConnection(); Statement statement = connection.createStatement();
+                ResultSet resultSet = statement.executeQuery(sql)) {
+            return resultSet.next() ? resultSet.getString(1) : null;
+        } catch (SQLException exception) {
+            throw new IllegalStateException(sql, exception);
         }
     }
 

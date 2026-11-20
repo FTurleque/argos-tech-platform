@@ -40,60 +40,60 @@ public class ReglementaireFixtures {
 
     /** Contenu d'un fichier enregistré de {@code fixtures/jorf}. */
     public static String fichier(String nom) {
-        try (InputStream in = ReglementaireFixtures.class.getResourceAsStream("/fixtures/jorf/" + nom)) {
-            if (in == null) {
+        try (InputStream flux = ReglementaireFixtures.class.getResourceAsStream("/fixtures/jorf/" + nom)) {
+            if (flux == null) {
                 throw new IllegalArgumentException("fixture absente : " + nom);
             }
-            return new String(in.readAllBytes(), StandardCharsets.UTF_8);
-        } catch (IOException e) {
-            throw new UncheckedIOException(e);
+            return new String(flux.readAllBytes(), StandardCharsets.UTF_8);
+        } catch (IOException erreur) {
+            throw new UncheckedIOException(erreur);
         }
     }
 
     /** Archive {@code .tar.gz} (format ustar) contenant les fichiers donnés (chemin → contenu). */
     public static byte[] archive(Map<String, String> fichiers) {
         ByteArrayOutputStream out = new ByteArrayOutputStream();
-        try (GZIPOutputStream gz = new GZIPOutputStream(out)) {
-            for (Map.Entry<String, String> f : fichiers.entrySet()) {
-                byte[] contenu = f.getValue().getBytes(StandardCharsets.UTF_8);
-                gz.write(entete(f.getKey(), contenu.length));
-                gz.write(contenu);
-                gz.write(new byte[(512 - contenu.length % 512) % 512]);
+        try (GZIPOutputStream compression = new GZIPOutputStream(out)) {
+            for (Map.Entry<String, String> fichier : fichiers.entrySet()) {
+                byte[] contenu = fichier.getValue().getBytes(StandardCharsets.UTF_8);
+                compression.write(entete(fichier.getKey(), contenu.length));
+                compression.write(contenu);
+                compression.write(new byte[(512 - contenu.length % 512) % 512]);
             }
-            gz.write(new byte[1024]);
-        } catch (IOException e) {
-            throw new UncheckedIOException(e);
+            compression.write(new byte[1024]);
+        } catch (IOException erreur) {
+            throw new UncheckedIOException(erreur);
         }
         return out.toByteArray();
     }
 
     private static byte[] entete(String nom, long taille) {
-        byte[] h = new byte[512];
-        byte[] n = nom.getBytes(StandardCharsets.UTF_8);
-        System.arraycopy(n, 0, h, 0, Math.min(100, n.length));
-        ecrire(h, 100, String.format("%07o", 0644));
-        ecrire(h, 108, String.format("%07o", 0));
-        ecrire(h, 116, String.format("%07o", 0));
-        ecrire(h, 124, String.format("%011o", taille));
-        ecrire(h, 136, String.format("%011o", 0));
-        h[156] = '0';
-        ecrire(h, 257, "ustar");
-        ecrire(h, 263, "00");
-        for (int i = 148; i < 156; i++) {
-            h[i] = ' ';
+        byte[] bloc = new byte[512];
+        byte[] nomOctets = nom.getBytes(StandardCharsets.UTF_8);
+        System.arraycopy(nomOctets, 0, bloc, 0, Math.min(100, nomOctets.length));
+        ecrire(bloc, 100, String.format("%07o", 0644));
+        ecrire(bloc, 108, String.format("%07o", 0));
+        ecrire(bloc, 116, String.format("%07o", 0));
+        ecrire(bloc, 124, String.format("%011o", taille));
+        ecrire(bloc, 136, String.format("%011o", 0));
+        bloc[156] = '0';
+        ecrire(bloc, 257, "ustar");
+        ecrire(bloc, 263, "00");
+        for (int position = 148; position < 156; position++) {
+            bloc[position] = ' ';
         }
         long somme = 0;
-        for (byte b : h) {
-            somme += b & 0xff;
+        for (byte octet : bloc) {
+            somme += octet & 0xff;
         }
-        ecrire(h, 148, String.format("%06o", somme));
-        h[154] = 0;
-        return h;
+        ecrire(bloc, 148, String.format("%06o", somme));
+        bloc[154] = 0;
+        return bloc;
     }
 
-    private static void ecrire(byte[] h, int debut, String s) {
-        byte[] b = s.getBytes(StandardCharsets.US_ASCII);
-        System.arraycopy(b, 0, h, debut, b.length);
+    private static void ecrire(byte[] bloc, int debut, String valeur) {
+        byte[] octets = valeur.getBytes(StandardCharsets.US_ASCII);
+        System.arraycopy(octets, 0, bloc, debut, octets.length);
     }
 
     /** Programme l'index (tiré de {@code index.html}) et les archives des 19, 20 et 21 novembre 2026. */
@@ -106,16 +106,16 @@ public class ReglementaireFixtures {
 
     /** Archive du 20 novembre 2026 : décret « carrière » (avec son article) et arrêté « paie ». */
     public static Map<String, String> archiveDu20() {
-        Map<String, String> m = new LinkedHashMap<>();
-        m.put("20261120-213004/jorf/global/texte/version/JORF/TEXT/00/00/99/00/00/JORFTEXT000099000001.xml",
+        Map<String, String> fichiers = new LinkedHashMap<>();
+        fichiers.put("20261120-213004/jorf/global/texte/version/JORF/TEXT/00/00/99/00/00/JORFTEXT000099000001.xml",
                 fichier("texte-carriere.xml"));
-        m.put("20261120-213004/jorf/global/article/JORF/ARTI/00/00/99/00/00/JORFARTI000099000011.xml",
+        fichiers.put("20261120-213004/jorf/global/article/JORF/ARTI/00/00/99/00/00/JORFARTI000099000011.xml",
                 fichier("article-carriere.xml"));
-        m.put("20261120-213004/jorf/global/texte/version/JORF/TEXT/00/00/99/00/00/JORFTEXT000099000002.xml",
+        fichiers.put("20261120-213004/jorf/global/texte/version/JORF/TEXT/00/00/99/00/00/JORFTEXT000099000002.xml",
                 fichier("texte-paie.xml"));
-        m.put("20261120-213004/jorf/global/texte/version/JORF/TEXT/00/00/99/00/00/JORFTEXT000099000009.xml",
+        fichiers.put("20261120-213004/jorf/global/texte/version/JORF/TEXT/00/00/99/00/00/JORFTEXT000099000009.xml",
                 fichier("xxe.xml"));
-        return m;
+        return fichiers;
     }
 
     /** Archive du 21 novembre 2026 : décision sans rapport avec les domaines de test. */
@@ -133,14 +133,14 @@ public class ReglementaireFixtures {
                 INSERT INTO texte_officiel (id, identifiant, source, nature, nor, titre, date_publication, date_effet,
                     motif_date_effet, archive, collecte_le)
                 VALUES (?, ?, 'JORF', 'DECRET', 'TEST2600001D', ?, ?, ?, ?, 'test', ?)
-                """, ps -> {
-            ps.setObject(1, id);
-            ps.setString(2, identifiant);
-            ps.setString(3, titre);
-            ps.setDate(4, Date.valueOf(publication));
-            ps.setDate(5, effet == null ? null : Date.valueOf(effet));
-            ps.setString(6, effet == null ? null : "test");
-            ps.setTimestamp(7, Timestamp.from(Instant.now()));
+                """, requete -> {
+            requete.setObject(1, id);
+            requete.setString(2, identifiant);
+            requete.setString(3, titre);
+            requete.setDate(4, Date.valueOf(publication));
+            requete.setDate(5, effet == null ? null : Date.valueOf(effet));
+            requete.setString(6, effet == null ? null : "test");
+            requete.setTimestamp(7, Timestamp.from(Instant.now()));
         });
         return id;
     }
@@ -148,11 +148,11 @@ public class ReglementaireFixtures {
     /** Domaine métier d'un espace. */
     public void domaine(UUID espace, String code, String libelle, UUID auteur) {
         executer("INSERT INTO domaine_metier (espace_id, code, libelle, modifie_par, modifie_le) VALUES (?, ?, ?, ?, now())",
-                ps -> {
-                    ps.setObject(1, espace);
-                    ps.setString(2, code);
-                    ps.setString(3, libelle);
-                    ps.setObject(4, auteur);
+                requete -> {
+                    requete.setObject(1, espace);
+                    requete.setString(2, code);
+                    requete.setString(3, libelle);
+                    requete.setObject(4, auteur);
                 });
     }
 
@@ -160,19 +160,19 @@ public class ReglementaireFixtures {
     public void expert(UUID espace, String domaine, UUID compte) {
         executer("""
                 INSERT INTO expert_domaine (espace_id, domaine, compte_id, modifie_par, modifie_le) VALUES (?, ?, ?, ?, now())
-                """, ps -> {
-            ps.setObject(1, espace);
-            ps.setString(2, domaine);
-            ps.setObject(3, compte);
-            ps.setObject(4, compte);
+                """, requete -> {
+            requete.setObject(1, espace);
+            requete.setString(2, domaine);
+            requete.setObject(3, compte);
+            requete.setObject(4, compte);
         });
     }
 
     /** Origine du résumé d'une fiche : {@code IA}, {@code EXPERT} ou {@code AUCUN}. */
     public void origineResume(UUID fiche, String origine) {
-        executer("UPDATE fiche_reglementaire SET resume_origine = ? WHERE id = ?", ps -> {
-            ps.setString(1, origine);
-            ps.setObject(2, fiche);
+        executer("UPDATE fiche_reglementaire SET resume_origine = ? WHERE id = ?", requete -> {
+            requete.setString(1, origine);
+            requete.setObject(2, fiche);
         });
     }
 
@@ -186,21 +186,21 @@ public class ReglementaireFixtures {
                 SELECT ?, t.id, ?, ?, ?, ?, 'EXPERT', t.date_effet, CASE WHEN t.date_effet IS NULL THEN NULL ELSE 'TEXTE' END,
                        ?, ?, now(), now()
                 FROM texte_officiel t WHERE t.id = ?
-                """, ps -> {
-            ps.setObject(1, id);
-            ps.setObject(2, espace);
-            ps.setString(3, etatValidation);
-            ps.setString(4, "VALIDEE".equals(etatValidation) ? "EN_ANALYSE" : "NOUVEAU");
-            ps.setString(5, resume);
-            ps.setObject(6, decidee ? decidePar : null);
-            ps.setTimestamp(7, decidee ? Timestamp.from(Instant.now()) : null);
-            ps.setObject(8, texte);
+                """, requete -> {
+            requete.setObject(1, id);
+            requete.setObject(2, espace);
+            requete.setString(3, etatValidation);
+            requete.setString(4, "VALIDEE".equals(etatValidation) ? "EN_ANALYSE" : "NOUVEAU");
+            requete.setString(5, resume);
+            requete.setObject(6, decidee ? decidePar : null);
+            requete.setTimestamp(7, decidee ? Timestamp.from(Instant.now()) : null);
+            requete.setObject(8, texte);
         });
         executer("INSERT INTO fiche_domaine (fiche_id, espace_id, domaine, origine, motif) VALUES (?, ?, ?, 'REGLE', 'test')",
-                ps -> {
-                    ps.setObject(1, id);
-                    ps.setObject(2, espace);
-                    ps.setString(3, domaine);
+                requete -> {
+                    requete.setObject(1, id);
+                    requete.setObject(2, espace);
+                    requete.setString(3, domaine);
                 });
         return id;
     }
@@ -208,24 +208,24 @@ public class ReglementaireFixtures {
     /** Domaine supplémentaire rattaché à une fiche existante par une règle. */
     public void rattacher(UUID fiche, UUID espace, String domaine) {
         executer("INSERT INTO fiche_domaine (fiche_id, espace_id, domaine, origine, motif) VALUES (?, ?, ?, 'REGLE', 'test')",
-                ps -> {
-                    ps.setObject(1, fiche);
-                    ps.setObject(2, espace);
-                    ps.setString(3, domaine);
+                requete -> {
+                    requete.setObject(1, fiche);
+                    requete.setObject(2, espace);
+                    requete.setString(3, domaine);
                 });
     }
 
     @FunctionalInterface
     interface Parametrage {
-        void appliquer(PreparedStatement ps) throws SQLException;
+        void appliquer(PreparedStatement requete) throws SQLException;
     }
 
-    private void executer(String sql, Parametrage p) {
-        try (Connection c = dataSource.getConnection(); PreparedStatement ps = c.prepareStatement(sql)) {
-            p.appliquer(ps);
-            ps.executeUpdate();
-        } catch (SQLException e) {
-            throw new IllegalStateException(sql, e);
+    private void executer(String sql, Parametrage parametrage) {
+        try (Connection connexion = dataSource.getConnection(); PreparedStatement requete = connexion.prepareStatement(sql)) {
+            parametrage.appliquer(requete);
+            requete.executeUpdate();
+        } catch (SQLException erreur) {
+            throw new IllegalStateException(sql, erreur);
         }
     }
 }
