@@ -70,9 +70,9 @@ public class OsvAdvisoryFeed implements AdvisoryFeed {
                 Instant modified;
                 try {
                     modified = Instant.parse(line.substring(0, comma).trim());
-                } catch (DateTimeParseException e) {
+                } catch (DateTimeParseException error) {
                     throw new SourceException(SourceException.Kind.PERMANENT, null, null,
-                            "date illisible dans l'index OSV pour " + ecosystem, e);
+                            "date illisible dans l'index OSV pour " + ecosystem, error);
                 }
                 FeedEntry entry = new FeedEntry(line.substring(comma + 1).trim(), modified);
                 if (entry.isAfter(position)) {

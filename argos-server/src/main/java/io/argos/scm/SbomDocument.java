@@ -78,14 +78,14 @@ public record SbomDocument(byte[] contenu, Format format) {
 
     /** Position du premier octet utile : marque d'ordre des octets UTF-8 et blancs ignorés. */
     private static int debutUtile(byte[] contenu) {
-        int i = 0;
+        int position = 0;
         if (contenu.length >= 3 && (contenu[0] & 0xFF) == 0xEF && (contenu[1] & 0xFF) == 0xBB && (contenu[2] & 0xFF) == 0xBF) {
-            i = 3;
+            position = 3;
         }
-        while (i < contenu.length && Character.isWhitespace(contenu[i])) {
-            i++;
+        while (position < contenu.length && Character.isWhitespace(contenu[position])) {
+            position++;
         }
-        return i;
+        return position;
     }
 
     /**
@@ -93,26 +93,26 @@ public record SbomDocument(byte[] contenu, Format format) {
      * {@code CycloneDX}, {@code spdxVersion} est présent, ou {@code sbom} contient {@code spdxVersion}.
      */
     private static Format json(byte[] contenu) {
-        try (JsonParser p = JSON.createParser(contenu)) {
-            if (p.nextToken() != JsonToken.START_OBJECT) {
+        try (JsonParser analyseur = JSON.createParser(contenu)) {
+            if (analyseur.nextToken() != JsonToken.START_OBJECT) {
                 return Format.INCONNU;
             }
-            for (int champs = 0; champs < CHAMPS_MAX && p.nextToken() == JsonToken.FIELD_NAME; champs++) {
-                String nom = p.currentName();
-                JsonToken valeur = p.nextToken();
-                if ("bomFormat".equals(nom) && valeur == JsonToken.VALUE_STRING && "CycloneDX".equals(p.getText())) {
+            for (int champs = 0; champs < CHAMPS_MAX && analyseur.nextToken() == JsonToken.FIELD_NAME; champs++) {
+                String nom = analyseur.currentName();
+                JsonToken valeur = analyseur.nextToken();
+                if ("bomFormat".equals(nom) && valeur == JsonToken.VALUE_STRING && "CycloneDX".equals(analyseur.getText())) {
                     return Format.CYCLONEDX_JSON;
                 }
                 if ("spdxVersion".equals(nom)) {
                     return Format.SPDX_JSON;
                 }
-                if ("sbom".equals(nom) && valeur == JsonToken.START_OBJECT && contientSpdx(p)) {
+                if ("sbom".equals(nom) && valeur == JsonToken.START_OBJECT && contientSpdx(analyseur)) {
                     return Format.SPDX_JSON;
                 }
-                p.skipChildren();
+                analyseur.skipChildren();
             }
             return Format.INCONNU;
-        } catch (IOException e) {
+        } catch (IOException illisible) {
             return Format.INCONNU;
         }
     }
@@ -121,21 +121,21 @@ public record SbomDocument(byte[] contenu, Format format) {
      * Cherche {@code spdxVersion} parmi les {@value #CHAMPS_MAX} premiers champs de l'objet {@code sbom}.
      * Sans résultat, l'objet est lu jusqu'à sa fin, pour que le parcours reprenne au premier niveau.
      */
-    private static boolean contientSpdx(JsonParser p) throws IOException {
+    private static boolean contientSpdx(JsonParser analyseur) throws IOException {
         int champs = 0;
-        while (p.nextToken() == JsonToken.FIELD_NAME) {
-            if (champs++ < CHAMPS_MAX && "spdxVersion".equals(p.currentName())) {
+        while (analyseur.nextToken() == JsonToken.FIELD_NAME) {
+            if (champs++ < CHAMPS_MAX && "spdxVersion".equals(analyseur.currentName())) {
                 return true;
             }
-            p.nextToken();
-            p.skipChildren();
+            analyseur.nextToken();
+            analyseur.skipChildren();
         }
         return false;
     }
 
     @Override
-    public boolean equals(Object o) {
-        return o instanceof SbomDocument d && format == d.format && Arrays.equals(contenu, d.contenu);
+    public boolean equals(Object autre) {
+        return autre instanceof SbomDocument document && format == document.format && Arrays.equals(contenu, document.contenu);
     }
 
     @Override

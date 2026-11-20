@@ -45,37 +45,37 @@ public class LecteurFlux {
         SyndFeed flux;
         try (XmlReader lecteur = new XmlReader(new ByteArrayInputStream(contenu))) {
             flux = new SyndFeedInput().build(lecteur);
-        } catch (FeedException | IOException | IllegalArgumentException | IllegalStateException e) {
-            throw new RecuperationRefusee(Motif.FLUX_INVALIDE, "L'adresse ne renvoie pas un flux RSS ou Atom valide.", e);
+        } catch (FeedException | IOException | IllegalArgumentException | IllegalStateException erreur) {
+            throw new RecuperationRefusee(Motif.FLUX_INVALIDE, "L'adresse ne renvoie pas un flux RSS ou Atom valide.", erreur);
         }
         List<ElementFlux> elements = new ArrayList<>();
-        for (SyndEntry e : flux.getEntries()) {
-            String titre = texte(e.getTitle());
-            String corps = corps(e);
+        for (SyndEntry entree : flux.getEntries()) {
+            String titre = texte(entree.getTitle());
+            String corps = corps(entree);
             if (titre.isEmpty()) {
                 titre = couper(corps, 120);
             }
             if (titre.isEmpty()) {
                 continue;
             }
-            Date date = e.getPublishedDate() != null ? e.getPublishedDate() : e.getUpdatedDate();
-            elements.add(new ElementFlux(vide(e.getUri()), couper(titre, TITRE_MAX), lienSur(e.getLink()),
+            Date date = entree.getPublishedDate() != null ? entree.getPublishedDate() : entree.getUpdatedDate();
+            elements.add(new ElementFlux(vide(entree.getUri()), couper(titre, TITRE_MAX), lienSur(entree.getLink()),
                     couper(corps, TEXTE_MAX), date == null ? null : date.toInstant()));
         }
         return new Flux(couper(texte(flux.getTitle()), 200), List.copyOf(elements));
     }
 
-    private static String corps(SyndEntry e) {
+    private static String corps(SyndEntry entree) {
         StringBuilder html = new StringBuilder();
-        if (e.getContents() != null) {
-            for (SyndContent c : e.getContents()) {
-                if (c != null && c.getValue() != null) {
-                    html.append(c.getValue()).append('\n');
+        if (entree.getContents() != null) {
+            for (SyndContent contenu : entree.getContents()) {
+                if (contenu != null && contenu.getValue() != null) {
+                    html.append(contenu.getValue()).append('\n');
                 }
             }
         }
-        if (html.length() == 0 && e.getDescription() != null && e.getDescription().getValue() != null) {
-            html.append(e.getDescription().getValue());
+        if (html.length() == 0 && entree.getDescription() != null && entree.getDescription().getValue() != null) {
+            html.append(entree.getDescription().getValue());
         }
         return texte(html.toString());
     }
@@ -93,12 +93,12 @@ public class LecteurFlux {
         if (lien == null || lien.isBlank()) {
             return null;
         }
-        String l = lien.strip();
-        String minuscule = l.toLowerCase(Locale.ROOT);
-        if ((!minuscule.startsWith("http://") && !minuscule.startsWith("https://")) || l.length() > 2000) {
+        String lienNettoye = lien.strip();
+        String minuscule = lienNettoye.toLowerCase(Locale.ROOT);
+        if ((!minuscule.startsWith("http://") && !minuscule.startsWith("https://")) || lienNettoye.length() > 2000) {
             return null;
         }
-        return l;
+        return lienNettoye;
     }
 
     static String couper(String valeur, int max) {

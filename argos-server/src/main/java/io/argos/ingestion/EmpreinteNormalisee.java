@@ -52,35 +52,35 @@ public final class EmpreinteNormalisee {
         texte(racine, "withdrawnAt", instant(avis.withdrawnAt()));
         racine.set("aliases", triee(avis.aliases()));
         List<String> paquets = new ArrayList<>();
-        for (NormalizedAdvisory.Affected a : avis.affected() == null ? List.<NormalizedAdvisory.Affected>of()
+        for (NormalizedAdvisory.Affected paquetAffecte : avis.affected() == null ? List.<NormalizedAdvisory.Affected>of()
                 : avis.affected()) {
-            paquets.add(ecrire(paquet(a)));
+            paquets.add(ecrire(paquet(paquetAffecte)));
         }
         ArrayNode affected = NOEUDS.arrayNode();
-        paquets.stream().sorted().forEach(p -> affected.add(lire(p)));
+        paquets.stream().sorted().forEach(paquetCanonique -> affected.add(lire(paquetCanonique)));
         racine.set("affected", affected);
         return ecrire(racine);
     }
 
-    private static ObjectNode paquet(NormalizedAdvisory.Affected a) {
-        ObjectNode n = NOEUDS.objectNode();
-        texte(n, "ecosystem", a.ecosystem());
-        texte(n, "name", a.name());
-        texte(n, "purl", a.purl());
+    private static ObjectNode paquet(NormalizedAdvisory.Affected affecte) {
+        ObjectNode noeud = NOEUDS.objectNode();
+        texte(noeud, "ecosystem", affecte.ecosystem());
+        texte(noeud, "name", affecte.name());
+        texte(noeud, "purl", affecte.purl());
         List<String> plages = new ArrayList<>();
-        for (NormalizedAdvisory.Range r : a.ranges() == null ? List.<NormalizedAdvisory.Range>of() : a.ranges()) {
-            ObjectNode p = NOEUDS.objectNode();
-            texte(p, "type", r.type());
-            texte(p, "introduced", r.introduced());
-            texte(p, "fixed", r.fixed());
-            texte(p, "lastAffected", r.lastAffected());
-            plages.add(ecrire(p));
+        for (NormalizedAdvisory.Range plage : affecte.ranges() == null ? List.<NormalizedAdvisory.Range>of() : affecte.ranges()) {
+            ObjectNode noeudPlage = NOEUDS.objectNode();
+            texte(noeudPlage, "type", plage.type());
+            texte(noeudPlage, "introduced", plage.introduced());
+            texte(noeudPlage, "fixed", plage.fixed());
+            texte(noeudPlage, "lastAffected", plage.lastAffected());
+            plages.add(ecrire(noeudPlage));
         }
         ArrayNode ranges = NOEUDS.arrayNode();
-        plages.stream().sorted().forEach(p -> ranges.add(lire(p)));
-        n.set("ranges", ranges);
-        n.set("versions", triee(a.versions()));
-        return n;
+        plages.stream().sorted().forEach(plageCanonique -> ranges.add(lire(plageCanonique)));
+        noeud.set("ranges", ranges);
+        noeud.set("versions", triee(affecte.versions()));
+        return noeud;
     }
 
     private static ArrayNode triee(List<String> valeurs) {
@@ -91,11 +91,11 @@ public final class EmpreinteNormalisee {
         return tableau;
     }
 
-    private static void texte(ObjectNode n, String champ, String valeur) {
+    private static void texte(ObjectNode noeud, String champ, String valeur) {
         if (valeur == null) {
-            n.putNull(champ);
+            noeud.putNull(champ);
         } else {
-            n.put(champ, valeur);
+            noeud.put(champ, valeur);
         }
     }
 
@@ -106,16 +106,16 @@ public final class EmpreinteNormalisee {
     private static String ecrire(Object noeud) {
         try {
             return CANONIQUE.writeValueAsString(CANONIQUE.convertValue(noeud, Object.class));
-        } catch (JsonProcessingException e) {
-            throw new IllegalStateException("sérialisation canonique impossible", e);
+        } catch (JsonProcessingException erreur) {
+            throw new IllegalStateException("sérialisation canonique impossible", erreur);
         }
     }
 
     private static ObjectNode lire(String json) {
         try {
             return (ObjectNode) CANONIQUE.readTree(json);
-        } catch (JsonProcessingException e) {
-            throw new IllegalStateException("relecture canonique impossible", e);
+        } catch (JsonProcessingException erreur) {
+            throw new IllegalStateException("relecture canonique impossible", erreur);
         }
     }
 
@@ -123,8 +123,8 @@ public final class EmpreinteNormalisee {
         try {
             return HexFormat.of().formatHex(MessageDigest.getInstance("SHA-256")
                     .digest(contenu.getBytes(StandardCharsets.UTF_8)));
-        } catch (NoSuchAlgorithmException e) {
-            throw new IllegalStateException("SHA-256 indisponible", e);
+        } catch (NoSuchAlgorithmException erreur) {
+            throw new IllegalStateException("SHA-256 indisponible", erreur);
         }
     }
 }

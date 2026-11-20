@@ -101,8 +101,8 @@ public class CollecteOpportunites {
     /** Collecte chaque source du profil ; une source en échec n'interrompt pas les autres. */
     public List<Rapport> collecter(String profil, Instant maintenant) {
         List<Rapport> rapports = new ArrayList<>();
-        for (SourceProfil s : sources.lister(profil)) {
-            rapports.add(collecter(s, maintenant));
+        for (SourceProfil source : sources.lister(profil)) {
+            rapports.add(collecter(source, maintenant));
         }
         return rapports;
     }
@@ -126,18 +126,18 @@ public class CollecteOpportunites {
             int[] bilan = enregistrer(source, lus, maintenant);
             etat(source.id(), SourceProfil.ACTIVE, null, maintenant);
             return new Rapport(source.id(), SourceProfil.ACTIVE, bilan[0], bilan[1], null);
-        } catch (RecuperationRefusee e) {
-            LOG.infof("collecte de la source %s en échec : %s (%s)", source.id(), e.motif(), e.getMessage());
-            etat(source.id(), SourceProfil.EN_ERREUR, e.motifPublic(), maintenant);
-            return new Rapport(source.id(), SourceProfil.EN_ERREUR, 0, 0, e.motifPublic());
-        } catch (LecteurDataCulture.ReponseInvalide e) {
+        } catch (RecuperationRefusee refus) {
+            LOG.infof("collecte de la source %s en échec : %s (%s)", source.id(), refus.motif(), refus.getMessage());
+            etat(source.id(), SourceProfil.EN_ERREUR, refus.motifPublic(), maintenant);
+            return new Rapport(source.id(), SourceProfil.EN_ERREUR, 0, 0, refus.motifPublic());
+        } catch (LecteurDataCulture.ReponseInvalide erreur) {
             String motif = "REPONSE_INVALIDE : la réponse n'est pas celle attendue de l'API data.culture.gouv.fr.";
-            LOG.infof("collecte de la source %s en échec : %s", source.id(), e.getMessage());
+            LOG.infof("collecte de la source %s en échec : %s", source.id(), erreur.getMessage());
             etat(source.id(), SourceProfil.EN_ERREUR, motif, maintenant);
             return new Rapport(source.id(), SourceProfil.EN_ERREUR, 0, 0, motif);
-        } catch (RuntimeException e) {
+        } catch (RuntimeException erreur) {
             String motif = "ERREUR_INTERNE : la collecte a été interrompue.";
-            LOG.errorf(e, "collecte de la source %s interrompue", source.id());
+            LOG.errorf(erreur, "collecte de la source %s interrompue", source.id());
             etat(source.id(), SourceProfil.EN_ERREUR, motif, maintenant);
             return new Rapport(source.id(), SourceProfil.EN_ERREUR, 0, 0, motif);
         }
@@ -153,22 +153,22 @@ public class CollecteOpportunites {
         if (SourceProfil.DATA_CULTURE.equals(source.type())) {
             LecteurDataCulture.Champs champs = new LecteurDataCulture.Champs(champIdentifiant, champTitre,
                     champOrganisme, champCriteres, champLien, champDiscipline, champTerritoire, champDateLimite);
-            for (LecteurDataCulture.Enregistrement e : LecteurDataCulture.lire(contenu.octets(), champs, elementsMax)) {
-                lus.add(new Lu(e.identifiant(), e.titre(), e.organisme(), e.criteres(),
-                        CorrespondanceListes.lienSur(e.lien()),
-                        ouDeclarees(CorrespondanceListes.identifiants(e.disciplines(), profil.liste("discipline")),
+            for (LecteurDataCulture.Enregistrement enregistrement : LecteurDataCulture.lire(contenu.octets(), champs, elementsMax)) {
+                lus.add(new Lu(enregistrement.identifiant(), enregistrement.titre(), enregistrement.organisme(), enregistrement.criteres(),
+                        CorrespondanceListes.lienSur(enregistrement.lien()),
+                        ouDeclarees(CorrespondanceListes.identifiants(enregistrement.disciplines(), profil.liste("discipline")),
                                 source.disciplines()),
-                        ouDeclarees(CorrespondanceListes.identifiants(e.territoires(), profil.liste("territoire")),
+                        ouDeclarees(CorrespondanceListes.identifiants(enregistrement.territoires(), profil.liste("territoire")),
                                 source.territoires()),
-                        e.dateLimite()));
+                        enregistrement.dateLimite()));
             }
             return lus;
         }
         List<LecteurFlux.ElementFlux> elements = lecteurFlux.lire(contenu.octets()).elements();
-        for (LecteurFlux.ElementFlux e : elements.size() > elementsMax ? elements.subList(0, elementsMax) : elements) {
-            String lien = CorrespondanceListes.lienSur(e.lien());
-            String identifiant = lien != null ? lien : e.identifiant() != null ? e.identifiant() : e.titre();
-            lus.add(new Lu(identifiant, e.titre(), source.libelle(), e.texte() == null ? "" : e.texte(), lien,
+        for (LecteurFlux.ElementFlux element : elements.size() > elementsMax ? elements.subList(0, elementsMax) : elements) {
+            String lien = CorrespondanceListes.lienSur(element.lien());
+            String identifiant = lien != null ? lien : element.identifiant() != null ? element.identifiant() : element.titre();
+            lus.add(new Lu(identifiant, element.titre(), source.libelle(), element.texte() == null ? "" : element.texte(), lien,
                     source.disciplines(), source.territoires(), null));
         }
         return lus;
@@ -192,47 +192,47 @@ public class CollecteOpportunites {
                     date_limite = excluded.date_limite, modifie_le = excluded.modifie_le
                 RETURNING (xmax = 0)
                 """;
-        try (Connection c = dataSource.getConnection(); PreparedStatement ps = c.prepareStatement(sql)) {
-            for (Lu l : lus) {
-                ps.setObject(1, UUID.randomUUID());
-                ps.setObject(2, source.id());
-                ps.setString(3, LecteurPage.empreinte("opportunite:" + l.identifiant()));
-                ps.setString(4, source.rubrique());
-                ps.setString(5, l.titre());
-                ps.setString(6, l.organisme());
-                ps.setString(7, l.criteres());
-                ps.setString(8, l.lien());
-                ps.setArray(9, c.createArrayOf("varchar", l.disciplines().toArray()));
-                ps.setArray(10, c.createArrayOf("varchar", l.territoires().toArray()));
-                ps.setObject(11, l.dateLimite());
-                ps.setObject(12, maintenant.atOffset(ZoneOffset.UTC));
-                ps.setObject(13, maintenant.atOffset(ZoneOffset.UTC));
-                try (ResultSet rs = ps.executeQuery()) {
-                    if (rs.next() && rs.getBoolean(1)) {
+        try (Connection connexion = dataSource.getConnection(); PreparedStatement requete = connexion.prepareStatement(sql)) {
+            for (Lu element : lus) {
+                requete.setObject(1, UUID.randomUUID());
+                requete.setObject(2, source.id());
+                requete.setString(3, LecteurPage.empreinte("opportunite:" + element.identifiant()));
+                requete.setString(4, source.rubrique());
+                requete.setString(5, element.titre());
+                requete.setString(6, element.organisme());
+                requete.setString(7, element.criteres());
+                requete.setString(8, element.lien());
+                requete.setArray(9, connexion.createArrayOf("varchar", element.disciplines().toArray()));
+                requete.setArray(10, connexion.createArrayOf("varchar", element.territoires().toArray()));
+                requete.setObject(11, element.dateLimite());
+                requete.setObject(12, maintenant.atOffset(ZoneOffset.UTC));
+                requete.setObject(13, maintenant.atOffset(ZoneOffset.UTC));
+                try (ResultSet resultat = requete.executeQuery()) {
+                    if (resultat.next() && resultat.getBoolean(1)) {
                         nouvelles++;
                     } else {
                         misesAJour++;
                     }
                 }
             }
-        } catch (SQLException e) {
-            throw new IllegalStateException("enregistrement des opportunités impossible", e);
+        } catch (SQLException erreur) {
+            throw new IllegalStateException("enregistrement des opportunités impossible", erreur);
         }
         return new int[] {nouvelles, misesAJour};
     }
 
     private void etat(UUID source, String etat, String erreur, Instant maintenant) {
-        try (Connection c = dataSource.getConnection(); PreparedStatement ps = c.prepareStatement("""
+        try (Connection connexion = dataSource.getConnection(); PreparedStatement requete = connexion.prepareStatement("""
                 UPDATE source_profil SET etat = ?, derniere_erreur = ?, derniere_collecte_le = ?
                 WHERE id = ? AND conditions_verifiees_le IS NOT NULL
                 """)) {
-            ps.setString(1, etat);
-            ps.setString(2, erreur == null ? null : erreur.length() > 1000 ? erreur.substring(0, 1000) : erreur);
-            ps.setObject(3, maintenant.atOffset(ZoneOffset.UTC));
-            ps.setObject(4, source);
-            ps.executeUpdate();
-        } catch (SQLException e) {
-            throw new IllegalStateException("mise à jour de l'état de la source impossible", e);
+            requete.setString(1, etat);
+            requete.setString(2, erreur == null ? null : erreur.length() > 1000 ? erreur.substring(0, 1000) : erreur);
+            requete.setObject(3, maintenant.atOffset(ZoneOffset.UTC));
+            requete.setObject(4, source);
+            requete.executeUpdate();
+        } catch (SQLException echec) {
+            throw new IllegalStateException("mise à jour de l'état de la source impossible", echec);
         }
     }
 }

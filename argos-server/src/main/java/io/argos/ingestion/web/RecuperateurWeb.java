@@ -48,10 +48,10 @@ public class RecuperateurWeb {
     }
 
     /** Minuterie qui ferme un corps de réponse dont la lecture dépasse l'échéance. */
-    private static final ScheduledExecutorService MINUTERIE = Executors.newSingleThreadScheduledExecutor(r -> {
-        Thread t = new Thread(r, "argos-veille-web-delai");
-        t.setDaemon(true);
-        return t;
+    private static final ScheduledExecutorService MINUTERIE = Executors.newSingleThreadScheduledExecutor(tache -> {
+        Thread fil = new Thread(tache, "argos-veille-web-delai");
+        fil.setDaemon(true);
+        return fil;
     });
 
     static final String AGENT = "Argos-veille/1.0 (+collecteur RSS/Atom)";
@@ -112,22 +112,22 @@ public class RecuperateurWeb {
     private Reponse envoyer(URI uri, Duration restant) {
         try {
             return transport.envoyer(uri, restant);
-        } catch (HttpTimeoutException e) {
-            throw new RecuperationRefusee(Motif.DELAI_DEPASSE, "Délai dépassé pour " + uri.getHost() + ".", e);
-        } catch (IOException e) {
-            throw new RecuperationRefusee(Motif.ERREUR_RESEAU, "Erreur réseau pour " + uri.getHost() + ".", e);
-        } catch (InterruptedException e) {
+        } catch (HttpTimeoutException erreur) {
+            throw new RecuperationRefusee(Motif.DELAI_DEPASSE, "Délai dépassé pour " + uri.getHost() + ".", erreur);
+        } catch (IOException erreur) {
+            throw new RecuperationRefusee(Motif.ERREUR_RESEAU, "Erreur réseau pour " + uri.getHost() + ".", erreur);
+        } catch (InterruptedException erreur) {
             Thread.currentThread().interrupt();
-            throw new RecuperationRefusee(Motif.ERREUR_RESEAU, "Récupération interrompue pour " + uri.getHost() + ".", e);
+            throw new RecuperationRefusee(Motif.ERREUR_RESEAU, "Récupération interrompue pour " + uri.getHost() + ".", erreur);
         }
     }
 
     private Duration restant(Instant echeance, URI uri) {
-        Duration d = Duration.between(Instant.now(), echeance);
-        if (d.isNegative() || d.isZero()) {
+        Duration reste = Duration.between(Instant.now(), echeance);
+        if (reste.isNegative() || reste.isZero()) {
             throw new RecuperationRefusee(Motif.DELAI_DEPASSE, "Délai dépassé pour " + uri.getHost() + ".");
         }
-        return d;
+        return reste;
     }
 
     private byte[] lire(InputStream corps, Instant echeance, URI uri) {
@@ -138,12 +138,12 @@ public class RecuperateurWeb {
         // l'échéance, ce qui interrompt la lecture en cours.
         ScheduledFuture<?> coupure = MINUTERIE.schedule(() -> fermer(corps),
                 Math.max(1, Duration.between(Instant.now(), echeance).toMillis()), TimeUnit.MILLISECONDS);
-        try (InputStream in = corps; ByteArrayOutputStream out = new ByteArrayOutputStream()) {
+        try (InputStream flux = corps; ByteArrayOutputStream out = new ByteArrayOutputStream()) {
             byte[] tampon = new byte[8192];
             long total = 0;
-            int lu;
-            while ((lu = in.read(tampon)) != -1) {
-                total += lu;
+            int octetsLus;
+            while ((octetsLus = flux.read(tampon)) != -1) {
+                total += octetsLus;
                 if (total > tailleMax) {
                     throw new RecuperationRefusee(Motif.CONTENU_TROP_VOLUMINEUX,
                             "Contenu de " + uri.getHost() + " supérieur à " + tailleMax + " octets.");
@@ -151,16 +151,16 @@ public class RecuperateurWeb {
                 if (Instant.now().isAfter(echeance)) {
                     throw new RecuperationRefusee(Motif.DELAI_DEPASSE, "Délai dépassé pour " + uri.getHost() + ".");
                 }
-                out.write(tampon, 0, lu);
+                out.write(tampon, 0, octetsLus);
             }
             return out.toByteArray();
-        } catch (HttpTimeoutException e) {
-            throw new RecuperationRefusee(Motif.DELAI_DEPASSE, "Délai dépassé pour " + uri.getHost() + ".", e);
-        } catch (IOException e) {
+        } catch (HttpTimeoutException erreur) {
+            throw new RecuperationRefusee(Motif.DELAI_DEPASSE, "Délai dépassé pour " + uri.getHost() + ".", erreur);
+        } catch (IOException erreur) {
             if (!Instant.now().isBefore(echeance)) {
-                throw new RecuperationRefusee(Motif.DELAI_DEPASSE, "Délai dépassé pour " + uri.getHost() + ".", e);
+                throw new RecuperationRefusee(Motif.DELAI_DEPASSE, "Délai dépassé pour " + uri.getHost() + ".", erreur);
             }
-            throw new RecuperationRefusee(Motif.ERREUR_RESEAU, "Lecture interrompue pour " + uri.getHost() + ".", e);
+            throw new RecuperationRefusee(Motif.ERREUR_RESEAU, "Lecture interrompue pour " + uri.getHost() + ".", erreur);
         } finally {
             coupure.cancel(false);
         }
@@ -186,9 +186,9 @@ public class RecuperateurWeb {
                     .header("User-Agent", AGENT)
                     .header("Accept", "application/rss+xml, application/atom+xml, application/xml, text/xml, text/html;q=0.9, */*;q=0.5")
                     .build();
-            HttpResponse<InputStream> r = client.send(requete, HttpResponse.BodyHandlers.ofInputStream());
-            return new Reponse(r.statusCode(), r.headers().firstValue("Location"), r.headers().firstValue("Content-Type"),
-                    r.body());
+            HttpResponse<InputStream> reponseHttp = client.send(requete, HttpResponse.BodyHandlers.ofInputStream());
+            return new Reponse(reponseHttp.statusCode(), reponseHttp.headers().firstValue("Location"),
+                    reponseHttp.headers().firstValue("Content-Type"), reponseHttp.body());
         };
     }
 }

@@ -45,14 +45,15 @@ final class CorrespondanceListes {
         }
         Set<String> trouves = new LinkedHashSet<>();
         for (String lue : lues) {
-            String n = normaliser(lue);
-            if (n.isEmpty()) {
+            String normalisee = normaliser(lue);
+            if (normalisee.isEmpty()) {
                 continue;
             }
-            String synonyme = SYNONYMES.get(n);
-            for (ValeurListe v : liste.get().valeurs()) {
-                if (n.equals(v.identifiant()) || n.equals(normaliser(v.libelle())) || v.identifiant().equals(synonyme)) {
-                    trouves.add(v.identifiant());
+            String synonyme = SYNONYMES.get(normalisee);
+            for (ValeurListe valeur : liste.get().valeurs()) {
+                if (normalisee.equals(valeur.identifiant()) || normalisee.equals(normaliser(valeur.libelle()))
+                        || valeur.identifiant().equals(synonyme)) {
+                    trouves.add(valeur.identifiant());
                 }
             }
         }
@@ -73,12 +74,12 @@ final class CorrespondanceListes {
             return null;
         }
         try {
-            URI u = new URI(lien.strip());
-            String schema = u.getScheme() == null ? "" : u.getScheme().toLowerCase(Locale.ROOT);
-            if ((schema.equals("http") || schema.equals("https")) && u.getHost() != null && u.getRawUserInfo() == null) {
-                return u.toString();
+            URI uri = new URI(lien.strip());
+            String schema = uri.getScheme() == null ? "" : uri.getScheme().toLowerCase(Locale.ROOT);
+            if ((schema.equals("http") || schema.equals("https")) && uri.getHost() != null && uri.getRawUserInfo() == null) {
+                return uri.toString();
             }
-        } catch (URISyntaxException e) {
+        } catch (URISyntaxException malFormee) {
             return null;
         }
         return null;

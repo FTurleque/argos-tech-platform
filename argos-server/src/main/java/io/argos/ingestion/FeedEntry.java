@@ -23,9 +23,9 @@ public record FeedEntry(String externalId, Instant modified) {
             return true;
         }
         int sep = position.indexOf('|');
-        Instant at = Instant.parse(sep < 0 ? position : position.substring(0, sep));
+        Instant cursorInstant = Instant.parse(sep < 0 ? position : position.substring(0, sep));
         String id = sep < 0 ? "" : position.substring(sep + 1);
-        int c = modified.compareTo(at);
-        return c > 0 || (c == 0 && externalId.compareTo(id) > 0);
+        int comparison = modified.compareTo(cursorInstant);
+        return comparison > 0 || (comparison == 0 && externalId.compareTo(id) > 0);
     }
 }

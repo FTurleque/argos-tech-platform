@@ -83,9 +83,9 @@ public class ArchivesJorf {
     public List<String> index() {
         String index = new String(get(URI.create(base + "/"), INDEX_MAX), StandardCharsets.UTF_8);
         TreeSet<String> noms = new TreeSet<>();
-        Matcher m = ARCHIVE.matcher(index);
-        while (m.find()) {
-            noms.add(m.group());
+        Matcher correspondance = ARCHIVE.matcher(index);
+        while (correspondance.find()) {
+            noms.add(correspondance.group());
         }
         return List.copyOf(noms);
     }
@@ -93,7 +93,7 @@ public class ArchivesJorf {
     /** Noms des archives de l'index publiées pour le jour, dans l'ordre chronologique. */
     public static List<String> archivesDu(List<String> index, LocalDate jour) {
         String prefixe = "JORF_" + jour.format(JOUR) + "-";
-        return index.stream().filter(n -> n.startsWith(prefixe)).sorted().toList();
+        return index.stream().filter(nom -> nom.startsWith(prefixe)).sorted().toList();
     }
 
     /** Textes publiés le jour donné, lus dans toutes ses archives (index relu). */
@@ -114,31 +114,31 @@ public class ArchivesJorf {
             if (dejaLues.contains(nom)) {
                 continue;
             }
-            byte[] gz;
+            byte[] archiveCompressee;
             try {
-                gz = get(URI.create(base + "/" + nom), tailleMax);
-            } catch (SourceException e) {
-                if (e.kind() != SourceException.Kind.PERMANENT) {
-                    throw e;
+                archiveCompressee = get(URI.create(base + "/" + nom), tailleMax);
+            } catch (SourceException erreur) {
+                if (erreur.kind() != SourceException.Kind.PERMANENT) {
+                    throw erreur;
                 }
-                LOG.warnf("archive %s écartée : %s", nom, e.getMessage());
-                ecartees.add(nom + " : " + e.getMessage());
+                LOG.warnf("archive %s écartée : %s", nom, erreur.getMessage());
+                ecartees.add(nom + " : " + erreur.getMessage());
                 continue;
             }
             archives.add(nom);
-            try (InputStream in = new ByteArrayInputStream(gz)) {
-                lecteurArchive.lire(in, (chemin, xml) -> {
+            try (InputStream flux = new ByteArrayInputStream(archiveCompressee)) {
+                lecteurArchive.lire(flux, (chemin, xml) -> {
                     try {
                         LecteurJorf.lire(xml, nom).ifPresent(elements::add);
-                    } catch (LecteurJorf.XmlRefuse e) {
+                    } catch (LecteurJorf.XmlRefuse refus) {
                         refuses[0]++;
-                        LOG.infof("fichier %s de l'archive %s refusé : %s", chemin, nom, e.getMessage());
+                        LOG.infof("fichier %s de l'archive %s refusé : %s", chemin, nom, refus.getMessage());
                     }
                 });
-            } catch (ArchiveTar.ArchiveInvalide e) {
-                throw SourceException.transientError("archive " + nom + " illisible : " + e.getMessage(), e);
-            } catch (IOException e) {
-                throw SourceException.transientError("archive " + nom + " illisible", e);
+            } catch (ArchiveTar.ArchiveInvalide erreur) {
+                throw SourceException.transientError("archive " + nom + " illisible : " + erreur.getMessage(), erreur);
+            } catch (IOException erreur) {
+                throw SourceException.transientError("archive " + nom + " illisible", erreur);
             }
         }
         return new Lecture(LecteurJorf.assembler(elements), archives, refuses[0], ecartees);
@@ -147,12 +147,12 @@ public class ArchivesJorf {
     private byte[] get(URI uri, long max) {
         HttpRequest requete = HttpRequest.newBuilder(uri).timeout(delai).GET().build();
         try {
-            HttpResponse<InputStream> r = client.send(requete, HttpResponse.BodyHandlers.ofInputStream());
-            try (InputStream corps = r.body()) {
-                if (r.statusCode() != 200) {
-                    throw new SourceException(r.statusCode() >= 500 || r.statusCode() == 429
+            HttpResponse<InputStream> reponse = client.send(requete, HttpResponse.BodyHandlers.ofInputStream());
+            try (InputStream corps = reponse.body()) {
+                if (reponse.statusCode() != 200) {
+                    throw new SourceException(reponse.statusCode() >= 500 || reponse.statusCode() == 429
                             ? SourceException.Kind.TRANSIENT : SourceException.Kind.PERMANENT,
-                            r.statusCode(), null, "HTTP " + r.statusCode() + " de " + uri.getHost(), null);
+                            reponse.statusCode(), null, "HTTP " + reponse.statusCode() + " de " + uri.getHost(), null);
                 }
                 byte[] octets = corps.readNBytes((int) Math.min(Integer.MAX_VALUE - 8, max + 1));
                 if (octets.length > max) {
@@ -161,11 +161,11 @@ public class ArchivesJorf {
                 }
                 return octets;
             }
-        } catch (IOException e) {
-            throw SourceException.transientError(uri.getHost() + " injoignable : " + e.getClass().getSimpleName(), e);
-        } catch (InterruptedException e) {
+        } catch (IOException erreur) {
+            throw SourceException.transientError(uri.getHost() + " injoignable : " + erreur.getClass().getSimpleName(), erreur);
+        } catch (InterruptedException erreur) {
             Thread.currentThread().interrupt();
-            throw SourceException.transientError("lecture interrompue", e);
+            throw SourceException.transientError("lecture interrompue", erreur);
         }
     }
 }

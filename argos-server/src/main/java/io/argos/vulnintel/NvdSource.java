@@ -37,19 +37,19 @@ public class NvdSource implements EnrichmentSource {
             ObjectNode data = EnrichmentHttp.MAPPER.createObjectNode();
             data.put("published", item.path("published").asText(null));
             data.put("lastModified", item.path("lastModified").asText(null));
-            for (JsonNode d : item.path("descriptions")) {
-                if ("en".equals(d.path("lang").asText())) {
-                    data.put("description", d.path("value").asText());
+            for (JsonNode description : item.path("descriptions")) {
+                if ("en".equals(description.path("lang").asText())) {
+                    data.put("description", description.path("value").asText());
                 }
             }
             JsonNode metrics = item.path("metrics");
             for (String key : List.of("cvssMetricV40", "cvssMetricV31", "cvssMetricV30", "cvssMetricV2")) {
-                JsonNode m = metrics.path(key);
-                if (m.isArray() && !m.isEmpty()) {
-                    JsonNode cvss = m.get(0).path("cvssData");
+                JsonNode metric = metrics.path(key);
+                if (metric.isArray() && !metric.isEmpty()) {
+                    JsonNode cvss = metric.get(0).path("cvssData");
                     data.put("cvssVersion", cvss.path("version").asText(null));
                     data.put("baseScore", cvss.path("baseScore").asDouble());
-                    data.put("baseSeverity", cvss.path("baseSeverity").asText(m.get(0).path("baseSeverity").asText(null)));
+                    data.put("baseSeverity", cvss.path("baseSeverity").asText(metric.get(0).path("baseSeverity").asText(null)));
                     break;
                 }
             }

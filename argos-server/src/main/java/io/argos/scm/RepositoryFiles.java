@@ -132,14 +132,14 @@ public class RepositoryFiles {
         }
 
         private Optional<byte[]> fetch(URI uri, boolean github) {
-            ForgeHttp.Reponse r = forges.http().get(uri, github ? forges.githubToken() : forges.gitlabToken(), github,
+            ForgeHttp.Reponse reponse = forges.http().get(uri, github ? forges.githubToken() : forges.gitlabToken(), github,
                     github ? "application/vnd.github.raw+json" : null, maxBytes);
-            if (r.status() == 404) {
-                verifierDepot(r, github);
+            if (reponse.status() == 404) {
+                verifierDepot(reponse, github);
                 return Optional.empty();
             }
-            verifierStatut(r.status(), uri);
-            return Optional.of(r.corps());
+            verifierStatut(reponse.status(), uri);
+            return Optional.of(reponse.corps());
         }
 
         /**
@@ -159,11 +159,11 @@ public class RepositoryFiles {
                 return;
             }
             URI uri = URI.create(forges.githubUrl() + "/repos/" + githubRepository(ref));
-            ForgeHttp.Reponse r = forges.http().get(uri, forges.githubToken(), true, "application/vnd.github+json", maxBytes);
-            if (r.status() == 404) {
+            ForgeHttp.Reponse reponse = forges.http().get(uri, forges.githubToken(), true, "application/vnd.github+json", maxBytes);
+            if (reponse.status() == 404) {
                 throw new DepotIntrouvable("GITHUB", ref.repository());
             }
-            verifierStatut(r.status(), uri);
+            verifierStatut(reponse.status(), uri);
             depotVerifie = true;
         }
     }
@@ -189,7 +189,7 @@ public class RepositoryFiles {
         try {
             JsonNode noeud = JSON.readTree(corps);
             return noeud != null && noeud.path("message").isTextual() ? noeud.path("message").asText() : "";
-        } catch (IOException e) {
+        } catch (IOException illisible) {
             return "";
         }
     }
@@ -203,16 +203,16 @@ public class RepositoryFiles {
 
     /** Encode chaque segment d'un chemin en conservant les « / ». */
     private static String path(String value) {
-        StringBuilder sb = new StringBuilder();
+        StringBuilder cheminEncode = new StringBuilder();
         for (String segment : value.split("/")) {
             if (segment.isEmpty() || "..".equals(segment) || ".".equals(segment)) {
                 continue;
             }
-            if (sb.length() > 0) {
-                sb.append('/');
+            if (cheminEncode.length() > 0) {
+                cheminEncode.append('/');
             }
-            sb.append(enc(segment));
+            cheminEncode.append(enc(segment));
         }
-        return sb.toString();
+        return cheminEncode.toString();
     }
 }

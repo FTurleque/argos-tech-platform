@@ -57,26 +57,26 @@ public class HttpSourceClient {
                 .header("Accept", "application/json, text/csv, */*").build();
         try {
             return client.send(request, HttpResponse.BodyHandlers.ofString());
-        } catch (HttpTimeoutException e) {
-            throw SourceException.transientError("délai dépassé pour " + hostOf(uri), e);
-        } catch (IOException e) {
-            throw SourceException.transientError("erreur réseau pour " + hostOf(uri), e);
-        } catch (InterruptedException e) {
+        } catch (HttpTimeoutException error) {
+            throw SourceException.transientError("délai dépassé pour " + hostOf(uri), error);
+        } catch (IOException error) {
+            throw SourceException.transientError("erreur réseau pour " + hostOf(uri), error);
+        } catch (InterruptedException error) {
             Thread.currentThread().interrupt();
-            throw SourceException.transientError("appel interrompu pour " + hostOf(uri), e);
+            throw SourceException.transientError("appel interrompu pour " + hostOf(uri), error);
         }
     }
 
     /** {@code Retry-After} : nombre de secondes ou date HTTP (RFC 9110 §10.2.3). */
     static Optional<Duration> parseRetryAfter(String value) {
-        String v = value.trim();
+        String trimmed = value.trim();
         try {
-            return Optional.of(Duration.ofSeconds(Math.max(0, Long.parseLong(v))));
+            return Optional.of(Duration.ofSeconds(Math.max(0, Long.parseLong(trimmed))));
         } catch (NumberFormatException notSeconds) {
             try {
-                ZonedDateTime date = ZonedDateTime.parse(v, DateTimeFormatter.RFC_1123_DATE_TIME);
-                Duration d = Duration.between(ZonedDateTime.now(date.getZone()), date);
-                return Optional.of(d.isNegative() ? Duration.ZERO : d);
+                ZonedDateTime date = ZonedDateTime.parse(trimmed, DateTimeFormatter.RFC_1123_DATE_TIME);
+                Duration delay = Duration.between(ZonedDateTime.now(date.getZone()), date);
+                return Optional.of(delay.isNegative() ? Duration.ZERO : delay);
             } catch (RuntimeException notDate) {
                 return Optional.empty();
             }

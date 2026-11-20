@@ -78,7 +78,7 @@ public class GardeAdresses {
 
     GardeAdresses(Resolveur resolveur, List<String> exceptions, List<Integer> ports) {
         this.resolveur = resolveur;
-        this.exceptions = exceptions.stream().map(e -> e.strip().toLowerCase(Locale.ROOT)).filter(e -> !e.isEmpty())
+        this.exceptions = exceptions.stream().map(exception -> exception.strip().toLowerCase(Locale.ROOT)).filter(exception -> !exception.isEmpty())
                 .collect(Collectors.toUnmodifiableSet());
         this.portsAutorises = Set.copyOf(ports);
     }
@@ -101,15 +101,15 @@ public class GardeAdresses {
         InetAddress[] adresses;
         try {
             adresses = resolveur.resoudre(hote);
-        } catch (UnknownHostException e) {
-            throw new RecuperationRefusee(motifRefus, "nom d'hôte introuvable : " + hote, e);
+        } catch (UnknownHostException erreur) {
+            throw new RecuperationRefusee(motifRefus, "nom d'hôte introuvable : " + hote, erreur);
         }
         if (adresses == null || adresses.length == 0) {
             throw new RecuperationRefusee(motifRefus, "nom d'hôte sans adresse : " + hote);
         }
-        for (InetAddress a : adresses) {
-            if (interdite(a)) {
-                throw new RecuperationRefusee(motifRefus, "adresse interdite : " + hote + " -> " + a.getHostAddress());
+        for (InetAddress adresse : adresses) {
+            if (interdite(adresse)) {
+                throw new RecuperationRefusee(motifRefus, "adresse interdite : " + hote + " -> " + adresse.getHostAddress());
             }
         }
         return uri;
@@ -127,7 +127,7 @@ public class GardeAdresses {
         URI uri;
         try {
             uri = new URI(brute).normalize();
-        } catch (URISyntaxException e) {
+        } catch (URISyntaxException malFormee) {
             throw new RecuperationRefusee(Motif.ADRESSE_INVALIDE, "Adresse mal formée.");
         }
         return controler(uri);
@@ -140,10 +140,10 @@ public class GardeAdresses {
         }
         try {
             return controler(courante.resolve(new URI(location.strip())).normalize());
-        } catch (URISyntaxException | IllegalArgumentException e) {
+        } catch (URISyntaxException | IllegalArgumentException malFormee) {
             throw new RecuperationRefusee(Motif.REDIRECTION_INTERDITE, "Redirection vers une adresse mal formée.");
-        } catch (RecuperationRefusee e) {
-            throw new RecuperationRefusee(Motif.REDIRECTION_INTERDITE, "redirection refusée : " + e.getMessage(), e);
+        } catch (RecuperationRefusee refus) {
+            throw new RecuperationRefusee(Motif.REDIRECTION_INTERDITE, "redirection refusée : " + refus.getMessage(), refus);
         }
     }
 
@@ -174,82 +174,83 @@ public class GardeAdresses {
                 || adresse.isSiteLocalAddress() || adresse.isMulticastAddress()) {
             return true;
         }
-        byte[] o = adresse.getAddress();
+        byte[] octets = adresse.getAddress();
         if (adresse instanceof Inet4Address) {
-            return ipv4Interdite(o);
+            return ipv4Interdite(octets);
         }
         if (adresse instanceof Inet6Address) {
-            return ipv6Interdite(o);
+            return ipv6Interdite(octets);
         }
         return true;
     }
 
-    private static boolean ipv4Interdite(byte[] o) {
-        int a = o[0] & 0xff;
-        int b = o[1] & 0xff;
-        int c = o[2] & 0xff;
-        return a == 0                                   // 0.0.0.0/8
-                || a == 10                              // 10.0.0.0/8
-                || a == 127                             // 127.0.0.0/8
-                || (a == 100 && b >= 64 && b <= 127)    // 100.64.0.0/10
-                || (a == 169 && b == 254)               // 169.254.0.0/16
-                || (a == 172 && b >= 16 && b <= 31)     // 172.16.0.0/12
-                || (a == 192 && b == 0 && c == 0)       // 192.0.0.0/24
-                || (a == 192 && b == 0 && c == 2)       // 192.0.2.0/24
-                || (a == 192 && b == 88 && c == 99)     // 192.88.99.0/24
-                || (a == 192 && b == 168)               // 192.168.0.0/16
-                || (a == 198 && (b == 18 || b == 19))   // 198.18.0.0/15
-                || (a == 198 && b == 51 && c == 100)    // 198.51.100.0/24
-                || (a == 203 && b == 0 && c == 113)     // 203.0.113.0/24
-                || a >= 224;                            // multidiffusion, réservées, diffusion
+    private static boolean ipv4Interdite(byte[] octets) {
+        int premier = octets[0] & 0xff;
+        int deuxieme = octets[1] & 0xff;
+        int troisieme = octets[2] & 0xff;
+        return premier == 0                                                  // 0.0.0.0/8
+                || premier == 10                                             // 10.0.0.0/8
+                || premier == 127                                            // 127.0.0.0/8
+                || (premier == 100 && deuxieme >= 64 && deuxieme <= 127)     // 100.64.0.0/10
+                || (premier == 169 && deuxieme == 254)                       // 169.254.0.0/16
+                || (premier == 172 && deuxieme >= 16 && deuxieme <= 31)      // 172.16.0.0/12
+                || (premier == 192 && deuxieme == 0 && troisieme == 0)       // 192.0.0.0/24
+                || (premier == 192 && deuxieme == 0 && troisieme == 2)       // 192.0.2.0/24
+                || (premier == 192 && deuxieme == 88 && troisieme == 99)     // 192.88.99.0/24
+                || (premier == 192 && deuxieme == 168)                       // 192.168.0.0/16
+                || (premier == 198 && (deuxieme == 18 || deuxieme == 19))    // 198.18.0.0/15
+                || (premier == 198 && deuxieme == 51 && troisieme == 100)    // 198.51.100.0/24
+                || (premier == 203 && deuxieme == 0 && troisieme == 113)     // 203.0.113.0/24
+                || premier >= 224;                                           // multidiffusion, réservées, diffusion
     }
 
-    private static boolean ipv6Interdite(byte[] o) {
-        if (plageIpv6Refusee(o)) {
+    private static boolean ipv6Interdite(byte[] octets) {
+        if (plageIpv6Refusee(octets)) {
             return true;
         }
-        byte[] ipv4 = ipv4Embarquee(o);
+        byte[] ipv4 = ipv4Embarquee(octets);
         return ipv4 != null && ipv4Interdite(ipv4);
     }
 
     /** Plages IPv6 refusées quelle que soit l'adresse IPv4 qu'elles pourraient porter. */
-    private static boolean plageIpv6Refusee(byte[] o) {
-        int premier = o[0] & 0xff;
-        int deuxieme = o[1] & 0xff;
-        return (premier & 0xfe) == 0xfc                                  // fc00::/7 adresses uniques locales
-                || (premier == 0xfe && (deuxieme & 0xc0) == 0xc0)        // fec0::/10 site local (obsolète)
-                || prefixe32(o, 0x2001, 0x0db8)                          // 2001:db8::/32 documentation
-                || prefixe32(o, 0x2001, 0x0000)                          // 2001::/32 Teredo
-                || (prefixe32(o, 0x0100, 0x0000) && nuls(o, 4, 8))       // 100::/64 rejet
-                || (prefixe32(o, 0x0064, 0xff9b) && !nuls(o, 4, 12));    // 64:ff9b::/32 hors /96, dont 64:ff9b:1::/48
+    private static boolean plageIpv6Refusee(byte[] octets) {
+        int premier = octets[0] & 0xff;
+        int deuxieme = octets[1] & 0xff;
+        return (premier & 0xfe) == 0xfc                                            // fc00::/7 adresses uniques locales
+                || (premier == 0xfe && (deuxieme & 0xc0) == 0xc0)                  // fec0::/10 site local (obsolète)
+                || prefixe32(octets, 0x2001, 0x0db8)                               // 2001:db8::/32 documentation
+                || prefixe32(octets, 0x2001, 0x0000)                               // 2001::/32 Teredo
+                || (prefixe32(octets, 0x0100, 0x0000) && nuls(octets, 4, 8))       // 100::/64 rejet
+                || (prefixe32(octets, 0x0064, 0xff9b) && !nuls(octets, 4, 12));    // 64:ff9b::/32 hors /96, dont 64:ff9b:1::/48
     }
 
     /**
      * IPv4 embarquée d'une adresse 6to4 (2002::/16, octets 2 à 5), mappée (::ffff:0:0/96),
      * compatible (::/96) ou NAT64 bien connue (64:ff9b::/96, octets 12 à 15) ; {@code null} sinon.
      */
-    private static byte[] ipv4Embarquee(byte[] o) {
-        if ((o[0] & 0xff) == 0x20 && (o[1] & 0xff) == 0x02) {
-            return new byte[] { o[2], o[3], o[4], o[5] };
+    private static byte[] ipv4Embarquee(byte[] octets) {
+        if ((octets[0] & 0xff) == 0x20 && (octets[1] & 0xff) == 0x02) {
+            return new byte[] { octets[2], octets[3], octets[4], octets[5] };
         }
-        boolean dixPremiersNuls = nuls(o, 0, 10);
-        boolean mappee = dixPremiersNuls && (o[10] & 0xff) == 0xff && (o[11] & 0xff) == 0xff;
-        boolean compatible = dixPremiersNuls && o[10] == 0 && o[11] == 0;
-        if (mappee || compatible || prefixe32(o, 0x0064, 0xff9b)) {
-            return new byte[] { o[12], o[13], o[14], o[15] };
+        boolean dixPremiersNuls = nuls(octets, 0, 10);
+        boolean mappee = dixPremiersNuls && (octets[10] & 0xff) == 0xff && (octets[11] & 0xff) == 0xff;
+        boolean compatible = dixPremiersNuls && octets[10] == 0 && octets[11] == 0;
+        if (mappee || compatible || prefixe32(octets, 0x0064, 0xff9b)) {
+            return new byte[] { octets[12], octets[13], octets[14], octets[15] };
         }
         return null;
     }
 
     /** Vrai si les deux premiers groupes de 16 bits valent {@code groupe1} et {@code groupe2}. */
-    private static boolean prefixe32(byte[] o, int groupe1, int groupe2) {
-        return (((o[0] & 0xff) << 8) | (o[1] & 0xff)) == groupe1 && (((o[2] & 0xff) << 8) | (o[3] & 0xff)) == groupe2;
+    private static boolean prefixe32(byte[] octets, int groupe1, int groupe2) {
+        return (((octets[0] & 0xff) << 8) | (octets[1] & 0xff)) == groupe1
+                && (((octets[2] & 0xff) << 8) | (octets[3] & 0xff)) == groupe2;
     }
 
     /** Vrai si les octets de {@code debut} (inclus) à {@code fin} (exclu) sont nuls. */
-    private static boolean nuls(byte[] o, int debut, int fin) {
-        for (int i = debut; i < fin; i++) {
-            if (o[i] != 0) {
+    private static boolean nuls(byte[] octets, int debut, int fin) {
+        for (int indice = debut; indice < fin; indice++) {
+            if (octets[indice] != 0) {
                 return false;
             }
         }

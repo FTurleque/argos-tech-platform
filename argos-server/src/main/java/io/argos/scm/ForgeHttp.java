@@ -58,28 +58,28 @@ final class ForgeHttp {
             requete.header("Accept", accept);
         }
         if (github) {
-            jeton.ifPresent(t -> requete.header("Authorization", "Bearer " + t));
+            jeton.ifPresent(valeurJeton -> requete.header("Authorization", "Bearer " + valeurJeton));
         } else {
-            jeton.ifPresent(t -> requete.header("PRIVATE-TOKEN", t));
+            jeton.ifPresent(valeurJeton -> requete.header("PRIVATE-TOKEN", valeurJeton));
         }
         try {
-            HttpResponse<InputStream> r = client.send(requete.build(), HttpResponse.BodyHandlers.ofInputStream());
+            HttpResponse<InputStream> reponse = client.send(requete.build(), HttpResponse.BodyHandlers.ofInputStream());
             byte[] corps;
-            try (InputStream in = r.body()) {
-                corps = in.readNBytes((int) Math.min(Integer.MAX_VALUE - 8L, tailleMax + 1));
+            try (InputStream flux = reponse.body()) {
+                corps = flux.readNBytes((int) Math.min(Integer.MAX_VALUE - 8L, tailleMax + 1));
             }
             if (corps.length > tailleMax) {
                 throw new ScmException("réponse de " + uri.getHost() + " au-delà de la taille maximale", null);
             }
-            quota(r.statusCode(), r.headers(), corps, uri).ifPresent(reprise -> {
+            quota(reponse.statusCode(), reponse.headers(), corps, uri).ifPresent(reprise -> {
                 throw new QuotaEpuise(uri.getHost(), reprise);
             });
-            return new Reponse(r.statusCode(), corps, r.headers());
-        } catch (IOException e) {
-            throw new ScmException("erreur réseau vers " + uri.getHost(), e);
-        } catch (InterruptedException e) {
+            return new Reponse(reponse.statusCode(), corps, reponse.headers());
+        } catch (IOException erreur) {
+            throw new ScmException("erreur réseau vers " + uri.getHost(), erreur);
+        } catch (InterruptedException erreur) {
             Thread.currentThread().interrupt();
-            throw new ScmException("appel interrompu vers " + uri.getHost(), e);
+            throw new ScmException("appel interrompu vers " + uri.getHost(), erreur);
         }
     }
 
@@ -118,7 +118,7 @@ final class ForgeHttp {
      * puis {@code RateLimit-Reset} ; à défaut, {@link #REPORT_PAR_DEFAUT} après {@code maintenant}.
      */
     private static Instant repriseAnnoncee(HttpHeaders entetes, Instant maintenant) {
-        return entier(entetes.firstValue("retry-after")).map(s -> maintenant.plusSeconds(s))
+        return entier(entetes.firstValue("retry-after")).map(secondes -> maintenant.plusSeconds(secondes))
                 .or(() -> entier(entetes.firstValue("x-ratelimit-reset")).map(Instant::ofEpochSecond))
                 .or(() -> entier(entetes.firstValue("ratelimit-reset")).map(Instant::ofEpochSecond))
                 .orElse(maintenant.plus(REPORT_PAR_DEFAUT));
@@ -148,8 +148,8 @@ final class ForgeHttp {
 
     private static Optional<Long> entier(Optional<String> valeur) {
         try {
-            return valeur.map(String::strip).filter(v -> v.matches("\\d{1,12}")).map(Long::parseLong);
-        } catch (NumberFormatException e) {
+            return valeur.map(String::strip).filter(nombre -> nombre.matches("\\d{1,12}")).map(Long::parseLong);
+        } catch (NumberFormatException illisible) {
             return Optional.empty();
         }
     }

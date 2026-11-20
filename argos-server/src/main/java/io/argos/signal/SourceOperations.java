@@ -43,23 +43,23 @@ public class SourceOperations {
     SourceSynchronizer synchronizer;
 
     public List<SourceStatus> statuses() {
-        return store.sourceStates().stream().map(s -> new SourceStatus(s.sourceId(), s.label(), s.state(),
-                s.consecutiveFailures(), s.lastSuccessAt(), s.lastFailureAt(), s.lastError(), s.cursor())).toList();
+        return store.sourceStates().stream().map(state -> new SourceStatus(state.sourceId(), state.label(), state.state(),
+                state.consecutiveFailures(), state.lastSuccessAt(), state.lastFailureAt(), state.lastError(), state.cursor())).toList();
     }
 
     public List<RejectedAdvisory> rejected(String sourceId) {
         return store.failures(sourceId).stream()
-                .map(f -> new RejectedAdvisory(f.id(), f.externalId(), f.reason(), f.receivedAt())).toList();
+                .map(failure -> new RejectedAdvisory(failure.id(), failure.externalId(), failure.reason(), failure.receivedAt())).toList();
     }
 
     public List<OperationEvent> events(String sourceId) {
-        return store.events(sourceId).stream().map(e -> new OperationEvent(e.kind(), e.detail(), e.occurredAt()))
+        return store.events(sourceId).stream().map(event -> new OperationEvent(event.kind(), event.detail(), event.occurredAt()))
                 .toList();
     }
 
     public SyncResult synchronize(String sourceId) {
-        SourceSynchronizer.SyncReport r = synchronizer.synchronize(sourceId);
-        return new SyncResult(r.state(), r.attempts(), r.created(), r.updated(), r.unchanged(), r.rejected(),
-                r.message());
+        SourceSynchronizer.SyncReport report = synchronizer.synchronize(sourceId);
+        return new SyncResult(report.state(), report.attempts(), report.created(), report.updated(), report.unchanged(), report.rejected(),
+                report.message());
     }
 }
