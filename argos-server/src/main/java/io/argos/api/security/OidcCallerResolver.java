@@ -37,13 +37,13 @@ public class OidcCallerResolver implements CallerResolver {
         Set<UUID> membre = new HashSet<>();
         Set<UUID> admin = new HashSet<>();
         Set<UUID> contributeur = new HashSet<>();
-        for (EspacesService.EspaceDeCompte e : espaces.mesEspaces(compte)) {
-            membre.add(e.id());
-            if (e.role() == Role.ADMINISTRATEUR) {
-                admin.add(e.id());
+        for (EspacesService.EspaceDeCompte espace : espaces.mesEspaces(compte)) {
+            membre.add(espace.id());
+            if (espace.role() == Role.ADMINISTRATEUR) {
+                admin.add(espace.id());
             }
-            if (e.role() == Role.ADMINISTRATEUR || e.role() == Role.CONTRIBUTEUR) {
-                contributeur.add(e.id());
+            if (espace.role() == Role.ADMINISTRATEUR || espace.role() == Role.CONTRIBUTEUR) {
+                contributeur.add(espace.id());
             }
         }
         return Optional.of(new Caller(compte.id(), membre, admin, compte.adminPlateforme(), contributeur));

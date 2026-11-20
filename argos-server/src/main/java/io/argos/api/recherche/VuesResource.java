@@ -84,11 +84,11 @@ public class VuesResource {
     @APIResponse(responseCode = "409", description = "Nom déjà utilisé ou nombre maximal de vues atteint")
     public RestResponse<VueEnregistree> creer(NouvelleVue corps) {
         Caller appelant = access.authenticated();
-        NouvelleVue b = corps == null ? new NouvelleVue(null, null) : corps;
-        CriteresRecherche criteres = b.criteres() == null
-                ? new CriteresRecherche(null, null, null, null, null, null, null) : b.criteres();
+        NouvelleVue saisie = corps == null ? new NouvelleVue(null, null) : corps;
+        CriteresRecherche criteres = saisie.criteres() == null
+                ? new CriteresRecherche(null, null, null, null, null, null, null) : saisie.criteres();
         traduction.traduire(criteres, appelant, true);
-        VueEnregistree vue = representation(vues.creer(appelant.accountId(), b.nom(), json(criteres)));
+        VueEnregistree vue = representation(vues.creer(appelant.accountId(), saisie.nom(), json(criteres)));
         return RestResponse.ResponseBuilder.<VueEnregistree>created(URI.create("/api/v1/vues/" + vue.id()))
                 .entity(vue).build();
     }
@@ -137,16 +137,17 @@ public class VuesResource {
     private String json(CriteresRecherche criteres) {
         try {
             return mapper.writeValueAsString(criteres);
-        } catch (JsonProcessingException e) {
+        } catch (JsonProcessingException illisible) {
             throw new DonneeInvalide("CRITERE_INVALIDE", "Critères illisibles.", "criteres");
         }
     }
 
-    private VueEnregistree representation(VuesEnregistrees.Vue v) {
+    private VueEnregistree representation(VuesEnregistrees.Vue enregistree) {
         try {
-            return new VueEnregistree(v.id(), v.nom(), mapper.readValue(v.criteres(), CriteresRecherche.class), v.creeLe());
-        } catch (JsonProcessingException e) {
-            throw new IllegalStateException("critères de la vue illisibles", e);
+            return new VueEnregistree(enregistree.id(), enregistree.nom(),
+                    mapper.readValue(enregistree.criteres(), CriteresRecherche.class), enregistree.creeLe());
+        } catch (JsonProcessingException erreur) {
+            throw new IllegalStateException("critères de la vue illisibles", erreur);
         }
     }
 }

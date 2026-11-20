@@ -52,14 +52,14 @@ public class SubscriptionResource {
     @Operation(summary = "Crée un abonnement TEAM (administrateur de l'espace) ou PERSONAL (appelant)")
     public Response create(CreateSubscription body) {
         Caller caller = access.authenticated();
-        CreateSubscription b = body == null ? new CreateSubscription(null, null, null, null, null, null) : body;
-        boolean team = b.scope() != null && "TEAM".equals(b.scope().strip().toUpperCase(Locale.ROOT));
-        if (team && b.teamWorkspaceId() != null && !caller.adminOf(b.teamWorkspaceId())) {
+        CreateSubscription payload = body == null ? new CreateSubscription(null, null, null, null, null, null) : body;
+        boolean team = payload.scope() != null && "TEAM".equals(payload.scope().strip().toUpperCase(Locale.ROOT));
+        if (team && payload.teamWorkspaceId() != null && !caller.adminOf(payload.teamWorkspaceId())) {
             // Création d'un abonnement TEAM réservée à l'administrateur de l'espace (ABO-06).
             throw access.forbidden();
         }
-        SubscriptionRequest request = new SubscriptionRequest(b.scope(), team ? b.teamWorkspaceId() : null,
-                team ? null : caller.accountId(), b.filters(), b.channel(), b.frequency(), b.mandatory());
+        SubscriptionRequest request = new SubscriptionRequest(payload.scope(), team ? payload.teamWorkspaceId() : null,
+                team ? null : caller.accountId(), payload.filters(), payload.channel(), payload.frequency(), payload.mandatory());
         return Response.status(Response.Status.CREATED).entity(subscriptions.create(request, caller.accountId())).build();
     }
 
@@ -131,18 +131,18 @@ public class SubscriptionResource {
      */
     private Caller authorizedManager(UUID id) {
         Caller caller = access.authenticated();
-        SubscriptionService.Subscription s = subscriptions.find(id, caller.accountId())
+        SubscriptionService.Subscription subscription = subscriptions.find(id, caller.accountId())
                 .orElseThrow(NotFoundException::new);
-        if ("PERSONAL".equals(s.scope())) {
-            if (!caller.accountId().equals(s.ownerUserId())) {
+        if ("PERSONAL".equals(subscription.scope())) {
+            if (!caller.accountId().equals(subscription.ownerUserId())) {
                 throw new NotFoundException();
             }
             return caller;
         }
-        if (!caller.memberOf(s.ownerWorkspaceId())) {
+        if (!caller.memberOf(subscription.ownerWorkspaceId())) {
             throw access.outOfScope();
         }
-        if (!caller.adminOf(s.ownerWorkspaceId())) {
+        if (!caller.adminOf(subscription.ownerWorkspaceId())) {
             throw access.forbidden();
         }
         return caller;

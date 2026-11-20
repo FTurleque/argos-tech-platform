@@ -68,33 +68,33 @@ public class SubscriptionService {
     /** Valide puis enregistre la demande ; lève {@link SubscriptionRejectedException} si un attribut manque. */
     @Transactional
     public Subscription create(SubscriptionRequest request, UUID accountId) {
-        Validated v = validate(request);
+        Validated validated = validate(request);
         UUID id = UUID.randomUUID();
         String sql = """
                 INSERT INTO subscription(id, scope, owner_workspace_id, owner_user_id, filters, channel, frequency,
                                          mandatory, state, created_at)
                 VALUES (?, ?, ?, ?, ?::jsonb, ?, ?, ?, 'ACTIVE', now())
                 """;
-        try (Connection c = dataSource.getConnection()) {
-            session(c, accountId);
-            try (PreparedStatement ps = c.prepareStatement(sql)) {
-                ps.setObject(1, id);
-                ps.setString(2, v.scope());
-                ps.setObject(3, "TEAM".equals(v.scope()) ? request.ownerWorkspaceId() : null);
-                ps.setObject(4, "PERSONAL".equals(v.scope()) ? request.ownerUserId() : null);
-                ps.setString(5, MAPPER.writeValueAsString(v.filters()));
-                ps.setString(6, v.channel());
-                ps.setString(7, v.frequency());
-                ps.setBoolean(8, request.mandatory());
-                ps.executeUpdate();
+        try (Connection connection = dataSource.getConnection()) {
+            session(connection, accountId);
+            try (PreparedStatement statement = connection.prepareStatement(sql)) {
+                statement.setObject(1, id);
+                statement.setString(2, validated.scope());
+                statement.setObject(3, "TEAM".equals(validated.scope()) ? request.ownerWorkspaceId() : null);
+                statement.setObject(4, "PERSONAL".equals(validated.scope()) ? request.ownerUserId() : null);
+                statement.setString(5, MAPPER.writeValueAsString(validated.filters()));
+                statement.setString(6, validated.channel());
+                statement.setString(7, validated.frequency());
+                statement.setBoolean(8, request.mandatory());
+                statement.executeUpdate();
             }
-        } catch (SQLException e) {
-            if ("23503".equals(e.getSQLState())) {
+        } catch (SQLException error) {
+            if ("23503".equals(error.getSQLState())) {
                 throw new SubscriptionRejectedException("ownerWorkspaceId", "espace propriétaire inconnu");
             }
-            throw new IllegalStateException("enregistrement de l'abonnement impossible", e);
-        } catch (JsonProcessingException e) {
-            throw new IllegalStateException("sérialisation des filtres impossible", e);
+            throw new IllegalStateException("enregistrement de l'abonnement impossible", error);
+        } catch (JsonProcessingException error) {
+            throw new IllegalStateException("sérialisation des filtres impossible", error);
         }
         return find(id, accountId).orElseThrow();
     }
@@ -164,28 +164,28 @@ public class SubscriptionService {
      */
     @Transactional
     public boolean delete(UUID subscriptionId, UUID accountId) {
-        try (Connection c = dataSource.getConnection()) {
-            session(c, accountId);
-            try (PreparedStatement ps = c.prepareStatement("DELETE FROM subscription WHERE id = ?")) {
-                ps.setObject(1, subscriptionId);
-                return ps.executeUpdate() == 1;
+        try (Connection connection = dataSource.getConnection()) {
+            session(connection, accountId);
+            try (PreparedStatement statement = connection.prepareStatement("DELETE FROM subscription WHERE id = ?")) {
+                statement.setObject(1, subscriptionId);
+                return statement.executeUpdate() == 1;
             }
-        } catch (SQLException e) {
-            throw new IllegalStateException("suppression de l'abonnement impossible", e);
+        } catch (SQLException error) {
+            throw new IllegalStateException("suppression de l'abonnement impossible", error);
         }
     }
 
     private Optional<Subscription> changeState(UUID subscriptionId, UUID accountId, String state) {
         int updated;
-        try (Connection c = dataSource.getConnection()) {
-            session(c, accountId);
-            try (PreparedStatement ps = c.prepareStatement("UPDATE subscription SET state = ? WHERE id = ?")) {
-                ps.setString(1, state);
-                ps.setObject(2, subscriptionId);
-                updated = ps.executeUpdate();
+        try (Connection connection = dataSource.getConnection()) {
+            session(connection, accountId);
+            try (PreparedStatement statement = connection.prepareStatement("UPDATE subscription SET state = ? WHERE id = ?")) {
+                statement.setString(1, state);
+                statement.setObject(2, subscriptionId);
+                updated = statement.executeUpdate();
             }
-        } catch (SQLException e) {
-            throw new IllegalStateException("changement d'état de l'abonnement impossible", e);
+        } catch (SQLException error) {
+            throw new IllegalStateException("changement d'état de l'abonnement impossible", error);
         }
         return updated == 1 ? find(subscriptionId, accountId) : Optional.empty();
     }
@@ -199,36 +199,36 @@ public class SubscriptionService {
     @Transactional
     public LeaveOutcome leave(UUID subscriptionId, UUID userId, Set<UUID> memberWorkspaces) {
         Optional<Subscription> found = find(subscriptionId, userId)
-                .filter(s -> "PERSONAL".equals(s.scope()) || "ACTIVE".equals(s.state()));
+                .filter(candidate -> "PERSONAL".equals(candidate.scope()) || "ACTIVE".equals(candidate.state()));
         if (found.isEmpty()) {
             return LeaveOutcome.NOT_FOUND;
         }
-        Subscription s = found.get();
-        if ("PERSONAL".equals(s.scope())) {
-            if (!s.ownerUserId().equals(userId)) {
+        Subscription subscription = found.get();
+        if ("PERSONAL".equals(subscription.scope())) {
+            if (!subscription.ownerUserId().equals(userId)) {
                 return LeaveOutcome.NOT_FOUND;
             }
             return suspend(subscriptionId, userId).isPresent() ? LeaveOutcome.LEFT : LeaveOutcome.NOT_FOUND;
         }
-        try (Connection c = dataSource.getConnection()) {
-            session(c, userId);
-            if (!memberWorkspaces.contains(s.ownerWorkspaceId())) {
+        try (Connection connection = dataSource.getConnection()) {
+            session(connection, userId);
+            if (!memberWorkspaces.contains(subscription.ownerWorkspaceId())) {
                 return LeaveOutcome.NOT_FOUND;
             }
-            if (s.mandatory()) {
+            if (subscription.mandatory()) {
                 return LeaveOutcome.MANDATORY;
             }
-            try (PreparedStatement ps = c.prepareStatement("""
+            try (PreparedStatement statement = connection.prepareStatement("""
                     INSERT INTO subscription_opt_out(subscription_id, user_id, opted_out_at) VALUES (?, ?, now())
                     ON CONFLICT DO NOTHING
                     """)) {
-                ps.setObject(1, subscriptionId);
-                ps.setObject(2, userId);
-                ps.executeUpdate();
+                statement.setObject(1, subscriptionId);
+                statement.setObject(2, userId);
+                statement.executeUpdate();
             }
             return LeaveOutcome.LEFT;
-        } catch (SQLException e) {
-            throw new IllegalStateException("retrait de l'abonnement impossible", e);
+        } catch (SQLException error) {
+            throw new IllegalStateException("retrait de l'abonnement impossible", error);
         }
     }
 
@@ -236,61 +236,61 @@ public class SubscriptionService {
     }
 
     /** Contrôle des attributs obligatoires, dans l'ordre de la spec (ABO-02). */
-    static Validated validate(SubscriptionRequest r) {
-        if (r == null) {
+    static Validated validate(SubscriptionRequest request) {
+        if (request == null) {
             throw new SubscriptionRejectedException("scope", "demande vide : portée manquante");
         }
-        if (blank(r.scope())) {
+        if (blank(request.scope())) {
             throw new SubscriptionRejectedException("scope", "attribut manquant : portée (scope)");
         }
-        String scope = r.scope().strip().toUpperCase(Locale.ROOT);
+        String scope = request.scope().strip().toUpperCase(Locale.ROOT);
         if (!scope.equals("TEAM") && !scope.equals("PERSONAL")) {
             throw new SubscriptionRejectedException("scope", "portée invalide : TEAM ou PERSONAL attendu");
         }
-        if (scope.equals("TEAM") && r.ownerWorkspaceId() == null) {
+        if (scope.equals("TEAM") && request.ownerWorkspaceId() == null) {
             throw new SubscriptionRejectedException("ownerWorkspaceId", "attribut manquant : équipe propriétaire");
         }
-        if (scope.equals("TEAM") && r.ownerUserId() != null) {
+        if (scope.equals("TEAM") && request.ownerUserId() != null) {
             throw new SubscriptionRejectedException("ownerUserId", "un abonnement TEAM n'a pas d'utilisateur propriétaire");
         }
-        if (scope.equals("PERSONAL") && r.ownerUserId() == null) {
+        if (scope.equals("PERSONAL") && request.ownerUserId() == null) {
             throw new SubscriptionRejectedException("ownerUserId", "attribut manquant : utilisateur propriétaire");
         }
-        if (scope.equals("PERSONAL") && r.ownerWorkspaceId() != null) {
+        if (scope.equals("PERSONAL") && request.ownerWorkspaceId() != null) {
             throw new SubscriptionRejectedException("ownerWorkspaceId", "un abonnement PERSONAL n'a pas d'équipe propriétaire");
         }
-        if (r.filters() == null || r.filters().isEmpty()) {
+        if (request.filters() == null || request.filters().isEmpty()) {
             throw new SubscriptionRejectedException("filters", "attribut manquant : filtres");
         }
         List<SubscriptionRequest.Filter> filters = new ArrayList<>();
-        for (SubscriptionRequest.Filter f : r.filters()) {
-            if (f == null || blank(f.type()) || blank(f.value())) {
+        for (SubscriptionRequest.Filter filter : request.filters()) {
+            if (filter == null || blank(filter.type()) || blank(filter.value())) {
                 throw new SubscriptionRejectedException("filters", "filtre incomplet : type et valeur attendus");
             }
-            String type = f.type().strip().toUpperCase(Locale.ROOT);
+            String type = filter.type().strip().toUpperCase(Locale.ROOT);
             if (!FILTER_TYPES.contains(type)) {
-                throw new SubscriptionRejectedException("filters", "type de filtre inconnu : " + f.type());
+                throw new SubscriptionRejectedException("filters", "type de filtre inconnu : " + filter.type());
             }
-            String value = f.value().strip();
+            String value = filter.value().strip();
             if (type.equals("SEVERITY")) {
                 value = value.toUpperCase(Locale.ROOT);
                 if (!SEVERITIES.contains(value)) {
-                    throw new SubscriptionRejectedException("filters", "gravité inconnue : " + f.value());
+                    throw new SubscriptionRejectedException("filters", "gravité inconnue : " + filter.value());
                 }
             }
             filters.add(new SubscriptionRequest.Filter(type, value));
         }
-        if (blank(r.channel())) {
+        if (blank(request.channel())) {
             throw new SubscriptionRejectedException("channel", "attribut manquant : canal");
         }
-        if (blank(r.frequency())) {
+        if (blank(request.frequency())) {
             throw new SubscriptionRejectedException("frequency", "attribut manquant : fréquence");
         }
-        if (r.mandatory() == null) {
+        if (request.mandatory() == null) {
             throw new SubscriptionRejectedException("mandatory", "attribut manquant : caractère obligatoire ou facultatif");
         }
-        return new Validated(scope, List.copyOf(filters), r.channel().strip().toUpperCase(Locale.ROOT),
-                r.frequency().strip().toUpperCase(Locale.ROOT));
+        return new Validated(scope, List.copyOf(filters), request.channel().strip().toUpperCase(Locale.ROOT),
+                request.frequency().strip().toUpperCase(Locale.ROOT));
     }
 
     private static final String COLUMNS = """
@@ -299,29 +299,29 @@ public class SubscriptionService {
 
     private List<Subscription> query(UUID accountId, String sql, Object... params) {
         List<Subscription> result = new ArrayList<>();
-        try (Connection c = dataSource.getConnection()) {
-            session(c, accountId);
-            try (PreparedStatement ps = c.prepareStatement(sql)) {
-                for (int i = 0; i < params.length; i++) {
-                    if (params[i] instanceof Set<?> set) {
-                        ps.setArray(i + 1, c.createArrayOf("uuid", set.toArray()));
+        try (Connection connection = dataSource.getConnection()) {
+            session(connection, accountId);
+            try (PreparedStatement statement = connection.prepareStatement(sql)) {
+                for (int index = 0; index < params.length; index++) {
+                    if (params[index] instanceof Set<?> set) {
+                        statement.setArray(index + 1, connection.createArrayOf("uuid", set.toArray()));
                     } else {
-                        ps.setObject(i + 1, params[i]);
+                        statement.setObject(index + 1, params[index]);
                     }
             }
-            try (ResultSet rs = ps.executeQuery()) {
-                while (rs.next()) {
-                    result.add(new Subscription(rs.getObject(1, UUID.class), rs.getString(2), rs.getObject(3, UUID.class),
-                            rs.getObject(4, UUID.class), MAPPER.readValue(rs.getString(5), FILTERS), rs.getString(6),
-                            rs.getString(7), rs.getBoolean(8), rs.getString(9),
-                            rs.getObject(10, OffsetDateTime.class).toInstant()));
+            try (ResultSet rows = statement.executeQuery()) {
+                while (rows.next()) {
+                    result.add(new Subscription(rows.getObject(1, UUID.class), rows.getString(2), rows.getObject(3, UUID.class),
+                            rows.getObject(4, UUID.class), MAPPER.readValue(rows.getString(5), FILTERS), rows.getString(6),
+                            rows.getString(7), rows.getBoolean(8), rows.getString(9),
+                            rows.getObject(10, OffsetDateTime.class).toInstant()));
                 }
             }
             }
-        } catch (SQLException e) {
-            throw new IllegalStateException("lecture des abonnements impossible", e);
-        } catch (JsonProcessingException e) {
-            throw new IllegalStateException("filtres d'abonnement illisibles", e);
+        } catch (SQLException error) {
+            throw new IllegalStateException("lecture des abonnements impossible", error);
+        } catch (JsonProcessingException error) {
+            throw new IllegalStateException("filtres d'abonnement illisibles", error);
         }
         return result;
     }
@@ -330,14 +330,14 @@ public class SubscriptionService {
      * Rôle {@code argos_app} et compte courant pour la transaction en cours (protocole de la migration V2) ;
      * aucune donnée d'autorisation n'est lue ici.
      */
-    private static void session(Connection c, UUID accountId) throws SQLException {
-        try (Statement st = c.createStatement()) {
-            st.execute("SET LOCAL ROLE argos_app");
+    private static void session(Connection connection, UUID accountId) throws SQLException {
+        try (Statement statement = connection.createStatement()) {
+            statement.execute("SET LOCAL ROLE argos_app");
         }
-        try (PreparedStatement ps = c.prepareStatement(
+        try (PreparedStatement statement = connection.prepareStatement(
                 "SELECT set_config('argos.compte_courant', ?, true), set_config('argos.espace_courant', '', true)")) {
-            ps.setString(1, accountId == null ? "" : accountId.toString());
-            ps.execute();
+            statement.setString(1, accountId == null ? "" : accountId.toString());
+            statement.execute();
         }
     }
 

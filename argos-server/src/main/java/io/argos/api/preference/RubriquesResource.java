@@ -51,12 +51,12 @@ public class RubriquesResource {
     public List<RubriqueVeille> rubriques() {
         List<String> actifs = resolution.resoudre(preferences.lire(utilisateur.compte().id())).profilsActifs();
         List<RubriqueVeille> rubriques = new ArrayList<>();
-        for (ManifesteProfil m : catalogue.publies()) {
-            if (!actifs.contains(m.identifiant())) {
+        for (ManifesteProfil manifeste : catalogue.publies()) {
+            if (!actifs.contains(manifeste.identifiant())) {
                 continue;
             }
-            for (Rubrique r : m.rubriques()) {
-                rubriques.add(new RubriqueVeille(m.identifiant(), r.identifiant(), r.libelle()));
+            for (Rubrique rubrique : manifeste.rubriques()) {
+                rubriques.add(new RubriqueVeille(manifeste.identifiant(), rubrique.identifiant(), rubrique.libelle()));
             }
         }
         return rubriques;

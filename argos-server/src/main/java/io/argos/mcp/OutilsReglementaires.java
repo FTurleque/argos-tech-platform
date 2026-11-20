@@ -65,19 +65,19 @@ public class OutilsReglementaires {
             @ToolArg(name = "domain", description = "Domaine métier, facultatif.", required = false) String domaine,
             @ToolArg(name = "limit", description = "Nombre maximal de fiches (1 à 100, 20 par défaut).", required = false) Integer limite) {
         return garde.appeler("get_regulatory_changes", parametres("domain", domaine, "limit", limite), appelant -> {
-            Optional<String> d = domaine == null || domaine.isBlank() ? Optional.empty()
+            Optional<String> domaineRetenu = domaine == null || domaine.isBlank() ? Optional.empty()
                     : Optional.of(Parametres.obligatoire("domain", domaine));
-            int n = Parametres.borne("limit", limite, 20, 1, 100);
-            List<FicheReglementaire> validees = fiches.fiches(appelant.accountId(), appelant.memberWorkspaces(), d).stream()
+            int nombreMax = Parametres.borne("limit", limite, 20, 1, 100);
+            List<FicheReglementaire> validees = fiches.fiches(appelant.accountId(), appelant.memberWorkspaces(), domaineRetenu).stream()
                     // Garde-fou VALIDATION_HUMAINE : aucune fiche non validée n'est diffusée (MCP-07-S1).
-                    .filter(f -> f.etat() == FichesReglementaires.Etat.VALIDEE)
-                    .filter(f -> appelant.memberOf(f.espaceId()))
-                    .limit(n)
-                    .map(f -> new FicheReglementaire(f.id(), f.espaceId(),
-                            d.orElse(f.domaines().isEmpty() ? null : f.domaines().get(0)), f.domaines(),
-                            f.referenceOfficielle(), f.nor(), f.publication() == null ? null : f.publication().toString(),
-                            f.effet() == null ? "date à confirmer" : f.effet().toString(), f.source(), f.lienOfficiel(),
-                            f.resume(), FicheAnalyse.MENTION_VALIDEE, balisage.baliser(f.source(), f.titreOfficiel())))
+                    .filter(fiche -> fiche.etat() == FichesReglementaires.Etat.VALIDEE)
+                    .filter(fiche -> appelant.memberOf(fiche.espaceId()))
+                    .limit(nombreMax)
+                    .map(fiche -> new FicheReglementaire(fiche.id(), fiche.espaceId(),
+                            domaineRetenu.orElse(fiche.domaines().isEmpty() ? null : fiche.domaines().get(0)), fiche.domaines(),
+                            fiche.referenceOfficielle(), fiche.nor(), fiche.publication() == null ? null : fiche.publication().toString(),
+                            fiche.effet() == null ? "date à confirmer" : fiche.effet().toString(), fiche.source(), fiche.lienOfficiel(),
+                            fiche.resume(), FicheAnalyse.MENTION_VALIDEE, balisage.baliser(fiche.source(), fiche.titreOfficiel())))
                     .toList();
             return new ChangementsReglementaires(validees.size(), gardeFous(), validees);
         });
@@ -85,13 +85,13 @@ public class OutilsReglementaires {
 
     /** Textes des garde-fous du profil, ou textes par défaut s'il n'est pas publié. */
     List<String> gardeFous() {
-        List<GardeFou> declares = profils.trouver(PROFIL).map(p -> p.gardeFous()).orElse(List.of());
+        List<GardeFou> declares = profils.trouver(PROFIL).map(profil -> profil.gardeFous()).orElse(List.of());
         String validation = texte(declares, TypeGardeFou.VALIDATION_HUMAINE, VALIDATION_PAR_DEFAUT);
         String avis = texte(declares, TypeGardeFou.AUCUN_AVIS_JURIDIQUE, AVIS_PAR_DEFAUT);
         return List.of(validation, avis);
     }
 
     private static String texte(List<GardeFou> declares, TypeGardeFou type, String defaut) {
-        return declares.stream().filter(g -> g.type() == type).map(GardeFou::description).findFirst().orElse(defaut);
+        return declares.stream().filter(gardeFou -> gardeFou.type() == type).map(GardeFou::description).findFirst().orElse(defaut);
     }
 }

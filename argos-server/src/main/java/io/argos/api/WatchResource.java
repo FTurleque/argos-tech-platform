@@ -63,14 +63,14 @@ public class WatchResource {
                 subscriptions.activeFor(caller.accountId(), scope), caller);
 
         Map<UUID, List<WatchImpact>> visible = new LinkedHashMap<>();
-        for (ImpactQueries.ImpactView i : impacts.forSignals(retenus.signaux().keySet(), caller.accountId(), scope)) {
-            visible.computeIfAbsent(i.signalId(), k -> new ArrayList<>())
-                    .add(new WatchImpact(i.id(), i.projectId(), i.projectName(), i.level()));
+        for (ImpactQueries.ImpactView impact : impacts.forSignals(retenus.signaux().keySet(), caller.accountId(), scope)) {
+            visible.computeIfAbsent(impact.signalId(), key -> new ArrayList<>())
+                    .add(new WatchImpact(impact.id(), impact.projectId(), impact.projectName(), impact.level()));
         }
         List<WatchItem> items = new ArrayList<>();
-        for (SignalQueries.SignalView v : retenus.signaux().values()) {
-            items.add(new WatchItem(v.id(), v.source(), v.externalId(), v.title(), v.severity(), v.modifiedAt(),
-                    retenus.retenusPar().get(v.id()), visible.getOrDefault(v.id(), List.of())));
+        for (SignalQueries.SignalView signal : retenus.signaux().values()) {
+            items.add(new WatchItem(signal.id(), signal.source(), signal.externalId(), signal.title(), signal.severity(),
+                    signal.modifiedAt(), retenus.retenusPar().get(signal.id()), visible.getOrDefault(signal.id(), List.of())));
         }
         return items;
     }

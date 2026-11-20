@@ -54,13 +54,13 @@ public class TraductionCriteres {
      */
     public RechercheVeille.Resultats executer(CriteresRecherche criteres, Caller appelant, boolean verifierProjets,
             String page, String taille) {
-        RechercheVeille.Criteres k = traduire(criteres, appelant, verifierProjets);
+        RechercheVeille.Criteres criteresVeille = traduire(criteres, appelant, verifierProjets);
         int numero = ParametresPagination.entier(page, "page", 0);
         int nombre = ParametresPagination.entier(taille, "taille", RechercheResource.TAILLE_PAR_DEFAUT);
         if (numero < 0 || nombre < 1 || nombre > 100) {
             throw invalide("taille", "page ≥ 0 et taille comprise entre 1 et 100.");
         }
-        return recherche.rechercher(k, appelant.accountId(), appelant.memberWorkspaces(), numero, nombre);
+        return recherche.rechercher(criteresVeille, appelant.accountId(), appelant.memberWorkspaces(), numero, nombre);
     }
 
     /**
@@ -68,37 +68,38 @@ public class TraductionCriteres {
      * l'appelant ; sans, un projet devenu invisible ne fait que restreindre les résultats (rappel d'une
      * vue enregistrée : la requête n'expose de toute façon que le périmètre courant).
      */
-    public RechercheVeille.Criteres traduire(CriteresRecherche c, Caller appelant, boolean verifierProjets) {
-        CriteresRecherche k = c == null ? new CriteresRecherche(null, null, null, null, null, null, null) : c;
-        String texte = k.texte() == null || k.texte().isBlank() ? null : k.texte().strip();
+    public RechercheVeille.Criteres traduire(CriteresRecherche criteresRecus, Caller appelant, boolean verifierProjets) {
+        CriteresRecherche criteres = criteresRecus == null
+                ? new CriteresRecherche(null, null, null, null, null, null, null) : criteresRecus;
+        String texte = criteres.texte() == null || criteres.texte().isBlank() ? null : criteres.texte().strip();
         if (texte != null && texte.length() > TEXTE_MAX) {
             throw invalide("texte", "Le texte recherché compte au plus " + TEXTE_MAX + " caractères.");
         }
-        Set<UUID> projets = new LinkedHashSet<>(liste("projets", k.projets()));
+        Set<UUID> projets = new LinkedHashSet<>(liste("projets", criteres.projets()));
         if (verifierProjets) {
-            projets.forEach(p -> exigerProjetVisible(appelant, p));
+            projets.forEach(projet -> exigerProjetVisible(appelant, projet));
         }
         Set<String> technologies = new LinkedHashSet<>();
-        for (String t : liste("technologies", k.technologies())) {
-            if (t == null || t.isBlank() || t.strip().length() > TECHNOLOGIE_MAX) {
+        for (String technologie : liste("technologies", criteres.technologies())) {
+            if (technologie == null || technologie.isBlank() || technologie.strip().length() > TECHNOLOGIE_MAX) {
                 throw invalide("technologies", "Chaque technologie compte de 1 à " + TECHNOLOGIE_MAX + " caractères.");
             }
-            technologies.add(t.strip());
+            technologies.add(technologie.strip());
         }
         Set<String> types = null;
-        if (!liste("types", k.types()).isEmpty()) {
+        if (!liste("types", criteres.types()).isEmpty()) {
             types = new LinkedHashSet<>();
-            for (String t : k.types()) {
-                String type = t == null ? "" : t.strip().toUpperCase(Locale.ROOT);
+            for (String valeur : criteres.types()) {
+                String type = valeur == null ? "" : valeur.strip().toUpperCase(Locale.ROOT);
                 if (!RechercheVeille.TYPES.contains(type)) {
                     throw invalide("types", "Type inconnu ; types admis : " + String.join(", ", RechercheVeille.TYPES) + ".");
                 }
                 types.add(type);
             }
         }
-        if (!liste("profils", k.profils()).isEmpty()) {
+        if (!liste("profils", criteres.profils()).isEmpty()) {
             Set<String> categories = new LinkedHashSet<>();
-            for (String identifiant : k.profils()) {
+            for (String identifiant : criteres.profils()) {
                 ManifesteProfil profil = Optional.ofNullable(identifiant).map(String::strip).flatMap(profils::trouver)
                         .orElseThrow(() -> invalide("profils", "Profil de veille inconnu ou retiré du catalogue."));
                 categories.addAll(profil.categoriesSources());
@@ -111,18 +112,18 @@ public class TraductionCriteres {
             }
         }
         Set<String> gravites = null;
-        if (k.gravite() != null && !k.gravite().isBlank()) {
-            if (!Gravite.reconnue(k.gravite())) {
+        if (criteres.gravite() != null && !criteres.gravite().isBlank()) {
+            if (!Gravite.reconnue(criteres.gravite())) {
                 throw invalide("gravite", "Gravité inconnue ; gravités admises : " + String.join(", ", Gravite.GRADUEES) + ".");
             }
-            gravites = Gravite.auMoins(k.gravite());
+            gravites = Gravite.auMoins(criteres.gravite());
         }
         Instant depuis = null;
-        if (k.horizonJours() != null) {
-            if (k.horizonJours() < 1 || k.horizonJours() > HORIZON_MAX) {
+        if (criteres.horizonJours() != null) {
+            if (criteres.horizonJours() < 1 || criteres.horizonJours() > HORIZON_MAX) {
                 throw invalide("horizonJours", "L'horizon est compris entre 1 et " + HORIZON_MAX + " jours.");
             }
-            depuis = Instant.now().minus(Duration.ofDays(k.horizonJours()));
+            depuis = Instant.now().minus(Duration.ofDays(criteres.horizonJours()));
         }
         return new RechercheVeille.Criteres(texte, types, projets, technologies, gravites, depuis, null, null);
     }
@@ -144,7 +145,7 @@ public class TraductionCriteres {
         if (valeurs.size() > VALEURS_MAX) {
             throw invalide(attribut, VALEURS_MAX + " valeurs au plus.");
         }
-        if (valeurs.stream().anyMatch(v -> v == null)) {
+        if (valeurs.stream().anyMatch(valeur -> valeur == null)) {
             throw invalide(attribut, "Valeur absente.");
         }
         return valeurs;

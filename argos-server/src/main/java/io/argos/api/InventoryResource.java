@@ -59,7 +59,7 @@ public class InventoryResource {
     public ProjectInventory inventory(@PathParam("projectId") UUID projectId) {
         Caller caller = authorize(projectId);
         return inventories.inventory(projectId, caller.accountId())
-                .map(i -> new ProjectInventory(projectId, "AVAILABLE", i))
+                .map(inventaire -> new ProjectInventory(projectId, "AVAILABLE", inventaire))
                 .orElseGet(() -> new ProjectInventory(projectId, "NO_SBOM", null));
     }
 
@@ -74,7 +74,7 @@ public class InventoryResource {
     public ProjectInventorySummary summary(@PathParam("projectId") UUID projectId) {
         Caller caller = authorize(projectId);
         return inventories.summary(projectId, caller.accountId())
-                .map(s -> new ProjectInventorySummary(projectId, "AVAILABLE", s))
+                .map(synthese -> new ProjectInventorySummary(projectId, "AVAILABLE", synthese))
                 .orElseGet(() -> new ProjectInventorySummary(projectId, "NO_SBOM", null));
     }
 

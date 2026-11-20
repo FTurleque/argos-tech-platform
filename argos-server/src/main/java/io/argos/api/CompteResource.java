@@ -27,8 +27,8 @@ public class CompteResource {
     public record CompteCourant(UUID id, String nomAffiche, String email, boolean adminPlateforme,
             OffsetDateTime creeLe) {
 
-        static CompteCourant de(Compte c) {
-            return new CompteCourant(c.id(), c.nomAffiche(), c.email(), c.adminPlateforme(), c.creeLe());
+        static CompteCourant de(Compte compte) {
+            return new CompteCourant(compte.id(), compte.nomAffiche(), compte.email(), compte.adminPlateforme(), compte.creeLe());
         }
     }
 

@@ -59,12 +59,12 @@ public class EspacesService {
      *                     n'existe pas, {@link MotifRefus#ROLE_INSUFFISANT} si le rôle ne suffit pas
      */
     public Role exiger(Compte compte, UUID espaceId, Role minimum) {
-        Optional<Role> role = base.executer(new Contexte(compte.id(), null, null), c -> {
-            try (PreparedStatement ps = c.prepareStatement(
+        Optional<Role> role = base.executer(new Contexte(compte.id(), null, null), connexion -> {
+            try (PreparedStatement requete = connexion.prepareStatement(
                     "SELECT role FROM appartenance WHERE espace_id = ? AND compte_id = argos_compte_courant()")) {
-                ps.setObject(1, espaceId);
-                try (ResultSet rs = ps.executeQuery()) {
-                    return rs.next() ? Optional.of(Role.valueOf(rs.getString(1))) : Optional.<Role>empty();
+                requete.setObject(1, espaceId);
+                try (ResultSet resultat = requete.executeQuery()) {
+                    return resultat.next() ? Optional.of(Role.valueOf(resultat.getString(1))) : Optional.<Role>empty();
                 }
             }
         });
@@ -86,32 +86,32 @@ public class EspacesService {
             throw new DonneeInvalide("Le nom de l'espace doit contenir de 1 à 120 caractères.");
         }
         UUID id = UUID.randomUUID();
-        return base.executer(new Contexte(compte.id(), null, id), c -> {
-            try (PreparedStatement ps = c.prepareStatement(
+        return base.executer(new Contexte(compte.id(), null, id), connexion -> {
+            try (PreparedStatement requete = connexion.prepareStatement(
                     "INSERT INTO espace (id, nom, cree_par) VALUES (?, ?, argos_compte_courant())")) {
-                ps.setObject(1, id);
-                ps.setString(2, nomPropre);
-                ps.executeUpdate();
+                requete.setObject(1, id);
+                requete.setString(2, nomPropre);
+                requete.executeUpdate();
             }
-            try (PreparedStatement ps = c.prepareStatement(
+            try (PreparedStatement requete = connexion.prepareStatement(
                     "INSERT INTO appartenance (espace_id, compte_id, role) VALUES (?, argos_compte_courant(), 'ADMINISTRATEUR')")) {
-                ps.setObject(1, id);
-                ps.executeUpdate();
+                requete.setObject(1, id);
+                requete.executeUpdate();
             }
-            return lireEspace(c, id).orElseThrow();
+            return lireEspace(connexion, id).orElseThrow();
         });
     }
 
     /** Espaces dont le compte est membre ; vide pour un nouveau compte (ACC-02-S1). */
     public List<EspaceDeCompte> mesEspaces(Compte compte) {
-        return base.executer(new Contexte(compte.id(), null, null), c -> {
+        return base.executer(new Contexte(compte.id(), null, null), connexion -> {
             List<EspaceDeCompte> espaces = new ArrayList<>();
-            try (PreparedStatement ps = c.prepareStatement(
+            try (PreparedStatement requete = connexion.prepareStatement(
                     "SELECT e.id, e.nom, a.role, e.cree_le FROM appartenance a JOIN espace e ON e.id = a.espace_id"
                             + " WHERE a.compte_id = argos_compte_courant() ORDER BY e.nom, e.id");
-                    ResultSet rs = ps.executeQuery()) {
-                while (rs.next()) {
-                    espaces.add(espace(rs));
+                    ResultSet resultat = requete.executeQuery()) {
+                while (resultat.next()) {
+                    espaces.add(espace(resultat));
                 }
             }
             return espaces;
@@ -121,14 +121,14 @@ public class EspacesService {
     public EspaceDeCompte obtenir(Compte compte, UUID espaceId) {
         exiger(compte, espaceId, Role.LECTEUR);
         return base.executer(new Contexte(compte.id(), null, espaceId),
-                c -> lireEspace(c, espaceId).orElseThrow(() -> new AccesRefuse(MotifRefus.NON_MEMBRE)));
+                connexion -> lireEspace(connexion, espaceId).orElseThrow(() -> new AccesRefuse(MotifRefus.NON_MEMBRE)));
     }
 
     // ------------------------------------------------------------------ membres
 
     public List<Membre> membres(Compte compte, UUID espaceId) {
         exiger(compte, espaceId, Role.LECTEUR);
-        return base.executer(new Contexte(compte.id(), null, espaceId), c -> lireMembres(c, espaceId));
+        return base.executer(new Contexte(compte.id(), null, espaceId), connexion -> lireMembres(connexion, espaceId));
     }
 
     /** Change le rôle d'un membre ; réservé aux administrateurs de l'espace (ACC-03-S2). */
@@ -137,36 +137,36 @@ public class EspacesService {
             throw new DonneeInvalide("Rôle obligatoire : LECTEUR, CONTRIBUTEUR ou ADMINISTRATEUR.");
         }
         exiger(compte, espaceId, Role.ADMINISTRATEUR);
-        return base.executer(new Contexte(compte.id(), null, espaceId), c -> {
-            verrouillerEspace(c, espaceId);
-            Role actuel = roleDe(c, espaceId, cibleId);
+        return base.executer(new Contexte(compte.id(), null, espaceId), connexion -> {
+            verrouillerEspace(connexion, espaceId);
+            Role actuel = roleDe(connexion, espaceId, cibleId);
             if (actuel == Role.ADMINISTRATEUR && nouveauRole != Role.ADMINISTRATEUR) {
-                verifierAutreAdministrateur(c, espaceId);
+                verifierAutreAdministrateur(connexion, espaceId);
             }
-            try (PreparedStatement ps = c.prepareStatement(
+            try (PreparedStatement requete = connexion.prepareStatement(
                     "UPDATE appartenance SET role = ? WHERE espace_id = ? AND compte_id = ?")) {
-                ps.setString(1, nouveauRole.name());
-                ps.setObject(2, espaceId);
-                ps.setObject(3, cibleId);
-                ps.executeUpdate();
+                requete.setString(1, nouveauRole.name());
+                requete.setObject(2, espaceId);
+                requete.setObject(3, cibleId);
+                requete.executeUpdate();
             }
-            return lireMembres(c, espaceId).stream().filter(m -> m.compteId().equals(cibleId)).findFirst().orElseThrow();
+            return lireMembres(connexion, espaceId).stream().filter(membre -> membre.compteId().equals(cibleId)).findFirst().orElseThrow();
         });
     }
 
     /** Retire un membre de l'espace ; effectif dès sa requête suivante (ACC-05-S2). */
     public void revoquer(Compte compte, UUID espaceId, UUID cibleId) {
         exiger(compte, espaceId, Role.ADMINISTRATEUR);
-        base.executer(new Contexte(compte.id(), null, espaceId), c -> {
-            verrouillerEspace(c, espaceId);
-            if (roleDe(c, espaceId, cibleId) == Role.ADMINISTRATEUR) {
-                verifierAutreAdministrateur(c, espaceId);
+        base.executer(new Contexte(compte.id(), null, espaceId), connexion -> {
+            verrouillerEspace(connexion, espaceId);
+            if (roleDe(connexion, espaceId, cibleId) == Role.ADMINISTRATEUR) {
+                verifierAutreAdministrateur(connexion, espaceId);
             }
-            try (PreparedStatement ps = c.prepareStatement(
+            try (PreparedStatement requete = connexion.prepareStatement(
                     "DELETE FROM appartenance WHERE espace_id = ? AND compte_id = ?")) {
-                ps.setObject(1, espaceId);
-                ps.setObject(2, cibleId);
-                ps.executeUpdate();
+                requete.setObject(1, espaceId);
+                requete.setObject(2, cibleId);
+                requete.executeUpdate();
             }
             return null;
         });
@@ -185,35 +185,35 @@ public class EspacesService {
         }
         exiger(compte, espaceId, Role.ADMINISTRATEUR);
         UUID id = UUID.randomUUID();
-        return base.executer(new Contexte(compte.id(), null, espaceId), c -> {
-            try (PreparedStatement ps = c.prepareStatement(
+        return base.executer(new Contexte(compte.id(), null, espaceId), connexion -> {
+            try (PreparedStatement requete = connexion.prepareStatement(
                     "INSERT INTO invitation (id, espace_id, email, role, invite_par, expire_le)"
                             + " VALUES (?, ?, ?, ?, argos_compte_courant(), now() + make_interval(days => ?))")) {
-                ps.setObject(1, id);
-                ps.setObject(2, espaceId);
-                ps.setString(3, adresse);
-                ps.setString(4, role.name());
-                ps.setInt(5, validiteJours);
-                ps.executeUpdate();
+                requete.setObject(1, id);
+                requete.setObject(2, espaceId);
+                requete.setString(3, adresse);
+                requete.setString(4, role.name());
+                requete.setInt(5, validiteJours);
+                requete.executeUpdate();
             }
-            return lireInvitations(c, "i.id = ?", id).get(0);
+            return lireInvitations(connexion, "i.id = ?", id).get(0);
         });
     }
 
     public List<Invitation> invitations(Compte compte, UUID espaceId) {
         exiger(compte, espaceId, Role.ADMINISTRATEUR);
         return base.executer(new Contexte(compte.id(), null, espaceId),
-                c -> lireInvitations(c, "i.espace_id = ?", espaceId));
+                connexion -> lireInvitations(connexion, "i.espace_id = ?", espaceId));
     }
 
     public void revoquerInvitation(Compte compte, UUID espaceId, UUID invitationId) {
         exiger(compte, espaceId, Role.ADMINISTRATEUR);
-        int modifiees = base.executer(new Contexte(compte.id(), null, espaceId), c -> {
-            try (PreparedStatement ps = c.prepareStatement(
+        int modifiees = base.executer(new Contexte(compte.id(), null, espaceId), connexion -> {
+            try (PreparedStatement requete = connexion.prepareStatement(
                     "UPDATE invitation SET etat = 'REVOQUEE' WHERE id = ? AND espace_id = ? AND etat = 'EN_ATTENTE'")) {
-                ps.setObject(1, invitationId);
-                ps.setObject(2, espaceId);
-                return ps.executeUpdate();
+                requete.setObject(1, invitationId);
+                requete.setObject(2, espaceId);
+                return requete.executeUpdate();
             }
         });
         if (modifiees == 0) {
@@ -227,7 +227,7 @@ public class EspacesService {
             return List.of();
         }
         return base.executer(new Contexte(compte.id(), emailVerifie, null),
-                c -> lireInvitations(c, "i.etat = 'EN_ATTENTE' AND i.expire_le > now() AND lower(i.email) = ?",
+                connexion -> lireInvitations(connexion, "i.etat = 'EN_ATTENTE' AND i.expire_le > now() AND lower(i.email) = ?",
                         emailVerifie));
     }
 
@@ -245,8 +245,8 @@ public class EspacesService {
             throw new Introuvable("Aucune invitation ne vous est adressée avec cet identifiant.");
         }
         Contexte contexte = new Contexte(compte.id(), emailVerifie, null);
-        Invitation invitation = base.executer(contexte, c -> lireInvitations(c, "i.id = ?", invitationId))
-                .stream().filter(i -> emailVerifie.equalsIgnoreCase(i.email()))
+        Invitation invitation = base.executer(contexte, connexion -> lireInvitations(connexion, "i.id = ?", invitationId))
+                .stream().filter(candidate -> emailVerifie.equalsIgnoreCase(candidate.email()))
                 .findFirst().orElseThrow(() -> new Introuvable("Aucune invitation ne vous est adressée avec cet identifiant."));
         if (!"EN_ATTENTE".equals(invitation.etat())) {
             throw new RegleViolee("INVITATION_INACTIVE", "L'invitation a déjà été acceptée ou révoquée.");
@@ -255,97 +255,97 @@ public class EspacesService {
             throw new RegleViolee("INVITATION_EXPIREE", "L'invitation a expiré.");
         }
         UUID espaceId = invitation.espaceId();
-        return base.executer(contexte.dansEspace(espaceId), c -> {
-            try (PreparedStatement ps = c.prepareStatement(
+        return base.executer(contexte.dansEspace(espaceId), connexion -> {
+            try (PreparedStatement requete = connexion.prepareStatement(
                     "SELECT 1 FROM appartenance WHERE espace_id = ? AND compte_id = argos_compte_courant()")) {
-                ps.setObject(1, espaceId);
-                try (ResultSet rs = ps.executeQuery()) {
-                    if (rs.next()) {
+                requete.setObject(1, espaceId);
+                try (ResultSet resultat = requete.executeQuery()) {
+                    if (resultat.next()) {
                         throw new RegleViolee("DEJA_MEMBRE", "Vous êtes déjà membre de cet espace.");
                     }
                 }
             }
-            try (PreparedStatement ps = c.prepareStatement(
+            try (PreparedStatement requete = connexion.prepareStatement(
                     "INSERT INTO appartenance (espace_id, compte_id, role) VALUES (?, argos_compte_courant(), ?)")) {
-                ps.setObject(1, espaceId);
-                ps.setString(2, invitation.role().name());
-                ps.executeUpdate();
+                requete.setObject(1, espaceId);
+                requete.setString(2, invitation.role().name());
+                requete.executeUpdate();
             }
-            try (PreparedStatement ps = c.prepareStatement(
+            try (PreparedStatement requete = connexion.prepareStatement(
                     "UPDATE invitation SET etat = 'ACCEPTEE', destinataire_id = argos_compte_courant()"
                             + " WHERE id = ? AND etat = 'EN_ATTENTE'")) {
-                ps.setObject(1, invitationId);
-                if (ps.executeUpdate() != 1) {
+                requete.setObject(1, invitationId);
+                if (requete.executeUpdate() != 1) {
                     throw new RegleViolee("INVITATION_INACTIVE", "L'invitation n'est plus en attente.");
                 }
             }
-            return lireEspace(c, espaceId).orElseThrow();
+            return lireEspace(connexion, espaceId).orElseThrow();
         });
     }
 
     // ------------------------------------------------------------------ lecture
 
-    private static Optional<EspaceDeCompte> lireEspace(Connection c, UUID espaceId) throws SQLException {
-        try (PreparedStatement ps = c.prepareStatement(
+    private static Optional<EspaceDeCompte> lireEspace(Connection connexion, UUID espaceId) throws SQLException {
+        try (PreparedStatement requete = connexion.prepareStatement(
                 "SELECT e.id, e.nom, a.role, e.cree_le FROM espace e"
                         + " JOIN appartenance a ON a.espace_id = e.id AND a.compte_id = argos_compte_courant()"
                         + " WHERE e.id = ?")) {
-            ps.setObject(1, espaceId);
-            try (ResultSet rs = ps.executeQuery()) {
-                return rs.next() ? Optional.of(espace(rs)) : Optional.empty();
+            requete.setObject(1, espaceId);
+            try (ResultSet resultat = requete.executeQuery()) {
+                return resultat.next() ? Optional.of(espace(resultat)) : Optional.empty();
             }
         }
     }
 
-    private static EspaceDeCompte espace(ResultSet rs) throws SQLException {
-        return new EspaceDeCompte(rs.getObject(1, UUID.class), rs.getString(2), Role.valueOf(rs.getString(3)),
-                rs.getObject(4, OffsetDateTime.class));
+    private static EspaceDeCompte espace(ResultSet resultat) throws SQLException {
+        return new EspaceDeCompte(resultat.getObject(1, UUID.class), resultat.getString(2), Role.valueOf(resultat.getString(3)),
+                resultat.getObject(4, OffsetDateTime.class));
     }
 
-    private static List<Membre> lireMembres(Connection c, UUID espaceId) throws SQLException {
+    private static List<Membre> lireMembres(Connection connexion, UUID espaceId) throws SQLException {
         List<Membre> membres = new ArrayList<>();
-        try (PreparedStatement ps = c.prepareStatement(
+        try (PreparedStatement requete = connexion.prepareStatement(
                 "SELECT a.compte_id, co.nom_affiche, a.role, a.depuis FROM appartenance a"
                         + " JOIN compte co ON co.id = a.compte_id WHERE a.espace_id = ? ORDER BY co.nom_affiche, a.compte_id")) {
-            ps.setObject(1, espaceId);
-            try (ResultSet rs = ps.executeQuery()) {
-                while (rs.next()) {
-                    membres.add(new Membre(rs.getObject(1, UUID.class), rs.getString(2), Role.valueOf(rs.getString(3)),
-                            rs.getObject(4, OffsetDateTime.class)));
+            requete.setObject(1, espaceId);
+            try (ResultSet resultat = requete.executeQuery()) {
+                while (resultat.next()) {
+                    membres.add(new Membre(resultat.getObject(1, UUID.class), resultat.getString(2), Role.valueOf(resultat.getString(3)),
+                            resultat.getObject(4, OffsetDateTime.class)));
                 }
             }
         }
         return membres;
     }
 
-    private static List<Invitation> lireInvitations(Connection c, String filtre, Object valeur) throws SQLException {
+    private static List<Invitation> lireInvitations(Connection connexion, String filtre, Object valeur) throws SQLException {
         List<Invitation> invitations = new ArrayList<>();
-        try (PreparedStatement ps = c.prepareStatement(
+        try (PreparedStatement requete = connexion.prepareStatement(
                 "SELECT i.id, i.espace_id, i.email, i.role, i.etat, co.nom_affiche, i.cree_le, i.expire_le"
                         + " FROM invitation i JOIN compte co ON co.id = i.invite_par WHERE " + filtre
                         + " ORDER BY i.cree_le, i.id")) {
-            ps.setObject(1, valeur);
-            try (ResultSet rs = ps.executeQuery()) {
-                while (rs.next()) {
-                    invitations.add(new Invitation(rs.getObject(1, UUID.class), rs.getObject(2, UUID.class),
-                            rs.getString(3), Role.valueOf(rs.getString(4)), rs.getString(5), rs.getString(6),
-                            rs.getObject(7, OffsetDateTime.class), rs.getObject(8, OffsetDateTime.class)));
+            requete.setObject(1, valeur);
+            try (ResultSet resultat = requete.executeQuery()) {
+                while (resultat.next()) {
+                    invitations.add(new Invitation(resultat.getObject(1, UUID.class), resultat.getObject(2, UUID.class),
+                            resultat.getString(3), Role.valueOf(resultat.getString(4)), resultat.getString(5), resultat.getString(6),
+                            resultat.getObject(7, OffsetDateTime.class), resultat.getObject(8, OffsetDateTime.class)));
                 }
             }
         }
         return invitations;
     }
 
-    private static Role roleDe(Connection c, UUID espaceId, UUID compteId) throws SQLException {
-        try (PreparedStatement ps = c.prepareStatement(
+    private static Role roleDe(Connection connexion, UUID espaceId, UUID compteId) throws SQLException {
+        try (PreparedStatement requete = connexion.prepareStatement(
                 "SELECT role FROM appartenance WHERE espace_id = ? AND compte_id = ?")) {
-            ps.setObject(1, espaceId);
-            ps.setObject(2, compteId);
-            try (ResultSet rs = ps.executeQuery()) {
-                if (!rs.next()) {
+            requete.setObject(1, espaceId);
+            requete.setObject(2, compteId);
+            try (ResultSet resultat = requete.executeQuery()) {
+                if (!resultat.next()) {
                     throw new RegleViolee("MEMBRE_INCONNU", "Ce compte n'est pas membre de l'espace.");
                 }
-                return Role.valueOf(rs.getString(1));
+                return Role.valueOf(resultat.getString(1));
             }
         }
     }
@@ -355,11 +355,11 @@ public class EspacesService {
      * retraits concurrents dans le même espace s'exécutent l'un après l'autre, et le second compte
      * les administrateurs après la validation du premier (INV-1 sûr en concurrence).
      */
-    private static void verrouillerEspace(Connection c, UUID espaceId) throws SQLException {
-        try (PreparedStatement ps = c.prepareStatement("SELECT 1 FROM espace WHERE id = ? FOR UPDATE")) {
-            ps.setObject(1, espaceId);
-            try (ResultSet rs = ps.executeQuery()) {
-                if (!rs.next()) {
+    private static void verrouillerEspace(Connection connexion, UUID espaceId) throws SQLException {
+        try (PreparedStatement requete = connexion.prepareStatement("SELECT 1 FROM espace WHERE id = ? FOR UPDATE")) {
+            requete.setObject(1, espaceId);
+            try (ResultSet resultat = requete.executeQuery()) {
+                if (!resultat.next()) {
                     throw new AccesRefuse(MotifRefus.NON_MEMBRE);
                 }
             }
@@ -367,13 +367,13 @@ public class EspacesService {
     }
 
     /** INV-1 : un espace garde toujours au moins un administrateur. */
-    private static void verifierAutreAdministrateur(Connection c, UUID espaceId) throws SQLException {
-        try (PreparedStatement ps = c.prepareStatement(
+    private static void verifierAutreAdministrateur(Connection connexion, UUID espaceId) throws SQLException {
+        try (PreparedStatement requete = connexion.prepareStatement(
                 "SELECT count(*) FROM appartenance WHERE espace_id = ? AND role = 'ADMINISTRATEUR'")) {
-            ps.setObject(1, espaceId);
-            try (ResultSet rs = ps.executeQuery()) {
-                rs.next();
-                if (rs.getLong(1) <= 1) {
+            requete.setObject(1, espaceId);
+            try (ResultSet resultat = requete.executeQuery()) {
+                resultat.next();
+                if (resultat.getLong(1) <= 1) {
                     throw new RegleViolee("DERNIER_ADMINISTRATEUR",
                             "Un espace garde toujours au moins un administrateur.");
                 }

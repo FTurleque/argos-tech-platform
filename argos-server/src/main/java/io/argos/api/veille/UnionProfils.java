@@ -92,30 +92,31 @@ public final class UnionProfils {
      */
     public static <T> List<Retenu<T>> unir(List<ManifesteProfil> actifs, List<Candidat<T>> candidats) {
         Map<String, Candidat<T>> fusionnes = new LinkedHashMap<>();
-        for (Candidat<T> c : candidats) {
-            fusionnes.merge(c.cle(), c, UnionProfils::fusionner);
+        for (Candidat<T> candidat : candidats) {
+            fusionnes.merge(candidat.cle(), candidat, UnionProfils::fusionner);
         }
         List<Retenu<T>> retenus = new ArrayList<>();
-        for (Candidat<T> c : fusionnes.values()) {
+        for (Candidat<T> candidat : fusionnes.values()) {
             List<String> profils = new ArrayList<>();
             List<RubriqueRetenue> rubriques = new ArrayList<>();
             Set<String> gardeFous = new LinkedHashSet<>();
             boolean bloque = false;
             for (ManifesteProfil profil : actifs) {
-                List<Rubrique> duProfil = rubriquesQuiRangent(profil, c);
+                List<Rubrique> duProfil = rubriquesQuiRangent(profil, candidat);
                 if (duProfil.isEmpty()) {
                     continue;
                 }
-                if (!profil.diffusable(c.valideParUnExpert())) {
+                if (!profil.diffusable(candidat.valideParUnExpert())) {
                     bloque = true;
                     break;
                 }
                 profils.add(profil.identifiant());
-                duProfil.forEach(r -> rubriques.add(new RubriqueRetenue(profil.identifiant(), r.identifiant(), r.libelle())));
+                duProfil.forEach(rubrique -> rubriques.add(
+                        new RubriqueRetenue(profil.identifiant(), rubrique.identifiant(), rubrique.libelle())));
                 profil.gardeFous().stream().map(GardeFou::description).forEach(gardeFous::add);
             }
             if (!bloque && !profils.isEmpty()) {
-                retenus.add(new Retenu<>(c.cle(), c.contenu(), List.copyOf(profils), List.copyOf(rubriques),
+                retenus.add(new Retenu<>(candidat.cle(), candidat.contenu(), List.copyOf(profils), List.copyOf(rubriques),
                         List.copyOf(gardeFous), List.of()));
             }
         }
@@ -142,49 +143,49 @@ public final class UnionProfils {
             List<CandidatAbonnement<T>> candidatsAbonnements) {
         Map<String, Candidat<T>> parCle = new LinkedHashMap<>();
         Map<String, Set<UUID>> abonnementsParCle = new LinkedHashMap<>();
-        for (CandidatAbonnement<T> ca : candidatsAbonnements) {
-            Candidat<T> c = ca.candidat();
-            parCle.merge(c.cle(), c, UnionProfils::fusionner);
-            abonnementsParCle.computeIfAbsent(c.cle(), k -> new LinkedHashSet<>()).addAll(ca.abonnements());
+        for (CandidatAbonnement<T> candidatAbonnement : candidatsAbonnements) {
+            Candidat<T> candidat = candidatAbonnement.candidat();
+            parCle.merge(candidat.cle(), candidat, UnionProfils::fusionner);
+            abonnementsParCle.computeIfAbsent(candidat.cle(), cle -> new LinkedHashSet<>()).addAll(candidatAbonnement.abonnements());
         }
         Map<String, Retenu<T>> retenus = new LinkedHashMap<>();
-        for (Retenu<T> r : unir(actifs, candidatsProfils)) {
-            retenus.put(r.cle(), r);
+        for (Retenu<T> retenu : unir(actifs, candidatsProfils)) {
+            retenus.put(retenu.cle(), retenu);
         }
-        for (Map.Entry<String, Candidat<T>> e : parCle.entrySet()) {
-            Candidat<T> c = e.getValue();
-            List<UUID> abonnements = abonnementsParCle.get(e.getKey()).stream()
+        for (Map.Entry<String, Candidat<T>> entree : parCle.entrySet()) {
+            Candidat<T> candidat = entree.getValue();
+            List<UUID> abonnements = abonnementsParCle.get(entree.getKey()).stream()
                     .sorted(Comparator.comparing(UUID::toString)).toList();
             Set<String> gardeFous = new LinkedHashSet<>();
             boolean bloque = false;
             for (ManifesteProfil profil : actifs) {
-                if (rubriquesQuiRangent(profil, c).isEmpty()) {
+                if (rubriquesQuiRangent(profil, candidat).isEmpty()) {
                     continue;
                 }
-                if (!profil.diffusable(c.valideParUnExpert())) {
+                if (!profil.diffusable(candidat.valideParUnExpert())) {
                     bloque = true;
                     break;
                 }
                 profil.gardeFous().stream().map(GardeFou::description).forEach(gardeFous::add);
             }
-            Retenu<T> parUnProfil = retenus.get(c.cle());
+            Retenu<T> parUnProfil = retenus.get(candidat.cle());
             if (bloque) {
                 // Prudence : un élément qu'un profil actif ne peut pas diffuser n'est restitué par aucune voie.
-                retenus.remove(c.cle());
+                retenus.remove(candidat.cle());
             } else if (parUnProfil != null) {
-                retenus.put(c.cle(), new Retenu<>(parUnProfil.cle(), parUnProfil.contenu(), parUnProfil.profils(),
+                retenus.put(candidat.cle(), new Retenu<>(parUnProfil.cle(), parUnProfil.contenu(), parUnProfil.profils(),
                         parUnProfil.rubriques(), parUnProfil.gardeFous(), abonnements));
             } else {
-                retenus.put(c.cle(), new Retenu<>(c.cle(), c.contenu(), List.of(), List.of(), List.copyOf(gardeFous),
+                retenus.put(candidat.cle(), new Retenu<>(candidat.cle(), candidat.contenu(), List.of(), List.of(), List.copyOf(gardeFous),
                         abonnements));
             }
         }
         return List.copyOf(retenus.values());
     }
 
-    private static <T> List<Rubrique> rubriquesQuiRangent(ManifesteProfil profil, Candidat<T> c) {
+    private static <T> List<Rubrique> rubriquesQuiRangent(ManifesteProfil profil, Candidat<T> candidat) {
         return profil.rubriques().stream()
-                .filter(r -> r != null && c.categories().stream().anyMatch(r::range))
+                .filter(rubrique -> rubrique != null && candidat.categories().stream().anyMatch(rubrique::range))
                 .toList();
     }
 
