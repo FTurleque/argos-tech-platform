@@ -47,8 +47,8 @@ public class RapprochementOpportunites {
             territoires = List.copyOf(territoires);
         }
 
-        static Restitution de(Opportunite opportunite, StrategieDisciplineTerritoire.Decision decision) {
-            ResumeOpportunite.Resume resume = ResumeOpportunite.de(opportunite);
+        static Restitution depuis(Opportunite opportunite, StrategieDisciplineTerritoire.Decision decision) {
+            ResumeOpportunite.Resume resume = ResumeOpportunite.depuis(opportunite);
             return new Restitution(opportunite.id(), opportunite.rubrique(), opportunite.titre(), resume.organisme(),
                     opportunite.sourceLibelle(), opportunite.lien(), opportunite.disciplines(), opportunite.territoires(),
                     opportunite.dateLimite(), decision, resume);
@@ -78,7 +78,7 @@ public class RapprochementOpportunites {
             StrategieDisciplineTerritoire.Decision decision = StrategieDisciplineTerritoire.evaluer(opportunite, disciplines, territoires,
                     aujourdhui);
             if (decision.issue().restituee()) {
-                resultat.add(Restitution.de(opportunite, decision));
+                resultat.add(Restitution.depuis(opportunite, decision));
             }
         }
         return resultat;
@@ -89,6 +89,6 @@ public class RapprochementOpportunites {
         if (!actif()) {
             return Optional.empty();
         }
-        return opportunites.trouver(PROFIL, id).map(ResumeOpportunite::de);
+        return opportunites.trouver(PROFIL, id).map(ResumeOpportunite::depuis);
     }
 }

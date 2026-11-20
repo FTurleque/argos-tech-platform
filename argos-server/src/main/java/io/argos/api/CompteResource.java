@@ -27,7 +27,7 @@ public class CompteResource {
     public record CompteCourant(UUID id, String nomAffiche, String email, boolean adminPlateforme,
             OffsetDateTime creeLe) {
 
-        static CompteCourant de(Compte compte) {
+        static CompteCourant depuis(Compte compte) {
             return new CompteCourant(compte.id(), compte.nomAffiche(), compte.email(), compte.adminPlateforme(), compte.creeLe());
         }
     }
@@ -41,6 +41,6 @@ public class CompteResource {
     @APIResponse(responseCode = "401", description = "Non authentifié")
     @APIResponse(responseCode = "403", description = "Inscription sur invitation : aucune invitation en attente")
     public CompteCourant moi() {
-        return CompteCourant.de(utilisateur.compte());
+        return CompteCourant.depuis(utilisateur.compte());
     }
 }

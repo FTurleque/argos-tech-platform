@@ -44,7 +44,7 @@ public class ActualitesWeb {
     /** Contenu externe cité tel quel, marqué non fiable (WEB-04). */
     public record ContenuExterne(String texte, String nature, boolean fiable) {
 
-        static ContenuExterne de(String texte) {
+        static ContenuExterne depuis(String texte) {
             return new ContenuExterne(texte, NATURE, false);
         }
     }
@@ -97,7 +97,7 @@ public class ActualitesWeb {
                 requete.setObject(1, id);
                 return completer(connexion, lire(requete)).stream().findFirst()
                         .map(actualite -> new Detail(actualite,
-                                new Resume(METHODE_RESUME, ContenuExterne.de(extrait(actualite.contenu().texte())))));
+                                new Resume(METHODE_RESUME, ContenuExterne.depuis(extrait(actualite.contenu().texte())))));
             }
         });
     }
@@ -124,7 +124,7 @@ public class ActualitesWeb {
         try (ResultSet resultat = requete.executeQuery()) {
             while (resultat.next()) {
                 actualites.add(new Lue(new Actualite(resultat.getObject(1, UUID.class), resultat.getString(2), resultat.getString(3),
-                        resultat.getString(4), instant(resultat, 5), instant(resultat, 6), ContenuExterne.de(resultat.getString(7)),
+                        resultat.getString(4), instant(resultat, 5), instant(resultat, 6), ContenuExterne.depuis(resultat.getString(7)),
                         new ArrayList<>()), resultat.getString(8)));
             }
         }

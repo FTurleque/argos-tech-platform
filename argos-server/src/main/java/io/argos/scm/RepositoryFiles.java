@@ -113,9 +113,9 @@ public class RepositoryFiles {
                         yield Optional.empty();
                     }
                     yield fetch(gitlab(ref, "/jobs/artifacts/" + enc(ref.branch()) + "/raw/" + path(ref.sbomPath())
-                            + "?job=" + enc(ref.sbomJob())), false).map(SbomDocument::de);
+                            + "?job=" + enc(ref.sbomJob())), false).map(SbomDocument::depuis);
                 }
-                case "GITHUB" -> file(ref.sbomPath()).map(SbomDocument::de);
+                case "GITHUB" -> file(ref.sbomPath()).map(SbomDocument::depuis);
                 default -> throw new ScmException("forge non prise en charge : " + ref.provider(), null);
             };
         }

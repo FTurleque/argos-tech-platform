@@ -95,7 +95,7 @@ class StrategieDisciplineTerritoireTest {
     @Test
     void art06LeGabaritDeResumeNeSePrononcePasSurLEligibilite() {
         Opportunite opportunite = appel(List.of("arts-visuels"), List.of("occitanie"), AUJOURDHUI.plusDays(3));
-        ResumeOpportunite.Resume resume = ResumeOpportunite.de(opportunite);
+        ResumeOpportunite.Resume resume = ResumeOpportunite.depuis(opportunite);
         assertEquals("Critères", resume.criteres());
         assertEquals("https://exemple.test/appel", resume.texteOfficiel());
         assertEquals(ResumeOpportunite.MENTION, resume.mention());
@@ -103,7 +103,7 @@ class StrategieDisciplineTerritoireTest {
         assertFalse(gabarit.toLowerCase().contains("vous êtes éligible"));
         assertFalse(gabarit.toLowerCase().contains("vous n'êtes pas éligible"));
         String longs = "x".repeat(ResumeOpportunite.CRITERES_MAX + 10);
-        ResumeOpportunite.Resume tronque = ResumeOpportunite.de(new Opportunite(opportunite.id(), opportunite.sourceId(), "S", "r", "T",
+        ResumeOpportunite.Resume tronque = ResumeOpportunite.depuis(new Opportunite(opportunite.id(), opportunite.sourceId(), "S", "r", "T",
                 null, longs, null, List.of(), List.of(), null, Instant.now()));
         assertTrue(tronque.criteresTronques());
         assertEquals("à confirmer", tronque.dateLimite());

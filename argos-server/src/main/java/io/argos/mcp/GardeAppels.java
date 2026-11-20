@@ -89,33 +89,33 @@ public class GardeAppels {
             appelant = appelants.current().orElseThrow(() -> new ToolCallException("NON_AUTHENTIFIE : jeton absent ou invalide."));
         } catch (InscriptionRefusee refusee) {
             journalRefus.enregistrer(null, sujet(), ressource(outil), "INSCRIPTION_SUR_INVITATION");
-            journalAppels.enregistrer(null, sujet(), outil, parametresJson, ms(debut), Issue.REFUS_ACCES);
+            journalAppels.enregistrer(null, sujet(), outil, parametresJson, millisecondes(debut), Issue.REFUS_ACCES);
             throw new ToolCallException("NON_AUTORISE : aucun compte Argos n'est associé à ce jeton.");
         }
         UUID compte = appelant.accountId();
         if (!limiteur.admettre(compte)) {
             journalRefus.enregistrer(compte, null, ressource(outil), "LIMITE_DEBIT");
-            journalAppels.enregistrer(compte, null, outil, parametresJson, ms(debut), Issue.REFUS_LIMITE);
+            journalAppels.enregistrer(compte, null, outil, parametresJson, millisecondes(debut), Issue.REFUS_LIMITE);
             throw new ToolCallException("LIMITE_DEBIT : nombre maximal d'appels par minute atteint, réessayez plus tard.");
         }
         try {
             T resultat = travail.apply(appelant);
-            journalAppels.enregistrer(compte, null, outil, parametresJson, ms(debut), Issue.SUCCES);
+            journalAppels.enregistrer(compte, null, outil, parametresJson, millisecondes(debut), Issue.SUCCES);
             return resultat;
         } catch (ParametreInvalide invalide) {
-            journalAppels.enregistrer(compte, null, outil, parametresJson, ms(debut), Issue.PARAMETRES_INVALIDES);
+            journalAppels.enregistrer(compte, null, outil, parametresJson, millisecondes(debut), Issue.PARAMETRES_INVALIDES);
             throw new ToolCallException("PARAMETRES_INVALIDES : " + invalide.getMessage());
         } catch (AccesRefuse refus) {
             journalRefus.enregistrer(compte, null, ressource(outil), refus.motif().name());
-            journalAppels.enregistrer(compte, null, outil, parametresJson, ms(debut), Issue.REFUS_ACCES);
+            journalAppels.enregistrer(compte, null, outil, parametresJson, millisecondes(debut), Issue.REFUS_ACCES);
             throw new ToolCallException("INTROUVABLE : ressource introuvable dans votre périmètre.");
         } catch (Introuvable introuvable) {
             // Ressource inexistante : même réponse qu'un refus, sans entrée au journal des refus.
-            journalAppels.enregistrer(compte, null, outil, parametresJson, ms(debut), Issue.INTROUVABLE);
+            journalAppels.enregistrer(compte, null, outil, parametresJson, millisecondes(debut), Issue.INTROUVABLE);
             throw new ToolCallException("INTROUVABLE : ressource introuvable dans votre périmètre.");
         } catch (RuntimeException erreur) {
             LOG.errorf(erreur, "Échec de l'outil MCP %s", outil);
-            journalAppels.enregistrer(compte, null, outil, parametresJson, ms(debut), Issue.ERREUR);
+            journalAppels.enregistrer(compte, null, outil, parametresJson, millisecondes(debut), Issue.ERREUR);
             throw new ToolCallException("INDISPONIBLE : Argos ne peut pas répondre pour le moment ; aucune donnée partielle n'est renvoyée.");
         }
     }
@@ -129,7 +129,7 @@ public class GardeAppels {
         return Optional.ofNullable(jeton).map(JsonWebToken::getSubject).orElse(null);
     }
 
-    private static long ms(long debutNanos) {
+    private static long millisecondes(long debutNanos) {
         return (System.nanoTime() - debutNanos) / 1_000_000;
     }
 

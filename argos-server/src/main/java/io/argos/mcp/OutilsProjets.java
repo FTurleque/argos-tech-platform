@@ -63,11 +63,11 @@ public class OutilsProjets {
             Optional<UUID> id = Parametres.identifiantFacultatif("project_id", projet);
             if (id.isPresent()) {
                 OutilsSecurite.exigerProjetVisible(appelant, id.get(), inventaires);
-                List<ContexteProjet> projetDemande = ProjetsVisibles.du(appelant.accountId(), inventaires)
+                List<ContexteProjet> projetDemande = ProjetsVisibles.duCompte(appelant.accountId(), inventaires)
                         .filter(visible -> visible.id().equals(id.get())).limit(1).map(visible -> detail(appelant, visible)).toList();
                 return new ContexteProjets(projetDemande.size(), projetDemande);
             }
-            List<ContexteProjet> projets = ProjetsVisibles.du(appelant.accountId(), inventaires)
+            List<ContexteProjet> projets = ProjetsVisibles.duCompte(appelant.accountId(), inventaires)
                     .filter(visible -> appelant.memberOf(visible.workspaceId())).limit(PROJETS_MAX)
                     .map(visible -> resume(appelant, visible)).toList();
             return new ContexteProjets(projets.size(), projets);

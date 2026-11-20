@@ -38,7 +38,7 @@ public final class ResumeOpportunite {
     private ResumeOpportunite() {
     }
 
-    public static Resume de(Opportunite opportunite) {
+    public static Resume depuis(Opportunite opportunite) {
         String criteres = opportunite.criteres() == null ? "" : opportunite.criteres().strip();
         boolean tronques = criteres.length() > CRITERES_MAX;
         if (tronques) {

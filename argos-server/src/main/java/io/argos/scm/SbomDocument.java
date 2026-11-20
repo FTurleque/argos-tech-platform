@@ -55,7 +55,7 @@ public record SbomDocument(byte[] contenu, Format format) {
             .build();
 
     /** Document dont le format est reconnu à partir de son en-tête. */
-    public static SbomDocument de(byte[] contenu) {
+    public static SbomDocument depuis(byte[] contenu) {
         return new SbomDocument(contenu, reconnaitre(contenu));
     }
 

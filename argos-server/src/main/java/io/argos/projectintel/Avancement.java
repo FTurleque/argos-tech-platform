@@ -17,7 +17,7 @@ import java.util.Optional;
 public record Avancement(int fermes, int total, int pourcentage, String libelle) {
 
     /** Avancement de {@code fermes} sur {@code total} ; vide sans dénominateur strictement positif. */
-    public static Optional<Avancement> de(int fermes, int total) {
+    public static Optional<Avancement> calculer(int fermes, int total) {
         if (total <= 0 || fermes < 0 || fermes > total) {
             return Optional.empty();
         }

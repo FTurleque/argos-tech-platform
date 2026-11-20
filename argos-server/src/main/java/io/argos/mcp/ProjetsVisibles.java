@@ -18,7 +18,7 @@ final class ProjetsVisibles {
     }
 
     /** Projets lisibles par le compte, page après page ; flux vide s'il n'en lit aucun. */
-    static Stream<InventoryQueries.ProjectItem> du(UUID compteId, InventoryQueries inventaires) {
+    static Stream<InventoryQueries.ProjectItem> duCompte(UUID compteId, InventoryQueries inventaires) {
         return Stream.iterate(inventaires.projects(compteId, 0, InventoryQueries.MAX_PAGE_SIZE), page -> page != null,
                         page -> derniere(page) ? null : inventaires.projects(compteId, page.page() + 1, page.size()))
                 .flatMap(page -> page.items().stream());

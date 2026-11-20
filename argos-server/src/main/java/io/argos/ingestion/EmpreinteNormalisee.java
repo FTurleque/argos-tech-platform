@@ -37,7 +37,7 @@ public final class EmpreinteNormalisee {
     }
 
     /** Empreinte SHA-256, en hexadécimal minuscule (64 caractères), du contenu normalisé de l'avis. */
-    public static String de(NormalizedAdvisory avis) {
+    public static String calculer(NormalizedAdvisory avis) {
         return sha256(canonique(avis));
     }
 

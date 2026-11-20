@@ -31,7 +31,7 @@ public record NormalizedAdvisory(
      * que par la présentation ou la date de modification déclarée par la source ({@link EmpreinteNormalisee}).
      */
     public String normalizedHash() {
-        return EmpreinteNormalisee.de(this);
+        return EmpreinteNormalisee.calculer(this);
     }
 
     /**

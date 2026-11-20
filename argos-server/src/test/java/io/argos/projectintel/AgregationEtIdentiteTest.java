@@ -83,7 +83,7 @@ class AgregationEtIdentiteTest {
                 new VueActivite.Periode(LocalDate.of(2026, 10, 18), LocalDate.of(2026, 11, 16), 30),
                 new VueActivite.Compteurs(4, 2, 3, 1, 5, 1, 0, 1),
                 List.of(new VueActivite.Jalon("Version 2", "OUVERT", LocalDate.of(2026, 12, 1), 27, 30,
-                        Avancement.de(27, 30).orElseThrow())),
+                        Avancement.calculer(27, 30).orElseThrow())),
                 new VueActivite.Fraicheur("A_JOUR", Instant.parse("2026-11-16T05:00:00Z"), null, true, null, null));
 
         assertTrue(SyntheseActivite.fondeeSurLesIndicateurs(

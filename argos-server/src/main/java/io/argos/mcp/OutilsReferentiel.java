@@ -90,7 +90,7 @@ public class OutilsReferentiel {
                     if (cle.isPresent()) {
                         cles.add(cle.get());
                     } else {
-                        ProjetsVisibles.du(appelant.accountId(), inventaires)
+                        ProjetsVisibles.duCompte(appelant.accountId(), inventaires)
                                 .filter(projet -> appelant.memberOf(projet.workspaceId()))
                                 .forEach(projet -> inventaires.inventory(projet.id(), appelant.accountId())
                                         .ifPresent(vue -> vue.components().forEach(composant -> cles.add(composant.packageKey()))));

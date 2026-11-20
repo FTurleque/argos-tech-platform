@@ -141,13 +141,13 @@ class CloisonnementMcpTest {
         UUID lina = Api.compte("lina");
         assertTrue(impacts.forWorkspaces(lina, Set.of(espaceB), 50).isEmpty());
         assertTrue(impacts.forProject(projetP, lina, Set.of(espaceB)).isEmpty());
-        assertFalse(ProjetsVisibles.du(lina, inventaireQueries).anyMatch(projet -> projet.id().equals(projetP)));
+        assertFalse(ProjetsVisibles.duCompte(lina, inventaireQueries).anyMatch(projet -> projet.id().equals(projetP)));
         assertTrue(inventaireQueries.inventory(projetP, lina).isEmpty());
         assertTrue(inventaireQueries.summary(projetP, lina).isEmpty());
 
         UUID marc = Api.compte("marc");
         assertEquals(1, impacts.forWorkspaces(marc, Set.of(espaceB), 50).size());
-        assertTrue(ProjetsVisibles.du(marc, inventaireQueries).anyMatch(projet -> projet.id().equals(projetP)));
+        assertTrue(ProjetsVisibles.duCompte(marc, inventaireQueries).anyMatch(projet -> projet.id().equals(projetP)));
         assertEquals(1, inventaireQueries.summary(projetP, marc).orElseThrow().componentCount());
         assertFalse(espaceA.equals(espaceB));
     }
@@ -185,11 +185,11 @@ class CloisonnementMcpTest {
         UUID dernier = projets.create(espaceB, "Zéphyr", null, null);
         UUID marc = Api.compte("marc");
 
-        List<UUID> lus = ProjetsVisibles.du(marc, inventaireQueries).map(InventoryQueries.ProjectItem::id).toList();
+        List<UUID> lus = ProjetsVisibles.duCompte(marc, inventaireQueries).map(InventoryQueries.ProjectItem::id).toList();
         assertEquals(InventoryQueries.MAX_PAGE_SIZE + 6, lus.size());
         assertEquals(lus.size(), Set.copyOf(lus).size(), "aucun projet lu deux fois");
         assertEquals(dernier, lus.get(lus.size() - 1));
-        assertEquals(0L, ProjetsVisibles.du(Api.compte("lina"), inventaireQueries).count());
+        assertEquals(0L, ProjetsVisibles.duCompte(Api.compte("lina"), inventaireQueries).count());
 
         ExtractableResponse<Response> detail = Mcp.appeler("marc", "get_project_context", Map.of("project_id", dernier.toString()));
         assertEquals(1, (int) detail.path("result.structuredContent.nombre"), detail.asString());

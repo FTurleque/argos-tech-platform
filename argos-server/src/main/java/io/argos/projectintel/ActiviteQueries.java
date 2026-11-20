@@ -81,13 +81,13 @@ public class ActiviteQueries {
                 }
             }
         }
-        return new VueActivite.Compteurs(n(totaux, Agregation.Type.TICKET_OUVERT), n(totaux, Agregation.Type.TICKET_FERME),
-                n(totaux, Agregation.Type.FUSION_OUVERTE), n(totaux, Agregation.Type.FUSION_FUSIONNEE),
-                n(totaux, Agregation.Type.PIPELINE_REUSSI), n(totaux, Agregation.Type.PIPELINE_ECHOUE),
-                n(totaux, Agregation.Type.PIPELINE_AUTRE), n(totaux, Agregation.Type.VERSION_PUBLIEE));
+        return new VueActivite.Compteurs(nombre(totaux, Agregation.Type.TICKET_OUVERT), nombre(totaux, Agregation.Type.TICKET_FERME),
+                nombre(totaux, Agregation.Type.FUSION_OUVERTE), nombre(totaux, Agregation.Type.FUSION_FUSIONNEE),
+                nombre(totaux, Agregation.Type.PIPELINE_REUSSI), nombre(totaux, Agregation.Type.PIPELINE_ECHOUE),
+                nombre(totaux, Agregation.Type.PIPELINE_AUTRE), nombre(totaux, Agregation.Type.VERSION_PUBLIEE));
     }
 
-    private static int n(Map<Agregation.Type, Integer> totaux, Agregation.Type type) {
+    private static int nombre(Map<Agregation.Type, Integer> totaux, Agregation.Type type) {
         return totaux.getOrDefault(type, 0);
     }
 
@@ -105,7 +105,7 @@ public class ActiviteQueries {
                     int total = resultat.getInt(5);
                     jalons.add(new VueActivite.Jalon(resultat.getString(1), resultat.getString(2),
                             echeance == null ? null : echeance.toLocalDate(), fermes, total,
-                            Avancement.de(fermes, total).orElse(null)));
+                            Avancement.calculer(fermes, total).orElse(null)));
                 }
             }
         }
