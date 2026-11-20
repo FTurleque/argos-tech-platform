@@ -47,7 +47,10 @@ function fournisseur() {
     },
     jetons() {
       simule.emis += 1
-      return { access_token: `acces-${simule.emis}`, refresh_token: `renouv-${simule.emis}`, id_token: `id-${simule.emis}`, expires_in: 600, token_type: 'Bearer' }
+      return {
+        access_token: `acces-${simule.emis}`, refresh_token: `renouv-${simule.emis}`, id_token: `id-${simule.emis}`,
+        expires_in: 600, token_type: 'Bearer',
+      }
     },
     /** Autorise la demande contenue dans l'URL et renvoie la chaîne de requête du retour. */
     autoriser(url, { state } = {}) {

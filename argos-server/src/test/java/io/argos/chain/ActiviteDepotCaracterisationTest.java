@@ -138,7 +138,8 @@ class ActiviteDepotCaracterisationTest {
     void githubExecutionsTronqueesAuNombreMaximalDePages() {
         githubVide();
         StubServer.programmer(DEPOT_GITHUB + "/actions/runs",
-                Stub.succes("{\"workflow_runs\":" + repete(100, "{\"created_at\":\"2026-01-05T10:00:00Z\",\"conclusion\":\"success\"}") + "}"));
+                Stub.succes("{\"workflow_runs\":"
+                        + repete(100, "{\"created_at\":\"2026-01-05T10:00:00Z\",\"conclusion\":\"success\"}") + "}"));
 
         ActiviteDepot lecture = github(activite(2, 50));
 
@@ -151,7 +152,8 @@ class ActiviteDepotCaracterisationTest {
     void githubExecutionsSansListeEtPagePleineSuivie() {
         githubVide();
         StubServer.programmer(DEPOT_GITHUB + "/actions/runs",
-                Stub.succes("{\"workflow_runs\":" + repete(100, "{\"created_at\":\"2026-01-05T10:00:00Z\",\"conclusion\":\"success\"}") + "}"),
+                Stub.succes("{\"workflow_runs\":"
+                        + repete(100, "{\"created_at\":\"2026-01-05T10:00:00Z\",\"conclusion\":\"success\"}") + "}"),
                 Stub.succes("{}"));
 
         ActiviteDepot lecture = github(activite(3, 50));
@@ -164,7 +166,8 @@ class ActiviteDepotCaracterisationTest {
     @Test
     void githubVersionsArreteesDesQuUnePagePleineEstAncienne() {
         githubVide();
-        StubServer.programmer(DEPOT_GITHUB + "/releases", Stub.succes(repete(100, "{\"published_at\":\"2025-01-05T10:00:00Z\",\"draft\":false}")));
+        StubServer.programmer(DEPOT_GITHUB + "/releases",
+                Stub.succes(repete(100, "{\"published_at\":\"2025-01-05T10:00:00Z\",\"draft\":false}")));
 
         ActiviteDepot lecture = github(activite(5, 50));
 

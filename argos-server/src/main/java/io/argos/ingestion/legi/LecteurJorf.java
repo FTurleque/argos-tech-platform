@@ -118,8 +118,8 @@ public final class LecteurJorf {
             } else if (element instanceof Article article) {
                 StringBuilder contenu = articles.computeIfAbsent(article.cidTexte(), cidTexte -> new StringBuilder());
                 if (contenu.length() < CONTENU_MAX) {
-                    contenu.append(article.numero() == null ? "Article" : "Article " + article.numero()).append(" : ").append(article.contenu())
-                            .append('\n');
+                    contenu.append(article.numero() == null ? "Article" : "Article " + article.numero())
+                            .append(" : ").append(article.contenu()).append('\n');
                 }
             }
         }

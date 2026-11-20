@@ -185,7 +185,9 @@ export function rapportMarkdown(rapport) {
     `| Jeu de données | ${cellule(rapport.jeuDeDonnees.description)} |`,
     `| Appels par opération | ${rapport.parametres.appelsParOperation} (après ${rapport.parametres.echauffement} appels d’échauffement) |`,
     `| Concurrence | ${rapport.parametres.concurrence} clients simultanés |`,
-    `| Verdict | ${verdict.valide ? (verdict.dansLaCible ? 'toutes les opérations dans la cible' : `hors cible : ${verdict.horsCible.join(', ')}`) : `campagne invalide : ${verdict.enErreur.join(', ')}`} |`,
+    `| Verdict | ${verdict.valide
+      ? (verdict.dansLaCible ? 'toutes les opérations dans la cible' : `hors cible : ${verdict.horsCible.join(', ')}`)
+      : `campagne invalide : ${verdict.enErreur.join(', ')}`} |`,
     `| Code de sortie | ${verdict.codeSortie} |`,
     '',
     '## Mesures par opération',
@@ -193,7 +195,8 @@ export function rapportMarkdown(rapport) {
     '| Opération | Type | Appels | p50 (ms) | p95 (ms) | max (ms) | Erreurs | Verdict |',
     '|---|---|---|---|---|---|---|---|',
     ...rapport.resultats.map((resultat) =>
-      `| ${cellule(resultat.id)} | ${resultat.type} | ${resultat.appels} | ${cellule(resultat.p50Ms)} | ${cellule(resultat.p95Ms)} | ${cellule(resultat.maxMs)} | ${resultat.erreurs} | ${LIBELLES_VERDICT[resultat.verdict] ?? resultat.verdict} |`,
+      `| ${cellule(resultat.id)} | ${resultat.type} | ${resultat.appels} | ${cellule(resultat.p50Ms)} | ${cellule(resultat.p95Ms)}`
+        + ` | ${cellule(resultat.maxMs)} | ${resultat.erreurs} | ${LIBELLES_VERDICT[resultat.verdict] ?? resultat.verdict} |`,
     ),
     '',
     '## Opérations exclues',

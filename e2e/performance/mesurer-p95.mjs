@@ -277,7 +277,8 @@ async function principal() {
         serveurReutilise: serveur === null,
       },
       jeuDeDonnees: {
-        description: `${reglages.projets} projets × ${reglages.composantsParProjet} composants, ${reglages.signaux} avis, ${reglages.projets * reglages.signaux} impacts (un espace)`,
+        description: `${reglages.projets} projets × ${reglages.composantsParProjet} composants, ${reglages.signaux} avis, `
+          + `${reglages.projets * reglages.signaux} impacts (un espace)`,
         projets: reglages.projets,
         composantsParProjet: reglages.composantsParProjet,
         signaux: reglages.signaux,

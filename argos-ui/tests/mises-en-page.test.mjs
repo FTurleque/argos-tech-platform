@@ -190,7 +190,9 @@ test('RGAA 9.1 : hiérarchie de titres sans saut, à partir du niveau demandé',
       assert.equal(niveaux[0], niveau, `${id} : premier titre`)
       assert.ok(niveaux.every((niveauTitre) => niveauTitre >= niveau), `${id} : titre au-dessus du niveau demandé`)
       niveaux.forEach((niveauTitre, position) => {
-        if (position > 0) assert.ok(niveauTitre <= niveaux[position - 1] + 1, `${id} : saut de h${niveaux[position - 1]} à h${niveauTitre}`)
+        if (position > 0) {
+          assert.ok(niveauTitre <= niveaux[position - 1] + 1, `${id} : saut de h${niveaux[position - 1]} à h${niveauTitre}`)
+        }
       })
       const titresElements = articles(page).map((article) => Number(/<h([1-6])\b/.exec(article)[1]))
       assert.ok(titresElements.every((niveauTitre) => niveauTitre === niveau + 1), `${id} : titres des éléments au niveau ${niveau + 1}`)

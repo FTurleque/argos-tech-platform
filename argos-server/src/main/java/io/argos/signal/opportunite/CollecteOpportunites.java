@@ -154,8 +154,8 @@ public class CollecteOpportunites {
             LecteurDataCulture.Champs champs = new LecteurDataCulture.Champs(champIdentifiant, champTitre,
                     champOrganisme, champCriteres, champLien, champDiscipline, champTerritoire, champDateLimite);
             for (LecteurDataCulture.Enregistrement enregistrement : LecteurDataCulture.lire(contenu.octets(), champs, elementsMax)) {
-                lus.add(new OpportuniteLue(enregistrement.identifiant(), enregistrement.titre(), enregistrement.organisme(), enregistrement.criteres(),
-                        CorrespondanceListes.lienSur(enregistrement.lien()),
+                lus.add(new OpportuniteLue(enregistrement.identifiant(), enregistrement.titre(), enregistrement.organisme(),
+                        enregistrement.criteres(), CorrespondanceListes.lienSur(enregistrement.lien()),
                         ouDeclarees(CorrespondanceListes.identifiants(enregistrement.disciplines(), profil.liste("discipline")),
                                 source.disciplines()),
                         ouDeclarees(CorrespondanceListes.identifiants(enregistrement.territoires(), profil.liste("territoire")),

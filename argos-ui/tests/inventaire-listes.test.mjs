@@ -120,12 +120,16 @@ test('choix du projet : chargement, erreur puis nouvelle tentative, annulation',
 })
 
 test('composants : conversion d’une page, dépendance nommée, total et nombre de pages', () => {
-  const page = pageComposants(pageApi(1, 20, 25, [composantApi(21, false), composantApi(22), { ...composantApi(23), transitive: null, version: null, purl: '' }]))
+  const page = pageComposants(pageApi(1, 20, 25, [
+    composantApi(21, false), composantApi(22), { ...composantApi(23), transitive: null, version: null, purl: '' },
+  ]))
   assert.equal(page.page, 1)
   assert.equal(page.taille, 20)
   assert.equal(page.total, 25)
   assert.equal(page.pages, 2)
-  assert.deepEqual(page.composants[0], { cle: 'id-21', nom: 'paquet-21', version: '1.0.21', purl: 'pkg:npm/paquet-21@1.0.21', dependance: 'directe', depots: [] })
+  assert.deepEqual(page.composants[0], {
+    cle: 'id-21', nom: 'paquet-21', version: '1.0.21', purl: 'pkg:npm/paquet-21@1.0.21', dependance: 'directe', depots: [],
+  })
   assert.equal(page.composants[1].dependance, 'transitive')
   assert.equal(page.composants[2].dependance, 'inconnue')
   assert.equal(page.composants[2].version, null)

@@ -78,8 +78,8 @@ public class GardeAdresses {
 
     GardeAdresses(Resolveur resolveur, List<String> exceptions, List<Integer> ports) {
         this.resolveur = resolveur;
-        this.exceptions = exceptions.stream().map(exception -> exception.strip().toLowerCase(Locale.ROOT)).filter(exception -> !exception.isEmpty())
-                .collect(Collectors.toUnmodifiableSet());
+        this.exceptions = exceptions.stream().map(exception -> exception.strip().toLowerCase(Locale.ROOT))
+                .filter(exception -> !exception.isEmpty()).collect(Collectors.toUnmodifiableSet());
         this.portsAutorises = Set.copyOf(ports);
     }
 

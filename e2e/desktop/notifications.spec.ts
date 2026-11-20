@@ -105,7 +105,8 @@ test('NOT-01-S1, NOT-05-S1, NOT-03-S1, NOT-02-S1 : fenêtre masquée, notificati
   await expect.poll(derniereInfobulle, { timeout: CYCLE }).toBe('ARGOS — 2 alertes ouvertes')
   const deux = await actif().notifications()
   expect(deux.map((notification) => notification.titre)).toEqual([TITRE_NOTIFICATION, TITRE_NOTIFICATION])
-  expect(deux.map((notification) => notification.corps).sort()).toEqual(['Gravité moyenne · 2 projets', 'Gravité élevée · 1 projet'].sort())
+  expect(deux.map((notification) => notification.corps).sort())
+    .toEqual(['Gravité moyenne · 2 projets', 'Gravité élevée · 1 projet'].sort())
 
   // NOT-01-S1 : une alerte critique est émise, fenêtre toujours masquée : une notification système
   // est créée et affichée par le processus principal.
