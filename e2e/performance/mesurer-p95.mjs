@@ -84,9 +84,9 @@ function cheminGit() {
 }
 
 function executer(commande, args, options = {}) {
-  const r = spawnSync(commande, args, { cwd: E2E, stdio: 'inherit', ...options })
-  if (r.error) throw r.error
-  return r.status ?? 1
+  const execution = spawnSync(commande, args, { cwd: E2E, stdio: 'inherit', ...options })
+  if (execution.error) throw execution.error
+  return execution.status ?? 1
 }
 
 /** Arrête le serveur démarré par la campagne et ses processus enfants (mvn → java). */

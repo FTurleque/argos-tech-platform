@@ -140,11 +140,11 @@ public class VeilleProfilsResource {
         Caller caller = access.authenticated();
         List<String> profilsActifs = resolution.resoudre(preferences.lire(caller.accountId())).profilsActifs();
         List<ManifesteProfil> actifs = catalogue.publies().stream()
-                .filter(m -> profilsActifs.contains(m.identifiant())).toList();
+                .filter(manifeste -> profilsActifs.contains(manifeste.identifiant())).toList();
         Set<String> categories = new LinkedHashSet<>();
-        for (ManifesteProfil m : actifs) {
-            for (Rubrique r : m.rubriques()) {
-                categories.addAll(r.categories());
+        for (ManifesteProfil manifeste : actifs) {
+            for (Rubrique rubrique : manifeste.rubriques()) {
+                categories.addAll(rubrique.categories());
             }
         }
 
@@ -156,14 +156,17 @@ public class VeilleProfilsResource {
             candidats.addAll(fichesValidees(caller));
         }
         List<ElementVue> elements = UnionProfils.unir(actifs, candidats, avisDesAbonnementsPersonnels(caller)).stream()
-                .map(r -> {
-                    ElementVue e = r.contenu();
-                    return new ElementVue(e.type(), e.id(), e.source(), e.identifiant(), e.titre(), e.resume(),
-                            e.gravite(), e.date(), e.dateEffet(), e.lien(), r.profils(),
-                            r.rubriques().stream().map(x -> new RubriqueVue(x.profil(), x.identifiant(), x.libelle()))
+                .map(retenu -> {
+                    ElementVue element = retenu.contenu();
+                    return new ElementVue(element.type(), element.id(), element.source(), element.identifiant(),
+                            element.titre(), element.resume(), element.gravite(), element.date(), element.dateEffet(),
+                            element.lien(), retenu.profils(),
+                            retenu.rubriques().stream()
+                                    .map(rubrique -> new RubriqueVue(rubrique.profil(), rubrique.identifiant(),
+                                            rubrique.libelle()))
                                     .toList(),
-                            r.gardeFous(), e.mentionValidation(), e.projets(), r.abonnements(), e.mentionIa(),
-                            e.mentionSource());
+                            retenu.gardeFous(), element.mentionValidation(), element.projets(), retenu.abonnements(),
+                            element.mentionIa(), element.mentionSource());
                 })
                 .sorted(Comparator.comparing(ElementVue::date, Comparator.nullsLast(Comparator.reverseOrder())))
                 .toList();
@@ -179,29 +182,32 @@ public class VeilleProfilsResource {
     private List<UnionProfils.CandidatAbonnement<ElementVue>> avisDesAbonnementsPersonnels(Caller caller) {
         List<SubscriptionService.Subscription> personnels = subscriptions
                 .activeFor(caller.accountId(), caller.memberWorkspaces()).stream()
-                .filter(s -> "PERSONAL".equals(s.scope()) && caller.accountId().equals(s.ownerUserId()))
+                .filter(abonnement -> "PERSONAL".equals(abonnement.scope())
+                        && caller.accountId().equals(abonnement.ownerUserId()))
                 .toList();
         if (personnels.isEmpty()) {
             return List.of();
         }
         SignauxAbonnements.Correspondances retenus = signauxAbonnements.pour(personnels, caller);
         Map<UUID, List<ProjetVue>> projets = new LinkedHashMap<>();
-        for (ImpactQueries.ImpactView i : impacts.forSignals(retenus.signaux().keySet(), caller.accountId(),
+        for (ImpactQueries.ImpactView impact : impacts.forSignals(retenus.signaux().keySet(), caller.accountId(),
                 caller.memberWorkspaces())) {
-            if (caller.memberOf(i.workspaceId())) {
-                projets.computeIfAbsent(i.signalId(), k -> new ArrayList<>())
-                        .add(new ProjetVue(i.projectId(), i.projectName(), i.level()));
+            if (caller.memberOf(impact.workspaceId())) {
+                projets.computeIfAbsent(impact.signalId(), cle -> new ArrayList<>())
+                        .add(new ProjetVue(impact.projectId(), impact.projectName(), impact.level()));
             }
         }
         List<UnionProfils.CandidatAbonnement<ElementVue>> candidats = new ArrayList<>();
-        for (SignalQueries.SignalView v : retenus.signaux().values()) {
-            ElementVue e = new ElementVue(AVIS_SECURITE, v.id(), v.source(), v.externalId(), v.title(), null,
-                    v.severity(), v.publishedAt() != null ? v.publishedAt() : v.modifiedAt(), null, null, List.of(),
-                    List.of(), List.of(), null, projets.getOrDefault(v.id(), List.of()).stream().distinct().toList(),
-                    List.of(), null, null);
+        for (SignalQueries.SignalView signal : retenus.signaux().values()) {
+            ElementVue element = new ElementVue(AVIS_SECURITE, signal.id(), signal.source(), signal.externalId(),
+                    signal.title(), null, signal.severity(),
+                    signal.publishedAt() != null ? signal.publishedAt() : signal.modifiedAt(), null, null, List.of(),
+                    List.of(), List.of(), null,
+                    projets.getOrDefault(signal.id(), List.of()).stream().distinct().toList(), List.of(), null, null);
             candidats.add(new UnionProfils.CandidatAbonnement<>(
-                    new UnionProfils.Candidat<>(AVIS_SECURITE + ":" + v.id(), Set.of(CATEGORIE_AVIS), false, e),
-                    retenus.retenusPar().getOrDefault(v.id(), Set.of())));
+                    new UnionProfils.Candidat<>(AVIS_SECURITE + ":" + signal.id(), Set.of(CATEGORIE_AVIS), false,
+                            element),
+                    retenus.retenusPar().getOrDefault(signal.id(), Set.of())));
         }
         return candidats;
     }
@@ -209,25 +215,29 @@ public class VeilleProfilsResource {
     /** Avis de sécurité qui impactent un projet des espaces de l'appelant, avec ces seuls projets. */
     private List<UnionProfils.Candidat<ElementVue>> avis(Caller caller) {
         Map<UUID, List<ImpactQueries.ImpactView>> parSignal = new LinkedHashMap<>();
-        for (ImpactQueries.ImpactView i : impacts.forWorkspaces(caller.accountId(), caller.memberWorkspaces(),
+        for (ImpactQueries.ImpactView impact : impacts.forWorkspaces(caller.accountId(), caller.memberWorkspaces(),
                 LIMITE_IMPACTS)) {
-            if (caller.memberOf(i.workspaceId())) {
-                parSignal.computeIfAbsent(i.signalId(), k -> new ArrayList<>()).add(i);
+            if (caller.memberOf(impact.workspaceId())) {
+                parSignal.computeIfAbsent(impact.signalId(), cle -> new ArrayList<>()).add(impact);
             }
         }
         // Lecture groupée des signaux (une requête pour tous les avis), jamais un signal par avis.
         Map<UUID, SignalQueries.SignalView> lus = signaux.findAll(parSignal.keySet());
         List<UnionProfils.Candidat<ElementVue>> candidats = new ArrayList<>();
         parSignal.forEach((signalId, vus) -> {
-            Optional<SignalQueries.SignalView> s = Optional.ofNullable(lus.get(signalId));
+            Optional<SignalQueries.SignalView> signal = Optional.ofNullable(lus.get(signalId));
             ImpactQueries.ImpactView premier = vus.get(0);
             List<ProjetVue> projets = vus.stream()
-                    .map(i -> new ProjetVue(i.projectId(), i.projectName(), i.level())).distinct().toList();
-            ElementVue e = new ElementVue(AVIS_SECURITE, signalId, premier.signalSource(), premier.signalExternalId(),
-                    premier.signalTitle(), null, s.map(SignalQueries.SignalView::severity).orElse(null),
-                    s.map(v -> v.publishedAt() != null ? v.publishedAt() : v.modifiedAt()).orElse(premier.updatedAt()),
+                    .map(impact -> new ProjetVue(impact.projectId(), impact.projectName(), impact.level()))
+                    .distinct().toList();
+            ElementVue element = new ElementVue(AVIS_SECURITE, signalId, premier.signalSource(),
+                    premier.signalExternalId(), premier.signalTitle(), null,
+                    signal.map(SignalQueries.SignalView::severity).orElse(null),
+                    signal.map(lu -> lu.publishedAt() != null ? lu.publishedAt() : lu.modifiedAt())
+                            .orElse(premier.updatedAt()),
                     null, null, List.of(), List.of(), List.of(), null, projets, List.of(), null, null);
-            candidats.add(new UnionProfils.Candidat<>(AVIS_SECURITE + ":" + signalId, Set.of(CATEGORIE_AVIS), false, e));
+            candidats.add(new UnionProfils.Candidat<>(AVIS_SECURITE + ":" + signalId, Set.of(CATEGORIE_AVIS), false,
+                    element));
         });
         return candidats;
     }
@@ -235,17 +245,20 @@ public class VeilleProfilsResource {
     /** Fiches réglementaires validées des espaces de l'appelant (lecture sous la RLS). */
     private List<UnionProfils.Candidat<ElementVue>> fichesValidees(Caller caller) {
         List<UnionProfils.Candidat<ElementVue>> candidats = new ArrayList<>();
-        for (FichesReglementaires.Fiche f : fiches.fiches(caller.accountId(), caller.memberWorkspaces(), Optional.empty())) {
+        for (FichesReglementaires.Fiche fiche : fiches.fiches(caller.accountId(), caller.memberWorkspaces(),
+                Optional.empty())) {
             // Garde-fou de la source (ADR-0018) : une fiche non validée n'est jamais candidate, quel que soit le profil.
-            if (f.etat() != FichesReglementaires.Etat.VALIDEE || !caller.memberOf(f.espaceId())) {
+            if (fiche.etat() != FichesReglementaires.Etat.VALIDEE || !caller.memberOf(fiche.espaceId())) {
                 continue;
             }
-            ElementVue e = new ElementVue(FICHE_REGLEMENTAIRE, f.id(), f.source(), f.referenceOfficielle(),
-                    f.titreOfficiel(), f.resume(), null,
-                    f.publication() == null ? null : f.publication().atStartOfDay(ZoneOffset.UTC).toInstant(),
-                    f.effet(), lienHttp(f.lienOfficiel()), List.of(), List.of(), List.of(), FicheAnalyse.MENTION_VALIDEE,
-                    List.of(), List.of(), f.resume() == null ? null : f.mentionIa(), f.mentionSource());
-            candidats.add(new UnionProfils.Candidat<>(FICHE_REGLEMENTAIRE + ":" + f.id(), Set.of(CATEGORIE_TEXTES), true, e));
+            ElementVue element = new ElementVue(FICHE_REGLEMENTAIRE, fiche.id(), fiche.source(),
+                    fiche.referenceOfficielle(), fiche.titreOfficiel(), fiche.resume(), null,
+                    fiche.publication() == null ? null : fiche.publication().atStartOfDay(ZoneOffset.UTC).toInstant(),
+                    fiche.effet(), lienHttp(fiche.lienOfficiel()), List.of(), List.of(), List.of(),
+                    FicheAnalyse.MENTION_VALIDEE, List.of(), List.of(),
+                    fiche.resume() == null ? null : fiche.mentionIa(), fiche.mentionSource());
+            candidats.add(new UnionProfils.Candidat<>(FICHE_REGLEMENTAIRE + ":" + fiche.id(), Set.of(CATEGORIE_TEXTES),
+                    true, element));
         }
         return candidats;
     }
@@ -255,7 +268,9 @@ public class VeilleProfilsResource {
         if (lien == null) {
             return null;
         }
-        String l = lien.strip();
-        return l.regionMatches(true, 0, "https://", 0, 8) || l.regionMatches(true, 0, "http://", 0, 7) ? l : null;
+        String nettoye = lien.strip();
+        return nettoye.regionMatches(true, 0, "https://", 0, 8) || nettoye.regionMatches(true, 0, "http://", 0, 7)
+                ? nettoye
+                : null;
     }
 }
