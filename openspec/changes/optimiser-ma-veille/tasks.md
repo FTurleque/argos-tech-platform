@@ -23,7 +23,7 @@ Règles : aucune requête vers Internet dans les tests ; aucune dépendance nouv
 ## 4. Vérifications d'intégration
 
 - [x] 4.1 Valider le changement — vérification : `openspec validate optimiser-ma-veille --strict` et `openspec validate --all --strict` réussissent
-- [ ] 4.2 Relancer la campagne `npm --prefix e2e run test:performance` sous le verrou de la pile E2E, versionner le rapport régénéré et mettre à jour la fiche `performance-api-mcp` (écarts constatés) — couvre PRF-07-S1 — vérification : rapport `/docs/architecture/quality/mesure-performance-api-mcp.md`, `GET /api/v1/me/veille` dans la cible
+- [x] 4.2 Relancer la campagne `npm --prefix e2e run test:performance` sous le verrou de la pile E2E, versionner le rapport régénéré et mettre à jour la fiche `performance-api-mcp` (écarts constatés) — couvre PRF-07-S1 — vérification : rapport `/docs/architecture/quality/mesure-performance-api-mcp.md`, `GET /api/v1/me/veille` dans la cible
 - [ ] 4.3 Mesurer par `EXPLAIN ANALYZE` le plan de `ImpactQueries.forWorkspaces` sur un jeu à plusieurs espaces, l'espace de l'appelant portant les impacts les plus anciens, avant l'archivage du changement ([DÉCISION] L1, 2026-11-20) — couvre PRF-07-S1 hors du jeu K3 — vérification : plan et durée consignés dans design.md (D2) ; si le coût dépasse celui de `lot19/base`, ouvrir la variante par espace (`LATERAL`)
 
 Preuves, 2026-11-20 (branche `lot19/optimisation`) :
@@ -32,7 +32,7 @@ Preuves, 2026-11-20 (branche `lot19/optimisation`) :
 - 2.1 : `SignalQueries#findAll` ; `VeilleProfilsResource#avis`, `SignauxAbonnements#pour`, `SignalQueries#search` ; lecture groupée seule : p95 = 332,8 ms.
 - 2.2 : `V21__index_impacts_recents.sql`, appliquée par Flyway sur la pile de diagnostic (version 21) ; plan `Index Scan using project_impact_recents`, 7,7 à 8,1 ms ; lecture groupée et index : p95 = 60,1 à 82,7 ms ; réponse JSON identique, octet pour octet, à celle de `lot19/base` (191 éléments).
 - 2.3 : `api/veille/VeilleLectureGroupeeTest` (PRF-07-S2, INV-1), `architecture/LectureGroupeeSignauxTest` (PRF-07-S1, absence de N+1) ; `VeilleProfilsTest`, `VeilleAbonnementsPersonnelsTest`, `ProfilDemonstrationTest` toujours verts ; `mvn -B -f argos-server/pom.xml verify` passe (653 tests, 0 échec, 1 ignoré).
-- 4.2 (non faite, 2026-11-20) : la campagne ne démarre pas, le port 55432 de `e2e/compose.yaml` étant occupé sur le poste par un processus extérieur au dépôt (`docker compose up` : « ports are not available ») ; le rapport versionné reste celui du 2026-11-19. La fiche `performance-api-mcp` consigne la mesure de diagnostic et l'écart. À relancer sous le verrou de la pile E2E dès que le port est libre.
+- 4.2 : campagne de référence du 2026-11-20 (révision `7e5e36d`, jeu K3) : p50 = 63,3 ms, p95 = 85 ms ; les seize opérations dans la cible, code de sortie 0 ; rapports `/docs/architecture/quality/mesure-performance-api-mcp.md` et `e2e/resultats/performance/rapport-2026-11-20.json` ; fiche `performance-api-mcp` mise à jour.
 - 3.1, 3.2 et 4.1 : `node scripts/verifier-docs.mjs` sans erreur ; `openspec validate --all --strict` valide.
 
 Preuves, 2026-11-20 (branche `lot19/integration`, après relecture indépendante) :
@@ -44,7 +44,7 @@ Preuves, 2026-11-20 (branche `lot19/integration`, après relecture indépendante
 
 | Exigence | Scénario | Conception / diagramme | Tâche | Test ou preuve | État de la preuve |
 |---|---|---|---|---|---|
-| PRF-07 | PRF-07-S1 | design.md D1, D2, « Performance et stratégie de mesure » ; DC-1 | 1.1, 2.1, 2.2, 4.2 | campagne `npm --prefix e2e run test:performance`, `/docs/architecture/quality/mesure-performance-api-mcp.md` ; `architecture/LectureGroupeeSignauxTest` | tests exécutés le 2026-11-20 ; mesure de diagnostic du 2026-11-20 (p95 = 60,1 à 82,7 ms) ; campagne de référence non relancée (tâche 4.2) |
+| PRF-07 | PRF-07-S1 | design.md D1, D2, « Performance et stratégie de mesure » ; DC-1 | 1.1, 2.1, 2.2, 4.2 | campagne `npm --prefix e2e run test:performance`, `/docs/architecture/quality/mesure-performance-api-mcp.md` ; `architecture/LectureGroupeeSignauxTest` | tests exécutés le 2026-11-20 ; mesure de diagnostic du 2026-11-20 (p95 = 60,1 à 82,7 ms) ; campagne de référence du 2026-11-20 (révision `7e5e36d`, jeu K3) : p50 = 63,3 ms, p95 = 85 ms ; les seize opérations dans la cible, code de sortie 0 |
 | PRF-07 | PRF-07-S2 | design.md D1, « Sécurité et isolation » ; DC-1 | 2.1, 2.3 | `api/veille/VeilleLectureGroupeeTest` | exécuté le 2026-11-20 |
 
 ## Workflow follow-up
