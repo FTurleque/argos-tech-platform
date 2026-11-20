@@ -31,24 +31,25 @@ class DocumentParsingTest {
     @Test
     void contratOsvSurReponseEnregistree() {
         String raw = Fixtures.resource("osv/GHSA-jfh8-c2jp-5v3q.json");
-        NormalizedAdvisory a = OsvNormalizer.normalize(new RawAdvisory("GHSA-jfh8-c2jp-5v3q", raw));
-        assertEquals("GHSA-jfh8-c2jp-5v3q", a.externalId());
-        assertEquals(List.of("CVE-2021-44228"), a.aliases());
-        assertEquals("CRITICAL", a.severity());
-        assertEquals(Instant.parse("2025-10-22T19:37:02.616807Z"), a.modifiedAt());
-        NormalizedAdvisory.Affected core = a.affected().get(0);
+        NormalizedAdvisory avis = OsvNormalizer.normalize(new RawAdvisory("GHSA-jfh8-c2jp-5v3q", raw));
+        assertEquals("GHSA-jfh8-c2jp-5v3q", avis.externalId());
+        assertEquals(List.of("CVE-2021-44228"), avis.aliases());
+        assertEquals("CRITICAL", avis.severity());
+        assertEquals(Instant.parse("2025-10-22T19:37:02.616807Z"), avis.modifiedAt());
+        NormalizedAdvisory.Affected core = avis.affected().get(0);
         assertEquals("pkg:maven/org.apache.logging.log4j/log4j-core", core.purl());
         assertEquals(new NormalizedAdvisory.Range("ECOSYSTEM", "2.13.0", "2.15.0", null), core.ranges().get(0));
-        assertTrue(a.affected().stream().anyMatch(x -> x.ranges().stream().anyMatch(r -> "1.2.1.2-jre17".equals(r.lastAffected()))));
-        assertEquals(64, a.contentHash().length());
-        assertEquals(raw, a.rawContent());
+        assertTrue(avis.affected().stream().anyMatch(affecte -> affecte.ranges().stream()
+                .anyMatch(plage -> "1.2.1.2-jre17".equals(plage.lastAffected()))));
+        assertEquals(64, avis.contentHash().length());
+        assertEquals(raw, avis.rawContent());
     }
 
     @Test
     void col02S2AvisSansIdentifiantRejete() {
-        AdvisoryRejectedException e = assertThrows(AdvisoryRejectedException.class,
+        AdvisoryRejectedException erreur = assertThrows(AdvisoryRejectedException.class,
                 () -> OsvNormalizer.normalize(new RawAdvisory("X", "{\"modified\":\"2026-01-01T00:00:00Z\"}")));
-        assertEquals("identifiant externe absent", e.getMessage());
+        assertEquals("identifiant externe absent", erreur.getMessage());
         assertThrows(AdvisoryRejectedException.class, () -> OsvNormalizer.normalize(new RawAdvisory("X", "{pas du json")));
     }
 
@@ -65,10 +66,10 @@ class DocumentParsingTest {
         assertEquals(1, inv.ignoredCount());
         assertEquals(List.of(new ParsedInventory.IgnoredComponent("nopurl", null, null, ParsedInventory.IgnoredComponent.PURL_INVALIDE)),
                 inv.ignoredComponents());
-        ParsedInventory.Item a = inv.components().get(0);
-        assertEquals("pkg:maven/org.exemple/a", a.packageKey());
-        assertEquals("1.0.0", a.version());
-        assertFalse(a.transitive());
+        ParsedInventory.Item composant = inv.components().get(0);
+        assertEquals("pkg:maven/org.exemple/a", composant.packageKey());
+        assertEquals("1.0.0", composant.version());
+        assertFalse(composant.transitive());
         assertTrue(inv.components().get(1).transitive());
     }
 
@@ -79,8 +80,8 @@ class DocumentParsingTest {
                 "{\"type\":\"library\",\"group\":\"org.apache.logging.log4j\",\"name\":\"log4j-core\",\"version\":\"2.14.1\","
                         + "\"cpe\":\"cpe:2.3:a:apache:log4j:2.14.1:*:*:*:*:*:*:*\"},"
                         + "{\"type\":\"library\",\"name\":\"" + "n".repeat(300) + "\",\"purl\":\"  \"}");
-        for (int i = 0; i < 150; i++) {
-            comps.append(",{\"type\":\"library\",\"name\":\"lib").append(i).append("\"}");
+        for (int rang = 0; rang < 150; rang++) {
+            comps.append(",{\"type\":\"library\",\"name\":\"lib").append(rang).append("\"}");
         }
         comps.append(",{\"type\":\"library\",\"name\":\"ok\",\"purl\":\"pkg:maven/org.exemple/ok@1.0\"}");
         String sbom = "{\"bomFormat\":\"CycloneDX\",\"specVersion\":\"1.6\",\"components\":[" + comps + "]}";
@@ -98,9 +99,9 @@ class DocumentParsingTest {
     @Test
     void sbomNonConformeRefuseeAvecMotif() {
         String v12 = Fixtures.cyclonedx("1.2", null, List.of(), List.of());
-        InvalidDocumentException e = assertThrows(InvalidDocumentException.class,
+        InvalidDocumentException erreur = assertThrows(InvalidDocumentException.class,
                 () -> CycloneDxParser.parse(v12.getBytes(StandardCharsets.UTF_8), 1_000_000));
-        assertTrue(e.getMessage().contains("1.2"));
+        assertTrue(erreur.getMessage().contains("1.2"));
         assertThrows(InvalidDocumentException.class,
                 () -> CycloneDxParser.parse("{\"bomFormat\":\"SPDX\"}".getBytes(StandardCharsets.UTF_8), 1_000_000));
         assertThrows(InvalidDocumentException.class, () -> CycloneDxParser.parse("<xml/>".getBytes(StandardCharsets.UTF_8), 1_000_000));
@@ -116,10 +117,10 @@ class DocumentParsingTest {
         assertEquals("4.17.20", npm.get(0).version());
         assertEquals("pkg:npm/@angular/core", npm.get(1).packageKey());
         assertNull(npm.get(1).version());
-        List<ParsedInventory.Item> py = ManifestParser.parse("requirements.txt",
+        List<ParsedInventory.Item> paquetsPython = ManifestParser.parse("requirements.txt",
                 "# commentaire\nDjango==4.2.1\nrequests>=2.0\n".getBytes(StandardCharsets.UTF_8));
-        assertEquals("pkg:pypi/django", py.get(0).packageKey());
-        assertEquals("4.2.1", py.get(0).version());
-        assertNull(py.get(1).version());
+        assertEquals("pkg:pypi/django", paquetsPython.get(0).packageKey());
+        assertEquals("4.2.1", paquetsPython.get(0).version());
+        assertNull(paquetsPython.get(1).version());
     }
 }

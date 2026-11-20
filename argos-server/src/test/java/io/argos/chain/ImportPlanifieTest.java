@@ -84,7 +84,7 @@ class ImportPlanifieTest {
             + "/contents/demo/dev-dependencies/example-results/flat/bom.1.6.json?ref=main";
 
     @Inject
-    TestDb db;
+    TestDb baseDeTest;
 
     @Inject
     DataSource dataSource;
@@ -108,7 +108,7 @@ class ImportPlanifieTest {
 
     @BeforeEach
     void reset() {
-        db.reset();
+        baseDeTest.reset();
         espace = Api.nouvelEspace("alice", "Équipe A");
     }
 
@@ -119,7 +119,7 @@ class ImportPlanifieTest {
     }
 
     private long composants(UUID projet) {
-        return db.count("SELECT count(*) FROM component WHERE project_id = '" + projet + "'");
+        return baseDeTest.count("SELECT count(*) FROM component WHERE project_id = '" + projet + "'");
     }
 
     @Test
@@ -139,17 +139,17 @@ class ImportPlanifieTest {
         assertEquals("2026-11-15T06:12:44Z", gitlab.getString("summary.sourceDate"), "date de la source enregistrée");
         assertNotNull(gitlab.getString("summary.importedAt"), "date d'import enregistrée");
         assertEquals("GITLAB:gitlab-org/security-products/tests/js-npm@master",
-                db.string("SELECT source_ref FROM repository_inventory WHERE project_id = '" + web + "'"), "origine enregistrée");
+                baseDeTest.string("SELECT source_ref FROM repository_inventory WHERE project_id = '" + web + "'"), "origine enregistrée");
         JsonPath github = Api.en("alice").when().get("/api/v1/projects/" + outil + "/inventory/summary")
                 .then().statusCode(200).extract().jsonPath();
         assertEquals("SBOM", github.getString("summary.origin"));
         assertEquals(5, github.getInt("summary.componentCount"));
         assertNotNull(github.getString("summary.repositories[0].importedAt"));
         assertEquals("GITHUB:CycloneDX/cyclonedx-node-npm@main",
-                db.string("SELECT source_ref FROM repository_inventory WHERE project_id = '" + outil + "'"));
+                baseDeTest.string("SELECT source_ref FROM repository_inventory WHERE project_id = '" + outil + "'"));
         List<StubServer.Received> requetes = new ArrayList<>(StubServer.received("/gitlab/"));
         requetes.addAll(StubServer.received("/github/"));
-        assertTrue(requetes.stream().allMatch(r -> "GET".equals(r.method())), "forges interrogées en lecture seule");
+        assertTrue(requetes.stream().allMatch(requete -> "GET".equals(requete.method())), "forges interrogées en lecture seule");
     }
 
     @Test
@@ -159,10 +159,10 @@ class ImportPlanifieTest {
         servirForgesNominales();
         importPlanifie.importer(Instant.parse("2026-11-20T02:00:00Z"));
         long avant = composants(web);
-        String importAvant = db.string("SELECT import_id::text FROM inventory WHERE project_id = '" + web + "'");
+        String importAvant = baseDeTest.string("SELECT import_id::text FROM inventory WHERE project_id = '" + web + "'");
         StubServer.on(GITLAB_SBOM, Stub.status(503));
-        db.exec("DELETE FROM component_occurrence WHERE project_id = '" + outil + "'");
-        db.exec("DELETE FROM component WHERE project_id = '" + outil + "'");
+        baseDeTest.exec("DELETE FROM component_occurrence WHERE project_id = '" + outil + "'");
+        baseDeTest.exec("DELETE FROM component WHERE project_id = '" + outil + "'");
 
         ImportPlanifie.Bilan bilan = importPlanifie.importer(Instant.parse("2026-11-21T02:00:00Z"));
 
@@ -170,17 +170,17 @@ class ImportPlanifieTest {
         assertEquals(1, bilan.erreurs());
         assertEquals(5, composants(outil), "le second projet est importé");
         assertEquals(avant, composants(web), "l'inventaire en place du premier projet est conservé");
-        assertEquals(importAvant, db.string("SELECT import_id::text FROM inventory WHERE project_id = '" + web + "'"));
-        String motif = db.string("SELECT reason FROM inventory_import_failure WHERE project_id = '" + web + "'");
+        assertEquals(importAvant, baseDeTest.string("SELECT import_id::text FROM inventory WHERE project_id = '" + web + "'"));
+        String motif = baseDeTest.string("SELECT reason FROM inventory_import_failure WHERE project_id = '" + web + "'");
         assertTrue(motif.contains("503"), motif);
         assertFalse(motif.contains("jeton-fictif"), "aucun jeton dans le motif");
-        assertEquals(db.string("SELECT id::text FROM project_repository WHERE project_id = '" + web + "'"),
-                db.string("SELECT repository_id::text FROM inventory_import_failure WHERE project_id = '" + web + "'"));
+        assertEquals(baseDeTest.string("SELECT id::text FROM project_repository WHERE project_id = '" + web + "'"),
+                baseDeTest.string("SELECT repository_id::text FROM inventory_import_failure WHERE project_id = '" + web + "'"));
         Api.en("alice").when().get("/api/v1/projects/" + web + "/inventory/summary")
                 .then().statusCode(200)
                 .body("summary.repositories[0].lastFailure.reason", org.hamcrest.Matchers.containsString("503"));
         StubServer.Received requete = StubServer.received(GITLAB_SBOM).get(0);
-        assertTrue(requete.headers().entrySet().stream().anyMatch(e -> e.getKey().equalsIgnoreCase("PRIVATE-TOKEN")),
+        assertTrue(requete.headers().entrySet().stream().anyMatch(entete -> entete.getKey().equalsIgnoreCase("PRIVATE-TOKEN")),
                 "le jeton est transmis à la forge, jamais consigné");
     }
 
@@ -208,7 +208,7 @@ class ImportPlanifieTest {
         chemins2.forEach((chemin, operations) -> {
             assertFalse(chemin.toLowerCase().matches(".*(hook|pipeline).*"), "route entrante inattendue : " + chemin);
             if (chemin.contains("/inventory")) {
-                assertEquals(List.of("get"), operations.keySet().stream().filter(k -> !k.equals("parameters")).toList(),
+                assertEquals(List.of("get"), operations.keySet().stream().filter(cle -> !cle.equals("parameters")).toList(),
                         "l'inventaire n'est exposé qu'en lecture : " + chemin);
             }
         });
@@ -247,8 +247,8 @@ class ImportPlanifieTest {
 
         assertEquals("IMPORTED", manuel.status());
         assertEquals(1, composants(projet), "l'import manuel remplace l'inventaire de référence (INV-01)");
-        assertEquals("pkg:npm/manuel@1.0.0", db.string("SELECT purl FROM component WHERE project_id = '" + projet + "'"));
-        assertEquals("manuel", db.string("SELECT source_ref FROM repository_inventory WHERE project_id = '" + projet + "'"));
+        assertEquals("pkg:npm/manuel@1.0.0", baseDeTest.string("SELECT purl FROM component WHERE project_id = '" + projet + "'"));
+        assertEquals("manuel", baseDeTest.string("SELECT source_ref FROM repository_inventory WHERE project_id = '" + projet + "'"));
     }
 
     /** INV-08-S2 : le verrou du projet sérialise les imports ; un import attend que l'autre ait fini. */
@@ -258,9 +258,9 @@ class ImportPlanifieTest {
         ExecutorService fil = Executors.newSingleThreadExecutor();
         try (Connection verrou = dataSource.getConnection()) {
             verrou.setAutoCommit(false);
-            try (PreparedStatement ps = verrou.prepareStatement("SELECT pg_advisory_xact_lock(hashtext(?))")) {
-                ps.setString(1, "inventory:" + projet);
-                ps.execute();
+            try (PreparedStatement verrouillage = verrou.prepareStatement("SELECT pg_advisory_xact_lock(hashtext(?))")) {
+                verrouillage.setString(1, "inventory:" + projet);
+                verrouillage.execute();
             }
             Future<InventoryService.ImportResult> manuel = fil.submit(() -> inventories.importSbom(projet,
                     Fixtures.cyclonedx("1.6", "2026-11-19T10:00:00Z", java.util.Collections.singletonList(
@@ -293,9 +293,9 @@ class ImportPlanifieTest {
         CompletableFuture<ImportPlanifie.Bilan> planifie;
         try (Connection verrou = dataSource.getConnection()) {
             verrou.setAutoCommit(false);
-            try (PreparedStatement ps = verrou.prepareStatement("SELECT pg_advisory_xact_lock(hashtext(?))")) {
-                ps.setString(1, "inventory:" + projet);
-                ps.execute();
+            try (PreparedStatement verrouillage = verrou.prepareStatement("SELECT pg_advisory_xact_lock(hashtext(?))")) {
+                verrouillage.setString(1, "inventory:" + projet);
+                verrouillage.execute();
             }
             manuel = CompletableFuture.supplyAsync(() -> inventories.importSbom(projet, Fixtures.cyclonedx("1.6",
                     "2026-11-19T10:00:00Z", List.of(new String[] {"m", "pkg:npm/manuel@1.0.0"},
@@ -310,18 +310,18 @@ class ImportPlanifieTest {
         assertEquals("IMPORTED", manuel.get(30, TimeUnit.SECONDS).status());
         assertEquals(1, planifie.get(30, TimeUnit.SECONDS).importes());
         assertEquals(5, composants(projet), "inventaire de l'import terminé en dernier");
-        assertEquals(0, db.count("SELECT count(*) FROM component WHERE project_id = '" + projet
+        assertEquals(0, baseDeTest.count("SELECT count(*) FROM component WHERE project_id = '" + projet
                 + "' AND purl IN ('pkg:npm/manuel@1.0.0', 'pkg:npm/autre@2.0.0')"), "aucun composant de l'autre import");
         assertEquals("GITHUB:CycloneDX/cyclonedx-node-npm@main",
-                db.string("SELECT source_ref FROM repository_inventory WHERE project_id = '" + projet + "'"));
+                baseDeTest.string("SELECT source_ref FROM repository_inventory WHERE project_id = '" + projet + "'"));
     }
 
-    /** Attend (10 s au plus) que {@code n} transactions attendent un verrou consultatif. */
-    private void attendreImportsEnAttente(int n) throws InterruptedException {
+    /** Attend (10 s au plus) que {@code nombre} transactions attendent un verrou consultatif. */
+    private void attendreImportsEnAttente(int nombre) throws InterruptedException {
         long limite = System.nanoTime() + TimeUnit.SECONDS.toNanos(10);
-        while (db.count("SELECT count(*) FROM pg_locks WHERE locktype = 'advisory' AND NOT granted") < n) {
+        while (baseDeTest.count("SELECT count(*) FROM pg_locks WHERE locktype = 'advisory' AND NOT granted") < nombre) {
             if (System.nanoTime() > limite) {
-                throw new AssertionError(n + " import(s) en attente du verrou attendu(s)");
+                throw new AssertionError(nombre + " import(s) en attente du verrou attendu(s)");
             }
             Thread.sleep(50);
         }

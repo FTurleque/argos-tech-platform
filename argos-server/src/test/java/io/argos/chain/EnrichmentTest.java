@@ -35,7 +35,7 @@ class EnrichmentTest {
     private static final String LOG4SHELL = "GHSA-jfh8-c2jp-5v3q";
 
     @Inject
-    TestDb db;
+    TestDb baseDeTest;
 
     @Inject
     SourceSynchronizer synchronizer;
@@ -45,13 +45,13 @@ class EnrichmentTest {
 
     @BeforeEach
     void reset() {
-        db.reset();
+        baseDeTest.reset();
     }
 
     private UUID collectLog4Shell() {
         Fixtures.stubOsv(LOG4SHELL, "2025-10-22T19:37:02.616807Z", Fixtures.resource("osv/GHSA-jfh8-c2jp-5v3q.json"));
         synchronizer.synchronize("OSV");
-        return db.uuid("SELECT id FROM signal WHERE external_id = '" + LOG4SHELL + "'");
+        return baseDeTest.uuid("SELECT id FROM signal WHERE external_id = '" + LOG4SHELL + "'");
     }
 
     @Test
@@ -73,9 +73,9 @@ class EnrichmentTest {
 
         UUID signal = collectLog4Shell();
 
-        assertEquals(1, db.count("SELECT count(*) FROM signal"));
-        assertEquals(1, db.count("SELECT count(*) FROM enrichment WHERE source = 'NVD' AND signal_id = '" + signal + "'"));
-        String data = db.string("SELECT data::text FROM enrichment WHERE source = 'NVD'");
+        assertEquals(1, baseDeTest.count("SELECT count(*) FROM signal"));
+        assertEquals(1, baseDeTest.count("SELECT count(*) FROM enrichment WHERE source = 'NVD' AND signal_id = '" + signal + "'"));
+        String data = baseDeTest.string("SELECT data::text FROM enrichment WHERE source = 'NVD'");
         assertTrue(data.contains("\"baseScore\": 10.0") || data.contains("\"baseScore\":10.0"), data);
     }
 
@@ -85,15 +85,15 @@ class EnrichmentTest {
 
         UUID signal = collectLog4Shell();
 
-        assertEquals(1, db.count("SELECT count(*) FROM signal"));
-        assertEquals(0, db.count("SELECT count(*) FROM enrichment WHERE source = 'EPSS'"));
+        assertEquals(1, baseDeTest.count("SELECT count(*) FROM signal"));
+        assertEquals(0, baseDeTest.count("SELECT count(*) FROM enrichment WHERE source = 'EPSS'"));
         Api.en("alice").when().get("/api/v1/signals/" + signal)
                 .then().statusCode(200).body("signal.externalId", equalTo(LOG4SHELL));
 
         // Au cycle suivant, la source répond : l'enrichissement manquant est rattrapé.
         StubServer.on("/epss?cve=CVE-2021-44228", Stub.ok(Fixtures.resource("enrichment/epss-CVE-2021-44228.json")));
         assertEquals(1, enricher.retryMissing(10));
-        assertEquals(1, db.count("SELECT count(*) FROM enrichment WHERE source = 'EPSS'"));
+        assertEquals(1, baseDeTest.count("SELECT count(*) FROM enrichment WHERE source = 'EPSS'"));
     }
 
     @Test
@@ -107,13 +107,14 @@ class EnrichmentTest {
 
         synchronizer.synchronize("OSV");
 
-        UUID signal = db.uuid("SELECT id FROM signal WHERE external_id = 'GHSA-HTTPD'");
+        UUID signal = baseDeTest.uuid("SELECT id FROM signal WHERE external_id = 'GHSA-HTTPD'");
         List<Enricher.EnrichmentView> views = enricher.forSignal(signal);
-        assertTrue(views.stream().anyMatch(v -> v.source().equals("CERTFR") && v.reference().equals("CERTFR-2026-AVI-1500")),
+        assertTrue(views.stream().anyMatch(vue -> vue.source().equals("CERTFR") && vue.reference().equals("CERTFR-2026-AVI-1500")),
                 views.toString());
         // Seules des adresses construites à partir des références sont appelées (R-12).
         assertTrue(StubServer.received("/certfr/").stream()
-                .allMatch(r -> r.pathAndQuery().equals("/certfr/feed/") || r.pathAndQuery().matches("/certfr/CERTFR-\\d{4}-AVI-\\d+/json/")));
+                .allMatch(requete -> requete.pathAndQuery().equals("/certfr/feed/")
+                        || requete.pathAndQuery().matches("/certfr/CERTFR-\\d{4}-AVI-\\d+/json/")));
         Api.en("alice").when().get("/api/v1/signals/" + signal)
                 .then().statusCode(200).body("enrichments.source", hasItem("CERTFR"));
     }
