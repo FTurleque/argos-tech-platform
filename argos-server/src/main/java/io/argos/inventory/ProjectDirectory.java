@@ -60,22 +60,22 @@ public class ProjectDirectory {
                                     manifest_paths)
                 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
                 """;
-        try (Connection c = dataSource.getConnection(); PreparedStatement ps = c.prepareStatement(sql)) {
-            ps.setObject(1, id);
-            ps.setObject(2, workspaceId);
-            ps.setString(3, name);
-            ps.setString(4, repository == null ? null : repository.provider());
-            ps.setString(5, repository == null ? null : repository.repository());
-            ps.setString(6, repository == null ? null : repository.branch());
-            ps.setString(7, repository == null ? null : repository.sbomJob());
-            ps.setString(8, repository == null ? null : repository.sbomPath());
-            ps.setString(9, String.join(",", manifestPaths == null ? DEFAULT_MANIFESTS : manifestPaths));
-            ps.executeUpdate();
-        } catch (SQLException e) {
-            if ("23503".equals(e.getSQLState())) {
-                throw new IllegalArgumentException("espace inconnu : " + workspaceId, e);
+        try (Connection connexion = dataSource.getConnection(); PreparedStatement requete = connexion.prepareStatement(sql)) {
+            requete.setObject(1, id);
+            requete.setObject(2, workspaceId);
+            requete.setString(3, name);
+            requete.setString(4, repository == null ? null : repository.provider());
+            requete.setString(5, repository == null ? null : repository.repository());
+            requete.setString(6, repository == null ? null : repository.branch());
+            requete.setString(7, repository == null ? null : repository.sbomJob());
+            requete.setString(8, repository == null ? null : repository.sbomPath());
+            requete.setString(9, String.join(",", manifestPaths == null ? DEFAULT_MANIFESTS : manifestPaths));
+            requete.executeUpdate();
+        } catch (SQLException erreur) {
+            if ("23503".equals(erreur.getSQLState())) {
+                throw new IllegalArgumentException("espace inconnu : " + workspaceId, erreur);
             }
-            throw new IllegalStateException("création du projet impossible", e);
+            throw new IllegalStateException("création du projet impossible", erreur);
         }
         if (repository != null) {
             insererDepot(id, repository, manifestPaths, true);
@@ -100,20 +100,20 @@ public class ProjectDirectory {
                 SELECT id, project_id, provider, repository, branch, sbom_job, sbom_path, manifest_paths, principal
                 FROM project_repository WHERE project_id = ? ORDER BY principal DESC, created_at, id
                 """;
-        try (Connection c = dataSource.getConnection(); PreparedStatement ps = c.prepareStatement(sql)) {
-            ps.setObject(1, projectId);
-            try (ResultSet rs = ps.executeQuery()) {
+        try (Connection connexion = dataSource.getConnection(); PreparedStatement requete = connexion.prepareStatement(sql)) {
+            requete.setObject(1, projectId);
+            try (ResultSet resultat = requete.executeQuery()) {
                 List<Depot> depots = new ArrayList<>();
-                while (rs.next()) {
-                    depots.add(new Depot(rs.getObject(1, UUID.class), rs.getObject(2, UUID.class),
-                            new RepositoryRef(rs.getString(3), rs.getString(4), rs.getString(5), rs.getString(6),
-                                    rs.getString(7)),
-                            chemins(rs.getString(8)), rs.getBoolean(9)));
+                while (resultat.next()) {
+                    depots.add(new Depot(resultat.getObject(1, UUID.class), resultat.getObject(2, UUID.class),
+                            new RepositoryRef(resultat.getString(3), resultat.getString(4), resultat.getString(5), resultat.getString(6),
+                                    resultat.getString(7)),
+                            chemins(resultat.getString(8)), resultat.getBoolean(9)));
                 }
                 return depots;
             }
-        } catch (SQLException e) {
-            throw new IllegalStateException("lecture des dépôts du projet impossible", e);
+        } catch (SQLException erreur) {
+            throw new IllegalStateException("lecture des dépôts du projet impossible", erreur);
         }
     }
 
@@ -124,15 +124,15 @@ public class ProjectDirectory {
                 SELECT p.id FROM project p WHERE EXISTS (SELECT 1 FROM project_repository r WHERE r.project_id = p.id)
                 ORDER BY p.created_at, p.id
                 """;
-        try (Connection c = dataSource.getConnection(); PreparedStatement ps = c.prepareStatement(sql);
-                ResultSet rs = ps.executeQuery()) {
+        try (Connection connexion = dataSource.getConnection(); PreparedStatement requete = connexion.prepareStatement(sql);
+                ResultSet resultat = requete.executeQuery()) {
             List<UUID> ids = new ArrayList<>();
-            while (rs.next()) {
-                ids.add(rs.getObject(1, UUID.class));
+            while (resultat.next()) {
+                ids.add(resultat.getObject(1, UUID.class));
             }
             return ids;
-        } catch (SQLException e) {
-            throw new IllegalStateException("lecture des projets impossible", e);
+        } catch (SQLException erreur) {
+            throw new IllegalStateException("lecture des projets impossible", erreur);
         }
     }
 
@@ -142,13 +142,13 @@ public class ProjectDirectory {
                 SELECT id, workspace_id, name, scm_provider, scm_repository, scm_branch, sbom_job, sbom_path, manifest_paths
                 FROM project WHERE id = ?
                 """;
-        try (Connection c = dataSource.getConnection(); PreparedStatement ps = c.prepareStatement(sql)) {
-            ps.setObject(1, id);
-            try (ResultSet rs = ps.executeQuery()) {
-                return rs.next() ? Optional.of(project(rs)) : Optional.empty();
+        try (Connection connexion = dataSource.getConnection(); PreparedStatement requete = connexion.prepareStatement(sql)) {
+            requete.setObject(1, id);
+            try (ResultSet resultat = requete.executeQuery()) {
+                return resultat.next() ? Optional.of(project(resultat)) : Optional.empty();
             }
-        } catch (SQLException e) {
-            throw new IllegalStateException("lecture du projet impossible", e);
+        } catch (SQLException erreur) {
+            throw new IllegalStateException("lecture du projet impossible", erreur);
         }
     }
 
@@ -159,15 +159,15 @@ public class ProjectDirectory {
                 SELECT id, workspace_id, name, scm_provider, scm_repository, scm_branch, sbom_job, sbom_path, manifest_paths
                 FROM project WHERE scm_provider IS NOT NULL AND scm_repository IS NOT NULL ORDER BY created_at, id
                 """;
-        try (Connection c = dataSource.getConnection(); PreparedStatement ps = c.prepareStatement(sql);
-                ResultSet rs = ps.executeQuery()) {
+        try (Connection connexion = dataSource.getConnection(); PreparedStatement requete = connexion.prepareStatement(sql);
+                ResultSet resultat = requete.executeQuery()) {
             List<Project> projets = new ArrayList<>();
-            while (rs.next()) {
-                projets.add(project(rs));
+            while (resultat.next()) {
+                projets.add(project(resultat));
             }
             return projets;
-        } catch (SQLException e) {
-            throw new IllegalStateException("lecture des projets impossible", e);
+        } catch (SQLException erreur) {
+            throw new IllegalStateException("lecture des projets impossible", erreur);
         }
     }
 
@@ -178,39 +178,39 @@ public class ProjectDirectory {
                                                manifest_paths, principal)
                 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
                 """;
-        try (Connection c = dataSource.getConnection(); PreparedStatement ps = c.prepareStatement(sql)) {
-            ps.setObject(1, id);
-            ps.setObject(2, projectId);
-            ps.setString(3, repository.provider());
-            ps.setString(4, repository.repository());
-            ps.setString(5, repository.branch());
-            ps.setString(6, repository.sbomJob());
-            ps.setString(7, repository.sbomPath());
-            ps.setString(8, String.join(",", manifestPaths == null ? DEFAULT_MANIFESTS : manifestPaths));
-            ps.setBoolean(9, principal);
-            ps.executeUpdate();
-        } catch (SQLException e) {
-            if ("23503".equals(e.getSQLState())) {
-                throw new IllegalArgumentException("projet inconnu : " + projectId, e);
+        try (Connection connexion = dataSource.getConnection(); PreparedStatement requete = connexion.prepareStatement(sql)) {
+            requete.setObject(1, id);
+            requete.setObject(2, projectId);
+            requete.setString(3, repository.provider());
+            requete.setString(4, repository.repository());
+            requete.setString(5, repository.branch());
+            requete.setString(6, repository.sbomJob());
+            requete.setString(7, repository.sbomPath());
+            requete.setString(8, String.join(",", manifestPaths == null ? DEFAULT_MANIFESTS : manifestPaths));
+            requete.setBoolean(9, principal);
+            requete.executeUpdate();
+        } catch (SQLException erreur) {
+            if ("23503".equals(erreur.getSQLState())) {
+                throw new IllegalArgumentException("projet inconnu : " + projectId, erreur);
             }
-            if ("23505".equals(e.getSQLState())) {
-                throw new IllegalArgumentException("dépôt déjà rattaché au projet : " + repository.repository(), e);
+            if ("23505".equals(erreur.getSQLState())) {
+                throw new IllegalArgumentException("dépôt déjà rattaché au projet : " + repository.repository(), erreur);
             }
-            throw new IllegalStateException("rattachement du dépôt impossible", e);
+            throw new IllegalStateException("rattachement du dépôt impossible", erreur);
         }
         return id;
     }
 
-    private static Project project(ResultSet rs) throws SQLException {
-        Optional<RepositoryRef> repo = rs.getString(4) == null ? Optional.empty()
-                : Optional.of(new RepositoryRef(rs.getString(4), rs.getString(5), rs.getString(6),
-                        rs.getString(7), rs.getString(8)));
-        return new Project(rs.getObject(1, UUID.class), rs.getObject(2, UUID.class), rs.getString(3), repo,
-                chemins(rs.getString(9)));
+    private static Project project(ResultSet resultat) throws SQLException {
+        Optional<RepositoryRef> repo = resultat.getString(4) == null ? Optional.empty()
+                : Optional.of(new RepositoryRef(resultat.getString(4), resultat.getString(5), resultat.getString(6),
+                        resultat.getString(7), resultat.getString(8)));
+        return new Project(resultat.getObject(1, UUID.class), resultat.getObject(2, UUID.class), resultat.getString(3), repo,
+                chemins(resultat.getString(9)));
     }
 
     private static List<String> chemins(String manifests) {
         return manifests == null || manifests.isBlank() ? List.of()
-                : Arrays.stream(manifests.split(",")).map(String::strip).filter(s -> !s.isEmpty()).toList();
+                : Arrays.stream(manifests.split(",")).map(String::strip).filter(chemin -> !chemin.isEmpty()).toList();
     }
 }

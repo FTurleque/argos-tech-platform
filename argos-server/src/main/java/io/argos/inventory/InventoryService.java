@@ -56,7 +56,7 @@ public class InventoryService {
 
         /** Vrai si au moins un dépôt a été importé : l'inventaire du projet a été remplacé et sera recorrélé. */
         public boolean importe() {
-            return depots.stream().anyMatch(d -> "IMPORTED".equals(d.result().status()));
+            return depots.stream().anyMatch(depot -> "IMPORTED".equals(depot.result().status()));
         }
     }
 
@@ -94,10 +94,10 @@ public class InventoryService {
         ParsedInventory parsed;
         try {
             parsed = CycloneDxParser.parse(document, maxBytes);
-        } catch (InvalidDocumentException e) {
-            store.recordFailure(projectId, cible, e.getMessage(), sourceRef);
-            LOG.infof("SBOM refusée pour le projet %s : %s", projectId, e.getMessage());
-            return new ImportResult("REJECTED", null, 0, 0, e.getMessage());
+        } catch (InvalidDocumentException erreur) {
+            store.recordFailure(projectId, cible, erreur.getMessage(), sourceRef);
+            LOG.infof("SBOM refusée pour le projet %s : %s", projectId, erreur.getMessage());
+            return new ImportResult("REJECTED", null, 0, 0, erreur.getMessage());
         }
         store.replace(projectId, new InventoryStore.Remplacement(cible, "SBOM", parsed, sourceRef));
         return new ImportResult("IMPORTED", "SBOM", parsed.components().size(), parsed.ignoredCount(), null,
@@ -154,14 +154,14 @@ public class InventoryService {
             RepositoryRef ref = depot.ref();
             String forge = ref.provider() == null ? "" : ref.provider().toUpperCase(Locale.ROOT);
             QuotaEpuise quota = quotas.get(forge);
-            Lu lu;
+            Lu lecture;
             if (quota != null) {
-                lu = Lu.sans(new ImportResult("DEFERRED", null, 0, 0, quota.getMessage()));
+                lecture = Lu.sans(new ImportResult("DEFERRED", null, 0, 0, quota.getMessage()));
             } else {
-                lu = lire(projectId, depot, q -> quotas.put(forge, q));
+                lecture = lire(projectId, depot, rencontre -> quotas.put(forge, rencontre));
             }
-            lu.remplacement().ifPresent(remplacements::add);
-            resultats.add(new ResultatDepot(depot.id(), ref.provider(), ref.repository(), lu.result()));
+            lecture.remplacement().ifPresent(remplacements::add);
+            resultats.add(new ResultatDepot(depot.id(), ref.provider(), ref.repository(), lecture.result()));
         }
         store.remplacer(projectId, remplacements);
         return new ImportProjet(projectId, List.copyOf(resultats));
@@ -206,15 +206,15 @@ public class InventoryService {
             return new Lu(new ImportResult("IMPORTED", "MANIFEST", parsed.get().components().size(), 0, null),
                     Optional.of(new InventoryStore.Remplacement(depot.id(), "MANIFEST", parsed.get(),
                             String.join(",", manifests.keySet()))));
-        } catch (QuotaEpuise e) {
-            surQuota.accept(e);
-            store.recordFailure(projectId, depot.id(), e.getMessage(), sourceRef);
-            LOG.infof("import de l'inventaire du dépôt %s reporté : %s", sourceRef, e.getMessage());
-            return Lu.sans(new ImportResult("ERROR", null, 0, 0, e.getMessage()));
-        } catch (ScmException e) {
-            store.recordFailure(projectId, depot.id(), e.getMessage(), sourceRef);
-            LOG.warnf("import de l'inventaire du dépôt %s impossible : %s", sourceRef, e.getMessage());
-            return Lu.sans(new ImportResult("ERROR", null, 0, 0, e.getMessage()));
+        } catch (QuotaEpuise epuisement) {
+            surQuota.accept(epuisement);
+            store.recordFailure(projectId, depot.id(), epuisement.getMessage(), sourceRef);
+            LOG.infof("import de l'inventaire du dépôt %s reporté : %s", sourceRef, epuisement.getMessage());
+            return Lu.sans(new ImportResult("ERROR", null, 0, 0, epuisement.getMessage()));
+        } catch (ScmException erreur) {
+            store.recordFailure(projectId, depot.id(), erreur.getMessage(), sourceRef);
+            LOG.warnf("import de l'inventaire du dépôt %s impossible : %s", sourceRef, erreur.getMessage());
+            return Lu.sans(new ImportResult("ERROR", null, 0, 0, erreur.getMessage()));
         }
     }
 
@@ -230,8 +230,8 @@ public class InventoryService {
                 return new Lu(new ImportResult("IMPORTED", "SBOM", parsed.components().size(), parsed.ignoredCount(), null,
                         parsed.ignoredComponents()),
                         Optional.of(new InventoryStore.Remplacement(repositoryId, "SBOM", parsed, sourceRef)));
-            } catch (InvalidDocumentException e) {
-                reason = e.getMessage();
+            } catch (InvalidDocumentException erreur) {
+                reason = erreur.getMessage();
             }
         }
         store.recordFailure(projectId, repositoryId, reason, sourceRef);
@@ -243,14 +243,14 @@ public class InventoryService {
     private Optional<ParsedInventory> parseManifests(UUID projectId, UUID repositoryId, Map<String, byte[]> manifests) {
         Map<String, ParsedInventory.Item> items = new LinkedHashMap<>();
         int read = 0;
-        for (Map.Entry<String, byte[]> m : manifests.entrySet()) {
+        for (Map.Entry<String, byte[]> manifeste : manifests.entrySet()) {
             try {
-                for (ParsedInventory.Item item : ManifestParser.parse(m.getKey(), m.getValue())) {
+                for (ParsedInventory.Item item : ManifestParser.parse(manifeste.getKey(), manifeste.getValue())) {
                     items.putIfAbsent(item.packageKey() + "@" + (item.version() == null ? "" : item.version()), item);
                 }
                 read++;
-            } catch (InvalidDocumentException e) {
-                store.recordFailure(projectId, repositoryId, m.getKey() + " : " + e.getMessage(), m.getKey());
+            } catch (InvalidDocumentException erreur) {
+                store.recordFailure(projectId, repositoryId, manifeste.getKey() + " : " + erreur.getMessage(), manifeste.getKey());
             }
         }
         return read == 0 ? Optional.empty() : Optional.of(new ParsedInventory(null, null, List.copyOf(items.values())));

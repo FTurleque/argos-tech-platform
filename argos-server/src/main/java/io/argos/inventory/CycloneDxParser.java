@@ -55,8 +55,8 @@ public final class CycloneDxParser {
         JsonNode root;
         try {
             root = MAPPER.readTree(document);
-        } catch (IOException e) {
-            throw new InvalidDocumentException("JSON illisible", e);
+        } catch (IOException erreur) {
+            throw new InvalidDocumentException("JSON illisible", erreur);
         }
         if (root == null || !root.isObject()) {
             throw new InvalidDocumentException("le document n'est pas un objet JSON");
@@ -94,8 +94,8 @@ public final class CycloneDxParser {
         }
         try {
             return Optional.of(Instant.parse(timestamp));
-        } catch (DateTimeParseException e) {
-            throw new InvalidDocumentException("metadata.timestamp illisible", e);
+        } catch (DateTimeParseException erreur) {
+            throw new InvalidDocumentException("metadata.timestamp illisible", erreur);
         }
     }
 
@@ -119,25 +119,25 @@ public final class CycloneDxParser {
             Deque<JsonNode> pending = new ArrayDeque<>();
             components.forEach(pending::add);
             while (!pending.isEmpty()) {
-                JsonNode c = pending.poll();
-                c.path("components").forEach(pending::add);
-                String declaredPurl = c.path("purl").asText(null);
-                PackageKey.parse(declaredPurl).ifPresentOrElse(purl -> retenir(c, purl), () -> ecarter(c, declaredPurl));
+                JsonNode composant = pending.poll();
+                composant.path("components").forEach(pending::add);
+                String declaredPurl = composant.path("purl").asText(null);
+                PackageKey.parse(declaredPurl).ifPresentOrElse(purl -> retenir(composant, purl), () -> ecarter(composant, declaredPurl));
             }
         }
 
-        private void retenir(JsonNode c, PackageKey.Purl purl) {
-            String version = purl.version() != null ? purl.version() : c.path("version").asText(null);
-            String bomRef = c.path("bom-ref").asText(null);
+        private void retenir(JsonNode composant, PackageKey.Purl purl) {
+            String version = purl.version() != null ? purl.version() : composant.path("version").asText(null);
+            String bomRef = composant.path("bom-ref").asText(null);
             Boolean transitive = direct == null || bomRef == null ? null : !direct.contains(bomRef);
             String identity = purl.key() + "@" + (version == null ? "" : version);
-            items.merge(identity, new ParsedInventory.Item(purl.key(), c.path("purl").asText(), version, transitive),
-                    (a, b) -> Boolean.FALSE.equals(a.transitive()) ? a : b);
+            items.merge(identity, new ParsedInventory.Item(purl.key(), composant.path("purl").asText(), version, transitive),
+                    (existant, nouveau) -> Boolean.FALSE.equals(existant.transitive()) ? existant : nouveau);
         }
 
-        private void ecarter(JsonNode c, String declaredPurl) {
+        private void ecarter(JsonNode composant, String declaredPurl) {
             ignored++;
-            signal(signaled, c, declaredPurl);
+            signal(signaled, composant, declaredPurl);
         }
     }
 
@@ -158,11 +158,11 @@ public final class CycloneDxParser {
         if (!value.isValueNode()) {
             return Optional.empty();
         }
-        String s = value.asText().strip();
-        if (s.isEmpty()) {
+        String texte = value.asText().strip();
+        if (texte.isEmpty()) {
             return Optional.empty();
         }
-        return Optional.of(s.length() > MAX_FIELD ? s.substring(0, MAX_FIELD) : s);
+        return Optional.of(texte.length() > MAX_FIELD ? texte.substring(0, MAX_FIELD) : texte);
     }
 
     /** Références des dépendances directes du composant racine, si le graphe est exploitable. */
@@ -172,10 +172,10 @@ public final class CycloneDxParser {
         if (rootRef == null || !dependencies.isArray()) {
             return Optional.empty();
         }
-        for (JsonNode d : dependencies) {
-            if (rootRef.equals(d.path("ref").asText())) {
+        for (JsonNode dependance : dependencies) {
+            if (rootRef.equals(dependance.path("ref").asText())) {
                 Set<String> refs = new HashSet<>();
-                d.path("dependsOn").forEach(r -> refs.add(r.asText()));
+                dependance.path("dependsOn").forEach(reference -> refs.add(reference.asText()));
                 return Optional.of(refs);
             }
         }
