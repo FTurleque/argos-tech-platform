@@ -46,7 +46,7 @@ class ProfilsDeVeilleTest {
     private static final String LIB = "pkg:maven/org.exemple/lib";
 
     @Inject
-    TestDb db;
+    TestDb baseDeTest;
 
     @Inject
     CatalogueProfils catalogue;
@@ -65,8 +65,8 @@ class ProfilsDeVeilleTest {
 
     @BeforeEach
     void reset() {
-        db.reset();
-        db.exec("DELETE FROM workspace_preference_utilisateur WHERE compte_id = '" + Api.compte("ines") + "'");
+        baseDeTest.reset();
+        baseDeTest.exec("DELETE FROM workspace_preference_utilisateur WHERE compte_id = '" + Api.compte("ines") + "'");
     }
 
     private UUID projetAvecSbom(UUID espace, String nom, String purl) {
@@ -80,7 +80,7 @@ class ProfilsDeVeilleTest {
         Fixtures.stubOsv(id, "2026-11-10T00:00:00Z",
                 Fixtures.osv(id, "2026-11-10T00:00:00Z", "Maven", "org.exemple:lib", LIB, "0", "1.3.0"));
         synchronizer.synchronize("OSV");
-        return db.uuid("SELECT id FROM signal WHERE external_id = '" + id + "'");
+        return baseDeTest.uuid("SELECT id FROM signal WHERE external_id = '" + id + "'");
     }
 
     private static void activer(String utilisateur, String profilsJson) {
@@ -123,7 +123,7 @@ class ProfilsDeVeilleTest {
         UUID projetA = projetAvecSbom(espaceA, "a", LIB + "@1.2.0");
         UUID projetB = projetAvecSbom(espaceB, "b", LIB + "@1.1.0");
         UUID signal = publier("GHSA-PRF05");
-        UUID impactB = db.uuid("SELECT id FROM project_impact WHERE project_id = '" + projetB + "'");
+        UUID impactB = baseDeTest.uuid("SELECT id FROM project_impact WHERE project_id = '" + projetB + "'");
         Api.en("ines").contentType(ContentType.JSON)
                 .body("{\"scope\":\"PERSONAL\",\"filters\":[{\"type\":\"PACKAGE\",\"value\":\"" + LIB + "\"},"
                         + "{\"type\":\"PROJECT\",\"value\":\"" + projetB + "\"}],\"channel\":\"in_app\",\"frequency\":\"daily\","

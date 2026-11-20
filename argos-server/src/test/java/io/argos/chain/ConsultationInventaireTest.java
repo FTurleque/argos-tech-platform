@@ -42,7 +42,7 @@ import io.quarkus.test.junit.QuarkusTest;
 class ConsultationInventaireTest {
 
     @Inject
-    TestDb db;
+    TestDb baseDeTest;
 
     @Inject
     ProjectDirectory projects;
@@ -58,21 +58,21 @@ class ConsultationInventaireTest {
 
     @BeforeEach
     void reset() {
-        db.reset();
+        baseDeTest.reset();
         espaceA = Api.nouvelEspace("alice", "Équipe A");
         espaceB = Api.nouvelEspace("jules", "Équipe B");
     }
 
-    private static byte[] bytes(String s) {
-        return s.getBytes(StandardCharsets.UTF_8);
+    private static byte[] bytes(String texte) {
+        return texte.getBytes(StandardCharsets.UTF_8);
     }
 
-    /** SBOM de {@code n} composants npm {@code paquet-NN} (le premier est direct, les autres transitifs). */
-    private void importer(UUID projet, int n) {
+    /** SBOM de {@code nombre} composants npm {@code paquet-NN} (le premier est direct, les autres transitifs). */
+    private void importer(UUID projet, int nombre) {
         List<String[]> composants = new ArrayList<>();
-        for (int i = n; i >= 1; i--) {
-            String nom = "paquet-%02d".formatted(i);
-            composants.add(new String[] {nom, "pkg:npm/" + nom + "@1.0." + i});
+        for (int rang = nombre; rang >= 1; rang--) {
+            String nom = "paquet-%02d".formatted(rang);
+            composants.add(new String[] {nom, "pkg:npm/" + nom + "@1.0." + rang});
         }
         String sbom = Fixtures.cyclonedx("1.6", "2026-11-18T00:00:00Z", composants, List.of("paquet-01"));
         assertEquals("IMPORTED", inventories.importSbom(projet, bytes(sbom), "ci").status());
@@ -180,7 +180,7 @@ class ConsultationInventaireTest {
                 new String[] {"a", "pkg:maven/org.exemple/a@1.0"},
                 new String[] {"b1", "pkg:maven/org.exemple/b@1.0"}), List.of("a"));
         inventories.importSbom(projet, bytes(sbom), "ci");
-        for (int i = 0; i < 2; i++) {
+        for (int passage = 0; passage < 2; passage++) {
             Api.en("alice").when().get("/api/v1/projects/" + projet + "/inventory/components")
                     .then().statusCode(200)
                     .body("items.name", contains("org.exemple/a", "org.exemple/b", "org.exemple/b"))
@@ -239,7 +239,7 @@ class ConsultationInventaireTest {
 
         Api.en("alice").when().get("/api/v1/projects/" + inconnu + "/inventory/components").then().statusCode(404);
         Api.en("alice").when().get("/api/v1/projects/" + secret + "/inventory/components").then().statusCode(404);
-        assertEquals(1, db.count("SELECT count(*) FROM refus_acces WHERE compte_id = '" + Api.compte("alice")
+        assertEquals(1, baseDeTest.count("SELECT count(*) FROM refus_acces WHERE compte_id = '" + Api.compte("alice")
                 + "' AND ressource = 'GET /api/v1/projects/" + secret + "/inventory/components' AND motif = 'NON_MEMBRE'"));
         given().when().get("/api/v1/projects/" + secret + "/inventory/components").then().statusCode(401);
     }
@@ -333,7 +333,7 @@ class ConsultationInventaireTest {
         Api.en("alice").when().get("/api/v1/projects/" + UUID.randomUUID() + "/inventory/summary").then().statusCode(404);
         String refus = Api.en("alice").when().get(chemin).then().statusCode(404).extract().asString();
         assertTrue(!refus.contains("paquet-") && !refus.contains("Secret"), "le refus ne révèle rien de l'inventaire");
-        assertEquals(1, db.count("SELECT count(*) FROM refus_acces WHERE compte_id = '" + Api.compte("alice")
+        assertEquals(1, baseDeTest.count("SELECT count(*) FROM refus_acces WHERE compte_id = '" + Api.compte("alice")
                 + "' AND ressource = 'GET " + chemin + "' AND motif = 'NON_MEMBRE'"));
         given().when().get(chemin).then().statusCode(401);
         Api.en("jules").when().get(chemin).then().statusCode(200).body("summary.componentCount", equalTo(3));

@@ -42,8 +42,8 @@ class MigrationV18Test {
         String user = config.getValue("quarkus.datasource.username", String.class);
         String password = config.getOptionalValue("quarkus.datasource.password", String.class).orElse("");
         String base = "argos_migration_v18_" + UUID.randomUUID().toString().replace("-", "").substring(0, 12);
-        try (Connection c = dataSource.getConnection(); Statement st = c.createStatement()) {
-            st.execute("CREATE DATABASE " + base);
+        try (Connection connexion = dataSource.getConnection(); Statement requete = connexion.createStatement()) {
+            requete.execute("CREATE DATABASE " + base);
         }
         String urlJetable = url.replaceFirst("/[^/?]+(\\?|$)", "/" + base + "$1");
         try {
@@ -53,16 +53,17 @@ class MigrationV18Test {
             UUID actif = UUID.randomUUID();
             UUID inactif = UUID.randomUUID();
             UUID team = UUID.randomUUID();
-            try (Connection c = DriverManager.getConnection(urlJetable, user, password); Statement st = c.createStatement()) {
-                st.execute("INSERT INTO compte(id, sujet_oidc, nom_affiche, email) VALUES ('" + compte
+            try (Connection connexion = DriverManager.getConnection(urlJetable, user, password);
+                    Statement requete = connexion.createStatement()) {
+                requete.execute("INSERT INTO compte(id, sujet_oidc, nom_affiche, email) VALUES ('" + compte
                         + "', 'sujet-v18', 'Compte V18', 'v18@argos.test')");
-                st.execute("INSERT INTO espace(id, nom, cree_par) VALUES ('" + espace + "', 'Espace V18', '" + compte + "')");
-                st.execute(abonnement(actif, "PERSONAL", null, compte, "ACTIVE", false));
-                st.execute(abonnement(inactif, "PERSONAL", null, compte, "INACTIVE", false));
-                st.execute(abonnement(team, "TEAM", espace, null, "ACTIVE", false));
-                st.execute("INSERT INTO subscription_opt_out(subscription_id, user_id, opted_out_at) VALUES ('" + team
+                requete.execute("INSERT INTO espace(id, nom, cree_par) VALUES ('" + espace + "', 'Espace V18', '" + compte + "')");
+                requete.execute(abonnement(actif, "PERSONAL", null, compte, "ACTIVE", false));
+                requete.execute(abonnement(inactif, "PERSONAL", null, compte, "INACTIVE", false));
+                requete.execute(abonnement(team, "TEAM", espace, null, "ACTIVE", false));
+                requete.execute("INSERT INTO subscription_opt_out(subscription_id, user_id, opted_out_at) VALUES ('" + team
                         + "', '" + compte + "', now())");
-                st.execute("""
+                requete.execute("""
                         BEGIN;
                         INSERT INTO signal(id, source, external_id, modified_at, collected_at, updated_at, content_hash,
                                            affected, current_version_id)
@@ -78,24 +79,25 @@ class MigrationV18Test {
 
             flyway(urlJetable, user, password, "18").migrate();
 
-            try (Connection c = DriverManager.getConnection(urlJetable, user, password); Statement st = c.createStatement()) {
-                assertEquals("ACTIVE", valeur(st, "SELECT state FROM subscription WHERE id = '" + actif + "'"));
-                assertEquals("SUSPENDED", valeur(st, "SELECT state FROM subscription WHERE id = '" + inactif + "'"));
+            try (Connection connexion = DriverManager.getConnection(urlJetable, user, password);
+                    Statement requete = connexion.createStatement()) {
+                assertEquals("ACTIVE", valeur(requete, "SELECT state FROM subscription WHERE id = '" + actif + "'"));
+                assertEquals("SUSPENDED", valeur(requete, "SELECT state FROM subscription WHERE id = '" + inactif + "'"));
                 assertEquals("PACKAGE|pkg:maven/org.exemple/lib|EMAIL|IMMEDIATE",
-                        valeur(st, "SELECT filters->0->>'type' || '|' || (filters->0->>'value') || '|' || channel || '|' || frequency"
+                        valeur(requete, "SELECT filters->0->>'type' || '|' || (filters->0->>'value') || '|' || channel || '|' || frequency"
                                 + " FROM subscription WHERE id = '" + inactif + "'"));
-                assertEquals("1", valeur(st, "SELECT count(*) FROM subscription_opt_out WHERE subscription_id = '" + team + "'"));
-                assertEquals("0", valeur(st, "SELECT count(*) FROM subscription WHERE state NOT IN ('ACTIVE', 'SUSPENDED')"));
-                SQLException refus = assertThrows(SQLException.class, () -> st.execute(
+                assertEquals("1", valeur(requete, "SELECT count(*) FROM subscription_opt_out WHERE subscription_id = '" + team + "'"));
+                assertEquals("0", valeur(requete, "SELECT count(*) FROM subscription WHERE state NOT IN ('ACTIVE', 'SUSPENDED')"));
+                SQLException refus = assertThrows(SQLException.class, () -> requete.execute(
                         "UPDATE subscription SET state = 'INACTIVE' WHERE id = '" + actif + "'"));
                 assertTrue(refus.getMessage().contains("subscription_state_check"), refus.getMessage());
-                assertEquals("1", valeur(st, "SELECT count(*) FROM signal_version WHERE normalized_hash IS NULL"));
-                assertEquals("1", valeur(st, "SELECT count(*) FROM signal WHERE normalized_hash IS NULL"));
-                assertEquals("18", valeur(st, "SELECT max(version::int) FROM flyway_schema_history WHERE success"));
+                assertEquals("1", valeur(requete, "SELECT count(*) FROM signal_version WHERE normalized_hash IS NULL"));
+                assertEquals("1", valeur(requete, "SELECT count(*) FROM signal WHERE normalized_hash IS NULL"));
+                assertEquals("18", valeur(requete, "SELECT max(version::int) FROM flyway_schema_history WHERE success"));
             }
         } finally {
-            try (Connection c = dataSource.getConnection(); Statement st = c.createStatement()) {
-                st.execute("DROP DATABASE IF EXISTS " + base + " WITH (FORCE)");
+            try (Connection connexion = dataSource.getConnection(); Statement requete = connexion.createStatement()) {
+                requete.execute("DROP DATABASE IF EXISTS " + base + " WITH (FORCE)");
             }
         }
     }
@@ -115,10 +117,10 @@ class MigrationV18Test {
                 compte == null ? "NULL" : "'" + compte + "'", obligatoire, etat);
     }
 
-    private static String valeur(Statement st, String sql) throws SQLException {
-        try (ResultSet rs = st.executeQuery(sql)) {
-            rs.next();
-            return rs.getString(1);
+    private static String valeur(Statement requete, String sql) throws SQLException {
+        try (ResultSet resultat = requete.executeQuery(sql)) {
+            resultat.next();
+            return resultat.getString(1);
         }
     }
 }

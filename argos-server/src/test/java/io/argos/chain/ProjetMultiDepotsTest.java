@@ -61,7 +61,7 @@ class ProjetMultiDepotsTest {
     private static final String LIB = "pkg:maven/org.exemple/lib";
 
     @Inject
-    TestDb db;
+    TestDb baseDeTest;
 
     @Inject
     DataSource dataSource;
@@ -86,7 +86,7 @@ class ProjetMultiDepotsTest {
 
     @BeforeEach
     void reset() {
-        db.reset();
+        baseDeTest.reset();
         espaceA = Api.nouvelEspace("alice", "Équipe A");
         espaceB = Api.nouvelEspace("jules", "Équipe B");
     }
@@ -94,8 +94,8 @@ class ProjetMultiDepotsTest {
     /** SBOM CycloneDX 1.6 générée à {@code date}, le premier composant direct, les autres transitifs. */
     private static String sbom(Instant date, String... purls) {
         List<String[]> composants = new ArrayList<>();
-        for (int i = 0; i < purls.length; i++) {
-            composants.add(new String[] {"c" + i, purls[i]});
+        for (int rang = 0; rang < purls.length; rang++) {
+            composants.add(new String[] {"c" + rang, purls[rang]});
         }
         return Fixtures.cyclonedx("1.6", date.toString(), composants, List.of("c0"));
     }
@@ -111,7 +111,7 @@ class ProjetMultiDepotsTest {
     }
 
     private UUID depot(UUID projet, String nom) {
-        return projects.depots(projet).stream().filter(d -> d.ref().repository().equals(nom)).findFirst().orElseThrow().id();
+        return projects.depots(projet).stream().filter(depot -> depot.ref().repository().equals(nom)).findFirst().orElseThrow().id();
     }
 
     @Test
@@ -125,7 +125,7 @@ class ProjetMultiDepotsTest {
 
         InventoryService.ImportProjet resultat = inventories.importerProjet(projet);
 
-        assertEquals(List.of("IMPORTED", "IMPORTED"), resultat.depots().stream().map(d -> d.result().status()).toList());
+        assertEquals(List.of("IMPORTED", "IMPORTED"), resultat.depots().stream().map(depot -> depot.result().status()).toList());
         assertEquals("groupe/front", resultat.depots().get(0).repository(), "dépôt principal d'abord");
         String chemin = "/api/v1/projects/" + projet + "/inventory";
         Api.en("alice").when().get(chemin + "/components")
@@ -153,9 +153,9 @@ class ProjetMultiDepotsTest {
                 .body("summary.repositories[1].repository", equalTo("org/back"))
                 .body("summary.repositories[1].principal", equalTo(false))
                 .body("summary.repositories[1].sourceDate", equalTo(dateBack.toString()));
-        assertEquals(3, db.count("SELECT count(*) FROM component WHERE project_id = '" + projet + "'"),
+        assertEquals(3, baseDeTest.count("SELECT count(*) FROM component WHERE project_id = '" + projet + "'"),
                 "un composant présent dans deux dépôts n'est enregistré qu'une fois (INV-B2)");
-        assertEquals(4, db.count("SELECT count(*) FROM component_occurrence WHERE project_id = '" + projet + "'"));
+        assertEquals(4, baseDeTest.count("SELECT count(*) FROM component_occurrence WHERE project_id = '" + projet + "'"));
     }
 
     @Test
@@ -170,7 +170,7 @@ class ProjetMultiDepotsTest {
 
         InventoryService.ImportProjet resultat = inventories.importerProjet(projet);
 
-        assertEquals(List.of("REJECTED", "IMPORTED"), resultat.depots().stream().map(d -> d.result().status()).toList());
+        assertEquals(List.of("REJECTED", "IMPORTED"), resultat.depots().stream().map(depot -> depot.result().status()).toList());
         String chemin = "/api/v1/projects/" + projet + "/inventory";
         Api.en("alice").when().get(chemin + "/components")
                 .then().statusCode(200)
@@ -182,7 +182,7 @@ class ProjetMultiDepotsTest {
                 .body("summary.repositories[0].lastFailure.receivedAt", notNullValue())
                 .body("summary.repositories[1].lastFailure", nullValue());
         assertEquals(depot(projet, "groupe/front"),
-                db.uuid("SELECT repository_id FROM inventory_import_failure WHERE project_id = '" + projet + "'"),
+                baseDeTest.uuid("SELECT repository_id FROM inventory_import_failure WHERE project_id = '" + projet + "'"),
                 "l'échec est rattaché au dépôt refusé");
     }
 
@@ -254,20 +254,20 @@ class ProjetMultiDepotsTest {
     }
 
     private long compterSousArgosApp(UUID compte, String table, UUID projet) throws SQLException {
-        try (Connection c = dataSource.getConnection()) {
-            c.setAutoCommit(false);
+        try (Connection connexion = dataSource.getConnection()) {
+            connexion.setAutoCommit(false);
             try {
-                ContexteBase.appliquer(c, new ContexteBase.Contexte(compte, null, null));
-                try (PreparedStatement ps = c.prepareStatement("SELECT count(*) FROM " + table + " WHERE project_id = ?")) {
-                    ps.setObject(1, projet);
-                    try (ResultSet rs = ps.executeQuery()) {
-                        rs.next();
-                        return rs.getLong(1);
+                ContexteBase.appliquer(connexion, new ContexteBase.Contexte(compte, null, null));
+                try (PreparedStatement requete = connexion.prepareStatement("SELECT count(*) FROM " + table + " WHERE project_id = ?")) {
+                    requete.setObject(1, projet);
+                    try (ResultSet resultat = requete.executeQuery()) {
+                        resultat.next();
+                        return resultat.getLong(1);
                     }
                 }
             } finally {
-                c.rollback();
-                c.setAutoCommit(true);
+                connexion.rollback();
+                connexion.setAutoCommit(true);
             }
         }
     }

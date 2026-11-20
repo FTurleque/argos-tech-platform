@@ -42,7 +42,7 @@ import io.restassured.response.ValidatableResponse;
 class ParcoursVeilleWebTest {
 
     @Inject
-    TestDb db;
+    TestDb baseDeTest;
 
     @Inject
     ProjectDirectory projects;
@@ -52,7 +52,7 @@ class ParcoursVeilleWebTest {
 
     @BeforeEach
     void reset() {
-        db.reset();
+        baseDeTest.reset();
     }
 
     @Test
@@ -94,8 +94,8 @@ class ParcoursVeilleWebTest {
         String angular = liste.extract().path("find { it.titre == 'Angular 19' }.id");
         Api.en("nina").when().get("/api/v1/veille-web/actualites/" + angular).then().statusCode(200)
                 .body("rapprochements[0].niveau", equalTo("A_VERIFIER"));
-        assertEquals(0, db.count("SELECT count(*) FROM project_impact"));
-        assertEquals(2, db.count("SELECT count(*) FROM source_web"));
+        assertEquals(0, baseDeTest.count("SELECT count(*) FROM project_impact"));
+        assertEquals(2, baseDeTest.count("SELECT count(*) FROM source_web"));
     }
 
     @Test
