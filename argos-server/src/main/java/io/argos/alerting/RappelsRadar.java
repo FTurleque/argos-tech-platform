@@ -198,8 +198,8 @@ public class RappelsRadar {
                 if (!resultat.next()) {
                     return RAPPELS_PAR_DEFAUT;
                 }
-                Array tableau = resultat.getArray(1);
-                return Arrays.stream((Integer[]) tableau.getArray()).toList();
+                Array joursDeRappel = resultat.getArray(1);
+                return Arrays.stream((Integer[]) joursDeRappel.getArray()).toList();
             }
         }
     }

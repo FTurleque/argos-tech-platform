@@ -117,104 +117,145 @@ public class ResumesPeriodiques {
     }
 
     private java.util.Optional<UUID> composerPour(UUID compte, String canal, String frequence, Instant echeance) {
-        // Éléments en attente, hors signaux déjà alertés immédiatement au destinataire.
-        List<Element> elements = QuarkusTransaction.requiringNew().call(() -> {
-            try (Connection connexion = dataSource.getConnection()) {
-                try (PreparedStatement requete = connexion.prepareStatement("""
-                        DELETE FROM resume_element e WHERE e.compte_id = ? AND e.canal = ? AND e.frequence = ?
-                          AND e.alerte_id IS NULL AND EXISTS (SELECT 1 FROM alerte a WHERE a.nature = 'IMMEDIATE'
-                              AND a.etat <> 'ANNULEE' AND a.signal_id = e.signal_id AND a.compte_id = e.compte_id)
-                        """)) {
-                    requete.setObject(1, compte);
-                    requete.setString(2, canal);
-                    requete.setString(3, frequence);
-                    requete.executeUpdate();
-                }
-                List<Element> found = new ArrayList<>();
-                try (PreparedStatement requete = connexion.prepareStatement("""
-                        SELECT signal_id, titre, gravite, source, identifiant_externe FROM resume_element
-                        WHERE compte_id = ? AND canal = ? AND frequence = ? AND alerte_id IS NULL AND enregistre_le <= ?
-                        ORDER BY enregistre_le, signal_id
-                        """)) {
-                    requete.setObject(1, compte);
-                    requete.setString(2, canal);
-                    requete.setString(3, frequence);
-                    requete.setObject(4, echeance.atOffset(ZoneOffset.UTC));
-                    try (ResultSet resultat = requete.executeQuery()) {
-                        while (resultat.next()) {
-                            found.add(new Element(resultat.getObject(1, UUID.class), resultat.getString(2), resultat.getString(3),
-                                    resultat.getString(4), resultat.getString(5)));
-                        }
-                    }
-                }
-                return found;
-            }
-        });
+        Boite boite = new Boite(compte, canal);
+        List<Element> elements = QuarkusTransaction.requiringNew()
+                .call(() -> lireElementsEnAttente(boite, frequence, echeance));
         if (elements.isEmpty()) {
             return java.util.Optional.empty();
         }
+        TriElements tri = trierSelonVisibilite(compte, elements);
+        return QuarkusTransaction.requiringNew().call(() -> enregistrerResume(boite, frequence, echeance, tri));
+    }
+
+    /** Éléments en attente du résumé, hors signaux déjà alertés immédiatement au destinataire. */
+    private List<Element> lireElementsEnAttente(Boite boite, String frequence, Instant echeance)
+            throws java.sql.SQLException {
+        try (Connection connexion = dataSource.getConnection()) {
+            retirerDejaAlertes(connexion, boite, frequence);
+            return lireEnAttente(connexion, boite, frequence, echeance);
+        }
+    }
+
+    private static void retirerDejaAlertes(Connection connexion, Boite boite, String frequence)
+            throws java.sql.SQLException {
+        try (PreparedStatement requete = connexion.prepareStatement("""
+                DELETE FROM resume_element e WHERE e.compte_id = ? AND e.canal = ? AND e.frequence = ?
+                  AND e.alerte_id IS NULL AND EXISTS (SELECT 1 FROM alerte a WHERE a.nature = 'IMMEDIATE'
+                      AND a.etat <> 'ANNULEE' AND a.signal_id = e.signal_id AND a.compte_id = e.compte_id)
+                """)) {
+            requete.setObject(1, boite.compte());
+            requete.setString(2, boite.canal());
+            requete.setString(3, frequence);
+            requete.executeUpdate();
+        }
+    }
+
+    private static List<Element> lireEnAttente(Connection connexion, Boite boite, String frequence, Instant echeance)
+            throws java.sql.SQLException {
+        try (PreparedStatement requete = connexion.prepareStatement("""
+                SELECT signal_id, titre, gravite, source, identifiant_externe FROM resume_element
+                WHERE compte_id = ? AND canal = ? AND frequence = ? AND alerte_id IS NULL AND enregistre_le <= ?
+                ORDER BY enregistre_le, signal_id
+                """)) {
+            requete.setObject(1, boite.compte());
+            requete.setString(2, boite.canal());
+            requete.setString(3, frequence);
+            requete.setObject(4, echeance.atOffset(ZoneOffset.UTC));
+            try (ResultSet resultat = requete.executeQuery()) {
+                List<Element> enAttente = new ArrayList<>();
+                while (resultat.next()) {
+                    enAttente.add(new Element(resultat.getObject(1, UUID.class), resultat.getString(2),
+                            resultat.getString(3), resultat.getString(4), resultat.getString(5)));
+                }
+                return enAttente;
+            }
+        }
+    }
+
+    /**
+     * Éléments répartis selon ce que le destinataire voit au moment de la composition : contenus des éléments
+     * retenus, signaux retenus et signaux retirés (plus aucun impact visible ouvert ou confirmé, ALR-07-S2).
+     */
+    private record TriElements(List<ContenuAlerte.Element> contenus, List<UUID> retenus, List<UUID> retires) {
+    }
+
+    private TriElements trierSelonVisibilite(UUID compte, List<Element> elements) {
         Set<UUID> espaces = QuarkusTransaction.requiringNew().call(() -> destinataires.espacesDe(compte));
         Map<UUID, List<ImpactQueries.ImpactView>> visibles = QuarkusTransaction.requiringNew()
                 .call(() -> impacts.forSignals(elements.stream().map(Element::signalId).toList(), compte, espaces))
                 .stream().collect(Collectors.groupingBy(ImpactQueries.ImpactView::signalId, LinkedHashMap::new,
                         Collectors.toList()));
-        List<ContenuAlerte.Element> contenus = new ArrayList<>();
-        List<UUID> retenus = new ArrayList<>();
-        List<UUID> retires = new ArrayList<>();
+        TriElements tri = new TriElements(new ArrayList<>(), new ArrayList<>(), new ArrayList<>());
         for (Element element : elements) {
             List<ImpactQueries.ImpactView> vues = visibles.get(element.signalId());
             if (vues == null) {
-                retires.add(element.signalId());
+                tri.retires().add(element.signalId());
                 continue;
             }
-            retenus.add(element.signalId());
-            contenus.add(MoteurAlertes.element(element.signalId(), element.titre(), element.gravite(), element.source(),
-                    element.externe(), vues, lienBase));
+            tri.retenus().add(element.signalId());
+            tri.contenus().add(MoteurAlertes.element(element.signalId(), element.titre(), element.gravite(),
+                    element.source(), element.externe(), vues, lienBase));
         }
-        return QuarkusTransaction.requiringNew().call(() -> {
-            try (Connection connexion = dataSource.getConnection()) {
-                supprimer(connexion, compte, canal, frequence, retires);
-                if (contenus.isEmpty()) {
-                    return java.util.Optional.<UUID>empty();
-                }
-                UUID id = UUID.randomUUID();
-                String titre = contenus.size() + (contenus.size() == 1 ? " élément" : " éléments")
-                        + (RegleAlerte.WEEKLY.equals(frequence) ? " cette semaine" : " depuis le dernier résumé");
-                try (PreparedStatement requete = connexion.prepareStatement("""
-                        INSERT INTO alerte(id, nature, compte_id, canal, fin_periode, titre, gravite, contenu, resume_ia,
-                                           etat_resume_ia, etat, cree_le)
-                        VALUES (?, ?, ?, ?, ?, ?, NULL, ?::jsonb, NULL, 'SANS_OBJET', 'EN_ATTENTE', ?)
-                        ON CONFLICT (compte_id, canal, nature, fin_periode) WHERE nature <> 'IMMEDIATE' DO NOTHING
-                        RETURNING id
-                        """)) {
-                    requete.setObject(1, id);
-                    requete.setString(2, frequence);
-                    requete.setObject(3, compte);
-                    requete.setString(4, canal);
-                    requete.setObject(5, echeance.atOffset(ZoneOffset.UTC));
-                    requete.setString(6, titre);
-                    requete.setString(7, MoteurAlertes.json(new ContenuAlerte(contenus, null, "SANS_OBJET")));
-                    requete.setObject(8, echeance.atOffset(ZoneOffset.UTC));
-                    try (ResultSet resultat = requete.executeQuery()) {
-                        if (!resultat.next()) {
-                            return java.util.Optional.<UUID>empty();
-                        }
-                    }
-                }
-                try (PreparedStatement requete = connexion.prepareStatement("""
-                        UPDATE resume_element SET alerte_id = ?
-                        WHERE compte_id = ? AND canal = ? AND frequence = ? AND signal_id = ANY (?) AND alerte_id IS NULL
-                        """)) {
-                    requete.setObject(1, id);
-                    requete.setObject(2, compte);
-                    requete.setString(3, canal);
-                    requete.setString(4, frequence);
-                    requete.setArray(5, connexion.createArrayOf("uuid", retenus.toArray()));
-                    requete.executeUpdate();
-                }
-                return java.util.Optional.of(id);
+        return tri;
+    }
+
+    /** Retire les éléments sans objet, crée l'alerte de résumé et y rattache les éléments retenus. */
+    private java.util.Optional<UUID> enregistrerResume(Boite boite, String frequence, Instant echeance,
+            TriElements tri) throws java.sql.SQLException {
+        try (Connection connexion = dataSource.getConnection()) {
+            supprimer(connexion, boite.compte(), boite.canal(), frequence, tri.retires());
+            if (tri.contenus().isEmpty()) {
+                return java.util.Optional.<UUID>empty();
             }
-        });
+            java.util.Optional<UUID> alerte = creerAlerteResume(connexion, boite, frequence, echeance, tri.contenus());
+            if (alerte.isPresent()) {
+                rattacher(connexion, alerte.get(), boite, frequence, tri.retenus());
+            }
+            return alerte;
+        }
+    }
+
+    /** Crée l'alerte de résumé de la période et renvoie son identifiant ; vide si elle existe déjà (ALR-03). */
+    private static java.util.Optional<UUID> creerAlerteResume(Connection connexion, Boite boite, String frequence,
+            Instant echeance, List<ContenuAlerte.Element> contenus) throws java.sql.SQLException {
+        UUID id = UUID.randomUUID();
+        String titre = contenus.size() + (contenus.size() == 1 ? " élément" : " éléments")
+                + (RegleAlerte.WEEKLY.equals(frequence) ? " cette semaine" : " depuis le dernier résumé");
+        try (PreparedStatement requete = connexion.prepareStatement("""
+                INSERT INTO alerte(id, nature, compte_id, canal, fin_periode, titre, gravite, contenu, resume_ia,
+                                   etat_resume_ia, etat, cree_le)
+                VALUES (?, ?, ?, ?, ?, ?, NULL, ?::jsonb, NULL, 'SANS_OBJET', 'EN_ATTENTE', ?)
+                ON CONFLICT (compte_id, canal, nature, fin_periode) WHERE nature <> 'IMMEDIATE' DO NOTHING
+                RETURNING id
+                """)) {
+            requete.setObject(1, id);
+            requete.setString(2, frequence);
+            requete.setObject(3, boite.compte());
+            requete.setString(4, boite.canal());
+            requete.setObject(5, echeance.atOffset(ZoneOffset.UTC));
+            requete.setString(6, titre);
+            requete.setString(7, MoteurAlertes.json(new ContenuAlerte(contenus, null, "SANS_OBJET")));
+            requete.setObject(8, echeance.atOffset(ZoneOffset.UTC));
+            try (ResultSet resultat = requete.executeQuery()) {
+                return resultat.next() ? java.util.Optional.of(id) : java.util.Optional.<UUID>empty();
+            }
+        }
+    }
+
+    /** Rattache les éléments retenus à l'alerte de résumé créée. */
+    private static void rattacher(Connection connexion, UUID alerteId, Boite boite, String frequence,
+            List<UUID> retenus) throws java.sql.SQLException {
+        try (PreparedStatement requete = connexion.prepareStatement("""
+                UPDATE resume_element SET alerte_id = ?
+                WHERE compte_id = ? AND canal = ? AND frequence = ? AND signal_id = ANY (?) AND alerte_id IS NULL
+                """)) {
+            requete.setObject(1, alerteId);
+            requete.setObject(2, boite.compte());
+            requete.setString(3, boite.canal());
+            requete.setString(4, frequence);
+            requete.setArray(5, connexion.createArrayOf("uuid", retenus.toArray()));
+            requete.executeUpdate();
+        }
     }
 
     private static void supprimer(Connection connexion, UUID compte, String canal, String frequence, List<UUID> signaux)

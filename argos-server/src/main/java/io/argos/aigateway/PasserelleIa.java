@@ -93,23 +93,16 @@ public class PasserelleIa {
         if (!active) {
             return ReponseIa.refus(Issue.DESACTIVEE, modele, prompt.version());
         }
-        long debut = System.nanoTime();
-        Trace trace = new Trace(prompt, modele, demande.espaceId(), debut);
+        Trace trace = new Trace(prompt, modele, demande.espaceId(), System.nanoTime());
 
         if (demande.entrees().stream().anyMatch(entree -> !entree.classe().transmissible())) {
             return trace.refus(Issue.REFUS_CLASSE, 0);
         }
-        List<EntreeIa> filtrees = new ArrayList<>();
-        int masquees = 0;
-        for (EntreeIa entree : demande.entrees()) {
-            FiltreDonnees.Resultat filtrage = FiltreDonnees.filtrer(entree.valeur());
-            if (filtrage.secret()) {
-                return trace.refus(Issue.REFUS_DONNEE_SENSIBLE, 0);
-            }
-            masquees += filtrage.masquees();
-            filtrees.add(new EntreeIa(entree.nom(), borner(filtrage.texte()), entree.classe()));
+        EntreesFiltrees filtrage = filtrerEntrees(demande.entrees());
+        if (filtrage.secret()) {
+            return trace.refus(Issue.REFUS_DONNEE_SENSIBLE, 0);
         }
-        trace.empreinte = empreinte(prompt, filtrees);
+        trace.empreinte = empreinte(prompt, filtrage.entrees());
         QuotasIa.Reservation reservation;
         try {
             reservation = quotas.reserver(demande.espaceId(), demande.compteId());
@@ -117,23 +110,69 @@ public class PasserelleIa {
             LOG.warnf("quotas IA indisponibles : %s", erreur.getMessage());
             return ReponseIa.refus(Issue.INDISPONIBLE, modele, prompt.version());
         }
-        if (reservation == QuotasIa.Reservation.PLAFOND_INSTANCE) {
-            return trace.refus(Issue.PLAFOND_INSTANCE, masquees);
-        }
-        if (reservation == QuotasIa.Reservation.QUOTA_ESPACE) {
-            return trace.refus(Issue.QUOTA_ESPACE, masquees);
-        }
-        if (reservation == QuotasIa.Reservation.QUOTA_COMPTE) {
-            return trace.refus(Issue.QUOTA_COMPTE, masquees);
+        Optional<Issue> refusQuota = refusDeQuota(reservation);
+        if (refusQuota.isPresent()) {
+            return trace.refus(refusQuota.get(), filtrage.masquees());
         }
 
-        FournisseurModele.Reponse brute;
+        Optional<FournisseurModele.Reponse> reponseModele = appelerModele(demande, prompt, modele, filtrage.entrees());
+        if (reponseModele.isEmpty()) {
+            return trace.refus(Issue.INDISPONIBLE, filtrage.masquees());
+        }
+        FournisseurModele.Reponse brute = reponseModele.get();
+        Optional<Map<String, String>> champs = ValidationSortie.valider(json, prompt, brute.texte());
+        trace.enregistrer(champs.isPresent() ? Issue.PRODUIT : Issue.SORTIE_INVALIDE, brute, filtrage.masquees());
+        if (champs.isEmpty()) {
+            LOG.infof("sortie non conforme au schéma de la tâche %s v%d : rejetée", prompt.tache(), prompt.version());
+            return ReponseIa.refus(Issue.SORTIE_INVALIDE, brute.modele(), prompt.version());
+        }
+        return new ReponseIa(Issue.PRODUIT, champs.get(), ReponseIa.MENTION, demande.sources(), brute.modele(),
+                prompt.version());
+    }
+
+    /**
+     * Entrées filtrées et bornées, avec le nombre de valeurs masquées ; {@code secret} quand une entrée contient
+     * une donnée sensible, auquel cas la demande est refusée sans rien transmettre.
+     */
+    private record EntreesFiltrees(List<EntreeIa> entrees, int masquees, boolean secret) {
+    }
+
+    private EntreesFiltrees filtrerEntrees(List<EntreeIa> entrees) {
+        List<EntreeIa> filtrees = new ArrayList<>();
+        int masquees = 0;
+        for (EntreeIa entree : entrees) {
+            FiltreDonnees.Resultat filtrage = FiltreDonnees.filtrer(entree.valeur());
+            if (filtrage.secret()) {
+                return new EntreesFiltrees(List.of(), 0, true);
+            }
+            masquees += filtrage.masquees();
+            filtrees.add(new EntreeIa(entree.nom(), borner(filtrage.texte()), entree.classe()));
+        }
+        return new EntreesFiltrees(filtrees, masquees, false);
+    }
+
+    /** Issue du refus correspondant à une réservation de quota refusée ; vide si la réservation est accordée. */
+    private static Optional<Issue> refusDeQuota(QuotasIa.Reservation reservation) {
+        return switch (reservation) {
+            case PLAFOND_INSTANCE -> Optional.of(Issue.PLAFOND_INSTANCE);
+            case QUOTA_ESPACE -> Optional.of(Issue.QUOTA_ESPACE);
+            case QUOTA_COMPTE -> Optional.of(Issue.QUOTA_COMPTE);
+            default -> Optional.empty();
+        };
+    }
+
+    /**
+     * Réponse brute du modèle ; vide s'il est indisponible. Le quota réservé est restitué quand la demande n'a
+     * pas été transmise au modèle.
+     */
+    private Optional<FournisseurModele.Reponse> appelerModele(DemandeIa demande, PromptIa prompt, String modele,
+            List<EntreeIa> filtrees) {
         try {
-            brute = fournisseur.executer(new FournisseurModele.Requete(modele, prompt.consignes(), message(filtrees),
-                    schema(prompt)));
+            return Optional.of(fournisseur.executer(new FournisseurModele.Requete(modele, prompt.consignes(),
+                    message(filtrees), schema(prompt))));
         } catch (InterruptedException interruption) {
             Thread.currentThread().interrupt();
-            return trace.refus(Issue.INDISPONIBLE, masquees);
+            return Optional.empty();
         } catch (Exception erreur) {
             LOG.infof("modèle %s indisponible pour la tâche %s : %s", modele, prompt.tache(), erreur.toString());
             if (nonTransmis(erreur)) {
@@ -143,16 +182,8 @@ public class PasserelleIa {
                     LOG.warnf("restitution du quota IA impossible : %s", erreurRestitution.getMessage());
                 }
             }
-            return trace.refus(Issue.INDISPONIBLE, masquees);
+            return Optional.empty();
         }
-        Optional<Map<String, String>> champs = ValidationSortie.valider(json, prompt, brute.texte());
-        trace.enregistrer(champs.isPresent() ? Issue.PRODUIT : Issue.SORTIE_INVALIDE, brute, masquees);
-        if (champs.isEmpty()) {
-            LOG.infof("sortie non conforme au schéma de la tâche %s v%d : rejetée", prompt.tache(), prompt.version());
-            return ReponseIa.refus(Issue.SORTIE_INVALIDE, brute.modele(), prompt.version());
-        }
-        return new ReponseIa(Issue.PRODUIT, champs.get(), ReponseIa.MENTION, demande.sources(), brute.modele(),
-                prompt.version());
     }
 
     /** Valeur bornée à {@code argos.ia.taille-max-entree} caractères. */

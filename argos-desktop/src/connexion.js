@@ -12,6 +12,8 @@ const CHEMIN_RETOUR = '/argos/retour';
 const DELAI_MAX_MS = 5 * 60 * 1000;
 const URL_MAX = 8192;
 const RECHERCHE_MAX = 4096;
+const STATUT_OK = 200;
+const STATUT_INTROUVABLE = 404;
 
 /** Page affichée dans le navigateur après le retour : statique, sans reprise des paramètres reçus. */
 const PAGE_RETOUR = [
@@ -101,6 +103,93 @@ function retourAttendu(requete, url, courante, active) {
   return url.pathname === CHEMIN_RETOUR && active && Boolean(courante.resoudre);
 }
 
+/** URL de la requête reçue par l'écoute locale, ou null si elle est illisible. */
+function lireUrlRequete(requete) {
+  try {
+    return new URL(requete.url, `http://${HOTE}`);
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Répond à une requête reçue par l'écoute locale : 404 sauf pour le retour attendu, qui affiche la page
+ * de retour, remet la fenêtre au premier plan et ferme l'écoute avec la chaîne de requête reçue.
+ */
+function traiterRequete(requete, reponse, contexte) {
+  const url = lireUrlRequete(requete);
+  if (!retourAttendu(requete, url, contexte.courante, contexte.estActive())) {
+    reponse.writeHead(STATUT_INTROUVABLE, { 'Content-Type': 'text/plain; charset=utf-8' });
+    reponse.end('Introuvable');
+    return;
+  }
+  reponse.writeHead(STATUT_OK, ENTETES_PAGE);
+  reponse.end(PAGE_RETOUR);
+  if (contexte.afficherFenetre) contexte.afficherFenetre();
+  contexte.fermer(url.search.slice(0, RECHERCHE_MAX));
+}
+
+/** Ouvre l'URL dans le navigateur ; tout échec, synchrone ou non, appelle `echec`. */
+function ouvrirSansErreur(ouvrirNavigateur, url, echec) {
+  try {
+    Promise.resolve(ouvrirNavigateur(url)).catch(echec);
+  } catch {
+    echec();
+  }
+}
+
+/**
+ * Ferme l'écoute en cours de `etat` et résout son attente avec `resultat`.
+ * @param {{ecoute: object|null, annuler: Function}} etat écoute en cours et clearTimeout injectable
+ */
+function fermerEcoute(etat, resultat) {
+  const courante = etat.ecoute;
+  etat.ecoute = null;
+  if (!courante) return;
+  if (courante.minuterie) etat.annuler(courante.minuterie);
+  courante.serveur.close();
+  if (courante.resoudre) courante.resoudre(resultat);
+}
+
+/** Ouvre une écoute locale et renvoie l'adresse de redirection, ou null si l'écoute échoue. */
+function ouvrirEcoute(etat, dependances) {
+  return new Promise((resolve) => {
+    const courante = { serveur: null, redirectUri: null, resoudre: null, minuterie: null };
+    const contexte = {
+      courante,
+      estActive: () => etat.ecoute === courante,
+      afficherFenetre: dependances.afficherFenetre,
+      fermer: (resultat) => fermerEcoute(etat, resultat),
+    };
+    const serveur = dependances.http.createServer((requete, reponse) => traiterRequete(requete, reponse, contexte));
+    courante.serveur = serveur;
+    serveur.on('error', () => {
+      if (etat.ecoute === courante) fermerEcoute(etat, null);
+      resolve(null);
+    });
+    serveur.listen(0, HOTE, () => {
+      courante.redirectUri = `http://${HOTE}:${serveur.address().port}${CHEMIN_RETOUR}`;
+      etat.ecoute = courante;
+      resolve(courante.redirectUri);
+    });
+  });
+}
+
+/**
+ * Ouvre l'URL sûre dans le navigateur et attend le retour de l'écoute `courante`, au plus `delaiMaxMs`.
+ * Résout la chaîne de requête du retour, ou null (abandon, délai dépassé, navigateur en échec).
+ */
+function attendreRetour(etat, courante, urlSure, options) {
+  const fermerSiCourante = () => {
+    if (etat.ecoute === courante) fermerEcoute(etat, null);
+  };
+  return new Promise((resolve) => {
+    courante.resoudre = resolve;
+    courante.minuterie = options.planifier(fermerSiCourante, options.delaiMaxMs);
+    ouvrirSansErreur(options.ouvrirNavigateur, urlSure, fermerSiCourante);
+  });
+}
+
 /**
  * @param {object} dependances dépendances
  * @param {{createServer: Function}} dependances.http module node:http
@@ -112,54 +201,18 @@ function retourAttendu(requete, url, courante, active) {
  * @param {Function} [dependances.annuler] clearTimeout injectable
  */
 function creerConnexion(dependances) {
-  const planifier = dependances.planifier ?? setTimeout;
-  const annuler = dependances.annuler ?? clearTimeout;
-  const delaiMaxMs = dependances.delaiMaxMs ?? DELAI_MAX_MS;
   /** Écoute en cours : { serveur, redirectUri, resoudre, minuterie } ; une seule à la fois. */
-  let ecoute = null;
-
-  function fermer(resultat) {
-    const courante = ecoute;
-    ecoute = null;
-    if (!courante) return;
-    if (courante.minuterie) annuler(courante.minuterie);
-    courante.serveur.close();
-    if (courante.resoudre) courante.resoudre(resultat);
-  }
+  const etat = { ecoute: null, annuler: dependances.annuler ?? clearTimeout };
+  const options = {
+    planifier: dependances.planifier ?? setTimeout,
+    delaiMaxMs: dependances.delaiMaxMs ?? DELAI_MAX_MS,
+    ouvrirNavigateur: dependances.ouvrirNavigateur,
+  };
 
   /** Ouvre l'écoute locale et renvoie l'adresse de redirection ; ferme toute écoute précédente. */
   function preparer() {
-    fermer(null);
-    return new Promise((resolve) => {
-      const courante = { serveur: null, redirectUri: null, resoudre: null, minuterie: null };
-      const serveur = dependances.http.createServer((requete, reponse) => {
-        let url;
-        try {
-          url = new URL(requete.url, `http://${HOTE}`);
-        } catch {
-          url = null;
-        }
-        if (!retourAttendu(requete, url, courante, ecoute === courante)) {
-          reponse.writeHead(404, { 'Content-Type': 'text/plain; charset=utf-8' });
-          reponse.end('Introuvable');
-          return;
-        }
-        reponse.writeHead(200, ENTETES_PAGE);
-        reponse.end(PAGE_RETOUR);
-        if (dependances.afficherFenetre) dependances.afficherFenetre();
-        fermer(url.search.slice(0, RECHERCHE_MAX));
-      });
-      courante.serveur = serveur;
-      serveur.on('error', () => {
-        if (ecoute === courante) fermer(null);
-        resolve(null);
-      });
-      serveur.listen(0, HOTE, () => {
-        courante.redirectUri = `http://${HOTE}:${serveur.address().port}${CHEMIN_RETOUR}`;
-        ecoute = courante;
-        resolve(courante.redirectUri);
-      });
-    });
+    fermerEcoute(etat, null);
+    return ouvrirEcoute(etat, dependances);
   }
 
   /**
@@ -167,23 +220,14 @@ function creerConnexion(dependances) {
    * Renvoie la chaîne de requête du retour, ou null (URL refusée, abandon, délai dépassé).
    */
   function autoriser(url) {
-    const courante = ecoute;
+    const courante = etat.ecoute;
     if (!courante || courante.resoudre) return Promise.resolve(null);
     const sure = urlAutorisationSure(url, { emetteur: dependances.emetteur, redirectUri: courante.redirectUri });
     if (!sure) return Promise.resolve(null);
-    return new Promise((resolve) => {
-      courante.resoudre = resolve;
-      courante.minuterie = planifier(() => { if (ecoute === courante) fermer(null); }, delaiMaxMs);
-      const echec = () => { if (ecoute === courante) fermer(null); };
-      try {
-        Promise.resolve(dependances.ouvrirNavigateur(sure)).catch(echec);
-      } catch {
-        echec();
-      }
-    });
+    return attendreRetour(etat, courante, sure, options);
   }
 
-  return { preparer, autoriser, fermer: () => fermer(null), enAttente: () => ecoute !== null };
+  return { preparer, autoriser, fermer: () => fermerEcoute(etat, null), enAttente: () => etat.ecoute !== null };
 }
 
 module.exports = { creerConnexion, demandeAcceptable, urlAutorisationSure, CHEMIN_RETOUR, HOTE, PAGE_RETOUR };

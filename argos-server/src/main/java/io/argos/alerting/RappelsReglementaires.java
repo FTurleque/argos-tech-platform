@@ -67,14 +67,14 @@ public class RappelsReglementaires {
     /** Envoie les rappels du jour ; renvoie les messages créés. Une échéance en échec n'interrompt pas les autres. */
     public List<UUID> executer(LocalDate aujourdhui, Instant maintenant) {
         List<UUID> crees = new ArrayList<>();
-        List<EcheancesReglementaires.Echeance> liste;
+        List<EcheancesReglementaires.Echeance> echeancesDuJour;
         try {
-            liste = echeances.echeancesDuJour(aujourdhui);
+            echeancesDuJour = echeances.echeancesDuJour(aujourdhui);
         } catch (RuntimeException erreur) {
             LOG.errorf(erreur, "lecture des échéances réglementaires impossible");
             return crees;
         }
-        for (EcheancesReglementaires.Echeance echeance : liste) {
+        for (EcheancesReglementaires.Echeance echeance : echeancesDuJour) {
             try {
                 crees.addAll(rappeler(echeance, maintenant));
             } catch (RuntimeException erreur) {
