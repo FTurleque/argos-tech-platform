@@ -213,14 +213,14 @@ class ResilienceTest {
         assertEquals(List.of("GHSA-C1", "GHSA-C2", "GHSA-C3", "GHSA-C4"), crashingFeed.fetched());
     }
 
-    /** Une exception autre qu'une erreur de source termine le traitement en échec, jamais RUNNING. */
+    /** Une panne d'accès aux données (IllegalStateException) termine le traitement en échec, jamais RUNNING. */
     @Test
-    void erreurInattendueTermineLeTraitementEnEchec() {
+    void panneAccesDonneesTermineLeTraitementEnEchec() {
         baseDeTest.exec("INSERT INTO source(id, label) VALUES ('CRASHTEST', 'source de test')");
         List<FeedEntry> entries = List.of(new FeedEntry("GHSA-U1", Instant.parse("2026-11-01T00:00:00Z")));
         crashingFeed.configure(entries, entries.stream().map(entree -> advisory(entree.externalId(), entree.modified().toString()))
                 .toList(), -1);
-        crashingFeed.failOnceWith(new IllegalStateException("bogue simulé d'un normaliseur"));
+        crashingFeed.failOnceWith(new IllegalStateException("panne simulée d'accès aux données"));
 
         SourceSynchronizer.SyncReport failed = synchronizer.synchronize(CrashingFeed.SOURCE_ID);
 

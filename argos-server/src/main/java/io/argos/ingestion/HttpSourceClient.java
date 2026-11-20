@@ -9,6 +9,7 @@ import java.net.http.HttpTimeoutException;
 import java.time.Duration;
 import java.time.ZonedDateTime;
 import java.time.format.DateTimeFormatter;
+import java.time.format.DateTimeParseException;
 import java.util.Optional;
 
 import jakarta.enterprise.context.ApplicationScoped;
@@ -77,7 +78,7 @@ public class HttpSourceClient {
                 ZonedDateTime date = ZonedDateTime.parse(trimmed, DateTimeFormatter.RFC_1123_DATE_TIME);
                 Duration delay = Duration.between(ZonedDateTime.now(date.getZone()), date);
                 return Optional.of(delay.isNegative() ? Duration.ZERO : delay);
-            } catch (RuntimeException notDate) {
+            } catch (DateTimeParseException notDate) {
                 return Optional.empty();
             }
         }
