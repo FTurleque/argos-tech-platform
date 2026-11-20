@@ -92,16 +92,16 @@ public class CollecteActivite {
                     reportees++;
                     continue;
                 }
-                Issue issue = collecterDepot(projet.id(), depot, maintenant, q -> quotas.put(forge, q));
+                Issue issue = collecterDepot(projet.id(), depot, maintenant, epuisement -> quotas.put(forge, epuisement));
                 switch (issue) {
                     case A_JOUR -> aJour++;
                     case REPORTEE_QUOTA -> reportees++;
                     case ECHEC -> echecs++;
                     default -> { }
                 }
-            } catch (RuntimeException e) {
+            } catch (RuntimeException erreur) {
                 echecs++;
-                LOG.errorf(e, "collecte de l'activité du projet %s en échec", projet.id());
+                LOG.errorf(erreur, "collecte de l'activité du projet %s en échec", projet.id());
             }
         }
         return new Bilan(aJour, reportees, echecs);
@@ -113,7 +113,7 @@ public class CollecteActivite {
         if (projet.isEmpty() || projet.get().repository().isEmpty()) {
             return Issue.SANS_DEPOT;
         }
-        return collecterDepot(projectId, projet.get().repository().get(), maintenant, q -> { });
+        return collecterDepot(projectId, projet.get().repository().get(), maintenant, epuisement -> { });
     }
 
     private Issue collecterDepot(UUID projectId, RepositoryRef depot, Instant maintenant,
@@ -126,14 +126,14 @@ public class CollecteActivite {
             store.enregistrer(projectId, debut, fin, Agregation.compter(activite, debut, fin, zone), activite.jalons(),
                     activite.complet(), maintenant, maintenant.plus(frequence));
             return Issue.A_JOUR;
-        } catch (QuotaEpuise q) {
-            surQuota.accept(q);
-            store.reporter(projectId, "REPORTEE_QUOTA", q.reprise(), q.getMessage(), maintenant);
-            LOG.infof("collecte de l'activité du projet %s reportée : %s", projectId, q.getMessage());
+        } catch (QuotaEpuise epuisement) {
+            surQuota.accept(epuisement);
+            store.reporter(projectId, "REPORTEE_QUOTA", epuisement.reprise(), epuisement.getMessage(), maintenant);
+            LOG.infof("collecte de l'activité du projet %s reportée : %s", projectId, epuisement.getMessage());
             return Issue.REPORTEE_QUOTA;
-        } catch (ScmException e) {
-            store.reporter(projectId, "ECHEC", maintenant.plus(delaiApresEchec), e.getMessage(), maintenant);
-            LOG.warnf("collecte de l'activité du projet %s impossible : %s", projectId, e.getMessage());
+        } catch (ScmException erreur) {
+            store.reporter(projectId, "ECHEC", maintenant.plus(delaiApresEchec), erreur.getMessage(), maintenant);
+            LOG.warnf("collecte de l'activité du projet %s impossible : %s", projectId, erreur.getMessage());
             return Issue.ECHEC;
         }
     }

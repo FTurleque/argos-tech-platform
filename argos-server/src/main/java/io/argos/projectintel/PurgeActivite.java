@@ -34,8 +34,8 @@ public class PurgeActivite {
     void planifiee() {
         try {
             purger(LocalDate.now(ZoneId.of(fuseau)));
-        } catch (RuntimeException e) {
-            LOG.errorf(e, "purge de l'historique d'activité en échec");
+        } catch (RuntimeException erreur) {
+            LOG.errorf(erreur, "purge de l'historique d'activité en échec");
         }
     }
 

@@ -25,24 +25,24 @@ final class Agregation {
     /** Compteurs par jour (fuseau {@code zone}) des événements datés du jour {@code debut} au jour {@code fin} inclus. */
     static Map<LocalDate, Map<Type, Integer>> compter(ActiviteDepot activite, LocalDate debut, LocalDate fin, ZoneId zone) {
         Map<LocalDate, Map<Type, Integer>> jours = new TreeMap<>();
-        for (ActiviteDepot.Ticket t : activite.tickets()) {
-            ajouter(jours, t.creeLe(), Type.TICKET_OUVERT, debut, fin, zone);
-            ajouter(jours, t.fermeLe(), Type.TICKET_FERME, debut, fin, zone);
+        for (ActiviteDepot.Ticket ticket : activite.tickets()) {
+            ajouter(jours, ticket.creeLe(), Type.TICKET_OUVERT, debut, fin, zone);
+            ajouter(jours, ticket.fermeLe(), Type.TICKET_FERME, debut, fin, zone);
         }
-        for (ActiviteDepot.Fusion f : activite.fusions()) {
-            ajouter(jours, f.creeLe(), Type.FUSION_OUVERTE, debut, fin, zone);
-            ajouter(jours, f.fusionneeLe(), Type.FUSION_FUSIONNEE, debut, fin, zone);
+        for (ActiviteDepot.Fusion fusion : activite.fusions()) {
+            ajouter(jours, fusion.creeLe(), Type.FUSION_OUVERTE, debut, fin, zone);
+            ajouter(jours, fusion.fusionneeLe(), Type.FUSION_FUSIONNEE, debut, fin, zone);
         }
-        for (ActiviteDepot.Pipeline p : activite.pipelines()) {
-            Type type = switch (p.issue()) {
+        for (ActiviteDepot.Pipeline pipeline : activite.pipelines()) {
+            Type type = switch (pipeline.issue()) {
                 case REUSSI -> Type.PIPELINE_REUSSI;
                 case ECHOUE -> Type.PIPELINE_ECHOUE;
                 case AUTRE -> Type.PIPELINE_AUTRE;
             };
-            ajouter(jours, p.creeLe(), type, debut, fin, zone);
+            ajouter(jours, pipeline.creeLe(), type, debut, fin, zone);
         }
-        for (ActiviteDepot.Version v : activite.versions()) {
-            ajouter(jours, v.publieeLe(), Type.VERSION_PUBLIEE, debut, fin, zone);
+        for (ActiviteDepot.Version version : activite.versions()) {
+            ajouter(jours, version.publieeLe(), Type.VERSION_PUBLIEE, debut, fin, zone);
         }
         return jours;
     }
@@ -56,6 +56,6 @@ final class Agregation {
         if (jour.isBefore(debut) || jour.isAfter(fin)) {
             return;
         }
-        jours.computeIfAbsent(jour, j -> new EnumMap<>(Type.class)).merge(type, 1, Integer::sum);
+        jours.computeIfAbsent(jour, cleJour -> new EnumMap<>(Type.class)).merge(type, 1, Integer::sum);
     }
 }
