@@ -72,26 +72,26 @@ public class AnalyseComplementaireIa implements ComplementaryAnalysis {
                 continue;
             }
             StringBuilder liste = new StringBuilder();
-            for (int i = 0; i < candidats.size(); i++) {
-                liste.append(i + 1).append(". ").append(candidats.get(i).nom()).append('\n');
+            for (int position = 0; position < candidats.size(); position++) {
+                liste.append(position + 1).append(". ").append(candidats.get(position).nom()).append('\n');
             }
             appels++;
-            ReponseIa r = passerelle.demander(new DemandeIa(RegistrePrompts.ANALYSE_CORRELATION, espace.getKey(),
+            ReponseIa reponse = passerelle.demander(new DemandeIa(RegistrePrompts.ANALYSE_CORRELATION, espace.getKey(),
                     List.of(EntreeIa.publique("titre", ctx.titre()),
                             EntreeIa.publique("paquets", String.join(", ", ctx.paquets())),
                             EntreeIa.interne("projets", liste.toString())),
                     List.of()));
-            if (r.issue() == ReponseIa.Issue.INDISPONIBLE) {
+            if (reponse.issue() == ReponseIa.Issue.INDISPONIBLE) {
                 indisponibles++;
                 continue;
             }
-            if (!r.produit() || r.champ("projets").isEmpty()) {
+            if (!reponse.produit() || reponse.champ("projets").isEmpty()) {
                 continue;
             }
-            for (String n : r.champ("projets").split(",")) {
-                int index = Integer.parseInt(n) - 1;
+            for (String nom : reponse.champ("projets").split(",")) {
+                int index = Integer.parseInt(nom) - 1;
                 if (index < candidats.size()) {
-                    suggestions.add(new Suggestion(candidats.get(index).id(), r.champ("justification")));
+                    suggestions.add(new Suggestion(candidats.get(index).id(), reponse.champ("justification")));
                 }
             }
         }
@@ -109,58 +109,58 @@ public class AnalyseComplementaireIa implements ComplementaryAnalysis {
 
     /** Signal, paquets et candidats par espace, lus sous l'utilisateur de connexion (traitement système). */
     private Contexte lire(UUID signalId, List<UUID> impactIds) {
-        try (Connection c = dataSource.getConnection()) {
+        try (Connection connexion = dataSource.getConnection()) {
             String titre = "";
-            try (PreparedStatement ps = c.prepareStatement("SELECT coalesce(title, external_id) FROM signal WHERE id = ?")) {
-                ps.setObject(1, signalId);
-                try (ResultSet rs = ps.executeQuery()) {
-                    if (rs.next()) {
-                        titre = rs.getString(1);
+            try (PreparedStatement requete = connexion.prepareStatement("SELECT coalesce(title, external_id) FROM signal WHERE id = ?")) {
+                requete.setObject(1, signalId);
+                try (ResultSet resultat = requete.executeQuery()) {
+                    if (resultat.next()) {
+                        titre = resultat.getString(1);
                     }
                 }
             }
             List<String> paquets = new ArrayList<>();
-            try (PreparedStatement ps = c.prepareStatement(
+            try (PreparedStatement requete = connexion.prepareStatement(
                     "SELECT package_key FROM signal_package WHERE signal_id = ? ORDER BY package_key LIMIT 20")) {
-                ps.setObject(1, signalId);
-                try (ResultSet rs = ps.executeQuery()) {
-                    while (rs.next()) {
-                        paquets.add(rs.getString(1));
+                requete.setObject(1, signalId);
+                try (ResultSet resultat = requete.executeQuery()) {
+                    while (resultat.next()) {
+                        paquets.add(resultat.getString(1));
                     }
                 }
             }
             Set<UUID> espaces = new LinkedHashSet<>();
             Set<UUID> touches = new LinkedHashSet<>();
-            Array ids = c.createArrayOf("uuid", impactIds.toArray());
-            try (PreparedStatement ps = c.prepareStatement(
+            Array ids = connexion.createArrayOf("uuid", impactIds.toArray());
+            try (PreparedStatement requete = connexion.prepareStatement(
                     "SELECT workspace_id, project_id FROM project_impact WHERE id = ANY (?) ORDER BY workspace_id")) {
-                ps.setArray(1, ids);
-                try (ResultSet rs = ps.executeQuery()) {
-                    while (rs.next()) {
-                        espaces.add(rs.getObject(1, UUID.class));
-                        touches.add(rs.getObject(2, UUID.class));
+                requete.setArray(1, ids);
+                try (ResultSet resultat = requete.executeQuery()) {
+                    while (resultat.next()) {
+                        espaces.add(resultat.getObject(1, UUID.class));
+                        touches.add(resultat.getObject(2, UUID.class));
                     }
                 }
             }
             Map<UUID, List<Candidat>> candidats = new LinkedHashMap<>();
             for (UUID espace : espaces) {
                 List<Candidat> liste = new ArrayList<>();
-                try (PreparedStatement ps = c.prepareStatement(
+                try (PreparedStatement requete = connexion.prepareStatement(
                         "SELECT id, name FROM project WHERE workspace_id = ? AND NOT (id = ANY (?)) ORDER BY name, id LIMIT ?")) {
-                    ps.setObject(1, espace);
-                    ps.setArray(2, c.createArrayOf("uuid", touches.toArray()));
-                    ps.setInt(3, CANDIDATS_MAX);
-                    try (ResultSet rs = ps.executeQuery()) {
-                        while (rs.next()) {
-                            liste.add(new Candidat(rs.getObject(1, UUID.class), rs.getString(2)));
+                    requete.setObject(1, espace);
+                    requete.setArray(2, connexion.createArrayOf("uuid", touches.toArray()));
+                    requete.setInt(3, CANDIDATS_MAX);
+                    try (ResultSet resultat = requete.executeQuery()) {
+                        while (resultat.next()) {
+                            liste.add(new Candidat(resultat.getObject(1, UUID.class), resultat.getString(2)));
                         }
                     }
                 }
                 candidats.put(espace, liste);
             }
             return new Contexte(titre, paquets, candidats);
-        } catch (SQLException e) {
-            throw new IllegalStateException("lecture du contexte d'analyse impossible", e);
+        } catch (SQLException erreur) {
+            throw new IllegalStateException("lecture du contexte d'analyse impossible", erreur);
         }
     }
 }

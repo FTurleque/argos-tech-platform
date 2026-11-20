@@ -41,7 +41,7 @@ public enum EtatImpact {
             return suivants();
         }
         EnumSet<EtatImpact> inactifs = EnumSet.noneOf(EtatImpact.class);
-        suivants().stream().filter(e -> !ACTIFS.contains(e)).forEach(inactifs::add);
+        suivants().stream().filter(etat -> !ACTIFS.contains(etat)).forEach(inactifs::add);
         return Set.copyOf(inactifs);
     }
 
@@ -57,7 +57,7 @@ public enum EtatImpact {
         }
         try {
             return Optional.of(valueOf(code.strip().toUpperCase(Locale.ROOT)));
-        } catch (IllegalArgumentException e) {
+        } catch (IllegalArgumentException erreur) {
             return Optional.empty();
         }
     }

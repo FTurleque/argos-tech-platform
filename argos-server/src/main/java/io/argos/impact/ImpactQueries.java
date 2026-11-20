@@ -111,61 +111,61 @@ public class ImpactQueries {
     @Transactional
     public Page forSignal(UUID signalId, UUID accountId, Set<UUID> workspaces, Set<EtatImpact> etats, int page,
             int size) {
-        int p = Math.max(page, 0);
-        int s = Math.min(Math.max(size, 1), 200);
-        try (Connection c = dataSource.getConnection()) {
-            RlsSession.account(c, accountId);
+        int boundedPage = Math.max(page, 0);
+        int boundedSize = Math.min(Math.max(size, 1), 200);
+        try (Connection connexion = dataSource.getConnection()) {
+            RlsSession.account(connexion, accountId);
             long total;
-            try (PreparedStatement ps = c.prepareStatement(
+            try (PreparedStatement requete = connexion.prepareStatement(
                     "SELECT count(*) FROM project_impact WHERE signal_id = ? AND workspace_id = ANY (?) AND state = ANY (?)")) {
-                ps.setObject(1, signalId);
-                ps.setArray(2, uuids(c, workspaces));
-                ps.setArray(3, etats(c, etats));
-                try (ResultSet rs = ps.executeQuery()) {
-                    rs.next();
-                    total = rs.getLong(1);
+                requete.setObject(1, signalId);
+                requete.setArray(2, uuids(connexion, workspaces));
+                requete.setArray(3, etats(connexion, etats));
+                try (ResultSet resultat = requete.executeQuery()) {
+                    resultat.next();
+                    total = resultat.getLong(1);
                 }
             }
             List<ImpactView> items = new ArrayList<>();
-            try (PreparedStatement ps = c.prepareStatement(SELECT
+            try (PreparedStatement requete = connexion.prepareStatement(SELECT
                     + " WHERE i.signal_id = ? AND i.workspace_id = ANY (?) AND i.state = ANY (?)"
                     + " ORDER BY i.created_at, i.id LIMIT ? OFFSET ?")) {
-                ps.setObject(1, signalId);
-                ps.setArray(2, uuids(c, workspaces));
-                ps.setArray(3, etats(c, etats));
-                ps.setInt(4, s);
-                ps.setLong(5, (long) p * s);
-                try (ResultSet rs = ps.executeQuery()) {
-                    while (rs.next()) {
-                        items.add(view(rs));
+                requete.setObject(1, signalId);
+                requete.setArray(2, uuids(connexion, workspaces));
+                requete.setArray(3, etats(connexion, etats));
+                requete.setInt(4, boundedSize);
+                requete.setLong(5, (long) boundedPage * boundedSize);
+                try (ResultSet resultat = requete.executeQuery()) {
+                    while (resultat.next()) {
+                        items.add(view(resultat));
                     }
                 }
             }
-            return new Page(items, p, s, total);
-        } catch (SQLException e) {
-            throw new IllegalStateException("lecture des impacts impossible", e);
+            return new Page(items, boundedPage, boundedSize, total);
+        } catch (SQLException erreur) {
+            throw new IllegalStateException("lecture des impacts impossible", erreur);
         }
     }
 
     /** Impact, quel que soit son état, avec son historique, s'il appartient à l'un des espaces donnés. */
     @Transactional
     public Optional<ImpactView> find(UUID impactId, UUID accountId, Set<UUID> workspaces) {
-        try (Connection c = dataSource.getConnection()) {
-            RlsSession.account(c, accountId);
+        try (Connection connexion = dataSource.getConnection()) {
+            RlsSession.account(connexion, accountId);
             ImpactView vue;
-            try (PreparedStatement ps = c.prepareStatement(SELECT + " WHERE i.id = ? AND i.workspace_id = ANY (?)")) {
-                ps.setObject(1, impactId);
-                ps.setArray(2, uuids(c, workspaces));
-                try (ResultSet rs = ps.executeQuery()) {
-                    if (!rs.next()) {
+            try (PreparedStatement requete = connexion.prepareStatement(SELECT + " WHERE i.id = ? AND i.workspace_id = ANY (?)")) {
+                requete.setObject(1, impactId);
+                requete.setArray(2, uuids(connexion, workspaces));
+                try (ResultSet resultat = requete.executeQuery()) {
+                    if (!resultat.next()) {
                         return Optional.empty();
                     }
-                    vue = view(rs);
+                    vue = view(resultat);
                 }
             }
-            return Optional.of(vue.avecHistorique(historique(c, impactId)));
-        } catch (SQLException e) {
-            throw new IllegalStateException("lecture de l'impact impossible", e);
+            return Optional.of(vue.avecHistorique(historique(connexion, impactId)));
+        } catch (SQLException erreur) {
+            throw new IllegalStateException("lecture de l'impact impossible", erreur);
         }
     }
 
@@ -179,22 +179,22 @@ public class ImpactQueries {
         if (signalIds.isEmpty() || workspaces.isEmpty()) {
             return items;
         }
-        try (Connection c = dataSource.getConnection()) {
-            RlsSession.account(c, accountId);
-            try (PreparedStatement ps = c.prepareStatement(SELECT
+        try (Connection connexion = dataSource.getConnection()) {
+            RlsSession.account(connexion, accountId);
+            try (PreparedStatement requete = connexion.prepareStatement(SELECT
                     + " WHERE i.signal_id = ANY (?) AND i.workspace_id = ANY (?) AND i.state = ANY (?)"
                     + " ORDER BY i.created_at, i.id")) {
-                ps.setArray(1, c.createArrayOf("uuid", signalIds.toArray()));
-                ps.setArray(2, uuids(c, workspaces));
-                ps.setArray(3, etats(c, EtatImpact.ACTIFS));
-                try (ResultSet rs = ps.executeQuery()) {
-                    while (rs.next()) {
-                        items.add(view(rs));
+                requete.setArray(1, connexion.createArrayOf("uuid", signalIds.toArray()));
+                requete.setArray(2, uuids(connexion, workspaces));
+                requete.setArray(3, etats(connexion, EtatImpact.ACTIFS));
+                try (ResultSet resultat = requete.executeQuery()) {
+                    while (resultat.next()) {
+                        items.add(view(resultat));
                     }
                 }
             }
-        } catch (SQLException e) {
-            throw new IllegalStateException("lecture des impacts impossible", e);
+        } catch (SQLException erreur) {
+            throw new IllegalStateException("lecture des impacts impossible", erreur);
         }
         return items;
     }
@@ -212,22 +212,22 @@ public class ImpactQueries {
         if (workspaces.isEmpty()) {
             return items;
         }
-        try (Connection c = dataSource.getConnection()) {
-            RlsSession.account(c, accountId);
-            try (PreparedStatement ps = c.prepareStatement(SELECT
+        try (Connection connexion = dataSource.getConnection()) {
+            RlsSession.account(connexion, accountId);
+            try (PreparedStatement requete = connexion.prepareStatement(SELECT
                     + " WHERE i.project_id = ? AND i.workspace_id = ANY (?) AND i.state = ANY (?)"
                     + " ORDER BY i.created_at, i.id")) {
-                ps.setObject(1, projectId);
-                ps.setArray(2, uuids(c, workspaces));
-                ps.setArray(3, etats(c, etats));
-                try (ResultSet rs = ps.executeQuery()) {
-                    while (rs.next()) {
-                        items.add(view(rs));
+                requete.setObject(1, projectId);
+                requete.setArray(2, uuids(connexion, workspaces));
+                requete.setArray(3, etats(connexion, etats));
+                try (ResultSet resultat = requete.executeQuery()) {
+                    while (resultat.next()) {
+                        items.add(view(resultat));
                     }
                 }
             }
-        } catch (SQLException e) {
-            throw new IllegalStateException("lecture des impacts impossible", e);
+        } catch (SQLException erreur) {
+            throw new IllegalStateException("lecture des impacts impossible", erreur);
         }
         return items;
     }
@@ -239,21 +239,21 @@ public class ImpactQueries {
         if (workspaces.isEmpty()) {
             return items;
         }
-        try (Connection c = dataSource.getConnection()) {
-            RlsSession.account(c, accountId);
-            try (PreparedStatement ps = c.prepareStatement(SELECT
+        try (Connection connexion = dataSource.getConnection()) {
+            RlsSession.account(connexion, accountId);
+            try (PreparedStatement requete = connexion.prepareStatement(SELECT
                     + " WHERE i.workspace_id = ANY (?) AND i.state = ANY (?) ORDER BY i.updated_at DESC, i.id LIMIT ?")) {
-                ps.setArray(1, uuids(c, workspaces));
-                ps.setArray(2, etats(c, EtatImpact.ACTIFS));
-                ps.setInt(3, Math.min(Math.max(limit, 1), 200));
-                try (ResultSet rs = ps.executeQuery()) {
-                    while (rs.next()) {
-                        items.add(view(rs));
+                requete.setArray(1, uuids(connexion, workspaces));
+                requete.setArray(2, etats(connexion, EtatImpact.ACTIFS));
+                requete.setInt(3, Math.min(Math.max(limit, 1), 200));
+                try (ResultSet resultat = requete.executeQuery()) {
+                    while (resultat.next()) {
+                        items.add(view(resultat));
                     }
                 }
             }
-        } catch (SQLException e) {
-            throw new IllegalStateException("lecture des impacts impossible", e);
+        } catch (SQLException erreur) {
+            throw new IllegalStateException("lecture des impacts impossible", erreur);
         }
         return items;
     }
@@ -264,15 +264,15 @@ public class ImpactQueries {
      */
     @Transactional
     public Optional<UUID> workspaceOf(UUID impactId) {
-        try (Connection c = dataSource.getConnection()) {
-            try (PreparedStatement ps = c.prepareStatement("SELECT workspace_id FROM project_impact WHERE id = ?")) {
-                ps.setObject(1, impactId);
-                try (ResultSet rs = ps.executeQuery()) {
-                    return rs.next() ? Optional.of(rs.getObject(1, UUID.class)) : Optional.empty();
+        try (Connection connexion = dataSource.getConnection()) {
+            try (PreparedStatement requete = connexion.prepareStatement("SELECT workspace_id FROM project_impact WHERE id = ?")) {
+                requete.setObject(1, impactId);
+                try (ResultSet resultat = requete.executeQuery()) {
+                    return resultat.next() ? Optional.of(resultat.getObject(1, UUID.class)) : Optional.empty();
                 }
             }
-        } catch (SQLException e) {
-            throw new IllegalStateException("lecture de l'impact impossible", e);
+        } catch (SQLException erreur) {
+            throw new IllegalStateException("lecture de l'impact impossible", erreur);
         }
     }
 
@@ -294,57 +294,58 @@ public class ImpactQueries {
                                          OR NOT EXISTS (SELECT 1 FROM signal_version v WHERE v.id = i.signal_version_id))
                 FROM project_impact i
                 """;
-        try (Connection c = dataSource.getConnection()) {
-            try (PreparedStatement ps = c.prepareStatement(sql); ResultSet rs = ps.executeQuery()) {
-                rs.next();
-                return new IntegrityReport(rs.getLong(1), rs.getLong(2), rs.getLong(3), rs.getLong(4), rs.getLong(5),
-                        rs.getLong(6));
+        try (Connection connexion = dataSource.getConnection()) {
+            try (PreparedStatement requete = connexion.prepareStatement(sql); ResultSet resultat = requete.executeQuery()) {
+                resultat.next();
+                return new IntegrityReport(resultat.getLong(1), resultat.getLong(2), resultat.getLong(3), resultat.getLong(4),
+                        resultat.getLong(5), resultat.getLong(6));
             }
-        } catch (SQLException e) {
-            throw new IllegalStateException("contrôle d'intégrité impossible", e);
+        } catch (SQLException erreur) {
+            throw new IllegalStateException("contrôle d'intégrité impossible", erreur);
         }
     }
 
-    private static java.sql.Array uuids(Connection c, Set<UUID> ids) throws SQLException {
-        return c.createArrayOf("uuid", ids.toArray());
+    private static java.sql.Array uuids(Connection connexion, Set<UUID> ids) throws SQLException {
+        return connexion.createArrayOf("uuid", ids.toArray());
     }
 
-    private static java.sql.Array etats(Connection c, Set<EtatImpact> etats) throws SQLException {
-        return c.createArrayOf("varchar", etats.stream().map(EtatImpact::name).toArray());
+    private static java.sql.Array etats(Connection connexion, Set<EtatImpact> etats) throws SQLException {
+        return connexion.createArrayOf("varchar", etats.stream().map(EtatImpact::name).toArray());
     }
 
     /** Historique d'un impact, dans l'ordre des transitions, lu sous le contexte déjà appliqué à la connexion. */
-    private static List<TransitionView> historique(Connection c, UUID impactId) throws SQLException {
+    private static List<TransitionView> historique(Connection connexion, UUID impactId) throws SQLException {
         List<TransitionView> transitions = new ArrayList<>();
-        try (PreparedStatement ps = c.prepareStatement("""
+        try (PreparedStatement requete = connexion.prepareStatement("""
                 SELECT t.from_state, t.to_state, t.actor_system, t.actor_account_id, co.nom_affiche, t.reason, t.comment,
                        t.occurred_at
                 FROM project_impact_transition t LEFT JOIN compte co ON co.id = t.actor_account_id
                 WHERE t.impact_id = ? ORDER BY t.occurred_at, t.id
                 """)) {
-            ps.setObject(1, impactId);
-            try (ResultSet rs = ps.executeQuery()) {
-                while (rs.next()) {
-                    boolean systeme = rs.getBoolean(3);
-                    transitions.add(new TransitionView(rs.getString(1), rs.getString(2),
-                            systeme ? "SYSTEME" : rs.getString(5), rs.getObject(4, UUID.class), systeme, rs.getString(6),
-                            rs.getString(7), instant(rs, 8)));
+            requete.setObject(1, impactId);
+            try (ResultSet resultat = requete.executeQuery()) {
+                while (resultat.next()) {
+                    boolean systeme = resultat.getBoolean(3);
+                    transitions.add(new TransitionView(resultat.getString(1), resultat.getString(2),
+                            systeme ? "SYSTEME" : resultat.getString(5), resultat.getObject(4, UUID.class), systeme, resultat.getString(6),
+                            resultat.getString(7), instant(resultat, 8)));
                 }
             }
         }
         return transitions;
     }
 
-    private static ImpactView view(ResultSet rs) throws SQLException {
-        return new ImpactView(rs.getObject(1, UUID.class), rs.getObject(2, UUID.class), rs.getString(3),
-                rs.getString(4), rs.getString(5), rs.getObject(6, UUID.class), rs.getObject(7, UUID.class),
-                rs.getString(8), rs.getObject(9, UUID.class), rs.getObject(10, UUID.class), rs.getString(11),
-                rs.getString(12), (Boolean) rs.getObject(13), rs.getString(14), rs.getString(15), rs.getString(16),
-                instant(rs, 17), rs.getString(18), instant(rs, 19), instant(rs, 20), rs.getString(21), null, null);
+    private static ImpactView view(ResultSet resultat) throws SQLException {
+        return new ImpactView(resultat.getObject(1, UUID.class), resultat.getObject(2, UUID.class), resultat.getString(3),
+                resultat.getString(4), resultat.getString(5), resultat.getObject(6, UUID.class), resultat.getObject(7, UUID.class),
+                resultat.getString(8), resultat.getObject(9, UUID.class), resultat.getObject(10, UUID.class), resultat.getString(11),
+                resultat.getString(12), (Boolean) resultat.getObject(13), resultat.getString(14), resultat.getString(15),
+                resultat.getString(16), instant(resultat, 17), resultat.getString(18), instant(resultat, 19), instant(resultat, 20),
+                resultat.getString(21), null, null);
     }
 
-    private static Instant instant(ResultSet rs, int column) throws SQLException {
-        OffsetDateTime value = rs.getObject(column, OffsetDateTime.class);
+    private static Instant instant(ResultSet resultat, int column) throws SQLException {
+        OffsetDateTime value = resultat.getObject(column, OffsetDateTime.class);
         return value == null ? null : value.toInstant();
     }
 }

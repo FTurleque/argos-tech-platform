@@ -47,10 +47,11 @@ public class RapprochementOpportunites {
             territoires = List.copyOf(territoires);
         }
 
-        static Restitution de(Opportunite o, StrategieDisciplineTerritoire.Decision d) {
-            ResumeOpportunite.Resume r = ResumeOpportunite.de(o);
-            return new Restitution(o.id(), o.rubrique(), o.titre(), r.organisme(), o.sourceLibelle(), o.lien(),
-                    o.disciplines(), o.territoires(), o.dateLimite(), d, r);
+        static Restitution de(Opportunite opportunite, StrategieDisciplineTerritoire.Decision decision) {
+            ResumeOpportunite.Resume resume = ResumeOpportunite.de(opportunite);
+            return new Restitution(opportunite.id(), opportunite.rubrique(), opportunite.titre(), resume.organisme(),
+                    opportunite.sourceLibelle(), opportunite.lien(), opportunite.disciplines(), opportunite.territoires(),
+                    opportunite.dateLimite(), decision, resume);
         }
     }
 
@@ -62,8 +63,8 @@ public class RapprochementOpportunites {
 
     /** Vrai si le profil est publié et déclare la stratégie de ce module. */
     public boolean actif() {
-        Optional<ManifesteProfil> m = catalogue.trouver(PROFIL);
-        return m.isPresent() && m.get().strategies().stream().map(StrategieDeclaree::identifiant)
+        Optional<ManifesteProfil> manifeste = catalogue.trouver(PROFIL);
+        return manifeste.isPresent() && manifeste.get().strategies().stream().map(StrategieDeclaree::identifiant)
                 .anyMatch(StrategieDisciplineTerritoire.IDENTIFIANT::equals);
     }
 
@@ -73,11 +74,11 @@ public class RapprochementOpportunites {
             return List.of();
         }
         List<Restitution> resultat = new ArrayList<>();
-        for (Opportunite o : opportunites.candidates(PROFIL, List.copyOf(disciplines), aujourdhui)) {
-            StrategieDisciplineTerritoire.Decision d = StrategieDisciplineTerritoire.evaluer(o, disciplines, territoires,
+        for (Opportunite opportunite : opportunites.candidates(PROFIL, List.copyOf(disciplines), aujourdhui)) {
+            StrategieDisciplineTerritoire.Decision decision = StrategieDisciplineTerritoire.evaluer(opportunite, disciplines, territoires,
                     aujourdhui);
-            if (d.issue().restituee()) {
-                resultat.add(Restitution.de(o, d));
+            if (decision.issue().restituee()) {
+                resultat.add(Restitution.de(opportunite, decision));
             }
         }
         return resultat;
