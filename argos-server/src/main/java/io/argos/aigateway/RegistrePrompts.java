@@ -54,6 +54,15 @@ public class RegistrePrompts {
             - Réponds en français, uniquement par un objet JSON conforme au schéma demandé, sans texte autour.
             """;
 
+    /** Longueur maximale, en caractères, d'un résumé de deux phrases au plus. */
+    private static final int LONGUEUR_RESUME_DEUX_PHRASES = 600;
+    /** Longueur maximale, en caractères, d'un résumé de trois phrases au plus. */
+    private static final int LONGUEUR_RESUME_TROIS_PHRASES = 800;
+    /** Longueur maximale, en caractères, de la justification des projets suggérés. */
+    private static final int LONGUEUR_JUSTIFICATION_PROJETS = 600;
+    /** Longueur maximale, en caractères, de la justification du domaine proposé. */
+    private static final int LONGUEUR_JUSTIFICATION_DOMAINE = 400;
+
     private final Map<String, PromptIa> prompts = new LinkedHashMap<>();
 
     @Inject
@@ -64,12 +73,12 @@ public class RegistrePrompts {
                 Tu es l'assistant de veille d'Argos. Résume en deux phrases au plus l'avis de sécurité décrit par les
                 données (titre, source, identifiant), pour un développeur qui décidera lui-même s'il est concerné.
                 Schéma de la réponse : {"resume": "texte"}.
-                """ + REGLES_COMMUNES, List.of(new ChampSortie("resume", TypeChamp.TEXTE, true, 600))));
+                """ + REGLES_COMMUNES, List.of(new ChampSortie("resume", TypeChamp.TEXTE, true, LONGUEUR_RESUME_DEUX_PHRASES))));
         publier(new PromptIa(RESUME_ACTUALITE, 1, """
                 Tu es l'assistant de veille d'Argos. Résume en trois phrases au plus l'actualité décrite par les données
                 (titre et texte collecté sur une source web publique).
                 Schéma de la réponse : {"resume": "texte"}.
-                """ + REGLES_COMMUNES, List.of(new ChampSortie("resume", TypeChamp.TEXTE, true, 800))));
+                """ + REGLES_COMMUNES, List.of(new ChampSortie("resume", TypeChamp.TEXTE, true, LONGUEUR_RESUME_TROIS_PHRASES))));
         publier(new PromptIa(ANALYSE_CORRELATION, 1, """
                 Tu es l'assistant de veille d'Argos. Les données décrivent un avis de sécurité (titre, paquets touchés)
                 et une liste numérotée de projets candidats d'un même espace. Indique les numéros des projets
@@ -77,12 +86,12 @@ public class RegistrePrompts {
                 humain ; elles ne créent aucun impact. Si aucun projet ne semble concerné, renvoie une liste vide.
                 Schéma de la réponse : {"projets": [numéros], "justification": "texte"}.
                 """ + REGLES_COMMUNES, List.of(new ChampSortie("projets", TypeChamp.ENTIERS, true, 10),
-                new ChampSortie("justification", TypeChamp.TEXTE, true, 600))));
+                new ChampSortie("justification", TypeChamp.TEXTE, true, LONGUEUR_JUSTIFICATION_PROJETS))));
         publier(new PromptIa(FICHE_REGLEMENTAIRE, 1, """
                 Tu es l'assistant de veille réglementaire d'Argos. À partir du titre et du texte officiel fournis dans
                 les données, rédige un résumé de trois phrases au plus et indique la date d'effet du texte.
                 Schéma de la réponse : {"resume": "texte", "dateEffet": "AAAA-MM-JJ"}.
-                """ + REGLES_COMMUNES, List.of(new ChampSortie("resume", TypeChamp.TEXTE, true, 800),
+                """ + REGLES_COMMUNES, List.of(new ChampSortie("resume", TypeChamp.TEXTE, true, LONGUEUR_RESUME_TROIS_PHRASES),
                 new ChampSortie("dateEffet", TypeChamp.DATE, true, 10))));
         publier(new PromptIa(DOMAINE_REGLEMENTAIRE, 1, """
                 Tu es l'assistant de veille réglementaire d'Argos. Les données décrivent un texte officiel (titre, nature,
@@ -93,7 +102,7 @@ public class RegistrePrompts {
                 Schéma de la réponse : {"domaine": [numéro], "confiance": [entier], "justification": "texte"}.
                 """ + REGLES_COMMUNES, List.of(new ChampSortie("domaine", TypeChamp.ENTIERS, true, 1),
                 new ChampSortie("confiance", TypeChamp.ENTIERS, true, 1),
-                new ChampSortie("justification", TypeChamp.TEXTE, true, 400))));
+                new ChampSortie("justification", TypeChamp.TEXTE, true, LONGUEUR_JUSTIFICATION_DOMAINE))));
     }
 
     private void publier(PromptIa prompt) {

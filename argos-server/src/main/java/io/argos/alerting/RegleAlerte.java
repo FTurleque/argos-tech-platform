@@ -115,19 +115,23 @@ public final class RegleAlerte {
 
     /** Vrai si l'impact (projet, paquet, source du signal) satisfait les critères de la règle. */
     public boolean concerne(String projetId, String clePaquet, String sourceSignal) {
-        if (!applicableAuxImpacts) {
-            return false;
-        }
-        if (!projets.isEmpty() && (projetId == null || !projets.contains(projetId.toLowerCase(Locale.ROOT)))) {
-            return false;
-        }
-        if (!paquets.isEmpty() && (clePaquet == null || !paquets.contains(clePaquet))) {
-            return false;
-        }
-        if (!sources.isEmpty() && (sourceSignal == null || !sources.contains(sourceSignal.toUpperCase(Locale.ROOT)))) {
-            return false;
-        }
-        return typesPurl.isEmpty() || typesPurl.contains(typePurl(clePaquet));
+        return applicableAuxImpacts && projetRetenu(projetId) && paquetRetenu(clePaquet) && sourceRetenue(sourceSignal)
+                && (typesPurl.isEmpty() || typesPurl.contains(typePurl(clePaquet)));
+    }
+
+    /** Vrai sans filtre de projet, ou si le projet figure parmi ceux de la règle. */
+    private boolean projetRetenu(String projetId) {
+        return projets.isEmpty() || (projetId != null && projets.contains(projetId.toLowerCase(Locale.ROOT)));
+    }
+
+    /** Vrai sans filtre de paquet, ou si le paquet figure parmi ceux de la règle. */
+    private boolean paquetRetenu(String clePaquet) {
+        return paquets.isEmpty() || (clePaquet != null && paquets.contains(clePaquet));
+    }
+
+    /** Vrai sans filtre de source, ou si la source du signal figure parmi celles de la règle. */
+    private boolean sourceRetenue(String sourceSignal) {
+        return sources.isEmpty() || (sourceSignal != null && sources.contains(sourceSignal.toUpperCase(Locale.ROOT)));
     }
 
     /** Vrai si la gravité du signal atteint la gravité minimale de la règle (toujours vrai sans minimum). */

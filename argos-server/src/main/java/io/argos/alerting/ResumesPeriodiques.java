@@ -150,11 +150,16 @@ public class ResumesPeriodiques {
                   AND e.alerte_id IS NULL AND EXISTS (SELECT 1 FROM alerte a WHERE a.nature = 'IMMEDIATE'
                       AND a.etat <> 'ANNULEE' AND a.signal_id = e.signal_id AND a.compte_id = e.compte_id)
                 """)) {
-            requete.setObject(1, boite.compte());
-            requete.setString(2, boite.canal());
-            requete.setString(3, frequence);
+            lierBoite(requete, boite, frequence);
             requete.executeUpdate();
         }
+    }
+
+    /** Lie le compte, le canal et la fréquence aux trois premières positions de la requête. */
+    private static void lierBoite(PreparedStatement requete, Boite boite, String frequence) throws java.sql.SQLException {
+        requete.setObject(1, boite.compte());
+        requete.setString(2, boite.canal());
+        requete.setString(3, frequence);
     }
 
     private static List<Element> lireEnAttente(Connection connexion, Boite boite, String frequence, Instant echeance)
@@ -164,9 +169,7 @@ public class ResumesPeriodiques {
                 WHERE compte_id = ? AND canal = ? AND frequence = ? AND alerte_id IS NULL AND enregistre_le <= ?
                 ORDER BY enregistre_le, signal_id
                 """)) {
-            requete.setObject(1, boite.compte());
-            requete.setString(2, boite.canal());
-            requete.setString(3, frequence);
+            lierBoite(requete, boite, frequence);
             requete.setObject(4, echeance.atOffset(ZoneOffset.UTC));
             try (ResultSet resultat = requete.executeQuery()) {
                 List<Element> enAttente = new ArrayList<>();
