@@ -51,23 +51,23 @@ public class CyclesDeVie {
                 etats.put(produit, "A_JOUR");
             } catch (ClientEndoflife.SourceIndisponible erreur) {
                 LOG.warnf("synchronisation endoflife.date du produit %s en échec : %s", produit, erreur.getMessage());
-                echec(produit, erreur.getMessage(), maintenant);
+                echecOuJournaliser(produit, erreur.getMessage(), maintenant);
                 etats.put(produit, "EN_ERREUR");
-            } catch (RuntimeException erreur) {
-                // Erreur de base ou réponse inattendue : le produit passe en erreur, les autres continuent.
+            } catch (IllegalStateException erreur) {
+                // Panne d'accès aux données : le produit passe en erreur, les autres continuent.
                 LOG.errorf(erreur, "synchronisation du produit %s interrompue", produit);
-                echec(produit, "erreur interne de synchronisation", maintenant);
+                echecOuJournaliser(produit, "erreur interne de synchronisation", maintenant);
                 etats.put(produit, "EN_ERREUR");
             }
         }
         return etats;
     }
 
-    /** Enregistre l'échec sans jamais interrompre la synchronisation des autres produits. */
-    private void echec(String produit, String motif, Instant maintenant) {
+    /** Enregistre l'échec ; une panne d'accès aux données est journalisée et n'interrompt pas les autres produits. */
+    private void echecOuJournaliser(String produit, String motif, Instant maintenant) {
         try {
             marquerEchec(produit, motif == null ? "motif inconnu" : motif, maintenant);
-        } catch (RuntimeException erreur) {
+        } catch (IllegalStateException erreur) {
             LOG.errorf(erreur, "échec de synchronisation du produit %s non enregistré", produit);
         }
     }
