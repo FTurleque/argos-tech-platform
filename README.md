@@ -80,7 +80,7 @@ node scripts/verifier-docs.mjs                              # liens, Mermaid, id
 node scripts/verifier-nommage.mjs                           # aucun identifiant d'une ou deux lettres
 ```
 
-`node scripts/verifier-nommage.mjs` applique la règle de nommage d'[arc42 §8.16](docs/architecture/arc42/08-concepts-transverses.md#816-conventions-de-code) ; `node --test scripts/*.test.mjs` l'exécute aussi sur tout le dépôt. Le contrôle est en Node pur : il ne fait pas partie de `mvn verify`, l'image Maven du build Docker n'ayant pas Node.
+`node scripts/verifier-nommage.mjs` applique la règle de nommage d'[arc42 §8.16](docs/architecture/arc42/08-concepts-transverses.md#816-conventions-de-code) : aucun type, méthode, fonction, import, variable, champ ou paramètre d'une ou deux lettres, hors `id`, paramètres de type générique et contrats externes inscrits dans sa liste blanche ; `node --test scripts/*.test.mjs` l'exécute aussi sur tout le dépôt. Le contrôle est en Node pur : il ne fait pas partie de `mvn verify`, l'image Maven du build Docker n'ayant pas Node.
 
 ### Argos complet sous Docker (PC ou Synology)
 
