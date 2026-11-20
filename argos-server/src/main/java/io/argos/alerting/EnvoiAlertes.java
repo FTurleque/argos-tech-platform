@@ -105,13 +105,22 @@ public class EnvoiAlertes {
         Map<String, CanalDiffusion> parCode = parCode();
         Map<UUID, Issue> issues = new HashMap<>();
         for (UUID id : ids) {
-            try {
-                issues.put(id, tenter(id, parCode, maintenant));
-            } catch (RuntimeException erreur) {
-                LOG.errorf(erreur, "diffusion de l'alerte %s en échec", id);
-            }
+            tenterSansPropager(id, parCode, maintenant).ifPresent(issue -> issues.put(id, issue));
         }
         return issues;
+    }
+
+    /**
+     * Point d'isolation de la diffusion : l'échec technique d'un message (réservation ou enregistrement de son
+     * issue) est journalisé avec sa cause et n'empêche pas la diffusion des messages suivants.
+     */
+    private Optional<Issue> tenterSansPropager(UUID id, Map<String, CanalDiffusion> parCode, Instant maintenant) {
+        try {
+            return Optional.of(tenter(id, parCode, maintenant));
+        } catch (RuntimeException erreur) {
+            LOG.errorf(erreur, "diffusion de l'alerte %s en échec", id);
+            return Optional.empty();
+        }
     }
 
     /**
@@ -130,28 +139,38 @@ public class EnvoiAlertes {
         if (reservationObtenue.epuisee()) {
             return Issue.EN_ECHEC;
         }
-        String erreur;
-        boolean definitif;
-        try {
-            parCode.get(reservationObtenue.canal()).diffuser(reservationObtenue.message(id));
-            QuarkusTransaction.requiringNew().run(() -> enregistrerSucces(id, maintenant));
+        Optional<Echec> echec = diffuser(id, reservationObtenue, parCode, maintenant);
+        if (echec.isEmpty()) {
             return Issue.ENVOYEE;
-        } catch (CanalDiffusion.EchecDiffusion echec) {
-            erreur = echec.getMessage();
-            definitif = echec.definitif();
-        } catch (ContenuIllisible illisible) {
-            erreur = "contenu du message illisible";
-            definitif = true;
-        } catch (RuntimeException imprevue) {
-            erreur = "diffusion impossible : " + imprevue.getClass().getSimpleName();
-            definitif = false;
         }
-        boolean abandon = definitif || reservationObtenue.tentatives() >= tentativesMax;
-        String motif = erreur;
+        String motif = echec.get().motif();
+        boolean abandon = echec.get().definitif() || reservationObtenue.tentatives() >= tentativesMax;
         QuarkusTransaction.requiringNew().run(() -> enregistrerEchec(id, abandon,
                 abandon ? null : maintenant.plus(delai(reservationObtenue.tentatives())), motif));
-        LOG.warnf("diffusion de l'alerte %s : tentative %d en échec (%s)", id, reservationObtenue.tentatives(), erreur);
+        LOG.warnf("diffusion de l'alerte %s : tentative %d en échec (%s)", id, reservationObtenue.tentatives(), motif);
         return abandon ? Issue.EN_ECHEC : Issue.A_RETENTER;
+    }
+
+    /** Échec d'une tentative : motif enregistré sur le message, et caractère définitif (aucune nouvelle tentative). */
+    private record Echec(String motif, boolean definitif) {
+    }
+
+    /** Diffuse le message réservé puis enregistre son envoi ; vide en cas de succès, sinon l'échec de la tentative. */
+    private Optional<Echec> diffuser(UUID id, Reservation reservation, Map<String, CanalDiffusion> parCode, Instant maintenant) {
+        try {
+            parCode.get(reservation.canal()).diffuser(reservation.message(id));
+            QuarkusTransaction.requiringNew().run(() -> enregistrerSucces(id, maintenant));
+            return Optional.empty();
+        } catch (CanalDiffusion.EchecDiffusion echec) {
+            return Optional.of(new Echec(echec.getMessage(), echec.definitif()));
+        } catch (ContenuIllisible illisible) {
+            return Optional.of(new Echec("contenu du message illisible", true));
+        } catch (RuntimeException imprevue) {
+            // Une erreur imprévue d'un canal ou de l'enregistrement compte comme une tentative en échec, à retenter :
+            // le nombre de tentatives reste borné (ALR-06-S2) au lieu de laisser le message réservé sans issue.
+            LOG.warnf(imprevue, "diffusion de l'alerte %s : erreur imprévue", id);
+            return Optional.of(new Echec("diffusion impossible : " + imprevue.getClass().getSimpleName(), false));
+        }
     }
 
     /** Délai avant la tentative suivante : délai initial doublé à chaque échec, plafonné. */
@@ -252,7 +271,8 @@ public class EnvoiAlertes {
         }
     }
 
-    private static void executer(Connection connexion, String sql, Object... valeurs) throws SQLException {
+    /** Exécute une mise à jour paramétrée, positions liées dans l'ordre des valeurs. */
+    static void executer(Connection connexion, String sql, Object... valeurs) throws SQLException {
         try (PreparedStatement requete = connexion.prepareStatement(sql)) {
             for (int position = 0; position < valeurs.length; position++) {
                 requete.setObject(position + 1, valeurs[position]);
