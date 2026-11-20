@@ -52,36 +52,57 @@ public class SignauxAbonnements {
 
     /** Signaux retenus par les abonnements donnés, pour l'appelant. */
     public Correspondances pour(List<SubscriptionService.Subscription> abonnements, Caller caller) {
-        Map<UUID, SignalQueries.SignalView> found = new LinkedHashMap<>();
-        Map<UUID, Set<UUID>> matchedBy = new LinkedHashMap<>();
-        for (SubscriptionService.Subscription s : abonnements) {
-            Set<String> technologies = new HashSet<>();
-            Set<String> packages = new HashSet<>();
-            Set<String> sources = new HashSet<>();
-            for (SubscriptionRequest.Filter f : s.filters()) {
-                switch (f.type()) {
-                    case "TECHNOLOGY" -> technologies.add(f.value());
-                    case "PACKAGE" -> packages.add(f.value());
-                    case "SOURCE" -> sources.add(f.value());
-                    case "PROJECT" -> signals.findAll(projectSignals(f.value(), caller)).values().forEach(v -> {
-                        found.putIfAbsent(v.id(), v);
-                        matchedBy.computeIfAbsent(v.id(), k -> new LinkedHashSet<>()).add(s.id());
-                    });
-                    default -> {
-                        // VENDOR, THEME, DOMAIN, SEVERITY : sans taxonomie des signaux de sécurité dans ce lot.
-                    }
+        Map<UUID, SignalQueries.SignalView> trouves = new LinkedHashMap<>();
+        Map<UUID, Set<UUID>> retenusPar = new LinkedHashMap<>();
+        for (SubscriptionService.Subscription abonnement : abonnements) {
+            CriteresRecherche criteres = new CriteresRecherche(new HashSet<>(), new HashSet<>(), new HashSet<>());
+            for (SubscriptionRequest.Filter filtre : abonnement.filters()) {
+                if ("PROJECT".equals(filtre.type())) {
+                    signals.findAll(projectSignals(filtre.value(), caller)).values()
+                            .forEach(signal -> retenir(signal, abonnement.id(), trouves, retenusPar));
+                } else {
+                    criteres.ajouter(filtre);
                 }
             }
-            if (technologies.isEmpty() && packages.isEmpty() && sources.isEmpty()) {
+            if (criteres.vides()) {
                 continue;
             }
-            for (SignalQueries.SignalView v : signals.search(new SignalQueries.Criteria(technologies, packages, sources),
-                    PAR_ABONNEMENT)) {
-                found.putIfAbsent(v.id(), v);
-                matchedBy.computeIfAbsent(v.id(), k -> new LinkedHashSet<>()).add(s.id());
+            for (SignalQueries.SignalView signal : signals.search(criteres.enCriteres(), PAR_ABONNEMENT)) {
+                retenir(signal, abonnement.id(), trouves, retenusPar);
             }
         }
-        return new Correspondances(found, matchedBy);
+        return new Correspondances(trouves, retenusPar);
+    }
+
+    /** Critères d'un abonnement qui choisissent des signaux publics : technologies, paquets et sources. */
+    private record CriteresRecherche(Set<String> technologies, Set<String> packages, Set<String> sources) {
+
+        /** Range le filtre dans son critère ; VENDOR, THEME, DOMAIN et SEVERITY ne sont pas interprétés ici. */
+        void ajouter(SubscriptionRequest.Filter filtre) {
+            switch (filtre.type()) {
+                case "TECHNOLOGY" -> technologies.add(filtre.value());
+                case "PACKAGE" -> packages.add(filtre.value());
+                case "SOURCE" -> sources.add(filtre.value());
+                default -> {
+                    // Sans taxonomie des signaux de sécurité pour ces critères.
+                }
+            }
+        }
+
+        boolean vides() {
+            return technologies.isEmpty() && packages.isEmpty() && sources.isEmpty();
+        }
+
+        SignalQueries.Criteria enCriteres() {
+            return new SignalQueries.Criteria(technologies, packages, sources);
+        }
+    }
+
+    /** Retient le signal pour l'abonnement, dans l'ordre de première correspondance. */
+    private static void retenir(SignalQueries.SignalView signal, UUID abonnementId,
+            Map<UUID, SignalQueries.SignalView> trouves, Map<UUID, Set<UUID>> retenusPar) {
+        trouves.putIfAbsent(signal.id(), signal);
+        retenusPar.computeIfAbsent(signal.id(), cle -> new LinkedHashSet<>()).add(abonnementId);
     }
 
     /** Signaux qui impactent un projet désigné par un filtre, seulement s'il est dans le périmètre. */
@@ -89,7 +110,7 @@ public class SignauxAbonnements {
         UUID id;
         try {
             id = UUID.fromString(projectId);
-        } catch (IllegalArgumentException e) {
+        } catch (IllegalArgumentException illisible) {
             return List.of();
         }
         return impacts.forProject(id, caller.accountId(), caller.memberWorkspaces()).stream()

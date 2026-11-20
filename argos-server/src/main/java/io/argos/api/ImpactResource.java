@@ -56,7 +56,7 @@ public class ImpactResource {
     ImpactQueries impacts;
 
     @Inject
-    TraitementImpacts traitement;
+    TraitementImpacts traitementImpacts;
 
     @GET
     @Path("/impacts/{id}")
@@ -94,7 +94,7 @@ public class ImpactResource {
         longueur(demande.commentaire(), "commentaire");
         Optional<EtatImpact> atteint;
         try {
-            atteint = traitement.transitionner(id, caller.accountId(), vers, motif, demande.commentaire(), Instant.now());
+            atteint = traitementImpacts.transitionner(id, caller.accountId(), vers, motif, demande.commentaire(), Instant.now());
         } catch (TraitementImpacts.TransitionInterdite e) {
             throw new RegleViolee("TRANSITION_INTERDITE", "Transition vers " + vers + " impossible depuis l'état "
                     + e.courant() + ". Transitions possibles : " + noms(e.possibles()) + ".");

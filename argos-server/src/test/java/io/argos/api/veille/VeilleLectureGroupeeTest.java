@@ -68,7 +68,7 @@ class VeilleLectureGroupeeTest {
     @BeforeEach
     void preparer() {
         db.reset();
-        db.exec("DELETE FROM workspace_preference_utilisateur WHERE compte_id = '" + Api.compte("jules") + "'");
+        supprimerPreferences(Api.compte("jules"));
         espace = Api.nouvelEspace("ines", "Lecture groupée");
         Api.ajouterMembre("ines", espace.toString(), "jules", "LECTEUR");
         autreEspace = Api.nouvelEspace("oscar", "Lecture groupée, autre espace");
@@ -80,11 +80,11 @@ class VeilleLectureGroupeeTest {
         projet("p2", espace);
         projet("p3", espace);
         projet("etranger", autreEspace);
-        for (int n = 1; n <= AVIS + 1; n++) {
-            UUID s = id("lg-signal-" + n);
-            UUID v = id("lg-version-" + n);
+        for (int numero = 1; numero <= AVIS + 1; numero++) {
+            UUID signalId = id("lg-signal-" + numero);
+            UUID versionId = id("lg-version-" + numero);
             // L'avis 3 n'a pas de date de publication : sa date restituée est celle de modification.
-            String publie = n == 3 ? "NULL" : "now() - interval '" + (n * 3) + " days'";
+            String publie = numero == 3 ? "NULL" : "now() - interval '" + (numero * 3) + " days'";
             // Contrainte signal_current_version_fk différée : le signal et sa version dans une même transaction.
             db.exec("""
                     BEGIN;
@@ -96,18 +96,20 @@ class VeilleLectureGroupeeTest {
                                                 raw_content)
                     VALUES ('%2$s', '%1$s', 1, md5('%3$d') || md5('lg%3$d'), now(), now(), '{}');
                     COMMIT;
-                    """.formatted(s, v, n, n % 2 == 0 ? "CRITICAL" : "HIGH", publie, n * 5));
-            db.exec("INSERT INTO signal_alias (signal_id, alias) VALUES ('%s', 'CVE-2099-%04d')".formatted(s, n));
-            signauxIds.add(s);
+                    """.formatted(signalId, versionId, numero, numero % 2 == 0 ? "CRITICAL" : "HIGH", publie,
+                    numero * 5));
+            db.exec("INSERT INTO signal_alias (signal_id, alias) VALUES ('%s', 'CVE-2099-%04d')".formatted(signalId,
+                    numero));
+            signauxIds.add(signalId);
         }
         // Avis 1 à AVIS : un impact par projet de l'espace, à des instants distincts ; l'avis AVIS + 1 n'a aucun
         // impact dans l'espace de l'appelant (projet d'un autre espace seulement).
         int rang = 0;
-        for (int n = 1; n <= AVIS; n++) {
-            for (String p : List.of("p1", "p2", "p3")) {
-                impact(n, p, espace, "OUVERT", rang++);
+        for (int numero = 1; numero <= AVIS; numero++) {
+            for (String projet : List.of("p1", "p2", "p3")) {
+                impact(numero, projet, espace, "OUVERT", rang++);
             }
-            impact(n, "etranger", autreEspace, "OUVERT", rang++);
+            impact(numero, "etranger", autreEspace, "OUVERT", rang++);
         }
         impact(AVIS + 1, "etranger", autreEspace, "CONFIRME", rang++);
         // Impact écarté : jamais restitué (COR-12-S2), même s'il est le plus récent.
@@ -115,31 +117,44 @@ class VeilleLectureGroupeeTest {
                 + id("lg-impact-2-p3") + "'");
     }
 
-    private void projet(String nom, UUID ws) {
-        UUID p = id("lg-projet-" + nom);
-        UUID imp = id("lg-import-" + nom);
-        db.exec("INSERT INTO project (id, workspace_id, name) VALUES ('%s', '%s', 'Projet %s')".formatted(p, ws, nom));
-        db.exec("""
-                INSERT INTO inventory (project_id, origin, source_date, spec_version, source_ref, import_id, imported_at)
-                VALUES ('%s', 'SBOM', now() - interval '1 day', '1.6', 'test', '%s', now())
-                """.formatted(p, imp));
-        for (int n = 1; n <= AVIS + 1; n++) {
-            db.exec("""
-                    INSERT INTO component (id, project_id, package_key, purl, version, transitive, import_id)
-                    VALUES ('%s', '%s', 'pkg:maven/org.lg/lib-%d', 'pkg:maven/org.lg/lib-%d@1.0.0', '1.0.0', false, '%s')
-                    """.formatted(id("lg-composant-" + nom + "-" + n), p, n, n, imp));
+    /** Retire les préférences du compte, par une requête paramétrée. */
+    private void supprimerPreferences(UUID compte) {
+        try (Connection connexion = dataSource.getConnection(); PreparedStatement requete = connexion
+                .prepareStatement("DELETE FROM workspace_preference_utilisateur WHERE compte_id = ?")) {
+            requete.setObject(1, compte);
+            requete.executeUpdate();
+        } catch (SQLException erreur) {
+            throw new IllegalStateException("suppression des préférences impossible", erreur);
         }
     }
 
-    private void impact(int n, String projet, UUID ws, String etat, int rang) {
+    private void projet(String nom, UUID espaceProjet) {
+        UUID projetId = id("lg-projet-" + nom);
+        UUID importId = id("lg-import-" + nom);
+        db.exec("INSERT INTO project (id, workspace_id, name) VALUES ('%s', '%s', 'Projet %s')".formatted(projetId,
+                espaceProjet, nom));
+        db.exec("""
+                INSERT INTO inventory (project_id, origin, source_date, spec_version, source_ref, import_id, imported_at)
+                VALUES ('%s', 'SBOM', now() - interval '1 day', '1.6', 'test', '%s', now())
+                """.formatted(projetId, importId));
+        for (int numero = 1; numero <= AVIS + 1; numero++) {
+            db.exec("""
+                    INSERT INTO component (id, project_id, package_key, purl, version, transitive, import_id)
+                    VALUES ('%s', '%s', 'pkg:maven/org.lg/lib-%d', 'pkg:maven/org.lg/lib-%d@1.0.0', '1.0.0', false, '%s')
+                    """.formatted(id("lg-composant-" + nom + "-" + numero), projetId, numero, numero, importId));
+        }
+    }
+
+    private void impact(int numero, String projet, UUID espaceProjet, String etat, int rang) {
         db.exec("""
                 INSERT INTO project_impact (id, signal_id, signal_version_id, project_id, workspace_id, component_id,
                                             level, method, transitive, inventory_origin, inventory_date, provenance,
                                             created_at, updated_at, state)
                 VALUES ('%s', '%s', '%s', '%s', '%s', '%s', 'EXACT', 'PURL_RANGE_V1', false, 'SBOM',
                         now() - interval '1 day', '{}', now(), now() - interval '%d minutes', '%s')
-                """.formatted(id("lg-impact-" + n + "-" + projet), id("lg-signal-" + n), id("lg-version-" + n),
-                id("lg-projet-" + projet), ws, id("lg-composant-" + projet + "-" + n), rang, etat));
+                """.formatted(id("lg-impact-" + numero + "-" + projet), id("lg-signal-" + numero),
+                id("lg-version-" + numero), id("lg-projet-" + projet), espaceProjet,
+                id("lg-composant-" + projet + "-" + numero), rang, etat));
     }
 
     /** Résultat attendu, calculé en base hors de l'application : avis, gravité, date et projets visibles. */
@@ -148,27 +163,32 @@ class VeilleLectureGroupeeTest {
 
     private List<Attendu> attendus() throws SQLException {
         Map<String, Attendu> parAvis = new LinkedHashMap<>();
-        try (Connection c = dataSource.getConnection(); PreparedStatement ps = c.prepareStatement("""
+        try (Connection connexion = dataSource.getConnection(); PreparedStatement requete = connexion.prepareStatement("""
                 SELECT s.external_id, s.severity, coalesce(s.published_at, s.modified_at), p.id
                 FROM project_impact i JOIN signal s ON s.id = i.signal_id JOIN project p ON p.id = i.project_id
                 WHERE i.workspace_id = ? AND i.state IN ('OUVERT', 'CONFIRME')
                 ORDER BY coalesce(s.published_at, s.modified_at) DESC, i.created_at, i.id
                 """)) {
-            ps.setObject(1, espace);
-            try (ResultSet rs = ps.executeQuery()) {
-                while (rs.next()) {
-                    parAvis.computeIfAbsent(rs.getString(1), k -> {
-                        try {
-                            return new Attendu(k, rs.getString(2), rs.getObject(3, OffsetDateTime.class),
-                                    new LinkedHashSet<>());
-                        } catch (SQLException e) {
-                            throw new IllegalStateException(e);
-                        }
-                    }).projets().add(rs.getObject(4, UUID.class).toString());
+            requete.setObject(1, espace);
+            try (ResultSet resultat = requete.executeQuery()) {
+                while (resultat.next()) {
+                    ajouterLigne(parAvis, resultat);
                 }
             }
         }
         return List.copyOf(parAvis.values());
+    }
+
+    /** Range une ligne du calcul de référence : l'avis à sa première rencontre, puis son projet. */
+    private static void ajouterLigne(Map<String, Attendu> parAvis, ResultSet resultat) throws SQLException {
+        String identifiant = resultat.getString(1);
+        Attendu attendu = parAvis.get(identifiant);
+        if (attendu == null) {
+            attendu = new Attendu(identifiant, resultat.getString(2), resultat.getObject(3, OffsetDateTime.class),
+                    new LinkedHashSet<>());
+            parAvis.put(identifiant, attendu);
+        }
+        attendu.projets().add(resultat.getObject(4, UUID.class).toString());
     }
 
     /**
@@ -177,35 +197,38 @@ class VeilleLectureGroupeeTest {
      */
     @Test
     void prf07ContenuIdentiqueAuCalculDeReference() throws SQLException {
-        JsonPath v = Api.en("jules").when().get("/api/v1/me/veille").then().statusCode(200).extract().jsonPath();
+        JsonPath veille = Api.en("jules").when().get("/api/v1/me/veille").then().statusCode(200).extract().jsonPath();
         List<Attendu> attendus = attendus();
         assertEquals(AVIS, attendus.size(), "jeu de données : un avis par signal impactant l'espace");
 
-        assertEquals(attendus.stream().map(Attendu::identifiant).toList(), v.getList("elements.identifiant"),
+        assertEquals(attendus.stream().map(Attendu::identifiant).toList(), veille.getList("elements.identifiant"),
                 "mêmes avis, du plus récent au plus ancien ; l'avis sans impact dans l'espace est absent");
-        for (int k = 0; k < attendus.size(); k++) {
-            Attendu a = attendus.get(k);
-            String e = "elements[" + k + "].";
-            assertEquals("AVIS_SECURITE", v.getString(e + "type"));
-            assertEquals("OSV", v.getString(e + "source"));
-            assertEquals(a.gravite(), v.getString(e + "gravite"), a.identifiant());
-            assertEquals(a.date().toInstant(), java.time.Instant.parse(v.getString(e + "date")), a.identifiant());
-            assertEquals(a.projets(), new LinkedHashSet<>(v.getList(e + "projets.projetId", String.class)),
-                    a.identifiant() + " : seuls les projets visibles de l'espace de l'appelant");
-            assertEquals(List.of("developpeur"), v.getList(e + "profils"));
-            assertEquals(List.of("securite"), v.getList(e + "rubriques.identifiant"));
-            assertTrue(v.getList(e + "abonnements").isEmpty());
+        for (int position = 0; position < attendus.size(); position++) {
+            Attendu attendu = attendus.get(position);
+            String element = "elements[" + position + "].";
+            assertEquals("AVIS_SECURITE", veille.getString(element + "type"));
+            assertEquals("OSV", veille.getString(element + "source"));
+            assertEquals(attendu.gravite(), veille.getString(element + "gravite"), attendu.identifiant());
+            assertEquals(attendu.date().toInstant(), java.time.Instant.parse(veille.getString(element + "date")),
+                    attendu.identifiant());
+            assertEquals(attendu.projets(),
+                    new LinkedHashSet<>(veille.getList(element + "projets.projetId", String.class)),
+                    attendu.identifiant() + " : seuls les projets visibles de l'espace de l'appelant");
+            assertEquals(List.of("developpeur"), veille.getList(element + "profils"));
+            assertEquals(List.of("securite"), veille.getList(element + "rubriques.identifiant"));
+            assertTrue(veille.getList(element + "abonnements").isEmpty());
 
             // Lecture unitaire de référence : même gravité, même date que la lecture groupée.
-            UUID sid = UUID.fromString(v.getString(e + "id"));
-            SignalQueries.SignalView unitaire = signaux.find(sid).orElseThrow();
-            assertEquals(unitaire.severity(), v.getString(e + "gravite"));
+            UUID signalId = UUID.fromString(veille.getString(element + "id"));
+            SignalQueries.SignalView unitaire = signaux.find(signalId).orElseThrow();
+            assertEquals(unitaire.severity(), veille.getString(element + "gravite"));
             assertEquals(unitaire.publishedAt() != null ? unitaire.publishedAt() : unitaire.modifiedAt(),
-                    java.time.Instant.parse(v.getString(e + "date")));
+                    java.time.Instant.parse(veille.getString(element + "date")));
         }
-        assertFalse(v.prettify().contains(id("lg-projet-etranger").toString()), "aucun projet d'un autre espace");
-        assertEquals(List.of("p1", "p2"), v.getList("elements.find { it.identifiant == 'GHSA-LG-2' }.projets.projet",
-                String.class).stream().map(x -> x.substring("Projet ".length())).sorted().toList(),
+        assertFalse(veille.prettify().contains(id("lg-projet-etranger").toString()), "aucun projet d'un autre espace");
+        assertEquals(List.of("p1", "p2"),
+                veille.getList("elements.find { it.identifiant == 'GHSA-LG-2' }.projets.projet", String.class).stream()
+                        .map(nom -> nom.substring("Projet ".length())).sorted().toList(),
                 "l'impact écarté de l'avis 2 sur p3 n'est pas restitué");
     }
 
@@ -222,8 +245,8 @@ class VeilleLectureGroupeeTest {
         List<UUID> attendus = new ArrayList<>(new LinkedHashSet<>(demandes));
         attendus.remove(inconnu);
         assertEquals(attendus, List.copyOf(lus.keySet()), "ordre des identifiants donnés, sans doublon ni inconnu");
-        for (UUID s : signauxIds) {
-            assertEquals(signaux.find(s).orElseThrow(), lus.get(s));
+        for (UUID signalId : signauxIds) {
+            assertEquals(signaux.find(signalId).orElseThrow(), lus.get(signalId));
         }
         assertTrue(signaux.findAll(List.of()).isEmpty());
     }
