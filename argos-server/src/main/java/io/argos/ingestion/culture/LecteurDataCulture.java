@@ -61,23 +61,23 @@ public final class LecteurDataCulture {
         JsonNode racine;
         try {
             racine = MAPPER.readTree(contenu);
-        } catch (IOException e) {
-            throw new ReponseInvalide("La réponse n'est pas un document JSON valide.", e);
+        } catch (IOException erreur) {
+            throw new ReponseInvalide("La réponse n'est pas un document JSON valide.", erreur);
         }
         JsonNode resultats = racine == null ? null : racine.get("results");
         if (resultats == null || !resultats.isArray()) {
             throw new ReponseInvalide("La réponse ne contient pas de liste « results ».", null);
         }
         List<Enregistrement> lus = new ArrayList<>();
-        for (JsonNode n : resultats) {
+        for (JsonNode noeud : resultats) {
             if (lus.size() >= max) {
                 break;
             }
-            if (!n.isObject()) {
+            if (!noeud.isObject()) {
                 continue;
             }
-            String titre = couper(texte(n.get(champs.titre())), TITRE_MAX);
-            String identifiant = couper(texte(n.get(champs.identifiant())), VALEUR_MAX);
+            String titre = couper(texte(noeud.get(champs.titre())), TITRE_MAX);
+            String identifiant = couper(texte(noeud.get(champs.identifiant())), VALEUR_MAX);
             if (titre.isEmpty()) {
                 continue;
             }
@@ -85,11 +85,11 @@ public final class LecteurDataCulture {
                 identifiant = titre;
             }
             lus.add(new Enregistrement(identifiant, titre,
-                    vide(couper(texte(n.get(champs.organisme())), ORGANISME_MAX)),
-                    couper(texte(n.get(champs.criteres())), CRITERES_MAX),
-                    vide(couper(texte(n.get(champs.lien())), 2000)),
-                    valeurs(n.get(champs.discipline())), valeurs(n.get(champs.territoire())),
-                    date(texte(n.get(champs.dateLimite())))));
+                    vide(couper(texte(noeud.get(champs.organisme())), ORGANISME_MAX)),
+                    couper(texte(noeud.get(champs.criteres())), CRITERES_MAX),
+                    vide(couper(texte(noeud.get(champs.lien())), 2000)),
+                    valeurs(noeud.get(champs.discipline())), valeurs(noeud.get(champs.territoire())),
+                    date(texte(noeud.get(champs.dateLimite())))));
         }
         return lus;
     }
@@ -108,19 +108,19 @@ public final class LecteurDataCulture {
             return resultat;
         }
         if (valeur.isArray()) {
-            for (JsonNode v : valeur) {
-                String t = couper(texte(v), VALEUR_MAX);
-                if (!t.isEmpty() && resultat.size() < 50) {
-                    resultat.add(t);
+            for (JsonNode element : valeur) {
+                String valeurCoupee = couper(texte(element), VALEUR_MAX);
+                if (!valeurCoupee.isEmpty() && resultat.size() < 50) {
+                    resultat.add(valeurCoupee);
                 }
             }
             return resultat;
         }
         // Valeurs multiples séparées par « ; » ou « , » dans une même chaîne.
         for (String partie : texte(valeur).split("[;,]")) {
-            String t = couper(partie.strip(), VALEUR_MAX);
-            if (!t.isEmpty() && resultat.size() < 50) {
-                resultat.add(t);
+            String valeurCoupee = couper(partie.strip(), VALEUR_MAX);
+            if (!valeurCoupee.isEmpty() && resultat.size() < 50) {
+                resultat.add(valeurCoupee);
             }
         }
         return resultat;
@@ -133,20 +133,20 @@ public final class LecteurDataCulture {
         }
         try {
             return valeur.length() <= 10 ? LocalDate.parse(valeur) : OffsetDateTime.parse(valeur).toLocalDate();
-        } catch (DateTimeParseException e) {
+        } catch (DateTimeParseException horsFormatIso) {
             try {
                 return LocalDate.parse(valeur.substring(0, 10));
-            } catch (DateTimeParseException | StringIndexOutOfBoundsException e2) {
+            } catch (DateTimeParseException | StringIndexOutOfBoundsException illisible) {
                 return null;
             }
         }
     }
 
-    private static String couper(String v, int max) {
-        return v.length() <= max ? v : v.substring(0, max);
+    private static String couper(String valeur, int max) {
+        return valeur.length() <= max ? valeur : valeur.substring(0, max);
     }
 
-    private static String vide(String v) {
-        return v.isEmpty() ? null : v;
+    private static String vide(String valeur) {
+        return valeur.isEmpty() ? null : valeur;
     }
 }

@@ -38,14 +38,14 @@ public final class ArchiveTar {
     }
 
     /** Lit l'archive compressée et remet chaque fichier XML (chemin, contenu) au consommateur. */
-    public void lire(InputStream gz, BiConsumer<String, byte[]> consommateur) {
-        try (InputStream in = new GZIPInputStream(gz)) {
+    public void lire(InputStream archiveCompressee, BiConsumer<String, byte[]> consommateur) {
+        try (InputStream flux = new GZIPInputStream(archiveCompressee)) {
             byte[] entete = new byte[BLOC];
             long total = 0;
             int entrees = 0;
             String nomLong = null;
             while (true) {
-                if (!lireBloc(in, entete)) {
+                if (!lireBloc(flux, entete)) {
                     return;
                 }
                 if (estVide(entete)) {
@@ -66,7 +66,7 @@ public final class ArchiveTar {
                 String nom = nomLong != null ? nomLong : nom(entete);
                 nomLong = null;
                 if (type == 'L' || type == 'x') {
-                    byte[] meta = lireContenu(in, taille, Math.min(taille, 65536));
+                    byte[] meta = lireContenu(flux, taille, Math.min(taille, 65536));
                     if (type == 'L') {
                         nomLong = texte(meta, 0, meta.length);
                     } else {
@@ -76,30 +76,30 @@ public final class ArchiveTar {
                 }
                 boolean regulier = type == '0' || type == '\0';
                 if (regulier && taille <= fichierMax && nom.endsWith(".xml")) {
-                    consommateur.accept(nom, lireContenu(in, taille, taille));
+                    consommateur.accept(nom, lireContenu(flux, taille, taille));
                 } else {
-                    sauter(in, taille);
+                    sauter(flux, taille);
                 }
             }
-        } catch (IOException e) {
-            throw new ArchiveInvalide("archive illisible : " + e.getMessage(), e);
+        } catch (IOException erreur) {
+            throw new ArchiveInvalide("archive illisible : " + erreur.getMessage(), erreur);
         }
     }
 
-    private static boolean lireBloc(InputStream in, byte[] bloc) throws IOException {
-        int lu = in.readNBytes(bloc, 0, BLOC);
-        if (lu == 0) {
+    private static boolean lireBloc(InputStream flux, byte[] bloc) throws IOException {
+        int octetsLus = flux.readNBytes(bloc, 0, BLOC);
+        if (octetsLus == 0) {
             return false;
         }
-        if (lu < BLOC) {
+        if (octetsLus < BLOC) {
             throw new IOException("bloc tronqué");
         }
         return true;
     }
 
     private static boolean estVide(byte[] bloc) {
-        for (byte b : bloc) {
-            if (b != 0) {
+        for (byte octet : bloc) {
+            if (octet != 0) {
                 return false;
             }
         }
@@ -107,41 +107,41 @@ public final class ArchiveTar {
     }
 
     /** Lit le contenu de l'entrée et son remplissage ; ne garde que {@code garde} octets. */
-    private static byte[] lireContenu(InputStream in, long taille, long garde) throws IOException {
+    private static byte[] lireContenu(InputStream flux, long taille, long garde) throws IOException {
         ByteArrayOutputStream out = new ByteArrayOutputStream((int) Math.min(garde, 1 << 20));
         byte[] tampon = new byte[8192];
         long reste = taille;
         while (reste > 0) {
-            int n = in.read(tampon, 0, (int) Math.min(tampon.length, reste));
-            if (n < 0) {
+            int octetsLus = flux.read(tampon, 0, (int) Math.min(tampon.length, reste));
+            if (octetsLus < 0) {
                 throw new IOException("entrée tronquée");
             }
-            long gardes = Math.max(0, Math.min(n, garde - (taille - reste)));
+            long gardes = Math.max(0, Math.min(octetsLus, garde - (taille - reste)));
             out.write(tampon, 0, (int) gardes);
-            reste -= n;
+            reste -= octetsLus;
         }
-        sauterRemplissage(in, taille);
+        sauterRemplissage(flux, taille);
         return out.toByteArray();
     }
 
-    private static void sauter(InputStream in, long taille) throws IOException {
+    private static void sauter(InputStream flux, long taille) throws IOException {
         long reste = taille;
         while (reste > 0) {
-            long n = in.skip(reste);
-            if (n <= 0) {
-                if (in.read() < 0) {
+            long octetsSautes = flux.skip(reste);
+            if (octetsSautes <= 0) {
+                if (flux.read() < 0) {
                     throw new IOException("entrée tronquée");
                 }
-                n = 1;
+                octetsSautes = 1;
             }
-            reste -= n;
+            reste -= octetsSautes;
         }
-        sauterRemplissage(in, taille);
+        sauterRemplissage(flux, taille);
     }
 
-    private static void sauterRemplissage(InputStream in, long taille) throws IOException {
+    private static void sauterRemplissage(InputStream flux, long taille) throws IOException {
         long remplissage = (BLOC - taille % BLOC) % BLOC;
-        if (remplissage > 0 && in.readNBytes((int) remplissage).length < remplissage) {
+        if (remplissage > 0 && flux.readNBytes((int) remplissage).length < remplissage) {
             throw new IOException("remplissage tronqué");
         }
     }
@@ -162,22 +162,22 @@ public final class ArchiveTar {
         return null;
     }
 
-    private static String texte(byte[] b, int debut, int longueur) {
+    private static String texte(byte[] octets, int debut, int longueur) {
         int fin = debut;
-        while (fin < debut + longueur && fin < b.length && b[fin] != 0) {
+        while (fin < debut + longueur && fin < octets.length && octets[fin] != 0) {
             fin++;
         }
-        return new String(b, debut, fin - debut, StandardCharsets.UTF_8).strip();
+        return new String(octets, debut, fin - debut, StandardCharsets.UTF_8).strip();
     }
 
-    private static long octal(byte[] b, int debut, int longueur) {
-        String s = texte(b, debut, longueur).strip();
-        if (s.isEmpty()) {
+    private static long octal(byte[] octets, int debut, int longueur) {
+        String valeur = texte(octets, debut, longueur).strip();
+        if (valeur.isEmpty()) {
             return 0;
         }
         try {
-            return Long.parseLong(s, 8);
-        } catch (NumberFormatException e) {
+            return Long.parseLong(valeur, 8);
+        } catch (NumberFormatException illisible) {
             return -1;
         }
     }

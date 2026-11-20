@@ -56,7 +56,7 @@ public class SourceSynchronizer {
     }
 
     public SyncReport synchronize(String sourceId) {
-        AdvisoryFeed feed = feeds.stream().filter(f -> f.sourceId().equals(sourceId)).findFirst()
+        AdvisoryFeed feed = feeds.stream().filter(candidate -> candidate.sourceId().equals(sourceId)).findFirst()
                 .orElseThrow(() -> new IllegalArgumentException("source inconnue : " + sourceId));
         Optional<UUID> started = store.startOrResume(sourceId);
         if (started.isEmpty()) {
@@ -73,18 +73,18 @@ public class SourceSynchronizer {
                 store.sourceSucceeded(sourceId);
                 LOG.infof("synchronisation %s réussie (run %s) : %s", sourceId, runId, counters);
                 return counters.report(sourceId, "SUCCEEDED", attempts, null);
-            } catch (SourceException e) {
-                store.recordAttempt(runId, attempts, e);
-                LOG.warnf("synchronisation %s, tentative %d en échec (%s) : %s", sourceId, attempts, e.kind(),
-                        e.getMessage());
-                if (e.kind() == SourceException.Kind.PERMANENT) {
-                    return failed(sourceId, runId, attempts, "PERMANENT", e, counters);
+            } catch (SourceException error) {
+                store.recordAttempt(runId, attempts, error);
+                LOG.warnf("synchronisation %s, tentative %d en échec (%s) : %s", sourceId, attempts, error.kind(),
+                        error.getMessage());
+                if (error.kind() == SourceException.Kind.PERMANENT) {
+                    return failed(sourceId, runId, attempts, "PERMANENT", error, counters);
                 }
                 if (attempts >= policy.maxAttempts()) {
-                    return failed(sourceId, runId, attempts, "EXHAUSTED", e, counters);
+                    return failed(sourceId, runId, attempts, "EXHAUSTED", error, counters);
                 }
-                Duration delay = policy.delayAfter(attempts, e.retryAfter());
-                store.markRetryable(runId, attempts, Instant.now().plus(delay), e.getMessage());
+                Duration delay = policy.delayAfter(attempts, error.retryAfter());
+                store.markRetryable(runId, attempts, Instant.now().plus(delay), error.getMessage());
                 try {
                     sleeper.sleep(delay);
                 } catch (InterruptedException interrupted) {
@@ -95,26 +95,26 @@ public class SourceSynchronizer {
             } catch (RuntimeException unexpected) {
                 // Toute autre erreur (bogue d'un normaliseur, curseur illisible, base indisponible) termine
                 // le traitement en échec : il ne reste jamais RUNNING et la source change d'état (COL-07).
-                SourceException e = new SourceException(SourceException.Kind.PERMANENT, null, null,
+                SourceException error = new SourceException(SourceException.Kind.PERMANENT, null, null,
                         "erreur inattendue : " + unexpected.getClass().getSimpleName(), unexpected);
                 LOG.errorf(unexpected, "synchronisation %s, tentative %d interrompue par une erreur inattendue",
                         sourceId, attempts);
                 try {
-                    store.recordAttempt(runId, attempts, e);
+                    store.recordAttempt(runId, attempts, error);
                 } catch (RuntimeException ignored) {
                     LOG.warnf("tentative %d de la synchronisation %s non enregistrée", attempts, sourceId);
                 }
-                return failed(sourceId, runId, attempts, "PERMANENT", e, counters);
+                return failed(sourceId, runId, attempts, "PERMANENT", error, counters);
             }
         }
     }
 
-    private SyncReport failed(String sourceId, UUID runId, int attempts, String kind, SourceException e,
+    private SyncReport failed(String sourceId, UUID runId, int attempts, String kind, SourceException error,
             Counters counters) {
-        store.fail(runId, attempts, kind, e.getMessage());
-        store.sourceFailed(sourceId, e.getMessage(), policy.degradedThreshold(),
-                e.kind() == SourceException.Kind.PERMANENT);
-        return counters.report(sourceId, "FAILED", attempts, e.getMessage());
+        store.fail(runId, attempts, kind, error.getMessage());
+        store.sourceFailed(sourceId, error.getMessage(), policy.degradedThreshold(),
+                error.kind() == SourceException.Kind.PERMANENT);
+        return counters.report(sourceId, "FAILED", attempts, error.getMessage());
     }
 
     private void runOnce(AdvisoryFeed feed, UUID runId, Counters counters) {

@@ -46,21 +46,21 @@ public class LecteurPage {
         Document document;
         try {
             document = Jsoup.parse(new ByteArrayInputStream(contenu), null, adresse);
-        } catch (IOException e) {
-            throw new RecuperationRefusee(Motif.PAGE_INVALIDE, "Page illisible.", e);
+        } catch (IOException erreur) {
+            throw new RecuperationRefusee(Motif.PAGE_INVALIDE, "Page illisible.", erreur);
         }
         document.select("script, style, noscript, template, iframe, object, embed").remove();
         Set<String> blocs = new LinkedHashSet<>();
-        for (Element e : document.body().select(BLOCS)) {
-            String t = e.text().strip();
-            if (!t.isEmpty()) {
-                blocs.add(t);
+        for (Element bloc : document.body().select(BLOCS)) {
+            String texteBloc = bloc.text().strip();
+            if (!texteBloc.isEmpty()) {
+                blocs.add(texteBloc);
             }
         }
         if (blocs.isEmpty()) {
-            String t = document.body().text().strip();
-            if (!t.isEmpty()) {
-                blocs.add(t);
+            String texteBloc = document.body().text().strip();
+            if (!texteBloc.isEmpty()) {
+                blocs.add(texteBloc);
             }
         }
         String texte = LecteurFlux.couper(String.join("\n", blocs), TEXTE_MAX);
@@ -72,18 +72,18 @@ public class LecteurPage {
         Set<String> anciens = new LinkedHashSet<>(blocs(avant));
         Set<String> nouveaux = new LinkedHashSet<>(blocs(apres));
         List<String> ajoutes = new ArrayList<>();
-        for (String b : nouveaux) {
-            if (!anciens.contains(b)) {
-                ajoutes.add(b);
+        for (String bloc : nouveaux) {
+            if (!anciens.contains(bloc)) {
+                ajoutes.add(bloc);
             }
         }
         if (!ajoutes.isEmpty()) {
             return LecteurFlux.couper("Ajouté : " + String.join(" / ", ajoutes), APERCU_MAX);
         }
         List<String> retires = new ArrayList<>();
-        for (String b : anciens) {
-            if (!nouveaux.contains(b)) {
-                retires.add(b);
+        for (String bloc : anciens) {
+            if (!nouveaux.contains(bloc)) {
+                retires.add(bloc);
             }
         }
         if (!retires.isEmpty()) {
@@ -95,10 +95,10 @@ public class LecteurPage {
     /** Empreinte SHA-256 hexadécimale d'un texte. */
     public static String empreinte(String texte) {
         try {
-            MessageDigest md = MessageDigest.getInstance("SHA-256");
-            return HexFormat.of().formatHex(md.digest(texte.getBytes(StandardCharsets.UTF_8)));
-        } catch (NoSuchAlgorithmException e) {
-            throw new IllegalStateException("SHA-256 indisponible", e);
+            MessageDigest condensat = MessageDigest.getInstance("SHA-256");
+            return HexFormat.of().formatHex(condensat.digest(texte.getBytes(StandardCharsets.UTF_8)));
+        } catch (NoSuchAlgorithmException erreur) {
+            throw new IllegalStateException("SHA-256 indisponible", erreur);
         }
     }
 
