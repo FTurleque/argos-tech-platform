@@ -173,6 +173,40 @@ function statut(licence, composant) {
   return null;
 }
 
+// Position du premier caractère qui n'est pas un blanc à partir de `debut`.
+function finBlancs(texte, debut) {
+  let rang = debut;
+  while (rang < texte.length && /\s/.test(texte[rang])) rang++;
+  return rang;
+}
+
+// Découpe `texte` sur le mot `mot` (sans distinction de casse) entouré de blancs, comme
+// `texte.split(/\s+MOT\s+/i)`, mais en temps linéaire : une longue suite de blancs n'est lue qu'une fois.
+function decouperSurMot(texte, mot) {
+  const motif = new RegExp(`^${mot}$`, 'i');
+  const morceaux = [];
+  let debutMorceau = 0;
+  let rang = 0;
+  while (rang < texte.length) {
+    const finAvant = finBlancs(texte, rang);
+    if (finAvant === rang) {
+      rang++;
+      continue;
+    }
+    const finMot = finAvant + mot.length;
+    const finApres = finBlancs(texte, finMot);
+    if (finMot <= texte.length && finApres > finMot && motif.test(texte.slice(finAvant, finMot))) {
+      morceaux.push(texte.slice(debutMorceau, rang));
+      debutMorceau = finApres;
+      rang = finApres;
+    } else {
+      rang = finAvant;
+    }
+  }
+  morceaux.push(texte.slice(debutMorceau));
+  return morceaux;
+}
+
 // Licences déclarées d'un composant CycloneDX. Chaque entrée « license » s'ajoute aux autres (ET) ; une
 // expression SPDX se découpe en alternatives (OR) dont chacune est une liste cumulative (AND).
 // Résultat : liste d'alternatives, chacune étant la liste des licences qui s'appliquent ensemble.
@@ -183,8 +217,8 @@ function alternativesDe(composant) {
     if (entree.license) {
       cumul.push(entree.license.id ?? entree.license.name ?? '');
     } else if (entree.expression) {
-      const branches = entree.expression.replaceAll(/[()]/g, ' ').split(/\s+OR\s+/i)
-        .map((branche) => branche.split(/\s+AND\s+/i).map((licence) => licence.trim()).filter(Boolean));
+      const branches = decouperSurMot(entree.expression.replaceAll(/[()]/g, ' '), 'OR')
+        .map((branche) => decouperSurMot(branche, 'AND').map((licence) => licence.trim()).filter(Boolean));
       alternatives = alternatives ?? [[]];
       alternatives = alternatives.flatMap((alternative) => branches.map((branche) => [...alternative, ...branche]));
     }
