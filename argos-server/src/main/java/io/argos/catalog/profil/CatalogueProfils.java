@@ -46,13 +46,13 @@ public class CatalogueProfils {
 
     CatalogueProfils(List<ManifesteProfil> manifestes, Set<String> retires) {
         Map<String, ManifesteProfil> parIdentifiant = new LinkedHashMap<>();
-        for (ManifesteProfil m : manifestes) {
-            List<String> erreurs = ValidateurManifeste.erreurs(m);
+        for (ManifesteProfil manifeste : manifestes) {
+            List<String> erreurs = ValidateurManifeste.erreurs(manifeste);
             if (!erreurs.isEmpty()) {
-                throw new ManifesteInvalideException(String.valueOf(m.identifiant()), erreurs);
+                throw new ManifesteInvalideException(String.valueOf(manifeste.identifiant()), erreurs);
             }
-            if (parIdentifiant.putIfAbsent(m.identifiant(), m) != null) {
-                throw new ManifesteInvalideException(m.identifiant(), List.of("profil déclaré deux fois"));
+            if (parIdentifiant.putIfAbsent(manifeste.identifiant(), manifeste) != null) {
+                throw new ManifesteInvalideException(manifeste.identifiant(), List.of("profil déclaré deux fois"));
             }
         }
         this.declares = Map.copyOf(parIdentifiant);
@@ -83,18 +83,18 @@ public class CatalogueProfils {
         ClassLoader chargeur = Thread.currentThread().getContextClassLoader();
         for (String identifiant : identifiants) {
             String ressource = DOSSIER + identifiant + ".json";
-            try (InputStream in = chargeur.getResourceAsStream(ressource)) {
-                if (in == null) {
+            try (InputStream flux = chargeur.getResourceAsStream(ressource)) {
+                if (flux == null) {
                     throw new ManifesteInvalideException(identifiant, List.of("ressource absente : " + ressource));
                 }
-                ManifesteProfil m = mapper.readValue(in, ManifesteProfil.class);
-                if (!identifiant.equals(m.identifiant())) {
+                ManifesteProfil manifeste = mapper.readValue(flux, ManifesteProfil.class);
+                if (!identifiant.equals(manifeste.identifiant())) {
                     throw new ManifesteInvalideException(identifiant,
-                            List.of("l'identifiant du manifeste (" + m.identifiant() + ") diffère du nom du fichier"));
+                            List.of("l'identifiant du manifeste (" + manifeste.identifiant() + ") diffère du nom du fichier"));
                 }
-                manifestes.add(m);
-            } catch (IOException e) {
-                throw new ManifesteInvalideException(identifiant, List.of("lecture impossible : " + e.getMessage()));
+                manifestes.add(manifeste);
+            } catch (IOException erreur) {
+                throw new ManifesteInvalideException(identifiant, List.of("lecture impossible : " + erreur.getMessage()));
             }
         }
         return manifestes;

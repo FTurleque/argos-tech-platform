@@ -56,11 +56,11 @@ public final class CycleVie {
     }
 
     /** Libellé affiché d'un état. */
-    public static String libelle(Etat e) {
-        if (e == null) {
+    public static String libelle(Etat etat) {
+        if (etat == null) {
             return "inconnu";
         }
-        return switch (e) {
+        return switch (etat) {
             case NOUVEAU -> "nouveau";
             case EN_ANALYSE -> "en analyse";
             case SANS_IMPACT -> "sans impact";

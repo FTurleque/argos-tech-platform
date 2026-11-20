@@ -84,11 +84,11 @@ public class EcheancesReglementaires {
 
     /** Jours de rappel de l'espace, ou jours par défaut s'il n'en a pas réglé. */
     public List<Integer> parametres(UUID compte, UUID espace) {
-        return base.executer(new Contexte(compte, null, espace), c -> {
-            try (PreparedStatement ps = c.prepareStatement("SELECT rappels_jours FROM reg_parametres WHERE espace_id = ?")) {
-                ps.setObject(1, espace);
-                try (ResultSet rs = ps.executeQuery()) {
-                    return rs.next() ? Arrays.asList((Integer[]) rs.getArray(1).getArray()) : rappelsParDefaut();
+        return base.executer(new Contexte(compte, null, espace), connexion -> {
+            try (PreparedStatement requete = connexion.prepareStatement("SELECT rappels_jours FROM reg_parametres WHERE espace_id = ?")) {
+                requete.setObject(1, espace);
+                try (ResultSet resultat = requete.executeQuery()) {
+                    return resultat.next() ? Arrays.asList((Integer[]) resultat.getArray(1).getArray()) : rappelsParDefaut();
                 }
             }
         });
@@ -97,17 +97,17 @@ public class EcheancesReglementaires {
     /** Règle les jours de rappel de l'espace (administrateur de l'espace). */
     public List<Integer> modifierParametres(UUID compte, UUID espace, List<Integer> jours) {
         List<Integer> valides = valider(jours);
-        return base.executer(new Contexte(compte, null, espace), c -> {
-            try (PreparedStatement ps = c.prepareStatement("""
+        return base.executer(new Contexte(compte, null, espace), connexion -> {
+            try (PreparedStatement requete = connexion.prepareStatement("""
                     INSERT INTO reg_parametres (espace_id, rappels_jours, modifie_par, modifie_le)
                     VALUES (?, ?, argos_compte_courant(), ?)
                     ON CONFLICT (espace_id) DO UPDATE SET rappels_jours = excluded.rappels_jours,
                         modifie_par = excluded.modifie_par, modifie_le = excluded.modifie_le
                     """)) {
-                ps.setObject(1, espace);
-                ps.setArray(2, c.createArrayOf("integer", valides.toArray()));
-                ps.setTimestamp(3, Timestamp.from(Instant.now()));
-                ps.executeUpdate();
+                requete.setObject(1, espace);
+                requete.setArray(2, connexion.createArrayOf("integer", valides.toArray()));
+                requete.setTimestamp(3, Timestamp.from(Instant.now()));
+                requete.executeUpdate();
             }
             return valides;
         });
@@ -135,36 +135,36 @@ public class EcheancesReglementaires {
                 List<String> domaines) {
         }
         List<Ligne> lignes = new ArrayList<>();
-        try (Connection c = dataSource.getConnection(); PreparedStatement ps = c.prepareStatement(sql)) {
-            ps.setDate(1, Date.valueOf(aujourdhui));
-            ps.setDate(2, Date.valueOf(aujourdhui.plusDays(365)));
-            try (ResultSet rs = ps.executeQuery()) {
-                while (rs.next()) {
-                    List<Integer> jours = rs.getArray(6) == null ? rappelsParDefaut()
-                            : Arrays.asList((Integer[]) rs.getArray(6).getArray());
-                    lignes.add(new Ligne(rs.getObject(1, UUID.class), rs.getObject(2, UUID.class), rs.getString(3),
-                            rs.getString(4), rs.getObject(5, LocalDate.class), jours,
-                            Arrays.asList((String[]) rs.getArray(7).getArray())));
+        try (Connection connexion = dataSource.getConnection(); PreparedStatement requete = connexion.prepareStatement(sql)) {
+            requete.setDate(1, Date.valueOf(aujourdhui));
+            requete.setDate(2, Date.valueOf(aujourdhui.plusDays(365)));
+            try (ResultSet resultat = requete.executeQuery()) {
+                while (resultat.next()) {
+                    List<Integer> jours = resultat.getArray(6) == null ? rappelsParDefaut()
+                            : Arrays.asList((Integer[]) resultat.getArray(6).getArray());
+                    lignes.add(new Ligne(resultat.getObject(1, UUID.class), resultat.getObject(2, UUID.class), resultat.getString(3),
+                            resultat.getString(4), resultat.getObject(5, LocalDate.class), jours,
+                            Arrays.asList((String[]) resultat.getArray(7).getArray())));
                 }
             }
-        } catch (SQLException e) {
-            throw new IllegalStateException("lecture des échéances réglementaires impossible", e);
+        } catch (SQLException erreur) {
+            throw new IllegalStateException("lecture des échéances réglementaires impossible", erreur);
         }
         String racine = legifrance.replaceAll("/+$", "");
         Map<String, List<Expert>> experts = new LinkedHashMap<>();
-        for (Ligne l : lignes) {
-            int restant = (int) ChronoUnit.DAYS.between(aujourdhui, l.effet());
+        for (Ligne ligne : lignes) {
+            int restant = (int) ChronoUnit.DAYS.between(aujourdhui, ligne.effet());
             int rattrapage = Math.max(1, rattrapageJours);
-            Integer jour = l.jours().stream().filter(j -> restant <= j && restant > j - rattrapage)
+            Integer jour = ligne.jours().stream().filter(rappel -> restant <= rappel && restant > rappel - rattrapage)
                     .min(Integer::compare).orElse(null);
             if (jour == null) {
                 continue;
             }
-            List<Expert> ex = experts.computeIfAbsent(l.espace() + "|" + l.domaines(),
-                    k -> dictionnaire.experts(l.espace(), l.domaines()).stream()
-                            .map(x -> new Expert(x.compteId(), x.email())).toList());
-            liste.add(new Echeance(l.fiche(), l.espace(), l.domaines(), l.identifiant(), l.titre(), l.effet(), jour, restant,
-                    racine + "/jorf/id/" + l.identifiant(), ex));
+            List<Expert> expertsDuDomaine = experts.computeIfAbsent(ligne.espace() + "|" + ligne.domaines(),
+                    cle -> dictionnaire.experts(ligne.espace(), ligne.domaines()).stream()
+                            .map(expert -> new Expert(expert.compteId(), expert.email())).toList());
+            liste.add(new Echeance(ligne.fiche(), ligne.espace(), ligne.domaines(), ligne.identifiant(), ligne.titre(),
+                    ligne.effet(), jour, restant, racine + "/jorf/id/" + ligne.identifiant(), expertsDuDomaine));
         }
         return liste;
     }
@@ -175,13 +175,13 @@ public class EcheancesReglementaires {
             throw new DonneeInvalide("DONNEE_INVALIDE", "Indiquez de 1 à 10 jours de rappel.", "rappelsJours");
         }
         Set<Integer> distincts = new LinkedHashSet<>();
-        for (Integer j : jours) {
-            if (j == null || j < 0 || j > 365) {
+        for (Integer jour : jours) {
+            if (jour == null || jour < 0 || jour > 365) {
                 throw new DonneeInvalide("DONNEE_INVALIDE", "Chaque jour de rappel est compris entre 0 et 365.",
                         "rappelsJours");
             }
-            distincts.add(j);
+            distincts.add(jour);
         }
-        return distincts.stream().sorted((a, b) -> b - a).toList();
+        return distincts.stream().sorted((gauche, droite) -> droite - gauche).toList();
     }
 }

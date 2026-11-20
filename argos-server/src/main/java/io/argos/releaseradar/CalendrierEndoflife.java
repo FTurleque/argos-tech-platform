@@ -57,13 +57,13 @@ public class CalendrierEndoflife implements CalendrierSorties {
         Map<String, List<LigneCycle>> cycles = cycles(produitsParCle.values().stream().flatMap(Set::stream).toList());
         produitsParCle.forEach((cle, produits) -> {
             for (String produit : produits) {
-                for (LigneCycle l : cycles.getOrDefault(produit, List.of())) {
-                    ajouter(echeances, cle, l.cycle(), Nature.SORTIE, l.sortie(), null, depuis, jusqua);
-                    if (l.derniereVersion() != null) {
-                        ajouter(echeances, cle, l.derniereVersion(), Nature.CORRECTIF, l.derniereVersionLe(),
-                                "Dernière version de la branche " + l.cycle(), depuis, jusqua);
+                for (LigneCycle ligne : cycles.getOrDefault(produit, List.of())) {
+                    ajouter(echeances, cle, ligne.cycle(), Nature.SORTIE, ligne.sortie(), null, depuis, jusqua);
+                    if (ligne.derniereVersion() != null) {
+                        ajouter(echeances, cle, ligne.derniereVersion(), Nature.CORRECTIF, ligne.derniereVersionLe(),
+                                "Dernière version de la branche " + ligne.cycle(), depuis, jusqua);
                     }
-                    ajouter(echeances, cle, l.cycle(), Nature.FIN_DE_SUPPORT, l.finSupport(), null, depuis, jusqua);
+                    ajouter(echeances, cle, ligne.cycle(), Nature.FIN_DE_SUPPORT, ligne.finSupport(), null, depuis, jusqua);
                 }
             }
         });
@@ -81,9 +81,9 @@ public class CalendrierEndoflife implements CalendrierSorties {
         Map<String, List<LigneCycle>> cycles = cycles(produits);
         LigneCycle meilleur = null;
         for (String produit : produits) {
-            for (LigneCycle l : cycles.getOrDefault(produit, List.of())) {
-                if (appartient(version, l.cycle()) && (meilleur == null || l.cycle().length() > meilleur.cycle().length())) {
-                    meilleur = l;
+            for (LigneCycle ligne : cycles.getOrDefault(produit, List.of())) {
+                if (appartient(version, ligne.cycle()) && (meilleur == null || ligne.cycle().length() > meilleur.cycle().length())) {
+                    meilleur = ligne;
                 }
             }
         }
@@ -95,11 +95,11 @@ public class CalendrierEndoflife implements CalendrierSorties {
 
     /** Vrai si la version appartient au cycle : égale, ou prolongée par « . » ou « - ». */
     public static boolean appartient(String version, String cycle) {
-        String v = version.strip();
-        if (v.startsWith("v") || v.startsWith("V")) {
-            v = v.substring(1);
+        String versionNettoyee = version.strip();
+        if (versionNettoyee.startsWith("v") || versionNettoyee.startsWith("V")) {
+            versionNettoyee = versionNettoyee.substring(1);
         }
-        return v.equals(cycle) || v.startsWith(cycle + ".") || v.startsWith(cycle + "-");
+        return versionNettoyee.equals(cycle) || versionNettoyee.startsWith(cycle + ".") || versionNettoyee.startsWith(cycle + "-");
     }
 
     private static void ajouter(Set<Echeance> echeances, String cle, String version, Nature nature, LocalDate date,
@@ -116,9 +116,9 @@ public class CalendrierEndoflife implements CalendrierSorties {
             return resultat;
         }
         Set<String> demandees = new HashSet<>(cles);
-        for (ReferentielStandardsEnBase.TechnologieSuivie t : referentiel.technologies(espaces, true)) {
-            if (demandees.contains(t.cle())) {
-                resultat.computeIfAbsent(t.cle(), k -> new LinkedHashSet<>()).add(t.produitCycleVie());
+        for (ReferentielStandardsEnBase.TechnologieSuivie technologie : referentiel.technologies(espaces, true)) {
+            if (demandees.contains(technologie.cle())) {
+                resultat.computeIfAbsent(technologie.cle(), cleCalendrier -> new LinkedHashSet<>()).add(technologie.produitCycleVie());
             }
         }
         return resultat;
@@ -129,20 +129,20 @@ public class CalendrierEndoflife implements CalendrierSorties {
         if (produits.isEmpty()) {
             return resultat;
         }
-        try (Connection c = dataSource.getConnection(); PreparedStatement ps = c.prepareStatement("""
+        try (Connection connexion = dataSource.getConnection(); PreparedStatement requete = connexion.prepareStatement("""
                 SELECT produit, cycle, sortie_le, fin_support_le, derniere_version, derniere_version_le FROM cycle_vie
                 WHERE produit = ANY (?) ORDER BY produit, cycle
                 """)) {
-            ps.setArray(1, c.createArrayOf("varchar", new LinkedHashSet<>(produits).toArray()));
-            try (ResultSet rs = ps.executeQuery()) {
-                while (rs.next()) {
-                    LigneCycle l = new LigneCycle(rs.getString(1), rs.getString(2), rs.getObject(3, LocalDate.class),
-                            rs.getObject(4, LocalDate.class), rs.getString(5), rs.getObject(6, LocalDate.class));
-                    resultat.computeIfAbsent(l.produit(), k -> new ArrayList<>()).add(l);
+            requete.setArray(1, connexion.createArrayOf("varchar", new LinkedHashSet<>(produits).toArray()));
+            try (ResultSet lignes = requete.executeQuery()) {
+                while (lignes.next()) {
+                    LigneCycle ligne = new LigneCycle(lignes.getString(1), lignes.getString(2), lignes.getObject(3, LocalDate.class),
+                            lignes.getObject(4, LocalDate.class), lignes.getString(5), lignes.getObject(6, LocalDate.class));
+                    resultat.computeIfAbsent(ligne.produit(), produit -> new ArrayList<>()).add(ligne);
                 }
             }
-        } catch (SQLException e) {
-            throw new IllegalStateException("lecture du calendrier impossible", e);
+        } catch (SQLException erreur) {
+            throw new IllegalStateException("lecture du calendrier impossible", erreur);
         }
         return resultat;
     }

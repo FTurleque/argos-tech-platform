@@ -42,10 +42,10 @@ public final class PackageKey {
             rest = rest.substring(0, cut);
         }
         String version = null;
-        int at = rest.lastIndexOf('@');
-        if (at > rest.indexOf('/') && at >= 0) {
-            version = decode(rest.substring(at + 1));
-            rest = rest.substring(0, at);
+        int versionSeparator = rest.lastIndexOf('@');
+        if (versionSeparator > rest.indexOf('/') && versionSeparator >= 0) {
+            version = decode(rest.substring(versionSeparator + 1));
+            rest = rest.substring(0, versionSeparator);
         }
         while (rest.startsWith("/")) {
             rest = rest.substring(1);
@@ -99,26 +99,27 @@ public final class PackageKey {
 
     /** Construit la clé normalisée. */
     public static String key(String type, String namespace, String name) {
-        String t = type.toLowerCase(Locale.ROOT);
-        boolean lower = switch (t) {
+        String normalizedType = type.toLowerCase(Locale.ROOT);
+        boolean lower = switch (normalizedType) {
             case "npm", "pypi", "nuget", "cargo", "gem", "golang" -> true;
             default -> false;
         };
-        String ns = namespace == null || namespace.isBlank() ? null : (lower ? namespace.toLowerCase(Locale.ROOT) : namespace);
-        String n = lower ? name.toLowerCase(Locale.ROOT) : name;
-        if ("pypi".equals(t)) {
-            n = n.replace('_', '-').replace('.', '-');
+        String normalizedNamespace = namespace == null || namespace.isBlank() ? null
+                : (lower ? namespace.toLowerCase(Locale.ROOT) : namespace);
+        String normalizedName = lower ? name.toLowerCase(Locale.ROOT) : name;
+        if ("pypi".equals(normalizedType)) {
+            normalizedName = normalizedName.replace('_', '-').replace('.', '-');
         }
-        return "pkg:" + t + "/" + (ns == null ? "" : ns + "/") + n;
+        return "pkg:" + normalizedType + "/" + (normalizedNamespace == null ? "" : normalizedNamespace + "/") + normalizedName;
     }
 
-    private static int indexOfAny(String s, char a, char b) {
-        int i = s.indexOf(a);
-        int j = s.indexOf(b);
-        if (i < 0) {
-            return j;
+    private static int indexOfAny(String text, char first, char second) {
+        int firstIndex = text.indexOf(first);
+        int secondIndex = text.indexOf(second);
+        if (firstIndex < 0) {
+            return secondIndex;
         }
-        return j < 0 ? i : Math.min(i, j);
+        return secondIndex < 0 ? firstIndex : Math.min(firstIndex, secondIndex);
     }
 
     private static String decode(String value) {

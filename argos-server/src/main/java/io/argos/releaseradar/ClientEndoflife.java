@@ -84,18 +84,18 @@ public class ClientEndoflife {
         byte[] corps;
         try {
             HttpResponse<InputStream> reponse = client.send(requete, HttpResponse.BodyHandlers.ofInputStream());
-            try (InputStream in = reponse.body()) {
+            try (InputStream flux = reponse.body()) {
                 if (reponse.statusCode() == 404) {
                     throw new SourceIndisponible("produit inconnu d'endoflife.date");
                 }
                 if (reponse.statusCode() != 200) {
                     throw new SourceIndisponible("réponse HTTP " + reponse.statusCode());
                 }
-                corps = in.readNBytes(tailleMax + 1);
+                corps = flux.readNBytes(tailleMax + 1);
             }
-        } catch (IOException e) {
-            throw new SourceIndisponible("source injoignable : " + e.getClass().getSimpleName());
-        } catch (InterruptedException e) {
+        } catch (IOException injoignable) {
+            throw new SourceIndisponible("source injoignable : " + injoignable.getClass().getSimpleName());
+        } catch (InterruptedException interruption) {
             Thread.currentThread().interrupt();
             throw new SourceIndisponible("synchronisation interrompue");
         }
@@ -110,7 +110,7 @@ public class ClientEndoflife {
         JsonNode racine;
         try {
             racine = JSON.readTree(corps);
-        } catch (IOException e) {
+        } catch (IOException illisible) {
             throw new SourceIndisponible("réponse illisible");
         }
         JsonNode releases = racine == null ? null : racine.path("result").path("releases");
@@ -118,39 +118,39 @@ public class ClientEndoflife {
             throw new SourceIndisponible("réponse sans liste de cycles");
         }
         List<Cycle> cycles = new ArrayList<>();
-        for (JsonNode r : releases) {
+        for (JsonNode cycle : releases) {
             if (cycles.size() >= CYCLES_MAX) {
                 break;
             }
-            String nom = texte(r.path("name"), 100);
+            String nom = texte(cycle.path("name"), 100);
             if (nom == null) {
                 continue;
             }
-            JsonNode latest = r.path("latest");
-            LocalDate fin = date(r.path("eolFrom"));
-            boolean enFin = r.path("isEol").asBoolean(false);
-            cycles.add(new Cycle(nom, date(r.path("releaseDate")), fin, enFin, texte(latest.path("name"), 100),
+            JsonNode latest = cycle.path("latest");
+            LocalDate fin = date(cycle.path("eolFrom"));
+            boolean enFin = cycle.path("isEol").asBoolean(false);
+            cycles.add(new Cycle(nom, date(cycle.path("releaseDate")), fin, enFin, texte(latest.path("name"), 100),
                     date(latest.path("date"))));
         }
         return cycles;
     }
 
-    private static String texte(JsonNode n, int longueurMax) {
-        if (n == null || !n.isTextual() || n.asText().isBlank()) {
+    private static String texte(JsonNode noeud, int longueurMax) {
+        if (noeud == null || !noeud.isTextual() || noeud.asText().isBlank()) {
             return null;
         }
-        String t = n.asText().strip().replaceAll("\\p{Cntrl}", "");
-        return t.length() > longueurMax ? null : t;
+        String nettoye = noeud.asText().strip().replaceAll("\\p{Cntrl}", "");
+        return nettoye.length() > longueurMax ? null : nettoye;
     }
 
-    private static LocalDate date(JsonNode n) {
-        String t = texte(n, 10);
-        if (t == null) {
+    private static LocalDate date(JsonNode noeud) {
+        String texteDate = texte(noeud, 10);
+        if (texteDate == null) {
             return null;
         }
         try {
-            return LocalDate.parse(t);
-        } catch (DateTimeParseException e) {
+            return LocalDate.parse(texteDate);
+        } catch (DateTimeParseException invalide) {
             return null;
         }
     }

@@ -56,28 +56,28 @@ public class ActiviteQueries {
             throw new DonneeInvalide("PERIODE_INVALIDE", "la période doit compter de 1 à " + JOURS_MAX + " jours", "jours");
         }
         LocalDate debut = fin.minusDays(jours - 1L);
-        try (Connection c = dataSource.getConnection()) {
-            ContexteBase.appliquer(c, new ContexteBase.Contexte(accountId, null, null));
-            return new VueActivite(projectId, new VueActivite.Periode(debut, fin, jours), compteurs(c, projectId, debut, fin),
-                    jalons(c, projectId), fraicheur(c, projectId));
-        } catch (SQLException e) {
-            throw new IllegalStateException("lecture de l'activité impossible", e);
+        try (Connection connexion = dataSource.getConnection()) {
+            ContexteBase.appliquer(connexion, new ContexteBase.Contexte(accountId, null, null));
+            return new VueActivite(projectId, new VueActivite.Periode(debut, fin, jours), compteurs(connexion, projectId, debut, fin),
+                    jalons(connexion, projectId), fraicheur(connexion, projectId));
+        } catch (SQLException erreur) {
+            throw new IllegalStateException("lecture de l'activité impossible", erreur);
         }
     }
 
-    private static VueActivite.Compteurs compteurs(Connection c, UUID projectId, LocalDate debut, LocalDate fin)
+    private static VueActivite.Compteurs compteurs(Connection connexion, UUID projectId, LocalDate debut, LocalDate fin)
             throws SQLException {
         Map<Agregation.Type, Integer> totaux = new EnumMap<>(Agregation.Type.class);
-        try (PreparedStatement ps = c.prepareStatement("""
+        try (PreparedStatement requete = connexion.prepareStatement("""
                 SELECT type, sum(valeur) FROM activite_compteur
                 WHERE project_id = ? AND jour BETWEEN ? AND ? GROUP BY type
                 """)) {
-            ps.setObject(1, projectId);
-            ps.setDate(2, Date.valueOf(debut));
-            ps.setDate(3, Date.valueOf(fin));
-            try (ResultSet rs = ps.executeQuery()) {
-                while (rs.next()) {
-                    totaux.put(Agregation.Type.valueOf(rs.getString(1)), (int) Math.min(Integer.MAX_VALUE, rs.getLong(2)));
+            requete.setObject(1, projectId);
+            requete.setDate(2, Date.valueOf(debut));
+            requete.setDate(3, Date.valueOf(fin));
+            try (ResultSet resultat = requete.executeQuery()) {
+                while (resultat.next()) {
+                    totaux.put(Agregation.Type.valueOf(resultat.getString(1)), (int) Math.min(Integer.MAX_VALUE, resultat.getLong(2)));
                 }
             }
         }
@@ -91,19 +91,19 @@ public class ActiviteQueries {
         return totaux.getOrDefault(type, 0);
     }
 
-    private static List<VueActivite.Jalon> jalons(Connection c, UUID projectId) throws SQLException {
+    private static List<VueActivite.Jalon> jalons(Connection connexion, UUID projectId) throws SQLException {
         List<VueActivite.Jalon> jalons = new ArrayList<>();
-        try (PreparedStatement ps = c.prepareStatement("""
+        try (PreparedStatement requete = connexion.prepareStatement("""
                 SELECT titre, etat, echeance, tickets_fermes, tickets_total FROM activite_jalon WHERE project_id = ?
                 ORDER BY etat DESC, echeance NULLS LAST, titre, reference
                 """)) {
-            ps.setObject(1, projectId);
-            try (ResultSet rs = ps.executeQuery()) {
-                while (rs.next()) {
-                    Date echeance = rs.getDate(3);
-                    int fermes = rs.getInt(4);
-                    int total = rs.getInt(5);
-                    jalons.add(new VueActivite.Jalon(rs.getString(1), rs.getString(2),
+            requete.setObject(1, projectId);
+            try (ResultSet resultat = requete.executeQuery()) {
+                while (resultat.next()) {
+                    Date echeance = resultat.getDate(3);
+                    int fermes = resultat.getInt(4);
+                    int total = resultat.getInt(5);
+                    jalons.add(new VueActivite.Jalon(resultat.getString(1), resultat.getString(2),
                             echeance == null ? null : echeance.toLocalDate(), fermes, total,
                             Avancement.de(fermes, total).orElse(null)));
                 }
@@ -112,24 +112,25 @@ public class ActiviteQueries {
         return jalons;
     }
 
-    private static VueActivite.Fraicheur fraicheur(Connection c, UUID projectId) throws SQLException {
-        try (PreparedStatement ps = c.prepareStatement("""
+    private static VueActivite.Fraicheur fraicheur(Connection connexion, UUID projectId) throws SQLException {
+        try (PreparedStatement requete = connexion.prepareStatement("""
                 SELECT etat, derniere_mise_a_jour, prochaine_collecte, complet, donnees_depuis, motif
                 FROM activite_collecte WHERE project_id = ?
                 """)) {
-            ps.setObject(1, projectId);
-            try (ResultSet rs = ps.executeQuery()) {
-                if (!rs.next()) {
+            requete.setObject(1, projectId);
+            try (ResultSet resultat = requete.executeQuery()) {
+                if (!resultat.next()) {
                     return new VueActivite.Fraicheur("JAMAIS_COLLECTE", null, null, false, null, null);
                 }
-                Date depuis = rs.getDate(5);
-                return new VueActivite.Fraicheur(rs.getString(1), instant(rs.getTimestamp(2)), instant(rs.getTimestamp(3)),
-                        rs.getBoolean(4), depuis == null ? null : depuis.toLocalDate(), rs.getString(6));
+                Date depuis = resultat.getDate(5);
+                return new VueActivite.Fraicheur(resultat.getString(1), instant(resultat.getTimestamp(2)),
+                        instant(resultat.getTimestamp(3)), resultat.getBoolean(4), depuis == null ? null : depuis.toLocalDate(),
+                        resultat.getString(6));
             }
         }
     }
 
-    private static Instant instant(Timestamp t) {
-        return t == null ? null : t.toInstant();
+    private static Instant instant(Timestamp horodatage) {
+        return horodatage == null ? null : horodatage.toInstant();
     }
 }

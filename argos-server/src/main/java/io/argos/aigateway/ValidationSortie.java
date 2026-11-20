@@ -31,63 +31,63 @@ final class ValidationSortie {
         JsonNode racine;
         try {
             racine = json.readTree(texte);
-        } catch (Exception e) {
+        } catch (Exception illisible) {
             return Optional.empty();
         }
         if (racine == null || !racine.isObject()) {
             return Optional.empty();
         }
         Map<String, String> champs = new LinkedHashMap<>();
-        for (ChampSortie c : prompt.champs()) {
-            JsonNode v = racine.get(c.nom());
-            if (v == null || v.isNull()) {
-                if (c.obligatoire()) {
+        for (ChampSortie champ : prompt.champs()) {
+            JsonNode noeud = racine.get(champ.nom());
+            if (noeud == null || noeud.isNull()) {
+                if (champ.obligatoire()) {
                     return Optional.empty();
                 }
                 continue;
             }
-            Optional<String> valeur = switch (c.type()) {
-                case TEXTE -> texte(v, c.longueurMax());
-                case DATE -> date(v);
-                case ENTIERS -> entiers(v, c.longueurMax());
+            Optional<String> valeur = switch (champ.type()) {
+                case TEXTE -> texte(noeud, champ.longueurMax());
+                case DATE -> date(noeud);
+                case ENTIERS -> entiers(noeud, champ.longueurMax());
             };
             if (valeur.isEmpty()) {
                 return Optional.empty();
             }
-            champs.put(c.nom(), valeur.get());
+            champs.put(champ.nom(), valeur.get());
         }
         return Optional.of(champs);
     }
 
-    private static Optional<String> texte(JsonNode v, int longueurMax) {
-        if (!v.isTextual()) {
+    private static Optional<String> texte(JsonNode noeud, int longueurMax) {
+        if (!noeud.isTextual()) {
             return Optional.empty();
         }
-        String t = v.asText().replaceAll("[\\p{Cntrl}&&[^\\n]]", " ").strip();
-        return t.isEmpty() || t.length() > longueurMax ? Optional.empty() : Optional.of(t);
+        String nettoye = noeud.asText().replaceAll("[\\p{Cntrl}&&[^\\n]]", " ").strip();
+        return nettoye.isEmpty() || nettoye.length() > longueurMax ? Optional.empty() : Optional.of(nettoye);
     }
 
-    private static Optional<String> date(JsonNode v) {
-        if (!v.isTextual()) {
+    private static Optional<String> date(JsonNode noeud) {
+        if (!noeud.isTextual()) {
             return Optional.empty();
         }
         try {
-            return Optional.of(LocalDate.parse(v.asText().strip()).toString());
-        } catch (DateTimeParseException e) {
+            return Optional.of(LocalDate.parse(noeud.asText().strip()).toString());
+        } catch (DateTimeParseException invalide) {
             return Optional.empty();
         }
     }
 
-    private static Optional<String> entiers(JsonNode v, int nombreMax) {
-        if (!v.isArray() || v.size() > nombreMax) {
+    private static Optional<String> entiers(JsonNode noeud, int nombreMax) {
+        if (!noeud.isArray() || noeud.size() > nombreMax) {
             return Optional.empty();
         }
         List<String> valeurs = new ArrayList<>();
-        for (JsonNode e : v) {
-            if (!e.isInt() || e.asInt() < 1 || e.asInt() > ENTIER_MAX) {
+        for (JsonNode element : noeud) {
+            if (!element.isInt() || element.asInt() < 1 || element.asInt() > ENTIER_MAX) {
                 return Optional.empty();
             }
-            valeurs.add(Integer.toString(e.asInt()));
+            valeurs.add(Integer.toString(element.asInt()));
         }
         return Optional.of(String.join(",", valeurs));
     }
