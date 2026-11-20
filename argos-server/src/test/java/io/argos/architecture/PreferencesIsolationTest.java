@@ -44,8 +44,8 @@ class PreferencesIsolationTest {
         noClasses().that().resideInAPackage(PREFERENCES)
                 .should().dependOnClassesThat(DescribedPredicate.describe(
                         "workspace hors préférences",
-                        c -> c.getPackageName().startsWith("io.argos.workspace")
-                                && !c.getPackageName().startsWith("io.argos.workspace.preference")))
+                        classe -> classe.getPackageName().startsWith("io.argos.workspace")
+                                && !classe.getPackageName().startsWith("io.argos.workspace.preference")))
                 .because("les préférences ne lisent ni rôles ni équipes (INV-3)")
                 .allowEmptyShould(true)
                 .check(classes);

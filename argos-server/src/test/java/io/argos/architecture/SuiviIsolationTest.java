@@ -34,9 +34,9 @@ class SuiviIsolationTest {
         noClasses().that().resideInAPackage("io.argos.workspace.suivi..")
                 .should().dependOnClassesThat(DescribedPredicate.describe(
                         "workspace hors suivi et ContexteBase",
-                        (JavaClass c) -> c.getPackageName().startsWith("io.argos.workspace")
-                                && !c.getPackageName().startsWith("io.argos.workspace.suivi")
-                                && !c.getName().startsWith("io.argos.workspace.ContexteBase")))
+                        (JavaClass classe) -> classe.getPackageName().startsWith("io.argos.workspace")
+                                && !classe.getPackageName().startsWith("io.argos.workspace.suivi")
+                                && !classe.getName().startsWith("io.argos.workspace.ContexteBase")))
                 .because("un suivi ne lit ni rôles ni appartenances (PRF-05)")
                 .check(classes);
     }

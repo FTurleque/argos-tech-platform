@@ -52,15 +52,15 @@ class LectureGroupeeSignauxTest {
     @Test
     void laRechercheDeVeilleLitSesSignauxEnUneRequete() {
         JavaClass requetes = classes.get(SignalQueries.class);
-        Predicate<JavaCodeUnitAccess<?>> depuisSearch = a -> a.getOrigin().getName().equals("search")
-                || a.getOrigin().getName().startsWith("lambda$search");
+        Predicate<JavaCodeUnitAccess<?>> depuisSearch = acces -> acces.getOrigin().getName().equals("search")
+                || acces.getOrigin().getName().startsWith("lambda$search");
         List<JavaCodeUnitAccess<?>> unitaires = accesDepuis(requetes)
                 .filter(depuisSearch)
                 .filter(LectureGroupeeSignauxTest::estLectureUnitaire)
                 .toList();
         assertTrue(unitaires.isEmpty(), "SignalQueries.search ne lit aucun signal un par un : " + unitaires);
         assertTrue(accesDepuis(requetes).filter(depuisSearch)
-                        .anyMatch(a -> a.getTarget().getName().equals("findAll")),
+                        .anyMatch(acces -> acces.getTarget().getName().equals("findAll")),
                 "SignalQueries.search lit ses signaux par la lecture groupée");
     }
 
@@ -75,8 +75,8 @@ class LectureGroupeeSignauxTest {
     }
 
     private static Stream<JavaClass> classesDe(JavaClasses importees, Class<?> classe) {
-        return importees.stream().filter(c -> c.getName().equals(classe.getName())
-                || c.getName().startsWith(classe.getName() + "$"));
+        return importees.stream().filter(importee -> importee.getName().equals(classe.getName())
+                || importee.getName().startsWith(classe.getName() + "$"));
     }
 
     /** Appels et références de méthode faits depuis la classe (lambdas comprises). */

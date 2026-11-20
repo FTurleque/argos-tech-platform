@@ -44,11 +44,11 @@ class RecuperateurWebTest {
         @Override
         public RecuperateurWeb.Reponse envoyer(URI uri, Duration delai) throws HttpTimeoutException {
             requetes.add(uri);
-            RecuperateurWeb.Reponse r = reponses.apply(uri);
-            if (r == null) {
+            RecuperateurWeb.Reponse reponse = reponses.apply(uri);
+            if (reponse == null) {
                 throw new HttpTimeoutException("délai");
             }
-            return r;
+            return reponse;
         }
     }
 
@@ -63,14 +63,14 @@ class RecuperateurWebTest {
 
     private static RecuperateurWeb recuperateur(TransportSimule transport, long tailleMax) {
         GardeAdresses garde = new GardeAdresses(hote -> {
-            String ip = DNS.get(hote);
-            if (ip == null) {
+            String adresseIp = DNS.get(hote);
+            if (adresseIp == null) {
                 if (hote.matches("[0-9.]+")) {
                     return InetAddress.getAllByName(hote);
                 }
                 throw new UnknownHostException(hote);
             }
-            return new InetAddress[] { InetAddress.getByName(ip) };
+            return new InetAddress[] { InetAddress.getByName(adresseIp) };
         }, List.of());
         return new RecuperateurWeb(garde, transport, Duration.ofSeconds(1), 3, tailleMax);
     }
@@ -78,18 +78,18 @@ class RecuperateurWebTest {
     @Test
     void adressePriveeRefuseeSansAucuneRequete() {
         TransportSimule transport = new TransportSimule(uri -> ok("jamais"));
-        RecuperationRefusee e = assertThrows(RecuperationRefusee.class,
+        RecuperationRefusee refus = assertThrows(RecuperationRefusee.class,
                 () -> recuperateur(transport, 1000).recuperer("http://192.168.1.1/flux"));
-        assertEquals(Motif.ADRESSE_INTERDITE, e.motif());
+        assertEquals(Motif.ADRESSE_INTERDITE, refus.motif());
         assertTrue(transport.requetes.isEmpty(), "aucune requête vers 192.168.1.1");
     }
 
     @Test
     void redirectionVersLaBoucleLocaleInterrompue() {
         TransportSimule transport = new TransportSimule(uri -> redirection("http://127.0.0.1/"));
-        RecuperationRefusee e = assertThrows(RecuperationRefusee.class,
+        RecuperationRefusee refus = assertThrows(RecuperationRefusee.class,
                 () -> recuperateur(transport, 1000).recuperer("https://flux.exemple.test/atom.xml"));
-        assertEquals(Motif.REDIRECTION_INTERDITE, e.motif());
+        assertEquals(Motif.REDIRECTION_INTERDITE, refus.motif());
         assertEquals(List.of(URI.create("https://flux.exemple.test/atom.xml")), transport.requetes,
                 "seule l'adresse publique a été appelée");
     }
@@ -103,9 +103,9 @@ class RecuperateurWebTest {
         assertArrayEquals("<feed/>".getBytes(StandardCharsets.UTF_8), contenu.octets());
 
         TransportSimule boucle = new TransportSimule(uri -> redirection("https://flux.exemple.test/encore"));
-        RecuperationRefusee e = assertThrows(RecuperationRefusee.class,
+        RecuperationRefusee refus = assertThrows(RecuperationRefusee.class,
                 () -> recuperateur(boucle, 1000).recuperer("https://flux.exemple.test/"));
-        assertEquals(Motif.TROP_DE_REDIRECTIONS, e.motif());
+        assertEquals(Motif.TROP_DE_REDIRECTIONS, refus.motif());
         assertEquals(4, boucle.requetes.size(), "requête initiale et 3 redirections au plus");
     }
 
@@ -141,9 +141,9 @@ class RecuperateurWebTest {
                         throw new java.io.IOException("flux fermé");
                     }
                     return -1;
-                } catch (InterruptedException e) {
+                } catch (InterruptedException interruption) {
                     Thread.currentThread().interrupt();
-                    throw new java.io.IOException(e);
+                    throw new java.io.IOException(interruption);
                 }
             }
 
