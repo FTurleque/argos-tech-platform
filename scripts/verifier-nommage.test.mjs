@@ -1,0 +1,137 @@
+// Tests du contrôle de nommage (scripts/verifier-nommage.mjs).
+// Exécution : node --test scripts/*.test.mjs (aucune dépendance).
+import { test } from 'node:test';
+import assert from 'node:assert/strict';
+import { spawnSync } from 'node:child_process';
+import { dirname, join } from 'node:path';
+import { fileURLToPath } from 'node:url';
+import { analyserFichier, analyserSource, estCourt, LISTE_BLANCHE } from './verifier-nommage.mjs';
+
+const SCRIPT = join(dirname(fileURLToPath(import.meta.url)), 'verifier-nommage.mjs');
+const noms = (source, langage) => analyserSource(source, langage).map(({ nom }) => nom);
+
+test('estCourt : une ou deux lettres, hors id, mots-clés et paramètres de type', () => {
+  for (const nom of ['e', 'ps', 'rs', 'db', 'x1', 'ID', 'Ok']) assert.ok(estCourt(nom), nom);
+  for (const nom of ['id', 'T', 'K', 'T1', 'in', 'of', 'as', 'connexion', '_', 'io1']) assert.ok(!estCourt(nom), nom);
+});
+
+test('Java : variables locales, champs et constantes', () => {
+  assert.deepEqual(noms('class A { void f() { int i = 0; String s; List<Map<String, Integer>> lm = null; } }', 'java'),
+    ['i', 's', 'lm']);
+  assert.deepEqual(noms('class A {\n  @Inject TestDb db;\n  private static final int NB = 3;\n}', 'java'), ['db', 'NB']);
+  assert.deepEqual(noms('class A { void f() { var ok = true; byte[] gz = lire(); } }', 'java'), ['ok', 'gz']);
+});
+
+test('Java : paramètres de méthode, de constructeur et de record', () => {
+  assert.deepEqual(noms('class A { A(Connection c) {} void f(String a, int... nb) {} }', 'java'), ['c', 'a', 'nb']);
+  assert.deepEqual(noms('record Compte(int vp, String libelle) {}', 'java'), ['vp']);
+  assert.deepEqual(noms('class A { void f(@PathParam("id") UUID id, final Instant at) {} }', 'java'), ['at']);
+});
+
+test('Java : lambdas, catch, boucles et motifs', () => {
+  assert.deepEqual(noms('class A { void f() { liste.forEach(s -> traiter(s)); } }', 'java'), ['s']);
+  assert.deepEqual(noms('class A { void f() { carte.forEach((k, v) -> {}); } }', 'java'), ['k', 'v']);
+  assert.deepEqual(noms('class A { void f() { try { g(); } catch (IOException | SQLException e) {} } }', 'java'), ['e']);
+  assert.deepEqual(noms('class A { void f() { for (int j = 0; j < 3; j++) {} for (Ligne li : lignes) {} } }', 'java'),
+    ['j', 'li']);
+  assert.deepEqual(noms('class A { boolean f(Object objet) { return objet instanceof Texte tx && tx.vide(); } }', 'java'),
+    ['tx']);
+});
+
+test('Java : les étiquettes de switch, méthodes, appels et retours ne sont pas des déclarations', () => {
+  const source = [
+    'class A {',
+    '  static Resume de(Opportunite opportunite) { return ms(opportunite); }',
+    '  int g(Etat etat) { return switch (etat) { case OK -> 1; case KO, NA -> 2; default -> 3; }; }',
+    '  void h() { throw erreur; }',
+    '}',
+  ].join('\n');
+  assert.deepEqual(noms(source, 'java'), []);
+});
+
+test('Java : commentaires, chaînes, caractères et blocs de texte ignorés', () => {
+  const source = [
+    'class A {',
+    '  // int a = 1;',
+    '  /* String b; */',
+    '  /** @param c connexion */',
+    '  String sql = "SELECT e.id, e.nom AS n FROM element e";',
+    '  char guillemet = \'"\';',
+    '  String bloc = """',
+    '      SELECT s.titre FROM signal s WHERE s.id = ?',
+    '      """;',
+    '}',
+  ].join('\n');
+  assert.deepEqual(noms(source, 'java'), []);
+});
+
+test('Java : génériques et id admis, numéro de ligne exact', () => {
+  assert.deepEqual(noms('class Boite<T, K2> { <R> R f(T valeur, UUID id) { return null; } }', 'java'), []);
+  assert.deepEqual(analyserSource('class A {\n\n  void f() {\n    int n = 1;\n  }\n}', 'java'), [{ ligne: 4, nom: 'n' }]);
+});
+
+test('TS/JS : const, let, var et déstructuration', () => {
+  assert.deepEqual(noms('const a = 1\nlet b, cd = 2\nvar ef = 3', 'ts'), ['a', 'b', 'cd', 'ef']);
+  assert.deepEqual(noms('const { de, nom: nm, ...rs } = objet\nconst [x, , yy = 1] = paire', 'ts'), ['de', 'nm', 'rs', 'x', 'yy']);
+  assert.deepEqual(noms('for (let i = 0, j = 1; i < j; i++) {}\nfor (const [k, v] of entrees) {}', 'ts'), ['i', 'j', 'k', 'v']);
+});
+
+test('TS/JS : paramètres de fonctions, méthodes, fonctions fléchées et catch', () => {
+  assert.deepEqual(noms('function lire(fs, fichier = "x") {}', 'ts'), ['fs']);
+  assert.deepEqual(noms('const f1 = async (a: string, { b, c: cc }: Options): Promise<void> => {}', 'ts'),
+    ['f1', 'a', 'b', 'cc']);
+  assert.deepEqual(noms('liste.map(x => x * 2).filter((el) => el)', 'ts'), ['x', 'el']);
+  assert.deepEqual(noms('const objet = { on(canal, fn) { return canal } }', 'ts'), ['fn']);
+  assert.deepEqual(noms('class Horloge {\n  constructor(private readonly ms: number) {}\n  private dt = 0\n}', 'ts'),
+    ['ms', 'dt']);
+  assert.deepEqual(noms('try { lire() } catch (e: unknown) {}', 'ts'), ['e']);
+  assert.deepEqual(noms('type Planifier = (fn: () => void, delai: number) => unknown', 'ts'), ['fn']);
+});
+
+test('TS/JS : clés d\'objet, propriétés, appels, commentaires, chaînes, gabarits et regex ignorés', () => {
+  const source = [
+    'const historique = { de: "A", ok: true }',
+    'interface Ligne { de: string; at?: number }',
+    'if (reponse.ok) appeler(a, b)',
+    '// const x = 1',
+    '/* let y = 2 */',
+    'const texte = "const z = 3" + \'(w) => w\'',
+    'const gabarit = `let q = ${valeur} (r) => r`',
+    'const motif = /(?:a|b)=>"\'/g',
+  ].join('\n');
+  assert.deepEqual(noms(source, 'ts'), []);
+});
+
+test('TS : génériques et id admis', () => {
+  assert.deepEqual(noms('function premier<T, K>(liste: T[], id: K): T { return liste[0] }', 'ts'), []);
+});
+
+test('Vue : script, v-for, v-slot et fonctions fléchées des directives', () => {
+  const source = [
+    '<script setup lang="ts">',
+    'const ab = 1',
+    '</script>',
+    '<template>',
+    '  <li v-for="(p, ip) in projets" :key="ip">{{ p.nom }}</li>',
+    '  <Liste #ligne="{ el }" @choisir="(x) => choisir(x)" />',
+    '  <p class="a b">Le texte n\'est pas du code : (u) => u</p>',
+    '</template>',
+  ].join('\n');
+  assert.deepEqual(analyserSource(source, 'vue'), [
+    { ligne: 2, nom: 'ab' }, { ligne: 5, nom: 'p' }, { ligne: 5, nom: 'ip' }, { ligne: 6, nom: 'el' }, { ligne: 6, nom: 'x' },
+  ]);
+});
+
+test('liste blanche : chaque entrée est commentée et ne vaut que pour son fichier', () => {
+  for (const entree of LISTE_BLANCHE) {
+    assert.ok(entree.fichier && entree.nom && entree.raison, JSON.stringify(entree));
+  }
+  const source = 'record EvenementHistorique(Instant le, String libelle) {}';
+  assert.deepEqual(analyserFichier('argos-server/src/main/java/io/argos/regintel/FicheAnalyse.java', source), []);
+  assert.deepEqual(analyserFichier('argos-server/src/main/java/io/argos/regintel/Autre.java', source).map(({ nom }) => nom), ['le']);
+});
+
+test('le dépôt respecte la règle de nommage', () => {
+  const resultat = spawnSync(process.execPath, [SCRIPT], { encoding: 'utf8' });
+  assert.equal(resultat.status, 0, resultat.stderr + resultat.stdout);
+});
