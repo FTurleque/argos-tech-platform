@@ -2,7 +2,9 @@
 // Contenu des notifications et du compteur (notifier-sur-le-poste : NOT-03, NOT-05).
 const test = require('node:test');
 const assert = require('node:assert/strict');
-const { TITRE_NOTIFICATION, validerAlerte, texteNotification, libelleCompteur, infobulle, compteurValide } = require('../src/notifications');
+const {
+  TITRE_NOTIFICATION, validerAlerte, texteNotification, libelleCompteur, infobulle, compteurValide,
+} = require('../src/notifications');
 
 const ID_ALERTE = '3f2b8c1e-4d5a-4b6c-8d7e-9f0a1b2c3d4e';
 

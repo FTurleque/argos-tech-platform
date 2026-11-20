@@ -41,6 +41,9 @@ public class RappelsReglementaires {
     /** Profil dont les utilisateurs reçoivent les rappels de leur espace. */
     static final String PROFIL = "expert-metier";
 
+    /** Longueur maximale, en caractères, du titre de la fiche repris dans le titre du rappel. */
+    private static final int TITRE_FICHE_MAX = 300;
+
     @Inject
     EcheancesReglementaires echeances;
 
@@ -111,7 +114,7 @@ public class RappelsReglementaires {
         }
         String quand = echeance.joursRestants() == 0 ? "aujourd'hui" : echeance.joursRestants() == 1 ? "demain"
                 : "dans " + echeance.joursRestants() + " jours";
-        String titre = "Entrée en vigueur " + quand + " (" + echeance.dateEffet() + ") : " + borne(echeance.titre(), 300);
+        String titre = "Entrée en vigueur " + quand + " (" + echeance.dateEffet() + ") : " + borne(echeance.titre(), TITRE_FICHE_MAX);
         String cle = "REGLEMENTAIRE|" + echeance.ficheId() + "|" + echeance.dateEffet() + "|J-" + echeance.jourRappel();
         // L'IHM n'a pas encore d'écran réglementaire : le lien ouvre le texte officiel (comme les rappels
         // d'opportunités) ; la fiche reste consultable par l'API.

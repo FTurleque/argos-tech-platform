@@ -9,11 +9,10 @@
 const { validerAlerte, texteNotification, compteurValide, infobulle } = require('./notifications');
 const { fusionner } = require('./preferences');
 
-/** Raison du refus d'afficher l'alerte validée, ou null si elle peut être affichée. */
+/** Raison du refus d'afficher l'alerte validée, ou undefined si elle peut être affichée. */
 function raisonRefus(dependances) {
   if (!dependances.reglages().notificationsPoste) return 'COUPEES';
-  if (!dependances.notificationsSupportees()) return 'NON_SUPPORTEES';
-  return null;
+  return dependances.notificationsSupportees() ? undefined : 'NON_SUPPORTEES';
 }
 
 /**
