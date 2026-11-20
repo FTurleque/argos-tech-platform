@@ -69,15 +69,15 @@ public class FournisseurOllama implements FournisseurModele {
     }
 
     @Override
-    public Reponse executer(Requete r) throws IOException, InterruptedException {
+    public Reponse executer(Requete demande) throws IOException, InterruptedException {
         Map<String, Object> corps = Map.of(
-                "model", r.modele(),
+                "model", demande.modele(),
                 "stream", false,
-                "format", r.schema(),
+                "format", demande.schema(),
                 "options", Map.of("temperature", 0),
                 "messages", List.of(
-                        Map.of("role", "system", "content", r.consignes()),
-                        Map.of("role", "user", "content", r.message())));
+                        Map.of("role", "system", "content", demande.consignes()),
+                        Map.of("role", "user", "content", demande.message())));
         HttpRequest requete = HttpRequest.newBuilder(chat)
                 .timeout(delai)
                 .header("Content-Type", "application/json")
@@ -85,8 +85,8 @@ public class FournisseurOllama implements FournisseurModele {
                 .build();
         HttpResponse<InputStream> reponse = client.send(requete, HttpResponse.BodyHandlers.ofInputStream());
         byte[] octets;
-        try (InputStream in = reponse.body()) {
-            octets = in.readNBytes(TAILLE_MAX_REPONSE + 1);
+        try (InputStream flux = reponse.body()) {
+            octets = flux.readNBytes(TAILLE_MAX_REPONSE + 1);
         }
         if (reponse.statusCode() != 200) {
             throw new IOException("Ollama a répondu " + reponse.statusCode());
@@ -94,12 +94,12 @@ public class FournisseurOllama implements FournisseurModele {
         if (octets.length > TAILLE_MAX_REPONSE) {
             throw new IOException("réponse d'Ollama trop volumineuse");
         }
-        JsonNode n = json.readTree(octets);
-        JsonNode contenu = n.path("message").path("content");
+        JsonNode racine = json.readTree(octets);
+        JsonNode contenu = racine.path("message").path("content");
         if (!contenu.isTextual()) {
             throw new IOException("réponse d'Ollama sans message");
         }
-        return new Reponse(contenu.asText(), n.path("model").asText(r.modele()), n.path("prompt_eval_count").asInt(0),
-                n.path("eval_count").asInt(0), 0.0);
+        return new Reponse(contenu.asText(), racine.path("model").asText(demande.modele()), racine.path("prompt_eval_count").asInt(0),
+                racine.path("eval_count").asInt(0), 0.0);
     }
 }

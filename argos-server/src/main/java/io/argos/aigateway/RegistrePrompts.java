@@ -111,29 +111,29 @@ public class RegistrePrompts {
 
     /** Inscrit les prompts nouveaux et refuse le démarrage si un prompt publié a changé sans nouvelle version. */
     void verifier(@Observes StartupEvent demarrage) {
-        try (Connection c = dataSource.getConnection()) {
-            for (PromptIa p : prompts.values()) {
-                try (PreparedStatement ins = c.prepareStatement(
+        try (Connection connexion = dataSource.getConnection()) {
+            for (PromptIa prompt : prompts.values()) {
+                try (PreparedStatement ins = connexion.prepareStatement(
                         "INSERT INTO ia_prompt (tache, version, empreinte) VALUES (?, ?, ?) ON CONFLICT DO NOTHING")) {
-                    ins.setString(1, p.tache());
-                    ins.setInt(2, p.version());
-                    ins.setString(3, p.empreinte());
+                    ins.setString(1, prompt.tache());
+                    ins.setInt(2, prompt.version());
+                    ins.setString(3, prompt.empreinte());
                     ins.executeUpdate();
                 }
-                try (PreparedStatement sel = c.prepareStatement(
+                try (PreparedStatement sel = connexion.prepareStatement(
                         "SELECT empreinte FROM ia_prompt WHERE tache = ? AND version = ?")) {
-                    sel.setString(1, p.tache());
-                    sel.setInt(2, p.version());
-                    try (ResultSet rs = sel.executeQuery()) {
-                        if (rs.next() && !p.empreinte().equals(rs.getString(1))) {
-                            throw new IllegalStateException("prompt " + p.tache() + " v" + p.version()
-                                    + " modifié sans nouvelle version : publier une version " + (p.version() + 1));
+                    sel.setString(1, prompt.tache());
+                    sel.setInt(2, prompt.version());
+                    try (ResultSet resultat = sel.executeQuery()) {
+                        if (resultat.next() && !prompt.empreinte().equals(resultat.getString(1))) {
+                            throw new IllegalStateException("prompt " + prompt.tache() + " v" + prompt.version()
+                                    + " modifié sans nouvelle version : publier une version " + (prompt.version() + 1));
                         }
                     }
                 }
             }
-        } catch (SQLException e) {
-            throw new IllegalStateException("registre des prompts inaccessible", e);
+        } catch (SQLException erreur) {
+            throw new IllegalStateException("registre des prompts inaccessible", erreur);
         }
     }
 }

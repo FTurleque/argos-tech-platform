@@ -60,13 +60,13 @@ public class QuotasIa {
     /** Vrai si un appel imputé à cet espace ({@code null} : instance seule) serait accepté maintenant. */
     public boolean disponible(UUID espaceId) {
         LocalDate jour = aujourdhui();
-        try (Connection c = dataSource.getConnection()) {
-            if (appels(c, jour, INSTANCE) >= plafondInstance) {
+        try (Connection connexion = dataSource.getConnection()) {
+            if (appels(connexion, jour, INSTANCE) >= plafondInstance) {
                 return false;
             }
-            return espaceId == null || appels(c, jour, espaceId.toString()) < quotaEspace;
-        } catch (SQLException e) {
-            throw new IllegalStateException("lecture des quotas IA impossible", e);
+            return espaceId == null || appels(connexion, jour, espaceId.toString()) < quotaEspace;
+        } catch (SQLException erreur) {
+            throw new IllegalStateException("lecture des quotas IA impossible", erreur);
         }
     }
 
@@ -81,49 +81,49 @@ public class QuotasIa {
 
     Reservation reserver(UUID espaceId, UUID compteId) {
         LocalDate jour = aujourdhui();
-        try (Connection c = dataSource.getConnection()) {
-            boolean autoCommit = c.getAutoCommit();
-            c.setAutoCommit(false);
+        try (Connection connexion = dataSource.getConnection()) {
+            boolean autoCommit = connexion.getAutoCommit();
+            connexion.setAutoCommit(false);
             try {
-                if (!incrementer(c, jour, INSTANCE, plafondInstance)) {
-                    c.rollback();
+                if (!incrementer(connexion, jour, INSTANCE, plafondInstance)) {
+                    connexion.rollback();
                     return Reservation.PLAFOND_INSTANCE;
                 }
-                if (espaceId != null && !incrementer(c, jour, espaceId.toString(), quotaEspace)) {
-                    c.rollback();
+                if (espaceId != null && !incrementer(connexion, jour, espaceId.toString(), quotaEspace)) {
+                    connexion.rollback();
                     return Reservation.QUOTA_ESPACE;
                 }
-                if (compteId != null && !incrementer(c, jour, porteeCompte(compteId), quotaCompte)) {
-                    c.rollback();
+                if (compteId != null && !incrementer(connexion, jour, porteeCompte(compteId), quotaCompte)) {
+                    connexion.rollback();
                     return Reservation.QUOTA_COMPTE;
                 }
-                c.commit();
+                connexion.commit();
                 return Reservation.ACCORDEE;
-            } catch (SQLException e) {
-                c.rollback();
-                throw e;
+            } catch (SQLException erreur) {
+                connexion.rollback();
+                throw erreur;
             } finally {
-                c.setAutoCommit(autoCommit);
+                connexion.setAutoCommit(autoCommit);
             }
-        } catch (SQLException e) {
-            throw new IllegalStateException("réservation d'un appel IA impossible", e);
+        } catch (SQLException erreur) {
+            throw new IllegalStateException("réservation d'un appel IA impossible", erreur);
         }
     }
 
     /** Rend une réservation accordée dont l'appel n'a pas été transmis au fournisseur. */
     void liberer(UUID espaceId, UUID compteId) {
         LocalDate jour = aujourdhui();
-        try (Connection c = dataSource.getConnection();
-                PreparedStatement ps = c.prepareStatement(
+        try (Connection connexion = dataSource.getConnection();
+                PreparedStatement requete = connexion.prepareStatement(
                         "UPDATE ia_quota_jour SET appels = appels - 1 WHERE jour = ? AND portee = ? AND appels > 0")) {
             for (String portee : portees(espaceId, compteId)) {
-                ps.setDate(1, Date.valueOf(jour));
-                ps.setString(2, portee);
-                ps.addBatch();
+                requete.setDate(1, Date.valueOf(jour));
+                requete.setString(2, portee);
+                requete.addBatch();
             }
-            ps.executeBatch();
-        } catch (SQLException e) {
-            throw new IllegalStateException("restitution d'un appel IA impossible", e);
+            requete.executeBatch();
+        } catch (SQLException erreur) {
+            throw new IllegalStateException("restitution d'un appel IA impossible", erreur);
         }
     }
 
@@ -139,31 +139,31 @@ public class QuotasIa {
         return portees;
     }
 
-    private static boolean incrementer(Connection c, LocalDate jour, String portee, int limite) throws SQLException {
+    private static boolean incrementer(Connection connexion, LocalDate jour, String portee, int limite) throws SQLException {
         if (limite <= 0) {
             return false;
         }
-        try (PreparedStatement ps = c.prepareStatement("""
+        try (PreparedStatement requete = connexion.prepareStatement("""
                 INSERT INTO ia_quota_jour (jour, portee, appels) VALUES (?, ?, 1)
                 ON CONFLICT (jour, portee) DO UPDATE SET appels = ia_quota_jour.appels + 1
                 WHERE ia_quota_jour.appels < ?
                 RETURNING appels
                 """)) {
-            ps.setDate(1, Date.valueOf(jour));
-            ps.setString(2, portee);
-            ps.setInt(3, limite);
-            try (ResultSet rs = ps.executeQuery()) {
-                return rs.next();
+            requete.setDate(1, Date.valueOf(jour));
+            requete.setString(2, portee);
+            requete.setInt(3, limite);
+            try (ResultSet resultat = requete.executeQuery()) {
+                return resultat.next();
             }
         }
     }
 
-    private static int appels(Connection c, LocalDate jour, String portee) throws SQLException {
-        try (PreparedStatement ps = c.prepareStatement("SELECT appels FROM ia_quota_jour WHERE jour = ? AND portee = ?")) {
-            ps.setDate(1, Date.valueOf(jour));
-            ps.setString(2, portee);
-            try (ResultSet rs = ps.executeQuery()) {
-                return rs.next() ? rs.getInt(1) : 0;
+    private static int appels(Connection connexion, LocalDate jour, String portee) throws SQLException {
+        try (PreparedStatement requete = connexion.prepareStatement("SELECT appels FROM ia_quota_jour WHERE jour = ? AND portee = ?")) {
+            requete.setDate(1, Date.valueOf(jour));
+            requete.setString(2, portee);
+            try (ResultSet resultat = requete.executeQuery()) {
+                return resultat.next() ? resultat.getInt(1) : 0;
             }
         }
     }

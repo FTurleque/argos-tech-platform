@@ -39,18 +39,18 @@ public record PromptIa(String tache, int version, String consignes, List<ChampSo
 
     /** Empreinte SHA-256 des consignes et du schéma : identifie le texte publié sous cette version. */
     public String empreinte() {
-        StringBuilder b = new StringBuilder(consignes);
-        champs.forEach(c -> b.append('\n').append(c.nom()).append(':').append(c.type()).append(':')
-                .append(c.obligatoire()).append(':').append(c.longueurMax()));
-        return sha256(b.toString());
+        StringBuilder contenu = new StringBuilder(consignes);
+        champs.forEach(champ -> contenu.append('\n').append(champ.nom()).append(':').append(champ.type()).append(':')
+                .append(champ.obligatoire()).append(':').append(champ.longueurMax()));
+        return sha256(contenu.toString());
     }
 
     static String sha256(String texte) {
         try {
             return HexFormat.of().formatHex(MessageDigest.getInstance("SHA-256")
                     .digest(texte.getBytes(StandardCharsets.UTF_8)));
-        } catch (NoSuchAlgorithmException e) {
-            throw new IllegalStateException(e);
+        } catch (NoSuchAlgorithmException algorithmeAbsent) {
+            throw new IllegalStateException(algorithmeAbsent);
         }
     }
 }
