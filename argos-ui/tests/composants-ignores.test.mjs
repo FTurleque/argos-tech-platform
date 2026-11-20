@@ -87,7 +87,7 @@ test('conversion : état vide et projet sans inventaire', () => {
 })
 
 test('conversion : liste et champs bornés comme l’API, total déclaré conservé', () => {
-  const longue = Array.from({ length: MAX_COMPOSANTS_IGNORES + 5 }, (_, i) => ({ ...LOG4J, name: `c${i}` }))
+  const longue = Array.from({ length: MAX_COMPOSANTS_IGNORES + 5 }, (_, rang) => ({ ...LOG4J, name: `c${rang}` }))
   const vue = composantsIgnores(reponse(250, longue))
   assert.equal(vue.composants.length, MAX_COMPOSANTS_IGNORES)
   assert.equal(vue.total, 250)
@@ -122,7 +122,7 @@ test('rendu : tableau à en-têtes de colonne, valeurs échappées, champ absent
   })
   assert.match(html, /<table[\s>]/)
   assert.match(html, /<caption[^>]*>Composants ignorés du projet Paie<\/caption>/)
-  const entetes = [...html.matchAll(/<th scope="col"[^>]*>([^<]*)<\/th>/g)].map((m) => m[1])
+  const entetes = [...html.matchAll(/<th scope="col"[^>]*>([^<]*)<\/th>/g)].map((correspondance) => correspondance[1])
   assert.deepEqual(entetes, ['Nom', 'Groupe', 'Version', 'Motif'])
   assert.equal([...html.matchAll(/data-composant-ignore/g)].length, 2)
   assert.match(html, /<td[^>]*>log4j-core<\/td><td[^>]*>org\.apache\.logging\.log4j<\/td><td[^>]*>2\.14\.1<\/td><td[^>]*>sans PURL<\/td>/)
@@ -150,9 +150,9 @@ test('sécurité de l’écran : appel par appelerApi, aucun v-html, liste ratta
   assert.doesNotMatch(api, /\bInventaireProjetApi\b/)
   const composant = source('../src/contenu/ComposantsIgnores.vue')
   const vue = source('../src/views/InventaireView.vue')
-  for (const s of [composant, vue]) {
-    assert.doesNotMatch(s, /v-html/)
-    assert.doesNotMatch(s, /\bfetch\s*\(/)
+  for (const texteSource of [composant, vue]) {
+    assert.doesNotMatch(texteSource, /v-html/)
+    assert.doesNotMatch(texteSource, /\bfetch\s*\(/)
   }
   assert.doesNotMatch(composant, /:key="i"/, 'clé de ligne différente du seul rang')
   assert.match(vue, /<h2 id="titre-composants-ignores">Composants ignorés<\/h2>/)

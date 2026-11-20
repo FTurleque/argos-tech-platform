@@ -27,5 +27,5 @@ export const ROUTES = [...routesDe('VUES_PUBLIQUES', true), ...routesDe('VUES_PR
 
 /** Route d'un nom donné, ou `undefined`. */
 export function route(name) {
-  return ROUTES.find((r) => r.name === name)
+  return ROUTES.find((route) => route.name === name)
 }

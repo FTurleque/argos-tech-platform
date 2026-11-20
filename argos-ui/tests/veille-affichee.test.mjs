@@ -55,25 +55,27 @@ const VEILLE = {
 }
 
 test('chaque élément reçu donne un élément affiché, dans l’ordre reçu, sans retrait ni ajout', () => {
-  const v = veilleAffichee(VEILLE, CATALOGUE, ABONNEMENTS, '2026-11-17T08:00:00Z')
-  assert.equal(v.exemple, false, 'une veille réelle n’est jamais annoncée comme exemple')
-  assert.equal(v.composeeLe, '2026-11-17T08:00:00Z')
-  assert.deepEqual(v.elements.map((e) => e.identifiant), ['AVIS_SECURITE:a', 'AVIS_SECURITE:seul-abonnement', 'FICHE_REGLEMENTAIRE:f1'])
-  assert.equal(new Set(v.elements.map((e) => e.identifiant)).size, v.elements.length)
+  const veille = veilleAffichee(VEILLE, CATALOGUE, ABONNEMENTS, '2026-11-17T08:00:00Z')
+  assert.equal(veille.exemple, false, 'une veille réelle n’est jamais annoncée comme exemple')
+  assert.equal(veille.composeeLe, '2026-11-17T08:00:00Z')
+  assert.deepEqual(veille.elements.map((element) => element.identifiant), [
+    'AVIS_SECURITE:a', 'AVIS_SECURITE:seul-abonnement', 'FICHE_REGLEMENTAIRE:f1',
+  ])
+  assert.equal(new Set(veille.elements.map((element) => element.identifiant)).size, veille.elements.length)
 })
 
 test('les mentions de la fiche sont toutes transmises : IA, licence de la source, validation, garde-fous', () => {
-  const e = elementAffiche(FICHE, CATALOGUE, ABONNEMENTS)
-  assert.equal(e.resume, 'Résumé de la fiche.')
-  assert.equal(e.mentions.resumeProduitParIA, true)
-  assert.equal(e.mentions.attribution, 'Source : DILA, Licence Ouverte 2.0.')
-  assert.equal(e.mentions.validation, "validée par l'expert métier")
-  assert.deepEqual(e.mentions.gardeFous, FICHE.gardeFous)
-  assert.deepEqual(e.mentions.source, { nom: 'JORF', url: FICHE.lien })
-  assert.equal(e.mentions.publieLe, FICHE.date)
-  assert.deepEqual(e.mentions.origines, ['Profil Expert métier'])
-  assert.deepEqual(e.type, { code: 'fiche-reglementaire', libelle: 'Fiche réglementaire' })
-  assert.deepEqual(e.rubriques, [REGLEMENTATION])
+  const element = elementAffiche(FICHE, CATALOGUE, ABONNEMENTS)
+  assert.equal(element.resume, 'Résumé de la fiche.')
+  assert.equal(element.mentions.resumeProduitParIA, true)
+  assert.equal(element.mentions.attribution, 'Source : DILA, Licence Ouverte 2.0.')
+  assert.equal(element.mentions.validation, "validée par l'expert métier")
+  assert.deepEqual(element.mentions.gardeFous, FICHE.gardeFous)
+  assert.deepEqual(element.mentions.source, { nom: 'JORF', url: FICHE.lien })
+  assert.equal(element.mentions.publieLe, FICHE.date)
+  assert.deepEqual(element.mentions.origines, ['Profil Expert métier'])
+  assert.deepEqual(element.type, { code: 'fiche-reglementaire', libelle: 'Fiche réglementaire' })
+  assert.deepEqual(element.rubriques, [REGLEMENTATION])
 })
 
 test('mention IA : seulement si le serveur la donne et qu’un résumé est affiché', () => {
@@ -89,40 +91,40 @@ test('mention IA : seulement si le serveur la donne et qu’un résumé est affi
 })
 
 test('élément retenu par un abonnement personnel seul : sans rubrique, origine nommée par ses critères', () => {
-  const e = elementAffiche(VEILLE.elements[1], CATALOGUE, ABONNEMENTS)
-  assert.deepEqual(e.rubriques, [])
-  assert.deepEqual(e.mentions.origines, ['Abonnement personnel (technologie : rust)'])
-  assert.deepEqual(e.projets, [])
-  assert.deepEqual(e.gravite, { code: 'non-classee', libelle: 'unknown' }, 'gravité hors échelle : libellé de la source gardé')
+  const element = elementAffiche(VEILLE.elements[1], CATALOGUE, ABONNEMENTS)
+  assert.deepEqual(element.rubriques, [])
+  assert.deepEqual(element.mentions.origines, ['Abonnement personnel (technologie : rust)'])
+  assert.deepEqual(element.projets, [])
+  assert.deepEqual(element.gravite, { code: 'non-classee', libelle: 'unknown' }, 'gravité hors échelle : libellé de la source gardé')
 })
 
 test('élément d’un profil et d’un abonnement : origines profil puis abonnement, projets et niveaux', () => {
-  const e = elementAffiche(VEILLE.elements[0], CATALOGUE, ABONNEMENTS)
-  assert.deepEqual(e.mentions.origines, ['Profil Développeur', 'Abonnement personnel (technologie : rust)'])
-  assert.deepEqual(e.projets, [{ nom: 'Projet 1', niveau: { code: 'EXACT', libelle: 'correspondance exacte' } }])
-  assert.deepEqual(e.gravite, { code: 'elevee', libelle: 'élevée' })
-  assert.deepEqual(e.type, { code: 'avis-securite', libelle: 'Avis de sécurité' })
-  assert.equal(e.mentions.source.nom, 'OSV')
-  assert.equal(e.mentions.source.url, null)
-  assert.equal(e.titre, 'Avis a')
-  assert.equal(e.action, null)
+  const element = elementAffiche(VEILLE.elements[0], CATALOGUE, ABONNEMENTS)
+  assert.deepEqual(element.mentions.origines, ['Profil Développeur', 'Abonnement personnel (technologie : rust)'])
+  assert.deepEqual(element.projets, [{ nom: 'Projet 1', niveau: { code: 'EXACT', libelle: 'correspondance exacte' } }])
+  assert.deepEqual(element.gravite, { code: 'elevee', libelle: 'élevée' })
+  assert.deepEqual(element.type, { code: 'avis-securite', libelle: 'Avis de sécurité' })
+  assert.equal(element.mentions.source.nom, 'OSV')
+  assert.equal(element.mentions.source.url, null)
+  assert.equal(element.titre, 'Avis a')
+  assert.equal(element.action, null)
 })
 
 test('repli de forme : titre absent, projet sans nom, niveau inconnu, type inconnu', () => {
-  const e = elementAffiche(avis('x', { titre: null, projets: [{ projetId: 'p9', projet: null, niveau: 'A_VERIFIER' }] }))
-  assert.equal(e.titre, 'GHSA-x')
-  assert.deepEqual(e.projets, [{ nom: 'p9', niveau: { code: 'A_VERIFIER', libelle: 'a_verifier' } }])
+  const element = elementAffiche(avis('x', { titre: null, projets: [{ projetId: 'p9', projet: null, niveau: 'A_VERIFIER' }] }))
+  assert.equal(element.titre, 'GHSA-x')
+  assert.deepEqual(element.projets, [{ nom: 'p9', niveau: { code: 'A_VERIFIER', libelle: 'a_verifier' } }])
   assert.deepEqual(nature('AUTRE'), { code: 'actualite', libelle: 'AUTRE' })
   assert.equal(gravite(null), null)
   assert.deepEqual(gravite('critical'), { code: 'critique', libelle: 'critique' })
 })
 
 test('sommaire : rubriques des profils actifs d’après le catalogue, puis celles des éléments, sans doublon', () => {
-  assert.deepEqual(rubriquesDuSommaire(VEILLE, CATALOGUE).map((r) => `${r.profil}/${r.identifiant}`), [
+  assert.deepEqual(rubriquesDuSommaire(VEILLE, CATALOGUE).map((rubrique) => `${rubrique.profil}/${rubrique.identifiant}`), [
     'developpeur/securite', 'developpeur/versions', 'expert-metier/reglementation',
   ])
   // Sans catalogue : rubriques portées par les éléments, dans l'ordre de première apparition.
-  assert.deepEqual(rubriquesDuSommaire(VEILLE).map((r) => r.identifiant), ['securite', 'reglementation'])
+  assert.deepEqual(rubriquesDuSommaire(VEILLE).map((rubrique) => rubrique.identifiant), ['securite', 'reglementation'])
   assert.deepEqual(veilleAffichee({ profilsActifs: [], elements: [] }).elements, [])
 })
 
