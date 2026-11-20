@@ -30,7 +30,7 @@ const contenu = [
   'Fichiers de police fournis par les paquets npm @fontsource/* (sous-ensemble latin), servis par',
   'l’application elle-même : aucun service de polices externe n’est appelé.',
   '',
-  ...avis.flatMap((a) => [a, '']),
+  ...avis.flatMap((avisPolice) => [avisPolice, '']),
   'Ces polices sont distribuées sous la licence suivante :',
   '',
   texteOfl,
