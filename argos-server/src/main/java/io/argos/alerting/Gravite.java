@@ -27,9 +27,9 @@ public final class Gravite {
     public static Set<String> auMoins(String seuil) {
         int minimum = rang(seuil);
         Set<String> admises = new LinkedHashSet<>();
-        for (String g : GRADUEES) {
-            if (minimum > 0 && rang(g) >= minimum) {
-                admises.add(g);
+        for (String gravite : GRADUEES) {
+            if (minimum > 0 && rang(gravite) >= minimum) {
+                admises.add(gravite);
             }
         }
         return admises;

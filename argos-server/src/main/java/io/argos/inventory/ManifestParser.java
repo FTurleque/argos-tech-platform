@@ -48,15 +48,15 @@ public final class ManifestParser {
         JsonNode root;
         try {
             root = MAPPER.readTree(content);
-        } catch (IOException e) {
-            throw new InvalidDocumentException("package.json illisible", e);
+        } catch (IOException erreur) {
+            throw new InvalidDocumentException("package.json illisible", erreur);
         }
         List<ParsedInventory.Item> items = new ArrayList<>();
         Iterator<Map.Entry<String, JsonNode>> deps = root.path("dependencies").fields();
         while (deps.hasNext()) {
-            Map.Entry<String, JsonNode> d = deps.next();
-            String name = d.getKey();
-            String version = exact(d.getValue().asText());
+            Map.Entry<String, JsonNode> dependency = deps.next();
+            String name = dependency.getKey();
+            String version = exact(dependency.getValue().asText());
             int slash = name.lastIndexOf('/');
             String namespace = slash < 0 ? null : name.substring(0, slash);
             String key = PackageKey.key("npm", namespace, name.substring(slash + 1));
@@ -72,20 +72,20 @@ public final class ManifestParser {
             if (line.isEmpty() || line.startsWith("#") || line.startsWith("-")) {
                 continue;
             }
-            Matcher m = REQUIREMENT.matcher(line);
-            if (!m.matches()) {
+            Matcher matcher = REQUIREMENT.matcher(line);
+            if (!matcher.matches()) {
                 continue;
             }
-            String version = m.group(3) == null ? null : exact(m.group(3));
-            String key = PackageKey.key("pypi", null, m.group(1));
+            String version = matcher.group(3) == null ? null : exact(matcher.group(3));
+            String key = PackageKey.key("pypi", null, matcher.group(1));
             items.add(new ParsedInventory.Item(key, purl(key, version), version, null));
         }
         return items;
     }
 
     private static String exact(String constraint) {
-        Matcher m = EXACT.matcher(constraint.strip());
-        return m.matches() ? m.group(1) : null;
+        Matcher matcher = EXACT.matcher(constraint.strip());
+        return matcher.matches() ? matcher.group(1) : null;
     }
 
     private static String purl(String key, String version) {

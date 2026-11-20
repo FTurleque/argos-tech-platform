@@ -63,8 +63,8 @@ public class ImportPlanifie {
             try {
                 store.relancerRecorrelation(projet);
                 relancees++;
-            } catch (RuntimeException e) {
-                LOG.errorf(e, "relance de la recorrélation du projet %s en échec", projet);
+            } catch (RuntimeException erreur) {
+                LOG.errorf(erreur, "relance de la recorrélation du projet %s en échec", projet);
             }
         }
         int projetsParcourus = 0;
@@ -86,9 +86,9 @@ public class ImportPlanifie {
                         default -> conserves++;
                     }
                 }
-            } catch (RuntimeException e) {
+            } catch (RuntimeException erreur) {
                 enEchec++;
-                LOG.errorf(e, "import planifié de l'inventaire du projet %s en échec", projet);
+                LOG.errorf(erreur, "import planifié de l'inventaire du projet %s en échec", projet);
             }
         }
         Bilan bilan = new Bilan(projetsParcourus, importes, conserves, refuses, erreurs, reportes, relancees, enEchec);

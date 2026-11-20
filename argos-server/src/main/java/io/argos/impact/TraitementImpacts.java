@@ -94,45 +94,45 @@ public class TraitementImpacts {
     @Transactional
     public Optional<EtatImpact> transitionner(UUID impactId, UUID compteId, EtatImpact vers, String motif,
             String commentaire, Instant maintenant) {
-        String m = nettoyer(motif);
+        String motifNettoye = nettoyer(motif);
         String com = nettoyer(commentaire);
-        if (vers == EtatImpact.ECARTE && m == null) {
+        if (vers == EtatImpact.ECARTE && motifNettoye == null) {
             throw new IllegalArgumentException("motif obligatoire pour écarter un impact");
         }
-        if ((m != null && m.length() > LONGUEUR_MAX) || (com != null && com.length() > LONGUEUR_MAX)) {
+        if ((motifNettoye != null && motifNettoye.length() > LONGUEUR_MAX) || (com != null && com.length() > LONGUEUR_MAX)) {
             throw new IllegalArgumentException("motif ou commentaire trop long");
         }
-        try (Connection c = dataSource.getConnection()) {
-            RlsSession.account(c, compteId);
-            Optional<Lu> lu = lire(c, impactId);
-            if (lu.isEmpty()) {
+        try (Connection connexion = dataSource.getConnection()) {
+            RlsSession.account(connexion, compteId);
+            Optional<Lu> lecture = lire(connexion, impactId);
+            if (lecture.isEmpty()) {
                 return Optional.empty();
             }
-            EtatImpact de = lu.get().etat();
+            EtatImpact depart = lecture.get().etat();
             // Un impact dont le composant a quitté l'inventaire ne redevient pas actif (INV-C3) : 409.
-            Set<EtatImpact> possibles = de.suivants(lu.get().composantPresent());
+            Set<EtatImpact> possibles = depart.suivants(lecture.get().composantPresent());
             if (!possibles.contains(vers)) {
-                throw new TransitionInterdite(de, possibles);
+                throw new TransitionInterdite(depart, possibles);
             }
-            if (!changer(c, impactId, de, vers)) {
+            if (!changer(connexion, impactId, depart, vers)) {
                 // Aucune ligne modifiée : état changé entre-temps (409), ou refus de la politique RLS.
-                EtatImpact maintenantLu = lire(c, impactId).map(Lu::etat).orElse(de);
-                if (maintenantLu != de) {
+                EtatImpact maintenantLu = lire(connexion, impactId).map(Lu::etat).orElse(depart);
+                if (maintenantLu != depart) {
                     throw new TransitionInterdite(maintenantLu);
                 }
                 throw new ModificationRefusee();
             }
-            historiser(c, impactId, lu.get().espace(), de, vers, compteId, m, com, maintenant);
+            historiser(connexion, impactId, lecture.get().espace(), depart, vers, compteId, motifNettoye, com, maintenant);
             if (!EtatImpact.ACTIFS.contains(vers)) {
-                traites.fire(new ImpactsTraites(lu.get().signal()));
+                traites.fire(new ImpactsTraites(lecture.get().signal()));
             }
             return Optional.of(vers);
-        } catch (SQLException e) {
-            if ("42501".equals(e.getSQLState())) {
+        } catch (SQLException erreur) {
+            if ("42501".equals(erreur.getSQLState())) {
                 // Politique d'insertion de l'historique refusée (rôle insuffisant).
                 throw new ModificationRefusee();
             }
-            throw new IllegalStateException("transition de l'impact impossible", e);
+            throw new IllegalStateException("transition de l'impact impossible", erreur);
         }
     }
 
@@ -141,14 +141,14 @@ public class TraitementImpacts {
      * résolution système peut être annulée par la recorrélation ; une résolution décidée par un utilisateur autorisé
      * est respectée (décision J5).
      */
-    static boolean resoluParLeSysteme(Connection c, UUID impactId) throws SQLException {
-        try (PreparedStatement ps = c.prepareStatement("""
+    static boolean resoluParLeSysteme(Connection connexion, UUID impactId) throws SQLException {
+        try (PreparedStatement requete = connexion.prepareStatement("""
                 SELECT actor_system FROM project_impact_transition
                 WHERE impact_id = ? AND to_state = 'RESOLU' ORDER BY occurred_at DESC, id DESC LIMIT 1
                 """)) {
-            ps.setObject(1, impactId);
-            try (ResultSet rs = ps.executeQuery()) {
-                return rs.next() && rs.getBoolean(1);
+            requete.setObject(1, impactId);
+            try (ResultSet resultat = requete.executeQuery()) {
+                return resultat.next() && resultat.getBoolean(1);
             }
         }
     }
@@ -156,66 +156,66 @@ public class TraitementImpacts {
     /**
      * Transition système, dans la transaction et la connexion de l'appelant ({@link CorrelationEngine}).
      *
-     * @return vrai si l'impact était encore à l'état {@code de} et a été modifié
+     * @return vrai si l'impact était encore à l'état {@code depart} et a été modifié
      */
-    static boolean systeme(Connection c, UUID impactId, UUID espace, EtatImpact de, EtatImpact vers, MotifSysteme motif,
+    static boolean systeme(Connection connexion, UUID impactId, UUID espace, EtatImpact depart, EtatImpact vers, MotifSysteme motif,
             Instant maintenant) throws SQLException {
-        if (!changer(c, impactId, de, vers)) {
+        if (!changer(connexion, impactId, depart, vers)) {
             return false;
         }
-        historiser(c, impactId, espace, de, vers, null, motif.name(), null, maintenant);
+        historiser(connexion, impactId, espace, depart, vers, null, motif.name(), null, maintenant);
         return true;
     }
 
     private record Lu(EtatImpact etat, UUID espace, UUID signal, boolean composantPresent) {
     }
 
-    private static Optional<Lu> lire(Connection c, UUID impactId) throws SQLException {
-        try (PreparedStatement ps = c.prepareStatement(
+    private static Optional<Lu> lire(Connection connexion, UUID impactId) throws SQLException {
+        try (PreparedStatement requete = connexion.prepareStatement(
                 "SELECT state, workspace_id, signal_id, component_id IS NOT NULL FROM project_impact WHERE id = ?")) {
-            ps.setObject(1, impactId);
-            try (ResultSet rs = ps.executeQuery()) {
-                return rs.next()
-                        ? Optional.of(new Lu(EtatImpact.valueOf(rs.getString(1)), rs.getObject(2, UUID.class),
-                                rs.getObject(3, UUID.class), rs.getBoolean(4)))
+            requete.setObject(1, impactId);
+            try (ResultSet resultat = requete.executeQuery()) {
+                return resultat.next()
+                        ? Optional.of(new Lu(EtatImpact.valueOf(resultat.getString(1)), resultat.getObject(2, UUID.class),
+                                resultat.getObject(3, UUID.class), resultat.getBoolean(4)))
                         : Optional.empty();
             }
         }
     }
 
-    private static boolean changer(Connection c, UUID impactId, EtatImpact de, EtatImpact vers) throws SQLException {
-        try (PreparedStatement ps = c.prepareStatement("UPDATE project_impact SET state = ? WHERE id = ? AND state = ?")) {
-            ps.setString(1, vers.name());
-            ps.setObject(2, impactId);
-            ps.setString(3, de.name());
-            return ps.executeUpdate() == 1;
+    private static boolean changer(Connection connexion, UUID impactId, EtatImpact depart, EtatImpact vers) throws SQLException {
+        try (PreparedStatement requete = connexion.prepareStatement("UPDATE project_impact SET state = ? WHERE id = ? AND state = ?")) {
+            requete.setString(1, vers.name());
+            requete.setObject(2, impactId);
+            requete.setString(3, depart.name());
+            return requete.executeUpdate() == 1;
         }
     }
 
-    private static void historiser(Connection c, UUID impactId, UUID espace, EtatImpact de, EtatImpact vers, UUID compte,
+    private static void historiser(Connection connexion, UUID impactId, UUID espace, EtatImpact depart, EtatImpact vers, UUID compte,
             String motif, String commentaire, Instant maintenant) throws SQLException {
         // Horodatage strictement croissant par impact : l'ordre de l'historique est celui des transitions (COR-12-S1),
         // même pour deux transitions de la même milliseconde.
-        try (PreparedStatement ps = c.prepareStatement("""
+        try (PreparedStatement requete = connexion.prepareStatement("""
                 INSERT INTO project_impact_transition(id, impact_id, workspace_id, from_state, to_state, actor_account_id,
                        actor_system, reason, comment, occurred_at)
                 SELECT ?, ?, ?, ?, ?, ?, ?, ?, ?, greatest(?::timestamptz, coalesce(
                        (SELECT max(t.occurred_at) + interval '1 microsecond' FROM project_impact_transition t
                         WHERE t.impact_id = ?), ?::timestamptz))
                 """)) {
-            ps.setObject(1, UUID.randomUUID());
-            ps.setObject(2, impactId);
-            ps.setObject(3, espace);
-            ps.setString(4, de.name());
-            ps.setString(5, vers.name());
-            ps.setObject(6, compte);
-            ps.setBoolean(7, compte == null);
-            ps.setString(8, motif);
-            ps.setString(9, commentaire);
-            ps.setObject(10, maintenant.atOffset(ZoneOffset.UTC));
-            ps.setObject(11, impactId);
-            ps.setObject(12, maintenant.atOffset(ZoneOffset.UTC));
-            ps.executeUpdate();
+            requete.setObject(1, UUID.randomUUID());
+            requete.setObject(2, impactId);
+            requete.setObject(3, espace);
+            requete.setString(4, depart.name());
+            requete.setString(5, vers.name());
+            requete.setObject(6, compte);
+            requete.setBoolean(7, compte == null);
+            requete.setString(8, motif);
+            requete.setString(9, commentaire);
+            requete.setObject(10, maintenant.atOffset(ZoneOffset.UTC));
+            requete.setObject(11, impactId);
+            requete.setObject(12, maintenant.atOffset(ZoneOffset.UTC));
+            requete.executeUpdate();
         }
     }
 

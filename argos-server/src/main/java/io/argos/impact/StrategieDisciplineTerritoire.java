@@ -59,32 +59,32 @@ public final class StrategieDisciplineTerritoire {
     private StrategieDisciplineTerritoire() {
     }
 
-    public static Decision evaluer(Opportunite o, Set<String> disciplinesSuivies, Set<String> territoiresSuivis,
+    public static Decision evaluer(Opportunite opportunite, Set<String> disciplinesSuivies, Set<String> territoiresSuivis,
             LocalDate aujourdhui) {
-        List<String> disciplines = communes(o.disciplines(), disciplinesSuivies);
+        List<String> disciplines = communes(opportunite.disciplines(), disciplinesSuivies);
         if (disciplines.isEmpty()) {
             return new Decision(Issue.DISCIPLINE_NON_SUIVIE, List.of(), List.of(),
-                    "Aucune discipline de l'appel (" + o.disciplines() + ") ne figure parmi vos disciplines suivies.");
+                    "Aucune discipline de l'appel (" + opportunite.disciplines() + ") ne figure parmi vos disciplines suivies.");
         }
-        List<String> territoires = o.territoires().contains(FRANCE) ? List.of(FRANCE)
-                : communes(o.territoires(), territoiresSuivis);
+        List<String> territoires = opportunite.territoires().contains(FRANCE) ? List.of(FRANCE)
+                : communes(opportunite.territoires(), territoiresSuivis);
         if (territoires.isEmpty()) {
             return new Decision(Issue.TERRITOIRE_NON_SUIVI, disciplines, List.of(),
-                    "Aucun territoire de l'appel (" + o.territoires() + ") ne figure parmi vos territoires suivis.");
+                    "Aucun territoire de l'appel (" + opportunite.territoires() + ") ne figure parmi vos territoires suivis.");
         }
         String correspondance = "discipline " + String.join(", ", disciplines) + " ; territoire "
                 + String.join(", ", territoires);
-        if (o.dateLimite() == null) {
+        if (opportunite.dateLimite() == null) {
             return new Decision(Issue.DATE_A_CONFIRMER, disciplines, territoires,
                     "Correspond à vos suivis (" + correspondance + ") ; date limite à confirmer auprès de l'organisme.");
         }
-        if (o.dateLimite().isBefore(aujourdhui)) {
+        if (opportunite.dateLimite().isBefore(aujourdhui)) {
             return new Decision(Issue.DATE_LIMITE_DEPASSEE, disciplines, territoires,
-                    "Date limite dépassée (" + o.dateLimite() + ").");
+                    "Date limite dépassée (" + opportunite.dateLimite() + ").");
         }
-        long jours = ChronoUnit.DAYS.between(aujourdhui, o.dateLimite());
+        long jours = ChronoUnit.DAYS.between(aujourdhui, opportunite.dateLimite());
         return new Decision(Issue.OUVERTE, disciplines, territoires, "Correspond à vos suivis (" + correspondance
-                + ") ; date limite le " + o.dateLimite() + (jours == 0 ? " (aujourd'hui)." : " (dans " + jours + " jours)."));
+                + ") ; date limite le " + opportunite.dateLimite() + (jours == 0 ? " (aujourd'hui)." : " (dans " + jours + " jours)."));
     }
 
     private static List<String> communes(Collection<String> valeurs, Set<String> suivies) {

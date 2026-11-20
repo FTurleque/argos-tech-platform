@@ -83,15 +83,15 @@ public class EnvoiAlertes {
         }
         List<UUID> ids = QuarkusTransaction.requiringNew().call(() -> {
             List<UUID> found = new ArrayList<>();
-            try (Connection c = dataSource.getConnection(); PreparedStatement ps = c.prepareStatement("""
+            try (Connection connexion = dataSource.getConnection(); PreparedStatement requete = connexion.prepareStatement("""
                     SELECT id FROM alerte WHERE etat = 'EN_ATTENTE' AND canal = ANY (?)
                       AND (prochain_essai IS NULL OR prochain_essai <= ?) ORDER BY cree_le, id LIMIT 500
                     """)) {
-                ps.setArray(1, c.createArrayOf("varchar", parCode.keySet().toArray()));
-                ps.setObject(2, maintenant.atOffset(ZoneOffset.UTC));
-                try (ResultSet rs = ps.executeQuery()) {
-                    while (rs.next()) {
-                        found.add(rs.getObject(1, UUID.class));
+                requete.setArray(1, connexion.createArrayOf("varchar", parCode.keySet().toArray()));
+                requete.setObject(2, maintenant.atOffset(ZoneOffset.UTC));
+                try (ResultSet resultat = requete.executeQuery()) {
+                    while (resultat.next()) {
+                        found.add(resultat.getObject(1, UUID.class));
                     }
                 }
             }
@@ -107,8 +107,8 @@ public class EnvoiAlertes {
         for (UUID id : ids) {
             try {
                 issues.put(id, tenter(id, parCode, maintenant));
-            } catch (RuntimeException e) {
-                LOG.errorf(e, "diffusion de l'alerte %s en échec", id);
+            } catch (RuntimeException erreur) {
+                LOG.errorf(erreur, "diffusion de l'alerte %s en échec", id);
             }
         }
         return issues;
@@ -126,41 +126,41 @@ public class EnvoiAlertes {
         if (reservation.isEmpty()) {
             return Issue.IGNOREE;
         }
-        Reservation r = reservation.get();
-        if (r.epuisee()) {
+        Reservation reservationObtenue = reservation.get();
+        if (reservationObtenue.epuisee()) {
             return Issue.EN_ECHEC;
         }
         String erreur;
         boolean definitif;
         try {
-            parCode.get(r.canal()).diffuser(r.message(id));
+            parCode.get(reservationObtenue.canal()).diffuser(reservationObtenue.message(id));
             QuarkusTransaction.requiringNew().run(() -> enregistrerSucces(id, maintenant));
             return Issue.ENVOYEE;
         } catch (CanalDiffusion.EchecDiffusion echec) {
             erreur = echec.getMessage();
             definitif = echec.definitif();
-        } catch (ContenuIllisible e) {
+        } catch (ContenuIllisible illisible) {
             erreur = "contenu du message illisible";
             definitif = true;
-        } catch (RuntimeException e) {
-            erreur = "diffusion impossible : " + e.getClass().getSimpleName();
+        } catch (RuntimeException imprevue) {
+            erreur = "diffusion impossible : " + imprevue.getClass().getSimpleName();
             definitif = false;
         }
-        boolean abandon = definitif || r.tentatives() >= tentativesMax;
+        boolean abandon = definitif || reservationObtenue.tentatives() >= tentativesMax;
         String motif = erreur;
         QuarkusTransaction.requiringNew().run(() -> enregistrerEchec(id, abandon,
-                abandon ? null : maintenant.plus(delai(r.tentatives())), motif));
-        LOG.warnf("diffusion de l'alerte %s : tentative %d en échec (%s)", id, r.tentatives(), erreur);
+                abandon ? null : maintenant.plus(delai(reservationObtenue.tentatives())), motif));
+        LOG.warnf("diffusion de l'alerte %s : tentative %d en échec (%s)", id, reservationObtenue.tentatives(), erreur);
         return abandon ? Issue.EN_ECHEC : Issue.A_RETENTER;
     }
 
     /** Délai avant la tentative suivante : délai initial doublé à chaque échec, plafonné. */
     Duration delai(int tentatives) {
-        Duration d = delaiInitial;
-        for (int i = 1; i < tentatives && d.compareTo(delaiMax) < 0; i++) {
-            d = d.multipliedBy(2);
+        Duration delai = delaiInitial;
+        for (int tentative = 1; tentative < tentatives && delai.compareTo(delaiMax) < 0; tentative++) {
+            delai = delai.multipliedBy(2);
         }
-        return d.compareTo(delaiMax) > 0 ? delaiMax : d;
+        return delai.compareTo(delaiMax) > 0 ? delaiMax : delai;
     }
 
     /**
@@ -176,8 +176,8 @@ public class EnvoiAlertes {
             try {
                 return new MessageAlerte(id, nature, compteId, adresse, canal, titre, gravite,
                         MoteurAlertes.JSON.readValue(contenu, ContenuAlerte.class));
-            } catch (java.io.IOException e) {
-                throw new ContenuIllisible(e);
+            } catch (java.io.IOException erreur) {
+                throw new ContenuIllisible(erreur);
             }
         }
     }
@@ -197,39 +197,39 @@ public class EnvoiAlertes {
      * du {@link #BAIL} : un arrêt pendant la diffusion laisse une tentative comptée, reprise après le bail.
      */
     private Optional<Reservation> reserver(UUID id, Set<String> canauxDiffuses, Instant maintenant) throws SQLException {
-        try (Connection c = dataSource.getConnection()) {
+        try (Connection connexion = dataSource.getConnection()) {
             // ALR-07-S1 : une alerte immédiate dont tous les impacts ont été écartés ou résolus avant l'envoi n'est
             // pas diffusée.
-            if (AlertesSansObjet.annulerSiSansObjet(c, id)) {
+            if (AlertesSansObjet.annulerSiSansObjet(connexion, id)) {
                 return Optional.empty();
             }
-            Reservation r;
-            try (PreparedStatement ps = c.prepareStatement("""
+            Reservation reservation;
+            try (PreparedStatement requete = connexion.prepareStatement("""
                     SELECT a.canal, a.tentatives, a.nature, a.compte_id, c.email, a.titre, a.gravite, a.contenu::text
                     FROM alerte a JOIN compte c ON c.id = a.compte_id
                     WHERE a.id = ? AND a.etat = 'EN_ATTENTE' AND (a.prochain_essai IS NULL OR a.prochain_essai <= ?)
                     FOR UPDATE OF a SKIP LOCKED
                     """)) {
-                ps.setObject(1, id);
-                ps.setObject(2, maintenant.atOffset(ZoneOffset.UTC));
-                try (ResultSet rs = ps.executeQuery()) {
-                    if (!rs.next() || !canauxDiffuses.contains(rs.getString(1))) {
+                requete.setObject(1, id);
+                requete.setObject(2, maintenant.atOffset(ZoneOffset.UTC));
+                try (ResultSet resultat = requete.executeQuery()) {
+                    if (!resultat.next() || !canauxDiffuses.contains(resultat.getString(1))) {
                         return Optional.empty();
                     }
-                    int faites = rs.getInt(2);
-                    r = new Reservation(rs.getString(1), faites + 1, faites >= tentativesMax, rs.getString(3),
-                            rs.getObject(4, UUID.class), rs.getString(5), rs.getString(6), rs.getString(7),
-                            rs.getString(8));
+                    int faites = resultat.getInt(2);
+                    reservation = new Reservation(resultat.getString(1), faites + 1, faites >= tentativesMax, resultat.getString(3),
+                            resultat.getObject(4, UUID.class), resultat.getString(5), resultat.getString(6), resultat.getString(7),
+                            resultat.getString(8));
                 }
             }
-            if (r.epuisee()) {
-                executer(c, "UPDATE alerte SET etat = 'EN_ECHEC', prochain_essai = NULL, "
+            if (reservation.epuisee()) {
+                executer(connexion, "UPDATE alerte SET etat = 'EN_ECHEC', prochain_essai = NULL, "
                         + "derniere_erreur = 'tentatives épuisées' WHERE id = ?", id);
             } else {
-                executer(c, "UPDATE alerte SET tentatives = tentatives + 1, prochain_essai = ? WHERE id = ?",
+                executer(connexion, "UPDATE alerte SET tentatives = tentatives + 1, prochain_essai = ? WHERE id = ?",
                         maintenant.plus(BAIL).atOffset(ZoneOffset.UTC), id);
             }
-            return Optional.of(r);
+            return Optional.of(reservation);
         }
     }
 
@@ -245,26 +245,26 @@ public class EnvoiAlertes {
     }
 
     private void enregistrer(String sql, Object... valeurs) {
-        try (Connection c = dataSource.getConnection()) {
-            executer(c, sql, valeurs);
-        } catch (SQLException e) {
-            throw new IllegalStateException("enregistrement de l'issue d'une alerte impossible", e);
+        try (Connection connexion = dataSource.getConnection()) {
+            executer(connexion, sql, valeurs);
+        } catch (SQLException erreur) {
+            throw new IllegalStateException("enregistrement de l'issue d'une alerte impossible", erreur);
         }
     }
 
-    private static void executer(Connection c, String sql, Object... valeurs) throws SQLException {
-        try (PreparedStatement ps = c.prepareStatement(sql)) {
-            for (int i = 0; i < valeurs.length; i++) {
-                ps.setObject(i + 1, valeurs[i]);
+    private static void executer(Connection connexion, String sql, Object... valeurs) throws SQLException {
+        try (PreparedStatement requete = connexion.prepareStatement(sql)) {
+            for (int position = 0; position < valeurs.length; position++) {
+                requete.setObject(position + 1, valeurs[position]);
             }
-            ps.executeUpdate();
+            requete.executeUpdate();
         }
     }
 
     private Map<String, CanalDiffusion> parCode() {
         Map<String, CanalDiffusion> parCode = new HashMap<>();
-        for (CanalDiffusion c : canaux) {
-            parCode.put(c.code(), c);
+        for (CanalDiffusion canal : canaux) {
+            parCode.put(canal.code(), canal);
         }
         return parCode;
     }

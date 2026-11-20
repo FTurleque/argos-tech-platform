@@ -70,40 +70,40 @@ public class RappelsReglementaires {
         List<EcheancesReglementaires.Echeance> liste;
         try {
             liste = echeances.echeancesDuJour(aujourdhui);
-        } catch (RuntimeException e) {
-            LOG.errorf(e, "lecture des échéances réglementaires impossible");
+        } catch (RuntimeException erreur) {
+            LOG.errorf(erreur, "lecture des échéances réglementaires impossible");
             return crees;
         }
-        for (EcheancesReglementaires.Echeance e : liste) {
+        for (EcheancesReglementaires.Echeance echeance : liste) {
             try {
-                crees.addAll(rappeler(e, maintenant));
-            } catch (RuntimeException ex) {
-                LOG.errorf(ex, "rappel de la fiche réglementaire %s en échec", e.ficheId());
+                crees.addAll(rappeler(echeance, maintenant));
+            } catch (RuntimeException erreur) {
+                LOG.errorf(erreur, "rappel de la fiche réglementaire %s en échec", echeance.ficheId());
             }
         }
         envoi.envoyer(crees, maintenant);
         return List.copyOf(crees);
     }
 
-    private List<UUID> rappeler(EcheancesReglementaires.Echeance e, Instant maintenant) {
+    private List<UUID> rappeler(EcheancesReglementaires.Echeance echeance, Instant maintenant) {
         Map<UUID, String> comptes = new LinkedHashMap<>();
-        for (EcheancesReglementaires.Expert x : e.experts()) {
-            comptes.putIfAbsent(x.compteId(), x.email());
+        for (EcheancesReglementaires.Expert expert : echeance.experts()) {
+            comptes.putIfAbsent(expert.compteId(), expert.email());
         }
-        for (Destinataires.Destinataire d : destinataires.membresAvecProfil(e.espaceId(), PROFIL)) {
-            comptes.putIfAbsent(d.compteId(), d.email());
+        for (Destinataires.Destinataire destinataire : destinataires.membresAvecProfil(echeance.espaceId(), PROFIL)) {
+            comptes.putIfAbsent(destinataire.compteId(), destinataire.email());
         }
-        String quand = e.joursRestants() == 0 ? "aujourd'hui" : e.joursRestants() == 1 ? "demain"
-                : "dans " + e.joursRestants() + " jours";
-        String titre = "Entrée en vigueur " + quand + " (" + e.dateEffet() + ") : " + borne(e.titre(), 300);
-        String cle = "REGLEMENTAIRE|" + e.ficheId() + "|" + e.dateEffet() + "|J-" + e.jourRappel();
+        String quand = echeance.joursRestants() == 0 ? "aujourd'hui" : echeance.joursRestants() == 1 ? "demain"
+                : "dans " + echeance.joursRestants() + " jours";
+        String titre = "Entrée en vigueur " + quand + " (" + echeance.dateEffet() + ") : " + borne(echeance.titre(), 300);
+        String cle = "REGLEMENTAIRE|" + echeance.ficheId() + "|" + echeance.dateEffet() + "|J-" + echeance.jourRappel();
         // L'IHM n'a pas encore d'écran réglementaire : le lien ouvre le texte officiel (comme les rappels
         // d'opportunités) ; la fiche reste consultable par l'API.
-        String lien = e.lienOfficiel();
+        String lien = echeance.lienOfficiel();
         ContenuAlerte contenu = new ContenuAlerte(List.of(new ContenuAlerte.Element(null,
-                titre + ". Domaines : " + String.join(", ", e.domaines()) + ". " + FicheAnalyse.AVIS_JURIDIQUE, null,
-                List.of(), List.of(new ContenuAlerte.Source("Journal officiel (DILA, Licence Ouverte)", e.identifiant(),
-                        e.lienOfficiel())), lien)), null, "SANS_OBJET");
+                titre + ". Domaines : " + String.join(", ", echeance.domaines()) + ". " + FicheAnalyse.AVIS_JURIDIQUE, null,
+                List.of(), List.of(new ContenuAlerte.Source("Journal officiel (DILA, Licence Ouverte)", echeance.identifiant(),
+                        echeance.lienOfficiel())), lien)), null, "SANS_OBJET");
         List<UUID> crees = new ArrayList<>();
         comptes.forEach((compte, email) -> {
             String canal = email == null || email.isBlank() ? "DESKTOP" : "EMAIL";
@@ -115,7 +115,7 @@ public class RappelsReglementaires {
         return crees;
     }
 
-    private static String borne(String s, int max) {
-        return s == null || s.length() <= max ? s : s.substring(0, max) + "…";
+    private static String borne(String texte, int max) {
+        return texte == null || texte.length() <= max ? texte : texte.substring(0, max) + "…";
     }
 }

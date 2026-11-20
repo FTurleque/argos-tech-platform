@@ -145,8 +145,8 @@ public class InventoryQueries {
             return Optional.of(new InventoryView(projectId, entete.origin(), entete.sourceDate(), entete.ageDays(),
                     entete.obsolete(), entete.specVersion(), entete.importedAt(), components(connexion, projectId), entete.ignoredCount(),
                     entete.ignoredComponents()));
-        } catch (SQLException e) {
-            throw new IllegalStateException("lecture de l'inventaire impossible", e);
+        } catch (SQLException erreur) {
+            throw new IllegalStateException("lecture de l'inventaire impossible", erreur);
         }
     }
 
@@ -161,8 +161,8 @@ public class InventoryQueries {
         try (Connection connexion = dataSource.getConnection()) {
             ContexteBase.appliquer(connexion, new ContexteBase.Contexte(accountId, null, null));
             return summary(connexion, projectId);
-        } catch (SQLException e) {
-            throw new IllegalStateException("lecture de l'inventaire impossible", e);
+        } catch (SQLException erreur) {
+            throw new IllegalStateException("lecture de l'inventaire impossible", erreur);
         }
     }
 
@@ -256,8 +256,8 @@ public class InventoryQueries {
                 }
             }
             return new ProjectPage(items, appliedPage, appliedSize, total);
-        } catch (SQLException e) {
-            throw new IllegalStateException("lecture des projets impossible", e);
+        } catch (SQLException erreur) {
+            throw new IllegalStateException("lecture des projets impossible", erreur);
         }
     }
 
@@ -289,11 +289,12 @@ public class InventoryQueries {
             }
             Map<UUID, List<ComponentRepository>> depots = depotsDesComposants(connexion,
                     lus.stream().map(ComponentItem::id).toList());
-            List<ComponentItem> items = lus.stream().map(c -> new ComponentItem(c.id(), c.name(), c.version(), c.purl(),
-                    c.packageKey(), c.transitive(), depots.getOrDefault(c.id(), List.of()))).toList();
+            List<ComponentItem> items = lus.stream().map(composant -> new ComponentItem(composant.id(), composant.name(),
+                    composant.version(), composant.purl(), composant.packageKey(), composant.transitive(),
+                    depots.getOrDefault(composant.id(), List.of()))).toList();
             return new ComponentPage(projectId, items, appliedPage, appliedSize, total);
-        } catch (SQLException e) {
-            throw new IllegalStateException("lecture des composants impossible", e);
+        } catch (SQLException erreur) {
+            throw new IllegalStateException("lecture des composants impossible", erreur);
         }
     }
 
@@ -312,8 +313,8 @@ public class InventoryQueries {
                     }
                 }
             }
-        } catch (SQLException e) {
-            throw new IllegalStateException("lecture des imports refusés impossible", e);
+        } catch (SQLException erreur) {
+            throw new IllegalStateException("lecture des imports refusés impossible", erreur);
         }
         return failures;
     }
@@ -354,31 +355,31 @@ public class InventoryQueries {
                     meilleures.merge(candidat.componentId(), candidat, InventoryQueries::meilleure);
                 }
             }
-        } catch (SQLException e) {
-            throw new IllegalStateException("recherche des composants impossible", e);
+        } catch (SQLException erreur) {
+            throw new IllegalStateException("recherche des composants impossible", erreur);
         }
         return new ArrayList<>(meilleures.values());
     }
 
     /** Meilleure de deux occurrences d'un même composant (P-7). */
-    private static ComponentMatch meilleure(ComponentMatch a, ComponentMatch b) {
-        int rangA = rang(a);
-        int rangB = rang(b);
+    private static ComponentMatch meilleure(ComponentMatch gauche, ComponentMatch droite) {
+        int rangA = rang(gauche);
+        int rangB = rang(droite);
         if (rangA != rangB) {
-            return rangA < rangB ? a : b;
+            return rangA < rangB ? gauche : droite;
         }
-        if (a.inventoryDate() == null) {
-            return b.inventoryDate() == null ? a : b;
+        if (gauche.inventoryDate() == null) {
+            return droite.inventoryDate() == null ? gauche : droite;
         }
-        return b.inventoryDate() != null && b.inventoryDate().isAfter(a.inventoryDate()) ? b : a;
+        return droite.inventoryDate() != null && droite.inventoryDate().isAfter(gauche.inventoryDate()) ? droite : gauche;
     }
 
     /** 0 : SBOM non obsolète ; 1 : SBOM obsolète ; 2 : manifestes ou origine inconnue. */
-    private static int rang(ComponentMatch m) {
-        if (!"SBOM".equals(m.inventoryOrigin())) {
+    private static int rang(ComponentMatch correspondance) {
+        if (!"SBOM".equals(correspondance.inventoryOrigin())) {
             return 2;
         }
-        return m.inventoryObsolete() ? 1 : 0;
+        return correspondance.inventoryObsolete() ? 1 : 0;
     }
 
     /** Origine du dernier import réussi d'un dépôt (traitement technique), s'il existe. */
@@ -390,8 +391,8 @@ public class InventoryQueries {
             try (ResultSet lignes = requete.executeQuery()) {
                 return lignes.next() ? Optional.of(lignes.getString(1)) : Optional.empty();
             }
-        } catch (SQLException e) {
-            throw new IllegalStateException("lecture de l'inventaire du dépôt impossible", e);
+        } catch (SQLException erreur) {
+            throw new IllegalStateException("lecture de l'inventaire du dépôt impossible", erreur);
         }
     }
 
@@ -405,8 +406,8 @@ public class InventoryQueries {
             while (lignes.next()) {
                 projets.add(lignes.getObject(1, UUID.class));
             }
-        } catch (SQLException e) {
-            throw new IllegalStateException("lecture des recorrélations en attente impossible", e);
+        } catch (SQLException erreur) {
+            throw new IllegalStateException("lecture des recorrélations en attente impossible", erreur);
         }
         return projets;
     }
@@ -423,8 +424,8 @@ public class InventoryQueries {
             try (ResultSet lignes = requete.executeQuery()) {
                 return lignes.next() ? Optional.of(lignes.getObject(1, UUID.class)) : Optional.empty();
             }
-        } catch (SQLException e) {
-            throw new IllegalStateException("lecture de l'inventaire impossible", e);
+        } catch (SQLException erreur) {
+            throw new IllegalStateException("lecture de l'inventaire impossible", erreur);
         }
     }
 
@@ -444,7 +445,7 @@ public class InventoryQueries {
             requete.setArray(1, connexion.createArrayOf("uuid", composants.toArray()));
             try (ResultSet lignes = requete.executeQuery()) {
                 while (lignes.next()) {
-                    depots.computeIfAbsent(lignes.getObject(1, UUID.class), k -> new ArrayList<>())
+                    depots.computeIfAbsent(lignes.getObject(1, UUID.class), cle -> new ArrayList<>())
                             .add(new ComponentRepository(lignes.getObject(2, UUID.class), lignes.getString(3), lignes.getString(4)));
                 }
             }
@@ -464,8 +465,8 @@ public class InventoryQueries {
                     keys.add(lignes.getString(1));
                 }
             }
-        } catch (SQLException e) {
-            throw new IllegalStateException("lecture des paquets du projet impossible", e);
+        } catch (SQLException erreur) {
+            throw new IllegalStateException("lecture des paquets du projet impossible", erreur);
         }
         return keys;
     }
@@ -479,8 +480,8 @@ public class InventoryQueries {
             try (ResultSet lignes = requete.executeQuery()) {
                 return lignes.next() ? Optional.of(lignes.getString(1)) : Optional.empty();
             }
-        } catch (SQLException e) {
-            throw new IllegalStateException("lecture de l'inventaire impossible", e);
+        } catch (SQLException erreur) {
+            throw new IllegalStateException("lecture de l'inventaire impossible", erreur);
         }
     }
 
@@ -493,8 +494,8 @@ public class InventoryQueries {
             try (ResultSet lignes = requete.executeQuery()) {
                 return lignes.next() ? Optional.of(lignes.getObject(1, UUID.class)) : Optional.empty();
             }
-        } catch (SQLException e) {
-            throw new IllegalStateException("lecture du projet impossible", e);
+        } catch (SQLException erreur) {
+            throw new IllegalStateException("lecture du projet impossible", erreur);
         }
     }
 
@@ -544,8 +545,8 @@ public class InventoryQueries {
         }
         try {
             return List.of(MAPPER.readValue(json, ParsedInventory.IgnoredComponent[].class));
-        } catch (JsonProcessingException e) {
-            throw new IllegalStateException("lecture des composants ignorés impossible", e);
+        } catch (JsonProcessingException erreur) {
+            throw new IllegalStateException("lecture des composants ignorés impossible", erreur);
         }
     }
 

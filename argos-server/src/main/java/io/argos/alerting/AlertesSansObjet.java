@@ -55,27 +55,27 @@ public class AlertesSansObjet {
     void surImpactsTraites(@Observes(during = TransactionPhase.AFTER_SUCCESS) ImpactsTraites evenement) {
         try {
             annuler(evenement.signalId());
-        } catch (RuntimeException e) {
-            LOG.errorf(e, "annulation des alertes sans objet du signal %s en échec", evenement.signalId());
+        } catch (RuntimeException erreur) {
+            LOG.errorf(erreur, "annulation des alertes sans objet du signal %s en échec", evenement.signalId());
         }
     }
 
     /** Annule les alertes immédiates en attente du signal qui n'ont plus d'impact actif ; renvoie leur nombre. */
     public int annuler(UUID signalId) {
         return QuarkusTransaction.requiringNew().call(() -> {
-            try (Connection c = dataSource.getConnection();
-                    PreparedStatement ps = c.prepareStatement(ANNULER + "a.signal_id = ? AND " + SANS_OBJET)) {
-                ps.setObject(1, signalId);
-                return ps.executeUpdate();
+            try (Connection connexion = dataSource.getConnection();
+                    PreparedStatement requete = connexion.prepareStatement(ANNULER + "a.signal_id = ? AND " + SANS_OBJET)) {
+                requete.setObject(1, signalId);
+                return requete.executeUpdate();
             }
         });
     }
 
     /** Annule l'alerte donnée si elle n'a plus d'objet, dans la transaction de l'appelant ; vrai si annulée. */
-    static boolean annulerSiSansObjet(Connection c, UUID alerteId) throws SQLException {
-        try (PreparedStatement ps = c.prepareStatement(ANNULER + "a.id = ? AND " + SANS_OBJET)) {
-            ps.setObject(1, alerteId);
-            return ps.executeUpdate() == 1;
+    static boolean annulerSiSansObjet(Connection connexion, UUID alerteId) throws SQLException {
+        try (PreparedStatement requete = connexion.prepareStatement(ANNULER + "a.id = ? AND " + SANS_OBJET)) {
+            requete.setObject(1, alerteId);
+            return requete.executeUpdate() == 1;
         }
     }
 }

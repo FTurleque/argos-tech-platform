@@ -67,65 +67,65 @@ public class RapprochementActualites {
         }
         try {
             QuarkusTransaction.requiringNew().run(() -> rapprocher(evenement.actualiteId(), evenement.espaceId()));
-        } catch (RuntimeException e) {
-            LOG.errorf(e, "rapprochement de l'actualité %s en échec", evenement.actualiteId());
+        } catch (RuntimeException erreur) {
+            LOG.errorf(erreur, "rapprochement de l'actualité %s en échec", evenement.actualiteId());
         }
     }
 
     /** Rapproche une actualité des projets d'un espace ; renvoie le nombre de rapprochements créés. */
     public int rapprocher(UUID actualiteId, UUID espaceId) {
-        try (Connection c = dataSource.getConnection()) {
+        try (Connection connexion = dataSource.getConnection()) {
             String contenu;
-            try (PreparedStatement ps = c.prepareStatement(
+            try (PreparedStatement requete = connexion.prepareStatement(
                     "SELECT titre || ' ' || texte FROM actualite WHERE id = ? AND espace_id = ?")) {
-                ps.setObject(1, actualiteId);
-                ps.setObject(2, espaceId);
-                try (ResultSet rs = ps.executeQuery()) {
-                    if (!rs.next()) {
+                requete.setObject(1, actualiteId);
+                requete.setObject(2, espaceId);
+                try (ResultSet resultat = requete.executeQuery()) {
+                    if (!resultat.next()) {
                         return 0;
                     }
-                    contenu = rs.getString(1);
+                    contenu = resultat.getString(1);
                 }
             }
             Map<UUID, Set<String>> termesParProjet = new LinkedHashMap<>();
-            try (PreparedStatement ps = c.prepareStatement("""
+            try (PreparedStatement requete = connexion.prepareStatement("""
                     SELECT DISTINCT p.id, c.package_key FROM component c JOIN project p ON p.id = c.project_id
                     WHERE p.workspace_id = ? ORDER BY p.id, c.package_key
                     """)) {
-                ps.setObject(1, espaceId);
-                try (ResultSet rs = ps.executeQuery()) {
-                    while (rs.next()) {
-                        UUID projet = rs.getObject(1, UUID.class);
-                        terme(rs.getString(2)).ifPresent(t ->
-                                termesParProjet.computeIfAbsent(projet, k -> new TreeSet<>()).add(t));
+                requete.setObject(1, espaceId);
+                try (ResultSet resultat = requete.executeQuery()) {
+                    while (resultat.next()) {
+                        UUID projet = resultat.getObject(1, UUID.class);
+                        terme(resultat.getString(2)).ifPresent(terme ->
+                                termesParProjet.computeIfAbsent(projet, cleProjet -> new TreeSet<>()).add(terme));
                     }
                 }
             }
             int crees = 0;
-            for (Map.Entry<UUID, Set<String>> e : termesParProjet.entrySet()) {
-                for (String terme : e.getValue()) {
+            for (Map.Entry<UUID, Set<String>> entree : termesParProjet.entrySet()) {
+                for (String terme : entree.getValue()) {
                     if (!mentionne(contenu, terme)) {
                         continue;
                     }
-                    try (PreparedStatement ps = c.prepareStatement("""
+                    try (PreparedStatement requete = connexion.prepareStatement("""
                             INSERT INTO actualite_impact (id, actualite_id, project_id, workspace_id, technologie, niveau,
                                                           methode, cree_le)
                             VALUES (?, ?, ?, ?, ?, 'A_VERIFIER', ?, now())
                             ON CONFLICT (actualite_id, project_id, technologie) DO NOTHING
                             """)) {
-                        ps.setObject(1, UUID.randomUUID());
-                        ps.setObject(2, actualiteId);
-                        ps.setObject(3, e.getKey());
-                        ps.setObject(4, espaceId);
-                        ps.setString(5, terme);
-                        ps.setString(6, METHODE);
-                        crees += ps.executeUpdate();
+                        requete.setObject(1, UUID.randomUUID());
+                        requete.setObject(2, actualiteId);
+                        requete.setObject(3, entree.getKey());
+                        requete.setObject(4, espaceId);
+                        requete.setString(5, terme);
+                        requete.setString(6, METHODE);
+                        crees += requete.executeUpdate();
                     }
                 }
             }
             return crees;
-        } catch (SQLException e) {
-            throw new IllegalStateException("rapprochement de l'actualité " + actualiteId + " impossible", e);
+        } catch (SQLException erreur) {
+            throw new IllegalStateException("rapprochement de l'actualité " + actualiteId + " impossible", erreur);
         }
     }
 
@@ -137,12 +137,12 @@ public class RapprochementActualites {
      */
     public List<Rapprochement> pour(UUID actualiteId, UUID compteId) {
         List<Rapprochement> resultat = new ArrayList<>();
-        try (Connection c = dataSource.getConnection()) {
-            boolean autoCommit = c.getAutoCommit();
-            c.setAutoCommit(false);
+        try (Connection connexion = dataSource.getConnection()) {
+            boolean autoCommit = connexion.getAutoCommit();
+            connexion.setAutoCommit(false);
             try {
-                RlsSession.account(c, compteId);
-                try (PreparedStatement ps = c.prepareStatement("""
+                RlsSession.account(connexion, compteId);
+                try (PreparedStatement requete = connexion.prepareStatement("""
                         SELECT i.id, i.actualite_id, i.project_id, p.name, i.workspace_id, i.technologie, i.niveau, i.methode,
                                i.cree_le
                         FROM actualite_impact i JOIN project p ON p.id = i.project_id
@@ -150,25 +150,25 @@ public class RapprochementActualites {
                             SELECT b.id FROM actualite a JOIN actualite b ON b.empreinte = a.empreinte WHERE a.id = ?)
                         ORDER BY p.name, i.technologie
                         """)) {
-                    ps.setObject(1, actualiteId);
-                    try (ResultSet rs = ps.executeQuery()) {
-                        while (rs.next()) {
-                            resultat.add(new Rapprochement(rs.getObject(1, UUID.class), rs.getObject(2, UUID.class),
-                                    rs.getObject(3, UUID.class), rs.getString(4), rs.getObject(5, UUID.class),
-                                    rs.getString(6), rs.getString(7), rs.getString(8),
-                                    rs.getObject(9, OffsetDateTime.class).toInstant()));
+                    requete.setObject(1, actualiteId);
+                    try (ResultSet lignes = requete.executeQuery()) {
+                        while (lignes.next()) {
+                            resultat.add(new Rapprochement(lignes.getObject(1, UUID.class), lignes.getObject(2, UUID.class),
+                                    lignes.getObject(3, UUID.class), lignes.getString(4), lignes.getObject(5, UUID.class),
+                                    lignes.getString(6), lignes.getString(7), lignes.getString(8),
+                                    lignes.getObject(9, OffsetDateTime.class).toInstant()));
                         }
                     }
                 }
-                c.commit();
-            } catch (SQLException | RuntimeException e) {
-                c.rollback();
-                throw e;
+                connexion.commit();
+            } catch (SQLException | RuntimeException erreur) {
+                connexion.rollback();
+                throw erreur;
             } finally {
-                c.setAutoCommit(autoCommit);
+                connexion.setAutoCommit(autoCommit);
             }
-        } catch (SQLException e) {
-            throw new IllegalStateException("lecture des rapprochements impossible", e);
+        } catch (SQLException erreur) {
+            throw new IllegalStateException("lecture des rapprochements impossible", erreur);
         }
         return resultat;
     }
@@ -201,8 +201,8 @@ public class RapprochementActualites {
 
     /** Mot entier, sans tenir compte de la casse. */
     static boolean mentionne(String contenu, String terme) {
-        Pattern p = Pattern.compile("(?<![\\p{L}\\p{N}])" + Pattern.quote(terme) + "(?![\\p{L}\\p{N}])",
+        Pattern motif = Pattern.compile("(?<![\\p{L}\\p{N}])" + Pattern.quote(terme) + "(?![\\p{L}\\p{N}])",
                 Pattern.CASE_INSENSITIVE | Pattern.UNICODE_CASE);
-        return contenu != null && p.matcher(contenu).find();
+        return contenu != null && motif.matcher(contenu).find();
     }
 }

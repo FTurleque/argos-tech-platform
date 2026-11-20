@@ -84,19 +84,19 @@ public class ResumesPeriodiques {
     public List<UUID> composer(String frequence, Instant echeance) {
         List<Boite> boites = new ArrayList<>();
         QuarkusTransaction.requiringNew().run(() -> {
-            try (Connection c = dataSource.getConnection(); PreparedStatement ps = c.prepareStatement("""
+            try (Connection connexion = dataSource.getConnection(); PreparedStatement requete = connexion.prepareStatement("""
                     SELECT DISTINCT compte_id, canal FROM resume_element
                     WHERE frequence = ? AND alerte_id IS NULL AND enregistre_le <= ? ORDER BY compte_id, canal
                     """)) {
-                ps.setString(1, frequence);
-                ps.setObject(2, echeance.atOffset(ZoneOffset.UTC));
-                try (ResultSet rs = ps.executeQuery()) {
-                    while (rs.next()) {
-                        boites.add(new Boite(rs.getObject(1, UUID.class), rs.getString(2)));
+                requete.setString(1, frequence);
+                requete.setObject(2, echeance.atOffset(ZoneOffset.UTC));
+                try (ResultSet resultat = requete.executeQuery()) {
+                    while (resultat.next()) {
+                        boites.add(new Boite(resultat.getObject(1, UUID.class), resultat.getString(2)));
                     }
                 }
-            } catch (java.sql.SQLException e) {
-                throw new IllegalStateException("lecture des éléments de résumé impossible", e);
+            } catch (java.sql.SQLException erreur) {
+                throw new IllegalStateException("lecture des éléments de résumé impossible", erreur);
             }
         });
         List<UUID> crees = new ArrayList<>();
@@ -108,8 +108,8 @@ public class ResumesPeriodiques {
                     crees.add(id);
                     emises.fire(new AlerteEmise(id, compte, canal, frequence));
                 });
-            } catch (RuntimeException e) {
-                LOG.errorf(e, "résumé %s du compte %s sur %s en échec", frequence, compte, canal);
+            } catch (RuntimeException erreur) {
+                LOG.errorf(erreur, "résumé %s du compte %s sur %s en échec", frequence, compte, canal);
             }
         }
         envoi.envoyer(crees, echeance);
@@ -119,31 +119,31 @@ public class ResumesPeriodiques {
     private java.util.Optional<UUID> composerPour(UUID compte, String canal, String frequence, Instant echeance) {
         // Éléments en attente, hors signaux déjà alertés immédiatement au destinataire.
         List<Element> elements = QuarkusTransaction.requiringNew().call(() -> {
-            try (Connection c = dataSource.getConnection()) {
-                try (PreparedStatement ps = c.prepareStatement("""
+            try (Connection connexion = dataSource.getConnection()) {
+                try (PreparedStatement requete = connexion.prepareStatement("""
                         DELETE FROM resume_element e WHERE e.compte_id = ? AND e.canal = ? AND e.frequence = ?
                           AND e.alerte_id IS NULL AND EXISTS (SELECT 1 FROM alerte a WHERE a.nature = 'IMMEDIATE'
                               AND a.etat <> 'ANNULEE' AND a.signal_id = e.signal_id AND a.compte_id = e.compte_id)
                         """)) {
-                    ps.setObject(1, compte);
-                    ps.setString(2, canal);
-                    ps.setString(3, frequence);
-                    ps.executeUpdate();
+                    requete.setObject(1, compte);
+                    requete.setString(2, canal);
+                    requete.setString(3, frequence);
+                    requete.executeUpdate();
                 }
                 List<Element> found = new ArrayList<>();
-                try (PreparedStatement ps = c.prepareStatement("""
+                try (PreparedStatement requete = connexion.prepareStatement("""
                         SELECT signal_id, titre, gravite, source, identifiant_externe FROM resume_element
                         WHERE compte_id = ? AND canal = ? AND frequence = ? AND alerte_id IS NULL AND enregistre_le <= ?
                         ORDER BY enregistre_le, signal_id
                         """)) {
-                    ps.setObject(1, compte);
-                    ps.setString(2, canal);
-                    ps.setString(3, frequence);
-                    ps.setObject(4, echeance.atOffset(ZoneOffset.UTC));
-                    try (ResultSet rs = ps.executeQuery()) {
-                        while (rs.next()) {
-                            found.add(new Element(rs.getObject(1, UUID.class), rs.getString(2), rs.getString(3),
-                                    rs.getString(4), rs.getString(5)));
+                    requete.setObject(1, compte);
+                    requete.setString(2, canal);
+                    requete.setString(3, frequence);
+                    requete.setObject(4, echeance.atOffset(ZoneOffset.UTC));
+                    try (ResultSet resultat = requete.executeQuery()) {
+                        while (resultat.next()) {
+                            found.add(new Element(resultat.getObject(1, UUID.class), resultat.getString(2), resultat.getString(3),
+                                    resultat.getString(4), resultat.getString(5)));
                         }
                     }
                 }
@@ -161,76 +161,76 @@ public class ResumesPeriodiques {
         List<ContenuAlerte.Element> contenus = new ArrayList<>();
         List<UUID> retenus = new ArrayList<>();
         List<UUID> retires = new ArrayList<>();
-        for (Element e : elements) {
-            List<ImpactQueries.ImpactView> vues = visibles.get(e.signalId());
+        for (Element element : elements) {
+            List<ImpactQueries.ImpactView> vues = visibles.get(element.signalId());
             if (vues == null) {
-                retires.add(e.signalId());
+                retires.add(element.signalId());
                 continue;
             }
-            retenus.add(e.signalId());
-            contenus.add(MoteurAlertes.element(e.signalId(), e.titre(), e.gravite(), e.source(), e.externe(), vues,
-                    lienBase));
+            retenus.add(element.signalId());
+            contenus.add(MoteurAlertes.element(element.signalId(), element.titre(), element.gravite(), element.source(),
+                    element.externe(), vues, lienBase));
         }
         return QuarkusTransaction.requiringNew().call(() -> {
-            try (Connection c = dataSource.getConnection()) {
-                supprimer(c, compte, canal, frequence, retires);
+            try (Connection connexion = dataSource.getConnection()) {
+                supprimer(connexion, compte, canal, frequence, retires);
                 if (contenus.isEmpty()) {
                     return java.util.Optional.<UUID>empty();
                 }
                 UUID id = UUID.randomUUID();
                 String titre = contenus.size() + (contenus.size() == 1 ? " élément" : " éléments")
                         + (RegleAlerte.WEEKLY.equals(frequence) ? " cette semaine" : " depuis le dernier résumé");
-                try (PreparedStatement ps = c.prepareStatement("""
+                try (PreparedStatement requete = connexion.prepareStatement("""
                         INSERT INTO alerte(id, nature, compte_id, canal, fin_periode, titre, gravite, contenu, resume_ia,
                                            etat_resume_ia, etat, cree_le)
                         VALUES (?, ?, ?, ?, ?, ?, NULL, ?::jsonb, NULL, 'SANS_OBJET', 'EN_ATTENTE', ?)
                         ON CONFLICT (compte_id, canal, nature, fin_periode) WHERE nature <> 'IMMEDIATE' DO NOTHING
                         RETURNING id
                         """)) {
-                    ps.setObject(1, id);
-                    ps.setString(2, frequence);
-                    ps.setObject(3, compte);
-                    ps.setString(4, canal);
-                    ps.setObject(5, echeance.atOffset(ZoneOffset.UTC));
-                    ps.setString(6, titre);
-                    ps.setString(7, MoteurAlertes.json(new ContenuAlerte(contenus, null, "SANS_OBJET")));
-                    ps.setObject(8, echeance.atOffset(ZoneOffset.UTC));
-                    try (ResultSet rs = ps.executeQuery()) {
-                        if (!rs.next()) {
+                    requete.setObject(1, id);
+                    requete.setString(2, frequence);
+                    requete.setObject(3, compte);
+                    requete.setString(4, canal);
+                    requete.setObject(5, echeance.atOffset(ZoneOffset.UTC));
+                    requete.setString(6, titre);
+                    requete.setString(7, MoteurAlertes.json(new ContenuAlerte(contenus, null, "SANS_OBJET")));
+                    requete.setObject(8, echeance.atOffset(ZoneOffset.UTC));
+                    try (ResultSet resultat = requete.executeQuery()) {
+                        if (!resultat.next()) {
                             return java.util.Optional.<UUID>empty();
                         }
                     }
                 }
-                try (PreparedStatement ps = c.prepareStatement("""
+                try (PreparedStatement requete = connexion.prepareStatement("""
                         UPDATE resume_element SET alerte_id = ?
                         WHERE compte_id = ? AND canal = ? AND frequence = ? AND signal_id = ANY (?) AND alerte_id IS NULL
                         """)) {
-                    ps.setObject(1, id);
-                    ps.setObject(2, compte);
-                    ps.setString(3, canal);
-                    ps.setString(4, frequence);
-                    ps.setArray(5, c.createArrayOf("uuid", retenus.toArray()));
-                    ps.executeUpdate();
+                    requete.setObject(1, id);
+                    requete.setObject(2, compte);
+                    requete.setString(3, canal);
+                    requete.setString(4, frequence);
+                    requete.setArray(5, connexion.createArrayOf("uuid", retenus.toArray()));
+                    requete.executeUpdate();
                 }
                 return java.util.Optional.of(id);
             }
         });
     }
 
-    private static void supprimer(Connection c, UUID compte, String canal, String frequence, List<UUID> signaux)
+    private static void supprimer(Connection connexion, UUID compte, String canal, String frequence, List<UUID> signaux)
             throws java.sql.SQLException {
         if (signaux.isEmpty()) {
             return;
         }
-        try (PreparedStatement ps = c.prepareStatement("""
+        try (PreparedStatement requete = connexion.prepareStatement("""
                 DELETE FROM resume_element
                 WHERE compte_id = ? AND canal = ? AND frequence = ? AND signal_id = ANY (?) AND alerte_id IS NULL
                 """)) {
-            ps.setObject(1, compte);
-            ps.setString(2, canal);
-            ps.setString(3, frequence);
-            ps.setArray(4, c.createArrayOf("uuid", signaux.toArray()));
-            ps.executeUpdate();
+            requete.setObject(1, compte);
+            requete.setString(2, canal);
+            requete.setString(3, frequence);
+            requete.setArray(4, connexion.createArrayOf("uuid", signaux.toArray()));
+            requete.executeUpdate();
         }
     }
 }

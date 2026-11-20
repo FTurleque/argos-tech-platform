@@ -54,8 +54,8 @@ public final class VersionComparator {
         List<Object> left = versionTokens.get();
         List<Object> right = referenceTokens.get();
         int length = Math.max(left.size(), right.size());
-        for (int i = 0; i < length; i++) {
-            Integer order = compareToken(i < left.size() ? left.get(i) : null, i < right.size() ? right.get(i) : null);
+        for (int index = 0; index < length; index++) {
+            Integer order = compareToken(index < left.size() ? left.get(index) : null, index < right.size() ? right.get(index) : null);
             if (order == null) {
                 return Optional.empty();
             }
@@ -193,17 +193,17 @@ public final class VersionComparator {
         List<Object> tokens = new ArrayList<>();
         StringBuilder current = new StringBuilder();
         Boolean digits = null;
-        for (char ch : normalizedVersion.toCharArray()) {
-            if (ch == '.' || ch == '-' || ch == '_') {
+        for (char character : normalizedVersion.toCharArray()) {
+            if (character == '.' || character == '-' || character == '_') {
                 flush(tokens, current, digits);
                 digits = null;
                 continue;
             }
-            boolean isDigit = Character.isDigit(ch);
+            boolean isDigit = Character.isDigit(character);
             if (digits != null && digits != isDigit) {
                 flush(tokens, current, digits);
             }
-            current.append(ch);
+            current.append(character);
             digits = isDigit;
         }
         flush(tokens, current, digits);
@@ -222,7 +222,7 @@ public final class VersionComparator {
         if (Boolean.TRUE.equals(digits)) {
             try {
                 tokens.add(Long.parseLong(segment));
-            } catch (NumberFormatException e) {
+            } catch (NumberFormatException erreur) {
                 tokens.add(segment);
             }
         } else {
