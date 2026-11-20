@@ -32,17 +32,17 @@ public class JournalRefus {
     public void enregistrer(UUID compteId, String sujetOidc, String ressource, String motif) {
         String ressourceBornee = ressource.length() > LONGUEUR_MAX_RESSOURCE
                 ? ressource.substring(0, LONGUEUR_MAX_RESSOURCE) : ressource;
-        try (Connection c = dataSource.getConnection();
-                PreparedStatement ps = c.prepareStatement(
+        try (Connection connexion = dataSource.getConnection();
+                PreparedStatement requete = connexion.prepareStatement(
                         "INSERT INTO refus_acces (compte_id, sujet_oidc, ressource, motif) VALUES (?, ?, ?, ?)")) {
-            ps.setObject(1, compteId);
-            ps.setString(2, sujetOidc);
-            ps.setString(3, ressourceBornee);
-            ps.setString(4, motif);
-            ps.executeUpdate();
-        } catch (SQLException e) {
+            requete.setObject(1, compteId);
+            requete.setString(2, sujetOidc);
+            requete.setString(3, ressourceBornee);
+            requete.setString(4, motif);
+            requete.executeUpdate();
+        } catch (SQLException erreur) {
             // Le refus est appliqué même si sa trace échoue ; l'échec reste visible dans les journaux.
-            LOG.errorf(e, "Refus d'accès non journalisé : %s %s", motif, ressourceBornee);
+            LOG.errorf(erreur, "Refus d'accès non journalisé : %s %s", motif, ressourceBornee);
         }
     }
 }
