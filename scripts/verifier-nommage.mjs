@@ -72,7 +72,7 @@ export function estCourt(nom) {
  * sans changer la longueur ni les sauts de ligne. Les expressions `${…}` des gabarits restent du code.
  */
 export function masquer(source, langage) {
-  const js = langage !== 'java';
+  const syntaxeJs = langage !== 'java';
   const sortie = source.split('');
   const blanchir = (debut, fin) => {
     for (let rang = debut; rang < fin && rang < sortie.length; rang++) {
@@ -124,7 +124,7 @@ export function masquer(source, langage) {
       position = borne;
       continue;
     }
-    if (!js && source.startsWith('"""', position)) {
+    if (!syntaxeJs && source.startsWith('"""', position)) {
       let curseur = position + 3;
       while (curseur < source.length && !source.startsWith('"""', curseur)) curseur += source[curseur] === '\\' ? 2 : 1;
       blanchir(position, curseur + 3);
@@ -142,13 +142,13 @@ export function masquer(source, langage) {
       dernierCaractere = '"';
       continue;
     }
-    if (js && caractere === '`') {
+    if (syntaxeJs && caractere === '`') {
       position = parcourirGabarit(position + 1);
       blanchir(position - 1, position);
       dernierCaractere = '"';
       continue;
     }
-    if (js && caractere === '}' && pileGabarits.length > 0 && pileGabarits.at(-1) === accolades - 1) {
+    if (syntaxeJs && caractere === '}' && pileGabarits.length > 0 && pileGabarits.at(-1) === accolades - 1) {
       pileGabarits.pop();
       accolades--;
       const debut = position;
@@ -157,15 +157,15 @@ export function masquer(source, langage) {
       dernierCaractere = '"';
       continue;
     }
-    if (js && caractere === '/' && regexPossible()) {
+    if (syntaxeJs && caractere === '/' && regexPossible()) {
       let curseur = position + 1;
       let classe = false;
       while (curseur < source.length && source[curseur] !== '\n') {
-        const lu = source[curseur];
-        if (lu === '\\') { curseur += 2; continue; }
-        if (lu === '[') classe = true;
-        else if (lu === ']') classe = false;
-        else if (lu === '/' && !classe) break;
+        const caractereLu = source[curseur];
+        if (caractereLu === '\\') { curseur += 2; continue; }
+        if (caractereLu === '[') classe = true;
+        else if (caractereLu === ']') classe = false;
+        else if (caractereLu === '/' && !classe) break;
         curseur++;
       }
       blanchir(position, curseur + 1);
