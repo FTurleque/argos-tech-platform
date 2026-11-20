@@ -1,6 +1,6 @@
 # Mesure de la corrélation sur le jeu de référence annoté
 
-Rapport de la tâche 4.7 du changement [`formaliser-chaine-securite-poc`](/openspec/changes/formaliser-chaine-securite-poc/tasks.md) (exigences COR-01 et COR-02 de la fiche [`correlation-impact`](/docs/specifications/correlation-impact.md)). Critère comparé : baseline v2.3 §6 critère 3, « un jeu de référence permet de mesurer vrais/faux positifs et faux négatifs de la corrélation » ([baseline v2.3](../baseline-v2.3.md#6-critères-go--no-go)). ADR-0013 (Proposé) cite un seuil de pertinence de 80 %, non validé (question de la fiche `correlation-impact`).
+Rapport de la tâche 4.7 du changement [`formaliser-chaine-securite-poc`](/openspec/changes/archive/2026-11-20-formaliser-chaine-securite-poc/tasks.md) (exigences COR-01 et COR-02 de la fiche [`correlation-impact`](/docs/specifications/correlation-impact.md)). Critère comparé : baseline v2.3 §6 critère 3, « un jeu de référence permet de mesurer vrais/faux positifs et faux négatifs de la corrélation » ([baseline v2.3](../baseline-v2.3.md#6-critères-go--no-go)). ADR-0013 (Proposé) cite un seuil de pertinence de 80 %, non validé (question de la fiche `correlation-impact`).
 
 ## Méthode
 

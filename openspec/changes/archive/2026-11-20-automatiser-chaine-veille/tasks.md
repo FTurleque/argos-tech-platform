@@ -142,4 +142,4 @@ Propositions de l'intégration (2026-11-19, option la plus prudente) : PI-1 (tâ
 - Basculer dans les fiches durables les statuts [PROPOSITION] de ce changement en [EXIGENCE] ou [EXISTANT] selon les preuves obtenues.
 - Archiver le changement uniquement sur demande explicite, après revue, de préférence après `formaliser-chaine-securite-poc` (`openspec archive automatiser-chaine-veille`).
 - Après archivage, vérifier que la section Purpose de la nouvelle spec principale `performance-api-mcp` contient le lien vers la fiche durable.
-- Après archivage, remplacer dans les fiches les liens vers `/openspec/changes/automatiser-chaine-veille/` par la spec principale ou le dossier d'archive, puis exécuter `node scripts/verifier-docs.mjs` (il signale ces liens cassés).
+- Après archivage, remplacer dans les fiches les liens vers `/openspec/changes/archive/2026-11-20-automatiser-chaine-veille/` par la spec principale ou le dossier d'archive, puis exécuter `node scripts/verifier-docs.mjs` (il signale ces liens cassés).

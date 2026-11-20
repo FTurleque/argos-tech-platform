@@ -4,7 +4,7 @@
 
 ## Why — Pourquoi
 
-La campagne de performance du changement `automatiser-chaine-veille` mesure `GET /api/v1/me/veille` au-dessus de la cible p95 < 500 ms : p50 = 509,3 ms, p95 = 533,8 ms sur la branche intégrée, avec le jeu de référence (20 projets × 100 composants, 1 000 avis, 20 000 impacts, 4 clients simultanés) ; les quinze autres opérations mesurées ont un p95 inférieur à 130 ms [EXISTANT — `/docs/architecture/quality/mesure-performance-api-mcp.md`, campagne du 2026-11-19, révision `7c5b9d7`]. Le porteur du projet a décidé que ce dépassement fait l'objet d'un changement dédié [DÉCISION K2, 2026-11-19 — `/openspec/changes/automatiser-chaine-veille/proposal.md`, décisions K1 à K6]. Le jeu de référence est celui de la décision K3 du même jour.
+La campagne de performance du changement `automatiser-chaine-veille` mesure `GET /api/v1/me/veille` au-dessus de la cible p95 < 500 ms : p50 = 509,3 ms, p95 = 533,8 ms sur la branche intégrée, avec le jeu de référence (20 projets × 100 composants, 1 000 avis, 20 000 impacts, 4 clients simultanés) ; les quinze autres opérations mesurées ont un p95 inférieur à 130 ms [EXISTANT — `/docs/architecture/quality/mesure-performance-api-mcp.md`, campagne du 2026-11-19, révision `7c5b9d7`]. Le porteur du projet a décidé que ce dépassement fait l'objet d'un changement dédié [DÉCISION K2, 2026-11-19 — `/openspec/changes/archive/2026-11-20-automatiser-chaine-veille/proposal.md`, décisions K1 à K6]. Le jeu de référence est celui de la décision K3 du même jour.
 
 ## What Changes — Changements
 
@@ -51,9 +51,9 @@ Aucune.
 
 | Élément | Statut | Source |
 |---|---|---|
-| Cible p95 < 500 ms des consultations API et MCP | [PROPOSITION] (cible initiale), vérification [DÉCISION] J8 | arc42 §8, §10.2 Q-05 ; PERF-01 (`/openspec/changes/automatiser-chaine-veille/specs/performance-api-mcp/spec.md`) |
+| Cible p95 < 500 ms des consultations API et MCP | [PROPOSITION] (cible initiale), vérification [DÉCISION] J8 | arc42 §8, §10.2 Q-05 ; PERF-01 (`/openspec/changes/archive/2026-11-20-automatiser-chaine-veille/specs/performance-api-mcp/spec.md`) |
 | Dépassement de `GET /api/v1/me/veille` (p95 = 533,8 ms) | [EXISTANT] | `/docs/architecture/quality/mesure-performance-api-mcp.md` (campagne du 2026-11-19) |
-| Changement dédié à l'optimisation de « Ma veille » | [DÉCISION] K2, 2026-11-19 | `/openspec/changes/automatiser-chaine-veille/proposal.md` |
+| Changement dédié à l'optimisation de « Ma veille » | [DÉCISION] K2, 2026-11-19 | `/openspec/changes/archive/2026-11-20-automatiser-chaine-veille/proposal.md` |
 | Jeu de référence 20 × 100, 1 000 avis, 4 clients | [DÉCISION] K3, 2026-11-19 | idem ; `e2e/performance/donnees-performance.sql` |
 | Union des profils actifs et des abonnements `PERSONAL`, dans la limite des droits | [EXIGENCE] | PRF-02, `/openspec/specs/profils-veille/spec.md` |
 | Migrations Flyway non réversibles automatiquement, inventaire dans arc42 §8.7 | [DÉCISION] | ADR-0032 (Accepté) ; `/docs/architecture/arc42/08-concepts-transverses.md` |

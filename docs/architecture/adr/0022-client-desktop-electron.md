@@ -101,7 +101,7 @@ Option A, **proposée** : choix du porteur du projet, qui privilégie l'homogén
 
 ## Traçabilité
 
-- **Exigences** : NOT-01 à NOT-06 (changement [`notifier-sur-le-poste`](/openspec/changes/notifier-sur-le-poste/proposal.md), fiche [`notifications-poste`](/docs/specifications/notifications-poste.md)) ; le pont `window.argosDesktop` y expose, en plus des notifications, le compteur de la zone de notification et les réglages du poste, sans autre capacité native
+- **Exigences** : NOT-01 à NOT-06 (changement [`notifier-sur-le-poste`](/openspec/changes/archive/2026-11-20-notifier-sur-le-poste/proposal.md), fiche [`notifications-poste`](/docs/specifications/notifications-poste.md)) ; le pont `window.argosDesktop` y expose, en plus des notifications, le compteur de la zone de notification et les réglages du poste, sans autre capacité native
 - **Scénarios qualité** : —
 - **Diagrammes** : arc42 §5.1 (C4 Container) et §7.2
 - **Tickets/PR** : Non déterminé

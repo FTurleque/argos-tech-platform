@@ -31,6 +31,7 @@
 - [x] 5.1 Valider le changement — vérification : `openspec validate exposer-serveur-mcp --strict` réussit
 - [ ] 5.2 Parcours : Claude Code configuré avec `.mcp.json`, appel de `check_dependency` sur une version vulnérable de test, réponse citée et sourcée — vérification : scénario E2E consigné avec ses résultats
 
+  - [DÉCISION] Le changement est archivé avec cette tâche ouverte : la vérification réelle devient la recette R-3 de `docs/deploiement/recette-poste.md`, déroulée avec l'application installée ; tout écart ouvre un nouveau changement — porteur du projet, 2026-11-20.
 ## Preuves des tâches
 
 | Tâche | Preuve | Résultat |
@@ -73,4 +74,4 @@ Au 2026-11-18, MCP-02-S1, MCP-03-S1, MCP-04-S1 et MCP-05 sont aussi parcourus de
 - Brancher les implémentations réelles des points d'extension lors de `construire-radar-et-standards` et `suivre-veille-reglementaire`.
 - Archiver le changement uniquement sur demande explicite, après revue (`openspec archive exposer-serveur-mcp`).
 - Après archivage, vérifier que la section Purpose de la spec principale contient le lien vers la fiche durable.
-- Après archivage, remplacer dans la fiche les liens vers `/openspec/changes/exposer-serveur-mcp/` par la spec principale ou le dossier d'archive, puis exécuter `node scripts/verifier-docs.mjs`.
+- Après archivage, remplacer dans la fiche les liens vers `/openspec/changes/archive/2026-11-20-exposer-serveur-mcp/` par la spec principale ou le dossier d'archive, puis exécuter `node scripts/verifier-docs.mjs`.

@@ -55,4 +55,4 @@ Preuves, 2026-11-20 (branche `lot24/mesure-multi-espaces`) :
 
 - Basculer dans la fiche `profils-veille` le statut [PROPOSITION] de PRF-07 selon les preuves obtenues.
 - Archiver le changement uniquement sur demande explicite, après revue (`openspec archive optimiser-ma-veille`).
-- Après archivage, remplacer dans les fiches les liens vers `/openspec/changes/optimiser-ma-veille/` par la spec principale ou le dossier d'archive, puis exécuter `node scripts/verifier-docs.mjs`.
+- Après archivage, remplacer dans les fiches les liens vers `/openspec/changes/archive/2026-11-20-optimiser-ma-veille/` par la spec principale ou le dossier d'archive, puis exécuter `node scripts/verifier-docs.mjs`.

@@ -4,7 +4,7 @@
 |---|---|
 | Préfixe d'exigences | `MCP` |
 | Spec de référence | `/openspec/specs/serveur-mcp/spec.md` — absente tant qu'aucun changement n'est archivé |
-| Changements en cours | [`exposer-serveur-mcp`](/openspec/changes/exposer-serveur-mcp/proposal.md) (implémenté, non archivé) |
+| Changements en cours | [`exposer-serveur-mcp`](/openspec/changes/archive/2026-11-20-exposer-serveur-mcp/proposal.md) (implémenté, non archivé) |
 | Statut de la capacité | proposée ; implémentation et tests dans `argos-server`, changement non archivé |
 | Composants (arc42 §5) | `mcp-server`, `API & Security`, `audit`, modules métier en lecture |
 
@@ -96,7 +96,7 @@ flowchart LR
     B --> F["Proposition de code<br/>avec la version recommandée"]
 ```
 
-L'assistant s'appuie sur des faits d'Argos plutôt que sur ses connaissances datées ; Argos ne renvoie que ce que l'utilisateur peut voir. La chaîne d'un appel (authentification, limite, lecture, balisage, journal) est le diagramme DC-1 du [`design.md` du changement](/openspec/changes/exposer-serveur-mcp/design.md#dc-1--appel-dun-outil-mcp).
+L'assistant s'appuie sur des faits d'Argos plutôt que sur ses connaissances datées ; Argos ne renvoie que ce que l'utilisateur peut voir. La chaîne d'un appel (authentification, limite, lecture, balisage, journal) est le diagramme DC-1 du [`design.md` du changement](/openspec/changes/archive/2026-11-20-exposer-serveur-mcp/design.md#dc-1--appel-dun-outil-mcp).
 
 ## Critères d'acceptation
 
