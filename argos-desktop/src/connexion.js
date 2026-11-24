@@ -139,8 +139,23 @@ function ouvrirSansErreur(ouvrirNavigateur, url, echec) {
 }
 
 /**
+ * Écoute locale du retour d'autorisation ; une seule à la fois.
+ * @typedef {object} Ecoute
+ * @property {import('node:http').Server|null} serveur serveur HTTP de l'interface de bouclage
+ * @property {string|null} redirectUri adresse de redirection annoncée au royaume
+ * @property {((resultat: string|null) => void)|null} resoudre résout l'attente du retour
+ * @property {unknown} minuterie minuterie du délai maximal, rendue par `planifier`
+ */
+
+/**
+ * Écoute en cours et clearTimeout injectable.
+ * @typedef {{ecoute: Ecoute|null, annuler: Function}} EtatEcoute
+ */
+
+/**
  * Ferme l'écoute en cours de `etat` et résout son attente avec `resultat`.
- * @param {{ecoute: object|null, annuler: Function}} etat écoute en cours et clearTimeout injectable
+ * @param {EtatEcoute} etat écoute en cours et clearTimeout injectable
+ * @param {string|null} resultat chaîne de requête du retour, ou null
  */
 function fermerEcoute(etat, resultat) {
   const courante = etat.ecoute;
@@ -154,6 +169,7 @@ function fermerEcoute(etat, resultat) {
 /** Ouvre une écoute locale et renvoie l'adresse de redirection, ou null si l'écoute échoue. */
 function ouvrirEcoute(etat, dependances) {
   return new Promise((resolve) => {
+    /** @type {Ecoute} */
     const courante = { serveur: null, redirectUri: null, resoudre: null, minuterie: null };
     const contexte = {
       courante,
@@ -201,7 +217,7 @@ function attendreRetour(etat, courante, urlSure, options) {
  * @param {Function} [dependances.annuler] clearTimeout injectable
  */
 function creerConnexion(dependances) {
-  /** Écoute en cours : { serveur, redirectUri, resoudre, minuterie } ; une seule à la fois. */
+  /** @type {EtatEcoute} */
   const etat = { ecoute: null, annuler: dependances.annuler ?? clearTimeout };
   const options = {
     planifier: dependances.planifier ?? setTimeout,

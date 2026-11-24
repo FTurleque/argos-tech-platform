@@ -24,7 +24,7 @@ const DEV = process.argv.includes('--dev');
 const DEV_URL = process.env.ARGOS_UI_DEV_URL || 'http://localhost:5173';
 // Réglages fixés à l'emballage : champ `argos` du package.json livré (`apiUrl`, `oidcUrl`), renseigné par
 // `electron-builder -c.extraMetadata.argos.apiUrl=…` ; la variable d'environnement garde la priorité.
-const REGLAGES_EMBALLES = require('../package.json').argos || {};
+const REGLAGES_EMBALLES = /** @type {{argos?: {apiUrl?: string, oidcUrl?: string}}} */ (require('../package.json')).argos || {};
 // URL du serveur ARGOS : sert uniquement à la politique de sécurité du contenu.
 // L'IHM lit la sienne au moment du build (VITE_ARGOS_API_URL).
 const API_URL = process.env.ARGOS_API_URL || REGLAGES_EMBALLES.apiUrl || 'http://localhost:8080';

@@ -6,6 +6,7 @@
 // assistant configuré par un .mcp.json (support/mcp.ts).
 import { defineConfig, devices } from '@playwright/test'
 import { URL_API, URL_IHM } from './support/environnement'
+import { ligneServeurMaven } from './support/maven.mjs'
 
 const DEUX_MINUTES = 120_000
 
@@ -86,7 +87,9 @@ export default defineConfig({
       env: { ARGOS_E2E_PORT_SOURCES: String(PORT_SOURCES) },
     },
     {
-      command: 'mvn -B -q -f ../argos-server/pom.xml quarkus:dev -Dquarkus.console.enabled=false',
+      // Maven par son chemin absolu (support/maven.mjs), jamais par le PATH.
+      command: ligneServeurMaven(['-B', '-q', '-f', '../argos-server/pom.xml', 'quarkus:dev',
+        '-Dquarkus.console.enabled=false']),
       url: `${URL_API}/q/health/ready`,
       timeout: 5 * 60_000,
       reuseExistingServer: true,

@@ -20,6 +20,7 @@ import { dirname, join } from 'node:path'
 import { performance } from 'node:perf_hooks'
 import { fileURLToPath } from 'node:url'
 import { cheminDocker } from '../support/docker.mjs'
+import { cheminMavenExige, lancementMaven } from '../support/maven.mjs'
 import {
   OPERATIONS_EXCLUES,
   operationsRetenues,
@@ -75,7 +76,8 @@ async function pret() {
 }
 
 // Exécutables appelés par leur chemin absolu, pris parmi des emplacements fixes : la campagne ne dépend pas
-// du PATH (même règle que support/docker.mjs). ARGOS_E2E_GIT désigne un autre emplacement de Git.
+// du PATH (même règle que support/docker.mjs). ARGOS_E2E_GIT désigne un autre emplacement de Git ; Maven est résolu
+// par support/maven.mjs (ARGOS_E2E_MVN, MAVEN_HOME, emplacements fixes) et lancé sans interpréteur trouvé par le PATH.
 const EMPLACEMENTS_TASKKILL = ['C:\\Windows\\System32\\taskkill.exe']
 const EMPLACEMENTS_GIT = ['C:/Program Files/Git/cmd/git.exe', '/usr/bin/git', '/usr/local/bin/git', '/opt/homebrew/bin/git']
 
@@ -114,10 +116,10 @@ async function demarrerServeur() {
     // Le débit MCP par compte (60 par minute en développement) limiterait la campagne : borne relevée comme en test.
     ARGOS_MCP_DEBIT_REQUETES_PAR_MINUTE: '1000000',
   }
-  const mvn = platform() === 'win32' ? 'mvn.cmd' : 'mvn'
-  const serveur = spawn(mvn, ['-B', '-q', '-f', join(RACINE, 'argos-server', 'pom.xml'), 'quarkus:dev',
-    '-Dquarkus.console.enabled=false'], { cwd: E2E, env, stdio: ['ignore', 'ignore', 'inherit'],
-    detached: platform() !== 'win32', shell: platform() === 'win32' })
+  const lancement = lancementMaven(cheminMavenExige(), ['-B', '-q', '-f', join(RACINE, 'argos-server', 'pom.xml'),
+    'quarkus:dev', '-Dquarkus.console.enabled=false'])
+  const serveur = spawn(lancement.commande, lancement.args, { cwd: E2E, env, stdio: ['ignore', 'ignore', 'inherit'],
+    detached: platform() !== 'win32', ...lancement.options })
   const limite = Date.now() + 5 * 60_000
   while (Date.now() < limite) {
     if (serveur.exitCode !== null) throw new Error(`le serveur s'est arrêté (code ${serveur.exitCode})`)
