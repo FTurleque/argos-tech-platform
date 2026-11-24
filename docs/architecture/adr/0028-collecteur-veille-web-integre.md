@@ -5,6 +5,7 @@
 - **Décideurs** : porteur du projet (acceptation du 2026-11-18)
 - **Remplace** : [ADR-0006](0006-collecteurs-separes.md) (Proposé) pour la veille RSS/Atom et web, à l'acceptation du présent ADR
 - **Remplacé par** : —
+- **Note du 2026-11-24** (porteur du projet) : la connexion vise l'adresse IP contrôlée, sans seconde résolution DNS (WEB-07, changement `epingler-adresse-veille-web`) ; le rebinding DNS n'est pas un risque résiduel, l'absence de filtrage de sortie en reste un.
 
 ## Contexte
 
@@ -60,7 +61,7 @@
 - un même article suivi dans plusieurs périmètres est stocké une fois par périmètre ;
 - compteurs du limiteur de débit tenus en mémoire de l'instance, valables pour un déploiement en une seule instance (ADR-0017, ADR-0026) ;
 - pas de rendu JavaScript : une page dont le contenu est produit côté navigateur n'est pas surveillable ;
-- risque résiduel de rebinding DNS : le client HTTP résout l'hôte une seconde fois entre le contrôle et la connexion ; un mandataire de sortie filtrant serait la parade complète.
+- risque résiduel : aucun filtrage de sortie au niveau du réseau ; la connexion vise l'adresse IP contrôlée (WEB-07), un mandataire de sortie filtrant serait la parade complète.
 
 ## Conséquences neutres / compromis
 
@@ -75,7 +76,7 @@
 
 ## Traçabilité
 
-- **Exigences** : WEB-01 à WEB-06 (`openspec/changes/collecter-veille-rss-web/specs/veille-rss-web/spec.md`)
+- **Exigences** : WEB-01 à WEB-06 (`openspec/changes/collecter-veille-rss-web/specs/veille-rss-web/spec.md`) ; WEB-07 (`openspec/changes/epingler-adresse-veille-web/`)
 - **Scénarios qualité** : aucun scénario du registre `docs/architecture/quality/scenarios.md` ne porte sur la SSRF ni sur le contenu externe ; risques R-11 et R-12 (`docs/architecture/risks/register.md`)
 - **Diagrammes** : DC-1 (`openspec/changes/collecter-veille-rss-web/design.md`), DF-WEB-1 (`docs/specifications/veille-rss-web.md`)
 - **Tickets/PR** : Non déterminé
