@@ -34,7 +34,7 @@ aucun identifiant d'une ou deux lettres (arc42 §8.16) ; non-régression prouvé
 ## 4. Vérifications d'intégration
 
 - [x] 4.1 Valider le changement — vérification : `openspec validate injecter-horloge-et-executeurs --strict` réussit et `node scripts/verifier-docs.mjs` sans erreur
-- [ ] 4.2 Non-régression : `mvn -B -f argos-server/pom.xml clean verify` en intégration continue (nombre de tests au moins égal à celui de la base), couverture au moins égale au seuil JaCoCo ; `node scripts/verifier-nommage.mjs` vert — vérification : exécution du workflow liée dans ce fichier
+- [x] 4.2 Non-régression : `mvn -B -f argos-server/pom.xml clean verify` en intégration continue (nombre de tests au moins égal à celui de la base), couverture au moins égale au seuil JaCoCo ; `node scripts/verifier-nommage.mjs` vert — vérification : exécution du workflow liée dans ce fichier — preuve : [workflow d'intégration continue](https://github.com/FTurleque/argos-tech-platform/actions/runs/45495560981), tous les jobs verts ; 745 tests en local (`-P integration-continue`), seuils JaCoCo tenus
 
 ## Requêtes modifiées (tâche 1.4)
 
@@ -57,7 +57,7 @@ Les autres `now()` SQL horodatent une écriture (`cree_le`, `updated_at`, `finis
 | AUD-QUA-10 | aucune (`skip_specs`) | design.md D1, D2, DC-1 | 1.1 à 1.6 | `architecture/HorlogeInjecteeTest` ; `horloge/ProducteurHorlogeTest` ; `mcp/HorlogeMcpTest` (date du jour au fuseau configuré à 23:30 UTC) ; recherche de `.now(` dans `src/main` limitée à `io.argos.horloge` | vert en local (2026-11-24) |
 | AUD-TST-06 | aucune | design.md DC-1, « Transactions, concurrence et idempotence » | 2.1 à 2.5 | `AlertesTest`, `DefenseEnProfondeurTest`, `CollecteWebTest`, `PasserelleIaTest`, `ImportPlanifieTest`, `ResilienceTest`, `VeilleWebTest` sans sommeil ni mesure de l'horloge réelle ; `StubServer` à réponse retenue ; `architecture/TestsSansSommeilTest` | vert en local (2026-11-24) |
 | AUD-QUA-11 | aucune | design.md D3, DC-1 | 3.1 à 3.4 | `execution/ExecuteurBorneTest`, `ingestion/web/RecuperateurWebTest.laMinuterieSArreteALaDestructionDuBean` ; aucun `static final .*Executor` dans `src/main` | vert en local (2026-11-24) |
-| Non-régression | aucune | design.md « Compatibilité, migration et retour arrière » | 4.2 | `mvn -B clean verify` en intégration continue | non exécuté |
+| Non-régression | aucune | design.md « Compatibilité, migration et retour arrière » | 4.2 | `mvn -B clean verify` en intégration continue ([exécution](https://github.com/FTurleque/argos-tech-platform/actions/runs/45495560981)) | vert (2026-11-24) |
 
 ## Workflow follow-up
 

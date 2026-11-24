@@ -27,7 +27,7 @@ Prérequis : fiabiliser-sauvegarde-et-roles-base (capacité exploitation-platefo
 
 ## 4. Vérifications d'intégration
 
-- [ ] 4.1 Relancer la campagne `npm --prefix e2e run test:performance` : opérations toujours dans la cible PERF-01 après instrumentation — couvre EXP-13, EXP-14 (absence de régression) — vérification : rapport de campagne, code de sortie 0
+- [x] 4.1 Relancer la campagne `npm --prefix e2e run test:performance` : opérations toujours dans la cible PERF-01 après instrumentation — couvre EXP-13, EXP-14 (absence de régression) — vérification : rapport de campagne, code de sortie 0 — preuve : [`rapport-2026-11-24.json`](/e2e/resultats/performance/rapport-2026-11-24.json), seize opérations dans la cible (p95 maximal 135,8 ms, `upcoming_releases`), code de sortie 0
 - [x] 4.2 Valider le changement — vérification : `openspec validate instrumenter-observabilite --strict` et `node scripts/verifier-docs.mjs` réussissent
 
 ## Matrice de traçabilité

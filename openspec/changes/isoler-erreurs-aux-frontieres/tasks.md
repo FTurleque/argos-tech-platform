@@ -44,7 +44,7 @@ Ordre du sprint 4 : après `instrumenter-observabilite`, avant `injecter-horloge
 ## 7. Vérifications d'intégration
 
 - [x] 7.1 Valider le changement et la documentation — vérification : `openspec validate isoler-erreurs-aux-frontieres --strict` réussit et `node scripts/verifier-docs.mjs` sans erreur
-- [ ] 7.2 Parcours E2E de la chaîne automatisée et MCP toujours verts (sources et forges simulées) — vérification : `npm --prefix e2e test` (dont `e2e/tests/chaine-automatisee.spec.ts`, `e2e/mcp/parcours-mcp.spec.ts`)
+- [x] 7.2 Parcours E2E de la chaîne automatisée et MCP toujours verts (sources et forges simulées) — vérification : `npm --prefix e2e test` (dont `e2e/tests/chaine-automatisee.spec.ts`, `e2e/mcp/parcours-mcp.spec.ts`) — preuve : `npm --prefix e2e test` du 2026-11-24, 34 parcours verts (préparation, portail web, desktop, MCP)
 
 ## Matrice de traçabilité
 
