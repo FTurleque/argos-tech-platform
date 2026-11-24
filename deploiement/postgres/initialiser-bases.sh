@@ -1,5 +1,5 @@
 #!/bin/sh
-# Rôles et bases de la plateforme dans l'instance PostgreSQL partagée (EXP-05, ADR-0034).
+# Rôles et bases de la plateforme dans l'instance PostgreSQL partagée (EXP-05, ADR-0035).
 #
 # Premier démarrage d'un volume : l'image postgres exécute ce script depuis /docker-entrypoint-initdb.d. Il crée :
 #   - argos_app et argos_technique, rôles sans connexion qui portent les droits d'Argos (migrations V2 et V22) ;

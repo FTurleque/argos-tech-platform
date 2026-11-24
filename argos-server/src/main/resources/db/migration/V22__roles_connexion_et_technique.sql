@@ -1,4 +1,4 @@
--- Rôle de connexion d'Argos distinct du propriétaire de la base (EXP-05, ADR-0034).
+-- Rôle de connexion d'Argos distinct du propriétaire de la base (EXP-05, ADR-0035).
 --
 -- Les migrations s'appliquent sous le propriétaire de la base ; l'application se connecte avec un rôle qui n'est ni
 -- superutilisateur, ni propriétaire, ni BYPASSRLS. Ce rôle de connexion est membre, depuis l'initialisation de

@@ -16,7 +16,7 @@ services:
     restart: unless-stopped
     environment:
       POSTGRES_DB: ${ARGOS_DB_NAME:-argos}
-      # Superutilisateur d'administration : initialisation, sauvegarde et restauration seulement (ADR-0034).
+      # Superutilisateur d'administration : initialisation, sauvegarde et restauration seulement (ADR-0035).
       POSTGRES_USER: ${ARGOS_DB_ADMIN_USER:-argos_admin}
       POSTGRES_PASSWORD: ${ARGOS_DB_ADMIN_PASSWORD:?ARGOS_DB_ADMIN_PASSWORD obligatoire (voir .env.example)}
       # Rôles créés par deploiement/postgres/initialiser-bases.sh au premier démarrage du volume.

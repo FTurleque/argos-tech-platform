@@ -1,4 +1,4 @@
-# ADR-0034 — Comptes et isolation des bases de la plateforme
+# ADR-0035 — Comptes et isolation des bases de la plateforme
 
 - **Statut** : Proposé
 - **Date** : 2026-11-24

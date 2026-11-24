@@ -65,7 +65,7 @@ flowchart TB
 - même stack applicative qu’en local ;
 - secrets hors dépôt ;
 - volumes persistants sur le NAS ; export quotidien des bases `argos` et `keycloak`, vérifié, en 0600, dont l'échec se signale par le code de sortie de la tâche DSM, copié hors site (Hyper Backup) ; restauration des deux bases par un script rejouable, Keycloak démarré après elle (EXP-01 à EXP-04) ;
-- une instance PostgreSQL, un compte par usage : administration (superutilisateur), propriétaire et rôle de connexion d'Argos, compte de Keycloak propriétaire de sa seule base ; aucun mot de passe par défaut (ADR-0034, Proposé ; EXP-05, EXP-06) ;
+- une instance PostgreSQL, un compte par usage : administration (superutilisateur), propriétaire et rôle de connexion d'Argos, compte de Keycloak propriétaire de sa seule base ; aucun mot de passe par défaut (ADR-0035, Proposé ; EXP-05, EXP-06) ;
 - aucun port ouvert par défaut : accès distant par VPN ; exposition publique seulement via le reverse proxy de DSM en HTTPS ;
 - OIDC avec un fournisseur d’identité auto-hébergé ;
 - image x86-64 unique (NAS DS1522+ et PC), même `compose.yaml` partout ; guide : [`/docs/deploiement/synology-et-pc.md`](/docs/deploiement/synology-et-pc.md).

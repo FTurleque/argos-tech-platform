@@ -9,7 +9,7 @@ Deux conteneurs démarrent :
 | `postgres` | base de données PostgreSQL 18, données dans le volume `argos-pgdata` (bases `argos` et `keycloak`) | 512 Mo |
 | `argos` | IHM web + API Quarkus, sur le port 8080 | 1 Go |
 
-Chaque application a son compte PostgreSQL, ni superutilisateur ni propriétaire d'une autre base ([ADR-0034](../architecture/adr/0034-comptes-et-isolation-des-bases.md)) :
+Chaque application a son compte PostgreSQL, ni superutilisateur ni propriétaire d'une autre base ([ADR-0035](../architecture/adr/0035-comptes-et-isolation-des-bases.md)) :
 
 | Compte | Variable (défaut) | Usage |
 |---|---|---|
@@ -135,7 +135,7 @@ Les migrations de base s'appliquent au démarrage d'Argos. Faites une sauvegarde
 
 ## Passer aux comptes de base distincts
 
-Un volume PostgreSQL créé avant [ADR-0034](../architecture/adr/0034-comptes-et-isolation-des-bases.md) n'a qu'un compte, `argos`, superutilisateur de l'instance, que PostgreSQL ne permet pas de rétrograder ; les scripts d'initialisation ne s'exécutent que sur un volume neuf. La migration passe donc par une sauvegarde, un volume neuf et une restauration ; l'ancien volume est copié pour le retour arrière. Commandes en SSH sur le NAS (préfixe `sudo`) ou sur le PC, dans le dossier du déploiement ; `argos` est le nom du projet Compose.
+Un volume PostgreSQL créé avant [ADR-0035](../architecture/adr/0035-comptes-et-isolation-des-bases.md) n'a qu'un compte, `argos`, superutilisateur de l'instance, que PostgreSQL ne permet pas de rétrograder ; les scripts d'initialisation ne s'exécutent que sur un volume neuf. La migration passe donc par une sauvegarde, un volume neuf et une restauration ; l'ancien volume est copié pour le retour arrière. Commandes en SSH sur le NAS (préfixe `sudo`) ou sur le PC, dans le dossier du déploiement ; `argos` est le nom du projet Compose.
 
 1. Récupérez la nouvelle version (`git pull`) **sans redémarrer** les conteneurs, et gardez une copie de l'ancien `.env`.
 2. Dans `.env` : supprimez la ligne `ARGOS_DB_USER=argos` (le compte `argos` devient le propriétaire, `ARGOS_DB_OWNER`), puis ajoutez les quatre mots de passe de base ([`.env.example`](../../.env.example)).

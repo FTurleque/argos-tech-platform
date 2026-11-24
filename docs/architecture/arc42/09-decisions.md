@@ -41,7 +41,7 @@ Cette section indexe les ADR. Elle ne recopie pas leur contenu.
 | ADR-0031 | Planifier les traitements périodiques avec quarkus-scheduler dans le serveur | Accepté | 2026-11-18 | — |
 | ADR-0032 | Versionner le schéma PostgreSQL par des migrations SQL Flyway appliquées au démarrage | Accepté | 2026-11-18 | — |
 | ADR-0033 | Tenir la session OIDC de l'IHM en mémoire et connecter le desktop par l'interface de bouclage | Accepté | 2026-11-18 | — (complète ADR-0027, précise ADR-0022 point 6) |
-| ADR-0034 | Comptes et isolation des bases de la plateforme | Proposé | 2026-11-24 | — (précise ADR-0016, ADR-0026, ADR-0027) |
+| ADR-0035 | Comptes et isolation des bases de la plateforme | Proposé | 2026-11-24 | — (précise ADR-0016, ADR-0026, ADR-0027) |
 
 ## 9.2 Règles de gouvernance
 

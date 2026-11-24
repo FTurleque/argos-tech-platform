@@ -28,7 +28,7 @@ import io.argos.workspace.ContexteBase.Contexte;
 import io.quarkus.test.junit.QuarkusTest;
 
 /**
- * EXP-05 : comptes de base distincts et non privilégiés (ADR-0034). La base de test est initialisée par le script de
+ * EXP-05 : comptes de base distincts et non privilégiés (ADR-0035). La base de test est initialisée par le script de
  * l'instance de production ({@code deploiement/postgres/initialiser-bases.sh}) : l'application se connecte avec le
  * rôle de connexion et Flyway applique les migrations sous le propriétaire.
  */

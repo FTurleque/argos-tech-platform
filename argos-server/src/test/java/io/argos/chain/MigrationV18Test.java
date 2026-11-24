@@ -26,7 +26,7 @@ import io.quarkus.test.junit.QuarkusTest;
  * le signal garde sa version, sans empreinte normalisée jusqu'au premier passage (COL-10-S4).
  *
  * <p>Créer, migrer et supprimer une base relève de l'administration de l'instance : le test emploie le
- * superutilisateur de la base de test (Dev Services), non le rôle de connexion de l'application (ADR-0034).
+ * superutilisateur de la base de test (Dev Services), non le rôle de connexion de l'application (ADR-0035).
  */
 @QuarkusTest
 class MigrationV18Test {

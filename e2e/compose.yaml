@@ -3,7 +3,7 @@
 # repart d'une base vide, migrée par Flyway au lancement du serveur. Port 55432 sur la seule
 # boucle locale, distinct de la base de développement (compose.yaml à la racine, port 5432).
 # Le Keycloak de test est démarré par les Dev Services de Quarkus (quarkus:dev, port 8180).
-# Rôles de production (ADR-0034), créés par le script d'initialisation de l'instance : le serveur se connecte avec
+# Rôles de production (ADR-0035), créés par le script d'initialisation de l'instance : le serveur se connecte avec
 # argos_connexion et applique les migrations sous argos (mots de passe passés par playwright.config.ts) ; les
 # jeux de données SQL sont chargés sous argos, propriétaire de la base.
 name: argos-e2e
