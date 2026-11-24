@@ -10,7 +10,7 @@
 
 - Le dépôt est hébergé sur GitHub ; il réunit un serveur Maven/Quarkus, une IHM Vue.js 3, un client Electron, une campagne Playwright et des scripts Node.
 - Les tests du serveur demandent Docker (base PostgreSQL jetable des Dev Services, [ADR-0032](0032-migrations-flyway.md)) ; l'image Docker est construite sans eux (`Dockerfile`, étage `server`).
-- L'audit du 2026-11-21 relève l'absence de toute exécution automatique des tests (AUD-TST-01) et de toute veille automatisée des dépendances, images Docker comprises (AUD-DEP-05) ; le changement OpenSpec [`mettre-en-place-integration-continue`](/openspec/changes/mettre-en-place-integration-continue/proposal.md) en porte la correction.
+- L'audit du 2026-11-21 relève l'absence de toute exécution automatique des tests (AUD-TST-01) et de toute veille automatisée des dépendances, images Docker comprises (AUD-DEP-05) ; le changement OpenSpec [`mettre-en-place-integration-continue`](/openspec/changes/archive/2026-11-24-mettre-en-place-integration-continue/proposal.md) en porte la correction.
 - Le projet est porté par un mainteneur unique, avec des outils gratuits et des licences permissives ([ADR-0021](0021-double-licence.md), [ADR-0025](0025-produit-ouvert-projet-personnel.md)).
 
 ## Critères de décision
@@ -89,7 +89,7 @@ La protection de `main` par le statut du workflow est un réglage du dépôt Git
 
 - **Exigences** : aucune (outillage) ; constats AUD-TST-01, AUD-TST-19, AUD-TST-02, AUD-DEP-20, AUD-DEP-22, AUD-DEP-05 de l'audit du 2026-11-21
 - **Scénarios qualité** : —
-- **Diagrammes** : DC-1 du changement [`mettre-en-place-integration-continue`](/openspec/changes/mettre-en-place-integration-continue/design.md)
+- **Diagrammes** : DC-1 du changement [`mettre-en-place-integration-continue`](/openspec/changes/archive/2026-11-24-mettre-en-place-integration-continue/design.md)
 - **Tickets/PR** : Non déterminé
 - **Fichiers source** : `.github/workflows/integration-continue.yml`, `renovate.json`, `argos-server/pom.xml`
 
