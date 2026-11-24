@@ -20,7 +20,7 @@ Prérequis : fiabiliser-sauvegarde-et-roles-base (capacité exploitation-platefo
 ## 3. Durcissement du conteneur applicatif
 
 - [x] 3.1 Copier `quarkus-app` sans `--chown` dans le `Dockerfile` ; ajouter au service `argos` `read_only: true`, `tmpfs: /tmp`, `cap_drop: [ALL]`, `security_opt: [no-new-privileges:true]` (design.md D6) — couvre EXP-12-S1, EXP-12-S2, EXP-12-S3 (AUD-SEC-25) — vérification : écriture refusée dans `/opt/argos` et hors `/tmp`, acceptée dans `/tmp` ; `docker inspect` montre `ReadonlyRootfs`, `CapDrop` et `SecurityOpt`
-- [ ] 3.2 Construire l'image et vérifier la conformité des licences, inchangée — vérification : `docker compose build` puis démarrage complet de la pile, `mvn -B -P licences validate` réussit
+- [x] 3.2 Construire l'image et vérifier la conformité des licences, inchangée — vérification : `docker compose build` puis démarrage complet de la pile, `mvn -B -P licences validate` réussit
 
 ## 4. Documentation durable
 

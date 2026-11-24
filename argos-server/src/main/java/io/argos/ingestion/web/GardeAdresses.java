@@ -28,6 +28,11 @@ import io.argos.ingestion.web.RecuperationRefusee.Motif;
  * l'ajout d'une source, à chaque collecte et à chaque redirection (décision D1 du changement
  * {@code collecter-veille-rss-web}).
  *
+ * <p>Le contrôle renvoie une {@link DestinationControlee} : l'adresse et les adresses IP de l'unique
+ * résolution contrôlée, auxquelles le transport se connecte sans résoudre le nom de nouveau (WEB-07). Un
+ * nom qui change de résolution entre le contrôle et la connexion (rebinding DNS) ne détourne donc pas la
+ * récupération vers une adresse interdite.
+ *
  * <p>Plages IPv4 refusées : 0.0.0.0/8, 10.0.0.0/8, 100.64.0.0/10, 127.0.0.0/8, 169.254.0.0/16,
  * 172.16.0.0/12, 192.0.0.0/24, 192.0.2.0/24, 192.88.99.0/24, 192.168.0.0/16, 198.18.0.0/15,
  * 198.51.100.0/24, 203.0.113.0/24, 224.0.0.0/3 (multidiffusion, réservées, diffusion). Plages
@@ -46,7 +51,8 @@ import io.argos.ingestion.web.RecuperationRefusee.Motif;
  * <p>{@code argos.veille-web.exceptions} liste des couples {@code hôte:port} exemptés du contrôle
  * des plages et des ports. Vide par défaut, il ne sert qu'au développement et aux tests, où les
  * sources simulées écoutent sur la boucle locale ; une redirection vers un autre port ou un autre
- * hôte local reste refusée.
+ * hôte local reste refusée. L'hôte d'un couple exempté est résolu une fois comme les autres, et la
+ * connexion vise aussi l'adresse issue de cette résolution.
  */
 @ApplicationScoped
 public class GardeAdresses {
@@ -84,20 +90,33 @@ public class GardeAdresses {
     }
 
     /** Analyse et vérifie une adresse saisie ; lève {@link RecuperationRefusee} si elle est refusée. */
-    public URI verifier(String adresse) {
+    public DestinationControlee verifier(String adresse) {
         return verifier(analyser(adresse), Motif.ADRESSE_INTERDITE);
     }
 
-    /** Vérifie une adresse déjà analysée (adresse de redirection : motif {@code REDIRECTION_INTERDITE}). */
-    URI verifier(URI uri, Motif motifRefus) {
+    /**
+     * Vérifie une adresse déjà analysée (adresse de redirection : motif {@code REDIRECTION_INTERDITE}) et renvoie
+     * les adresses IP de son unique résolution, toutes autorisées.
+     */
+    DestinationControlee verifier(URI uri, Motif motifRefus) {
         String hote = uri.getHost().toLowerCase(Locale.ROOT);
         int port = port(uri);
-        if (exceptions.contains(hote + ":" + port)) {
-            return uri;
-        }
-        if (!portsAutorises.contains(port)) {
+        boolean exemptee = exceptions.contains(hote + ":" + port);
+        if (!exemptee && !portsAutorises.contains(port)) {
             throw new RecuperationRefusee(motifRefus, "port non autorisé : " + hote + ":" + port);
         }
+        InetAddress[] adresses = resoudre(hote, motifRefus);
+        if (!exemptee) {
+            for (InetAddress adresse : adresses) {
+                if (interdite(adresse)) {
+                    throw new RecuperationRefusee(motifRefus, "adresse interdite : " + hote + " -> " + adresse.getHostAddress());
+                }
+            }
+        }
+        return new DestinationControlee(uri, List.of(adresses));
+    }
+
+    private InetAddress[] resoudre(String hote, Motif motifRefus) {
         InetAddress[] adresses;
         try {
             adresses = resolveur.resoudre(hote);
@@ -107,12 +126,7 @@ public class GardeAdresses {
         if (adresses == null || adresses.length == 0) {
             throw new RecuperationRefusee(motifRefus, "nom d'hôte sans adresse : " + hote);
         }
-        for (InetAddress adresse : adresses) {
-            if (interdite(adresse)) {
-                throw new RecuperationRefusee(motifRefus, "adresse interdite : " + hote + " -> " + adresse.getHostAddress());
-            }
-        }
-        return uri;
+        return adresses;
     }
 
     /** Contrôle syntaxique : schéma http(s), hôte présent, pas d'identifiants, longueur bornée. */

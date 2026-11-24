@@ -6,7 +6,8 @@
 //   - toute variable interpolée par compose.yaml (${NOM}, ${NOM:-défaut}, ${NOM:?message}) figure dans .env.example.
 // Une variable figure dans .env.example si une ligne « NOM=… » ou « # NOM=… » la déclare (réglage facultatif commenté).
 // Usage : node scripts/verifier-configuration.mjs
-// Code de sortie : 0 à parité, 1 sinon (une ligne par écart, nommant la variable et le fichier où elle manque).
+// Code de sortie : 0 à parité, sans sortie ; 1 sinon, une ligne par écart sur la sortie d'erreur, nommant la variable
+// et le fichier où elle manque.
 
 import { readFileSync } from 'node:fs';
 import { dirname, join, resolve } from 'node:path';
@@ -120,6 +121,5 @@ export function ecartsDepot(racine = RACINE) {
 if (import.meta.url === pathToFileURL(process.argv[1] ?? '').href) {
   const ecarts = ecartsDepot();
   for (const ecart of ecarts) console.error(ecart);
-  if (ecarts.length === 0) console.log('Configuration à parité : application.properties, compose.yaml et .env.example.');
   process.exit(ecarts.length === 0 ? 0 : 1);
 }

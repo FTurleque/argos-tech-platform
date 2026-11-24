@@ -122,8 +122,8 @@ Aucune migration. Retour arrière : revenir au transport précédent (commit de 
 
 ### D1 — Moyen de connexion à l'adresse épinglée
 
-- **Statut** : [PROPOSITION]
-- **Choix** : transport de production qui ouvre la connexion TCP vers l'adresse IP contrôlée et porte le nom d'hôte d'origine pour SNI, l'en-tête `Host` et la vérification du certificat, en réutilisant un client HTTP déjà présent dans la pile Quarkus (client Vert.x : le serveur cible et l'en-tête `Host` se règlent séparément) plutôt qu'une dépendance nouvelle.
+- **Statut** : [DÉCISION — 2026-11-24, tâche 1.1]
+- **Choix** : transport de production qui ouvre la connexion TCP vers l'adresse IP contrôlée et porte le nom d'hôte d'origine pour SNI, l'en-tête `Host` et la vérification du certificat, en réutilisant un client HTTP déjà présent dans la pile Quarkus (client Vert.x : le serveur cible et l'en-tête `Host` se règlent séparément) plutôt qu'une dépendance nouvelle. Implémentation : `TransportEpingle` ; Vert.x 4.5 (`RequestOptions.setServer` pour l'adresse IP, `setHost` pour le nom, `HttpClientOptions.setVerifyHost` et `setForceSni`) vérifie le certificat et envoie l'indication SNI pour le nom d'hôte, l'adresse IP ne servant qu'à la connexion. Essai sur serveur HTTPS local (`TransportEpingleTest.certificatVerifiePourLeNomDHote`) : certificat du nom accepté, SNI reçue, certificat d'un autre nom refusé. Option de repli non nécessaire.
 - **Justification** : aucune dépendance nouvelle (ADR-0021) ; contrôle explicite de l'adresse de connexion ; compatible Java 17.
 - **Alternatives écartées** :
   - Apache HttpClient 5 (`DnsResolver`) ou OkHttp (`Dns`), Apache-2.0 — résolveur injectable propre, mais dépendance nouvelle à justifier (ADR-0021) ; reste l'option de repli si le client Vert.x ne permet pas la vérification du nom avec une connexion par IP.

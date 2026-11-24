@@ -184,8 +184,8 @@ services:
       ARGOS_REGLEMENTAIRE_RAPPELS_CRON: ${ARGOS_REGLEMENTAIRE_RAPPELS_CRON:-0 15 7 * * ?}
       ARGOS_JORF_URL: ${ARGOS_JORF_URL:-https://echanges.dila.gouv.fr/OPENDATA/JORF}
       # Passerelle IA (encadrer-appels-ia) : facultative et désactivée par défaut. Avec le profil « ia »,
-      # ARGOS_IA_ACTIVE=true l'active ; sans IA, Argos fonctionne en mode déterministe. Défaut de l'adresse :
-      # le service ollama du projet.
+      # ARGOS_IA_ACTIVE à true l'active ; sans IA, Argos fonctionne en mode déterministe. L'adresse vise par
+      # défaut le service ollama du projet.
       ARGOS_IA_ACTIVE: ${ARGOS_IA_ACTIVE:-false}
       ARGOS_OLLAMA_URL: ${ARGOS_OLLAMA_URL:-http://ollama:11434}
       ARGOS_IA_MODELE: ${ARGOS_IA_MODELE:-qwen2.5:1.5b}

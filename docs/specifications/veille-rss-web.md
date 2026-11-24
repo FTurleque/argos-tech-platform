@@ -5,6 +5,7 @@
 | Préfixe d'exigences | `WEB` |
 | Spec de référence | [`/openspec/specs/veille-rss-web/spec.md`](/openspec/specs/veille-rss-web/spec.md) |
 | Changements archivés | [`2026-11-16-collecter-veille-rss-web`](/openspec/changes/archive/2026-11-16-collecter-veille-rss-web/proposal.md) |
+| Changements en cours | [`epingler-adresse-veille-web`](/openspec/changes/epingler-adresse-veille-web/proposal.md) (WEB-07, implémenté, non archivé) |
 | Statut de la capacité | livrée ; code et tests dans `argos-server` |
 | Composants (arc42 §5) | `source-ingestion`, `signal`, `impact-engine` |
 | Décision | [ADR-0028](/docs/architecture/adr/0028-collecteur-veille-web-integre.md) (Accepté) : collecteur intégré au serveur |
@@ -62,6 +63,7 @@ API : `POST|GET /api/v1/veille-web/sources`, `DELETE /api/v1/veille-web/sources/
 | Une page surveillée garde un instantané (texte par blocs, empreinte SHA-256) ; un contenu différent crée une actualité datée dont le texte est l'aperçu des blocs ajoutés, à défaut retirés | WEB-02 | ADR-0028 (Accepté) | [EXISTANT] |
 | Adresse refusée (`ADRESSE_INTERDITE`) si son port n'est pas autorisé (80 et 443 par défaut, `argos.veille-web.ports-autorises`), si son hôte est introuvable ou si une adresse IP de l'hôte, après résolution DNS, appartient à une plage refusée (liste en arc42 §8.3, IPv4 embarquées dans IPv6 comprises) ; contrôle refait à chaque collecte et à chaque redirection (5 au plus) ; 10 s et 2 Mio par récupération, lecture du contenu comprise (un serveur qui se tait après ses en-têtes est coupé à l'échéance) | WEB-03 | risque R-12 ; arc42 §8.3 | [EXISTANT] |
 | Le message d'un refus et le motif enregistré pour une source en erreur sont propres au motif : ni hôte, ni adresse IP, ni statut HTTP, ni destination de redirection ; le détail est écrit dans le journal applicatif | WEB-03 | constat de relecture ; arc42 §8.3 | [EXISTANT] |
+| La connexion de chaque récupération, et de chaque redirection, vise une adresse IP de la résolution contrôlée, sans nouvelle résolution du nom ; si l'hôte a plusieurs adresses autorisées, les suivantes ne sont essayées qu'après un échec de connexion, dans le délai de la récupération ; en HTTPS, le nom d'hôte d'origine porte l'indication SNI et l'en-tête `Host`, et le certificat est vérifié pour ce nom | WEB-07 | AUD-SEC-01 ; risque R-12 ; arc42 §8.3 | [PROPOSITION — `epingler-adresse-veille-web`] |
 | Une collecte en échec fait passer la source `EN_ERREUR` avec son motif ; la tentative suivante attend fréquence × 2^(échecs − 1), au plus × 8 ; un échec de la première collecte, après l'enregistrement de la source, laisse la source `EN_ERREUR` | WEB-03 | conception, gestion des erreurs | [EXISTANT] |
 | Un passage du planificateur collecte au plus 200 sources échues (`argos.veille-web.sources-par-passage`) et n'en commence plus après 4 minutes (`argos.veille-web.duree-max-passage`) ; la collecte d'une source est sérialisée : une collecte à la demande pendant une autre collecte de la même source reçoit 409 `COLLECTE_EN_COURS` | WEB-01, WEB-02 | constat de relecture | [EXISTANT] |
 | Le contenu collecté est réduit à du texte brut et restitué comme citation non fiable ; le résumé est un extrait déterministe ; aucun lien collecté n'est récupéré | WEB-04 | risque R-11 | [EXISTANT] |
@@ -110,7 +112,7 @@ Une adresse n'est acceptée que si elle mène à un serveur public et renvoie un
 
 ## Critères d'acceptation
 
-Scénarios WEB-01-S1 à WEB-06-S1 du changement, couverts par `argos-server/src/test/java/io/argos/chain/VeilleWebTest.java` et `ParcoursVeilleWebTest.java` ; constats de relecture couverts par `VeilleWebTest`, `LimiteDebitVeilleWebTest`, `io/argos/signal/web/CollecteWebTest.java` et les tests unitaires de `io/argos/ingestion/web/`.
+Scénarios WEB-01-S1 à WEB-06-S1 du changement, couverts par `argos-server/src/test/java/io/argos/chain/VeilleWebTest.java` et `ParcoursVeilleWebTest.java` ; constats de relecture couverts par `VeilleWebTest`, `LimiteDebitVeilleWebTest`, `io/argos/signal/web/CollecteWebTest.java` et les tests unitaires de `io/argos/ingestion/web/`. Scénarios WEB-07-S1 à WEB-07-S4 du [delta de `epingler-adresse-veille-web`](/openspec/changes/epingler-adresse-veille-web/specs/veille-rss-web/spec.md), couverts par `RecuperateurWebTest` et `TransportEpingleTest`.
 
 ## Interprétations introduites par un changement
 
@@ -126,7 +128,7 @@ Scénarios WEB-01-S1 à WEB-06-S1 du changement, couverts par `argos-server/src/
 ## Écarts constatés
 
 - La passerelle IA n'existe pas encore : le scénario WEB-04-S1 est vérifié sur le résumé extractif ; la vérification avec la passerelle IA réelle reste à faire avec `encadrer-appels-ia`.
-- Rebinding DNS : le client HTTP résout l'hôte une seconde fois après le contrôle (risque résiduel, ADR-0028).
+- Le paragraphe « risque résiduel de rebinding DNS » d'ADR-0028 (Accepté) ne décrit plus le code : la connexion vise l'adresse contrôlée (WEB-07). Sa mise à jour est soumise au porteur du projet (Q-3 de `epingler-adresse-veille-web`). Le filtrage de sortie des plages privées reste hors du code d'Argos.
 - L'IHM ne présente pas encore les sources ni les actualités web.
 
 ## Questions ouvertes
@@ -144,6 +146,7 @@ Scénarios WEB-01-S1 à WEB-06-S1 du changement, couverts par `argos-server/src/
 | WEB-01 | WEB-01-S1, WEB-01-S2 | DC-1, DF-WEB-1 | 1.1, 2.1, 2.2, 3.1 | `VeilleWebTest` : `fluxAtomValideCreeLaSourceEtSesArticlesApparaissent`, `adresseSansFluxRefuseeSansCreerDeSource` |
 | WEB-02 | WEB-02-S1 | DC-1 | 1.1, 3.1 | `VeilleWebTest.pageSurveilleeModifieeCreeUnElementDateAvecApercu` |
 | WEB-03 | WEB-03-S1, WEB-03-S2 | DC-1, DF-WEB-1 | 2.1 | `GardeAdressesTest`, `RecuperateurWebTest`, `VeilleWebTest` : `adressePriveeRefuseeSansRequete`, `redirectionVersAdresseLocaleMetLaSourceEnErreur`, `refusSansIndiceReseau` ; `LimiteDebitVeilleWebTest` ; `CollecteWebTest` |
+| WEB-07 | WEB-07-S1 à WEB-07-S4 | design.md D1 à D3, DC-1 (`epingler-adresse-veille-web`) | 2.1 à 2.4 | `RecuperateurWebTest` : `rebindingVersLaBoucleLocaleSansEffet`, `rebindingApresRedirectionSansEffet`, `redirectionResolueVersUneAdressePriveeInterrompue`, `aucuneSecondeResolutionDuNom` ; `TransportEpingleTest` (serveurs HTTP et HTTPS locaux) |
 | WEB-04 | WEB-04-S1 | DC-1 | 3.3 | `VeilleWebTest.articlePiegeCiteCommeDonneeSansEffetSurLesImpacts` ; `LecteursTest.entitesDecodeesConserveesEnTexteBrutAEchapperALAffichage` |
 | WEB-05 | WEB-05-S1 | DC-1 | 3.2 | `VeilleWebTest` : `memeArticleDansDeuxFluxRestitueUneFoisAvecSesDeuxSources`, `contenuDUneSourcePersonnelleCloisonneParCompte` |
 | WEB-06 | WEB-06-S1 | DC-1 | 3.4 | `VeilleWebTest` : `articleSurUneTechnologieUtiliseeRapprocheAVerifierSansAlerte`, `sourcePersonnelleNInjecteRienDansUnEspace` |
