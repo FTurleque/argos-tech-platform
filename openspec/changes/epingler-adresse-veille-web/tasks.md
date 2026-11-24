@@ -20,7 +20,7 @@ Règles : aucune requête vers Internet dans les tests (serveurs HTTP et HTTPS l
 ## 3. Documentation durable et décisions
 
 - [x] 3.1 Fiche `/docs/specifications/veille-rss-web.md` : règle WEB-07 ([PROPOSITION], `epingler-adresse-veille-web`), critères d'acceptation, écart « risque résiduel » résolu, traçabilité ; registre `/docs/specifications/README.md` (compte des exigences de `veille-rss-web`, changement actif) — couvre WEB-07 — vérification : `node scripts/verifier-docs.mjs` sans erreur
-- [ ] 3.2 arc42 §8.3 (`/docs/architecture/arc42/08-concepts-transverses.md`) : contrôle SSRF complété par la connexion à l'adresse contrôlée, paragraphe « Risque résiduel » réécrit (reste : filtrage de sortie) ; proposer au porteur du projet la mise à jour d'ADR-0028 (note datée ou remplacement, Q-3) et de l'index arc42 §9 si un ADR est créé — couvre WEB-07 — vérification : `node scripts/verifier-docs.mjs` sans erreur ; décision du porteur consignée
+- [x] 3.2 arc42 §8.3 (`/docs/architecture/arc42/08-concepts-transverses.md`) : contrôle SSRF complété par la connexion à l'adresse contrôlée, paragraphe « Risque résiduel » réécrit (reste : filtrage de sortie) ; proposer au porteur du projet la mise à jour d'ADR-0028 (note datée ou remplacement, Q-3) et de l'index arc42 §9 si un ADR est créé — couvre WEB-07 — vérification : `node scripts/verifier-docs.mjs` sans erreur ; décision du porteur consignée — décision du porteur du projet du 2026-11-24 (Q-3) : note datée dans ADR-0028, aucun nouvel ADR, index arc42 §9 inchangé
 - [x] 3.3 Registre des risques `/docs/architecture/risks/register.md` (R-12 : parade et statut) et D-12 `/docs/architecture/diagrams/d-12-frontieres-confiance.md` si le franchissement vers Internet y décrit la résolution ; inventaire `/docs/architecture/diagrams/README.md` si la portée de D-12 change — couvre WEB-07 — vérification : `node scripts/verifier-docs.mjs` sans erreur
 
 ## 4. Vérifications d'intégration
@@ -43,7 +43,7 @@ Constat → exigence → tâche → preuve attendue :
 |---|---|---|---|---|
 | AUD-SEC-01 (épinglage de l'adresse validée, à chaque redirection) | WEB-07-S1, WEB-07-S2, WEB-07-S3 | 2.1, 2.2, 2.3 | tests de rebinding verts ; `grep -rn rebind argos-server/src/test` non vide | exécuté, vert |
 | AUD-SEC-01 (SNI et `Host` d'origine) | WEB-07-S4 | 1.1, 2.4 | test HTTPS local vert | exécuté, vert |
-| AUD-SEC-01 (risque résiduel documenté) | WEB-07 | 3.2, 3.3 | arc42 §8.3, R-12 et ADR-0028 à jour ; `node scripts/verifier-docs.mjs` sans erreur | non exécuté |
+| AUD-SEC-01 (risque résiduel documenté) | WEB-07 | 3.2, 3.3 | arc42 §8.3, R-12 et ADR-0028 à jour ; `node scripts/verifier-docs.mjs` sans erreur | exécuté (note datée du 2026-11-24 dans ADR-0028) |
 | AUD-SEC-01 (filtrage de sortie en hébergement en ligne) | — (hors périmètre, Q-2) | — | décision du porteur du projet | non réalisée |
 
 ## Workflow follow-up

@@ -128,7 +128,7 @@ Scénarios WEB-01-S1 à WEB-06-S1 du changement, couverts par `argos-server/src/
 ## Écarts constatés
 
 - La passerelle IA n'existe pas encore : le scénario WEB-04-S1 est vérifié sur le résumé extractif ; la vérification avec la passerelle IA réelle reste à faire avec `encadrer-appels-ia`.
-- Le paragraphe « risque résiduel de rebinding DNS » d'ADR-0028 (Accepté) ne décrit plus le code : la connexion vise l'adresse contrôlée (WEB-07). Sa mise à jour est soumise au porteur du projet (Q-3 de `epingler-adresse-veille-web`). Le filtrage de sortie des plages privées reste hors du code d'Argos.
+- Le filtrage de sortie des plages privées reste hors du code d'Argos ; c'est le risque résiduel qu'ADR-0028 retient (note du 2026-11-24, WEB-07).
 - L'IHM ne présente pas encore les sources ni les actualités web.
 
 ## Questions ouvertes
