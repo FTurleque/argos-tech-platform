@@ -6,8 +6,8 @@
 #   docker compose --profile ia up -d # Argos avec le modèle local Ollama (facultatif, ADR-0029 proposé)
 #   docker compose exec ollama ollama pull qwen2.5:1.5b   # une fois : télécharge le modèle par défaut
 #
-# Réglages dans un fichier .env à côté de ce fichier (modèle : .env.example).
-# Sur le NAS, changez au minimum ARGOS_DB_PASSWORD.
+# Réglages dans un fichier .env à côté de ce fichier (modèle : .env.example). Les quatre mots de passe de base
+# (administration, propriétaire et connexion d'Argos, Keycloak) sont obligatoires : sans eux, Compose refuse de démarrer.
 name: argos
 
 services:
@@ -16,16 +16,24 @@ services:
     restart: unless-stopped
     environment:
       POSTGRES_DB: ${ARGOS_DB_NAME:-argos}
-      POSTGRES_USER: ${ARGOS_DB_USER:-argos}
-      POSTGRES_PASSWORD: ${ARGOS_DB_PASSWORD:-argos}
+      # Superutilisateur d'administration : initialisation, sauvegarde et restauration seulement (ADR-0034).
+      POSTGRES_USER: ${ARGOS_DB_ADMIN_USER:-argos_admin}
+      POSTGRES_PASSWORD: ${ARGOS_DB_ADMIN_PASSWORD:?ARGOS_DB_ADMIN_PASSWORD obligatoire (voir .env.example)}
+      # Rôles créés par deploiement/postgres/initialiser-bases.sh au premier démarrage du volume.
+      ARGOS_DB_OWNER: &proprietaire ${ARGOS_DB_OWNER:-argos}
+      ARGOS_DB_OWNER_PASSWORD: &proprietaire-mdp ${ARGOS_DB_OWNER_PASSWORD:?ARGOS_DB_OWNER_PASSWORD obligatoire (voir .env.example)}
+      ARGOS_DB_USER: &connexion ${ARGOS_DB_USER:-argos_connexion}
+      ARGOS_DB_PASSWORD: &connexion-mdp ${ARGOS_DB_PASSWORD:?ARGOS_DB_PASSWORD obligatoire (voir .env.example)}
+      ARGOS_KEYCLOAK_DB_USER: &keycloak ${ARGOS_KEYCLOAK_DB_USER:-keycloak}
+      ARGOS_KEYCLOAK_DB_PASSWORD: &keycloak-mdp ${ARGOS_KEYCLOAK_DB_PASSWORD:?ARGOS_KEYCLOAK_DB_PASSWORD obligatoire (voir .env.example)}
     ports:
       # Joignable seulement depuis la machine elle-même (outils de développement).
       - "127.0.0.1:${ARGOS_DB_PORT:-5432}:5432"
     volumes:
       # À partir de PostgreSQL 18, l'image attend le volume sur /var/lib/postgresql.
       - argos-pgdata:/var/lib/postgresql
-      # Base de Keycloak, créée au premier démarrage du volume (profil « idp-local »).
-      - ./deploiement/postgres/creer-base-keycloak.sh:/docker-entrypoint-initdb.d/creer-base-keycloak.sh:ro
+      # Rôles et bases d'Argos et de Keycloak (profil « idp-local »), créés au premier démarrage du volume.
+      - ./deploiement/postgres/initialiser-bases.sh:/docker-entrypoint-initdb.d/initialiser-bases.sh:ro
     mem_limit: ${ARGOS_DB_MEM_LIMIT:-512m}
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
@@ -47,8 +55,8 @@ services:
     environment:
       KC_DB: postgres
       KC_DB_URL: jdbc:postgresql://postgres:5432/keycloak
-      KC_DB_USERNAME: ${ARGOS_DB_USER:-argos}
-      KC_DB_PASSWORD: ${ARGOS_DB_PASSWORD:-argos}
+      KC_DB_USERNAME: *keycloak
+      KC_DB_PASSWORD: *keycloak-mdp
       KC_HTTP_ENABLED: "true"
       # Adresse vue par le navigateur et dans les jetons ; les appels d'Argos passent par le réseau du projet.
       KC_HOSTNAME: http://localhost:${ARGOS_KEYCLOAK_PORT:-8180}
@@ -88,8 +96,12 @@ services:
         required: false
     environment:
       ARGOS_DB_URL: jdbc:postgresql://postgres:5432/${ARGOS_DB_NAME:-argos}
-      ARGOS_DB_USER: ${ARGOS_DB_USER:-argos}
-      ARGOS_DB_PASSWORD: ${ARGOS_DB_PASSWORD:-argos}
+      # Connexion de l'application (ni superutilisateur, ni propriétaire, soumise à la RLS) ; migrations appliquées
+      # au démarrage sous le propriétaire de la base (EXP-05).
+      ARGOS_DB_USER: *connexion
+      ARGOS_DB_PASSWORD: *connexion-mdp
+      ARGOS_DB_OWNER: *proprietaire
+      ARGOS_DB_OWNER_PASSWORD: *proprietaire-mdp
       # Fournisseur d'identité OIDC (Keycloak, ADR-0027) : obligatoire, Argos refuse de démarrer sans.
       ARGOS_OIDC_URL: ${ARGOS_OIDC_URL:-}
       ARGOS_OIDC_CLIENT_ID: ${ARGOS_OIDC_CLIENT_ID:-argos-server}

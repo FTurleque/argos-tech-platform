@@ -25,7 +25,9 @@ flowchart LR
 
     subgraph Z3["Zone 3 — Base PostgreSQL"]
         APP["«database» Rôle argos_app\nNOSUPERUSER NOBYPASSRLS, politiques RLS"]
-        OWN["«database» Utilisateur de connexion\nmigrations Flyway, traitements sans appelant,\njournaux refus_acces, mcp_appel et ia_appel"]
+        TECH["«database» Rôle argos_technique\ntraitements sans appelant, journaux refus_acces,\nmcp_appel et ia_appel ; RLS hors contexte utilisateur"]
+        OWN["«database» Propriétaire de la base argos\nmigrations Flyway seulement"]
+        KCB["«database» Base keycloak\ncompte keycloak, fermée aux comptes d'Argos"]
     end
 
     subgraph Z4["Zone 4 — Services de confiance du porteur"]
@@ -42,7 +44,9 @@ flowchart LR
     U -.->|"connexion OIDC, PKCE"| KC
     SEC -->|"B4 clés JWKS, HTTPS"| KC
     DOM -->|"B5 SET LOCAL ROLE argos_app\n+ compte de l'appelant"| APP
-    DOM -->|"traitements planifiés\net journaux"| OWN
+    DOM -->|"traitements planifiés\net journaux"| TECH
+    API -.->|"B10 migrations au démarrage"| OWN
+    KC -->|"B11 compte keycloak"| KCB
     ADP -->|"B6 GET HTTPS, délais et tailles bornés"| S
     ADP -->|"B7 GET HTTPS, jeton de lecture,\naucune redirection suivie"| F
     ADP -->|"contenu validé, marqué non fiable"| DOM
@@ -64,7 +68,9 @@ flowchart LR
 | B7 Argos → forges | fuite du jeton, chemin hors du dépôt, quota | requêtes `GET` seulement ; aucune redirection suivie ; segments `.` et `..` retirés des chemins ; dépôt GitHub `owner/repo` validé ; réponse bornée (`argos.inventory.max-document-bytes`) ; jeton absent des messages ; jeton refusé (`AccesRefuse`) et dépôt introuvable (`DepotIntrouvable`) distingués d'un fichier absent ; quota épuisé signalé (`QuotaEpuise`) ; délai borné (`argos.sources.http-timeout`) | `chain/ScmContractTest`, `chain/ScmContratEnregistreTest` (réponses GitHub et GitLab enregistrées), `chain/InventoryTest#contratGitLabEtGitHub` |
 | B8 domaine → IA | fuite de données, injection de consignes | entrées `CONFIDENTIAL` et `RESTRICTED` refusées, secrets refusés, données personnelles masquées, données séparées des consignes, sortie validée par schéma ; modèle local sans sortie vers Internet | arc42 §8.8, fiche [`passerelle-ia`](../../specifications/passerelle-ia.md) |
 | B9 Argos → messagerie | interception | relais SMTP du Synology, STARTTLS paramétrable (`ARGOS_SMTP_STARTTLS`) | fiche [`alertes-digests`](../../specifications/alertes-digests.md) |
+| B10 Argos → schéma | modification du schéma par une requête injectée | le rôle de connexion n'est ni propriétaire ni superutilisateur : aucun droit de DDL ; migrations sous le propriétaire, avec ses propres identifiants | `RolesBaseTest` (EXP-05-S4, S5) |
+| B11 Argos ↔ Keycloak dans PostgreSQL | lecture de la base de l'autre application (clés de signature du royaume, comptes) | un compte par application, propriétaire de sa seule base, `CONNECT` retiré à `PUBLIC` ; aucun superutilisateur applicatif | `RolesBaseTest` (EXP-05-S1, S2), [ADR-0034](../adr/0034-comptes-et-isolation-des-bases.md) |
 
-L'utilisateur de connexion à la base (`ARGOS_DB_USER`) exécute les migrations, les traitements planifiés sans appelant et l'écriture des journaux `refus_acces`, `mcp_appel` et `ia_appel`, sur lesquels `argos_app` n'a aucun droit. La compromission du processus Argos donne accès à cet utilisateur : la RLS protège contre une erreur de périmètre dans le code, pas contre un attaquant qui contrôle le processus.
+Le rôle de connexion à la base (`ARGOS_DB_USER`) exécute, par `argos_technique`, les traitements planifiés sans appelant et l'écriture des journaux `refus_acces`, `mcp_appel` et `ia_appel`, sur lesquels `argos_app` n'a aucun droit ; les migrations s'exécutent sous le propriétaire de la base (ADR-0034, Proposé). Revenue à ce rôle par `RESET ROLE`, une transaction d'appelant garde son contexte et ne lit aucune ligne cloisonnée. La compromission du processus Argos donne accès à ce rôle, hors contexte utilisateur à toutes les lignes : la RLS protège contre une erreur de périmètre dans le code, pas contre un attaquant qui contrôle le processus ; ce rôle ne donne ni le schéma, ni la base de Keycloak, ni les fichiers du serveur.
 
-Risques résiduels connus : rebinding DNS entre le contrôle d'une adresse et la connexion (arc42 §8.3) ; jetons de forge et mot de passe de la base lus dans l'environnement du conteneur, sans coffre-fort (arc42 §8.13).
+Risques résiduels connus : rebinding DNS entre le contrôle d'une adresse et la connexion (arc42 §8.3) ; jetons de forge et mots de passe de la base lus dans l'environnement du conteneur, sans coffre-fort (arc42 §8.13).

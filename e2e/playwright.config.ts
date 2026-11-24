@@ -96,6 +96,9 @@ export default defineConfig({
         ...SANS_COLLECTE_EXTERNE,
         ...CHAINE_SIMULEE,
         _DEV_QUARKUS_DATASOURCE_JDBC_URL: 'jdbc:postgresql://localhost:55432/argos',
+        // Mots de passe des rôles de la base jetable (e2e/compose.yaml) : connexion et propriétaire (migrations).
+        ARGOS_DB_PASSWORD: 'e2e-connexion',
+        ARGOS_DB_OWNER_PASSWORD: 'e2e-proprietaire',
         QUARKUS_HTTP_PORT: new URL(URL_API).port,
       },
     },

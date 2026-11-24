@@ -1,29 +1,37 @@
 package io.argos.testsupport;
 
 import java.sql.Connection;
+import java.sql.DriverManager;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Statement;
 import java.util.UUID;
 
-import javax.sql.DataSource;
-
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.inject.Inject;
+
+import org.eclipse.microprofile.config.inject.ConfigProperty;
 
 import io.argos.vulnintel.CertFrSource;
 import io.argos.vulnintel.KevSource;
 
 /**
- * Remise à zéro des données de veille entre deux tests et requêtes de vérification, sous
- * l'utilisateur de connexion (hors RLS). Les comptes et les espaces, créés par l'API avec des
- * jetons réels, sont conservés : chaque test crée ses propres espaces.
+ * Remise à zéro des données de veille entre deux tests et requêtes de vérification, sous le
+ * propriétaire de la base (hors RLS, droit de vider une table), comme les migrations. Les comptes et
+ * les espaces, créés par l'API avec des jetons réels, sont conservés : chaque test crée ses propres
+ * espaces.
  */
 @ApplicationScoped
 public class TestDb {
 
-    @Inject
-    DataSource dataSource;
+    @ConfigProperty(name = "quarkus.datasource.jdbc.url")
+    String urlBase;
+
+    @ConfigProperty(name = "quarkus.flyway.username")
+    String proprietaire;
+
+    @ConfigProperty(name = "quarkus.flyway.password")
+    String motDePasseProprietaire;
 
     @Inject
     KevSource kev;
@@ -76,7 +84,7 @@ public class TestDb {
     }
 
     public void exec(String sql) {
-        try (Connection connection = dataSource.getConnection(); Statement statement = connection.createStatement()) {
+        try (Connection connection = connexionProprietaire(); Statement statement = connection.createStatement()) {
             statement.execute(sql);
         } catch (SQLException exception) {
             throw new IllegalStateException(sql, exception);
@@ -84,7 +92,7 @@ public class TestDb {
     }
 
     public long count(String sql) {
-        try (Connection connection = dataSource.getConnection(); Statement statement = connection.createStatement();
+        try (Connection connection = connexionProprietaire(); Statement statement = connection.createStatement();
                 ResultSet resultSet = statement.executeQuery(sql)) {
             resultSet.next();
             return resultSet.getLong(1);
@@ -94,7 +102,7 @@ public class TestDb {
     }
 
     public String string(String sql) {
-        try (Connection connection = dataSource.getConnection(); Statement statement = connection.createStatement();
+        try (Connection connection = connexionProprietaire(); Statement statement = connection.createStatement();
                 ResultSet resultSet = statement.executeQuery(sql)) {
             return resultSet.next() ? resultSet.getString(1) : null;
         } catch (SQLException exception) {
@@ -105,5 +113,9 @@ public class TestDb {
     public UUID uuid(String sql) {
         String value = string(sql);
         return value == null ? null : UUID.fromString(value);
+    }
+
+    private Connection connexionProprietaire() throws SQLException {
+        return DriverManager.getConnection(urlBase, proprietaire, motDePasseProprietaire);
     }
 }

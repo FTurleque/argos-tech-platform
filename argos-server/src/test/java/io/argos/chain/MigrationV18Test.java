@@ -11,10 +11,6 @@ import java.sql.SQLException;
 import java.sql.Statement;
 import java.util.UUID;
 
-import javax.sql.DataSource;
-
-import jakarta.inject.Inject;
-
 import org.eclipse.microprofile.config.Config;
 import org.eclipse.microprofile.config.ConfigProvider;
 import org.flywaydb.core.Flyway;
@@ -28,21 +24,22 @@ import io.quarkus.test.junit.QuarkusTest;
  * antérieur à l'empreinte normalisée, puis migrée en V18. Les abonnements {@code INACTIVE} deviennent
  * {@code SUSPENDED} avec leurs critères, canal, fréquence et retraits intacts (ABO-07, invariant INV-A2) ;
  * le signal garde sa version, sans empreinte normalisée jusqu'au premier passage (COL-10-S4).
+ *
+ * <p>Créer, migrer et supprimer une base relève de l'administration de l'instance : le test emploie le
+ * superutilisateur de la base de test (Dev Services), non le rôle de connexion de l'application (ADR-0034).
  */
 @QuarkusTest
 class MigrationV18Test {
-
-    @Inject
-    DataSource dataSource;
 
     @Test
     void inactifsDevenusSuspendusCriteresIntacts() throws Exception {
         Config config = ConfigProvider.getConfig();
         String url = config.getValue("quarkus.datasource.jdbc.url", String.class);
-        String user = config.getValue("quarkus.datasource.username", String.class);
-        String password = config.getOptionalValue("quarkus.datasource.password", String.class).orElse("");
+        String user = config.getValue("quarkus.datasource.devservices.username", String.class);
+        String password = config.getValue("quarkus.datasource.devservices.password", String.class);
         String base = "argos_migration_v18_" + UUID.randomUUID().toString().replace("-", "").substring(0, 12);
-        try (Connection connexion = dataSource.getConnection(); Statement requete = connexion.createStatement()) {
+        try (Connection connexion = DriverManager.getConnection(url, user, password);
+                Statement requete = connexion.createStatement()) {
             requete.execute("CREATE DATABASE " + base);
         }
         String urlJetable = url.replaceFirst("/[^/?]+(\\?|$)", "/" + base + "$1");
@@ -96,7 +93,8 @@ class MigrationV18Test {
                 assertEquals("18", valeur(requete, "SELECT max(version::int) FROM flyway_schema_history WHERE success"));
             }
         } finally {
-            try (Connection connexion = dataSource.getConnection(); Statement requete = connexion.createStatement()) {
+            try (Connection connexion = DriverManager.getConnection(url, user, password);
+                    Statement requete = connexion.createStatement()) {
                 requete.execute("DROP DATABASE IF EXISTS " + base + " WITH (FORCE)");
             }
         }

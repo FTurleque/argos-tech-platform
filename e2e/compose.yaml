@@ -3,6 +3,9 @@
 # repart d'une base vide, migrée par Flyway au lancement du serveur. Port 55432 sur la seule
 # boucle locale, distinct de la base de développement (compose.yaml à la racine, port 5432).
 # Le Keycloak de test est démarré par les Dev Services de Quarkus (quarkus:dev, port 8180).
+# Rôles de production (ADR-0034), créés par le script d'initialisation de l'instance : le serveur se connecte avec
+# argos_connexion et applique les migrations sous argos (mots de passe passés par playwright.config.ts) ; les
+# jeux de données SQL sont chargés sous argos, propriétaire de la base.
 name: argos-e2e
 
 services:
@@ -10,14 +13,21 @@ services:
     image: postgres:18
     environment:
       POSTGRES_DB: argos
-      POSTGRES_USER: argos
-      POSTGRES_PASSWORD: argos
+      POSTGRES_USER: argos_admin
+      POSTGRES_PASSWORD: e2e-administration
+      ARGOS_DB_OWNER: argos
+      ARGOS_DB_OWNER_PASSWORD: e2e-proprietaire
+      ARGOS_DB_USER: argos_connexion
+      ARGOS_DB_PASSWORD: e2e-connexion
+      ARGOS_KEYCLOAK_DB_PASSWORD: e2e-keycloak
     ports:
       - "127.0.0.1:55432:5432"
     tmpfs:
       - /var/lib/postgresql
+    volumes:
+      - ../deploiement/postgres/initialiser-bases.sh:/docker-entrypoint-initdb.d/initialiser-bases.sh:ro
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U argos -d argos"]
+      test: ["CMD-SHELL", "pg_isready -U argos_admin -d argos"]
       interval: 2s
       timeout: 3s
       retries: 30

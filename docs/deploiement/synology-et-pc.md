@@ -6,8 +6,19 @@ Deux conteneurs démarrent :
 
 | Conteneur | Rôle | Mémoire maximale par défaut |
 |---|---|---|
-| `postgres` | base de données PostgreSQL 18, données dans le volume `argos-pgdata` | 512 Mo |
+| `postgres` | base de données PostgreSQL 18, données dans le volume `argos-pgdata` (bases `argos` et `keycloak`) | 512 Mo |
 | `argos` | IHM web + API Quarkus, sur le port 8080 | 1 Go |
+
+Chaque application a son compte PostgreSQL, ni superutilisateur ni propriétaire d'une autre base ([ADR-0034](../architecture/adr/0034-comptes-et-isolation-des-bases.md)) :
+
+| Compte | Variable (défaut) | Usage |
+|---|---|---|
+| administration | `ARGOS_DB_ADMIN_USER` (`argos_admin`) | superutilisateur de l'instance : initialisation, sauvegarde, restauration |
+| propriétaire d'Argos | `ARGOS_DB_OWNER` (`argos`) | possède le schéma de la base `argos`, applique les migrations au démarrage |
+| connexion d'Argos | `ARGOS_DB_USER` (`argos_connexion`) | requêtes de l'application, soumises à la RLS |
+| Keycloak | `ARGOS_KEYCLOAK_DB_USER` (`keycloak`) | propriétaire de la seule base `keycloak` |
+
+Les rôles et les deux bases sont créés au premier démarrage du volume par [`deploiement/postgres/initialiser-bases.sh`](../../deploiement/postgres/initialiser-bases.sh). Les quatre mots de passe (`ARGOS_DB_ADMIN_PASSWORD`, `ARGOS_DB_OWNER_PASSWORD`, `ARGOS_DB_PASSWORD`, `ARGOS_KEYCLOAK_DB_PASSWORD`) sont obligatoires : sans eux, `docker compose` refuse de démarrer et nomme la variable manquante. Un volume créé avant ces comptes se migre selon [Passer aux comptes de base distincts](#passer-aux-comptes-de-base-distincts).
 
 L'image `argos` est construite à partir du [`Dockerfile`](../../Dockerfile) : elle compile l'IHM, l'embarque dans le serveur, contrôle les licences des dépendances du serveur et ne garde qu'un JRE 17 et les avis de licence ([Avis de licence de l'image](#avis-de-licence-de-limage)). Elle cible les processeurs x86-64, ce qui couvre le DS1522+ (AMD Ryzen R1600) et les PC.
 
@@ -18,7 +29,7 @@ Prérequis : Docker Desktop (ou Docker Engine avec le plugin Compose) et Git.
 ```bash
 git clone <adresse-du-dépôt> argos-tech-platform
 cd argos-tech-platform
-cp .env.example .env          # puis adapter si besoin
+cp .env.example .env          # puis renseigner les quatre mots de passe de base
 docker compose up -d --build
 ```
 
@@ -34,7 +45,9 @@ Sans fournisseur d'identité existant, le profil `idp-local` ajoute un conteneur
 docker compose --profile idp-local up -d --build
 ```
 
-Keycloak répond sur <http://localhost:8180> (`ARGOS_KEYCLOAK_PORT`), Argos sur le port `ARGOS_PORT`. Le royaume importé ([`deploiement/keycloak/argos-realm.json`](../../deploiement/keycloak/argos-realm.json)) déclare les clients `argos-server`, `argos-ui` et `argos-mcp` et un seul compte, l'administrateur. Les adresses de retour de `argos-ui` visent `http://localhost:8088` : avec un autre `ARGOS_PORT`, adaptez-les dans la console Keycloak (le royaume n'est importé qu'une fois). La base de Keycloak est créée au premier démarrage du volume PostgreSQL ; sur un volume existant, créez-la à la main (`CREATE DATABASE keycloak`).
+Keycloak répond sur <http://localhost:8180> (`ARGOS_KEYCLOAK_PORT`), Argos sur le port `ARGOS_PORT`. Le royaume importé ([`deploiement/keycloak/argos-realm.json`](../../deploiement/keycloak/argos-realm.json)) déclare les clients `argos-server`, `argos-ui` et `argos-mcp` et un seul compte, l'administrateur. Les adresses de retour de `argos-ui` visent `http://localhost:8088` : avec un autre `ARGOS_PORT`, adaptez-les dans la console Keycloak (le royaume n'est importé qu'une fois).
+
+La base `keycloak` porte les comptes et leurs sujets OIDC, auxquels Argos rattache ses propres comptes : elle est sauvegardée avec celle d'Argos ([Sauvegarder](#4-sauvegarder)). Après une reprise, restaurez-la **avant le premier démarrage de Keycloak** ([Restaurer](#5-restaurer)) : Keycloak n'importe le royaume que s'il n'existe pas, et un royaume réimporté donnerait de nouveaux sujets à tous les comptes, que les comptes Argos ne retrouveraient plus.
 
 Client desktop pour un serveur sur un autre port que 8080 :
 
@@ -55,7 +68,7 @@ Prérequis : DSM 7.2 ou plus récent, paquet **Container Manager** installé dep
 
 Créez le dossier partagé `docker` s'il n'existe pas, puis copiez le dépôt dans `/volume1/docker/argos` (File Station, partage réseau ou `git clone` en SSH).
 
-Dans ce dossier, copiez `.env.example` en `.env` et changez au minimum `ARGOS_DB_PASSWORD`.
+Dans ce dossier, copiez `.env.example` en `.env` et renseignez les quatre mots de passe de base (`ARGOS_DB_ADMIN_PASSWORD`, `ARGOS_DB_OWNER_PASSWORD`, `ARGOS_DB_PASSWORD`, `ARGOS_KEYCLOAK_DB_PASSWORD`), longs et distincts.
 
 ### 2. Créer le projet dans Container Manager
 
@@ -81,22 +94,36 @@ N'ouvrez pas le port 8080 sur votre box. Tant que l'authentification (OIDC, ADR-
 
 ### 4. Sauvegarder
 
-Le script [`scripts/sauvegarder-base.sh`](../../scripts/sauvegarder-base.sh) exporte la base dans `sauvegardes/` (compressée) et garde les 14 dernières.
+Le script [`scripts/sauvegarder-base.sh`](../../scripts/sauvegarder-base.sh) exporte, dans `sauvegardes/` (`ARGOS_BACKUP_DIR`), la base `argos` et, si elle existe, la base `keycloak` : une archive compressée par base, de même horodatage (`argos-AAAAMMJJ-HHMMSS.sql.gz`, `keycloak-AAAAMMJJ-HHMMSS.sql.gz`).
+
+- Chaque archive est vérifiée (intégrité, export allé à son terme) avant d'être conservée ; en cas d'échec, le script sort avec un code non nul en nommant la base, sans laisser d'archive invalide.
+- Les 14 dernières archives de chaque base sont gardées (`ARGOS_BACKUP_KEEP`) ; les plus anciennes ne sont supprimées qu'après une sauvegarde complète réussie : une suite d'échecs ne fait disparaître aucune bonne sauvegarde.
+- Archives en 0600 et dossier en 0700 : lisibles par le seul compte qui exécute le script. Elles contiennent toutes les données, comptes Keycloak compris ; leur chiffrement reste à décider (question Q-2 du changement `fiabiliser-sauvegarde-et-roles-base`).
+- Les deux bases sont exportées l'une après l'autre : un compte créé pendant la sauvegarde peut manquer dans l'une des deux archives.
+
+Planification sur le NAS :
 
 1. Panneau de configuration › **Planificateur de tâches** › Créer › Tâche planifiée › Script défini par l'utilisateur.
-2. Utilisateur : `root` ; planification : tous les jours, la nuit.
+2. Utilisateur : `root` ; planification : tous les jours, la nuit ; Paramètres de tâche › **Envoyer les détails d'exécution par e-mail**, en ne gardant que les exécutions terminées anormalement : un code de sortie non nul signale l'échec.
 3. Script : `sh /volume1/docker/argos/scripts/sauvegarder-base.sh`
 4. Copiez ensuite `/volume1/docker/argos/sauvegardes` hors du NAS avec **Hyper Backup** (disque USB ou stockage distant).
 
-Restauration :
+### 5. Restaurer
+
+Le script [`scripts/restaurer-base.sh`](../../scripts/restaurer-base.sh) restaure les deux bases d'une même sauvegarde. Il **remplace** leur contenu : sauvegardez d'abord l'état courant (`sh scripts/sauvegarder-base.sh`), même dégradé.
 
 ```bash
-gunzip -c sauvegardes/argos-AAAAMMJJ-HHMMSS.sql.gz | docker compose exec -T postgres sh -c 'psql -U "$POSTGRES_USER" -d "$POSTGRES_DB"'
+ls sauvegardes/                                   # choisir l'horodatage, par exemple 20261124-031500
+sh scripts/restaurer-base.sh 20261124-031500
+docker compose --profile idp-local up -d --wait keycloak   # avec Keycloak local
+docker compose up -d argos
 ```
 
-À tester au moins une fois après la mise en service.
+Le script vérifie les archives, arrête Argos et Keycloak, démarre PostgreSQL, puis, pour chaque base : la recrée vide avec son propriétaire et ses droits, la recharge dans une seule transaction sous ce propriétaire et s'arrête à la première erreur (code non nul, base nommée, transaction annulée). Sans archive `keycloak` pour cet horodatage, la base `keycloak` reste en l'état. Argos et Keycloak restent arrêtés : démarrez Keycloak, puis Argos, une fois la restauration terminée. Argos applique au démarrage les migrations postérieures à la sauvegarde.
 
-### 5. Mettre à jour
+La procédure se rejoue sur une instance vierge (volume supprimé puis recréé par `docker compose up -d postgres`) comme sur une base en service ; elle est exercée par [`scripts/essai-sauvegarde-restauration.sh`](../../scripts/essai-sauvegarde-restauration.sh) et par l'exercice R-6 de [`recette-poste.md`](recette-poste.md).
+
+### 6. Mettre à jour
 
 ```bash
 cd /volume1/docker/argos
@@ -106,16 +133,42 @@ sudo docker compose up -d --build
 
 Les migrations de base s'appliquent au démarrage d'Argos. Faites une sauvegarde avant chaque mise à jour.
 
+## Passer aux comptes de base distincts
+
+Un volume PostgreSQL créé avant [ADR-0034](../architecture/adr/0034-comptes-et-isolation-des-bases.md) n'a qu'un compte, `argos`, superutilisateur de l'instance, que PostgreSQL ne permet pas de rétrograder ; les scripts d'initialisation ne s'exécutent que sur un volume neuf. La migration passe donc par une sauvegarde, un volume neuf et une restauration ; l'ancien volume est copié pour le retour arrière. Commandes en SSH sur le NAS (préfixe `sudo`) ou sur le PC, dans le dossier du déploiement ; `argos` est le nom du projet Compose.
+
+1. Récupérez la nouvelle version (`git pull`) **sans redémarrer** les conteneurs, et gardez une copie de l'ancien `.env`.
+2. Dans `.env` : supprimez la ligne `ARGOS_DB_USER=argos` (le compte `argos` devient le propriétaire, `ARGOS_DB_OWNER`), puis ajoutez les quatre mots de passe de base ([`.env.example`](../../.env.example)).
+3. Sauvegardez avec le nouveau script, qui s'exécute dans le conteneur en service : `sh scripts/sauvegarder-base.sh`. Notez l'horodatage affiché ; avec le profil `idp-local`, vérifiez que l'archive `keycloak` existe.
+4. Arrêtez la pile et copiez l'ancien volume :
+
+   ```bash
+   docker compose --profile idp-local down
+   docker volume create argos_argos-pgdata-avant-comptes
+   docker run --rm -v argos_argos-pgdata:/source:ro -v argos_argos-pgdata-avant-comptes:/copie postgres:18 \
+     sh -c 'cp -a /source/. /copie/'
+   docker volume rm argos_argos-pgdata
+   ```
+
+5. Créez l'instance neuve, puis restaurez : `docker compose up -d --wait postgres`, puis `sh scripts/restaurer-base.sh <horodatage>`.
+6. Démarrez Keycloak, puis Argos : `docker compose --profile idp-local up -d --wait keycloak`, puis `docker compose --profile idp-local up -d --build`. Au démarrage, Argos applique sous le propriétaire la migration des droits du rôle de connexion (V22).
+7. Connectez-vous : votre mot de passe Keycloak et vos espaces sont ceux d'avant la migration. Supprimez la copie de l'ancien volume une fois l'installation vérifiée (`docker volume rm argos_argos-pgdata-avant-comptes`).
+
+Retour arrière : `docker compose --profile idp-local down`, `docker volume rm argos_argos-pgdata`, recréez `argos_argos-pgdata` et recopiez-y la copie (même commande `docker run`, source et destination inversées), remettez l'ancien `.env` et la version précédente du dépôt (`git checkout <révision>`), puis `docker compose --profile idp-local up -d --build`.
+
 ## Réglages (`.env`)
 
 | Variable | Défaut | Rôle |
 |---|---|---|
-| `ARGOS_DB_PASSWORD` | `argos` | mot de passe de la base — à changer sur le NAS |
+| `ARGOS_DB_ADMIN_PASSWORD` | aucun (obligatoire) | mot de passe du superutilisateur d'administration (`ARGOS_DB_ADMIN_USER`, `argos_admin`) |
+| `ARGOS_DB_OWNER_PASSWORD` | aucun (obligatoire) | mot de passe du propriétaire de la base `argos` (`ARGOS_DB_OWNER`, `argos`), employé par les migrations |
+| `ARGOS_DB_PASSWORD` | aucun (obligatoire) | mot de passe du rôle de connexion d'Argos (`ARGOS_DB_USER`, `argos_connexion`) |
+| `ARGOS_KEYCLOAK_DB_PASSWORD` | aucun (obligatoire) | mot de passe du compte de Keycloak (`ARGOS_KEYCLOAK_DB_USER`, `keycloak`) |
 | `ARGOS_BIND` | `127.0.0.1` | adresse d'écoute d'Argos (`0.0.0.0` pour le réseau local) |
 | `ARGOS_PORT` | `8080` | port d'Argos sur la machine |
 | `ARGOS_DB_PORT` | `5432` | port de la base sur la machine (accessible localement seulement) |
 | `ARGOS_MEM_LIMIT` / `ARGOS_DB_MEM_LIMIT` | `1g` / `512m` | mémoire maximale des conteneurs |
-| `ARGOS_BACKUP_DIR` / `ARGOS_BACKUP_KEEP` | `./sauvegardes` / `14` | dossier et nombre de sauvegardes conservées |
+| `ARGOS_BACKUP_DIR` / `ARGOS_BACKUP_KEEP` | `./sauvegardes` / `14` | dossier des sauvegardes et nombre d'archives conservées par base |
 
 ## Avis de licence de l'image
 
@@ -201,7 +254,8 @@ Limites : 60 appels par minute et par utilisateur (`argos.mcp.debit.requetes-par
 
 ## État de vérification
 
-- `compose.yaml` validé par `docker compose config` ; script de sauvegarde contrôlé par `sh -n`.
+- `compose.yaml` validé par `docker compose config` : refusé sans `.env` en nommant chaque mot de passe manquant, accepté avec.
+- Sauvegarde et restauration vérifiées par [`scripts/essai-sauvegarde-restauration.sh`](../../scripts/essai-sauvegarde-restauration.sh) : PostgreSQL arrêté, export tronqué, échecs répétés, rotation, base `keycloak` présente ou absente, restauration rejouée, archive tronquée, erreur de rechargement ; permissions 0600 et 0700 sous `umask 000` et lecture refusée à un autre compte sur un système de fichiers Linux. Comptes de base vérifiés par les tests `RolesBaseTest` sur une base initialisée par `initialiser-bases.sh`.
 - Serveur MCP : protocole, authentification et outils vérifiés par les tests `io.argos.mcp` ; **non vérifié** : la connexion réelle d'un assistant IA configuré par `.mcp.json`.
 - Construction de l'image vérifiée le 2026-11-19 sur un PC Windows (Docker Engine 29.9.3) : `docker build` réussit, l'étape de contrôle affiche « 194 dépendances inventoriées, 26 avis NOTICE reproduits », « 7 textes de licence copiés » puis « Aucune licence absente ni non admise », et `/opt/argos/licenses/` (dossier 0755) contient `NOTICE`, `THIRD-PARTY.txt`, `Apache-2.0.txt`, `BSD-2-Clause.txt`, `BSD-3-Clause.txt`, `EPL-2.0.txt`, `JDOM.txt`, `MIT-0.txt` et `MIT.txt`, propriété de root en lecture seule (0444), lisibles et non modifiables par l'utilisateur d'UID 1001. Un inventaire factice (licence GPL-3.0, EPL-2.0 hors des neuf API Jakarta, licence absente) donné au script dans l'étage `server` fait échouer `docker build` avec le code 1.
 - **Non vérifié** : le démarrage réel sur le NAS. Premier essai à faire sur le PC avec `docker compose up -d --build`.

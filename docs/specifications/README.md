@@ -53,7 +53,7 @@ Un préfixe n'est jamais réattribué ; un identifiant d'exigence retiré n'est 
 | `recherche-veille` | `RCH` | [fiche](recherche-veille.md) | [spec](/openspec/specs/recherche-veille/spec.md) | `2026-11-18-rechercher-et-filtrer` (archivé) | livrée |
 | `activite-projets` | `PIN` | [fiche](activite-projets.md) | [spec](/openspec/specs/activite-projets/spec.md) | `2026-11-17-mesurer-activite-projets` (archivé) | livrée |
 | `profil-artiste` | `ART` | [fiche](profil-artiste.md) | [spec](/openspec/specs/profil-artiste/spec.md) | `2026-11-17-ajouter-profil-artiste` (archivé) | livrée |
-| `exploitation-plateforme` | `EXP` | à créer (tâche de `fiabiliser-sauvegarde-et-roles-base`) | absente | `fiabiliser-sauvegarde-et-roles-base` ; `completer-configuration-conteneurs` ; `instrumenter-observabilite` | proposée |
+| `exploitation-plateforme` | `EXP` | [fiche](exploitation-plateforme.md) | absente | `fiabiliser-sauvegarde-et-roles-base` ; `completer-configuration-conteneurs` ; `instrumenter-observabilite` | proposée |
 
 ## Inventaire des diagrammes métier
 
@@ -89,6 +89,8 @@ Un préfixe n'est jamais réattribué ; un identifiant d'exigence retiré n'est 
 | DF-RCH-1 | organigramme | dans quel ordre droits, mots et filtres s'appliquent-ils ? | [recherche-veille](recherche-veille.md#df-rch-1--une-recherche-filtrée) |
 | DF-PIN-1 | organigramme | quand un pourcentage d'avancement s'affiche-t-il ? | [activite-projets](activite-projets.md#df-pin-1--affichage-dun-avancement) |
 | DF-ART-1 | organigramme | à quelles conditions un appel est-il présenté comme une opportunité ? | [profil-artiste](profil-artiste.md#df-art-1--un-appel-est-il-proposé-à-lartiste-) |
+| DF-EXP-1 | organigramme | quand une sauvegarde est-elle conservée, et que devient la rotation en cas d'échec ? | [exploitation-plateforme](exploitation-plateforme.md#df-exp-1--une-sauvegarde) |
+| DF-EXP-2 | organigramme | dans quel ordre restaurer pour qu'un utilisateur retrouve son compte et ses espaces ? | [exploitation-plateforme](exploitation-plateforme.md#df-exp-2--une-restauration) |
 
 Les diagrammes d'architecture (D-01 à D-13) sont inventoriés dans [`/docs/architecture/diagrams/README.md`](../architecture/diagrams/README.md) ; les diagrammes de conception d'un changement (DC-*) restent dans son `design.md`.
 

@@ -42,10 +42,12 @@ Voir [ADR-0019](docs/architecture/adr/0019-stack-java17-quarkus-vue3-postgresql.
 Prérequis : JDK 17 ou plus, Maven 3.9, Node.js 22.12 ou plus, Docker.
 
 ```bash
-# 1. Base de données
+# 1. Base de données : .env copié de .env.example, avec les quatre mots de passe de base
 docker compose up -d postgres
 
 # 2. Serveur (http://localhost:8080, OpenAPI sur /q/openapi, santé sur /q/health)
+#    Mots de passe du rôle de connexion et du propriétaire (migrations) lus dans l'environnement :
+#    export ARGOS_DB_PASSWORD=… ARGOS_DB_OWNER_PASSWORD=…   (PowerShell : $env:ARGOS_DB_PASSWORD = '…')
 cd argos-server
 mvn quarkus:dev          # tests : mvn verify (Docker requis : base jetable)
 
