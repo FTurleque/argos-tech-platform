@@ -62,7 +62,6 @@ Option B [DÉCISION — porteur du projet, 2026-11-24] :
 - Quatre mots de passe de base à gérer dans `.env`.
 - Une installation antérieure demande une migration manuelle de son volume (sauvegarde, volume neuf, restauration).
 - La politique hors contexte utilisateur repose sur des paramètres de transaction qu'une instruction injectée peut effacer avant de quitter `argos_app` : elle double la bascule sans remplacer le contrôle d'accès du service (défense en profondeur, ADR-0016). Contre une injection SQL, la protection du rôle de connexion tient à ce qu'il ne peut pas faire (schéma, base de Keycloak, fichiers du serveur), non à la RLS ; deux pools de connexions distincts, l'un réduit à `argos_app`, la renforceraient.
-- À l'initialisation du volume, les mots de passe des rôles passent en variables sur la ligne de commande de `psql`, visibles par `ps` dans le conteneur pendant quelques instants ; le conteneur n'exécute rien d'autre à ce moment.
 
 ## Conséquences neutres / compromis
 

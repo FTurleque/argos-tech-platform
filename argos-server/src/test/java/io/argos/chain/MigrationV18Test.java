@@ -6,6 +6,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.sql.Connection;
 import java.sql.DriverManager;
+import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Statement;
@@ -31,35 +32,74 @@ import io.quarkus.test.junit.QuarkusTest;
 @QuarkusTest
 class MigrationV18Test {
 
+    /** Instance PostgreSQL de test (Dev Services) et identifiants de son superutilisateur. */
+    private record Instance(String url, String utilisateur, String motDePasse) {
+
+        static Instance deTest() {
+            Config config = ConfigProvider.getConfig();
+            return new Instance(config.getValue("quarkus.datasource.jdbc.url", String.class),
+                    config.getValue("quarkus.datasource.devservices.username", String.class),
+                    config.getOptionalValue("quarkus.datasource.devservices.password", String.class).orElse(""));
+        }
+
+        /** Même instance, connectée à une autre base. */
+        Instance base(String nom) {
+            return new Instance(url.replaceFirst("/[^/?]+(\\?|$)", "/" + nom + "$1"), utilisateur, motDePasse);
+        }
+
+        Connection connecter() throws SQLException {
+            return DriverManager.getConnection(url, utilisateur, motDePasse);
+        }
+
+        void executer(String sql) throws SQLException {
+            try (Connection connexion = connecter(); Statement requete = connexion.createStatement()) {
+                requete.execute(sql);
+            }
+        }
+
+        void migrer(String cible) {
+            Flyway.configure().dataSource(url, utilisateur, motDePasse).locations("classpath:db/migration").target(cible)
+                    .load().migrate();
+        }
+    }
+
+    /** Identifiants des données créées avant V18. */
+    private record Jeu(UUID compte, UUID espace, UUID actif, UUID inactif, UUID equipe) {
+
+        static Jeu nouveau() {
+            return new Jeu(UUID.randomUUID(), UUID.randomUUID(), UUID.randomUUID(), UUID.randomUUID(), UUID.randomUUID());
+        }
+    }
+
     @Test
     void inactifsDevenusSuspendusCriteresIntacts() throws Exception {
-        Config config = ConfigProvider.getConfig();
-        String url = config.getValue("quarkus.datasource.jdbc.url", String.class);
-        String user = config.getValue("quarkus.datasource.devservices.username", String.class);
-        String password = config.getValue("quarkus.datasource.devservices.password", String.class);
-        String base = "argos_migration_v18_" + UUID.randomUUID().toString().replace("-", "").substring(0, 12);
-        try (Connection connexion = DriverManager.getConnection(url, user, password);
-                Statement requete = connexion.createStatement()) {
-            requete.execute("CREATE DATABASE " + base);
-        }
-        String urlJetable = url.replaceFirst("/[^/?]+(\\?|$)", "/" + base + "$1");
+        Instance instance = Instance.deTest();
+        String nomBase = "argos_migration_v18_" + UUID.randomUUID().toString().replace("-", "").substring(0, 12);
+        instance.executer("CREATE DATABASE " + nomBase);
         try {
-            flyway(urlJetable, user, password, "17").migrate();
-            UUID compte = UUID.randomUUID();
-            UUID espace = UUID.randomUUID();
-            UUID actif = UUID.randomUUID();
-            UUID inactif = UUID.randomUUID();
-            UUID team = UUID.randomUUID();
-            try (Connection connexion = DriverManager.getConnection(urlJetable, user, password);
-                    Statement requete = connexion.createStatement()) {
-                requete.execute("INSERT INTO compte(id, sujet_oidc, nom_affiche, email) VALUES ('" + compte
-                        + "', 'sujet-v18', 'Compte V18', 'v18@argos.test')");
-                requete.execute("INSERT INTO espace(id, nom, cree_par) VALUES ('" + espace + "', 'Espace V18', '" + compte + "')");
-                requete.execute(abonnement(actif, "PERSONAL", null, compte, "ACTIVE", false));
-                requete.execute(abonnement(inactif, "PERSONAL", null, compte, "INACTIVE", false));
-                requete.execute(abonnement(team, "TEAM", espace, null, "ACTIVE", false));
-                requete.execute("INSERT INTO subscription_opt_out(subscription_id, user_id, opted_out_at) VALUES ('" + team
-                        + "', '" + compte + "', now())");
+            Instance jetable = instance.base(nomBase);
+            jetable.migrer("17");
+            Jeu jeu = Jeu.nouveau();
+            peuplerAvantV18(jetable, jeu);
+            jetable.migrer("18");
+            verifierApresV18(jetable, jeu);
+        } finally {
+            instance.executer("DROP DATABASE IF EXISTS " + nomBase + " WITH (FORCE)");
+        }
+    }
+
+    /** Abonnements ACTIVE, INACTIVE et d'équipe avec un retrait, et un signal antérieur à l'empreinte normalisée. */
+    private static void peuplerAvantV18(Instance jetable, Jeu jeu) throws SQLException {
+        try (Connection connexion = jetable.connecter()) {
+            executer(connexion, "INSERT INTO compte(id, sujet_oidc, nom_affiche, email) VALUES (?, 'sujet-v18', 'Compte V18',"
+                    + " 'v18@argos.test')", jeu.compte());
+            executer(connexion, "INSERT INTO espace(id, nom, cree_par) VALUES (?, 'Espace V18', ?)", jeu.espace(), jeu.compte());
+            creerAbonnement(connexion, jeu.actif(), "PERSONAL", null, jeu.compte(), "ACTIVE");
+            creerAbonnement(connexion, jeu.inactif(), "PERSONAL", null, jeu.compte(), "INACTIVE");
+            creerAbonnement(connexion, jeu.equipe(), "TEAM", jeu.espace(), null, "ACTIVE");
+            executer(connexion, "INSERT INTO subscription_opt_out(subscription_id, user_id, opted_out_at) VALUES (?, ?, now())",
+                    jeu.equipe(), jeu.compte());
+            try (Statement requete = connexion.createStatement()) {
                 requete.execute("""
                         BEGIN;
                         INSERT INTO signal(id, source, external_id, modified_at, collected_at, updated_at, content_hash,
@@ -73,50 +113,57 @@ class MigrationV18Test {
                         COMMIT;
                         """);
             }
-
-            flyway(urlJetable, user, password, "18").migrate();
-
-            try (Connection connexion = DriverManager.getConnection(urlJetable, user, password);
-                    Statement requete = connexion.createStatement()) {
-                assertEquals("ACTIVE", valeur(requete, "SELECT state FROM subscription WHERE id = '" + actif + "'"));
-                assertEquals("SUSPENDED", valeur(requete, "SELECT state FROM subscription WHERE id = '" + inactif + "'"));
-                assertEquals("PACKAGE|pkg:maven/org.exemple/lib|EMAIL|IMMEDIATE",
-                        valeur(requete, "SELECT filters->0->>'type' || '|' || (filters->0->>'value') || '|' || channel || '|' || frequency"
-                                + " FROM subscription WHERE id = '" + inactif + "'"));
-                assertEquals("1", valeur(requete, "SELECT count(*) FROM subscription_opt_out WHERE subscription_id = '" + team + "'"));
-                assertEquals("0", valeur(requete, "SELECT count(*) FROM subscription WHERE state NOT IN ('ACTIVE', 'SUSPENDED')"));
-                SQLException refus = assertThrows(SQLException.class, () -> requete.execute(
-                        "UPDATE subscription SET state = 'INACTIVE' WHERE id = '" + actif + "'"));
-                assertTrue(refus.getMessage().contains("subscription_state_check"), refus.getMessage());
-                assertEquals("1", valeur(requete, "SELECT count(*) FROM signal_version WHERE normalized_hash IS NULL"));
-                assertEquals("1", valeur(requete, "SELECT count(*) FROM signal WHERE normalized_hash IS NULL"));
-                assertEquals("18", valeur(requete, "SELECT max(version::int) FROM flyway_schema_history WHERE success"));
-            }
-        } finally {
-            try (Connection connexion = DriverManager.getConnection(url, user, password);
-                    Statement requete = connexion.createStatement()) {
-                requete.execute("DROP DATABASE IF EXISTS " + base + " WITH (FORCE)");
-            }
         }
     }
 
-    private static Flyway flyway(String url, String user, String password, String cible) {
-        return Flyway.configure().dataSource(url, user, password).locations("classpath:db/migration").target(cible)
-                .load();
+    /** INACTIVE devenu SUSPENDED avec ses critères et retraits, ancien état refusé, signal sans empreinte normalisée. */
+    private static void verifierApresV18(Instance jetable, Jeu jeu) throws SQLException {
+        String etat = "SELECT state FROM subscription WHERE id = ?";
+        try (Connection connexion = jetable.connecter()) {
+            assertEquals("ACTIVE", valeur(connexion, etat, jeu.actif()));
+            assertEquals("SUSPENDED", valeur(connexion, etat, jeu.inactif()));
+            assertEquals("PACKAGE|pkg:maven/org.exemple/lib|EMAIL|IMMEDIATE", valeur(connexion,
+                    "SELECT filters->0->>'type' || '|' || (filters->0->>'value') || '|' || channel || '|' || frequency"
+                            + " FROM subscription WHERE id = ?", jeu.inactif()));
+            assertEquals("1", valeur(connexion, "SELECT count(*) FROM subscription_opt_out WHERE subscription_id = ?",
+                    jeu.equipe()));
+            assertEquals("0", valeur(connexion, "SELECT count(*) FROM subscription WHERE state NOT IN ('ACTIVE', 'SUSPENDED')"));
+            SQLException refus = assertThrows(SQLException.class, () -> executer(connexion,
+                    "UPDATE subscription SET state = 'INACTIVE' WHERE id = ?", jeu.actif()));
+            assertTrue(refus.getMessage().contains("subscription_state_check"), refus.getMessage());
+            assertEquals("1", valeur(connexion, "SELECT count(*) FROM signal_version WHERE normalized_hash IS NULL"));
+            assertEquals("1", valeur(connexion, "SELECT count(*) FROM signal WHERE normalized_hash IS NULL"));
+            assertEquals("18", valeur(connexion, "SELECT max(version::int) FROM flyway_schema_history WHERE success"));
+        }
     }
 
-    private static String abonnement(UUID id, String portee, UUID espace, UUID compte, String etat, boolean obligatoire) {
-        return """
+    /** Abonnement non obligatoire au paquet pkg:maven/org.exemple/lib, par e-mail immédiat. */
+    private static void creerAbonnement(Connection connexion, UUID id, String portee, UUID espace, UUID compte, String etat)
+            throws SQLException {
+        executer(connexion, """
                 INSERT INTO subscription(id, scope, owner_workspace_id, owner_user_id, filters, channel, frequency, mandatory,
                                          state, created_at)
-                VALUES ('%s', '%s', %s, %s, '[{"type":"PACKAGE","value":"pkg:maven/org.exemple/lib"}]', 'EMAIL', 'IMMEDIATE',
-                        %s, '%s', now())
-                """.formatted(id, portee, espace == null ? "NULL" : "'" + espace + "'",
-                compte == null ? "NULL" : "'" + compte + "'", obligatoire, etat);
+                VALUES (?, ?, ?, ?, '[{"type":"PACKAGE","value":"pkg:maven/org.exemple/lib"}]', 'EMAIL', 'IMMEDIATE',
+                        false, ?, now())
+                """, id, portee, espace, compte, etat);
     }
 
-    private static String valeur(Statement requete, String sql) throws SQLException {
-        try (ResultSet resultat = requete.executeQuery(sql)) {
+    private static PreparedStatement preparer(Connection connexion, String sql, Object... parametres) throws SQLException {
+        PreparedStatement requete = connexion.prepareStatement(sql);
+        for (int rang = 0; rang < parametres.length; rang++) {
+            requete.setObject(rang + 1, parametres[rang]);
+        }
+        return requete;
+    }
+
+    private static void executer(Connection connexion, String sql, Object... parametres) throws SQLException {
+        try (PreparedStatement requete = preparer(connexion, sql, parametres)) {
+            requete.execute();
+        }
+    }
+
+    private static String valeur(Connection connexion, String sql, Object... parametres) throws SQLException {
+        try (PreparedStatement requete = preparer(connexion, sql, parametres); ResultSet resultat = requete.executeQuery()) {
             resultat.next();
             return resultat.getString(1);
         }

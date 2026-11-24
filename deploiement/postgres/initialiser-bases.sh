@@ -9,6 +9,9 @@
 #   - les bases Argos (POSTGRES_DB) et keycloak, fermées à PUBLIC.
 # Aucun de ces rôles n'est superutilisateur ; seul POSTGRES_USER, réservé à l'administration, l'est.
 #
+# Instance jetable en authentification « trust » (POSTGRES_HOST_AUTH_METHOD=trust, tests Maven seulement) : aucune
+# connexion n'y vérifie de mot de passe, les rôles sont créés sans. Partout ailleurs, les mots de passe sont exigés.
+#
 # Restauration (scripts/restaurer-base.sh) : avec ARGOS_BASE_A_RECREER=<base>, le script recrée seulement cette base,
 # vide, avec son propriétaire et ses droits de connexion ; les rôles existent déjà.
 
@@ -18,16 +21,19 @@ executer_sql() {
   psql -X -q -v ON_ERROR_STOP=1 --username "$POSTGRES_USER" --dbname postgres "$@"
 }
 
+# Les mots de passe sont lus dans l'environnement par psql (\getenv), jamais passés sur sa ligne de commande.
 creer_roles() {
-  executer_sql \
-    -v proprietaire="$ARGOS_DB_OWNER" -v proprietaire_mdp="$ARGOS_DB_OWNER_PASSWORD" \
-    -v connexion="$ARGOS_DB_USER" -v connexion_mdp="$ARGOS_DB_PASSWORD" \
-    -v keycloak="$KEYCLOAK_ROLE" -v keycloak_mdp="$ARGOS_KEYCLOAK_DB_PASSWORD" <<'SQL'
+  executer_sql -v proprietaire="$ARGOS_DB_OWNER" -v connexion="$ARGOS_DB_USER" -v keycloak="$KEYCLOAK_ROLE" <<'SQL'
+\getenv secret_proprietaire ARGOS_DB_OWNER_PASSWORD
+\getenv secret_connexion ARGOS_DB_PASSWORD
+\getenv secret_keycloak ARGOS_KEYCLOAK_DB_PASSWORD
 CREATE ROLE argos_app NOLOGIN NOSUPERUSER NOCREATEDB NOCREATEROLE NOBYPASSRLS;
 CREATE ROLE argos_technique NOLOGIN NOSUPERUSER NOCREATEDB NOCREATEROLE NOBYPASSRLS;
-CREATE ROLE :"proprietaire" LOGIN NOSUPERUSER NOCREATEDB NOCREATEROLE NOBYPASSRLS PASSWORD :'proprietaire_mdp';
-CREATE ROLE :"connexion" LOGIN NOSUPERUSER NOCREATEDB NOCREATEROLE NOBYPASSRLS PASSWORD :'connexion_mdp';
-CREATE ROLE :"keycloak" LOGIN NOSUPERUSER NOCREATEDB NOCREATEROLE NOBYPASSRLS PASSWORD :'keycloak_mdp';
+SELECT format('CREATE ROLE %I LOGIN NOSUPERUSER NOCREATEDB NOCREATEROLE NOBYPASSRLS PASSWORD %L', role_cree,
+              nullif(secret, ''))
+FROM (VALUES (:'proprietaire', :'secret_proprietaire'), (:'connexion', :'secret_connexion'),
+             (:'keycloak', :'secret_keycloak')) AS roles_crees (role_cree, secret)
+\gexec
 -- La migration V2 accorde argos_app au propriétaire : il doit pouvoir administrer ce rôle.
 GRANT argos_app TO :"proprietaire" WITH ADMIN TRUE;
 -- Le rôle de connexion bascule sur argos_app (SET LOCAL ROLE) sans en hériter les droits, et hérite de ceux
@@ -69,8 +75,12 @@ principal() {
     return 0
   fi
 
-  : "${ARGOS_DB_OWNER_PASSWORD:?ARGOS_DB_OWNER_PASSWORD manquant}" "${ARGOS_DB_PASSWORD:?ARGOS_DB_PASSWORD manquant}"
-  : "${ARGOS_KEYCLOAK_DB_PASSWORD:?ARGOS_KEYCLOAK_DB_PASSWORD manquant}"
+  if [ "${POSTGRES_HOST_AUTH_METHOD:-}" = trust ]; then
+    export ARGOS_DB_OWNER_PASSWORD='' ARGOS_DB_PASSWORD='' ARGOS_KEYCLOAK_DB_PASSWORD=''
+  else
+    : "${ARGOS_DB_OWNER_PASSWORD:?ARGOS_DB_OWNER_PASSWORD manquant}" "${ARGOS_DB_PASSWORD:?ARGOS_DB_PASSWORD manquant}"
+    : "${ARGOS_KEYCLOAK_DB_PASSWORD:?ARGOS_KEYCLOAK_DB_PASSWORD manquant}"
+  fi
   creer_roles
   recreer_base "$POSTGRES_DB" "$ARGOS_DB_OWNER" "$ARGOS_DB_USER"
   recreer_base "$KEYCLOAK_BASE" "$KEYCLOAK_ROLE"

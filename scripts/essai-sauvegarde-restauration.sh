@@ -59,13 +59,16 @@ cp "$RACINE/compose.yaml" "$DOSSIER/"
 cp "$RACINE/deploiement/postgres/initialiser-bases.sh" "$DOSSIER/deploiement/postgres/"
 cp "$RACINE/scripts/sauvegarde-commun.sh" "$RACINE/scripts/sauvegarder-base.sh" "$RACINE/scripts/restaurer-base.sh" \
   "$DOSSIER/scripts/"
+# Mots de passe tirés au hasard pour cette pile jetable ; celui de connexion contient « ; » pour vérifier que les
+# scripts lisent le .env comme du texte.
+aleatoire() { od -An -N16 -tx1 /dev/urandom | tr -d ' \n'; }
 cat > "$DOSSIER/.env" <<ENV
 COMPOSE_PROJECT_NAME=$COMPOSE_PROJECT_NAME
 ARGOS_DB_PORT=55433
-ARGOS_DB_ADMIN_PASSWORD=essai-administration
-ARGOS_DB_OWNER_PASSWORD=essai-proprietaire
-ARGOS_DB_PASSWORD=essai-connexion;echo injecte > injecte.txt
-ARGOS_KEYCLOAK_DB_PASSWORD=essai-keycloak
+ARGOS_DB_ADMIN_PASSWORD=$(aleatoire)
+ARGOS_DB_OWNER_PASSWORD=$(aleatoire)
+ARGOS_DB_PASSWORD=$(aleatoire);echo injecte > injecte.txt
+ARGOS_KEYCLOAK_DB_PASSWORD=$(aleatoire)
 ARGOS_BACKUP_DIR=$SAUVEGARDES
 ARGOS_BACKUP_KEEP=$CONSERVEES
 ENV

@@ -38,6 +38,7 @@ trap 'exit 130' INT TERM
 
 case "$KEEP" in
   '' | *[!0-9]* | 0) echouer "ARGOS_BACKUP_KEEP doit être un entier positif (valeur lue : $KEEP)" ;;
+  *) ;;
 esac
 
 mkdir -p "$DEST"

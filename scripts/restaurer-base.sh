@@ -31,10 +31,12 @@ case "$HORODATAGE" in
     echo "Usage : sh scripts/restaurer-base.sh <horodatage> (par exemple 20261124-031500, voir $DEST)" >&2
     exit 2
     ;;
+  *) ;;
 esac
 for ROLE in "$ROLE_PROPRIETAIRE" "$ROLE_KEYCLOAK"; do
   case "$ROLE" in
     '' | *[!a-z0-9_]*) echouer "nom de rôle inattendu : $ROLE" ;;
+    *) ;;
   esac
 done
 

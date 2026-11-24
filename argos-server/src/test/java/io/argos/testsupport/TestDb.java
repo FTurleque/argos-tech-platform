@@ -2,9 +2,11 @@ package io.argos.testsupport;
 
 import java.sql.Connection;
 import java.sql.DriverManager;
+import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Statement;
+import java.util.Optional;
 import java.util.UUID;
 
 import jakarta.enterprise.context.ApplicationScoped;
@@ -30,8 +32,9 @@ public class TestDb {
     @ConfigProperty(name = "quarkus.flyway.username")
     String proprietaire;
 
+    /** Absent pour la base jetable des tests (authentification « trust »). */
     @ConfigProperty(name = "quarkus.flyway.password")
-    String motDePasseProprietaire;
+    Optional<String> motDePasseProprietaire;
 
     @Inject
     KevSource kev;
@@ -101,6 +104,21 @@ public class TestDb {
         }
     }
 
+    /** Comptage paramétré : les valeurs sont liées, jamais insérées dans le texte SQL. */
+    public long count(String sql, Object... parametres) {
+        try (Connection connection = connexionProprietaire(); PreparedStatement requete = connection.prepareStatement(sql)) {
+            for (int rang = 0; rang < parametres.length; rang++) {
+                requete.setObject(rang + 1, parametres[rang]);
+            }
+            try (ResultSet resultSet = requete.executeQuery()) {
+                resultSet.next();
+                return resultSet.getLong(1);
+            }
+        } catch (SQLException exception) {
+            throw new IllegalStateException(sql, exception);
+        }
+    }
+
     public String string(String sql) {
         try (Connection connection = connexionProprietaire(); Statement statement = connection.createStatement();
                 ResultSet resultSet = statement.executeQuery(sql)) {
@@ -116,6 +134,6 @@ public class TestDb {
     }
 
     private Connection connexionProprietaire() throws SQLException {
-        return DriverManager.getConnection(urlBase, proprietaire, motDePasseProprietaire);
+        return DriverManager.getConnection(urlBase, proprietaire, motDePasseProprietaire.orElse(""));
     }
 }
