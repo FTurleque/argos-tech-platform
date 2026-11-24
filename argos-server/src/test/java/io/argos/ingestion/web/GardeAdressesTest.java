@@ -78,7 +78,7 @@ class GardeAdressesTest {
     @Test
     void adressePubliqueAcceptee() {
         GardeAdresses garde = garde(Map.of("blog.exemple.test", "93.184.216.34"), List.of());
-        assertEquals(URI.create("https://blog.exemple.test/feed.xml"), garde.verifier("https://blog.exemple.test/feed.xml"));
+        assertEquals(URI.create("https://blog.exemple.test/feed.xml"), garde.verifier("https://blog.exemple.test/feed.xml").uri());
     }
 
     @ParameterizedTest

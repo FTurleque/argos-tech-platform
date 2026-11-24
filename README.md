@@ -83,6 +83,7 @@ npm --prefix e2e ci && npm --prefix e2e run typecheck       # types des parcours
 node --test scripts/*.test.mjs "e2e/performance/*.test.mjs"
 node scripts/verifier-docs.mjs                              # liens, Mermaid, identifiants d'exigences
 node scripts/verifier-nommage.mjs                           # aucun identifiant d'une ou deux lettres
+node scripts/verifier-configuration.mjs                     # variables : application.properties, compose.yaml, .env.example
 npm --prefix argos-ui audit --audit-level=high              # de même pour argos-desktop et e2e
 ```
 
