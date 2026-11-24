@@ -131,7 +131,7 @@ Aucune migration. Retour arrière : revenir au transport précédent (commit de 
   - Fournisseur de résolution du JDK (JEP 418) — Java 18 et plus, global au processus : hors socle.
   - Réduire le cache DNS de la JVM ou le fixer à « jamais » — réduit ou déplace la fenêtre, ne la ferme pas, et touche tous les clients du processus.
 - **Compromis** : un transport à tester en HTTP et en HTTPS (serveur TLS local avec certificat de test) ; le comportement des délais (`argos.veille-web.delai`, lecture comprise) doit être reproduit à l'identique.
-- **ADR** : non tant qu'aucune dépendance n'est ajoutée (décision locale) ; candidat ADR (Proposé) si l'option de repli ajoute une bibliothèque. Dans tous les cas, ADR-0028 (Accepté) voit son « risque résiduel » devenir caduc : mise à jour soumise au porteur du projet (tâche 3.2, Q-3).
+- **ADR** : non tant qu'aucune dépendance n'est ajoutée (décision locale) ; candidat ADR (Proposé) si l'option de repli ajoute une bibliothèque. Dans tous les cas, ADR-0028 (Accepté) voit son « risque résiduel » devenir caduc : le porteur du projet retient une note datée du 2026-11-24 dans ADR-0028, sans nouvel ADR (tâche 3.2, Q-3).
 
 ### D2 — Le contrôle renvoie les adresses, le transport ne résout pas
 
