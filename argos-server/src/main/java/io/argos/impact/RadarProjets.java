@@ -28,6 +28,8 @@ import jakarta.inject.Inject;
 
 import org.jboss.logging.Logger;
 
+import io.argos.observabilite.ErreursImprevues;
+
 import io.argos.catalog.standard.ReferentielStandardsEnBase;
 import io.argos.catalog.standard.ReferentielStandardsEnBase.TechnologieSuivie;
 import io.argos.catalog.standard.StandardModifie;
@@ -102,22 +104,33 @@ public class RadarProjets {
     @Inject
     Event<AnnonceStandard> annonces;
 
-    /** Synchronise le calendrier des produits suivis puis enregistre les dettes de version du jour. */
+    /**
+     * Synchronise le calendrier des produits suivis puis enregistre les dettes de version du jour. Une erreur imprévue
+     * de la synchronisation n'empêche pas l'enregistrement des dettes ; elle est relancée ensuite (arc42 §8.5).
+     */
     public Bilan actualiser(LocalDate aujourdhui, Instant maintenant) {
         Map<String, String> produits;
+        ErreursImprevues imprevues = new ErreursImprevues();
         try {
             produits = cycles.synchroniser(referentiel.produitsSuivis(), maintenant);
         } catch (IllegalStateException erreur) {
             // La dette se calcule alors sur le calendrier déjà connu.
             LOG.errorf(erreur, "synchronisation du calendrier en échec");
             produits = Map.of();
+        } catch (RuntimeException imprevue) {
+            LOG.errorf(imprevue, "synchronisation du calendrier interrompue par une erreur imprévue");
+            produits = Map.of();
+            imprevues.retenir(imprevue);
         }
-        return new Bilan(produits, enregistrerDettes(aujourdhui, maintenant));
+        Bilan bilan = new Bilan(produits, enregistrerDettes(aujourdhui, maintenant));
+        imprevues.relancer();
+        return bilan;
     }
 
     /**
      * Crée les impacts « dette de version » manquants ; un impact existant n'est pas dupliqué. Une erreur
-     * sur un espace est journalisée et n'interrompt pas les autres espaces.
+     * sur un espace est journalisée avec sa cause et n'interrompt pas les autres espaces ; la première erreur imprévue
+     * est relancée une fois tous les espaces traités.
      */
     public int enregistrerDettes(LocalDate aujourdhui, Instant maintenant) {
         int creees = 0;
@@ -128,13 +141,18 @@ public class RadarProjets {
             LOG.errorf(erreur, "lecture des espaces suivis par le radar impossible");
             return 0;
         }
+        ErreursImprevues imprevues = new ErreursImprevues();
         for (UUID espace : espaces) {
             try {
                 creees += enregistrerDettes(espace, aujourdhui, maintenant);
             } catch (IllegalStateException erreur) {
                 LOG.errorf(erreur, "dettes de version de l'espace %s en échec", espace);
+            } catch (RuntimeException imprevue) {
+                LOG.errorf(imprevue, "dettes de version de l'espace %s interrompues par une erreur imprévue", espace);
+                imprevues.retenir(imprevue);
             }
         }
+        imprevues.relancer();
         return creees;
     }
 

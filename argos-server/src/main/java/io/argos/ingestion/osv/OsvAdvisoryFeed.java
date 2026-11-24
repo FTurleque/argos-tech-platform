@@ -57,7 +57,7 @@ public class OsvAdvisoryFeed implements AdvisoryFeed {
     public List<FeedEntry> changesSince(String position) {
         List<FeedEntry> entries = new ArrayList<>();
         for (String ecosystem : ecosystems) {
-            String csv = http.get(URI.create(exportUrl + "/" + encode(ecosystem) + "/modified_id.csv"));
+            String csv = http.telecharger(URI.create(exportUrl + "/" + encode(ecosystem) + "/modified_id.csv"));
             for (String line : csv.split("\\R")) {
                 if (line.isBlank()) {
                     continue;
@@ -86,7 +86,7 @@ public class OsvAdvisoryFeed implements AdvisoryFeed {
 
     @Override
     public RawAdvisory fetch(FeedEntry entry) {
-        return new RawAdvisory(entry.externalId(), http.get(URI.create(apiUrl + "/v1/vulns/" + encode(entry.externalId()))));
+        return new RawAdvisory(entry.externalId(), http.telecharger(URI.create(apiUrl + "/v1/vulns/" + encode(entry.externalId()))));
     }
 
     @Override

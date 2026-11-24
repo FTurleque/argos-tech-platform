@@ -3,6 +3,7 @@ package io.argos.aigateway;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
@@ -30,6 +31,7 @@ import io.argos.alerting.ResumeIaPasserelle;
 import io.argos.testsupport.Api;
 import io.argos.testsupport.StubServer;
 import io.argos.testsupport.StubServer.Stub;
+import io.argos.testsupport.Substitution;
 import io.argos.testsupport.TestDb;
 import io.quarkus.test.common.QuarkusTestResource;
 import io.quarkus.test.junit.QuarkusTest;
@@ -184,6 +186,31 @@ class PasserelleIaTest {
         assertTrue(derniereRequete().path("messages").get(1).path("content").asText().contains("Version de support long."));
     }
 
+    /**
+     * Frontière d'erreur (arc42 §8.5) : seules les pannes prévues du fournisseur (injoignable, délai, réponse en erreur)
+     * deviennent « modèle indisponible » ; une erreur imprévue du fournisseur n'est pas absorbée et remonte à l'appelant.
+     */
+    @Test
+    void erreurImprevueDuFournisseurRemonteALAppelant() {
+        IllegalArgumentException imprevue = new IllegalArgumentException("erreur imprévue simulée");
+        FournisseurModele doublure = new FournisseurModele() {
+            @Override
+            public String nom() {
+                return "DOUBLURE";
+            }
+
+            @Override
+            public Reponse executer(Requete requete) {
+                throw imprevue;
+            }
+        };
+
+        try (Substitution substitution = Substitution.remplacer(passerelle, "fournisseur", doublure)) {
+            assertSame(imprevue, assertThrows(IllegalArgumentException.class,
+                    () -> passerelle.demander(resume(null, EntreeIa.publique("titre", "Quarkus 3.40 LTS")))));
+        }
+    }
+
     @Test
     void secretsRefusesEtDonneesPersonnellesMasquees() throws Exception {
         StubServer.programmer(CHAT, ollama("{\"resume\": \"Résumé.\"}"));
@@ -263,10 +290,11 @@ class PasserelleIaTest {
         StubServer.programmer(CHAT, Stub.status(500));
         assertEquals(ReponseIa.Issue.INDISPONIBLE, passerelle.demander(resume(null, EntreeIa.publique("titre", "Avis"))).issue());
 
-        StubServer.programmer(CHAT, new Stub(200, "{}", Map.of(), 3_000));
-        long debut = System.nanoTime();
+        // Réponse retenue tant que le test ne la libère pas : la demande ne rend la main que parce que la passerelle
+        // abandonne au délai argos.ia.delai.
+        StubServer.programmer(CHAT, Stub.retenue(200, "{}", Map.of()));
         assertEquals(ReponseIa.Issue.INDISPONIBLE, passerelle.demander(resume(null, EntreeIa.publique("titre", "Avis"))).issue());
-        assertTrue((System.nanoTime() - debut) / 1_000_000 < 2_900, "délai argos.ia.delai respecté");
+        StubServer.liberer();
         assertEquals(3, appels("issue = 'INDISPONIBLE'"));
         assertThrows(IllegalStateException.class, () -> resumeAlerte.resumer(UUID.randomUUID(), "Avis"),
                 "le point d'extension des alertes signale l'indisponibilité");

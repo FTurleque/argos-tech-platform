@@ -1,7 +1,7 @@
 package io.argos.api;
 
+import java.time.Clock;
 import java.time.LocalDate;
-import java.time.ZoneId;
 import java.util.List;
 import java.util.Locale;
 import java.util.Set;
@@ -19,7 +19,6 @@ import jakarta.ws.rs.Produces;
 import jakarta.ws.rs.QueryParam;
 import jakarta.ws.rs.core.MediaType;
 
-import org.eclipse.microprofile.config.inject.ConfigProperty;
 import org.eclipse.microprofile.openapi.annotations.Operation;
 import org.eclipse.microprofile.openapi.annotations.responses.APIResponse;
 import org.eclipse.microprofile.openapi.annotations.tags.Tag;
@@ -29,6 +28,7 @@ import io.argos.api.security.Access;
 import io.argos.api.security.Caller;
 import io.argos.catalog.standard.ReferentielEspace;
 import io.argos.catalog.standard.SaisieStandard;
+import io.argos.horloge.LectureHeure;
 import io.argos.impact.RadarProjets;
 import io.argos.releaseradar.CalendrierSorties;
 import io.argos.releaseradar.CyclesDeVie;
@@ -44,6 +44,9 @@ import io.argos.workspace.DonneeInvalide;
 @Tag(name = "Radar et standards")
 @Produces(MediaType.APPLICATION_JSON)
 public class RadarResource {
+
+    /** Horizon court du radar (« 30j »), en jours. */
+    private static final int HORIZON_30_JOURS = 30;
 
     /** Corps d'une décision sur une suggestion : {@code ACCEPTER} ou {@code REJETER}. */
     public record CorpsDecision(String decision, String responsable, String dateRevue) {
@@ -64,6 +67,9 @@ public class RadarResource {
     }
 
     @Inject
+    Clock horloge;
+
+    @Inject
     Access access;
 
     @Inject
@@ -82,8 +88,6 @@ public class RadarResource {
     RappelsRadar rappels;
 
     /** Fuseau de la tâche quotidienne : le radar et les rappels comptent les jours de la même façon. */
-    @ConfigProperty(name = "argos.alerting.fuseau")
-    String fuseau;
 
     @GET
     @Path("/standards")
@@ -170,9 +174,9 @@ public class RadarResource {
     @APIResponse(responseCode = "404", description = "Espace inconnu ou dont l'appelant n'est pas membre")
     public Radar echeances(@PathParam("espaceId") UUID espaceId, @QueryParam("horizon") @DefaultValue("30j") String horizon) {
         Caller caller = access.member(espaceId);
-        LocalDate depuis = LocalDate.now(ZoneId.of(fuseau));
+        LocalDate depuis = LectureHeure.jour(horloge);
         LocalDate jusqua = switch (horizon.strip().toLowerCase(Locale.ROOT)) {
-            case "30j" -> depuis.plusDays(30);
+            case "30j" -> depuis.plusDays(HORIZON_30_JOURS);
             case "6m" -> depuis.plusMonths(6);
             case "1a" -> depuis.plusYears(1);
             default -> throw new DonneeInvalide("DONNEE_INVALIDE", "Horizon attendu : 30j, 6m ou 1a.", "horizon");

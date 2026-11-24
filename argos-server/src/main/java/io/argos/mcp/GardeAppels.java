@@ -42,7 +42,9 @@ import io.quarkiverse.mcp.server.ToolCallException;
  *   <li>Une ressource d'un autre espace est refusée comme introuvable, sans rien révéler, et le refus
  *       est journalisé (MCP-04, ACC-06).</li>
  *   <li>Une panne d'accès aux données répond {@code INDISPONIBLE}, journalisée avec sa cause, sans aucune
- *       donnée partielle.</li>
+ *       donnée partielle (MCP-08-S1).</li>
+ *   <li>Une erreur imprévue est journalisée avec sa cause, l'appel inscrit en erreur au journal des appels, puis
+ *       l'erreur est relancée : elle n'est pas traduite en {@code INDISPONIBLE} (MCP-08-S2, arc42 §8.5).</li>
  * </ul>
  */
 @ApplicationScoped
@@ -119,6 +121,12 @@ public class GardeAppels {
             journalAppels.enregistrer(compte, null, outil, parametresJson, millisecondes(debut), Issue.ERREUR);
             throw new ToolCallException(
                     "INDISPONIBLE : Argos ne peut pas répondre pour le moment ; aucune donnée partielle n'est renvoyée.");
+        } catch (RuntimeException imprevue) {
+            // Frontière d'erreur (arc42 §8.5) : l'appel est journalisé en erreur avec sa cause, puis l'erreur imprévue est
+            // relancée à l'extension MCP, qui répond par une erreur de protocole sans donnée partielle (MCP-08-S2).
+            LOG.errorf(imprevue, "Erreur imprévue de l'outil MCP %s", outil);
+            journalAppels.enregistrer(compte, null, outil, parametresJson, millisecondes(debut), Issue.ERREUR);
+            throw imprevue;
         }
     }
 

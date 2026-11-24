@@ -1,11 +1,13 @@
 package io.argos.projectintel;
 
+import java.time.Clock;
 import java.time.Duration;
 import java.time.Instant;
 import java.time.LocalDate;
 import java.time.ZoneId;
 import java.util.HashMap;
 import java.util.Locale;
+import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
@@ -17,6 +19,8 @@ import org.eclipse.microprofile.config.inject.ConfigProperty;
 import org.jboss.logging.Logger;
 
 import io.argos.inventory.ProjectDirectory;
+import io.argos.observabilite.ErreursImprevues;
+import io.argos.observabilite.TacheObservee;
 import io.argos.scm.ActiviteDepot;
 import io.argos.scm.QuotaEpuise;
 import io.argos.scm.RepositoryActivity;
@@ -41,9 +45,17 @@ public class CollecteActivite {
     /** Issue de la collecte d'un projet. */
     public enum Issue { A_JOUR, REPORTEE_QUOTA, ECHEC, NON_ECHUE, SANS_DEPOT }
 
-    /** Bilan d'un passage. */
-    public record Bilan(int aJour, int reportees, int echecs) {
+    /** Bilan d'un passage, avec les erreurs imprévues retenues, que {@link #relancerErreurImprevue()} relance. */
+    public record Bilan(int aJour, int reportees, int echecs, List<RuntimeException> erreursImprevues) {
+
+        /** Relance la première erreur imprévue du passage ; sans effet s'il n'y en a pas. */
+        public void relancerErreurImprevue() {
+            ErreursImprevues.relancer(erreursImprevues);
+        }
     }
+
+    @Inject
+    Clock horloge;
 
     @Inject
     ProjectDirectory projets;
@@ -66,10 +78,11 @@ public class CollecteActivite {
     @ConfigProperty(name = "argos.activite.delai-apres-echec", defaultValue = "PT1H")
     Duration delaiApresEchec;
 
+    @TacheObservee
     @Scheduled(identity = "argos-activite-collecte", every = "{argos.activite.cadence}",
             concurrentExecution = Scheduled.ConcurrentExecution.SKIP)
     void planifiee() {
-        collecter(Instant.now());
+        collecter(horloge.instant()).relancerErreurImprevue();
     }
 
     /** Collecte les projets échus à l'instant {@code maintenant}. */
@@ -78,22 +91,25 @@ public class CollecteActivite {
         int reportees = 0;
         int echecs = 0;
         Map<String, QuotaEpuise> quotas = new HashMap<>();
+        ErreursImprevues imprevues = new ErreursImprevues();
         for (ProjectDirectory.Project projet : projets.withRepository()) {
-            switch (collecterSiEchu(projet, maintenant, quotas)) {
+            switch (collecterSiEchu(projet, maintenant, quotas, imprevues)) {
                 case A_JOUR -> aJour++;
                 case REPORTEE_QUOTA -> reportees++;
                 case ECHEC -> echecs++;
                 default -> { }
             }
         }
-        return new Bilan(aJour, reportees, echecs);
+        return new Bilan(aJour, reportees, echecs, imprevues.retenues());
     }
 
     /**
      * Collecte un projet s'il est échu ({@code NON_ECHUE} sinon) ; un quota épuisé sur sa forge pendant ce passage
-     * reporte sa collecte. Une panne d'accès aux données est journalisée et compte comme un échec.
+     * reporte sa collecte. Une panne d'accès aux données ou une erreur imprévue est journalisée avec sa cause et compte
+     * comme un échec ; l'erreur imprévue est retenue pour être relancée à la fin du passage (arc42 §8.5).
      */
-    private Issue collecterSiEchu(ProjectDirectory.Project projet, Instant maintenant, Map<String, QuotaEpuise> quotas) {
+    private Issue collecterSiEchu(ProjectDirectory.Project projet, Instant maintenant, Map<String, QuotaEpuise> quotas,
+            ErreursImprevues imprevues) {
         try {
             Optional<Instant> prochaine = store.prochaineCollecte(projet.id());
             if (prochaine.isPresent() && prochaine.get().isAfter(maintenant)) {
@@ -109,6 +125,10 @@ public class CollecteActivite {
             return collecterDepot(projet.id(), depot, maintenant, epuisement -> quotas.put(forge, epuisement));
         } catch (IllegalStateException erreur) {
             LOG.errorf(erreur, "collecte de l'activité du projet %s en échec", projet.id());
+            return Issue.ECHEC;
+        } catch (RuntimeException imprevue) {
+            LOG.errorf(imprevue, "collecte de l'activité du projet %s interrompue par une erreur imprévue", projet.id());
+            imprevues.retenir(imprevue);
             return Issue.ECHEC;
         }
     }
@@ -135,11 +155,11 @@ public class CollecteActivite {
         } catch (QuotaEpuise epuisement) {
             surQuota.accept(epuisement);
             store.reporter(projectId, "REPORTEE_QUOTA", epuisement.reprise(), epuisement.getMessage(), maintenant);
-            LOG.infof("collecte de l'activité du projet %s reportée : %s", projectId, epuisement.getMessage());
+            LOG.infof(epuisement, "collecte de l'activité du projet %s reportée : %s", projectId, epuisement.getMessage());
             return Issue.REPORTEE_QUOTA;
         } catch (ScmException erreur) {
             store.reporter(projectId, "ECHEC", maintenant.plus(delaiApresEchec), erreur.getMessage(), maintenant);
-            LOG.warnf("collecte de l'activité du projet %s impossible : %s", projectId, erreur.getMessage());
+            LOG.warnf(erreur, "collecte de l'activité du projet %s impossible : %s", projectId, erreur.getMessage());
             return Issue.ECHEC;
         }
     }

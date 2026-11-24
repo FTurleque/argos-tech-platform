@@ -5,6 +5,7 @@ import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
+import java.time.Clock;
 import java.time.Instant;
 import java.time.LocalDate;
 import java.time.ZoneOffset;
@@ -27,6 +28,7 @@ import io.argos.ingestion.web.LecteurFlux;
 import io.argos.ingestion.web.LecteurPage;
 import io.argos.ingestion.web.RecuperateurWeb;
 import io.argos.ingestion.web.RecuperationRefusee;
+import io.argos.observabilite.TacheObservee;
 import io.quarkus.scheduler.Scheduled;
 
 /**
@@ -56,6 +58,9 @@ public class CollecteOpportunites {
     /** Résultat de la collecte d'une source. */
     public record Rapport(UUID sourceId, String etat, int nouvelles, int misesAJour, String erreur) {
     }
+
+    @Inject
+    Clock horloge;
 
     @Inject
     DataSource dataSource;
@@ -92,10 +97,11 @@ public class CollecteOpportunites {
     @ConfigProperty(name = "argos.profil-artiste.data-culture.champ.date-limite")
     String champDateLimite;
 
+    @TacheObservee
     @Scheduled(identity = "collecte-profil-artiste", cron = "{argos.profil-artiste.collecte.cron}",
             timeZone = "{argos.alerting.fuseau}", concurrentExecution = Scheduled.ConcurrentExecution.SKIP)
     void quotidien() {
-        collecter("artiste", Instant.now());
+        collecter("artiste", horloge.instant());
     }
 
     /** Collecte chaque source du profil ; une source en échec n'interrompt pas les autres. */
@@ -127,12 +133,12 @@ public class CollecteOpportunites {
             etat(source.id(), SourceProfil.ACTIVE, null, maintenant);
             return new Rapport(source.id(), SourceProfil.ACTIVE, bilan[0], bilan[1], null);
         } catch (RecuperationRefusee refus) {
-            LOG.infof("collecte de la source %s en échec : %s (%s)", source.id(), refus.motif(), refus.getMessage());
+            LOG.infof(refus, "collecte de la source %s en échec : %s (%s)", source.id(), refus.motif(), refus.getMessage());
             etat(source.id(), SourceProfil.EN_ERREUR, refus.motifPublic(), maintenant);
             return new Rapport(source.id(), SourceProfil.EN_ERREUR, 0, 0, refus.motifPublic());
         } catch (LecteurDataCulture.ReponseInvalide erreur) {
             String motif = "REPONSE_INVALIDE : la réponse n'est pas celle attendue de l'API data.culture.gouv.fr.";
-            LOG.infof("collecte de la source %s en échec : %s", source.id(), erreur.getMessage());
+            LOG.infof(erreur, "collecte de la source %s en échec : %s", source.id(), erreur.getMessage());
             etat(source.id(), SourceProfil.EN_ERREUR, motif, maintenant);
             return new Rapport(source.id(), SourceProfil.EN_ERREUR, 0, 0, motif);
         } catch (IllegalStateException erreur) {

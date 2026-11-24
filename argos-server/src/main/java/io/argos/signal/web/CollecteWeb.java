@@ -1,6 +1,7 @@
 package io.argos.signal.web;
 
 import java.net.URI;
+import java.time.Clock;
 import java.time.Duration;
 import java.time.Instant;
 import java.util.ArrayList;
@@ -19,6 +20,7 @@ import io.argos.ingestion.web.LecteurFlux;
 import io.argos.ingestion.web.LecteurPage;
 import io.argos.ingestion.web.RecuperateurWeb;
 import io.argos.ingestion.web.RecuperationRefusee;
+import io.argos.observabilite.TacheObservee;
 import io.argos.workspace.RegleViolee;
 import io.quarkus.scheduler.Scheduled;
 
@@ -77,9 +79,11 @@ public class CollecteWeb {
     @ConfigProperty(name = "argos.veille-web.elements-max", defaultValue = "100")
     int elementsMax;
 
-    /** Horloge du planificateur, remplaçable par les tests. */
-    Supplier<Instant> horloge = Instant::now;
+    /** Horloge commune du serveur (producteur {@code io.argos.horloge}), remplaçable par les tests. */
+    @Inject
+    Clock horloge;
 
+    @TacheObservee
     @Scheduled(identity = "collecte-veille-web", every = "{argos.veille-web.cadence}",
             concurrentExecution = Scheduled.ConcurrentExecution.SKIP)
     void planifier() {
@@ -94,10 +98,10 @@ public class CollecteWeb {
      * son verrou pris, est laissée de côté.
      */
     public List<Rapport> collecterSourcesEchues() {
-        Instant fin = horloge.get().plus(dureeMaxPassage);
+        Instant fin = horloge.instant().plus(dureeMaxPassage);
         List<Rapport> rapports = new ArrayList<>();
         for (UUID id : stock.echues(sourcesParPassage)) {
-            if (!horloge.get().isBefore(fin)) {
+            if (!horloge.instant().isBefore(fin)) {
                 LOG.infof("passage de collecte web arrêté après %s : sources restantes reprises au passage suivant",
                         dureeMaxPassage);
                 break;
@@ -150,7 +154,7 @@ public class CollecteWeb {
         try {
             return collecteAExecuter.get();
         } catch (RecuperationRefusee refus) {
-            LOG.warnf("%s de la source web %s refusée : %s (%s)", collecte, sourceId, refus.motif(), refus.getMessage());
+            LOG.warnf(refus, "%s de la source web %s refusée : %s (%s)", collecte, sourceId, refus.motif(), refus.getMessage());
             return echec(sourceId, refus);
         } catch (IllegalStateException erreur) {
             LOG.errorf(erreur, "%s de la source web %s interrompue par une panne d'accès aux données", collecte, sourceId);

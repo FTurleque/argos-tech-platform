@@ -5,7 +5,7 @@ import static io.argos.scm.AccesForges.provider;
 
 import java.io.IOException;
 import java.net.URI;
-import java.time.Duration;
+import java.time.Clock;
 import java.util.Optional;
 
 import jakarta.enterprise.context.ApplicationScoped;
@@ -62,14 +62,10 @@ public class RepositoryFiles {
     private final long maxBytes;
 
     @Inject
-    public RepositoryFiles(@ConfigProperty(name = "argos.sources.http-timeout") Duration timeout,
-            @ConfigProperty(name = "argos.scm.gitlab.url") String gitlabUrl,
-            @ConfigProperty(name = "argos.scm.github.url") String githubUrl,
-            @ConfigProperty(name = "argos.scm.gitlab.token") Optional<String> gitlabToken,
-            @ConfigProperty(name = "argos.scm.github.token") Optional<String> githubToken,
-            @ConfigProperty(name = "argos.inventory.max-document-bytes") long maxBytes) {
-        this.forges = AccesForges.configure(timeout, gitlabUrl, githubUrl, gitlabToken.orElse(null),
-                githubToken.orElse(null));
+    public RepositoryFiles(ParametresForges parametres,
+            @ConfigProperty(name = "argos.inventory.max-document-bytes") long maxBytes,
+            Clock horloge) {
+        this.forges = AccesForges.configure(parametres, horloge);
         this.maxBytes = maxBytes;
     }
 

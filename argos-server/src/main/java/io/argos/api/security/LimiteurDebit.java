@@ -6,6 +6,7 @@ import java.util.Deque;
 import java.util.Map;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.function.LongSupplier;
 
@@ -30,9 +31,12 @@ public final class LimiteurDebit {
     private final int requetesParMinute;
     private final LongSupplier horloge;
 
-    /** Limiteur de {@code requetesParMinute} requêtes par minute et par compte. */
+    /**
+     * Limiteur de {@code requetesParMinute} requêtes par minute et par compte. La fenêtre est mesurée sur l'horloge
+     * monotone de la JVM ({@code System.nanoTime()}) : une durée, pas l'heure murale (arc42 §8.16).
+     */
     public LimiteurDebit(int requetesParMinute) {
-        this(requetesParMinute, System::currentTimeMillis);
+        this(requetesParMinute, () -> TimeUnit.NANOSECONDS.toMillis(System.nanoTime()));
     }
 
     /** Limiteur avec une horloge en millisecondes, remplaçable par les tests unitaires. */

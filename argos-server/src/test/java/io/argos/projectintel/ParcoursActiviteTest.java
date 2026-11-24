@@ -54,7 +54,7 @@ class ParcoursActiviteTest {
         UUID projet = projets.create(espace, "démo", new RepositoryRef("GITHUB", "demo/argos", "main", null, null), List.of());
 
         // Passage du planificateur : le projet jamais collecté est échu.
-        assertEquals(new CollecteActivite.Bilan(1, 0, 0), collecte.collecter(Instant.now()));
+        assertEquals(new CollecteActivite.Bilan(1, 0, 0, List.of()), collecte.collecter(Instant.now()));
 
         String activite = Api.enTantQue("jules").queryParam("jours", 30).when().get("/api/v1/projects/" + projet + "/activite")
                 .then().statusCode(200)

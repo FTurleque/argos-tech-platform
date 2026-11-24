@@ -35,8 +35,8 @@ Un préfixe n'est jamais réattribué ; un identifiant d'exigence retiré n'est 
 
 | Capacité | Préfixe | Fiche | Spec de référence | Changement | Statut |
 |---|---|---|---|---|---|
-| `collecte-avis-securite` | `COL` | [fiche](collecte-avis-securite.md) | absente | `formaliser-chaine-securite-poc` ; `automatiser-chaine-veille` (COL-09, COL-10) | proposée |
-| `inventaire-sbom` | `INV` | [fiche](inventaire-sbom.md) | absente | `formaliser-chaine-securite-poc` ; `automatiser-chaine-veille` (INV-07 à INV-10) | proposée |
+| `collecte-avis-securite` | `COL` | [fiche](collecte-avis-securite.md) | absente | `formaliser-chaine-securite-poc` ; `automatiser-chaine-veille` (COL-09, COL-10) ; `isoler-erreurs-aux-frontieres` (COL-11) | proposée |
+| `inventaire-sbom` | `INV` | [fiche](inventaire-sbom.md) | absente | `formaliser-chaine-securite-poc` ; `automatiser-chaine-veille` (INV-07 à INV-10) ; `isoler-erreurs-aux-frontieres` (INV-11) | proposée |
 | `correlation-impact` | `COR` | [fiche](correlation-impact.md) | absente | `formaliser-chaine-securite-poc` ; `automatiser-chaine-veille` (COR-09 à COR-12) | proposée |
 | `abonnements-veille` | `ABO` | [fiche](abonnements-veille.md) | absente | `formaliser-chaine-securite-poc` ; `automatiser-chaine-veille` (ABO-07, ABO-08) | proposée |
 | `performance-api-mcp` | `PERF` | [fiche](performance-api-mcp.md) | absente | `automatiser-chaine-veille` | proposée |
@@ -45,10 +45,10 @@ Un préfixe n'est jamais réattribué ; un identifiant d'exigence retiré n'est 
 | `comptes-acces` | `ACC` | [fiche](comptes-acces.md) | [spec](/openspec/specs/comptes-acces/spec.md) | `2026-11-17-gerer-comptes-et-acces` (archivé) ; `2026-11-18-connecter-ihm-oidc` (archivé, ACC-07 à ACC-10) | livrée |
 | `alertes-digests` | `ALR` | [fiche](alertes-digests.md) | [spec](/openspec/specs/alertes-digests/spec.md) | `2026-11-16-diffuser-alertes-et-digests` (archivé) ; `automatiser-chaine-veille` (ALR-07, proposé) | livrée |
 | `notifications-poste` | `NOT` | [fiche](notifications-poste.md) | absente | `notifier-sur-le-poste` | implémentée, non archivée |
-| `serveur-mcp` | `MCP` | [fiche](serveur-mcp.md) | absente | `exposer-serveur-mcp` | proposée |
+| `serveur-mcp` | `MCP` | [fiche](serveur-mcp.md) | absente | `exposer-serveur-mcp` ; `isoler-erreurs-aux-frontieres` (MCP-08) | proposée |
 | `passerelle-ia` | `IAG` | [fiche](passerelle-ia.md) | [spec](/openspec/specs/passerelle-ia/spec.md) | `2026-11-17-encadrer-appels-ia` (archivé) | livrée |
 | `veille-reglementaire` | `REG` | [fiche](veille-reglementaire.md) | [spec](/openspec/specs/veille-reglementaire/spec.md) | `2026-11-17-suivre-veille-reglementaire` (archivé) | livrée |
-| `radar-standards` | `RAD` | [fiche](radar-standards.md) | [spec](/openspec/specs/radar-standards/spec.md) | `2026-11-16-construire-radar-et-standards` (archivé) | livrée |
+| `radar-standards` | `RAD` | [fiche](radar-standards.md) | [spec](/openspec/specs/radar-standards/spec.md) | `2026-11-16-construire-radar-et-standards` (archivé) ; `isoler-erreurs-aux-frontieres` (RAD-07) | livrée |
 | `veille-rss-web` | `WEB` | [fiche](veille-rss-web.md) | [spec](/openspec/specs/veille-rss-web/spec.md) | `2026-11-16-collecter-veille-rss-web` (archivé) ; `epingler-adresse-veille-web` (WEB-07) | livrée |
 | `recherche-veille` | `RCH` | [fiche](recherche-veille.md) | [spec](/openspec/specs/recherche-veille/spec.md) | `2026-11-18-rechercher-et-filtrer` (archivé) | livrée |
 | `activite-projets` | `PIN` | [fiche](activite-projets.md) | [spec](/openspec/specs/activite-projets/spec.md) | `2026-11-17-mesurer-activite-projets` (archivé) | livrée |
@@ -91,6 +91,7 @@ Un préfixe n'est jamais réattribué ; un identifiant d'exigence retiré n'est 
 | DF-ART-1 | organigramme | à quelles conditions un appel est-il présenté comme une opportunité ? | [profil-artiste](profil-artiste.md#df-art-1--un-appel-est-il-proposé-à-lartiste-) |
 | DF-EXP-1 | organigramme | quand une sauvegarde est-elle conservée, et que devient la rotation en cas d'échec ? | [exploitation-plateforme](exploitation-plateforme.md#df-exp-1--une-sauvegarde) |
 | DF-EXP-2 | organigramme | dans quel ordre restaurer pour qu'un utilisateur retrouve son compte et ses espaces ? | [exploitation-plateforme](exploitation-plateforme.md#df-exp-2--une-restauration) |
+| DF-EXP-3 | organigramme | quels contrôles composent `/q/health/ready` et lesquels peuvent rendre le serveur indisponible ? | [exploitation-plateforme](exploitation-plateforme.md#df-exp-3--composition-du-contrôle-de-disponibilité) |
 
 Les diagrammes d'architecture (D-01 à D-13) sont inventoriés dans [`/docs/architecture/diagrams/README.md`](../architecture/diagrams/README.md) ; les diagrammes de conception d'un changement (DC-*) restent dans son `design.md`.
 
@@ -209,6 +210,19 @@ Exigences au statut [PROPOSITION], issues des décisions J1 à J8 du porteur du 
 | **Total** | | **1** | **2** | **0** | **0** | **2** |
 
 Exigence au statut [PROPOSITION], issue de la décision K2 du porteur du projet (2026-11-19), avec le jeu de référence de la décision K3. Implémentée le 2026-11-20 (branche `lot19/optimisation`, migration V21) : lecture groupée des signaux de « Ma veille » et index des impacts récents. « Tests écrits » compte les scénarios couverts par au moins un test qui passe : PRF-07-S1 par `LectureGroupeeSignauxTest` (absence de lecture d'un signal par avis) et par une mesure de diagnostic du 2026-11-20 (p95 = 60,1 à 82,7 ms, jeu K3), PRF-07-S2 par `VeilleLectureGroupeeTest`. La campagne de référence du 2026-11-20 (révision `7e5e36d`) le confirme : p95 = 85 ms, seize opérations sur seize dans la cible. Matrice détaillée : [`tasks.md` du changement](/openspec/changes/archive/2026-11-20-optimiser-ma-veille/tasks.md#matrice-de-traçabilité).
+
+### Couverture du sprint 4 de l'audit du 2026-11-21
+
+| Changement | Capacité | Exigences | Scénarios | Diagrammes métier | Questions ouvertes | Tests écrits |
+|---|---|---|---|---|---|---|
+| [`instrumenter-observabilite`](/openspec/changes/instrumenter-observabilite/proposal.md) | `exploitation-plateforme` (EXP-13 à EXP-15) | 3 | 11 | 1 | 1 | 11 |
+| [`isoler-erreurs-aux-frontieres`](/openspec/changes/isoler-erreurs-aux-frontieres/proposal.md) | `collecte-avis-securite` (COL-11) | 1 | 3 | 0 | 0 | 4 |
+| | `inventaire-sbom` (INV-11) | 1 | 2 | 0 | 0 | 2 |
+| | `radar-standards` (RAD-07) | 1 | 3 | 0 | 0 | 3 |
+| | `serveur-mcp` (MCP-08) | 1 | 2 | 0 | 0 | 2 |
+| **Total** | | **7** | **21** | **1** | **1** | **22** |
+
+Exigences au statut [PROPOSITION], implémentées le 2026-11-24, changements non archivés. « Tests écrits » compte les méthodes de test qui couvrent un scénario : `observabilite/JournauxJsonTest`, `MetriquesEtSanteTest` et `BaseInjoignableTest` pour EXP-13 à EXP-15 ; `chain/FrontieresCollecteTest`, `ResilienceTest`, `ImportPlanifieTest`, `RadarStandardsTest` et `mcp/ErreursOutilsMcpTest` pour COL-11, INV-11, RAD-07 et MCP-08. Question ouverte : Q-3 d'`instrumenter-observabilite` (pile de collecte des métriques sur le NAS). Décisions du porteur du projet du 2026-11-24 : `/q/metrics` réservé à l'administrateur plateforme, retard d'une tâche au-delà de deux intervalles, identifiant de corrélation créé par le serveur, frontières d'erreur « isoler puis relancer », pas de type de panne dédié, composant au PURL mal encodé écarté.
 
 ### Capacités restant à spécifier
 

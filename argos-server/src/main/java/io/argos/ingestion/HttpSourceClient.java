@@ -6,7 +6,9 @@ import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
 import java.net.http.HttpTimeoutException;
+import java.time.Clock;
 import java.time.Duration;
+import java.time.Instant;
 import java.time.ZonedDateTime;
 import java.time.format.DateTimeFormatter;
 import java.time.format.DateTimeParseException;
@@ -32,6 +34,9 @@ public class HttpSourceClient {
     private final Duration timeout;
 
     @Inject
+    Clock horloge;
+
+    @Inject
     public HttpSourceClient(@ConfigProperty(name = "argos.sources.http-timeout") Duration timeout) {
         this.timeout = timeout;
         this.client = HttpClient.newBuilder()
@@ -41,7 +46,7 @@ public class HttpSourceClient {
     }
 
     /** Renvoie le corps d'une réponse 200 ; toute autre réponse lève une {@link SourceException}. */
-    public String get(URI uri) {
+    public String telecharger(URI uri) {
         HttpResponse<String> response = send(uri);
         int status = response.statusCode();
         if (status == 200) {
@@ -50,7 +55,7 @@ public class HttpSourceClient {
         String message = "HTTP " + status + " pour " + hostOf(uri);
         if (status == 429 || status == 408 || status >= 500) {
             Duration retryAfter = response.headers().firstValue("Retry-After")
-                    .flatMap(HttpSourceClient::parseRetryAfter).orElse(null);
+                    .flatMap(valeur -> parseRetryAfter(valeur, horloge.instant())).orElse(null);
             throw new SourceException(SourceException.Kind.TRANSIENT, status, retryAfter, message, null);
         }
         throw new SourceException(SourceException.Kind.PERMANENT, status, null, message, null);
@@ -71,18 +76,18 @@ public class HttpSourceClient {
         }
     }
 
-    /** {@code Retry-After} : nombre de secondes ou date HTTP (RFC 9110 §10.2.3). */
-    static Optional<Duration> parseRetryAfter(String value) {
+    /** {@code Retry-After} : nombre de secondes ou date HTTP (RFC 9110 §10.2.3), lue à l'instant {@code maintenant}. */
+    static Optional<Duration> parseRetryAfter(String value, Instant maintenant) {
         String trimmed = value.trim();
         try {
             return Optional.of(Duration.ofSeconds(Math.max(0, Long.parseLong(trimmed))));
         } catch (NumberFormatException notSeconds) {
             try {
                 ZonedDateTime date = ZonedDateTime.parse(trimmed, DateTimeFormatter.RFC_1123_DATE_TIME);
-                Duration delay = Duration.between(ZonedDateTime.now(date.getZone()), date);
+                Duration delay = Duration.between(maintenant, date.toInstant());
                 return Optional.of(delay.isNegative() ? Duration.ZERO : delay);
             } catch (DateTimeParseException notDate) {
-                LOG.debugf("en-tête Retry-After ignorée : ni nombre de secondes ni date HTTP (%s)", notDate.getMessage());
+                LOG.debugf(notDate, "en-tête Retry-After ignorée : ni nombre de secondes ni date HTTP (%s)", notDate.getMessage());
                 return Optional.empty();
             }
         }

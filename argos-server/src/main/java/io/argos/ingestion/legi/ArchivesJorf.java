@@ -121,7 +121,7 @@ public class ArchivesJorf {
                 if (erreur.kind() != SourceException.Kind.PERMANENT) {
                     throw erreur;
                 }
-                LOG.warnf("archive %s écartée : %s", nom, erreur.getMessage());
+                LOG.warnf(erreur, "archive %s écartée : %s", nom, erreur.getMessage());
                 ecartees.add(nom + " : " + erreur.getMessage());
                 continue;
             }
@@ -132,7 +132,7 @@ public class ArchivesJorf {
                         LecteurJorf.lire(xml, nom).ifPresent(elements::add);
                     } catch (LecteurJorf.XmlRefuse refus) {
                         refuses[0]++;
-                        LOG.infof("fichier %s de l'archive %s refusé : %s", chemin, nom, refus.getMessage());
+                        LOG.infof(refus, "fichier %s de l'archive %s refusé : %s", chemin, nom, refus.getMessage());
                     }
                 });
             } catch (ArchiveTar.ArchiveInvalide erreur) {

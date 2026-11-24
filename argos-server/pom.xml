@@ -71,6 +71,17 @@
       <groupId>io.quarkus</groupId>
       <artifactId>quarkus-smallrye-health</artifactId>
     </dependency>
+    <!-- Observabilité (ADR-0036, EXP-13, EXP-14) : journaux JSON en production et métriques Micrometer au
+         format Prometheus sur /q/metrics. Extensions de la plateforme Quarkus, licence Apache-2.0
+         (ADR-0021 point 6). -->
+    <dependency>
+      <groupId>io.quarkus</groupId>
+      <artifactId>quarkus-logging-json</artifactId>
+    </dependency>
+    <dependency>
+      <groupId>io.quarkus</groupId>
+      <artifactId>quarkus-micrometer-registry-prometheus</artifactId>
+    </dependency>
     <!-- Identité de l'utilisateur courant (@Authenticated, SecurityIdentity). Le mécanisme
          d'authentification lui-même (OIDC, ADR-0008) est hors de ce socle. Apache-2.0. -->
     <dependency>
@@ -179,6 +190,13 @@
     <dependency>
       <groupId>io.quarkus</groupId>
       <artifactId>quarkus-jacoco</artifactId>
+      <scope>test</scope>
+    </dependency>
+    <!-- Attente bornée d'une condition dans les tests, sans sommeil fixe (arc42 §8.11). Version gérée par le BOM
+         Quarkus, licence Apache-2.0. -->
+    <dependency>
+      <groupId>org.awaitility</groupId>
+      <artifactId>awaitility</artifactId>
       <scope>test</scope>
     </dependency>
     <dependency>

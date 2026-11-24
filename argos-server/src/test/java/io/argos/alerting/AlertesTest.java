@@ -10,6 +10,8 @@ import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
+import java.lang.reflect.InvocationTargetException;
+import java.lang.reflect.Proxy;
 import java.nio.charset.StandardCharsets;
 import java.sql.Connection;
 import java.sql.ResultSet;
@@ -24,7 +26,9 @@ import java.time.temporal.ChronoUnit;
 import java.time.temporal.TemporalAdjusters;
 import java.util.List;
 import java.util.Optional;
+import java.util.Set;
 import java.util.UUID;
+import java.util.concurrent.atomic.AtomicBoolean;
 
 import javax.sql.DataSource;
 
@@ -47,6 +51,7 @@ import io.argos.testsupport.Api;
 import io.argos.testsupport.Fixtures;
 import io.argos.testsupport.SimulatedResumeIa;
 import io.argos.testsupport.StubServer;
+import io.argos.testsupport.Substitution;
 import io.argos.testsupport.TestDb;
 import io.quarkus.mailer.Mail;
 import io.quarkus.mailer.MockMailbox;
@@ -91,6 +96,9 @@ class AlertesTest {
 
     @Inject
     EnvoiAlertes envoi;
+
+    @Inject
+    MoteurAlertes moteur;
 
     @Inject
     MockMailbox mailbox;
@@ -171,6 +179,111 @@ class AlertesTest {
             }
         });
         assertEquals("23505", doublon.getSQLState(), "violation de la clé unique (signal, compte, canal)");
+    }
+
+    // ------------------------------------------------------------------ frontières d'erreur (arc42 §8.5)
+
+    /** Une panne d'accès aux données pendant l'évaluation des alertes ne remonte pas à la corrélation. */
+    @Test
+    void evaluationEnPanneNeRemontePasALaCorrelation() {
+        projet(spaceA, "app", LIB + "@1.2.0");
+        regle("alice", "email", "immediate", HAUTE);
+
+        try (Substitution substitution = Substitution.remplacer(moteur, "destinataires",
+                destinatairesEnErreur(new IllegalStateException("panne simulée d'accès aux données")))) {
+            publier("GHSA-FR-EVAL", LIB, "CRITICAL");
+        }
+
+        assertEquals("SUCCEEDED", baseDeTest.string("SELECT state FROM sync_run WHERE source_id = 'OSV'"));
+        assertEquals(1, baseDeTest.count("SELECT count(*) FROM project_impact"), "impacts de la corrélation enregistrés");
+        assertEquals(0, alertes("true"));
+    }
+
+    /**
+     * Une erreur imprévue de l'évaluation remonte de l'observateur des impacts à la corrélation, observateur
+     * transactionnel {@code AFTER_SUCCESS} : le conteneur CDI la journalise avec sa pile ; elle ne peut plus annuler
+     * l'enregistrement de l'avis, déjà validé, ni les impacts de la corrélation (arc42 §8.5).
+     */
+    @Test
+    void erreurImprevueDeLEvaluationNAnnulePasLAvisValide() {
+        projet(spaceA, "app", LIB + "@1.2.0");
+        regle("alice", "email", "immediate", HAUTE);
+
+        try (Substitution substitution = Substitution.remplacer(moteur, "destinataires",
+                destinatairesEnErreur(new IllegalArgumentException("erreur imprévue simulée")))) {
+            publier("GHSA-FR-IMP", LIB, "CRITICAL");
+        }
+
+        assertEquals("SUCCEEDED", baseDeTest.string("SELECT state FROM sync_run WHERE source_id = 'OSV'"));
+        assertEquals(1, baseDeTest.count("SELECT count(*) FROM project_impact"));
+        assertEquals(0, alertes("true"));
+    }
+
+    /** Diffusion : une erreur imprévue sur un message n'empêche pas l'envoi des suivants ; elle est relancée ensuite. */
+    @Test
+    void messageEnErreurImprevueNEmpechePasLesSuivants() {
+        Api.ajouterMembre("alice", spaceA.toString(), "paul", "LECTEUR");
+        projet(spaceA, "app", LIB + "@1.2.0");
+        regle("alice", "email", "immediate", HAUTE);
+        regle("paul", "email", "immediate", HAUTE);
+        publier("GHSA-FR-ENVOI", LIB, "CRITICAL");
+        assertEquals(2, alertes("etat = 'ENVOYEE'"));
+        baseDeTest.exec("UPDATE alerte SET etat = 'EN_ATTENTE', envoye_le = NULL, prochain_essai = NULL, tentatives = 0");
+        List<UUID> ids = List.of(baseDeTest.uuid("SELECT id FROM alerte ORDER BY id LIMIT 1"),
+                baseDeTest.uuid("SELECT id FROM alerte ORDER BY id DESC LIMIT 1"));
+        DataSource reelle = Substitution.reel(dataSource);
+        AtomicBoolean premiere = new AtomicBoolean(true);
+        DataSource doublure = (DataSource) Proxy.newProxyInstance(getClass().getClassLoader(), new Class<?>[] {DataSource.class},
+                (proxy, methode, arguments) -> {
+                    if ("getConnection".equals(methode.getName()) && premiere.getAndSet(false)) {
+                        throw new IllegalArgumentException("erreur imprévue simulée");
+                    }
+                    try {
+                        return methode.invoke(reelle, arguments);
+                    } catch (InvocationTargetException echec) {
+                        throw echec.getCause();
+                    }
+                });
+
+        try (Substitution substitution = Substitution.remplacer(envoi, "dataSource", doublure)) {
+            assertThrows(IllegalArgumentException.class, () -> envoi.envoyer(ids, Instant.now()));
+        }
+
+        assertEquals(1, alertes("etat = 'ENVOYEE'"), "le message suivant est envoyé");
+        assertEquals(1, alertes("etat = 'EN_ATTENTE'"), "le message en erreur reste en attente");
+    }
+
+    /** Le passage planifié de diffusion relève la file d'envoi même quand il se termine sur une erreur imprévue. */
+    @Test
+    void laFileEstReleveeMemeQuandLePassageEchoue() {
+        DataSource enErreur = (DataSource) Proxy.newProxyInstance(getClass().getClassLoader(), new Class<?>[] {DataSource.class},
+                (proxy, methode, arguments) -> {
+                    throw new IllegalArgumentException("erreur imprévue simulée");
+                });
+        AtomicBoolean relevee = new AtomicBoolean();
+        SanteEnvoiAlertes releveur = new SanteEnvoiAlertes() {
+            @Override
+            EtatFile actualiser(Instant maintenant) {
+                relevee.set(true);
+                return new EtatFile(0, 0);
+            }
+        };
+
+        try (Substitution base = Substitution.remplacer(envoi, "dataSource", enErreur);
+                Substitution sante = Substitution.remplacer(envoi, "sante", releveur)) {
+            assertThrows(IllegalArgumentException.class, () -> Substitution.reel(envoi).planifie());
+        }
+
+        assertTrue(relevee.get(), "file relevée malgré l'échec du passage");
+    }
+
+    private static Destinataires destinatairesEnErreur(RuntimeException erreur) {
+        return new Destinataires() {
+            @Override
+            public List<Destinataire> membres(Set<UUID> espaces) {
+                throw erreur;
+            }
+        };
     }
 
     // ------------------------------------------------------------------ 2.2 règles
@@ -311,16 +424,13 @@ class AlertesTest {
         resumeIa.configure(SimulatedResumeIa.Mode.REFUSED);
         publier("GHSA-REFUS", LIB, "CRITICAL");
         resumeIa.configure(SimulatedResumeIa.Mode.SLOW);
-        Instant debut = Instant.now();
         publier("GHSA-LENT", LIB, "CRITICAL");
-        Duration attente = Duration.between(debut, Instant.now());
         resumeIa.configure(SimulatedResumeIa.Mode.AVAILABLE);
         publier("GHSA-OK", LIB, "CRITICAL");
 
         assertEquals("INDISPONIBLE", etatIa("GHSA-PANNE"));
         assertEquals("REFUSE", etatIa("GHSA-REFUS"));
         assertEquals("INDISPONIBLE", etatIa("GHSA-LENT"));
-        assertTrue(attente.compareTo(Duration.ofSeconds(4)) < 0, "le résumé lent n'est pas attendu : " + attente);
         assertEquals("DISPONIBLE", etatIa("GHSA-OK"));
         assertEquals(4, alertes("etat = 'ENVOYEE'"));
         assertTrue(mailbox.getMailsSentTo("alice@argos.test").stream()

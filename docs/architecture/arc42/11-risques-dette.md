@@ -26,7 +26,7 @@ M = moyenne. Les probabilités doivent être recalibrées après POC.
 - PostgreSQL FTS avant moteur de recherche spécialisé ;
 - table de jobs/retry avant plateforme distribuée ;
 - FreshRSS/changedetection sur le même hôte si environnement POC ;
-- observabilité minimale mais structurée.
+- observabilité sans collecteur : journaux JSON, métriques Prometheus lues à la demande et contrôles de santé (ADR-0036), sans traçage distribué ni historique des métriques.
 
 ### Non acceptable même au MVP
 
@@ -47,7 +47,7 @@ M = moyenne. Les probabilités doivent être recalibrées après POC.
 - classification des données ;
 - politique RGPD ;
 - canaux de notification ;
-- stack d’observabilité ;
+- pile de collecte des métriques et des journaux sur le NAS (Q-3 d'`instrumenter-observabilite`) ;
 - besoin réel de RAG/pgvector ;
 - exigences de disponibilité.
 

@@ -1,6 +1,5 @@
 package io.argos.chain;
 
-import static io.restassured.RestAssured.given;
 import static org.hamcrest.Matchers.equalTo;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
@@ -70,7 +69,7 @@ class ResilienceTest {
     @Test
     void col06S1LimitationDeDebitAvecRetryAfter() {
         Fixtures.stubOsv("GHSA-R1", "2026-11-01T00:00:00Z", advisory("GHSA-R1", "2026-11-01T00:00:00Z"));
-        StubServer.programmer(CSV, new Stub(429, "", Map.of("Retry-After", "7"), 0),
+        StubServer.programmer(CSV, new Stub(429, "", Map.of("Retry-After", "7")),
                 Stub.succes("2026-11-01T00:00:00Z,GHSA-R1"));
 
         SourceSynchronizer.SyncReport report = synchronizer.synchronize("OSV");
@@ -108,7 +107,7 @@ class ResilienceTest {
     @Test
     void delaiDepasseTraiteCommeErreurTransitoire() {
         Fixtures.stubOsv("GHSA-R3", "2026-11-01T00:00:00Z", advisory("GHSA-R3", "2026-11-01T00:00:00Z"));
-        StubServer.programmer(CSV, new Stub(200, "2026-11-01T00:00:00Z,GHSA-R3", Map.of(), 2_000),
+        StubServer.programmer(CSV, Stub.retenue(200, "2026-11-01T00:00:00Z,GHSA-R3", Map.of()),
                 Stub.succes("2026-11-01T00:00:00Z,GHSA-R3"));
 
         SourceSynchronizer.SyncReport report = synchronizer.synchronize("OSV");
@@ -237,6 +236,28 @@ class ResilienceTest {
         assertEquals("NOMINAL", baseDeTest.string("SELECT state FROM source WHERE id = 'CRASHTEST'"));
     }
 
+    /**
+     * Une erreur imprévue (autre qu'une panne d'accès aux données) termine aussi le traitement en échec permanent,
+     * jamais RUNNING, puis est relancée à l'appelant (COL-11, frontière d'erreur d'arc42 §8.5).
+     */
+    @Test
+    void erreurImprevueTermineLeTraitementEnEchecPuisEstRelancee() {
+        baseDeTest.exec("INSERT INTO source(id, label) VALUES ('CRASHTEST', 'source de test')");
+        List<FeedEntry> entries = List.of(new FeedEntry("GHSA-U2", Instant.parse("2026-11-01T00:00:00Z")));
+        crashingFeed.configure(entries, entries.stream().map(entree -> advisory(entree.externalId(), entree.modified().toString()))
+                .toList(), -1);
+        crashingFeed.failOnceWith(new UnsupportedOperationException("erreur imprévue simulée"));
+
+        assertThrows(UnsupportedOperationException.class, () -> synchronizer.synchronize(CrashingFeed.SOURCE_ID));
+
+        assertEquals(0, baseDeTest.count("SELECT count(*) FROM sync_run WHERE source_id = 'CRASHTEST' AND state = 'RUNNING'"));
+        assertEquals("PERMANENT", baseDeTest.string("SELECT error_kind FROM sync_run WHERE source_id = 'CRASHTEST'"));
+        assertEquals("FAILING", baseDeTest.string("SELECT state FROM source WHERE id = 'CRASHTEST'"));
+        assertTrue(baseDeTest.string("SELECT last_error FROM sync_run WHERE source_id = 'CRASHTEST'")
+                .contains("UnsupportedOperationException"), "motif : type de l'erreur");
+        assertEquals("SUCCEEDED", synchronizer.synchronize(CrashingFeed.SOURCE_ID).state(), "la source n'est pas bloquée");
+    }
+
     /** Un traitement RUNNING sans activité depuis la durée d'expiration ne bloque pas un nouveau lancement. */
     @Test
     void traitementRunningExpireRepris() {
@@ -258,7 +279,7 @@ class ResilienceTest {
     @Test
     void retryAfterBorneParLeDelaiMaximal() {
         Fixtures.stubOsv("GHSA-R9", "2026-11-01T00:00:00Z", advisory("GHSA-R9", "2026-11-01T00:00:00Z"));
-        StubServer.programmer(CSV, new Stub(429, "", Map.of("Retry-After", "86400"), 0),
+        StubServer.programmer(CSV, new Stub(429, "", Map.of("Retry-After", "86400")),
                 Stub.succes("2026-11-01T00:00:00Z,GHSA-R9"));
 
         SourceSynchronizer.SyncReport report = synchronizer.synchronize("OSV");

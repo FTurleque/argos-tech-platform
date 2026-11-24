@@ -139,6 +139,24 @@ sudo docker compose up -d --build
 
 Les migrations de base s'appliquent au démarrage d'Argos. Faites une sauvegarde avant chaque mise à jour.
 
+## Lire les journaux et les métriques
+
+Choix d'observabilité : [ADR-0036](../architecture/adr/0036-pile-observabilite-serveur.md) ; exigences EXP-13 à EXP-15 de la fiche [`exploitation-plateforme`](../specifications/exploitation-plateforme.md).
+
+**Journaux.** Argos écrit une ligne JSON par événement : `timestamp`, `level`, `loggerName`, `message`, `mdc` (identifiant de corrélation `correlation`, nom de la tâche planifiée `tache`) et, pour une erreur, `exception` (type, message, pile, causes). Tous les événements d'une requête portent le même identifiant, renvoyé au client dans l'en-tête `X-Request-Id` :
+
+```bash
+sudo docker compose logs argos | grep '"level":"ERROR"'
+sudo docker compose logs argos | grep '"correlation":"<identifiant>"'
+sudo docker compose logs argos | grep '"tache":"signal-synchronisation-sources"'
+```
+
+Aucun jeton, mot de passe ni adresse e-mail n'est journalisé ; un jeton cité par un message est remplacé par `[jeton masqué]`.
+
+**État de santé.** `http://localhost:8080/q/health/ready` (public) répond 200 tant que la base est joignable, 503 sinon. Ses contrôles `tache-<identité>` (une par tâche active : `a-l-heure`, `jamais-executee`, `en-echec` ou `en-retard`, après deux intervalles sans exécution), `sources-avis`, `envoi-alertes` et `passerelle-ia` restent `UP` et décrivent un état dégradé dans leurs données.
+
+**Métriques.** `http://localhost:8080/q/metrics`, au format Prometheus, est réservé à l'administrateur plateforme (compte `ARGOS_ADMIN_EMAIL`) : il se lit avec son jeton OIDC, par exemple `curl -H "Authorization: Bearer <jeton>" http://localhost:8080/q/metrics`. Un appel anonyme reçoit 401, un autre compte 403. Les métriques d'Argos commencent par `argos_` (exécutions et durée des tâches, sources par état, file d'envoi des alertes, appels IA) ; HTTP, JVM et pool de connexions s'y ajoutent. Aucun collecteur n'est fourni.
+
 ## Passer aux comptes de base distincts
 
 Un volume PostgreSQL créé avant [ADR-0035](../architecture/adr/0035-comptes-et-isolation-des-bases.md) n'a qu'un compte, `argos`, superutilisateur de l'instance, que PostgreSQL ne permet pas de rétrograder ; les scripts d'initialisation ne s'exécutent que sur un volume neuf. La migration passe donc par une sauvegarde, un volume neuf et une restauration ; l'ancien volume est copié pour le retour arrière. Commandes en SSH sur le NAS (préfixe `sudo`) ou sur le PC, dans le dossier du déploiement ; `argos` est le nom du projet Compose.

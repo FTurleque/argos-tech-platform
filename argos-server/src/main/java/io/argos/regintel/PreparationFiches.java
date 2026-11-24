@@ -32,6 +32,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 
 import io.argos.catalog.dictionnaire.DictionnaireMetier;
 import io.argos.catalog.dictionnaire.DictionnaireMetier.DictionnaireEspace;
+import io.argos.observabilite.ErreursImprevues;
 
 /**
  * Qualification des textes nouvellement collectés et préparation de leurs fiches, espace par espace
@@ -74,7 +75,11 @@ public class PreparationFiches {
     @ConfigProperty(name = "argos.reglementaire.ia.natures")
     Set<String> naturesIa;
 
-    /** Prépare les fiches des textes donnés ; renvoie le nombre de fiches créées. */
+    /**
+     * Prépare les fiches des textes donnés ; renvoie le nombre de fiches créées. Une erreur imprévue sur un texte est
+     * journalisée avec sa cause et n'arrête pas les textes ni les espaces suivants ; la première est relancée une fois
+     * tous les textes traités (frontière d'erreur, arc42 §8.5).
+     */
     public int preparer(Collection<UUID> idsTextes, Instant maintenant) {
         if (idsTextes.isEmpty()) {
             return 0;
@@ -82,9 +87,11 @@ public class PreparationFiches {
         List<TexteOfficiel> lus = textes.lire(idsTextes);
         List<DictionnaireEspace> dictionnaires = dictionnaire.dictionnaires();
         int creees = 0;
+        ErreursImprevues imprevues = new ErreursImprevues();
         for (DictionnaireEspace dictionnaireEspace : dictionnaires) {
-            creees += preparerPourEspace(dictionnaireEspace, lus, maintenant);
+            creees += preparerPourEspace(dictionnaireEspace, lus, maintenant, imprevues);
         }
+        imprevues.relancer();
         return creees;
     }
 
@@ -92,7 +99,8 @@ public class PreparationFiches {
      * Prépare les fiches des textes pour un espace ; renvoie le nombre de fiches créées. Une panne d'accès aux données
      * sur un texte est journalisée et n'arrête pas les textes suivants.
      */
-    private int preparerPourEspace(DictionnaireEspace dictionnaireEspace, List<TexteOfficiel> lus, Instant maintenant) {
+    private int preparerPourEspace(DictionnaireEspace dictionnaireEspace, List<TexteOfficiel> lus, Instant maintenant,
+            ErreursImprevues imprevues) {
         int creees = 0;
         int propositions = 0;
         for (TexteOfficiel texte : lus) {
@@ -108,6 +116,10 @@ public class PreparationFiches {
             } catch (IllegalStateException erreur) {
                 LOG.errorf(erreur, "préparation de la fiche du texte %s pour l'espace %s en échec", texte.identifiant(),
                         dictionnaireEspace.espaceId());
+            } catch (RuntimeException imprevue) {
+                LOG.errorf(imprevue, "préparation de la fiche du texte %s pour l'espace %s interrompue par une erreur imprévue",
+                        texte.identifiant(), dictionnaireEspace.espaceId());
+                imprevues.retenir(imprevue);
             }
         }
         return creees;

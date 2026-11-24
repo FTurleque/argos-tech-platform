@@ -12,6 +12,7 @@ import java.util.Deque;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.Executors;
 
 import com.sun.net.httpserver.HttpExchange;
@@ -23,28 +24,39 @@ import io.quarkus.test.common.QuarkusTestResourceLifecycleManager;
  * Serveur HTTP local qui simule toutes les sources externes (OSV, NVD, KEV, EPSS, CERT-FR,
  * GitLab, GitHub, endoflife.date) et l'API Ollama de la passerelle IA : aucun test n'appelle de
  * service externe ni de modèle réel. Les réponses sont programmées par
- * chemin (avec ou sans requête) ; la dernière réponse d'une file reste active.
+ * chemin (avec ou sans requête) ; la dernière réponse d'une file reste active. Une réponse « retenue » simule un
+ * serveur qui tarde : elle n'est envoyée qu'à la libération ({@link #liberer()}) ou à la réinitialisation, sans
+ * sommeil ; un client qui borne son attente abandonne de lui-même.
  */
 public class StubServer implements QuarkusTestResourceLifecycleManager {
 
-    /** Réponse programmée. */
-    public record Stub(int status, String body, Map<String, String> headers, long delayMillis, byte[] octets) {
+    /**
+     * Réponse programmée.
+     *
+     * @param retenue réponse envoyée seulement à la libération ou à la réinitialisation du serveur simulé
+     */
+    public record Stub(int status, String body, Map<String, String> headers, boolean retenue, byte[] octets) {
 
-        public Stub(int status, String body, Map<String, String> headers, long delayMillis) {
-            this(status, body, headers, delayMillis, null);
+        public Stub(int status, String body, Map<String, String> headers) {
+            this(status, body, headers, false, null);
         }
 
         /** Réponse binaire (archive), servie telle quelle. */
         public static Stub octets(byte[] corps) {
-            return new Stub(200, "", Map.of(), 0, corps);
+            return new Stub(200, "", Map.of(), false, corps);
         }
 
         public static Stub succes(String body) {
-            return new Stub(200, body, Map.of(), 0);
+            return new Stub(200, body, Map.of());
         }
 
         public static Stub status(int status) {
-            return new Stub(status, "", Map.of(), 0);
+            return new Stub(status, "", Map.of());
+        }
+
+        /** Réponse retenue jusqu'à {@link StubServer#liberer()} ou {@link StubServer#reset()}. */
+        public static Stub retenue(int status, String body, Map<String, String> headers) {
+            return new Stub(status, body, headers, true, null);
         }
     }
 
@@ -55,6 +67,7 @@ public class StubServer implements QuarkusTestResourceLifecycleManager {
     private static final Map<String, Deque<Stub>> ROUTES = new ConcurrentHashMap<>();
     private static final List<Received> RECEIVED = Collections.synchronizedList(new ArrayList<>());
     private static HttpServer server;
+    private static volatile CountDownLatch liberation = new CountDownLatch(1);
 
     @Override
     public Map<String, String> start() {
@@ -63,7 +76,7 @@ public class StubServer implements QuarkusTestResourceLifecycleManager {
         } catch (IOException exception) {
             throw new IllegalStateException(exception);
         }
-        server.createContext("/", StubServer::handle);
+        server.createContext("/", StubServer::repondre);
         server.setExecutor(Executors.newCachedThreadPool());
         server.start();
         String base = "http://localhost:" + server.getAddress().getPort();
@@ -96,6 +109,7 @@ public class StubServer implements QuarkusTestResourceLifecycleManager {
 
     @Override
     public void stop() {
+        liberer();
         if (server != null) {
             server.stop(0);
         }
@@ -109,6 +123,14 @@ public class StubServer implements QuarkusTestResourceLifecycleManager {
     public static void reset() {
         ROUTES.clear();
         RECEIVED.clear();
+        liberer();
+    }
+
+    /** Envoie les réponses retenues en cours ; les suivantes seront retenues à leur tour. */
+    public static void liberer() {
+        CountDownLatch courante = liberation;
+        liberation = new CountDownLatch(1);
+        courante.countDown();
     }
 
     /** Programme les réponses successives d'un chemin (ex. {@code /epss?cve=CVE-1}). */
@@ -123,7 +145,8 @@ public class StubServer implements QuarkusTestResourceLifecycleManager {
         }
     }
 
-    private static void handle(HttpExchange exchange) throws IOException {
+    /** Enregistre la requête reçue puis envoie la réponse programmée pour son chemin (404 sinon). */
+    private static void repondre(HttpExchange exchange) throws IOException {
         String path = exchange.getRequestURI().getRawPath();
         String query = exchange.getRequestURI().getRawQuery();
         String full = query == null ? path : path + "?" + query;
@@ -138,9 +161,9 @@ public class StubServer implements QuarkusTestResourceLifecycleManager {
                 stub = queue.size() > 1 ? queue.poll() : queue.peek();
             }
         }
-        if (stub.delayMillis() > 0) {
+        if (stub.retenue()) {
             try {
-                Thread.sleep(stub.delayMillis());
+                liberation.await();
             } catch (InterruptedException interrupted) {
                 Thread.currentThread().interrupt();
             }

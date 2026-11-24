@@ -7,7 +7,6 @@ import java.net.InetSocketAddress;
 import java.net.SocketException;
 import java.net.http.HttpTimeoutException;
 import java.time.Duration;
-import java.time.Instant;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
@@ -40,9 +39,10 @@ import io.vertx.core.net.TrustOptions;
  *
  * <p>Les adresses IP sont essayées dans l'ordre de la résolution contrôlée, la suivante seulement après un échec
  * d'établissement de la connexion TCP (connexion refusée, hôte sans route, délai de connexion), dans le délai global
- * de la récupération (décision D3). Le corps est lu en entier dans ce délai, au plus jusqu'à {@code tailleMax + 1}
- * octets, puis la connexion est coupée : la récupération constate le dépassement. À l'échéance, la requête est
- * abandonnée, y compris si elle s'ouvre après, et le transport lève {@link HttpTimeoutException}.
+ * de la récupération (décision D3), mesuré sur l'horloge monotone de la JVM. Le corps est lu en entier dans ce délai,
+ * au plus jusqu'à {@code tailleMax + 1} octets, puis la connexion est coupée : la récupération constate le
+ * dépassement. À l'échéance, la requête est abandonnée, y compris si elle s'ouvre après, et le transport
+ * lève {@link HttpTimeoutException}.
  */
 final class TransportEpingle implements RecuperateurWeb.Transport, AutoCloseable {
 
@@ -76,11 +76,11 @@ final class TransportEpingle implements RecuperateurWeb.Transport, AutoCloseable
     @Override
     public RecuperateurWeb.Reponse envoyer(DestinationControlee destination, Duration delai)
             throws IOException, InterruptedException {
-        Instant echeance = Instant.now().plus(delai);
+        long echeance = System.nanoTime() + delai.toNanos();
         List<InetAddress> adresses = destination.adresses();
         List<SocketException> echecs = new ArrayList<>();
         for (int rang = 0; rang < adresses.size(); rang++) {
-            long resteMs = Duration.between(Instant.now(), echeance).toMillis();
+            long resteMs = resteMillis(echeance);
             if (resteMs <= 0) {
                 break;
             }
@@ -93,7 +93,7 @@ final class TransportEpingle implements RecuperateurWeb.Transport, AutoCloseable
                 echecs.add(echec.echec());
             }
         }
-        if (echecs.isEmpty() || !Instant.now().isBefore(echeance)) {
+        if (echecs.isEmpty() || System.nanoTime() - echeance >= 0) {
             HttpTimeoutException expiration = new HttpTimeoutException("délai dépassé pour " + destination.hote());
             echecs.forEach(expiration::addSuppressed);
             throw expiration;
@@ -101,6 +101,11 @@ final class TransportEpingle implements RecuperateurWeb.Transport, AutoCloseable
         SocketException derniere = echecs.get(echecs.size() - 1);
         echecs.subList(0, echecs.size() - 1).forEach(derniere::addSuppressed);
         throw derniere;
+    }
+
+    /** Millisecondes restant avant l'échéance, lue sur l'horloge monotone de la JVM ({@code System.nanoTime()}). */
+    private static long resteMillis(long echeance) {
+        return TimeUnit.NANOSECONDS.toMillis(echeance - System.nanoTime());
     }
 
     /**
@@ -126,7 +131,7 @@ final class TransportEpingle implements RecuperateurWeb.Transport, AutoCloseable
     }
 
     private RecuperateurWeb.Reponse envoyerA(DestinationControlee destination, InetAddress adresse, long connexionMs,
-            Instant echeance) throws IOException, InterruptedException {
+            long echeance) throws IOException, InterruptedException {
         LOG.debugf("veille web : connexion à %s pour %s", adresse.getHostAddress(), destination.hote());
         AtomicReference<HttpClientRequest> requete = new AtomicReference<>();
         CompletableFuture<RecuperateurWeb.Reponse> resultat = new CompletableFuture<>();
@@ -175,11 +180,11 @@ final class TransportEpingle implements RecuperateurWeb.Transport, AutoCloseable
     }
 
     /** Attend la réponse jusqu'à l'échéance ; l'abandonne sur dépassement ou interruption. */
-    private static RecuperateurWeb.Reponse attendre(DestinationControlee destination, Instant echeance,
+    private static RecuperateurWeb.Reponse attendre(DestinationControlee destination, long echeance,
             AtomicReference<HttpClientRequest> requete, CompletableFuture<RecuperateurWeb.Reponse> resultat)
             throws IOException, InterruptedException {
         try {
-            long resteMs = Math.max(CONNEXION_MIN_MS, Duration.between(Instant.now(), echeance).toMillis());
+            long resteMs = Math.max(CONNEXION_MIN_MS, resteMillis(echeance));
             return resultat.get(resteMs, TimeUnit.MILLISECONDS);
         } catch (TimeoutException expiration) {
             abandonner(resultat, requete);

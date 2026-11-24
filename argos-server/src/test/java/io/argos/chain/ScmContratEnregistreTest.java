@@ -8,6 +8,7 @@ import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.nio.charset.StandardCharsets;
+import java.time.Clock;
 import java.time.Duration;
 import java.time.Instant;
 import java.util.List;
@@ -25,6 +26,7 @@ import io.argos.inventory.InventoryService;
 import io.argos.inventory.ProjectDirectory;
 import io.argos.scm.AccesRefuse;
 import io.argos.scm.DepotIntrouvable;
+import io.argos.scm.ParametresForges;
 import io.argos.scm.QuotaEpuise;
 import io.argos.scm.RepositoryFiles;
 import io.argos.scm.RepositoryRef;
@@ -91,8 +93,9 @@ class ScmContratEnregistreTest {
 
     /** Adapter dont les jetons sont les valeurs fictives de la configuration de test. */
     private RepositoryFiles forges() {
-        return new RepositoryFiles(Duration.ofSeconds(1), StubServer.base() + "/gitlab", StubServer.base() + "/github",
-                Optional.of(jetonGitlab), Optional.of(jetonGithub), 20_971_520);
+        ParametresForges forges = new ParametresForges(Duration.ofSeconds(1), StubServer.base() + "/gitlab",
+                StubServer.base() + "/github", Optional.of(jetonGitlab), Optional.of(jetonGithub));
+        return new RepositoryFiles(forges, 20_971_520, Clock.systemUTC());
     }
 
     private static void sert(String chemin, String reponse) {
@@ -233,7 +236,7 @@ class ScmContratEnregistreTest {
     void gitlabSbomTrouveeAvecJetonPrivateToken() {
         // Artefact composé : aucun artefact de job n'est lisible anonymement sur gitlab.com (403 enregistré).
         StubServer.programmer(GITLAB_SBOM, new StubServer.Stub(200, Fixtures.resource("scm/gitlab/gl-sbom-npm-npm.cdx.json"),
-                Map.of("Content-Type", "application/json"), 0));
+                Map.of("Content-Type", "application/json")));
 
         SbomDocument sbom = forges().latestSbom(GITLAB).orElseThrow();
 

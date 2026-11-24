@@ -2,9 +2,9 @@
 
 ## ADDED Requirements
 
-### Requirement: MCP-08 Erreur interne répondue INDISPONIBLE
-Le serveur MCP DOIT (MUST) répondre à toute erreur interne survenue pendant un outil par un résultat d'erreur d'outil `INDISPONIBLE`, sans donnée partielle ni détail interne, et journaliser l'appel en erreur avec sa cause ; il NE DOIT PAS (MUST NOT) la transformer en erreur de protocole.
-Source : AUD-QUA-20 ; MCP-06 ; fiche serveur-mcp (codes d'erreur d'outil). Statut : [PROPOSITION].
+### Requirement: MCP-08 Erreur interne d'un outil journalisée, sans donnée partielle
+Le serveur MCP DOIT (MUST) journaliser avec sa cause toute erreur interne d'un outil, inscrire l'appel en erreur et ne renvoyer ni donnée partielle ni message interne ; une panne d'accès aux données répond `INDISPONIBLE`, une erreur imprévue NE DOIT PAS (MUST NOT) être traduite en `INDISPONIBLE`.
+Source : AUD-QUA-20 ; MCP-06 ; arc42 §8.5. Statut : [PROPOSITION].
 
 #### Scenario: MCP-08-S1 Panne d'accès aux données
 - **GIVEN** un utilisateur authentifié et la base de données indisponible
@@ -15,5 +15,5 @@ Source : AUD-QUA-20 ; MCP-06 ; fiche serveur-mcp (codes d'erreur d'outil). Statu
 #### Scenario: MCP-08-S2 Erreur imprévue d'un outil
 - **GIVEN** un utilisateur authentifié et un outil dont le traitement échoue sur une erreur imprévue autre qu'une panne d'accès aux données
 - **WHEN** son assistant appelle cet outil
-- **THEN** le résultat est une erreur d'outil dont le texte commence par `INDISPONIBLE`, sans trace ni message interne, et non une erreur de protocole JSON-RPC
+- **THEN** la réponse est une erreur de protocole JSON-RPC, sans résultat partiel ni message interne
 - **AND** l'appel est inscrit au journal des appels avec l'issue en erreur et l'erreur est journalisée avec sa cause

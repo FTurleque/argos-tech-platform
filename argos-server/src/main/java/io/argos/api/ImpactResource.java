@@ -1,6 +1,6 @@
 package io.argos.api;
 
-import java.time.Instant;
+import java.time.Clock;
 import java.util.Comparator;
 import java.util.List;
 import java.util.Optional;
@@ -50,6 +50,9 @@ public class ImpactResource {
     }
 
     @Inject
+    Clock horloge;
+
+    @Inject
     Access access;
 
     @Inject
@@ -94,7 +97,7 @@ public class ImpactResource {
         longueur(demande.commentaire(), "commentaire");
         Optional<EtatImpact> atteint;
         try {
-            atteint = traitementImpacts.transitionner(id, caller.accountId(), vers, motif, demande.commentaire(), Instant.now());
+            atteint = traitementImpacts.transitionner(id, caller.accountId(), vers, motif, demande.commentaire(), horloge.instant());
         } catch (TraitementImpacts.TransitionInterdite interdite) {
             throw new RegleViolee("TRANSITION_INTERDITE", "Transition vers " + vers + " impossible depuis l'état "
                     + interdite.courant() + ". Transitions possibles : " + noms(interdite.possibles()) + ".");

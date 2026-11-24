@@ -3,6 +3,7 @@ package io.argos.scm;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
+import java.time.Clock;
 import java.time.Duration;
 import java.util.Optional;
 
@@ -11,8 +12,10 @@ import org.junit.jupiter.api.Test;
 /** Reconnaissance des adresses de demandes d'évolution GitHub et GitLab (REG-08, Q-3). */
 class DemandesEvolutionTest {
 
-    private final DemandesEvolution demandes = new DemandesEvolution(Duration.ofSeconds(1), "https://github.com",
-            "https://api.github.com", "https://gitlab.exemple.fr/forge", Optional.empty(), Optional.empty());
+    private final DemandesEvolution demandes = new DemandesEvolution(
+            new ParametresForges(Duration.ofSeconds(1), "https://gitlab.exemple.fr/forge", "https://api.github.com",
+                    Optional.empty(), Optional.empty()),
+            "https://github.com", Clock.systemUTC());
 
     @Test
     void ticketsEtDemandesDeFusionReconnus() {

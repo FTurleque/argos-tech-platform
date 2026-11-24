@@ -69,7 +69,7 @@ final class ValidationSortie {
                     position == null ? -1 : position.getLineNr(), position == null ? -1 : position.getColumnNr());
             return Optional.empty();
         } catch (IllegalArgumentException absente) {
-            LOG.debugf("sortie de modèle absente : %s", absente.getMessage());
+            LOG.debugf(absente, "sortie de modèle absente : %s", absente.getMessage());
             return Optional.empty();
         }
         if (racine == null || !racine.isObject()) {

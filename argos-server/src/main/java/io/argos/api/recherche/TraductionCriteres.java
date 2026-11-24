@@ -1,5 +1,6 @@
 package io.argos.api.recherche;
 
+import java.time.Clock;
 import java.time.Duration;
 import java.time.Instant;
 import java.util.LinkedHashSet;
@@ -36,6 +37,9 @@ public class TraductionCriteres {
     static final int VALEURS_MAX = 20;
     static final int TECHNOLOGIE_MAX = 100;
     static final int HORIZON_MAX = 3650;
+
+    @Inject
+    Clock horloge;
 
     @Inject
     CatalogueProfils profils;
@@ -160,14 +164,14 @@ public class TraductionCriteres {
     }
 
     /** Instant de début de l'horizon demandé ; vide sans horizon. */
-    private static Optional<Instant> depuis(CriteresRecherche criteres) {
+    private Optional<Instant> depuis(CriteresRecherche criteres) {
         if (criteres.horizonJours() == null) {
             return Optional.empty();
         }
         if (criteres.horizonJours() < 1 || criteres.horizonJours() > HORIZON_MAX) {
             throw invalide("horizonJours", "L'horizon est compris entre 1 et " + HORIZON_MAX + " jours.");
         }
-        return Optional.of(Instant.now().minus(Duration.ofDays(criteres.horizonJours())));
+        return Optional.of(horloge.instant().minus(Duration.ofDays(criteres.horizonJours())));
     }
 
     private void exigerProjetVisible(Caller appelant, UUID projet) {

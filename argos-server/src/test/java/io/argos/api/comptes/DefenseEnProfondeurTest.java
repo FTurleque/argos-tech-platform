@@ -10,6 +10,7 @@ import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Statement;
+import java.time.Duration;
 import java.util.UUID;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
@@ -21,6 +22,7 @@ import javax.sql.DataSource;
 
 import jakarta.inject.Inject;
 
+import org.awaitility.Awaitility;
 import org.junit.jupiter.api.Test;
 
 import io.argos.testsupport.Api;
@@ -157,7 +159,9 @@ class DefenseEnProfondeurTest {
                     + "' AND compte_id = '" + erin.id() + "'");
 
             Future<?> retrait = executeur.submit(() -> espaces.changerRole(alice, espace, alice.id(), Role.LECTEUR));
-            Thread.sleep(1000);
+            // Le second changement attend le verrou de l'espace : sa session est observée en attente d'un verrou.
+            Awaitility.await("second changement en attente du verrou de l'espace").atMost(Duration.ofSeconds(10))
+                    .until(() -> baseDeTest.count("SELECT count(*) FROM pg_locks WHERE NOT granted"), enAttente -> enAttente >= 1);
             assertFalse(retrait.isDone(), "le second changement attend le verrou de l'espace");
             autre.commit();
             autre.setAutoCommit(true);

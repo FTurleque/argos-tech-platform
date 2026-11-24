@@ -23,6 +23,7 @@ import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
 import java.util.function.Function;
 
+import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.Test;
 
 import io.argos.ingestion.web.RecuperationRefusee.Motif;
@@ -33,6 +34,8 @@ import io.argos.ingestion.web.RecuperationRefusee.Motif;
  * nom change de résolution ensuite (rebinding DNS). Transport simulé : aucun appel réseau.
  */
 class RecuperateurWebTest {
+
+    private static final MinuterieCoupure MINUTERIE = minuterieDemarree();
 
     private static final Map<String, String> DNS = Map.of("flux.exemple.test", "93.184.216.34",
             "autre.exemple.test", "93.184.216.35");
@@ -89,16 +92,41 @@ class RecuperateurWebTest {
             }
             return new InetAddress[] { InetAddress.getByName(adresseIp) };
         }, List.of());
-        return new RecuperateurWeb(garde, transport, Duration.ofSeconds(1), REDIRECTIONS_MAX, tailleMax);
+        return new RecuperateurWeb(garde, transport, bornes(tailleMax), MINUTERIE);
     }
 
     private static RecuperateurWeb recuperateur(TransportSimule transport, GardeAdresses.Resolveur resolveur) {
-        return new RecuperateurWeb(new GardeAdresses(resolveur, List.of()), transport, Duration.ofSeconds(1),
-                REDIRECTIONS_MAX, TAILLE_MAX);
+        return new RecuperateurWeb(new GardeAdresses(resolveur, List.of()), transport, bornes(TAILLE_MAX), MINUTERIE);
+    }
+
+    private static RecuperateurWeb.Bornes bornes(long tailleMax) {
+        return new RecuperateurWeb.Bornes(Duration.ofSeconds(1), REDIRECTIONS_MAX, tailleMax);
     }
 
     private static List<String> adressesIp(DestinationControlee destination) {
         return destination.adresses().stream().map(InetAddress::getHostAddress).toList();
+    }
+
+    /** Minuterie de coupure des tests, démarrée comme par le conteneur CDI et arrêtée après la classe. */
+    private static MinuterieCoupure minuterieDemarree() {
+        MinuterieCoupure minuterie = new MinuterieCoupure();
+        minuterie.fils = 1;
+        minuterie.demarrer();
+        return minuterie;
+    }
+
+    @AfterAll
+    static void arreterMinuterie() {
+        MINUTERIE.arreter();
+    }
+
+    /** AUD-QUA-11 : la minuterie appartient à son bean et s'arrête avec lui. */
+    @Test
+    void laMinuterieSArreteALaDestructionDuBean() {
+        MinuterieCoupure minuterie = minuterieDemarree();
+        assertFalse(minuterie.arretee());
+        minuterie.arreter();
+        assertTrue(minuterie.arretee());
     }
 
     @Test

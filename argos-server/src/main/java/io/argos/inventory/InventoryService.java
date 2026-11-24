@@ -96,7 +96,7 @@ public class InventoryService {
             parsed = CycloneDxParser.parse(document, maxBytes);
         } catch (InvalidDocumentException erreur) {
             store.recordFailure(projectId, cible, erreur.getMessage(), sourceRef);
-            LOG.infof("SBOM refusée pour le projet %s : %s", projectId, erreur.getMessage());
+            LOG.infof(erreur, "SBOM refusée pour le projet %s : %s", projectId, erreur.getMessage());
             return new ImportResult("REJECTED", null, 0, 0, erreur.getMessage());
         }
         store.replace(projectId, new InventoryStore.Remplacement(cible, "SBOM", parsed, sourceRef));
@@ -209,11 +209,11 @@ public class InventoryService {
         } catch (QuotaEpuise epuisement) {
             surQuota.accept(epuisement);
             store.recordFailure(projectId, depot.id(), epuisement.getMessage(), sourceRef);
-            LOG.infof("import de l'inventaire du dépôt %s reporté : %s", sourceRef, epuisement.getMessage());
+            LOG.infof(epuisement, "import de l'inventaire du dépôt %s reporté : %s", sourceRef, epuisement.getMessage());
             return InventaireLu.sans(new ImportResult("ERROR", null, 0, 0, epuisement.getMessage()));
         } catch (ScmException erreur) {
             store.recordFailure(projectId, depot.id(), erreur.getMessage(), sourceRef);
-            LOG.warnf("import de l'inventaire du dépôt %s impossible : %s", sourceRef, erreur.getMessage());
+            LOG.warnf(erreur, "import de l'inventaire du dépôt %s impossible : %s", sourceRef, erreur.getMessage());
             return InventaireLu.sans(new ImportResult("ERROR", null, 0, 0, erreur.getMessage()));
         }
     }

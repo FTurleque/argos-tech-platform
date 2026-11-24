@@ -35,7 +35,7 @@ Non applicable — `skip_specs: true` ; constats traités : AUD-QUA-10, AUD-TST-
 | source-ingestion (`RecuperateurWeb`) | minuterie de coupure fournie par un bean | — | modifié |
 | catalog, mcp-server, workspace, API & Security, autres lecteurs de l'heure | `now(clock)` | appeler `now()` sans `Clock` | modifié |
 
-Emplacement du producteur : il doit être accessible à tous les modules sans créer de dépendance interdite par `ModuleBoundariesTest`. Proposition : paquet de premier niveau technique (par exemple `io.argos.horloge`) ajouté à la table des frontières avec zéro dépendance et autorisé pour tous, ou producteur placé dans le futur noyau commun du changement `extraire-noyau-commun` s'il est fusionné avant [QUESTION] Q-5 (non bloquante pour le reste des tâches : l'injection d'un `java.time.Clock` ne dépend pas du paquet du producteur).
+Emplacement du producteur : paquet technique de premier niveau `io.argos.horloge` (Q-5, défaut appliqué : `extraire-noyau-commun` n'est pas fusionné), module transverse de `ModuleBoundariesTest` (table `TRANSVERSES`), sans dépendance métier et accessible à tous. L'exécuteur borné commun est dans le module transverse `io.argos.execution`, qui propage la corrélation des journaux d'`io.argos.observabilite`.
 
 ## Traitements et interactions
 
@@ -61,16 +61,16 @@ sequenceDiagram
     Note over executeurs: @PreDestroy : arrêt et annulation des tâches en cours
 ```
 
-L'attente reste bornée par `argos.alerting.resume-ia.delai-max` ; en test, le résumé simulé « lent » ne dort plus : il retourne un `Future` jamais complété (ou complété après le délai simulé), et l'assertion porte sur l'issue `INDISPONIBLE` sans mesurer l'horloge réelle. Le même motif sert `SyntheseActivite` (factorisation « soumettre, attendre avec délai, annuler »).
+L'attente reste bornée par `argos.alerting.resume-ia.delai-max` ; en test, le résumé simulé « lent » ne dort pas : il attend un signal que seul le changement de mode donne, et l'annulation à l'expiration du délai l'interrompt ; l'assertion porte sur l'issue `INDISPONIBLE` sans mesurer l'horloge réelle. Le même motif sert `SyntheseActivite` : `io.argos.execution.ExecuteurBorne.executer` porte « soumettre, attendre avec délai, annuler » et rend une issue typée (`OBTENU`, `REFUSEE`, `DELAI_DEPASSE`, `ECHEC`, `INTERROMPUE`), la cause étant journalisée avec sa pile par l'appelant.
 
 ## Transactions, concurrence et idempotence
 
-- Les fils des exécuteurs n'ouvrent pas de transaction aujourd'hui pour le résumé (appel du contrat de la passerelle) ; le bean conserve ce comportement. Si `ManagedExecutor` est retenu (Q-4), la propagation du contexte CDI ne doit pas propager de transaction (`propagated` limité au contexte CDI, `cleared` pour la transaction) [PROPOSITION].
-- `DefenseEnProfondeurTest` : la soumission concurrente est observée par `pg_locks` / `pg_stat_activity.wait_event_type = 'Lock'` avec attente bornée (Awaitility), sur le modèle d'`ImportPlanifieTest` [PROPOSITION].
+- Les fils des exécuteurs n'ouvrent pas de transaction pour le résumé (appel du contrat de la passerelle) ; les beans d'exécuteur conservent ce comportement et ne propagent que la corrélation des journaux.
+- `DefenseEnProfondeurTest` : la soumission concurrente est observée par `pg_locks` (verrou non accordé) avec attente bornée (Awaitility), sur le modèle d'`ImportPlanifieTest` ; `pg_stat_activity` ne montre pas l'attente d'une session d'un autre rôle au compte propriétaire des tests.
 
 ## Gestion des erreurs et reprise
 
-À l'arrêt, `shutdownNow()` annule les résumés en cours : l'alerte est déjà enregistrée avec l'issue `INDISPONIBLE` si le résumé n'est pas arrivé (comportement actuel en cas de délai), aucune tâche n'est perdue sans trace au-delà de ce cas [PROPOSITION — à confirmer par lecture de `MoteurAlertes` à l'implémentation].
+À l'arrêt, `shutdownNow()` interrompt les résumés en cours : l'attente de `MoteurAlertes` se termine en issue `INTERROMPUE` et l'alerte est enregistrée avec le résumé `INDISPONIBLE`, comme pour un délai dépassé ; une soumission après l'arrêt est `REFUSEE`, résumé indisponible.
 
 ## Compatibilité, migration et retour arrière
 
@@ -80,8 +80,8 @@ Aucun contrat ni schéma modifié ; tailles d'exécuteur par défaut égales aux
 
 ### D1 — `java.time.Clock` produit par CDI
 
-- **Statut** : [PROPOSITION] ; fuseau [QUESTION] Q-1
-- **Choix** : `@Produces @ApplicationScoped Clock` = `Clock.system(ZoneId.of(argos.alerting.fuseau))` ; en test, un `Clock` réglable (bean alternatif ou `QuarkusMock`) ; `CollecteWeb` et `LimiteurDebit` dérivent leurs fournisseurs du `Clock` (`LimiteurDebit` garde une source monotone si elle mesure des durées : `System.nanoTime` n'est pas l'heure murale) [PROPOSITION].
+- **Statut** : [PROPOSITION] ; fuseau [DÉCISION — porteur du projet, 2026-11-24 (Q-1, défaut) : fuseau configuré]
+- **Choix** : `@Produces @ApplicationScoped Clock` = `Clock.system(ZoneId.of(argos.alerting.fuseau))` (`io.argos.horloge.ProducteurHorloge`) ; en test, l'horloge réglable `testsupport.HorlogeReglable` installée par `QuarkusMock` ; `CollecteWeb` reçoit le `Clock` injecté. Les durées mesurées utilisent l'horloge monotone : `LimiteurDebit` (fenêtre d'une minute) et `RecuperateurWeb` (échéance d'une récupération) comptent en `System.nanoTime()`, qui n'est pas l'heure murale ; les forges (`scm.ForgeHttp`) reçoivent le `Clock` par leur constructeur.
 - **Justification** : action d'AUD-QUA-10 ; type standard du JDK, aucune dépendance nouvelle.
 - **Alternatives écartées** : `Supplier<Instant>` par classe (état actuel, dispersé) ; interface maison `Horloge` (réinvente `Clock`).
 - **Compromis** : les classes non CDI (records, utilitaires statiques) reçoivent l'instant en paramètre au lieu du `Clock`.
@@ -90,7 +90,7 @@ Aucun contrat ni schéma modifié ; tailles d'exécuteur par défaut égales aux
 ### D2 — Garde de régression par test d'architecture
 
 - **Statut** : [PROPOSITION]
-- **Choix** : règle ArchUnit « aucune classe de production n'appelle `Instant.now()`, `LocalDate.now()`, `LocalDateTime.now()`, `OffsetDateTime.now()`, `ZonedDateTime.now()` sans argument, ni `System.currentTimeMillis()` », hors producteur du `Clock` ; règle « aucun `Thread.sleep` dans les tests » si Q-3 retient la conversion stricte.
+- **Choix** : règle ArchUnit « aucune classe de production n'appelle `Instant.now()`, `LocalDate.now()`, `LocalDateTime.now()`, `OffsetDateTime.now()`, `ZonedDateTime.now()` sans argument, ni `System.currentTimeMillis()` » (`HorlogeInjecteeTest` ; le producteur crée le `Clock` par `Clock.system` et n'en a pas besoin) ; règle « aucun `Thread.sleep` dans les tests » (`TestsSansSommeilTest`), conversion stricte ([DÉCISION] — défaut de Q-3 appliqué : les deux sommeils « sains » d'`ImportPlanifieTest` et `StubServer` sont convertis).
 - **Justification** : critère de sortie du sprint 4 (« une recherche … ne trouve que le producteur du Clock ») rendu exécutable.
 - **Alternatives écartées** : `grep` dans le workflow (moins précis : commentaires, chaînes).
 - **Compromis** : la règle doit autoriser explicitement le producteur.
@@ -98,11 +98,11 @@ Aucun contrat ni schéma modifié ; tailles d'exécuteur par défaut égales aux
 
 ### D3 — Exécuteurs possédés par des beans CDI
 
-- **Statut** : [PROPOSITION] ; forme [QUESTION] Q-4
-- **Choix** : un bean `@ApplicationScoped` par usage (résumé d'alerte, synthèse d'activité, minuterie de coupure web), créant son exécuteur à l'initialisation avec une taille configurable et l'arrêtant par `@PreDestroy` ; ou `ManagedExecutor` configuré par `@ManagedExecutorConfig` pour les deux exécuteurs IA.
-- **Justification** : action d'AUD-QUA-11 ; arrêt propre, configuration, contexte CDI disponible si nécessaire.
-- **Alternatives écartées** : exécuteur Vert.x/worker pool Quarkus partagé (un résumé lent occuperait les fils des requêtes) ; conserver les statiques avec un `shutdown hook` (hors cycle de vie CDI, rechargement à chaud non couvert).
-- **Compromis** : trois petits beans ou une dépendance SmallRye déjà fournie par Quarkus (à vérifier dans le BOM).
+- **Statut** : [DÉCISION — porteur du projet, 2026-11-24 (Q-4) : beans `@ApplicationScoped` et `@PreDestroy`]
+- **Choix** : un bean `@ApplicationScoped` par usage — `alerting.ExecuteurResumeIa`, `projectintel.ExecuteurSyntheseIa` (sous-classes d'`execution.ExecuteurBorne`) et `ingestion.web.MinuterieCoupure` —, créant son exécuteur à l'initialisation (`@PostConstruct`) avec des tailles configurables et l'arrêtant par `@PreDestroy`.
+- **Justification** : action d'AUD-QUA-11 ; arrêt propre, configuration, aucune dépendance nouvelle.
+- **Alternatives écartées** : `ManagedExecutor` (propagation de contexte inutile ici) ; exécuteur Vert.x/worker pool Quarkus partagé (un résumé lent occuperait les fils des requêtes) ; conserver les statiques avec un `shutdown hook` (hors cycle de vie CDI, rechargement à chaud non couvert).
+- **Compromis** : trois petits beans et une classe de base commune.
 - **ADR** : non : décision locale.
 
 ## Risques
@@ -119,19 +119,18 @@ Voir proposal.md, « Écarts constatés ».
 
 | Constat | Niveau de test | Moyen de preuve | État |
 |---|---|---|---|
-| AUD-QUA-10 | architecture (ArchUnit) | règle « aucun `now()` sans `Clock` » ; `grep -rnE "(Instant\|LocalDate\|LocalDateTime\|OffsetDateTime\|ZonedDateTime)\.now\(" argos-server/src/main/java` ne trouve que le producteur | à écrire |
-| AUD-QUA-10 | intégration | tests existants d'expiration d'invitation, de fraîcheur, de radar verts avec un `Clock` réglé | à exécuter |
-| AUD-TST-06 | intégration | `AlertesTest`, `DefenseEnProfondeurTest`, `CollecteWebTest`, `PasserelleIaTest` sans sommeil ni mesure de l'horloge réelle ; `grep -rn "Thread.sleep" argos-server/src/test/java` vide ou motivé (Q-3) | à écrire |
-| AUD-QUA-11 | intégration | test : après arrêt de l'application (ou destruction du bean), l'exécuteur est arrêté ; `grep -rnE "static final .*Executor" argos-server/src/main/java` vide | à écrire |
-| Non-régression | suite complète | `mvn -B -f argos-server/pom.xml clean verify` vert, couverture au moins égale | à exécuter |
+| AUD-QUA-10 | architecture (ArchUnit) | `architecture/HorlogeInjecteeTest` ; la recherche de `(Instant\|LocalDate\|LocalDateTime\|OffsetDateTime\|ZonedDateTime)\.now\(` dans `argos-server/src/main/java` ne trouve que le paquet du producteur (`io.argos.horloge.LectureHeure`) : les beans lisent `horloge.instant()` et `LectureHeure.jour(horloge)` | vert |
+| AUD-QUA-10 | unitaire et intégration | `horloge/ProducteurHorlogeTest` (fuseau) ; `mcp/HorlogeMcpTest` (date du jour au fuseau configuré à 23:30 UTC) ; tests existants d'expiration d'invitation, de fraîcheur et du radar | vert |
+| AUD-TST-06 | intégration et architecture | `AlertesTest`, `DefenseEnProfondeurTest`, `CollecteWebTest`, `PasserelleIaTest`, `ImportPlanifieTest`, `StubServer` sans sommeil ni mesure de l'horloge réelle ; `architecture/TestsSansSommeilTest` | vert |
+| AUD-QUA-11 | unitaire | `execution/ExecuteurBorneTest` (issues, arrêt à la destruction du bean), `ingestion/web/RecuperateurWebTest.laMinuterieSArreteALaDestructionDuBean` ; aucun `static final .*Executor` dans `src/main/java` | vert |
+| Non-régression | suite complète | `mvn -B -f argos-server/pom.xml -P integration-continue clean verify` vert, couverture au-dessus du seuil | voir tasks.md 4.2 |
 
 ## Documentation durable impactée
 
 - arc42 §8.5 (exécuteurs gérés par CDI, arrêt, tailles configurables), §8.11 (tests du temps sans attente réelle, Awaitility), §8.16 (horloge injectée, aucun `now()` direct).
 - arc42 §5 (paragraphe du socle) et table de `ModuleBoundariesTest` si un paquet technique du producteur est créé (Q-5).
-- Glossaire arc42 §12 : entrée « horloge du serveur » si le terme est employé dans la documentation.
+- Glossaire arc42 §12 : entrée « Horloge commune ».
 
 ## Questions ouvertes
 
-- Q-5 : paquet du producteur du `Clock` (paquet technique dédié ou noyau commun d'`extraire-noyau-commun`) — non bloquante.
-- Awaitility (Apache-2.0) : vérifier sa présence dans le BOM Quarkus avant de l'ajouter en dépendance de test — non bloquante.
+Aucune. Q-4 tranchée par le porteur du projet le 2026-11-24 ; défauts documentés appliqués pour Q-1 (fuseau configuré), Q-2 (`now()` SQL d'horodatage pur conservés), Q-3 (conversion stricte) et Q-5 (paquet technique `io.argos.horloge`). Awaitility est géré par le BOM Quarkus (4.3.0, Apache-2.0) et ajouté en dépendance de test.

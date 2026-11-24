@@ -1,8 +1,8 @@
 package io.argos.alerting;
 
+import java.time.Clock;
 import java.time.Instant;
 import java.time.LocalDate;
-import java.time.ZoneId;
 import java.time.temporal.ChronoUnit;
 import java.util.ArrayList;
 import java.util.LinkedHashSet;
@@ -18,8 +18,10 @@ import jakarta.inject.Inject;
 import org.eclipse.microprofile.config.inject.ConfigProperty;
 import org.jboss.logging.Logger;
 
+import io.argos.horloge.LectureHeure;
 import io.argos.impact.RapprochementOpportunites;
 import io.argos.impact.ResumeOpportunite;
+import io.argos.observabilite.TacheObservee;
 import io.argos.regintel.EcheancesReglementaires;
 import io.argos.workspace.suivi.SuivisProfil;
 import io.quarkus.scheduler.Scheduled;
@@ -42,6 +44,9 @@ import io.quarkus.scheduler.Scheduled;
 public class RappelsOpportunites {
 
     private static final Logger LOG = Logger.getLogger(RappelsOpportunites.class);
+
+    @Inject
+    Clock horloge;
 
     @Inject
     SuivisProfil suivis;
@@ -67,10 +72,11 @@ public class RappelsOpportunites {
     @ConfigProperty(name = "argos.alerting.fuseau")
     String fuseau;
 
+    @TacheObservee
     @Scheduled(identity = "rappels-profil-artiste", cron = "{argos.profil-artiste.rappels.cron}",
             timeZone = "{argos.alerting.fuseau}", concurrentExecution = Scheduled.ConcurrentExecution.SKIP)
     void quotidien() {
-        executer(LocalDate.now(ZoneId.of(fuseau)), Instant.now());
+        executer(LectureHeure.jour(horloge), horloge.instant());
     }
 
     /** Jours de rappel par défaut (Q-4). */

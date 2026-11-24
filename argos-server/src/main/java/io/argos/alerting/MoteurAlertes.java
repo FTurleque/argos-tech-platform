@@ -4,6 +4,7 @@ import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
+import java.time.Clock;
 import java.time.Duration;
 import java.time.Instant;
 import java.time.ZoneOffset;
@@ -16,15 +17,6 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
 import java.util.UUID;
-import java.util.concurrent.ArrayBlockingQueue;
-import java.util.concurrent.CancellationException;
-import java.util.concurrent.ExecutionException;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Future;
-import java.util.concurrent.RejectedExecutionException;
-import java.util.concurrent.ThreadPoolExecutor;
-import java.util.concurrent.TimeUnit;
-import java.util.concurrent.TimeoutException;
 import java.util.stream.Collectors;
 
 import javax.sql.DataSource;
@@ -47,6 +39,7 @@ import io.quarkus.runtime.LaunchMode;
 import io.quarkus.runtime.StartupEvent;
 
 import io.argos.impact.ImpactQueries;
+import io.argos.execution.ExecuteurBorne;
 import io.argos.impact.ImpactsRecorded;
 import io.argos.workspace.subscription.SubscriptionService;
 
@@ -73,16 +66,12 @@ public class MoteurAlertes {
     private static final Logger LOG = Logger.getLogger(MoteurAlertes.class);
     static final ObjectMapper JSON = new ObjectMapper();
 
-    /**
-     * Exécuteur dédié aux demandes de résumé IA : deux fils au plus et une file bornée, hors du pool
-     * commun. Une demande expirée est annulée (interruption) ; une file pleine vaut résumé indisponible.
-     */
-    private static final ExecutorService EXECUTEUR_IA = new ThreadPoolExecutor(2, 2, 60, TimeUnit.SECONDS,
-            new ArrayBlockingQueue<>(16), tache -> {
-                Thread fil = new Thread(tache, "argos-resume-ia");
-                fil.setDaemon(true);
-                return fil;
-            }, new ThreadPoolExecutor.AbortPolicy());
+    @Inject
+    Clock horloge;
+
+    /** Exécuteur dédié aux demandes de résumé IA, hors du pool commun : une demande expirée est annulée. */
+    @Inject
+    ExecuteurResumeIa executeurIa;
 
     @Inject
     DataSource dataSource;
@@ -137,7 +126,7 @@ public class MoteurAlertes {
      */
     private void evaluerOuJournaliser(ImpactsRecorded evenement) {
         try {
-            evaluer(evenement, Instant.now());
+            evaluer(evenement, horloge.instant());
         } catch (IllegalStateException | QuarkusTransactionException erreur) {
             LOG.errorf(erreur, "évaluation des alertes du signal %s en échec", evenement.signalId());
         }
@@ -316,36 +305,27 @@ public class MoteurAlertes {
         if (!resumeur.budgetDisponible(concernes)) {
             return ResumeObtenu.sans("PLAFOND_ATTEINT");
         }
-        Future<String> demande;
-        try {
-            demande = EXECUTEUR_IA.submit(() -> resumeur.resumer(evenement.signalId(), evenement.signalTitle(), concernes));
-        } catch (RejectedExecutionException erreur) {
-            LOG.infof("résumé IA indisponible pour le signal %s : file d'attente pleine", evenement.signalId());
-            return ResumeObtenu.sans("INDISPONIBLE");
-        }
-        return attendre(demande, evenement.signalId());
+        ExecuteurBorne.Issue<String> issue = executeurIa.executer(
+                () -> resumeur.resumer(evenement.signalId(), evenement.signalTitle(), concernes), delaiResumeIa);
+        return resume(issue, evenement.signalId());
     }
 
-    /** Attend le résumé demandé dans le délai borné ; une demande expirée, annulée ou interrompue est abandonnée. */
-    private ResumeObtenu attendre(Future<String> demande, UUID signalId) {
-        try {
-            String texte = demande.get(delaiResumeIa.toMillis(), TimeUnit.MILLISECONDS);
-            return texte == null || texte.isBlank() ? ResumeObtenu.sans("REFUSE") : new ResumeObtenu(texte, "DISPONIBLE");
-        } catch (InterruptedException erreur) {
-            demande.cancel(true);
-            Thread.currentThread().interrupt();
-            return ResumeObtenu.sans("INDISPONIBLE");
-        } catch (ExecutionException erreur) {
-            if (erreur.getCause() instanceof ResumeIa.PlafondAtteint) {
-                return ResumeObtenu.sans("PLAFOND_ATTEINT");
-            }
-            LOG.infof("résumé IA indisponible pour le signal %s : %s", signalId, erreur.getCause());
-            return ResumeObtenu.sans("INDISPONIBLE");
-        } catch (TimeoutException | CancellationException erreur) {
-            demande.cancel(true);
-            LOG.infof("résumé IA indisponible pour le signal %s : %s", signalId, erreur.toString());
-            return ResumeObtenu.sans("INDISPONIBLE");
+    /**
+     * Résumé d'après l'issue de la demande : une demande refusée (file pleine), expirée, interrompue ou en erreur vaut
+     * résumé indisponible, cause journalisée avec sa pile ; le plafond atteint et le refus du modèle sont distingués.
+     */
+    private static ResumeObtenu resume(ExecuteurBorne.Issue<String> issue, UUID signalId) {
+        if (issue.etat() == ExecuteurBorne.Etat.OBTENU) {
+            String texte = issue.valeur().orElse("");
+            return texte.isBlank() ? ResumeObtenu.sans("REFUSE") : new ResumeObtenu(texte, "DISPONIBLE");
         }
+        if (issue.cause().filter(ResumeIa.PlafondAtteint.class::isInstance).isPresent()) {
+            return ResumeObtenu.sans("PLAFOND_ATTEINT");
+        }
+        if (issue.etat() != ExecuteurBorne.Etat.INTERROMPUE) {
+            LOG.infof(issue.cause().orElseThrow(), "résumé IA indisponible pour le signal %s (%s)", signalId, issue.etat());
+        }
+        return ResumeObtenu.sans("INDISPONIBLE");
     }
 
     /** Vrai si une alerte immédiate existe pour ce signal et ce destinataire, sur ce canal ou sur l'un d'eux. */

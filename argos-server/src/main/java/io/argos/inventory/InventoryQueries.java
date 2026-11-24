@@ -4,6 +4,7 @@ import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
+import java.time.Clock;
 import java.time.Duration;
 import java.time.Instant;
 import java.time.OffsetDateTime;
@@ -128,6 +129,9 @@ public class InventoryQueries {
     }
 
     @Inject
+    Clock horloge;
+
+    @Inject
     DataSource dataSource;
 
     @ConfigProperty(name = "argos.inventory.sbom-max-age", defaultValue = "P30D")
@@ -221,7 +225,7 @@ public class InventoryQueries {
                 }
                 String origin = lignes.getString(1);
                 Instant sourceDate = instant(lignes, 2);
-                Long age = sourceDate == null ? null : Duration.between(sourceDate, Instant.now()).toDays();
+                Long age = sourceDate == null ? null : Duration.between(sourceDate, horloge.instant()).toDays();
                 return Optional.of(new LigneInventaire(origin, sourceDate, age, sbomObsolete(origin, sourceDate),
                         lignes.getString(3), instant(lignes, 4), lignes.getInt(5), ignored(lignes.getString(6))));
             }
@@ -505,7 +509,7 @@ public class InventoryQueries {
      * ne le juge jamais assez fiable pour le niveau « exact » (COR-06).
      */
     private boolean sbomObsolete(String origin, Instant sourceDate) {
-        return "SBOM".equals(origin) && (sourceDate == null || sourceDate.plus(sbomMaxAge).isBefore(Instant.now()));
+        return "SBOM".equals(origin) && (sourceDate == null || sourceDate.plus(sbomMaxAge).isBefore(horloge.instant()));
     }
 
     private static List<ComponentView> components(Connection connexion, UUID projectId) throws SQLException {

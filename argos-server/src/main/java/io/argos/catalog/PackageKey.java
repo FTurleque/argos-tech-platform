@@ -6,6 +6,8 @@ import java.util.Locale;
 import java.util.Map;
 import java.util.Optional;
 
+import org.jboss.logging.Logger;
+
 /**
  * Clé d'identification d'un paquet, indépendante de sa version : {@code pkg:type/namespace/name}
  * (spécification Package URL). Signaux et inventaires utilisent la même clé, ce qui rend la
@@ -21,6 +23,11 @@ public final class PackageKey {
     public record Purl(String type, String key, String version) {
     }
 
+    private static final Logger LOG = Logger.getLogger(PackageKey.class);
+
+    /** Préfixe de tout PURL. */
+    private static final String PREFIXE = "pkg:";
+
     /** Écosystèmes OSV → type PURL. */
     private static final Map<String, String> ECOSYSTEM_TYPES = Map.ofEntries(
             Map.entry("maven", "maven"), Map.entry("npm", "npm"), Map.entry("pypi", "pypi"),
@@ -31,38 +38,46 @@ public final class PackageKey {
     private PackageKey() {
     }
 
-    /** Décompose un PURL ; vide s'il n'est pas conforme à {@code pkg:type/[namespace/]name[@version]}. */
+    /**
+     * Décompose un PURL ; vide s'il n'est pas conforme à {@code pkg:type/[namespace/]name[@version]} ou si l'un de ses
+     * segments est mal encodé (par exemple {@code %zz}) : un PURL mal encodé est un PURL illisible, que chaque appelant
+     * traite selon sa règle (COL-11, INV-11, RAD-07). Aucune chaîne ne lève d'erreur d'exécution.
+     */
     public static Optional<Purl> parse(String purl) {
-        if (purl == null || !purl.startsWith("pkg:")) {
+        if (purl == null || !purl.startsWith(PREFIXE)) {
             return Optional.empty();
         }
-        String rest = purl.substring(4);
-        int cut = indexOfAny(rest, '?', '#');
-        if (cut >= 0) {
-            rest = rest.substring(0, cut);
-        }
-        String version = null;
+        String rest = sansQualificatifs(purl.substring(PREFIXE.length()));
         int versionSeparator = rest.lastIndexOf('@');
-        if (versionSeparator > rest.indexOf('/') && versionSeparator >= 0) {
-            version = decode(rest.substring(versionSeparator + 1));
-            rest = rest.substring(0, versionSeparator);
+        if (versionSeparator < 0 || versionSeparator <= rest.indexOf('/')) {
+            return paquet(rest, "");
         }
-        while (rest.startsWith("/")) {
-            rest = rest.substring(1);
-        }
-        int slash = rest.indexOf('/');
-        if (slash <= 0 || slash == rest.length() - 1) {
+        return decode(rest.substring(versionSeparator + 1))
+                .flatMap(version -> paquet(rest.substring(0, versionSeparator), version));
+    }
+
+    /** PURL sans ses qualificatifs ({@code ?…}) ni son sous-chemin ({@code #…}). */
+    private static String sansQualificatifs(String rest) {
+        int cut = indexOfAny(rest, '?', '#');
+        return cut >= 0 ? rest.substring(0, cut) : rest;
+    }
+
+    /** Type, namespace et nom de {@code type/[namespace/]name} ; {@code version} vide : PURL sans version. */
+    private static Optional<Purl> paquet(String chemin, String version) {
+        String sansBarres = chemin.replaceFirst("^/+", "");
+        int slash = sansBarres.indexOf('/');
+        if (slash <= 0 || slash == sansBarres.length() - 1) {
             return Optional.empty();
         }
-        String type = rest.substring(0, slash).toLowerCase(Locale.ROOT);
-        String path = rest.substring(slash + 1);
+        String type = sansBarres.substring(0, slash).toLowerCase(Locale.ROOT);
+        String path = sansBarres.substring(slash + 1);
         int last = path.lastIndexOf('/');
-        String namespace = last < 0 ? null : decode(path.substring(0, last));
-        String name = decode(path.substring(last + 1));
-        if (name.isBlank()) {
+        Optional<String> namespace = last < 0 ? Optional.of("") : decode(path.substring(0, last));
+        Optional<String> name = decode(path.substring(last + 1)).filter(valeur -> !valeur.isBlank());
+        if (namespace.isEmpty() || name.isEmpty()) {
             return Optional.empty();
         }
-        return Optional.of(new Purl(type, key(type, namespace, name), version == null || version.isBlank() ? null : version));
+        return Optional.of(new Purl(type, key(type, namespace.get(), name.get()), version.isBlank() ? null : version));
     }
 
     /**
@@ -122,7 +137,13 @@ public final class PackageKey {
         return secondIndex < 0 ? firstIndex : Math.min(firstIndex, secondIndex);
     }
 
-    private static String decode(String value) {
-        return URLDecoder.decode(value.replace("+", "%2B"), StandardCharsets.UTF_8);
+    /** Segment décodé ; vide si son encodage en pourcentage est invalide. */
+    private static Optional<String> decode(String value) {
+        try {
+            return Optional.of(URLDecoder.decode(value.replace("+", "%2B"), StandardCharsets.UTF_8));
+        } catch (IllegalArgumentException encodageInvalide) {
+            LOG.debugf(encodageInvalide, "segment de PURL mal encodé : PURL illisible");
+            return Optional.empty();
+        }
     }
 }

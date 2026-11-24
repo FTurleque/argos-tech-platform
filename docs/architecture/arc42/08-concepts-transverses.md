@@ -127,7 +127,7 @@ Risque résiduel : le contrôle repose sur le code d'Argos seul ; aucun filtrage
 - curseurs de synchronisation persistés ;
 - table d’échec / DLQ logique au MVP ;
 - replay contrôlé ;
-- health/readiness distincts.
+- health/readiness distincts : `/q/health/ready` compose le contrôle des connexions à la base, seul à pouvoir rendre le serveur indisponible, et des contrôles non bloquants par tâche planifiée et par dépendance facultative (§8.6, EXP-15).
 
 ### Tâches planifiées
 
@@ -149,13 +149,62 @@ Les traitements périodiques sont des méthodes `@Scheduled` de `quarkus-schedul
 | `collecte-profil-artiste` | `signal.opportunite` | `argos.profil-artiste.collecte.cron` | 05:00 |
 | `rappels-profil-artiste` | `alerting` | `argos.profil-artiste.rappels.cron` | 07:00 |
 
-Une échéance manquée (serveur arrêté) n'est pas rattrapée : la tâche s'exécute à l'échéance suivante (ADR-0031). Dans la pile E2E, les tâches qui joindraient une source externe sont désactivées, sauf la synchronisation des sources d'avis et l'import des inventaires, rapprochées (toutes les 5 secondes) et dirigées vers les sources et forges simulées de `e2e/support/sources-simulees.mjs` ([PROPOSITION] PI-1 du changement `automatiser-chaine-veille`).
+Exécuteurs (changement `injecter-horloge-et-executeurs`, AUD-QUA-11 ; [DÉCISION] du porteur du projet, 2026-11-24, Q-4 : beans et `@PreDestroy`) : chaque fil créé par le serveur appartient à un bean `@ApplicationScoped`, qui crée son exécuteur à l'initialisation avec les tailles de sa configuration et l'arrête à l'arrêt de l'application (`shutdownNow`, tâches en cours interrompues). `io.argos.execution.ExecuteurBorne` porte le motif « soumettre, attendre avec délai, annuler » et propage la corrélation des journaux : `ExecuteurResumeIa` (résumés IA des alertes, `argos.alerting.resume-ia.fils`, `fils-max`, `file` : 2, 2, 16) et `ExecuteurSyntheseIa` (synthèses d'activité, `argos.activite.synthese.fils`, `fils-max`, `file` : 1, 2, 8) ; `ingestion.web.MinuterieCoupure` coupe la lecture d'une réponse trop lente (`argos.veille-web.minuterie.fils` : 1). Une demande expirée est annulée ; une file pleine vaut résultat indisponible. Aucun exécuteur statique.
+
+Chaque méthode `@Scheduled` porte `@TacheObservee` (module technique `observabilite`, contrôlé par `TachesObserveesTest`) : son exécution reçoit un identifiant de corrélation et le nom de sa tâche dans le MDC, est mesurée et alimente le contrôle de santé `tache-<identité>` (§8.6). Une échéance manquée (serveur arrêté) n'est pas rattrapée : la tâche s'exécute à l'échéance suivante (ADR-0031). Dans la pile E2E, les tâches qui joindraient une source externe sont désactivées, sauf la synchronisation des sources d'avis et l'import des inventaires, rapprochées (toutes les 5 secondes) et dirigées vers les sources et forges simulées de `e2e/support/sources-simulees.mjs` ([PROPOSITION] PI-1 du changement `automatiser-chaine-veille`).
+
+### Frontières d'erreur
+
+Une **frontière d'erreur** est le point où un traitement itère sur des unités indépendantes (source, projet, espace, produit, texte, message), reçoit un événement d'un autre composant (observateur synchrone) ou répond à un client externe (garde MCP). Règle ([DÉCISION] du porteur du projet, 2026-11-24, « isoler puis relancer » ; changement `isoler-erreurs-aux-frontieres`, AUD-QUA-20, AUD-QUA-23) :
+
+1. À l'intérieur d'une unité, les erreurs prévues sont capturées précisément et traduites en résultats typés (rejet, refus, source indisponible, panne d'accès aux données journalisée) ; aucune capture large.
+2. Dans une boucle sur des unités indépendantes, l'erreur d'exécution d'une unité est journalisée au niveau erreur avec l'exception en premier argument (`LOG.errorf(erreur, "…")` : pile et causes), l'unité est comptée en échec et les unités suivantes sont traitées ; la première erreur imprévue est ensuite relancée, les suivantes attachées en erreurs supprimées (`observabilite.ErreursImprevues`). Une erreur imprévue n'est jamais absorbée : l'exécution planifiée se termine en échec visible (§8.6). La méthode testable d'un passage rend un bilan portant les erreurs retenues, que son point d'entrée `@Scheduled` relance (`relancerErreurImprevue()`).
+3. Observateur synchrone et garde MCP : la panne d'accès aux données est traitée (journalisée ; `INDISPONIBLE` pour un outil MCP) ; une erreur imprévue est journalisée puis propagée à l'émetteur ou au client (erreur de protocole MCP, sans message interne). Un observateur transactionnel `AFTER_SUCCESS` ne peut plus annuler la transaction validée : le conteneur CDI journalise l'erreur qui en sort, au niveau erreur avec sa pile.
+4. Une donnée externe ne fait jamais sortir d'un analyseur une erreur d'exécution non typée : un PURL mal encodé est illisible (`PackageKey.parse` vide) et chaque appelant applique sa règle.
+5. `InterruptedException` rétablit l'indicateur d'interruption ; `Error` n'est pas capturée.
+6. Chaque frontière a un test qui simule une erreur imprévue autre que la panne d'accès aux données.
+
+Inventaire des frontières :
+
+| Frontière | Module | Unité isolée | Test |
+|---|---|---|---|
+| synchronisation d'une source (`SourceSynchronizer.synchronize`) | `ingestion` | traitement : `FAILED`/`PERMANENT` puis relance | `ResilienceTest`, `FrontieresCollecteTest` |
+| passage planifié des sources (`SynchronisationPlanifiee`) | `signal` | source | `FrontieresCollecteTest` |
+| import planifié (`ImportPlanifie`) | `inventory` | projet, relance de recorrélation | `ImportPlanifieTest` |
+| tâche quotidienne du radar (`RappelsRadar.executer`) | `alerting` | actualisation, espace | `RadarStandardsTest` |
+| dettes de version (`RadarProjets.enregistrerDettes`), cycles de vie (`CyclesDeVie.synchroniser`) | `impact`, `releaseradar` | espace, produit | `RadarStandardsTest` |
+| préparation des fiches (`PreparationFiches.preparer`) | `regintel` | texte | `VeilleReglementaireTest` |
+| collecte d'activité (`CollecteActivite`) | `projectintel` | projet | `ActiviteProjetsTest` |
+| diffusion des alertes (`EnvoiAlertes.envoyer`) | `alerting` | message | `AlertesTest` |
+| observateurs `StandardModifie`, `AnnonceStandard`, `ImpactsRecorded` | `impact`, `alerting` | événement (règle 3) | `RadarStandardsTest`, `AlertesTest` |
+| garde des outils (`GardeAppels`) | `mcp` | appel d'outil (règle 3) | `ErreursOutilsMcpTest` |
+| appel du fournisseur de modèle (`PasserelleIa`) | `aigateway` | pannes prévues = modèle indisponible ; erreur imprévue propagée | `PasserelleIaTest` |
+
+Frontières à aligner (capture de la seule panne d'accès aux données ; une erreur imprévue y interrompt le passage, en échec visible) : `RappelsReglementaires`, `RappelsOpportunites`, `ResumesPeriodiques`, `CollecteOpportunites`, `CollecteWeb`, `CollecteReglementaire`.
 
 ## 8.6 Observabilité
 
-OpenTelemetry/Micrometer côté Quarkus, logs structurés, métriques et traces lorsque pertinent.
+Pile retenue par [ADR-0036](../adr/0036-pile-observabilite-serveur.md) (Proposé) : journaux JSON de Quarkus, Micrometer avec registre Prometheus ; traçage distribué (OpenTelemetry) différé jusqu'à l'existence d'un collecteur. Exigences EXP-13 à EXP-15, fiche [`exploitation-plateforme`](../../specifications/exploitation-plateforme.md).
 
-Métriques clés : fraîcheur des sources, impacts détectés, couverture SBOM, alertes, latence API/MCP, tokens/coût IA, erreurs de structured output, refus pour politique de confidentialité.
+**Journaux.** En production, une ligne JSON par événement (`quarkus.log.console.json.enabled`), texte en développement et en test. Une erreur se journalise avec l'exception en premier argument (`LOG.errorf(erreur, "…")`) : le journal porte son type, son message, sa pile et ses causes. Aucun jeton, mot de passe ni adresse e-mail n'est journalisé ; le filtre `masquage-jetons` (`observabilite.FiltreJetons`) remplace tout jeton JWT cité dans un message, y compris par une extension, et dans le message d'une exception journalisée et de ses causes (pile conservée).
+
+**Corrélation.** Clés du MDC : `correlation` et, pour une exécution planifiée, `tache`. Le filtre HTTP `FiltreCorrelation` crée l'identifiant de chaque requête (API REST, MCP, points d'exploitation), toujours côté serveur, et le restitue dans l'en-tête `X-Request-Id` ; l'intercepteur des méthodes `@TacheObservee` en crée un par exécution. Un traitement soumis à un exécuteur reçoit les valeurs du fil appelant par `Correlation.propager`.
+
+**Métriques.** `/q/metrics`, format texte Prometheus, réservé à l'administrateur plateforme (politique HTTP `admin-plateforme`). Métriques fournies : HTTP, JVM, pool de connexions (`quarkus.datasource.metrics.enabled`). Métriques métier, préfixe `argos_`, étiquettes bornées — jamais un compte, un espace, un projet, un avis ni une adresse :
+
+| Métrique | Étiquettes | Source |
+|---|---|---|
+| `argos_taches_executions_seconds` (nombre, somme, max) | `tache`, `resultat` (`succes`, `echec`) | intercepteur des tâches planifiées |
+| `argos_taches_derniere_duree_seconds` | `tache` | idem |
+| `argos_sources` | `etat` (`NOMINAL`, `FAILING`, `DEGRADED`) | contrôle `sources-avis`, passage planifié des sources |
+| `argos_alertes_file` | `etat` (`en_attente`, `en_echec` sur 24 h) | contrôle `envoi-alertes`, passage d'envoi |
+| `argos_alertes_envois_total` | `issue` (`envoyee`, `a_retenter`, `en_echec`, `ignoree`) | diffusion des alertes |
+| `argos_ia_appels_total` | `tache` (tâche IA), `issue` | passerelle IA |
+| `argos_ia_duree_seconds` | `tache` | idem |
+
+Métriques reportées : couverture SBOM, impacts détectés, coût IA en jetons (le journal `ia_appel` les trace déjà).
+
+**Santé.** `/q/health/ready` (public, sans donnée d'espace) : contrôle des connexions à la base ; `tache-<identité>` par tâche active (état `a-l-heure`, `jamais-executee`, `en-echec` ou `en-retard`, dernière exécution, retard toléré de deux intervalles du déclencheur, `argos.observabilite.taches.facteur-retard`) ; `sources-avis` ; `envoi-alertes` ; `passerelle-ia`. Ces contrôles restent `UP` et publient leur état dégradé dans leurs données ; seule la base rend le serveur indisponible ([DF-EXP-3](../../specifications/exploitation-plateforme.md#df-exp-3--composition-du-contrôle-de-disponibilité)).
 
 ## 8.7 Persistance
 
@@ -220,8 +269,9 @@ Recherche de veille (changement `rechercher-et-filtrer`, ADR-0015) : recherche p
 - contract tests adapters et MCP ;
 - E2E critiques : parcours du portail web dans Chromium (Playwright, `e2e/`) contre le serveur de développement, le Keycloak de test des Dev Services et une base PostgreSQL jetable, sans requête hors du poste ([guide](../../../e2e/README.md)) ;
 - sécurité ;
-- résilience ;
-- tests IA avec jeu de référence.
+- résilience : un test par frontière d'erreur (§8.5) ;
+- tests IA avec jeu de référence ;
+- indépendance du temps réel (AUD-TST-06) : aucun test ne dort (`Thread.sleep` refusé par `TestsSansSommeilTest`) ni ne mesure l'horloge réelle pour décider d'une assertion. Une attente se borne par Awaitility sur une condition observable : verrou en attente lu dans `pg_locks`, requête reçue par le serveur simulé, ligne écrite au journal. Un serveur lent se simule par une réponse retenue (`StubServer.Stub.retenue`, libérée par `StubServer.liberer()` ou à la réinitialisation) ; un fournisseur IA lent par une réponse qui attend un signal, interrompue par l'annulation à l'expiration du délai. Le temps métier se règle par l'horloge réglable `testsupport.HorlogeReglable`, installée à la place du `Clock` du serveur (`QuarkusMock`) ; une dépendance se remplace le temps d'un test par `testsupport.Substitution`.
 
 ### Intégration continue
 
@@ -325,5 +375,7 @@ Nommage (décisions du porteur du projet, 2026-11-20) : aucun identifiant d'une 
 Un nom court qui relève d'un contrat externe garde son nom : propriété JSON de l'API (composants `de` de `TransitionView` et `le` de `EvenementHistorique`), signature d'une API tierce reproduite par une doublure de test (`on()` d'Electron). Ces exceptions sont inscrites, avec leur raison, dans la liste blanche en tête de `scripts/verifier-nommage.mjs`, qui reste minimale : une entrée devenue inutile fait échouer le contrôle. Les clés et propriétés d'objets et d'interfaces, les colonnes SQL et les clés de configuration ne sont pas des déclarations d'identifiants et ne sont pas contrôlées.
 
 Typage : les trois projets TypeScript ou JavaScript sont vérifiés par le compilateur TypeScript, sans émission. `argos-ui` passe par `vue-tsc` en mode `strict` ; `e2e/` par `tsc` en mode `strict` (`e2e/tsconfig.json`), les modules JavaScript qu'il importe ayant une déclaration `.d.mts` ; `argos-desktop`, écrit en JavaScript CommonJS annoté en JSDoc, par `tsc` avec `allowJs` et `checkJs` (`argos-desktop/tsconfig.json`), en mode non strict ([DÉCISION] du porteur du projet, 2026-11-24 : strictness progressive), ce qui vérifie les annotations JSDoc elles-mêmes (type d'une fonction importée écrit `ReturnType<typeof import('./module').fonction>`, formes d'objets décrites par `@typedef`). Une erreur de type se corrige à la source ; `// @ts-ignore` n'est pas employé. Contrôles : `npm --prefix e2e run typecheck`, inclus dans `npm --prefix e2e test`, et `npm --prefix argos-desktop run check`, qui enchaîne syntaxe, types et tests ; tous deux exécutés par l'intégration continue (§8.11).
+
+Heure (changement `injecter-horloge-et-executeurs`, AUD-QUA-10) : l'heure murale vient d'un seul `java.time.Clock`, produit par `io.argos.horloge.ProducteurHorloge` au fuseau `argos.alerting.fuseau` ([DÉCISION] du porteur du projet, 2026-11-24, Q-1 : fuseau configuré) et injecté dans chaque bean qui la lit : instant par `horloge.instant()`, date du jour par `horloge.LectureHeure.jour(horloge)`, `horloge.withZone(...)` pour un autre fuseau ; une méthode statique ou un record reçoit l'instant en paramètre. Seul le paquet `io.argos.horloge` appelle les méthodes `now(...)` de `java.time` ; aucun appel à `now()` sans argument ni à `System.currentTimeMillis()` en production (contrôle : `HorlogeInjecteeTest`, ArchUnit). Une durée mesurée (délai, échéance de lecture, fenêtre d'un limiteur, chronométrage) utilise l'horloge monotone `System.nanoTime()`, qui n'est pas l'heure murale. Une règle qui compare une date en base à une valeur calculée en Java reçoit l'instant Java en paramètre SQL au lieu de `now()` ; les `now()` SQL d'horodatage pur (`cree_le`, `updated_at`, valeurs par défaut) restent ([DÉCISION] du porteur du projet, 2026-11-24, Q-2).
 
 Contrôle : `node scripts/verifier-nommage.mjs` analyse les fichiers suivis par Git et liste chaque violation (`fichier:ligne:nom`, code de sortie 1) ; ses tests (`node --test scripts/*.test.mjs`) l'exécutent sur tout le dépôt.

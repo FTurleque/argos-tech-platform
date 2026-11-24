@@ -8,6 +8,8 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicReference;
 
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.inject.Inject;
@@ -21,6 +23,9 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import io.argos.aigateway.PromptIa.ChampSortie;
 import io.argos.aigateway.ReponseIa.Issue;
 import io.argos.audit.JournalAppelsIa;
+import io.micrometer.core.instrument.Counter;
+import io.micrometer.core.instrument.MeterRegistry;
+import io.micrometer.core.instrument.Timer;
 
 /**
  * Passerelle IA : seul point d'appel aux modèles (IAG-01 à IAG-05, DC-1, ADR-0004).
@@ -37,6 +42,10 @@ import io.argos.audit.JournalAppelsIa;
  * fournisseur : elle répond par un motif, et l'appelant poursuit sans IA. L'IA est désactivée par
  * défaut ({@code argos.ia.active=false}) ; sans Ollama joignable, Argos fonctionne en mode
  * déterministe et la réservation de chaque demande est rendue.
+ *
+ * <p>Chaque demande tracée est comptée dans {@code argos_ia_appels_total{tache, issue}} et chronométrée dans
+ * {@code argos_ia_duree_seconds{tache}} (EXP-14) ; l'issue du dernier appel au fournisseur alimente le contrôle de
+ * disponibilité {@link SantePasserelleIa}.
  */
 @ApplicationScoped
 public class PasserelleIa {
@@ -70,6 +79,24 @@ public class PasserelleIa {
 
     @ConfigProperty(name = "argos.ia.taille-max-entree")
     int tailleMaxEntree;
+
+    /** Joignabilité du fournisseur d'après le dernier appel transmis. */
+    public enum EtatFournisseur { INCONNU, JOIGNABLE, INJOIGNABLE }
+
+    private final AtomicReference<EtatFournisseur> etatFournisseur = new AtomicReference<>(EtatFournisseur.INCONNU);
+
+    @Inject
+    MeterRegistry metriques;
+
+    /** Vrai si la passerelle est activée par {@code argos.ia.active}. */
+    public boolean active() {
+        return active;
+    }
+
+    /** Joignabilité du fournisseur d'après le dernier appel, {@code INCONNU} avant le premier. */
+    public EtatFournisseur etatFournisseur() {
+        return etatFournisseur.get();
+    }
 
     /** Vrai si l'IA est active et qu'un appel imputé à cet espace ({@code null} : instance seule) serait accepté. */
     public boolean disponible(UUID espaceId) {
@@ -169,13 +196,16 @@ public class PasserelleIa {
     private Optional<FournisseurModele.Reponse> appelerModele(DemandeIa demande, PromptIa prompt, String modele,
             List<EntreeIa> filtrees) {
         try {
-            return Optional.of(fournisseur.executer(new FournisseurModele.Requete(modele, prompt.consignes(),
-                    message(filtrees), schema(prompt))));
+            FournisseurModele.Reponse reponse = fournisseur.executer(new FournisseurModele.Requete(modele,
+                    prompt.consignes(), message(filtrees), schema(prompt)));
+            etatFournisseur.set(EtatFournisseur.JOIGNABLE);
+            return Optional.of(reponse);
         } catch (InterruptedException interruption) {
             Thread.currentThread().interrupt();
             LOG.infof(interruption, "appel du modèle %s interrompu pour la tâche %s", modele, prompt.tache());
             return Optional.empty();
         } catch (IOException erreur) {
+            etatFournisseur.set(EtatFournisseur.INJOIGNABLE);
             LOG.infof(erreur, "modèle %s indisponible pour la tâche %s : %s", modele, prompt.tache(), erreur.toString());
             rendreQuotaSiNonTransmis(demande, erreur);
             return Optional.empty();
@@ -286,7 +316,12 @@ public class PasserelleIa {
         }
 
         void enregistrer(Issue issue, FournisseurModele.Reponse brute, int masquees) {
-            long dureeMs = (System.nanoTime() - debut) / 1_000_000;
+            long dureeNanos = System.nanoTime() - debut;
+            long dureeMs = TimeUnit.NANOSECONDS.toMillis(dureeNanos);
+            Counter.builder("argos.ia.appels").description("Demandes à la passerelle IA tracées, par tâche et par issue")
+                    .tag("tache", prompt.tache()).tag("issue", issue.name()).register(metriques).increment();
+            Timer.builder("argos.ia.duree").description("Durée des demandes à la passerelle IA, par tâche")
+                    .tag("tache", prompt.tache()).register(metriques).record(dureeNanos, TimeUnit.NANOSECONDS);
             journal.enregistrer(new JournalAppelsIa.Entree(prompt.tache(), prompt.version(), fournisseur.nom(),
                     brute == null ? modele : brute.modele(), espaceId, issue.name(),
                     brute == null ? 0 : brute.jetonsEntree(), brute == null ? 0 : brute.jetonsSortie(),

@@ -6,9 +6,9 @@ import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Timestamp;
+import java.time.Clock;
 import java.time.Instant;
 import java.time.LocalDate;
-import java.time.ZoneId;
 import java.util.ArrayList;
 import java.util.EnumMap;
 import java.util.List;
@@ -23,6 +23,7 @@ import jakarta.transaction.Transactional;
 
 import org.eclipse.microprofile.config.inject.ConfigProperty;
 
+import io.argos.horloge.LectureHeure;
 import io.argos.workspace.ContexteBase;
 import io.argos.workspace.DonneeInvalide;
 
@@ -39,6 +40,9 @@ public class ActiviteQueries {
     public static final int JOURS_MAX = 397;
 
     @Inject
+    Clock horloge;
+
+    @Inject
     DataSource dataSource;
 
     @ConfigProperty(name = "argos.alerting.fuseau")
@@ -46,7 +50,7 @@ public class ActiviteQueries {
 
     /** Activité du projet sur les {@code jours} derniers jours, aujourd'hui compris (fuseau commun). */
     public VueActivite activite(UUID projectId, UUID accountId, int jours) {
-        return activite(projectId, accountId, jours, LocalDate.now(ZoneId.of(fuseau)));
+        return activite(projectId, accountId, jours, LectureHeure.jour(horloge));
     }
 
     /** Activité du projet sur les {@code jours} jours qui se terminent le jour {@code fin}. */

@@ -4,6 +4,7 @@ import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
+import java.time.Clock;
 import java.time.Duration;
 import java.time.Instant;
 import java.time.OffsetDateTime;
@@ -40,6 +41,9 @@ public class SyncStore {
     /** Événement d'exploitation daté (COL-07-S1). */
     public record OpsEvent(UUID id, String kind, String sourceId, String detail, Instant occurredAt) {
     }
+
+    @Inject
+    Clock horloge;
 
     @Inject
     DataSource dataSource;
@@ -81,7 +85,7 @@ public class SyncStore {
         update("""
                 UPDATE sync_run SET state = 'RETRYABLE', last_error = 'traitement interrompu, repris au prochain lancement'
                 WHERE source_id = ? AND state = 'RUNNING' AND heartbeat_at <= ?
-                """, sourceId, utc(Instant.now().minus(runningExpiry)));
+                """, sourceId, utc(horloge.instant().minus(runningExpiry)));
         if (queryString("SELECT id::text FROM sync_run WHERE source_id = ? AND state = 'RUNNING'", sourceId).isPresent()) {
             return Optional.empty();
         }
@@ -184,7 +188,7 @@ public class SyncStore {
         return update("""
                 UPDATE sync_run SET state = 'RETRYABLE', last_error = 'traitement interrompu, repris au prochain lancement'
                 WHERE state = 'RUNNING' AND heartbeat_at <= ?
-                """, utc(Instant.now().minus(expiry)));
+                """, utc(horloge.instant().minus(expiry)));
     }
 
     @Transactional

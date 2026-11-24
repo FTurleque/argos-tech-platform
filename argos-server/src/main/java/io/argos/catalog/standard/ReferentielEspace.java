@@ -4,6 +4,7 @@ import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
+import java.time.Clock;
 import java.time.Instant;
 import java.time.LocalDate;
 import java.time.OffsetDateTime;
@@ -20,6 +21,7 @@ import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.enterprise.event.Event;
 import jakarta.inject.Inject;
 
+import io.argos.horloge.LectureHeure;
 import io.argos.workspace.ContexteBase;
 import io.argos.workspace.ContexteBase.Contexte;
 import io.argos.workspace.Introuvable;
@@ -67,6 +69,9 @@ public class ReferentielEspace {
             SELECT id, espace_id, cle, libelle, statut, version_recommandee, responsable, justification, date_revue,
                    produit_cycle_vie, modifie_le FROM standard_technologie
             """;
+
+    @Inject
+    Clock horloge;
 
     @Inject
     ContexteBase base;
@@ -135,7 +140,7 @@ public class ReferentielEspace {
      */
     public UUID suggerer(UUID espaceId, String cle, String statut, String versionRecommandee, String justification) {
         SaisieStandard.Validee saisieValidee = new SaisieStandard(cle, null, statut, versionRecommandee, "IA", justification,
-                LocalDate.now().toString(), null).valider();
+                LectureHeure.jour(horloge).toString(), null).valider();
         UUID id = UUID.randomUUID();
         try (Connection connexion = dataSource.getConnection(); PreparedStatement requete = connexion.prepareStatement("""
                 INSERT INTO standard_suggestion (id, espace_id, cle, statut, version_recommandee, justification, origine, cree_le)
@@ -147,7 +152,7 @@ public class ReferentielEspace {
             requete.setString(4, saisieValidee.statut().name());
             requete.setString(5, saisieValidee.versionRecommandee());
             requete.setString(6, saisieValidee.justification());
-            requete.setObject(7, OffsetDateTime.now(ZoneOffset.UTC));
+            requete.setObject(7, horloge.instant().atOffset(ZoneOffset.UTC));
             requete.executeUpdate();
         } catch (SQLException erreur) {
             throw new IllegalStateException("enregistrement de la suggestion impossible", erreur);

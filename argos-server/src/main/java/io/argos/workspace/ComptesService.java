@@ -4,6 +4,7 @@ import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
+import java.time.Clock;
 import java.time.OffsetDateTime;
 import java.util.Locale;
 import java.util.Optional;
@@ -15,6 +16,7 @@ import jakarta.inject.Inject;
 
 import org.eclipse.microprofile.config.inject.ConfigProperty;
 
+import io.argos.horloge.LectureHeure;
 import io.argos.workspace.ContexteBase.Contexte;
 
 /**
@@ -41,6 +43,9 @@ public class ComptesService {
     String profilParDefaut;
 
     @Inject
+    Clock horloge;
+
+    @Inject
     ContexteBase base;
 
     @Inject
@@ -57,30 +62,43 @@ public class ComptesService {
         if (existant.isPresent()) {
             return existant.get();
         }
-        boolean adminInitial = email != null && adminPlateformeInitial
-                .map(adresse -> adresse.trim().toLowerCase(Locale.ROOT)).filter(email::equals).isPresent();
-        Creation creation = base.executer(contexte, connexion -> {
-            if (!adminInitial && !"ouverte".equalsIgnoreCase(modeInscription) && !invitationEnAttente(connexion)) {
-                throw new InscriptionRefusee();
-            }
-            UUID id = UUID.randomUUID();
-            int insere;
-            try (PreparedStatement requete = connexion.prepareStatement(
-                    "INSERT INTO compte (id, sujet_oidc, nom_affiche, email, admin_plateforme) VALUES (?, ?, ?, ?, ?)"
-                            + " ON CONFLICT (sujet_oidc) DO NOTHING")) {
-                requete.setObject(1, id);
-                requete.setString(2, identite.sujet());
-                requete.setString(3, nomAffiche(identite));
-                requete.setString(4, identite.email());
-                requete.setBoolean(5, adminInitial);
-                insere = requete.executeUpdate();
-            }
-            return new Creation(parSujet(connexion, identite.sujet()).orElseThrow(), insere == 1);
-        });
+        boolean adminInitial = adminInitial(email);
+        Creation creation = base.executer(contexte, connexion -> creer(connexion, identite, adminInitial));
         if (creation.nouveau()) {
             compteCree.fire(new CompteCree(creation.compte(), profilParDefaut));
         }
         return creation.compte();
+    }
+
+    /** Vrai si l'e-mail vérifié est celui de l'administrateur plateforme initial. */
+    private boolean adminInitial(String email) {
+        return email != null && adminPlateformeInitial.map(adresse -> adresse.trim().toLowerCase(Locale.ROOT))
+                .filter(email::equals).isPresent();
+    }
+
+    /**
+     * Crée le compte du sujet si l'inscription est admise (administrateur initial, inscription ouverte ou invitation en
+     * attente) ; une création concurrente du même sujet n'en produit pas de second.
+     */
+    private Creation creer(Connection connexion, IdentiteOidc identite, boolean adminInitial) throws SQLException {
+        boolean admise = adminInitial || "ouverte".equalsIgnoreCase(modeInscription)
+                || invitationEnAttente(connexion, LectureHeure.dateHeure(horloge));
+        if (!admise) {
+            throw new InscriptionRefusee();
+        }
+        UUID id = UUID.randomUUID();
+        int insere;
+        try (PreparedStatement requete = connexion.prepareStatement(
+                "INSERT INTO compte (id, sujet_oidc, nom_affiche, email, admin_plateforme) VALUES (?, ?, ?, ?, ?)"
+                        + " ON CONFLICT (sujet_oidc) DO NOTHING")) {
+            requete.setObject(1, id);
+            requete.setString(2, identite.sujet());
+            requete.setString(3, nomAffiche(identite));
+            requete.setString(4, identite.email());
+            requete.setBoolean(5, adminInitial);
+            insere = requete.executeUpdate();
+        }
+        return new Creation(parSujet(connexion, identite.sujet()).orElseThrow(), insere == 1);
     }
 
     /** Compte associé à un sujet OIDC, s'il existe. */
@@ -91,13 +109,16 @@ public class ComptesService {
     private record Creation(Compte compte, boolean nouveau) {
     }
 
-    private static boolean invitationEnAttente(Connection connexion) throws SQLException {
+    /** Vrai si une invitation en attente, non expirée à {@code maintenant}, est adressée à l'e-mail du contexte. */
+    private static boolean invitationEnAttente(Connection connexion, OffsetDateTime maintenant) throws SQLException {
         try (PreparedStatement requete = connexion.prepareStatement(
-                "SELECT EXISTS (SELECT 1 FROM invitation WHERE etat = 'EN_ATTENTE' AND expire_le > now()"
-                        + " AND lower(email) = argos_email_courant())");
-                ResultSet resultat = requete.executeQuery()) {
-            resultat.next();
-            return resultat.getBoolean(1);
+                "SELECT EXISTS (SELECT 1 FROM invitation WHERE etat = 'EN_ATTENTE' AND expire_le > ?"
+                        + " AND lower(email) = argos_email_courant())")) {
+            requete.setObject(1, maintenant);
+            try (ResultSet resultat = requete.executeQuery()) {
+                resultat.next();
+                return resultat.getBoolean(1);
+            }
         }
     }
 

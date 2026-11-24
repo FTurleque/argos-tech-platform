@@ -78,7 +78,7 @@ public class Enricher {
                     }
                 } catch (EnrichmentUnavailableException error) {
                     unavailable.add(source.id());
-                    LOG.infof("source %s indisponible pour %s : %s", source.id(), cve, error.getMessage());
+                    LOG.infof(error, "source %s indisponible pour %s : %s", source.id(), cve, error.getMessage());
                 }
             }
         }

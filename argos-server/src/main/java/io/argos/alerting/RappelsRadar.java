@@ -5,13 +5,14 @@ import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
+import java.time.Clock;
 import java.time.Instant;
 import java.time.LocalDate;
-import java.time.ZoneId;
 import java.time.ZoneOffset;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
 import java.util.UUID;
@@ -28,8 +29,11 @@ import org.jboss.logging.Logger;
 
 import io.quarkus.scheduler.Scheduled;
 
+import io.argos.horloge.LectureHeure;
 import io.argos.impact.AnnonceStandard;
 import io.argos.impact.RadarProjets;
+import io.argos.observabilite.ErreursImprevues;
+import io.argos.observabilite.TacheObservee;
 import io.argos.regintel.EcheancesReglementaires;
 import io.argos.workspace.ContexteBase;
 import io.argos.workspace.ContexteBase.Contexte;
@@ -58,9 +62,20 @@ public class RappelsRadar {
     /** Longueur de la colonne {@code alerte.cle_radar}. */
     static final int CLE_MAX = 600;
 
-    /** Bilan d'une exécution quotidienne. */
-    public record Bilan(RadarProjets.Bilan radar, List<UUID> rappels) {
+    /**
+     * Bilan d'une exécution quotidienne, avec les erreurs imprévues retenues, que {@link #relancerErreurImprevue()}
+     * relance.
+     */
+    public record Bilan(RadarProjets.Bilan radar, List<UUID> rappels, List<RuntimeException> erreursImprevues) {
+
+        /** Relance la première erreur imprévue de l'exécution ; sans effet s'il n'y en a pas. */
+        public void relancerErreurImprevue() {
+            ErreursImprevues.relancer(erreursImprevues);
+        }
     }
+
+    @Inject
+    Clock horloge;
 
     @Inject
     DataSource dataSource;
@@ -86,21 +101,26 @@ public class RappelsRadar {
     @ConfigProperty(name = "argos.alerting.fuseau")
     String fuseau;
 
+    @TacheObservee
     @Scheduled(identity = "argos-radar-quotidien", cron = "{argos.radar.tache.cron}",
             timeZone = "{argos.alerting.fuseau}", concurrentExecution = Scheduled.ConcurrentExecution.SKIP)
     void quotidien() {
-        executer(LocalDate.now(ZoneId.of(fuseau)), Instant.now());
+        executer(LectureHeure.jour(horloge), horloge.instant()).relancerErreurImprevue();
     }
 
-    /** Tâche quotidienne du radar (DC-1) pour le jour donné. */
+    /**
+     * Tâche quotidienne du radar (DC-1) pour le jour donné. Une erreur imprévue de l'actualisation ou des rappels d'un
+     * espace est journalisée avec sa cause et retenue dans le bilan ; les étapes et les espaces suivants sont traités.
+     */
     public Bilan executer(LocalDate aujourdhui, Instant maintenant) {
-        RadarProjets.Bilan bilan = actualiserOuJournaliser(aujourdhui, maintenant);
+        ErreursImprevues imprevues = new ErreursImprevues();
+        RadarProjets.Bilan bilan = actualiserOuJournaliser(aujourdhui, maintenant, imprevues);
         List<UUID> crees = new ArrayList<>();
         for (UUID espace : espacesSuivisOuJournaliser()) {
-            rappelerEspaceOuJournaliser(espace, aujourdhui, maintenant, crees);
+            rappelerEspaceOuJournaliser(espace, aujourdhui, maintenant, crees, imprevues);
         }
         envoi.envoyer(crees, maintenant);
-        return new Bilan(bilan, List.copyOf(crees));
+        return new Bilan(bilan, List.copyOf(crees), imprevues.retenues());
     }
 
     /**
@@ -108,12 +128,17 @@ public class RappelsRadar {
      * avec sa cause et les
      * rappels partent quand même, sur le calendrier et les dettes déjà connus.
      */
-    private RadarProjets.Bilan actualiserOuJournaliser(LocalDate aujourdhui, Instant maintenant) {
+    private RadarProjets.Bilan actualiserOuJournaliser(LocalDate aujourdhui, Instant maintenant,
+            ErreursImprevues imprevues) {
         try {
             return radar.actualiser(aujourdhui, maintenant);
         } catch (IllegalStateException erreur) {
             LOG.errorf(erreur, "actualisation du radar en échec");
-            return new RadarProjets.Bilan(java.util.Map.of(), 0);
+            return new RadarProjets.Bilan(Map.of(), 0);
+        } catch (RuntimeException imprevue) {
+            LOG.errorf(imprevue, "actualisation du radar interrompue par une erreur imprévue");
+            imprevues.retenir(imprevue);
+            return new RadarProjets.Bilan(Map.of(), 0);
         }
     }
 
@@ -131,7 +156,8 @@ public class RappelsRadar {
      * Point d'isolation de la tâche planifiée : une panne d'accès aux données pour un espace est journalisée avec sa
      * cause et n'interrompt pas les rappels des autres.
      */
-    private void rappelerEspaceOuJournaliser(UUID espace, LocalDate aujourdhui, Instant maintenant, List<UUID> crees) {
+    private void rappelerEspaceOuJournaliser(UUID espace, LocalDate aujourdhui, Instant maintenant, List<UUID> crees,
+            ErreursImprevues imprevues) {
         try {
             for (int jours : parametresTechniques(espace)) {
                 for (RadarProjets.EcheanceProjets echeance : radar.echeancesTouchant(espace, aujourdhui.plusDays(jours))) {
@@ -140,6 +166,9 @@ public class RappelsRadar {
             }
         } catch (IllegalStateException erreur) {
             LOG.errorf(erreur, "rappels du radar de l'espace %s en échec", espace);
+        } catch (RuntimeException imprevue) {
+            LOG.errorf(imprevue, "rappels du radar de l'espace %s interrompus par une erreur imprévue", espace);
+            imprevues.retenir(imprevue);
         }
     }
 
@@ -154,7 +183,7 @@ public class RappelsRadar {
      */
     private void annoncerOuJournaliser(AnnonceStandard annonce) {
         try {
-            annoncer(annonce, Instant.now());
+            annoncer(annonce, horloge.instant());
         } catch (IllegalStateException erreur) {
             LOG.errorf(erreur, "annonce du changement de standard %s en échec", annonce.cle());
         }

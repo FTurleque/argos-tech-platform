@@ -9,6 +9,7 @@ import static org.hamcrest.Matchers.hasSize;
 import static org.hamcrest.Matchers.notNullValue;
 import static org.hamcrest.Matchers.nullValue;
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
@@ -18,6 +19,7 @@ import java.time.Instant;
 import java.time.LocalDate;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.UUID;
 
 import jakarta.inject.Inject;
@@ -26,12 +28,17 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
 import io.argos.alerting.RappelsReglementaires;
+import io.argos.catalog.dictionnaire.DictionnaireMetier.Domaine;
+import io.argos.regintel.AnalyseIa;
 import io.argos.regintel.CollecteReglementaire;
+import io.argos.regintel.PreparationFiches;
+import io.argos.regintel.TexteOfficiel;
 import io.argos.testsupport.Api;
 import io.argos.testsupport.ArtisteFixtures;
 import io.argos.testsupport.ReglementaireFixtures;
 import io.argos.testsupport.StubServer;
 import io.argos.testsupport.StubServer.Stub;
+import io.argos.testsupport.Substitution;
 import io.argos.testsupport.TestDb;
 import io.argos.workspace.ContexteBase;
 import io.argos.workspace.ContexteBase.Contexte;
@@ -77,6 +84,12 @@ class VeilleReglementaireTest {
 
     @Inject
     MockMailbox mailbox;
+
+    @Inject
+    PreparationFiches preparation;
+
+    @Inject
+    AnalyseIa analyseIa;
 
     private UUID espace;
     private UUID ines;
@@ -209,6 +222,36 @@ class VeilleReglementaireTest {
         assertEquals(0, baseDeTest.count("SELECT count(*) FROM fiche_reglementaire WHERE etat_validation <> 'EN_ATTENTE_VALIDATION'"));
         assertEquals(2, baseDeTest.count("SELECT count(*) FROM ia_appel WHERE espace_id = '" + espace + "' AND issue = 'PRODUIT'"
                 + " AND tache = 'fiche-reglementaire'"));
+    }
+
+    /**
+     * Frontière d'erreur de la préparation des fiches (arc42 §8.5) : une erreur imprévue sur un texte (ici, la
+     * proposition de domaine de l'arrêté) n'empêche pas la fiche des autres textes ; elle est relancée ensuite.
+     */
+    @Test
+    void texteEnErreurImprevueNEmpechePasLesAutresFiches() {
+        AnalyseIa reelle = Substitution.reel(analyseIa);
+        IllegalArgumentException imprevue = new IllegalArgumentException("erreur imprévue simulée");
+        AnalyseIa doublure = new AnalyseIa() {
+            @Override
+            public Optional<Proposition> proposerDomaine(UUID espaceId, TexteOfficiel texte, List<Domaine> domaines) {
+                throw imprevue;
+            }
+
+            @Override
+            public Optional<Fiche> preparer(UUID espaceId, TexteOfficiel texte) {
+                return reelle.preparer(espaceId, texte);
+            }
+        };
+
+        try (Substitution substitution = Substitution.remplacer(preparation, "analyseIa", doublure)) {
+            assertSame(imprevue, assertThrows(IllegalArgumentException.class, () -> collecte.collecter(LE_20, Instant.now())));
+        }
+
+        assertEquals(1, baseDeTest.count("SELECT count(*) FROM fiche_reglementaire f JOIN texte_officiel t ON t.id = f.texte_id"
+                + " WHERE t.identifiant = '" + CARRIERE + "'"), "fiche du texte rattaché par la règle préparée");
+        assertEquals(0, baseDeTest.count("SELECT count(*) FROM fiche_reglementaire f JOIN texte_officiel t ON t.id = f.texte_id"
+                + " WHERE t.identifiant = '" + PAIE + "'"));
     }
 
     // ------------------------------------------------------------------ REG-05 (sans IA : mode dégradé)

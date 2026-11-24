@@ -35,7 +35,8 @@ Motivation : proposal.md.
 ## Objectifs et non-objectifs
 
 **Objectifs :**
-- Un filet unique et journalisé à chaque frontière ; captures précises conservées à l'intérieur.
+- À chaque frontière, isoler l'unité fautive (journalisée avec sa cause, comptée en échec), traiter les unités suivantes, puis relancer la première erreur imprévue : aucune erreur imprévue n'est absorbée ([DÉCISION] du porteur du projet, 2026-11-24, « isoler puis relancer »).
+- Captures précises conservées à l'intérieur des unités.
 - Le PURL mal encodé devient une donnée illisible, traitée selon la règle déjà en place à chaque entrée.
 - Un test par frontière, avec une erreur imprévue simulée et, pour les entrées externes, le PURL `%zz`.
 - La règle écrite dans arc42 §8.5.
@@ -43,29 +44,29 @@ Motivation : proposal.md.
 **Non-objectifs :**
 - Rendre asynchrones les observateurs (AUD-PER-02, sprint 8).
 - Métriques et journaux structurés (`instrumenter-observabilite`).
-- Requalifier les 147 `new IllegalStateException(` (Q-1 de la proposition).
+- Requalifier les 147 `new IllegalStateException(` (Q-1 de la proposition : pas de type dédié dans ce changement).
 
 ## Composants impactés, responsabilités et frontières
 
 | Composant | Responsabilité dans ce changement | Ne doit pas | Statut |
 |---|---|---|---|
 | catalog | décoder une clé de paquet sans lever d'erreur d'exécution sur un encodage invalide | décider du sort de la donnée (appartient à l'appelant) | modifié |
-| source-ingestion | terminer une synchronisation en `FAILED`/`PERMANENT` sur toute erreur imprévue | laisser un traitement `RUNNING` | modifié |
-| signal | isoler chaque source dans le passage planifié, consigner les sources en erreur au bilan | interrompre le passage | modifié |
-| inventory | isoler chaque projet dans le passage, compter `enEchec` | interrompre le passage | modifié |
-| impact-engine, alerting | filet journalisé dans les observateurs synchrones et les boucles par espace | propager une erreur à l'émetteur de l'événement | modifié |
-| release-radar, reg-intel, project-intel | filet journalisé dans les boucles par produit, texte ou projet | interrompre la boucle | modifié |
-| ai-gateway | traiter toute erreur du fournisseur comme « modèle indisponible » journalisé | propager l'erreur à l'appelant | modifié |
-| mcp-server | répondre `INDISPONIBLE` et journaliser `Issue.ERREUR` pour toute erreur interne | renvoyer une erreur de protocole ou un détail interne | modifié |
-| API & Security | inchangé si D2 suffit (la saisie lève `DonneeInvalide`) | — | inchangé |
+| source-ingestion | terminer une synchronisation en `FAILED`/`PERMANENT` sur toute erreur imprévue, puis la relancer | laisser un traitement `RUNNING` | modifié |
+| signal | isoler chaque source dans le passage planifié, sources en erreur au bilan, relancer à l'échéance | interrompre le passage | modifié |
+| inventory | isoler chaque projet dans le passage, compter `enEchec`, relancer à l'échéance | interrompre le passage | modifié |
+| impact-engine, alerting | isoler espaces, produits et messages dans les boucles du radar et de la diffusion ; observateurs synchrones : panne d'accès aux données journalisée, erreur imprévue propagée | absorber une erreur imprévue | modifié |
+| release-radar, reg-intel, project-intel | isoler produits, textes et projets ; relancer à la fin de la boucle | interrompre la boucle | modifié |
+| ai-gateway | pannes prévues du fournisseur (injoignable, délai, réponse en erreur) = « modèle indisponible » ; erreur imprévue propagée | traduire une erreur imprévue en indisponibilité | inchangé (vérifié par test) |
+| mcp-server | panne d'accès aux données → `INDISPONIBLE` ; erreur imprévue journalisée, appel inscrit en erreur, puis relancée | traduire une erreur imprévue en `INDISPONIBLE` ; renvoyer un détail interne | modifié |
+| observabilite (module technique) | `ErreursImprevues` : retenir puis relancer la première erreur d'un passage | dépendre d'un module métier | modifié |
 
 ## Modèle de domaine et invariants
 
 Pas de modèle métier nouveau. Invariants testables :
 
-- I-1 : à la fin d'un passage planifié (sources d'avis, imports, radar, cycles de vie, fiches, activité), chaque unité éligible a été tentée, quelle que soit l'erreur d'une autre unité.
-- I-2 : aucune synchronisation de source ne reste `RUNNING` après le retour de `synchronize`, sauf attente de nouvelle tentative interrompue (comportement existant).
-- I-3 : un observateur synchrone ne propage aucune erreur d'exécution à l'émetteur.
+- I-1 : à la fin d'un passage (sources d'avis, imports, radar, cycles de vie, fiches, activité, diffusion), chaque unité éligible a été tentée, quelle que soit l'erreur d'une autre unité.
+- I-2 : aucune synchronisation de source ne reste `RUNNING` après le retour ou la sortie en erreur de `synchronize`, sauf attente de nouvelle tentative interrompue (comportement existant).
+- I-3 : une erreur imprévue n'est jamais absorbée : elle est relancée par le passage, par la garde MCP ou par l'observateur synchrone, après traitement des autres unités.
 - I-4 : toute erreur capturée à une frontière est journalisée au niveau erreur avec l'exception en premier argument (pile et causes comprises).
 - I-5 : le décodage d'une clé de paquet ne lève aucune erreur d'exécution pour une chaîne quelconque.
 
@@ -82,18 +83,19 @@ sequenceDiagram
         Planif->>Unite: traiter(unité)
         alt succès
             Unite-->>Planif: rapport (SUCCEEDED, IMPORTED…)
-        else erreur prévue (source, document invalide, quota)
-            Unite-->>Planif: rapport d'échec typé (existant)
+        else erreur prévue (source, document invalide, quota, panne d'accès aux données)
+            Unite-->>Planif: rapport d'échec typé ou panne journalisée
         else erreur imprévue
             Unite-->>Planif: exception
             Planif->>Journal: erreur avec cause et pile
-            Note over Planif: unité comptée en échec, boucle poursuivie
+            Note over Planif: unité comptée en échec, erreur retenue, boucle poursuivie
         end
     end
     Planif->>Journal: bilan du passage (dont unités en échec)
+    Planif-->>Planif: relance de la première erreur imprévue retenue
 ```
 
-Explication : le filet est posé dans la boucle de la tâche planifiée ; pour une source d'avis, la synchronisation elle-même termine d'abord le traitement en `FAILED` (DC-2), de sorte que l'exception ne parvient à la boucle que si l'enregistrement de cet échec échoue aussi. Existant : la branche « erreur imprévue » sort de la boucle.
+Explication : le filet est posé dans la boucle de la tâche planifiée ; pour une source d'avis, la synchronisation termine d'abord le traitement en `FAILED` (DC-2) puis relance l'erreur, que la boucle retient. La méthode testable du passage (`synchroniserToutes`, `importer`, `executer`, `collecter`) rend un bilan portant les erreurs retenues ; le point d'entrée `@Scheduled` les relance (`Bilan.relancerErreurImprevue()`), si bien que l'exécution planifiée se termine en échec visible (journal de l'intercepteur, métrique `resultat=echec`, contrôle de santé `en-echec`, `instrumenter-observabilite`). Les boucles internes sans bilan (`CyclesDeVie.synchroniser`, `RadarProjets.enregistrerDettes`, `PreparationFiches.preparer`, `EnvoiAlertes.envoyer`) relancent elles-mêmes à leur fin ; leur appelant qui est une frontière les traite comme une unité.
 
 **DC-3** — Question : quand l'administrateur reçoit-il une erreur lors de l'enregistrement d'un standard ? Type : UML sequenceDiagram. Statut : cible ([PROPOSITION]). Exigences : RAD-07, RAD-01-S2, RAD-06.
 
@@ -113,16 +115,20 @@ sequenceDiagram
         Ref->>Ref: transaction : entrée + historique (validée)
         Ref->>Radar: StandardModifie (synchrone)
         Radar->>Annonce: AnnonceStandard (synchrone)
-        alt annonce en échec (toute erreur)
+        alt panne d'accès aux données pendant l'annonce
             Annonce-->>Annonce: journalisée avec cause
+            Radar-->>Ref: retour sans exception
+            Ref-->>Api: entrée enregistrée
+            Api-->>Admin: 200 entrée
+        else erreur imprévue pendant l'annonce
+            Annonce-->>Radar: exception (journalisée par la requête)
+            Radar-->>Api: exception
+            Api-->>Admin: 500, entrée déjà enregistrée
         end
-        Radar-->>Ref: retour sans exception
-        Ref-->>Api: entrée enregistrée
-        Api-->>Admin: 200 entrée
     end
 ```
 
-Explication : la validation précède la transaction (RAD-07-S1, RAD-01-S2) ; l'annonce suit la validation de la transaction, donc toute erreur doit y être absorbée (RAD-07-S2). Existant : seule `IllegalStateException` est absorbée ; une `IllegalArgumentException` de décodage sort de la validation sans correspondance d'erreur.
+Explication : la validation précède la transaction (RAD-07-S1, RAD-01-S2) ; l'annonce suit la validation de la transaction. Une panne d'accès aux données y est absorbée et journalisée (RAD-07-S2) ; une erreur imprévue est propagée (RAD-07-S3) : l'enregistrement reste acquis, l'erreur est visible.
 
 ## États et transitions
 
@@ -135,24 +141,24 @@ stateDiagram-v2
     RUNNING --> RETRYABLE: erreur transitoire, tentatives restantes
     RETRYABLE --> RUNNING: délai écoulé
     RUNNING --> FAILED: erreur permanente ou tentatives épuisées
-    RUNNING --> FAILED: erreur imprévue (cible : PERMANENT, motif = type d'erreur)
+    RUNNING --> FAILED: panne d'accès aux données ou erreur imprévue (PERMANENT, motif = type d'erreur)
     FAILED --> [*]
     SUCCEEDED --> [*]
 ```
 
-Explication : la transition « erreur imprévue » rétablit le comportement d'avant le lot 23 (capture `RuntimeException` menant à `FAILED`/`PERMANENT`, constat AUD-QUA-20). L'échec compte pour le seuil de `DEGRADED` (COL-07, COL-11-S3). Aujourd'hui, ce chemin laisse `RUNNING` jusqu'à l'expiration de 30 minutes.
+Explication : la transition « erreur imprévue » termine le traitement en `FAILED`/`PERMANENT` avec le type d'erreur pour motif, puis l'erreur est relancée. L'échec compte pour le seuil de `DEGRADED` (COL-07, COL-11-S3).
 
 ## Contrats d'interface
 
 | Élément | Valeur |
 |---|---|
-| Opération et chemin | `PUT /api/v1/radar/espaces/{espaceId}/standards` (`api/RadarResource.java:99-109`) |
+| Opération et chemin | `PUT /api/v1/radar/espaces/{espaceId}/standards` (`api/RadarResource.java`) |
 | Authentification / autorisations | inchangées (administrateur de l'espace, RAD-02) |
-| Erreur ajoutée | 400 `DONNEE_INVALIDE`, attribut `cle`, pour une clé mal encodée (au lieu d'une erreur serveur) ; message de `SaisieStandard` existant (« La clé doit être un PURL sans version… ») |
-| Réponse après enregistrement | toujours 200 avec l'entrée, même si l'annonce échoue |
-| Compatibilité | aucune rupture ; contrat OpenAPI à vérifier (réponse 400 déclarée) |
+| Erreur de saisie | 400 `DONNEE_INVALIDE`, attribut `cle`, pour une clé mal encodée ; message de `SaisieStandard` existant (« La clé doit être un PURL sans version… ») ; réponse 400 déjà déclarée par l'OpenAPI de l'opération |
+| Réponse après enregistrement | 200 avec l'entrée si l'annonce réussit ou échoue sur une panne d'accès aux données ; 500 si l'annonce échoue sur une erreur imprévue, l'entrée restant enregistrée |
+| Compatibilité | aucune rupture |
 
-Outils MCP : résultat d'erreur d'outil (`isError`) dont le texte commence par `INDISPONIBLE` — code déjà défini par la fiche `serveur-mcp` ; aucun nouveau code.
+Outils MCP : panne d'accès aux données → résultat d'erreur d'outil (`isError`) dont le texte commence par `INDISPONIBLE` ; erreur imprévue → erreur de protocole JSON-RPC émise par l'extension, sans message interne. Aucun nouveau code.
 
 ## Persistance et intégrité
 
@@ -161,8 +167,9 @@ Non applicable — aucune migration. Les états `FAILED`/`PERMANENT` d'une synch
 ## Transactions, concurrence et idempotence
 
 - L'enregistrement d'un avis reste dans la transaction de la synchronisation (`SignalRecorder.record`, `MANDATORY`) : une erreur imprévue annule le lot en cours ; le curseur n'avance pas (COL-05).
+- La corrélation d'un avis est un observateur transactionnel `AFTER_SUCCESS` (`CorrelationEngine.onSignalChanged`) : une erreur imprévue qui en sort (évaluation des alertes comprise) est journalisée par le conteneur CDI au niveau erreur, avec sa pile ; elle ne peut plus annuler l'avis déjà validé.
 - L'annonce d'un standard reste synchrone et postérieure à la validation de la transaction ; le filet n'introduit aucune transaction.
-- Les verrous existants (synchronisation par source, imports sérialisés par projet, INV-08) sont inchangés ; le filet libère les ressources par les blocs `finally` existants (à vérifier par les tests de 2.x).
+- Les verrous existants (synchronisation par source, imports sérialisés par projet, INV-08) sont inchangés ; les blocs `finally` existants libèrent les ressources.
 
 ## Sécurité et isolation
 
@@ -172,19 +179,21 @@ Non applicable — aucune migration. Les états `FAILED`/`PERMANENT` d'une synch
 
 ## Gestion des erreurs et reprise
 
-Règle proposée pour arc42 §8.5 (tâche 6.1) :
+Règle écrite dans arc42 §8.5 (tâche 6.1) :
 
-1. À l'intérieur d'une unité de traitement, capturer précisément les erreurs prévues et les traduire en résultats typés (rejet, refus, source indisponible).
-2. À chaque frontière (boucle sur des unités indépendantes, observateur synchrone, garde d'un protocole externe), capturer toute erreur d'exécution, la journaliser au niveau erreur avec l'exception en premier argument, compter l'unité en échec et poursuivre.
-3. Une erreur d'une donnée externe ne doit jamais sortir d'un analyseur sous forme d'erreur d'exécution non typée.
-4. `InterruptedException` rétablit l'indicateur d'interruption (existant) ; `Error` n'est pas capturée.
-5. Un test par frontière simule une erreur imprévue autre que la panne d'accès aux données.
+1. À l'intérieur d'une unité de traitement, capturer précisément les erreurs prévues et les traduire en résultats typés (rejet, refus, source indisponible, panne d'accès aux données journalisée).
+2. À chaque frontière (boucle sur des unités indépendantes), capturer toute erreur d'exécution d'une unité, la journaliser au niveau erreur avec l'exception en premier argument, compter l'unité en échec, poursuivre, puis relancer la première erreur imprévue une fois les unités traitées (`observabilite.ErreursImprevues`).
+3. Observateurs synchrones et garde MCP : la panne d'accès aux données est traitée (journalisée ; `INDISPONIBLE` pour le MCP) ; une erreur imprévue est journalisée puis propagée.
+4. Une erreur d'une donnée externe ne doit jamais sortir d'un analyseur sous forme d'erreur d'exécution non typée.
+5. `InterruptedException` rétablit l'indicateur d'interruption (existant) ; `Error` n'est pas capturée.
+6. Un test par frontière simule une erreur imprévue autre que la panne d'accès aux données.
 
 ## Observabilité
 
-- Journal : niveau erreur, exception en premier argument (I-4) ; message nommant l'unité (source, projet, espace) sans donnée personnelle.
-- Bilans de passage : sources en erreur (`SynchronisationPlanifiee.Bilan`), `enEchec` (`ImportPlanifie.Bilan`) ; ces bilans seront exposés en métriques par `instrumenter-observabilite`.
-- MCP : `Issue.ERREUR` au journal des appels (MCP-06).
+- Journal : niveau erreur, exception en premier argument (I-4) ; message nommant l'unité (source, projet, espace, produit, texte, message) sans donnée personnelle.
+- Bilans de passage : sources en erreur (`SynchronisationPlanifiee.Bilan.enErreur`), `projetsEnEchec` (`ImportPlanifie.Bilan`), `echecs` (`CollecteActivite.Bilan`), erreurs imprévues retenues (`erreursImprevues`).
+- Exécution planifiée relancée en échec : métrique `argos_taches_executions_seconds_count{resultat="echec"}` et état `en-echec` du contrôle de santé (`instrumenter-observabilite`).
+- MCP : `Issue.ERREUR` au journal des appels (MCP-06), pour les deux cas.
 
 ## Performance et stratégie de mesure
 
@@ -196,95 +205,101 @@ Aucune migration. Retour arrière par commit ; aucun état persistant nouveau. L
 
 ## Décisions, alternatives et compromis
 
-### D1 — Filet `RuntimeException` aux frontières, captures précises à l'intérieur
+### D1 — Isoler puis relancer aux frontières, captures précises à l'intérieur
 
-- **Statut** : [PROPOSITION]
-- **Choix** : à chaque frontière du tableau « Contexte technique », capturer `RuntimeException` (et `QuarkusTransactionException` là où elle est déjà traitée), journaliser avec la cause, compter l'unité en échec ; ne pas toucher aux captures précises internes.
-- **Justification** : isole les pannes sans masquer les erreurs à l'intérieur ; conforme à l'action du constat ; rétablit le comportement d'avant le lot 23 aux seuls endroits utiles.
-- **Alternatives écartées** : revenir à `RuntimeException` partout (annule les gains du lot 23 : causes journalisées, interruptions rétablies) ; capturer `Exception`/`Throwable` (capture `Error`, contraire à la règle 4).
-- **Compromis** : la frontière doit être identifiée explicitement ; règle écrite et test par frontière pour éviter une nouvelle régression.
-- **ADR** : non : convention transverse écrite en arc42 §8.5 ; candidate ADR seulement si Q-1 retient un type de panne dédié.
+- **Statut** : [DÉCISION — porteur du projet, 2026-11-24]
+- **Choix** : à chaque boucle du tableau « Contexte technique », capturer `RuntimeException` par unité après les captures précises, journaliser avec la cause, compter l'unité en échec, poursuivre, puis relancer la première erreur imprévue (les suivantes en erreurs supprimées) ; ne pas toucher aux captures précises internes.
+- **Justification** : isole les pannes sans en absorber aucune, conformément à la consigne du porteur (« une erreur imprévue n'est plus absorbée, même aux points d'isolation ») ; l'exécution planifiée se termine en échec visible et mesuré.
+- **Alternatives écartées** : filet journalisé sans relance (absorbe l'erreur, contraire à la consigne) ; aucun filet (une donnée empoisonnée arrête toute la collecte) ; capturer `Exception`/`Throwable` (capture `Error`, contraire à la règle 5).
+- **Compromis** : une méthode de passage relancée ne rend plus son bilan à l'appelant planifié ; le bilan est journalisé avant la relance et rendu par la méthode testable.
+- **ADR** : non : convention transverse écrite en arc42 §8.5 ; pas de type de panne dédié (Q-1).
 
 ### D2 — PURL mal encodé = PURL illisible
 
-- **Statut** : [PROPOSITION]
-- **Choix** : le décodage d'une clé de paquet renvoie « illisible » (vide) sur un encodage invalide ; chaque appelant applique sa règle existante : avis indexé par écosystème et nom (`SignalRecorder.toAffected`), composant écarté et signalé (`CycloneDxParser`, INV-01), `DonneeInvalide` 400 (`SaisieStandard`), `ParametreInvalide` (`Parametres` MCP).
+- **Statut** : [DÉCISION — porteur du projet, 2026-11-24 (Q-2) : composant écarté]
+- **Choix** : le décodage d'une clé de paquet renvoie « illisible » (vide) sur un encodage invalide (capture précise de l'`IllegalArgumentException` de `URLDecoder`) ; chaque appelant applique sa règle existante : avis indexé par écosystème et nom (`SignalRecorder.toAffected`), composant écarté et signalé (`CycloneDxParser`, INV-01), `DonneeInvalide` 400 (`SaisieStandard`), `ParametreInvalide` (`Parametres` MCP), recherche par la valeur brute (`OutilsSecurite`, `SignalQueries`).
 - **Justification** : corrige la cause à la source, une seule fois ; aucun appelant nouveau à protéger ; aligne sur des règles déjà spécifiées.
 - **Alternatives écartées** : refuser l'import du projet entier (texte du constat, Q-2) — plus sévère que la règle d'un PURL illisible et contraire à la décision D6 du 2026-11-18 ; correspondance `IllegalArgumentException` → 400 dans `GestionErreurs` — masquerait des défauts de programmation en erreurs de saisie.
 - **Compromis** : un composant au PURL mal encodé n'apparaît pas dans l'inventaire (signalé comme écarté).
 - **ADR** : non : décision locale.
 
-### D3 — Erreur imprévue d'une synchronisation : `FAILED` / `PERMANENT`
+### D3 — Erreur imprévue d'une synchronisation : `FAILED` / `PERMANENT`, puis relance
 
 - **Statut** : [PROPOSITION]
-- **Choix** : dans `synchronize`, toute erreur d'exécution autre que les erreurs typées termine le traitement comme la panne d'accès aux données aujourd'hui (`SourceException` `PERMANENT`, motif = type d'erreur, tentative enregistrée, source en échec).
-- **Justification** : visible, compté pour `DEGRADED`, pas de rejeu automatique d'une donnée qui échouera de même.
-- **Alternatives écartées** : `RETRYABLE` — retenterait cinq fois une erreur déterministe ; mettre l'avis fautif à l'écart (COL-08) dans tous les cas — souhaitable quand l'erreur est attribuable à un avis, mais l'erreur imprévue peut ne pas l'être ; laissé à la frontière par avis existante (`AdvisoryRejectedException`).
-- **Compromis** : une erreur imprévue sur un seul avis bloque la source jusqu'à correction (comme avant le lot 23), mais n'arrête plus les autres sources.
+- **Choix** : dans `synchronize`, toute erreur d'exécution autre que les erreurs typées termine le traitement comme la panne d'accès aux données (`SourceException` `PERMANENT`, motif = type d'erreur, tentative enregistrée, source en échec), puis est relancée.
+- **Justification** : visible, compté pour `DEGRADED`, pas de rejeu automatique d'une donnée qui échouera de même ; l'erreur atteint la frontière du passage.
+- **Alternatives écartées** : `RETRYABLE` — retenterait cinq fois une erreur déterministe ; mettre l'avis fautif à l'écart (COL-08) dans tous les cas — l'erreur imprévue peut ne pas être attribuable à un avis ; laissé à la frontière par avis existante (`AdvisoryRejectedException`).
+- **Compromis** : une erreur imprévue sur un seul avis bloque la source jusqu'à correction, mais n'arrête plus les autres sources. Une synchronisation lancée par l'exploitant (API) répond en erreur serveur.
 - **ADR** : non : décision locale.
 
-### D4 — Annonce d'un standard : absorber toute erreur
+### D4 — Annonce d'un standard : panne d'accès aux données absorbée, erreur imprévue propagée
 
-- **Statut** : [PROPOSITION]
-- **Choix** : les observateurs synchrones `StandardModifie` et `AnnonceStandard` appliquent D1.
-- **Justification** : l'enregistrement est validé avant l'annonce ; une erreur renvoyée à ce stade ferait croire à un échec d'enregistrement.
-- **Alternatives écartées** : observateur `AFTER_SUCCESS` ou asynchrone — change l'ordre et la sémantique des annonces, relève d'AUD-PER-02.
-- **Compromis** : une annonce perdue n'est visible qu'au journal (pas de reprise) ; à reprendre avec l'observabilité.
+- **Statut** : [DÉCISION — porteur du projet, 2026-11-24]
+- **Choix** : les observateurs synchrones `StandardModifie` et `AnnonceStandard` gardent la capture de la panne d'accès aux données (journalisée) ; une erreur imprévue remonte à la requête.
+- **Justification** : l'enregistrement est validé avant l'annonce ; une panne de données ne doit pas faire croire à un échec d'enregistrement (RAD-07-S2) ; une erreur imprévue n'est pas absorbée (RAD-07-S3).
+- **Alternatives écartées** : absorber toute erreur (contraire à la consigne) ; observateur `AFTER_SUCCESS` ou asynchrone — change l'ordre et la sémantique des annonces, relève d'AUD-PER-02.
+- **Compromis** : sur une erreur imprévue, l'administrateur reçoit 500 alors que l'entrée est enregistrée ; il la retrouve en relisant le référentiel.
 - **ADR** : non : décision locale.
 
-### D5 — Garde MCP : `INDISPONIBLE` pour toute erreur interne
+### D5 — Garde MCP : `INDISPONIBLE` pour la panne d'accès aux données, erreur imprévue relancée
 
-- **Statut** : [PROPOSITION]
-- **Choix** : la garde capture toute erreur d'exécution après les erreurs typées, journalise avec la cause, inscrit `Issue.ERREUR` et lève l'erreur d'outil `INDISPONIBLE` ; la Javadoc reprend la promesse générique.
-- **Justification** : un seul point de passage pour tous les outils ; code déjà documenté.
-- **Alternatives écartées** : annotation d'enveloppement des erreurs métier de l'extension MCP sur chaque outil — dispersée, et ne journalise pas `Issue.ERREUR`.
-- **Compromis** : aucune distinction côté client entre panne de données et défaut ; elle reste au journal.
+- **Statut** : [DÉCISION — porteur du projet, 2026-11-24]
+- **Choix** : la garde traduit la panne d'accès aux données en `INDISPONIBLE` (existant) ; toute autre erreur d'exécution est journalisée avec sa cause, l'appel inscrit `Issue.ERREUR`, puis l'erreur est relancée à l'extension, qui répond par une erreur de protocole sans message interne ; la Javadoc décrit les deux cas.
+- **Justification** : un seul point de passage pour tous les outils ; aucune erreur imprévue déguisée en indisponibilité.
+- **Alternatives écartées** : `INDISPONIBLE` pour toute erreur (masque les défauts) ; annotation d'enveloppement des erreurs métier de l'extension sur chaque outil — dispersée, et ne journalise pas `Issue.ERREUR`.
+- **Compromis** : le client reçoit une erreur de protocole pour un défaut interne ; le détail reste au journal.
 - **ADR** : non : décision locale (ADR-0014, Proposé, inchangé).
 
 ### D6 — Journaliser la cause avec sa pile (AUD-QUA-23)
 
 - **Statut** : [PROPOSITION]
-- **Choix** : passer la cause en premier argument du journal dans `MoteurAlertes` (résumé IA indisponible), comme `SyntheseActivite` et `CorrelationEngine` ; règle I-4 écrite en arc42 §8.5.
+- **Choix** : passer la cause en premier argument du journal dans `MoteurAlertes` (résumé IA indisponible) et dans tous les appels qui formataient l'exception en argument (relevés par `instrumenter-observabilite`, tâche 1.3) ; règle I-4 écrite en arc42 §8.5.
 - **Justification** : diagnostic d'une panne du fournisseur IA avec pile et causes imbriquées.
 - **Alternatives écartées** : aucune sérieuse.
 - **Compromis** : journaux plus longs au niveau information.
 - **ADR** : non.
 
+### D7 — Pas de test d'architecture du filet (tâche 6.2)
+
+- **Statut** : [PROPOSITION]
+- **Choix** : la règle des frontières n'est pas vérifiée par ArchUnit ; elle l'est par l'inventaire des frontières d'arc42 §8.5 et par un test par frontière.
+- **Justification** : ArchUnit ne voit pas les blocs `catch` d'une méthode, et une méthode `@Scheduled` ou un observateur n'est pas toujours la frontière (la boucle peut être dans une méthode appelée) : une règle structurelle donnerait de faux positifs et de faux négatifs. L'observation des tâches (`TachesObserveesTest`) garantit déjà qu'une exécution relancée en échec se voit.
+- **Alternatives écartées** : règle « toute méthode `@Scheduled` capture `RuntimeException` » — contredirait la relance et ne couvre pas les boucles internes.
+- **ADR** : non.
+
 ## Risques
 
-- [Un filet trop large masque un défaut] → journal au niveau erreur avec pile, comptage en échec, et bilans exposés par `instrumenter-observabilite`.
-- [Frontière oubliée] → inventaire du tableau « Contexte technique » repris dans arc42 §8.5 ; test par frontière ; un test d'architecture peut vérifier que les méthodes `@Scheduled` et les observateurs synchrones capturent `RuntimeException` ([PROPOSITION], tâche 6.2).
+- [Frontière oubliée] → inventaire d'arc42 §8.5 ; test par frontière ; une boucle planifiée hors de l'inventaire interrompt son passage sur une erreur imprévue, ce qui se voit (exécution en échec) sans être absorbé.
+- [Erreur relancée qui masque un bilan] → bilan journalisé avant la relance ; erreurs suivantes attachées en erreurs supprimées.
 - [Conflits avec `injecter-horloge-et-executeurs`] → intégration séquentielle dans le sprint 4.
 
 ## Écarts code / tests / specs / documentation
 
-- Fiche `radar-standards` (`/docs/specifications/radar-standards.md:42`) : promet l'isolation par produit ou espace, que le code n'assure plus pour les erreurs autres que `IllegalStateException`.
-- Javadoc `GardeAppels` (`:44-45`) restreinte aux pannes d'accès aux données, contre la fiche `serveur-mcp` (code générique).
-- `chain/ResilienceTest.java:216-223` ne simule que `IllegalStateException`.
-- Texte du constat (« projet refusé ») contre la règle d'un PURL illisible (D2, Q-2).
+- Fiche `radar-standards` : promet l'isolation par produit ou espace, que le code assure (boucles isolées puis relancées).
+- Texte du constat (« projet refusé ») contre la règle d'un PURL illisible (D2, Q-2 tranchée : composant écarté).
+- Boucles planifiées hors du périmètre du constat (`RappelsReglementaires`, `RappelsOpportunites`, `ResumesPeriodiques`, `CollecteOpportunites`, `CollecteWeb`, `CollecteReglementaire`) : elles gardent leur seule capture de la panne d'accès aux données ; une erreur imprévue y interrompt le passage, visible en échec. Consigné dans l'inventaire d'arc42 §8.5 comme frontières à aligner.
 
 ## Stratégie de vérification
 
 | Exigence / scénario | Niveau de test | Moyen de preuve | État |
 |---|---|---|---|
-| COL-11-S1 | intégration (base jetable, sources simulées) | deux sources, la première avec un avis `pkg:npm/%zz@1.0.0` ; seconde synchronisée, première non `RUNNING` | à écrire |
-| COL-11-S2 | intégration | erreur imprévue simulée à l'enregistrement d'un avis ; `FAILED`/`PERMANENT`, curseur inchangé, seconde source synchronisée (complète `chain/ResilienceTest`) | à écrire |
-| COL-11-S3 | intégration | erreurs imprévues répétées jusqu'au seuil ; `DEGRADED` et événement d'exploitation | à écrire |
-| INV-11-S1 | intégration (forges simulées) | SBOM avec PURL `%zz` ; composant écarté et signalé, projet suivant importé | à écrire |
-| INV-11-S2 | intégration | erreur imprévue simulée pour un projet ; `Bilan.enEchec` = 1, projet suivant importé | à écrire |
-| RAD-07-S1 | API (REST) | `PUT /standards` clé `pkg:maven/%zz/x` → 400, attribut `cle`, référentiel inchangé | à écrire |
-| RAD-07-S2 | intégration | annonce qui échoue sur une erreur imprévue ; 200, entrée et historique persistés | à écrire |
-| MCP-08-S1 | intégration MCP | panne d'accès aux données simulée ; `INDISPONIBLE`, `Issue.ERREUR` | à écrire |
-| MCP-08-S2 | intégration MCP | erreur imprévue simulée ; `INDISPONIBLE`, pas d'erreur JSON-RPC, `Issue.ERREUR` | à écrire |
-| I-5 | unitaire | décodage de clés mal encodées (`%zz`, `%`, `%e9%`) sans erreur d'exécution | à écrire |
-| I-1, I-3 (autres frontières) | unitaire ou intégration | un test par frontière restante (alertes, radar quotidien, cycles de vie, fiches, activité, passerelle IA) | à écrire |
+| COL-11-S1 | intégration (base jetable, sources simulées) | `chain/FrontieresCollecteTest.col11S1AvisAuPurlMalEncode` | vert |
+| COL-11-S2 | intégration | `FrontieresCollecteTest.col11S2…` ; `chain/ResilienceTest.erreurImprevueTermineLeTraitementEnEchecPuisEstRelancee` | vert |
+| COL-11-S3 | intégration | `FrontieresCollecteTest.col11S3SeuilAtteintParDesErreursImprevues` | vert |
+| INV-11-S1 | intégration (forges simulées) | `chain/ImportPlanifieTest.inv11S1SbomPortantUnPurlMalEncode` | vert |
+| INV-11-S2 | intégration | `ImportPlanifieTest.inv11S2ErreurImprevuePendantLImportDUnProjet` | vert |
+| RAD-07-S1 | API (REST) | `chain/RadarStandardsTest.rad07S1CleMalEncodee` | vert |
+| RAD-07-S2, RAD-07-S3 | intégration | `RadarStandardsTest.rad07S2…`, `annonceEnErreurImprevueRemonteApresLEnregistrement` | vert |
+| MCP-08-S1, MCP-08-S2 | intégration MCP | `mcp/ErreursOutilsMcpTest` | vert |
+| I-5 | unitaire | `catalog/PackageKeyDecodageTest` (`%zz`, `%`, `%e9%`, version mal encodée) | vert |
+| I-1, I-3 (autres frontières) | intégration | `RadarStandardsTest.espaceEnErreurImprevueDansLaTacheQuotidienne`, `produitEnErreurImprevueDansLaSynchronisationDesCycles` ; `chain/VeilleReglementaireTest.texteEnErreurImprevueNEmpechePasLesAutresFiches` ; `projectintel/ActiviteProjetsTest.projetEnErreurImprevueNInterromptPasLePassage` ; `alerting/AlertesTest` (évaluation en panne, erreur imprévue de l'évaluation, message de diffusion en erreur) ; `aigateway/PasserelleIaTest.erreurImprevueDuFournisseurRemonteALAppelant` | vert |
 
 ## Documentation durable impactée
 
 - Fiches `/docs/specifications/collecte-avis-securite.md`, `/docs/specifications/inventaire-sbom.md`, `/docs/specifications/radar-standards.md`, `/docs/specifications/serveur-mcp.md` et registre `/docs/specifications/README.md`.
 - arc42 §8.5 (`/docs/architecture/arc42/08-concepts-transverses.md`) : règle des frontières d'erreur et de journalisation de la cause, inventaire des frontières.
-- Diagrammes : D-08 (erreur API/retry) et D-09 (redémarrage/reprise) d'arc42 §6 si la reprise d'une synchronisation y est décrite ; inventaire `/docs/architecture/diagrams/README.md` si leur portée change.
+- Diagrammes D-08 (erreur API/retry) et D-09 (redémarrage/reprise) d'arc42 §6 : ne décrivent pas la reprise d'une synchronisation sur erreur imprévue ; inchangés.
 
 ## Questions ouvertes
 
-- Q-1 et Q-2 de la proposition : n'affectent ni l'approche ni le découpage en tâches (D1 et D2 fonctionnent quelle que soit la réponse).
+Tranchées par le porteur du projet le 2026-11-24 : Q-1 (pas de type de panne dédié dans ce changement ; piste pour `extraire-noyau-commun`), Q-2 (composant au PURL mal encodé écarté et signalé). Décision supplémentaire du même jour : « isoler puis relancer » aux frontières (D1, D4, D5).

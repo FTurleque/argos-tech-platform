@@ -4,12 +4,14 @@ import static io.restassured.RestAssured.given;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.lang.reflect.Method;
 import java.nio.charset.StandardCharsets;
 import java.sql.Connection;
 import java.sql.PreparedStatement;
+import java.time.Duration;
 import java.time.Instant;
 import java.time.ZoneId;
 import java.time.ZonedDateTime;
@@ -27,6 +29,7 @@ import javax.sql.DataSource;
 
 import jakarta.inject.Inject;
 
+import org.awaitility.Awaitility;
 import org.eclipse.microprofile.config.inject.ConfigProperty;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -39,11 +42,13 @@ import com.cronutils.parser.CronParser;
 import io.argos.inventory.ImportPlanifie;
 import io.argos.inventory.InventoryService;
 import io.argos.inventory.ProjectDirectory;
+import io.argos.scm.QuotaEpuise;
 import io.argos.scm.RepositoryRef;
 import io.argos.testsupport.Api;
 import io.argos.testsupport.Fixtures;
 import io.argos.testsupport.StubServer;
 import io.argos.testsupport.StubServer.Stub;
+import io.argos.testsupport.Substitution;
 import io.argos.testsupport.TestDb;
 import io.quarkus.scheduler.Scheduled;
 import io.quarkus.test.common.QuarkusTestResource;
@@ -114,7 +119,7 @@ class ImportPlanifieTest {
 
     private static void servirForgesNominales() {
         StubServer.programmer(GITLAB_SBOM, new Stub(200, Fixtures.resource("scm/gitlab/gl-sbom-npm-npm.cdx.json"),
-                Map.of("Content-Type", "application/json"), 0));
+                Map.of("Content-Type", "application/json")));
         StubServer.programmer(GITHUB_SBOM, Fixtures.reponseEnregistree("scm/enregistrees/github/200-sbom-cyclonedx.http"));
     }
 
@@ -182,6 +187,60 @@ class ImportPlanifieTest {
         StubServer.Received requete = StubServer.received(GITLAB_SBOM).get(0);
         assertTrue(requete.headers().entrySet().stream().anyMatch(entete -> entete.getKey().equalsIgnoreCase("PRIVATE-TOKEN")),
                 "le jeton est transmis à la forge, jamais consigné");
+    }
+
+    /** INV-11-S1 : un composant au PURL mal encodé est écarté et signalé ; le reste de la SBOM et le projet suivant sont importés. */
+    @Test
+    void inv11S1SbomPortantUnPurlMalEncode() {
+        UUID web = projects.create(espace, "web", GITLAB, List.of("package.json"));
+        UUID outil = projects.create(espace, "outil", GITHUB, List.of("package.json"));
+        servirForgesNominales();
+        StubServer.programmer(GITLAB_SBOM, new Stub(200, Fixtures.cyclonedx("1.6", "2026-11-15T06:12:44Z",
+                List.<String[]>of(new String[] {"mal-encode", "pkg:npm/%zz@1.0.0"}, new String[] {"lodash", "pkg:npm/lodash@4.17.21"}),
+                List.of("mal-encode", "lodash")), Map.of("Content-Type", "application/json")));
+
+        ImportPlanifie.Bilan bilan = importPlanifie.importer(Instant.parse("2026-11-20T02:00:00Z"));
+
+        assertEquals(2, bilan.importes());
+        assertEquals(0, bilan.projetsEnEchec());
+        assertEquals(1, composants(web), "le composant lisible est importé");
+        assertEquals(5, composants(outil), "le projet suivant est importé");
+        Api.enTantQue("alice").when().get("/api/v1/projects/" + web + "/inventory/summary")
+                .then().statusCode(200).body("summary.ignoredCount", org.hamcrest.Matchers.equalTo(1));
+    }
+
+    /** INV-11-S2 : une erreur imprévue pour un projet est comptée et journalisée ; le projet suivant est importé. */
+    @Test
+    void inv11S2ErreurImprevuePendantLImportDUnProjet() {
+        UUID web = projects.create(espace, "web", GITLAB, List.of("package.json"));
+        UUID outil = projects.create(espace, "outil", GITHUB, List.of("package.json"));
+        servirForgesNominales();
+        importPlanifie.importer(Instant.parse("2026-11-20T02:00:00Z"));
+        long avant = composants(web);
+        baseDeTest.exec("DELETE FROM component_occurrence WHERE project_id = '" + outil + "'");
+        baseDeTest.exec("DELETE FROM component WHERE project_id = '" + outil + "'");
+        InventoryService reel = Substitution.reel(inventories);
+        IllegalArgumentException imprevue = new IllegalArgumentException("erreur imprévue simulée");
+        InventoryService doublure = new InventoryService() {
+            @Override
+            public ImportProjet importerProjet(UUID projet, Map<String, QuotaEpuise> quotas) {
+                if (projet.equals(web)) {
+                    throw imprevue;
+                }
+                return reel.importerProjet(projet, quotas);
+            }
+        };
+        ImportPlanifie.Bilan bilan;
+        try (Substitution substitution = Substitution.remplacer(importPlanifie, "inventories", doublure)) {
+            bilan = importPlanifie.importer(Instant.parse("2026-11-21T02:00:00Z"));
+        }
+
+        assertEquals(1, bilan.projetsEnEchec());
+        assertEquals(1, bilan.importes());
+        assertEquals(5, composants(outil), "le projet suivant est importé");
+        assertEquals(avant, composants(web), "l'inventaire en place du premier projet est conservé");
+        assertEquals(List.of(imprevue), bilan.erreursImprevues());
+        assertThrows(IllegalArgumentException.class, bilan::relancerErreurImprevue, "le passage planifié relance l'erreur");
     }
 
     /** INV-07-S3 : aucune route n'accepte une notification de pipeline ou un webhook de forge. */
@@ -265,12 +324,9 @@ class ImportPlanifieTest {
             Future<InventoryService.ImportResult> manuel = fil.submit(() -> inventories.importSbom(projet,
                     Fixtures.cyclonedx("1.6", "2026-11-19T10:00:00Z", java.util.Collections.singletonList(
                             new String[] {"m", "pkg:npm/manuel@1.0.0"}), List.of("m")).getBytes(StandardCharsets.UTF_8), "manuel"));
-            try {
-                manuel.get(1, TimeUnit.SECONDS);
-                throw new AssertionError("l'import aurait dû attendre le verrou du projet");
-            } catch (java.util.concurrent.TimeoutException attendu) {
-                assertEquals(0, composants(projet), "rien n'est écrit tant que le verrou est tenu");
-            }
+            attendreImportsEnAttente(1);
+            assertFalse(manuel.isDone(), "l'import attend le verrou du projet");
+            assertEquals(0, composants(projet), "rien n'est écrit tant que le verrou est tenu");
             verrou.rollback();
             verrou.setAutoCommit(true);
             assertEquals("IMPORTED", manuel.get(20, TimeUnit.SECONDS).status());
@@ -316,14 +372,10 @@ class ImportPlanifieTest {
                 baseDeTest.string("SELECT source_ref FROM repository_inventory WHERE project_id = '" + projet + "'"));
     }
 
-    /** Attend (10 s au plus) que {@code nombre} transactions attendent un verrou consultatif. */
-    private void attendreImportsEnAttente(int nombre) throws InterruptedException {
-        long limite = System.nanoTime() + TimeUnit.SECONDS.toNanos(10);
-        while (baseDeTest.count("SELECT count(*) FROM pg_locks WHERE locktype = 'advisory' AND NOT granted") < nombre) {
-            if (System.nanoTime() > limite) {
-                throw new AssertionError(nombre + " import(s) en attente du verrou attendu(s)");
-            }
-            Thread.sleep(50);
-        }
+    /** Attend (10 s au plus, sans sommeil fixe) que {@code nombre} transactions attendent un verrou consultatif. */
+    private void attendreImportsEnAttente(int nombre) {
+        Awaitility.await(nombre + " import(s) en attente du verrou").atMost(Duration.ofSeconds(10))
+                .until(() -> baseDeTest.count("SELECT count(*) FROM pg_locks WHERE locktype = 'advisory' AND NOT granted"),
+                        enAttente -> enAttente >= nombre);
     }
 }

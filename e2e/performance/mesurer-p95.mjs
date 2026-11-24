@@ -19,6 +19,7 @@ import { arch, cpus, platform, release, totalmem } from 'node:os'
 import { dirname, join } from 'node:path'
 import { performance } from 'node:perf_hooks'
 import { fileURLToPath } from 'node:url'
+import { identificationBaseE2E } from '../support/base-e2e.mjs'
 import { cheminDocker } from '../support/docker.mjs'
 import { cheminMavenExige, lancementMaven } from '../support/maven.mjs'
 import {
@@ -111,6 +112,7 @@ async function demarrerServeur() {
   const env = {
     ...process.env,
     ...SANS_COLLECTE_EXTERNE,
+    ...identificationBaseE2E(),
     _DEV_QUARKUS_DATASOURCE_JDBC_URL: 'jdbc:postgresql://localhost:55432/argos',
     QUARKUS_HTTP_PORT: new URL(URL_API).port,
     // Le débit MCP par compte (60 par minute en développement) limiterait la campagne : borne relevée comme en test.

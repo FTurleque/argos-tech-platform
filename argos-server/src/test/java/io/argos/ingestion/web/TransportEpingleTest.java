@@ -92,14 +92,19 @@ class TransportEpingleTest {
     private static final Duration ATTENTE_APRES_NEGOCIATION = Duration.ofSeconds(1);
 
     private static Vertx vertx;
+    private static MinuterieCoupure minuterie;
 
     @BeforeAll
     static void demarrerVertx() {
         vertx = Vertx.vertx();
+        minuterie = new MinuterieCoupure();
+        minuterie.fils = 1;
+        minuterie.demarrer();
     }
 
     @AfterAll
     static void arreterVertx() throws InterruptedException, ExecutionException, TimeoutException {
+        minuterie.arreter();
         vertx.close().toCompletionStage().toCompletableFuture().get(ARRET_VERTX_SECONDES, TimeUnit.SECONDS);
     }
 
@@ -173,8 +178,8 @@ class TransportEpingleTest {
     private static RecuperateurWeb recuperateur(GardeAdresses.Resolveur resolveur, List<String> exceptions,
             Optional<TrustOptions> confiance) {
         GardeAdresses garde = new GardeAdresses(resolveur, exceptions);
-        return new RecuperateurWeb(garde, new TransportEpingle(vertx, TAILLE_MAX, confiance), DELAI, REDIRECTIONS_MAX,
-                TAILLE_MAX);
+        return new RecuperateurWeb(garde, new TransportEpingle(vertx, TAILLE_MAX, confiance),
+                new RecuperateurWeb.Bornes(DELAI, REDIRECTIONS_MAX, TAILLE_MAX), minuterie);
     }
 
     /** WEB-07-S1 : le nom se résout vers la bonne adresse au contrôle, puis vers la mauvaise ; seule la bonne est jointe. */

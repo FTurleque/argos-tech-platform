@@ -47,7 +47,7 @@ public final class Fixtures {
      */
     public static StubServer.Stub reponseEnregistree(String path) {
         ReponseHttp reponse = lireReponse(path);
-        return new StubServer.Stub(reponse.status(), reponse.corps(), reponse.entetes(), 0);
+        return new StubServer.Stub(reponse.status(), reponse.corps(), reponse.entetes());
     }
 
     /** Corps d'une réponse HTTP enregistrée. */

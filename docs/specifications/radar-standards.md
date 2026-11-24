@@ -5,6 +5,7 @@
 | Préfixe d'exigences | `RAD` |
 | Spec de référence | [`/openspec/specs/radar-standards/spec.md`](/openspec/specs/radar-standards/spec.md) |
 | Changements archivés | [`2026-11-16-construire-radar-et-standards`](/openspec/changes/archive/2026-11-16-construire-radar-et-standards/proposal.md) |
+| Changement en cours | [`isoler-erreurs-aux-frontieres`](/openspec/changes/isoler-erreurs-aux-frontieres/proposal.md) (RAD-07, implémentée, non archivée) |
 | Statut de la capacité | livrée ; implémentation et tests dans `argos-server` |
 | Composants (arc42 §5) | `catalog`, `release-radar`, `impact-engine`, `alerting` |
 
@@ -39,7 +40,7 @@ Exclus :
 
 - Inventaires des projets disponibles (`inventaire-sbom`) : la dette de version et les rappels ne portent que sur les versions présentes dans un inventaire.
 - Une technologie n'entre dans le radar que si son entrée du référentiel la relie à un produit endoflife.date (champ `produitCycleVie`, par exemple `postgresql`).
-- Tâche quotidienne (`argos.radar.tache.cron`, 06:00 par défaut, fuseau `argos.alerting.fuseau`, le même que celui des horizons du radar REST) : synchronisation du calendrier, dettes de version, rappels. Une erreur sur un produit ou un espace est journalisée sans interrompre les autres, et une actualisation en échec n'empêche pas les rappels.
+- Tâche quotidienne (`argos.radar.tache.cron`, 06:00 par défaut, fuseau `argos.alerting.fuseau`, le même que celui des horizons du radar REST) : synchronisation du calendrier, dettes de version, rappels. Une erreur sur un produit ou un espace est journalisée avec sa cause sans interrompre les autres, et une actualisation en échec n'empêche pas les rappels ; une erreur imprévue est relancée une fois les produits et espaces traités : l'exécution se termine en échec visible (arc42 §8.5).
 
 ## Entrées, sorties et validations
 
@@ -63,6 +64,7 @@ API REST : `/api/v1/radar/espaces/{espaceId}/` — `standards` (GET, PUT), `stan
 | Rappel d'une sortie ou d'une fin de support aux membres de l'espace dont un projet est concerné, aux jours de rappel de l'espace ; une fin de support ne concerne que les projets dont la version appartient à la branche | RAD-04 | dossier v2.4 §6.4 ; Q-1 | [PROPOSITION] |
 | Dette de version quand la fin de support d'une version de l'inventaire est atteinte, avec la version recommandée de l'espace | RAD-05 | dossier v2.4 §6.4 ; ADR-0013 | [PROPOSITION] |
 | Annonce d'un changement de statut ou de version recommandée, avec sa justification, aux membres de l'espace dont un projet utilise la technologie ; une création n'est pas annoncée | RAD-06 | dossier v2.4 §8.2 (type STANDARD) | [PROPOSITION] |
+| Une clé mal encodée (`pkg:maven/%zz/x`) est refusée en 400 sur le champ `cle`, sans rien modifier ; une annonce en panne d'accès aux données ne fait pas répondre en erreur une modification déjà enregistrée (journalisée avec sa cause) ; une erreur imprévue de l'annonce remonte (500), la modification restant enregistrée | RAD-07 | AUD-QUA-20 ; arc42 §8.5 ; décision « isoler puis relancer » du porteur du projet, 2026-11-24 | [PROPOSITION] — `isoler-erreurs-aux-frontieres` ; vérifiée par `RadarStandardsTest` |
 
 Une version appartient à la branche la plus longue dont elle est égale ou qu'elle prolonge par « . » ou « - » (`14.10` → branche `14`).
 
@@ -107,7 +109,7 @@ Les statuts suivent le principe d'un radar technologique ; chaque changement est
 
 ## Critères d'acceptation
 
-Scénarios RAD-01-S1 à RAD-06-S1 du changement ; aucun scénario qualité transverse supplémentaire.
+Scénarios RAD-01-S1 à RAD-06-S1 du changement archivé ; RAD-07-S1 à RAD-07-S3 du changement `isoler-erreurs-aux-frontieres` ; aucun scénario qualité transverse supplémentaire.
 
 ## Interprétations introduites par un changement
 
@@ -143,5 +145,6 @@ Scénarios RAD-01-S1 à RAD-06-S1 du changement ; aucun scénario qualité trans
 | RAD-04 | RAD-04-S1 | DC-1 | 2.2 | `RadarStandardsTest.rad04S1RappelAJ30`, `rappelsParametrablesParEspace` |
 | RAD-05 | RAD-05-S1 | DC-1 | 2.3 | `RadarStandardsTest.rad05S1VersionPlusMaintenue` |
 | RAD-06 | RAD-06-S1 | Composants | 1.3 | `RadarStandardsTest.rad06S1PassageEnHold` |
+| RAD-07 | RAD-07-S1 à S3 | `isoler-erreurs-aux-frontieres` design.md D2, D4, DC-3 | 1.2, 3.1, 3.3 | `RadarStandardsTest.rad07S1CleMalEncodee`, `rad07S2AnnonceEnPanneApresLEnregistrement`, `annonceEnErreurImprevueRemonteApresLEnregistrement` ; boucles du radar : `espaceEnErreurImprevueDansLaTacheQuotidienne`, `produitEnErreurImprevueDansLaSynchronisationDesCycles` |
 
 Tests dans `argos-server/src/test/java/io/argos/chain/` ; parcours de bout en bout : `ParcoursRadarTest`.

@@ -10,16 +10,20 @@ import static org.hamcrest.Matchers.nullValue;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.sql.ResultSet;
 import java.sql.Statement;
+import java.time.Clock;
+import java.time.Duration;
 import java.time.Instant;
 import java.time.LocalDate;
 import java.time.ZoneId;
 import java.time.temporal.ChronoUnit;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.UUID;
 
 import jakarta.inject.Inject;
@@ -28,11 +32,15 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
 import io.argos.inventory.ProjectDirectory;
+import io.argos.scm.ActiviteDepot;
+import io.argos.scm.ParametresForges;
+import io.argos.scm.RepositoryActivity;
 import io.argos.scm.RepositoryRef;
 import io.argos.testsupport.Api;
 import io.argos.testsupport.SimulatedSyntheseIa;
 import io.argos.testsupport.StubServer;
 import io.argos.testsupport.StubServer.Stub;
+import io.argos.testsupport.Substitution;
 import io.argos.testsupport.TestDb;
 import io.argos.workspace.ContexteBase;
 import io.quarkus.test.common.QuarkusTestResource;
@@ -68,6 +76,9 @@ class ActiviteProjetsTest {
 
     @Inject
     SimulatedSyntheseIa syntheseIa;
+
+    @Inject
+    RepositoryActivity forges;
 
     private UUID espace;
 
@@ -117,6 +128,40 @@ class ActiviteProjetsTest {
 
     private UUID projetGithub(String depot) {
         return projets.create(espace, "app", new RepositoryRef("GITHUB", depot, "main", null, null), List.of());
+    }
+
+    /**
+     * Frontière d'erreur du passage (arc42 §8.5) : une erreur imprévue pour un projet compte un échec, le projet suivant
+     * est collecté et le passage planifié relance l'erreur.
+     */
+    @Test
+    void projetEnErreurImprevueNInterromptPasLePassage() {
+        depotGithub("demo/argos");
+        projets.create(espace, "fautif", new RepositoryRef("GITHUB", "demo/fautif", "main", null, null), List.of());
+        projets.create(espace, "sain", new RepositoryRef("GITHUB", "demo/argos", "main", null, null), List.of());
+        RepositoryActivity reel = Substitution.reel(forges);
+        IllegalArgumentException imprevue = new IllegalArgumentException("erreur imprévue simulée");
+        ParametresForges forgesFactices = new ParametresForges(Duration.ofSeconds(1), "http://localhost", "http://localhost",
+                Optional.empty(), Optional.empty());
+        RepositoryActivity doublure = new RepositoryActivity(forgesFactices, 1, 0, 1, Clock.systemUTC()) {
+            @Override
+            public ActiviteDepot lire(RepositoryRef ref, Instant depuis) {
+                if ("demo/fautif".equals(ref.repository())) {
+                    throw imprevue;
+                }
+                return reel.lire(ref, depuis);
+            }
+        };
+
+        CollecteActivite.Bilan bilan;
+        try (Substitution substitution = Substitution.remplacer(collecte, "forges", doublure)) {
+            bilan = collecte.collecter(Instant.now());
+        }
+
+        assertEquals(1, bilan.aJour(), "le projet sain est collecté");
+        assertEquals(1, bilan.echecs());
+        assertEquals(List.of(imprevue), bilan.erreursImprevues());
+        assertThrows(IllegalArgumentException.class, bilan::relancerErreurImprevue);
     }
 
     @Test
@@ -315,11 +360,11 @@ class ActiviteProjetsTest {
         Instant reinitialisation = Instant.now().plus(2, ChronoUnit.HOURS).truncatedTo(ChronoUnit.SECONDS);
         StubServer.reset();
         StubServer.programmer("/github/repos/org/app/issues", new Stub(403, "{\"message\":\"API rate limit exceeded\"}",
-                Map.of("x-ratelimit-remaining", "0", "x-ratelimit-reset", String.valueOf(reinitialisation.getEpochSecond())), 0));
+                Map.of("x-ratelimit-remaining", "0", "x-ratelimit-reset", String.valueOf(reinitialisation.getEpochSecond()))));
 
         CollecteActivite.Bilan bilan = collecte.collecter(Instant.now());
 
-        assertEquals(new CollecteActivite.Bilan(0, 2, 0), bilan, "le second projet GitHub est reporté sans appel");
+        assertEquals(new CollecteActivite.Bilan(0, 2, 0, List.of()), bilan, "le second projet GitHub est reporté sans appel");
         assertEquals(1, StubServer.received("/github/").size(), "aucun appel après le quota épuisé");
         Api.enTantQue("alice").when().get("/api/v1/projects/" + projet + "/activite")
                 .then().statusCode(200)
@@ -333,14 +378,14 @@ class ActiviteProjetsTest {
                 .body("fraicheur.derniereMiseAJour", nullValue());
 
         // Avant la réinitialisation, rien n'est tenté ; après, la collecte reprend.
-        assertEquals(new CollecteActivite.Bilan(0, 0, 0), collecte.collecter(reinitialisation.minusSeconds(60)));
+        assertEquals(new CollecteActivite.Bilan(0, 0, 0, List.of()), collecte.collecter(reinitialisation.minusSeconds(60)));
         assertEquals(1, StubServer.received("/github/").size());
         depotGithub("org/app");
         StubServer.programmer("/github/repos/org/autre/issues", Stub.succes("[]"));
         StubServer.programmer("/github/repos/org/autre/actions/runs", Stub.succes("{\"workflow_runs\":[]}"));
         StubServer.programmer("/github/repos/org/autre/releases", Stub.succes("[]"));
         StubServer.programmer("/github/repos/org/autre/milestones", Stub.succes("[]"));
-        assertEquals(new CollecteActivite.Bilan(2, 0, 0), collecte.collecter(reinitialisation.plusSeconds(1)));
+        assertEquals(new CollecteActivite.Bilan(2, 0, 0, List.of()), collecte.collecter(reinitialisation.plusSeconds(1)));
         Api.enTantQue("alice").when().get("/api/v1/projects/" + projet + "/activite")
                 .then().statusCode(200).body("fraicheur.etat", equalTo("A_JOUR"))
                 .body("fraicheur.derniereMiseAJour", equalTo(reinitialisation.plusSeconds(1).toString()));
@@ -362,7 +407,7 @@ class ActiviteProjetsTest {
                 .body("fraicheur.etat", equalTo("ECHEC")).body("fraicheur.motif", equalTo("HTTP 500 de localhost"))
                 .body("compteurs.ticketsOuverts", equalTo(3));
         // Redirection non suivie : le jeton ne part jamais vers un autre hôte.
-        StubServer.programmer("/github/repos/org/app/issues", new Stub(302, "", Map.of("Location", "http://ailleurs.example/"), 0));
+        StubServer.programmer("/github/repos/org/app/issues", new Stub(302, "", Map.of("Location", "http://ailleurs.example/")));
         assertEquals(CollecteActivite.Issue.ECHEC, collecte.collecterProjet(projet, Instant.now()));
     }
 

@@ -8,6 +8,7 @@ import java.net.http.HttpHeaders;
 import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
 import java.nio.charset.StandardCharsets;
+import java.time.Clock;
 import java.time.Duration;
 import java.time.Instant;
 import java.util.Locale;
@@ -40,9 +41,11 @@ final class ForgeHttp {
 
     private final HttpClient client;
     private final Duration timeout;
+    private final Clock horloge;
 
-    ForgeHttp(Duration timeout) {
+    ForgeHttp(Duration timeout, Clock horloge) {
         this.timeout = timeout;
+        this.horloge = horloge;
         this.client = HttpClient.newBuilder().connectTimeout(timeout).followRedirects(HttpClient.Redirect.NEVER).build();
     }
 
@@ -71,7 +74,7 @@ final class ForgeHttp {
             if (corps.length > tailleMax) {
                 throw new ScmException("réponse de " + uri.getHost() + " au-delà de la taille maximale", null);
             }
-            quota(reponse.statusCode(), reponse.headers(), corps, uri).ifPresent(reprise -> {
+            quota(reponse.statusCode(), reponse.headers(), corps, horloge.instant()).ifPresent(reprise -> {
                 throw new QuotaEpuise(uri.getHost(), reprise);
             });
             return new Reponse(reponse.statusCode(), corps, reponse.headers());
@@ -94,11 +97,10 @@ final class ForgeHttp {
      * restant). Ordre de lecture : {@code Retry-After} (secondes), {@code x-ratelimit-reset}
      * (GitHub) ou {@code RateLimit-Reset} (GitLab), en secondes depuis l'époque ; à défaut, une heure.
      */
-    static Optional<Instant> quota(int status, HttpHeaders entetes, byte[] corps, URI uri) {
+    static Optional<Instant> quota(int status, HttpHeaders entetes, byte[] corps, Instant maintenant) {
         if (!quotaEpuise(status, entetes, corps)) {
             return Optional.empty();
         }
-        Instant maintenant = Instant.now();
         return Optional.of(bornerReprise(repriseAnnoncee(entetes, maintenant), maintenant));
     }
 
