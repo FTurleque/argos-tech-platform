@@ -59,7 +59,7 @@ Aucune : la capacité `exploitation-plateforme` (préfixe `EXP`) est créée par
 | Acteur | Rôle dans ce changement | Statut |
 |---|---|---|
 | Exploitant (porteur sur le NAS) | reconstruit l'image Keycloak à chaque changement de version, lit l'état des conteneurs | [PROPOSITION] — EXP-16 |
-| Porteur du projet | accepte l'image Keycloak construite localement (Q-1) | [QUESTION] |
+| Porteur du projet | accepte l'image Keycloak construite localement (Q-1, 2026-11-24) | [DÉCISION] |
 
 ## Sources et preuves
 
@@ -79,8 +79,8 @@ Aucune : la capacité `exploitation-plateforme` (préfixe `EXP`) est créée par
   absent du dépôt ; il est cité ici sans lien.
 - La fiche `exploitation-plateforme` de `main` ne contient ni EXP-07 à EXP-15 ni Q-7 : ces ajouts arrivent avec les PR #44 et
   #47, non fusionnées. La mise à jour de la fiche pour EXP-16 est une tâche de ce changement, à faire après leur fusion.
-- Q-8 de la fiche (image Keycloak optimisée pour accélérer le démarrage) est ouverte ; ce changement rend l'image optimisée
-  nécessaire pour une autre raison (lecture seule). Q-1 ci-dessous la soumet au porteur.
+- Q-8 de la fiche (image Keycloak optimisée pour accélérer le démarrage) est ouverte dans la fiche ; ce changement rend
+  l'image optimisée nécessaire pour une autre raison (lecture seule), et la décision Q-1 du 2026-11-24 y répond.
 
 ## Impact
 
@@ -107,5 +107,5 @@ garantir.
 
 | ID | Question | Bloquante ? | Destinataire |
 |---|---|---|---|
-| Q-1 | L'image Keycloak construite localement (`deploiement/keycloak/Dockerfile`, `start --optimized`) est-elle acceptée ? Elle répond aussi à Q-8 de la fiche. Sinon, `keycloak` garde une racine inscriptible avec `cap_drop` et `no-new-privileges` (design.md D3). | oui : bloque la tâche 3.1 | porteur du projet |
+| Q-1 | L'image Keycloak construite localement (`deploiement/keycloak/Dockerfile`, `start --optimized`) est-elle acceptée ? Elle répond aussi à Q-8 de la fiche. Répondue le 2026-11-24 : « Q-1 : image Keycloak construite localement, oui » [DÉCISION] (design.md D3). | non : répondue | porteur du projet |
 | Q-2 | Les tmpfs reçoivent-ils une taille maximale (`size=`) ? Leur contenu compte dans `mem_limit` ; aucune valeur n'est fixée par une source. | non : peut attendre la mesure sur le NAS | exploitant |

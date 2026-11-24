@@ -221,7 +221,7 @@ par version.
 
 ### D3 — Keycloak depuis une image optimisée construite localement
 
-- **Statut** : [PROPOSITION] — soumise au porteur (Q-1 de proposal.md)
+- **Statut** : [DÉCISION] — porteur du projet, 2026-11-24 (Q-1 de proposal.md : « image Keycloak construite localement, oui »)
 - **Choix** : `deploiement/keycloak/Dockerfile` à deux étapes : `FROM quay.io/keycloak/keycloak:${VERSION_KEYCLOAK}`,
   `ENV KC_DB=postgres KC_HEALTH_ENABLED=true`, `RUN kc.sh build`, puis copie de `/opt/keycloak` dans une image finale de même
   base. Service `keycloak` : `build` avec l'argument `VERSION_KEYCLOAK: ${ARGOS_KEYCLOAK_VERSION:-26.7.4}`, image
@@ -231,8 +231,8 @@ par version.
   option de construction diffère de ses valeurs par défaut, ce qui échoue en lecture seule (essai). L'image optimisée répond
   aussi à Q-8 de la fiche (démarrage plus court).
 - **Alternatives écartées** : tmpfs sur `/opt/keycloak/lib/quarkus` — échec mesuré ; volume nommé sur ce chemin — garde les
-  fichiers d'une ancienne version après une mise à jour d'image ; `keycloak` sans `read_only` (repli si Q-1 est refusée) —
-  garde `cap_drop` et `no-new-privileges`, mais pas EXP-16-S1 pour ce service.
+  fichiers d'une ancienne version après une mise à jour d'image ; `keycloak` sans `read_only` — garde `cap_drop`
+  et `no-new-privileges`, mais pas EXP-16-S1 pour ce service ; écartée par la décision Q-1.
 - **Compromis** : une construction locale par version, y compris sur le NAS ; Renovate doit suivre la version dans
   l'argument de construction au lieu de l'image du service.
 - **ADR** : ajout d'une conséquence à ADR-0027 (Accepté) ; pas de nouvel ADR.
@@ -257,7 +257,7 @@ par version.
 
 ## Écarts code / tests / specs / documentation
 
-Voir proposal.md, Écarts constatés (lien d'audit absent, fiche de `main` en retard sur les PR #44 et #47, Q-8 ouverte).
+Voir proposal.md, Écarts constatés (lien d'audit absent, fiche de `main` en retard sur les PR #44 et #47, Q-8 de la fiche couverte par la décision Q-1).
 
 ## Stratégie de vérification
 

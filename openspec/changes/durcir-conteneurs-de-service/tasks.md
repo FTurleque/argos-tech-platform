@@ -5,7 +5,7 @@
 
 ## 1. Préparation
 
-- [ ] 1.1 Faire trancher Q-1 (image Keycloak construite localement) et noter la réponse dans proposal.md — couvre EXP-16 — vérification : réponse datée dans le tableau des questions ; si refus, appliquer le repli de design.md D3 et adapter EXP-16-S1 par un nouveau passage de revue
+- [x] 1.1 Faire trancher Q-1 (image Keycloak construite localement) et noter la réponse dans proposal.md — couvre EXP-16 — vérification : réponse datée dans le tableau des questions (acceptée le 2026-11-24, design.md D3 en [DÉCISION])
 - [ ] 1.2 Rebaser la branche d'implémentation sur `main` après la fusion de la PR #44 (`completer-configuration-conteneurs`) — couvre EXP-16 — vérification : `compose.yaml` contient le durcissement d'`argos`, `x-journaux` et le point d'entrée de garde de `keycloak`
 
 ## 2. Base de données et modèle local
@@ -24,7 +24,7 @@
 
 ## 4. Documentation durable et décisions
 
-- [ ] 4.1 Compléter la fiche `/docs/specifications/exploitation-plateforme.md` (EXP-16 citée par identifiant, statut [PROPOSITION] avec l'identifiant du changement, critère d'acceptation, Q-7 renvoyée vers ce changement, Q-8 selon Q-1) et la colonne Changement de `/docs/specifications/README.md` — couvre EXP-16 — vérification : `node scripts/verifier-docs.mjs` sans erreur
+- [ ] 4.1 Compléter la fiche `/docs/specifications/exploitation-plateforme.md` (EXP-16 citée par identifiant, statut [PROPOSITION] avec l'identifiant du changement, critère d'acceptation, Q-7 renvoyée vers ce changement, Q-8 répondue par la décision Q-1 du 2026-11-24) et la colonne Changement de `/docs/specifications/README.md` — couvre EXP-16 — vérification : `node scripts/verifier-docs.mjs` sans erreur
 - [ ] 4.2 Mettre à jour arc42 §7 (vue de déploiement) et §8.3 (sécurité), les notes de D-11 et D-12 si elles citent le durcissement, puis l'inventaire `/docs/architecture/diagrams/README.md` — couvre EXP-16 — vérification : `node scripts/verifier-docs.mjs` sans erreur
 
 ## 5. Vérifications d'intégration
