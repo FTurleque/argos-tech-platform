@@ -124,6 +124,106 @@ export interface OptionsLancement {
   dossierDonnees: string
 }
 
+/** Variables d'environnement du test qui changeraient le mode de lancement du desktop : non transmises. */
+const VARIABLES_EXCLUES = new Set(['ELECTRON_RUN_AS_NODE', 'ARGOS_UI_DEV_URL'])
+
+/** Environnement du processus desktop : celui du test, pointé sur l'API et l'émetteur de la pile locale. */
+function environnementDesktop(): Record<string, string> {
+  const variables: Record<string, string> = {}
+  for (const [cle, valeur] of Object.entries(process.env)) {
+    if (valeur !== undefined && !VARIABLES_EXCLUES.has(cle)) variables[cle] = valeur
+  }
+  return { ...variables, ARGOS_API_URL: URL_API, ARGOS_OIDC_URL: EMETTEUR }
+}
+
+/**
+ * Installe les doublures, observe la fenêtre principale puis la recharge pour que le journal couvre
+ * tout son chargement ; renvoie la fenêtre servie par app://argos.
+ */
+async function preparerFenetre(app: ElectronApplication): Promise<Page> {
+  await installerDoublures(app)
+  const fenetre = await app.firstWindow()
+  await fenetre.waitForLoadState('domcontentloaded')
+  await app.evaluate(({ BrowserWindow }) => {
+    const premiere = BrowserWindow.getAllWindows()[0]
+    ;globalThis.__argosE2E.observerFenetre(premiere)
+  })
+  await fenetre.reload()
+  await expect(fenetre).toHaveURL(/^app:\/\/argos\/index\.html/)
+  return fenetre
+}
+
+/** Lecture du journal réseau, des ouvertures du navigateur du système et de l'état de la fenêtre. */
+function observationsSession(app: ElectronApplication): Pick<ApplicationDesktop, 'journal' | 'ouvertures' | 'etatFenetre'> {
+  return {
+    journal: () => app.evaluate(() => globalThis.__argosE2E.journal.map((requete) => ({ ...requete }))),
+    ouvertures: () => app.evaluate(() => [...globalThis.__argosE2E.ouvertures]),
+    etatFenetre: () => app.evaluate(({ BrowserWindow }) => {
+      const fenetrePrincipale = BrowserWindow.getAllWindows()[0]
+      return {
+        visible: fenetrePrincipale.isVisible(),
+        reduite: fenetrePrincipale.isMinimized(),
+        focus: fenetrePrincipale.isFocused(),
+        adresse: fenetrePrincipale.webContents.getURL(),
+        evenements: [...globalThis.__argosE2E.evenements],
+      }
+    }),
+  }
+}
+
+/** Observation et clic des notifications système. */
+function commandesNotifications(app: ElectronApplication): Pick<ApplicationDesktop, 'notifications' | 'cliquerNotification'> {
+  return {
+    notifications: () => app.evaluate(() => globalThis.__argosE2E.notifications
+      .map((notification) => ({ titre: notification.title, corps: notification.body }))),
+    cliquerNotification: (rang) => app.evaluate((_electron, position) => {
+      const notification = globalThis.__argosE2E.notifications[position]
+      if (!notification) throw new Error(`notification ${position} absente`)
+      notification.emit('click')
+    }, rang),
+  }
+}
+
+/** Infobulles et clic de l'icône de la zone de notification. */
+function commandesZoneNotification(app: ElectronApplication): Pick<ApplicationDesktop, 'infobulles' | 'cliquerZoneNotification'> {
+  return {
+    infobulles: () => app.evaluate(() => [...globalThis.__argosE2E.infobulles]),
+    cliquerZoneNotification: () => app.evaluate(() => {
+      const icone = globalThis.__argosE2E.icone
+      if (!icone) throw new Error('icône de la zone de notification non observée')
+      icone.emit('click')
+    }),
+  }
+}
+
+/** Refus simulé des notifications par le système et lecture des notifications refusées. */
+function commandesRefusSysteme(
+  app: ElectronApplication,
+): Pick<ApplicationDesktop, 'refuserNotificationsSysteme' | 'accepterNotificationsSysteme' | 'notificationsRefusees'> {
+  return {
+    refuserNotificationsSysteme: (mode) => app.evaluate((_electron, refus) => {
+      globalThis.__argosE2E.refus = refus
+    }, mode),
+    accepterNotificationsSysteme: () => app.evaluate(() => {
+      globalThis.__argosE2E.refus = null
+    }),
+    notificationsRefusees: () => app.evaluate(() => globalThis.__argosE2E.refusees
+      .map((notification) => ({ titre: notification.title, corps: notification.body }))),
+  }
+}
+
+/** Coupure simulée du serveur et son rétablissement. */
+function commandesCoupure(app: ElectronApplication): Pick<ApplicationDesktop, 'couper' | 'retablir'> {
+  return {
+    couper: (hote) => app.evaluate((_electron, hoteCoupe) => {
+      globalThis.__argosE2E.coupures.add(hoteCoupe)
+    }, hote),
+    retablir: () => app.evaluate(() => {
+      globalThis.__argosE2E.coupures.clear()
+    }),
+  }
+}
+
 /**
  * Lance argos-desktop contre la pile locale (API URL_API, émetteur EMETTEUR), installe les doublures
  * dans le processus principal puis recharge la fenêtre pour que le journal couvre tout son chargement.
@@ -132,68 +232,22 @@ export interface OptionsLancement {
  */
 export async function lancerDesktop(options: OptionsLancement): Promise<ApplicationDesktop> {
   verifierBinaireElectron()
-  const env: Record<string, string> = {}
-  for (const [cle, valeur] of Object.entries(process.env)) {
-    if (valeur !== undefined && cle !== 'ELECTRON_RUN_AS_NODE' && cle !== 'ARGOS_UI_DEV_URL') env[cle] = valeur
-  }
   const app = await _electron.launch({
     executablePath: BINAIRE_ELECTRON,
     args: [DOSSIER_DESKTOP, `--user-data-dir=${options.dossierDonnees}`],
     cwd: DOSSIER_DESKTOP,
-    env: { ...env, ARGOS_API_URL: URL_API, ARGOS_OIDC_URL: EMETTEUR },
+    env: environnementDesktop(),
   })
   try {
-    await installerDoublures(app)
-    const fenetre = await app.firstWindow()
-    await fenetre.waitForLoadState('domcontentloaded')
-    await app.evaluate(({ BrowserWindow }) => {
-      const premiere = BrowserWindow.getAllWindows()[0]
-      ;globalThis.__argosE2E.observerFenetre(premiere)
-    })
-    await fenetre.reload()
-    await expect(fenetre).toHaveURL(/^app:\/\/argos\/index\.html/)
+    const fenetre = await preparerFenetre(app)
     return {
       app,
       fenetre,
-      journal: () => app.evaluate(() => globalThis.__argosE2E.journal.map((requete) => ({ ...requete }))),
-      ouvertures: () => app.evaluate(() => [...globalThis.__argosE2E.ouvertures]),
-      etatFenetre: () => app.evaluate(({ BrowserWindow }) => {
-        const fenetrePrincipale = BrowserWindow.getAllWindows()[0]
-        return {
-          visible: fenetrePrincipale.isVisible(),
-          reduite: fenetrePrincipale.isMinimized(),
-          focus: fenetrePrincipale.isFocused(),
-          adresse: fenetrePrincipale.webContents.getURL(),
-          evenements: [...globalThis.__argosE2E.evenements],
-        }
-      }),
-      notifications: () => app.evaluate(() => globalThis.__argosE2E.notifications
-        .map((notification) => ({ titre: notification.title, corps: notification.body }))),
-      cliquerNotification: (rang) => app.evaluate((_electron, position) => {
-        const notification = globalThis.__argosE2E.notifications[position]
-        if (!notification) throw new Error(`notification ${position} absente`)
-        notification.emit('click')
-      }, rang),
-      infobulles: () => app.evaluate(() => [...globalThis.__argosE2E.infobulles]),
-      cliquerZoneNotification: () => app.evaluate(() => {
-        const icone = globalThis.__argosE2E.icone
-        if (!icone) throw new Error('icône de la zone de notification non observée')
-        icone.emit('click')
-      }),
-      refuserNotificationsSysteme: (mode) => app.evaluate((_electron, refus) => {
-        globalThis.__argosE2E.refus = refus
-      }, mode),
-      accepterNotificationsSysteme: () => app.evaluate(() => {
-        globalThis.__argosE2E.refus = null
-      }),
-      notificationsRefusees: () => app.evaluate(() => globalThis.__argosE2E.refusees
-        .map((notification) => ({ titre: notification.title, corps: notification.body }))),
-      couper: (hote) => app.evaluate((_electron, hoteCoupe) => {
-        globalThis.__argosE2E.coupures.add(hoteCoupe)
-      }, hote),
-      retablir: () => app.evaluate(() => {
-        globalThis.__argosE2E.coupures.clear()
-      }),
+      ...observationsSession(app),
+      ...commandesNotifications(app),
+      ...commandesZoneNotification(app),
+      ...commandesRefusSysteme(app),
+      ...commandesCoupure(app),
       fermer: () => app.close(),
     }
   } catch (erreur) {
@@ -276,29 +330,53 @@ interface DoubluresArgos {
  *   le système ;
  * - zone de notification : `Tray.prototype.setToolTip` est enveloppé pour garder chaque infobulle,
  *   puis appelle l'original (Electron ne permet pas de relire l'infobulle).
+ *
+ * Chaque doublure est installée par son propre `app.evaluate` et lit l'état partagé : l'état est
+ * donc créé en premier, puis la garde réseau, la plus sensible, avant les autres doublures.
  */
 async function installerDoublures(app: ElectronApplication): Promise<void> {
-  await app.evaluate(({ Notification, Tray, session, shell }, [hotesLocaux, refusWindows]) => {
-    const etat = {
-      journal: [] as RequeteDesktop[],
-      ouvertures: [] as string[],
-      evenements: [] as string[],
-      notifications: [] as NotificationElectron[],
-      refusees: [] as NotificationElectron[],
-      refus: null as RefusSysteme | null,
-      infobulles: [] as string[],
-      icone: null as { emit(evenement: string): boolean } | null,
+  await installerEtatDoublures(app)
+  await installerGardeReseau(app)
+  await doublerNavigateurSysteme(app)
+  await doublerNotifications(app)
+  await doublerZoneNotification(app)
+}
+
+/** Crée l'état partagé `globalThis.__argosE2E`, vide, avec l'observation des événements de fenêtre. */
+async function installerEtatDoublures(app: ElectronApplication): Promise<void> {
+  await app.evaluate(() => {
+    const evenements: string[] = []
+    const observerFenetre = (fenetre: FenetreObservable) => {
+      for (const nom of ['show', 'hide', 'minimize', 'restore', 'focus', 'blur']) fenetre.on(nom, () => evenements.push(nom))
+    }
+    globalThis.__argosE2E = {
+      journal: [],
+      ouvertures: [],
+      evenements,
+      notifications: [],
+      refusees: [],
+      refus: null,
+      infobulles: [],
+      icone: null,
       coupures: new Set<string>(),
-      observerFenetre(fenetre: FenetreObservable) {
-        for (const nom of ['show', 'hide', 'minimize', 'restore', 'focus', 'blur'] as const) {
-          fenetre.on(nom, () => etat.evenements.push(nom))
-        }
-      },
+      observerFenetre,
     }
-    ;globalThis.__argosE2E = etat
+  })
+}
+
+/** `shell.openExternal` enregistre l'adresse au lieu d'ouvrir le navigateur du poste. */
+async function doublerNavigateurSysteme(app: ElectronApplication): Promise<void> {
+  await app.evaluate(({ shell }) => {
     shell.openExternal = async (url: string) => {
-      etat.ouvertures.push(url)
+      globalThis.__argosE2E.ouvertures.push(url)
     }
+  })
+}
+
+/** Enveloppe `Notification.isSupported` et `Notification.prototype.show` : observation et refus simulé. */
+async function doublerNotifications(app: ElectronApplication): Promise<void> {
+  await app.evaluate(({ Notification }, refusWindows) => {
+    const etat = globalThis.__argosE2E
     const isSupported = Notification.isSupported
     Notification.isSupported = () => etat.refus !== 'non-supportees' && isSupported.call(Notification)
     const show = Notification.prototype.show
@@ -306,27 +384,44 @@ async function installerDoublures(app: ElectronApplication): Promise<void> {
       const notification = this as unknown as NotificationElectron
       if (etat.refus === 'reglages-windows') {
         etat.refusees.push(notification)
-        notification.emit('failed', { preventDefault() {} }, refusWindows)
+        notification.emit('failed', { preventDefault: () => undefined }, refusWindows)
         return
       }
       etat.notifications.push(notification)
       return show.call(this)
     }
+  }, REFUS_REGLAGES_WINDOWS)
+}
+
+/** Enveloppe `Tray.prototype.setToolTip` pour garder chaque infobulle et l'icône qui la porte. */
+async function doublerZoneNotification(app: ElectronApplication): Promise<void> {
+  await app.evaluate(({ Tray }) => {
+    const etat = globalThis.__argosE2E
     const setToolTip = Tray.prototype.setToolTip
     Tray.prototype.setToolTip = function (this: InstanceType<typeof Tray>, texte: string) {
       etat.infobulles.push(texte)
       etat.icone = this as unknown as { emit(evenement: string): boolean }
       return setToolTip.call(this, texte)
     }
+  })
+}
+
+/**
+ * Garde réseau de la session : journalise chaque requête sans chaîne de requête ni valeur d'en-tête,
+ * annule celles vers un hôte hors de la boucle locale ou vers un hôte coupé, puis complète l'entrée
+ * du journal par la présence du jeton porteur et par le statut HTTP.
+ */
+async function installerGardeReseau(app: ElectronApplication): Promise<void> {
+  await app.evaluate(({ session }, hotesLocaux) => {
+    const etat = globalThis.__argosE2E
     const parId = new Map<number, RequeteDesktop>()
     const locaux = new Set(hotesLocaux)
-    const web = session.defaultSession.webRequest
-    web.onBeforeRequest((details: DetailsRequete, callback: (reponse: { cancel: boolean }) => void) => {
+    const protocolesReseau = new Set(['http:', 'https:', 'ws:', 'wss:'])
+    const decrireRequete = (details: DetailsRequete): RequeteDesktop => {
       const url = new URL(details.url)
-      const reseau = ['http:', 'https:', 'ws:', 'wss:'].includes(url.protocol)
+      const reseau = protocolesReseau.has(url.protocol)
       const refusee = reseau && !locaux.has(url.hostname)
-      const coupee = reseau && !refusee && etat.coupures.has(url.host)
-      const requete: RequeteDesktop = {
+      return {
         adresse: `${url.protocol}//${url.host}${url.pathname}`,
         protocole: url.protocol,
         hote: url.host,
@@ -335,11 +430,15 @@ async function installerDoublures(app: ElectronApplication): Promise<void> {
         porteur: false,
         statut: null,
         refusee,
-        coupee,
+        coupee: reseau && !refusee && etat.coupures.has(url.host),
       }
+    }
+    const web = session.defaultSession.webRequest
+    web.onBeforeRequest((details: DetailsRequete, callback: (reponse: { cancel: boolean }) => void) => {
+      const requete = decrireRequete(details)
       parId.set(details.id, requete)
       etat.journal.push(requete)
-      callback({ cancel: refusee || coupee })
+      callback({ cancel: requete.refusee || requete.coupee })
     })
     web.onBeforeSendHeaders((details: DetailsEnvoiEntetes,
       callback: (reponse: { requestHeaders: Record<string, string> }) => void) => {
@@ -353,7 +452,7 @@ async function installerDoublures(app: ElectronApplication): Promise<void> {
       const requete = parId.get(details.id)
       if (requete) requete.statut = details.statusCode
     })
-  }, [[...HOTES_LOCAUX], REFUS_REGLAGES_WINDOWS] as [string[], string])
+  }, [...HOTES_LOCAUX])
 }
 
 /** Réduit la fenêtre principale, comme lorsque la personne passe dans son navigateur. */
