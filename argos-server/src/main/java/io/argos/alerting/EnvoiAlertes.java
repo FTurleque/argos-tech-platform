@@ -95,8 +95,12 @@ public class EnvoiAlertes {
             concurrentExecution = Scheduled.ConcurrentExecution.SKIP)
     void planifie() {
         Instant maintenant = horloge.instant();
-        traiterEnAttente(maintenant);
-        sante.actualiser(maintenant);
+        try {
+            traiterEnAttente(maintenant);
+        } finally {
+            // La file est relevée même quand le passage relance une erreur imprévue (arc42 §8.5).
+            sante.actualiser(maintenant);
+        }
     }
 
     /** Diffuse les messages en attente dont l'échéance de tentative est passée. */

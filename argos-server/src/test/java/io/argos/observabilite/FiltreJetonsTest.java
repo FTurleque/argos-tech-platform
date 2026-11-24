@@ -1,6 +1,9 @@
 package io.argos.observabilite;
 
+import static org.junit.jupiter.api.Assertions.assertArrayEquals;
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.util.logging.Level;
@@ -21,6 +24,29 @@ class FiltreJetonsTest {
 
         assertTrue(new FiltreJetons().isLoggable(evenement), "aucun événement retiré");
         assertEquals("jeton refusé : " + FiltreJetons.MASQUE, evenement.getFormattedMessage());
+    }
+
+    @Test
+    void leJetonCiteDansLExceptionEtSaCauseEstMasque() {
+        ExtLogRecord evenement = new ExtLogRecord(Level.SEVERE, "erreur", ExtLogRecord.FormatStyle.NO_FORMAT,
+                FiltreJetonsTest.class.getName());
+        IllegalStateException erreur = new IllegalStateException("jeton refusé " + JETON,
+                new IllegalArgumentException("cause citant " + JETON));
+        evenement.setThrown(erreur);
+
+        new FiltreJetons().isLoggable(evenement);
+
+        Throwable masquee = evenement.getThrown();
+        assertTrue(masquee.getMessage().contains(IllegalStateException.class.getName()), masquee.getMessage());
+        assertFalse(masquee.getMessage().contains(JETON));
+        assertFalse(masquee.getCause().getMessage().contains(JETON));
+        assertArrayEquals(erreur.getStackTrace(), masquee.getStackTrace(), "pile conservée");
+    }
+
+    @Test
+    void uneExceptionSansJetonEstConservee() {
+        IllegalStateException erreur = new IllegalStateException("panne d'accès aux données");
+        assertSame(erreur, FiltreJetons.masquerPile(erreur));
     }
 
     @Test

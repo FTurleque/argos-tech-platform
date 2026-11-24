@@ -49,7 +49,7 @@
 
 Option A :
 
-1. **Journaux** : `quarkus-logging-json` ; une ligne JSON par événement en production (`%prod`), texte en développement et en test. Le MDC porte l'identifiant de corrélation (`correlation`) de chaque requête HTTP (API, MCP, points d'exploitation) et de chaque exécution planifiée, et le nom de la tâche (`tache`). Le serveur crée toujours l'identifiant et le restitue dans l'en-tête de réponse `X-Request-Id` ; aucune valeur reçue n'est reprise (décision Q-4). Une erreur est journalisée avec l'exception en premier argument (type, message, pile, causes). Tout jeton JWT cité dans un message est masqué par le filtre de journal `masquage-jetons`.
+1. **Journaux** : `quarkus-logging-json` ; une ligne JSON par événement en production (`%prod`), texte en développement et en test. Le MDC porte l'identifiant de corrélation (`correlation`) de chaque requête HTTP (API, MCP, points d'exploitation) et de chaque exécution planifiée, et le nom de la tâche (`tache`). Le serveur crée toujours l'identifiant et le restitue dans l'en-tête de réponse `X-Request-Id` ; aucune valeur reçue n'est reprise (décision Q-4). Une erreur est journalisée avec l'exception en premier argument (type, message, pile, causes). Tout jeton JWT cité dans un message, dans le message d'une exception journalisée ou dans ses causes, est masqué par le filtre de journal `masquage-jetons`.
 2. **Métriques** : `quarkus-micrometer-registry-prometheus`, exposition sur `/q/metrics`, réservée à l'administrateur plateforme par la politique HTTP `admin-plateforme` sur le port publié (décision Q-1) ; `/q/health` reste public. Métriques métier préfixées `argos_`, étiquettes bornées (`tache`, `resultat`, `etat`, `issue`), jamais un compte, un espace, un projet, un avis ni une adresse.
 3. **Santé** : contrôles `@Readiness` nommés, un par tâche planifiée active (`tache-<identité>`), et un par dépendance facultative (`sources-avis`, `envoi-alertes`, `passerelle-ia`) ; ils restent `UP` et publient leur état dégradé dans leurs données. Seul le contrôle des connexions à la base rend le serveur indisponible. Une tâche est en retard au-delà de deux intervalles de son déclencheur sans exécution terminée (`argos.observabilite.taches.facteur-retard`, décision Q-2).
 4. **Traçage distribué** (OpenTelemetry) : différé jusqu'à l'existence d'un collecteur.
@@ -64,6 +64,7 @@ Option A :
 
 - Les journaux de production passent du texte au JSON : l'exploitant qui lit `docker compose logs` doit s'y adapter (guide de déploiement).
 - La lecture des métriques demande un jeton OIDC d'administrateur plateforme ; un collecteur futur devra en obtenir un.
+- `/q/health/ready` reste public : chaque appel lit l'état des sources et la file d'envoi en base, et publie les identifiants des sources d'avis (communes à l'instance), les noms des tâches et leurs dernières exécutions, sans donnée d'espace ni donnée personnelle.
 
 ## Conséquences neutres / compromis
 

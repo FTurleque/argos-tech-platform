@@ -123,6 +123,8 @@ class JournauxJsonTest {
         String marqueur = "marqueur-" + UUID.randomUUID();
         given().auth().oauth2(jeton).queryParam("marqueur", marqueur)
                 .when().get(RESSOURCE + "/erreur").then().statusCode(200);
+        given().auth().oauth2(jeton).queryParam("marqueur", marqueur)
+                .when().get(RESSOURCE + "/erreur-jeton").then().statusCode(200);
         given().auth().oauth2(jeton + "altere").queryParam("marqueur", marqueur)
                 .when().get(RESSOURCE + "/etapes").then().statusCode(401);
         attendreEvenements(ligne -> ligne.path("message").asText().contains(marqueur), 1);

@@ -253,6 +253,30 @@ class AlertesTest {
         assertEquals(1, alertes("etat = 'EN_ATTENTE'"), "le message en erreur reste en attente");
     }
 
+    /** Le passage planifié de diffusion relève la file d'envoi même quand il se termine sur une erreur imprévue. */
+    @Test
+    void laFileEstReleveeMemeQuandLePassageEchoue() {
+        DataSource enErreur = (DataSource) Proxy.newProxyInstance(getClass().getClassLoader(), new Class<?>[] {DataSource.class},
+                (proxy, methode, arguments) -> {
+                    throw new IllegalArgumentException("erreur imprévue simulée");
+                });
+        AtomicBoolean relevee = new AtomicBoolean();
+        SanteEnvoiAlertes releveur = new SanteEnvoiAlertes() {
+            @Override
+            EtatFile actualiser(Instant maintenant) {
+                relevee.set(true);
+                return new EtatFile(0, 0);
+            }
+        };
+
+        try (Substitution base = Substitution.remplacer(envoi, "dataSource", enErreur);
+                Substitution sante = Substitution.remplacer(envoi, "sante", releveur)) {
+            assertThrows(IllegalArgumentException.class, () -> Substitution.reel(envoi).planifie());
+        }
+
+        assertTrue(relevee.get(), "file relevée malgré l'échec du passage");
+    }
+
     private static Destinataires destinatairesEnErreur(RuntimeException erreur) {
         return new Destinataires() {
             @Override
