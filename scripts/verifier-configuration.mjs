@@ -88,17 +88,20 @@ export function environnementService(compose, service) {
       dansEnvironnement = contenu === 'environment:';
       continue;
     }
-    const cle = cleEtValeur(contenu);
-    if (dansEnvironnement && decalage === INDENTATION_VARIABLE && cle) variables.set(cle.nom, cle.valeur);
+    if (!dansEnvironnement || decalage !== INDENTATION_VARIABLE) continue;
+    for (const { nom, valeur } of clesEtValeurs(contenu)) variables.set(nom, valeur);
   }
   return variables;
 }
 
-/** Ligne « cle: valeur » découpée sans expression à retour arrière : nom de la clé et valeur sans guillemets. */
-function cleEtValeur(contenu) {
+/**
+ * Ligne « cle: valeur » découpée sans expression à retour arrière : une paire { nom, valeur } (valeur sans guillemets),
+ * ou aucune si la ligne n'est pas de cette forme.
+ */
+function clesEtValeurs(contenu) {
   const cle = /^[A-Za-z_]\w*:/.exec(contenu);
-  if (!cle) return null;
-  return { nom: cle[0].slice(0, -1), valeur: sansGuillemets(contenu.slice(cle[0].length)) };
+  if (!cle) return [];
+  return [{ nom: cle[0].slice(0, -1), valeur: sansGuillemets(contenu.slice(cle[0].length)) }];
 }
 
 function sansGuillemets(valeur) {
@@ -164,12 +167,14 @@ export function structureFragment(compose, nom) {
   let courante = null;
   for (const ligne of blocPremierNiveau(compose, nom)) {
     const contenu = ligne.trim();
-    const cle = cleEtValeur(contenu);
     if (contenu.startsWith('-') && courante !== null) {
       cles.get(courante).elements.push(sansGuillemets(contenu.slice(1)));
-    } else if (cle && indentation(ligne) === INDENTATION_SERVICE) {
-      courante = cle.nom;
-      cles.set(courante, { valeur: cle.valeur, elements: [] });
+      continue;
+    }
+    if (indentation(ligne) !== INDENTATION_SERVICE) continue;
+    for (const { nom, valeur } of clesEtValeurs(contenu)) {
+      courante = nom;
+      cles.set(courante, { valeur, elements: [] });
     }
   }
   return cles;
