@@ -3,6 +3,7 @@ package io.argos.aigateway;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
@@ -30,6 +31,7 @@ import io.argos.alerting.ResumeIaPasserelle;
 import io.argos.testsupport.Api;
 import io.argos.testsupport.StubServer;
 import io.argos.testsupport.StubServer.Stub;
+import io.argos.testsupport.Substitution;
 import io.argos.testsupport.TestDb;
 import io.quarkus.test.common.QuarkusTestResource;
 import io.quarkus.test.junit.QuarkusTest;
@@ -182,6 +184,31 @@ class PasserelleIaTest {
         assertEquals("Quarkus 3.40 est une version LTS.", reponse.champ("resume"));
         assertEquals(1, StubServer.received(CHAT).size());
         assertTrue(derniereRequete().path("messages").get(1).path("content").asText().contains("Version de support long."));
+    }
+
+    /**
+     * Frontière d'erreur (arc42 §8.5) : seules les pannes prévues du fournisseur (injoignable, délai, réponse en erreur)
+     * deviennent « modèle indisponible » ; une erreur imprévue du fournisseur n'est pas absorbée et remonte à l'appelant.
+     */
+    @Test
+    void erreurImprevueDuFournisseurRemonteALAppelant() {
+        IllegalArgumentException imprevue = new IllegalArgumentException("erreur imprévue simulée");
+        FournisseurModele doublure = new FournisseurModele() {
+            @Override
+            public String nom() {
+                return "DOUBLURE";
+            }
+
+            @Override
+            public Reponse executer(Requete requete) {
+                throw imprevue;
+            }
+        };
+
+        try (Substitution substitution = Substitution.remplacer(passerelle, "fournisseur", doublure)) {
+            assertSame(imprevue, assertThrows(IllegalArgumentException.class,
+                    () -> passerelle.demander(resume(null, EntreeIa.publique("titre", "Quarkus 3.40 LTS")))));
+        }
     }
 
     @Test

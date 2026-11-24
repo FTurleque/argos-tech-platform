@@ -20,6 +20,8 @@ import jakarta.inject.Inject;
 
 import org.jboss.logging.Logger;
 
+import io.argos.observabilite.ErreursImprevues;
+
 /**
  * Copie locale du calendrier endoflife.date (données publiques, lisibles par tout compte) et fraîcheur
  * de chaque produit suivi. Une synchronisation remplace en bloc les cycles d'un produit ; un échec
@@ -41,9 +43,14 @@ public class CyclesDeVie {
     @Inject
     ClientEndoflife client;
 
-    /** Synchronise chaque produit ; un échec n'interrompt pas les autres. */
+    /**
+     * Synchronise chaque produit ; un échec n'interrompt pas les autres. Une erreur imprévue sur un produit est
+     * journalisée avec sa cause et le produit passe {@code EN_ERREUR} ; une fois tous les produits traités, la première
+     * erreur imprévue est relancée (frontière d'erreur, arc42 §8.5).
+     */
     public Map<String, String> synchroniser(Collection<String> produits, Instant maintenant) {
         Map<String, String> etats = new LinkedHashMap<>();
+        ErreursImprevues imprevues = new ErreursImprevues();
         for (String produit : produits) {
             try {
                 List<ClientEndoflife.Cycle> cycles = client.cycles(produit);
@@ -58,8 +65,14 @@ public class CyclesDeVie {
                 LOG.errorf(erreur, "synchronisation du produit %s interrompue", produit);
                 echecOuJournaliser(produit, "erreur interne de synchronisation", maintenant);
                 etats.put(produit, "EN_ERREUR");
+            } catch (RuntimeException imprevue) {
+                LOG.errorf(imprevue, "synchronisation du produit %s interrompue par une erreur imprévue", produit);
+                echecOuJournaliser(produit, "erreur interne de synchronisation", maintenant);
+                etats.put(produit, "EN_ERREUR");
+                imprevues.retenir(imprevue);
             }
         }
+        imprevues.relancer();
         return etats;
     }
 

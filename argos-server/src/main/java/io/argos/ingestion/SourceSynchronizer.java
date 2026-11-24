@@ -19,7 +19,8 @@ import org.jboss.logging.Logger;
  * normalisation, enregistrement avis par avis, nouvelles tentatives bornées et état de la source.
  *
  * <p>Chaque tentative reprend depuis le curseur persisté : une panne en cours de lot ne perd ni
- * ne duplique aucun avis (COL-05-S1).
+ * ne duplique aucun avis (COL-05-S1). Une panne d'accès aux données ou une erreur imprévue termine le traitement
+ * {@code FAILED} avec le motif {@code PERMANENT} ; l'erreur imprévue est ensuite relancée (COL-11).
  */
 @ApplicationScoped
 public class SourceSynchronizer {
@@ -101,6 +102,15 @@ public class SourceSynchronizer {
                         sourceId, attempts);
                 enregistrerTentativeOuJournaliser(sourceId, runId, attempts, error);
                 return failed(sourceId, runId, attempts, "PERMANENT", error, counters);
+            } catch (RuntimeException imprevue) {
+                // Frontière d'erreur (arc42 §8.5) : une erreur imprévue termine le traitement en échec permanent, compté
+                // pour l'état DEGRADED (COL-11), puis est relancée à l'appelant ; elle n'est pas rejouée.
+                SourceException error = new SourceException(SourceException.Kind.PERMANENT, null, null,
+                        "erreur imprévue : " + imprevue.getClass().getSimpleName(), imprevue);
+                LOG.errorf(imprevue, "synchronisation %s, tentative %d interrompue par une erreur imprévue", sourceId, attempts);
+                enregistrerTentativeOuJournaliser(sourceId, runId, attempts, error);
+                failed(sourceId, runId, attempts, "PERMANENT", error, counters);
+                throw imprevue;
             }
         }
     }

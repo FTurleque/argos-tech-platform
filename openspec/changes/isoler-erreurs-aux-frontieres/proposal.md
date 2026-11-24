@@ -12,8 +12,9 @@ Le lot 23 a remplacé 51 captures `RuntimeException`/`Exception` par des capture
 - Une erreur imprévue pendant l'import planifié de l'inventaire d'un projet est comptée en échec et n'empêche pas l'import des projets suivants.
 - Un PURL mal encodé est traité comme un PURL illisible, selon les règles déjà en place pour chaque entrée (avis, SBOM, saisie d'un standard, paramètre MCP).
 - `PUT /standards` refuse une clé de paquet mal encodée par une erreur 400 et ne répond plus en erreur après avoir enregistré la modification.
-- Toute erreur interne d'un outil MCP est journalisée et répond `INDISPONIBLE`, jamais par une erreur de protocole.
-- Les autres boucles planifiées et observateurs synchrones (alertes, radar, cycles de vie, fiches réglementaires, activité des projets, passerelle IA) retrouvent un filet journalisé ; la cause est journalisée avec sa pile, y compris pour le résumé IA indisponible des alertes.
+- Toute erreur interne d'un outil MCP est journalisée avec sa cause et l'appel inscrit en erreur ; une panne d'accès aux données répond `INDISPONIBLE`, une erreur imprévue est relancée (erreur de protocole sans message interne), jamais traduite en `INDISPONIBLE`.
+- Les autres boucles planifiées (alertes, radar, cycles de vie, fiches réglementaires, activité des projets) isolent chaque unité puis relancent la première erreur imprévue ; les observateurs synchrones traitent la panne d'accès aux données et propagent l'erreur imprévue ; la passerelle IA ne traduit en « modèle indisponible » que les pannes prévues du fournisseur ; la cause est journalisée avec sa pile, y compris pour le résumé IA indisponible des alertes.
+- Décision du porteur du projet (2026-11-24) : « isoler puis relancer » — à chaque frontière, l'unité fautive est journalisée et comptée en échec, les suivantes sont traitées, puis la première erreur imprévue est relancée ; aucune erreur imprévue n'est absorbée.
 - La règle des frontières d'erreur est écrite dans arc42 §8.
 - Aucune rupture de contrat (**BREAKING** : aucun) ; le seul changement visible d'une API est le passage de 500 à 400 pour une clé mal encodée.
 
@@ -28,7 +29,7 @@ Aucune.
 - `collecte-avis-securite` : exigence ajoutée COL-11 (un avis mal formé ou une erreur imprévue n'arrête que sa source). COL-01 à COL-10 inchangées.
 - `inventaire-sbom` : exigence ajoutée INV-11 (une SBOM fautive ou une erreur imprévue n'arrête que son projet). INV-01 à INV-10 inchangées.
 - `radar-standards` : exigence ajoutée RAD-07 (clé mal encodée refusée en 400 ; aucune erreur renvoyée après l'enregistrement). RAD-01 à RAD-06 inchangées.
-- `serveur-mcp` : exigence ajoutée MCP-08 (toute erreur interne répond `INDISPONIBLE`, journalisée, sans erreur de protocole). MCP-01 à MCP-07 inchangées.
+- `serveur-mcp` : exigence ajoutée MCP-08 (toute erreur interne journalisée et inscrite en erreur ; `INDISPONIBLE` pour une panne d'accès aux données, erreur imprévue relancée). MCP-01 à MCP-07 inchangées.
 
 ## Périmètre
 
@@ -51,7 +52,7 @@ Aucune.
 |---|---|---|
 | Exploitant | voit une source en échec puis `DEGRADED`, et un bilan d'import avec les projets en échec, au lieu d'une simple trace du planificateur | [EXIGENCE] — COL-07 |
 | Administrateur d'espace | reçoit 400 sur une clé mal encodée ; sa modification enregistrée n'est plus suivie d'une erreur | [EXIGENCE] — RAD-01, RAD-02 |
-| Utilisateur d'un assistant IA (MCP) | reçoit `INDISPONIBLE` au lieu d'une erreur de protocole | [PROPOSITION] — codes d'erreur de la fiche `serveur-mcp` |
+| Utilisateur d'un assistant IA (MCP) | reçoit `INDISPONIBLE` pour une panne d'accès aux données, une erreur de protocole sans détail interne pour une erreur imprévue | [PROPOSITION] — codes d'erreur de la fiche `serveur-mcp` |
 | Porteur du projet | tranche Q-1 (type de panne dédié) et valide la règle d'arc42 §8 | [PROPOSITION] |
 
 ## Sources et preuves
@@ -87,7 +88,7 @@ Aucune.
 ## Impact
 
 - **Composants** (arc42 §5) : `source-ingestion`, `signal`, `inventory`, `catalog`, `impact-engine`, `alerting`, `mcp-server`, `release-radar`, `reg-intel`, `project-intel`, `ai-gateway`, `API & Security` (correspondance d'erreur, si retenue en D2).
-- **Contrats d'interface** : `PUT /api/v1/radar/espaces/{espaceId}/standards` répond 400 `DONNEE_INVALIDE` (champ `cle`) pour une clé mal encodée, au lieu d'une erreur serveur ; outils MCP : `INDISPONIBLE` pour toute erreur interne (code déjà documenté). OpenAPI : réponse 400 déjà déclarée ou à déclarer (tâche 4.1).
+- **Contrats d'interface** : `PUT /api/v1/radar/espaces/{espaceId}/standards` répond 400 `DONNEE_INVALIDE` (champ `cle`) pour une clé mal encodée, au lieu d'une erreur serveur ; outils MCP : `INDISPONIBLE` pour une panne d'accès aux données (code déjà documenté), erreur de protocole pour une erreur imprévue. OpenAPI : réponse 400 déjà déclarée par l'opération (vérifié, tâche 4.1).
 - **Données et persistance** : aucune migration ; une synchronisation interrompue finit `FAILED` au lieu de rester `RUNNING`.
 - **Sécurité, confidentialité, droits** : aucune modification des droits ; les messages renvoyés ne contiennent pas le détail de l'erreur interne.
 - **Exploitation et observabilité** : sources en échec et `DEGRADED` de nouveau visibles ; bilans de passage avec les éléments en échec ; journaux d'erreur avec pile.
@@ -103,5 +104,5 @@ complète — changement transverse (onze composants), qui fixe une règle d'arc
 
 | ID | Question | Bloquante ? | Destinataire |
 |---|---|---|---|
-| Q-1 | Faut-il introduire un type de panne d'accès aux données dédié (par exemple une sous-classe de `IllegalStateException`) pour distinguer cette panne des autres erreurs à l'intérieur des frontières, comme le suggère le constat ? 35 des 147 `new IllegalStateException(` ne viennent pas d'une erreur SQL | non : le filet aux frontières ne dépend pas de ce choix | Porteur du projet |
-| Q-2 | Une SBOM portant un PURL mal encodé doit-elle voir ce composant écarté (règle actuelle d'un PURL illisible) ou l'import du projet refusé (texte du constat) ? | non : design.md D2 retient la règle actuelle, révisable sans changer INV-11 | Porteur du projet |
+| Q-1 | Faut-il introduire un type de panne d'accès aux données dédié (par exemple une sous-classe de `IllegalStateException`) pour distinguer cette panne des autres erreurs à l'intérieur des frontières, comme le suggère le constat ? 35 des 147 `new IllegalStateException(` ne viennent pas d'une erreur SQL | tranchée le 2026-11-24 : pas de type dédié dans ce changement | Porteur du projet |
+| Q-2 | Une SBOM portant un PURL mal encodé doit-elle voir ce composant écarté (règle actuelle d'un PURL illisible) ou l'import du projet refusé (texte du constat) ? | tranchée le 2026-11-24 : composant écarté et signalé (règle actuelle) | Porteur du projet |

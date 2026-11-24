@@ -31,7 +31,11 @@ public final class PackageKey {
     private PackageKey() {
     }
 
-    /** Décompose un PURL ; vide s'il n'est pas conforme à {@code pkg:type/[namespace/]name[@version]}. */
+    /**
+     * Décompose un PURL ; vide s'il n'est pas conforme à {@code pkg:type/[namespace/]name[@version]} ou si l'un de ses
+     * segments est mal encodé (par exemple {@code %zz}) : un PURL mal encodé est un PURL illisible, que chaque appelant
+     * traite selon sa règle (COL-11, INV-11, RAD-07). Aucune chaîne ne lève d'erreur d'exécution.
+     */
     public static Optional<Purl> parse(String purl) {
         if (purl == null || !purl.startsWith("pkg:")) {
             return Optional.empty();
@@ -41,10 +45,13 @@ public final class PackageKey {
         if (cut >= 0) {
             rest = rest.substring(0, cut);
         }
-        String version = null;
+        Optional<String> version = Optional.empty();
         int versionSeparator = rest.lastIndexOf('@');
         if (versionSeparator > rest.indexOf('/') && versionSeparator >= 0) {
             version = decode(rest.substring(versionSeparator + 1));
+            if (version.isEmpty()) {
+                return Optional.empty();
+            }
             rest = rest.substring(0, versionSeparator);
         }
         while (rest.startsWith("/")) {
@@ -57,12 +64,13 @@ public final class PackageKey {
         String type = rest.substring(0, slash).toLowerCase(Locale.ROOT);
         String path = rest.substring(slash + 1);
         int last = path.lastIndexOf('/');
-        String namespace = last < 0 ? null : decode(path.substring(0, last));
-        String name = decode(path.substring(last + 1));
-        if (name.isBlank()) {
+        Optional<String> namespace = last < 0 ? Optional.of("") : decode(path.substring(0, last));
+        Optional<String> name = decode(path.substring(last + 1));
+        if (namespace.isEmpty() || name.isEmpty() || name.get().isBlank()) {
             return Optional.empty();
         }
-        return Optional.of(new Purl(type, key(type, namespace, name), version == null || version.isBlank() ? null : version));
+        String versionLue = version.filter(valeur -> !valeur.isBlank()).orElse(null);
+        return Optional.of(new Purl(type, key(type, namespace.get(), name.get()), versionLue));
     }
 
     /**
@@ -122,7 +130,12 @@ public final class PackageKey {
         return secondIndex < 0 ? firstIndex : Math.min(firstIndex, secondIndex);
     }
 
-    private static String decode(String value) {
-        return URLDecoder.decode(value.replace("+", "%2B"), StandardCharsets.UTF_8);
+    /** Segment décodé ; vide si son encodage en pourcentage est invalide. */
+    private static Optional<String> decode(String value) {
+        try {
+            return Optional.of(URLDecoder.decode(value.replace("+", "%2B"), StandardCharsets.UTF_8));
+        } catch (IllegalArgumentException encodageInvalide) {
+            return Optional.empty();
+        }
     }
 }

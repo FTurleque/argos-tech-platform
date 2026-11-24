@@ -4,7 +4,7 @@
 |---|---|
 | Préfixe d'exigences | `MCP` |
 | Spec de référence | `/openspec/specs/serveur-mcp/spec.md` — absente tant qu'aucun changement n'est archivé |
-| Changements en cours | [`exposer-serveur-mcp`](/openspec/changes/archive/2026-11-20-exposer-serveur-mcp/proposal.md) (implémenté, non archivé) |
+| Changements en cours | [`exposer-serveur-mcp`](/openspec/changes/archive/2026-11-20-exposer-serveur-mcp/proposal.md) (implémenté, non archivé) ; [`isoler-erreurs-aux-frontieres`](/openspec/changes/isoler-erreurs-aux-frontieres/proposal.md) (MCP-08, implémentée, non archivée) |
 | Statut de la capacité | proposée ; implémentation et tests dans `argos-server`, changement non archivé |
 | Composants (arc42 §5) | `mcp-server`, `API & Security`, `audit`, modules métier en lecture |
 
@@ -43,7 +43,7 @@ L'utilisateur a un compte Argos et un jeton d'accès Keycloak délivré au clien
 | Requête MCP | `POST /mcp`, JSON-RPC, en-têtes `MCP-Protocol-Version: 2026-07-28`, `Mcp-Method`, `Mcp-Name` et champs `_meta` du protocole sans état | jeton OIDC valide (signature, émetteur, audience `argos-server`, expiration), sinon 401, y compris pour une requête qui présente un `Mcp-Session-Id` ; versions annoncées par `server/discover` : 2026-07-28, 2025-11-25, 2025-06-18, 2025-03-26, 2024-11-05 (voir Écarts constatés) | [EXISTANT] — `AuthentificationMcpTest`, `ContratOutilsMcpTest`, `e2e/mcp/parcours-mcp.spec.ts` |
 | Appel d'outil | nom de l'outil, paramètres | schéma d'entrée publié par l'outil ; paramètres invalides : erreur `PARAMETRES_INVALIDES` sans appel métier | [EXISTANT] — `OutilsConsultationMcpTest` |
 | Réponse | `structuredContent` conforme au schéma de sortie de l'outil : faits, sources, champs `TexteExterne` ; le même objet sérialisé dans un bloc `content` de type `text`, pour les clients qui ne lisent que ce champ (`quarkus.mcp.server.tools.structured-content.compatibility-mode`) | périmètre de l'utilisateur (MCP-04) | [EXISTANT] — `ContratOutilsMcpTest`, `CloisonnementMcpTest`, `OutilsConsultationMcpTest`, `e2e/mcp/parcours-mcp.spec.ts` ; [PROPOSITION] pour le bloc `content` (voir Interprétations) |
-| Erreur d'outil | résultat `isError` dont le texte commence par un code stable : `NON_AUTORISE`, `INTROUVABLE`, `PARAMETRES_INVALIDES`, `LIMITE_DEBIT`, `INDISPONIBLE` | aucune donnée partielle | [PROPOSITION] — codes définis par ce changement |
+| Erreur d'outil | résultat `isError` dont le texte commence par un code stable : `NON_AUTORISE`, `INTROUVABLE`, `PARAMETRES_INVALIDES`, `LIMITE_DEBIT`, `INDISPONIBLE` (panne d'accès aux données) | aucune donnée partielle ; une erreur imprévue n'est pas traduite en code : elle devient une erreur de protocole, sans message interne (MCP-08) | [PROPOSITION] — codes définis par ce changement |
 | Outil inconnu | erreur JSON-RPC `-32602` | aucune donnée modifiée, aucun appel journalisé | [EXISTANT] — `ContratOutilsMcpTest` |
 
 ## Règles métier
@@ -58,6 +58,7 @@ L'utilisateur a un compte Argos et un jeton d'accès Keycloak délivré au clien
 | 60 appels par minute et par utilisateur sur fenêtre glissante ; refus `LIMITE_DEBIT` journalisé ; chaque appel journalisé (compte, outil, paramètres, durée, issue) | MCP-06 | ADR-0014 (Proposé) ; Q-1 | [EXISTANT] — `LimiteDebitMcpTest` |
 | Négociations `initialize` limitées à la même valeur, comptées à part par sujet du jeton ; refus `LIMITE_DEBIT` inscrit au journal des refus (ressource `MCP initialize`), aucune session ouverte ; session inactive fermée après 30 minutes (`quarkus.mcp.server.connection-idle-timeout`) | MCP-06 | ADR-0014 (Proposé) ; Q-1 | [EXISTANT] — `ControleInitialisation`, `LimiteDebitMcpTest.initialisationsLimitees` ; [PROPOSITION] (voir Interprétations) |
 | `get_regulatory_changes` ne renvoie que les fiches validées par un expert, chacune avec sa mention de validation (`mentionValidation`), et rappelle les garde-fous du profil `expert-metier` | MCP-07 | PRF-06 ; ADR-0018 (remplacé par ADR-0030) | [EXISTANT] — `ReglementaireMcpTest`, `VeilleProfilsTest` |
+| Toute erreur interne d'un outil est journalisée avec sa cause et l'appel inscrit en erreur ; une panne d'accès aux données répond `INDISPONIBLE`, une erreur imprévue est relancée (erreur de protocole), jamais traduite en `INDISPONIBLE` ; aucune donnée partielle ni message interne | MCP-08 | AUD-QUA-20 ; arc42 §8.5 ; décision « isoler puis relancer » du porteur du projet, 2026-11-24 | [PROPOSITION] — `isoler-erreurs-aux-frontieres` ; vérifiée par `ErreursOutilsMcpTest` |
 
 ## Droits d'accès et restrictions
 
@@ -100,7 +101,7 @@ L'assistant s'appuie sur des faits d'Argos plutôt que sur ses connaissances dat
 
 ## Critères d'acceptation
 
-Scénarios MCP-01-S1 à MCP-07-S1 du changement, couverts par les tests de `argos-server/src/test/java/io/argos/mcp/` ; QS-12 (sécurité) pour l'injection et le cloisonnement.
+Scénarios MCP-01-S1 à MCP-07-S1 du changement et MCP-08-S1, MCP-08-S2 d'`isoler-erreurs-aux-frontieres`, couverts par les tests de `argos-server/src/test/java/io/argos/mcp/` ; QS-12 (sécurité) pour l'injection et le cloisonnement.
 
 ## Parcours avec un assistant configuré par `.mcp.json`
 
@@ -179,5 +180,6 @@ Le jeton d'accès du royaume de test expire vite : en redemander un si `/mcp` si
 | MCP-05 | MCP-05-S1 | DC-1 | 2.3, 5.2 | `ContenuExterneMcpTest` ; `e2e/mcp/parcours-mcp.spec.ts` (`check_dependency`) |
 | MCP-06 | MCP-06-S1 | DC-1 | 2.4 | `LimiteDebitMcpTest` |
 | MCP-07 | MCP-07-S1 | DC-1 | 3.3 | `ReglementaireMcpTest` |
+| MCP-08 | MCP-08-S1, MCP-08-S2 | `isoler-erreurs-aux-frontieres` design.md D5 | 4.1, 4.2 | `ErreursOutilsMcpTest` |
 
 Tests dans [`argos-server/src/test/java/io/argos/mcp/`](/argos-server/src/test/java/io/argos/mcp/). Configuration d'un assistant : [guide de déploiement](../deploiement/synology-et-pc.md#connecter-un-assistant-ia-mcp).

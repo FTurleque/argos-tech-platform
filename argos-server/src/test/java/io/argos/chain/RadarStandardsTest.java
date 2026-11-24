@@ -13,6 +13,7 @@ import java.sql.ResultSet;
 import java.time.Instant;
 import java.time.LocalDate;
 import java.time.temporal.ChronoUnit;
+import java.util.Collection;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -23,16 +24,20 @@ import jakarta.inject.Inject;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
+import io.argos.alerting.EnvoiAlertes;
 import io.argos.alerting.RappelsRadar;
 import io.argos.catalog.standard.ReferentielEspace;
 import io.argos.impact.RadarProjets;
 import io.argos.inventory.InventoryService;
 import io.argos.inventory.ProjectDirectory;
+import io.argos.releaseradar.ClientEndoflife;
+import io.argos.releaseradar.CyclesDeVie;
 import io.argos.testsupport.Api;
 import io.argos.testsupport.Fixtures;
 import io.argos.testsupport.RadarFixtures;
 import io.argos.testsupport.RadarFixtures.Cycle;
 import io.argos.testsupport.StubServer;
+import io.argos.testsupport.Substitution;
 import io.argos.testsupport.TestDb;
 import io.argos.workspace.ContexteBase;
 import io.argos.workspace.ContexteBase.Contexte;
@@ -80,6 +85,12 @@ class RadarStandardsTest {
 
     @Inject
     MockMailbox mailbox;
+
+    @Inject
+    CyclesDeVie cyclesDeVie;
+
+    @Inject
+    ClientEndoflife clientEndoflife;
 
     private UUID espace;
     private UUID compteAdmin;
@@ -379,6 +390,138 @@ class RadarStandardsTest {
 
         assertEquals(0L, (long) base.executer(new Contexte(compteExterieur, null, null),
                 connexion -> compter(connexion, "SELECT count(*) FROM dette_version")));
+    }
+
+    // ------------------------------------------------------------------ RAD-07 et frontières d'erreur (arc42 §8.5)
+
+    /** RAD-07-S1 : une clé mal encodée est refusée en 400 sur le champ {@code cle}, sans rien modifier. */
+    @Test
+    void rad07S1CleMalEncodee() {
+        enregistrer("nina", saisie("pkg:maven/%zz/x", "Mal encodée", "ASSESS", null, "Socle", "À étudier", "2027-06-30", null))
+                .statusCode(400).body("code", equalTo("DONNEE_INVALIDE")).body("attribut", equalTo("cle"));
+
+        assertEquals(0, baseDeTest.count("SELECT count(*) FROM standard_technologie"));
+        assertEquals(0, baseDeTest.count("SELECT count(*) FROM standard_historique"));
+    }
+
+    /** RAD-07-S2 : l'annonce échoue sur une panne d'accès aux données : 200, entrée et historique persistés. */
+    @Test
+    void rad07S2AnnonceEnPanneApresLEnregistrement() {
+        projet(espace, "Portail agent", BIBLIO + "@2.1.0");
+        enregistrer("nina", saisie(BIBLIO, "Biblio UI", "ADOPT", "2.4", "Front", "Bibliothèque commune", "2027-06-30", null))
+                .statusCode(200);
+
+        try (Substitution substitution = Substitution.remplacer(rappels, "envoi", envoiEnErreur(
+                new IllegalStateException("panne simulée d'accès aux données")))) {
+            enregistrer("nina", saisie(BIBLIO, "Biblio UI", "HOLD", null, "Front", "Plus maintenue", "2027-06-30", null))
+                    .statusCode(200).body("statut", equalTo("HOLD"));
+        }
+
+        assertEquals("HOLD", baseDeTest.string("SELECT statut FROM standard_technologie"));
+        assertEquals(2, baseDeTest.count("SELECT count(*) FROM standard_historique"));
+    }
+
+    /**
+     * Une erreur imprévue de l'annonce n'est pas absorbée : elle remonte à la requête (500), l'entrée et son historique
+     * restant enregistrés par leur transaction validée (frontière d'erreur, arc42 §8.5).
+     */
+    @Test
+    void annonceEnErreurImprevueRemonteApresLEnregistrement() {
+        projet(espace, "Portail agent", BIBLIO + "@2.1.0");
+        enregistrer("nina", saisie(BIBLIO, "Biblio UI", "ADOPT", "2.4", "Front", "Bibliothèque commune", "2027-06-30", null))
+                .statusCode(200);
+
+        try (Substitution substitution = Substitution.remplacer(rappels, "envoi", envoiEnErreur(
+                new IllegalArgumentException("erreur imprévue simulée")))) {
+            enregistrer("nina", saisie(BIBLIO, "Biblio UI", "HOLD", null, "Front", "Plus maintenue", "2027-06-30", null))
+                    .statusCode(500);
+        }
+
+        assertEquals("HOLD", baseDeTest.string("SELECT statut FROM standard_technologie"));
+        assertEquals(2, baseDeTest.count("SELECT count(*) FROM standard_historique"));
+    }
+
+    /** Tâche quotidienne : un espace en erreur imprévue n'empêche pas les rappels des autres ; l'erreur est relancée. */
+    @Test
+    void espaceEnErreurImprevueDansLaTacheQuotidienne() {
+        LocalDate jour = LocalDate.of(2027, 3, 1);
+        RadarFixtures.publier("spring-boot", RadarFixtures.reponse("spring-boot",
+                new Cycle("3.3", LocalDate.of(2024, 5, 23), jour.plusDays(30), false, null, null)));
+        projet(espace, "Portail agent", SPRING + "@3.3.5");
+        enregistrer("nina", saisie(SPRING, "Spring Boot", "ADOPT", "3.5", "Socle", "Version validée", "2027-06-30", "spring-boot"))
+                .statusCode(200);
+        UUID espaceVoisin = Api.nouvelEspace("marc", "Radar voisin");
+        projet(espaceVoisin, "Projet voisin", SPRING + "@3.3.5");
+        Api.enTantQue("marc").contentType(ContentType.JSON)
+                .body(saisie(SPRING, "Spring Boot", "ADOPT", "3.5", "Socle", "Version validée", "2027-06-30", "spring-boot"))
+                .put("/api/v1/radar/espaces/" + espaceVoisin + "/standards").then().statusCode(200);
+        RadarProjets reel = Substitution.reel(radar);
+        IllegalArgumentException imprevue = new IllegalArgumentException("erreur imprévue simulée");
+        RadarProjets doublure = new RadarProjets() {
+            @Override
+            public Bilan actualiser(LocalDate aujourdhui, Instant maintenant) {
+                return reel.actualiser(aujourdhui, maintenant);
+            }
+
+            @Override
+            public List<UUID> espacesSuivis() {
+                return reel.espacesSuivis();
+            }
+
+            @Override
+            public List<EcheanceProjets> echeancesTouchant(UUID espaceId, LocalDate date) {
+                if (espaceId.equals(espace)) {
+                    throw imprevue;
+                }
+                return reel.echeancesTouchant(espaceId, date);
+            }
+        };
+
+        RappelsRadar.Bilan bilan;
+        try (Substitution substitution = Substitution.remplacer(rappels, "radar", doublure)) {
+            bilan = rappels.executer(jour, Instant.now());
+        }
+
+        assertEquals(1, bilan.rappels().size(), "rappel du membre de l'espace voisin");
+        assertEquals(1, baseDeTest.count("SELECT count(*) FROM alerte WHERE nature = 'RAPPEL' AND compte_id = '"
+                + compteExterieur + "'"));
+        assertEquals(List.of(imprevue), bilan.erreursImprevues());
+        assertThrows(IllegalArgumentException.class, bilan::relancerErreurImprevue);
+    }
+
+    /** Cycles de vie : un produit en erreur imprévue passe EN_ERREUR, les suivants sont synchronisés, l'erreur est relancée. */
+    @Test
+    void produitEnErreurImprevueDansLaSynchronisationDesCycles() {
+        RadarFixtures.publier("postgresql", RadarFixtures.reponse("postgresql",
+                new Cycle("17", LocalDate.of(2024, 9, 26), LocalDate.of(2029, 11, 8), false, "17.12", LocalDate.of(2026, 11, 9))));
+        ClientEndoflife reel = Substitution.reel(clientEndoflife);
+        ClientEndoflife doublure = new ClientEndoflife() {
+            @Override
+            public List<ClientEndoflife.Cycle> cycles(String produit) throws ClientEndoflife.SourceIndisponible {
+                if ("spring-boot".equals(produit)) {
+                    throw new IllegalArgumentException("erreur imprévue simulée");
+                }
+                return reel.cycles(produit);
+            }
+        };
+
+        try (Substitution substitution = Substitution.remplacer(cyclesDeVie, "client", doublure)) {
+            assertThrows(IllegalArgumentException.class,
+                    () -> cyclesDeVie.synchroniser(List.of("spring-boot", "postgresql"), Instant.now()));
+        }
+
+        Map<String, String> etats = new HashMap<>();
+        cyclesDeVie.etats(List.of("spring-boot", "postgresql")).forEach(etat -> etats.put(etat.produit(), etat.etat()));
+        assertEquals(Map.of("spring-boot", "EN_ERREUR", "postgresql", "A_JOUR"), etats);
+    }
+
+    private static EnvoiAlertes envoiEnErreur(RuntimeException erreur) {
+        return new EnvoiAlertes() {
+            @Override
+            public Map<UUID, Issue> envoyer(Collection<UUID> ids, Instant maintenant) {
+                throw erreur;
+            }
+        };
     }
 
     // ------------------------------------------------------------------ outils

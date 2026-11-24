@@ -28,6 +28,7 @@ import org.eclipse.microprofile.config.inject.ConfigProperty;
 import org.eclipse.microprofile.health.Readiness;
 import org.jboss.logging.Logger;
 
+import io.argos.observabilite.ErreursImprevues;
 import io.argos.observabilite.TacheObservee;
 import io.micrometer.core.instrument.Counter;
 import io.micrometer.core.instrument.MeterRegistry;
@@ -119,28 +120,39 @@ public class EnvoiAlertes {
         return envoyer(ids, maintenant);
     }
 
-    /** Première tentative ou nouvelle tentative pour les messages donnés. */
+    /**
+     * Première tentative ou nouvelle tentative pour les messages donnés. Tous les messages sont tentés ; la première
+     * erreur imprévue est relancée ensuite (frontière d'erreur, arc42 §8.5).
+     */
     public Map<UUID, Issue> envoyer(Collection<UUID> ids, Instant maintenant) {
         Map<String, CanalDiffusion> parCode = parCode();
         Map<UUID, Issue> issues = new HashMap<>();
+        ErreursImprevues imprevues = new ErreursImprevues();
         for (UUID id : ids) {
-            tenterOuJournaliser(id, parCode, maintenant).ifPresent(issue -> {
+            tenterOuJournaliser(id, parCode, maintenant, imprevues).ifPresent(issue -> {
                 issues.put(id, issue);
                 compter(issue);
             });
         }
+        imprevues.relancer();
         return issues;
     }
 
     /**
      * Point d'isolation de la diffusion : une panne d'accès aux données d'un message (réservation ou enregistrement
-     * de son issue) est journalisée avec sa cause et n'empêche pas la diffusion des messages suivants.
+     * de son issue) ou une erreur imprévue est journalisée avec sa cause et n'empêche pas la diffusion des messages
+     * suivants ; l'erreur imprévue est retenue.
      */
-    private Optional<Issue> tenterOuJournaliser(UUID id, Map<String, CanalDiffusion> parCode, Instant maintenant) {
+    private Optional<Issue> tenterOuJournaliser(UUID id, Map<String, CanalDiffusion> parCode, Instant maintenant,
+            ErreursImprevues imprevues) {
         try {
             return Optional.of(tenter(id, parCode, maintenant));
         } catch (IllegalStateException | QuarkusTransactionException erreur) {
             LOG.errorf(erreur, "diffusion de l'alerte %s en échec", id);
+            return Optional.empty();
+        } catch (RuntimeException imprevue) {
+            LOG.errorf(imprevue, "diffusion de l'alerte %s interrompue par une erreur imprévue", id);
+            imprevues.retenir(imprevue);
             return Optional.empty();
         }
     }

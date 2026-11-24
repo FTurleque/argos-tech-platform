@@ -148,6 +148,35 @@ Les traitements périodiques sont des méthodes `@Scheduled` de `quarkus-schedul
 
 Chaque méthode `@Scheduled` porte `@TacheObservee` (module technique `observabilite`, contrôlé par `TachesObserveesTest`) : son exécution reçoit un identifiant de corrélation et le nom de sa tâche dans le MDC, est mesurée et alimente le contrôle de santé `tache-<identité>` (§8.6). Une échéance manquée (serveur arrêté) n'est pas rattrapée : la tâche s'exécute à l'échéance suivante (ADR-0031). Dans la pile E2E, les tâches qui joindraient une source externe sont désactivées, sauf la synchronisation des sources d'avis et l'import des inventaires, rapprochées (toutes les 5 secondes) et dirigées vers les sources et forges simulées de `e2e/support/sources-simulees.mjs` ([PROPOSITION] PI-1 du changement `automatiser-chaine-veille`).
 
+### Frontières d'erreur
+
+Une **frontière d'erreur** est le point où un traitement itère sur des unités indépendantes (source, projet, espace, produit, texte, message), reçoit un événement d'un autre composant (observateur synchrone) ou répond à un client externe (garde MCP). Règle ([DÉCISION] du porteur du projet, 2026-11-24, « isoler puis relancer » ; changement `isoler-erreurs-aux-frontieres`, AUD-QUA-20, AUD-QUA-23) :
+
+1. À l'intérieur d'une unité, les erreurs prévues sont capturées précisément et traduites en résultats typés (rejet, refus, source indisponible, panne d'accès aux données journalisée) ; aucune capture large.
+2. Dans une boucle sur des unités indépendantes, l'erreur d'exécution d'une unité est journalisée au niveau erreur avec l'exception en premier argument (`LOG.errorf(erreur, "…")` : pile et causes), l'unité est comptée en échec et les unités suivantes sont traitées ; la première erreur imprévue est ensuite relancée, les suivantes attachées en erreurs supprimées (`observabilite.ErreursImprevues`). Une erreur imprévue n'est jamais absorbée : l'exécution planifiée se termine en échec visible (§8.6). La méthode testable d'un passage rend un bilan portant les erreurs retenues, que son point d'entrée `@Scheduled` relance (`relancerErreurImprevue()`).
+3. Observateur synchrone et garde MCP : la panne d'accès aux données est traitée (journalisée ; `INDISPONIBLE` pour un outil MCP) ; une erreur imprévue est journalisée puis propagée à l'émetteur ou au client (erreur de protocole MCP, sans message interne). Un observateur transactionnel `AFTER_SUCCESS` ne peut plus annuler la transaction validée : le conteneur CDI journalise l'erreur qui en sort, au niveau erreur avec sa pile.
+4. Une donnée externe ne fait jamais sortir d'un analyseur une erreur d'exécution non typée : un PURL mal encodé est illisible (`PackageKey.parse` vide) et chaque appelant applique sa règle.
+5. `InterruptedException` rétablit l'indicateur d'interruption ; `Error` n'est pas capturée.
+6. Chaque frontière a un test qui simule une erreur imprévue autre que la panne d'accès aux données.
+
+Inventaire des frontières :
+
+| Frontière | Module | Unité isolée | Test |
+|---|---|---|---|
+| synchronisation d'une source (`SourceSynchronizer.synchronize`) | `ingestion` | traitement : `FAILED`/`PERMANENT` puis relance | `ResilienceTest`, `FrontieresCollecteTest` |
+| passage planifié des sources (`SynchronisationPlanifiee`) | `signal` | source | `FrontieresCollecteTest` |
+| import planifié (`ImportPlanifie`) | `inventory` | projet, relance de recorrélation | `ImportPlanifieTest` |
+| tâche quotidienne du radar (`RappelsRadar.executer`) | `alerting` | actualisation, espace | `RadarStandardsTest` |
+| dettes de version (`RadarProjets.enregistrerDettes`), cycles de vie (`CyclesDeVie.synchroniser`) | `impact`, `releaseradar` | espace, produit | `RadarStandardsTest` |
+| préparation des fiches (`PreparationFiches.preparer`) | `regintel` | texte | `VeilleReglementaireTest` |
+| collecte d'activité (`CollecteActivite`) | `projectintel` | projet | `ActiviteProjetsTest` |
+| diffusion des alertes (`EnvoiAlertes.envoyer`) | `alerting` | message | `AlertesTest` |
+| observateurs `StandardModifie`, `AnnonceStandard`, `ImpactsRecorded` | `impact`, `alerting` | événement (règle 3) | `RadarStandardsTest`, `AlertesTest` |
+| garde des outils (`GardeAppels`) | `mcp` | appel d'outil (règle 3) | `ErreursOutilsMcpTest` |
+| appel du fournisseur de modèle (`PasserelleIa`) | `aigateway` | pannes prévues = modèle indisponible ; erreur imprévue propagée | `PasserelleIaTest` |
+
+Frontières à aligner (capture de la seule panne d'accès aux données ; une erreur imprévue y interrompt le passage, en échec visible) : `RappelsReglementaires`, `RappelsOpportunites`, `ResumesPeriodiques`, `CollecteOpportunites`, `CollecteWeb`, `CollecteReglementaire`.
+
 ## 8.6 Observabilité
 
 Pile retenue par [ADR-0036](../adr/0036-pile-observabilite-serveur.md) (Proposé) : journaux JSON de Quarkus, Micrometer avec registre Prometheus ; traçage distribué (OpenTelemetry) différé jusqu'à l'existence d'un collecteur. Exigences EXP-13 à EXP-15, fiche [`exploitation-plateforme`](../../specifications/exploitation-plateforme.md).
