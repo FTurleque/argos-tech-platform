@@ -73,14 +73,20 @@ Liste des dépendances tierces du serveur, de leurs licences et de leurs avis NO
 
 ### Vérifications locales
 
+L'intégration continue ([workflow](.github/workflows/integration-continue.yml), [arc42 §8.11](docs/architecture/arc42/08-concepts-transverses.md#intégration-continue)) exécute ces commandes à chaque pull request et à chaque push sur `main`, sur JDK 17 ; elle ajoute la garde des migrations fusionnées et, quand `argos-server/pom.xml` ou le script de licences change, le contrôle des licences. Les mêmes commandes se rejouent sur le poste :
+
 ```bash
-mvn -B -f argos-server/pom.xml verify                       # tests du serveur (Docker requis)
-npm --prefix argos-ui test && npm --prefix argos-ui run build
-npm --prefix argos-desktop test
+mvn -B -f argos-server/pom.xml clean verify                 # tests du serveur, seuil de couverture (Docker requis)
+npm --prefix argos-ui test && npm --prefix argos-ui run typecheck && npm --prefix argos-ui run build
+npm --prefix argos-desktop run check                        # syntaxe, types (tsc --checkJs) et tests
+npm --prefix e2e ci && npm --prefix e2e run typecheck       # types des parcours E2E (tsc --strict)
 node --test scripts/*.test.mjs "e2e/performance/*.test.mjs"
 node scripts/verifier-docs.mjs                              # liens, Mermaid, identifiants d'exigences
 node scripts/verifier-nommage.mjs                           # aucun identifiant d'une ou deux lettres
+npm --prefix argos-ui audit --audit-level=high              # de même pour argos-desktop et e2e
 ```
+
+Le build du serveur se lance toujours avec `clean` : un build incrémental peut réutiliser des classes compilées par un autre JDK ou ne lancer aucun test. L'IDE doit compiler hors de `target/` (dossier de sortie propre à l'IDE), pour que ses classes ne se mêlent pas à celles de Maven. L'intégration continue impose un JDK 17 (profil `integration-continue`, `mvn -P integration-continue clean verify` pour reproduire la contrainte) ; en local, Java 17 ou plus est accepté. Le rapport de couverture JaCoCo est écrit dans `argos-server/target/site/jacoco/index.html`.
 
 `node scripts/verifier-nommage.mjs` applique la règle de nommage d'[arc42 §8.16](docs/architecture/arc42/08-concepts-transverses.md#816-conventions-de-code) : aucun type, méthode, fonction, import, variable, champ ou paramètre d'une ou deux lettres, hors `id`, paramètres de type générique et contrats externes inscrits dans sa liste blanche ; `node --test scripts/*.test.mjs` l'exécute aussi sur tout le dépôt. Le contrôle est en Node pur : il ne fait pas partie de `mvn verify`, l'image Maven du build Docker n'ayant pas Node.
 

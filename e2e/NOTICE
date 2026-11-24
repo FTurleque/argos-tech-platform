@@ -9,6 +9,9 @@ Paquets npm (e2e/package-lock.json)
   playwright 1.61.1         Apache-2.0   https://github.com/microsoft/playwright
   playwright-core 1.61.1    Apache-2.0   https://github.com/microsoft/playwright
   fsevents 2.3.2            MIT          dépendance facultative de playwright, macOS seulement
+  typescript 6.0.3          Apache-2.0   https://github.com/microsoft/TypeScript (vérification de types)
+  @types/node 22.20.5       MIT          https://github.com/DefinitelyTyped/DefinitelyTyped
+  undici-types 6.21.0       MIT          https://github.com/nodejs/undici (dépendance de @types/node)
 
 Navigateur (téléchargé par « npx playwright install chromium », hors du dépôt)
   Chromium révision 1228    licence BSD-3-Clause de Chromium et licences de ses composants

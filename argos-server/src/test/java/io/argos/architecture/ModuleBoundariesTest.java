@@ -1,6 +1,8 @@
 package io.argos.architecture;
 
+import static com.tngtech.archunit.lang.syntax.ArchRuleDefinition.classes;
 import static com.tngtech.archunit.lang.syntax.ArchRuleDefinition.noClasses;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 
 import java.util.Map;
 import java.util.Set;
@@ -9,6 +11,7 @@ import java.util.stream.Stream;
 import com.tngtech.archunit.core.domain.JavaClasses;
 import com.tngtech.archunit.core.importer.ClassFileImporter;
 import com.tngtech.archunit.core.importer.ImportOption;
+import com.tngtech.archunit.lang.ArchRule;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.DynamicTest;
 import org.junit.jupiter.api.Test;
@@ -17,12 +20,15 @@ import org.junit.jupiter.api.TestFactory;
 import com.tngtech.archunit.base.DescribedPredicate;
 import com.tngtech.archunit.core.domain.JavaClass;
 
+import io.argos.architecture.exemples.ClasseHorsModule;
+
 /**
  * Frontières du monolithe modulaire (ADR-0001, arc42 §5, dossier v2.4 §B.5).
  *
- * <p>Chaque module ne peut dépendre que des modules listés ici. Toute nouvelle
- * dépendance entre modules doit d'abord être ajoutée à cette table, puis à
- * arc42 §5 : le test échoue sinon.
+ * <p>La table {@link #ALLOWED} est la liste fermée des modules : toute classe de {@code io.argos} réside dans
+ * un paquet de premier niveau qui y figure, et chaque module ne peut dépendre que des modules listés pour lui.
+ * Elle n'autorise que des dépendances que le code utilise. Toute nouvelle dépendance entre modules, ou tout
+ * nouveau module, doit d'abord être ajouté à cette table, puis à arc42 §5 : le test échoue sinon.
  */
 class ModuleBoundariesTest {
 
@@ -30,20 +36,20 @@ class ModuleBoundariesTest {
 
     /** Module → modules dont il peut dépendre (paquets sous {@code io.argos}). */
     static final Map<String, Set<String>> ALLOWED = Map.ofEntries(
-            Map.entry("workspace", Set.of("audit")),
+            Map.entry("workspace", Set.of()),
             // catalog n'emprunte à workspace que le contexte RLS et les erreurs du domaine : voir catalogNEmprunteQueRlsEtErreurs.
-            Map.entry("catalog", Set.of("audit", "workspace")),
+            Map.entry("catalog", Set.of("workspace")),
             Map.entry("inventory", Set.of("workspace", "catalog", "scm")),
             // signal n'emprunte à workspace que le contexte RLS et les erreurs du domaine : voir signalNEmprunteQueRlsEtErreurs.
             // signal.web demande le résumé IA d'une actualité par le contrat de la passerelle (encadrer-appels-ia).
             Map.entry("signal", Set.of("ingestion", "catalog", "workspace", "aigateway")),
-            Map.entry("vulnintel", Set.of("signal", "catalog")),
-            Map.entry("releaseradar", Set.of("signal", "catalog")),
+            Map.entry("vulnintel", Set.of("signal")),
+            Map.entry("releaseradar", Set.of("catalog")),
             // regintel lit les archives JORF (ingestion.legi), reconnaît les demandes d'évolution GitHub et GitLab
             // (scm) et n'emprunte à workspace que le contexte RLS et les erreurs : voir regintelNEmprunteQueRlsEtErreurs.
-            Map.entry("regintel", Set.of("signal", "catalog", "aigateway", "ingestion", "scm", "workspace")),
+            Map.entry("regintel", Set.of("catalog", "aigateway", "ingestion", "scm", "workspace")),
             // impact lit le référentiel des standards pour la dette de version et les annonces (radar-standards).
-            Map.entry("impact", Set.of("signal", "vulnintel", "releaseradar", "inventory", "aigateway", "catalog")),
+            Map.entry("impact", Set.of("signal", "releaseradar", "inventory", "aigateway", "catalog")),
             // alerting demande le résumé IA d'une alerte par le contrat de la passerelle (encadrer-appels-ia)
             // et rappelle les entrées en vigueur réglementaires (suivre-veille-reglementaire).
             Map.entry("alerting", Set.of("impact", "workspace", "aigateway", "regintel")),
@@ -51,7 +57,7 @@ class ModuleBoundariesTest {
                     "regintel", "impact", "alerting", "projectintel", "audit")),
             // mcp réutilise l'établissement de l'appelant de l'API (api.security) : voir mcpNeLitQueLaSecuriteDeLApi.
             Map.entry("mcp", Set.of("workspace", "catalog", "inventory", "signal", "vulnintel", "releaseradar",
-                    "regintel", "impact", "alerting", "projectintel", "audit", "api")),
+                    "regintel", "impact", "alerting", "audit", "api")),
             // projectintel n'emprunte à workspace que le contexte RLS et une erreur : voir projectintelNEmprunteQueRlsEtErreurs.
             Map.entry("projectintel", Set.of("inventory", "scm", "workspace")),
             Map.entry("ingestion", Set.of()),
@@ -66,6 +72,27 @@ class ModuleBoundariesTest {
         classes = new ClassFileImporter()
                 .withImportOption(ImportOption.Predefined.DO_NOT_INCLUDE_TESTS)
                 .importPackages(ROOT);
+    }
+
+    /** Règle du module déclaré : aucune classe hors d'un module de la table, ni directement dans {@code io.argos}. */
+    static ArchRule regleModuleDeclare() {
+        String[] modules = ALLOWED.keySet().stream().map(module -> ROOT + "." + module + "..").toArray(String[]::new);
+        return classes().that().resideInAPackage(ROOT + "..")
+                .should().resideInAnyPackage(modules)
+                .because("arc42 §5 : tout paquet de premier niveau de " + ROOT
+                        + " est un module déclaré dans la table ALLOWED de ModuleBoundariesTest");
+    }
+
+    @Test
+    void chaqueClasseResideDansUnModuleDeclare() {
+        regleModuleDeclare().check(classes);
+    }
+
+    /** La règle du module déclaré refuse une classe d'un paquet de premier niveau absent de la table. */
+    @Test
+    void laRegleRefuseUnModuleNonDeclare() {
+        JavaClasses exemple = new ClassFileImporter().importClasses(ClasseHorsModule.class);
+        assertThrows(AssertionError.class, () -> regleModuleDeclare().check(exemple));
     }
 
     @TestFactory

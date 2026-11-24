@@ -32,6 +32,17 @@
     <!-- Lancement du script de vérification des licences dans le même profil. Licence Apache-2.0. -->
     <exec-plugin.version>3.6.4</exec-plugin.version>
     <skipITs>true</skipITs>
+    <!-- Garde du JDK de build (maven-enforcer, licence Apache-2.0) : Java 17 ou plus par défaut ; le profil
+         « integration-continue » resserre la plage sur le JDK de l'image d'exécution (eclipse-temurin:17-jre). -->
+    <enforcer-plugin.version>3.7.0</enforcer-plugin.version>
+    <argos.jdk.plage>[17,)</argos.jdk.plage>
+    <!-- Couverture des tests (JaCoCo, licence EPL-2.0, outillage de build non livré). Version alignée sur
+         l'agent org.jacoco géré par le BOM Quarkus, que l'extension quarkus-jacoco utilise : elle change avec
+         Quarkus (Renovate ne la propose pas seule). Seuil global
+         bloquant : 85 % des lignes, 70 % des branches (décision du porteur du projet, 2026-11-24). -->
+    <jacoco-plugin.version>0.8.15</jacoco-plugin.version>
+    <argos.couverture.lignes>0.85</argos.couverture.lignes>
+    <argos.couverture.branches>0.70</argos.couverture.branches>
   </properties>
 
   <dependencyManagement>
@@ -67,7 +78,7 @@
       <artifactId>quarkus-security</artifactId>
     </dependency>
 
-    <!-- PostgreSQL (ADR-0002). Migrations Flyway appliquées au démarrage (ADR-0032, proposé). -->
+    <!-- PostgreSQL (ADR-0002). Migrations Flyway appliquées au démarrage (ADR-0032, Accepté). -->
     <dependency>
       <groupId>io.quarkus</groupId>
       <artifactId>quarkus-jdbc-postgresql</artifactId>
@@ -164,6 +175,12 @@
       <artifactId>quarkus-test-security</artifactId>
       <scope>test</scope>
     </dependency>
+    <!-- Couverture des classes chargées par @QuarkusTest (jacoco-quarkus.exec). Apache-2.0. -->
+    <dependency>
+      <groupId>io.quarkus</groupId>
+      <artifactId>quarkus-jacoco</artifactId>
+      <scope>test</scope>
+    </dependency>
     <dependency>
       <groupId>com.tngtech.archunit</groupId>
       <artifactId>archunit-junit5</artifactId>
@@ -205,10 +222,96 @@
           </systemPropertyVariables>
         </configuration>
       </plugin>
+      <plugin>
+        <artifactId>maven-enforcer-plugin</artifactId>
+        <version>${enforcer-plugin.version}</version>
+        <executions>
+          <execution>
+            <id>garde-jdk</id>
+            <goals>
+              <goal>enforce</goal>
+            </goals>
+            <configuration>
+              <rules>
+                <requireJavaVersion>
+                  <version>${argos.jdk.plage}</version>
+                  <message>JDK hors de la plage ${argos.jdk.plage} (production : JRE 17, ADR-0019).</message>
+                </requireJavaVersion>
+              </rules>
+            </configuration>
+          </execution>
+        </executions>
+      </plugin>
+      <!-- Les tests sans @QuarkusTest passent par l'agent de prepare-agent ; les classes chargées par le
+           QuarkusClassLoader sont instrumentées par quarkus-jacoco. Les deux écrivent dans le même fichier,
+           dont report et check tirent le rapport (target/site/jacoco) et le seuil, en phase verify. -->
+      <plugin>
+        <groupId>org.jacoco</groupId>
+        <artifactId>jacoco-maven-plugin</artifactId>
+        <version>${jacoco-plugin.version}</version>
+        <executions>
+          <execution>
+            <id>agent-couverture</id>
+            <goals>
+              <goal>prepare-agent</goal>
+            </goals>
+            <configuration>
+              <exclClassLoaders>*QuarkusClassLoader</exclClassLoaders>
+              <destFile>${project.build.directory}/jacoco-quarkus.exec</destFile>
+              <append>true</append>
+            </configuration>
+          </execution>
+          <execution>
+            <id>rapport-couverture</id>
+            <phase>verify</phase>
+            <goals>
+              <goal>report</goal>
+            </goals>
+            <configuration>
+              <dataFile>${project.build.directory}/jacoco-quarkus.exec</dataFile>
+            </configuration>
+          </execution>
+          <execution>
+            <id>seuil-couverture</id>
+            <phase>verify</phase>
+            <goals>
+              <goal>check</goal>
+            </goals>
+            <configuration>
+              <dataFile>${project.build.directory}/jacoco-quarkus.exec</dataFile>
+              <rules>
+                <rule>
+                  <element>BUNDLE</element>
+                  <limits>
+                    <limit>
+                      <counter>LINE</counter>
+                      <value>COVEREDRATIO</value>
+                      <minimum>${argos.couverture.lignes}</minimum>
+                    </limit>
+                    <limit>
+                      <counter>BRANCH</counter>
+                      <value>COVEREDRATIO</value>
+                      <minimum>${argos.couverture.branches}</minimum>
+                    </limit>
+                  </limits>
+                </rule>
+              </rules>
+            </configuration>
+          </execution>
+        </executions>
+      </plugin>
     </plugins>
   </build>
 
   <profiles>
+    <!-- Build de l'intégration continue (.github/workflows/integration-continue.yml) : JDK de la plage de
+         production seulement (AUD-TST-19). Activation : mvn -P integration-continue ... -->
+    <profile>
+      <id>integration-continue</id>
+      <properties>
+        <argos.jdk.plage>[17,18)</argos.jdk.plage>
+      </properties>
+    </profile>
     <!-- Avis de licence des dépendances livrées (décisions F3 révisée par G1, G2 et G3 du porteur du
          projet, 2026-11-19 ; ADR-0021 points 4 et 6). Le build de l'image Docker (Dockerfile, étage
          « server ») exécute ce profil. Hors du cycle « mvn verify » : le but makeBom du plugin CycloneDX

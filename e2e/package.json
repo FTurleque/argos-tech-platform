@@ -9,13 +9,16 @@
     "node": "^22.18.0 || >=23.6.0"
   },
   "scripts": {
-    "test": "node scripts/lancer.mjs",
+    "typecheck": "tsc -p tsconfig.json",
+    "test": "npm run typecheck && node scripts/lancer.mjs",
     "test:seul": "playwright test",
     "installer-navigateur": "playwright install chromium",
     "test:accessibilite": "playwright test -c accessibilite.config.ts",
     "test:performance": "node performance/mesurer-p95.mjs"
   },
   "devDependencies": {
-    "@playwright/test": "1.61.1"
+    "@playwright/test": "1.61.1",
+    "@types/node": "^22.20.5",
+    "typescript": "~6.0.3"
   }
 }

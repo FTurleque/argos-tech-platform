@@ -10,9 +10,10 @@ Prérequis : Docker démarré, JDK 17 ou plus, Maven 3.9, Node.js 22.18 ou plus,
 npm --prefix e2e ci
 npx --prefix e2e playwright install chromium   # une fois : navigateur de Playwright 1.61.1 (Chromium révision 1228)
 npm --prefix e2e test                          # options de Playwright après « -- », par exemple : -- -g recherche
+npm --prefix e2e run typecheck                 # vérification de types seule (tsc --strict, sans émission)
 ```
 
-`npm --prefix e2e test` exécute `scripts/lancer.mjs` :
+`npm --prefix e2e test` vérifie d'abord les types (`npm run typecheck`, voir « Vérification de types »), puis exécute `scripts/lancer.mjs` :
 
 1. démarre la base PostgreSQL de `compose.yaml` (port 55432, données en mémoire) ;
 2. lance `playwright test`, qui démarre ou réutilise :
@@ -25,6 +26,12 @@ npm --prefix e2e test                          # options de Playwright après «
 Un seul projet : `npm --prefix e2e test -- --project=desktop` (ses dépendances `preparation` et `construction-desktop` s’exécutent aussi).
 
 Docker est appelé par un chemin absolu, pris parmi ses emplacements d’installation habituels (`e2e/support/docker.mjs`) : le `PATH` n’est pas consulté. `ARGOS_E2E_DOCKER` indique un autre emplacement.
+
+Maven suit la même règle (`e2e/support/maven.mjs`), pour le serveur démarré par Playwright comme par la campagne de performance : chemin de `mvn` (`mvn.cmd` sous Windows) indiqué par `ARGOS_E2E_MVN`, sinon script `bin/mvn` de l’installation désignée par `MAVEN_HOME` ou `M2_HOME`, sinon premier emplacement présent parmi `C:/Program Files/Apache/Maven/bin/mvn.cmd`, `C:/Program Files/Maven/bin/mvn.cmd`, `/usr/bin/mvn`, `/usr/local/bin/mvn`, `/opt/homebrew/bin/mvn`, `/usr/share/maven/bin/mvn` et `/opt/maven/bin/mvn`. Sans Maven trouvé, la campagne s’arrête sur un message qui cite ces variables ; Playwright ne s’arrête sur ce message que s’il doit démarrer le serveur (un serveur déjà prêt est réutilisé). Playwright exécute la commande de son serveur par l’interpréteur de commandes du système : la ligne commence par le chemin absolu de Maven. Sous Windows, `mvn.cmd` est un script batch : la campagne le lance par `C:\Windows\System32\cmd.exe`, appelé par son chemin absolu, avec des arguments cités qui ne peuvent contenir aucun caractère interprété par `cmd.exe` ou par `sh` ; hors de Windows, le script est lancé directement, sans interpréteur de commandes.
+
+### Vérification de types
+
+`e2e/tsconfig.json` soumet les fichiers TypeScript des parcours et du support à `tsc` en mode `strict`, sans émission (`noEmit`) : Playwright transpile sans vérifier les types, `npm run typecheck` comble ce manque. Les modules JavaScript importés par les parcours (`support/docker.mjs`, `support/maven.mjs`) ont une déclaration voisine (`.d.mts`). Les fonctions passées à `electronApp.evaluate` s’exécutent dans le processus principal d’Electron, sérialisées : l’état des doublures y est typé par la déclaration globale `__argosE2E` de `support/electron.ts`, sans conversion forcée. L’intégration continue exécute `npm ci` et `npm run typecheck` dans `e2e/` à chaque pull request.
 
 Le serveur écoute sur 8090 et non sur 8080 : le port 8080 est souvent pris par un autre service du poste. Les ports 5173 et 8180 sont imposés par le royaume de test (redirections du client `argos-ui`) et par `%dev.quarkus.keycloak.devservices.port`.
 
@@ -76,7 +83,7 @@ Pour chacune des quatre mises en page : polices embarquées chargées et aucune 
 
 ## Campagne de performance
 
-`npm --prefix e2e run test:performance` exécute `performance/mesurer-p95.mjs` (PERF-01, PERF-02 ; changement `automatiser-chaine-veille`, décision J8) : base de `compose.yaml` et serveur `quarkus:dev` sur 8090 démarrés comme pour les parcours (ou réutilisés s'ils tournent déjà, et alors laissés en place), espace « Espace performance » d'`alice` créé par l'API, jeu de données `performance/donnees-performance.sql` (20 projets × 100 composants, 1 000 avis, 20 000 impacts par défaut), puis mesure de neuf consultations REST et de sept outils MCP (`explain_change`, qui appelle l'IA, est exclu) : 20 appels d'échauffement puis 200 appels par opération, 4 clients simultanés. Paramètres : `ARGOS_PERF_PROJETS`, `ARGOS_PERF_COMPOSANTS`, `ARGOS_PERF_SIGNAUX`, `ARGOS_PERF_APPELS`, `ARGOS_PERF_ECHAUFFEMENT`, `ARGOS_PERF_CONCURRENCE`. Toute requête hors de la boucle locale fait échouer la campagne. Rapports : `resultats/performance/rapport-<date>.json` et [`docs/architecture/quality/mesure-performance-api-mcp.md`](../docs/architecture/quality/mesure-performance-api-mcp.md) ; code de sortie 0 si tous les p95 sont sous 500 ms, 1 sinon. La campagne n'est jamais lancée par `npm --prefix e2e test` ; ses fonctions pures sont testées par `node --test "performance/*.test.mjs"`. Elle utilise la même pile que les parcours : lancer-la sous le verrou de la pile E2E.
+`npm --prefix e2e run test:performance` exécute `performance/mesurer-p95.mjs` (PERF-01, PERF-02 ; changement `automatiser-chaine-veille`, décision J8) : base de `compose.yaml` et serveur `quarkus:dev` sur 8090 démarrés comme pour les parcours (ou réutilisés s'ils tournent déjà, et alors laissés en place), espace « Espace performance » d'`alice` créé par l'API, jeu de données `performance/donnees-performance.sql` (20 projets × 100 composants, 1 000 avis, 20 000 impacts par défaut), puis mesure de neuf consultations REST et de sept outils MCP (`explain_change`, qui appelle l'IA, est exclu) : 20 appels d'échauffement puis 200 appels par opération, 4 clients simultanés. Paramètres : `ARGOS_PERF_PROJETS`, `ARGOS_PERF_COMPOSANTS`, `ARGOS_PERF_SIGNAUX`, `ARGOS_PERF_APPELS`, `ARGOS_PERF_ECHAUFFEMENT`, `ARGOS_PERF_CONCURRENCE`. Toute requête hors de la boucle locale fait échouer la campagne. Rapports : `resultats/performance/rapport-<date>.json` et [`docs/architecture/quality/mesure-performance-api-mcp.md`](../docs/architecture/quality/mesure-performance-api-mcp.md) ; code de sortie 0 si tous les p95 sont sous 500 ms, 1 sinon. La campagne n'est jamais lancée par `npm --prefix e2e test` ; ses fonctions pures, et la résolution de Maven, sont testées par `node --test "performance/*.test.mjs"`. Elle utilise la même pile que les parcours : lancer-la sous le verrou de la pile E2E.
 
 ## Résultats
 

@@ -54,10 +54,10 @@ function ouvrirAlerte(fenetre, id) {
  * @param {{handle: Function}} ipcMain
  * @param {object} dependances dépendances
  * @param {() => object|null} dependances.fenetre fenêtre principale courante
- * @param {ReturnType<import('./poste').creerPoste>} dependances.poste comportement du poste
+ * @param {ReturnType<typeof import('./poste').creerPoste>} dependances.poste comportement du poste
  * @param {(n: {title: string, body: string}) => boolean} dependances.notifier notification libre déjà bornée
  * @param {() => object} dependances.vueReglages réglages présentés à l'IHM
- * @param {ReturnType<import('./connexion').creerConnexion>} dependances.connexion connexion OIDC (ACC-10)
+ * @param {ReturnType<typeof import('./connexion').creerConnexion>} dependances.connexion connexion OIDC (ACC-10)
  */
 function enregistrerCanaux(ipcMain, dependances) {
   const garde = (refus, traitement) => (event, valeur) => (

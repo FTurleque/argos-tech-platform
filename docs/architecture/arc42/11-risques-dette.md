@@ -35,7 +35,8 @@ M = moyenne. Les probabilités doivent être recalibrées après POC.
 - traitement non idempotent ;
 - métriques projet non traçables ;
 - suppression des erreurs silencieuse ;
-- dépendance directe du domaine aux SDK GitHub/GitLab/Anthropic.
+- dépendance directe du domaine aux SDK GitHub/GitLab/Anthropic ;
+- commit intégré à `main` sans le statut vert de l'intégration continue (§8.11, ADR-0034).
 
 ## 11.3 Zones d’incertitude
 
