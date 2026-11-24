@@ -19,6 +19,7 @@ import java.util.concurrent.atomic.AtomicReference;
 
 import org.jboss.logging.Logger;
 
+import io.vertx.core.AsyncResult;
 import io.vertx.core.Vertx;
 import io.vertx.core.buffer.Buffer;
 import io.vertx.core.http.HttpClient;
@@ -127,7 +128,16 @@ final class TransportEpingle implements RecuperateurWeb.Transport, AutoCloseable
     private RecuperateurWeb.Reponse envoyerA(DestinationControlee destination, InetAddress adresse, long connexionMs,
             Instant echeance) throws IOException, InterruptedException {
         LOG.debugf("veille web : connexion à %s pour %s", adresse.getHostAddress(), destination.hote());
-        RequestOptions options = new RequestOptions()
+        AtomicReference<HttpClientRequest> requete = new AtomicReference<>();
+        CompletableFuture<RecuperateurWeb.Reponse> resultat = new CompletableFuture<>();
+        client.request(options(destination, adresse, connexionMs))
+                .onComplete(ouverture -> envoyerSiAttendue(ouverture, requete, resultat));
+        return attendre(destination, echeance, requete, resultat);
+    }
+
+    /** Requête GET vers l'adresse IP, avec le nom d'hôte d'origine pour Host, SNI et la vérification du certificat. */
+    private static RequestOptions options(DestinationControlee destination, InetAddress adresse, long connexionMs) {
+        return new RequestOptions()
                 .setMethod(HttpMethod.GET)
                 .setServer(SocketAddress.inetSocketAddress(new InetSocketAddress(adresse, destination.port())))
                 .setHost(destination.hote())
@@ -137,29 +147,37 @@ final class TransportEpingle implements RecuperateurWeb.Transport, AutoCloseable
                 .setConnectTimeout(connexionMs)
                 .putHeader(HttpHeaders.USER_AGENT, RecuperateurWeb.AGENT)
                 .putHeader(HttpHeaders.ACCEPT, TYPES_ACCEPTES);
-        AtomicReference<HttpClientRequest> requete = new AtomicReference<>();
-        CompletableFuture<RecuperateurWeb.Reponse> resultat = new CompletableFuture<>();
-        client.request(options).onComplete(ouverture -> {
-            if (ouverture.failed()) {
-                Throwable cause = ouverture.cause();
-                resultat.completeExceptionally(echecDeConnexion(cause) ? new EchecConnexion((SocketException) cause) : cause);
-                return;
+    }
+
+    /** Rappel d'ouverture : envoie la requête ouverte, sauf si l'appelant a déjà abandonné la réponse. */
+    private void envoyerSiAttendue(AsyncResult<HttpClientRequest> ouverture, AtomicReference<HttpClientRequest> requete,
+            CompletableFuture<RecuperateurWeb.Reponse> resultat) {
+        if (ouverture.failed()) {
+            Throwable cause = ouverture.cause();
+            resultat.completeExceptionally(echecDeConnexion(cause) ? new EchecConnexion((SocketException) cause) : cause);
+            return;
+        }
+        HttpClientRequest ouverte = ouverture.result();
+        // Requête publiée avant le contrôle : si l'appelant abandonne entre les deux, l'un ou l'autre la coupe.
+        requete.set(ouverte);
+        if (resultat.isDone()) {
+            // Ouverte après l'échéance ou l'interruption de l'appelant : abandonnée avant tout envoi.
+            ouverte.reset();
+            return;
+        }
+        ouverte.send().onComplete(envoi -> {
+            if (envoi.failed()) {
+                resultat.completeExceptionally(envoi.cause());
+            } else {
+                lireCorps(envoi.result(), ouverte, resultat);
             }
-            // Requête publiée avant le contrôle : si l'appelant abandonne entre les deux, l'un ou l'autre la coupe.
-            requete.set(ouverture.result());
-            if (resultat.isDone()) {
-                // Ouverte après l'échéance ou l'interruption de l'appelant : abandonnée avant tout envoi.
-                ouverture.result().reset();
-                return;
-            }
-            ouverture.result().send().onComplete(envoi -> {
-                if (envoi.failed()) {
-                    resultat.completeExceptionally(envoi.cause());
-                } else {
-                    lireCorps(envoi.result(), ouverture.result(), resultat);
-                }
-            });
         });
+    }
+
+    /** Attend la réponse jusqu'à l'échéance ; l'abandonne sur dépassement ou interruption. */
+    private static RecuperateurWeb.Reponse attendre(DestinationControlee destination, Instant echeance,
+            AtomicReference<HttpClientRequest> requete, CompletableFuture<RecuperateurWeb.Reponse> resultat)
+            throws IOException, InterruptedException {
         try {
             long resteMs = Math.max(CONNEXION_MIN_MS, Duration.between(Instant.now(), echeance).toMillis());
             return resultat.get(resteMs, TimeUnit.MILLISECONDS);

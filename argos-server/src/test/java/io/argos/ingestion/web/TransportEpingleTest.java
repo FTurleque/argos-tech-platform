@@ -88,7 +88,7 @@ class TransportEpingleTest {
     private static final int STATUT_OK = 200;
     private static final int STATUT_REDIRECTION = 302;
     private static final Duration DELAI_COURT = Duration.ofMillis(300);
-    private static final Duration NEGOCIATION_LENTE = Duration.ofMillis(1500);
+    private static final long SONDAGE_MS = 50;
     private static final Duration ATTENTE_APRES_NEGOCIATION = Duration.ofSeconds(1);
 
     private static Vertx vertx;
@@ -346,16 +346,29 @@ class TransportEpingleTest {
             InterruptedException {
         KeyStore magasinFlux = magasin(dossier, NOM_CERTIFIE);
         List<String> nomsSni = new CopyOnWriteArrayList<>();
-        try (ServeurLocal lent = https(magasinFlux, nomsSni, NEGOCIATION_LENTE);
+        CountDownLatch retenue = new CountDownLatch(1);
+        try (ServeurLocal lent = https(magasinFlux, nomsSni, Optional.of(retenue));
                 TransportEpingle transport = new TransportEpingle(vertx, TAILLE_MAX, confiance(magasinFlux))) {
             DestinationControlee destination = new DestinationControlee(
                     URI.create("https://" + NOM_CERTIFIE + ":" + lent.port() + "/flux"),
                     List.of(InetAddress.getByName(BONNE_ADRESSE)));
             assertThrows(HttpTimeoutException.class, () -> transport.envoyer(destination, DELAI_COURT));
-            Thread.sleep(NEGOCIATION_LENTE.plus(ATTENTE_APRES_NEGOCIATION).toMillis());
+            retenue.countDown();
+            assertTrue(aucuneRequetePendant(lent, ATTENTE_APRES_NEGOCIATION), "aucune requête HTTP envoyée après l'abandon");
             assertEquals(List.of(NOM_CERTIFIE), nomsSni, "la négociation TLS a bien eu lieu");
-            assertTrue(lent.hotesRecus.isEmpty(), "aucune requête HTTP envoyée après l'abandon");
         }
+    }
+
+    /** Vrai si le serveur ne reçoit aucune requête avant {@code duree} ; faux dès qu'une requête arrive. */
+    private static boolean aucuneRequetePendant(ServeurLocal serveur, Duration duree) throws InterruptedException {
+        long fin = System.nanoTime() + duree.toNanos();
+        while (System.nanoTime() < fin) {
+            if (!serveur.hotesRecus.isEmpty()) {
+                return false;
+            }
+            TimeUnit.MILLISECONDS.sleep(SONDAGE_MS);
+        }
+        return serveur.hotesRecus.isEmpty();
     }
 
     @Test
@@ -366,13 +379,43 @@ class TransportEpingleTest {
         assertFalse(TransportEpingle.echecDeConnexion(new IOException("corps interrompu")));
     }
 
-    /** Serveur HTTPS local qui présente le certificat du magasin et enregistre les noms SNI reçus. */
-    private static ServeurLocal https(KeyStore magasin, List<String> nomsSni) throws IOException, GeneralSecurityException {
-        return https(magasin, nomsSni, Duration.ZERO);
+    /**
+     * Sélecteur SNI du serveur de test : enregistre chaque nom reçu, puis, s'il a une retenue, bloque la négociation TLS
+     * jusqu'à sa libération par le test.
+     */
+    private static final class SniEnregistre extends SNIMatcher {
+        private final List<String> nomsSni;
+        private final Optional<CountDownLatch> retenue;
+
+        SniEnregistre(List<String> nomsSni, Optional<CountDownLatch> retenue) {
+            super(StandardConstants.SNI_HOST_NAME);
+            this.nomsSni = nomsSni;
+            this.retenue = retenue;
+        }
+
+        @Override
+        public boolean matches(SNIServerName nom) {
+            nomsSni.add(((SNIHostName) nom).getAsciiName());
+            retenue.ifPresent(SniEnregistre::attendre);
+            return true;
+        }
+
+        private static void attendre(CountDownLatch verrou) {
+            try {
+                verrou.await(ATTENTE_SERVEUR_MUET_SECONDES, TimeUnit.SECONDS);
+            } catch (InterruptedException interruption) {
+                Thread.currentThread().interrupt();
+            }
+        }
     }
 
-    /** Serveur HTTPS local dont la négociation TLS marque une pause de {@code pause} avant de répondre. */
-    private static ServeurLocal https(KeyStore magasin, List<String> nomsSni, Duration pause)
+    /** Serveur HTTPS local qui présente le certificat du magasin et enregistre les noms SNI reçus. */
+    private static ServeurLocal https(KeyStore magasin, List<String> nomsSni) throws IOException, GeneralSecurityException {
+        return https(magasin, nomsSni, Optional.empty());
+    }
+
+    /** Serveur HTTPS local dont la négociation TLS attend, s'il y a une retenue, que le test la libère. */
+    private static ServeurLocal https(KeyStore magasin, List<String> nomsSni, Optional<CountDownLatch> retenue)
             throws IOException, GeneralSecurityException {
         KeyManagerFactory cles = KeyManagerFactory.getInstance(KeyManagerFactory.getDefaultAlgorithm());
         cles.init(magasin, MOT_DE_PASSE_MAGASIN.toCharArray());
@@ -383,18 +426,7 @@ class TransportEpingleTest {
             @Override
             public void configure(HttpsParameters parametres) {
                 SSLParameters ssl = getSSLContext().getDefaultSSLParameters();
-                ssl.setSNIMatchers(List.of(new SNIMatcher(StandardConstants.SNI_HOST_NAME) {
-                    @Override
-                    public boolean matches(SNIServerName nom) {
-                        nomsSni.add(((SNIHostName) nom).getAsciiName());
-                        try {
-                            Thread.sleep(pause.toMillis());
-                        } catch (InterruptedException interruption) {
-                            Thread.currentThread().interrupt();
-                        }
-                        return true;
-                    }
-                }));
+                ssl.setSNIMatchers(List.of(new SniEnregistre(nomsSni, retenue)));
                 parametres.setSSLParameters(ssl);
             }
         });
