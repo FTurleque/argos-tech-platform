@@ -22,10 +22,27 @@ x-journaux: &journaux
     max-size: "10m"
     max-file: "3"
 
+# Durcissement commun à tous les services (EXP-12, EXP-16) : système de fichiers racine en lecture seule, aucune
+# capacité système, aucune élévation de privilèges. Chaque service déclare en plus ses seuls emplacements
+# inscriptibles : volumes de données et tmpfs (vidés à chaque redémarrage).
+x-durcissement: &durcissement
+  read_only: true
+  cap_drop:
+    - ALL
+  security_opt:
+    - no-new-privileges:true
+
 services:
   postgres:
+    <<: *durcissement
     image: postgres:18
     restart: unless-stopped
+    # Exécuté directement sous l'utilisateur postgres de l'image (999), propriétaire des fichiers du volume : le
+    # point d'entrée n'a alors besoin d'aucune capacité (EXP-16). Inscriptibles : le volume, /tmp et le socket.
+    user: postgres
+    tmpfs:
+      - /tmp
+      - /var/run/postgresql
     # Réglages pour le plafond mémoire du service (EXP-11) : max_connections au-dessus de la somme des pools
     # d'Argos et de Keycloak, avec une marge pour les migrations, l'administration et la sauvegarde.
     command:
@@ -69,9 +86,22 @@ services:
   # au mot de passe provisoire ARGOS_ADMIN_MOT_DE_PASSE_INITIAL à changer à la première connexion. Keycloak
   # n'importe pas un royaume qui existe déjà : changer ces variables ensuite ne modifie pas le compte.
   keycloak:
-    image: quay.io/keycloak/keycloak:${ARGOS_KEYCLOAK_VERSION:-26.7.4}
+    <<: *durcissement
+    # Image optimisée construite localement (deploiement/keycloak/Dockerfile, EXP-16) : l'image officielle
+    # reconstruirait Quarkus au démarrage, ce qu'interdit la racine en lecture seule. Reconstruire après tout
+    # changement d'ARGOS_KEYCLOAK_VERSION : docker compose --profile idp-local up -d --build.
+    build:
+      context: ./deploiement/keycloak
+      args:
+        VERSION_KEYCLOAK: ${ARGOS_KEYCLOAK_VERSION:-26.7.4}
+    image: argos-keycloak:${ARGOS_KEYCLOAK_VERSION:-26.7.4}
     profiles: ["idp-local"]
     restart: unless-stopped
+    # Inscriptibles : /tmp (Vert.x, téléversements) et /opt/keycloak/data (journal des transactions) ; le royaume
+    # reste monté en lecture seule par-dessus. Les données durables sont dans la base keycloak.
+    tmpfs:
+      - /tmp
+      - /opt/keycloak/data:uid=1000,gid=0,mode=0770
     # Garde des variables obligatoires du profil (EXP-08) : sans elles, le conteneur s'arrête avant tout import
     # du royaume, avec un message nommant la variable. Compose interpole aussi les services des profils
     # inactifs : une interpolation ${VAR:?} ici empêcherait de démarrer sans le profil.
@@ -92,7 +122,7 @@ services:
         if [ "$$manquantes" -ne 0 ]; then
           exit 1
         fi
-        exec /opt/keycloak/bin/kc.sh start --import-realm
+        exec /opt/keycloak/bin/kc.sh start --optimized --import-realm
     depends_on:
       postgres:
         condition: service_healthy
@@ -204,24 +234,25 @@ services:
     mem_limit: ${ARGOS_MEM_LIMIT:-1g}
     logging: *journaux
     # Contrôle de santé : HEALTHCHECK de l'image (Dockerfile), sur /q/health/ready.
-    # Durcissement (EXP-12) : système de fichiers racine en lecture seule, seul /tmp inscriptible (fichiers
-    # temporaires de la JVM et de Vert.x), aucune capacité système, aucune élévation de privilèges.
-    read_only: true
+    # Durcissement (EXP-12, fragment x-durcissement) : seul /tmp est inscriptible (fichiers temporaires de la JVM
+    # et de Vert.x).
+    <<: *durcissement
     tmpfs:
       - /tmp
-    cap_drop:
-      - ALL
-    security_opt:
-      - no-new-privileges:true
 
   # Modèle d'IA local (image officielle ollama/ollama, licence MIT), désactivé par défaut : il ne
   # démarre qu'avec le profil « ia ». Aucun port publié : seul Argos l'appelle, par le réseau du
   # projet. qwen2.5:1.5b tient dans environ 2 Gio sur le processeur du DS1522+ (pas de GPU) ; un
   # modèle plus gros dépasse vite la mémoire du NAS (ADR-0029) et demande de relever ARGOS_OLLAMA_MEM_LIMIT.
   ollama:
+    <<: *durcissement
     image: ollama/ollama:${ARGOS_OLLAMA_VERSION:-0.12.6}
     profiles: ["ia"]
     restart: unless-stopped
+    # Utilisateur root de l'image, sans capacité (EXP-16) : il n'écrit que dans son volume, qui lui appartient,
+    # et dans /tmp (détection des processeurs graphiques au démarrage).
+    tmpfs:
+      - /tmp
     environment:
       # Un seul modèle chargé et une requête à la fois : borne la mémoire et le processeur du NAS.
       OLLAMA_MAX_LOADED_MODELS: "1"

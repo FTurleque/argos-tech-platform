@@ -153,8 +153,8 @@ de l'image appartiennent déjà à `postgres` (999), ce qui rend la reprise sans
 ## Transactions, concurrence et idempotence
 
 Le journal des transactions de Keycloak (`/opt/keycloak/data/transaction-logs`) passe en tmpfs. Keycloak n'emploie pas de
-transactions XA par défaut ; ce journal ne sert qu'à leur reprise, sa perte au redémarrage n'efface aucune donnée.
-[PROPOSITION — à confirmer par la documentation de Keycloak lors de la tâche 3.1]
+transactions XA par défaut (`transaction-xa-enabled` à `false`) ; ce journal ne sert qu'à leur reprise, sa perte au
+redémarrage n'efface aucune donnée. [EXISTANT — https://www.keycloak.org/server/all-config, section Transaction]
 
 ## Sécurité et isolation
 
@@ -258,6 +258,10 @@ par version.
 ## Écarts code / tests / specs / documentation
 
 Voir proposal.md, Écarts constatés (lien d'audit absent, fiche de `main` en retard sur les PR #44 et #47, Q-8 de la fiche couverte par la décision Q-1).
+
+Keycloak 26.7.4 se déclare prêt (`/health/ready`) une dizaine de secondes avant la fin de l'import du royaume au premier
+démarrage, avec l'image officielle comme avec l'image optimisée [EXISTANT — pile isolée, 2026-11-24]. Le durcissement n'en
+est pas la cause ; l'écart est consigné dans la fiche et laissé hors de ce changement.
 
 ## Stratégie de vérification
 

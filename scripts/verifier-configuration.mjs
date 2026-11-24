@@ -5,9 +5,13 @@
 //     et figure dans .env.example ;
 //   - toute variable interpolée par compose.yaml (${NOM}, ${NOM:-défaut}, ${NOM:?message}) figure dans .env.example.
 // Une variable figure dans .env.example si une ligne « NOM=… » ou « # NOM=… » la déclare (réglage facultatif commenté).
+// Contrôle du durcissement (EXP-12, EXP-16, changement durcir-conteneurs-de-service) :
+//   - le fragment x-durcissement de compose.yaml déclare read_only: true, cap_drop: ALL et no-new-privileges:true ;
+//   - chaque service le fusionne (« <<: *durcissement ») et ne déclare ni cap_add, ni read_only, ni cap_drop, ni
+//     security_opt qui le contrediraient.
 // Usage : node scripts/verifier-configuration.mjs
-// Code de sortie : 0 à parité, sans sortie ; 1 sinon, une ligne par écart sur la sortie d'erreur, nommant la variable
-// et le fichier où elle manque.
+// Code de sortie : 0 sans écart, sans sortie ; 1 sinon, une ligne par écart sur la sortie d'erreur, nommant la variable
+// et le fichier où elle manque, ou le service et la clé de durcissement en cause.
 
 import { readFileSync } from 'node:fs';
 import { dirname, join, resolve } from 'node:path';
@@ -28,6 +32,10 @@ const DECLARATION_MODELE = /^#?\s*([A-Za-z_]\w*)=/;
 const INDENTATION_SERVICE = 2;
 const INDENTATION_CLE_SERVICE = 4;
 const INDENTATION_VARIABLE = 6;
+export const FRAGMENT_DURCISSEMENT = 'x-durcissement';
+const FUSION_DURCISSEMENT = '<<: *durcissement';
+const CLES_DURCISSEMENT_ATTENDUES = ['read_only: true', 'cap_drop:', '- ALL', 'security_opt:', '- no-new-privileges:true'];
+const CLES_INTERDITES_DANS_SERVICE = ['cap_add', 'read_only', 'cap_drop', 'security_opt'];
 
 function lignesUtiles(texte) {
   return texte.split(/\r?\n/).filter((ligne) => ligne.trim() !== '' && !ligne.trim().startsWith('#'));
@@ -90,6 +98,61 @@ export function variablesModele(modele) {
   return variables;
 }
 
+/** Lignes utiles d'un bloc de premier niveau de compose.yaml (« nom: » en colonne 0), sans sa ligne de titre. */
+function blocPremierNiveau(compose, nom) {
+  const bloc = [];
+  let dansBloc = false;
+  for (const ligne of lignesUtiles(compose)) {
+    if (indentation(ligne) === 0) {
+      dansBloc = ligne.trim().startsWith(`${nom}:`);
+      continue;
+    }
+    if (dansBloc) bloc.push(ligne);
+  }
+  return bloc;
+}
+
+/** Clés de premier niveau (indentation 4) de chaque service de compose.yaml, par nom de service. */
+export function clesServices(compose) {
+  const services = new Map();
+  let courant = null;
+  for (const ligne of blocPremierNiveau(compose, 'services')) {
+    const decalage = indentation(ligne);
+    const contenu = ligne.trim();
+    if (decalage === INDENTATION_SERVICE) {
+      courant = contenu.replace(/:$/, '');
+      services.set(courant, []);
+    } else if (decalage === INDENTATION_CLE_SERVICE && courant !== null) {
+      services.get(courant).push(contenu);
+    }
+  }
+  return services;
+}
+
+/** Écarts de durcissement, triés : fragment incomplet, service sans fusion, clé qui contredit le fragment. */
+export function ecartsDurcissement(compose) {
+  const ecarts = [];
+  const fragment = blocPremierNiveau(compose, FRAGMENT_DURCISSEMENT).map((ligne) => ligne.trim());
+  for (const attendue of CLES_DURCISSEMENT_ATTENDUES) {
+    if (!fragment.includes(attendue)) {
+      ecarts.push(`${FRAGMENT_DURCISSEMENT} de ${FICHIER_COMPOSE} : « ${attendue} » absent`);
+    }
+  }
+  for (const [service, cles] of clesServices(compose)) {
+    if (!cles.includes(FUSION_DURCISSEMENT)) {
+      ecarts.push(`service ${service} de ${FICHIER_COMPOSE} : « ${FUSION_DURCISSEMENT} » absent`);
+    }
+    for (const cle of cles) {
+      const nom = /^([A-Za-z_]\w*):/.exec(cle)?.[1];
+      if (CLES_INTERDITES_DANS_SERVICE.includes(nom)) {
+        ecarts.push(`service ${service} de ${FICHIER_COMPOSE} : « ${nom} » redéfini, le durcissement vient de `
+          + FRAGMENT_DURCISSEMENT);
+      }
+    }
+  }
+  return ecarts.sort((premier, second) => premier.localeCompare(second, 'fr'));
+}
+
 /** Écarts de parité, triés : une phrase par variable manquante, avec le fichier où elle manque. */
 export function ecartsParite({ proprietes, compose, modele }) {
   const transmises = variablesService(compose, SERVICE_APPLICATIF);
@@ -112,10 +175,14 @@ export function ecartsParite({ proprietes, compose, modele }) {
   return [...new Set(ecarts)].sort((premier, second) => premier.localeCompare(second, 'fr'));
 }
 
-/** Écarts de parité des fichiers du dépôt. */
+/** Écarts de parité puis de durcissement des fichiers du dépôt. */
 export function ecartsDepot(racine = RACINE) {
   const lire = (fichier) => readFileSync(join(racine, fichier), 'utf8');
-  return ecartsParite({ proprietes: lire(FICHIER_PROPRIETES), compose: lire(FICHIER_COMPOSE), modele: lire(FICHIER_MODELE) });
+  const compose = lire(FICHIER_COMPOSE);
+  return [
+    ...ecartsParite({ proprietes: lire(FICHIER_PROPRIETES), compose, modele: lire(FICHIER_MODELE) }),
+    ...ecartsDurcissement(compose),
+  ];
 }
 
 if (import.meta.url === pathToFileURL(process.argv[1] ?? '').href) {

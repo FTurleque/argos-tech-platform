@@ -8,11 +8,23 @@
   "customManagers": [
     {
       "customType": "regex",
-      "description": "Valeur par défaut des variables d'image de compose.yaml, par exemple ${ARGOS_KEYCLOAK_VERSION:-26.7.4}.",
+      "description": "Valeur par défaut des variables d'image de compose.yaml, par exemple ${ARGOS_OLLAMA_VERSION:-0.12.6}.",
       "managerFilePatterns": ["/(^|/)compose\\.yaml$/"],
       "matchStrings": [
         "image:\\s*(?<depName>[^\\s:$]+/[^\\s:$]+):\\$\\{[A-Z0-9_]+:-(?<currentValue>[^}\\s]+)\\}"
       ],
+      "datasourceTemplate": "docker",
+      "versioningTemplate": "docker"
+    },
+    {
+      "customType": "regex",
+      "description": "Version de Keycloak de l'image construite localement (EXP-16) : argument de construction et étiquette dans compose.yaml, réglage commenté dans .env.example.",
+      "managerFilePatterns": ["/(^|/)compose\\.yaml$/", "/^\\.env\\.example$/"],
+      "matchStrings": [
+        "\\$\\{ARGOS_KEYCLOAK_VERSION:-(?<currentValue>[^}\\s]+)\\}",
+        "#\\s*ARGOS_KEYCLOAK_VERSION=(?<currentValue>\\S+)"
+      ],
+      "depNameTemplate": "quay.io/keycloak/keycloak",
       "datasourceTemplate": "docker",
       "versioningTemplate": "docker"
     },

@@ -16,9 +16,9 @@ flowchart TB
         SMTP["«Component» Relais SMTP DSM"]
         subgraph CM["«node» Container Manager — projet compose « argos »"]
             ARGOS["«Container» argos\nimage unique : IHM Vue.js 3 + API Quarkus + MCP\nJRE 17, utilisateur 1001, lecture seule · port 8080 lié à 127.0.0.1 par défaut\nmem_limit 1g · santé /q/health/ready"]
-            PG["«database» postgres:18 · bases argos et keycloak\nun compte par usage, aucun superutilisateur applicatif\nport 5432 lié à 127.0.0.1 · mem_limit 512m · max_connections 40"]
-            KCC["«Container» keycloak\nprofil « idp-local » seulement\nport 8180 lié à 127.0.0.1 · mem_limit 768m · pool de 10"]
-            OLL["«Container» ollama/ollama\nprofil « ia » seulement, aucun port publié\nmem_limit 2560m"]
+            PG["«database» postgres:18 · bases argos et keycloak\nun compte par usage, aucun superutilisateur applicatif\nport 5432 lié à 127.0.0.1 · mem_limit 512m · max_connections 40\nutilisateur postgres, lecture seule"]
+            KCC["«Container» keycloak\nprofil « idp-local » seulement\nport 8180 lié à 127.0.0.1 · mem_limit 768m · pool de 10\nimage optimisée construite localement, lecture seule"]
+            OLL["«Container» ollama/ollama\nprofil « ia » seulement, aucun port publié\nmem_limit 2560m · lecture seule"]
         end
         VOLPG[("«volume» argos-pgdata")]
         VOLOL[("«volume» argos-ollama")]
@@ -58,7 +58,7 @@ flowchart TB
 | Image | image unique x86-64 (DS1522+ et PC) : IHM construite puis servie par Quarkus, JRE 17, utilisateur non privilégié d'UID 1001 ; licences des dépendances du serveur contrôlées à la construction (profil Maven `licences`), avis `NOTICE`, `THIRD-PARTY.txt` et textes des licences retenues (Apache-2.0, MIT, BSD, EPL-2.0, JDOM) dans `/opt/argos/licenses/` ; images de base épinglées par tag | [`Dockerfile`](/Dockerfile) |
 | Conteneurs | `argos`, `postgres` (image `postgres:18`), `keycloak` (profil `idp-local`), `ollama` (profil `ia`, désactivé par défaut) dans le projet compose `argos` | `compose.yaml` |
 | Comptes de base | superutilisateur d'administration (initialisation, sauvegarde, restauration) ; propriétaire de la base `argos` (migrations) ; rôle de connexion d'Argos, ni propriétaire ni BYPASSRLS ; compte `keycloak` propriétaire de sa seule base ; mots de passe obligatoires | [ADR-0035](../adr/0035-comptes-et-isolation-des-bases.md) (Proposé), [`initialiser-bases.sh`](/deploiement/postgres/initialiser-bases.sh) |
-| Exploitation | contrôle de santé sur chaque conteneur, journaux bornés (trois fichiers de 10 Mio) ; plafonds cumulés de 4,75 Gio avec les deux profils ; pools d'Argos et de Keycloak (10 chacun) sous `max_connections` (40) ; conteneur `argos` en lecture seule, `cap_drop: [ALL]`, `no-new-privileges` ; toute variable lue en production transmise au conteneur | `compose.yaml`, fiche [`exploitation-plateforme`](../../specifications/exploitation-plateforme.md) (EXP-07 à EXP-12) |
+| Exploitation | contrôle de santé sur chaque conteneur, journaux bornés (trois fichiers de 10 Mio) ; plafonds cumulés de 4,75 Gio avec les deux profils ; pools d'Argos et de Keycloak (10 chacun) sous `max_connections` (40) ; chaque conteneur en lecture seule, `cap_drop: [ALL]` sans réajout, `no-new-privileges` (`argos` : EXP-12 ; `postgres`, `keycloak`, `ollama` : EXP-16, proposé) ; toute variable lue en production transmise au conteneur | `compose.yaml`, fiche [`exploitation-plateforme`](../../specifications/exploitation-plateforme.md) (EXP-07 à EXP-12, EXP-16) |
 | Exposition | ports d'Argos et de PostgreSQL liés à `127.0.0.1` ; `ARGOS_BIND=0.0.0.0` ouvre Argos au réseau local ou au VPN ; Ollama ne publie aucun port | `compose.yaml` |
 | Accès distant | VPN Server de DSM par défaut ; nom de domaine en HTTPS par le reverse proxy de DSM | [`synology-et-pc.md`](/docs/deploiement/synology-et-pc.md) |
 | Identité | Keycloak lu par `ARGOS_OIDC_URL` : existant, ou conteneur `keycloak` du profil `idp-local`, dont la base partage l'instance PostgreSQL | ADR-0027 (Accepté), `compose.yaml` |
