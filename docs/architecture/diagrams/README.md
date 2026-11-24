@@ -31,8 +31,8 @@ Chaque relation doit porter une action et le protocole lorsqu’il est architect
 | D-08 | UML sequenceDiagram | erreur API/retry | `arc42/06-vue-execution.md` |
 | D-09 | UML sequenceDiagram | redémarrage/reprise | `arc42/06-vue-execution.md` |
 | D-10 | UML-style deployment | POC/MVP : deux vues, POC local et POC partagé sur VM | `arc42/07-vue-deploiement.md` §7.2 et §7.3 |
-| D-11 | UML-style deployment | cible Synology (ADR-0026) : conteneurs de `compose.yaml`, accès, identité, messagerie, sauvegarde | [`d-11-deploiement-cible.md`](d-11-deploiement-cible.md), cité en `arc42/07-vue-deploiement.md` §7.3 |
-| D-12 | UML-style trust boundaries | zones de confiance, franchissements et contrôles | [`d-12-frontieres-confiance.md`](d-12-frontieres-confiance.md), cité en `arc42/08-concepts-transverses.md` §8.3 |
+| D-11 | UML-style deployment | cible Synology (ADR-0026) : conteneurs de `compose.yaml` (Keycloak du profil `idp-local` compris), comptes de base, accès, identité, messagerie, sauvegarde et restauration des deux bases | [`d-11-deploiement-cible.md`](d-11-deploiement-cible.md), cité en `arc42/07-vue-deploiement.md` §7.3 |
+| D-12 | UML-style trust boundaries | zones de confiance, franchissements et contrôles, comptes de base d'Argos et de Keycloak (ADR-0035) | [`d-12-frontieres-confiance.md`](d-12-frontieres-confiance.md), cité en `arc42/08-concepts-transverses.md` §8.3 |
 | D-13 | Mermaid erDiagram | modèle physique produit par les migrations V1 à V17 et V20, en cinq blocs (D-13.1 à D-13.5) | [`d-13-modele-physique.md`](d-13-modele-physique.md), cité en `arc42/08-concepts-transverses.md` §8.7 |
 | D-14 | UML sequenceDiagram | authentification OIDC, autorisation et cloisonnement d’une requête | `arc42/08-concepts-transverses.md` §8.1 |
 | D-15 | C4 Component | préférences d’affichage et de veille, couches contenu et mise en page de l’IHM | `arc42/05-vue-blocs.md` §5.4.1 |

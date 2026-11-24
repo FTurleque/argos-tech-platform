@@ -9,6 +9,9 @@ import { URL_API, URL_IHM } from './support/environnement'
 import { ligneServeurMaven } from './support/maven.mjs'
 
 const DEUX_MINUTES = 120_000
+// Rôles de la base e2e (e2e/compose.yaml, deploiement/postgres/initialiser-bases.sh) : connexion et migrations.
+const ROLE_CONNEXION_E2E = 'argos_connexion'
+const ROLE_PROPRIETAIRE_E2E = 'argos'
 
 // Tâches planifiées qui joindraient une source externe : désactivées (aucun appel à Internet).
 const SANS_COLLECTE_EXTERNE = {
@@ -99,6 +102,10 @@ export default defineConfig({
         ...SANS_COLLECTE_EXTERNE,
         ...CHAINE_SIMULEE,
         _DEV_QUARKUS_DATASOURCE_JDBC_URL: 'jdbc:postgresql://localhost:55432/argos',
+        // Base jetable en authentification « trust » (e2e/compose.yaml) : Quarkus exige ces deux mots de passe
+        // (connexion et migrations), que la base ne vérifie pas ; le nom de chaque rôle tient lieu de valeur.
+        ARGOS_DB_PASSWORD: ROLE_CONNEXION_E2E,
+        ARGOS_DB_OWNER_PASSWORD: ROLE_PROPRIETAIRE_E2E,
         QUARKUS_HTTP_PORT: new URL(URL_API).port,
       },
     },

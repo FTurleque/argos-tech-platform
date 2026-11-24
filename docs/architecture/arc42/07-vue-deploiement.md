@@ -64,7 +64,8 @@ flowchart TB
 
 - même stack applicative qu’en local ;
 - secrets hors dépôt ;
-- volumes persistants sur le NAS ; export PostgreSQL quotidien copié hors site (Hyper Backup) ;
+- volumes persistants sur le NAS ; export quotidien des bases `argos` et `keycloak`, vérifié, en 0600, dont l'échec se signale par le code de sortie de la tâche DSM, copié hors site (Hyper Backup) ; restauration des deux bases par un script rejouable, Keycloak démarré après elle (EXP-01 à EXP-04) ;
+- une instance PostgreSQL, un compte par usage : administration (superutilisateur), propriétaire et rôle de connexion d'Argos, compte de Keycloak propriétaire de sa seule base ; aucun mot de passe par défaut (ADR-0035, Proposé ; EXP-05, EXP-06) ;
 - aucun port ouvert par défaut : accès distant par VPN ; exposition publique seulement via le reverse proxy de DSM en HTTPS ;
 - OIDC avec un fournisseur d’identité auto-hébergé ;
 - image x86-64 unique (NAS DS1522+ et PC), même `compose.yaml` partout ; guide : [`/docs/deploiement/synology-et-pc.md`](/docs/deploiement/synology-et-pc.md).
@@ -96,11 +97,12 @@ Ces valeurs restent à valider.
 - configuration PostgreSQL ;
 - procédure de déploiement sur le Synology (Container Manager) ;
 - configuration TLS/réseau/SSO ;
-- backup/restore testé.
+- backup/restore testé : [`scripts/essai-sauvegarde-restauration.sh`](/scripts/essai-sauvegarde-restauration.sh) et exercice de bout en bout sur une instance vierge (recette R-6 de [`recette-poste.md`](/docs/deploiement/recette-poste.md), tâche 5.1 de `fiabiliser-sauvegarde-et-roles-base`) ; à rejouer selon une périodicité à fixer (Q-4 de ce changement).
 
 ## 7.8 Risques
 
 - attendre la VM avant de développer ;
 - différences non maîtrisées entre poste local et VM ;
-- absence de test de restauration ;
+- restauration non rejouée depuis longtemps (périodicité à fixer, R-10) ;
+- migration manuelle d'un volume antérieur aux comptes distincts (sauvegarde, volume neuf, restauration ; retour arrière par copie de l'ancien volume) ;
 - exposition accidentelle de services internes.

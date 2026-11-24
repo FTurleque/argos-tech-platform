@@ -1,0 +1,99 @@
+#!/bin/sh
+# Rôles et bases de la plateforme dans l'instance PostgreSQL partagée (EXP-05, ADR-0035).
+#
+# Premier démarrage d'un volume : l'image postgres exécute ce script depuis /docker-entrypoint-initdb.d. Il crée :
+#   - argos_app et argos_technique, rôles sans connexion qui portent les droits d'Argos (migrations V2 et V22) ;
+#   - le propriétaire de la base Argos (ARGOS_DB_OWNER), qui applique les migrations ;
+#   - le rôle de connexion d'Argos (ARGOS_DB_USER), membre d'argos_technique et autorisé à basculer sur argos_app ;
+#   - le rôle de Keycloak (ARGOS_KEYCLOAK_DB_USER), propriétaire de sa seule base ;
+#   - les bases Argos (POSTGRES_DB) et keycloak, fermées à PUBLIC.
+# Aucun de ces rôles n'est superutilisateur ; seul POSTGRES_USER, réservé à l'administration, l'est.
+#
+# Instance jetable en authentification « trust » (POSTGRES_HOST_AUTH_METHOD=trust : tests Maven et pile e2e) : aucune
+# connexion n'y vérifie de mot de passe ; un rôle dont le mot de passe n'est pas fourni est créé sans. Partout
+# ailleurs, les trois mots de passe sont exigés.
+#
+# Restauration (scripts/restaurer-base.sh) : avec ARGOS_BASE_A_RECREER=<base>, le script recrée seulement cette base,
+# vide, avec son propriétaire et ses droits de connexion ; les rôles existent déjà.
+
+# Même nom que BASE_KEYCLOAK de scripts/sauvegarde-commun.sh (sauvegarde et restauration, côté hôte).
+BASE_KEYCLOAK=keycloak
+
+executer_sql() {
+  psql -X -q -v ON_ERROR_STOP=1 --username "$POSTGRES_USER" --dbname postgres "$@"
+}
+
+# Les mots de passe sont lus dans l'environnement par psql (\getenv), jamais passés sur sa ligne de commande.
+creer_roles() {
+  executer_sql -v proprietaire="$ARGOS_DB_OWNER" -v connexion="$ARGOS_DB_USER" -v keycloak="$KEYCLOAK_ROLE" <<'SQL'
+\getenv secret_proprietaire ARGOS_DB_OWNER_PASSWORD
+\getenv secret_connexion ARGOS_DB_PASSWORD
+\getenv secret_keycloak ARGOS_KEYCLOAK_DB_PASSWORD
+CREATE ROLE argos_app NOLOGIN NOSUPERUSER NOCREATEDB NOCREATEROLE NOBYPASSRLS;
+CREATE ROLE argos_technique NOLOGIN NOSUPERUSER NOCREATEDB NOCREATEROLE NOBYPASSRLS;
+-- Une instruction en échec n'est pas recopiée dans le journal du serveur : elle contiendrait un mot de passe.
+SET log_min_error_statement = panic;
+SELECT format('CREATE ROLE %I LOGIN NOSUPERUSER NOCREATEDB NOCREATEROLE NOBYPASSRLS PASSWORD %L', role_cree,
+              nullif(secret, ''))
+FROM (VALUES (:'proprietaire', :'secret_proprietaire'), (:'connexion', :'secret_connexion'),
+             (:'keycloak', :'secret_keycloak')) AS roles_crees (role_cree, secret)
+\gexec
+RESET log_min_error_statement;
+-- La migration V2 accorde argos_app au propriétaire : il doit pouvoir administrer ce rôle.
+GRANT argos_app TO :"proprietaire" WITH ADMIN TRUE;
+-- Le rôle de connexion bascule sur argos_app (SET LOCAL ROLE) sans en hériter les droits, et hérite de ceux
+-- d'argos_technique pour les traitements sans contexte utilisateur.
+GRANT argos_app TO :"connexion" WITH INHERIT FALSE, SET TRUE;
+GRANT argos_technique TO :"connexion";
+SQL
+}
+
+# $1 : base ; $2 : propriétaire ; $3 (facultatif) : rôle autorisé à s'y connecter en plus du propriétaire.
+recreer_base() {
+  BASE_RECREEE="$1"
+  PROPRIETAIRE_BASE="$2"
+  CONNEXION_AUTORISEE="${3:-}"
+  executer_sql -v base="$BASE_RECREEE" -v proprietaire="$PROPRIETAIRE_BASE" <<'SQL'
+DROP DATABASE IF EXISTS :"base" WITH (FORCE);
+CREATE DATABASE :"base" OWNER :"proprietaire";
+REVOKE ALL ON DATABASE :"base" FROM PUBLIC;
+SQL
+  if [ -n "$CONNEXION_AUTORISEE" ]; then
+    executer_sql -v base="$BASE_RECREEE" -v connexion="$CONNEXION_AUTORISEE" <<'SQL'
+GRANT CONNECT ON DATABASE :"base" TO :"connexion";
+SQL
+  fi
+}
+
+principal() {
+  set -eu
+  : "${POSTGRES_USER:?POSTGRES_USER manquant}" "${POSTGRES_DB:?POSTGRES_DB manquant}"
+  : "${ARGOS_DB_OWNER:?ARGOS_DB_OWNER manquant}" "${ARGOS_DB_USER:?ARGOS_DB_USER manquant}"
+  KEYCLOAK_ROLE="${ARGOS_KEYCLOAK_DB_USER:-keycloak}"
+
+  if [ -n "${ARGOS_BASE_A_RECREER:-}" ]; then
+    case "$ARGOS_BASE_A_RECREER" in
+      "$POSTGRES_DB") recreer_base "$POSTGRES_DB" "$ARGOS_DB_OWNER" "$ARGOS_DB_USER" ;;
+      "$BASE_KEYCLOAK") recreer_base "$BASE_KEYCLOAK" "$KEYCLOAK_ROLE" ;;
+      *)
+        echo "Base inconnue : $ARGOS_BASE_A_RECREER (attendu : $POSTGRES_DB ou $BASE_KEYCLOAK)" >&2
+        return 2
+        ;;
+    esac
+    return 0
+  fi
+
+  if [ "${POSTGRES_HOST_AUTH_METHOD:-}" = trust ]; then
+    export ARGOS_DB_OWNER_PASSWORD="${ARGOS_DB_OWNER_PASSWORD:-}" ARGOS_DB_PASSWORD="${ARGOS_DB_PASSWORD:-}"
+    export ARGOS_KEYCLOAK_DB_PASSWORD="${ARGOS_KEYCLOAK_DB_PASSWORD:-}"
+  else
+    : "${ARGOS_DB_OWNER_PASSWORD:?ARGOS_DB_OWNER_PASSWORD manquant}" "${ARGOS_DB_PASSWORD:?ARGOS_DB_PASSWORD manquant}"
+    : "${ARGOS_KEYCLOAK_DB_PASSWORD:?ARGOS_KEYCLOAK_DB_PASSWORD manquant}"
+  fi
+  creer_roles
+  recreer_base "$POSTGRES_DB" "$ARGOS_DB_OWNER" "$ARGOS_DB_USER"
+  recreer_base "$BASE_KEYCLOAK" "$KEYCLOAK_ROLE"
+}
+
+# Sous-shell : l'image peut aussi lire ce script par « . » ; ses options et ses variables ne la touchent pas.
+( principal )
