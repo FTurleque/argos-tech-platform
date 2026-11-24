@@ -5,6 +5,7 @@ import static org.hamcrest.Matchers.hasSize;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 
 import java.nio.charset.StandardCharsets;
+import java.time.Clock;
 import java.time.Instant;
 import java.time.LocalDate;
 import java.time.temporal.ChronoUnit;
@@ -17,6 +18,7 @@ import jakarta.inject.Inject;
 import org.junit.jupiter.api.Test;
 
 import io.argos.alerting.RappelsRadar;
+import io.argos.horloge.LectureHeure;
 import io.argos.inventory.InventoryService;
 import io.argos.inventory.ProjectDirectory;
 import io.argos.testsupport.Api;
@@ -53,10 +55,14 @@ class ParcoursRadarTest {
     @Inject
     RappelsRadar rappels;
 
+    @Inject
+    Clock horloge;
+
     @Test
     void referentielInventaireDetteRappelEtRadar() {
         baseDeTest.reset();
-        LocalDate aujourdhui = LocalDate.now();
+        // La date du jour est lue au fuseau du serveur : au passage de minuit, celui de la JVM peut avoir un jour de retard.
+        LocalDate aujourdhui = LectureHeure.jour(horloge);
         UUID espace = Api.nouvelEspace("lina", "Parcours radar");
         Api.ajouterMembre("lina", espace.toString(), "karim", "LECTEUR");
         String base = "/api/v1/radar/espaces/" + espace;
