@@ -45,7 +45,7 @@ export const FICHIER_IMAGE_KEYCLOAK = 'deploiement/keycloak/Dockerfile';
 export const SERVICE_KEYCLOAK = 'keycloak';
 // Options de construction de Keycloak figées par « kc.sh build » : ENV KC_*=valeur, sur une ou plusieurs lignes.
 const OPTION_CONSTRUCTION_KEYCLOAK = /\b(KC_[A-Z0-9_]+)=(\S+)/g;
-const CLES_INTERDITES_DANS_SERVICE = ['cap_add', 'read_only', 'cap_drop', 'security_opt'];
+const CLES_INTERDITES_DANS_SERVICE = new Set(['cap_add', 'read_only', 'cap_drop', 'security_opt']);
 
 function lignesUtiles(texte) {
   return texte.split(/\r?\n/).filter((ligne) => ligne.trim() !== '' && !ligne.trim().startsWith('#'));
@@ -88,10 +88,17 @@ export function environnementService(compose, service) {
       dansEnvironnement = contenu === 'environment:';
       continue;
     }
-    const cle = /^([A-Za-z_]\w*):\s*(.*)$/.exec(contenu);
-    if (dansEnvironnement && decalage === INDENTATION_VARIABLE && cle) variables.set(cle[1], sansGuillemets(cle[2]));
+    const cle = cleEtValeur(contenu);
+    if (dansEnvironnement && decalage === INDENTATION_VARIABLE && cle) variables.set(cle.nom, cle.valeur);
   }
   return variables;
+}
+
+/** Ligne « cle: valeur » découpée sans expression à retour arrière : nom de la clé et valeur sans guillemets. */
+function cleEtValeur(contenu) {
+  const cle = /^[A-Za-z_]\w*:/.exec(contenu);
+  if (!cle) return null;
+  return { nom: cle[0].slice(0, -1), valeur: sansGuillemets(contenu.slice(cle[0].length)) };
 }
 
 function sansGuillemets(valeur) {
@@ -157,13 +164,12 @@ export function structureFragment(compose, nom) {
   let courante = null;
   for (const ligne of blocPremierNiveau(compose, nom)) {
     const contenu = ligne.trim();
-    const element = /^-\s*(.+)$/.exec(contenu);
-    const cle = /^([A-Za-z_]\w*):\s*(.*)$/.exec(contenu);
-    if (element && courante !== null) {
-      cles.get(courante).elements.push(sansGuillemets(element[1]));
+    const cle = cleEtValeur(contenu);
+    if (contenu.startsWith('-') && courante !== null) {
+      cles.get(courante).elements.push(sansGuillemets(contenu.slice(1)));
     } else if (cle && indentation(ligne) === INDENTATION_SERVICE) {
-      courante = cle[1];
-      cles.set(courante, { valeur: sansGuillemets(cle[2]), elements: [] });
+      courante = cle.nom;
+      cles.set(courante, { valeur: cle.valeur, elements: [] });
     }
   }
   return cles;
@@ -186,7 +192,7 @@ export function ecartsDurcissement(compose) {
     }
     for (const cle of cles) {
       const nom = /^([A-Za-z_]\w*):/.exec(cle)?.[1];
-      if (CLES_INTERDITES_DANS_SERVICE.includes(nom)) {
+      if (CLES_INTERDITES_DANS_SERVICE.has(nom)) {
         ecarts.push(`service ${service} de ${FICHIER_COMPOSE} : « ${nom} » redéfini, le durcissement vient de `
           + FRAGMENT_DURCISSEMENT);
       }
