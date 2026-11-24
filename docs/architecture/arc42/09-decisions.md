@@ -41,6 +41,7 @@ Cette section indexe les ADR. Elle ne recopie pas leur contenu.
 | ADR-0031 | Planifier les traitements périodiques avec quarkus-scheduler dans le serveur | Accepté | 2026-11-18 | — |
 | ADR-0032 | Versionner le schéma PostgreSQL par des migrations SQL Flyway appliquées au démarrage | Accepté | 2026-11-18 | — |
 | ADR-0033 | Tenir la session OIDC de l'IHM en mémoire et connecter le desktop par l'interface de bouclage | Accepté | 2026-11-18 | — (complète ADR-0027, précise ADR-0022 point 6) |
+| ADR-0034 | Vérifier chaque changement par GitHub Actions et suivre les dépendances avec Renovate | Proposé | 2026-11-24 | — |
 
 ## 9.2 Règles de gouvernance
 

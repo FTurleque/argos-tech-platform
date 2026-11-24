@@ -1,0 +1,49 @@
+{
+  "$schema": "https://docs.renovatebot.com/renovate-schema.json",
+  "description": "Veille des dépendances d'ARGOS (arc42 §8.11, ADR-0034) : une pull request par mise à jour, vérifiée et relue.",
+  "extends": ["config:recommended", "helpers:pinGitHubActionDigests"],
+  "timezone": "Europe/Paris",
+  "labels": ["dépendances"],
+  "enabledManagers": ["maven", "npm", "dockerfile", "docker-compose", "github-actions", "custom.regex"],
+  "customManagers": [
+    {
+      "customType": "regex",
+      "description": "Valeur par défaut des variables d'image de compose.yaml, par exemple ${ARGOS_KEYCLOAK_VERSION:-26.7.4}.",
+      "managerFilePatterns": ["/(^|/)compose\\.yaml$/"],
+      "matchStrings": [
+        "image:\\s*(?<depName>[^\\s:$]+/[^\\s:$]+):\\$\\{[A-Z0-9_]+:-(?<currentValue>[^}\\s]+)\\}"
+      ],
+      "datasourceTemplate": "docker",
+      "versioningTemplate": "docker"
+    },
+    {
+      "customType": "regex",
+      "description": "Version d'Ollama commentée dans .env.example, alignée sur la valeur par défaut de compose.yaml.",
+      "managerFilePatterns": ["/^\\.env\\.example$/"],
+      "matchStrings": ["#\\s*ARGOS_OLLAMA_VERSION=(?<currentValue>\\S+)"],
+      "depNameTemplate": "ollama/ollama",
+      "datasourceTemplate": "docker",
+      "versioningTemplate": "docker"
+    }
+  ],
+  "minimumReleaseAge": "3 days",
+  "packageRules": [
+    {
+      "description": "Actions du workflow : regroupées en une seule pull request.",
+      "matchManagers": ["github-actions"],
+      "groupName": "actions GitHub"
+    },
+    {
+      "description": "Majeures des images Java 17 et Node.js 22 (ADR-0019) : alignées sur le workflow, décidées par le porteur.",
+      "matchDatasources": ["docker"],
+      "matchPackageNames": ["node", "maven", "eclipse-temurin"],
+      "matchUpdateTypes": ["major"],
+      "enabled": false
+    },
+    {
+      "description": "jacoco-maven-plugin suit l'agent org.jacoco géré par le BOM Quarkus : sa version change avec Quarkus.",
+      "matchPackageNames": ["org.jacoco:jacoco-maven-plugin"],
+      "enabled": false
+    }
+  ]
+}

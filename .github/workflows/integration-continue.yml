@@ -1,0 +1,195 @@
+# Intégration continue d'ARGOS : contrôles exécutés à chaque pull request et à chaque push sur main
+# (arc42 §8.11). Les commandes sont celles du README, section « Vérifications locales ».
+# Jeton en lecture seule, aucun secret ; actions épinglées par empreinte de commit, suivies par Renovate.
+name: Intégration continue
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+defaults:
+  run:
+    # bash -eo pipefail : une commande en échec dans un pipeline fait échouer l'étape.
+    shell: bash
+
+concurrency:
+  group: integration-continue-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+env:
+  # Version majeure de Node.js de l'image (Dockerfile, étage « ui » : node:22-slim).
+  NODE_VERSION: '22'
+  # Niveau de npm audit qui fait échouer le build (décision du porteur du projet, 2026-11-24).
+  NPM_AUDIT_NIVEAU: high
+
+jobs:
+  serveur:
+    name: Serveur (JDK 17, mvn clean verify)
+    runs-on: ubuntu-latest
+    timeout-minutes: 40
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-java@d1374f8ac74474200d16ef8ecee22c7ae7a51880 # v6.3.0
+        with:
+          distribution: temurin
+          java-version: '17'
+          cache: maven
+      - name: JDK utilisé
+        run: java -version
+      # Profil integration-continue : maven-enforcer refuse un JDK hors de [17,18) (JRE 17 de l'image).
+      # Toujours « clean » : aucun résultat d'un build incrémental n'est réutilisé.
+      - name: Tests, couverture et seuil JaCoCo
+        run: mvn -B -f argos-server/pom.xml -P integration-continue clean verify
+      - name: Rapport de couverture JaCoCo
+        if: ${{ !cancelled() }}
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: couverture-jacoco
+          path: argos-server/target/site/jacoco/
+          if-no-files-found: warn
+      - name: Rapports de tests
+        if: ${{ failure() }}
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: rapports-surefire
+          path: argos-server/target/surefire-reports/
+          if-no-files-found: ignore
+
+  ihm:
+    name: IHM argos-ui
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    defaults:
+      run:
+        shell: bash
+        working-directory: argos-ui
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+          cache-dependency-path: argos-ui/package-lock.json
+      - run: npm ci
+      - run: npm test
+      - run: npm run typecheck
+      - run: npm run build
+      - name: npm audit
+        run: npm audit --audit-level="$NPM_AUDIT_NIVEAU"
+
+  desktop:
+    name: Client desktop argos-desktop
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    defaults:
+      run:
+        shell: bash
+        working-directory: argos-desktop
+    env:
+      # Les tests remplacent le module electron par un double (test/electron-factice.js) : le binaire
+      # d'Electron n'est pas téléchargé ; ses déclarations de types restent dans le paquet npm.
+      ELECTRON_SKIP_BINARY_DOWNLOAD: '1'
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+          cache-dependency-path: argos-desktop/package-lock.json
+      - run: npm ci
+      - run: npm run check
+      - name: npm audit
+        run: npm audit --audit-level="$NPM_AUDIT_NIVEAU"
+
+  outils:
+    name: Scripts, documentation et e2e (types, tests sans pile)
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+          cache-dependency-path: e2e/package-lock.json
+      - name: Tests des scripts et de la campagne de performance
+        run: node --test scripts/*.test.mjs "e2e/performance/*.test.mjs"
+      - name: Contrôle documentaire
+        run: node scripts/verifier-docs.mjs
+      - name: Contrôle de nommage
+        run: node scripts/verifier-nommage.mjs
+      - name: Dépendances de e2e
+        working-directory: e2e
+        run: npm ci
+      - name: Vérification de types de e2e
+        working-directory: e2e
+        run: npm run typecheck
+      - name: npm audit (e2e)
+        working-directory: e2e
+        run: npm audit --audit-level="$NPM_AUDIT_NIVEAU"
+
+  changements:
+    name: Migrations fusionnées et fichiers modifiés
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    outputs:
+      licences: ${{ steps.fichiers.outputs.licences }}
+    env:
+      # Base de comparaison : base de la pull request, ou état précédent de main pour un push ; à défaut
+      # (base absente de l'historique), le commit parent, si bien que seul le dernier commit est contrôlé.
+      BASE: ${{ github.event_name == 'pull_request' && github.event.pull_request.base.sha || github.event.before }}
+      MIGRATIONS: argos-server/src/main/resources/db/migration
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+      - name: Base de comparaison
+        run: |
+          if [ -z "$BASE" ] || ! git cat-file -e "$BASE^{commit}" 2>/dev/null; then
+            BASE=$(git rev-parse HEAD~1)
+          fi
+          echo "BASE=$BASE" >> "$GITHUB_ENV"
+          echo "Comparaison avec $BASE"
+      # ADR-0032 : une migration fusionnée est immuable ; seule une nouvelle migration (statut A) est admise.
+      # Le diff est écrit dans un fichier avant d'être filtré : un échec de git diff arrête l'étape.
+      - name: Garde des migrations (ADR-0032)
+        run: |
+          git diff --no-renames --name-status "$BASE"...HEAD -- "$MIGRATIONS" > "$RUNNER_TEMP/migrations.txt"
+          ecarts=$(grep -v '^A' "$RUNNER_TEMP/migrations.txt" || true)
+          if [ -n "$ecarts" ]; then
+            echo "::error::Migration fusionnée modifiée ou supprimée (ADR-0032 : corriger par une nouvelle migration)."
+            echo "$ecarts"
+            exit 1
+          fi
+          echo "Migrations : ajouts seulement."
+      - name: Fichiers du contrôle des licences
+        id: fichiers
+        run: |
+          if git diff --quiet "$BASE"...HEAD -- argos-server/pom.xml scripts/verifier-licences-serveur.mjs; then
+            echo "licences=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "licences=true" >> "$GITHUB_OUTPUT"
+          fi
+
+  licences:
+    name: Licences des dépendances du serveur
+    needs: changements
+    if: ${{ needs.changements.outputs.licences == 'true' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-java@d1374f8ac74474200d16ef8ecee22c7ae7a51880 # v6.3.0
+        with:
+          distribution: temurin
+          java-version: '17'
+          cache: maven
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+      - name: Inventaire CycloneDX et contrôle des licences
+        run: mvn -B -f argos-server/pom.xml -P licences validate
