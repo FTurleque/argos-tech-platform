@@ -91,6 +91,8 @@ Classification minimale : `PUBLIC`, `INTERNAL`, `CONFIDENTIAL`, `RESTRICTED`. Le
 
 Comptes de base (ADR-0035, Proposé) : Argos et Keycloak se connectent chacun avec un compte non superutilisateur, propriétaire de sa seule base dans l'instance PostgreSQL partagée (`CONNECT` retiré à `PUBLIC`) ; le rôle de connexion d'Argos n'est ni propriétaire ni BYPASSRLS ; le superutilisateur sert seulement à l'initialisation, à la sauvegarde et à la restauration. Aucun mot de passe de base par défaut : Compose refuse de démarrer sans eux (EXP-06). Les sauvegardes, qui contiennent toutes les données, sont en 0600 (EXP-03).
 
+Conteneurs : système de fichiers racine en lecture seule, aucune capacité système et élévation de privilèges interdite pour chaque service de `compose.yaml` ; seuls leurs volumes et des emplacements en mémoire sont inscriptibles (EXP-12, EXP-16 ; §8.12).
+
 Les zones de confiance, les flux qui les franchissent et le contrôle appliqué à chacun sont D-12 : [`../diagrams/d-12-frontieres-confiance.md`](../diagrams/d-12-frontieres-confiance.md).
 
 ### Veille RSS/Atom et pages surveillées (ADR-0028, Accepté)
@@ -302,6 +304,8 @@ Assemblage Compose (`compose.yaml`, ADR-0026) [PROPOSITION — `completer-config
 - **santé et journaux** : contrôle de santé sur chaque conteneur (`/q/health/ready` pour `argos`, par le `HEALTHCHECK` de l'image, sans outil ajouté) ; journaux `json-file` en trois fichiers de 10 Mio (EXP-09) ;
 - **mémoire** : tas de la JVM à 60 % du plafond du conteneur, arrêt sur `OutOfMemoryError` relancé par `restart: unless-stopped` ; réponses compressées (EXP-10) ; plafonds et pools dimensionnés pour le NAS de 8 Go (EXP-11, guide de déploiement) ;
 - **durcissement** : code de l'application propriété de root, `read_only` avec `/tmp` en mémoire, `cap_drop: [ALL]`, `no-new-privileges` pour le conteneur `argos` (EXP-12).
+
+Durcissement des conteneurs de service [PROPOSITION — `durcir-conteneurs-de-service`] : le fragment `x-durcissement` de `compose.yaml` (`read_only`, `cap_drop: [ALL]`, `no-new-privileges`) est fusionné dans chaque service, sans `cap_add` ; `scripts/verifier-configuration.mjs` échoue sur un service qui ne le fusionne pas ou le contredit. `postgres` s'exécute sous l'utilisateur `postgres` (volume, `/tmp` et socket inscriptibles), `keycloak` depuis une image optimisée construite localement (`deploiement/keycloak/Dockerfile`, `start --optimized` ; `/tmp` et `/opt/keycloak/data` en mémoire), `ollama` sous `root` sans capacité (volume et `/tmp`) (EXP-16).
 
 ## 8.13 Questions ouvertes
 

@@ -49,6 +49,8 @@ Sans fournisseur d'identité existant, le profil `idp-local` ajoute un conteneur
 docker compose --profile idp-local up -d --build
 ```
 
+`--build` construit aussi l'image Keycloak optimisée `argos-keycloak` ([`deploiement/keycloak/Dockerfile`](../../deploiement/keycloak/Dockerfile)) : Keycloak s'exécute en lecture seule et ne peut pas reconstruire son installation au démarrage (EXP-16). Après tout changement de `ARGOS_KEYCLOAK_VERSION`, relancez la commande avec `--build` ; sans `--build`, l'image de la version précédente reste servie.
+
 Keycloak répond sur <http://localhost:8180> (`ARGOS_KEYCLOAK_PORT`), Argos sur le port `ARGOS_PORT`. Le royaume importé ([`deploiement/keycloak/argos-realm.json`](../../deploiement/keycloak/argos-realm.json)) déclare les clients `argos-server`, `argos-ui` et `argos-mcp` et un seul compte, l'administrateur. Les adresses de retour de `argos-ui` visent `http://localhost:8088` : avec un autre `ARGOS_PORT`, adaptez-les dans la console Keycloak. Le royaume n'est importé qu'une fois, au premier démarrage sur une base `keycloak` vide : changer ensuite `ARGOS_ADMIN_EMAIL` ou `ARGOS_ADMIN_MOT_DE_PASSE_INITIAL` ne modifie ni le compte ni le royaume, qui se gèrent alors dans la console.
 
 La base `keycloak` porte les comptes et leurs sujets OIDC, auxquels Argos rattache ses propres comptes : elle est sauvegardée avec celle d'Argos ([Sauvegarder](#4-sauvegarder)). Après une reprise, restaurez-la **avant le premier démarrage de Keycloak** ([Restaurer](#5-restaurer)) : Keycloak n'importe le royaume que s'il n'existe pas, et un royaume réimporté donnerait de nouveaux sujets à tous les comptes, que les comptes Argos ne retrouveraient plus.
@@ -212,7 +214,22 @@ Chaque conteneur a un contrôle de santé, dont Container Manager affiche l'éta
 
 Les journaux de chaque conteneur tournent : trois fichiers de 10 Mio au plus (`docker compose logs <conteneur>` lit le plus récent). Une saturation du tas arrête le serveur (`Terminating due to java.lang.OutOfMemoryError` dans son journal) ; la politique `restart: unless-stopped` le relance.
 
-Le conteneur `argos` est durci : le code de l'application appartient à root, le système de fichiers racine est en lecture seule (seul `/tmp`, en mémoire, est inscriptible), aucune capacité système n'est accordée et l'élévation de privilèges est interdite.
+Tous les conteneurs sont durcis (EXP-12, EXP-16) : système de fichiers racine en lecture seule, aucune capacité système, élévation de privilèges interdite. Seuls restent inscriptibles :
+
+| Conteneur | Utilisateur | Emplacements inscriptibles |
+|---|---|---|
+| `argos` | `argos` (1001) ; code de l'application à root | `/tmp` (en mémoire) |
+| `postgres` | `postgres` (999) | volume `argos-pgdata`, `/tmp` et `/var/run/postgresql` (en mémoire) |
+| `keycloak` | `keycloak` (1000), image optimisée | `/tmp` et `/opt/keycloak/data` (en mémoire) ; données dans la base `keycloak` |
+| `ollama` | `root`, sans capacité | volume `argos-ollama`, `/tmp` (en mémoire) |
+
+Les emplacements en mémoire sont vidés à chaque redémarrage. Un volume `argos-pgdata` créé par l'image `postgres` lui appartient déjà. Si ses fichiers appartiennent à un autre utilisateur (copie manuelle), `postgres` s'arrête sur `Permission denied` ; rendez-les à l'utilisateur 999 avant de redémarrer :
+
+```bash
+sudo docker compose stop postgres
+sudo docker run --rm -v argos_argos-pgdata:/var/lib/postgresql postgres:18 chown -R 999:999 /var/lib/postgresql
+sudo docker compose up -d postgres
+```
 
 ## Dimensionnement du NAS
 
@@ -267,6 +284,7 @@ Commande dédiée, hors de l'image (Maven et Node.js installés) : `mvn -B -f ar
 | `maven:3.9-eclipse-temurin-17` | construction du serveur | tag |
 | `eclipse-temurin:17-jre` | exécution d'Argos | tag |
 | `postgres:18` | base de données (`compose.yaml`) | tag |
+| `quay.io/keycloak/keycloak:${ARGOS_KEYCLOAK_VERSION:-26.7.4}` | base de l'image Keycloak optimisée du profil `idp-local` (`deploiement/keycloak/Dockerfile`) | tag |
 | `ollama/ollama:${ARGOS_OLLAMA_VERSION:-0.12.6}` | modèle d'IA local, désactivé par défaut (`compose.yaml`) | tag |
 
 [DÉCISION — porteur du projet, 2026-11-19 (H2)] Les images de base Docker restent épinglées par tag, sans empreinte (digest). Un tag désigne une ligne de versions (`22`, `3.9`, `17`, `18`) : la reconstruction de l'image (`docker compose up -d --build`, ou `docker compose build --pull` pour forcer le téléchargement) reçoit les correctifs publiés sur cette ligne. En contrepartie, deux constructions à des dates différentes peuvent partir d'images de base différentes ; le contrôle des licences et les tests portent sur le serveur, non sur le contenu des images de base.
