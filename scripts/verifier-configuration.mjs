@@ -22,9 +22,9 @@ export const SERVICE_APPLICATIF = 'argos';
 
 const VARIABLE_ARGOS = /\$\{(ARGOS_[A-Z0-9_]+)/g;
 // « $${NOM} » est un dollar échappé (variable lue par le conteneur, pas par Compose) : il est ignoré.
-const INTERPOLATION_COMPOSE = /(?<!\$)\$\{([A-Za-z_][A-Za-z0-9_]*)/g;
+const INTERPOLATION_COMPOSE = /(?<!\$)\$\{([A-Za-z_]\w*)/g;
 const PROFIL_HORS_PRODUCTION = /^%(?!prod\.)[^.]+\./;
-const DECLARATION_MODELE = /^#?\s*([A-Za-z_][A-Za-z0-9_]*)=/;
+const DECLARATION_MODELE = /^#?\s*([A-Za-z_]\w*)=/;
 const INDENTATION_SERVICE = 2;
 const INDENTATION_CLE_SERVICE = 4;
 const INDENTATION_VARIABLE = 6;
@@ -65,7 +65,7 @@ export function variablesService(compose, service) {
       dansEnvironnement = contenu === 'environment:';
       continue;
     }
-    const cle = /^([A-Za-z_][A-Za-z0-9_]*):/.exec(contenu);
+    const cle = /^([A-Za-z_]\w*):/.exec(contenu);
     if (dansEnvironnement && decalage === INDENTATION_VARIABLE && cle) variables.add(cle[1]);
   }
   return variables;
