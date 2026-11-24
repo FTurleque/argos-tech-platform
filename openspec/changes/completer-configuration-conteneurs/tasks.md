@@ -60,6 +60,7 @@ Pile complète (`ia` et `idp-local`) démarrée le 2026-11-24 sur un PC Windows 
 - `docker compose ps` : `postgres`, `keycloak`, `argos` et `ollama` `healthy` ; IHM servie (200), API protégée (401 sans jeton), `/q/health/ready` `UP` ;
 - `docker stats`, pile au repos : `argos` 315,7 Mio / 1 Gio, `keycloak` 614,2 Mio / 768 Mio, `ollama` 10,4 Mio / 2,5 Gio (modèle non chargé), `postgres` 80,5 Mio / 512 Mio ;
 - `SHOW max_connections` : 40 ; 8 connexions clientes au repos ;
+- non-régression : campagne E2E locale (`npm --prefix e2e test`, JDK 17), 34 parcours sur 34 verts (préparation, MCP, portail web, desktop) ;
 - non exécuté : la même pile sur le NAS, une connexion OIDC complète (les adresses de retour du client `argos-ui` visent le port 8088 du poste du porteur), la réception d'un e-mail par un relais SMTP.
 
 ## Workflow follow-up
