@@ -33,7 +33,7 @@ Règles : aucune classe de production déplacée ; aucun comportement du desktop
 
 ## 5. Intégration continue
 
-- [ ] 5.1 Ajouter au workflow de `mettre-en-place-integration-continue` les étapes `npm ci` + `npm run typecheck` pour `e2e` et vérifier que `npm run check` du desktop inclut le contrôle de types — couvre AUD-QUA-19, AUD-TST-26 — vérification : étapes vertes sur une pull request ; une erreur de type introduite rend le statut rouge
+- [x] 5.1 Ajouter au workflow de `mettre-en-place-integration-continue` les étapes `npm ci` + `npm run typecheck` pour `e2e` et vérifier que `npm run check` du desktop inclut le contrôle de types — couvre AUD-QUA-19, AUD-TST-26 — vérification : étapes vertes sur une pull request ; une erreur de type introduite rend le statut rouge
 - [x] 5.2 Mettre à jour `README.md` (« Vérifications locales » : `typecheck` de `e2e`) et arc42 §8.11 (vérifications de types exécutées en intégration continue) — vérification : `node scripts/verifier-docs.mjs` sans erreur
 
 ## 6. Vérifications d'intégration
@@ -53,6 +53,7 @@ Poste du mainteneur, 2026-11-24 :
 - 3.3 : `argos-desktop/README.md` n'existe pas : la commande `check` est documentée dans `README.md` (« Vérifications locales ») et arc42 §8.16.
 - 4.1, 4.2 : `e2e/support/maven.mjs` (`ARGOS_E2E_MVN`, puis `MAVEN_HOME`/`M2_HOME`, puis emplacements fixes) ; `node --test "e2e/performance/*.test.mjs"` : 16 tests, 0 échec, dont 9 pour la résolution et le lancement (Playwright sans Maven trouvé : script qui échoue avec le message explicite, seulement au démarrage du serveur) ; `grep -n "shell:" e2e/performance/mesurer-p95.mjs` vide ; lancement réel de `mvn.cmd -v` par `C:\Windows\System32\cmd.exe` réussi sous Windows. `playwright.config.ts` construit la commande du serveur à partir du chemin résolu.
 - 6.2 : `mvn -B -f argos-server/pom.xml -P integration-continue clean verify` (JDK 17) : BUILD SUCCESS, 656 tests ; `npm --prefix argos-desktop run check`, `npm --prefix e2e run typecheck` et `node scripts/verifier-nommage.mjs` (538 fichiers, 0 violation) verts.
+- 5.1 : intégration continue, exécution [45378655013](https://github.com/FTurleque/argos-tech-platform/actions/runs/45378655013) de la PR #32 : étapes `npm ci` et `npm run typecheck` de `e2e` vertes dans le job outils ; `npm run check` du job desktop exécute `tsc -p tsconfig.json` ; `ModuleBoundariesTest` vert dans `mvn clean verify` (656 tests).
 - `openspec validate verifier-types-et-frontieres-modules --strict` : valide ; `node scripts/verifier-docs.mjs` : aucune erreur.
 
 ## Matrice de traçabilité

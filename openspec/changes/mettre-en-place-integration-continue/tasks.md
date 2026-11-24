@@ -8,11 +8,11 @@ Règles : aucun comportement applicatif modifié ; outils sous licence permissiv
 
 ## 1. Workflow de base
 
-- [ ] 1.1 Créer sous `.github/workflows/` un workflow GitHub Actions déclenché sur push de `main` et sur pull request, jeton `contents: read`, actions épinglées par empreinte — couvre AUD-TST-01 — vérification : le workflow apparaît sur une pull request de test
-- [ ] 1.2 Job serveur : Temurin 17 (`actions/setup-java`), cache Maven, `mvn -B -f argos-server/pom.xml clean verify` sur un exécuteur avec Docker — couvre AUD-TST-01, AUD-TST-19 — vérification : job vert ; journal montrant Java 17 et le nombre de tests (654 à `b142695`)
-- [ ] 1.3 Job IHM : `npm ci`, `npm test`, `npm run typecheck`, `npm run build` dans `argos-ui` — couvre AUD-TST-01 — vérification : job vert ; une erreur de type introduite sur une branche de test rend le job rouge
-- [ ] 1.4 Job desktop : `npm ci` puis `npm run check` dans `argos-desktop` — couvre AUD-TST-01 — vérification : job vert
-- [ ] 1.5 Job outils : `node --test scripts/*.test.mjs "e2e/performance/*.test.mjs"`, `node scripts/verifier-docs.mjs`, `node scripts/verifier-nommage.mjs` — couvre AUD-TST-01 — vérification : job vert
+- [x] 1.1 Créer sous `.github/workflows/` un workflow GitHub Actions déclenché sur push de `main` et sur pull request, jeton `contents: read`, actions épinglées par empreinte — couvre AUD-TST-01 — vérification : le workflow apparaît sur une pull request de test
+- [x] 1.2 Job serveur : Temurin 17 (`actions/setup-java`), cache Maven, `mvn -B -f argos-server/pom.xml clean verify` sur un exécuteur avec Docker — couvre AUD-TST-01, AUD-TST-19 — vérification : job vert ; journal montrant Java 17 et le nombre de tests (654 à `b142695`)
+- [x] 1.3 Job IHM : `npm ci`, `npm test`, `npm run typecheck`, `npm run build` dans `argos-ui` — couvre AUD-TST-01 — vérification : job vert ; une erreur de type introduite sur une branche de test rend le job rouge
+- [x] 1.4 Job desktop : `npm ci` puis `npm run check` dans `argos-desktop` — couvre AUD-TST-01 — vérification : job vert
+- [x] 1.5 Job outils : `node --test scripts/*.test.mjs "e2e/performance/*.test.mjs"`, `node scripts/verifier-docs.mjs`, `node scripts/verifier-nommage.mjs` — couvre AUD-TST-01 — vérification : job vert
 - [x] 1.6 Documentation du groupe : `README.md` (« Vérifications locales » : renvoi au workflow, commandes identiques), arc42 §8.11 (barrière d'intégration continue), arc42 §11.2 (dette : absence de CI retirée) — vérification : `node scripts/verifier-docs.mjs` sans erreur
 
 ## 2. Garde du JDK et sécurité des dépendances npm
@@ -32,7 +32,7 @@ Règles : aucun comportement applicatif modifié ; outils sous licence permissiv
 
 - [x] 4.1 Ajouter l'étape de garde des migrations (`fetch-depth: 0`, `git diff --name-status <base>...HEAD -- argos-server/src/main/resources/db/migration`, échec sur tout statut autre que `A`) — couvre AUD-DEP-20 — vérification : pull request de test modifiant une migration existante → rouge ; ajout d'une migration → vert
 - [x] 4.2 Écrire `scripts/verifier-licences-serveur.test.mjs` (`node:test`) sur inventaires factices : dépendance GPL refusée, licence absente refusée, BOM absent en erreur, inventaire conforme accepté — couvre AUD-DEP-22 — vérification : `node --test scripts/*.test.mjs` passe et exécute les quatre cas
-- [ ] 4.3 Ajouter le job `mvn -B -f argos-server/pom.xml -P licences validate`, filtré sur `argos-server/pom.xml` et `scripts/verifier-licences-serveur.mjs` — couvre AUD-DEP-22 — vérification : job déclenché par une modification de `pom.xml` sur une branche de test, ignoré sinon
+- [x] 4.3 Ajouter le job `mvn -B -f argos-server/pom.xml -P licences validate`, filtré sur `argos-server/pom.xml` et `scripts/verifier-licences-serveur.mjs` — couvre AUD-DEP-22 — vérification : job déclenché par une modification de `pom.xml` sur une branche de test, ignoré sinon
 - [x] 4.4 Documentation du groupe : arc42 §8.7 (garde mécanique de la règle d'ADR-0032), `argos-server/README.md` (licences : contrôle en intégration continue) — vérification : `node scripts/verifier-docs.mjs` sans erreur
 
 ## 5. Veille des dépendances et protection de branche
@@ -44,9 +44,18 @@ Règles : aucun comportement applicatif modifié ; outils sous licence permissiv
 ## 6. Vérifications d'intégration
 
 - [x] 6.1 Valider le changement — vérification : `openspec validate mettre-en-place-integration-continue --strict` réussit et `node scripts/verifier-docs.mjs` sans erreur
-- [ ] 6.2 Contrôler le critère de sortie du sprint 1 pour la part de ce changement (workflow, JDK 17, JaCoCo et seuil, garde des migrations, licences, Renovate) — vérification : liste cochée dans les preuves de ce fichier, avec liens vers les exécutions du workflow
+- [x] 6.2 Contrôler le critère de sortie du sprint 1 pour la part de ce changement (workflow, JDK 17, JaCoCo et seuil, garde des migrations, licences, Renovate) — vérification : liste cochée dans les preuves de ce fichier, avec liens vers les exécutions du workflow
 
 ## Preuves
+
+Intégration continue, PR [#32](https://github.com/FTurleque/argos-tech-platform/pull/32), exécution [45378655013](https://github.com/FTurleque/argos-tech-platform/actions/runs/45378655013) du commit `9dfaed2` (2026-11-24) : les sept vérifications sont vertes.
+
+- 1.1 : workflow « Intégration continue » déclenché par la pull request, jeton `contents: read`, actions épinglées par empreinte de commit.
+- 1.2 : job serveur sur `openjdk version "17.0.21"` (Temurin 17), enforcer `garde-jdk` exécuté, `mvn clean verify` : 656 tests, 0 échec, 1 ignoré ; « All coverage checks have been met » ; artefact `couverture-jacoco` publié.
+- 1.3 à 1.5 : jobs IHM (test, vue-tsc, build, `npm audit`), desktop (`npm run check`, `npm audit`) et outils (tests des scripts, contrôle documentaire, nommage, types et `npm audit` de `e2e`) verts ; installations `npm ci --ignore-scripts`.
+- 4.1 : job « Migrations fusionnées et fichiers modifiés » vert (aucune migration modifiée par la branche).
+- 4.3 : job « Licences des dépendances du serveur » exécuté et vert, la branche modifiant `argos-server/pom.xml` ; il est ignoré quand ni `pom.xml` ni le script ne changent (condition `needs.changements.outputs.licences`).
+- SonarCloud (quality gate du dépôt) : passée, 0 nouveau problème.
 
 Poste du mainteneur, 2026-11-24, JDK 17.0.7, Docker 29.9.3 :
 
@@ -66,7 +75,7 @@ Poste du mainteneur, 2026-11-24, JDK 17.0.7, Docker 29.9.3 :
 
 | Constat | Exigence / scénario | Conception / diagramme | Tâche | Test ou preuve | État de la preuve |
 |---|---|---|---|---|---|
-| AUD-TST-01 | aucune (`skip_specs`) | design.md DC-1, D1 | 1.1 à 1.6, 2.3, 5.2 | exécutions du workflow ; pull request en échec non fusionnable | non exécuté |
+| AUD-TST-01 | aucune (`skip_specs`) | design.md DC-1, D1 | 1.1 à 1.6, 2.3, 5.2 | exécutions du workflow ; pull request en échec non fusionnable | workflow vert (exécution 45378655013) ; protection de branche à activer par le porteur |
 | AUD-TST-19 | aucune | design.md D2 | 1.2, 2.1, 2.2 | journal du job serveur (Java 17, `clean verify`) ; refus de l'enforcer sous JDK 21/24 | non exécuté |
 | AUD-TST-02 | aucune | design.md D3 | 3.1 à 3.3 | rapport JaCoCo publié ; build en échec sous 85 % des lignes ou 70 % des branches | non exécuté |
 | AUD-DEP-20 | aucune | design.md D4, DC-1 | 2.4, 4.1, 4.4 | pull request de test modifiant une migration → rouge | non exécuté |
