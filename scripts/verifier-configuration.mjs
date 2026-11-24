@@ -109,7 +109,7 @@ export function ecartsParite({ proprietes, compose, modele }) {
       ecarts.push(`${variable} : interpolée par ${FICHIER_COMPOSE}, absente de ${FICHIER_MODELE}`);
     }
   }
-  return [...new Set(ecarts)].sort();
+  return [...new Set(ecarts)].sort((premier, second) => premier.localeCompare(second, 'fr'));
 }
 
 /** Écarts de parité des fichiers du dépôt. */
