@@ -4,7 +4,8 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import {
-  clesServices, ecartsDepot, ecartsDurcissement, ecartsParite, variablesInterpolees, variablesProduction, variablesService,
+  clesServices, ecartsDepot, ecartsDurcissement, ecartsOptionsKeycloak, ecartsParite, optionsConstructionKeycloak,
+  variablesInterpolees, variablesProduction, variablesService,
 } from './verifier-configuration.mjs';
 
 const PROPRIETES = [
@@ -119,7 +120,51 @@ test('EXP-16-S1 : une capacité réajoutée ou un service sans fusion est nommé
 test('EXP-16-S1 : un fragment sans interdiction d\'élévation de privilèges est signalé', () => {
   const compose = COMPOSE_DURCI.replace('    - no-new-privileges:true\n', '');
   assert.deepEqual(ecartsDurcissement(compose), [
-    'x-durcissement de compose.yaml : « - no-new-privileges:true » absent',
+    'x-durcissement de compose.yaml : « security_opt: [no-new-privileges:true] » absent',
+  ]);
+});
+
+test('EXP-16-S1 : read_only à false ou ALL hors de cap_drop ne passent pas le contrôle du fragment', () => {
+  const compose = COMPOSE_DURCI
+    .replace('  read_only: true', '  read_only: false')
+    .replace('  cap_drop:\n    - ALL\n  security_opt:', '  cap_drop:\n    - NET_RAW\n  security_opt:\n    - ALL');
+  assert.deepEqual(ecartsDurcissement(compose), [
+    'x-durcissement de compose.yaml : « cap_drop: [ALL] » absent',
+    'x-durcissement de compose.yaml : « read_only: true » absent',
+  ]);
+});
+
+const DOCKERFILE_KEYCLOAK = [
+  'ARG VERSION_KEYCLOAK',
+  'FROM quay.io/keycloak/keycloak:${VERSION_KEYCLOAK} AS construction',
+  'ENV KC_DB=postgres \\',
+  '    KC_HEALTH_ENABLED=true',
+  'RUN /opt/keycloak/bin/kc.sh build',
+].join('\n');
+
+const COMPOSE_KEYCLOAK = [
+  'services:',
+  '  keycloak:',
+  '    environment:',
+  '      KC_DB: postgres',
+  '      KC_HEALTH_ENABLED: "true"',
+  '      KC_HTTP_ENABLED: "true"',
+].join('\n');
+
+test('les options de construction KC_* sont lues sur une instruction ENV multiligne', () => {
+  assert.deepEqual([...optionsConstructionKeycloak(DOCKERFILE_KEYCLOAK)],
+    [['KC_DB', 'postgres'], ['KC_HEALTH_ENABLED', 'true']]);
+});
+
+test('EXP-16-S3 : options de construction et d\'exécution de Keycloak concordantes', () => {
+  assert.deepEqual(ecartsOptionsKeycloak(DOCKERFILE_KEYCLOAK, COMPOSE_KEYCLOAK), []);
+});
+
+test('EXP-16-S3 : une option de construction absente ou divergente à l\'exécution est nommée', () => {
+  const compose = COMPOSE_KEYCLOAK.replace('      KC_DB: postgres\n', '').replace('"true"', '"false"');
+  assert.deepEqual(ecartsOptionsKeycloak(DOCKERFILE_KEYCLOAK, compose), [
+    'KC_DB : postgres dans deploiement/keycloak/Dockerfile, absente dans le service keycloak de compose.yaml',
+    'KC_HEALTH_ENABLED : true dans deploiement/keycloak/Dockerfile, false dans le service keycloak de compose.yaml',
   ]);
 });
 

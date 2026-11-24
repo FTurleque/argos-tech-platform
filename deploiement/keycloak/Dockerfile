@@ -13,4 +13,7 @@ ENV KC_DB=postgres \
 RUN /opt/keycloak/bin/kc.sh build
 
 FROM quay.io/keycloak/keycloak:${VERSION_KEYCLOAK}
-COPY --from=construction /opt/keycloak/ /opt/keycloak/
+# Contenu de l'installation propriété de root, lisible par le groupe 0 de l'utilisateur keycloak : comme le code d'Argos
+# (EXP-12), elle reste non modifiable même sans racine en lecture seule. Les seuls emplacements écrits à l'exécution,
+# /tmp et /opt/keycloak/data, sont des tmpfs déclarés dans compose.yaml.
+COPY --from=construction --chown=0:0 /opt/keycloak/ /opt/keycloak/
