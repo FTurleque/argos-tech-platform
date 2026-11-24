@@ -50,7 +50,7 @@ public class CyclesDeVie {
                 remplacer(produit, cycles, maintenant);
                 etats.put(produit, "A_JOUR");
             } catch (ClientEndoflife.SourceIndisponible erreur) {
-                LOG.warnf("synchronisation endoflife.date du produit %s en échec : %s", produit, erreur.getMessage());
+                LOG.warnf(erreur, "synchronisation endoflife.date du produit %s en échec : %s", produit, erreur.getMessage());
                 echecOuJournaliser(produit, erreur.getMessage(), maintenant);
                 etats.put(produit, "EN_ERREUR");
             } catch (IllegalStateException erreur) {

@@ -28,6 +28,7 @@ import org.jboss.logging.Logger;
 import io.argos.ingestion.SourceException;
 import io.argos.ingestion.legi.ArchivesJorf;
 import io.argos.ingestion.legi.TexteJorf;
+import io.argos.observabilite.TacheObservee;
 import io.quarkus.scheduler.Scheduled;
 
 /**
@@ -108,6 +109,7 @@ public class CollecteReglementaire {
     @ConfigProperty(name = "argos.alerting.fuseau")
     String fuseau;
 
+    @TacheObservee
     @Scheduled(identity = "collecte-reglementaire", cron = "{argos.reglementaire.collecte.cron}",
             timeZone = "{argos.alerting.fuseau}", concurrentExecution = Scheduled.ConcurrentExecution.SKIP)
     void quotidien() {
@@ -138,7 +140,7 @@ public class CollecteReglementaire {
         try {
             index = archives.index();
         } catch (SourceException injoignable) {
-            LOG.warnf("collecte réglementaire en échec, index injoignable : %s", injoignable.getMessage());
+            LOG.warnf(injoignable, "collecte réglementaire en échec, index injoignable : %s", injoignable.getMessage());
             return indexInjoignable(jours, suivis, injoignable, maintenant);
         }
         Execution execution = new Execution(index, rejeu, maintenant);
@@ -193,7 +195,7 @@ public class CollecteReglementaire {
             lecture = archives.lire(jour, execution.index(), execution.rejeu() ? Set.of() : suivi.archivesLues());
         } catch (SourceException echec) {
             boolean abandon = !execution.rejeu() && !"COLLECTE".equals(suivi.etat()) && suivi.echecs() + 1 >= tentativesMax;
-            LOG.warnf("collecte réglementaire du %s en échec%s : %s", jour, abandon ? ", jour abandonné" : "", echec.getMessage());
+            LOG.warnf(echec, "collecte réglementaire du %s en échec%s", jour, abandon ? ", jour abandonné" : "");
             return echecDuJour(jour, abandon, echec, execution, passage);
         }
         integrerLecture(jour, lecture, execution, passage);

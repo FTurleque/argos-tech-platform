@@ -19,6 +19,7 @@ import io.argos.ingestion.web.LecteurFlux;
 import io.argos.ingestion.web.LecteurPage;
 import io.argos.ingestion.web.RecuperateurWeb;
 import io.argos.ingestion.web.RecuperationRefusee;
+import io.argos.observabilite.TacheObservee;
 import io.argos.workspace.RegleViolee;
 import io.quarkus.scheduler.Scheduled;
 
@@ -80,6 +81,7 @@ public class CollecteWeb {
     /** Horloge du planificateur, remplaçable par les tests. */
     Supplier<Instant> horloge = Instant::now;
 
+    @TacheObservee
     @Scheduled(identity = "collecte-veille-web", every = "{argos.veille-web.cadence}",
             concurrentExecution = Scheduled.ConcurrentExecution.SKIP)
     void planifier() {
@@ -150,7 +152,7 @@ public class CollecteWeb {
         try {
             return collecteAExecuter.get();
         } catch (RecuperationRefusee refus) {
-            LOG.warnf("%s de la source web %s refusée : %s (%s)", collecte, sourceId, refus.motif(), refus.getMessage());
+            LOG.warnf(refus, "%s de la source web %s refusée : %s (%s)", collecte, sourceId, refus.motif(), refus.getMessage());
             return echec(sourceId, refus);
         } catch (IllegalStateException erreur) {
             LOG.errorf(erreur, "%s de la source web %s interrompue par une panne d'accès aux données", collecte, sourceId);

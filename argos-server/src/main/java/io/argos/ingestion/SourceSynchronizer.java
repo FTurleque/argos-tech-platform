@@ -75,7 +75,7 @@ public class SourceSynchronizer {
                 return counters.report(sourceId, "SUCCEEDED", attempts, null);
             } catch (SourceException error) {
                 store.recordAttempt(runId, attempts, error);
-                LOG.warnf("synchronisation %s, tentative %d en échec (%s) : %s", sourceId, attempts, error.kind(),
+                LOG.warnf(error, "synchronisation %s, tentative %d en échec (%s) : %s", sourceId, attempts, error.kind(),
                         error.getMessage());
                 if (error.kind() == SourceException.Kind.PERMANENT) {
                     return failed(sourceId, runId, attempts, "PERMANENT", error, counters);

@@ -9,6 +9,7 @@ import jakarta.inject.Inject;
 import org.eclipse.microprofile.config.inject.ConfigProperty;
 import org.jboss.logging.Logger;
 
+import io.argos.observabilite.TacheObservee;
 import io.quarkus.scheduler.Scheduled;
 
 /**
@@ -29,6 +30,7 @@ public class PurgeActivite {
     @ConfigProperty(name = "argos.activite.conservation-mois", defaultValue = "13")
     int conservationMois;
 
+    @TacheObservee
     @Scheduled(identity = "argos-activite-purge", cron = "{argos.activite.purge.cron}",
             timeZone = "{argos.alerting.fuseau}", concurrentExecution = Scheduled.ConcurrentExecution.SKIP)
     void planifiee() {

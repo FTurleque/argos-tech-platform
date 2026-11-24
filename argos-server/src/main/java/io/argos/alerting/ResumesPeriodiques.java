@@ -27,6 +27,7 @@ import io.quarkus.narayana.jta.QuarkusTransactionException;
 import io.quarkus.scheduler.Scheduled;
 
 import io.argos.impact.ImpactQueries;
+import io.argos.observabilite.TacheObservee;
 
 /**
  * Résumés quotidiens et hebdomadaires (ALR-04) : quotidien à 08:00, hebdomadaire le lundi à 08:00,
@@ -69,12 +70,14 @@ public class ResumesPeriodiques {
     private record Boite(UUID compte, String canal) {
     }
 
+    @TacheObservee
     @Scheduled(identity = "argos-resume-quotidien", cron = "{argos.alerting.resume-quotidien.cron}",
             timeZone = "{argos.alerting.fuseau}", concurrentExecution = Scheduled.ConcurrentExecution.SKIP)
     void quotidien() {
         composer(RegleAlerte.DAILY, Instant.now());
     }
 
+    @TacheObservee
     @Scheduled(identity = "argos-resume-hebdomadaire", cron = "{argos.alerting.resume-hebdomadaire.cron}",
             timeZone = "{argos.alerting.fuseau}", concurrentExecution = Scheduled.ConcurrentExecution.SKIP)
     void hebdomadaire() {

@@ -20,6 +20,7 @@ import org.jboss.logging.Logger;
 
 import io.argos.impact.RapprochementOpportunites;
 import io.argos.impact.ResumeOpportunite;
+import io.argos.observabilite.TacheObservee;
 import io.argos.regintel.EcheancesReglementaires;
 import io.argos.workspace.suivi.SuivisProfil;
 import io.quarkus.scheduler.Scheduled;
@@ -67,6 +68,7 @@ public class RappelsOpportunites {
     @ConfigProperty(name = "argos.alerting.fuseau")
     String fuseau;
 
+    @TacheObservee
     @Scheduled(identity = "rappels-profil-artiste", cron = "{argos.profil-artiste.rappels.cron}",
             timeZone = "{argos.alerting.fuseau}", concurrentExecution = Scheduled.ConcurrentExecution.SKIP)
     void quotidien() {

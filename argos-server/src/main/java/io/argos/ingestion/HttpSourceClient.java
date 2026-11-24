@@ -82,7 +82,7 @@ public class HttpSourceClient {
                 Duration delay = Duration.between(ZonedDateTime.now(date.getZone()), date);
                 return Optional.of(delay.isNegative() ? Duration.ZERO : delay);
             } catch (DateTimeParseException notDate) {
-                LOG.debugf("en-tête Retry-After ignorée : ni nombre de secondes ni date HTTP (%s)", notDate.getMessage());
+                LOG.debugf(notDate, "en-tête Retry-After ignorée : ni nombre de secondes ni date HTTP (%s)", notDate.getMessage());
                 return Optional.empty();
             }
         }

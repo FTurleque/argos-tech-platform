@@ -97,7 +97,7 @@ public class SourcesWeb {
             titre = SourceWeb.FLUX.equals(demandeValidee.type()) ? lecteurFlux.lire(contenu.octets()).titre()
                     : lecteurPage.lire(contenu.octets(), contenu.typeContenu(), contenu.adresseFinale().toString()).titre();
         } catch (RecuperationRefusee refus) {
-            LOG.infof("ajout de source web refusé pour le compte %s : %s (%s)", compteId, refus.motif(), refus.getMessage());
+            LOG.infof(refus, "ajout de source web refusé pour le compte %s : %s (%s)", compteId, refus.motif(), refus.getMessage());
             throw new DonneeInvalide(refus.motif().name(), refus.message(), "adresse");
         }
         String libelle = demandeValidee.libelle() != null ? demandeValidee.libelle()

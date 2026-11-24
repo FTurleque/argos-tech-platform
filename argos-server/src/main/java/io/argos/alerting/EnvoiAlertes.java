@@ -11,6 +11,7 @@ import java.util.ArrayList;
 import java.util.Collection;
 import java.util.HashMap;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
@@ -24,8 +25,12 @@ import jakarta.enterprise.inject.Instance;
 import jakarta.inject.Inject;
 
 import org.eclipse.microprofile.config.inject.ConfigProperty;
+import org.eclipse.microprofile.health.Readiness;
 import org.jboss.logging.Logger;
 
+import io.argos.observabilite.TacheObservee;
+import io.micrometer.core.instrument.Counter;
+import io.micrometer.core.instrument.MeterRegistry;
 import io.quarkus.narayana.jta.QuarkusTransaction;
 import io.quarkus.narayana.jta.QuarkusTransactionException;
 import io.quarkus.scheduler.Scheduled;
@@ -39,6 +44,9 @@ import io.quarkus.scheduler.Scheduled;
  * <p>Chaque message est réservé avant sa diffusion ({@code FOR UPDATE SKIP LOCKED}, puis échéance
  * repoussée du {@link #BAIL}) : deux traitements concurrents ne l'envoient pas deux fois, et aucun
  * verrou ni aucune transaction n'est tenu pendant l'appel au relais SMTP.
+ *
+ * <p>Chaque tentative est comptée dans {@code argos_alertes_envois_total{issue}} (EXP-14) ; après chaque passage
+ * planifié, la file est relevée par {@link SanteEnvoiAlertes}.
  */
 @ApplicationScoped
 public class EnvoiAlertes {
@@ -51,6 +59,13 @@ public class EnvoiAlertes {
     @Inject
     @Any
     Instance<CanalDiffusion> canaux;
+
+    @Inject
+    @Readiness
+    SanteEnvoiAlertes sante;
+
+    @Inject
+    MeterRegistry registre;
 
     @ConfigProperty(name = "argos.alerting.envoi.tentatives-max")
     int tentativesMax;
@@ -70,10 +85,13 @@ public class EnvoiAlertes {
     /** Issue d'une tentative. */
     public enum Issue { ENVOYEE, A_RETENTER, EN_ECHEC, IGNOREE }
 
+    @TacheObservee
     @Scheduled(identity = "argos-envoi-alertes", every = "{argos.alerting.envoi.intervalle}",
             concurrentExecution = Scheduled.ConcurrentExecution.SKIP)
     void planifie() {
-        traiterEnAttente(Instant.now());
+        Instant maintenant = Instant.now();
+        traiterEnAttente(maintenant);
+        sante.actualiser(maintenant);
     }
 
     /** Diffuse les messages en attente dont l'échéance de tentative est passée. */
@@ -106,7 +124,10 @@ public class EnvoiAlertes {
         Map<String, CanalDiffusion> parCode = parCode();
         Map<UUID, Issue> issues = new HashMap<>();
         for (UUID id : ids) {
-            tenterOuJournaliser(id, parCode, maintenant).ifPresent(issue -> issues.put(id, issue));
+            tenterOuJournaliser(id, parCode, maintenant).ifPresent(issue -> {
+                issues.put(id, issue);
+                compter(issue);
+            });
         }
         return issues;
     }
@@ -172,6 +193,11 @@ public class EnvoiAlertes {
             LOG.warnf(panne, "enregistrement de l'envoi de l'alerte %s impossible", id);
             return Optional.of(new Echec("diffusion impossible : " + panne.getClass().getSimpleName(), false));
         }
+    }
+
+    private void compter(Issue issue) {
+        Counter.builder("argos.alertes.envois").description("Tentatives d'envoi des alertes et résumés, par issue")
+                .tag("issue", issue.name().toLowerCase(Locale.ROOT)).register(registre).increment();
     }
 
     /** Délai avant la tentative suivante : délai initial doublé à chaque échec, plafonné. */

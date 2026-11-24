@@ -8,9 +8,12 @@ import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.enterprise.event.Event;
 import jakarta.inject.Inject;
 
+import org.eclipse.microprofile.health.Readiness;
 import org.jboss.logging.Logger;
 
+import io.argos.ingestion.SanteSources;
 import io.argos.ingestion.SourceSynchronizer;
+import io.argos.observabilite.TacheObservee;
 import io.quarkus.scheduler.Scheduled;
 
 /**
@@ -23,7 +26,8 @@ import io.quarkus.scheduler.Scheduled;
  * sautée : l'exclusion repose sur l'index unique {@code sync_run_one_running} et le battement de cœur
  * ({@code argos.ingestion.running-expiry}), pas sur le planificateur (COL-09-S2). Une source dégradée est
  * retentée à chaque échéance (COL-09-S4). Une panne d'accès aux données sur une source est journalisée et n'empêche
- * pas la synchronisation des autres.
+ * pas la synchronisation des autres. Le passage relève ensuite le nombre de sources par état
+ * ({@link SanteSources#actualiser()}, EXP-14).
  *
  * <p>Le planificateur est désactivé dans le profil de test ; la pile E2E désactive la tâche
  * ({@code ARGOS_INGESTION_PLANIFICATION_CADENCE=off}).
@@ -44,6 +48,11 @@ public class SynchronisationPlanifiee {
     @Inject
     Event<EcheanceSynchronisation> echeances;
 
+    @Inject
+    @Readiness
+    SanteSources santeSources;
+
+    @TacheObservee
     @Scheduled(identity = "signal-synchronisation-sources", every = "{argos.ingestion.planification.cadence}",
             concurrentExecution = Scheduled.ConcurrentExecution.SKIP)
     void planifier() {
@@ -69,6 +78,7 @@ public class SynchronisationPlanifiee {
                 LOG.errorf(erreur, "synchronisation planifiée de la source %s interrompue", source);
             }
         }
+        santeSources.actualiser();
         LOG.infof("synchronisation planifiée du %s : %d source(s) synchronisée(s), sautées %s, en erreur %s : %s",
                 instant, rapports.size(), sautees, enErreur, rapports);
         return new Bilan(instant, List.copyOf(rapports), List.copyOf(sautees), List.copyOf(enErreur));

@@ -130,7 +130,7 @@ Le MDC est propre au fil d'exécution : l'intercepteur le pose et le nettoie aut
 
 ## Gestion des erreurs et reprise
 
-L'instrumentation ne doit jamais faire échouer un traitement : une erreur d'enregistrement de métrique est ignorée et journalisée une fois.
+L'instrumentation ne retient aucune erreur : l'intercepteur journalise l'erreur d'une exécution avec sa pile sous la corrélation de l'exécution, enregistre le résultat `echec`, puis relance l'erreur au planificateur. L'enregistrement des métriques (Micrometer) ne lève pas d'erreur et n'est pas entouré d'une capture. Un contrôle de santé dont la lecture de la base échoue (`IllegalStateException`, panne d'accès aux données) journalise la cause et publie `etat=illisible` en restant `UP` : le contrôle des connexions à la base porte seul l'indisponibilité (INV-3).
 
 ## Observabilité
 
@@ -152,13 +152,13 @@ Aucune cible chiffrée dans les sources. Contrôle : la campagne `npm --prefix e
 - **Statut** : [PROPOSITION]
 - **Choix** : `quarkus-logging-json`, activée en `%prod`.
 - **Alternatives écartées** : format texte enrichi — non exploitable par un outil ; journaux JSON partout — illisibles en développement.
-- **ADR** : couvert par l'ADR candidat « pile d'observabilité » (D3).
+- **ADR** : [ADR-0036](/docs/architecture/adr/0036-pile-observabilite-serveur.md) (Proposé). Un filtre de journal (`masquage-jetons`) remplace tout jeton JWT cité dans un message, y compris par une extension (EXP-13-S4).
 
 ### D2 — Identifiant de corrélation dans le MDC, posé par un filtre et un intercepteur communs
 
 - **Statut** : [PROPOSITION]
-- **Choix** : filtre HTTP (requêtes API et MCP) et intercepteur des méthodes `@Scheduled` ; identifiant créé par le serveur (Q-4 pour l'acceptation d'un en-tête entrant).
-- **Alternatives écartées** : instrumentation manuelle de chaque tâche — 13 copies, oublis.
+- **Choix** : filtre HTTP Vert.x (`observabilite.FiltreCorrelation`, requêtes API, MCP et points d'exploitation) et intercepteur `IntercepteurTaches` lié par l'annotation `@TacheObservee`, que toute méthode `@Scheduled` porte (test d'architecture `TachesObserveesTest`) ; identifiant toujours créé par le serveur et restitué dans l'en-tête `X-Request-Id` ([DÉCISION — porteur du projet, 2026-11-24 (Q-4)]) ; un traitement soumis à un exécuteur reçoit les valeurs du fil appelant (`Correlation.propager`).
+- **Alternatives écartées** : instrumentation manuelle de chaque tâche — 13 copies, oublis ; intercepteur lié directement à `@Scheduled` — impossible, `@Scheduled` n'est pas une liaison d'intercepteur.
 - **ADR** : non : convention à consigner dans arc42 §8.6.
 
 ### D3 — Micrometer avec registre Prometheus ; OpenTelemetry différé
@@ -168,15 +168,15 @@ Aucune cible chiffrée dans les sources. Contrôle : la campagne `npm --prefix e
 - **Justification** : action d'AUD-DEP-07 ; arc42 §8.6 cite Micrometer et OpenTelemetry.
 - **Alternatives écartées** : OpenTelemetry pour métriques et traces dès maintenant — demande un collecteur absent sur le NAS.
 - **Compromis** : un passage ultérieur à OpenTelemetry pour les traces ajoutera une seconde dépendance.
-- **ADR** : candidat à un ADR (statut Proposé) : « Pile d'observabilité du serveur ».
+- **ADR** : [ADR-0036](/docs/architecture/adr/0036-pile-observabilite-serveur.md) (Proposé), « Pile d'observabilité du serveur ».
 
 ### D4 — Protection de `/q/metrics`
 
-- **Statut** : [QUESTION] (Q-1)
+- **Statut** : [DÉCISION — porteur du projet, 2026-11-24 (Q-1) : option B]
 - **Option A** : interface de gestion Quarkus sur un port séparé, non publié par `compose.yaml` (lecture depuis le réseau du projet seulement).
-- **Option B** : permission HTTP exigeant le rôle d'administration plateforme.
-- **Compromis** : A est simple et sans jeton mais demande un collecteur dans le réseau du projet ; B permet la lecture à distance mais demande un jeton OIDC à un collecteur. Attention : avec A, `/q/health` passerait aussi sur le port de gestion, ce qui modifie le contrôle de santé du conteneur (EXP-09, `completer-configuration-conteneurs`).
-- **ADR** : rattaché à l'ADR candidat de D3.
+- **Option B (retenue)** : permission HTTP exigeant l'administrateur plateforme. Le compte Argos porte l'indicateur `admin_plateforme` (ce n'est pas un rôle du jeton) : la politique HTTP `admin-plateforme` (`api.security.PolitiqueAdminPlateforme`) relit le compte du sujet du jeton sur un fil de travail ; anonyme → 401, autre compte → 403.
+- **Compromis** : A est simple et sans jeton mais demande un collecteur dans le réseau du projet ; B permet la lecture à distance mais demande un jeton OIDC à un collecteur. Avec A, `/q/health` passerait aussi sur le port de gestion, ce qui modifierait le contrôle de santé du conteneur (EXP-09, `completer-configuration-conteneurs`) ; B laisse `/q/health` sur le port publié.
+- **ADR** : [ADR-0036](/docs/architecture/adr/0036-pile-observabilite-serveur.md) (Proposé).
 
 ### D5 — Contrôles de santé non bloquants pour les dépendances facultatives
 
@@ -216,4 +216,4 @@ Repris de proposal.md : arc42 §8.5, §8.6 et §11 décrivent une observabilité
 
 ## Questions ouvertes
 
-Q-1 à Q-4 de la proposition ; Q-1 est à trancher avant la tâche 2.2.
+Tranchées par le porteur du projet le 2026-11-24 : Q-1 (option B de D4), Q-2 (retard au-delà de deux intervalles du déclencheur, `argos.observabilite.taches.facteur-retard=2`), Q-4 (identifiant toujours créé par le serveur). Reste ouverte : Q-3 (pile de collecte sur le NAS), non bloquante.

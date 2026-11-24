@@ -17,6 +17,7 @@ import jakarta.inject.Inject;
 import org.eclipse.microprofile.config.inject.ConfigProperty;
 import org.jboss.logging.Logger;
 
+import io.argos.observabilite.TacheObservee;
 import io.argos.regintel.EcheancesReglementaires;
 import io.argos.regintel.FicheAnalyse;
 import io.quarkus.scheduler.Scheduled;
@@ -62,6 +63,7 @@ public class RappelsReglementaires {
     @ConfigProperty(name = "argos.alerting.fuseau")
     String fuseau;
 
+    @TacheObservee
     @Scheduled(identity = "rappels-reglementaires", cron = "{argos.reglementaire.rappels.cron}",
             timeZone = "{argos.alerting.fuseau}", concurrentExecution = Scheduled.ConcurrentExecution.SKIP)
     void quotidien() {

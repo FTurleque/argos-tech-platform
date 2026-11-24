@@ -48,6 +48,7 @@ import io.quarkus.runtime.StartupEvent;
 
 import io.argos.impact.ImpactQueries;
 import io.argos.impact.ImpactsRecorded;
+import io.argos.observabilite.Correlation;
 import io.argos.workspace.subscription.SubscriptionService;
 
 /**
@@ -318,7 +319,8 @@ public class MoteurAlertes {
         }
         Future<String> demande;
         try {
-            demande = EXECUTEUR_IA.submit(() -> resumeur.resumer(evenement.signalId(), evenement.signalTitle(), concernes));
+            demande = EXECUTEUR_IA.submit(Correlation.propager(
+                    () -> resumeur.resumer(evenement.signalId(), evenement.signalTitle(), concernes)));
         } catch (RejectedExecutionException erreur) {
             LOG.infof("résumé IA indisponible pour le signal %s : file d'attente pleine", evenement.signalId());
             return ResumeObtenu.sans("INDISPONIBLE");
@@ -343,7 +345,7 @@ public class MoteurAlertes {
             return ResumeObtenu.sans("INDISPONIBLE");
         } catch (TimeoutException | CancellationException erreur) {
             demande.cancel(true);
-            LOG.infof("résumé IA indisponible pour le signal %s : %s", signalId, erreur.toString());
+            LOG.infof(erreur, "résumé IA indisponible pour le signal %s : %s", signalId, erreur.toString());
             return ResumeObtenu.sans("INDISPONIBLE");
         }
     }

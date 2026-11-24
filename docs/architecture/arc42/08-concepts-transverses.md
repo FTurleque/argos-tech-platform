@@ -124,7 +124,7 @@ Risque résiduel : rebinding DNS entre le contrôle et la connexion ; un mandata
 - curseurs de synchronisation persistés ;
 - table d’échec / DLQ logique au MVP ;
 - replay contrôlé ;
-- health/readiness distincts.
+- health/readiness distincts : `/q/health/ready` compose le contrôle des connexions à la base, seul à pouvoir rendre le serveur indisponible, et des contrôles non bloquants par tâche planifiée et par dépendance facultative (§8.6, EXP-15).
 
 ### Tâches planifiées
 
@@ -146,13 +146,31 @@ Les traitements périodiques sont des méthodes `@Scheduled` de `quarkus-schedul
 | `collecte-profil-artiste` | `signal.opportunite` | `argos.profil-artiste.collecte.cron` | 05:00 |
 | `rappels-profil-artiste` | `alerting` | `argos.profil-artiste.rappels.cron` | 07:00 |
 
-Une échéance manquée (serveur arrêté) n'est pas rattrapée : la tâche s'exécute à l'échéance suivante (ADR-0031). Dans la pile E2E, les tâches qui joindraient une source externe sont désactivées, sauf la synchronisation des sources d'avis et l'import des inventaires, rapprochées (toutes les 5 secondes) et dirigées vers les sources et forges simulées de `e2e/support/sources-simulees.mjs` ([PROPOSITION] PI-1 du changement `automatiser-chaine-veille`).
+Chaque méthode `@Scheduled` porte `@TacheObservee` (module technique `observabilite`, contrôlé par `TachesObserveesTest`) : son exécution reçoit un identifiant de corrélation et le nom de sa tâche dans le MDC, est mesurée et alimente le contrôle de santé `tache-<identité>` (§8.6). Une échéance manquée (serveur arrêté) n'est pas rattrapée : la tâche s'exécute à l'échéance suivante (ADR-0031). Dans la pile E2E, les tâches qui joindraient une source externe sont désactivées, sauf la synchronisation des sources d'avis et l'import des inventaires, rapprochées (toutes les 5 secondes) et dirigées vers les sources et forges simulées de `e2e/support/sources-simulees.mjs` ([PROPOSITION] PI-1 du changement `automatiser-chaine-veille`).
 
 ## 8.6 Observabilité
 
-OpenTelemetry/Micrometer côté Quarkus, logs structurés, métriques et traces lorsque pertinent.
+Pile retenue par [ADR-0036](../adr/0036-pile-observabilite-serveur.md) (Proposé) : journaux JSON de Quarkus, Micrometer avec registre Prometheus ; traçage distribué (OpenTelemetry) différé jusqu'à l'existence d'un collecteur. Exigences EXP-13 à EXP-15, fiche [`exploitation-plateforme`](../../specifications/exploitation-plateforme.md).
 
-Métriques clés : fraîcheur des sources, impacts détectés, couverture SBOM, alertes, latence API/MCP, tokens/coût IA, erreurs de structured output, refus pour politique de confidentialité.
+**Journaux.** En production, une ligne JSON par événement (`quarkus.log.console.json.enabled`), texte en développement et en test. Une erreur se journalise avec l'exception en premier argument (`LOG.errorf(erreur, "…")`) : le journal porte son type, son message, sa pile et ses causes. Aucun jeton, mot de passe ni adresse e-mail n'est journalisé ; le filtre `masquage-jetons` (`observabilite.FiltreJetons`) remplace tout jeton JWT cité dans un message, y compris par une extension.
+
+**Corrélation.** Clés du MDC : `correlation` et, pour une exécution planifiée, `tache`. Le filtre HTTP `FiltreCorrelation` crée l'identifiant de chaque requête (API REST, MCP, points d'exploitation), toujours côté serveur, et le restitue dans l'en-tête `X-Request-Id` ; l'intercepteur des méthodes `@TacheObservee` en crée un par exécution. Un traitement soumis à un exécuteur reçoit les valeurs du fil appelant par `Correlation.propager`.
+
+**Métriques.** `/q/metrics`, format texte Prometheus, réservé à l'administrateur plateforme (politique HTTP `admin-plateforme`). Métriques fournies : HTTP, JVM, pool de connexions (`quarkus.datasource.metrics.enabled`). Métriques métier, préfixe `argos_`, étiquettes bornées — jamais un compte, un espace, un projet, un avis ni une adresse :
+
+| Métrique | Étiquettes | Source |
+|---|---|---|
+| `argos_taches_executions_seconds` (nombre, somme, max) | `tache`, `resultat` (`succes`, `echec`) | intercepteur des tâches planifiées |
+| `argos_taches_derniere_duree_seconds` | `tache` | idem |
+| `argos_sources` | `etat` (`NOMINAL`, `FAILING`, `DEGRADED`) | contrôle `sources-avis`, passage planifié des sources |
+| `argos_alertes_file` | `etat` (`en_attente`, `en_echec` sur 24 h) | contrôle `envoi-alertes`, passage d'envoi |
+| `argos_alertes_envois_total` | `issue` (`envoyee`, `a_retenter`, `en_echec`, `ignoree`) | diffusion des alertes |
+| `argos_ia_appels_total` | `tache` (tâche IA), `issue` | passerelle IA |
+| `argos_ia_duree_seconds` | `tache` | idem |
+
+Métriques reportées : couverture SBOM, impacts détectés, coût IA en jetons (le journal `ia_appel` les trace déjà).
+
+**Santé.** `/q/health/ready` (public, sans donnée d'espace) : contrôle des connexions à la base ; `tache-<identité>` par tâche active (état `a-l-heure`, `jamais-executee`, `en-echec` ou `en-retard`, dernière exécution, retard toléré de deux intervalles du déclencheur, `argos.observabilite.taches.facteur-retard`) ; `sources-avis` ; `envoi-alertes` ; `passerelle-ia`. Ces contrôles restent `UP` et publient leur état dégradé dans leurs données ; seule la base rend le serveur indisponible ([DF-EXP-3](../../specifications/exploitation-plateforme.md#df-exp-3--composition-du-contrôle-de-disponibilité)).
 
 ## 8.7 Persistance
 

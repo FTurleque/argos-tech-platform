@@ -91,6 +91,7 @@ Un préfixe n'est jamais réattribué ; un identifiant d'exigence retiré n'est 
 | DF-ART-1 | organigramme | à quelles conditions un appel est-il présenté comme une opportunité ? | [profil-artiste](profil-artiste.md#df-art-1--un-appel-est-il-proposé-à-lartiste-) |
 | DF-EXP-1 | organigramme | quand une sauvegarde est-elle conservée, et que devient la rotation en cas d'échec ? | [exploitation-plateforme](exploitation-plateforme.md#df-exp-1--une-sauvegarde) |
 | DF-EXP-2 | organigramme | dans quel ordre restaurer pour qu'un utilisateur retrouve son compte et ses espaces ? | [exploitation-plateforme](exploitation-plateforme.md#df-exp-2--une-restauration) |
+| DF-EXP-3 | organigramme | quels contrôles composent `/q/health/ready` et lesquels peuvent rendre le serveur indisponible ? | [exploitation-plateforme](exploitation-plateforme.md#df-exp-3--composition-du-contrôle-de-disponibilité) |
 
 Les diagrammes d'architecture (D-01 à D-13) sont inventoriés dans [`/docs/architecture/diagrams/README.md`](../architecture/diagrams/README.md) ; les diagrammes de conception d'un changement (DC-*) restent dans son `design.md`.
 

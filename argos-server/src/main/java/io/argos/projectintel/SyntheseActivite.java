@@ -25,6 +25,8 @@ import jakarta.inject.Inject;
 import org.eclipse.microprofile.config.inject.ConfigProperty;
 import org.jboss.logging.Logger;
 
+import io.argos.observabilite.Correlation;
+
 /**
  * Synthèse IA marquée de l'activité d'un projet (PIN-04).
  *
@@ -88,7 +90,7 @@ public class SyntheseActivite {
         }
         Future<String> demande;
         try {
-            demande = EXECUTEUR_IA.submit(() -> modele.synthetiser(vue));
+            demande = EXECUTEUR_IA.submit(Correlation.propager(() -> modele.synthetiser(vue)));
         } catch (RejectedExecutionException saturation) {
             return new Synthese("INDISPONIBLE", null, MENTION, vue.periode(), sources);
         }

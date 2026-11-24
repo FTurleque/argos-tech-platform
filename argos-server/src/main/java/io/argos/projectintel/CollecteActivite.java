@@ -17,6 +17,7 @@ import org.eclipse.microprofile.config.inject.ConfigProperty;
 import org.jboss.logging.Logger;
 
 import io.argos.inventory.ProjectDirectory;
+import io.argos.observabilite.TacheObservee;
 import io.argos.scm.ActiviteDepot;
 import io.argos.scm.QuotaEpuise;
 import io.argos.scm.RepositoryActivity;
@@ -66,6 +67,7 @@ public class CollecteActivite {
     @ConfigProperty(name = "argos.activite.delai-apres-echec", defaultValue = "PT1H")
     Duration delaiApresEchec;
 
+    @TacheObservee
     @Scheduled(identity = "argos-activite-collecte", every = "{argos.activite.cadence}",
             concurrentExecution = Scheduled.ConcurrentExecution.SKIP)
     void planifiee() {
@@ -135,11 +137,11 @@ public class CollecteActivite {
         } catch (QuotaEpuise epuisement) {
             surQuota.accept(epuisement);
             store.reporter(projectId, "REPORTEE_QUOTA", epuisement.reprise(), epuisement.getMessage(), maintenant);
-            LOG.infof("collecte de l'activité du projet %s reportée : %s", projectId, epuisement.getMessage());
+            LOG.infof(epuisement, "collecte de l'activité du projet %s reportée : %s", projectId, epuisement.getMessage());
             return Issue.REPORTEE_QUOTA;
         } catch (ScmException erreur) {
             store.reporter(projectId, "ECHEC", maintenant.plus(delaiApresEchec), erreur.getMessage(), maintenant);
-            LOG.warnf("collecte de l'activité du projet %s impossible : %s", projectId, erreur.getMessage());
+            LOG.warnf(erreur, "collecte de l'activité du projet %s impossible : %s", projectId, erreur.getMessage());
             return Issue.ECHEC;
         }
     }

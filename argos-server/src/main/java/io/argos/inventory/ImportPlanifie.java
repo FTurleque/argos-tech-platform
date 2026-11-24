@@ -10,6 +10,7 @@ import jakarta.inject.Inject;
 
 import org.jboss.logging.Logger;
 
+import io.argos.observabilite.TacheObservee;
 import io.argos.scm.QuotaEpuise;
 import io.quarkus.scheduler.Scheduled;
 
@@ -49,6 +50,7 @@ public class ImportPlanifie {
     @Inject
     InventoryStore store;
 
+    @TacheObservee
     @Scheduled(identity = "inventory-import-quotidien", cron = "{argos.inventory.import.cron}",
             timeZone = "{argos.alerting.fuseau}", concurrentExecution = Scheduled.ConcurrentExecution.SKIP)
     void planifie() {

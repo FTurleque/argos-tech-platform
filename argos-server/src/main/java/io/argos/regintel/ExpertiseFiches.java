@@ -181,7 +181,7 @@ public class ExpertiseFiches {
             etat = demandes.etat(demande).orElseThrow(() -> new DonneeInvalide("DEMANDE_INTROUVABLE",
                     "Cette demande d'évolution n'existe pas ou n'est pas accessible.", "adresse"));
         } catch (ScmException erreur) {
-            LOG.infof("état de la demande %s non vérifié : %s", demande.adresse(), erreur.getMessage());
+            LOG.infof(erreur, "état de la demande %s non vérifié : %s", demande.adresse(), erreur.getMessage());
             etat = null;
         }
         String etatLu = etat;

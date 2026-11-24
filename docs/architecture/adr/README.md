@@ -93,6 +93,7 @@ Les ADR enregistrent les décisions architecturales importantes d’ARGOS.
 - [ADR-0031 — Planifier les traitements périodiques avec quarkus-scheduler dans le serveur](0031-planification-quarkus-scheduler.md) — **Accepté**
 - [ADR-0032 — Versionner le schéma PostgreSQL par des migrations SQL Flyway appliquées au démarrage](0032-migrations-flyway.md) — **Accepté**
 - [ADR-0035 — Comptes et isolation des bases de la plateforme](0035-comptes-et-isolation-des-bases.md) — **Proposé** ; précise ADR-0016, ADR-0026 et ADR-0027
+- [ADR-0036 — Pile d'observabilité du serveur](0036-pile-observabilite-serveur.md) — **Proposé**
 
 ### Outillage de développement
 

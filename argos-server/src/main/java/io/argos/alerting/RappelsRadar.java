@@ -30,6 +30,7 @@ import io.quarkus.scheduler.Scheduled;
 
 import io.argos.impact.AnnonceStandard;
 import io.argos.impact.RadarProjets;
+import io.argos.observabilite.TacheObservee;
 import io.argos.regintel.EcheancesReglementaires;
 import io.argos.workspace.ContexteBase;
 import io.argos.workspace.ContexteBase.Contexte;
@@ -86,6 +87,7 @@ public class RappelsRadar {
     @ConfigProperty(name = "argos.alerting.fuseau")
     String fuseau;
 
+    @TacheObservee
     @Scheduled(identity = "argos-radar-quotidien", cron = "{argos.radar.tache.cron}",
             timeZone = "{argos.alerting.fuseau}", concurrentExecution = Scheduled.ConcurrentExecution.SKIP)
     void quotidien() {

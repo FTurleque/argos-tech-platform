@@ -29,6 +29,9 @@ import io.argos.architecture.exemples.ClasseHorsModule;
  * un paquet de premier niveau qui y figure, et chaque module ne peut dépendre que des modules listés pour lui.
  * Elle n'autorise que des dépendances que le code utilise. Toute nouvelle dépendance entre modules, ou tout
  * nouveau module, doit d'abord être ajouté à cette table, puis à arc42 §5 : le test échoue sinon.
+ *
+ * <p>Les modules techniques transverses ({@link #TRANSVERSES}) ne dépendent d'aucun autre module et sont accessibles
+ * à tous.
  */
 class ModuleBoundariesTest {
 
@@ -63,7 +66,12 @@ class ModuleBoundariesTest {
             Map.entry("ingestion", Set.of()),
             Map.entry("scm", Set.of()),
             Map.entry("aigateway", Set.of("audit")),
-            Map.entry("audit", Set.of()));
+            Map.entry("audit", Set.of()),
+            // Mécanismes techniques transverses : corrélation des journaux, observation des tâches planifiées.
+            Map.entry("observabilite", Set.of()));
+
+    /** Modules techniques sans dépendance, dont tout module peut dépendre (arc42 §5, socle technique). */
+    static final Set<String> TRANSVERSES = Set.of("observabilite");
 
     private static JavaClasses classes;
 
@@ -101,6 +109,7 @@ class ModuleBoundariesTest {
             String[] interdits = ALLOWED.keySet().stream()
                     .filter(autre -> !autre.equals(module))
                     .filter(autre -> !ALLOWED.get(module).contains(autre))
+                    .filter(autre -> !TRANSVERSES.contains(autre))
                     .map(autre -> ROOT + "." + autre + "..")
                     .toArray(String[]::new);
             noClasses().that().resideInAPackage(ROOT + "." + module + "..")
