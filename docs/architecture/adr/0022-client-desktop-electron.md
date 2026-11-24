@@ -109,5 +109,5 @@ Option A, **proposée** : choix du porteur du projet, qui privilégie l'homogén
 
 ## Notes
 
-Licences relevées le 2026-11-15 : `electron` 45.x et `electron-builder` 26.x : MIT (outils de développement et de packaging ; Electron est redistribué dans l'installeur).
+Licences relevées le 2026-11-15 : `electron` 45.x et `electron-builder` 26.x : MIT (outils de développement et de packaging ; Electron est redistribué dans l'installeur). `typescript` 6.x : Apache-2.0 (vérification de types des sources JavaScript, outil de développement non livré), relevée le 2026-11-24.
 

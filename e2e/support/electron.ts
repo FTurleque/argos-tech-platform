@@ -148,15 +148,15 @@ export async function lancerDesktop(options: OptionsLancement): Promise<Applicat
     await fenetre.waitForLoadState('domcontentloaded')
     await app.evaluate(({ BrowserWindow }) => {
       const premiere = BrowserWindow.getAllWindows()[0]
-      ;(globalThis as unknown as DoubluresArgos).__argosE2E.observerFenetre(premiere)
+      ;globalThis.__argosE2E.observerFenetre(premiere)
     })
     await fenetre.reload()
     await expect(fenetre).toHaveURL(/^app:\/\/argos\/index\.html/)
     return {
       app,
       fenetre,
-      journal: () => app.evaluate(() => (globalThis as unknown as DoubluresArgos).__argosE2E.journal.map((requete) => ({ ...requete }))),
-      ouvertures: () => app.evaluate(() => [...(globalThis as unknown as DoubluresArgos).__argosE2E.ouvertures]),
+      journal: () => app.evaluate(() => globalThis.__argosE2E.journal.map((requete) => ({ ...requete }))),
+      ouvertures: () => app.evaluate(() => [...globalThis.__argosE2E.ouvertures]),
       etatFenetre: () => app.evaluate(({ BrowserWindow }) => {
         const fenetrePrincipale = BrowserWindow.getAllWindows()[0]
         return {
@@ -164,35 +164,35 @@ export async function lancerDesktop(options: OptionsLancement): Promise<Applicat
           reduite: fenetrePrincipale.isMinimized(),
           focus: fenetrePrincipale.isFocused(),
           adresse: fenetrePrincipale.webContents.getURL(),
-          evenements: [...(globalThis as unknown as DoubluresArgos).__argosE2E.evenements],
+          evenements: [...globalThis.__argosE2E.evenements],
         }
       }),
-      notifications: () => app.evaluate(() => (globalThis as unknown as DoubluresArgos).__argosE2E.notifications
+      notifications: () => app.evaluate(() => globalThis.__argosE2E.notifications
         .map((notification) => ({ titre: notification.title, corps: notification.body }))),
       cliquerNotification: (rang) => app.evaluate((_electron, position) => {
-        const notification = (globalThis as unknown as DoubluresArgos).__argosE2E.notifications[position]
+        const notification = globalThis.__argosE2E.notifications[position]
         if (!notification) throw new Error(`notification ${position} absente`)
         notification.emit('click')
       }, rang),
-      infobulles: () => app.evaluate(() => [...(globalThis as unknown as DoubluresArgos).__argosE2E.infobulles]),
+      infobulles: () => app.evaluate(() => [...globalThis.__argosE2E.infobulles]),
       cliquerZoneNotification: () => app.evaluate(() => {
-        const icone = (globalThis as unknown as DoubluresArgos).__argosE2E.icone
+        const icone = globalThis.__argosE2E.icone
         if (!icone) throw new Error('icône de la zone de notification non observée')
         icone.emit('click')
       }),
       refuserNotificationsSysteme: (mode) => app.evaluate((_electron, refus) => {
-        (globalThis as unknown as DoubluresArgos).__argosE2E.refus = refus
+        globalThis.__argosE2E.refus = refus
       }, mode),
       accepterNotificationsSysteme: () => app.evaluate(() => {
-        (globalThis as unknown as DoubluresArgos).__argosE2E.refus = null
+        globalThis.__argosE2E.refus = null
       }),
-      notificationsRefusees: () => app.evaluate(() => (globalThis as unknown as DoubluresArgos).__argosE2E.refusees
+      notificationsRefusees: () => app.evaluate(() => globalThis.__argosE2E.refusees
         .map((notification) => ({ titre: notification.title, corps: notification.body }))),
       couper: (hote) => app.evaluate((_electron, hoteCoupe) => {
-        (globalThis as unknown as DoubluresArgos).__argosE2E.coupures.add(hoteCoupe)
+        globalThis.__argosE2E.coupures.add(hoteCoupe)
       }, hote),
       retablir: () => app.evaluate(() => {
-        (globalThis as unknown as DoubluresArgos).__argosE2E.coupures.clear()
+        globalThis.__argosE2E.coupures.clear()
       }),
       fermer: () => app.close(),
     }
@@ -207,6 +207,24 @@ interface FenetreObservable {
   on(evenement: string, ecouteur: () => void): unknown
 }
 
+/** Partie des détails d'une requête de `session.webRequest` lue par la garde réseau. */
+interface DetailsRequete {
+  id: number
+  url: string
+  method: string
+  resourceType: string
+}
+
+/** Détails d'une requête avant l'envoi de ses en-têtes. */
+interface DetailsEnvoiEntetes extends DetailsRequete {
+  requestHeaders: Record<string, string>
+}
+
+/** Détails d'une requête terminée. */
+interface DetailsRequeteTerminee extends DetailsRequete {
+  statusCode: number
+}
+
 /** Partie de Notification utilisée par les doublures. */
 interface NotificationElectron {
   title: string
@@ -214,25 +232,32 @@ interface NotificationElectron {
   emit(evenement: string, ...args: unknown[]): boolean
 }
 
-/** État partagé des doublures, dans le processus principal. */
+/**
+ * État partagé des doublures, dans le processus principal, porté par `globalThis.__argosE2E`.
+ * Les fonctions passées à `app.evaluate` sont sérialisées puis exécutées dans ce processus : elles ne
+ * peuvent appeler aucune fonction du test, si bien que le typage passe par cette déclaration globale.
+ */
+declare global {
+  var __argosE2E: DoubluresArgos
+}
+
+/** Champs de l'état partagé des doublures. */
 interface DoubluresArgos {
-  __argosE2E: {
-    journal: RequeteDesktop[]
-    ouvertures: string[]
-    evenements: string[]
-    /** Objets Notification affichés ; la référence gardée permet aussi d'émettre leur `click`. */
-    notifications: NotificationElectron[]
-    /** Notifications refusées par les réglages de Windows simulés (`failed` émis, système non appelé). */
-    refusees: NotificationElectron[]
-    /** Refus simulé en cours, ou null. */
-    refus: RefusSysteme | null
-    infobulles: string[]
-    /** Icône de la zone de notification, gardée au premier appel de `setToolTip` observé. */
-    icone: { emit(evenement: string): boolean } | null
-    /** Hôtes (avec port) dont les requêtes sont annulées : coupure simulée du serveur. */
-    coupures: Set<string>
-    observerFenetre(fenetre: FenetreObservable): void
-  }
+  journal: RequeteDesktop[]
+  ouvertures: string[]
+  evenements: string[]
+  /** Objets Notification affichés ; la référence gardée permet aussi d'émettre leur `click`. */
+  notifications: NotificationElectron[]
+  /** Notifications refusées par les réglages de Windows simulés (`failed` émis, système non appelé). */
+  refusees: NotificationElectron[]
+  /** Refus simulé en cours, ou null. */
+  refus: RefusSysteme | null
+  infobulles: string[]
+  /** Icône de la zone de notification, gardée au premier appel de `setToolTip` observé. */
+  icone: { emit(evenement: string): boolean } | null
+  /** Hôtes (avec port) dont les requêtes sont annulées : coupure simulée du serveur. */
+  coupures: Set<string>
+  observerFenetre(fenetre: FenetreObservable): void
 }
 
 /**
@@ -270,7 +295,7 @@ async function installerDoublures(app: ElectronApplication): Promise<void> {
         }
       },
     }
-    ;(globalThis as unknown as DoubluresArgos).__argosE2E = etat
+    ;globalThis.__argosE2E = etat
     shell.openExternal = async (url: string) => {
       etat.ouvertures.push(url)
     }
@@ -296,7 +321,7 @@ async function installerDoublures(app: ElectronApplication): Promise<void> {
     const parId = new Map<number, RequeteDesktop>()
     const locaux = new Set(hotesLocaux)
     const web = session.defaultSession.webRequest
-    web.onBeforeRequest((details, callback) => {
+    web.onBeforeRequest((details: DetailsRequete, callback: (reponse: { cancel: boolean }) => void) => {
       const url = new URL(details.url)
       const reseau = ['http:', 'https:', 'ws:', 'wss:'].includes(url.protocol)
       const refusee = reseau && !locaux.has(url.hostname)
@@ -316,14 +341,15 @@ async function installerDoublures(app: ElectronApplication): Promise<void> {
       etat.journal.push(requete)
       callback({ cancel: refusee || coupee })
     })
-    web.onBeforeSendHeaders((details, callback) => {
+    web.onBeforeSendHeaders((details: DetailsEnvoiEntetes,
+      callback: (reponse: { requestHeaders: Record<string, string> }) => void) => {
       const requete = parId.get(details.id)
       const autorisation = Object.entries(details.requestHeaders)
         .find(([nom]) => nom.toLowerCase() === 'authorization')?.[1]
       if (requete) requete.porteur = typeof autorisation === 'string' && autorisation.startsWith('Bearer ')
       callback({ requestHeaders: details.requestHeaders })
     })
-    web.onCompleted((details) => {
+    web.onCompleted((details: DetailsRequeteTerminee) => {
       const requete = parId.get(details.id)
       if (requete) requete.statut = details.statusCode
     })

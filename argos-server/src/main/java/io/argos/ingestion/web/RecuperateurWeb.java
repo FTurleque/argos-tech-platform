@@ -15,6 +15,7 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicBoolean;
 
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.inject.Inject;
@@ -135,9 +136,14 @@ public class RecuperateurWeb {
             return new byte[0];
         }
         // Un serveur qui envoie ses en-têtes puis se tait bloquerait la lecture : le flux est fermé à
-        // l'échéance, ce qui interrompt la lecture en cours.
-        ScheduledFuture<?> coupure = MINUTERIE.schedule(() -> fermer(corps),
-                Math.max(1, Duration.between(Instant.now(), echeance).toMillis()), TimeUnit.MILLISECONDS);
+        // l'échéance, ce qui interrompt la lecture en cours. La minuterie, au millième de seconde, peut
+        // fermer le flux un peu avant l'instant d'échéance : la coupure est marquée avant la fermeture, et
+        // une lecture interrompue par elle est un délai dépassé.
+        AtomicBoolean coupeeALEcheance = new AtomicBoolean();
+        ScheduledFuture<?> coupure = MINUTERIE.schedule(() -> {
+            coupeeALEcheance.set(true);
+            fermer(corps);
+        }, Math.max(1, Duration.between(Instant.now(), echeance).toMillis()), TimeUnit.MILLISECONDS);
         try (InputStream flux = corps; ByteArrayOutputStream out = new ByteArrayOutputStream()) {
             byte[] tampon = new byte[8192];
             long total = 0;
@@ -157,7 +163,7 @@ public class RecuperateurWeb {
         } catch (HttpTimeoutException erreur) {
             throw new RecuperationRefusee(Motif.DELAI_DEPASSE, "Délai dépassé pour " + uri.getHost() + ".", erreur);
         } catch (IOException erreur) {
-            if (!Instant.now().isBefore(echeance)) {
+            if (coupeeALEcheance.get() || !Instant.now().isBefore(echeance)) {
                 throw new RecuperationRefusee(Motif.DELAI_DEPASSE, "Délai dépassé pour " + uri.getHost() + ".", erreur);
             }
             throw new RecuperationRefusee(Motif.ERREUR_RESEAU, "Lecture interrompue pour " + uri.getHost() + ".", erreur);

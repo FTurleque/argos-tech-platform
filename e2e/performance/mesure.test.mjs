@@ -125,7 +125,16 @@ test('campagne hors des commandes de test par défaut (PERF-02-S2)', () => {
   for (const [nom, commande] of Object.entries(paquet.scripts)) {
     if (nom !== 'test:performance') assert.doesNotMatch(commande, /performance/, nom)
   }
-  assert.deepEqual(paquet.devDependencies, { '@playwright/test': '1.61.1' }, 'aucune dépendance ajoutée')
+  // La campagne n'a aucune dépendance (ADR-0021) : ses scripts n'importent, statiquement, dynamiquement ou par
+  // require, que des modules node: ou locaux.
+  const scripts = ['mesurer-p95.mjs', 'mesure.mjs', join('..', 'support', 'docker.mjs'), join('..', 'support', 'maven.mjs'),
+    join('..', 'support', 'maven-introuvable.mjs')]
+  for (const script of scripts) {
+    const source = readFileSync(join(E2E, 'performance', script), 'utf8')
+    for (const [, module] of source.matchAll(/(?: from |import\(|require\()'([^']+)'/g)) {
+      assert.match(module, /^(node:|\.\.?\/)/, `${script} importe ${module}`)
+    }
+  }
   const config = readFileSync(join(E2E, 'playwright.config.ts'), 'utf8')
   assert.doesNotMatch(config, /performance/, 'Playwright ne parcourt pas e2e/performance/')
   assert.match(config, /testDir: '\.\/tests'/)

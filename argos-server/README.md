@@ -5,7 +5,7 @@ Monolithe modulaire Quarkus d'ARGOS (Java 17 minimum, ADR-0019). Démarrage loca
 | Commande | Effet |
 |---|---|
 | `mvn quarkus:dev` | serveur de développement sur `http://localhost:8080` (OpenAPI sur `/q/openapi`, santé sur `/q/health`) |
-| `mvn -B -f argos-server/pom.xml verify` | compilation, tests unitaires, d'intégration et d'architecture (Docker requis : base PostgreSQL jetable des Dev Services) |
+| `mvn -B -f argos-server/pom.xml clean verify` | compilation, tests unitaires, d'intégration et d'architecture (Docker requis : base PostgreSQL jetable des Dev Services), rapport de couverture JaCoCo (`target/site/jacoco/`) et seuil global de 85 % des lignes et 70 % des branches |
 | `mvn -B -f argos-server/pom.xml -P licences validate` | liste des dépendances tierces livrées, de leurs licences et de leurs avis NOTICE (`target/THIRD-PARTY.txt`) ; échec sur une licence absente ou non admise |
 
 ## Licences des dépendances
@@ -54,7 +54,7 @@ Textes versionnés sous `argos-server/licenses/` (décision H1 ; `JDOM.txt` : d�
 
 Le fichier généré reste dans `target/`, non versionné : il suit les dépendances réellement résolues, sans copie à tenir à jour à la main, et `argos-server/NOTICE` y renvoie.
 
-Le profil `licences` n'est pas rattaché au cycle `mvn verify` : le but `makeBom` du plugin CycloneDX se déclare « requiresOnline » et refuse le mode hors ligne (`mvn -o`), même avec un dépôt local complet. `mvn verify` reste donc inchangé et sans accès réseau supplémentaire. La commande dédiée exige le mode en ligne de Maven ; elle ne télécharge que les plugins absents du dépôt local, et le script de vérification n'accède pas au réseau. Le build de l'image Docker exécute la même commande (décision G2), en ligne lui aussi ; hors de l'image, elle se lance à la main avant une livraison.
+Le profil `licences` n'est pas rattaché au cycle `mvn verify` : le but `makeBom` du plugin CycloneDX se déclare « requiresOnline » et refuse le mode hors ligne (`mvn -o`), même avec un dépôt local complet. `mvn verify` reste donc inchangé et sans accès réseau supplémentaire. La commande dédiée exige le mode en ligne de Maven ; elle ne télécharge que les plugins absents du dépôt local, et le script de vérification n'accède pas au réseau. Le build de l'image Docker exécute la même commande (décision G2), en ligne lui aussi. L'intégration continue la lance aussi sur toute pull request ou tout push sur `main` qui modifie `argos-server/pom.xml` ou `scripts/verifier-licences-serveur.mjs` (tâche « Licences », [arc42 §8.11](../docs/architecture/arc42/08-concepts-transverses.md#intégration-continue)). Le script est testé sur des inventaires factices par `scripts/verifier-licences-serveur.test.mjs` (dépendance GPL et licence absente refusées, inventaire absent en erreur, inventaire conforme accepté), exécuté par `node --test scripts/*.test.mjs` à chaque exécution de l'intégration continue.
 
 État au 2026-11-19 : 194 dépendances inventoriées, aucune licence absente ni non admise ; 26 archives portent un avis NOTICE. Neuf API Jakarta (`jakarta.annotation-api`, `jakarta.el-api`, `jakarta.interceptor-api`, `jakarta.json-api`, `jakarta.resource-api`, `jakarta.transaction-api`, `jakarta.ws.rs-api`, `parsson`, `expressly`), apportées par la plateforme Quarkus, sont proposées sous EPL-2.0 ou GPL-2.0 avec exception Classpath : la licence retenue est EPL-2.0 (décision G3). Huit modules Eclipse Vert.x, proposés sous EPL ou Apache-2.0, retiennent Apache-2.0.
 

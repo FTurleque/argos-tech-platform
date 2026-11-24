@@ -9,14 +9,16 @@
   "scripts": {
     "dev": "electron . --dev",
     "start": "npm --prefix ../argos-ui run build && electron .",
-    "check": "npm run check:syntax && npm test",
+    "check": "npm run check:syntax && npm run typecheck && npm test",
     "check:syntax": "node scripts/verifier-syntaxe.mjs",
+    "typecheck": "tsc -p tsconfig.json",
     "test": "node --test \"test/*.test.js\"",
     "dist": "npm --prefix ../argos-ui run build && electron-builder"
   },
   "devDependencies": {
     "electron": "^45.3.2",
-    "electron-builder": "^26.18.0"
+    "electron-builder": "^26.18.0",
+    "typescript": "~6.0.3"
   },
   "build": {
     "appId": "io.argos.desktop",
