@@ -18,7 +18,7 @@
     },
     {
       "customType": "regex",
-      "description": "Version de Keycloak de l'image construite localement (EXP-16) : argument de construction et étiquette dans compose.yaml, réglage commenté dans .env.example.",
+      "description": "Version de Keycloak de l'image construite localement (EXP-16), dans compose.yaml et .env.example.",
       "managerFilePatterns": ["/(^|/)compose\\.yaml$/", "/^\\.env\\.example$/"],
       "matchStrings": [
         "\\$\\{ARGOS_KEYCLOAK_VERSION:-(?<currentValue>[^}\\s]+)\\}",
