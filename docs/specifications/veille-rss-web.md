@@ -4,8 +4,8 @@
 |---|---|
 | Préfixe d'exigences | `WEB` |
 | Spec de référence | [`/openspec/specs/veille-rss-web/spec.md`](/openspec/specs/veille-rss-web/spec.md) |
-| Changements archivés | [`2026-11-16-collecter-veille-rss-web`](/openspec/changes/archive/2026-11-16-collecter-veille-rss-web/proposal.md) |
-| Changements en cours | [`epingler-adresse-veille-web`](/openspec/changes/epingler-adresse-veille-web/proposal.md) (WEB-07, implémenté, non archivé) |
+| Changements archivés | [`2026-11-16-collecter-veille-rss-web`](/openspec/changes/archive/2026-11-16-collecter-veille-rss-web/proposal.md) ; [`2026-11-25-epingler-adresse-veille-web`](/openspec/changes/archive/2026-11-25-epingler-adresse-veille-web/proposal.md) (WEB-07) |
+| Changements en cours | aucun |
 | Statut de la capacité | livrée ; code et tests dans `argos-server` |
 | Composants (arc42 §5) | `source-ingestion`, `signal`, `impact-engine` |
 | Décision | [ADR-0028](/docs/architecture/adr/0028-collecteur-veille-web-integre.md) (Accepté) : collecteur intégré au serveur |
@@ -112,7 +112,7 @@ Une adresse n'est acceptée que si elle mène à un serveur public et renvoie un
 
 ## Critères d'acceptation
 
-Scénarios WEB-01-S1 à WEB-06-S1 du changement, couverts par `argos-server/src/test/java/io/argos/chain/VeilleWebTest.java` et `ParcoursVeilleWebTest.java` ; constats de relecture couverts par `VeilleWebTest`, `LimiteDebitVeilleWebTest`, `io/argos/signal/web/CollecteWebTest.java` et les tests unitaires de `io/argos/ingestion/web/`. Scénarios WEB-07-S1 à WEB-07-S4 du [delta de `epingler-adresse-veille-web`](/openspec/changes/epingler-adresse-veille-web/specs/veille-rss-web/spec.md), couverts par `RecuperateurWebTest` et `TransportEpingleTest`.
+Scénarios WEB-01-S1 à WEB-06-S1 du changement, couverts par `argos-server/src/test/java/io/argos/chain/VeilleWebTest.java` et `ParcoursVeilleWebTest.java` ; constats de relecture couverts par `VeilleWebTest`, `LimiteDebitVeilleWebTest`, `io/argos/signal/web/CollecteWebTest.java` et les tests unitaires de `io/argos/ingestion/web/`. Scénarios WEB-07-S1 à WEB-07-S4 de la [spec de référence](/openspec/specs/veille-rss-web/spec.md), couverts par `RecuperateurWebTest` et `TransportEpingleTest`.
 
 ## Interprétations introduites par un changement
 
