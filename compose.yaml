@@ -141,6 +141,8 @@ services:
       keycloak:
         condition: service_healthy
         required: false
+    # Chaque variable reprend le défaut de production d'application.properties : une variable transmise vide ne
+    # retombe pas sur le défaut « ${NOM:défaut} » de SmallRye Config.
     environment:
       ARGOS_DB_URL: ${ARGOS_DB_URL:-jdbc:postgresql://postgres:5432/${ARGOS_DB_NAME:-argos}}
       # Connexion de l'application (ni superutilisateur, ni propriétaire, soumise à la RLS) ; migrations appliquées
