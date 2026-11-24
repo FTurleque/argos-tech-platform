@@ -56,12 +56,13 @@
 ## Conséquences négatives
 
 - un conteneur de plus sur le Synology, avec sa sauvegarde ;
-- disponibilité d'Argos liée à celle de Keycloak (R-18) : les jetons déjà émis restent valides jusqu'à expiration.
+- disponibilité d'Argos liée à celle de Keycloak (R-18) : les jetons déjà émis restent valides jusqu'à expiration ;
+- une image Keycloak à reconstruire à chaque changement de version (`docker compose --profile idp-local up -d --build`).
 
 ## Conséquences neutres / compromis
 
 - ADR-0008 reste la référence pour le protocole ; le présent ADR fixe le fournisseur.
-- Le déploiement de Keycloak dans `compose.yaml` et sur le NAS n'est pas encore décrit : Argos lit l'URL du royaume dans `ARGOS_OIDC_URL`.
+- Sur le PC et le NAS, Keycloak est le service du profil `idp-local` de `compose.yaml` ([guide de déploiement](/docs/deploiement/synology-et-pc.md)). Il s'exécute depuis une image optimisée construite localement ([`deploiement/keycloak/Dockerfile`](/deploiement/keycloak/Dockerfile), `kc.sh build` puis `start --optimized`), seule forme compatible avec un système de fichiers racine en lecture seule (EXP-16, décision du porteur du 2026-11-24 sur Q-1 du changement `durcir-conteneurs-de-service`). Argos lit l'URL du royaume dans `ARGOS_OIDC_URL`.
 
 ## Méthode de validation
 
