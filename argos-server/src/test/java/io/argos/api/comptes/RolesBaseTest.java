@@ -149,7 +149,7 @@ class RolesBaseTest {
             }
         }
         assertEquals(List.of(), sansPolitique, "tables sous RLS sans politique argos_technique hors contexte utilisateur");
-        assertEquals("false", lireEnConnexion("SELECT has_table_privilege('flyway_schema_history', 'SELECT')"),
+        assertEquals("false", lireEnConnexion("SELECT has_table_privilege('flyway_schema_history', 'SELECT')::text"),
                 "l'historique des migrations n'est pas lisible par le rôle de connexion");
     }
 
