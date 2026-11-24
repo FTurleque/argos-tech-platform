@@ -81,7 +81,7 @@ Option B [DÉCISION — porteur du projet, 2026-11-24] :
 - **Exigences** : EXP-05 (fiche [`exploitation-plateforme`](/docs/specifications/exploitation-plateforme.md)) ; ACC-04 (cloisonnement).
 - **Scénarios qualité** : QS-14 ([`scenarios.md`](../quality/scenarios.md)).
 - **Diagrammes** : D-11 ([`d-11-deploiement-cible.md`](../diagrams/d-11-deploiement-cible.md)), D-12 ([`d-12-frontieres-confiance.md`](../diagrams/d-12-frontieres-confiance.md)).
-- **Tickets/PR** : changement OpenSpec [`fiabiliser-sauvegarde-et-roles-base`](/openspec/changes/fiabiliser-sauvegarde-et-roles-base/proposal.md) ; constat AUD-SEC-30.
+- **Tickets/PR** : changement OpenSpec [`fiabiliser-sauvegarde-et-roles-base`](/openspec/changes/archive/2026-11-24-fiabiliser-sauvegarde-et-roles-base/proposal.md) ; constat AUD-SEC-30.
 - **Fichiers source** : [`compose.yaml`](/compose.yaml), [`initialiser-bases.sh`](/deploiement/postgres/initialiser-bases.sh), [`V22__roles_connexion_et_technique.sql`](/argos-server/src/main/resources/db/migration/V22__roles_connexion_et_technique.sql), [`application.properties`](/argos-server/src/main/resources/application.properties).
 
 ## Notes
