@@ -18,7 +18,8 @@ cd "$(dirname "$0")/.."
 . ./scripts/sauvegarde-commun.sh
 charger_configuration
 
-KEEP=$(reglage ARGOS_BACKUP_KEEP 14)
+ARCHIVES_CONSERVEES_PAR_DEFAUT=14
+KEEP=$(reglage ARGOS_BACKUP_KEEP "$ARCHIVES_CONSERVEES_PAR_DEFAUT")
 NIVEAU_COMPRESSION=6
 PARTIEL=""
 ECRITES=""
@@ -34,7 +35,7 @@ nettoyer() {
   fi
 }
 trap nettoyer EXIT
-trap 'exit 130' INT TERM
+trap 'exit "$CODE_INTERRUPTION"' INT TERM
 
 case "$KEEP" in
   '' | *[!0-9]* | 0) echouer "ARGOS_BACKUP_KEEP doit être un entier positif (valeur lue : $KEEP)" ;;

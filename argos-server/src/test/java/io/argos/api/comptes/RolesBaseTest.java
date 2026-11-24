@@ -1,7 +1,6 @@
 package io.argos.api.comptes;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
@@ -24,6 +23,7 @@ import org.eclipse.microprofile.config.inject.ConfigProperty;
 import org.junit.jupiter.api.Test;
 
 import io.argos.testsupport.Api;
+import io.argos.testsupport.ParametresSql;
 import io.argos.testsupport.TestDb;
 import io.argos.workspace.ContexteBase;
 import io.argos.workspace.ContexteBase.Contexte;
@@ -123,7 +123,7 @@ class RolesBaseTest {
         assertEquals(0, baseDeTest.count(
                 "SELECT count(*) FROM flyway_schema_history WHERE success AND installed_by <> ?", proprietaire),
                 "migration appliquée sous un autre compte que le propriétaire");
-        assertTrue(baseDeTest.count("SELECT count(*) FROM flyway_schema_history WHERE version = '22'") == 1);
+        assertEquals(1, baseDeTest.count("SELECT count(*) FROM flyway_schema_history WHERE version = '22'"));
         assertEquals(proprietaire, lireEnConnexion("SELECT pg_get_userbyid(datdba) FROM pg_database WHERE datname = current_database()"));
         assertEquals(roleConnexion + "|" + roleConnexion, lireEnConnexion("SELECT session_user || '|' || current_user"));
     }
@@ -134,21 +134,22 @@ class RolesBaseTest {
         List<String> sansPolitique = new ArrayList<>();
         try (Connection connexion = dataSource.getConnection(); Statement instruction = connexion.createStatement();
                 ResultSet resultat = instruction.executeQuery("""
-                        SELECT c.relname FROM pg_class c
-                        WHERE c.relnamespace = 'public'::regnamespace AND c.relkind IN ('r', 'p') AND c.relrowsecurity
-                          AND NOT EXISTS (SELECT 1 FROM pg_policies p
-                                          WHERE p.schemaname = 'public' AND p.tablename = c.relname
-                                            AND 'argos_technique' = ANY (p.roles)
-                                            AND p.qual = 'argos_hors_contexte_utilisateur()'
-                                            AND p.with_check = 'argos_hors_contexte_utilisateur()')
-                        ORDER BY c.relname
+                        SELECT classe.relname FROM pg_class classe
+                        WHERE classe.relnamespace = 'public'::regnamespace AND classe.relkind IN ('r', 'p')
+                          AND classe.relrowsecurity
+                          AND NOT EXISTS (SELECT 1 FROM pg_policies politique
+                                          WHERE politique.schemaname = 'public' AND politique.tablename = classe.relname
+                                            AND 'argos_technique' = ANY (politique.roles)
+                                            AND politique.qual = 'argos_hors_contexte_utilisateur()'
+                                            AND politique.with_check = 'argos_hors_contexte_utilisateur()')
+                        ORDER BY classe.relname
                         """)) {
             while (resultat.next()) {
                 sansPolitique.add(resultat.getString(1));
             }
         }
         assertEquals(List.of(), sansPolitique, "tables sous RLS sans politique argos_technique hors contexte utilisateur");
-        assertFalse(lireEnConnexion("SELECT has_table_privilege('flyway_schema_history', 'SELECT')").equals("true"),
+        assertEquals("false", lireEnConnexion("SELECT has_table_privilege('flyway_schema_history', 'SELECT')"),
                 "l'historique des migrations n'est pas lisible par le rôle de connexion");
     }
 
@@ -178,14 +179,10 @@ class RolesBaseTest {
     }
 
     private static String lire(Connection connexion, String sql, Object... parametres) throws SQLException {
-        try (PreparedStatement requete = connexion.prepareStatement(sql)) {
-            for (int rang = 0; rang < parametres.length; rang++) {
-                requete.setObject(rang + 1, parametres[rang]);
-            }
-            try (ResultSet resultat = requete.executeQuery()) {
-                assertTrue(resultat.next(), "aucune ligne : " + sql);
-                return resultat.getString(1);
-            }
+        try (PreparedStatement requete = ParametresSql.preparer(connexion, sql, parametres);
+                ResultSet resultat = requete.executeQuery()) {
+            assertTrue(resultat.next(), "aucune ligne : " + sql);
+            return resultat.getString(1);
         }
     }
 }

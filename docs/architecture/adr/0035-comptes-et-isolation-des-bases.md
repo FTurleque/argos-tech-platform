@@ -63,6 +63,8 @@ Option B [DÉCISION — porteur du projet, 2026-11-24] :
 - Une installation antérieure demande une migration manuelle de son volume (sauvegarde, volume neuf, restauration).
 - La politique hors contexte utilisateur repose sur des paramètres de transaction qu'une instruction injectée peut effacer avant de quitter `argos_app` : elle double la bascule sans remplacer le contrôle d'accès du service (défense en profondeur, ADR-0016). Contre une injection SQL, la protection du rôle de connexion tient à ce qu'il ne peut pas faire (schéma, base de Keycloak, fichiers du serveur), non à la RLS ; deux pools de connexions distincts, l'un réduit à `argos_app`, la renforceraient.
 
+- Les bases jetables des tests Maven (Dev Services) et de la pile e2e sont en authentification « trust », le même script d'initialisation y créant les rôles sans mot de passe : le dépôt ne contient aucun mot de passe de base. Celle de la pile e2e n'est joignable que de la machine ; celle des tests Maven est publiée par Testcontainers sur un port aléatoire, en général sur toutes les interfaces du poste ou de l'exécuteur d'intégration continue, pendant la durée des tests. Elle ne contient que des données de test.
+
 ## Conséquences neutres / compromis
 
 - L'instance reste un point de défaillance commun aux deux applications ; la sauvegarde exporte les deux bases à chaque exécution.

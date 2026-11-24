@@ -19,6 +19,10 @@ if ! docker compose version >/dev/null 2>&1; then
   exit 2
 fi
 COMPOSE="docker compose"
+CODE_INTERRUPTION=130
+# Tailles des archives tronquées : un export coupé en cours de route, une archive dont même l'en-tête gzip est partiel.
+OCTETS_EXPORT_TRONQUE=512
+OCTETS_ARCHIVE_TRONQUEE=300
 DOSSIER=$(mktemp -d)
 # Sous-dossier jetable, même avec ESSAI_SAUVEGARDES : l'essai ne touche jamais un dossier existant.
 if [ -n "${ESSAI_SAUVEGARDES:-}" ]; then
@@ -37,7 +41,7 @@ nettoyer() {
   rm -rf "$DOSSIER" "$SAUVEGARDES"
 }
 trap nettoyer EXIT
-trap 'exit 130' INT TERM
+trap 'exit "$CODE_INTERRUPTION"' INT TERM
 
 reussi() { echo "  ok    $1"; }
 rate() {
@@ -161,7 +165,6 @@ rm -f "$SAUVEGARDES"/*.sql.gz
 for ANCIENNE in 20000101-000001 20000101-000002 20000101-000003; do
   cp "$REFERENCE" "$SAUVEGARDES/argos-$ANCIENNE.sql.gz"
 done
-sleep 1
 verifier "code de sortie nul" sauvegarder
 verifier "$CONSERVEES archives argos conservées" test "$(nombre_archives argos)" = "$CONSERVEES"
 verifier "seule la plus ancienne est supprimée" test ! -f "$SAUVEGARDES/argos-20000101-000001.sql.gz"
@@ -187,7 +190,7 @@ DOCKER_REEL=$(command -v docker)
 cat > "$BIN/docker" <<SHIM
 #!/bin/sh
 case "\$*" in
-  *pg_dump*) "$DOCKER_REEL" "\$@" | head -c 512; exit 0 ;;
+  *pg_dump*) "$DOCKER_REEL" "\$@" | head -c $OCTETS_EXPORT_TRONQUE; exit 0 ;;
 esac
 exec "$DOCKER_REEL" "\$@"
 SHIM
@@ -216,7 +219,7 @@ verifier "rejouée une seconde fois sans erreur" restaurer "$HORODATAGE"
 verifier "toujours aucune ligne en double" test "$(contenu_argos)" = "$CONTENU_ARGOS"
 
 echo "EXP-04-S2 : archive tronquée, puis archive intègre dont une instruction échoue."
-head -c 300 "$DERNIERE" > "$SAUVEGARDES/argos-20990101-000000.sql.gz"
+head -c "$OCTETS_ARCHIVE_TRONQUEE" "$DERNIERE" > "$SAUVEGARDES/argos-20990101-000000.sql.gz"
 verifier "archive tronquée : code de sortie non nul" code_non_nul restaurer 20990101-000000
 verifier "message nommant la base argos" sortie_contient "base argos"
 verifier "aucun succès annoncé" code_non_nul sortie_contient "Restauration terminée"

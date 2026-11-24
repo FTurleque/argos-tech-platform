@@ -17,6 +17,7 @@ import org.eclipse.microprofile.config.ConfigProvider;
 import org.flywaydb.core.Flyway;
 import org.junit.jupiter.api.Test;
 
+import io.argos.testsupport.ParametresSql;
 import io.quarkus.test.junit.QuarkusTest;
 
 /**
@@ -51,10 +52,26 @@ class MigrationV18Test {
             return DriverManager.getConnection(url, utilisateur, motDePasse);
         }
 
-        void executer(String sql) throws SQLException {
+        /** Crée la base vide {@code nom} ; le nom est vérifié puis cité, il n'est jamais lu tel quel. */
+        void creerBase(String nom) throws SQLException {
+            executer("CREATE DATABASE " + identifiantCite(nom));
+        }
+
+        void supprimerBase(String nom) throws SQLException {
+            executer("DROP DATABASE IF EXISTS " + identifiantCite(nom) + " WITH (FORCE)");
+        }
+
+        private void executer(String sql) throws SQLException {
             try (Connection connexion = connecter(); Statement requete = connexion.createStatement()) {
                 requete.execute(sql);
             }
+        }
+
+        private static String identifiantCite(String nom) {
+            if (!nom.matches("[a-z][a-z0-9_]*")) {
+                throw new IllegalArgumentException("nom de base inattendu : " + nom);
+            }
+            return '"' + nom + '"';
         }
 
         void migrer(String cible) {
@@ -75,7 +92,7 @@ class MigrationV18Test {
     void inactifsDevenusSuspendusCriteresIntacts() throws Exception {
         Instance instance = Instance.deTest();
         String nomBase = "argos_migration_v18_" + UUID.randomUUID().toString().replace("-", "").substring(0, 12);
-        instance.executer("CREATE DATABASE " + nomBase);
+        instance.creerBase(nomBase);
         try {
             Instance jetable = instance.base(nomBase);
             jetable.migrer("17");
@@ -84,7 +101,7 @@ class MigrationV18Test {
             jetable.migrer("18");
             verifierApresV18(jetable, jeu);
         } finally {
-            instance.executer("DROP DATABASE IF EXISTS " + nomBase + " WITH (FORCE)");
+            instance.supprimerBase(nomBase);
         }
     }
 
@@ -148,22 +165,15 @@ class MigrationV18Test {
                 """, id, portee, espace, compte, etat);
     }
 
-    private static PreparedStatement preparer(Connection connexion, String sql, Object... parametres) throws SQLException {
-        PreparedStatement requete = connexion.prepareStatement(sql);
-        for (int rang = 0; rang < parametres.length; rang++) {
-            requete.setObject(rang + 1, parametres[rang]);
-        }
-        return requete;
-    }
-
     private static void executer(Connection connexion, String sql, Object... parametres) throws SQLException {
-        try (PreparedStatement requete = preparer(connexion, sql, parametres)) {
+        try (PreparedStatement requete = ParametresSql.preparer(connexion, sql, parametres)) {
             requete.execute();
         }
     }
 
     private static String valeur(Connection connexion, String sql, Object... parametres) throws SQLException {
-        try (PreparedStatement requete = preparer(connexion, sql, parametres); ResultSet resultat = requete.executeQuery()) {
+        try (PreparedStatement requete = ParametresSql.preparer(connexion, sql, parametres);
+                ResultSet resultat = requete.executeQuery()) {
             resultat.next();
             return resultat.getString(1);
         }

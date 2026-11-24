@@ -5,7 +5,10 @@
 # Ligne écrite par pg_dump à la fin d'un export complet, recherchée dans les dernières lignes de l'archive.
 FIN_EXPORT='-- PostgreSQL database dump complete'
 LIGNES_FIN_EXPORT=8
+# Même nom que BASE_KEYCLOAK de deploiement/postgres/initialiser-bases.sh (création des bases, côté conteneur).
 BASE_KEYCLOAK=keycloak
+# Code de sortie d'un script interrompu (Ctrl+C ou arrêt demandé), selon la convention des shells.
+CODE_INTERRUPTION=130
 
 # $1 : nom ; $2 : valeur par défaut. Valeur de l'environnement, sinon dernière ligne « NOM=valeur » du .env, sinon
 # défaut. Le .env est lu comme du texte, jamais exécuté : un mot de passe qui contient « $ », « ; » ou une espace ne

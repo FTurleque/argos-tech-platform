@@ -94,26 +94,13 @@ public class TestDb {
         }
     }
 
-    public long count(String sql) {
-        try (Connection connection = connexionProprietaire(); Statement statement = connection.createStatement();
-                ResultSet resultSet = statement.executeQuery(sql)) {
+    /** Comptage, avec ou sans paramètres liés. */
+    public long count(String sql, Object... parametres) {
+        try (Connection connection = connexionProprietaire();
+                PreparedStatement requete = ParametresSql.preparer(connection, sql, parametres);
+                ResultSet resultSet = requete.executeQuery()) {
             resultSet.next();
             return resultSet.getLong(1);
-        } catch (SQLException exception) {
-            throw new IllegalStateException(sql, exception);
-        }
-    }
-
-    /** Comptage paramétré : les valeurs sont liées, jamais insérées dans le texte SQL. */
-    public long count(String sql, Object... parametres) {
-        try (Connection connection = connexionProprietaire(); PreparedStatement requete = connection.prepareStatement(sql)) {
-            for (int rang = 0; rang < parametres.length; rang++) {
-                requete.setObject(rang + 1, parametres[rang]);
-            }
-            try (ResultSet resultSet = requete.executeQuery()) {
-                resultSet.next();
-                return resultSet.getLong(1);
-            }
         } catch (SQLException exception) {
             throw new IllegalStateException(sql, exception);
         }
