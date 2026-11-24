@@ -38,7 +38,7 @@ Règles : aucun comportement applicatif modifié ; outils sous licence permissiv
 ## 5. Veille des dépendances et protection de branche
 
 - [ ] 5.1 Écrire `renovate.json` (gestionnaires `maven`, `npm` pour `argos-ui`, `argos-desktop` et `e2e`, `dockerfile`, `docker-compose`, `github-actions`, et gestionnaire `regex` pour les valeurs par défaut des variables d'image de `compose.yaml`, design.md D5) et demander au porteur d'installer l'application Renovate sur le dépôt — couvre AUD-DEP-05 — vérification : premières pull requests ouvertes (attendues : Electron 45.4.x, `@playwright/test`, image Keycloak 26.7.5 ou plus de `compose.yaml`) et vérifiées par le workflow
-- [ ] 5.2 Demander au porteur du projet d'activer la protection de `main` (statut du workflow obligatoire, options de Q-4) — couvre AUD-TST-01 — vérification : pull request en échec non fusionnable (constat du porteur)
+- [x] 5.2 Demander au porteur du projet d'activer la protection de `main` (statut du workflow obligatoire, options de Q-4) — couvre AUD-TST-01 — vérification : pull request en échec non fusionnable (constat du porteur)
 - [x] 5.3 Documentation du groupe : arc42 §8.11 ou §8.12 (veille des dépendances), et, si le porteur le retient, ADR « GitHub Actions et Renovate » consignant les décisions du porteur du 2026-11-24 (design.md D1, D5) avec l'index arc42 §9 — couvre AUD-TST-01, AUD-DEP-05 — vérification : `node scripts/verifier-docs.mjs` sans erreur
 
 ## 6. Vérifications d'intégration
@@ -56,6 +56,7 @@ Intégration continue, PR [#32](https://github.com/FTurleque/argos-tech-platform
 - 4.1 : job « Migrations fusionnées et fichiers modifiés » vert (aucune migration modifiée par la branche).
 - 4.3 : job « Licences des dépendances du serveur » exécuté et vert, la branche modifiant `argos-server/pom.xml` ; il est ignoré quand ni `pom.xml` ni le script ne changent (condition `needs.changements.outputs.licences`).
 - SonarCloud (quality gate du dépôt) : passée, 0 nouveau problème.
+- 5.2 : règle de dépôt « Protect main » (ruleset 27323560, actif, branche par défaut, aucun contournement) activée par le porteur du projet le 2026-11-24 : suppression et push forcé interdits, pull request obligatoire (0 approbation, mainteneur unique), sept vérifications obligatoires (les six tâches du workflow et SonarCloud), branche à jour exigée (réponse à Q-4). Effet constaté par l'API GitHub : PR #32, vérifications vertes, `CLEAN` ; PR #33, sans les vérifications obligatoires, `BLOCKED`.
 
 Poste du mainteneur, 2026-11-24, JDK 17.0.7, Docker 29.9.3 :
 
@@ -75,7 +76,7 @@ Poste du mainteneur, 2026-11-24, JDK 17.0.7, Docker 29.9.3 :
 
 | Constat | Exigence / scénario | Conception / diagramme | Tâche | Test ou preuve | État de la preuve |
 |---|---|---|---|---|---|
-| AUD-TST-01 | aucune (`skip_specs`) | design.md DC-1, D1 | 1.1 à 1.6, 2.3, 5.2 | exécutions du workflow ; pull request en échec non fusionnable | workflow vert (exécution 45378655013) ; protection de branche à activer par le porteur |
+| AUD-TST-01 | aucune (`skip_specs`) | design.md DC-1, D1 | 1.1 à 1.6, 2.3, 5.2 | exécutions du workflow ; pull request en échec non fusionnable | workflow vert (exécution 45378655013) ; protection de main active, PR sans statut vert bloquée |
 | AUD-TST-19 | aucune | design.md D2 | 1.2, 2.1, 2.2 | journal du job serveur (Java 17, `clean verify`) ; refus de l'enforcer sous JDK 21/24 | non exécuté |
 | AUD-TST-02 | aucune | design.md D3 | 3.1 à 3.3 | rapport JaCoCo publié ; build en échec sous 85 % des lignes ou 70 % des branches | non exécuté |
 | AUD-DEP-20 | aucune | design.md D4, DC-1 | 2.4, 4.1, 4.4 | pull request de test modifiant une migration → rouge | non exécuté |
