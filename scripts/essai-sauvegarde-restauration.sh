@@ -76,14 +76,25 @@ cd "$DOSSIER"
 
 # $1 : base ; $2 : rôle ; entrée standard : SQL. Exécuté dans le conteneur par le superutilisateur d'administration.
 sql() {
-  $COMPOSE exec -T postgres sh -c 'psql -X -q -tA -v ON_ERROR_STOP=1 -U "$POSTGRES_USER" -d "$1" -c "SET ROLE \"$2\"" -f -' \
-    sh "$1" "$2"
+  BASE_REQUETEE="$1"
+  ROLE_REQUETE="$2"
+  $COMPOSE exec -T -e ARGOS_BASE="$BASE_REQUETEE" -e ARGOS_ROLE="$ROLE_REQUETE" postgres \
+    sh -c 'psql -X -q -tA -v ON_ERROR_STOP=1 -U "$POSTGRES_USER" -d "$ARGOS_BASE" -c "SET ROLE \"$ARGOS_ROLE\"" -f -'
 }
 contenu_argos() { echo "SELECT string_agg(id || ':' || libelle, ',' ORDER BY id) FROM essai;" | sql argos argos; }
 contenu_keycloak() { echo "SELECT string_agg(sujet, ',' ORDER BY sujet) FROM utilisateur;" | sql keycloak keycloak; }
-archives() { ls -1 "$SAUVEGARDES"/"$1"-*.sql.gz 2>/dev/null | sort; }
-nombre_archives() { archives "$1" | wc -l | tr -d ' '; }
-mode_de() { stat -c %a "$1" 2>/dev/null || stat -f %Lp "$1"; }
+archives() {
+  BASE_LISTEE="$1"
+  ls -1 "$SAUVEGARDES"/"$BASE_LISTEE"-*.sql.gz 2>/dev/null | sort
+}
+nombre_archives() {
+  BASE_COMPTEE="$1"
+  archives "$BASE_COMPTEE" | wc -l | tr -d ' '
+}
+mode_de() {
+  CHEMIN_EXAMINE="$1"
+  stat -c %a "$CHEMIN_EXAMINE" 2>/dev/null || stat -f %Lp "$CHEMIN_EXAMINE"
+}
 modes_posix() {
   TEMOIN="$SAUVEGARDES/.temoin-modes"
   : > "$TEMOIN"
@@ -93,8 +104,14 @@ modes_posix() {
   [ "$MODE" = 600 ]
 }
 sauvegarder() { : > "$DOSSIER/sortie.txt"; sh scripts/sauvegarder-base.sh > "$DOSSIER/sortie.txt" 2>&1; }
-restaurer() { sh scripts/restaurer-base.sh "$1" > "$DOSSIER/sortie.txt" 2>&1; }
-sortie_contient() { grep -qF -- "$1" "$DOSSIER/sortie.txt"; }
+restaurer() {
+  HORODATAGE_RESTAURE="$1"
+  sh scripts/restaurer-base.sh "$HORODATAGE_RESTAURE" > "$DOSSIER/sortie.txt" 2>&1
+}
+sortie_contient() {
+  TEXTE_ATTENDU="$1"
+  grep -qF -- "$TEXTE_ATTENDU" "$DOSSIER/sortie.txt"
+}
 aucun_partiel() { ! ls "$SAUVEGARDES"/*.partiel >/dev/null 2>&1; }
 code_non_nul() { ! "$@"; }
 

@@ -45,13 +45,16 @@ SQL
 
 # $1 : base ; $2 : propriétaire ; $3 (facultatif) : rôle autorisé à s'y connecter en plus du propriétaire.
 recreer_base() {
-  executer_sql -v base="$1" -v proprietaire="$2" <<'SQL'
+  BASE_RECREEE="$1"
+  PROPRIETAIRE_BASE="$2"
+  CONNEXION_AUTORISEE="${3:-}"
+  executer_sql -v base="$BASE_RECREEE" -v proprietaire="$PROPRIETAIRE_BASE" <<'SQL'
 DROP DATABASE IF EXISTS :"base" WITH (FORCE);
 CREATE DATABASE :"base" OWNER :"proprietaire";
 REVOKE ALL ON DATABASE :"base" FROM PUBLIC;
 SQL
-  if [ -n "${3:-}" ]; then
-    executer_sql -v base="$1" -v connexion="$3" <<'SQL'
+  if [ -n "$CONNEXION_AUTORISEE" ]; then
+    executer_sql -v base="$BASE_RECREEE" -v connexion="$CONNEXION_AUTORISEE" <<'SQL'
 GRANT CONNECT ON DATABASE :"base" TO :"connexion";
 SQL
   fi

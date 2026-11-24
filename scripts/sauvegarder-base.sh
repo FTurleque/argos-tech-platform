@@ -48,24 +48,26 @@ HORODATAGE=$(date +%Y%m%d-%H%M%S)
 
 # $1 : base. Export compressé par pg_dump dans le conteneur ; son code de retour est celui de « docker compose exec ».
 exporter() {
-  ARCHIVE="$DEST/$1-$HORODATAGE.sql.gz"
+  BASE_EXPORTEE="$1"
+  ARCHIVE="$DEST/$BASE_EXPORTEE-$HORODATAGE.sql.gz"
   PARTIEL="$ARCHIVE.partiel"
-  if ! $COMPOSE exec -T postgres sh -c 'pg_dump -U "$POSTGRES_USER" -d "$1" --no-owner --compress="$2"' \
-      sh "$1" "$NIVEAU_COMPRESSION" > "$PARTIEL"; then
-    echouer "export de la base $1"
+  if ! $COMPOSE exec -T -e ARGOS_BASE="$BASE_EXPORTEE" -e ARGOS_COMPRESSION="$NIVEAU_COMPRESSION" postgres \
+      sh -c 'pg_dump -U "$POSTGRES_USER" -d "$ARGOS_BASE" --no-owner --compress="$ARGOS_COMPRESSION"' > "$PARTIEL"; then
+    echouer "export de la base $BASE_EXPORTEE"
   fi
   if ! archive_valide "$PARTIEL"; then
-    echouer "archive de la base $1 illisible ou incomplète"
+    echouer "archive de la base $BASE_EXPORTEE illisible ou incomplète"
   fi
   mv "$PARTIEL" "$ARCHIVE"
   PARTIEL=""
-  ECRITES="$ECRITES $1"
+  ECRITES="$ECRITES $BASE_EXPORTEE"
   echo "Sauvegarde écrite : $ARCHIVE"
 }
 
 # $1 : base. Garde ses KEEP archives les plus récentes (l'horodatage du nom les ordonne).
 tourner() {
-  ls -1 "$DEST/$1"-*.sql.gz 2>/dev/null | sort -r | tail -n +"$((KEEP + 1))" | while IFS= read -r ANCIENNE; do
+  BASE_TOURNEE="$1"
+  ls -1 "$DEST/$BASE_TOURNEE"-*.sql.gz 2>/dev/null | sort -r | tail -n +"$((KEEP + 1))" | while IFS= read -r ANCIENNE; do
     rm -f "$ANCIENNE"
   done
 }

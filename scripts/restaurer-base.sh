@@ -57,16 +57,20 @@ $COMPOSE up -d --wait postgres || echouer "démarrage de PostgreSQL"
 
 # $1 : base ; $2 : propriétaire sous lequel les objets sont recréés ; $3 : archive.
 restaurer() {
+  BASE_RESTAUREE="$1"
+  ROLE_RESTAURATION="$2"
+  ARCHIVE_RESTAUREE="$3"
   # Chemin donné dans la commande : sous Git Bash (PC Windows), un argument commençant par « / » serait converti.
-  $COMPOSE exec -T -e ARGOS_BASE_A_RECREER="$1" postgres sh -c 'exec sh /docker-entrypoint-initdb.d/initialiser-bases.sh' \
-    || echouer "recréation de la base $1"
+  $COMPOSE exec -T -e ARGOS_BASE_A_RECREER="$BASE_RESTAUREE" postgres \
+    sh -c 'exec sh /docker-entrypoint-initdb.d/initialiser-bases.sh' || echouer "recréation de la base $BASE_RESTAUREE"
   # L'archive est intègre (vérifiée ci-dessus) : le code du pipeline est celui de psql, arrêté à la première erreur.
-  if ! gzip -dc "$3" | $COMPOSE exec -T postgres sh -c \
-      'psql -X -q -o /dev/null -v ON_ERROR_STOP=1 --single-transaction -U "$POSTGRES_USER" -d "$1" -c "SET ROLE \"$2\"" -f -' \
-      sh "$1" "$2"; then
-    echouer "rechargement de la base $1 (transaction annulée, base vide)"
+  if ! gzip -dc "$ARCHIVE_RESTAUREE" \
+      | $COMPOSE exec -T -e ARGOS_BASE="$BASE_RESTAUREE" -e ARGOS_ROLE="$ROLE_RESTAURATION" postgres sh -c \
+        'psql -X -q -o /dev/null -v ON_ERROR_STOP=1 --single-transaction -U "$POSTGRES_USER" -d "$ARGOS_BASE" \
+           -c "SET ROLE \"$ARGOS_ROLE\"" -f -'; then
+    echouer "rechargement de la base $BASE_RESTAUREE (transaction annulée, base vide)"
   fi
-  echo "Base $1 restaurée depuis $3"
+  echo "Base $BASE_RESTAUREE restaurée depuis $ARCHIVE_RESTAUREE"
 }
 
 restaurer "$BASE_ARGOS" "$ROLE_PROPRIETAIRE" "$ARCHIVE_ARGOS"

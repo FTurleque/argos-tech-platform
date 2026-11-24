@@ -11,11 +11,13 @@ BASE_KEYCLOAK=keycloak
 # défaut. Le .env est lu comme du texte, jamais exécuté : un mot de passe qui contient « $ », « ; » ou une espace ne
 # change pas la lecture des autres réglages. Les guillemets ou apostrophes qui entourent la valeur sont retirés.
 reglage() {
-  VALEUR=$(printenv "$1" || true)
+  NOM_REGLAGE="$1"
+  DEFAUT_REGLAGE="$2"
+  VALEUR=$(printenv "$NOM_REGLAGE" || true)
   if [ -z "$VALEUR" ] && [ -f .env ]; then
-    VALEUR=$(grep -E "^$1=" .env | tail -n 1 | cut -d= -f2- | sed -e 's/^"\(.*\)"$/\1/' -e "s/^'\(.*\)'\$/\1/")
+    VALEUR=$(grep -E "^$NOM_REGLAGE=" .env | tail -n 1 | cut -d= -f2- | sed -e 's/^"\(.*\)"$/\1/' -e "s/^'\(.*\)'\$/\1/")
   fi
-  printf '%s\n' "${VALEUR:-$2}"
+  printf '%s\n' "${VALEUR:-$DEFAUT_REGLAGE}"
 }
 
 charger_configuration() {
@@ -30,15 +32,17 @@ charger_configuration() {
 
 # $1 : archive. Vrai si l'archive est un gzip intègre qui contient un export allé à son terme.
 archive_valide() {
-  gzip -t "$1" 2>/dev/null || return 1
-  gzip -dc "$1" | tail -n "$LIGNES_FIN_EXPORT" | grep -qF -- "$FIN_EXPORT"
+  ARCHIVE_CONTROLEE="$1"
+  gzip -t "$ARCHIVE_CONTROLEE" 2>/dev/null || return 1
+  gzip -dc "$ARCHIVE_CONTROLEE" | tail -n "$LIGNES_FIN_EXPORT" | grep -qF -- "$FIN_EXPORT"
 }
 
 # $1 : base. Code 0 si la base existe dans l'instance, 1 si elle est absente, 2 si l'instance ne répond pas.
 base_existe() {
+  BASE_CHERCHEE="$1"
   if ! PRESENCE=$(printf "SELECT 1 FROM pg_database WHERE datname = :'base';\n" \
-      | $COMPOSE exec -T postgres sh -c 'psql -X -tA -v ON_ERROR_STOP=1 -U "$POSTGRES_USER" -d postgres -v base="$1"' \
-        sh "$1"); then
+      | $COMPOSE exec -T -e ARGOS_BASE="$BASE_CHERCHEE" postgres \
+        sh -c 'psql -X -tA -v ON_ERROR_STOP=1 -U "$POSTGRES_USER" -d postgres -v base="$ARGOS_BASE"'); then
     return 2
   fi
   [ "$PRESENCE" = 1 ]
