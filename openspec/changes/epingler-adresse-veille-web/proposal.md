@@ -87,4 +87,4 @@ allégée — un seul composant (`source-ingestion`) et un seul flux (récupéra
 |---|---|---|---|
 | Q-1 | Lorsque l'hôte a plusieurs adresses IP toutes autorisées, la connexion essaie-t-elle les suivantes après un échec de connexion à la première, ou la récupération échoue-t-elle ? (aucune source ne fixe ce comportement) | non : la conception retient une valeur par défaut révisable (design.md, D3) | Porteur du projet |
 | Q-2 | Le filtrage de sortie des plages privées (pare-feu, mandataire) est-il exigé pour l'installation NAS, ou seulement pour un hébergement en ligne ? | non : hors périmètre de ce changement | Porteur du projet, exploitant |
-| Q-3 | ADR-0028 reçoit-il une note datée qui retire le risque résiduel, ou un ADR qui le remplace sur ce point ? | non : tâche de documentation | Porteur du projet |
+| Q-3 | ADR-0028 reçoit-il une note datée qui retire le risque résiduel, ou un ADR qui le remplace sur ce point ? | non : tâche de documentation ; répondue le 2026-11-24 : note datée dans ADR-0028 [DÉCISION] | Porteur du projet |

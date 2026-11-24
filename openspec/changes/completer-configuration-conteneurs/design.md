@@ -117,12 +117,13 @@ Contrôles de santé et rotation des journaux (EXP-09) ; aucun journal ni métri
 - **Compromis** : bloc `environment` long.
 - **ADR** : non : décision locale.
 
-### D2 — Garde par interpolation stricte dans le service `keycloak`
+### D2 — Garde dans la commande d'entrée du service `keycloak`
 
-- **Statut** : [PROPOSITION]
-- **Choix** : `${VAR:?message}` pour les trois variables dans le service `keycloak`.
-- **Justification** : action d'AUD-DEP-27 ; l'erreur ne survient que si le profil est actif — à vérifier sur la version de Compose de Container Manager (EXP-08-S2), sinon garde dans un script d'entrée.
-- **Alternatives écartées** : contrôle dans un conteneur d'initialisation — plus lourd.
+- **Statut** : [DÉCISION — 2026-11-24, implémentation de la tâche 1.3]
+- **Choix** : la commande d'entrée du service `keycloak` (`entrypoint` bash dans `compose.yaml`) vérifie les trois variables, nomme chacune de celles qui manquent et s'arrête avant `kc.sh start --import-realm`.
+- **Justification** : action d'AUD-DEP-27 ; Docker Compose 5.7.0 interpole aussi les services des profils inactifs (essai du 2026-11-24 : `${VAR:?message}` dans un service de profil fait échouer `docker compose config` sans ce profil), ce qui contredirait EXP-08-S2.
+- **Alternatives écartées** : `${VAR:?message}` dans le service — refuse aussi le démarrage sans le profil ; contrôle dans un conteneur d'initialisation — plus lourd.
+- **Compromis** : l'erreur apparaît au démarrage du conteneur (journal de `keycloak`, redémarrages en boucle), pas à la validation de `compose.yaml`.
 - **ADR** : non.
 
 ### D3 — Contrôle de santé sans outil ajouté à l'image

@@ -101,7 +101,7 @@ allégée — configuration d'exploitation sans modèle de données ni contrat d
 
 | ID | Question | Bloquante ? | Destinataire |
 |---|---|---|---|
-| Q-1 | Profil NAS par défaut : IA désactivée, ou plafond d'Ollama réduit, pour laisser au moins 3 Go au DSM avec `ia` et `idp-local` ? | non : EXP-11 fixe la marge, pas le moyen | porteur du projet |
+| Q-1 | Profil NAS par défaut : IA désactivée, ou plafond d'Ollama réduit, pour laisser au moins 3 Go au DSM avec `ia` et `idp-local` ? | non : EXP-11 fixe la marge, pas le moyen ; répondue le 2026-11-24 : plafond de 2,5 Gio, IA désactivée par défaut [DÉCISION] | porteur du projet |
 | Q-2 | Valeurs retenues pour `quarkus.datasource.jdbc.max-size`, `KC_DB_POOL_MAX_SIZE`, `max_connections`, `shared_buffers`, `work_mem` et la fraction de tas (l'audit suggère 10, 10, ~128 Mo et 60 à 65 %) : à mesurer sur le NAS ? | non : EXP-11 impose l'inégalité, la valeur se règle | exploitant |
-| Q-3 | Le durcissement (lecture seule, `cap_drop`, `no-new-privileges`) s'étend-il à `keycloak`, `postgres` et `ollama` ? | non | porteur du projet |
+| Q-3 | Le durcissement (lecture seule, `cap_drop`, `no-new-privileges`) s'étend-il à `keycloak`, `postgres` et `ollama` ? | non ; répondue le 2026-11-24 : changement dédié [DÉCISION] | porteur du projet |
 | Q-4 | Keycloak est-il construit en image optimisée (`kc.sh build`, `--optimized`) pour accélérer son démarrage sur le Ryzen R1600 (non mesuré) ? | non | porteur du projet |

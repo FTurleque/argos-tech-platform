@@ -4,9 +4,6 @@ import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.net.URI;
-import java.net.http.HttpClient;
-import java.net.http.HttpRequest;
-import java.net.http.HttpResponse;
 import java.net.http.HttpTimeoutException;
 import java.time.Duration;
 import java.time.Instant;
@@ -17,22 +14,28 @@ import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 
+import jakarta.annotation.PreDestroy;
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.inject.Inject;
 
 import org.eclipse.microprofile.config.inject.ConfigProperty;
+import org.jboss.logging.Logger;
 
 import io.argos.ingestion.web.RecuperationRefusee.Motif;
+import io.vertx.core.Vertx;
 
 /**
- * Récupération bornée d'une adresse de veille (WEB-03, R-12) : chaque adresse, y compris chaque
- * destination de redirection, passe par {@link GardeAdresses} <em>avant</em> toute requête ; les
- * redirections sont suivies une à une (au plus {@code argos.veille-web.redirections-max}) ; la
- * durée totale et la taille du contenu sont bornées. Aucune adresse trouvée dans un contenu
- * collecté n'est jamais récupérée.
+ * Récupération bornée d'une adresse de veille (WEB-03, WEB-07, R-12) : chaque adresse, y compris chaque
+ * destination de redirection, passe par {@link GardeAdresses} <em>avant</em> toute requête, et la requête
+ * part vers une adresse IP issue de ce contrôle, sans nouvelle résolution du nom ({@link TransportEpingle}) ;
+ * les redirections sont suivies une à une (au plus {@code argos.veille-web.redirections-max}) ; la durée
+ * totale et la taille du contenu sont bornées. Aucune adresse trouvée dans un contenu collecté n'est
+ * jamais récupérée.
  */
 @ApplicationScoped
 public class RecuperateurWeb {
+
+    private static final Logger LOG = Logger.getLogger(RecuperateurWeb.class);
 
     /** Contenu récupéré : adresse finale après redirections, type déclaré et octets reçus. */
     public record Contenu(URI adresseFinale, String typeContenu, byte[] octets) {
@@ -42,10 +45,15 @@ public class RecuperateurWeb {
     record Reponse(int statut, Optional<String> location, Optional<String> typeContenu, InputStream corps) {
     }
 
-    /** Envoi d'une requête GET unique ; remplaçable dans les tests unitaires. */
+    /**
+     * Envoi d'une requête GET unique vers une adresse IP de la destination contrôlée, sans résolution DNS ;
+     * remplaçable dans les tests unitaires. Le corps rendu peut être un flux encore en cours de réception : sa
+     * lecture reste bornée par l'échéance de la récupération. Le transport de production ({@link TransportEpingle})
+     * le rend déjà reçu en entier dans ce délai.
+     */
     @FunctionalInterface
     interface Transport {
-        Reponse envoyer(URI uri, Duration delai) throws IOException, InterruptedException;
+        Reponse envoyer(DestinationControlee destination, Duration delai) throws IOException, InterruptedException;
     }
 
     /** Minuterie qui ferme un corps de réponse dont la lecture dépasse l'échéance. */
@@ -57,6 +65,14 @@ public class RecuperateurWeb {
 
     static final String AGENT = "Argos-veille/1.0 (+collecteur RSS/Atom)";
 
+    private static final int TAMPON_OCTETS = 8192;
+    /** Bornes des statuts HTTP de succès (2xx) et de redirection (3xx), bornes hautes exclues. */
+    private static final int STATUT_SUCCES_MIN = 200;
+    private static final int STATUT_REDIRECTION_MIN = 300;
+    private static final int STATUT_ERREUR_CLIENT_MIN = 400;
+    /** « Non modifié » : réponse 3xx qui n'est pas une redirection. */
+    private static final int STATUT_NON_MODIFIE = 304;
+
     private final GardeAdresses garde;
     private final Transport transport;
     private final Duration delai;
@@ -64,11 +80,11 @@ public class RecuperateurWeb {
     private final long tailleMax;
 
     @Inject
-    public RecuperateurWeb(GardeAdresses garde,
+    public RecuperateurWeb(GardeAdresses garde, Vertx vertx,
             @ConfigProperty(name = "argos.veille-web.delai", defaultValue = "PT10S") Duration delai,
             @ConfigProperty(name = "argos.veille-web.redirections-max", defaultValue = "5") int redirectionsMax,
             @ConfigProperty(name = "argos.veille-web.taille-max-octets", defaultValue = "2097152") long tailleMax) {
-        this(garde, transportHttp(delai), delai, redirectionsMax, tailleMax);
+        this(garde, new TransportEpingle(vertx, tailleMax, Optional.empty()), delai, redirectionsMax, tailleMax);
     }
 
     RecuperateurWeb(GardeAdresses garde, Transport transport, Duration delai, int redirectionsMax, long tailleMax) {
@@ -79,47 +95,59 @@ public class RecuperateurWeb {
         this.tailleMax = tailleMax;
     }
 
-    /** Vérifie puis récupère une adresse saisie par un utilisateur. */
-    public Contenu recuperer(String adresse) {
-        return recuperer(garde.verifier(adresse));
-    }
-
-    /** Récupère une adresse déjà vérifiée ; elle est revérifiée (la résolution DNS peut avoir changé). */
-    public Contenu recuperer(URI adresse) {
-        Instant echeance = Instant.now().plus(delai);
-        URI courante = garde.verifier(GardeAdresses.analyser(adresse.toString()), Motif.ADRESSE_INTERDITE);
-        for (int sauts = 0; ; sauts++) {
-            Reponse reponse = envoyer(courante, restant(echeance, courante));
-            int statut = reponse.statut();
-            if (statut >= 300 && statut < 400 && statut != 304) {
-                fermer(reponse.corps());
-                if (sauts >= redirectionsMax) {
-                    throw new RecuperationRefusee(Motif.TROP_DE_REDIRECTIONS,
-                            "Plus de " + redirectionsMax + " redirections pour " + courante.getHost() + ".");
-                }
-                URI suivante = GardeAdresses.redirection(courante, reponse.location().orElse(null));
-                courante = garde.verifier(suivante, Motif.REDIRECTION_INTERDITE);
-                continue;
-            }
-            if (statut < 200 || statut >= 300) {
-                fermer(reponse.corps());
-                throw new RecuperationRefusee(Motif.REPONSE_HTTP, "Réponse HTTP " + statut + " de " + courante.getHost() + ".");
-            }
-            byte[] octets = lire(reponse.corps(), echeance, courante);
-            return new Contenu(courante, reponse.typeContenu().orElse(""), octets);
+    /** Libère le client HTTP du transport de production à l'arrêt du serveur. */
+    @PreDestroy
+    void fermerTransport() {
+        if (transport instanceof TransportEpingle epingle) {
+            epingle.close();
         }
     }
 
-    private Reponse envoyer(URI uri, Duration restant) {
+    /** Vérifie puis récupère une adresse saisie par un utilisateur. */
+    public Contenu recuperer(String adresse) {
+        return recuperer(GardeAdresses.analyser(adresse));
+    }
+
+    /**
+     * Récupère une adresse : elle est contrôlée (une seule résolution DNS), puis la connexion vise une adresse IP
+     * de ce contrôle ; chaque redirection est contrôlée et suivie de la même façon.
+     */
+    public Contenu recuperer(URI adresse) {
+        Instant echeance = Instant.now().plus(delai);
+        DestinationControlee courante = garde.verifier(GardeAdresses.analyser(adresse.toString()), Motif.ADRESSE_INTERDITE);
+        for (int sauts = 0; ; sauts++) {
+            Reponse reponse = envoyer(courante, restant(echeance, courante.uri()));
+            int statut = reponse.statut();
+            if (statut >= STATUT_REDIRECTION_MIN && statut < STATUT_ERREUR_CLIENT_MIN && statut != STATUT_NON_MODIFIE) {
+                fermer(reponse.corps());
+                if (sauts >= redirectionsMax) {
+                    throw new RecuperationRefusee(Motif.TROP_DE_REDIRECTIONS,
+                            "Plus de " + redirectionsMax + " redirections pour " + courante.hote() + ".");
+                }
+                URI suivante = GardeAdresses.redirection(courante.uri(), reponse.location().orElse(null));
+                courante = garde.verifier(suivante, Motif.REDIRECTION_INTERDITE);
+                continue;
+            }
+            if (statut < STATUT_SUCCES_MIN || statut >= STATUT_REDIRECTION_MIN) {
+                fermer(reponse.corps());
+                throw new RecuperationRefusee(Motif.REPONSE_HTTP, "Réponse HTTP " + statut + " de " + courante.hote() + ".");
+            }
+            byte[] octets = lire(reponse.corps(), echeance, courante.uri());
+            return new Contenu(courante.uri(), reponse.typeContenu().orElse(""), octets);
+        }
+    }
+
+    private Reponse envoyer(DestinationControlee destination, Duration restant) {
+        String hote = destination.hote();
         try {
-            return transport.envoyer(uri, restant);
+            return transport.envoyer(destination, restant);
         } catch (HttpTimeoutException erreur) {
-            throw new RecuperationRefusee(Motif.DELAI_DEPASSE, "Délai dépassé pour " + uri.getHost() + ".", erreur);
+            throw new RecuperationRefusee(Motif.DELAI_DEPASSE, "Délai dépassé pour " + hote + ".", erreur);
         } catch (IOException erreur) {
-            throw new RecuperationRefusee(Motif.ERREUR_RESEAU, "Erreur réseau pour " + uri.getHost() + ".", erreur);
+            throw new RecuperationRefusee(Motif.ERREUR_RESEAU, "Erreur réseau pour " + hote + ".", erreur);
         } catch (InterruptedException erreur) {
             Thread.currentThread().interrupt();
-            throw new RecuperationRefusee(Motif.ERREUR_RESEAU, "Récupération interrompue pour " + uri.getHost() + ".", erreur);
+            throw new RecuperationRefusee(Motif.ERREUR_RESEAU, "Récupération interrompue pour " + hote + ".", erreur);
         }
     }
 
@@ -135,17 +163,17 @@ public class RecuperateurWeb {
         if (corps == null) {
             return new byte[0];
         }
-        // Un serveur qui envoie ses en-têtes puis se tait bloquerait la lecture : le flux est fermé à
-        // l'échéance, ce qui interrompt la lecture en cours. La minuterie, au millième de seconde, peut
-        // fermer le flux un peu avant l'instant d'échéance : la coupure est marquée avant la fermeture, et
-        // une lecture interrompue par elle est un délai dépassé.
+        // Un corps transmis en flux qui cesse d'arriver bloquerait la lecture : le flux est fermé à l'échéance, ce
+        // qui interrompt la lecture en cours. La minuterie, au millième de seconde, peut fermer le flux un peu avant l'instant
+        // d'échéance : la coupure est marquée avant la fermeture, et une lecture interrompue par elle est un délai
+        // dépassé.
         AtomicBoolean coupeeALEcheance = new AtomicBoolean();
         ScheduledFuture<?> coupure = MINUTERIE.schedule(() -> {
             coupeeALEcheance.set(true);
             fermer(corps);
         }, Math.max(1, Duration.between(Instant.now(), echeance).toMillis()), TimeUnit.MILLISECONDS);
         try (InputStream flux = corps; ByteArrayOutputStream out = new ByteArrayOutputStream()) {
-            byte[] tampon = new byte[8192];
+            byte[] tampon = new byte[TAMPON_OCTETS];
             long total = 0;
             int octetsLus;
             while ((octetsLus = flux.read(tampon)) != -1) {
@@ -176,25 +204,9 @@ public class RecuperateurWeb {
         if (corps != null) {
             try {
                 corps.close();
-            } catch (IOException ignored) {
-                // corps abandonné
+            } catch (IOException erreur) {
+                LOG.debugf(erreur, "veille web : fermeture d'un corps de réponse abandonné en échec");
             }
         }
-    }
-
-    private static Transport transportHttp(Duration delai) {
-        HttpClient client = HttpClient.newBuilder()
-                .connectTimeout(delai)
-                .followRedirects(HttpClient.Redirect.NEVER)
-                .build();
-        return (uri, restant) -> {
-            HttpRequest requete = HttpRequest.newBuilder(uri).timeout(restant).GET()
-                    .header("User-Agent", AGENT)
-                    .header("Accept", "application/rss+xml, application/atom+xml, application/xml, text/xml, text/html;q=0.9, */*;q=0.5")
-                    .build();
-            HttpResponse<InputStream> reponseHttp = client.send(requete, HttpResponse.BodyHandlers.ofInputStream());
-            return new Reponse(reponseHttp.statusCode(), reponseHttp.headers().firstValue("Location"),
-                    reponseHttp.headers().firstValue("Content-Type"), reponseHttp.body());
-        };
     }
 }
