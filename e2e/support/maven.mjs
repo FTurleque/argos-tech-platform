@@ -13,7 +13,7 @@ import { fileURLToPath } from 'node:url'
 const WINDOWS = 'win32'
 const SCRIPT_WINDOWS = 'mvn.cmd'
 const SCRIPT_UNIX = 'mvn'
-export const CMD_WINDOWS = 'C:\\Windows\\System32\\cmd.exe'
+export const CMD_WINDOWS = String.raw`C:\Windows\System32\cmd.exe`
 
 /** Emplacements d'installation fixes, essayés dans l'ordre après les variables d'environnement. */
 export const EMPLACEMENTS_MAVEN = Object.freeze([
