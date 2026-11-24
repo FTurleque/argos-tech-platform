@@ -2,12 +2,16 @@
 
 Argos s'installe de la même façon sur le NAS Synology DS1522+ et sur un PC : avec Docker Compose, à partir du fichier [`compose.yaml`](../../compose.yaml) à la racine du dépôt. Décision : [ADR-0026](../architecture/adr/0026-hebergement-synology.md).
 
-Deux conteneurs démarrent :
+Deux conteneurs démarrent toujours, deux autres avec leur profil :
 
 | Conteneur | Rôle | Mémoire maximale par défaut |
 |---|---|---|
-| `postgres` | base de données PostgreSQL 18, données dans le volume `argos-pgdata` (bases `argos` et `keycloak`) | 512 Mo |
-| `argos` | IHM web + API Quarkus, sur le port 8080 | 1 Go |
+| `postgres` | base de données PostgreSQL 18, données dans le volume `argos-pgdata` (bases `argos` et `keycloak`) | 512 Mio |
+| `argos` | IHM web + API Quarkus, sur le port 8080 | 1 Gio |
+| `keycloak` | fournisseur d'identité, profil `idp-local` seulement ([Avec Keycloak sur le même poste](#avec-keycloak-sur-le-même-poste-profil-idp-local)) | 768 Mio |
+| `ollama` | modèle d'IA local, profil `ia` seulement | 2,5 Gio |
+
+Chaque conteneur déclare un contrôle de santé et borne ses journaux ([Santé et journaux des conteneurs](#santé-et-journaux-des-conteneurs)) ; les plafonds tiennent dans la mémoire du NAS ([Dimensionnement du NAS](#dimensionnement-du-nas)).
 
 Chaque application a son compte PostgreSQL, ni superutilisateur ni propriétaire d'une autre base ([ADR-0035](../architecture/adr/0035-comptes-et-isolation-des-bases.md)) :
 
@@ -39,13 +43,13 @@ Pour développer, ne lancez que la base (`docker compose up -d postgres`) et sui
 
 ### Avec Keycloak sur le même poste (profil `idp-local`)
 
-Sans fournisseur d'identité existant, le profil `idp-local` ajoute un conteneur Keycloak (ADR-0027) et sa base, dans le même PostgreSQL. Dans `.env` : `ARGOS_OIDC_URL=http://keycloak:8080/realms/argos`, `ARGOS_ADMIN_EMAIL`, `ARGOS_ADMIN_MOT_DE_PASSE_INITIAL` (provisoire, à changer à la première connexion) et `ARGOS_KEYCLOAK_ADMIN_MOT_DE_PASSE` (console d'administration de Keycloak), puis :
+Sans fournisseur d'identité existant, le profil `idp-local` ajoute un conteneur Keycloak (ADR-0027) et sa base, dans le même PostgreSQL. Dans `.env` : `ARGOS_OIDC_URL=http://keycloak:8080/realms/argos`, `ARGOS_ADMIN_EMAIL`, `ARGOS_ADMIN_MOT_DE_PASSE_INITIAL` (provisoire, à changer à la première connexion) et `ARGOS_KEYCLOAK_ADMIN_MOT_DE_PASSE` (console d'administration de Keycloak). Ces trois variables sont obligatoires avec ce profil : s'il en manque une, le conteneur `keycloak` s'arrête avant d'importer le royaume, avec un message qui la nomme (`docker compose logs keycloak`), et redémarre en boucle jusqu'à la correction du `.env`. Sans ce profil, elles ne sont pas demandées. Puis :
 
 ```bash
 docker compose --profile idp-local up -d --build
 ```
 
-Keycloak répond sur <http://localhost:8180> (`ARGOS_KEYCLOAK_PORT`), Argos sur le port `ARGOS_PORT`. Le royaume importé ([`deploiement/keycloak/argos-realm.json`](../../deploiement/keycloak/argos-realm.json)) déclare les clients `argos-server`, `argos-ui` et `argos-mcp` et un seul compte, l'administrateur. Les adresses de retour de `argos-ui` visent `http://localhost:8088` : avec un autre `ARGOS_PORT`, adaptez-les dans la console Keycloak (le royaume n'est importé qu'une fois).
+Keycloak répond sur <http://localhost:8180> (`ARGOS_KEYCLOAK_PORT`), Argos sur le port `ARGOS_PORT`. Le royaume importé ([`deploiement/keycloak/argos-realm.json`](../../deploiement/keycloak/argos-realm.json)) déclare les clients `argos-server`, `argos-ui` et `argos-mcp` et un seul compte, l'administrateur. Les adresses de retour de `argos-ui` visent `http://localhost:8088` : avec un autre `ARGOS_PORT`, adaptez-les dans la console Keycloak. Le royaume n'est importé qu'une fois, au premier démarrage sur une base `keycloak` vide : changer ensuite `ARGOS_ADMIN_EMAIL` ou `ARGOS_ADMIN_MOT_DE_PASSE_INITIAL` ne modifie ni le compte ni le royaume, qui se gèrent alors dans la console.
 
 La base `keycloak` porte les comptes et leurs sujets OIDC, auxquels Argos rattache ses propres comptes : elle est sauvegardée avec celle d'Argos ([Sauvegarder](#4-sauvegarder)). Après une reprise, restaurez-la **avant le premier démarrage de Keycloak** ([Restaurer](#5-restaurer)) : Keycloak n'importe le royaume que s'il n'existe pas, et un royaume réimporté donnerait de nouveaux sujets à tous les comptes, que les comptes Argos ne retrouveraient plus.
 
@@ -167,8 +171,44 @@ Retour arrière : `docker compose --profile idp-local down`, `docker volume rm a
 | `ARGOS_BIND` | `127.0.0.1` | adresse d'écoute d'Argos (`0.0.0.0` pour le réseau local) |
 | `ARGOS_PORT` | `8080` | port d'Argos sur la machine |
 | `ARGOS_DB_PORT` | `5432` | port de la base sur la machine (accessible localement seulement) |
-| `ARGOS_MEM_LIMIT` / `ARGOS_DB_MEM_LIMIT` | `1g` / `512m` | mémoire maximale des conteneurs |
+| `ARGOS_PUBLIC_URL` | `http://localhost:8080` | adresse publique d'Argos, telle que l'ouvre le navigateur : début des liens des e-mails (par exemple `https://argos.exemple.fr` derrière le reverse proxy de DSM) |
+| `ARGOS_SMTP_HOST` / `ARGOS_SMTP_PORT` | `localhost` / `587` | relais SMTP des e-mails (celui de DSM sur le NAS) ; `ARGOS_SMTP_USER`, `ARGOS_SMTP_PASSWORD`, `ARGOS_MAIL_FROM` (`argos@localhost`), `ARGOS_SMTP_STARTTLS` (`REQUIRED`) et `ARGOS_SMTP_TIMEOUT` (`PT10S`) le complètent |
+| `ARGOS_GITLAB_TOKEN` / `ARGOS_GITHUB_TOKEN` | vides | jetons de forge en lecture seule, facultatifs |
+| `ARGOS_ADMIN_MOT_DE_PASSE_INITIAL` / `ARGOS_KEYCLOAK_ADMIN_MOT_DE_PASSE` | aucun (obligatoires avec `idp-local`) | mot de passe provisoire de l'administrateur et mot de passe de la console de Keycloak |
+| `ARGOS_MEM_LIMIT` / `ARGOS_DB_MEM_LIMIT` | `1g` / `512m` | mémoire maximale des conteneurs `argos` et `postgres` ; `ARGOS_KEYCLOAK_MEM_LIMIT` (`768m`) et `ARGOS_OLLAMA_MEM_LIMIT` (`2560m`) pour les profils |
+| `ARGOS_DB_MAX_CONNECTIONS` / `ARGOS_DB_POOL_MAX_SIZE` / `ARGOS_KEYCLOAK_DB_POOL_MAX_SIZE` | `40` / `10` / `10` | connexions de PostgreSQL et pools d'Argos et de Keycloak ([Dimensionnement du NAS](#dimensionnement-du-nas)) |
 | `ARGOS_BACKUP_DIR` / `ARGOS_BACKUP_KEEP` | `./sauvegardes` / `14` | dossier des sauvegardes et nombre d'archives conservées par base |
+
+[`.env.example`](../../.env.example) liste toutes les variables lues par Argos ou par `compose.yaml`, réglages facultatifs commentés avec leur défaut : planifications (`ARGOS_*_CRON`), passerelle IA, audience OIDC, adresse des archives JORF. Le contrôle [`scripts/verifier-configuration.mjs`](../../scripts/verifier-configuration.mjs), exécuté par l'intégration continue, échoue si une variable lue par le serveur n'est pas transmise au conteneur `argos` ou manque au modèle.
+
+## Santé et journaux des conteneurs
+
+Chaque conteneur a un contrôle de santé, dont Container Manager affiche l'état (`healthy`, `unhealthy`) :
+
+| Conteneur | Contrôle |
+|---|---|
+| `argos` | `/q/health/ready` (`HEALTHCHECK` de l'image) : non sain si la base est injoignable |
+| `postgres` | `pg_isready` |
+| `keycloak` | `/health/ready` sur son port de gestion |
+| `ollama` | réponse de son API (`ollama list`) |
+
+Les journaux de chaque conteneur tournent : trois fichiers de 10 Mio au plus (`docker compose logs <conteneur>` lit le plus récent). Une saturation du tas arrête le serveur (`Terminating due to java.lang.OutOfMemoryError` dans son journal) ; la politique `restart: unless-stopped` le relance.
+
+Le conteneur `argos` est durci : le code de l'application appartient à root, le système de fichiers racine est en lecture seule (seul `/tmp`, en mémoire, est inscriptible), aucune capacité système n'est accordée et l'élévation de privilèges est interdite.
+
+## Dimensionnement du NAS
+
+Le DS1522+ est livré avec 8 Go ([ADR-0026](../architecture/adr/0026-hebergement-synology.md)). Les plafonds par défaut laissent au moins 3 Go à DSM avec les deux profils actifs :
+
+| Conteneur | Plafond (`mem_limit`) | Réglages |
+|---|---|---|
+| `postgres` | 512 Mio | `max_connections=40`, `shared_buffers=128MB`, `work_mem=4MB` |
+| `keycloak` (`idp-local`) | 768 Mio | pool de 10 connexions |
+| `argos` | 1 Gio | tas à 60 % du plafond, pool de 10 connexions, attente d'une connexion libre bornée à 5 s |
+| `ollama` (`ia`) | 2,5 Gio | un modèle chargé, une requête à la fois ; `qwen2.5:1.5b` tient dans environ 2 Gio |
+| **Total** | **4,75 Gio** | **3,25 Gio laissés à DSM** |
+
+La somme des pools (20) reste sous `max_connections` (40) : la marge sert aux migrations au démarrage, à la sauvegarde et à l'administration. Un modèle plus gros demande de relever `ARGOS_OLLAMA_MEM_LIMIT` et de réduire un autre plafond, ou d'ajouter de la mémoire au NAS. Relevé `docker stats` sur un PC, pile au repos avec les deux profils : `postgres` 80 Mio, `keycloak` 614 Mio, `argos` 316 Mio, `ollama` 10 Mio sans modèle chargé. Ces valeurs restent à mesurer sur le NAS sous charge (`docker stats`, `SELECT count(*) FROM pg_stat_activity`).
 
 ## Avis de licence de l'image
 
@@ -258,4 +298,5 @@ Limites : 60 appels par minute et par utilisateur (`argos.mcp.debit.requetes-par
 - Sauvegarde et restauration vérifiées par [`scripts/essai-sauvegarde-restauration.sh`](../../scripts/essai-sauvegarde-restauration.sh) : PostgreSQL arrêté, export tronqué, échecs répétés, rotation, base `keycloak` présente ou absente, restauration rejouée, archive tronquée, erreur de rechargement ; permissions 0600 et 0700 sous `umask 000` et lecture refusée à un autre compte sur un système de fichiers Linux. Comptes de base vérifiés par les tests `RolesBaseTest` sur une base initialisée par `initialiser-bases.sh`.
 - Serveur MCP : protocole, authentification et outils vérifiés par les tests `io.argos.mcp` ; **non vérifié** : la connexion réelle d'un assistant IA configuré par `.mcp.json`.
 - Construction de l'image vérifiée le 2026-11-19 sur un PC Windows (Docker Engine 29.9.3) : `docker build` réussit, l'étape de contrôle affiche « 194 dépendances inventoriées, 26 avis NOTICE reproduits », « 7 textes de licence copiés » puis « Aucune licence absente ni non admise », et `/opt/argos/licenses/` (dossier 0755) contient `NOTICE`, `THIRD-PARTY.txt`, `Apache-2.0.txt`, `BSD-2-Clause.txt`, `BSD-3-Clause.txt`, `EPL-2.0.txt`, `JDOM.txt`, `MIT-0.txt` et `MIT.txt`, propriété de root en lecture seule (0444), lisibles et non modifiables par l'utilisateur d'UID 1001. Un inventaire factice (licence GPL-3.0, EPL-2.0 hors des neuf API Jakarta, licence absente) donné au script dans l'étage `server` fait échouer `docker build` avec le code 1.
-- **Non vérifié** : le démarrage réel sur le NAS. Premier essai à faire sur le PC avec `docker compose up -d --build`.
+- Pile complète (`ia` et `idp-local`) démarrée sur un PC Windows le 2026-11-24 (Docker Compose 5.7.0, projet de test isolé) : quatre conteneurs `healthy`, IHM servie, API protégée (401 sans jeton) ; `argos` déclaré `unhealthy` 73 s après l'arrêt de la base, puis `healthy` après son redémarrage ; écriture refusée dans `/opt/argos` et hors de `/tmp`, acceptée dans `/tmp` ; `docker inspect` : `ReadonlyRootfs`, `CapDrop` `ALL`, `no-new-privileges`, journaux `json-file` bornés sur les quatre services ; `SHOW max_connections` : 40 ; arrêt sur `OutOfMemoryError` et redémarrages observés avec un tas réduit ; Keycloak arrêté en nommant `ARGOS_ADMIN_MOT_DE_PASSE_INITIAL` manquant, base `keycloak` restée vide.
+- **Non vérifié** : le démarrage réel sur le NAS ; la réception d'un e-mail par un relais SMTP réel (variables SMTP et adresse publique relevées dans le conteneur seulement) ; une connexion OIDC complète sur cette pile de test.

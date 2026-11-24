@@ -37,18 +37,24 @@ COPY --from=ui /src/argos-ui/dist ./src/main/resources/META-INF/resources
 RUN mvn -B package -DskipTests
 
 # 3. Exécution : JRE 17 seul, utilisateur non privilégié.
-#    /opt/argos/licenses : avis NOTICE du serveur, liste générée des dépendances tierces, de leurs
-#    licences, des titulaires des droits et des adresses du code source EPL-2.0 (THIRD-PARTY.txt), et
-#    textes des licences retenues (Apache-2.0, MIT, MIT-0, BSD-2-Clause, BSD-3-Clause, EPL-2.0, JDOM).
-#    Ce dossier (0755) et ces avis (0444) appartiennent à root : l'utilisateur d'exécution les lit
-#    sans pouvoir les modifier.
+#    Le code de l'application (quarkus-app) et /opt/argos/licenses appartiennent à root : l'utilisateur
+#    d'exécution les lit sans pouvoir les modifier (EXP-12). /opt/argos/licenses : avis NOTICE du serveur,
+#    liste générée des dépendances tierces, de leurs licences, des titulaires des droits et des adresses du
+#    code source EPL-2.0 (THIRD-PARTY.txt), et textes des licences retenues (Apache-2.0, MIT, MIT-0,
+#    BSD-2-Clause, BSD-3-Clause, EPL-2.0, JDOM), dossier en 0755 et avis en 0444.
 FROM eclipse-temurin:17-jre
 WORKDIR /opt/argos
 RUN useradd --system --uid 1001 --no-create-home argos && mkdir -m 0755 licenses
-COPY --from=server --chown=1001:0 /src/argos-server/target/quarkus-app/ ./
+COPY --from=server /src/argos-server/target/quarkus-app/ ./
 COPY --chmod=0444 argos-server/NOTICE ./licenses/
 COPY --from=server --chmod=0444 /src/argos-server/target/THIRD-PARTY.txt /src/argos-server/target/licenses/ ./licenses/
 USER 1001
 EXPOSE 8080
-ENV JAVA_OPTS="-XX:MaxRAMPercentage=75 -Djava.util.logging.manager=org.jboss.logmanager.LogManager"
+# Tas à 60 % du plafond mémoire du conteneur, le reste pour la pile, le métaspace et les tampons ; arrêt du
+# processus sur OutOfMemoryError, que la politique de redémarrage relance (EXP-10).
+ENV JAVA_OPTS="-XX:MaxRAMPercentage=60 -XX:+ExitOnOutOfMemoryError -Djava.util.logging.manager=org.jboss.logmanager.LogManager"
+# Contrôle de santé sans outil ajouté (EXP-09) : requête sur /q/health/ready par /dev/tcp de bash ; sain si
+# le serveur répond 200, non sain s'il répond 503 (base injoignable, par exemple) ou ne répond pas.
+HEALTHCHECK --interval=15s --timeout=5s --start-period=60s --retries=4 \
+    CMD ["bash", "-c", "exec 3<>/dev/tcp/localhost/8080 && printf 'GET /q/health/ready HTTP/1.1\r\nHost: localhost\r\nConnection: close\r\n\r\n' >&3 && head -n 1 <&3 | grep -q ' 200 '"]
 ENTRYPOINT ["sh", "-c", "exec java $JAVA_OPTS -jar quarkus-run.jar"]

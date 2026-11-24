@@ -8,12 +8,34 @@
 #
 # Réglages dans un fichier .env à côté de ce fichier (modèle : .env.example). Les quatre mots de passe de base
 # (administration, propriétaire et connexion d'Argos, Keycloak) sont obligatoires : sans eux, Compose refuse de démarrer.
+# Toute variable lue par le serveur en production est transmise au service argos et figure dans .env.example
+# (EXP-07, contrôlé par scripts/verifier-configuration.mjs) ; chaque défaut repris ici est celui de
+# application.properties, sauf mention contraire.
+# Dimensionnement par défaut pour le DS1522+ (8 Go) : plafonds cumulés de 4,75 Gio avec les profils « ia » et
+# « idp-local », pools de connexions sous max_connections (EXP-11, docs/deploiement/synology-et-pc.md).
 name: argos
+
+# Journaux de conteneur bornés par rotation (EXP-09) : trois fichiers de 10 Mio au plus par service.
+x-journaux: &journaux
+  driver: json-file
+  options:
+    max-size: "10m"
+    max-file: "3"
 
 services:
   postgres:
     image: postgres:18
     restart: unless-stopped
+    # Réglages pour le plafond mémoire du service (EXP-11) : max_connections au-dessus de la somme des pools
+    # d'Argos et de Keycloak, avec une marge pour les migrations, l'administration et la sauvegarde.
+    command:
+      - postgres
+      - -c
+      - max_connections=${ARGOS_DB_MAX_CONNECTIONS:-40}
+      - -c
+      - shared_buffers=${ARGOS_DB_SHARED_BUFFERS:-128MB}
+      - -c
+      - work_mem=${ARGOS_DB_WORK_MEM:-4MB}
     environment:
       POSTGRES_DB: ${ARGOS_DB_NAME:-argos}
       # Superutilisateur d'administration : initialisation, sauvegarde et restauration seulement (ADR-0035).
@@ -35,6 +57,7 @@ services:
       # Rôles et bases d'Argos et de Keycloak (profil « idp-local »), créés au premier démarrage du volume.
       - ./deploiement/postgres/initialiser-bases.sh:/docker-entrypoint-initdb.d/initialiser-bases.sh:ro
     mem_limit: ${ARGOS_DB_MEM_LIMIT:-512m}
+    logging: *journaux
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
       interval: 5s
@@ -43,12 +66,33 @@ services:
 
   # Fournisseur d'identité Keycloak (ADR-0027) pour un poste sans Keycloak existant : profil « idp-local ».
   # Le royaume « argos » est importé au premier démarrage avec un seul compte, l'administrateur (ARGOS_ADMIN_EMAIL),
-  # au mot de passe provisoire ARGOS_ADMIN_MOT_DE_PASSE_INITIAL à changer à la première connexion.
+  # au mot de passe provisoire ARGOS_ADMIN_MOT_DE_PASSE_INITIAL à changer à la première connexion. Keycloak
+  # n'importe pas un royaume qui existe déjà : changer ces variables ensuite ne modifie pas le compte.
   keycloak:
     image: quay.io/keycloak/keycloak:${ARGOS_KEYCLOAK_VERSION:-26.7.4}
     profiles: ["idp-local"]
     restart: unless-stopped
-    command: ["start", "--import-realm"]
+    # Garde des variables obligatoires du profil (EXP-08) : sans elles, le conteneur s'arrête avant tout import
+    # du royaume, avec un message nommant la variable. Compose interpole aussi les services des profils
+    # inactifs : une interpolation ${VAR:?} ici empêcherait de démarrer sans le profil.
+    entrypoint:
+      - /bin/bash
+      - -c
+      - |
+        manquantes=0
+        for couple in ARGOS_ADMIN_EMAIL:ARGOS_ADMIN_EMAIL \
+            ARGOS_ADMIN_MOT_DE_PASSE_INITIAL:ARGOS_ADMIN_MOT_DE_PASSE_INITIAL \
+            KC_BOOTSTRAP_ADMIN_PASSWORD:ARGOS_KEYCLOAK_ADMIN_MOT_DE_PASSE; do
+          interne=$${couple%%:*}
+          if [ -z "$${!interne}" ]; then
+            echo "Profil idp-local : $${couple#*:} obligatoire (voir .env.example), royaume non importé." >&2
+            manquantes=1
+          fi
+        done
+        if [ "$$manquantes" -ne 0 ]; then
+          exit 1
+        fi
+        exec /opt/keycloak/bin/kc.sh start --import-realm
     depends_on:
       postgres:
         condition: service_healthy
@@ -57,6 +101,8 @@ services:
       KC_DB_URL: jdbc:postgresql://postgres:5432/keycloak
       KC_DB_USERNAME: *keycloak
       KC_DB_PASSWORD: *keycloak-mdp
+      # Pool de connexions de Keycloak, compté dans le budget de max_connections de PostgreSQL (EXP-11).
+      KC_DB_POOL_MAX_SIZE: ${ARGOS_KEYCLOAK_DB_POOL_MAX_SIZE:-10}
       KC_HTTP_ENABLED: "true"
       # Adresse vue par le navigateur et dans les jetons ; les appels d'Argos passent par le réseau du projet.
       KC_HOSTNAME: http://localhost:${ARGOS_KEYCLOAK_PORT:-8180}
@@ -70,7 +116,8 @@ services:
       - ./deploiement/keycloak/argos-realm.json:/opt/keycloak/data/import/argos-realm.json:ro
     ports:
       - "127.0.0.1:${ARGOS_KEYCLOAK_PORT:-8180}:8080"
-    mem_limit: ${ARGOS_KEYCLOAK_MEM_LIMIT:-1g}
+    mem_limit: ${ARGOS_KEYCLOAK_MEM_LIMIT:-768m}
+    logging: *journaux
     healthcheck:
       test:
         - CMD-SHELL
@@ -95,33 +142,80 @@ services:
         condition: service_healthy
         required: false
     environment:
-      ARGOS_DB_URL: jdbc:postgresql://postgres:5432/${ARGOS_DB_NAME:-argos}
+      ARGOS_DB_URL: ${ARGOS_DB_URL:-jdbc:postgresql://postgres:5432/${ARGOS_DB_NAME:-argos}}
       # Connexion de l'application (ni superutilisateur, ni propriétaire, soumise à la RLS) ; migrations appliquées
       # au démarrage sous le propriétaire de la base (EXP-05).
       ARGOS_DB_USER: *connexion
       ARGOS_DB_PASSWORD: *connexion-mdp
       ARGOS_DB_OWNER: *proprietaire
       ARGOS_DB_OWNER_PASSWORD: *proprietaire-mdp
+      # Pool de connexions d'Argos, compté dans le budget de max_connections de PostgreSQL (EXP-11).
+      ARGOS_DB_POOL_MAX_SIZE: ${ARGOS_DB_POOL_MAX_SIZE:-10}
       # Fournisseur d'identité OIDC (Keycloak, ADR-0027) : obligatoire, Argos refuse de démarrer sans.
       ARGOS_OIDC_URL: ${ARGOS_OIDC_URL:-}
       ARGOS_OIDC_CLIENT_ID: ${ARGOS_OIDC_CLIENT_ID:-argos-server}
+      ARGOS_OIDC_AUDIENCE: ${ARGOS_OIDC_AUDIENCE:-argos-server}
       ARGOS_ADMIN_EMAIL: ${ARGOS_ADMIN_EMAIL:-}
+      # Adresse publique d'Argos, début des liens des e-mails. Défaut : l'IHM servie par ce conteneur
+      # (application.properties vise l'IHM de développement).
+      ARGOS_PUBLIC_URL: ${ARGOS_PUBLIC_URL:-http://localhost:${ARGOS_PORT:-8080}}
+      # E-mails : relais SMTP (celui de DSM sur le NAS) ; mot de passe dans .env seulement.
+      ARGOS_MAIL_FROM: ${ARGOS_MAIL_FROM:-argos@localhost}
+      ARGOS_SMTP_HOST: ${ARGOS_SMTP_HOST:-localhost}
+      ARGOS_SMTP_PORT: ${ARGOS_SMTP_PORT:-587}
+      ARGOS_SMTP_STARTTLS: ${ARGOS_SMTP_STARTTLS:-REQUIRED}
+      ARGOS_SMTP_TIMEOUT: ${ARGOS_SMTP_TIMEOUT:-PT10S}
+      ARGOS_SMTP_USER: ${ARGOS_SMTP_USER:-}
+      ARGOS_SMTP_PASSWORD: ${ARGOS_SMTP_PASSWORD:-}
+      # Forges : jetons en lecture seule, facultatifs.
+      ARGOS_GITLAB_TOKEN: ${ARGOS_GITLAB_TOKEN:-}
+      ARGOS_GITHUB_TOKEN: ${ARGOS_GITHUB_TOKEN:-}
+      # Planifications (expressions cron au fuseau ARGOS_ALERTES_FUSEAU ; « off » désactive la tâche).
+      ARGOS_ALERTES_FUSEAU: ${ARGOS_ALERTES_FUSEAU:-Europe/Paris}
+      ARGOS_INGESTION_PLANIFICATION_CADENCE: ${ARGOS_INGESTION_PLANIFICATION_CADENCE:-1h}
+      ARGOS_INVENTORY_IMPORT_CRON: ${ARGOS_INVENTORY_IMPORT_CRON:-0 0 3 * * ?}
+      ARGOS_RESUME_QUOTIDIEN_CRON: ${ARGOS_RESUME_QUOTIDIEN_CRON:-0 0 8 * * ?}
+      ARGOS_RESUME_HEBDOMADAIRE_CRON: ${ARGOS_RESUME_HEBDOMADAIRE_CRON:-0 0 8 ? * MON}
+      ARGOS_RADAR_CRON: ${ARGOS_RADAR_CRON:-0 0 6 * * ?}
+      ARGOS_ACTIVITE_PURGE_CRON: ${ARGOS_ACTIVITE_PURGE_CRON:-0 30 4 * * ?}
+      ARGOS_ARTISTE_COLLECTE_CRON: ${ARGOS_ARTISTE_COLLECTE_CRON:-0 0 5 * * ?}
+      ARGOS_ARTISTE_RAPPELS_CRON: ${ARGOS_ARTISTE_RAPPELS_CRON:-0 0 7 * * ?}
+      ARGOS_REGLEMENTAIRE_COLLECTE_CRON: ${ARGOS_REGLEMENTAIRE_COLLECTE_CRON:-0 30 6 * * ?}
+      ARGOS_REGLEMENTAIRE_RAPPELS_CRON: ${ARGOS_REGLEMENTAIRE_RAPPELS_CRON:-0 15 7 * * ?}
+      ARGOS_JORF_URL: ${ARGOS_JORF_URL:-https://echanges.dila.gouv.fr/OPENDATA/JORF}
       # Passerelle IA (encadrer-appels-ia) : facultative et désactivée par défaut. Avec le profil « ia »,
-      # ARGOS_IA_ACTIVE=true l'active ; sans IA, Argos fonctionne en mode déterministe.
+      # ARGOS_IA_ACTIVE=true l'active ; sans IA, Argos fonctionne en mode déterministe. Défaut de l'adresse :
+      # le service ollama du projet.
       ARGOS_IA_ACTIVE: ${ARGOS_IA_ACTIVE:-false}
       ARGOS_OLLAMA_URL: ${ARGOS_OLLAMA_URL:-http://ollama:11434}
       ARGOS_IA_MODELE: ${ARGOS_IA_MODELE:-qwen2.5:1.5b}
+      ARGOS_IA_DELAI: ${ARGOS_IA_DELAI:-PT60S}
+      ARGOS_IA_PLAFOND_JOUR: ${ARGOS_IA_PLAFOND_JOUR:-1000}
+      ARGOS_IA_QUOTA_ESPACE_JOUR: ${ARGOS_IA_QUOTA_ESPACE_JOUR:-100}
+      ARGOS_IA_QUOTA_COMPTE_JOUR: ${ARGOS_IA_QUOTA_COMPTE_JOUR:-20}
+      ARGOS_IA_ANALYSE_CORRELATION: ${ARGOS_IA_ANALYSE_CORRELATION:-false}
       TZ: ${TZ:-Europe/Paris}
     ports:
       # 127.0.0.1 par défaut : accès local, ou via le reverse proxy de DSM sur le NAS.
       # ARGOS_BIND=0.0.0.0 pour un accès direct depuis le réseau local ou le VPN.
       - "${ARGOS_BIND:-127.0.0.1}:${ARGOS_PORT:-8080}:8080"
     mem_limit: ${ARGOS_MEM_LIMIT:-1g}
+    logging: *journaux
+    # Contrôle de santé : HEALTHCHECK de l'image (Dockerfile), sur /q/health/ready.
+    # Durcissement (EXP-12) : système de fichiers racine en lecture seule, seul /tmp inscriptible (fichiers
+    # temporaires de la JVM et de Vert.x), aucune capacité système, aucune élévation de privilèges.
+    read_only: true
+    tmpfs:
+      - /tmp
+    cap_drop:
+      - ALL
+    security_opt:
+      - no-new-privileges:true
 
   # Modèle d'IA local (image officielle ollama/ollama, licence MIT), désactivé par défaut : il ne
   # démarre qu'avec le profil « ia ». Aucun port publié : seul Argos l'appelle, par le réseau du
-  # projet. Prévoir environ 2 Gio de mémoire pour qwen2.5:1.5b sur le processeur du DS1522+ (pas de
-  # GPU) ; un modèle plus gros dépasse vite la mémoire du NAS (ADR-0029).
+  # projet. qwen2.5:1.5b tient dans environ 2 Gio sur le processeur du DS1522+ (pas de GPU) ; un
+  # modèle plus gros dépasse vite la mémoire du NAS (ADR-0029) et demande de relever ARGOS_OLLAMA_MEM_LIMIT.
   ollama:
     image: ollama/ollama:${ARGOS_OLLAMA_VERSION:-0.12.6}
     profiles: ["ia"]
@@ -133,7 +227,15 @@ services:
       OLLAMA_KEEP_ALIVE: ${ARGOS_OLLAMA_KEEP_ALIVE:-10m}
     volumes:
       - argos-ollama:/root/.ollama
-    mem_limit: ${ARGOS_OLLAMA_MEM_LIMIT:-3g}
+    mem_limit: ${ARGOS_OLLAMA_MEM_LIMIT:-2560m}
+    logging: *journaux
+    # Sain quand le serveur local répond (la commande interroge son API).
+    healthcheck:
+      test: ["CMD", "ollama", "list"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      start_period: 20s
 
 volumes:
   argos-pgdata:

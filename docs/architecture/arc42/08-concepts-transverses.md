@@ -245,6 +245,13 @@ Le workflow GitHub Actions [`.github/workflows/integration-continue.yml`](../../
 
 POC local Docker Compose, puis VM Linux interne pour le POC partagé/MVP. Voir ADR-0017 et section 7.
 
+Assemblage Compose (`compose.yaml`, ADR-0026) [PROPOSITION — `completer-configuration-conteneurs`] :
+
+- **configuration** : chaque variable lue par le serveur en production est transmise au conteneur `argos` avec le défaut de `application.properties` et figure dans `.env.example` ; `scripts/verifier-configuration.mjs`, exécuté par l'intégration continue, échoue sur tout écart (EXP-07). Le profil `idp-local` exige ses trois variables avant tout import du royaume, par la commande d'entrée de Keycloak : Compose interpole aussi les services des profils inactifs (EXP-08) ;
+- **santé et journaux** : contrôle de santé sur chaque conteneur (`/q/health/ready` pour `argos`, par le `HEALTHCHECK` de l'image, sans outil ajouté) ; journaux `json-file` en trois fichiers de 10 Mio (EXP-09) ;
+- **mémoire** : tas de la JVM à 60 % du plafond du conteneur, arrêt sur `OutOfMemoryError` relancé par `restart: unless-stopped` ; réponses compressées (EXP-10) ; plafonds et pools dimensionnés pour le NAS de 8 Go (EXP-11, guide de déploiement) ;
+- **durcissement** : code de l'application propriété de root, `read_only` avec `/tmp` en mémoire, `cap_drop: [ALL]`, `no-new-privileges` pour le conteneur `argos` (EXP-12).
+
 ## 8.13 Questions ouvertes
 
 - coffre-fort imposé ? (IdP : Keycloak auto-hébergé, ADR-0027)
