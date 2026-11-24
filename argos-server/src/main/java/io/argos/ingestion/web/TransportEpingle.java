@@ -2,9 +2,9 @@ package io.argos.ingestion.web;
 
 import java.io.ByteArrayInputStream;
 import java.io.IOException;
-import java.net.ConnectException;
 import java.net.InetAddress;
 import java.net.InetSocketAddress;
+import java.net.SocketException;
 import java.net.http.HttpTimeoutException;
 import java.time.Duration;
 import java.time.Instant;
@@ -38,9 +38,10 @@ import io.vertx.core.net.TrustOptions;
  * {@code Host}, l'indication SNI et la vérification du certificat (identification HTTPS du point de terminaison).
  *
  * <p>Les adresses IP sont essayées dans l'ordre de la résolution contrôlée, la suivante seulement après un échec
- * de connexion, dans le délai global de la récupération (décision D3). Le corps est lu au plus jusqu'à
- * {@code tailleMax + 1} octets, puis la connexion est coupée : la récupération constate le dépassement. À
- * l'échéance, la requête est abandonnée et le transport lève {@link HttpTimeoutException}.
+ * d'établissement de la connexion TCP (connexion refusée, hôte sans route, délai de connexion), dans le délai global
+ * de la récupération (décision D3). Le corps est lu en entier dans ce délai, au plus jusqu'à {@code tailleMax + 1}
+ * octets, puis la connexion est coupée : la récupération constate le dépassement. À l'échéance, la requête est
+ * abandonnée, y compris si elle s'ouvre après, et le transport lève {@link HttpTimeoutException}.
  */
 final class TransportEpingle implements RecuperateurWeb.Transport, AutoCloseable {
 
@@ -76,7 +77,7 @@ final class TransportEpingle implements RecuperateurWeb.Transport, AutoCloseable
             throws IOException, InterruptedException {
         Instant echeance = Instant.now().plus(delai);
         List<InetAddress> adresses = destination.adresses();
-        List<ConnectException> echecs = new ArrayList<>();
+        List<SocketException> echecs = new ArrayList<>();
         for (int rang = 0; rang < adresses.size(); rang++) {
             long resteMs = Duration.between(Instant.now(), echeance).toMillis();
             if (resteMs <= 0) {
@@ -85,10 +86,10 @@ final class TransportEpingle implements RecuperateurWeb.Transport, AutoCloseable
             long connexionMs = Math.max(CONNEXION_MIN_MS, resteMs / (adresses.size() - rang));
             try {
                 return envoyerA(destination, adresses.get(rang), connexionMs, echeance);
-            } catch (ConnectException echec) {
-                LOG.debugf("veille web : connexion impossible à %s pour %s (%s)", adresses.get(rang).getHostAddress(),
-                        destination.hote(), echec.getMessage());
-                echecs.add(echec);
+            } catch (EchecConnexion echec) {
+                LOG.debugf(echec.getCause(), "veille web : connexion impossible à %s pour %s",
+                        adresses.get(rang).getHostAddress(), destination.hote());
+                echecs.add(echec.echec());
             }
         }
         if (echecs.isEmpty() || !Instant.now().isBefore(echeance)) {
@@ -96,9 +97,31 @@ final class TransportEpingle implements RecuperateurWeb.Transport, AutoCloseable
             echecs.forEach(expiration::addSuppressed);
             throw expiration;
         }
-        ConnectException derniere = echecs.get(echecs.size() - 1);
+        SocketException derniere = echecs.get(echecs.size() - 1);
         echecs.subList(0, echecs.size() - 1).forEach(derniere::addSuppressed);
         throw derniere;
+    }
+
+    /**
+     * Vrai pour un échec d'établissement de la connexion TCP (connexion refusée, hôte sans route, délai de connexion,
+     * tous des {@link SocketException}) : l'adresse suivante peut alors être essayée. Un échec de la négociation TLS,
+     * dont un certificat non conforme au nom d'hôte, n'en est pas un.
+     */
+    static boolean echecDeConnexion(Throwable cause) {
+        return cause instanceof SocketException;
+    }
+
+    /** Échec de connexion à une adresse, distingué des autres erreurs pour l'essai de l'adresse suivante. */
+    private static final class EchecConnexion extends IOException {
+        private static final long serialVersionUID = 1L;
+
+        EchecConnexion(SocketException cause) {
+            super(cause.getMessage(), cause);
+        }
+
+        SocketException echec() {
+            return (SocketException) getCause();
+        }
     }
 
     private RecuperateurWeb.Reponse envoyerA(DestinationControlee destination, InetAddress adresse, long connexionMs,
@@ -118,10 +141,17 @@ final class TransportEpingle implements RecuperateurWeb.Transport, AutoCloseable
         CompletableFuture<RecuperateurWeb.Reponse> resultat = new CompletableFuture<>();
         client.request(options).onComplete(ouverture -> {
             if (ouverture.failed()) {
-                resultat.completeExceptionally(ouverture.cause());
+                Throwable cause = ouverture.cause();
+                resultat.completeExceptionally(echecDeConnexion(cause) ? new EchecConnexion((SocketException) cause) : cause);
                 return;
             }
+            // Requête publiée avant le contrôle : si l'appelant abandonne entre les deux, l'un ou l'autre la coupe.
             requete.set(ouverture.result());
+            if (resultat.isDone()) {
+                // Ouverte après l'échéance ou l'interruption de l'appelant : abandonnée avant tout envoi.
+                ouverture.result().reset();
+                return;
+            }
             ouverture.result().send().onComplete(envoi -> {
                 if (envoi.failed()) {
                     resultat.completeExceptionally(envoi.cause());
@@ -134,12 +164,12 @@ final class TransportEpingle implements RecuperateurWeb.Transport, AutoCloseable
             long resteMs = Math.max(CONNEXION_MIN_MS, Duration.between(Instant.now(), echeance).toMillis());
             return resultat.get(resteMs, TimeUnit.MILLISECONDS);
         } catch (TimeoutException expiration) {
-            abandonner(requete);
+            abandonner(resultat, requete);
             HttpTimeoutException delaiDepasse = new HttpTimeoutException("délai dépassé pour " + destination.hote());
             delaiDepasse.initCause(expiration);
             throw delaiDepasse;
         } catch (InterruptedException interruption) {
-            abandonner(requete);
+            abandonner(resultat, requete);
             throw interruption;
         } catch (ExecutionException echec) {
             Throwable cause = echec.getCause();
@@ -176,7 +206,13 @@ final class TransportEpingle implements RecuperateurWeb.Transport, AutoCloseable
         reponse.endHandler(fin -> terminer.run());
     }
 
-    private static void abandonner(AtomicReference<HttpClientRequest> requete) {
+    /**
+     * Marque la réponse attendue comme abandonnée, puis coupe la requête si elle est déjà ouverte ; ouverte plus tard,
+     * elle est coupée par le rappel d'ouverture, qui voit l'abandon.
+     */
+    private static void abandonner(CompletableFuture<RecuperateurWeb.Reponse> resultat,
+            AtomicReference<HttpClientRequest> requete) {
+        resultat.cancel(false);
         HttpClientRequest enCours = requete.get();
         if (enCours != null) {
             enCours.reset();

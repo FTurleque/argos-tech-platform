@@ -56,5 +56,7 @@ ENV JAVA_OPTS="-XX:MaxRAMPercentage=60 -XX:+ExitOnOutOfMemoryError -Djava.util.l
 # Contrôle de santé sans outil ajouté (EXP-09) : requête sur /q/health/ready par /dev/tcp de bash ; sain si
 # le serveur répond 200, non sain s'il répond 503 (base injoignable, par exemple) ou ne répond pas.
 HEALTHCHECK --interval=15s --timeout=5s --start-period=60s --retries=4 \
-    CMD ["bash", "-c", "exec 3<>/dev/tcp/localhost/8080 && printf 'GET /q/health/ready HTTP/1.1\r\nHost: localhost\r\nConnection: close\r\n\r\n' >&3 && head -n 1 <&3 | grep -q ' 200 '"]
+    CMD ["bash", "-c", "exec 3<>/dev/tcp/localhost/8080 \
+&& printf 'GET /q/health/ready HTTP/1.1\r\nHost: localhost\r\nConnection: close\r\n\r\n' >&3 \
+&& head -n 1 <&3 | grep -q ' 200 '"]
 ENTRYPOINT ["sh", "-c", "exec java $JAVA_OPTS -jar quarkus-run.jar"]

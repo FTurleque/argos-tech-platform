@@ -47,7 +47,9 @@ public class RecuperateurWeb {
 
     /**
      * Envoi d'une requête GET unique vers une adresse IP de la destination contrôlée, sans résolution DNS ;
-     * remplaçable dans les tests unitaires.
+     * remplaçable dans les tests unitaires. Le corps rendu peut être un flux encore en cours de réception : sa
+     * lecture reste bornée par l'échéance de la récupération. Le transport de production ({@link TransportEpingle})
+     * le rend déjà reçu en entier dans ce délai.
      */
     @FunctionalInterface
     interface Transport {
@@ -161,8 +163,8 @@ public class RecuperateurWeb {
         if (corps == null) {
             return new byte[0];
         }
-        // Un corps qui cesse d'arriver bloquerait la lecture : le flux est fermé à l'échéance, ce qui interrompt
-        // la lecture en cours. La minuterie, au millième de seconde, peut fermer le flux un peu avant l'instant
+        // Un corps transmis en flux qui cesse d'arriver bloquerait la lecture : le flux est fermé à l'échéance, ce
+        // qui interrompt la lecture en cours. La minuterie, au millième de seconde, peut fermer le flux un peu avant l'instant
         // d'échéance : la coupure est marquée avant la fermeture, et une lecture interrompue par elle est un délai
         // dépassé.
         AtomicBoolean coupeeALEcheance = new AtomicBoolean();

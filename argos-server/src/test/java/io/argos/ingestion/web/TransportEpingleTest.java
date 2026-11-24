@@ -2,6 +2,7 @@ package io.argos.ingestion.web;
 
 import static org.junit.jupiter.api.Assertions.assertArrayEquals;
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
@@ -9,9 +10,12 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
 import java.net.BindException;
+import java.net.ConnectException;
 import java.net.InetAddress;
 import java.net.InetSocketAddress;
+import java.net.NoRouteToHostException;
 import java.net.URI;
+import java.net.http.HttpTimeoutException;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -35,6 +39,7 @@ import javax.net.ssl.SNIHostName;
 import javax.net.ssl.SNIMatcher;
 import javax.net.ssl.SNIServerName;
 import javax.net.ssl.SSLContext;
+import javax.net.ssl.SSLHandshakeException;
 import javax.net.ssl.SSLParameters;
 import javax.net.ssl.StandardConstants;
 import javax.net.ssl.TrustManagerFactory;
@@ -82,6 +87,9 @@ class TransportEpingleTest {
     private static final String AUTRE_NOM_CERTIFIE = "autre.exemple.test";
     private static final int STATUT_OK = 200;
     private static final int STATUT_REDIRECTION = 302;
+    private static final Duration DELAI_COURT = Duration.ofMillis(300);
+    private static final Duration NEGOCIATION_LENTE = Duration.ofMillis(1500);
+    private static final Duration ATTENTE_APRES_NEGOCIATION = Duration.ofSeconds(1);
 
     private static Vertx vertx;
 
@@ -295,13 +303,7 @@ class TransportEpingleTest {
             InterruptedException {
         KeyStore magasinFlux = magasin(dossier, NOM_CERTIFIE);
         KeyStore magasinAutre = magasin(dossier, AUTRE_NOM_CERTIFIE);
-        KeyStore confiance = KeyStore.getInstance("PKCS12");
-        confiance.load(null, null);
-        confiance.setCertificateEntry(NOM_CERTIFIE, magasinFlux.getCertificate(NOM_CERTIFIE));
-        confiance.setCertificateEntry(AUTRE_NOM_CERTIFIE, magasinAutre.getCertificate(AUTRE_NOM_CERTIFIE));
-        TrustManagerFactory fabrique = TrustManagerFactory.getInstance(TrustManagerFactory.getDefaultAlgorithm());
-        fabrique.init(confiance);
-        Optional<TrustOptions> certificatsDeTest = Optional.of(TrustOptions.wrap(fabrique));
+        Optional<TrustOptions> certificatsDeTest = confiance(magasinFlux, magasinAutre);
         GardeAdresses.Resolveur resolveur = hote -> new InetAddress[] { InetAddress.getByName(BONNE_ADRESSE) };
 
         List<String> nomsSni = new CopyOnWriteArrayList<>();
@@ -322,8 +324,56 @@ class TransportEpingleTest {
         }
     }
 
+    /** Confiance accordée aux certificats autosignés des magasins de test (alias égal au nom certifié). */
+    private static Optional<TrustOptions> confiance(KeyStore... magasins) throws IOException, GeneralSecurityException {
+        KeyStore confiance = KeyStore.getInstance("PKCS12");
+        confiance.load(null, null);
+        for (KeyStore magasin : magasins) {
+            String alias = magasin.aliases().nextElement();
+            confiance.setCertificateEntry(alias, magasin.getCertificate(alias));
+        }
+        TrustManagerFactory fabrique = TrustManagerFactory.getInstance(TrustManagerFactory.getDefaultAlgorithm());
+        fabrique.init(confiance);
+        return Optional.of(TrustOptions.wrap(fabrique));
+    }
+
+    /**
+     * Requête dont la connexion s'établit après l'échéance (négociation TLS plus longue que le délai) : le transport
+     * lève le dépassement de délai, puis la requête ouverte trop tard est coupée avant tout envoi.
+     */
+    @Test
+    void requeteOuverteApresLEcheanceJamaisEnvoyee(@TempDir Path dossier) throws IOException, GeneralSecurityException,
+            InterruptedException {
+        KeyStore magasinFlux = magasin(dossier, NOM_CERTIFIE);
+        List<String> nomsSni = new CopyOnWriteArrayList<>();
+        try (ServeurLocal lent = https(magasinFlux, nomsSni, NEGOCIATION_LENTE);
+                TransportEpingle transport = new TransportEpingle(vertx, TAILLE_MAX, confiance(magasinFlux))) {
+            DestinationControlee destination = new DestinationControlee(
+                    URI.create("https://" + NOM_CERTIFIE + ":" + lent.port() + "/flux"),
+                    List.of(InetAddress.getByName(BONNE_ADRESSE)));
+            assertThrows(HttpTimeoutException.class, () -> transport.envoyer(destination, DELAI_COURT));
+            Thread.sleep(NEGOCIATION_LENTE.plus(ATTENTE_APRES_NEGOCIATION).toMillis());
+            assertEquals(List.of(NOM_CERTIFIE), nomsSni, "la négociation TLS a bien eu lieu");
+            assertTrue(lent.hotesRecus.isEmpty(), "aucune requête HTTP envoyée après l'abandon");
+        }
+    }
+
+    @Test
+    void echecsDeConnexionDistinguesDesErreursTls() {
+        assertTrue(TransportEpingle.echecDeConnexion(new ConnectException("refusée")));
+        assertTrue(TransportEpingle.echecDeConnexion(new NoRouteToHostException("sans route")));
+        assertFalse(TransportEpingle.echecDeConnexion(new SSLHandshakeException("certificat d'un autre nom")));
+        assertFalse(TransportEpingle.echecDeConnexion(new IOException("corps interrompu")));
+    }
+
     /** Serveur HTTPS local qui présente le certificat du magasin et enregistre les noms SNI reçus. */
     private static ServeurLocal https(KeyStore magasin, List<String> nomsSni) throws IOException, GeneralSecurityException {
+        return https(magasin, nomsSni, Duration.ZERO);
+    }
+
+    /** Serveur HTTPS local dont la négociation TLS marque une pause de {@code pause} avant de répondre. */
+    private static ServeurLocal https(KeyStore magasin, List<String> nomsSni, Duration pause)
+            throws IOException, GeneralSecurityException {
         KeyManagerFactory cles = KeyManagerFactory.getInstance(KeyManagerFactory.getDefaultAlgorithm());
         cles.init(magasin, MOT_DE_PASSE_MAGASIN.toCharArray());
         SSLContext contexte = SSLContext.getInstance("TLS");
@@ -337,6 +387,11 @@ class TransportEpingleTest {
                     @Override
                     public boolean matches(SNIServerName nom) {
                         nomsSni.add(((SNIHostName) nom).getAsciiName());
+                        try {
+                            Thread.sleep(pause.toMillis());
+                        } catch (InterruptedException interruption) {
+                            Thread.currentThread().interrupt();
+                        }
                         return true;
                     }
                 }));
