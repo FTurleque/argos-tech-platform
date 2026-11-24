@@ -1,8 +1,7 @@
 package io.argos.api.artiste;
 
-import java.time.Instant;
+import java.time.Clock;
 import java.time.LocalDate;
-import java.time.ZoneId;
 import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
@@ -42,6 +41,7 @@ import io.argos.catalog.profil.CatalogueProfils;
 import io.argos.catalog.profil.ListeObjets;
 import io.argos.catalog.profil.ManifesteProfil;
 import io.argos.catalog.profil.ValeurListe;
+import io.argos.horloge.LectureHeure;
 import io.argos.impact.RapprochementOpportunites;
 import io.argos.impact.ResumeOpportunite;
 import io.argos.signal.opportunite.CollecteOpportunites;
@@ -116,6 +116,9 @@ public class ProfilArtisteResource {
     }
 
     @Inject
+    Clock horloge;
+
+    @Inject
     UtilisateurCourant utilisateur;
 
     @Inject
@@ -144,9 +147,6 @@ public class ProfilArtisteResource {
 
     @Inject
     CollecteOpportunites collecte;
-
-    @ConfigProperty(name = "argos.alerting.fuseau")
-    String fuseau;
 
     @ConfigProperty(name = "argos.profil-artiste.debit.requetes-par-minute", defaultValue = "10")
     int requetesParMinute;
@@ -220,7 +220,7 @@ public class ProfilArtisteResource {
                     List.of());
         }
         List<OpportuniteVue> items = rapprochement.restituer(Set.copyOf(suivisCompte.valeurs(DISCIPLINE)),
-                Set.copyOf(suivisCompte.valeurs(TERRITOIRE)), LocalDate.now(ZoneId.of(fuseau))).stream()
+                Set.copyOf(suivisCompte.valeurs(TERRITOIRE)), LectureHeure.jour(horloge)).stream()
                 .map(opportunite -> new OpportuniteVue(opportunite.id(), opportunite.rubrique(), opportunite.titre(),
                         opportunite.organisme(), opportunite.dateLimite(), opportunite.dateLimite() == null, opportunite.lien(),
                         opportunite.disciplines(), opportunite.territoires(), opportunite.decision().explication(),
@@ -281,7 +281,7 @@ public class ProfilArtisteResource {
         exigerSourceDuProfil(id);
         return sources.enregistrerConditions(id, conditions == null ? null
                 : new SourcesProfil.Conditions(conditions.licence(), conditions.conditionsUsage(), conditions.conditionsUrl()),
-                caller.accountId(), Instant.now()).orElseThrow(() -> new Introuvable("Source introuvable."));
+                caller.accountId(), horloge.instant()).orElseThrow(() -> new Introuvable("Source introuvable."));
     }
 
     @POST
@@ -294,7 +294,7 @@ public class ProfilArtisteResource {
         if (!limiteur.admettre(caller.accountId())) {
             throw new LimiteDebitAtteinte();
         }
-        return collecte.collecter(PROFIL, Instant.now());
+        return collecte.collecter(PROFIL, horloge.instant());
     }
 
     // ------------------------------------------------------------------ outils

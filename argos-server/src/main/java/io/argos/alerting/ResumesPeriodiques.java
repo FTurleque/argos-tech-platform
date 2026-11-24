@@ -3,6 +3,7 @@ package io.argos.alerting;
 import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
+import java.time.Clock;
 import java.time.Instant;
 import java.time.ZoneOffset;
 import java.util.ArrayList;
@@ -46,6 +47,9 @@ public class ResumesPeriodiques {
     private static final Logger LOG = Logger.getLogger(ResumesPeriodiques.class);
 
     @Inject
+    Clock horloge;
+
+    @Inject
     DataSource dataSource;
 
     @Inject
@@ -74,14 +78,14 @@ public class ResumesPeriodiques {
     @Scheduled(identity = "argos-resume-quotidien", cron = "{argos.alerting.resume-quotidien.cron}",
             timeZone = "{argos.alerting.fuseau}", concurrentExecution = Scheduled.ConcurrentExecution.SKIP)
     void quotidien() {
-        composer(RegleAlerte.DAILY, Instant.now());
+        composer(RegleAlerte.DAILY, horloge.instant());
     }
 
     @TacheObservee
     @Scheduled(identity = "argos-resume-hebdomadaire", cron = "{argos.alerting.resume-hebdomadaire.cron}",
             timeZone = "{argos.alerting.fuseau}", concurrentExecution = Scheduled.ConcurrentExecution.SKIP)
     void hebdomadaire() {
-        composer(RegleAlerte.WEEKLY, Instant.now());
+        composer(RegleAlerte.WEEKLY, horloge.instant());
     }
 
     /** Compose et diffuse les résumés d'une fréquence à l'échéance donnée ; renvoie les résumés créés. */

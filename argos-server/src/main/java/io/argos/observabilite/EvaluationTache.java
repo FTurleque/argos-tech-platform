@@ -43,18 +43,30 @@ public record EvaluationTache(Etat etat, Optional<Duration> retardTolere) {
     }
 
     /**
+     * Échéances du déclencheur d'une tâche.
+     *
+     * @param precedente échéance précédente, vide avant la première
+     * @param suivante échéance suivante, vide si le déclencheur n'en a plus
+     */
+    public record Echeances(Optional<Instant> precedente, Optional<Instant> suivante) {
+
+        /** Intervalle entre les deux échéances, vide s'il en manque une. */
+        Optional<Duration> intervalle() {
+            return precedente.flatMap(debut -> suivante.map(fin -> Duration.between(debut, fin)));
+        }
+    }
+
+    /**
      * Évalue une tâche à l'instant {@code maintenant}.
      *
-     * @param echeancePrecedente échéance précédente du déclencheur, vide avant la première
-     * @param echeanceSuivante échéance suivante du déclencheur, vide si le déclencheur n'en a plus
+     * @param echeances échéances du déclencheur
      * @param derniere dernière exécution terminée depuis le démarrage
      * @param demarrage instant du démarrage du serveur
      * @param facteur nombre d'intervalles tolérés
      */
-    public static EvaluationTache evaluer(Optional<Instant> echeancePrecedente, Optional<Instant> echeanceSuivante,
-            Optional<EtatTaches.Execution> derniere, Instant demarrage, long facteur, Instant maintenant) {
-        Optional<Duration> retardTolere = echeancePrecedente.flatMap(precedente -> echeanceSuivante
-                .map(suivante -> Duration.between(precedente, suivante).multipliedBy(facteur)));
+    public static EvaluationTache evaluer(Echeances echeances, Optional<EtatTaches.Execution> derniere, Instant demarrage,
+            long facteur, Instant maintenant) {
+        Optional<Duration> retardTolere = echeances.intervalle().map(intervalle -> intervalle.multipliedBy(facteur));
         Instant reference = derniere.map(EtatTaches.Execution::fin).orElse(demarrage);
         if (retardTolere.isPresent() && Duration.between(reference, maintenant).compareTo(retardTolere.get()) > 0) {
             return new EvaluationTache(Etat.EN_RETARD, retardTolere);

@@ -6,15 +6,6 @@ import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
-import java.util.concurrent.ArrayBlockingQueue;
-import java.util.concurrent.CancellationException;
-import java.util.concurrent.ExecutionException;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Future;
-import java.util.concurrent.RejectedExecutionException;
-import java.util.concurrent.ThreadPoolExecutor;
-import java.util.concurrent.TimeUnit;
-import java.util.concurrent.TimeoutException;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
@@ -25,7 +16,7 @@ import jakarta.inject.Inject;
 import org.eclipse.microprofile.config.inject.ConfigProperty;
 import org.jboss.logging.Logger;
 
-import io.argos.observabilite.Correlation;
+import io.argos.execution.ExecuteurBorne;
 
 /**
  * Synthèse IA marquée de l'activité d'un projet (PIN-04).
@@ -48,13 +39,6 @@ public class SyntheseActivite {
 
     private static final Pattern NOMBRE = Pattern.compile("\\d+");
 
-    private static final ExecutorService EXECUTEUR_IA = new ThreadPoolExecutor(1, 2, 60, TimeUnit.SECONDS,
-            new ArrayBlockingQueue<>(8), tache -> {
-                Thread fil = new Thread(tache, "argos-synthese-activite");
-                fil.setDaemon(true);
-                return fil;
-            }, new ThreadPoolExecutor.AbortPolicy());
-
     /**
      * Synthèse restituée.
      *
@@ -72,6 +56,9 @@ public class SyntheseActivite {
     @Inject
     Instance<SyntheseIa> syntheseIa;
 
+    @Inject
+    ExecuteurSyntheseIa executeurIa;
+
     @ConfigProperty(name = "argos.activite.synthese.delai-max", defaultValue = "PT20S")
     Duration delaiMax;
 
@@ -88,25 +75,15 @@ public class SyntheseActivite {
         if (!modele.budgetDisponible()) {
             return new Synthese("PLAFOND_ATTEINT", null, MENTION, vue.periode(), sources);
         }
-        Future<String> demande;
-        try {
-            demande = EXECUTEUR_IA.submit(Correlation.propager(() -> modele.synthetiser(vue)));
-        } catch (RejectedExecutionException saturation) {
+        ExecuteurBorne.Issue<String> issue = executeurIa.executer(() -> modele.synthetiser(vue), delaiMax);
+        if (issue.etat() != ExecuteurBorne.Etat.OBTENU) {
+            if (issue.etat() != ExecuteurBorne.Etat.INTERROMPUE) {
+                LOG.infof(issue.cause().orElseThrow(), "synthèse de l'activité du projet %s indisponible (%s)", vue.projectId(),
+                        issue.etat());
+            }
             return new Synthese("INDISPONIBLE", null, MENTION, vue.periode(), sources);
         }
-        String texte;
-        try {
-            texte = demande.get(delaiMax.toMillis(), TimeUnit.MILLISECONDS);
-        } catch (InterruptedException interruption) {
-            demande.cancel(true);
-            Thread.currentThread().interrupt();
-            return new Synthese("INDISPONIBLE", null, MENTION, vue.periode(), sources);
-        } catch (ExecutionException | TimeoutException | CancellationException erreur) {
-            demande.cancel(true);
-            LOG.infof(erreur, "synthèse de l'activité du projet %s indisponible : %s", vue.projectId(), erreur.toString());
-            return new Synthese("INDISPONIBLE", null, MENTION, vue.periode(), sources);
-        }
-        String propre = nettoyer(texte);
+        String propre = nettoyer(issue.valeur().orElse(""));
         if (propre.isEmpty() || !fondeeSurLesIndicateurs(propre, vue)) {
             return new Synthese("REFUSEE", null, MENTION, vue.periode(), sources);
         }

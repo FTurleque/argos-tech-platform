@@ -11,6 +11,7 @@ import java.lang.reflect.Method;
 import java.nio.charset.StandardCharsets;
 import java.sql.Connection;
 import java.sql.PreparedStatement;
+import java.time.Duration;
 import java.time.Instant;
 import java.time.ZoneId;
 import java.time.ZonedDateTime;
@@ -28,6 +29,7 @@ import javax.sql.DataSource;
 
 import jakarta.inject.Inject;
 
+import org.awaitility.Awaitility;
 import org.eclipse.microprofile.config.inject.ConfigProperty;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -117,7 +119,7 @@ class ImportPlanifieTest {
 
     private static void servirForgesNominales() {
         StubServer.programmer(GITLAB_SBOM, new Stub(200, Fixtures.resource("scm/gitlab/gl-sbom-npm-npm.cdx.json"),
-                Map.of("Content-Type", "application/json"), 0));
+                Map.of("Content-Type", "application/json")));
         StubServer.programmer(GITHUB_SBOM, Fixtures.reponseEnregistree("scm/enregistrees/github/200-sbom-cyclonedx.http"));
     }
 
@@ -195,7 +197,7 @@ class ImportPlanifieTest {
         servirForgesNominales();
         StubServer.programmer(GITLAB_SBOM, new Stub(200, Fixtures.cyclonedx("1.6", "2026-11-15T06:12:44Z",
                 List.<String[]>of(new String[] {"mal-encode", "pkg:npm/%zz@1.0.0"}, new String[] {"lodash", "pkg:npm/lodash@4.17.21"}),
-                List.of("mal-encode", "lodash")), Map.of("Content-Type", "application/json"), 0));
+                List.of("mal-encode", "lodash")), Map.of("Content-Type", "application/json")));
 
         ImportPlanifie.Bilan bilan = importPlanifie.importer(Instant.parse("2026-11-20T02:00:00Z"));
 
@@ -322,12 +324,9 @@ class ImportPlanifieTest {
             Future<InventoryService.ImportResult> manuel = fil.submit(() -> inventories.importSbom(projet,
                     Fixtures.cyclonedx("1.6", "2026-11-19T10:00:00Z", java.util.Collections.singletonList(
                             new String[] {"m", "pkg:npm/manuel@1.0.0"}), List.of("m")).getBytes(StandardCharsets.UTF_8), "manuel"));
-            try {
-                manuel.get(1, TimeUnit.SECONDS);
-                throw new AssertionError("l'import aurait dû attendre le verrou du projet");
-            } catch (java.util.concurrent.TimeoutException attendu) {
-                assertEquals(0, composants(projet), "rien n'est écrit tant que le verrou est tenu");
-            }
+            attendreImportsEnAttente(1);
+            assertFalse(manuel.isDone(), "l'import attend le verrou du projet");
+            assertEquals(0, composants(projet), "rien n'est écrit tant que le verrou est tenu");
             verrou.rollback();
             verrou.setAutoCommit(true);
             assertEquals("IMPORTED", manuel.get(20, TimeUnit.SECONDS).status());
@@ -373,14 +372,10 @@ class ImportPlanifieTest {
                 baseDeTest.string("SELECT source_ref FROM repository_inventory WHERE project_id = '" + projet + "'"));
     }
 
-    /** Attend (10 s au plus) que {@code nombre} transactions attendent un verrou consultatif. */
-    private void attendreImportsEnAttente(int nombre) throws InterruptedException {
-        long limite = System.nanoTime() + TimeUnit.SECONDS.toNanos(10);
-        while (baseDeTest.count("SELECT count(*) FROM pg_locks WHERE locktype = 'advisory' AND NOT granted") < nombre) {
-            if (System.nanoTime() > limite) {
-                throw new AssertionError(nombre + " import(s) en attente du verrou attendu(s)");
-            }
-            Thread.sleep(50);
-        }
+    /** Attend (10 s au plus, sans sommeil fixe) que {@code nombre} transactions attendent un verrou consultatif. */
+    private void attendreImportsEnAttente(int nombre) {
+        Awaitility.await(nombre + " import(s) en attente du verrou").atMost(Duration.ofSeconds(10))
+                .until(() -> baseDeTest.count("SELECT count(*) FROM pg_locks WHERE locktype = 'advisory' AND NOT granted"),
+                        enAttente -> enAttente >= nombre);
     }
 }

@@ -1,6 +1,7 @@
 package io.argos.vulnintel;
 
 import java.net.URI;
+import java.time.Clock;
 import java.time.Duration;
 import java.time.Instant;
 import java.util.ArrayList;
@@ -32,6 +33,9 @@ public class CertFrSource implements EnrichmentSource {
     private static final Pattern REFERENCE = Pattern.compile("CERTFR-\\d{4}-AVI-\\d{3,5}");
 
     @Inject
+    Clock horloge;
+
+    @Inject
     EnrichmentHttp http;
 
     @ConfigProperty(name = "argos.sources.certfr.feed-url")
@@ -61,7 +65,7 @@ public class CertFrSource implements EnrichmentSource {
     }
 
     private synchronized Map<String, List<Finding>> index() {
-        if (index != null && loadedAt.plus(cacheTtl).isAfter(Instant.now())) {
+        if (index != null && loadedAt.plus(cacheTtl).isAfter(horloge.instant())) {
             return index;
         }
         String feed = http.get(URI.create(feedUrl)).orElse("");
@@ -87,7 +91,7 @@ public class CertFrSource implements EnrichmentSource {
             });
         }
         index = built;
-        loadedAt = Instant.now();
+        loadedAt = horloge.instant();
         return index;
     }
 }

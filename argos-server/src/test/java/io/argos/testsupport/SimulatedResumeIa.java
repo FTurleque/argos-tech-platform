@@ -5,6 +5,7 @@ import java.util.Collections;
 import java.util.List;
 import java.util.Set;
 import java.util.UUID;
+import java.util.concurrent.CountDownLatch;
 
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.inject.Inject;
@@ -14,9 +15,10 @@ import io.argos.alerting.ResumeIaPasserelle;
 
 /**
  * Résumé IA simulé (aucun fournisseur réel n'est appelé) : disponible, indisponible, plafond de coût
- * atteint, refus ou réponse trop lente ; enregistre chaque appel. En mode {@code PASSERELLE}, il délègue
- * à l'implémentation livrée ({@link ResumeIaPasserelle}), branchée sur l'API Ollama simulée par
- * {@link StubServer}.
+ * atteint, refus ou réponse trop lente ; enregistre chaque appel. Une réponse trop lente ne dort pas : elle attend un
+ * signal qui ne vient qu'au changement de mode, et l'annulation par le moteur à l'expiration de son délai l'interrompt.
+ * En mode {@code PASSERELLE}, il délègue à l'implémentation livrée ({@link ResumeIaPasserelle}), branchée sur l'API
+ * Ollama simulée par {@link StubServer}.
  */
 @ApplicationScoped
 public class SimulatedResumeIa implements ResumeIa {
@@ -28,11 +30,14 @@ public class SimulatedResumeIa implements ResumeIa {
     ResumeIaPasserelle passerelle;
 
     private volatile Mode mode = Mode.AVAILABLE;
+    private volatile CountDownLatch reponseLente = new CountDownLatch(1);
     private final List<UUID> calls = Collections.synchronizedList(new ArrayList<>());
 
     public void configure(Mode mode) {
         this.mode = mode;
         calls.clear();
+        reponseLente.countDown();
+        reponseLente = new CountDownLatch(1);
     }
 
     public List<UUID> calls() {
@@ -70,7 +75,7 @@ public class SimulatedResumeIa implements ResumeIa {
             }
             case SLOW -> {
                 try {
-                    Thread.sleep(5_000);
+                    reponseLente.await();
                 } catch (InterruptedException interruption) {
                     Thread.currentThread().interrupt();
                 }

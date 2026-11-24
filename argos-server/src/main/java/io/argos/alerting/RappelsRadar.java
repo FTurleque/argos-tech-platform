@@ -5,9 +5,9 @@ import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
+import java.time.Clock;
 import java.time.Instant;
 import java.time.LocalDate;
-import java.time.ZoneId;
 import java.time.ZoneOffset;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -29,6 +29,7 @@ import org.jboss.logging.Logger;
 
 import io.quarkus.scheduler.Scheduled;
 
+import io.argos.horloge.LectureHeure;
 import io.argos.impact.AnnonceStandard;
 import io.argos.impact.RadarProjets;
 import io.argos.observabilite.ErreursImprevues;
@@ -74,6 +75,9 @@ public class RappelsRadar {
     }
 
     @Inject
+    Clock horloge;
+
+    @Inject
     DataSource dataSource;
 
     @Inject
@@ -101,7 +105,7 @@ public class RappelsRadar {
     @Scheduled(identity = "argos-radar-quotidien", cron = "{argos.radar.tache.cron}",
             timeZone = "{argos.alerting.fuseau}", concurrentExecution = Scheduled.ConcurrentExecution.SKIP)
     void quotidien() {
-        executer(LocalDate.now(ZoneId.of(fuseau)), Instant.now()).relancerErreurImprevue();
+        executer(LectureHeure.jour(horloge), horloge.instant()).relancerErreurImprevue();
     }
 
     /**
@@ -179,7 +183,7 @@ public class RappelsRadar {
      */
     private void annoncerOuJournaliser(AnnonceStandard annonce) {
         try {
-            annoncer(annonce, Instant.now());
+            annoncer(annonce, horloge.instant());
         } catch (IllegalStateException erreur) {
             LOG.errorf(erreur, "annonce du changement de standard %s en échec", annonce.cle());
         }

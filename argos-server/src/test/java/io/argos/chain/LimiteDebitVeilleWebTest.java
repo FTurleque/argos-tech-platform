@@ -59,7 +59,7 @@ class LimiteDebitVeilleWebTest {
         StubServer.programmer("/limite.xml", new Stub(200, """
                 <?xml version="1.0" encoding="utf-8"?>
                 <feed xmlns="http://www.w3.org/2005/Atom"><title>L</title><id>urn:l</id><updated>2026-11-15T10:00:00Z</updated></feed>
-                """, Map.of("Content-Type", "application/atom+xml"), 0));
+                """, Map.of("Content-Type", "application/atom+xml")));
         UUID nina = Api.compte("nina");
 
         // Un ajout refusé compte comme un ajout réussi.

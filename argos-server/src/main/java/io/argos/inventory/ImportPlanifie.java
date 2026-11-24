@@ -1,5 +1,6 @@
 package io.argos.inventory;
 
+import java.time.Clock;
 import java.time.Instant;
 import java.util.HashMap;
 import java.util.List;
@@ -49,6 +50,9 @@ public class ImportPlanifie {
     }
 
     @Inject
+    Clock horloge;
+
+    @Inject
     ProjectDirectory projects;
 
     @Inject
@@ -64,25 +68,14 @@ public class ImportPlanifie {
     @Scheduled(identity = "inventory-import-quotidien", cron = "{argos.inventory.import.cron}",
             timeZone = "{argos.alerting.fuseau}", concurrentExecution = Scheduled.ConcurrentExecution.SKIP)
     void planifie() {
-        importer(Instant.now()).relancerErreurImprevue();
+        importer(horloge.instant()).relancerErreurImprevue();
     }
 
     /** Passage d'import à l'instant {@code maintenant} (méthode testable, ADR-0031). */
     public Bilan importer(Instant maintenant) {
-        int relancees = 0;
         int enEchec = 0;
         ErreursImprevues imprevues = new ErreursImprevues();
-        for (UUID projet : queries.projetsARecorreler()) {
-            try {
-                store.relancerRecorrelation(projet);
-                relancees++;
-            } catch (IllegalStateException erreur) {
-                LOG.errorf(erreur, "relance de la recorrélation du projet %s en échec", projet);
-            } catch (RuntimeException imprevue) {
-                imprevues.retenir(imprevue);
-                LOG.errorf(imprevue, "relance de la recorrélation du projet %s interrompue par une erreur imprévue", projet);
-            }
-        }
+        int relancees = relancerRecorrelations(imprevues);
         int projetsParcourus = 0;
         int importes = 0;
         int conserves = 0;
@@ -115,5 +108,25 @@ public class ImportPlanifie {
                 imprevues.retenues());
         LOG.infof("import planifié des inventaires (%s) : %s", maintenant, bilan);
         return bilan;
+    }
+
+    /**
+     * Relance la recorrélation des projets restés en attente ; renvoie le nombre de relances réussies. Une erreur sur un
+     * projet est journalisée avec sa cause ; une erreur imprévue est retenue dans {@code imprevues}.
+     */
+    private int relancerRecorrelations(ErreursImprevues imprevues) {
+        int relancees = 0;
+        for (UUID projet : queries.projetsARecorreler()) {
+            try {
+                store.relancerRecorrelation(projet);
+                relancees++;
+            } catch (IllegalStateException erreur) {
+                LOG.errorf(erreur, "relance de la recorrélation du projet %s en échec", projet);
+            } catch (RuntimeException imprevue) {
+                imprevues.retenir(imprevue);
+                LOG.errorf(imprevue, "relance de la recorrélation du projet %s interrompue par une erreur imprévue", projet);
+            }
+        }
+        return relancees;
     }
 }

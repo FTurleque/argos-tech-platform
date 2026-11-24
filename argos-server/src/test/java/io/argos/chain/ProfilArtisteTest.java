@@ -270,7 +270,7 @@ class ProfilArtisteTest {
     void art05S1SourceNonVerifieeNonCollectee() {
         StubServer.programmer("/organisme/rss", new Stub(200, VeilleWebTest.atom("Appels de l'organisme",
                 VeilleWebTest.entree("Résidence de création", "https://organisme.test/residence", "Critères")),
-                Map.of("Content-Type", ATOM), 0));
+                Map.of("Content-Type", ATOM)));
         String source = declarer("FLUX", StubServer.base() + "/organisme/rss", "appels-residences",
                 List.of("arts-visuels"), List.of("occitanie"));
 

@@ -4,8 +4,10 @@ import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
+import java.time.Clock;
 import java.time.Duration;
 import java.time.Instant;
+import java.time.OffsetDateTime;
 import java.time.ZoneOffset;
 import java.util.ArrayList;
 import java.util.List;
@@ -94,6 +96,9 @@ public class StockActualites {
     private static final String ACTUALITE_PROPRIETAIRE = "SELECT id FROM actualite WHERE proprietaire_id = ? AND empreinte = ?";
 
     @Inject
+    Clock horloge;
+
+    @Inject
     DataSource dataSource;
 
     @Inject
@@ -159,8 +164,9 @@ public class StockActualites {
     @Transactional
     public boolean echue(UUID sourceId) {
         try (Connection connexion = dataSource.getConnection(); PreparedStatement requete = connexion.prepareStatement(
-                "SELECT 1 FROM source_web WHERE id = ? AND prochaine_collecte_le <= now()")) {
+                "SELECT 1 FROM source_web WHERE id = ? AND prochaine_collecte_le <= ?")) {
             requete.setObject(1, sourceId);
+            requete.setObject(2, horloge.instant().atOffset(ZoneOffset.UTC));
             try (ResultSet resultat = requete.executeQuery()) {
                 return resultat.next();
             }
@@ -174,8 +180,9 @@ public class StockActualites {
     public List<UUID> echues(int limite) {
         List<UUID> ids = new ArrayList<>();
         try (Connection connexion = dataSource.getConnection(); PreparedStatement requete = connexion.prepareStatement(
-                "SELECT id FROM source_web WHERE prochaine_collecte_le <= now() ORDER BY prochaine_collecte_le, id LIMIT ?")) {
-            requete.setInt(1, limite);
+                "SELECT id FROM source_web WHERE prochaine_collecte_le <= ? ORDER BY prochaine_collecte_le, id LIMIT ?")) {
+            requete.setObject(1, horloge.instant().atOffset(ZoneOffset.UTC));
+            requete.setInt(2, limite);
             try (ResultSet resultat = requete.executeQuery()) {
                 while (resultat.next()) {
                     ids.add(resultat.getObject(1, UUID.class));
@@ -221,7 +228,7 @@ public class StockActualites {
                 String titre = "Modification de la page « " + source.libelle() + " »";
                 String apercu = LecteurPage.apercu(source.pageTexte(), instantane.texte());
                 UUID actualite = actualite(connexion, source, Deduplication.changementPage(source.adresse(), instantane.empreinte()),
-                        "CHANGEMENT_PAGE", titre, source.adresse(), apercu, Instant.now());
+                        "CHANGEMENT_PAGE", titre, source.adresse(), apercu, horloge.instant());
                 citee = citer(connexion, actualite, source.id(), source.adresse());
                 if (citee) {
                     evenements.fire(new ActualiteRecue(actualite, source.id(), source.espaceId()));
@@ -245,11 +252,12 @@ public class StockActualites {
     /** Collecte réussie : source active, prochaine collecte après la fréquence. */
     @Transactional
     public void succes(UUID sourceId, Duration frequence) {
+        OffsetDateTime maintenant = horloge.instant().atOffset(ZoneOffset.UTC);
         executer("""
                 UPDATE source_web SET etat = 'ACTIVE', echecs_consecutifs = 0, derniere_erreur = NULL,
-                       derniere_collecte_le = now(), dernier_succes_le = now(), prochaine_collecte_le = ?
+                       derniere_collecte_le = ?, dernier_succes_le = ?, prochaine_collecte_le = ?
                 WHERE id = ?
-                """, Instant.now().plus(frequence).atOffset(ZoneOffset.UTC), sourceId);
+                """, maintenant, maintenant, maintenant.plus(frequence), sourceId);
     }
 
     /**
@@ -272,11 +280,12 @@ public class StockActualites {
             throw new IllegalStateException("mise à jour de la source " + sourceId + " impossible", erreur);
         }
         Duration attente = frequence.multipliedBy(1L << Math.min(echecs - 1, 3));
+        OffsetDateTime maintenant = horloge.instant().atOffset(ZoneOffset.UTC);
         executer("""
-                UPDATE source_web SET etat = 'EN_ERREUR', derniere_erreur = ?, derniere_collecte_le = now(),
+                UPDATE source_web SET etat = 'EN_ERREUR', derniere_erreur = ?, derniere_collecte_le = ?,
                        prochaine_collecte_le = ?
                 WHERE id = ?
-                """, couper(motif, 1000), Instant.now().plus(attente).atOffset(ZoneOffset.UTC), sourceId);
+                """, couper(motif, 1000), maintenant, maintenant.plus(attente), sourceId);
     }
 
     /**

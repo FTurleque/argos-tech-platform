@@ -5,7 +5,7 @@ import static io.argos.scm.AccesForges.provider;
 
 import java.io.IOException;
 import java.net.URI;
-import java.time.Duration;
+import java.time.Clock;
 import java.time.Instant;
 import java.time.LocalDate;
 import java.time.OffsetDateTime;
@@ -65,16 +65,12 @@ public class RepositoryActivity {
     private final long tailleMax;
 
     @Inject
-    public RepositoryActivity(@ConfigProperty(name = "argos.sources.http-timeout") Duration timeout,
-            @ConfigProperty(name = "argos.scm.gitlab.url") String gitlabUrl,
-            @ConfigProperty(name = "argos.scm.github.url") String githubUrl,
-            @ConfigProperty(name = "argos.scm.gitlab.token") Optional<String> gitlabToken,
-            @ConfigProperty(name = "argos.scm.github.token") Optional<String> githubToken,
+    public RepositoryActivity(ParametresForges parametres,
             @ConfigProperty(name = "argos.scm.activite.pages-max", defaultValue = "10") int pagesMax,
             @ConfigProperty(name = "argos.scm.activite.jalons-max", defaultValue = "50") int jalonsMax,
-            @ConfigProperty(name = "argos.scm.activite.taille-max-octets", defaultValue = "5242880") long tailleMax) {
-        this.forges = AccesForges.configure(timeout, gitlabUrl, githubUrl, gitlabToken.orElse(null),
-                githubToken.orElse(null));
+            @ConfigProperty(name = "argos.scm.activite.taille-max-octets", defaultValue = "5242880") long tailleMax,
+            Clock horloge) {
+        this.forges = AccesForges.configure(parametres, horloge);
         this.pagesMax = Math.max(1, pagesMax);
         this.jalonsMax = Math.max(0, jalonsMax);
         this.tailleMax = tailleMax;

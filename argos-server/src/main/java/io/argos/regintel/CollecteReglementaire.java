@@ -6,9 +6,9 @@ import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Timestamp;
+import java.time.Clock;
 import java.time.Instant;
 import java.time.LocalDate;
-import java.time.ZoneId;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.LinkedHashSet;
@@ -25,6 +25,7 @@ import jakarta.inject.Inject;
 import org.eclipse.microprofile.config.inject.ConfigProperty;
 import org.jboss.logging.Logger;
 
+import io.argos.horloge.LectureHeure;
 import io.argos.ingestion.SourceException;
 import io.argos.ingestion.legi.ArchivesJorf;
 import io.argos.ingestion.legi.TexteJorf;
@@ -86,6 +87,9 @@ public class CollecteReglementaire {
     private static final Jour INCONNU = new Jour(null, 0, Set.of());
 
     @Inject
+    Clock horloge;
+
+    @Inject
     ArchivesJorf archives;
 
     @Inject
@@ -113,7 +117,7 @@ public class CollecteReglementaire {
     @Scheduled(identity = "collecte-reglementaire", cron = "{argos.reglementaire.collecte.cron}",
             timeZone = "{argos.alerting.fuseau}", concurrentExecution = Scheduled.ConcurrentExecution.SKIP)
     void quotidien() {
-        collecter(LocalDate.now(ZoneId.of(fuseau)), Instant.now());
+        collecter(LectureHeure.jour(horloge), horloge.instant());
     }
 
     /** Collecte la fenêtre de relecture et les jours manqués qui la précèdent. */

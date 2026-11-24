@@ -5,6 +5,7 @@ import java.sql.Date;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
+import java.time.Clock;
 import java.time.LocalDate;
 import java.time.ZoneId;
 import java.util.ArrayList;
@@ -17,6 +18,8 @@ import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.inject.Inject;
 
 import org.eclipse.microprofile.config.inject.ConfigProperty;
+
+import io.argos.horloge.LectureHeure;
 
 /**
  * Plafond journalier de l'instance (Q-1 : 1 000 appels), quota journalier par espace (Q-2 : 100
@@ -39,6 +42,9 @@ public class QuotasIa {
     static final String INSTANCE = "INSTANCE";
 
     @Inject
+    Clock horloge;
+
+    @Inject
     DataSource dataSource;
 
     @ConfigProperty(name = "argos.ia.plafond-instance-jour")
@@ -54,7 +60,7 @@ public class QuotasIa {
     ZoneId fuseau;
 
     LocalDate aujourdhui() {
-        return LocalDate.now(fuseau);
+        return LectureHeure.jour(horloge.withZone(fuseau));
     }
 
     /** Vrai si un appel imputé à cet espace ({@code null} : instance seule) serait accepté maintenant. */

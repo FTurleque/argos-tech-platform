@@ -1,7 +1,7 @@
 package io.argos.ingestion;
 
+import java.time.Clock;
 import java.time.Duration;
-import java.time.Instant;
 import java.util.List;
 import java.util.Optional;
 import java.util.Set;
@@ -31,6 +31,9 @@ public class SourceSynchronizer {
     public record SyncReport(String sourceId, String state, int attempts, int created, int updated, int unchanged,
             int rejected, String message) {
     }
+
+    @Inject
+    Clock horloge;
 
     @Inject
     Instance<AdvisoryFeed> feeds;
@@ -64,6 +67,7 @@ public class SourceSynchronizer {
             return new SyncReport(sourceId, "RUNNING", 0, 0, 0, 0, 0, "une synchronisation est déjà en cours");
         }
         UUID runId = started.get();
+        SynchronisationSource synchronisation = new SynchronisationSource(sourceId, runId);
         int attempts = store.attempts(runId);
         Counters counters = new Counters();
         while (true) {
@@ -79,13 +83,13 @@ public class SourceSynchronizer {
                 LOG.warnf(error, "synchronisation %s, tentative %d en échec (%s) : %s", sourceId, attempts, error.kind(),
                         error.getMessage());
                 if (error.kind() == SourceException.Kind.PERMANENT) {
-                    return failed(sourceId, runId, attempts, "PERMANENT", error, counters);
+                    return failed(synchronisation, attempts, "PERMANENT", error, counters);
                 }
                 if (attempts >= policy.maxAttempts()) {
-                    return failed(sourceId, runId, attempts, "EXHAUSTED", error, counters);
+                    return failed(synchronisation, attempts, "EXHAUSTED", error, counters);
                 }
                 Duration delay = policy.delayAfter(attempts, error.retryAfter());
-                store.markRetryable(runId, attempts, Instant.now().plus(delay), error.getMessage());
+                store.markRetryable(runId, attempts, horloge.instant().plus(delay), error.getMessage());
                 try {
                     sleeper.sleep(delay);
                 } catch (InterruptedException interrupted) {
@@ -96,23 +100,31 @@ public class SourceSynchronizer {
             } catch (IllegalStateException panne) {
                 // Une panne d'accès aux données (curseur, enregistrement d'un avis) termine le traitement en échec :
                 // il ne reste pas RUNNING et la source change d'état (COL-07).
-                SourceException error = new SourceException(SourceException.Kind.PERMANENT, null, null,
-                        "panne d'accès aux données : " + panne.getClass().getSimpleName(), panne);
-                LOG.errorf(panne, "synchronisation %s, tentative %d interrompue par une panne d'accès aux données",
-                        sourceId, attempts);
-                enregistrerTentativeOuJournaliser(sourceId, runId, attempts, error);
-                return failed(sourceId, runId, attempts, "PERMANENT", error, counters);
+                return echecPermanent(synchronisation, attempts, counters, panne, "panne d'accès aux données");
             } catch (RuntimeException imprevue) {
                 // Frontière d'erreur (arc42 §8.5) : une erreur imprévue termine le traitement en échec permanent, compté
                 // pour l'état DEGRADED (COL-11), puis est relancée à l'appelant ; elle n'est pas rejouée.
-                SourceException error = new SourceException(SourceException.Kind.PERMANENT, null, null,
-                        "erreur imprévue : " + imprevue.getClass().getSimpleName(), imprevue);
-                LOG.errorf(imprevue, "synchronisation %s, tentative %d interrompue par une erreur imprévue", sourceId, attempts);
-                enregistrerTentativeOuJournaliser(sourceId, runId, attempts, error);
-                failed(sourceId, runId, attempts, "PERMANENT", error, counters);
+                echecPermanent(synchronisation, attempts, counters, imprevue, "erreur imprévue");
                 throw imprevue;
             }
         }
+    }
+
+    /**
+     * Termine le traitement en échec permanent, motif {@code <nature> : <type d'erreur>} : erreur journalisée avec sa
+     * cause, tentative enregistrée, traitement {@code FAILED} et source en échec.
+     */
+    private SyncReport echecPermanent(SynchronisationSource synchronisation, int attempts, Counters counters, RuntimeException cause,
+            String nature) {
+        LOG.errorf(cause, "synchronisation %s, tentative %d interrompue (%s)", synchronisation.sourceId(), attempts, nature);
+        SourceException error = new SourceException(SourceException.Kind.PERMANENT, null, null,
+                nature + " : " + cause.getClass().getSimpleName(), cause);
+        enregistrerTentativeOuJournaliser(synchronisation.sourceId(), synchronisation.runId(), attempts, error);
+        return failed(synchronisation, attempts, "PERMANENT", error, counters);
+    }
+
+    /** Synchronisation en cours : source et identifiant de son traitement ({@code sync_run}). */
+    private record SynchronisationSource(String sourceId, UUID runId) {
     }
 
     /** Enregistre la tentative ; une nouvelle panne d'accès aux données est journalisée avec sa cause. */
@@ -124,8 +136,9 @@ public class SourceSynchronizer {
         }
     }
 
-    private SyncReport failed(String sourceId, UUID runId, int attempts, String kind, SourceException error,
-            Counters counters) {
+    private SyncReport failed(SynchronisationSource synchronisation, int attempts, String kind, SourceException error, Counters counters) {
+        String sourceId = synchronisation.sourceId();
+        UUID runId = synchronisation.runId();
         store.fail(runId, attempts, kind, error.getMessage());
         store.sourceFailed(sourceId, error.getMessage(), policy.degradedThreshold(),
                 error.kind() == SourceException.Kind.PERMANENT);

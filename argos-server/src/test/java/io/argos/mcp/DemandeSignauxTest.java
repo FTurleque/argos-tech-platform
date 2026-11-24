@@ -31,7 +31,7 @@ class DemandeSignauxTest {
     }
 
     private static String refus(OutilsSecurite.DemandeSignaux demande) {
-        return assertThrows(ParametreInvalide.class, demande::criteres).getMessage();
+        return assertThrows(ParametreInvalide.class, () -> demande.criteres(Instant.now())).getMessage();
     }
 
     @Test
@@ -42,7 +42,7 @@ class DemandeSignauxTest {
 
         OutilsSecurite.CriteresSignaux criteres = demande("  Oracle  ", Arrays.asList("rust", null, " "),
                 List.of("pkg:maven/org.exemple/lib@1.0", "pas-une-purl"), List.of("osv", "Nvd"),
-                List.of(projetB.toString(), projetA.toString(), projetB.toString()), "HIGH", 7, null).criteres();
+                List.of(projetB.toString(), projetA.toString(), projetB.toString()), "HIGH", 7, null).criteres(Instant.now());
 
         assertEquals(List.of(projetB, projetA), new ArrayList<>(criteres.projets()), "ordre donné, sans doublon");
         assertEquals(20, criteres.limite(), "20 signaux par défaut");
@@ -60,7 +60,7 @@ class DemandeSignauxTest {
 
     @Test
     void motSeulSansFiltre() {
-        OutilsSecurite.CriteresSignaux criteres = demande("x", null, null, null, null, " ", null, 50).criteres();
+        OutilsSecurite.CriteresSignaux criteres = demande("x", null, null, null, null, " ", null, 50).criteres(Instant.now());
 
         assertEquals(50, criteres.limite());
         assertTrue(criteres.projets().isEmpty());
@@ -95,7 +95,7 @@ class DemandeSignauxTest {
                 demande(null, null, null, null, List.of(UUID.randomUUID().toString()), null, null, null),
                 demande(null, null, null, null, null, "LOW", null, null),
                 demande(null, null, null, null, null, null, 30, null))) {
-            suffisante.criteres();
+            suffisante.criteres(Instant.now());
         }
     }
 }

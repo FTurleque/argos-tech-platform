@@ -1,5 +1,6 @@
 package io.argos.observabilite;
 
+import java.time.Clock;
 import java.time.Duration;
 import java.time.Instant;
 import java.util.Map;
@@ -43,6 +44,9 @@ public class EtatTaches {
     }
 
     @Inject
+    Clock horloge;
+
+    @Inject
     MeterRegistry registre;
 
     private final Map<String, Execution> dernieres = new ConcurrentHashMap<>();
@@ -50,7 +54,7 @@ public class EtatTaches {
 
     /** Enregistre la fin d'une exécution et met à jour ses métriques. */
     public void enregistrer(String tache, boolean reussie, Duration duree) {
-        dernieres.put(tache, new Execution(Instant.now(), reussie, duree));
+        dernieres.put(tache, new Execution(horloge.instant(), reussie, duree));
         Timer.builder(METRIQUE_EXECUTIONS)
                 .description("Exécutions des tâches planifiées, par tâche et par résultat")
                 .tag("tache", tache).tag("resultat", reussie ? SUCCES : ECHEC)

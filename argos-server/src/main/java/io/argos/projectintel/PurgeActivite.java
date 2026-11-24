@@ -1,5 +1,6 @@
 package io.argos.projectintel;
 
+import java.time.Clock;
 import java.time.LocalDate;
 import java.time.ZoneId;
 
@@ -9,6 +10,7 @@ import jakarta.inject.Inject;
 import org.eclipse.microprofile.config.inject.ConfigProperty;
 import org.jboss.logging.Logger;
 
+import io.argos.horloge.LectureHeure;
 import io.argos.observabilite.TacheObservee;
 import io.quarkus.scheduler.Scheduled;
 
@@ -20,6 +22,9 @@ import io.quarkus.scheduler.Scheduled;
 public class PurgeActivite {
 
     private static final Logger LOG = Logger.getLogger(PurgeActivite.class);
+
+    @Inject
+    Clock horloge;
 
     @Inject
     ActiviteStore store;
@@ -35,7 +40,7 @@ public class PurgeActivite {
             timeZone = "{argos.alerting.fuseau}", concurrentExecution = Scheduled.ConcurrentExecution.SKIP)
     void planifiee() {
         try {
-            purger(LocalDate.now(ZoneId.of(fuseau)));
+            purger(LectureHeure.jour(horloge));
         } catch (IllegalStateException erreur) {
             LOG.errorf(erreur, "purge de l'historique d'activité en échec");
         }

@@ -4,6 +4,7 @@ import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
+import java.time.Clock;
 import java.time.OffsetDateTime;
 import java.util.ArrayList;
 import java.util.List;
@@ -17,6 +18,7 @@ import jakarta.inject.Inject;
 
 import org.eclipse.microprofile.config.inject.ConfigProperty;
 
+import io.argos.horloge.LectureHeure;
 import io.argos.workspace.ContexteBase.Contexte;
 
 /**
@@ -46,6 +48,9 @@ public class EspacesService {
 
     @ConfigProperty(name = "argos.invitations.validite-jours", defaultValue = "14")
     int validiteJours;
+
+    @Inject
+    Clock horloge;
 
     @Inject
     ContexteBase base;
@@ -196,14 +201,14 @@ public class EspacesService {
                 requete.setInt(5, validiteJours);
                 requete.executeUpdate();
             }
-            return lireInvitations(connexion, "i.id = ?", id).get(0);
+            return lireInvitations(connexion, LectureInvitations.PAR_IDENTIFIANT, id).get(0);
         });
     }
 
     public List<Invitation> invitations(Compte compte, UUID espaceId) {
         exiger(compte, espaceId, Role.ADMINISTRATEUR);
         return base.executer(new Contexte(compte.id(), null, espaceId),
-                connexion -> lireInvitations(connexion, "i.espace_id = ?", espaceId));
+                connexion -> lireInvitations(connexion, LectureInvitations.PAR_ESPACE, espaceId));
     }
 
     public void revoquerInvitation(Compte compte, UUID espaceId, UUID invitationId) {
@@ -227,8 +232,8 @@ public class EspacesService {
             return List.of();
         }
         return base.executer(new Contexte(compte.id(), emailVerifie, null),
-                connexion -> lireInvitations(connexion, "i.etat = 'EN_ATTENTE' AND i.expire_le > now() AND lower(i.email) = ?",
-                        emailVerifie));
+                connexion -> lireInvitations(connexion, LectureInvitations.EN_ATTENTE_POUR_EMAIL,
+                        LectureHeure.dateHeure(horloge), emailVerifie));
     }
 
     /**
@@ -245,13 +250,14 @@ public class EspacesService {
             throw new Introuvable("Aucune invitation ne vous est adressée avec cet identifiant.");
         }
         Contexte contexte = new Contexte(compte.id(), emailVerifie, null);
-        Invitation invitation = base.executer(contexte, connexion -> lireInvitations(connexion, "i.id = ?", invitationId))
+        Invitation invitation = base.executer(contexte,
+                connexion -> lireInvitations(connexion, LectureInvitations.PAR_IDENTIFIANT, invitationId))
                 .stream().filter(candidate -> emailVerifie.equalsIgnoreCase(candidate.email()))
                 .findFirst().orElseThrow(() -> new Introuvable("Aucune invitation ne vous est adressée avec cet identifiant."));
         if (!"EN_ATTENTE".equals(invitation.etat())) {
             throw new RegleViolee("INVITATION_INACTIVE", "L'invitation a déjà été acceptée ou révoquée.");
         }
-        if (!invitation.expireLe().isAfter(OffsetDateTime.now())) {
+        if (!invitation.expireLe().isAfter(LectureHeure.dateHeure(horloge))) {
             throw new RegleViolee("INVITATION_EXPIREE", "L'invitation a expiré.");
         }
         UUID espaceId = invitation.espaceId();
@@ -318,13 +324,31 @@ public class EspacesService {
         return membres;
     }
 
-    private static List<Invitation> lireInvitations(Connection connexion, String filtre, Object valeur) throws SQLException {
+    /** Lectures d'invitations admises : ensemble fermé de requêtes, valeurs toujours liées en paramètres. */
+    private enum LectureInvitations {
+        PAR_IDENTIFIANT("i.id = ?"),
+        PAR_ESPACE("i.espace_id = ?"),
+        EN_ATTENTE_POUR_EMAIL("i.etat = 'EN_ATTENTE' AND i.expire_le > ? AND lower(i.email) = ?");
+
+        private static final String MODELE = """
+                SELECT i.id, i.espace_id, i.email, i.role, i.etat, co.nom_affiche, i.cree_le, i.expire_le
+                FROM invitation i JOIN compte co ON co.id = i.invite_par WHERE %s ORDER BY i.cree_le, i.id
+                """;
+
+        private final String sql;
+
+        LectureInvitations(String condition) {
+            this.sql = MODELE.formatted(condition);
+        }
+    }
+
+    private static List<Invitation> lireInvitations(Connection connexion, LectureInvitations lecture, Object... valeurs)
+            throws SQLException {
         List<Invitation> invitations = new ArrayList<>();
-        try (PreparedStatement requete = connexion.prepareStatement(
-                "SELECT i.id, i.espace_id, i.email, i.role, i.etat, co.nom_affiche, i.cree_le, i.expire_le"
-                        + " FROM invitation i JOIN compte co ON co.id = i.invite_par WHERE " + filtre
-                        + " ORDER BY i.cree_le, i.id")) {
-            requete.setObject(1, valeur);
+        try (PreparedStatement requete = connexion.prepareStatement(lecture.sql)) {
+            for (int position = 0; position < valeurs.length; position++) {
+                requete.setObject(position + 1, valeurs[position]);
+            }
             try (ResultSet resultat = requete.executeQuery()) {
                 while (resultat.next()) {
                     invitations.add(new Invitation(resultat.getObject(1, UUID.class), resultat.getObject(2, UUID.class),

@@ -290,10 +290,11 @@ class PasserelleIaTest {
         StubServer.programmer(CHAT, Stub.status(500));
         assertEquals(ReponseIa.Issue.INDISPONIBLE, passerelle.demander(resume(null, EntreeIa.publique("titre", "Avis"))).issue());
 
-        StubServer.programmer(CHAT, new Stub(200, "{}", Map.of(), 3_000));
-        long debut = System.nanoTime();
+        // Réponse retenue tant que le test ne la libère pas : la demande ne rend la main que parce que la passerelle
+        // abandonne au délai argos.ia.delai.
+        StubServer.programmer(CHAT, Stub.retenue(200, "{}", Map.of()));
         assertEquals(ReponseIa.Issue.INDISPONIBLE, passerelle.demander(resume(null, EntreeIa.publique("titre", "Avis"))).issue());
-        assertTrue((System.nanoTime() - debut) / 1_000_000 < 2_900, "délai argos.ia.delai respecté");
+        StubServer.liberer();
         assertEquals(3, appels("issue = 'INDISPONIBLE'"));
         assertThrows(IllegalStateException.class, () -> resumeAlerte.resumer(UUID.randomUUID(), "Avis"),
                 "le point d'extension des alertes signale l'indisponibilité");

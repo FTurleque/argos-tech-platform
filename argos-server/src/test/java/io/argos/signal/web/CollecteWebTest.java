@@ -7,17 +7,21 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.net.URI;
 import java.nio.charset.StandardCharsets;
+import java.time.Clock;
 import java.time.Duration;
 import java.time.Instant;
+import java.time.ZoneId;
+import java.time.ZoneOffset;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
-import java.util.function.Supplier;
+import java.util.concurrent.atomic.AtomicLong;
 
 import jakarta.inject.Inject;
 
+import org.awaitility.Awaitility;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
@@ -41,6 +45,8 @@ import io.restassured.http.ContentType;
 @QuarkusTest
 @QuarkusTestResource(StubServer.class)
 class CollecteWebTest {
+
+    private static final Duration ATTENTE_MAX = Duration.ofSeconds(5);
 
     static final String HTML = "text/html; charset=utf-8";
 
@@ -81,15 +87,15 @@ class CollecteWebTest {
      */
     @Test
     void collecteDUneMemeSourceSerialisee() throws Exception {
-        StubServer.programmer("/course", new Stub(200, page("Version 1.0"), Map.of("Content-Type", HTML), 0));
+        StubServer.programmer("/course", new Stub(200, page("Version 1.0"), Map.of("Content-Type", HTML)));
         UUID id = ajouterPage("alice", "/course");
-        StubServer.programmer("/course", new Stub(200, page("Version 1.1"), Map.of("Content-Type", HTML), 600));
+        StubServer.programmer("/course", Stub.retenue(200, page("Version 1.1"), Map.of("Content-Type", HTML)));
         rendreEchue(id);
 
         int requetes = StubServer.received("/course").size();
         CompletableFuture<CollecteWeb.Rapport> premiere = CompletableFuture.supplyAsync(() -> collecte.collecter(id));
         // La requête vers la page est émise sous le verrou : sa réception prouve que le verrou est pris.
-        attendre(() -> StubServer.received("/course").size() > requetes);
+        Awaitility.await().atMost(ATTENTE_MAX).until(() -> StubServer.received("/course").size() > requetes);
 
         RegleViolee refus = assertThrows(RegleViolee.class, () -> collecte.collecter(id));
         assertEquals("COLLECTE_EN_COURS", refus.code());
@@ -97,6 +103,7 @@ class CollecteWebTest {
                 .statusCode(409).body("code", equalTo("COLLECTE_EN_COURS"));
         assertEquals(List.of(), collecte.collecterSourcesEchues(), "source en cours ignorée par le planificateur");
 
+        StubServer.liberer();
         CollecteWeb.Rapport rapport = premiere.get(10, TimeUnit.SECONDS);
         assertEquals("ACTIVE", rapport.etat());
         assertEquals(1, rapport.nouvelles());
@@ -108,7 +115,7 @@ class CollecteWebTest {
     /** Le planificateur ne collecte que les sources échues ; une collecte repousse l'échéance. */
     @Test
     void planificateurNeCollecteQueLesSourcesEchues() {
-        StubServer.programmer("/echeance", new Stub(200, page("A"), Map.of("Content-Type", HTML), 0));
+        StubServer.programmer("/echeance", new Stub(200, page("A"), Map.of("Content-Type", HTML)));
         UUID id = ajouterPage("alice", "/echeance");
         assertEquals(List.of(), collecte.collecterSourcesEchues());
         rendreEchue(id);
@@ -116,15 +123,32 @@ class CollecteWebTest {
         assertEquals(List.of(), collecte.collecterSourcesEchues(), "prochaine collecte repoussée d'une heure");
     }
 
-    private static void attendre(Supplier<Boolean> condition) throws InterruptedException {
-        long fin = System.currentTimeMillis() + 5000;
-        while (System.currentTimeMillis() < fin) {
-            if (condition.get()) {
-                return;
-            }
-            Thread.sleep(10);
+    /** Horloge qui avance d'un pas à chaque lecture : le passage voit le temps s'écouler sans attente réelle. */
+    private static final class HorlogeQuiAvance extends Clock {
+
+        private final Instant depart;
+        private final Duration pas;
+        private final AtomicLong lectures = new AtomicLong();
+
+        HorlogeQuiAvance(Instant depart, Duration pas) {
+            this.depart = depart;
+            this.pas = pas;
         }
-        throw new AssertionError("la collecte n'a pas commencé");
+
+        @Override
+        public ZoneId getZone() {
+            return ZoneOffset.UTC;
+        }
+
+        @Override
+        public Clock withZone(ZoneId fuseau) {
+            return this;
+        }
+
+        @Override
+        public Instant instant() {
+            return depart.plus(pas.multipliedBy(lectures.getAndIncrement()));
+        }
     }
 
     // ------------------------------------------------------------------ bornes d'un passage
@@ -132,23 +156,21 @@ class CollecteWebTest {
     @Test
     void passageBorneEnNombreEtEnDuree() {
         for (int indice = 0; indice < 3; indice++) {
-            StubServer.programmer("/borne" + indice, new Stub(200, page("B" + indice), Map.of("Content-Type", HTML), 0));
+            StubServer.programmer("/borne" + indice, new Stub(200, page("B" + indice), Map.of("Content-Type", HTML)));
             rendreEchue(ajouterPage("alice", "/borne" + indice));
         }
         CollecteWeb instance = ClientProxy.unwrap(collecte);
         int sourcesParPassage = instance.sourcesParPassage;
         Duration dureeMax = instance.dureeMaxPassage;
-        Supplier<Instant> horloge = instance.horloge;
+        Clock horloge = instance.horloge;
         try {
             instance.sourcesParPassage = 2;
             assertEquals(2, collecte.collecterSourcesEchues().size(), "au plus sources-par-passage sources");
 
             instance.sourcesParPassage = 200;
             instance.dureeMaxPassage = Duration.ofMinutes(4);
-            Instant debut = Instant.now();
-            long[] appels = {0};
             // Chaque lecture de l'horloge avance de 3 minutes : la deuxième source dépasserait la durée.
-            instance.horloge = () -> debut.plus(Duration.ofMinutes(3 * appels[0]++));
+            instance.horloge = new HorlogeQuiAvance(Instant.parse("2026-11-24T08:00:00Z"), Duration.ofMinutes(3));
             baseDeTest.exec("UPDATE source_web SET prochaine_collecte_le = now() - interval '1 minute'");
             assertEquals(1, collecte.collecterSourcesEchues().size(), "aucune source commencée après la durée maximale");
             assertEquals(2, baseDeTest.count("SELECT count(*) FROM source_web WHERE prochaine_collecte_le <= now()"),
@@ -208,7 +230,7 @@ class CollecteWebTest {
         StubServer.programmer("/unique.xml", new Stub(200, """
                 <?xml version="1.0" encoding="utf-8"?>
                 <feed xmlns="http://www.w3.org/2005/Atom"><title>U</title><id>urn:u</id><updated>2026-11-15T10:00:00Z</updated></feed>
-                """, Map.of("Content-Type", "application/atom+xml"), 0));
+                """, Map.of("Content-Type", "application/atom+xml")));
         String base = StubServer.base();
         String variante = base.replace("http://localhost", "HTTP://LOCALHOST") + "/unique.xml#haut";
         Api.enTantQue("alice").contentType(ContentType.JSON)

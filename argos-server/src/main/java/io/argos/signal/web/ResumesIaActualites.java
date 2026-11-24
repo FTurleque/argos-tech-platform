@@ -2,6 +2,7 @@ package io.argos.signal.web;
 
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
+import java.time.Clock;
 import java.time.Duration;
 import java.time.Instant;
 import java.util.ArrayList;
@@ -59,6 +60,9 @@ public class ResumesIaActualites {
     }
 
     @Inject
+    Clock horloge;
+
+    @Inject
     ActualitesWeb actualites;
 
     @Inject
@@ -91,9 +95,10 @@ public class ResumesIaActualites {
         ActualitesWeb.Actualite actualite = detail.get().actualite();
         List<String> sources = sources(actualite);
         String cle = cle(actualiteId, actualite);
-        EnCache connu = lireCache(cle);
-        if (connu != null) {
-            return Optional.of(new ResumeIaActualite("DISPONIBLE", connu.methode(), connu.texte(), connu.mention(), sources));
+        Optional<EnCache> connu = lireCache(cle);
+        if (connu.isPresent()) {
+            EnCache entree = connu.get();
+            return Optional.of(new ResumeIaActualite("DISPONIBLE", entree.methode(), entree.texte(), entree.mention(), sources));
         }
         UUID espace = espaceImpute(actualiteId, compteId);
         ReponseIa reponse = passerelle.demander(new DemandeIa(RegistrePrompts.RESUME_ACTUALITE, espace,
@@ -102,7 +107,7 @@ public class ResumesIaActualites {
                 sources, compteId));
         if (reponse.produit()) {
             EnCache produit = new EnCache("IA_V" + reponse.versionPrompt(), reponse.champ("resume"), reponse.mention(),
-                    Instant.now().plus(dureeCache));
+                    horloge.instant().plus(dureeCache));
             ecrireCache(cle, produit);
             return Optional.of(new ResumeIaActualite("DISPONIBLE", produit.methode(), produit.texte(), produit.mention(),
                     reponse.sources()));
@@ -128,11 +133,12 @@ public class ResumesIaActualites {
         return actualiteId + "|" + empreinte + "|" + version + "|" + passerelle.modele(RegistrePrompts.RESUME_ACTUALITE);
     }
 
-    private synchronized EnCache lireCache(String cle) {
-        EnCache entree = cache.get(cle);
-        if (entree != null && entree.expire().isBefore(Instant.now())) {
+    /** Résumé en cache pour la clé, vide s'il est absent ou expiré (une entrée expirée est retirée). */
+    private synchronized Optional<EnCache> lireCache(String cle) {
+        Optional<EnCache> entree = Optional.ofNullable(cache.get(cle));
+        if (entree.filter(valeur -> valeur.expire().isBefore(horloge.instant())).isPresent()) {
             cache.remove(cle);
-            return null;
+            return Optional.empty();
         }
         return entree;
     }

@@ -10,6 +10,7 @@ import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.nio.charset.StandardCharsets;
+import java.time.Clock;
 import java.time.Duration;
 import java.time.Instant;
 import java.util.List;
@@ -26,6 +27,7 @@ import org.junit.jupiter.api.Test;
 
 import io.argos.inventory.InventoryService;
 import io.argos.inventory.ProjectDirectory;
+import io.argos.scm.ParametresForges;
 import io.argos.scm.QuotaEpuise;
 import io.argos.scm.RepositoryFiles;
 import io.argos.scm.RepositoryRef;
@@ -81,12 +83,13 @@ class ScmContractTest {
 
     /** Adapter construit avec des jetons de test, pour vérifier leur transmission. */
     private RepositoryFiles avecJetons(long tailleMax) {
-        return new RepositoryFiles(Duration.ofSeconds(1), StubServer.base() + "/gitlab", StubServer.base() + "/github",
-                Optional.of(jetonGitlab), Optional.of(jetonGithub), tailleMax);
+        ParametresForges forges = new ParametresForges(Duration.ofSeconds(1), StubServer.base() + "/gitlab",
+                StubServer.base() + "/github", Optional.of(jetonGitlab), Optional.of(jetonGithub));
+        return new RepositoryFiles(forges, tailleMax, Clock.systemUTC());
     }
 
     private static Stub fixture(int status, String path, Map<String, String> headers) {
-        return new Stub(status, Fixtures.resource(path), headers, 0);
+        return new Stub(status, Fixtures.resource(path), headers);
     }
 
     private static String texte(byte[] octets) {
@@ -169,7 +172,7 @@ class ScmContractTest {
 
     @Test
     void redirectionNonSuivieEtJetonAbsentDuMessage() {
-        StubServer.programmer(GITHUB_SBOM, new Stub(302, "", Map.of("Location", StubServer.base() + "/ailleurs/bom.json"), 0));
+        StubServer.programmer(GITHUB_SBOM, new Stub(302, "", Map.of("Location", StubServer.base() + "/ailleurs/bom.json")));
 
         ScmException erreur = assertThrows(ScmException.class, () -> avecJetons(1_048_576).latestSbom(GITHUB));
 

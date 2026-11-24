@@ -20,8 +20,8 @@ class EvaluationTacheTest {
 
     @Test
     void sansEcheancePrecedenteLaTacheNEstJamaisEnRetard() {
-        EvaluationTache evaluation = EvaluationTache.evaluer(Optional.empty(), Optional.of(SUIVANTE), Optional.empty(),
-                DEMARRAGE, FACTEUR, DEMARRAGE.plus(Duration.ofDays(3)));
+        EvaluationTache evaluation = EvaluationTache.evaluer(new EvaluationTache.Echeances(Optional.empty(), Optional.of(SUIVANTE)),
+                Optional.empty(), DEMARRAGE, FACTEUR, DEMARRAGE.plus(Duration.ofDays(3)));
         assertEquals(EvaluationTache.Etat.JAMAIS_EXECUTEE, evaluation.etat());
         assertFalse(evaluation.retardTolere().isPresent());
         assertFalse(evaluation.etat().degrade());
@@ -56,8 +56,8 @@ class EvaluationTacheTest {
     }
 
     private static EvaluationTache evaluer(Optional<EtatTaches.Execution> derniere, Instant maintenant) {
-        return EvaluationTache.evaluer(Optional.of(PRECEDENTE), Optional.of(SUIVANTE), derniere, DEMARRAGE, FACTEUR,
-                maintenant);
+        return EvaluationTache.evaluer(new EvaluationTache.Echeances(Optional.of(PRECEDENTE), Optional.of(SUIVANTE)), derniere,
+                DEMARRAGE, FACTEUR, maintenant);
     }
 
     private static Optional<EtatTaches.Execution> execution(Instant fin, boolean reussie) {

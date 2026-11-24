@@ -1,5 +1,6 @@
 package io.argos.observabilite;
 
+import java.time.Clock;
 import java.time.Instant;
 import java.util.Optional;
 
@@ -32,6 +33,12 @@ public class SanteTaches {
     /** Préfixe du nom des contrôles de tâche. */
     public static final String PREFIXE = "tache-";
 
+    /** Priorité de l'enregistrement au démarrage : après la création des déclencheurs par le planificateur. */
+    static final int PRIORITE_APRES_PLANIFICATEUR = Interceptor.Priority.APPLICATION + 500;
+
+    @Inject
+    Clock horloge;
+
     @Inject
     Scheduler planificateur;
 
@@ -45,11 +52,11 @@ public class SanteTaches {
     @ConfigProperty(name = "argos.observabilite.taches.facteur-retard")
     long facteurRetard;
 
-    private Instant demarrage = Instant.now();
+    private Instant demarrage;
 
     /** Enregistre les contrôles après la création des déclencheurs par le planificateur. */
-    void enregistrer(@Observes @Priority(Interceptor.Priority.APPLICATION + 500) StartupEvent demarrageServeur) {
-        demarrage = Instant.now();
+    void enregistrer(@Observes @Priority(PRIORITE_APRES_PLANIFICATEUR) StartupEvent demarrageServeur) {
+        demarrage = horloge.instant();
         if (!planificateur.isStarted()) {
             return;
         }
@@ -67,8 +74,9 @@ public class SanteTaches {
             return reponse.withData("etat", "desactivee").build();
         }
         Optional<EtatTaches.Execution> derniere = etat.derniere(tache);
-        EvaluationTache evaluation = EvaluationTache.evaluer(Optional.ofNullable(declencheur.getPreviousFireTime()),
-                Optional.ofNullable(declencheur.getNextFireTime()), derniere, demarrage, facteurRetard, Instant.now());
+        EvaluationTache.Echeances echeances = new EvaluationTache.Echeances(
+                Optional.ofNullable(declencheur.getPreviousFireTime()), Optional.ofNullable(declencheur.getNextFireTime()));
+        EvaluationTache evaluation = EvaluationTache.evaluer(echeances, derniere, demarrage, facteurRetard, horloge.instant());
         reponse.withData("etat", evaluation.etat().libelle());
         derniere.ifPresent(execution -> reponse.withData("derniere-execution", execution.fin().toString())
                 .withData("derniere-issue", execution.reussie() ? EtatTaches.SUCCES : EtatTaches.ECHEC));

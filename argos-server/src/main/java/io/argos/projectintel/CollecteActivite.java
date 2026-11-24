@@ -1,5 +1,6 @@
 package io.argos.projectintel;
 
+import java.time.Clock;
 import java.time.Duration;
 import java.time.Instant;
 import java.time.LocalDate;
@@ -54,6 +55,9 @@ public class CollecteActivite {
     }
 
     @Inject
+    Clock horloge;
+
+    @Inject
     ProjectDirectory projets;
 
     @Inject
@@ -78,7 +82,7 @@ public class CollecteActivite {
     @Scheduled(identity = "argos-activite-collecte", every = "{argos.activite.cadence}",
             concurrentExecution = Scheduled.ConcurrentExecution.SKIP)
     void planifiee() {
-        collecter(Instant.now()).relancerErreurImprevue();
+        collecter(horloge.instant()).relancerErreurImprevue();
     }
 
     /** Collecte les projets échus à l'instant {@code maintenant}. */

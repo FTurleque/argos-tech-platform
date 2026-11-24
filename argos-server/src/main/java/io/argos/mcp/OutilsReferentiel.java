@@ -3,6 +3,7 @@ package io.argos.mcp;
 import static io.argos.mcp.OutilsSecurite.AVERTISSEMENT;
 import static io.argos.mcp.OutilsSecurite.parametres;
 
+import java.time.Clock;
 import java.time.LocalDate;
 import java.util.LinkedHashSet;
 import java.util.List;
@@ -12,6 +13,7 @@ import java.util.Set;
 import jakarta.inject.Inject;
 
 import io.argos.catalog.standard.ReferentielStandards;
+import io.argos.horloge.LectureHeure;
 import io.argos.inventory.InventoryQueries;
 import io.argos.releaseradar.CalendrierSorties;
 import io.quarkiverse.mcp.server.Tool;
@@ -36,6 +38,9 @@ public class OutilsReferentiel {
     /** Réponse de {@code upcoming_releases}. */
     public record Echeances(String jusqua, int nombre, String constat, List<Echeance> echeances) {
     }
+
+    @Inject
+    Clock horloge;
 
     @Inject
     GardeAppels garde;
@@ -95,7 +100,7 @@ public class OutilsReferentiel {
                                 .forEach(projet -> inventaires.inventory(projet.id(), appelant.accountId())
                                         .ifPresent(vue -> vue.components().forEach(composant -> cles.add(composant.packageKey()))));
                     }
-                    LocalDate aujourdhui = LocalDate.now();
+                    LocalDate aujourdhui = LectureHeure.jour(horloge);
                     LocalDate jusqua = aujourdhui.plusDays(jours);
                     List<Echeance> echeances = cles.isEmpty() ? List.of()
                             : calendrier.echeances(cles, appelant.memberWorkspaces(), aujourdhui, jusqua).stream()

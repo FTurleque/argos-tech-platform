@@ -2,6 +2,7 @@ package io.argos.ingestion.web;
 
 import static org.junit.jupiter.api.Assertions.assertArrayEquals;
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
@@ -19,6 +20,7 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.function.Function;
 
+import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.Test;
 
 import io.argos.ingestion.web.RecuperationRefusee.Motif;
@@ -28,6 +30,8 @@ import io.argos.ingestion.web.RecuperationRefusee.Motif;
  * vérifiées une à une, délai et taille bornés. Transport simulé : aucun appel réseau.
  */
 class RecuperateurWebTest {
+
+    private static final MinuterieCoupure MINUTERIE = minuterieDemarree();
 
     private static final Map<String, String> DNS = Map.of("flux.exemple.test", "93.184.216.34",
             "autre.exemple.test", "93.184.216.35");
@@ -72,7 +76,29 @@ class RecuperateurWebTest {
             }
             return new InetAddress[] { InetAddress.getByName(adresseIp) };
         }, List.of());
-        return new RecuperateurWeb(garde, transport, Duration.ofSeconds(1), 3, tailleMax);
+        return new RecuperateurWeb(garde, transport, new RecuperateurWeb.Bornes(Duration.ofSeconds(1), 3, tailleMax), MINUTERIE);
+    }
+
+    /** Minuterie de coupure des tests, démarrée comme par le conteneur CDI et arrêtée après la classe. */
+    private static MinuterieCoupure minuterieDemarree() {
+        MinuterieCoupure minuterie = new MinuterieCoupure();
+        minuterie.fils = 1;
+        minuterie.demarrer();
+        return minuterie;
+    }
+
+    @AfterAll
+    static void arreterMinuterie() {
+        MINUTERIE.arreter();
+    }
+
+    /** AUD-QUA-11 : la minuterie appartient à son bean et s'arrête avec lui. */
+    @Test
+    void laMinuterieSArreteALaDestructionDuBean() {
+        MinuterieCoupure minuterie = minuterieDemarree();
+        assertFalse(minuterie.arretee());
+        minuterie.arreter();
+        assertTrue(minuterie.arretee());
     }
 
     @Test

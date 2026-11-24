@@ -5,7 +5,7 @@ import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Timestamp;
-import java.time.Instant;
+import java.time.Clock;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.LinkedHashMap;
@@ -86,6 +86,9 @@ public class DictionnaireMetier {
     }
 
     @Inject
+    Clock horloge;
+
+    @Inject
     ContexteBase base;
 
     @Inject
@@ -121,7 +124,7 @@ public class DictionnaireMetier {
                 requete.setObject(1, espace);
                 requete.setString(2, codeNormalise);
                 requete.setString(3, libelleNormalise);
-                requete.setTimestamp(4, Timestamp.from(Instant.now()));
+                requete.setTimestamp(4, Timestamp.from(horloge.instant()));
                 requete.executeUpdate();
             }
             return exiger(connexion, espace, codeNormalise);
@@ -159,7 +162,7 @@ public class DictionnaireMetier {
                     INSERT INTO regle_dictionnaire (espace_id, domaine, type, valeur, modifie_par, modifie_le)
                     VALUES (?, ?, ?, ?, argos_compte_courant(), ?)
                     """)) {
-                Timestamp maintenant = Timestamp.from(Instant.now());
+                Timestamp maintenant = Timestamp.from(horloge.instant());
                 for (Regle regle : valides) {
                     requete.setObject(1, espace);
                     requete.setString(2, codeNormalise);
@@ -210,7 +213,7 @@ public class DictionnaireMetier {
                     INSERT INTO expert_domaine (espace_id, domaine, compte_id, modifie_par, modifie_le)
                     VALUES (?, ?, ?, argos_compte_courant(), ?)
                     """)) {
-                Timestamp maintenant = Timestamp.from(Instant.now());
+                Timestamp maintenant = Timestamp.from(horloge.instant());
                 for (UUID expert : distincts) {
                     requete.setObject(1, espace);
                     requete.setString(2, codeNormalise);

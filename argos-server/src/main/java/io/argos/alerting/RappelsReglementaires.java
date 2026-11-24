@@ -1,8 +1,8 @@
 package io.argos.alerting;
 
+import java.time.Clock;
 import java.time.Instant;
 import java.time.LocalDate;
-import java.time.ZoneId;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -17,6 +17,7 @@ import jakarta.inject.Inject;
 import org.eclipse.microprofile.config.inject.ConfigProperty;
 import org.jboss.logging.Logger;
 
+import io.argos.horloge.LectureHeure;
 import io.argos.observabilite.TacheObservee;
 import io.argos.regintel.EcheancesReglementaires;
 import io.argos.regintel.FicheAnalyse;
@@ -46,6 +47,9 @@ public class RappelsReglementaires {
     private static final int TITRE_FICHE_MAX = 300;
 
     @Inject
+    Clock horloge;
+
+    @Inject
     EcheancesReglementaires echeances;
 
     @Inject
@@ -67,7 +71,7 @@ public class RappelsReglementaires {
     @Scheduled(identity = "rappels-reglementaires", cron = "{argos.reglementaire.rappels.cron}",
             timeZone = "{argos.alerting.fuseau}", concurrentExecution = Scheduled.ConcurrentExecution.SKIP)
     void quotidien() {
-        executer(LocalDate.now(ZoneId.of(fuseau)), Instant.now());
+        executer(LectureHeure.jour(horloge), horloge.instant());
     }
 
     /** Envoie les rappels du jour ; renvoie les messages créés. Une échéance en échec n'interrompt pas les autres. */

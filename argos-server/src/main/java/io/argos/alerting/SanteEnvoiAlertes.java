@@ -4,6 +4,7 @@ import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
+import java.time.Clock;
 import java.time.Duration;
 import java.time.Instant;
 import java.time.ZoneOffset;
@@ -50,6 +51,9 @@ public class SanteEnvoiAlertes implements HealthCheck {
     }
 
     @Inject
+    Clock horloge;
+
+    @Inject
     DataSource dataSource;
 
     @Inject
@@ -71,7 +75,7 @@ public class SanteEnvoiAlertes implements HealthCheck {
     public HealthCheckResponse call() {
         EtatFile file;
         try {
-            file = actualiser(Instant.now());
+            file = actualiser(horloge.instant());
         } catch (IllegalStateException erreur) {
             LOG.warnf(erreur, "contrôle %s : file d'envoi illisible", NOM);
             return HealthCheckResponse.named(NOM).up().withData("etat", "illisible").build();

@@ -2,7 +2,7 @@ package io.argos.scm;
 
 import java.net.URLEncoder;
 import java.nio.charset.StandardCharsets;
-import java.time.Duration;
+import java.time.Clock;
 import java.util.Locale;
 import java.util.Optional;
 
@@ -38,10 +38,10 @@ final class AccesForges {
     }
 
     /** Accès construit depuis la configuration : le délai borne la connexion et l'attente des en-têtes. */
-    static AccesForges configure(Duration timeout, String gitlabUrl, String githubUrl, String gitlabToken,
-            String githubToken) {
+    static AccesForges configure(ParametresForges parametres, Clock horloge) {
         // Aucune redirection suivie : le jeton d'accès ne doit pas partir vers un autre hôte (ForgeHttp).
-        return new AccesForges(new ForgeHttp(timeout), gitlabUrl, githubUrl, gitlabToken, githubToken);
+        return new AccesForges(new ForgeHttp(parametres.timeout(), horloge), parametres.gitlabUrl(), parametres.githubUrl(),
+                parametres.gitlabToken().orElse(null), parametres.githubToken().orElse(null));
     }
 
     /** Client HTTP en lecture seule, qui ne suit aucune redirection. */

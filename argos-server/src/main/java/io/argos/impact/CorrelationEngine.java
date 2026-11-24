@@ -5,6 +5,7 @@ import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Types;
+import java.time.Clock;
 import java.time.Instant;
 import java.time.ZoneOffset;
 import java.util.ArrayList;
@@ -69,6 +70,9 @@ public class CorrelationEngine {
     private record Deterministic(int created, int updated, int resolved, int reopened, List<UUID> impactIds,
             ImpactsRecorded recorded) {
     }
+
+    @Inject
+    Clock horloge;
 
     @Inject
     DataSource dataSource;
@@ -195,7 +199,7 @@ public class CorrelationEngine {
         SignalQueries.SignalView signal = signals.find(signalId)
                 .orElseThrow(() -> new IllegalArgumentException("signal inconnu : " + signalId));
         Map<String, List<AffectedPackage>> byKey = parPaquet(signal);
-        Instant now = Instant.now();
+        Instant now = horloge.instant();
         Bilan bilan = new Bilan();
         try (Connection connexion = dataSource.getConnection()) {
             verrouillerSignal(connexion, signalId);

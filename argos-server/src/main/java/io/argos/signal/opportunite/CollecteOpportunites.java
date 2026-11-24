@@ -5,6 +5,7 @@ import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
+import java.time.Clock;
 import java.time.Instant;
 import java.time.LocalDate;
 import java.time.ZoneOffset;
@@ -59,6 +60,9 @@ public class CollecteOpportunites {
     }
 
     @Inject
+    Clock horloge;
+
+    @Inject
     DataSource dataSource;
 
     @Inject
@@ -97,7 +101,7 @@ public class CollecteOpportunites {
     @Scheduled(identity = "collecte-profil-artiste", cron = "{argos.profil-artiste.collecte.cron}",
             timeZone = "{argos.alerting.fuseau}", concurrentExecution = Scheduled.ConcurrentExecution.SKIP)
     void quotidien() {
-        collecter("artiste", Instant.now());
+        collecter("artiste", horloge.instant());
     }
 
     /** Collecte chaque source du profil ; une source en échec n'interrompt pas les autres. */

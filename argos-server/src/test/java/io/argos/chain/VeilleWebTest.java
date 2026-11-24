@@ -96,7 +96,7 @@ class VeilleWebTest {
     }
 
     static Stub contenu(String type, String corps) {
-        return new Stub(200, corps, Map.of("Content-Type", type), 0);
+        return new Stub(200, corps, Map.of("Content-Type", type));
     }
 
     static Map<String, Object> source(String portee, UUID espace, String type, String adresse) {
@@ -177,7 +177,7 @@ class VeilleWebTest {
         StubServer.programmer("/rss", contenu(ATOM, atom("Flux public", entree("A", "https://exemple.test/a", "a"))));
         String id = ajouterFlux("alice", "PERSONNELLE", null, "/rss");
 
-        StubServer.programmer("/rss", new Stub(302, "", Map.of("Location", "http://127.0.0.1/"), 0));
+        StubServer.programmer("/rss", new Stub(302, "", Map.of("Location", "http://127.0.0.1/")));
         Api.enTantQue("alice").when().post("/api/v1/veille-web/sources/" + id + "/collectes").then()
                 .statusCode(200)
                 .body("etat", equalTo("EN_ERREUR"))
@@ -191,7 +191,7 @@ class VeilleWebTest {
 
     @Test
     void recuperationTropLongueInterrompue() {
-        StubServer.programmer("/lent", new Stub(200, atom("Lent"), Map.of("Content-Type", ATOM), 2500));
+        StubServer.programmer("/lent", Stub.retenue(200, atom("Lent"), Map.of("Content-Type", ATOM)));
         ajouter("alice", source("PERSONNELLE", null, "FLUX", StubServer.base() + "/lent"))
                 .statusCode(400)
                 .body("code", equalTo("DELAI_DEPASSE"));
@@ -528,7 +528,7 @@ class VeilleWebTest {
 
         StubServer.programmer("/r.xml", contenu(ATOM, atom("R", entree("R", "https://exemple.test/r", "r"))));
         String id = ajouterFlux("alice", "PERSONNELLE", null, "/r.xml");
-        StubServer.programmer("/r.xml", new Stub(302, "", Map.of("Location", "http://10.20.30.40/interne"), 0));
+        StubServer.programmer("/r.xml", new Stub(302, "", Map.of("Location", "http://10.20.30.40/interne")));
         Api.enTantQue("alice").when().post("/api/v1/veille-web/sources/" + id + "/collectes").then().statusCode(200)
                 .body("erreur", startsWith("REDIRECTION_INTERDITE : "))
                 .body("erreur", not(containsString("10.20.30.40")));

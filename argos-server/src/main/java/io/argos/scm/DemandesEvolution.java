@@ -5,7 +5,7 @@ import java.net.URI;
 import java.net.URISyntaxException;
 import java.net.URLEncoder;
 import java.nio.charset.StandardCharsets;
-import java.time.Duration;
+import java.time.Clock;
 import java.util.Locale;
 import java.util.Optional;
 import java.util.regex.Matcher;
@@ -52,18 +52,15 @@ public class DemandesEvolution {
     private final ObjectMapper json = new ObjectMapper();
 
     @Inject
-    public DemandesEvolution(@ConfigProperty(name = "argos.sources.http-timeout") Duration timeout,
+    public DemandesEvolution(ParametresForges parametres,
             @ConfigProperty(name = "argos.scm.github.web-url", defaultValue = "https://github.com") String githubWeb,
-            @ConfigProperty(name = "argos.scm.github.url") String githubApi,
-            @ConfigProperty(name = "argos.scm.gitlab.url") String gitlab,
-            @ConfigProperty(name = "argos.scm.github.token") Optional<String> githubToken,
-            @ConfigProperty(name = "argos.scm.gitlab.token") Optional<String> gitlabToken) {
-        this.http = new ForgeHttp(timeout);
+            Clock horloge) {
+        this.http = new ForgeHttp(parametres.timeout(), horloge);
         this.githubWeb = URI.create(sansBarre(githubWeb));
-        this.githubApi = sansBarre(githubApi);
-        this.gitlab = URI.create(sansBarre(gitlab));
-        this.githubToken = githubToken.filter(jeton -> !jeton.isBlank());
-        this.gitlabToken = gitlabToken.filter(jeton -> !jeton.isBlank());
+        this.githubApi = sansBarre(parametres.githubUrl());
+        this.gitlab = URI.create(sansBarre(parametres.gitlabUrl()));
+        this.githubToken = parametres.githubToken().filter(jeton -> !jeton.isBlank());
+        this.gitlabToken = parametres.gitlabToken().filter(jeton -> !jeton.isBlank());
     }
 
     /** Demande désignée par l'adresse, si elle désigne un ticket ou une demande de fusion d'une forge configurée. */

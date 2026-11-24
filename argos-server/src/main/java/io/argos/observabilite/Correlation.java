@@ -41,16 +41,16 @@ public final class Correlation {
     }
 
     /**
-     * Traitement à exécuter sur un autre fil avec les valeurs de corrélation du fil appelant : elles sont posées
+     * Tâche à exécuter sur un autre fil avec les valeurs de corrélation du fil appelant : elles sont posées
      * avant l'exécution et le MDC du fil exécutant est rétabli ensuite.
      */
-    public static <T> Callable<T> propager(Callable<T> traitement) {
+    public static <T> Callable<T> propager(Callable<T> tache) {
         Map<String, Object> valeurs = Map.copyOf(MDC.getMap());
         return () -> {
             Map<String, Object> precedentes = Map.copyOf(MDC.getMap());
             remplacer(valeurs);
             try {
-                return traitement.call();
+                return tache.call();
             } finally {
                 remplacer(precedentes);
             }

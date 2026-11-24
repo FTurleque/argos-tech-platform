@@ -1,5 +1,6 @@
 package io.argos.signal;
 
+import java.time.Clock;
 import java.time.Instant;
 import java.util.ArrayList;
 import java.util.List;
@@ -53,6 +54,9 @@ public class SynchronisationPlanifiee {
     }
 
     @Inject
+    Clock horloge;
+
+    @Inject
     SourceSynchronizer synchronizer;
 
     @Inject
@@ -66,7 +70,7 @@ public class SynchronisationPlanifiee {
     @Scheduled(identity = "signal-synchronisation-sources", every = "{argos.ingestion.planification.cadence}",
             concurrentExecution = Scheduled.ConcurrentExecution.SKIP)
     void planifier() {
-        synchroniserToutes(Instant.now()).relancerErreurImprevue();
+        synchroniserToutes(horloge.instant()).relancerErreurImprevue();
     }
 
     /** Rafraîchit les index d'enrichissement puis synchronise chaque source enregistrée (méthode testable). */

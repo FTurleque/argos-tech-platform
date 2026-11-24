@@ -5,6 +5,7 @@ import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
+import java.time.Clock;
 import java.time.Duration;
 import java.time.Instant;
 import java.time.LocalDate;
@@ -17,6 +18,7 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
 import io.argos.scm.ActiviteDepot;
+import io.argos.scm.ParametresForges;
 import io.argos.scm.RepositoryActivity;
 import io.argos.scm.RepositoryRef;
 import io.argos.scm.ScmException;
@@ -44,8 +46,9 @@ class ActiviteDepotCaracterisationTest {
     }
 
     private static RepositoryActivity activite(int pagesMax, int jalonsMax) {
-        return new RepositoryActivity(Duration.ofSeconds(2), StubServer.base() + "/gitlab", StubServer.base() + "/github",
-                Optional.empty(), Optional.empty(), pagesMax, jalonsMax, 5_242_880);
+        ParametresForges forges = new ParametresForges(Duration.ofSeconds(2), StubServer.base() + "/gitlab",
+                StubServer.base() + "/github", Optional.empty(), Optional.empty());
+        return new RepositoryActivity(forges, pagesMax, jalonsMax, 5_242_880, Clock.systemUTC());
     }
 
     private static ActiviteDepot github(RepositoryActivity activite) {

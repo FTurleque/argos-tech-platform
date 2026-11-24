@@ -5,7 +5,7 @@ import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Types;
-import java.time.Instant;
+import java.time.Clock;
 import java.time.ZoneOffset;
 import java.util.List;
 import java.util.Optional;
@@ -44,6 +44,9 @@ public class InventoryStore {
      */
     public record Remplacement(UUID repositoryId, String origin, ParsedInventory parsed, String sourceRef) {
     }
+
+    @Inject
+    Clock horloge;
 
     @Inject
     DataSource dataSource;
@@ -156,7 +159,7 @@ public class InventoryStore {
             requete.setObject(3, repositoryId);
             requete.setString(4, reason.length() > 1000 ? reason.substring(0, 1000) : reason);
             requete.setString(5, cut(sourceRef));
-            requete.setObject(6, Instant.now().atOffset(ZoneOffset.UTC));
+            requete.setObject(6, horloge.instant().atOffset(ZoneOffset.UTC));
             requete.executeUpdate();
         } catch (SQLException erreur) {
             throw new IllegalStateException("enregistrement de l'échec d'import impossible", erreur);

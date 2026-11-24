@@ -30,7 +30,7 @@ import io.argos.architecture.exemples.ClasseHorsModule;
  * Elle n'autorise que des dépendances que le code utilise. Toute nouvelle dépendance entre modules, ou tout
  * nouveau module, doit d'abord être ajouté à cette table, puis à arc42 §5 : le test échoue sinon.
  *
- * <p>Les modules techniques transverses ({@link #TRANSVERSES}) ne dépendent d'aucun autre module et sont accessibles
+ * <p>Les modules techniques transverses ({@link #TRANSVERSES}) ne dépendent d'aucun module métier et sont accessibles
  * à tous.
  */
 class ModuleBoundariesTest {
@@ -67,11 +67,17 @@ class ModuleBoundariesTest {
             Map.entry("scm", Set.of()),
             Map.entry("aigateway", Set.of("audit")),
             Map.entry("audit", Set.of()),
-            // Mécanismes techniques transverses : corrélation des journaux, observation des tâches planifiées.
-            Map.entry("observabilite", Set.of()));
+            // Mécanismes techniques transverses : corrélation des journaux, observation des tâches planifiées,
+            // producteur de l'horloge commune, exécuteurs bornés possédés par des beans CDI.
+            Map.entry("observabilite", Set.of()),
+            Map.entry("horloge", Set.of()),
+            Map.entry("execution", Set.of()));
 
-    /** Modules techniques sans dépendance, dont tout module peut dépendre (arc42 §5, socle technique). */
-    static final Set<String> TRANSVERSES = Set.of("observabilite");
+    /**
+     * Modules techniques sans dépendance métier, dont tout module peut dépendre (arc42 §5, socle technique) ; ils
+     * peuvent dépendre les uns des autres ({@code execution} propage la corrélation d'{@code observabilite}).
+     */
+    static final Set<String> TRANSVERSES = Set.of("observabilite", "horloge", "execution");
 
     private static JavaClasses classes;
 

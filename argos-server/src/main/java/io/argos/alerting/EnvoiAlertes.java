@@ -4,6 +4,7 @@ import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
+import java.time.Clock;
 import java.time.Duration;
 import java.time.Instant;
 import java.time.ZoneOffset;
@@ -55,6 +56,9 @@ public class EnvoiAlertes {
     private static final Logger LOG = Logger.getLogger(EnvoiAlertes.class);
 
     @Inject
+    Clock horloge;
+
+    @Inject
     DataSource dataSource;
 
     @Inject
@@ -90,7 +94,7 @@ public class EnvoiAlertes {
     @Scheduled(identity = "argos-envoi-alertes", every = "{argos.alerting.envoi.intervalle}",
             concurrentExecution = Scheduled.ConcurrentExecution.SKIP)
     void planifie() {
-        Instant maintenant = Instant.now();
+        Instant maintenant = horloge.instant();
         traiterEnAttente(maintenant);
         sante.actualiser(maintenant);
     }

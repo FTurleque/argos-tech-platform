@@ -6,7 +6,7 @@ import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Timestamp;
-import java.time.Instant;
+import java.time.Clock;
 import java.time.LocalDate;
 import java.time.temporal.ChronoUnit;
 import java.util.ArrayList;
@@ -65,6 +65,9 @@ public class EcheancesReglementaires {
     }
 
     @Inject
+    Clock horloge;
+
+    @Inject
     ContexteBase base;
 
     @Inject
@@ -111,7 +114,7 @@ public class EcheancesReglementaires {
                     """)) {
                 requete.setObject(1, espace);
                 requete.setArray(2, connexion.createArrayOf("integer", valides.toArray()));
-                requete.setTimestamp(3, Timestamp.from(Instant.now()));
+                requete.setTimestamp(3, Timestamp.from(horloge.instant()));
                 requete.executeUpdate();
             }
             return valides;

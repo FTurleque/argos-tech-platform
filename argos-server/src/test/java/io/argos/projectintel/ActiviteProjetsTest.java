@@ -15,6 +15,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.sql.ResultSet;
 import java.sql.Statement;
+import java.time.Clock;
 import java.time.Duration;
 import java.time.Instant;
 import java.time.LocalDate;
@@ -32,6 +33,7 @@ import org.junit.jupiter.api.Test;
 
 import io.argos.inventory.ProjectDirectory;
 import io.argos.scm.ActiviteDepot;
+import io.argos.scm.ParametresForges;
 import io.argos.scm.RepositoryActivity;
 import io.argos.scm.RepositoryRef;
 import io.argos.testsupport.Api;
@@ -139,8 +141,9 @@ class ActiviteProjetsTest {
         projets.create(espace, "sain", new RepositoryRef("GITHUB", "demo/argos", "main", null, null), List.of());
         RepositoryActivity reel = Substitution.reel(forges);
         IllegalArgumentException imprevue = new IllegalArgumentException("erreur imprévue simulée");
-        RepositoryActivity doublure = new RepositoryActivity(Duration.ofSeconds(1), "http://localhost", "http://localhost",
-                Optional.empty(), Optional.empty(), 1, 0, 1) {
+        ParametresForges forgesFactices = new ParametresForges(Duration.ofSeconds(1), "http://localhost", "http://localhost",
+                Optional.empty(), Optional.empty());
+        RepositoryActivity doublure = new RepositoryActivity(forgesFactices, 1, 0, 1, Clock.systemUTC()) {
             @Override
             public ActiviteDepot lire(RepositoryRef ref, Instant depuis) {
                 if ("demo/fautif".equals(ref.repository())) {
@@ -357,7 +360,7 @@ class ActiviteProjetsTest {
         Instant reinitialisation = Instant.now().plus(2, ChronoUnit.HOURS).truncatedTo(ChronoUnit.SECONDS);
         StubServer.reset();
         StubServer.programmer("/github/repos/org/app/issues", new Stub(403, "{\"message\":\"API rate limit exceeded\"}",
-                Map.of("x-ratelimit-remaining", "0", "x-ratelimit-reset", String.valueOf(reinitialisation.getEpochSecond())), 0));
+                Map.of("x-ratelimit-remaining", "0", "x-ratelimit-reset", String.valueOf(reinitialisation.getEpochSecond()))));
 
         CollecteActivite.Bilan bilan = collecte.collecter(Instant.now());
 
@@ -404,7 +407,7 @@ class ActiviteProjetsTest {
                 .body("fraicheur.etat", equalTo("ECHEC")).body("fraicheur.motif", equalTo("HTTP 500 de localhost"))
                 .body("compteurs.ticketsOuverts", equalTo(3));
         // Redirection non suivie : le jeton ne part jamais vers un autre hôte.
-        StubServer.programmer("/github/repos/org/app/issues", new Stub(302, "", Map.of("Location", "http://ailleurs.example/"), 0));
+        StubServer.programmer("/github/repos/org/app/issues", new Stub(302, "", Map.of("Location", "http://ailleurs.example/")));
         assertEquals(CollecteActivite.Issue.ECHEC, collecte.collecterProjet(projet, Instant.now()));
     }
 

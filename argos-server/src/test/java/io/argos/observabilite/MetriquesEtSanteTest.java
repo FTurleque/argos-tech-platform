@@ -104,8 +104,8 @@ class MetriquesEtSanteTest {
     @Test
     void exp14S2AppelAnonymeOuNonAdministrateurRefuse() {
         given().when().get("/q/metrics").then().statusCode(401).body(not(containsString("argos_")));
-        Api.assurerCompte("bob");
-        Api.enTantQue("bob").when().get("/q/metrics").then().statusCode(403);
+        Api.assurerCompte("paul");
+        Api.enTantQue("paul").when().get("/q/metrics").then().statusCode(403);
     }
 
     @Test

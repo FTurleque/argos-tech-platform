@@ -1,8 +1,7 @@
 package io.argos.api.reglementaire;
 
-import java.time.Instant;
+import java.time.Clock;
 import java.time.LocalDate;
-import java.time.ZoneId;
 import java.time.format.DateTimeParseException;
 import java.util.List;
 import java.util.Locale;
@@ -38,6 +37,7 @@ import io.argos.api.security.Caller;
 import io.argos.api.security.LimiteDebitAtteinte;
 import io.argos.api.security.LimiteurDebit;
 import io.argos.catalog.dictionnaire.DictionnaireMetier;
+import io.argos.horloge.LectureHeure;
 import io.argos.regintel.CollecteReglementaire;
 import io.argos.regintel.CycleVie;
 import io.argos.regintel.EcheancesReglementaires;
@@ -64,6 +64,9 @@ import io.quarkus.security.Authenticated;
 @Authenticated
 @Produces(MediaType.APPLICATION_JSON)
 public class ReglementaireResource {
+
+    /** Période des échéances listées sans date de fin, en jours. */
+    private static final int PERIODE_PAR_DEFAUT_JOURS = 365;
 
     @Schema(name = "DomaineMetier")
     public record DomaineVue(String code, String libelle, List<DictionnaireMetier.Regle> regles,
@@ -107,6 +110,9 @@ public class ReglementaireResource {
     }
 
     @Inject
+    Clock horloge;
+
+    @Inject
     Access access;
 
     @Inject
@@ -123,9 +129,6 @@ public class ReglementaireResource {
 
     @Inject
     CollecteReglementaire collecte;
-
-    @ConfigProperty(name = "argos.alerting.fuseau")
-    String fuseau;
 
     @ConfigProperty(name = "argos.reglementaire.debit.requetes-par-minute", defaultValue = "10")
     int requetesParMinute;
@@ -262,7 +265,7 @@ public class ReglementaireResource {
         Caller caller = access.authenticated();
         return expertise.corriger(caller.accountId(), id, corps == null ? null
                 : new ExpertiseFiches.Correction(corps.resume(), corps.dateEffet(), corps.dateEffetAConfirmer(), corps.domaines()),
-                Instant.now());
+                horloge.instant());
     }
 
     @POST
@@ -274,7 +277,7 @@ public class ReglementaireResource {
             content = @Content(schema = @Schema(implementation = Erreur.class)))
     public FicheAnalyse valider(@PathParam("id") UUID id) {
         Caller caller = access.authenticated();
-        return expertise.valider(caller.accountId(), id, Instant.now());
+        return expertise.valider(caller.accountId(), id, horloge.instant());
     }
 
     @POST
@@ -283,7 +286,7 @@ public class ReglementaireResource {
     @Operation(summary = "Rejette une fiche en attente : elle n'est jamais diffusée")
     public FicheAnalyse rejeter(@PathParam("id") UUID id, Rejet corps) {
         Caller caller = access.authenticated();
-        return expertise.rejeter(caller.accountId(), id, corps == null ? null : corps.motif(), Instant.now());
+        return expertise.rejeter(caller.accountId(), id, corps == null ? null : corps.motif(), horloge.instant());
     }
 
     @POST
@@ -301,7 +304,7 @@ public class ReglementaireResource {
             throw Erreur.demandeRefusee("ETAT_INCONNU",
                     "État inconnu : NOUVEAU, EN_ANALYSE, SANS_IMPACT, IMPACT_PRODUIT, SPECIFIE ou LIVRE.");
         }
-        return expertise.transition(caller.accountId(), id, vers, Instant.now());
+        return expertise.transition(caller.accountId(), id, vers, horloge.instant());
     }
 
     @PUT
@@ -317,7 +320,7 @@ public class ReglementaireResource {
         if (!limiteur.admettre(caller.accountId())) {
             throw new LimiteDebitAtteinte();
         }
-        return expertise.associerDemande(caller.accountId(), id, corps == null ? null : corps.adresse(), Instant.now());
+        return expertise.associerDemande(caller.accountId(), id, corps == null ? null : corps.adresse(), horloge.instant());
     }
 
     @GET
@@ -329,8 +332,8 @@ public class ReglementaireResource {
         if (espace != null && !caller.memberOf(espace)) {
             throw access.outOfScope();
         }
-        LocalDate debut = date(depuis, LocalDate.now(ZoneId.of(fuseau)), "depuis");
-        LocalDate fin = date(jusqua, debut.plusDays(365), "jusqua");
+        LocalDate debut = date(depuis, LectureHeure.jour(horloge), "depuis");
+        LocalDate fin = date(jusqua, debut.plusDays(PERIODE_PAR_DEFAUT_JOURS), "jusqua");
         if (fin.isBefore(debut) || fin.isAfter(debut.plusYears(5))) {
             throw Erreur.demandeRefusee("DONNEE_INVALIDE", "La période va de « depuis » à « jusqua », cinq ans au plus.");
         }
@@ -360,14 +363,14 @@ public class ReglementaireResource {
         if (!limiteur.admettre(caller.accountId())) {
             throw new LimiteDebitAtteinte();
         }
-        LocalDate aujourdhui = LocalDate.now(ZoneId.of(fuseau));
+        LocalDate aujourdhui = LectureHeure.jour(horloge);
         if (corps != null && corps.jour() != null) {
             if (corps.jour().isAfter(aujourdhui) || corps.jour().isBefore(aujourdhui.minusYears(1))) {
                 throw Erreur.demandeRefusee("DONNEE_INVALIDE", "Le jour rejoué est compris dans l'année écoulée.");
             }
-            return collecte.rejouer(corps.jour(), Instant.now());
+            return collecte.rejouer(corps.jour(), horloge.instant());
         }
-        return collecte.collecter(aujourdhui, Instant.now());
+        return collecte.collecter(aujourdhui, horloge.instant());
     }
 
     // ------------------------------------------------------------------ outils

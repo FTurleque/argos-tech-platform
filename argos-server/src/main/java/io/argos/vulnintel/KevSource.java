@@ -1,6 +1,7 @@
 package io.argos.vulnintel;
 
 import java.net.URI;
+import java.time.Clock;
 import java.time.Duration;
 import java.time.Instant;
 import java.util.HashMap;
@@ -23,6 +24,9 @@ import com.fasterxml.jackson.databind.node.ObjectNode;
  */
 @ApplicationScoped
 public class KevSource implements EnrichmentSource {
+
+    @Inject
+    Clock horloge;
 
     @Inject
     EnrichmentHttp http;
@@ -62,14 +66,14 @@ public class KevSource implements EnrichmentSource {
     }
 
     private synchronized Map<String, JsonNode> catalog() {
-        if (catalog != null && loadedAt.plus(cacheTtl).isAfter(Instant.now())) {
+        if (catalog != null && loadedAt.plus(cacheTtl).isAfter(horloge.instant())) {
             return catalog;
         }
         Optional<JsonNode> root = http.getJson(URI.create(url));
         Map<String, JsonNode> index = new HashMap<>();
         root.ifPresent(document -> document.path("vulnerabilities").forEach(entry -> index.put(entry.path("cveID").asText(), entry)));
         catalog = index;
-        loadedAt = Instant.now();
+        loadedAt = horloge.instant();
         return catalog;
     }
 }

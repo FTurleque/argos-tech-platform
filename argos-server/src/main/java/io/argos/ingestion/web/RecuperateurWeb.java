@@ -9,12 +9,8 @@ import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
 import java.net.http.HttpTimeoutException;
 import java.time.Duration;
-import java.time.Instant;
 import java.util.Optional;
-import java.util.concurrent.Executors;
-import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.ScheduledFuture;
-import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 
 import jakarta.enterprise.context.ApplicationScoped;
@@ -29,7 +25,8 @@ import io.argos.ingestion.web.RecuperationRefusee.Motif;
  * destination de redirection, passe par {@link GardeAdresses} <em>avant</em> toute requête ; les
  * redirections sont suivies une à une (au plus {@code argos.veille-web.redirections-max}) ; la
  * durée totale et la taille du contenu sont bornées. Aucune adresse trouvée dans un contenu
- * collecté n'est jamais récupérée.
+ * collecté n'est jamais récupérée. L'échéance est une durée mesurée sur l'horloge monotone de la JVM
+ * ({@code System.nanoTime()}) ; la coupure d'une lecture trop lente passe par la {@link MinuterieCoupure}.
  */
 @ApplicationScoped
 public class RecuperateurWeb {
@@ -42,18 +39,21 @@ public class RecuperateurWeb {
     record Reponse(int statut, Optional<String> location, Optional<String> typeContenu, InputStream corps) {
     }
 
+    /**
+     * Bornes d'une récupération.
+     *
+     * @param delai durée totale maximale
+     * @param redirectionsMax nombre maximal de redirections suivies
+     * @param tailleMax taille maximale du contenu, en octets
+     */
+    record Bornes(Duration delai, int redirectionsMax, long tailleMax) {
+    }
+
     /** Envoi d'une requête GET unique ; remplaçable dans les tests unitaires. */
     @FunctionalInterface
     interface Transport {
         Reponse envoyer(URI uri, Duration delai) throws IOException, InterruptedException;
     }
-
-    /** Minuterie qui ferme un corps de réponse dont la lecture dépasse l'échéance. */
-    private static final ScheduledExecutorService MINUTERIE = Executors.newSingleThreadScheduledExecutor(tache -> {
-        Thread fil = new Thread(tache, "argos-veille-web-delai");
-        fil.setDaemon(true);
-        return fil;
-    });
 
     static final String AGENT = "Argos-veille/1.0 (+collecteur RSS/Atom)";
 
@@ -62,21 +62,23 @@ public class RecuperateurWeb {
     private final Duration delai;
     private final int redirectionsMax;
     private final long tailleMax;
+    private final MinuterieCoupure minuterie;
 
     @Inject
-    public RecuperateurWeb(GardeAdresses garde,
+    public RecuperateurWeb(GardeAdresses garde, MinuterieCoupure minuterie,
             @ConfigProperty(name = "argos.veille-web.delai", defaultValue = "PT10S") Duration delai,
             @ConfigProperty(name = "argos.veille-web.redirections-max", defaultValue = "5") int redirectionsMax,
             @ConfigProperty(name = "argos.veille-web.taille-max-octets", defaultValue = "2097152") long tailleMax) {
-        this(garde, transportHttp(delai), delai, redirectionsMax, tailleMax);
+        this(garde, transportHttp(delai), new Bornes(delai, redirectionsMax, tailleMax), minuterie);
     }
 
-    RecuperateurWeb(GardeAdresses garde, Transport transport, Duration delai, int redirectionsMax, long tailleMax) {
+    RecuperateurWeb(GardeAdresses garde, Transport transport, Bornes bornes, MinuterieCoupure minuterie) {
         this.garde = garde;
+        this.minuterie = minuterie;
         this.transport = transport;
-        this.delai = delai;
-        this.redirectionsMax = redirectionsMax;
-        this.tailleMax = tailleMax;
+        this.delai = bornes.delai();
+        this.redirectionsMax = bornes.redirectionsMax();
+        this.tailleMax = bornes.tailleMax();
     }
 
     /** Vérifie puis récupère une adresse saisie par un utilisateur. */
@@ -86,7 +88,7 @@ public class RecuperateurWeb {
 
     /** Récupère une adresse déjà vérifiée ; elle est revérifiée (la résolution DNS peut avoir changé). */
     public Contenu recuperer(URI adresse) {
-        Instant echeance = Instant.now().plus(delai);
+        long echeance = System.nanoTime() + delai.toNanos();
         URI courante = garde.verifier(GardeAdresses.analyser(adresse.toString()), Motif.ADRESSE_INTERDITE);
         for (int sauts = 0; ; sauts++) {
             Reponse reponse = envoyer(courante, restant(echeance, courante));
@@ -123,15 +125,15 @@ public class RecuperateurWeb {
         }
     }
 
-    private Duration restant(Instant echeance, URI uri) {
-        Duration reste = Duration.between(Instant.now(), echeance);
+    private static Duration restant(long echeance, URI uri) {
+        Duration reste = Duration.ofNanos(echeance - System.nanoTime());
         if (reste.isNegative() || reste.isZero()) {
             throw new RecuperationRefusee(Motif.DELAI_DEPASSE, "Délai dépassé pour " + uri.getHost() + ".");
         }
         return reste;
     }
 
-    private byte[] lire(InputStream corps, Instant echeance, URI uri) {
+    private byte[] lire(InputStream corps, long echeance, URI uri) {
         if (corps == null) {
             return new byte[0];
         }
@@ -140,10 +142,10 @@ public class RecuperateurWeb {
         // fermer le flux un peu avant l'instant d'échéance : la coupure est marquée avant la fermeture, et
         // une lecture interrompue par elle est un délai dépassé.
         AtomicBoolean coupeeALEcheance = new AtomicBoolean();
-        ScheduledFuture<?> coupure = MINUTERIE.schedule(() -> {
+        ScheduledFuture<?> coupure = minuterie.programmer(() -> {
             coupeeALEcheance.set(true);
             fermer(corps);
-        }, Math.max(1, Duration.between(Instant.now(), echeance).toMillis()), TimeUnit.MILLISECONDS);
+        }, Duration.ofNanos(echeance - System.nanoTime()));
         try (InputStream flux = corps; ByteArrayOutputStream out = new ByteArrayOutputStream()) {
             byte[] tampon = new byte[8192];
             long total = 0;
@@ -154,7 +156,7 @@ public class RecuperateurWeb {
                     throw new RecuperationRefusee(Motif.CONTENU_TROP_VOLUMINEUX,
                             "Contenu de " + uri.getHost() + " supérieur à " + tailleMax + " octets.");
                 }
-                if (Instant.now().isAfter(echeance)) {
+                if (System.nanoTime() - echeance > 0) {
                     throw new RecuperationRefusee(Motif.DELAI_DEPASSE, "Délai dépassé pour " + uri.getHost() + ".");
                 }
                 out.write(tampon, 0, octetsLus);
@@ -163,7 +165,7 @@ public class RecuperateurWeb {
         } catch (HttpTimeoutException erreur) {
             throw new RecuperationRefusee(Motif.DELAI_DEPASSE, "Délai dépassé pour " + uri.getHost() + ".", erreur);
         } catch (IOException erreur) {
-            if (coupeeALEcheance.get() || !Instant.now().isBefore(echeance)) {
+            if (coupeeALEcheance.get() || System.nanoTime() - echeance >= 0) {
                 throw new RecuperationRefusee(Motif.DELAI_DEPASSE, "Délai dépassé pour " + uri.getHost() + ".", erreur);
             }
             throw new RecuperationRefusee(Motif.ERREUR_RESEAU, "Lecture interrompue pour " + uri.getHost() + ".", erreur);
