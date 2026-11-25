@@ -28,6 +28,7 @@ import jakarta.inject.Inject;
 
 import org.jboss.logging.Logger;
 
+import io.argos.commun.ContexteBase;
 import io.argos.observabilite.ErreursImprevues;
 
 import io.argos.catalog.standard.ReferentielStandardsEnBase;
@@ -224,7 +225,7 @@ public class RadarProjets {
             boolean autoCommit = connexion.getAutoCommit();
             connexion.setAutoCommit(false);
             try {
-                RlsSession.account(connexion, compteId);
+                ContexteBase.appliquer(connexion, ContexteBase.Contexte.duCompte(compteId));
                 List<DetteVersion> liste = new ArrayList<>();
                 try (PreparedStatement requete = connexion.prepareStatement("""
                         SELECT d.id, d.project_id, p.name, d.cle, d.version, d.cycle, d.fin_support_le, d.version_standard,

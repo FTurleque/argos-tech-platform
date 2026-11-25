@@ -61,7 +61,7 @@ public class ActiviteQueries {
         }
         LocalDate debut = fin.minusDays(jours - 1L);
         try (Connection connexion = dataSource.getConnection()) {
-            ContexteBase.appliquer(connexion, new ContexteBase.Contexte(accountId, null, null));
+            ContexteBase.appliquer(connexion, ContexteBase.Contexte.duCompte(accountId));
             return new VueActivite(projectId, new VueActivite.Periode(debut, fin, jours), compteurs(connexion, projectId, debut, fin),
                     jalons(connexion, projectId), fraicheur(connexion, projectId));
         } catch (SQLException erreur) {

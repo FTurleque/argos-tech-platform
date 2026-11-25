@@ -15,7 +15,9 @@ import javax.sql.DataSource;
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.enterprise.event.Event;
 import jakarta.inject.Inject;
-import jakarta.transaction.Transactional;
+import jakarta.transaction.Transactional;
+
+import io.argos.commun.ContexteBase;
 
 /**
  * État de traitement des impacts (COR-09 à COR-11, décision J5 du porteur du projet, 2026-11-19 ; DC-5).
@@ -103,7 +105,7 @@ public class TraitementImpacts {
             throw new IllegalArgumentException("motif ou commentaire trop long");
         }
         try (Connection connexion = dataSource.getConnection()) {
-            RlsSession.account(connexion, compteId);
+            ContexteBase.appliquer(connexion, ContexteBase.Contexte.duCompte(compteId));
             Optional<ImpactLu> lecture = lire(connexion, impactId);
             if (lecture.isEmpty()) {
                 return Optional.empty();

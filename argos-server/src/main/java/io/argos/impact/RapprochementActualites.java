@@ -26,6 +26,7 @@ import jakarta.inject.Inject;
 
 import org.jboss.logging.Logger;
 
+import io.argos.commun.ContexteBase;
 import io.argos.signal.web.ActualiteRecue;
 import io.quarkus.narayana.jta.QuarkusTransaction;
 import io.quarkus.narayana.jta.QuarkusTransactionException;
@@ -142,7 +143,7 @@ public class RapprochementActualites {
             boolean autoCommit = connexion.getAutoCommit();
             connexion.setAutoCommit(false);
             try {
-                RlsSession.account(connexion, compteId);
+                ContexteBase.appliquer(connexion, ContexteBase.Contexte.duCompte(compteId));
                 try (PreparedStatement requete = connexion.prepareStatement("""
                         SELECT i.id, i.actualite_id, i.project_id, p.name, i.workspace_id, i.technologie, i.niveau, i.methode,
                                i.cree_le

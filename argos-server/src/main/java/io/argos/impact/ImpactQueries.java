@@ -19,12 +19,14 @@ import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.inject.Inject;
 import jakarta.transaction.Transactional;
 
-import com.fasterxml.jackson.annotation.JsonInclude;
+import com.fasterxml.jackson.annotation.JsonInclude;
+
+import io.argos.commun.ContexteBase;
 
 /**
  * Consultation des impacts, limitée aux espaces autorisés de l'appelant (COR-08, ADR-0016) :
  * filtre explicite dans chaque requête et, en garde-fou, politique RLS appliquée sous le rôle
- * {@code argos_app} avec le compte de l'appelant ({@link RlsSession}). Le contrôle d'intégrité et
+ * {@code argos_app} avec le compte de l'appelant ({@link ContexteBase}). Le contrôle d'intégrité et
  * la recherche de l'espace d'un impact sont des traitements techniques, hors rôle applicatif.
  *
  * <p>Chaque impact porte son niveau de confiance ({@code level}) et son état de traitement ({@code etat}), deux axes
@@ -114,7 +116,7 @@ public class ImpactQueries {
         int boundedPage = Math.max(page, 0);
         int boundedSize = Math.min(Math.max(size, 1), 200);
         try (Connection connexion = dataSource.getConnection()) {
-            RlsSession.account(connexion, accountId);
+            ContexteBase.appliquer(connexion, ContexteBase.Contexte.duCompte(accountId));
             long total;
             try (PreparedStatement requete = connexion.prepareStatement(
                     "SELECT count(*) FROM project_impact WHERE signal_id = ? AND workspace_id = ANY (?) AND state = ANY (?)")) {
@@ -151,7 +153,7 @@ public class ImpactQueries {
     @Transactional
     public Optional<ImpactView> find(UUID impactId, UUID accountId, Set<UUID> workspaces) {
         try (Connection connexion = dataSource.getConnection()) {
-            RlsSession.account(connexion, accountId);
+            ContexteBase.appliquer(connexion, ContexteBase.Contexte.duCompte(accountId));
             ImpactView vue;
             try (PreparedStatement requete = connexion.prepareStatement(SELECT + " WHERE i.id = ? AND i.workspace_id = ANY (?)")) {
                 requete.setObject(1, impactId);
@@ -180,7 +182,7 @@ public class ImpactQueries {
             return items;
         }
         try (Connection connexion = dataSource.getConnection()) {
-            RlsSession.account(connexion, accountId);
+            ContexteBase.appliquer(connexion, ContexteBase.Contexte.duCompte(accountId));
             try (PreparedStatement requete = connexion.prepareStatement(SELECT
                     + " WHERE i.signal_id = ANY (?) AND i.workspace_id = ANY (?) AND i.state = ANY (?)"
                     + " ORDER BY i.created_at, i.id")) {
@@ -213,7 +215,7 @@ public class ImpactQueries {
             return items;
         }
         try (Connection connexion = dataSource.getConnection()) {
-            RlsSession.account(connexion, accountId);
+            ContexteBase.appliquer(connexion, ContexteBase.Contexte.duCompte(accountId));
             try (PreparedStatement requete = connexion.prepareStatement(SELECT
                     + " WHERE i.project_id = ? AND i.workspace_id = ANY (?) AND i.state = ANY (?)"
                     + " ORDER BY i.created_at, i.id")) {
@@ -240,7 +242,7 @@ public class ImpactQueries {
             return items;
         }
         try (Connection connexion = dataSource.getConnection()) {
-            RlsSession.account(connexion, accountId);
+            ContexteBase.appliquer(connexion, ContexteBase.Contexte.duCompte(accountId));
             try (PreparedStatement requete = connexion.prepareStatement(SELECT
                     + " WHERE i.workspace_id = ANY (?) AND i.state = ANY (?) ORDER BY i.updated_at DESC, i.id LIMIT ?")) {
                 requete.setArray(1, uuids(connexion, workspaces));

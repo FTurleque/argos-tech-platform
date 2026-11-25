@@ -27,6 +27,7 @@ import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.inject.Inject;
 import jakarta.transaction.Transactional;
 
+import io.argos.commun.ContexteBase;
 import io.argos.signal.SignalQueries;
 
 /**
@@ -36,7 +37,7 @@ import io.argos.signal.SignalQueries;
  * {@code search_signals}.
  *
  * <p>Toute la recherche s'exécute sous le rôle {@code argos_app} avec le compte de l'appelant
- * ({@link RlsSession}). La sélection des candidats passe par la fonction
+ * ({@link ContexteBase}). La sélection des candidats passe par la fonction
  * {@code argos_rechercher_veille} (migration V11), qui applique explicitement les règles de
  * visibilité des politiques RLS pour que l'index GIN reste utilisable ; chaque élément restitué est
  * ensuite relu sous la RLS, qui écarte tout élément que l'appelant ne voit pas. Les projets cités
@@ -129,7 +130,7 @@ public class RechercheVeille {
             return new Resultats(List.of(), pageBornee, tailleBornee, 0, AUCUN_RESULTAT);
         }
         try (Connection connexion = dataSource.getConnection()) {
-            RlsSession.account(connexion, compteId);
+            ContexteBase.appliquer(connexion, ContexteBase.Contexte.duCompte(compteId));
             List<Candidat> candidats = new ArrayList<>();
             long total = 0;
             // Sélection matérialisée une fois : le total la compte, la page en garde les meilleurs (tri partiel).
