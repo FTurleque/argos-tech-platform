@@ -76,7 +76,7 @@
 
 ## Traçabilité
 
-- **Exigences** : WEB-01 à WEB-06 (`openspec/changes/collecter-veille-rss-web/specs/veille-rss-web/spec.md`) ; WEB-07 (`openspec/changes/epingler-adresse-veille-web/`)
+- **Exigences** : WEB-01 à WEB-06 (`openspec/changes/collecter-veille-rss-web/specs/veille-rss-web/spec.md`) ; WEB-07 ([`2026-11-25-epingler-adresse-veille-web`](/openspec/changes/archive/2026-11-25-epingler-adresse-veille-web/proposal.md))
 - **Scénarios qualité** : aucun scénario du registre `docs/architecture/quality/scenarios.md` ne porte sur la SSRF ni sur le contenu externe ; risques R-11 et R-12 (`docs/architecture/risks/register.md`)
 - **Diagrammes** : DC-1 (`openspec/changes/collecter-veille-rss-web/design.md`), DF-WEB-1 (`docs/specifications/veille-rss-web.md`)
 - **Tickets/PR** : Non déterminé
