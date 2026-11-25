@@ -1,19 +1,12 @@
 package io.argos.signal.opportunite;
 
 import java.net.URI;
-import java.sql.Connection;
-import java.sql.PreparedStatement;
-import java.sql.ResultSet;
-import java.sql.SQLException;
 import java.time.Clock;
 import java.time.Instant;
 import java.time.LocalDate;
-import java.time.ZoneOffset;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
-
-import javax.sql.DataSource;
 
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.inject.Inject;
@@ -23,6 +16,8 @@ import org.jboss.logging.Logger;
 
 import io.argos.catalog.profil.CatalogueProfils;
 import io.argos.catalog.profil.ManifesteProfil;
+import io.argos.commun.Conversions;
+import io.argos.commun.Jdbc;
 import io.argos.ingestion.culture.LecteurDataCulture;
 import io.argos.ingestion.web.LecteurFlux;
 import io.argos.ingestion.web.LecteurPage;
@@ -55,6 +50,8 @@ public class CollecteOpportunites {
 
     private static final Logger LOG = Logger.getLogger(CollecteOpportunites.class);
 
+    private static final int ERREUR_MAX = 1000;
+
     /** Résultat de la collecte d'une source. */
     public record Rapport(UUID sourceId, String etat, int nouvelles, int misesAJour, String erreur) {
     }
@@ -63,7 +60,7 @@ public class CollecteOpportunites {
     Clock horloge;
 
     @Inject
-    DataSource dataSource;
+    Jdbc jdbc;
 
     @Inject
     SourcesProfil sources;
@@ -198,8 +195,8 @@ public class CollecteOpportunites {
                     date_limite = excluded.date_limite, modifie_le = excluded.modifie_le
                 RETURNING (xmax = 0)
                 """;
-        try (Connection connexion = dataSource.getConnection(); PreparedStatement requete = connexion.prepareStatement(sql)) {
-            for (OpportuniteLue element : lus) {
+        for (OpportuniteLue element : lus) {
+            boolean insertion = jdbc.unique(sql, requete -> {
                 requete.setObject(1, UUID.randomUUID());
                 requete.setObject(2, source.id());
                 requete.setString(3, LecteurPage.empreinte("opportunite:" + element.identifiant()));
@@ -208,37 +205,25 @@ public class CollecteOpportunites {
                 requete.setString(6, element.organisme());
                 requete.setString(7, element.criteres());
                 requete.setString(8, element.lien());
-                requete.setArray(9, connexion.createArrayOf("varchar", element.disciplines().toArray()));
-                requete.setArray(10, connexion.createArrayOf("varchar", element.territoires().toArray()));
+                requete.setArray(9, requete.getConnection().createArrayOf("varchar", element.disciplines().toArray()));
+                requete.setArray(10, requete.getConnection().createArrayOf("varchar", element.territoires().toArray()));
                 requete.setObject(11, element.dateLimite());
-                requete.setObject(12, maintenant.atOffset(ZoneOffset.UTC));
-                requete.setObject(13, maintenant.atOffset(ZoneOffset.UTC));
-                try (ResultSet resultat = requete.executeQuery()) {
-                    if (resultat.next() && resultat.getBoolean(1)) {
-                        nouvelles++;
-                    } else {
-                        misesAJour++;
-                    }
-                }
+                requete.setObject(12, Conversions.utc(maintenant));
+                requete.setObject(13, Conversions.utc(maintenant));
+            }, resultat -> resultat.getBoolean(1)).orElse(false);
+            if (insertion) {
+                nouvelles++;
+            } else {
+                misesAJour++;
             }
-        } catch (SQLException erreur) {
-            throw new IllegalStateException("enregistrement des opportunités impossible", erreur);
         }
         return new int[] {nouvelles, misesAJour};
     }
 
     private void etat(UUID source, String etat, String erreur, Instant maintenant) {
-        try (Connection connexion = dataSource.getConnection(); PreparedStatement requete = connexion.prepareStatement("""
+        jdbc.modifier("""
                 UPDATE source_profil SET etat = ?, derniere_erreur = ?, derniere_collecte_le = ?
                 WHERE id = ? AND conditions_verifiees_le IS NOT NULL
-                """)) {
-            requete.setString(1, etat);
-            requete.setString(2, erreur == null ? null : erreur.length() > 1000 ? erreur.substring(0, 1000) : erreur);
-            requete.setObject(3, maintenant.atOffset(ZoneOffset.UTC));
-            requete.setObject(4, source);
-            requete.executeUpdate();
-        } catch (SQLException echec) {
-            throw new IllegalStateException("mise à jour de l'état de la source impossible", echec);
-        }
+                """, Jdbc.parametres(etat, Conversions.couper(erreur, ERREUR_MAX), Conversions.utc(maintenant), source));
     }
 }

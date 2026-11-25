@@ -1,12 +1,7 @@
 package io.argos.signal.web;
 
 import java.sql.Connection;
-import java.sql.PreparedStatement;
-import java.sql.ResultSet;
 import java.sql.SQLException;
-import java.time.Instant;
-import java.time.OffsetDateTime;
-import java.util.ArrayList;
 import java.util.List;
 import java.util.Locale;
 import java.util.Optional;
@@ -24,7 +19,10 @@ import io.argos.ingestion.web.LecteurPage;
 import io.argos.ingestion.web.RecuperateurWeb;
 import io.argos.ingestion.web.RecuperationRefusee;
 import io.argos.commun.ContexteBase;
+import io.argos.commun.Conversions;
 import io.argos.commun.DonneeInvalide;
+import io.argos.commun.ErreurBase;
+import io.argos.commun.Jdbc;
 import io.argos.commun.RegleViolee;
 import io.argos.commun.ContexteBase.Contexte;
 
@@ -55,6 +53,9 @@ public class SourcesWeb {
     }
 
     private static final Logger LOG = Logger.getLogger(SourcesWeb.class);
+
+    private static final int LIBELLE_MAX = 200;
+    private static final String SQLSTATE_UNICITE = "23505";
 
     private static final String COLONNES = """
             id, portee, espace_id, proprietaire_id, type, adresse, libelle, etat, echecs_consecutifs, derniere_erreur,
@@ -116,28 +117,20 @@ public class SourcesWeb {
             UUID espace) {
         base.executer(new Contexte(compteId, null, espace), connexion -> {
             if (personnelle) {
-                try (PreparedStatement requete = connexion.prepareStatement("SELECT pg_advisory_xact_lock(hashtext(?))")) {
-                    requete.setString(1, "source_web:" + compteId);
-                    requete.execute();
-                }
+                Jdbc.unique(connexion, "SELECT pg_advisory_xact_lock(hashtext(?))", Jdbc.parametres("source_web:" + compteId),
+                        resultat -> null);
                 if (compterPersonnelles(connexion) >= sourcesPersonnellesMax) {
                     throw limite();
                 }
             }
-            try (PreparedStatement requete = connexion.prepareStatement("""
-                    INSERT INTO source_web (id, portee, espace_id, proprietaire_id, type, adresse, libelle, cree_par)
-                    VALUES (?, ?, ?, ?, ?, ?, ?, argos_compte_courant())
-                    """)) {
-                requete.setObject(1, id);
-                requete.setString(2, demande.portee());
-                requete.setObject(3, espace);
-                requete.setObject(4, personnelle ? compteId : null);
-                requete.setString(5, demande.type());
-                requete.setString(6, adresse);
-                requete.setString(7, couper(libelle, 200));
-                requete.executeUpdate();
-            } catch (SQLException erreur) {
-                if ("23505".equals(erreur.getSQLState())) {
+            try {
+                Jdbc.modifier(connexion, """
+                        INSERT INTO source_web (id, portee, espace_id, proprietaire_id, type, adresse, libelle, cree_par)
+                        VALUES (?, ?, ?, ?, ?, ?, ?, argos_compte_courant())
+                        """, Jdbc.parametres(id, demande.portee(), espace, personnelle ? compteId : null, demande.type(),
+                        adresse, Conversions.couper(libelle, LIBELLE_MAX)));
+            } catch (ErreurBase erreur) {
+                if (erreur.getCause() instanceof SQLException sql && SQLSTATE_UNICITE.equals(sql.getSQLState())) {
                     throw new RegleViolee("SOURCE_EXISTANTE", "Cette adresse est déjà suivie.");
                 }
                 throw erreur;
@@ -159,12 +152,8 @@ public class SourcesWeb {
 
     /** Supprime une source visible ; renvoie faux si la politique RLS l'a refusé. */
     public boolean supprimer(SourceWeb source, UUID compteId) {
-        return base.executer(new Contexte(compteId, null, source.espaceId()), connexion -> {
-            try (PreparedStatement requete = connexion.prepareStatement("DELETE FROM source_web WHERE id = ?")) {
-                requete.setObject(1, source.id());
-                return requete.executeUpdate() == 1;
-            }
-        });
+        return base.executer(new Contexte(compteId, null, source.espaceId()),
+                connexion -> Jdbc.modifier(connexion, "DELETE FROM source_web WHERE id = ?", Jdbc.parametres(source.id())) == 1);
     }
 
     private void verifierLimite(UUID compteId) {
@@ -179,13 +168,10 @@ public class SourcesWeb {
                 "Nombre maximal de sources personnelles atteint (" + sourcesPersonnellesMax + ").");
     }
 
-    private static long compterPersonnelles(Connection connexion) throws SQLException {
-        try (PreparedStatement requete = connexion.prepareStatement(
-                "SELECT count(*) FROM source_web WHERE portee = 'PERSONNELLE' AND proprietaire_id = argos_compte_courant()");
-                ResultSet resultat = requete.executeQuery()) {
-            resultat.next();
-            return resultat.getLong(1);
-        }
+    private static long compterPersonnelles(Connection connexion) {
+        return Jdbc.unique(connexion,
+                "SELECT count(*) FROM source_web WHERE portee = 'PERSONNELLE' AND proprietaire_id = argos_compte_courant()",
+                Jdbc.sansParametre(), resultat -> resultat.getLong(1)).orElse(0L);
     }
 
     static Demande valider(Demande demande) {
@@ -218,30 +204,11 @@ public class SourcesWeb {
         return Deduplication.adresse(GardeAdresses.analyser(adresse).toString());
     }
 
-    private static List<SourceWeb> lire(Connection connexion, String sql, Object... parametres) throws SQLException {
-        List<SourceWeb> sources = new ArrayList<>();
-        try (PreparedStatement requete = connexion.prepareStatement(sql)) {
-            for (int indice = 0; indice < parametres.length; indice++) {
-                requete.setObject(indice + 1, parametres[indice]);
-            }
-            try (ResultSet resultat = requete.executeQuery()) {
-                while (resultat.next()) {
-                    sources.add(new SourceWeb(resultat.getObject(1, UUID.class), resultat.getString(2), resultat.getObject(3, UUID.class),
-                            resultat.getObject(4, UUID.class), resultat.getString(5), resultat.getString(6), resultat.getString(7),
-                            resultat.getString(8), resultat.getInt(9), resultat.getString(10), instant(resultat, 11), instant(resultat, 12),
-                            instant(resultat, 13), instant(resultat, 14)));
-                }
-            }
-        }
-        return sources;
-    }
-
-    private static Instant instant(ResultSet resultat, int colonne) throws SQLException {
-        OffsetDateTime valeur = resultat.getObject(colonne, OffsetDateTime.class);
-        return valeur == null ? null : valeur.toInstant();
-    }
-
-    private static String couper(String valeur, int max) {
-        return valeur == null || valeur.length() <= max ? valeur : valeur.substring(0, max);
+    private static List<SourceWeb> lire(Connection connexion, String sql, Object... parametres) {
+        return Jdbc.lister(connexion, sql, Jdbc.parametres(parametres), resultat -> new SourceWeb(resultat.getObject(1, UUID.class),
+                resultat.getString(2), resultat.getObject(3, UUID.class), resultat.getObject(4, UUID.class), resultat.getString(5),
+                resultat.getString(6), resultat.getString(7), resultat.getString(8), resultat.getInt(9), resultat.getString(10),
+                Conversions.instant(resultat, 11), Conversions.instant(resultat, 12), Conversions.instant(resultat, 13),
+                Conversions.instant(resultat, 14)));
     }
 }

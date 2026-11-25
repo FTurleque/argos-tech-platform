@@ -2,12 +2,9 @@ package io.argos.signal.web;
 
 import java.sql.Array;
 import java.sql.Connection;
-import java.sql.PreparedStatement;
-import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Types;
 import java.time.Instant;
-import java.time.OffsetDateTime;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -20,6 +17,8 @@ import jakarta.inject.Inject;
 
 import io.argos.commun.ContexteBase;
 import io.argos.commun.ContexteBase.Contexte;
+import io.argos.commun.Conversions;
+import io.argos.commun.Jdbc;
 
 /**
  * Restitution des actualités web (WEB-01-S1, WEB-04, WEB-05) sous le rôle {@code argos_app} avec le
@@ -73,33 +72,26 @@ public class ActualitesWeb {
     /** Actualités visibles du compte, les plus récentes d'abord ; filtrées sur un espace s'il est donné. */
     public List<Actualite> lister(UUID compteId, UUID espaceId, int limite) {
         int limiteBornee = Math.min(Math.max(limite, 1), 200);
-        return base.executer(new Contexte(compteId, null, null), connexion -> {
-            try (PreparedStatement requete = connexion.prepareStatement("""
-                    SELECT r.id, r.type, r.titre, r.lien, r.publie_le, r.recu_le, r.texte, r.empreinte FROM (
-                        SELECT DISTINCT ON (a.empreinte) a.id, a.type, a.titre, a.lien, a.publie_le, a.recu_le, a.texte,
-                               a.empreinte
-                        FROM actualite a WHERE (?::uuid IS NULL OR a.espace_id = ?::uuid)
-                        ORDER BY a.empreinte, (a.espace_id IS NULL), a.recu_le, a.id) r
-                    ORDER BY coalesce(r.publie_le, r.recu_le) DESC, r.id LIMIT ?
-                    """)) {
-                requete.setObject(1, espaceId, Types.OTHER);
-                requete.setObject(2, espaceId, Types.OTHER);
-                requete.setInt(3, limiteBornee);
-                return completer(connexion, lire(requete));
-            }
-        });
+        return base.executer(new Contexte(compteId, null, null), connexion -> completer(connexion, lire(connexion, """
+                SELECT r.id, r.type, r.titre, r.lien, r.publie_le, r.recu_le, r.texte, r.empreinte FROM (
+                    SELECT DISTINCT ON (a.empreinte) a.id, a.type, a.titre, a.lien, a.publie_le, a.recu_le, a.texte,
+                           a.empreinte
+                    FROM actualite a WHERE (?::uuid IS NULL OR a.espace_id = ?::uuid)
+                    ORDER BY a.empreinte, (a.espace_id IS NULL), a.recu_le, a.id) r
+                ORDER BY coalesce(r.publie_le, r.recu_le) DESC, r.id LIMIT ?
+                """, requete -> {
+                    requete.setObject(1, espaceId, Types.OTHER);
+                    requete.setObject(2, espaceId, Types.OTHER);
+                    requete.setInt(3, limiteBornee);
+                })));
     }
 
     public Optional<Detail> detail(UUID id, UUID compteId) {
-        return base.executer(new Contexte(compteId, null, null), connexion -> {
-            try (PreparedStatement requete = connexion.prepareStatement(
-                    "SELECT a.id, a.type, a.titre, a.lien, a.publie_le, a.recu_le, a.texte, a.empreinte FROM actualite a WHERE a.id = ?")) {
-                requete.setObject(1, id);
-                return completer(connexion, lire(requete)).stream().findFirst()
-                        .map(actualite -> new Detail(actualite,
-                                new Resume(METHODE_RESUME, ContenuExterne.depuis(extrait(actualite.contenu().texte())))));
-            }
-        });
+        return base.executer(new Contexte(compteId, null, null), connexion -> completer(connexion, lire(connexion,
+                "SELECT a.id, a.type, a.titre, a.lien, a.publie_le, a.recu_le, a.texte, a.empreinte FROM actualite a WHERE a.id = ?",
+                Jdbc.parametres(id))).stream().findFirst()
+                .map(actualite -> new Detail(actualite,
+                        new Resume(METHODE_RESUME, ContenuExterne.depuis(extrait(actualite.contenu().texte()))))));
     }
 
     /** Premières phrases du texte, au plus {@value #RESUME_MAX} caractères. */
@@ -119,16 +111,15 @@ public class ActualitesWeb {
     private record Lue(Actualite actualite, String empreinte) {
     }
 
-    private static List<Lue> lire(PreparedStatement requete) throws SQLException {
-        List<Lue> actualites = new ArrayList<>();
-        try (ResultSet resultat = requete.executeQuery()) {
-            while (resultat.next()) {
-                actualites.add(new Lue(new Actualite(resultat.getObject(1, UUID.class), resultat.getString(2), resultat.getString(3),
-                        resultat.getString(4), instant(resultat, 5), instant(resultat, 6), ContenuExterne.depuis(resultat.getString(7)),
-                        new ArrayList<>()), resultat.getString(8)));
-            }
-        }
-        return actualites;
+    /** Citation et empreinte de l'actualité qu'elle cite. */
+    private record CitationLue(String empreinte, Citation citation) {
+    }
+
+    private static List<Lue> lire(Connection connexion, String sql, Jdbc.Liaison liaison) {
+        return Jdbc.lister(connexion, sql, liaison, resultat -> new Lue(new Actualite(resultat.getObject(1, UUID.class),
+                resultat.getString(2), resultat.getString(3), resultat.getString(4), Conversions.instant(resultat, 5),
+                Conversions.instant(resultat, 6), ContenuExterne.depuis(resultat.getString(7)), new ArrayList<>()),
+                resultat.getString(8)));
     }
 
     /** Ajoute les citations visibles de toutes les actualités visibles de même empreinte. */
@@ -139,29 +130,19 @@ public class ActualitesWeb {
         Map<String, List<Citation>> parEmpreinte = new LinkedHashMap<>();
         lues.forEach(lue -> parEmpreinte.put(lue.empreinte(), new ArrayList<>()));
         Array empreintes = connexion.createArrayOf("bpchar", parEmpreinte.keySet().toArray());
-        try (PreparedStatement requete = connexion.prepareStatement("""
+        Jdbc.lister(connexion, """
                 SELECT a.empreinte, w.id, w.libelle, w.portee, x.lien FROM actualite_source x
                 JOIN actualite a ON a.id = x.actualite_id
                 JOIN source_web w ON w.id = x.source_id
                 WHERE a.empreinte = ANY (?) ORDER BY x.recu_le, w.id
-                """)) {
-            requete.setArray(1, empreintes);
-            try (ResultSet resultat = requete.executeQuery()) {
-                while (resultat.next()) {
-                    parEmpreinte.get(resultat.getString(1)).add(new Citation(resultat.getObject(2, UUID.class), resultat.getString(3),
-                            resultat.getString(4), resultat.getString(5)));
-                }
-            }
-        }
+                """, requete -> requete.setArray(1, empreintes), resultat -> new CitationLue(resultat.getString(1),
+                new Citation(resultat.getObject(2, UUID.class), resultat.getString(3), resultat.getString(4),
+                        resultat.getString(5))))
+                .forEach(citee -> parEmpreinte.get(citee.empreinte()).add(citee.citation()));
         return lues.stream().map(lue -> {
             Actualite actualite = lue.actualite();
             return new Actualite(actualite.id(), actualite.type(), actualite.titre(), actualite.lien(), actualite.publieLe(),
                     actualite.recuLe(), actualite.contenu(), List.copyOf(parEmpreinte.get(lue.empreinte())));
         }).toList();
-    }
-
-    private static Instant instant(ResultSet resultat, int colonne) throws SQLException {
-        OffsetDateTime valeur = resultat.getObject(colonne, OffsetDateTime.class);
-        return valeur == null ? null : valeur.toInstant();
     }
 }
