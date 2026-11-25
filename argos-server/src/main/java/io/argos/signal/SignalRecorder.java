@@ -1,20 +1,12 @@
 package io.argos.signal;
 
-import java.sql.Connection;
-import java.sql.PreparedStatement;
-import java.sql.ResultSet;
-import java.sql.SQLException;
 import java.time.Instant;
-import java.time.OffsetDateTime;
-import java.time.ZoneOffset;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
-
-import javax.sql.DataSource;
 
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.enterprise.event.Event;
@@ -28,6 +20,8 @@ import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 
 import io.argos.catalog.PackageKey;
+import io.argos.commun.Conversions;
+import io.argos.commun.Jdbc;
 import io.argos.ingestion.AdvisoryFeed;
 import io.argos.ingestion.AdvisoryRejectedException;
 import io.argos.ingestion.AdvisorySink;
@@ -50,8 +44,14 @@ public class SignalRecorder implements AdvisorySink {
     private static final ObjectMapper MAPPER = new ObjectMapper();
     private static final Logger LOG = Logger.getLogger(SignalRecorder.class);
 
+    private static final int TITLE_MAX = 1000;
+    private static final int SEVERITY_MAX = 300;
+    private static final int ALIAS_MAX = 200;
+    private static final int PACKAGE_KEY_MAX = 500;
+    private static final int ECOSYSTEM_MAX = 100;
+
     @Inject
-    DataSource dataSource;
+    Jdbc jdbc;
 
     @Inject
     Event<SignalChanged> changes;
@@ -66,114 +66,81 @@ public class SignalRecorder implements AdvisorySink {
         List<AffectedPackage> affected = toAffected(advisory.affected());
         String affectedJson = json(affected);
         String normalizedHash = advisory.normalizedHash();
-        try (Connection connection = dataSource.getConnection()) {
-            UUID signalId = UUID.randomUUID();
-            UUID versionId = UUID.randomUUID();
-            boolean inserted;
-            try (PreparedStatement statement = connection.prepareStatement("""
-                    INSERT INTO signal(id, source, external_id, title, summary, severity, published_at, modified_at,
-                                       collected_at, updated_at, content_hash, normalized_hash, affected,
-                                       current_version_id)
-                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, now(), now(), ?, ?, ?::jsonb, ?)
-                    ON CONFLICT (source, external_id) DO NOTHING
-                    """)) {
-                statement.setObject(1, signalId);
-                statement.setString(2, sourceId);
-                statement.setString(3, advisory.externalId());
-                statement.setString(4, cut(advisory.title(), 1000));
-                statement.setString(5, advisory.summary());
-                statement.setString(6, cut(advisory.severity(), 300));
-                statement.setObject(7, utc(advisory.publishedAt()));
-                statement.setObject(8, utc(advisory.modifiedAt()));
-                statement.setString(9, advisory.contentHash());
-                statement.setString(10, normalizedHash);
-                statement.setString(11, affectedJson);
-                statement.setObject(12, versionId);
-                inserted = statement.executeUpdate() == 1;
-            }
-            if (inserted) {
-                insertVersion(connection, versionId, signalId, 1, advisory, normalizedHash);
-                replaceIndexes(connection, signalId, advisory.aliases(), affected);
-                changes.fire(new SignalChanged(signalId, true));
-                return Outcome.CREATED;
-            }
-
-            Current current = lockCurrent(connection, sourceId, advisory.externalId());
-            String currentHash = current.normalizedHash();
-            if (currentHash == null) {
-                // Signal antérieur à l'empreinte normalisée (V18) : rattrapage sans nouvelle version (COL-10-S4).
-                currentHash = catchUp(connection, sourceId, current, advisory, normalizedHash);
-            }
-            boolean unchanged = currentHash != null ? currentHash.equals(normalizedHash)
-                    : current.contentHash().equals(advisory.contentHash());
-            if (unchanged) {
-                // Même contenu normalisé : seules la présentation ou la date de modification diffèrent (COL-10-S1, S2).
-                return Outcome.UNCHANGED;
-            }
-            if (advisory.modifiedAt().isBefore(current.modifiedAt())) {
-                return Outcome.IGNORED_OLDER;
-            }
-            Optional<UUID> earlier = earlierVersion(connection, current.id(), normalizedHash, advisory.contentHash());
-            UUID targetVersion;
-            if (earlier.isPresent()) {
-                // Contenu revenu à celui d'une version antérieure : le signal est mis à jour et repointe vers
-                // cette version, sans la dupliquer (COL-10, décision J2 ; invariant INV-A1).
-                targetVersion = earlier.get();
-            } else {
-                insertVersion(connection, versionId, current.id(), current.lastVersionNo() + 1, advisory, normalizedHash);
-                targetVersion = versionId;
-            }
-            try (PreparedStatement statement = connection.prepareStatement("""
-                    UPDATE signal SET title = ?, summary = ?, severity = ?, published_at = ?, modified_at = ?,
-                           updated_at = now(), content_hash = ?, normalized_hash = ?, affected = ?::jsonb,
-                           current_version_id = ?
-                    WHERE id = ?
-                    """)) {
-                statement.setString(1, cut(advisory.title(), 1000));
-                statement.setString(2, advisory.summary());
-                statement.setString(3, cut(advisory.severity(), 300));
-                statement.setObject(4, utc(advisory.publishedAt()));
-                statement.setObject(5, utc(advisory.modifiedAt()));
-                statement.setString(6, advisory.contentHash());
-                statement.setString(7, normalizedHash);
-                statement.setString(8, affectedJson);
-                statement.setObject(9, targetVersion);
-                statement.setObject(10, current.id());
-                statement.executeUpdate();
-            }
-            replaceIndexes(connection, current.id(), advisory.aliases(), affected);
-            changes.fire(new SignalChanged(current.id(), false));
-            return Outcome.UPDATED;
-        } catch (SQLException error) {
-            throw new IllegalStateException("enregistrement du signal " + advisory.externalId() + " impossible", error);
+        UUID signalId = UUID.randomUUID();
+        UUID versionId = UUID.randomUUID();
+        boolean inserted = jdbc.modifier("""
+                INSERT INTO signal(id, source, external_id, title, summary, severity, published_at, modified_at,
+                                   collected_at, updated_at, content_hash, normalized_hash, affected,
+                                   current_version_id)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, now(), now(), ?, ?, ?::jsonb, ?)
+                ON CONFLICT (source, external_id) DO NOTHING
+                """, Jdbc.parametres(signalId, sourceId, advisory.externalId(), Conversions.couper(advisory.title(), TITLE_MAX),
+                advisory.summary(), Conversions.couper(advisory.severity(), SEVERITY_MAX),
+                Conversions.utc(advisory.publishedAt()), Conversions.utc(advisory.modifiedAt()), advisory.contentHash(),
+                normalizedHash, affectedJson, versionId)) == 1;
+        if (inserted) {
+            insertVersion(versionId, signalId, 1, advisory, normalizedHash);
+            replaceIndexes(signalId, advisory.aliases(), affected);
+            changes.fire(new SignalChanged(signalId, true));
+            return Outcome.CREATED;
         }
+
+        Current current = lockCurrent(sourceId, advisory.externalId());
+        String currentHash = current.normalizedHash();
+        if (currentHash == null) {
+            // Signal antérieur à l'empreinte normalisée (V18) : rattrapage sans nouvelle version (COL-10-S4).
+            currentHash = catchUp(sourceId, current, advisory, normalizedHash);
+        }
+        boolean unchanged = currentHash != null ? currentHash.equals(normalizedHash)
+                : current.contentHash().equals(advisory.contentHash());
+        if (unchanged) {
+            // Même contenu normalisé : seules la présentation ou la date de modification diffèrent (COL-10-S1, S2).
+            return Outcome.UNCHANGED;
+        }
+        if (advisory.modifiedAt().isBefore(current.modifiedAt())) {
+            return Outcome.IGNORED_OLDER;
+        }
+        Optional<UUID> earlier = earlierVersion(current.id(), normalizedHash, advisory.contentHash());
+        UUID targetVersion;
+        if (earlier.isPresent()) {
+            // Contenu revenu à celui d'une version antérieure : le signal est mis à jour et repointe vers
+            // cette version, sans la dupliquer (COL-10, décision J2 ; invariant INV-A1).
+            targetVersion = earlier.get();
+        } else {
+            insertVersion(versionId, current.id(), current.lastVersionNo() + 1, advisory, normalizedHash);
+            targetVersion = versionId;
+        }
+        jdbc.modifier("""
+                UPDATE signal SET title = ?, summary = ?, severity = ?, published_at = ?, modified_at = ?,
+                       updated_at = now(), content_hash = ?, normalized_hash = ?, affected = ?::jsonb,
+                       current_version_id = ?
+                WHERE id = ?
+                """, Jdbc.parametres(Conversions.couper(advisory.title(), TITLE_MAX), advisory.summary(),
+                Conversions.couper(advisory.severity(), SEVERITY_MAX), Conversions.utc(advisory.publishedAt()),
+                Conversions.utc(advisory.modifiedAt()), advisory.contentHash(), normalizedHash, affectedJson, targetVersion,
+                current.id()));
+        replaceIndexes(current.id(), advisory.aliases(), affected);
+        changes.fire(new SignalChanged(current.id(), false));
+        return Outcome.UPDATED;
     }
 
     private record Current(UUID id, String contentHash, String normalizedHash, Instant modifiedAt, int lastVersionNo,
             UUID currentVersionId, String rawContent) {
     }
 
-    private static Current lockCurrent(Connection connection, String sourceId, String externalId) throws SQLException {
-        try (PreparedStatement statement = connection.prepareStatement("""
+    private Current lockCurrent(String sourceId, String externalId) {
+        return jdbc.unique("""
                 SELECT s.id, s.content_hash, s.normalized_hash, s.modified_at,
                        (SELECT max(v.version_no) FROM signal_version v WHERE v.signal_id = s.id),
                        s.current_version_id,
                        (SELECT v.raw_content FROM signal_version v WHERE v.id = s.current_version_id)
                 FROM signal s WHERE s.source = ? AND s.external_id = ? FOR UPDATE
-                """)) {
-            statement.setString(1, sourceId);
-            statement.setString(2, externalId);
-            try (ResultSet resultSet = statement.executeQuery()) {
-                if (!resultSet.next()) {
-                    throw new IllegalStateException("signal attendu introuvable : " + externalId);
-                }
-                String normalized = resultSet.getString(3);
-                return new Current(resultSet.getObject(1, UUID.class), resultSet.getString(2).trim(),
-                        normalized == null ? null : normalized.trim(),
-                        resultSet.getObject(4, OffsetDateTime.class).toInstant(), resultSet.getInt(5),
-                        resultSet.getObject(6, UUID.class), resultSet.getString(7));
-            }
-        }
+                """, Jdbc.parametres(sourceId, externalId), resultSet -> {
+                    String normalized = resultSet.getString(3);
+                    return new Current(resultSet.getObject(1, UUID.class), resultSet.getString(2).trim(),
+                            normalized == null ? null : normalized.trim(), Conversions.instant(resultSet, 4),
+                            resultSet.getInt(5), resultSet.getObject(6, UUID.class), resultSet.getString(7));
+                }).orElseThrow(() -> new IllegalStateException("signal attendu introuvable : " + externalId));
     }
 
     /**
@@ -182,8 +149,7 @@ public class SignalRecorder implements AdvisorySink {
      * renormalisé par le normaliseur de la source ; à défaut (source sans normaliseur, contenu devenu
      * illisible), renvoie {@code null} et la comparaison se fait sur l'empreinte du contenu brut, comme avant V18.
      */
-    private String catchUp(Connection connection, String sourceId, Current current, NormalizedAdvisory advisory,
-            String normalizedHash) throws SQLException {
+    private String catchUp(String sourceId, Current current, NormalizedAdvisory advisory, String normalizedHash) {
         String hash;
         if (current.contentHash().equals(advisory.contentHash())) {
             hash = normalizedHash;
@@ -193,23 +159,12 @@ public class SignalRecorder implements AdvisorySink {
         if (hash == null) {
             return null;
         }
-        try (PreparedStatement statement = connection.prepareStatement("UPDATE signal SET normalized_hash = ? WHERE id = ?")) {
-            statement.setString(1, hash);
-            statement.setObject(2, current.id());
-            statement.executeUpdate();
-        }
-        try (PreparedStatement statement = connection.prepareStatement("""
+        jdbc.modifier("UPDATE signal SET normalized_hash = ? WHERE id = ?", Jdbc.parametres(hash, current.id()));
+        jdbc.modifier("""
                 UPDATE signal_version SET normalized_hash = ?
                 WHERE id = ? AND NOT EXISTS (SELECT 1 FROM signal_version o
                                              WHERE o.signal_id = ? AND o.normalized_hash = ? AND o.id <> ?)
-                """)) {
-            statement.setString(1, hash);
-            statement.setObject(2, current.currentVersionId());
-            statement.setObject(3, current.id());
-            statement.setString(4, hash);
-            statement.setObject(5, current.currentVersionId());
-            statement.executeUpdate();
-        }
+                """, Jdbc.parametres(hash, current.currentVersionId(), current.id(), hash, current.currentVersionId()));
         return hash;
     }
 
@@ -234,69 +189,36 @@ public class SignalRecorder implements AdvisorySink {
      * Version antérieure du signal dont le contenu normalisé (ou, à défaut, le contenu brut) est celui de l'avis
      * reçu ; la plus récente si plusieurs conviennent.
      */
-    private static Optional<UUID> earlierVersion(Connection connection, UUID signalId, String normalizedHash, String contentHash)
-            throws SQLException {
-        try (PreparedStatement statement = connection.prepareStatement("""
+    private Optional<UUID> earlierVersion(UUID signalId, String normalizedHash, String contentHash) {
+        return jdbc.unique("""
                 SELECT id FROM signal_version WHERE signal_id = ? AND (normalized_hash = ? OR content_hash = ?)
                 ORDER BY version_no DESC LIMIT 1
-                """)) {
-            statement.setObject(1, signalId);
-            statement.setString(2, normalizedHash);
-            statement.setString(3, contentHash);
-            try (ResultSet resultSet = statement.executeQuery()) {
-                return resultSet.next() ? Optional.of(resultSet.getObject(1, UUID.class)) : Optional.empty();
-            }
-        }
+                """, Jdbc.parametres(signalId, normalizedHash, contentHash), resultSet -> resultSet.getObject(1, UUID.class));
     }
 
-    private static void insertVersion(Connection connection, UUID versionId, UUID signalId, int versionNo,
-            NormalizedAdvisory advisory, String normalizedHash) throws SQLException {
-        try (PreparedStatement statement = connection.prepareStatement("""
+    private void insertVersion(UUID versionId, UUID signalId, int versionNo, NormalizedAdvisory advisory,
+            String normalizedHash) {
+        jdbc.modifier("""
                 INSERT INTO signal_version(id, signal_id, version_no, content_hash, normalized_hash, source_modified_at,
                                            collected_at, raw_content)
                 VALUES (?, ?, ?, ?, ?, ?, now(), ?)
-                """)) {
-            statement.setObject(1, versionId);
-            statement.setObject(2, signalId);
-            statement.setInt(3, versionNo);
-            statement.setString(4, advisory.contentHash());
-            statement.setString(5, normalizedHash);
-            statement.setObject(6, utc(advisory.modifiedAt()));
-            statement.setString(7, advisory.rawContent());
-            statement.executeUpdate();
-        }
+                """, Jdbc.parametres(versionId, signalId, versionNo, advisory.contentHash(), normalizedHash,
+                Conversions.utc(advisory.modifiedAt()), advisory.rawContent()));
     }
 
-    private static void replaceIndexes(Connection connection, UUID signalId, List<String> aliases, List<AffectedPackage> affected)
-            throws SQLException {
-        try (PreparedStatement del = connection.prepareStatement("DELETE FROM signal_alias WHERE signal_id = ?")) {
-            del.setObject(1, signalId);
-            del.executeUpdate();
-        }
-        try (PreparedStatement del = connection.prepareStatement("DELETE FROM signal_package WHERE signal_id = ?")) {
-            del.setObject(1, signalId);
-            del.executeUpdate();
-        }
-        try (PreparedStatement ins = connection.prepareStatement(
-                "INSERT INTO signal_alias(signal_id, alias) VALUES (?, ?) ON CONFLICT DO NOTHING")) {
-            for (String alias : aliases) {
-                ins.setObject(1, signalId);
-                ins.setString(2, cut(alias, 200));
-                ins.addBatch();
-            }
-            ins.executeBatch();
+    private void replaceIndexes(UUID signalId, List<String> aliases, List<AffectedPackage> affected) {
+        jdbc.modifier("DELETE FROM signal_alias WHERE signal_id = ?", Jdbc.parametres(signalId));
+        jdbc.modifier("DELETE FROM signal_package WHERE signal_id = ?", Jdbc.parametres(signalId));
+        for (String alias : aliases) {
+            jdbc.modifier("INSERT INTO signal_alias(signal_id, alias) VALUES (?, ?) ON CONFLICT DO NOTHING",
+                    Jdbc.parametres(signalId, Conversions.couper(alias, ALIAS_MAX)));
         }
         Map<String, String> keys = new LinkedHashMap<>();
         affected.forEach(affectedPackage -> keys.putIfAbsent(affectedPackage.packageKey(), affectedPackage.ecosystem()));
-        try (PreparedStatement ins = connection.prepareStatement(
-                "INSERT INTO signal_package(signal_id, package_key, ecosystem) VALUES (?, ?, ?)")) {
-            for (Map.Entry<String, String> entry : keys.entrySet()) {
-                ins.setObject(1, signalId);
-                ins.setString(2, cut(entry.getKey(), 500));
-                ins.setString(3, cut(entry.getValue(), 100));
-                ins.addBatch();
-            }
-            ins.executeBatch();
+        for (Map.Entry<String, String> entry : keys.entrySet()) {
+            jdbc.modifier("INSERT INTO signal_package(signal_id, package_key, ecosystem) VALUES (?, ?, ?)",
+                    Jdbc.parametres(signalId, Conversions.couper(entry.getKey(), PACKAGE_KEY_MAX),
+                            Conversions.couper(entry.getValue(), ECOSYSTEM_MAX)));
         }
     }
 
@@ -323,13 +245,5 @@ public class SignalRecorder implements AdvisorySink {
         } catch (JsonProcessingException error) {
             throw new IllegalStateException("sérialisation des paquets affectés impossible", error);
         }
-    }
-
-    private static OffsetDateTime utc(Instant instant) {
-        return instant == null ? null : instant.atOffset(ZoneOffset.UTC);
-    }
-
-    private static String cut(String value, int max) {
-        return value == null || value.length() <= max ? value : value.substring(0, max);
     }
 }

@@ -1,7 +1,5 @@
 package io.argos.signal.web;
 
-import java.sql.PreparedStatement;
-import java.sql.ResultSet;
 import java.time.Clock;
 import java.time.Duration;
 import java.time.Instant;
@@ -26,6 +24,7 @@ import io.argos.aigateway.RegistrePrompts;
 import io.argos.aigateway.ReponseIa;
 import io.argos.commun.ContexteBase;
 import io.argos.commun.ContexteBase.Contexte;
+import io.argos.commun.Jdbc;
 
 /**
  * Résumé IA d'une actualité de la veille web, demandé explicitement par l'utilisateur (tâche
@@ -151,14 +150,9 @@ public class ResumesIaActualites {
     }
 
     private UUID espaceImpute(UUID actualiteId, UUID compteId) {
-        return base.executer(new Contexte(compteId, null, null), connexion -> {
-            try (PreparedStatement requete = connexion.prepareStatement("SELECT espace_id FROM actualite WHERE id = ?")) {
-                requete.setObject(1, actualiteId);
-                try (ResultSet resultat = requete.executeQuery()) {
-                    return resultat.next() ? resultat.getObject(1, UUID.class) : null;
-                }
-            }
-        });
+        return base.executer(new Contexte(compteId, null, null), connexion -> Jdbc.unique(connexion,
+                "SELECT espace_id FROM actualite WHERE id = ?", Jdbc.parametres(actualiteId),
+                resultat -> resultat.getObject(1, UUID.class)).orElse(null));
     }
 
     private static List<String> sources(ActualitesWeb.Actualite actualite) {
