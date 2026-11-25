@@ -354,7 +354,8 @@ public class CorrelationEngine {
                 FROM project_impact i
                 WHERE i.signal_id = ? AND i.project_id = ? AND i.component_id = ?
                 """, Jdbc.parametres(signalId, component.projectId(), component.componentId()),
-                resultat -> new Precedent(ImpactQueries.niveau(resultat.getString(1)), resultat.getObject(2, UUID.class), resultat.getBoolean(3)));
+                resultat -> new Precedent(ImpactQueries.niveau(resultat.getString(1)), resultat.getObject(2, UUID.class),
+                        resultat.getBoolean(3)));
     }
 
     /**

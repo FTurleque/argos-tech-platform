@@ -2,7 +2,6 @@ package io.argos.impact;
 
 import java.sql.Connection;
 import java.sql.PreparedStatement;
-import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.time.Instant;
 import java.time.ZoneOffset;
@@ -15,7 +14,7 @@ import javax.sql.DataSource;
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.enterprise.event.Event;
 import jakarta.inject.Inject;
-import jakarta.transaction.Transactional;
+import jakarta.transaction.Transactional;
 
 import io.argos.commun.ContexteBase;
 import io.argos.commun.Jdbc;

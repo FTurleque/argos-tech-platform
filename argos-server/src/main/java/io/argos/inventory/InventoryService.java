@@ -227,8 +227,8 @@ public class InventoryService {
         } else {
             try {
                 ParsedInventory parsed = CycloneDxParser.parse(sbom.contenu(), maxBytes);
-                return new InventaireLu(new ImportResult(StatutImport.IMPORTED, "SBOM", parsed.components().size(), parsed.ignoredCount(), null,
-                        parsed.ignoredComponents()),
+                return new InventaireLu(new ImportResult(StatutImport.IMPORTED, "SBOM", parsed.components().size(),
+                        parsed.ignoredCount(), null, parsed.ignoredComponents()),
                         Optional.of(new InventoryStore.Remplacement(repositoryId, "SBOM", parsed, sourceRef)));
             } catch (InvalidDocumentException erreur) {
                 reason = erreur.getMessage();
