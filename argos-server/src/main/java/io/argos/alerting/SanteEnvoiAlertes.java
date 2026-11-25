@@ -1,16 +1,9 @@
 package io.argos.alerting;
 
-import java.sql.Connection;
-import java.sql.PreparedStatement;
-import java.sql.ResultSet;
-import java.sql.SQLException;
 import java.time.Clock;
 import java.time.Duration;
 import java.time.Instant;
-import java.time.ZoneOffset;
 import java.util.concurrent.atomic.AtomicLong;
-
-import javax.sql.DataSource;
 
 import jakarta.annotation.PostConstruct;
 import jakarta.enterprise.context.ApplicationScoped;
@@ -23,6 +16,9 @@ import org.jboss.logging.Logger;
 
 import io.micrometer.core.instrument.Gauge;
 import io.micrometer.core.instrument.MeterRegistry;
+
+import io.argos.commun.Conversions;
+import io.argos.commun.Jdbc;
 
 /**
  * File d'envoi des alertes et résumés pour l'exploitation (EXP-14, EXP-15, design.md DC-2) :
@@ -54,7 +50,7 @@ public class SanteEnvoiAlertes implements HealthCheck {
     Clock horloge;
 
     @Inject
-    DataSource dataSource;
+    Jdbc jdbc;
 
     @Inject
     MeterRegistry registre;
@@ -96,18 +92,11 @@ public class SanteEnvoiAlertes implements HealthCheck {
     }
 
     private EtatFile lire(Instant maintenant) {
-        try (Connection connexion = dataSource.getConnection(); PreparedStatement requete = connexion.prepareStatement("""
+        return jdbc.unique("""
                 SELECT count(*) FILTER (WHERE etat = 'EN_ATTENTE'),
                        count(*) FILTER (WHERE etat = 'EN_ECHEC' AND cree_le >= ?)
                 FROM alerte WHERE etat IN ('EN_ATTENTE', 'EN_ECHEC')
-                """)) {
-            requete.setObject(1, maintenant.minus(FENETRE_ECHECS).atOffset(ZoneOffset.UTC));
-            try (ResultSet resultat = requete.executeQuery()) {
-                resultat.next();
-                return new EtatFile(resultat.getLong(1), resultat.getLong(2));
-            }
-        } catch (SQLException erreur) {
-            throw new IllegalStateException("lecture de la file d'envoi des alertes impossible", erreur);
-        }
+                """, Jdbc.parametres(Conversions.utc(maintenant.minus(FENETRE_ECHECS))),
+                resultat -> new EtatFile(resultat.getLong(1), resultat.getLong(2))).orElseThrow();
     }
 }

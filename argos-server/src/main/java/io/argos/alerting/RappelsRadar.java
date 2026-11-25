@@ -2,13 +2,11 @@ package io.argos.alerting;
 
 import java.sql.Array;
 import java.sql.Connection;
-import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.time.Clock;
 import java.time.Instant;
 import java.time.LocalDate;
-import java.time.ZoneOffset;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
@@ -16,8 +14,6 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
 import java.util.UUID;
-
-import javax.sql.DataSource;
 
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.enterprise.event.Event;
@@ -37,6 +33,8 @@ import io.argos.observabilite.TacheObservee;
 import io.argos.regintel.EcheancesReglementaires;
 import io.argos.commun.ContexteBase;
 import io.argos.commun.ContexteBase.Contexte;
+import io.argos.commun.Conversions;
+import io.argos.commun.Jdbc;
 
 /**
  * Rappels d'échéance du radar (RAD-04) et annonces de changement de standard (RAD-06).
@@ -62,6 +60,8 @@ public class RappelsRadar {
     /** Longueur de la colonne {@code alerte.cle_radar}. */
     static final int CLE_MAX = 600;
 
+    private static final String PARAMETRES_DE_L_ESPACE = "SELECT rappels_jours FROM radar_parametres WHERE espace_id = ?";
+
     /**
      * Bilan d'une exécution quotidienne, avec les erreurs imprévues retenues, que {@link #relancerErreurImprevue()}
      * relance.
@@ -78,7 +78,7 @@ public class RappelsRadar {
     Clock horloge;
 
     @Inject
-    DataSource dataSource;
+    Jdbc jdbc;
 
     @Inject
     ContexteBase base;
@@ -215,39 +215,32 @@ public class RappelsRadar {
     public List<Integer> modifierParametres(UUID compteId, UUID espaceId, List<Integer> jours) {
         Integer[] valeurs = EcheancesReglementaires.valider(jours).toArray(Integer[]::new);
         return base.executer(new Contexte(compteId, null, espaceId), connexion -> {
-            try (PreparedStatement requete = connexion.prepareStatement("""
+            Jdbc.modifier(connexion, """
                     INSERT INTO radar_parametres (espace_id, rappels_jours, modifie_par, modifie_le)
                     VALUES (?, ?, argos_compte_courant(), now())
                     ON CONFLICT (espace_id) DO UPDATE SET rappels_jours = excluded.rappels_jours,
                         modifie_par = excluded.modifie_par, modifie_le = excluded.modifie_le
-                    """)) {
-                requete.setObject(1, espaceId);
-                requete.setArray(2, connexion.createArrayOf("integer", valeurs));
-                requete.executeUpdate();
-            }
+                    """, requete -> {
+                        requete.setObject(1, espaceId);
+                        requete.setArray(2, connexion.createArrayOf("integer", valeurs));
+                    });
             return lireParametres(connexion, espaceId);
         });
     }
 
     private List<Integer> parametresTechniques(UUID espaceId) {
-        try (Connection connexion = dataSource.getConnection()) {
-            return lireParametres(connexion, espaceId);
-        } catch (SQLException erreur) {
-            throw new IllegalStateException("lecture des paramètres du radar impossible", erreur);
-        }
+        return jdbc.unique(PARAMETRES_DE_L_ESPACE, Jdbc.parametres(espaceId), RappelsRadar::joursDeRappel)
+                .orElse(RAPPELS_PAR_DEFAUT);
     }
 
-    private static List<Integer> lireParametres(Connection connexion, UUID espaceId) throws SQLException {
-        try (PreparedStatement requete = connexion.prepareStatement("SELECT rappels_jours FROM radar_parametres WHERE espace_id = ?")) {
-            requete.setObject(1, espaceId);
-            try (ResultSet resultat = requete.executeQuery()) {
-                if (!resultat.next()) {
-                    return RAPPELS_PAR_DEFAUT;
-                }
-                Array joursDeRappel = resultat.getArray(1);
-                return Arrays.stream((Integer[]) joursDeRappel.getArray()).toList();
-            }
-        }
+    private static List<Integer> lireParametres(Connection connexion, UUID espaceId) {
+        return Jdbc.unique(connexion, PARAMETRES_DE_L_ESPACE, Jdbc.parametres(espaceId), RappelsRadar::joursDeRappel)
+                .orElse(RAPPELS_PAR_DEFAUT);
+    }
+
+    private static List<Integer> joursDeRappel(ResultSet resultat) throws SQLException {
+        Array joursDeRappel = resultat.getArray(1);
+        return Arrays.stream((Integer[]) joursDeRappel.getArray()).toList();
     }
 
     // ------------------------------------------------------------------ messages
@@ -309,26 +302,14 @@ public class RappelsRadar {
      * ({@link RappelsOpportunites}) et les rappels réglementaires ({@link RappelsReglementaires}).
      */
     Optional<UUID> creer(Message message, UUID compte, String canal, Instant maintenant) {
-        try (Connection connexion = dataSource.getConnection(); PreparedStatement requete = connexion.prepareStatement("""
+        return jdbc.unique("""
                 INSERT INTO alerte (id, nature, compte_id, canal, cle_radar, titre, contenu, etat_resume_ia, etat, cree_le)
                 VALUES (?, ?, ?, ?, ?, ?, ?::jsonb, 'SANS_OBJET', 'EN_ATTENTE', ?)
                 ON CONFLICT (compte_id, canal, cle_radar) WHERE nature IN ('RAPPEL', 'ANNONCE') DO NOTHING
                 RETURNING id
-                """)) {
-            requete.setObject(1, UUID.randomUUID());
-            requete.setString(2, message.nature());
-            requete.setObject(3, compte);
-            requete.setString(4, canal);
-            requete.setString(5, cleBornee(message.cle()));
-            requete.setString(6, message.titre());
-            requete.setString(7, MoteurAlertes.json(message.contenu()));
-            requete.setObject(8, maintenant.atOffset(ZoneOffset.UTC));
-            try (ResultSet resultat = requete.executeQuery()) {
-                return resultat.next() ? Optional.of(resultat.getObject(1, UUID.class)) : Optional.empty();
-            }
-        } catch (SQLException erreur) {
-            throw new IllegalStateException("enregistrement d'un message du radar impossible", erreur);
-        }
+                """, requete -> Jdbc.parametres(UUID.randomUUID(), message.nature(), compte, canal, cleBornee(message.cle()),
+                        message.titre(), MoteurAlertes.json(message.contenu()), Conversions.utc(maintenant)).lier(requete),
+                resultat -> resultat.getObject(1, UUID.class));
     }
 
     /**
