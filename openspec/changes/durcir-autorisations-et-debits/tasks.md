@@ -23,7 +23,7 @@ Règles : aucune dépendance nouvelle (ADR-0021) ; aucune requête vers Internet
 - [x] 3.1 Limiteur par compte sur `GET /api/v1/recherche` et `GET /api/v1/vues/{id}/resultats` (compteur commun), 60 requêtes/min/compte par défaut, réglable, 429 documenté dans l'OpenAPI — couvre RCH-06, AUD-SEC-09 — vérification : tests 3.3
 - [x] 3.2 Limiteur par compte sur `GET /api/v1/me/veille` (compteur distinct), 60 requêtes/min/compte par défaut, réglable, 429 documenté — couvre PRF-08, AUD-SEC-09 — vérification : tests 3.3
 - [x] 3.3 Tests : limite atteinte (429, `Retry-After`, refus journalisé `LIMITE_DEBIT`, aucune recherche ni donnée de veille), autre compte non affecté, fenêtre écoulée (horloge injectée), compteurs de la recherche et de « Ma veille » indépendants — couvre RCH-06-S1, RCH-06-S2, RCH-06-S3, PRF-08-S1, PRF-08-S2, PRF-08-S3 — vérification : `mvn -B -f argos-server/pom.xml verify` passe
-- [ ] 3.4 Relever la limite de « Ma veille » dans la configuration de la campagne de performance et relancer la campagne — couvre PRF-08 sans régression de PRF-07-S1 — vérification : `npm --prefix e2e run test:performance` sans 429, rapport `/docs/architecture/quality/mesure-performance-api-mcp.md`
+- [x] 3.4 Relever la limite de « Ma veille » dans la configuration de la campagne de performance et relancer la campagne — couvre PRF-08 sans régression de PRF-07-S1 — vérification : `npm --prefix e2e run test:performance` sans 429, rapport `/docs/architecture/quality/mesure-performance-api-mcp.md`
 - [x] 3.5 Fiches `/docs/specifications/recherche-veille.md` (RCH-06) et `/docs/specifications/profils-veille.md` (PRF-08) ; arc42 §8.3 (débits par opération) — vérification : `node scripts/verifier-docs.mjs` sans erreur
 
 ## 4. Écoute de bouclage du desktop
@@ -40,8 +40,8 @@ Règles : aucune dépendance nouvelle (ADR-0021) ; aucune requête vers Internet
 ## 6. Documentation durable et vérifications d'intégration
 
 - [x] 6.1 Registre `/docs/specifications/README.md` (lignes et couverture des cinq capacités) ; diagrammes DC-1 et DC-2 reportés dans les fiches et inventoriés dans `/docs/architecture/diagrams/README.md` s'ils le sont — vérification : `node scripts/verifier-docs.mjs` sans erreur
-- [ ] 6.2 Valider le changement et la documentation — vérification : `openspec validate durcir-autorisations-et-debits --strict` réussit et `node scripts/verifier-docs.mjs` sans erreur
-- [ ] 6.3 Critère de sortie du sprint 6 pour ce périmètre (`/docs/audit/2026-11-21/sprints.md`) : matrice des rôles, demande d'évolution refusée sans requête vers la forge, écoute fermée sur le seul state attendu, limites de la recherche et de « Ma veille », alertes vers une adresse vérifiée — vérification : preuves des tâches 1.2, 2.2, 3.3, 4.2, 5.1
+- [x] 6.2 Valider le changement et la documentation — vérification : `openspec validate durcir-autorisations-et-debits --strict` réussit et `node scripts/verifier-docs.mjs` sans erreur
+- [x] 6.3 Critère de sortie du sprint 6 pour ce périmètre (`/docs/audit/2026-11-21/sprints.md`) : matrice des rôles, demande d'évolution refusée sans requête vers la forge, écoute fermée sur le seul state attendu, limites de la recherche et de « Ma veille », alertes vers une adresse vérifiée — vérification : preuves des tâches 1.2, 2.2, 3.3, 4.2, 5.1
 
 ## Matrice de traçabilité
 

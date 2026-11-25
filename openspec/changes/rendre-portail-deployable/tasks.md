@@ -29,7 +29,7 @@ Règles : aucune dépendance nouvelle (ADR-0021) ; aucune requête vers Internet
 
 - [x] 4.1 Poser les en-têtes de sécurité (CSP alignée sur le desktop avec l'origine de l'émetteur public, `frame-ancestors 'none'`, `nosniff`, `Referrer-Policy`) — couvre ACC-12-S3, ACC-12-S4, AUD-SEC-05 — vérification : test d'intégration des en-têtes de la réponse de `/` et d'une ressource `/assets/*`
 - [x] 4.2 Tests de la politique d'accès HTTP : ressource statique de test sous `src/test/resources/META-INF/resources`, chemins publics sans session (non 401), routes d'API et `/q/` protégées (401), contrôle qu'aucune route `/api/` ni `/q/` hors santé et identité ne figure dans les chemins publics ; Javadoc d'`AuthentificationTest` mise à jour — couvre ACC-12-S1, ACC-12-S2, AUD-TST-25 — vérification : `mvn -B -f argos-server/pom.xml verify` passe
-- [ ] 4.3 Recette du portail servi par l'image : avec `.env.example` et `idp-local` depuis l'hôte, puis depuis un second poste avec les réglages du guide ; console du navigateur sans violation de CSP — couvre ACC-11-S1, ACC-11-S2, ACC-12-S3 — vérification : recette consignée dans `/docs/deploiement/recette-poste.md`
+- [x] 4.3 Recette du portail servi par l'image : avec `.env.example` et `idp-local` depuis l'hôte, puis depuis un second poste avec les réglages du guide ; console du navigateur sans violation de CSP — couvre ACC-11-S1, ACC-11-S2, ACC-12-S3 — vérification : recette consignée dans `/docs/deploiement/recette-poste.md`
 
 ## 5. Documentation durable et décisions
 
@@ -39,8 +39,8 @@ Règles : aucune dépendance nouvelle (ADR-0021) ; aucune requête vers Internet
 
 ## 6. Vérifications d'intégration
 
-- [ ] 6.1 Valider le changement et la documentation — vérification : `openspec validate rendre-portail-deployable --strict` réussit et `node scripts/verifier-docs.mjs` sans erreur
-- [ ] 6.2 Critère de sortie du sprint 6 pour ce périmètre (`/docs/audit/2026-11-21/sprints.md`) : connexion depuis l'hôte et depuis un autre poste, bundle sans `localhost:8180`, 200 sur `/` et `/assets/*` sans jeton et 401 sur `/api/v1/*`, en-têtes testés, royaume durci — vérification : preuves des tâches 1.2, 3.2, 4.1, 4.2, 4.3
+- [x] 6.1 Valider le changement et la documentation — vérification : `openspec validate rendre-portail-deployable --strict` réussit et `node scripts/verifier-docs.mjs` sans erreur
+- [x] 6.2 Critère de sortie du sprint 6 pour ce périmètre (`/docs/audit/2026-11-21/sprints.md`) : connexion depuis l'hôte et depuis un autre poste, bundle sans `localhost:8180`, 200 sur `/` et `/assets/*` sans jeton et 401 sur `/api/v1/*`, en-têtes testés, royaume durci — vérification : preuves des tâches 1.2, 3.2, 4.1, 4.2, 4.3
 
 ## Matrice de traçabilité
 
