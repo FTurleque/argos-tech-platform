@@ -5,7 +5,7 @@
 | Préfixe d'exigences | `REG` |
 | Spec de référence | [`/openspec/specs/veille-reglementaire/spec.md`](/openspec/specs/veille-reglementaire/spec.md) |
 | Changements archivés | [`2026-11-17-suivre-veille-reglementaire`](/openspec/changes/archive/2026-11-17-suivre-veille-reglementaire/proposal.md) |
-| Changements en cours | [`durcir-autorisations-et-debits`](/openspec/changes/durcir-autorisations-et-debits/proposal.md) (REG-09) |
+| Changements archivés, suite | [`durcir-autorisations-et-debits`](/openspec/changes/archive/2026-11-25-durcir-autorisations-et-debits/proposal.md) (REG-09) |
 | Statut de la capacité | livrée |
 | Composants (arc42 §5) | `reg-intel`, `source-ingestion`, `catalog`, `ai-gateway`, `scm-connector`, `alerting` (arc42 §5.4.3) |
 | Décision | [ADR-0030](../architecture/adr/0030-veille-reglementaire-expert-metier.md) (Accepté), qui remplace ADR-0018 |

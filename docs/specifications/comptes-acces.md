@@ -5,7 +5,7 @@
 | Préfixe d'exigences | `ACC` |
 | Spec de référence | [`/openspec/specs/comptes-acces/spec.md`](/openspec/specs/comptes-acces/spec.md) |
 | Changements archivés | [`2026-11-17-gerer-comptes-et-acces`](/openspec/changes/archive/2026-11-17-gerer-comptes-et-acces/proposal.md) (ACC-01 à ACC-06) ; [`2026-11-18-connecter-ihm-oidc`](/openspec/changes/archive/2026-11-18-connecter-ihm-oidc/proposal.md) (ACC-07 à ACC-10) |
-| Changements en cours | [`rendre-portail-deployable`](/openspec/changes/rendre-portail-deployable/proposal.md) (ACC-11 à ACC-13) ; [`durcir-autorisations-et-debits`](/openspec/changes/durcir-autorisations-et-debits/proposal.md) (ACC-14) |
+| Changements archivés, suite | [`rendre-portail-deployable`](/openspec/changes/archive/2026-11-25-rendre-portail-deployable/proposal.md) (ACC-11 à ACC-13) ; [`durcir-autorisations-et-debits`](/openspec/changes/archive/2026-11-25-durcir-autorisations-et-debits/proposal.md) (ACC-14) |
 | Statut de la capacité | livrée |
 | Composants (arc42 §5) | `API & Security`, `workspace`, `audit` ; `Vue.js 3 SPA` et `Client desktop Electron` (ACC-07 à ACC-10) |
 
