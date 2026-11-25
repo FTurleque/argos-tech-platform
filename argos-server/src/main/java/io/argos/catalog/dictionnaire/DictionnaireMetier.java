@@ -251,9 +251,9 @@ public class DictionnaireMetier {
      * ADMINISTRATEUR (rappels planifiés).
      */
     public List<Expert> experts(UUID espace, Collection<String> domaines) {
-        List<Expert> liste = new ArrayList<>();
+        List<Expert> expertsEffectifs = new ArrayList<>();
         if (domaines.isEmpty()) {
-            return liste;
+            return expertsEffectifs;
         }
         List<UUID> designes = jdbc.lister("""
                 SELECT DISTINCT compte_id FROM expert_domaine WHERE espace_id = ? AND domaine = ANY (?)
@@ -263,9 +263,9 @@ public class DictionnaireMetier {
                     requete.setArray(2, requete.getConnection().createArrayOf("varchar", domaines.toArray()));
                 }, resultat -> resultat.getObject(1, UUID.class));
         for (LectureMembres.Contributeur contributeur : membres.contributeurs(espace, designes)) {
-            liste.add(new Expert(contributeur.compteId(), contributeur.email()));
+            expertsEffectifs.add(new Expert(contributeur.compteId(), contributeur.email()));
         }
-        return liste;
+        return expertsEffectifs;
     }
 
     // ------------------------------------------------------------------ outils
