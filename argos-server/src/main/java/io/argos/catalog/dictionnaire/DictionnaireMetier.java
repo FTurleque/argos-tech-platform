@@ -98,6 +98,9 @@ public class DictionnaireMetier {
     LectureMembres membres;
 
     @Inject
+    Jdbc jdbc;
+
+    @Inject
     DataSource dataSource;
 
     // ------------------------------------------------------------------ lectures d'un membre
@@ -252,19 +255,15 @@ public class DictionnaireMetier {
         if (domaines.isEmpty()) {
             return liste;
         }
-        try (Connection connexion = dataSource.getConnection()) {
-            List<UUID> designes = Jdbc.lister(connexion, """
-                    SELECT DISTINCT compte_id FROM expert_domaine WHERE espace_id = ? AND domaine = ANY (?)
-                    ORDER BY compte_id
-                    """, requete -> {
-                        requete.setObject(1, espace);
-                        requete.setArray(2, connexion.createArrayOf("varchar", domaines.toArray()));
-                    }, resultat -> resultat.getObject(1, UUID.class));
-            for (LectureMembres.Contributeur contributeur : membres.contributeurs(espace, designes)) {
-                liste.add(new Expert(contributeur.compteId(), contributeur.email()));
-            }
-        } catch (SQLException erreur) {
-            throw new ErreurBase("lecture des experts impossible", erreur);
+        List<UUID> designes = jdbc.lister("""
+                SELECT DISTINCT compte_id FROM expert_domaine WHERE espace_id = ? AND domaine = ANY (?)
+                ORDER BY compte_id
+                """, requete -> {
+                    requete.setObject(1, espace);
+                    requete.setArray(2, requete.getConnection().createArrayOf("varchar", domaines.toArray()));
+                }, resultat -> resultat.getObject(1, UUID.class));
+        for (LectureMembres.Contributeur contributeur : membres.contributeurs(espace, designes)) {
+            liste.add(new Expert(contributeur.compteId(), contributeur.email()));
         }
         return liste;
     }

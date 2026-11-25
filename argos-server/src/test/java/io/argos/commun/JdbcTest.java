@@ -23,7 +23,8 @@ import org.junit.jupiter.api.Test;
 @QuarkusTest
 class JdbcTest {
 
-    private static final String VALEURS = "SELECT valeur FROM (VALUES (1), (2), (3)) AS jeu(valeur) WHERE valeur >= ? ORDER BY valeur";
+    private static final String VALEURS =
+            "SELECT valeur FROM (VALUES (1), (2), (3)) AS jeu(valeur) WHERE valeur >= ? ORDER BY valeur";
 
     @Inject
     Jdbc jdbc;
@@ -57,7 +58,8 @@ class JdbcTest {
 
     @Test
     void lireUnInstantDeLaBase() {
-        Instant instant = jdbc.unique("SELECT CAST(? AS timestamptz)", Jdbc.parametres(Conversions.utc(Instant.parse("2026-11-25T10:15:30Z"))),
+        Instant attendu = Instant.parse("2026-11-25T10:15:30Z");
+        Instant instant = jdbc.unique("SELECT CAST(? AS timestamptz)", Jdbc.parametres(Conversions.utc(attendu)),
                 resultat -> Conversions.instant(resultat, 1)).orElseThrow();
         assertEquals(Instant.parse("2026-11-25T10:15:30Z"), instant);
     }
@@ -65,17 +67,17 @@ class JdbcTest {
     @Test
     void modifieSurUneConnexionDonneeEtCompteLesLignes() throws SQLException {
         try (Connection connexion = dataSource.getConnection()) {
-            assertEquals(0, Jdbc.modifier(connexion, "SET application_name = 'jdbc-essai'", Jdbc.sansParametre()));
-            assertEquals(Optional.of("jdbc-essai"), Jdbc.unique(connexion, "SHOW application_name", Jdbc.sansParametre(),
-                    resultat -> resultat.getString(1)));
-            assertEquals(List.of("jdbc-essai"), Jdbc.lister(connexion, "SHOW application_name", Jdbc.sansParametre(),
-                    resultat -> resultat.getString(1)));
+            assertEquals(0, Jdbc.modifier(connexion, "DO 'BEGIN END'", Jdbc.sansParametre()));
+            assertEquals(Optional.of(1), Jdbc.unique(connexion, "SELECT 1", Jdbc.sansParametre(),
+                    resultat -> resultat.getInt(1)));
+            assertEquals(List.of(1), Jdbc.lister(connexion, "SELECT 1", Jdbc.sansParametre(),
+                    resultat -> resultat.getInt(1)));
         }
     }
 
     @Test
     void modifieSurLaSourceDeDonnees() {
-        assertEquals(0, jdbc.modifier("SET application_name = 'jdbc-essai'", Jdbc.sansParametre()));
+        assertEquals(0, jdbc.modifier("DO 'BEGIN END'", Jdbc.sansParametre()));
     }
 
     @Test

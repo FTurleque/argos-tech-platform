@@ -2,7 +2,6 @@ package io.argos.alerting;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNull;
-import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.util.UUID;
@@ -14,7 +13,7 @@ import org.junit.jupiter.api.Test;
 import io.argos.impact.MatchRules;
 
 /**
- * TE-2 : un contenu d'alerte stocké avant le typage du niveau se relit ; le JSON écrit reste identique
+ * TE-2 : un contenu d'alerte stocké avec un niveau ou une version dans {@code niveau} se relit ; le JSON écrit est identique
  * ({@code niveau} porte le nom du niveau d'impact ou, pour un rappel du radar, la version).
  */
 class ContenuAlerteJsonTest {
@@ -55,8 +54,11 @@ class ContenuAlerteJsonTest {
     }
 
     @Test
-    void unProjetSansQualificatifEstRefuse() {
-        assertThrows(JsonProcessingException.class,
-                () -> JSON.readValue("{\"id\":\"" + PROJET + "\",\"nom\":\"Portail\"}", ContenuAlerte.Projet.class));
+    void unProjetSansQualificatifSeRelitSansQualificatif() throws JsonProcessingException {
+        ContenuAlerte.Projet projet = JSON.readValue("{\"id\":\"" + PROJET + "\",\"nom\":\"Portail\"}",
+                ContenuAlerte.Projet.class);
+        assertNull(projet.niveauImpact());
+        assertNull(projet.version());
+        assertNull(projet.niveau());
     }
 }

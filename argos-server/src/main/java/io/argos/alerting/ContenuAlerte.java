@@ -65,6 +65,9 @@ public record ContenuAlerte(List<Element> elements, String resumeIa, String etat
         @JsonCreator
         static Projet lire(@JsonProperty("id") UUID id, @JsonProperty("nom") String nom,
                 @JsonProperty("niveau") String qualificatif) {
+            if (qualificatif == null) {
+                return new Projet(id, nom, null, null);
+            }
             for (MatchRules.Level niveau : MatchRules.Level.values()) {
                 if (niveau.name().equals(qualificatif)) {
                     return impact(id, nom, niveau);

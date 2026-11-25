@@ -13,7 +13,8 @@ import org.junit.jupiter.api.Test;
  * Les préférences (profils actifs, mise en page) ne servent jamais à décider d'une
  * autorisation (INV-3, PRF-05, ADR-0024 point 6).
  *
- * <p>Seuls {@code api}, {@code mcp} et {@code alerting} (destinataires d'un profil) lisent {@code io.argos.workspace.preference} ; le reste de
+ * <p>Seuls {@code api}, {@code mcp} et {@code alerting} (destinataires d'un profil) lisent
+ * {@code io.argos.workspace.preference} ; le reste de
  * {@code workspace}, où vivent équipes et rôles, n'en dépend pas, et les préférences ne
  * dépendent pas du reste de {@code workspace}.
  */

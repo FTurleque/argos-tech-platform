@@ -1,7 +1,5 @@
 package io.argos.workspace;
 
-import io.argos.commun.ContexteBase;
-import io.argos.commun.DonneeInvalide;
 import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
@@ -18,8 +16,10 @@ import jakarta.inject.Inject;
 
 import org.eclipse.microprofile.config.inject.ConfigProperty;
 
-import io.argos.horloge.LectureHeure;
 import io.argos.commun.ContexteBase.Contexte;
+import io.argos.commun.ContexteBase;
+import io.argos.commun.DonneeInvalide;
+import io.argos.horloge.LectureHeure;
 
 /**
  * Comptes Argos (ACC-02).

@@ -9,10 +9,10 @@
 
 ## Contexte
 
-- Le contexte RLS, les erreurs du domaine partagées (`DonneeInvalide`, `RegleViolee`, `Introuvable`, `AccesRefuse`, `MotifRefus`), l'appelant (`Caller`) et le limiteur de débit sont logés dans `workspace` et `api.security` alors que tous les modules les utilisent. Le test des frontières (`ModuleBoundariesTest`) compte cinq règles d'exception au cas par cas pour les autoriser (constat AUD-ARC-05).
-- Le protocole RLS (`SET LOCAL ROLE argos_app` puis les paramètres `argos.*`) est écrit quatre fois, dont deux variantes qui ne réinitialisent ni le sujet ni le courriel courants, parce qu'`impact` ne peut pas dépendre de `workspace` (AUD-ARC-04).
-- Deux modèles transactionnels coexistent : 90 `@Transactional` et 23 `QuarkusTransaction` d'un côté, six blocs manuels `setAutoCommit(false)` de l'autre, dont un qui ne restaure pas l'autocommit (AUD-QUA-04).
-- Le squelette JDBC est recopié : 272 `prepareStatement`, 130 `catch (SQLException`, une dizaine de copies du même convertisseur de date (AUD-QUA-06).
+- Tous les modules du serveur emploient le contexte RLS, les erreurs du domaine partagées (`DonneeInvalide`, `RegleViolee`, `Introuvable`, `AccesRefuse`, `MotifRefus`), l'appelant (`Caller`) et le limiteur de débit. Placés dans `workspace` ou `api.security`, ces mécanismes obligent le test des frontières (`ModuleBoundariesTest`) à porter une règle d'exception par module.
+- Le protocole RLS (`SET LOCAL ROLE argos_app` puis les paramètres `argos.*`) a un seul point d'écriture s'il est unique, et une copie par module sinon ; une copie partielle ne réinitialise ni le sujet ni le courriel courants.
+- Un modèle transactionnel unique évite qu'une transaction manuelle (`setAutoCommit`, `commit`) échoue quand un appelant ouvre une transaction JTA autour d'elle ; JTA (`@Transactional`, `QuarkusTransaction`) est le modèle déjà employé par la grande majorité du code.
+- Le squelette JDBC (`prepareStatement`, lecture, traduction de `SQLException`, conversion des dates et des textes) se recopie fichier par fichier s'il n'a pas d'utilitaire commun.
 - [ADR-0001](0001-monolithe-modulaire.md) impose des frontières explicites entre modules ; un noyau implicite les contourne par des exceptions.
 
 ## Critères de décision
@@ -20,7 +20,7 @@
 1. Un seul point d'application du contexte RLS, de la frontière transactionnelle et du squelette JDBC.
 2. Aucune règle d'exception au cas par cas dans le test des frontières.
 3. Aucune dépendance livrée en plus ([ADR-0021](0021-double-licence.md)).
-4. Migration progressive, comportement observable inchangé.
+4. Adoption progressive de l'utilitaire JDBC, sans changer les réponses de l'API.
 
 ## Options considérées
 
@@ -57,14 +57,14 @@ Jdbi est écarté : nouvelle dépendance livrée, deuxième style d'accès penda
 
 ## Conséquences positives
 
-- Un seul code pour le contexte RLS ; les politiques RLS sont inchangées.
-- Plus de panne à l'exécution quand un appelant ajoute `@Transactional` autour d'une transaction manuelle.
-- Le test des frontières ne porte plus d'exception au cas par cas.
+- Un seul code pour le contexte RLS ; les politiques RLS sont celles des migrations.
+- Un seul modèle transactionnel, JTA : un appelant peut ouvrir une transaction autour d'un service sans le casser.
+- Le test des frontières n'a aucune règle d'exception au cas par cas.
 
 ## Conséquences négatives
 
 - Code d'utilitaire JDBC à maintenir et à tester.
-- Les modules non migrés gardent leur JDBC brut jusqu'à leurs changements propres.
+- Les modules qui n'emploient pas encore `Jdbc` écrivent leur JDBC directement, sous la même règle de transaction JTA.
 
 ## Conséquences neutres / compromis
 
@@ -84,5 +84,4 @@ Jdbi est écarté : nouvelle dépendance livrée, deuxième style d'accès penda
 - **Exigences** : ACC-04, COR-08 (non-régression)
 - **Scénarios qualité** : arc42 §10
 - **Diagrammes** : arc42 §5.2, §5.3
-- **Tickets/PR** : changements OpenSpec `ecrire-decisions-architecture-socle` et `extraire-noyau-commun`
 - **Fichiers source** : `argos-server/src/main/java/io/argos/commun/`, `argos-server/src/test/java/io/argos/architecture/ModuleBoundariesTest.java`

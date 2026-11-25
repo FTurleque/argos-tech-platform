@@ -28,22 +28,23 @@ import jakarta.inject.Inject;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
+import io.quarkus.test.common.QuarkusTestResource;
+import io.quarkus.test.junit.QuarkusTest;
+
+import io.argos.commun.ContexteBase;
 import io.argos.impact.ImpactQueries;
 import io.argos.impact.MatchRules;
 import io.argos.ingestion.SourceSynchronizer;
 import io.argos.inventory.InventoryQueries;
-import io.argos.inventory.StatutImport;
 import io.argos.inventory.InventoryService;
 import io.argos.inventory.ProjectDirectory;
+import io.argos.inventory.StatutImport;
 import io.argos.scm.RepositoryRef;
 import io.argos.testsupport.Api;
 import io.argos.testsupport.Fixtures;
-import io.argos.testsupport.StubServer;
 import io.argos.testsupport.StubServer.Stub;
+import io.argos.testsupport.StubServer;
 import io.argos.testsupport.TestDb;
-import io.argos.commun.ContexteBase;
-import io.quarkus.test.common.QuarkusTestResource;
-import io.quarkus.test.junit.QuarkusTest;
 
 /**
  * Projet à plusieurs dépôts (changement automatiser-chaine-veille, tâche 2.2 ; INV-10 ; décision J6 du porteur du
@@ -127,7 +128,8 @@ class ProjetMultiDepotsTest {
 
         InventoryService.ImportProjet resultat = inventories.importerProjet(projet);
 
-        assertEquals(List.of(StatutImport.IMPORTED, StatutImport.IMPORTED), resultat.depots().stream().map(depot -> depot.result().status()).toList());
+        assertEquals(List.of(StatutImport.IMPORTED, StatutImport.IMPORTED),
+                resultat.depots().stream().map(depot -> depot.result().status()).toList());
         assertEquals("groupe/front", resultat.depots().get(0).repository(), "dépôt principal d'abord");
         String chemin = "/api/v1/projects/" + projet + "/inventory";
         Api.enTantQue("alice").when().get(chemin + "/components")
@@ -172,7 +174,8 @@ class ProjetMultiDepotsTest {
 
         InventoryService.ImportProjet resultat = inventories.importerProjet(projet);
 
-        assertEquals(List.of(StatutImport.REJECTED, StatutImport.IMPORTED), resultat.depots().stream().map(depot -> depot.result().status()).toList());
+        assertEquals(List.of(StatutImport.REJECTED, StatutImport.IMPORTED),
+                resultat.depots().stream().map(depot -> depot.result().status()).toList());
         String chemin = "/api/v1/projects/" + projet + "/inventory";
         Api.enTantQue("alice").when().get(chemin + "/components")
                 .then().statusCode(200)

@@ -17,7 +17,7 @@ import javax.sql.DataSource;
 
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.inject.Inject;
-import jakarta.transaction.Transactional;
+import jakarta.transaction.Transactional;
 
 import io.argos.commun.ContexteBase;
 import io.argos.commun.Jdbc;
