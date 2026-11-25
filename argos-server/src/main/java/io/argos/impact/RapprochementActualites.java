@@ -1,12 +1,6 @@
 package io.argos.impact;
 
-import java.sql.Connection;
-import java.sql.PreparedStatement;
-import java.sql.ResultSet;
-import java.sql.SQLException;
 import java.time.Instant;
-import java.time.OffsetDateTime;
-import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Locale;
@@ -17,8 +11,6 @@ import java.util.TreeSet;
 import java.util.UUID;
 import java.util.regex.Pattern;
 
-import javax.sql.DataSource;
-
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.enterprise.event.Observes;
 import jakarta.enterprise.event.TransactionPhase;
@@ -27,6 +19,8 @@ import jakarta.inject.Inject;
 import org.jboss.logging.Logger;
 
 import io.argos.commun.ContexteBase;
+import io.argos.commun.Conversions;
+import io.argos.commun.Jdbc;
 import io.argos.signal.web.ActualiteRecue;
 import io.quarkus.narayana.jta.QuarkusTransaction;
 import io.quarkus.narayana.jta.QuarkusTransactionException;
@@ -60,8 +54,15 @@ public class RapprochementActualites {
             String technologie, String niveau, String methode, Instant creeLe) {
     }
 
+    /** Paquet d'un projet tel que lu dans l'inventaire. */
+    private record PaquetDeProjet(UUID projet, String cle) {
+    }
+
     @Inject
-    DataSource dataSource;
+    Jdbc jdbc;
+
+    @Inject
+    ContexteBase contexteBase;
 
     void surActualiteRecue(@Observes(during = TransactionPhase.AFTER_SUCCESS) ActualiteRecue evenement) {
         if (evenement.espaceId() == null) {
@@ -76,59 +77,34 @@ public class RapprochementActualites {
 
     /** Rapproche une actualité des projets d'un espace ; renvoie le nombre de rapprochements créés. */
     public int rapprocher(UUID actualiteId, UUID espaceId) {
-        try (Connection connexion = dataSource.getConnection()) {
-            String contenu;
-            try (PreparedStatement requete = connexion.prepareStatement(
-                    "SELECT titre || ' ' || texte FROM actualite WHERE id = ? AND espace_id = ?")) {
-                requete.setObject(1, actualiteId);
-                requete.setObject(2, espaceId);
-                try (ResultSet resultat = requete.executeQuery()) {
-                    if (!resultat.next()) {
-                        return 0;
-                    }
-                    contenu = resultat.getString(1);
-                }
-            }
-            Map<UUID, Set<String>> termesParProjet = new LinkedHashMap<>();
-            try (PreparedStatement requete = connexion.prepareStatement("""
-                    SELECT DISTINCT p.id, c.package_key FROM component c JOIN project p ON p.id = c.project_id
-                    WHERE p.workspace_id = ? ORDER BY p.id, c.package_key
-                    """)) {
-                requete.setObject(1, espaceId);
-                try (ResultSet resultat = requete.executeQuery()) {
-                    while (resultat.next()) {
-                        UUID projet = resultat.getObject(1, UUID.class);
-                        terme(resultat.getString(2)).ifPresent(terme ->
-                                termesParProjet.computeIfAbsent(projet, cleProjet -> new TreeSet<>()).add(terme));
-                    }
-                }
-            }
-            int crees = 0;
-            for (Map.Entry<UUID, Set<String>> entree : termesParProjet.entrySet()) {
-                for (String terme : entree.getValue()) {
-                    if (!mentionne(contenu, terme)) {
-                        continue;
-                    }
-                    try (PreparedStatement requete = connexion.prepareStatement("""
-                            INSERT INTO actualite_impact (id, actualite_id, project_id, workspace_id, technologie, niveau,
-                                                          methode, cree_le)
-                            VALUES (?, ?, ?, ?, ?, 'A_VERIFIER', ?, now())
-                            ON CONFLICT (actualite_id, project_id, technologie) DO NOTHING
-                            """)) {
-                        requete.setObject(1, UUID.randomUUID());
-                        requete.setObject(2, actualiteId);
-                        requete.setObject(3, entree.getKey());
-                        requete.setObject(4, espaceId);
-                        requete.setString(5, terme);
-                        requete.setString(6, METHODE);
-                        crees += requete.executeUpdate();
-                    }
-                }
-            }
-            return crees;
-        } catch (SQLException erreur) {
-            throw new IllegalStateException("rapprochement de l'actualité " + actualiteId + " impossible", erreur);
+        Optional<String> contenu = jdbc.unique("SELECT titre || ' ' || texte FROM actualite WHERE id = ? AND espace_id = ?",
+                Jdbc.parametres(actualiteId, espaceId), resultat -> resultat.getString(1));
+        if (contenu.isEmpty()) {
+            return 0;
         }
+        Map<UUID, Set<String>> termesParProjet = new LinkedHashMap<>();
+        jdbc.lister("""
+                SELECT DISTINCT p.id, c.package_key FROM component c JOIN project p ON p.id = c.project_id
+                WHERE p.workspace_id = ? ORDER BY p.id, c.package_key
+                """, Jdbc.parametres(espaceId),
+                resultat -> new PaquetDeProjet(resultat.getObject(1, UUID.class), resultat.getString(2)))
+                .forEach(paquet -> terme(paquet.cle()).ifPresent(terme ->
+                        termesParProjet.computeIfAbsent(paquet.projet(), cleProjet -> new TreeSet<>()).add(terme)));
+        int crees = 0;
+        for (Map.Entry<UUID, Set<String>> entree : termesParProjet.entrySet()) {
+            for (String terme : entree.getValue()) {
+                if (!mentionne(contenu.get(), terme)) {
+                    continue;
+                }
+                crees += jdbc.modifier("""
+                        INSERT INTO actualite_impact (id, actualite_id, project_id, workspace_id, technologie, niveau,
+                                                      methode, cree_le)
+                        VALUES (?, ?, ?, ?, ?, 'A_VERIFIER', ?, now())
+                        ON CONFLICT (actualite_id, project_id, technologie) DO NOTHING
+                        """, Jdbc.parametres(UUID.randomUUID(), actualiteId, entree.getKey(), espaceId, terme, METHODE));
+            }
+        }
+        return crees;
     }
 
     /**
@@ -138,41 +114,17 @@ public class RapprochementActualites {
      * montre les rapprochements de tous ses espaces visibles.
      */
     public List<Rapprochement> pour(UUID actualiteId, UUID compteId) {
-        List<Rapprochement> resultat = new ArrayList<>();
-        try (Connection connexion = dataSource.getConnection()) {
-            boolean autoCommit = connexion.getAutoCommit();
-            connexion.setAutoCommit(false);
-            try {
-                ContexteBase.appliquer(connexion, ContexteBase.Contexte.duCompte(compteId));
-                try (PreparedStatement requete = connexion.prepareStatement("""
-                        SELECT i.id, i.actualite_id, i.project_id, p.name, i.workspace_id, i.technologie, i.niveau, i.methode,
-                               i.cree_le
-                        FROM actualite_impact i JOIN project p ON p.id = i.project_id
-                        WHERE i.actualite_id IN (
-                            SELECT b.id FROM actualite a JOIN actualite b ON b.empreinte = a.empreinte WHERE a.id = ?)
-                        ORDER BY p.name, i.technologie
-                        """)) {
-                    requete.setObject(1, actualiteId);
-                    try (ResultSet lignes = requete.executeQuery()) {
-                        while (lignes.next()) {
-                            resultat.add(new Rapprochement(lignes.getObject(1, UUID.class), lignes.getObject(2, UUID.class),
-                                    lignes.getObject(3, UUID.class), lignes.getString(4), lignes.getObject(5, UUID.class),
-                                    lignes.getString(6), lignes.getString(7), lignes.getString(8),
-                                    lignes.getObject(9, OffsetDateTime.class).toInstant()));
-                        }
-                    }
-                }
-                connexion.commit();
-            } catch (SQLException | RuntimeException erreur) {
-                connexion.rollback();
-                throw erreur;
-            } finally {
-                connexion.setAutoCommit(autoCommit);
-            }
-        } catch (SQLException erreur) {
-            throw new IllegalStateException("lecture des rapprochements impossible", erreur);
-        }
-        return resultat;
+        return contexteBase.executer(ContexteBase.Contexte.duCompte(compteId), connexion -> Jdbc.lister(connexion, """
+                SELECT i.id, i.actualite_id, i.project_id, p.name, i.workspace_id, i.technologie, i.niveau, i.methode,
+                       i.cree_le
+                FROM actualite_impact i JOIN project p ON p.id = i.project_id
+                WHERE i.actualite_id IN (
+                    SELECT b.id FROM actualite a JOIN actualite b ON b.empreinte = a.empreinte WHERE a.id = ?)
+                ORDER BY p.name, i.technologie
+                """, Jdbc.parametres(actualiteId), lignes -> new Rapprochement(lignes.getObject(1, UUID.class),
+                lignes.getObject(2, UUID.class), lignes.getObject(3, UUID.class), lignes.getString(4),
+                lignes.getObject(5, UUID.class), lignes.getString(6), lignes.getString(7), lignes.getString(8),
+                Conversions.instant(lignes, 9))));
     }
 
     /**
