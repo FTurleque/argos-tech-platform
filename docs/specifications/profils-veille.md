@@ -5,7 +5,7 @@
 | Préfixe d'exigences | `PRF` |
 | Spec de référence | [`/openspec/specs/profils-veille/spec.md`](/openspec/specs/profils-veille/spec.md) |
 | Changements archivés | [`2026-11-19-personnaliser-profils-et-affichage`](/openspec/changes/archive/2026-11-19-personnaliser-profils-et-affichage/proposal.md) |
-| Changements en cours | [`optimiser-ma-veille`](/openspec/changes/archive/2026-11-20-optimiser-ma-veille/proposal.md) — PRF-07 (latence de « Ma veille »), implémenté, non archivé |
+| Changements en cours | [`optimiser-ma-veille`](/openspec/changes/archive/2026-11-20-optimiser-ma-veille/proposal.md) — PRF-07 (latence de « Ma veille »), implémenté, non archivé ; [`durcir-autorisations-et-debits`](/openspec/changes/durcir-autorisations-et-debits/proposal.md) — PRF-08 (limite de débit) |
 | Statut de la capacité | livrée ; rapprochement propre au profil `expert-metier` absent (pas de capacité `regintel`) |
 | Composants (arc42 §5) | `catalog`, `workspace`, `impact-engine`, `signal`, `API & Security`, `mcp-server` |
 
@@ -90,6 +90,7 @@ Utilisateur authentifié ; profil publié au catalogue.
 | Ajout d'un profil sans effet sur les autres | PRF-04 | ADR-0024 | [EXISTANT] — la veille ne dépend que des profils actifs : un profil publié n'ajoute ni rubrique, ni élément, ni mention à qui ne l'active pas (`ProfilDemonstrationTest`) |
 | Aucun droit accordé | PRF-05 | ADR-0024 ; ADR-0016 ; ABO-05 | [EXISTANT] — tests inter-espaces avec RLS (`ProfilsDeVeilleTest`) et règle ArchUnit `PreferencesIsolationTest` |
 | Garde-fous appliqués avant diffusion, partout | PRF-06 | ADR-0024 ; ADR-0030 (remplace ADR-0018) | [EXISTANT] — par le serveur : veille (`/api/v1/me/veille`) et serveur MCP (`get_regulatory_changes`) ; une fiche réglementaire non validée n'est jamais candidate, et le garde-fou `VALIDATION_HUMAINE` d'un profil actif écarte tout élément non validé qu'il range |
+| Limite de débit par compte de 60 requêtes par minute sur `GET /api/v1/me/veille` (`argos.veille.debit.requetes-par-minute`), compteur distinct de celui de la recherche ; au-delà, 429 avec `Retry-After`, refus journalisé `LIMITE_DEBIT`, aucune donnée de veille lue | PRF-08 | AUD-SEC-09 ; décision du porteur, 2026-11-24 | [PROPOSITION] — `durcir-autorisations-et-debits` |
 
 ## Droits d'accès et restrictions
 
@@ -209,3 +210,4 @@ Scénarios PRF-01-S1 à PRF-06-S2 de la [spec de référence](/openspec/specs/pr
 | PRF-05 | PRF-05-S1 | DC-1, DF-PRF-1, DF-PRF-2 | 3.6 | `argos-server/src/test/java/io/argos/chain/ProfilsDeVeilleTest.java#prf05S1ActivationDUnProfilSansDroitSurLesProjets`, règle ArchUnit `PreferencesIsolationTest.java` — passent |
 | PRF-06 | PRF-06-S1, PRF-06-S2 | DC-2, DF-PRF-2 | 3.7 | `VeilleProfilsTest.java` (`prf06S1FicheNonValideeNiVeilleNiMcp`, `prf06S2FicheValidee`, `contratMcpMentionDeValidation`), `argos-server/src/test/java/io/argos/mcp/ReglementaireMcpTest.java`, `UnionProfilsTest.java` — passent |
 | PRF-07 | PRF-07-S1, PRF-07-S2 | [`optimiser-ma-veille`](/openspec/changes/archive/2026-11-20-optimiser-ma-veille/design.md) D1, D2, DC-1 | 2.1 à 2.3, 4.2 (`optimiser-ma-veille`) | S1 : `argos-server/src/test/java/io/argos/architecture/LectureGroupeeSignauxTest.java` — passe (2026-11-20) ; mesure de diagnostic du 2026-11-20 (p95 = 60,1 à 82,7 ms) ; campagne `npm --prefix e2e run test:performance` du 2026-11-20 : p95 = 85 ms ([rapport](../architecture/quality/mesure-performance-api-mcp.md)) ; S2 : `argos-server/src/test/java/io/argos/api/veille/VeilleLectureGroupeeTest.java` — passe (2026-11-20) |
+| PRF-08 | PRF-08-S1 à PRF-08-S3 | `durcir-autorisations-et-debits` D3 | 3.2, 3.3, 3.4 | `LimiteDebitRechercheVeilleTest` ; campagne de performance (limite relevée par configuration, `e2e/playwright.config.ts`) |

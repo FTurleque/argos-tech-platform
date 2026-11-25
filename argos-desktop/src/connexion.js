@@ -4,8 +4,12 @@
 // l'interface de bouclage 127.0.0.1, sur un port éphémère choisi par le système, où ce module écoute
 // le temps d'un seul retour. Le code reçu est rendu à l'IHM, qui vérifie le state et l'échange avec
 // son vérificateur PKCE : ce module ne voit aucun jeton et ne journalise rien du retour.
-// Module sans dépendance à Electron : main.js lui fournit node:http, l'ouverture du navigateur et
+// L'écoute ne se ferme que sur le retour dont le state est celui de l'URL d'autorisation validée (ACC-14) :
+// tout autre retour reçoit 400 et laisse l'écoute ouverte, si bien qu'un processus local ne peut ni interrompre
+// la connexion ni lui substituer un code. Module sans dépendance à Electron : main.js lui fournit node:http, l'ouverture du navigateur et
 // la remise au premier plan ; les tests lui fournissent un vrai serveur local et des doublures.
+
+const { timingSafeEqual } = require('node:crypto');
 
 const HOTE = '127.0.0.1';
 const CHEMIN_RETOUR = '/argos/retour';
@@ -14,6 +18,7 @@ const URL_MAX = 8192;
 const RECHERCHE_MAX = 4096;
 const STATUT_OK = 200;
 const STATUT_INTROUVABLE = 404;
+const STATUT_REQUETE_INVALIDE = 400;
 
 /** Page affichée dans le navigateur après le retour : statique, sans reprise des paramètres reçus. */
 const PAGE_RETOUR = [
@@ -97,10 +102,21 @@ function demandeAcceptable(url, contexte) {
   return urlAutorisationSure(url, contexte) !== undefined;
 }
 
-/** Vrai si la requête reçue est le retour attendu par l'écoute `courante`, encore active. */
-function retourAttendu(requete, url, courante, active) {
+/** Vrai si la requête reçue vise le chemin de retour de l'écoute `courante`, encore active. */
+function retourRecu(requete, url, courante, active) {
   if (requete.method !== 'GET' || !url) return false;
   return url.pathname === CHEMIN_RETOUR && active && Boolean(courante.resoudre);
+}
+
+/**
+ * Vrai si `recu` est exactement le state de l'URL d'autorisation validée. Comparaison en temps constant, longueurs
+ * différentes écartées d'abord (timingSafeEqual exige des tampons de même longueur).
+ */
+function stateAttendu(recu, attendu) {
+  if (typeof recu !== 'string' || typeof attendu !== 'string' || attendu === '') return false;
+  const octetsRecus = Buffer.from(recu, 'utf8');
+  const octetsAttendus = Buffer.from(attendu, 'utf8');
+  return octetsRecus.length === octetsAttendus.length && timingSafeEqual(octetsRecus, octetsAttendus);
 }
 
 /** URL de la requête reçue par l'écoute locale, ou undefined si elle est illisible. */
@@ -113,14 +129,20 @@ function lireUrlRequete(requete) {
 }
 
 /**
- * Répond à une requête reçue par l'écoute locale : 404 sauf pour le retour attendu, qui affiche la page
- * de retour, remet la fenêtre au premier plan et ferme l'écoute avec la chaîne de requête reçue.
+ * Répond à une requête reçue par l'écoute locale : 404 hors du chemin de retour ; 400 pour un retour dont le state
+ * est absent ou différent de celui de la demande, sans rien reprendre de la requête et sans fermer l'écoute ; pour le
+ * retour attendu, page de retour, fenêtre au premier plan et fermeture de l'écoute avec la chaîne de requête reçue.
  */
 function traiterRequete(requete, reponse, contexte) {
   const url = lireUrlRequete(requete);
-  if (!retourAttendu(requete, url, contexte.courante, contexte.estActive())) {
+  if (!retourRecu(requete, url, contexte.courante, contexte.estActive())) {
     reponse.writeHead(STATUT_INTROUVABLE, { 'Content-Type': 'text/plain; charset=utf-8' });
     reponse.end('Introuvable');
+    return;
+  }
+  if (!stateAttendu(url.searchParams.get('state'), contexte.courante.state)) {
+    reponse.writeHead(STATUT_REQUETE_INVALIDE, { 'Content-Type': 'text/plain; charset=utf-8' });
+    reponse.end('Requête invalide');
     return;
   }
   reponse.writeHead(STATUT_OK, ENTETES_PAGE);
@@ -143,6 +165,7 @@ function ouvrirSansErreur(ouvrirNavigateur, url, echec) {
  * @typedef {object} Ecoute
  * @property {import('node:http').Server|null} serveur serveur HTTP de l'interface de bouclage
  * @property {string|null} redirectUri adresse de redirection annoncée au royaume
+ * @property {string|null} state state de l'URL d'autorisation validée, seul accepté au retour
  * @property {((resultat: string|null) => void)|null} resoudre résout l'attente du retour
  * @property {unknown} minuterie minuterie du délai maximal, rendue par `planifier`
  */
@@ -170,7 +193,7 @@ function fermerEcoute(etat, resultat) {
 function ouvrirEcoute(etat, dependances) {
   return new Promise((resolve) => {
     /** @type {Ecoute} */
-    const courante = { serveur: null, redirectUri: null, resoudre: null, minuterie: null };
+    const courante = { serveur: null, redirectUri: null, state: null, resoudre: null, minuterie: null };
     const contexte = {
       courante,
       estActive: () => etat.ecoute === courante,
@@ -200,6 +223,7 @@ function attendreRetour(etat, courante, urlSure, options) {
     if (etat.ecoute === courante) fermerEcoute(etat, null);
   };
   return new Promise((resolve) => {
+    courante.state = new URL(urlSure).searchParams.get('state');
     courante.resoudre = resolve;
     courante.minuterie = options.planifier(fermerSiCourante, options.delaiMaxMs);
     ouvrirSansErreur(options.ouvrirNavigateur, urlSure, fermerSiCourante);

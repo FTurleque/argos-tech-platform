@@ -13,20 +13,27 @@ import java.util.Optional;
 import java.util.Set;
 import java.util.UUID;
 
+import jakarta.annotation.PostConstruct;
 import jakarta.inject.Inject;
 import jakarta.ws.rs.GET;
 import jakarta.ws.rs.Path;
 import jakarta.ws.rs.Produces;
 import jakarta.ws.rs.core.MediaType;
 
+import org.eclipse.microprofile.config.inject.ConfigProperty;
 import org.eclipse.microprofile.openapi.annotations.Operation;
+import org.eclipse.microprofile.openapi.annotations.media.Content;
 import org.eclipse.microprofile.openapi.annotations.media.Schema;
+import org.eclipse.microprofile.openapi.annotations.responses.APIResponse;
 import org.eclipse.microprofile.openapi.annotations.tags.Tag;
 
+import io.argos.api.Erreur;
 import io.argos.api.SignauxAbonnements;
 import io.argos.api.preference.ResolutionPreferences;
 import io.argos.api.security.Access;
 import io.argos.api.security.Caller;
+import io.argos.api.security.LimiteDebitAtteinte;
+import io.argos.api.security.LimiteurDebit;
 import io.argos.catalog.profil.CatalogueProfils;
 import io.argos.catalog.profil.ManifesteProfil;
 import io.argos.catalog.profil.Rubrique;
@@ -133,11 +140,26 @@ public class VeilleProfilsResource {
     @Inject
     SignauxAbonnements signauxAbonnements;
 
+    @ConfigProperty(name = "argos.veille.debit.requetes-par-minute", defaultValue = "60")
+    int requetesParMinute;
+
+    private LimiteurDebit limiteur;
+
+    @PostConstruct
+    void initialiser() {
+        limiteur = new LimiteurDebit(requetesParMinute);
+    }
+
     @GET
     @Operation(summary = "Veille de l'appelant : union sans doublon des éléments de ses profils actifs et de ses"
             + " abonnements PERSONAL, avec rubriques et garde-fous")
+    @APIResponse(responseCode = "429", description = "Limite de débit du compte atteinte, en-tête Retry-After",
+            content = @Content(schema = @Schema(implementation = Erreur.class)))
     public Veille veille() {
         Caller caller = access.authenticated();
+        if (!limiteur.admettre(caller.accountId())) {
+            throw new LimiteDebitAtteinte();
+        }
         List<String> profilsActifs = resolution.resoudre(preferences.lire(caller.accountId())).profilsActifs();
         List<ManifesteProfil> actifs = catalogue.publies().stream()
                 .filter(manifeste -> profilsActifs.contains(manifeste.identifiant())).toList();

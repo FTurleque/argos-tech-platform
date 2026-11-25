@@ -167,15 +167,18 @@ public class ExpertiseFiches {
     }
 
     /**
-     * Associe une demande d'évolution GitHub ou GitLab à un texte « impact produit » (REG-08). L'adresse doit
-     * désigner un ticket ou une demande de fusion d'une forge configurée ; son état est lu par l'API de la
-     * forge (demande inexistante : refus ; forge injoignable : lien enregistré, état non vérifié).
+     * Associe une demande d'évolution GitHub ou GitLab à un texte « impact produit » (REG-08, REG-09). L'adresse doit
+     * désigner un ticket ou une demande de fusion d'une forge configurée. La visibilité de la fiche, l'expertise de
+     * l'appelant et l'état « impact produit » sont contrôlés avant tout appel à la forge, dans une transaction
+     * terminée avant l'appel : un appelant non autorisé n'obtient aucune réponse qui dépende de l'existence de la
+     * demande, et ne consomme pas le quota du jeton du serveur. L'état de la demande est lu par l'API de la forge
+     * (demande inexistante : refus ; forge injoignable : lien enregistré, état non vérifié) ; les contrôles sont
+     * refaits dans la transaction d'écriture, car l'expertise ou l'état peuvent changer entre-temps.
      */
     public FicheAnalyse associerDemande(UUID compte, UUID id, String adresse, Instant maintenant) {
         DemandesEvolution.Demande demande = demandes.reconnaitre(adresse).orElseThrow(() -> new DonneeInvalide("DEMANDE_INVALIDE",
                 "Indiquez l'adresse d'un ticket ou d'une demande de fusion GitHub ou GitLab.", "adresse"));
-        // Contrôle préalable, sans appel à la forge : l'état de la fiche est vérifié de nouveau dans la transaction.
-        fiches.detail(compte, id).filter(FicheAnalyse::peutExpertiser).ifPresent(ExpertiseFiches::exigerImpactProduit);
+        controlerAvantForge(compte, id);
         String etat;
         try {
             etat = demandes.etat(demande).orElseThrow(() -> new DonneeInvalide("DEMANDE_INTROUVABLE",
@@ -212,15 +215,34 @@ public class ExpertiseFiches {
         void appliquer(PreparedStatement requete) throws SQLException;
     }
 
+    /**
+     * Contrôle, sans appel à la forge, que la fiche est visible de l'appelant (sinon 404, comme une fiche
+     * inexistante), qu'il en est l'expert (sinon 403) et qu'elle est à l'état « impact produit » (sinon 409).
+     */
+    private void controlerAvantForge(UUID compte, UUID id) {
+        Objects.requireNonNull(compte);
+        UUID espace = fiches.espaceDe(id).orElseThrow(() -> new Introuvable("Ressource introuvable."));
+        base.executer(new Contexte(compte, null, espace), connexion -> {
+            exigerImpactProduit(lireExpertisable(connexion, id));
+            return null;
+        });
+    }
+
+    /** Fiche visible de l'appelant et dont il est l'expert ; refus 404 ou 403 journalisé sinon. */
+    private FicheAnalyse lireExpertisable(Connection connexion, UUID id) throws SQLException {
+        FicheAnalyse fiche = fiches.lire(connexion, id, false).orElseThrow(() -> new AccesRefuse(MotifRefus.NON_MEMBRE));
+        if (!fiche.peutExpertiser()) {
+            throw new AccesRefuse(MotifRefus.ROLE_INSUFFISANT);
+        }
+        return fiche;
+    }
+
     /** Exécute le travail sur la fiche visible de l'expert, dans l'espace de la fiche, et renvoie la fiche à jour. */
     private FicheAnalyse travailler(UUID compte, UUID id, Travail travail) {
         Objects.requireNonNull(compte);
-        UUID espace = fiches.espaceDe(id).orElseThrow(() -> new Introuvable("Fiche introuvable."));
+        UUID espace = fiches.espaceDe(id).orElseThrow(() -> new Introuvable("Ressource introuvable."));
         return base.executer(new Contexte(compte, null, espace), connexion -> {
-            FicheAnalyse fiche = fiches.lire(connexion, id, false).orElseThrow(() -> new AccesRefuse(MotifRefus.NON_MEMBRE));
-            if (!fiche.peutExpertiser()) {
-                throw new AccesRefuse(MotifRefus.ROLE_INSUFFISANT);
-            }
+            FicheAnalyse fiche = lireExpertisable(connexion, id);
             travail.executer(connexion, fiche);
             return fiches.lire(connexion, id, true).orElseThrow(() -> new IllegalStateException("fiche " + id + " illisible"));
         });

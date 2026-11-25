@@ -18,6 +18,7 @@ import jakarta.ws.rs.core.MediaType;
 
 import org.eclipse.microprofile.openapi.annotations.Operation;
 import org.eclipse.microprofile.openapi.annotations.enums.SchemaType;
+import org.eclipse.microprofile.openapi.annotations.media.Content;
 import org.eclipse.microprofile.openapi.annotations.media.Schema;
 import org.eclipse.microprofile.openapi.annotations.parameters.Parameter;
 import org.eclipse.microprofile.openapi.annotations.responses.APIResponse;
@@ -27,6 +28,7 @@ import org.jboss.resteasy.reactive.RestResponse;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 
+import io.argos.api.Erreur;
 import io.argos.api.security.Access;
 import io.argos.api.security.Caller;
 import io.argos.impact.RechercheVeille;
@@ -52,6 +54,9 @@ public class VuesResource {
     @Schema(name = "VueEnregistree")
     public record VueEnregistree(UUID id, String nom, CriteresRecherche criteres, Instant creeLe) {
     }
+
+    @Inject
+    LimiteRecherche limite;
 
     @Inject
     Access access;
@@ -112,12 +117,16 @@ public class VuesResource {
             + " paramètre page ou taille non entier ou hors bornes")
     @APIResponse(responseCode = "401", description = "Non authentifié")
     @APIResponse(responseCode = "404", description = "Vue inconnue ou d'un autre utilisateur")
+    @APIResponse(responseCode = "429", description = "Limite de débit de la recherche atteinte (compteur commun avec"
+            + " GET /api/v1/recherche), en-tête Retry-After",
+            content = @Content(schema = @Schema(implementation = Erreur.class)))
     public RechercheVeille.Resultats resultats(@PathParam("id") UUID id,
             @Parameter(description = RechercheResource.PAGE, schema = @Schema(type = SchemaType.INTEGER, defaultValue = "0"))
             @QueryParam("page") String page,
             @Parameter(description = RechercheResource.TAILLE, schema = @Schema(type = SchemaType.INTEGER, defaultValue = "20"))
             @QueryParam("taille") String taille) {
         Caller appelant = access.authenticated();
+        limite.admettre(appelant.accountId());
         VueEnregistree vue = representation(vues.trouver(appelant.accountId(), id));
         return traduction.executer(vue.criteres(), appelant, false, page, taille);
     }

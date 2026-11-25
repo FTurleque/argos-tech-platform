@@ -5,6 +5,7 @@
 | Préfixe d'exigences | `ALR` |
 | Spec de référence | [`/openspec/specs/alertes-digests/spec.md`](/openspec/specs/alertes-digests/spec.md) |
 | Changements archivés | [`2026-11-16-diffuser-alertes-et-digests`](/openspec/changes/archive/2026-11-16-diffuser-alertes-et-digests/proposal.md) |
+| Changements en cours | [`durcir-autorisations-et-debits`](/openspec/changes/durcir-autorisations-et-debits/proposal.md) (ALR-08) |
 | Changement en cours | [`automatiser-chaine-veille`](/openspec/changes/archive/2026-11-20-automatiser-chaine-veille/specs/alertes-digests/spec.md) — proposé ; ALR-07 implémenté et intégré le 2026-11-19 (volets A, B et C réunis) |
 | Statut de la capacité | livrée ; implémentation et tests dans `argos-server` |
 | Composants (arc42 §5) | `alerting`, `workspace`, `impact-engine` |
@@ -72,6 +73,7 @@ Configuration par variables d'environnement (aucun secret versionné) :
 | Résumé IA demandé avec un délai borné ; alerte envoyée sans lui s'il est indisponible, refusé ou au-delà du plafond, avec mention dans le message | ALR-05 | baseline v2.3 §6 ; QS-10 | [EXISTANT] |
 | Diffusion par e-mail (relais SMTP du Synology) et vers le client desktop ; nouvelles tentatives bornées puis état « en échec » | ALR-06 | ADR-0022 (Proposé) ; [DÉCISION] du 2026-11-16 (Q-1) | [EXISTANT] |
 | Aucune alerte immédiate ni mention dans un résumé pour un impact `écarté` ou `résolu` ; un impact rouvert redevient éligible ; un abonnement suspendu ne produit aucune notification (ABO-07) | ALR-07 | décisions J5 et J7 du porteur du projet, 2026-11-19 | [PROPOSITION] — changement [`automatiser-chaine-veille`](/openspec/changes/archive/2026-11-20-automatiser-chaine-veille/specs/alertes-digests/spec.md) |
+| E-mail (alerte, résumé, rappel) seulement vers l'adresse que le fournisseur d'identité déclare vérifiée, enregistrée normalisée à la création du compte et tenue à jour à chaque connexion ; sans adresse vérifiée connue, aucun e-mail et l'élément reste visible dans Argos et sur le poste | ALR-08 | AUD-SEC-04 ; ALR-06 ; ADR-0027 (Accepté) ; décision du porteur, 2026-11-24 (comptes existants) | [PROPOSITION] — `durcir-autorisations-et-debits` |
 
 ## Droits d'accès et restrictions
 
@@ -81,7 +83,8 @@ Une alerte ne cite que les projets que le destinataire est autorisé à voir (AC
 
 - enregistrement des alertes et résumés, avec leur état d'envoi par canal (`EN_ATTENTE`, `ENVOYEE`, `EN_ECHEC`), le nombre de tentatives et l'échéance de la suivante ;
 - envoi d'e-mails ;
-- événement CDI `AlerteEmise` à chaque alerte ou résumé enregistré.
+- événement CDI `AlerteEmise` à chaque alerte ou résumé enregistré ;
+- migration `V23__adresse_verifiee_des_comptes.sql` : les adresses déjà enregistrées sont effacées ; aucun e-mail ne part vers un compte tant qu'il ne s'est pas reconnecté avec un jeton qui déclare son adresse vérifiée, les alertes restant visibles dans Argos et sur le poste. Les alertes au canal e-mail d'un compte sans adresse passent en échec sans envoi (ALR-06).
 
 ## Qualités mesurables
 
@@ -159,5 +162,6 @@ Interprétations du changement `diffuser-alertes-et-digests`, à faire valider [
 | ALR-05 | ALR-05-S1 | DC-1 | 2.4 | `AlertesTest.alr05S1…`, `qs10…` |
 | ALR-06 | ALR-06-S1, ALR-06-S2 | DC-1 | 1.1, 3.2, 3.3 | `AlertesTest.alr01S1EtAlr06S1…`, `EchecSmtpTest`, `RelaisMuetTest`, `AlertesTest.contrat…`, `rls…`, `cloisonnement…` |
 | ALR-07 | ALR-07-S1, ALR-07-S2 | `automatiser-chaine-veille` : D5, DC-5 | 3.4 (de ce changement) | `alerting/AlertesImpactsTraitesTest` — vérifié le 2026-11-19 (intégration) |
+| ALR-08 | ALR-08-S1 à ALR-08-S4 | `durcir-autorisations-et-debits` D2 | 2.1, 2.2 | `AdresseVerifieeTest` (adresse non vérifiée, vérifiée, modifiée, migration puis reconnexion) |
 
 Tests : `argos-server/src/test/java/io/argos/alerting/`. Matrice détaillée : [`tasks.md`](/openspec/changes/archive/2026-11-16-diffuser-alertes-et-digests/tasks.md#matrice-de-traçabilité).
