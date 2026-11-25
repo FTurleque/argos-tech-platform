@@ -147,10 +147,10 @@ async function creerGestionnaire(): Promise<GestionnaireSession | undefined> {
       transport: window.argosDesktop ? transportDesktop(window.argosDesktop) : transportWeb,
       surEtat,
     })
-  } catch (erreur) {
-    if (!(erreur instanceof ConfigurationIndisponible)) throw erreur
-    console.error('Configuration OIDC indisponible :', erreur.message, erreur.cause)
-    surEtat('ERREUR', MESSAGE_CONFIGURATION_INDISPONIBLE)
+  } catch (error_) {
+    if (!(error_ instanceof ConfigurationIndisponible)) throw error_
+    // La couche session n'écrit aucun journal : la cause est donnée à l'utilisateur dans le message affiché.
+    surEtat('ERREUR', `${MESSAGE_CONFIGURATION_INDISPONIBLE} (${error_.message})`)
   }
   return gestionnaire
 }
