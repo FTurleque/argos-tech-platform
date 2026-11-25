@@ -22,6 +22,9 @@ import javax.sql.DataSource;
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.inject.Inject;
 
+import io.argos.workspace.LectureMembres;
+import io.argos.commun.Jdbc;
+import io.argos.commun.ErreurBase;
 import io.argos.commun.ContexteBase;
 import io.argos.commun.ContexteBase.Contexte;
 import io.argos.commun.DonneeInvalide;
@@ -90,6 +93,9 @@ public class DictionnaireMetier {
 
     @Inject
     ContexteBase base;
+
+    @Inject
+    LectureMembres membres;
 
     @Inject
     DataSource dataSource;
@@ -190,18 +196,9 @@ public class DictionnaireMetier {
         return base.executer(new Contexte(compte, null, espace), connexion -> {
             exiger(connexion, espace, codeNormalise);
             for (UUID expert : distincts) {
-                try (PreparedStatement requete = connexion.prepareStatement("""
-                        SELECT 1 FROM appartenance
-                        WHERE espace_id = ? AND compte_id = ? AND role IN ('CONTRIBUTEUR', 'ADMINISTRATEUR')
-                        """)) {
-                    requete.setObject(1, espace);
-                    requete.setObject(2, expert);
-                    try (ResultSet resultat = requete.executeQuery()) {
-                        if (!resultat.next()) {
-                            throw new DonneeInvalide("EXPERT_NON_MEMBRE",
-                                    "Un expert doit être membre contributeur ou administrateur de l'espace.", "comptes");
-                        }
-                    }
+                if (!membres.contributeurOuAdministrateur(connexion, espace, expert)) {
+                    throw new DonneeInvalide("EXPERT_NON_MEMBRE",
+                            "Un expert doit être membre contributeur ou administrateur de l'espace.", "comptes");
                 }
             }
             try (PreparedStatement requete = connexion.prepareStatement("DELETE FROM expert_domaine WHERE espace_id = ? AND domaine = ?")) {
@@ -255,22 +252,19 @@ public class DictionnaireMetier {
         if (domaines.isEmpty()) {
             return liste;
         }
-        try (Connection connexion = dataSource.getConnection(); PreparedStatement requete = connexion.prepareStatement("""
-                SELECT DISTINCT x.compte_id, co.email FROM expert_domaine x
-                JOIN appartenance a ON a.espace_id = x.espace_id AND a.compte_id = x.compte_id
-                                   AND a.role IN ('CONTRIBUTEUR', 'ADMINISTRATEUR')
-                JOIN compte co ON co.id = x.compte_id
-                WHERE x.espace_id = ? AND x.domaine = ANY (?) ORDER BY x.compte_id
-                """)) {
-            requete.setObject(1, espace);
-            requete.setArray(2, connexion.createArrayOf("varchar", domaines.toArray()));
-            try (ResultSet resultat = requete.executeQuery()) {
-                while (resultat.next()) {
-                    liste.add(new Expert(resultat.getObject(1, UUID.class), resultat.getString(2)));
-                }
+        try (Connection connexion = dataSource.getConnection()) {
+            List<UUID> designes = Jdbc.lister(connexion, """
+                    SELECT DISTINCT compte_id FROM expert_domaine WHERE espace_id = ? AND domaine = ANY (?)
+                    ORDER BY compte_id
+                    """, requete -> {
+                        requete.setObject(1, espace);
+                        requete.setArray(2, connexion.createArrayOf("varchar", domaines.toArray()));
+                    }, resultat -> resultat.getObject(1, UUID.class));
+            for (LectureMembres.Contributeur contributeur : membres.contributeurs(espace, designes)) {
+                liste.add(new Expert(contributeur.compteId(), contributeur.email()));
             }
         } catch (SQLException erreur) {
-            throw new IllegalStateException("lecture des experts impossible", erreur);
+            throw new ErreurBase("lecture des experts impossible", erreur);
         }
         return liste;
     }

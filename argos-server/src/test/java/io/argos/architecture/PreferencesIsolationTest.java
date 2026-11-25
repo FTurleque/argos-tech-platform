@@ -13,7 +13,7 @@ import org.junit.jupiter.api.Test;
  * Les préférences (profils actifs, mise en page) ne servent jamais à décider d'une
  * autorisation (INV-3, PRF-05, ADR-0024 point 6).
  *
- * <p>Seuls {@code api} et {@code mcp} lisent {@code io.argos.workspace.preference} ; le reste de
+ * <p>Seuls {@code api}, {@code mcp} et {@code alerting} (destinataires d'un profil) lisent {@code io.argos.workspace.preference} ; le reste de
  * {@code workspace}, où vivent équipes et rôles, n'en dépend pas, et les préférences ne
  * dépendent pas du reste de {@code workspace}.
  */
@@ -31,8 +31,8 @@ class PreferencesIsolationTest {
     }
 
     @Test
-    void seulsApiEtMcpLisentLesPreferences() {
-        noClasses().that().resideOutsideOfPackages(PREFERENCES, "io.argos.api..", "io.argos.mcp..")
+    void seulsApiMcpEtAlertingLisentLesPreferences() {
+        noClasses().that().resideOutsideOfPackages(PREFERENCES, "io.argos.api..", "io.argos.mcp..", "io.argos.alerting..")
                 .should().dependOnClassesThat().resideInAPackage(PREFERENCES)
                 .because("une préférence ne participe à aucune décision d'autorisation (PRF-05)")
                 .allowEmptyShould(true)

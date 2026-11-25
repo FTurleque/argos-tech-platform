@@ -6,6 +6,8 @@ import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.util.Arrays;
+import java.util.Collection;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Optional;
 import java.util.Set;
@@ -18,6 +20,7 @@ import jakarta.inject.Inject;
 import jakarta.transaction.Transactional;
 
 import io.argos.commun.ContexteBase;
+import io.argos.commun.Jdbc;
 
 /**
  * Accès à la table {@code workspace_preference_utilisateur}, clé : identifiant du compte Argos.
@@ -31,10 +34,12 @@ import io.argos.commun.ContexteBase;
 public class PreferencesRepository {
 
     private final DataSource dataSource;
+    private final Jdbc jdbc;
 
     @Inject
-    public PreferencesRepository(DataSource dataSource) {
+    public PreferencesRepository(DataSource dataSource, Jdbc jdbc) {
         this.dataSource = dataSource;
+        this.jdbc = jdbc;
     }
 
     /** Préférences enregistrées ; {@link PreferencesUtilisateur#aucune} si rien n'est enregistré. */
@@ -109,5 +114,22 @@ public class PreferencesRepository {
         } catch (SQLException erreur) {
             throw new IllegalStateException("Enregistrement des profils actifs impossible", erreur);
         }
+    }
+
+    /**
+     * Parmi les comptes donnés, ceux dont les profils actifs enregistrés contiennent le profil. Lecture technique,
+     * hors rôle applicatif ; elle n'accorde aucun droit (PRF-05).
+     */
+    public Set<UUID> comptesAvecProfil(Collection<UUID> comptes, String profil) {
+        if (comptes.isEmpty()) {
+            return Set.of();
+        }
+        return new HashSet<>(jdbc.lister("""
+                SELECT compte_id FROM workspace_preference_utilisateur
+                WHERE compte_id = ANY (?) AND ? = ANY (profils_actifs)
+                """, requete -> {
+                    requete.setArray(1, requete.getConnection().createArrayOf("uuid", comptes.toArray()));
+                    requete.setString(2, profil);
+                }, resultat -> resultat.getObject(1, UUID.class)));
     }
 }

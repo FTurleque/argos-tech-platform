@@ -41,7 +41,8 @@ class ModuleBoundariesTest {
     /** Module → modules dont il peut dépendre (paquets sous {@code io.argos}). */
     static final Map<String, Set<String>> ALLOWED = Map.ofEntries(
             Map.entry("workspace", Set.of()),
-            Map.entry("catalog", Set.of()),
+            // catalog demande à workspace le rôle d'un compte dans un espace (workspace.LectureMembres).
+            Map.entry("catalog", Set.of("workspace")),
             Map.entry("inventory", Set.of("workspace", "catalog", "scm")),
             // signal.web demande le résumé IA d'une actualité par le contrat de la passerelle (encadrer-appels-ia).
             Map.entry("signal", Set.of("ingestion", "catalog", "aigateway")),

@@ -5,11 +5,13 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
 import java.util.UUID;
+import java.util.stream.Collectors;
 
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.inject.Inject;
 
 import io.argos.commun.Jdbc;
+import io.argos.workspace.preference.PreferencesService;
 
 /**
  * Destinataires possibles d'une alerte : membres des espaces des impacts, quel que soit leur rôle.
@@ -25,6 +27,9 @@ public class Destinataires {
 
     @Inject
     Jdbc jdbc;
+
+    @Inject
+    PreferencesService preferences;
 
     /** Membres d'au moins un des espaces, une fois chacun. */
     public List<Destinataire> membres(Set<UUID> espaces) {
@@ -43,11 +48,14 @@ public class Destinataires {
      * qui suivent ce profil.
      */
     public List<Destinataire> membresAvecProfil(UUID espace, String profil) {
-        return lire("""
+        List<Destinataire> membres = lire("""
                 SELECT c.id, c.email FROM appartenance a JOIN compte c ON c.id = a.compte_id
-                JOIN workspace_preference_utilisateur p ON p.compte_id = c.id
-                WHERE a.espace_id = ? AND ? = ANY (p.profils_actifs) ORDER BY c.id
-                """, Jdbc.parametres(espace, profil));
+                WHERE a.espace_id = ? ORDER BY c.id
+                """, Jdbc.parametres(espace));
+        Set<UUID> suiveurs = preferences.comptesAvecProfil(
+                membres.stream().map(Destinataire::compteId).toList(), profil);
+        return membres.stream().filter(membre -> suiveurs.contains(membre.compteId()))
+                .collect(Collectors.toCollection(ArrayList::new));
     }
 
     /** Destinataires (compte, e-mail) lus par la requête donnée. */

@@ -17,7 +17,7 @@ import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.inject.Inject;
 import jakarta.transaction.Transactional;
 
-import com.fasterxml.jackson.annotation.JsonInclude;
+import com.fasterxml.jackson.annotation.JsonInclude;
 
 import io.argos.commun.ContexteBase;
 import io.argos.commun.Conversions;
@@ -279,7 +279,7 @@ public class ImpactQueries {
         return Jdbc.lister(connexion, """
                 SELECT t.from_state, t.to_state, t.actor_system, t.actor_account_id, co.nom_affiche, t.reason, t.comment,
                        t.occurred_at
-                FROM project_impact_transition t LEFT JOIN compte co ON co.id = t.actor_account_id
+                FROM project_impact_transition t LEFT JOIN compte_nom_public co ON co.id = t.actor_account_id
                 WHERE t.impact_id = ? ORDER BY t.occurred_at, t.id
                 """, Jdbc.parametres(impactId), resultat -> {
                     boolean systeme = resultat.getBoolean(3);
