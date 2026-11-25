@@ -19,6 +19,8 @@ import jakarta.inject.Inject;
 
 import org.eclipse.microprofile.config.inject.ConfigProperty;
 
+import io.quarkus.narayana.jta.QuarkusTransaction;
+import io.argos.commun.ErreurBase;
 import io.argos.horloge.LectureHeure;
 
 /**
@@ -87,32 +89,38 @@ public class QuotasIa {
 
     Reservation reserver(UUID espaceId, UUID compteId) {
         LocalDate jour = aujourdhui();
-        try (Connection connexion = dataSource.getConnection()) {
-            boolean autoCommit = connexion.getAutoCommit();
-            connexion.setAutoCommit(false);
-            try {
-                if (!incrementer(connexion, jour, INSTANCE, plafondInstance)) {
-                    connexion.rollback();
-                    return Reservation.PLAFOND_INSTANCE;
+        try {
+            return QuarkusTransaction.requiringNew().call(() -> {
+                try (Connection connexion = dataSource.getConnection()) {
+                    if (!incrementer(connexion, jour, INSTANCE, plafondInstance)) {
+                        throw new Refus(Reservation.PLAFOND_INSTANCE);
+                    }
+                    if (espaceId != null && !incrementer(connexion, jour, espaceId.toString(), quotaEspace)) {
+                        throw new Refus(Reservation.QUOTA_ESPACE);
+                    }
+                    if (compteId != null && !incrementer(connexion, jour, porteeCompte(compteId), quotaCompte)) {
+                        throw new Refus(Reservation.QUOTA_COMPTE);
+                    }
+                    return Reservation.ACCORDEE;
+                } catch (SQLException erreur) {
+                    throw new ErreurBase("réservation d'un appel IA impossible", erreur);
                 }
-                if (espaceId != null && !incrementer(connexion, jour, espaceId.toString(), quotaEspace)) {
-                    connexion.rollback();
-                    return Reservation.QUOTA_ESPACE;
-                }
-                if (compteId != null && !incrementer(connexion, jour, porteeCompte(compteId), quotaCompte)) {
-                    connexion.rollback();
-                    return Reservation.QUOTA_COMPTE;
-                }
-                connexion.commit();
-                return Reservation.ACCORDEE;
-            } catch (SQLException erreur) {
-                connexion.rollback();
-                throw erreur;
-            } finally {
-                connexion.setAutoCommit(autoCommit);
-            }
-        } catch (SQLException erreur) {
-            throw new IllegalStateException("réservation d'un appel IA impossible", erreur);
+            });
+        } catch (Refus refus) {
+            return refus.reservation;
+        }
+    }
+
+    /** Refus d'une réservation : lancé pour annuler les compteurs déjà incrémentés dans la transaction. */
+    private static final class Refus extends RuntimeException {
+
+        private static final long serialVersionUID = 1L;
+
+        private final transient Reservation reservation;
+
+        Refus(Reservation reservation) {
+            super(reservation.name(), null, false, false);
+            this.reservation = reservation;
         }
     }
 
