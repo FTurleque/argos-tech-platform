@@ -39,7 +39,8 @@ class AdresseVerifieeTest {
     private static final String NOUVELLE_ADRESSE = "nouvelle@argos.test";
     private static final String ANCIENNE_ADRESSE = "ancienne@argos.test";
     private static final String MIGRATION = "src/main/resources/db/migration/V24__adresse_verifiee_des_comptes.sql";
-    private static final Pattern EFFACEMENT = Pattern.compile("^UPDATE compte SET email = NULL;$", Pattern.MULTILINE);
+    private static final Pattern EFFACEMENT = Pattern.compile(
+            "^UPDATE compte SET email = NULL WHERE email IS NOT NULL;$", Pattern.MULTILINE);
 
     @Inject
     TestDb baseDeTest;

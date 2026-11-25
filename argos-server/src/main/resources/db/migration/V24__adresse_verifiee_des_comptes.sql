@@ -9,4 +9,4 @@ CREATE POLICY compte_adresse_verifiee ON compte FOR UPDATE TO argos_app
 -- Adresses enregistrées sans vérification : effacées. Un compte reçoit des e-mails après sa première connexion
 -- dont le jeton déclare son adresse vérifiée ; ses alertes restent visibles dans Argos et sur le poste.
 -- Non réversible automatiquement (ADR-0032) : les adresses se reconstituent à la connexion.
-UPDATE compte SET email = NULL;
+UPDATE compte SET email = NULL WHERE email IS NOT NULL;
