@@ -86,9 +86,11 @@ public class TestDb {
         StubServer.reset();
     }
 
-    public void exec(String sql) {
-        try (Connection connection = connexionProprietaire(); Statement statement = connection.createStatement()) {
-            statement.execute(sql);
+    /** Instruction, avec ou sans paramètres liés. */
+    public void exec(String sql, Object... parametres) {
+        try (Connection connection = connexionProprietaire();
+                PreparedStatement requete = ParametresSql.preparer(connection, sql, parametres)) {
+            requete.execute();
         } catch (SQLException exception) {
             throw new IllegalStateException(sql, exception);
         }
@@ -106,9 +108,11 @@ public class TestDb {
         }
     }
 
-    public String string(String sql) {
-        try (Connection connection = connexionProprietaire(); Statement statement = connection.createStatement();
-                ResultSet resultSet = statement.executeQuery(sql)) {
+    /** Première colonne de la première ligne, avec ou sans paramètres liés ; nul sans ligne. */
+    public String string(String sql, Object... parametres) {
+        try (Connection connection = connexionProprietaire();
+                PreparedStatement requete = ParametresSql.preparer(connection, sql, parametres);
+                ResultSet resultSet = requete.executeQuery()) {
             return resultSet.next() ? resultSet.getString(1) : null;
         } catch (SQLException exception) {
             throw new IllegalStateException(sql, exception);

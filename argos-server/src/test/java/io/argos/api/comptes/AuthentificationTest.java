@@ -13,7 +13,10 @@ import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.ValueSource;
 import org.junit.jupiter.api.Test;
 
-/** ACC-01 : authentification obligatoire, sauf santé et identité du serveur. */
+/**
+ * ACC-01 : authentification obligatoire, sauf santé et identité du serveur. Les ressources statiques de l'IHM, publiques
+ * pour que la page se charge avant l'ouverture de la session, sont couvertes par {@link CheminsPublicsTest} (ACC-12).
+ */
 @QuarkusTest
 class AuthentificationTest {
 
@@ -43,14 +46,19 @@ class AuthentificationTest {
                 .then().statusCode(401);
     }
 
-    /** ACC-01-S2 : l'identité du serveur reste publique et ne contient aucune donnée d'utilisateur. */
+    /**
+     * ACC-01-S2 : l'identité du serveur reste publique et ne contient aucune donnée d'utilisateur ; elle désigne
+     * l'émetteur public et le client public de l'IHM (ACC-11).
+     */
     @Test
     void identiteDuServeurPublique() {
         given().when().get("/api/v1/system/info")
                 .then().statusCode(200)
                 .body("application", equalTo("argos-server"))
                 .body("version", not(emptyOrNullString()))
-                .body("keySet()", containsInAnyOrder("application", "version", "apiVersion"));
+                .body("keySet()", containsInAnyOrder("application", "version", "apiVersion", "oidcIssuer", "oidcClientId"))
+                .body("oidcIssuer", equalTo("http://idp.test:8443/realms/argos"))
+                .body("oidcClientId", equalTo("argos-ui"));
     }
 
     @Test

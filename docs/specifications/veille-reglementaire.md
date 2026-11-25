@@ -5,6 +5,7 @@
 | Préfixe d'exigences | `REG` |
 | Spec de référence | [`/openspec/specs/veille-reglementaire/spec.md`](/openspec/specs/veille-reglementaire/spec.md) |
 | Changements archivés | [`2026-11-17-suivre-veille-reglementaire`](/openspec/changes/archive/2026-11-17-suivre-veille-reglementaire/proposal.md) |
+| Changements en cours | [`durcir-autorisations-et-debits`](/openspec/changes/durcir-autorisations-et-debits/proposal.md) (REG-09) |
 | Statut de la capacité | livrée |
 | Composants (arc42 §5) | `reg-intel`, `source-ingestion`, `catalog`, `ai-gateway`, `scm-connector`, `alerting` (arc42 §5.4.3) |
 | Décision | [ADR-0030](../architecture/adr/0030-veille-reglementaire-expert-metier.md) (Accepté), qui remplace ADR-0018 |
@@ -64,6 +65,7 @@ Domaines, règles et experts configurés dans l'espace (aucun dictionnaire type 
 | Suivi nouveau → en analyse → sans impact / impact produit → spécifié → livré ; « spécifié » exige une demande d'évolution | REG-06 | ADR-0030 (Accepté) | [EXISTANT] — `CycleVie` |
 | Calendrier des fiches validées ; rappels J-90, J-30, J-7, réglables par espace ; un rappel manqué le jour exact part dans les trois jours suivants, une seule fois ; le lien du rappel ouvre le texte officiel | REG-07 | Q-2 | [EXISTANT] — `EcheancesReglementaires`, `RappelsReglementaires` |
 | Lien vers une demande d'évolution GitHub ou GitLab | REG-08 | Q-3 | [EXISTANT] — `DemandesEvolution` |
+| La visibilité de la fiche, l'expertise de l'appelant et l'état « impact produit » sont contrôlés avant tout appel à la forge, dans une transaction terminée avant l'appel, puis de nouveau dans la transaction d'écriture ; un appelant non autorisé reçoit la réponse d'une fiche inexistante (non-membre) ou un refus pour rôle insuffisant, sans requête vers la forge ni consommation du quota du jeton du serveur | REG-09 | AUD-SEC-22 ; REG-08 ; ACC-03, ACC-04 | [PROPOSITION] — `durcir-autorisations-et-debits` |
 
 ## Droits d'accès et restrictions
 
@@ -71,7 +73,7 @@ Domaines, règles et experts configurés dans l'espace (aucun dictionnaire type 
 - Lecture, correction, validation, rejet, transitions et demande d'évolution d'une fiche en attente : experts d'un des domaines de la fiche, membres CONTRIBUTEUR ou ADMINISTRATEUR (fonction `argos_expert_fiche`). Seul un expert de la fiche lui rattache un domaine (politique `fiche_domaine_ajout`).
 - Une fiche validée ou rejetée ne change plus de contenu ni de décision sous `argos_app`, seul son suivi évolue ; une décision est attribuée au compte courant (déclencheur `fiche_reglementaire_garde`, migration V16).
 - Fiches validées et calendrier : tout membre de l'espace ; serveur MCP : fiches validées seulement (MCP-07).
-- Fiche hors périmètre : réponse 404 et refus journalisé ; action d'un non-expert sur une fiche visible : 403 journalisé.
+- Fiche hors périmètre : réponse 404 et refus journalisé, identique à celle d'une fiche inexistante ; action d'un non-expert sur une fiche visible : 403 journalisé. Pour la demande d'évolution, ces refus et le refus d'une fiche hors « impact produit » (409) précèdent tout appel à une forge (REG-09).
 - Les profils n'accordent aucun droit (PRF-05) ; le profil `expert-metier` actif désigne seulement les destinataires des rappels.
 
 ## Effets de bord observables
@@ -102,6 +104,45 @@ flowchart LR
 ```
 
 Rien n'est diffusé au-delà des experts tant que la fiche n'est pas validée. Vue d'exécution : arc42 §6.6.
+
+### DF-REG-2 — Association d'une demande d'évolution
+
+- **Question** : dans quel ordre les contrôles et l'appel à la forge s'enchaînent-ils ?
+- **Type** : diagramme de séquence
+- **Portée** : implémentation de `durcir-autorisations-et-debits`
+- **Exigences** : REG-08, REG-09
+
+```mermaid
+sequenceDiagram
+    autonumber
+    participant Client
+    participant Api as API & Security (ReglementaireResource)
+    participant Reg as reg-intel (ExpertiseFiches)
+    participant Db as PostgreSQL (RLS)
+    participant Forge as scm-connector → forge
+    Client->>Api: PUT /api/v1/reglementaire/fiches/{id}/demande-evolution
+    Api->>Api: authentifié ; limite de débit (10/min)
+    Api->>Reg: associerDemande(compte, id, adresse)
+    Reg->>Reg: adresse reconnue ? sinon 400 DEMANDE_INVALIDE
+    Reg->>Db: lecture de la fiche sous le contexte de l'appelant
+    alt fiche inexistante ou invisible
+        Reg-->>Client: 404 (refus journalisé)
+    else appelant non expert
+        Reg-->>Client: 403 (refus journalisé)
+    else état différent de « impact produit »
+        Reg-->>Client: 409 IMPACT_PRODUIT_REQUIS
+    else autorisé
+        Reg->>Forge: état de la demande (jeton du serveur)
+        alt 404 forge
+            Reg-->>Client: 400 DEMANDE_INTROUVABLE
+        else lu ou forge injoignable
+            Reg->>Db: transaction : nouveau contrôle, mise à jour, historique
+            Reg-->>Client: 200 fiche
+        end
+    end
+```
+
+Le contrôle précède l'appel à la forge et se fait hors de toute transaction ouverte pendant l'appel HTTP ; la transaction finale le refait (l'expertise ou l'état peuvent changer entre-temps).
 
 ## Critères d'acceptation
 
@@ -144,5 +185,6 @@ Scénarios REG-01-S1 à REG-08-S1 du changement, tous couverts par un test qui p
 | REG-06 | REG-06-S1, REG-06-S2 | DC-2 | 3.3 | `QualificationEtDatesTest.reg06S1…`, `reg06S2…` ; `VeilleReglementaireTest.reg06Reg08S1…` |
 | REG-07 | REG-07-S1 | DC-1 | 3.4 | `VeilleReglementaireTest.reg07S1RappelAvantEcheanceEtCalendrier` |
 | REG-08 | REG-08-S1 | DC-2 | 3.4 | `VeilleReglementaireTest.reg06Reg08S1…`, `DemandesEvolutionTest` |
+| REG-09 | REG-09-S1 à REG-09-S4 | `durcir-autorisations-et-debits` D1, D5 ; DF-REG-2 | 1.1, 1.2, 5.1 | `DemandeEvolutionControleeTest` (serveur de forge simulé qui compte les requêtes) ; `MatriceRolesTest` ; `VeilleReglementaireTest.reg06Reg08S1…` |
 
 Parcours de bout en bout (tâche 5.2) : `ParcoursReglementaireTest`. Code : `argos-server/src/main/java/io/argos/regintel/`, `ingestion/legi/`, `catalog/dictionnaire/`, `api/reglementaire/` ; migration `V16__veille_reglementaire.sql`.

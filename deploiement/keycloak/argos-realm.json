@@ -4,8 +4,14 @@
   "registrationAllowed": false,
   "loginWithEmailAllowed": true,
   "duplicateEmailsAllowed": false,
-  "sslRequired": "none",
+  "sslRequired": "external",
   "accessTokenLifespan": 600,
+  "bruteForceProtected": true,
+  "permanentLockout": false,
+  "failureFactor": 5,
+  "waitIncrementSeconds": 60,
+  "maxFailureWaitSeconds": 900,
+  "passwordPolicy": "length(12) and notUsername and notEmail and passwordHistory(3)",
   "clients": [
     {
       "clientId": "argos-server",
@@ -37,16 +43,16 @@
       "implicitFlowEnabled": false,
       "protocol": "openid-connect",
       "redirectUris": [
-        "http://localhost:8088/*",
+        "${ARGOS_PUBLIC_URL}/",
         "http://127.0.0.1/argos/retour"
       ],
       "webOrigins": [
-        "http://localhost:8088",
+        "${ARGOS_PUBLIC_URL}",
         "app://argos"
       ],
       "attributes": {
         "pkce.code.challenge.method": "S256",
-        "post.logout.redirect.uris": "http://localhost:8088/*"
+        "post.logout.redirect.uris": "${ARGOS_PUBLIC_URL}/"
       },
       "protocolMappers": [
         {
@@ -96,6 +102,7 @@
       "email": "${ARGOS_ADMIN_EMAIL}",
       "emailVerified": true,
       "enabled": true,
+      "requiredActions": ["UPDATE_PASSWORD"],
       "credentials": [
         {
           "type": "password",

@@ -45,6 +45,7 @@ Cette section indexe les ADR. Elle ne recopie pas leur contenu.
 | ADR-0035 | Comptes et isolation des bases de la plateforme | Proposé | 2026-11-24 | — (précise ADR-0016, ADR-0026, ADR-0027) |
 | ADR-0036 | Pile d'observabilité du serveur | Accepté | 2026-11-25 | — |
 | ADR-0037 | Porter les mécanismes techniques partagés par un noyau commun du serveur | Accepté | 2026-11-25 | — (précise ADR-0001, ADR-0016) |
+| ADR-0038 | Configuration de l'IHM lue à l'exécution dans la réponse publique du serveur | Proposé | 2026-11-25 | — (complète ADR-0033) |
 
 ## 9.2 Règles de gouvernance
 

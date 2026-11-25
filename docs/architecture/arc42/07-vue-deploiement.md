@@ -72,6 +72,22 @@ flowchart TB
 - OIDC avec un fournisseur d’identité auto-hébergé ;
 - image x86-64 unique (NAS DS1522+ et PC), même `compose.yaml` partout ; guide : [`/docs/deploiement/synology-et-pc.md`](/docs/deploiement/synology-et-pc.md).
 
+### Adresses de l'instance
+
+Trois adresses distinctes coexistent ; l'exploitant les règle dans `.env` (D-20, `rendre-portail-deployable`, ACC-11) :
+
+```mermaid
+flowchart LR
+    env[".env de l'exploitant"] -->|adresse publique d'Argos| realm["Royaume livré : redirectUris, webOrigins, post.logout (à l'import)"]
+    env -->|adresse publique de Keycloak| kch["KC_HOSTNAME : émetteur des jetons"]
+    env -->|ARGOS_OIDC_URL interne| srvoidc["Validation des jetons par le serveur"]
+    kch -->|même origine| info["Émetteur public lu par l'IHM dans la réponse de system/info"]
+    kch -->|même origine| csp["CSP connect-src de l'IHM servie"]
+    env -->|ARGOS_BIND, ARGOS_PORT| pub["Publication du port d'Argos"]
+```
+
+Le royaume Keycloak livré n'est importé qu'une fois ; il est durci avant toute ouverture hors de `127.0.0.1` (force brute, politique de mot de passe, TLS exigé hors réseau privé, adresses de retour exactes). Guide : [`/docs/deploiement/synology-et-pc.md`](/docs/deploiement/synology-et-pc.md#adresses-de-linstance).
+
 Le détail de cette cible au niveau des conteneurs réellement décrits (Ollama facultatif, Keycloak, relais SMTP, sauvegarde, clients desktop et MCP) est D-11 : [`../diagrams/d-11-deploiement-cible.md`](../diagrams/d-11-deploiement-cible.md).
 
 ## 7.4 Hébergement en ligne (plus tard)

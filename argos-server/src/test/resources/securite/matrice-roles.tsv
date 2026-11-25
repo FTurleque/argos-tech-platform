@@ -1,0 +1,105 @@
+# Matrice des droits : opération de l'API REST (document OpenAPI) x rôle -> code HTTP attendu (AUD-TST-05).
+# Lue par MatriceRolesTest. Une opération absente de ce fichier, ou une ligne sans opération, fait échouer le test.
+# Rôles : ANONYME (aucun jeton) ; LECTEUR (lecteur de l'espace E) ; ADMIN_ESPACE (administrateur de E) ;
+# EXPLOITANT (administrateur plateforme, membre d'aucun espace de la matrice) ; AUTRE_ESPACE (administrateur d'un
+# autre espace F) ; EXPERT (contributrice de E, experte du domaine de la fiche).
+# Lecture des codes : 401 non authentifié ; 403 rôle insuffisant ; 404 hors périmètre ou ressource inconnue ;
+# 400 et 409 : l'appelant a passé les contrôles de droits (corps ou état refusé ensuite) ; 200, 201, 204 : accepté.
+# Régénération après une évolution voulue des droits : voir MatriceRolesTest ; relire chaque cellule avant de copier.
+operation	ANONYME	LECTEUR	ADMIN_ESPACE	EXPLOITANT	AUTRE_ESPACE	EXPERT
+GET /api/v1/alertes	401	200	200	200	200	200
+GET /api/v1/alertes/{id}	401	404	404	404	404	404
+POST /api/v1/alertes/{id}/remise	401	404	404	404	404	404
+GET /api/v1/catalogue/mises-en-page	401	200	200	200	200	200
+GET /api/v1/catalogue/profils	401	200	200	200	200	200
+GET /api/v1/espaces	401	200	200	200	200	200
+POST /api/v1/espaces	401	400	400	400	400	400
+GET /api/v1/espaces/{espaceId}	401	200	200	404	404	200
+POST /api/v1/espaces/{espaceId}/invitations	401	403	201	404	404	403
+GET /api/v1/espaces/{espaceId}/invitations	401	403	200	404	404	403
+DELETE /api/v1/espaces/{espaceId}/invitations/{invitationId}	401	403	409	404	404	403
+GET /api/v1/espaces/{espaceId}/membres	401	200	200	404	404	200
+DELETE /api/v1/espaces/{espaceId}/membres/{compteId}	401	403	409	404	404	403
+PUT /api/v1/espaces/{espaceId}/membres/{compteId}/role	401	403	409	404	404	403
+GET /api/v1/impacts/{id}	401	404	404	404	404	404
+POST /api/v1/impacts/{id}/transitions	401	404	404	404	404	404
+GET /api/v1/invitations	401	200	200	200	200	200
+POST /api/v1/invitations/{invitationId}/acceptation	401	404	404	404	404	404
+GET /api/v1/me/veille	401	200	200	200	200	200
+GET /api/v1/me/watch	401	200	200	200	200	200
+GET /api/v1/moi	401	200	200	200	200	200
+GET /api/v1/ops/impacts/integrity	401	403	403	200	403	403
+GET /api/v1/ops/sources	401	403	403	200	403	403
+GET /api/v1/ops/sources/{id}/events	401	403	403	404	403	403
+GET /api/v1/ops/sources/{id}/rejected	401	403	403	404	403	403
+POST /api/v1/ops/sources/{id}/synchronizations	401	403	403	404	403	403
+GET /api/v1/preferences	401	200	200	200	200	200
+PUT /api/v1/preferences/mise-en-page	401	400	400	400	400	400
+PUT /api/v1/preferences/profils	401	400	400	400	400	400
+GET /api/v1/preferences/rubriques	401	200	200	200	200	200
+POST /api/v1/profils/artiste/collectes	401	403	403	200	403	403
+GET /api/v1/profils/artiste/listes	401	200	200	200	200	200
+GET /api/v1/profils/artiste/opportunites	401	409	409	409	409	409
+GET /api/v1/profils/artiste/opportunites/{id}/resume	401	409	409	409	409	409
+GET /api/v1/profils/artiste/sources	401	403	403	200	403	403
+POST /api/v1/profils/artiste/sources	401	403	403	400	403	403
+PUT /api/v1/profils/artiste/sources/{id}/conditions-usage	401	403	403	404	403	403
+GET /api/v1/profils/artiste/suivis	401	409	409	409	409	409
+PUT /api/v1/profils/artiste/suivis	401	409	409	409	409	409
+GET /api/v1/projects	401	200	200	200	200	200
+GET /api/v1/projects/{projectId}/activite	401	200	200	404	404	200
+GET /api/v1/projects/{projectId}/activite/synthese	401	200	200	404	404	200
+GET /api/v1/projects/{projectId}/impacts	401	200	200	404	404	200
+GET /api/v1/projects/{projectId}/inventory	401	200	200	404	404	200
+GET /api/v1/projects/{projectId}/inventory/components	401	200	200	404	404	200
+GET /api/v1/projects/{projectId}/inventory/failures	401	200	200	404	404	200
+GET /api/v1/projects/{projectId}/inventory/summary	401	200	200	404	404	200
+GET /api/v1/radar/espaces/{espaceId}/dettes	401	200	200	404	404	200
+GET /api/v1/radar/espaces/{espaceId}/echeances	401	200	200	404	404	200
+GET /api/v1/radar/espaces/{espaceId}/parametres	401	200	200	404	404	200
+PUT /api/v1/radar/espaces/{espaceId}/parametres	401	403	400	404	404	403
+GET /api/v1/radar/espaces/{espaceId}/standards	401	200	200	404	404	200
+PUT /api/v1/radar/espaces/{espaceId}/standards	401	403	400	404	404	403
+GET /api/v1/radar/espaces/{espaceId}/standards/historique	401	400	400	404	404	400
+GET /api/v1/radar/espaces/{espaceId}/suggestions	401	200	200	404	404	200
+POST /api/v1/radar/espaces/{espaceId}/suggestions/{suggestionId}/decision	401	403	400	404	404	403
+GET /api/v1/recherche	401	200	200	200	200	200
+GET /api/v1/reglementaire/calendrier	401	200	200	200	200	200
+GET /api/v1/reglementaire/collecte	401	403	403	200	403	403
+POST /api/v1/reglementaire/collectes	401	403	403	200	403	403
+GET /api/v1/reglementaire/espaces/{espaceId}/domaines	401	200	200	404	404	200
+DELETE /api/v1/reglementaire/espaces/{espaceId}/domaines/{code}	401	403	404	404	404	403
+PUT /api/v1/reglementaire/espaces/{espaceId}/domaines/{code}	401	403	400	404	404	403
+PUT /api/v1/reglementaire/espaces/{espaceId}/domaines/{code}/experts	401	403	400	404	404	403
+PUT /api/v1/reglementaire/espaces/{espaceId}/domaines/{code}/regles	401	403	400	404	404	403
+GET /api/v1/reglementaire/espaces/{espaceId}/rappels	401	200	200	404	404	200
+PUT /api/v1/reglementaire/espaces/{espaceId}/rappels	401	403	400	404	404	403
+GET /api/v1/reglementaire/fiches	401	200	200	200	200	200
+GET /api/v1/reglementaire/fiches/{id}	401	200	200	404	404	200
+PUT /api/v1/reglementaire/fiches/{id}	401	403	403	404	404	409
+PUT /api/v1/reglementaire/fiches/{id}/demande-evolution	401	403	403	404	404	400
+POST /api/v1/reglementaire/fiches/{id}/rejet	401	403	403	404	404	409
+POST /api/v1/reglementaire/fiches/{id}/transitions	401	403	403	404	404	409
+POST /api/v1/reglementaire/fiches/{id}/validation	401	403	403	404	404	409
+GET /api/v1/signals/{id}	401	404	404	404	404	404
+GET /api/v1/signals/{id}/impacts	401	404	404	404	404	404
+GET /api/v1/signals/{id}/versions/{versionId}/raw	401	404	404	404	404	404
+GET /api/v1/subscriptions	401	200	200	200	200	200
+POST /api/v1/subscriptions	401	400	400	400	400	400
+DELETE /api/v1/subscriptions/{id}	401	404	404	404	404	404
+POST /api/v1/subscriptions/{id}/leave	401	404	404	404	404	404
+POST /api/v1/subscriptions/{id}/reactivation	401	404	404	404	404	404
+POST /api/v1/subscriptions/{id}/suspension	401	404	404	404	404	404
+GET /api/v1/system/info	200	200	200	200	200	200
+GET /api/v1/veille-web/actualites	401	200	200	200	200	200
+GET /api/v1/veille-web/actualites/{id}	401	404	404	404	404	404
+POST /api/v1/veille-web/actualites/{id}/resume-ia	401	404	404	404	404	404
+GET /api/v1/veille-web/sources	401	200	200	200	200	200
+POST /api/v1/veille-web/sources	401	400	400	400	400	400
+DELETE /api/v1/veille-web/sources/{id}	401	404	404	404	404	404
+POST /api/v1/veille-web/sources/{id}/collectes	401	404	404	404	404	404
+GET /api/v1/vues	401	200	200	200	200	200
+POST /api/v1/vues	401	400	400	400	400	400
+GET /api/v1/vues/{id}	401	404	404	404	404	404
+DELETE /api/v1/vues/{id}	401	404	404	404	404	404
+GET /api/v1/vues/{id}/resultats	401	404	404	404	404	404

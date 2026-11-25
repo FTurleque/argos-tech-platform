@@ -75,6 +75,7 @@ Les ADR enregistrent les décisions architecturales importantes d’ARGOS.
 
 - [ADR-0027 — Keycloak auto-hébergé comme fournisseur d'identité](0027-keycloak-idp-auto-heberge.md) — **Accepté** ; complète ADR-0008
 - [ADR-0033 — Session OIDC de l'IHM en mémoire, desktop connecté par l'interface de bouclage](0033-session-oidc-ihm-memoire-bouclage.md) — **Accepté** ; complète ADR-0027, précise ADR-0022 point 6
+- [ADR-0038 — Configuration de l'IHM lue à l'exécution dans la réponse publique du serveur](0038-configuration-ihm-a-l-execution.md) — Proposé ; complète ADR-0033
 
 ### Collecte
 

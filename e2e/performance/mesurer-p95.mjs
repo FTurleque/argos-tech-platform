@@ -117,6 +117,10 @@ async function demarrerServeur() {
     QUARKUS_HTTP_PORT: new URL(URL_API).port,
     // Le débit MCP par compte (60 par minute en développement) limiterait la campagne : borne relevée comme en test.
     ARGOS_MCP_DEBIT_REQUETES_PAR_MINUTE: '1000000',
+    // Un seul compte envoie les 200 appels de « Ma veille » (PRF-07-S1) et des recherches (60 par minute et par compte
+    // en développement, PRF-08, RCH-06) : bornes relevées de même.
+    ARGOS_VEILLE_DEBIT_REQUETES_PAR_MINUTE: '1000000',
+    ARGOS_RECHERCHE_DEBIT_REQUETES_PAR_MINUTE: '1000000',
   }
   const lancement = lancementMaven(cheminMavenExige(), ['-B', '-q', '-f', join(RACINE, 'argos-server', 'pom.xml'),
     'quarkus:dev', '-Dquarkus.console.enabled=false'])

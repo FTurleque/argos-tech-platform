@@ -41,16 +41,16 @@ Un préfixe n'est jamais réattribué ; un identifiant d'exigence retiré n'est 
 | `abonnements-veille` | `ABO` | [fiche](abonnements-veille.md) | absente | `formaliser-chaine-securite-poc` ; `automatiser-chaine-veille` (ABO-07, ABO-08) | proposée |
 | `performance-api-mcp` | `PERF` | [fiche](performance-api-mcp.md) | absente | `automatiser-chaine-veille` | proposée |
 | `affichage-personnalise` | `AFF` | [fiche](affichage-personnalise.md) | [spec](/openspec/specs/affichage-personnalise/spec.md) | `2026-11-19-personnaliser-profils-et-affichage` (archivé) | livrée |
-| `profils-veille` | `PRF` | [fiche](profils-veille.md) | [spec](/openspec/specs/profils-veille/spec.md) | `2026-11-19-personnaliser-profils-et-affichage` (archivé) ; `optimiser-ma-veille` (PRF-07) | livrée ; PRF-07 implémentée, non archivée |
-| `comptes-acces` | `ACC` | [fiche](comptes-acces.md) | [spec](/openspec/specs/comptes-acces/spec.md) | `2026-11-17-gerer-comptes-et-acces` (archivé) ; `2026-11-18-connecter-ihm-oidc` (archivé, ACC-07 à ACC-10) | livrée |
-| `alertes-digests` | `ALR` | [fiche](alertes-digests.md) | [spec](/openspec/specs/alertes-digests/spec.md) | `2026-11-16-diffuser-alertes-et-digests` (archivé) ; `automatiser-chaine-veille` (ALR-07, proposé) | livrée |
+| `profils-veille` | `PRF` | [fiche](profils-veille.md) | [spec](/openspec/specs/profils-veille/spec.md) | `2026-11-19-personnaliser-profils-et-affichage` (archivé) ; `optimiser-ma-veille` (PRF-07) ; `durcir-autorisations-et-debits` (PRF-08) | livrée ; PRF-07 et PRF-08 implémentées, non archivées |
+| `comptes-acces` | `ACC` | [fiche](comptes-acces.md) | [spec](/openspec/specs/comptes-acces/spec.md) | `2026-11-17-gerer-comptes-et-acces` (archivé) ; `2026-11-18-connecter-ihm-oidc` (archivé, ACC-07 à ACC-10) ; `rendre-portail-deployable` (ACC-11 à ACC-13) ; `durcir-autorisations-et-debits` (ACC-14) | livrée ; ACC-11 à ACC-14 implémentées, non archivées |
+| `alertes-digests` | `ALR` | [fiche](alertes-digests.md) | [spec](/openspec/specs/alertes-digests/spec.md) | `2026-11-16-diffuser-alertes-et-digests` (archivé) ; `automatiser-chaine-veille` (ALR-07, proposé) ; `durcir-autorisations-et-debits` (ALR-08) | livrée ; ALR-08 implémentée, non archivée |
 | `notifications-poste` | `NOT` | [fiche](notifications-poste.md) | absente | `notifier-sur-le-poste` | implémentée, non archivée |
 | `serveur-mcp` | `MCP` | [fiche](serveur-mcp.md) | [spec](/openspec/specs/serveur-mcp/spec.md) | `exposer-serveur-mcp` ; `2026-11-25-isoler-erreurs-aux-frontieres` (archivé, MCP-08) | proposée |
 | `passerelle-ia` | `IAG` | [fiche](passerelle-ia.md) | [spec](/openspec/specs/passerelle-ia/spec.md) | `2026-11-17-encadrer-appels-ia` (archivé) | livrée |
-| `veille-reglementaire` | `REG` | [fiche](veille-reglementaire.md) | [spec](/openspec/specs/veille-reglementaire/spec.md) | `2026-11-17-suivre-veille-reglementaire` (archivé) | livrée |
+| `veille-reglementaire` | `REG` | [fiche](veille-reglementaire.md) | [spec](/openspec/specs/veille-reglementaire/spec.md) | `2026-11-17-suivre-veille-reglementaire` (archivé) ; `durcir-autorisations-et-debits` (REG-09) | livrée ; REG-09 implémentée, non archivée |
 | `radar-standards` | `RAD` | [fiche](radar-standards.md) | [spec](/openspec/specs/radar-standards/spec.md) | `2026-11-16-construire-radar-et-standards` (archivé) ; `2026-11-25-isoler-erreurs-aux-frontieres` (archivé, RAD-07) | livrée |
 | `veille-rss-web` | `WEB` | [fiche](veille-rss-web.md) | [spec](/openspec/specs/veille-rss-web/spec.md) | `2026-11-16-collecter-veille-rss-web` (archivé) ; `2026-11-25-epingler-adresse-veille-web` (archivé, WEB-07) | livrée |
-| `recherche-veille` | `RCH` | [fiche](recherche-veille.md) | [spec](/openspec/specs/recherche-veille/spec.md) | `2026-11-18-rechercher-et-filtrer` (archivé) | livrée |
+| `recherche-veille` | `RCH` | [fiche](recherche-veille.md) | [spec](/openspec/specs/recherche-veille/spec.md) | `2026-11-18-rechercher-et-filtrer` (archivé) ; `durcir-autorisations-et-debits` (RCH-06) | livrée ; RCH-06 implémentée, non archivée |
 | `activite-projets` | `PIN` | [fiche](activite-projets.md) | [spec](/openspec/specs/activite-projets/spec.md) | `2026-11-17-mesurer-activite-projets` (archivé) | livrée |
 | `profil-artiste` | `ART` | [fiche](profil-artiste.md) | [spec](/openspec/specs/profil-artiste/spec.md) | `2026-11-17-ajouter-profil-artiste` (archivé) | livrée |
 | `exploitation-plateforme` | `EXP` | [fiche](exploitation-plateforme.md) | [spec](/openspec/specs/exploitation-plateforme/spec.md) | `2026-11-24-fiabiliser-sauvegarde-et-roles-base` (archivé, EXP-01 à EXP-06) ; `completer-configuration-conteneurs` ; `2026-11-25-instrumenter-observabilite` (archivé, EXP-13 à EXP-15) ; `durcir-conteneurs-de-service` | livrée (EXP-01 à EXP-06, EXP-13 à EXP-15) ; suite implémentée ou proposée, non archivée |
@@ -79,11 +79,13 @@ Un préfixe n'est jamais réattribué ; un identifiant d'exigence retiré n'est 
 | DF-PRF-2 | organigramme | comment se compose la veille d'un utilisateur à plusieurs profils ? | [profils-veille](profils-veille.md#df-prf-2--veille-dun-utilisateur-à-plusieurs-profils) |
 | DF-ACC-1 | organigramme | que se passe-t-il lors de la première connexion d'une personne ? | [comptes-acces](comptes-acces.md#df-acc-1--première-visite-dun-utilisateur) |
 | DF-ACC-2 | organigramme | que voit une personne qui ouvre une vue de l'IHM, selon sa session et la réponse de l'API ? | [comptes-acces](comptes-acces.md#df-acc-2--ouverture-dune-vue-de-lihm) |
+| DF-ACC-3 | diagramme d'états | quand l'écoute de bouclage du client desktop se ferme-t-elle ? | [comptes-acces](comptes-acces.md#df-acc-3--écoute-de-bouclage-du-client-desktop) |
 | DF-ALR-1 | organigramme | un élément part-il en alerte immédiate ou dans le résumé ? | [alertes-digests](alertes-digests.md#df-alr-1--alerte-immédiate-ou-résumé) |
 | DF-NOT-1 | organigramme | quand une alerte s'affiche-t-elle en notification système ? | [notifications-poste](notifications-poste.md#df-not-1--affichage-dune-alerte-sur-le-poste) |
 | DF-MCP-1 | organigramme | comment une question du développeur devient-elle une réponse sourcée ? | [serveur-mcp](serveur-mcp.md#df-mcp-1--une-question-posée-à-lassistant) |
 | DF-IAG-1 | organigramme | dans quels cas un élément reçoit-il un résumé produit par l'IA ? | [passerelle-ia](passerelle-ia.md#df-iag-1--un-résumé-est-il-produit-) |
 | DF-REG-1 | organigramme | quelles étapes un texte suit-il avant d'être diffusé ? | [veille-reglementaire](veille-reglementaire.md#df-reg-1--parcours-dun-texte-officiel) |
+| DF-REG-2 | séquence | dans quel ordre les contrôles et l'appel à la forge s'enchaînent-ils pour une demande d'évolution ? | [veille-reglementaire](veille-reglementaire.md#df-reg-2--association-dune-demande-dévolution) |
 | DF-RAD-1 | organigramme | que signifie chaque statut d'une technologie ? | [radar-standards](radar-standards.md#df-rad-1--statuts-du-référentiel) |
 | DF-WEB-1 | organigramme | quand une adresse proposée est-elle acceptée ? | [veille-rss-web](veille-rss-web.md#df-web-1--acceptation-dune-adresse) |
 | DF-RCH-1 | organigramme | dans quel ordre droits, mots et filtres s'appliquent-ils ? | [recherche-veille](recherche-veille.md#df-rch-1--une-recherche-filtrée) |
@@ -249,3 +251,12 @@ node scripts/verifier-docs.mjs
 ```
 
 Le script contrôle les liens internes, les blocs Mermaid et les identifiants d'exigences cités ; voir le guide pour le détail et les limites.
+
+### Couverture : déploiement du portail et durcissement des autorisations
+
+| Changement | Capacité | Exigences | Scénarios | Diagrammes | Tests écrits |
+|---|---|---|---|---|---|
+| [`rendre-portail-deployable`](/openspec/changes/rendre-portail-deployable/proposal.md) | `comptes-acces` | ACC-11 à ACC-13 | 12 | DC-1, DC-2 (arc42 §7.3, D-20) | tous les scénarios sauf ACC-11-S1 et ACC-11-S2, dont la recette est consignée dans [`recette-poste.md`](../deploiement/recette-poste.md) (R-7) |
+| [`durcir-autorisations-et-debits`](/openspec/changes/durcir-autorisations-et-debits/proposal.md) | `veille-reglementaire`, `alertes-digests`, `recherche-veille`, `profils-veille`, `comptes-acces` | REG-09, ALR-08, RCH-06, PRF-08, ACC-14 | 16 | DF-REG-2, DF-ACC-3 | tous les scénarios ; test matriciel point d'entrée × rôle (`MatriceRolesTest`, AUD-TST-05) |
+
+Ces exigences sont au statut [PROPOSITION] dans leurs fiches.

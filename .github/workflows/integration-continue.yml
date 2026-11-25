@@ -124,6 +124,9 @@ jobs:
       # EXP-07 : variables lues par le serveur, transmises par compose.yaml et décrites par .env.example.
       - name: Parité de la configuration de déploiement
         run: node scripts/verifier-configuration.mjs
+      # ACC-13-S4 : force brute, politique de mot de passe, TLS et adresses sans joker du royaume livré.
+      - name: Royaume Keycloak livré
+        run: node scripts/verifier-royaume.mjs
       - name: Dépendances de e2e
         working-directory: e2e
         run: npm ci --ignore-scripts

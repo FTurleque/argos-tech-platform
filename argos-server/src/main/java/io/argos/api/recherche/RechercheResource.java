@@ -12,9 +12,12 @@ import jakarta.ws.rs.Produces;
 import jakarta.ws.rs.core.MediaType;
 
 import org.eclipse.microprofile.openapi.annotations.Operation;
+import org.eclipse.microprofile.openapi.annotations.media.Content;
+import org.eclipse.microprofile.openapi.annotations.media.Schema;
 import org.eclipse.microprofile.openapi.annotations.responses.APIResponse;
 import org.eclipse.microprofile.openapi.annotations.tags.Tag;
 
+import io.argos.api.Erreur;
 import io.argos.api.security.Access;
 import io.argos.commun.securite.Caller;
 import io.argos.impact.RechercheVeille;
@@ -46,16 +49,22 @@ public class RechercheResource {
     @Inject
     TraductionCriteres traduction;
 
+    @Inject
+    LimiteRecherche limite;
+
     @GET
     @Operation(summary = "Recherche plein texte (français et anglais) et filtres combinables, du plus pertinent au moins pertinent")
     @APIResponse(responseCode = "200", description = "Page de résultats ; liste vide et message explicite si rien ne correspond")
     @APIResponse(responseCode = "400", description = "Filtre inconnu ou mal formé, paramètre page ou taille non entier ou hors bornes")
     @APIResponse(responseCode = "401", description = "Non authentifié")
+    @APIResponse(responseCode = "429", description = "Limite de débit du compte atteinte, en-tête Retry-After",
+            content = @Content(schema = @Schema(implementation = Erreur.class)))
     @APIResponse(responseCode = "404", description = "Projet filtré inconnu ou d'un espace dont l'appelant n'est pas membre"
             + " (même réponse, second refus journalisé), y compris avec un paramètre page ou taille non entier ou hors bornes :"
             + " les projets filtrés sont contrôlés avant la lecture de la pagination")
     public RechercheVeille.Resultats rechercher(@BeanParam ParametresRecherche parametres) {
         Caller appelant = access.authenticated();
+        limite.admettre(appelant.accountId());
         CriteresRecherche criteres = new CriteresRecherche(parametres.texte, uuids(parametres.projets),
                 nonVide(parametres.technologies), nonVide(parametres.types), parametres.gravite, parametres.horizon,
                 nonVide(parametres.profils));

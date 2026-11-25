@@ -2,15 +2,16 @@
 // réactif de l'IHM (changement connecter-ihm-oidc). La logique est dans gestionnaire.ts et oidc.ts.
 import { reactive, watch } from 'vue'
 import type { Router } from 'vue-router'
-import { ApiError, configurerAutorisation, fetchMoi, type CompteCourant } from '../api/client'
+import { ApiError, apiBaseUrl, configurerAutorisation, fetchMoi, type CompteCourant } from '../api/client'
 import { CODE_COMPTE_NON_CREE, type Refus } from '../api/autorisation'
 import { STATUT_INTERDIT } from '../api/statuts-http'
 import { GestionnaireSession, type DemandeAutorisation, type EtatSession, type TransportConnexion } from './gestionnaire'
 import { decisionExpiration, decisionGarde } from './garde'
+import { ConfigurationIndisponible, lireConfigurationOidc } from './configuration'
 import { contientRetour, urlNettoyee } from './oidc'
 
-const EMETTEUR_PAR_DEFAUT = 'http://localhost:8180/realms/argos'
-const CLIENT_PAR_DEFAUT = 'argos-ui'
+const MESSAGE_CONFIGURATION_INDISPONIBLE =
+  'Le serveur ne répond pas : la configuration de connexion est indisponible. Réessayez dans un instant.'
 
 /**
  * Seule donnée écrite dans le stockage de session du navigateur, et seulement le temps de la
@@ -109,24 +110,50 @@ function transportDesktop(pont: ArgosDesktopBridge): TransportConnexion {
   }
 }
 
-const gestionnaire = new GestionnaireSession({
-  config: {
-    emetteur: import.meta.env.VITE_ARGOS_OIDC_ISSUER || EMETTEUR_PAR_DEFAUT,
-    clientId: import.meta.env.VITE_ARGOS_OIDC_CLIENT_ID || CLIENT_PAR_DEFAUT,
-    portee: 'openid',
-  },
-  fetch: (url, init) => window.fetch(url, init),
-  transport: window.argosDesktop ? transportDesktop(window.argosDesktop) : transportWeb,
-  surEtat(etat, message) {
-    etatSession.etat = etat
-    etatSession.message = message
-    if (etat !== 'CONNECTE') {
-      etatSession.compte = null
-      etatSession.compteNonCree = false
-      etatSession.refus = null
-    }
-  },
-})
+function surEtat(etat: EtatSession, message: string | null): void {
+  etatSession.etat = etat
+  etatSession.message = message
+  if (etat !== 'CONNECTE') {
+    etatSession.compte = null
+    etatSession.compteNonCree = false
+    etatSession.refus = null
+  }
+}
+
+/** Créé après la lecture de l'émetteur de l'instance (ACC-11) ; absent tant que le serveur n'a pas répondu. */
+let gestionnaire: GestionnaireSession | undefined
+
+/** Lecture de la configuration en cours : le chargement de la page et un clic sur « Se connecter » la partagent. */
+let chargement: Promise<GestionnaireSession | undefined> | undefined
+
+/**
+ * Lit l'émetteur et le client de l'instance puis crée le gestionnaire de session. Sans réponse valable du
+ * serveur, aucune connexion n'est tentée : l'état d'erreur le dit sur l'écran de connexion.
+ */
+function obtenirGestionnaire(): Promise<GestionnaireSession | undefined> {
+  if (gestionnaire !== undefined) return Promise.resolve(gestionnaire)
+  chargement ??= creerGestionnaire().finally(() => {
+    chargement = undefined
+  })
+  return chargement
+}
+
+async function creerGestionnaire(): Promise<GestionnaireSession | undefined> {
+  try {
+    const config = await lireConfigurationOidc((url, init) => window.fetch(url, init), apiBaseUrl)
+    gestionnaire = new GestionnaireSession({
+      config,
+      fetch: (url, init) => window.fetch(url, init),
+      transport: window.argosDesktop ? transportDesktop(window.argosDesktop) : transportWeb,
+      surEtat,
+    })
+  } catch (error_) {
+    if (!(error_ instanceof ConfigurationIndisponible)) throw error_
+    // La couche session n'écrit aucun journal : la cause est donnée à l'utilisateur dans le message affiché.
+    surEtat('ERREUR', `${MESSAGE_CONFIGURATION_INDISPONIBLE} (${error_.message})`)
+  }
+  return gestionnaire
+}
 
 /** Vrai si les vues protégées sont accessibles (session ouverte et compte créé). */
 export function sessionOuverte(): boolean {
@@ -154,16 +181,20 @@ async function apresConnexion(vue: string | null): Promise<string | null> {
 
 /** Au chargement : reprend un retour du fournisseur laissé dans l'adresse (portail web). */
 export async function demarrerSession(): Promise<string | null> {
-  return apresConnexion(await gestionnaire.reprendre())
+  const session = await obtenirGestionnaire()
+  if (session === undefined) return null
+  return apresConnexion(await session.reprendre())
 }
 
 /** Lance la connexion ; renvoie la vue à afficher si elle aboutit sans quitter la page (desktop). */
 export async function seConnecter(retour: string): Promise<string | null> {
-  return apresConnexion(await gestionnaire.seConnecter(retour))
+  const session = await obtenirGestionnaire()
+  if (session === undefined) return null
+  return apresConnexion(await session.seConnecter(retour))
 }
 
 export function seDeconnecter(): void {
-  gestionnaire.deconnecter()
+  gestionnaire?.deconnecter()
 }
 
 export function oublierRefus(): void {
@@ -173,11 +204,11 @@ export function oublierRefus(): void {
 /** Branche le client REST et la garde des vues sur la session (ACC-07-S1, ACC-09). */
 export function installerSession(router: Router): void {
   configurerAutorisation({
-    jeton: () => gestionnaire.jetonAcces(),
+    jeton: () => gestionnaire?.jetonAcces() ?? null,
     surRefus(refus: Refus) {
       if (refus === 'NON_AUTHENTIFIE') {
         // L'écran de connexion est ouvert par le suivi de l'état « session expirée » ci-dessous.
-        if (gestionnaire.etat === 'CONNECTE') gestionnaire.expirer()
+        if (gestionnaire?.etat === 'CONNECTE') gestionnaire.expirer()
       } else if (refus === 'COMPTE_NON_CREE') {
         etatSession.compteNonCree = true
         void router.push({ name: 'compte-non-cree' })

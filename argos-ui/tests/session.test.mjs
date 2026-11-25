@@ -5,6 +5,7 @@ import { test } from 'node:test'
 import assert from 'node:assert/strict'
 import { createHash } from 'node:crypto'
 import { GestionnaireSession } from '../src/session/gestionnaire.ts'
+import { ConfigurationIndisponible, lireConfigurationOidc } from '../src/session/configuration.ts'
 
 const EMETTEUR = 'http://kc.test/realms/argos'
 
@@ -305,4 +306,55 @@ test('RFC 9207 : un retour annonçant un autre émetteur n’échange aucun code
   assert.equal(await session.seConnecter('/'), null)
   assert.equal(session.etat, 'ERREUR')
   assert.equal(fournisseurSimule.appels.some((appel) => appel.url.endsWith('/token')), false)
+})
+
+// ACC-11, ACC-11-S3 : l'émetteur et le client viennent de la réponse publique du serveur, sans valeur de repli.
+const SERVEUR = 'https://argos.test'
+
+/** Serveur simulé : renvoie le statut et le corps donnés pour l'identité du serveur. */
+function serveurIdentite(statut, corps) {
+  const appels = []
+  const fetcher = async (url, init) => {
+    appels.push({ url, init })
+    if (corps instanceof Error) throw corps
+    return new Response(typeof corps === 'string' ? corps : JSON.stringify(corps), { status: statut })
+  }
+  return { fetcher, appels }
+}
+
+test("la configuration OIDC est lue dans l'identité publique du serveur", async () => {
+  const { fetcher, appels } = serveurIdentite(200, {
+    application: 'argos-server', version: '1', apiVersion: 'v1',
+    oidcIssuer: 'https://auth.exemple.fr/realms/argos', oidcClientId: 'argos-ui',
+  })
+  const config = await lireConfigurationOidc(fetcher, SERVEUR)
+  assert.deepEqual(config, { emetteur: 'https://auth.exemple.fr/realms/argos', clientId: 'argos-ui', portee: 'openid' })
+  assert.equal(appels.length, 1)
+  assert.equal(appels[0].url, `${SERVEUR}/api/v1/system/info`)
+  assert.equal(appels[0].init.headers.Authorization, undefined, 'la lecture se fait sans jeton')
+})
+
+test('un autre émetteur configuré sur le serveur est repris sans reconstruction', async () => {
+  const lire = (emetteur) => lireConfigurationOidc(
+    serveurIdentite(200, { oidcIssuer: emetteur, oidcClientId: 'argos-ui' }).fetcher, SERVEUR)
+  assert.equal((await lire('https://premier.test/realms/argos')).emetteur, 'https://premier.test/realms/argos')
+  assert.equal((await lire('https://second.test/realms/argos')).emetteur, 'https://second.test/realms/argos')
+})
+
+test("sans réponse valable, la configuration est indisponible et aucun repli vers localhost n'existe", async () => {
+  const echecs = [
+    serveurIdentite(200, new TypeError('réseau coupé')),
+    serveurIdentite(503, {}),
+    serveurIdentite(200, 'pas du JSON'),
+    serveurIdentite(200, { application: 'argos-server' }),
+    serveurIdentite(200, { oidcIssuer: '  ', oidcClientId: 'argos-ui' }),
+    serveurIdentite(200, { oidcIssuer: 'https://auth.test/realms/argos' }),
+  ]
+  for (const { fetcher } of echecs) {
+    await assert.rejects(lireConfigurationOidc(fetcher, SERVEUR), (erreur) => {
+      assert.ok(erreur instanceof ConfigurationIndisponible)
+      assert.ok(!String(erreur.message).includes('localhost'))
+      return true
+    })
+  }
 })

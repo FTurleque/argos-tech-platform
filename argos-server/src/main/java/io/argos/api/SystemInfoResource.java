@@ -20,8 +20,13 @@ import org.eclipse.microprofile.openapi.annotations.tags.Tag;
 @Tag(name = "Système")
 public class SystemInfoResource {
 
-    /** Réponse publique : aucune donnée de projet ni d'utilisateur. */
-    public record SystemInfo(String application, String version, String apiVersion) {
+    /**
+     * Réponse publique : aucune donnée de projet ni d'utilisateur. {@code oidcIssuer} et {@code oidcClientId}
+     * désignent l'émetteur public et le client public de l'IHM : l'IHM les lit avant d'ouvrir sa session
+     * (ACC-11) ; ils sont déjà visibles de quiconque lance une connexion et ne portent aucun secret.
+     */
+    public record SystemInfo(String application, String version, String apiVersion, String oidcIssuer,
+            String oidcClientId) {
     }
 
     @ConfigProperty(name = "quarkus.application.name", defaultValue = "argos-server")
@@ -30,10 +35,16 @@ public class SystemInfoResource {
     @ConfigProperty(name = "quarkus.application.version", defaultValue = "inconnue")
     String applicationVersion;
 
+    @ConfigProperty(name = "argos.ui.oidc.emetteur")
+    String emetteurPublic;
+
+    @ConfigProperty(name = "argos.ui.oidc.client-id")
+    String clientIdIhm;
+
     @GET
     @Produces(MediaType.APPLICATION_JSON)
     @Operation(summary = "Identité et version du serveur ARGOS")
-    public SystemInfo info() {
-        return new SystemInfo(applicationName, applicationVersion, "v1");
+    public SystemInfo lireIdentiteServeur() {
+        return new SystemInfo(applicationName, applicationVersion, "v1", emetteurPublic, clientIdIhm);
     }
 }

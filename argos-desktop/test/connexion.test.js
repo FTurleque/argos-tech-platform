@@ -163,3 +163,82 @@ test('l’URL ouverte est reconstruite depuis l’émetteur configuré, avec les
   const autreChemin = urlAutorisation(redirectUri).replace('/protocol/openid-connect/auth', '/protocol/openid-connect/logout');
   assert.equal(urlAutorisationSure(autreChemin, contexte), undefined);
 });
+
+/** Envoie chaque retour à l'écoute et relève la réponse et l'état de l'écoute juste après. */
+async function envoyerRetours(retour, recherches, connexion) {
+  const releves = [];
+  for (const recherche of recherches) {
+    const reponse = await lire(`${retour}${recherche}`);
+    releves.push({ status: reponse.status, corps: reponse.corps, ecouteOuverte: connexion.enAttente() });
+  }
+  return releves;
+}
+
+test('ACC-14-S1 : un retour au state absent ou différent reçoit 400, ne transmet rien et laisse l’écoute ouverte', async () => {
+  const retoursEtrangers = [
+    '?code=code-etranger',
+    '?state=&code=code-etranger',
+    '?state=etat-2&code=code-etranger',
+    '?state=etat-1x&code=code-etranger',
+    '?state=etat&code=code-etranger',
+  ];
+  const statuts = [];
+  let premierPlan = 0;
+  const { connexion } = installer({
+    deps: { afficherFenetre: () => { premierPlan += 1; } },
+    ouvrir: (url) => {
+      const retour = new URL(url).searchParams.get('redirect_uri');
+      setImmediate(async () => {
+        statuts.push(...await envoyerRetours(retour, retoursEtrangers, connexion));
+        // ACC-14-S2 : puis le retour au bon state est transmis et l'écoute se ferme.
+        await lire(`${retour}?state=etat-1&session_state=x&code=bon-code`);
+      });
+    },
+  });
+  const redirectUri = await connexion.preparer();
+  const recherche = await connexion.autoriser(urlAutorisation(redirectUri));
+  assert.equal(statuts.length, retoursEtrangers.length);
+  for (const { status, corps, ecouteOuverte } of statuts) {
+    assert.equal(status, 400);
+    assert.equal(corps, 'Requête invalide');
+    assert.doesNotMatch(corps, /code-etranger|etat/);
+    assert.equal(ecouteOuverte, true, 'l’écoute reste ouverte');
+  }
+  assert.equal(recherche, '?state=etat-1&session_state=x&code=bon-code', 'seul le bon retour est transmis');
+  assert.equal(premierPlan, 1, 'la fenêtre ne passe au premier plan que pour le bon retour');
+  assert.equal(connexion.enAttente(), false);
+});
+
+test('ACC-14-S2 : le retour au bon state est transmis et ferme l’écoute après des retours étrangers', async () => {
+  const { connexion } = installer({
+    ouvrir: (url) => {
+      const retour = new URL(url).searchParams.get('redirect_uri');
+      setImmediate(async () => {
+        await lire(`${retour}?state=autre&code=intrus`);
+        await lire(`${retour}?state=etat-1&code=attendu`);
+      });
+    },
+  });
+  const redirectUri = await connexion.preparer();
+  assert.equal(await connexion.autoriser(urlAutorisation(redirectUri)), '?state=etat-1&code=attendu');
+  assert.equal(connexion.enAttente(), false);
+  await assert.rejects(lire(redirectUri));
+});
+
+test('ACC-14 : le state retenu est celui de la dernière URL validée, et un retour sans demande en cours est refusé', async () => {
+  const { connexion } = installer({
+    ouvrir: (url) => {
+      const retour = new URL(url).searchParams.get('redirect_uri');
+      setImmediate(async () => {
+        const ancien = await lire(`${retour}?state=etat-1&code=ancien`);
+        assert.equal(ancien.status, 400, 'le state d’une autre demande n’ouvre pas l’écoute');
+        await lire(`${retour}?state=etat-7&code=courant`);
+      });
+    },
+  });
+  const redirectUri = await connexion.preparer();
+  assert.equal(await connexion.autoriser(urlAutorisation(redirectUri, { state: 'etat-7' })), '?state=etat-7&code=courant');
+  const sansDemande = await connexion.preparer();
+  assert.equal((await lire(`${sansDemande}?state=etat-7&code=x`)).status, 404, 'sans attente de retour, rien n’est accepté');
+  connexion.fermer();
+});
