@@ -1,12 +1,8 @@
 package io.argos.signal;
 
-import java.sql.Connection;
-import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.time.Instant;
-import java.time.OffsetDateTime;
-import java.util.ArrayList;
 import java.util.Collection;
 import java.util.HashMap;
 import java.util.LinkedHashMap;
@@ -18,7 +14,6 @@ import java.util.Optional;
 import java.util.Set;
 import java.util.UUID;
 
-import javax.sql.DataSource;
 
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.inject.Inject;
@@ -29,6 +24,8 @@ import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 
 import io.argos.catalog.PackageKey;
+import io.argos.commun.Conversions;
+import io.argos.commun.Jdbc;
 
 /**
  * Consultation des signaux de sécurité. Les signaux sont globaux (ADR-0016) : aucune donnée
@@ -96,22 +93,11 @@ public class SignalQueries {
     }
 
     @Inject
-    DataSource dataSource;
+    Jdbc jdbc;
 
     @Transactional
     public Optional<SignalView> find(UUID id) {
-        try (Connection connexion = dataSource.getConnection();
-                PreparedStatement requete = connexion.prepareStatement(VUE + " WHERE id = ?")) {
-            requete.setObject(1, id);
-            try (ResultSet resultat = requete.executeQuery()) {
-                if (!resultat.next()) {
-                    return Optional.empty();
-                }
-                return Optional.of(view(resultat));
-            }
-        } catch (SQLException erreur) {
-            throw new IllegalStateException("lecture du signal impossible", erreur);
-        }
+        return jdbc.unique(VUE + " WHERE id = ?", Jdbc.parametres(id), SignalQueries::view);
     }
 
     /**
@@ -126,18 +112,9 @@ public class SignalQueries {
         if (ids.isEmpty()) {
             return new LinkedHashMap<>();
         }
-        try (Connection connexion = dataSource.getConnection();
-                PreparedStatement requete = connexion.prepareStatement(VUE + " WHERE id = ANY (?)")) {
-            requete.setArray(1, connexion.createArrayOf("uuid", new LinkedHashSet<>(ids).toArray()));
-            try (ResultSet resultat = requete.executeQuery()) {
-                while (resultat.next()) {
-                    SignalView signal = view(resultat);
-                    lus.put(signal.id(), signal);
-                }
-            }
-        } catch (SQLException erreur) {
-            throw new IllegalStateException("lecture des signaux impossible", erreur);
-        }
+        jdbc.lister(VUE + " WHERE id = ANY (?)",
+                requete -> requete.setArray(1, requete.getConnection().createArrayOf("uuid", new LinkedHashSet<>(ids).toArray())),
+                SignalQueries::view).forEach(signal -> lus.put(signal.id(), signal));
         Map<UUID, SignalView> ordonnes = new LinkedHashMap<>();
         for (UUID id : ids) {
             SignalView signal = lus.get(id);
@@ -156,38 +133,19 @@ public class SignalQueries {
 
     @Transactional
     public List<SignalVersionView> versions(UUID signalId) {
-        List<SignalVersionView> versions = new ArrayList<>();
-        String sql = """
+        return jdbc.lister("""
                 SELECT id, version_no, content_hash, source_modified_at, collected_at FROM signal_version
                 WHERE signal_id = ? ORDER BY version_no
-                """;
-        try (Connection connexion = dataSource.getConnection(); PreparedStatement requete = connexion.prepareStatement(sql)) {
-            requete.setObject(1, signalId);
-            try (ResultSet resultat = requete.executeQuery()) {
-                while (resultat.next()) {
-                    versions.add(new SignalVersionView(resultat.getObject(1, UUID.class), resultat.getInt(2), resultat.getString(3).trim(),
-                            instant(resultat, 4), instant(resultat, 5)));
-                }
-            }
-        } catch (SQLException erreur) {
-            throw new IllegalStateException("lecture de l'historique impossible", erreur);
-        }
-        return versions;
+                """, Jdbc.parametres(signalId), resultat -> new SignalVersionView(resultat.getObject(1, UUID.class),
+                resultat.getInt(2), resultat.getString(3).trim(), Conversions.instant(resultat, 4),
+                Conversions.instant(resultat, 5)));
     }
 
     /** Contenu brut reçu pour une version du signal (COL-02). */
     @Transactional
     public Optional<String> rawContent(UUID signalId, UUID versionId) {
-        String sql = "SELECT raw_content FROM signal_version WHERE signal_id = ? AND id = ?";
-        try (Connection connexion = dataSource.getConnection(); PreparedStatement requete = connexion.prepareStatement(sql)) {
-            requete.setObject(1, signalId);
-            requete.setObject(2, versionId);
-            try (ResultSet resultat = requete.executeQuery()) {
-                return resultat.next() ? Optional.of(resultat.getString(1)) : Optional.empty();
-            }
-        } catch (SQLException erreur) {
-            throw new IllegalStateException("lecture du contenu brut impossible", erreur);
-        }
+        return jdbc.unique("SELECT raw_content FROM signal_version WHERE signal_id = ? AND id = ?",
+                Jdbc.parametres(signalId, versionId), resultat -> resultat.getString(1));
     }
 
     /** Signaux dont un paquet affecté a l'une des clés données. */
@@ -196,34 +154,18 @@ public class SignalQueries {
         if (packageKeys.isEmpty()) {
             return List.of();
         }
-        try (Connection connexion = dataSource.getConnection(); PreparedStatement requete = connexion.prepareStatement(
-                "SELECT DISTINCT signal_id FROM signal_package WHERE package_key = ANY (?)")) {
-            requete.setArray(1, connexion.createArrayOf("varchar", packageKeys.toArray()));
-            return ids(requete);
-        } catch (SQLException erreur) {
-            throw new IllegalStateException("recherche des signaux par paquet impossible", erreur);
-        }
+        return jdbc.lister("SELECT DISTINCT signal_id FROM signal_package WHERE package_key = ANY (?)",
+                requete -> requete.setArray(1, requete.getConnection().createArrayOf("varchar", packageKeys.toArray())),
+                resultat -> resultat.getObject(1, UUID.class));
     }
 
     /** Identifiants CVE référencés par les alias d'un signal (enrichissement, COL-04). */
     @Transactional
     public List<String> cveAliases(UUID signalId) {
-        List<String> cves = new ArrayList<>();
-        try (Connection connexion = dataSource.getConnection(); PreparedStatement requete = connexion.prepareStatement("""
+        return jdbc.lister("""
                 SELECT alias FROM signal_alias WHERE signal_id = ? AND alias LIKE 'CVE-%'
                 UNION SELECT external_id FROM signal WHERE id = ? AND external_id LIKE 'CVE-%' ORDER BY 1
-                """)) {
-            requete.setObject(1, signalId);
-            requete.setObject(2, signalId);
-            try (ResultSet resultat = requete.executeQuery()) {
-                while (resultat.next()) {
-                    cves.add(resultat.getString(1));
-                }
-            }
-        } catch (SQLException erreur) {
-            throw new IllegalStateException("lecture des alias impossible", erreur);
-        }
-        return cves;
+                """, Jdbc.parametres(signalId, signalId), resultat -> resultat.getString(1));
     }
 
     /** Signaux correspondant à au moins un critère de veille, du plus récent au plus ancien. */
@@ -255,40 +197,19 @@ public class SignalQueries {
                    OR s.source = ANY (?)
                 ORDER BY s.modified_at DESC LIMIT ?
                 """;
-        List<UUID> ids;
-        try (Connection connexion = dataSource.getConnection(); PreparedStatement requete = connexion.prepareStatement(sql)) {
-            requete.setArray(1, connexion.createArrayOf("varchar", ecosystems.toArray()));
-            requete.setArray(2, connexion.createArrayOf("varchar", types.toArray()));
-            requete.setArray(3, connexion.createArrayOf("varchar", names.toArray()));
-            requete.setArray(4, connexion.createArrayOf("varchar", keys.toArray()));
-            requete.setArray(5, connexion.createArrayOf("varchar", sources.toArray()));
+        List<UUID> ids = jdbc.lister(sql, requete -> {
+            requete.setArray(1, requete.getConnection().createArrayOf("varchar", ecosystems.toArray()));
+            requete.setArray(2, requete.getConnection().createArrayOf("varchar", types.toArray()));
+            requete.setArray(3, requete.getConnection().createArrayOf("varchar", names.toArray()));
+            requete.setArray(4, requete.getConnection().createArrayOf("varchar", keys.toArray()));
+            requete.setArray(5, requete.getConnection().createArrayOf("varchar", sources.toArray()));
             requete.setInt(6, limit);
-            ids = ids(requete);
-        } catch (SQLException erreur) {
-            throw new IllegalStateException("recherche de veille impossible", erreur);
-        }
+        }, resultat -> resultat.getObject(1, UUID.class));
         return List.copyOf(findAll(ids).values());
     }
 
     private List<UUID> findIds(String sql, Object... params) {
-        try (Connection connexion = dataSource.getConnection(); PreparedStatement requete = connexion.prepareStatement(sql)) {
-            for (int position = 0; position < params.length; position++) {
-                requete.setObject(position + 1, params[position]);
-            }
-            return ids(requete);
-        } catch (SQLException erreur) {
-            throw new IllegalStateException("requête sur les signaux impossible", erreur);
-        }
-    }
-
-    private static List<UUID> ids(PreparedStatement requete) throws SQLException {
-        List<UUID> ids = new ArrayList<>();
-        try (ResultSet resultat = requete.executeQuery()) {
-            while (resultat.next()) {
-                ids.add(resultat.getObject(1, UUID.class));
-            }
-        }
-        return ids;
+        return jdbc.lister(sql, Jdbc.parametres(params), resultat -> resultat.getObject(1, UUID.class));
     }
 
     private static SignalView view(ResultSet resultat) throws SQLException {
@@ -300,12 +221,7 @@ public class SignalQueries {
         }
         String[] aliases = (String[]) resultat.getArray(12).getArray();
         return new SignalView(resultat.getObject(1, UUID.class), resultat.getString(2), resultat.getString(3), resultat.getString(4),
-                resultat.getString(5), resultat.getString(6), instant(resultat, 7), instant(resultat, 8), instant(resultat, 9),
-                resultat.getObject(10, UUID.class), List.of(aliases), affected);
-    }
-
-    private static Instant instant(ResultSet resultat, int column) throws SQLException {
-        OffsetDateTime value = resultat.getObject(column, OffsetDateTime.class);
-        return value == null ? null : value.toInstant();
+                resultat.getString(5), resultat.getString(6), Conversions.instant(resultat, 7), Conversions.instant(resultat, 8),
+                Conversions.instant(resultat, 9), resultat.getObject(10, UUID.class), List.of(aliases), affected);
     }
 }

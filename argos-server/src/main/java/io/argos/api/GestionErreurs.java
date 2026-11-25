@@ -7,15 +7,15 @@ import jakarta.ws.rs.core.Response.Status;
 import org.jboss.resteasy.reactive.RestResponse;
 import org.jboss.resteasy.reactive.server.ServerExceptionMapper;
 
-import io.argos.api.security.LimiteDebitAtteinte;
+import io.argos.commun.securite.LimiteDebitAtteinte;
 import io.argos.audit.JournalRefus;
-import io.argos.workspace.AccesRefuse;
+import io.argos.commun.AccesRefuse;
 import io.argos.workspace.Compte;
-import io.argos.workspace.DonneeInvalide;
+import io.argos.commun.DonneeInvalide;
 import io.argos.workspace.InscriptionRefusee;
-import io.argos.workspace.Introuvable;
-import io.argos.workspace.MotifRefus;
-import io.argos.workspace.RegleViolee;
+import io.argos.commun.Introuvable;
+import io.argos.commun.MotifRefus;
+import io.argos.commun.RegleViolee;
 import io.argos.workspace.subscription.SubscriptionRejectedException;
 
 /**

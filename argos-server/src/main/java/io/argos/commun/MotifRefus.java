@@ -1,4 +1,4 @@
-package io.argos.workspace;
+package io.argos.commun;
 
 /** Motif d'un refus d'accès à une ressource d'espace. */
 public enum MotifRefus {

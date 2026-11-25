@@ -14,7 +14,7 @@ import io.argos.catalog.dictionnaire.DictionnaireMetier.DictionnaireEspace;
 import io.argos.catalog.dictionnaire.DictionnaireMetier.Domaine;
 import io.argos.catalog.dictionnaire.DictionnaireMetier.Regle;
 import io.argos.catalog.dictionnaire.DictionnaireMetier.TypeRegle;
-import io.argos.workspace.RegleViolee;
+import io.argos.commun.RegleViolee;
 
 /**
  * Tests unitaires de la qualification déterministe (tâche 2.2, REG-02-S1), de l'extraction des dates

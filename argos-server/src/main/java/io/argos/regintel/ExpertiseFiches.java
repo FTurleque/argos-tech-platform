@@ -23,13 +23,13 @@ import org.jboss.logging.Logger;
 
 import io.argos.scm.DemandesEvolution;
 import io.argos.scm.ScmException;
-import io.argos.workspace.AccesRefuse;
-import io.argos.workspace.ContexteBase;
-import io.argos.workspace.ContexteBase.Contexte;
-import io.argos.workspace.DonneeInvalide;
-import io.argos.workspace.Introuvable;
-import io.argos.workspace.MotifRefus;
-import io.argos.workspace.RegleViolee;
+import io.argos.commun.AccesRefuse;
+import io.argos.commun.ContexteBase;
+import io.argos.commun.ContexteBase.Contexte;
+import io.argos.commun.DonneeInvalide;
+import io.argos.commun.Introuvable;
+import io.argos.commun.MotifRefus;
+import io.argos.commun.RegleViolee;
 
 /**
  * Travail de l'expert métier sur une fiche (REG-05, REG-06, REG-08) : correction, validation ou rejet,

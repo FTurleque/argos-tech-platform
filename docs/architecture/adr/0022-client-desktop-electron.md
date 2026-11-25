@@ -1,8 +1,8 @@
 # ADR-0022 — Ajouter un client desktop Electron qui réutilise l'IHM Vue.js 3
 
-- **Statut** : Proposé
-- **Date** : 2026-11-15
-- **Décideurs** : porteur du projet (choix d'Electron, 2026-11-15) ; revue d'architecture à venir
+- **Statut** : Accepté
+- **Date** : 2026-11-24 (acceptation ; proposition du 2026-11-15)
+- **Décideurs** : porteur du projet (acceptation du 2026-11-24)
 - **Remplace** : —
 - **Remplacé par** : —
 
@@ -62,7 +62,7 @@ Contraintes : ADR-0019 (Vue.js 3), ADR-0021 point 4 (licences des dépendances d
 
 ## Décision
 
-Option A, **proposée** : choix du porteur du projet, qui privilégie l'homogénéité du rendu et l'absence de Rust à la légèreté de Tauri.
+Option A retenue : choix du porteur du projet, qui privilégie l'homogénéité du rendu et l'absence de Rust à la légèreté de Tauri.
 
 1. Le module `argos-desktop/` emballe le build de `argos-ui/` avec Electron. Aucune logique métier n'est ajoutée côté desktop.
 2. Le desktop ne contient **ni base de données ni serveur embarqué** : il exige un serveur ARGOS joignable (VM ou poste de développement).

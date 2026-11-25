@@ -81,6 +81,7 @@ flowchart TB
     SCM["«adapter»\nscm-connector"]
     PROJ["«Component»\nproject-intel"]
     AUDIT["«Component»\naudit"]
+    COMMUN["«Component»\ncommun\ncontexte RLS, transaction, JDBC, erreurs, appelant"]
     DB["«adapter»\nPostgreSQL"]
 
     API --> WORK
@@ -118,14 +119,24 @@ flowchart TB
     INVENTORY --> DB
     IMPACT --> DB
     AUDIT --> DB
+    API --> COMMUN
+    WORK --> COMMUN
+    IMPACT --> COMMUN
+    SIGNAL --> COMMUN
+    ALERT --> COMMUN
+    MCP --> COMMUN
+    COMMUN --> DB
 ```
+
+Tous les modules métier dépendent de `commun` (ADR-0037) ; seules quelques arêtes sont tracées.
 
 ## 5.3 Responsabilités et frontières
 
 | Composant | Responsabilité | Ne doit pas |
 |---|---|---|
 | API & Security | REST/OpenAPI, authn/authz, validation | contenir les règles métier |
-| workspace | équipes, rôles, abonnements TEAM/PERSONAL, vues | confondre préférence de veille et autorisation |
+| commun | contexte RLS (`ContexteBase`), frontière transactionnelle JTA, utilitaire JDBC (`Jdbc`, `Conversions`, `ErreurBase`), erreurs du domaine partagées ; `commun.securite` : appelant (`Caller`, `CallerResolver`) et limiteur de débit (`LimiteurDebit`) (`io.argos.commun`, ADR-0037) | dépendre d'un module ; contenir une règle métier ; citer une table |
+| workspace | équipes, rôles, abonnements TEAM/PERSONAL, vues ; lectures publiées pour les autres modules (`LectureMembres`, `PreferencesService`, vue `compte_nom_public`) | confondre préférence de veille et autorisation |
 | source-ingestion | collecte, idempotence, normalisation | connaître la présentation UI |
 | catalog | technologies, standards, domaines métier | dépendre d’un fournisseur externe |
 | inventory | projets, dépôts (un ou plusieurs par projet, inventaire = union des dépôts), SBOM, PURL ; import quotidien planifié des inventaires depuis les forges, sérialisé avec l'import manuel par projet (`ImportPlanifie`, changement `automatiser-chaine-veille`) | calculer seul l’impact sécurité ; dépendre d'`impact-engine` (la recorrélation passe par l'événement `InventoryReplaced`) ; exposer un point d'entrée entrant (webhook) |
@@ -137,6 +148,35 @@ flowchart TB
 | alerting | règles d’alerte et digests ; rappels d’échéance et annonces de standard du radar (`RappelsRadar`) ; rappels des entrées en vigueur réglementaires (`RappelsReglementaires`) | accorder des droits d’accès |
 | scm-connector | GitLab/API/webhooks/SBOM ; SBOM et manifestes de la branche principale remis à `inventory`, dépôt introuvable, jeton refusé et quota épuisé distingués d'un fichier absent (`RepositoryFiles`, `DepotIntrouvable`, `AccesRefuse`, `QuotaEpuise`) ; activité GitHub et GitLab en lecture seule, sans identité, quotas (`RepositoryActivity`) | injecter les payloads fournisseurs dans le domaine ; écrire dans un dépôt |
 | project-intel | collecte planifiée et agrégation par jour de l'activité des dépôts, avancement des jalons avec dénominateur, synthèse IA marquée par le point d'extension `SyntheseIa`, purge à 13 mois (`io.argos.projectintel`, fiche [`activite-projets`](../../specifications/activite-projets.md)) | stocker ou restituer une identité de personne ; laisser l'IA calculer un indicateur |
+
+### 5.3.1 Propriété des tables
+
+Chaque table et chaque vue des migrations a un module propriétaire : lui seul l'écrit. `ProprieteTablesTest` porte la même
+table (« ajouter d'abord au test, puis à arc42 ») et vérifie que le SQL d'un module ne cite que ses tables, celles d'un module
+dont il peut dépendre (§5.6) ou une vue publiée par leur propriétaire ; les préférences d'un utilisateur ne se lisent que par
+le service de `workspace`.
+
+| Module propriétaire | Tables et vues |
+|---|---|
+| workspace | `compte`, `espace`, `appartenance`, `invitation`, `subscription`, `subscription_opt_out`, `suivi_profil`, `suivi_rappels`, `workspace_preference_utilisateur`, `workspace_vue`, vue `compte_nom_public` |
+| catalog | `domaine_metier`, `expert_domaine`, `regle_dictionnaire`, `standard_technologie`, `standard_suggestion`, `standard_historique` |
+| inventory | `project`, `project_repository`, `inventory`, `repository_inventory`, `component`, `component_occurrence`, `inventory_import_failure` |
+| signal | `signal`, `signal_alias`, `signal_package`, `signal_version`, `actualite`, `actualite_source`, `source_web`, `source_profil`, `opportunite` |
+| vulnintel | `enrichment` |
+| releaseradar | `cycle_vie`, `cycle_vie_produit` |
+| regintel | `texte_officiel`, `fiche_reglementaire`, `fiche_domaine`, `fiche_historique`, `reg_source`, `reg_parametres`, `reg_collecte_jour` |
+| impact | `project_impact`, `project_impact_transition`, `actualite_impact`, `dette_version` |
+| alerting | `alerte`, `resume_element`, `radar_parametres` |
+| projectintel | `activite_collecte`, `activite_compteur`, `activite_jalon` |
+| aigateway | `ia_prompt`, `ia_quota_jour` |
+| audit | `ia_appel`, `mcp_appel`, `refus_acces` |
+| ingestion | `source`, `sync_run`, `sync_attempt`, `sync_cursor`, `ingestion_failure`, `ops_event` |
+
+Lectures croisées autorisées (le module lecteur dépend du propriétaire, §5.6) : `alerting` lit `appartenance`, `compte` et
+`project_impact` ; `catalog` lit `compte` ; `impact` lit `actualite`, `signal`, `signal_package`, `signal_version`, `project` et
+`component` ; `inventory` lit `espace` ; `regintel` lit `domaine_metier` ; `vulnintel` lit `signal_alias`. `impact` lit le nom
+des comptes par la vue `compte_nom_public`, publiée par `workspace` (migration V23) ; `catalog` lit les appartenances par
+`workspace.LectureMembres` et `alerting` lit les préférences par `workspace.preference.PreferencesService`.
 
 ## 5.4 Personnalisation
 
@@ -159,7 +199,7 @@ Un utilisateur choisit sa **mise en page** et un ou plusieurs **profils de veill
 | IHM — couche contenu | appeler l’API et construire les modèles de vue avec leurs mentions obligatoires | dépendre d’une mise en page | `argos-ui/src/contenu`, `argos-ui/src/views` |
 | IHM — couche mise en page | présenter les modèles de vue selon le style choisi | appeler l’API, filtrer un élément ou omettre une mention | `argos-ui/src/mises-en-page` |
 
-Les préférences ne sont lues que par `api` et `mcp` (`PreferencesIsolationTest`) ; une mise en page n’importe ni le client API ni le reste de la couche contenu (`argos-ui/tests/architecture.test.mjs`). Les quatre mises en page reçoivent le même modèle de données (`argos-ui/src/mises-en-page/modele.ts`) ; le composant affiché est choisi par `MiseEnPage.vue` d’après la préférence. Leurs couleurs sont des jetons dont les contrastes sont contrôlés par les tests de l’IHM, leurs polices sont embarquées (ADR-0023 point 5) ; audit d’accessibilité : [rapport](../quality/audit-accessibilite-mises-en-page.md).
+Les préférences ne sont lues que par `api`, `mcp` et `alerting` (destinataires d'un profil, par `PreferencesService` ; `PreferencesIsolationTest`) ; une mise en page n’importe ni le client API ni le reste de la couche contenu (`argos-ui/tests/architecture.test.mjs`). Les quatre mises en page reçoivent le même modèle de données (`argos-ui/src/mises-en-page/modele.ts`) ; le composant affiché est choisi par `MiseEnPage.vue` d’après la préférence. Leurs couleurs sont des jetons dont les contrastes sont contrôlés par les tests de l’IHM, leurs polices sont embarquées (ADR-0023 point 5) ; audit d’accessibilité : [rapport](../quality/audit-accessibilite-mises-en-page.md).
 
 **D-15 — Type : C4 Component. Portée : préférences d’affichage et de veille, du serveur à l’IHM. Statut : implémenté pour le catalogue, les préférences et les couches de l’IHM ; restitution de la veille par profils à venir.**
 
@@ -197,7 +237,7 @@ Le profil `artiste` est un pack du catalogue (changement `ajouter-profil-artiste
 | alerting | rappels de date limite aux jours de rappel du compte | accorder un droit | `io.argos.alerting.RappelsOpportunites` |
 | API & Security | vérifier que le profil est actif, confronter les suivis aux listes du pack, réserver le registre des sources à l'administrateur plateforme | appliquer la stratégie | `io.argos.api.artiste`, `io.argos.api.preference.RubriquesResource` |
 
-Le paquet `workspace.suivi` n'emprunte au reste de `workspace` que `ContexteBase` et ne lit aucune donnée d'autorisation (`SuiviIsolationTest`). Aucune dépendance de module n'est ajoutée à §5.6.
+Le paquet `workspace.suivi` ne dépend d'aucune classe de `workspace` hors de lui-même, utilise le contexte RLS du noyau commun (`ContexteBase`) et ne lit aucune donnée d'autorisation (`SuiviIsolationTest`). Aucune dépendance de module n'est ajoutée à §5.6.
 
 ### 5.4.3 Veille réglementaire (ADR-0030 — accepté)
 
@@ -212,7 +252,7 @@ La veille réglementaire du profil `expert-metier` (changement `suivre-veille-re
 | alerting | rappels J-90, J-30, J-7 (réglables par espace) aux experts et aux membres au profil `expert-metier` actif | accorder un droit | `io.argos.alerting.RappelsReglementaires` |
 | API & Security | réserver la configuration aux administrateurs de l'espace et l'expertise aux experts du domaine ; état et rejeu de la collecte pour l'administrateur plateforme | appliquer les règles de rattachement | `io.argos.api.reglementaire` |
 
-Dépendances de module ajoutées (règles de `ModuleBoundariesTest`) : `regintel` → `ingestion`, `scm` et, dans `workspace`, `ContexteBase` et les erreurs communes seulement (règle `regintelNEmprunteQueRlsEtErreurs`) ; `alerting` → `regintel` ; le paquet `catalog.dictionnaire` rejoint `catalog.standard` parmi les seuls paquets de `catalog` autorisés à utiliser `ContexteBase`.
+Dépendances de module ajoutées (règles de `ModuleBoundariesTest`) : `regintel` → `ingestion`, `scm` ; `alerting` → `regintel` ; `catalog` → `workspace` (`LectureMembres`).
 
 ## 5.5 Règles de dépendance
 
@@ -221,7 +261,8 @@ Dépendances de module ajoutées (règles de `ModuleBoundariesTest`) : `regintel
 3. l’AI Gateway est le seul composant autorisé à appeler le fournisseur LLM ;
 4. les contrôleurs Quarkus ne parlent pas directement à la base ;
 5. les événements externes sont normalisés avant usage métier ;
-6. les préférences personnelles sont séparées des politiques d’autorisation.
+6. les préférences personnelles sont séparées des politiques d’autorisation ;
+7. les mécanismes techniques partagés (contexte RLS, transaction, JDBC, erreurs du domaine, appelant, limiteur de débit) vivent dans le noyau commun `io.argos.commun`, autorisé à tous les modules et sans dépendance vers eux (ADR-0037) ; aucune règle métier ni aucun nom de table n'y entre.
 
 ## 5.6 C4 Code
 
@@ -230,23 +271,23 @@ Le socle `argos-server/` matérialise chaque composant de §5.2 par un paquet Ja
 | Module | Peut dépendre de |
 |---|---|
 | `api` | `workspace`, `catalog`, `inventory`, `signal`, `vulnintel`, `releaseradar`, `regintel`, `impact`, `alerting`, `projectintel`, `audit` |
-| `mcp` | `workspace`, `catalog`, `inventory`, `signal`, `vulnintel`, `releaseradar`, `regintel`, `impact`, `alerting`, `audit`, `api` (dans `api`, `api.security` seulement) |
+| `mcp` | `workspace`, `catalog`, `inventory`, `signal`, `vulnintel`, `releaseradar`, `regintel`, `impact`, `alerting`, `audit` |
 | `alerting` | `impact`, `workspace`, `aigateway`, `regintel` |
 | `impact` | `signal`, `releaseradar`, `inventory`, `aigateway`, `catalog` |
-| `regintel` | `catalog`, `aigateway`, `ingestion`, `scm`, `workspace` (`ContexteBase` et erreurs communes) |
-| `signal` | `ingestion`, `catalog`, `workspace` (`ContexteBase` et erreurs communes), `aigateway` |
+| `regintel` | `catalog`, `aigateway`, `ingestion`, `scm` |
+| `signal` | `ingestion`, `catalog`, `aigateway` |
 | `inventory` | `workspace`, `catalog`, `scm` |
-| `projectintel` | `inventory`, `scm`, `workspace` (`ContexteBase` et `DonneeInvalide`) |
+| `projectintel` | `inventory`, `scm` |
 | `vulnintel` | `signal` |
 | `releaseradar` | `catalog` |
-| `catalog` | `workspace` (`ContexteBase` et erreurs communes, depuis `catalog.standard` et `catalog.dictionnaire`) |
+| `catalog` | `workspace` (`LectureMembres`) |
 | `aigateway` | `audit` |
 | `workspace`, `ingestion`, `scm`, `audit` | aucun module |
-| `observabilite`, `horloge`, `execution` (techniques, transverses) | aucun module métier ; tout module peut en dépendre |
+| `observabilite`, `horloge`, `execution`, `commun` (techniques, transverses) | aucun module métier ; tout module peut en dépendre ; `commun` ne dépend d'aucun module |
 
 Les modules techniques transverses (table `TRANSVERSES` de `ModuleBoundariesTest`) ne portent aucun code métier et ne dépendent d'aucun module métier ; ils peuvent dépendre les uns des autres. `observabilite` tient la corrélation des journaux, le filtre des jetons, l'observation des tâches planifiées, leur contrôle de santé (ADR-0036, §8.6) et les erreurs imprévues retenues aux frontières (§8.5) ; `horloge` produit le `Clock` commun (§8.16) ; `execution` fournit l'exécuteur borné possédé par un bean CDI (§8.5), qui propage la corrélation d'`observabilite`.
 
-Les paquets `ingestion`, `signal`, `vulnintel`, `scm`, `inventory`, `impact`, `workspace`, `audit` et `api` portent la chaîne sécurité du POC (changement `formaliser-chaine-securite-poc`) ainsi que les comptes, les espaces et les rôles (changement `gerer-comptes-et-acces`) ; `catalog`, `workspace.preference` et `api` portent le catalogue des profils et des mises en page et les préférences utilisateur (§5.4.1) ; `mcp` porte le serveur MCP (changement `exposer-serveur-mcp`), qui lit le référentiel des standards, le calendrier des sorties et les fiches réglementaires par les points d'extension `catalog.standard`, `releaseradar` et `regintel` ; `ingestion.web`, `signal.web` et `impact` portent la veille RSS/Atom et les pages surveillées (changement `collecter-veille-rss-web`, ADR-0028) ; `signal` n'emprunte à `workspace` que le contexte RLS `ContexteBase` et les erreurs communes `DonneeInvalide` et `RegleViolee` (règle `signalNEmprunteQueRlsEtErreurs`) ; `alerting` porte les alertes et les résumés (changement `diffuser-alertes-et-digests`) ; `impact` (`RechercheVeille`), `api.recherche` et `workspace.vue` portent la recherche plein texte, ses filtres et les vues enregistrées, et l'outil MCP `search_signals` emploie la même requête (changement `rechercher-et-filtrer`) ; `catalog.standard`, `releaseradar`, `impact` (`RadarProjets`) et `alerting` (`RappelsRadar`) portent le référentiel des standards et le radar des sorties (changement `construire-radar-et-standards`, §8.15) ; `catalog` n’emprunte à `workspace` que `ContexteBase` et les erreurs communes, dans les seuls paquets `catalog.standard` et `catalog.dictionnaire` (règle `catalogNEmprunteQueRlsEtErreurs`), et `impact` lit le référentiel de `catalog` pour la dette de version et les annonces ; `aigateway` porte la passerelle IA (changement `encadrer-appels-ia`), appelée par `alerting`, `signal.web`, `impact` et `regintel` par son seul contrat, l'adaptateur Ollama et les quotas restant internes (règle `seuleLaPasserelleConnaitLeFournisseur`) ; `projectintel`, `scm` et `api` portent l'activité des projets (changement `mesurer-activite-projets`), et `projectintel` n'emprunte à `workspace` que `ContexteBase` et `DonneeInvalide` (règle `projectintelNEmprunteQueRlsEtErreurs`) ; `catalog.profil`, `workspace.suivi`, `ingestion.culture`, `signal.opportunite`, `impact` et `alerting` (`RappelsOpportunites`) portent le profil de veille `artiste` (changement `ajouter-profil-artiste`, §5.4.2) ; `ingestion.legi`, `catalog.dictionnaire`, `regintel`, `scm` (`DemandesEvolution`), `alerting` (`RappelsReglementaires`) et `api.reglementaire` portent la veille réglementaire (changement `suivre-veille-reglementaire`, §5.4.3), et `regintel` n'emprunte à `workspace` que `ContexteBase` et les erreurs communes (règle `regintelNEmprunteQueRlsEtErreurs`) ; les autres paquets ne contiennent aucun code métier.
+Les paquets `ingestion`, `signal`, `vulnintel`, `scm`, `inventory`, `impact`, `workspace`, `audit` et `api` portent la chaîne sécurité du POC (changement `formaliser-chaine-securite-poc`) ainsi que les comptes, les espaces et les rôles (changement `gerer-comptes-et-acces`) ; `catalog`, `workspace.preference` et `api` portent le catalogue des profils et des mises en page et les préférences utilisateur (§5.4.1) ; `mcp` porte le serveur MCP (changement `exposer-serveur-mcp`), qui lit le référentiel des standards, le calendrier des sorties et les fiches réglementaires par les points d'extension `catalog.standard`, `releaseradar` et `regintel` ; `ingestion.web`, `signal.web` et `impact` portent la veille RSS/Atom et les pages surveillées (changement `collecter-veille-rss-web`, ADR-0028) ; `alerting` porte les alertes et les résumés (changement `diffuser-alertes-et-digests`) ; `impact` (`RechercheVeille`), `api.recherche` et `workspace.vue` portent la recherche plein texte, ses filtres et les vues enregistrées, et l'outil MCP `search_signals` emploie la même requête (changement `rechercher-et-filtrer`) ; `catalog.standard`, `releaseradar`, `impact` (`RadarProjets`) et `alerting` (`RappelsRadar`) portent le référentiel des standards et le radar des sorties (changement `construire-radar-et-standards`, §8.15) ; `impact` lit le référentiel de `catalog` pour la dette de version et les annonces ; `aigateway` porte la passerelle IA (changement `encadrer-appels-ia`), appelée par `alerting`, `signal.web`, `impact` et `regintel` par son seul contrat, l'adaptateur Ollama et les quotas restant internes (règle `seuleLaPasserelleConnaitLeFournisseur`) ; `projectintel`, `scm` et `api` portent l'activité des projets (changement `mesurer-activite-projets`) ; `catalog.profil`, `workspace.suivi`, `ingestion.culture`, `signal.opportunite`, `impact` et `alerting` (`RappelsOpportunites`) portent le profil de veille `artiste` (changement `ajouter-profil-artiste`, §5.4.2) ; `ingestion.legi`, `catalog.dictionnaire`, `regintel`, `scm` (`DemandesEvolution`), `alerting` (`RappelsReglementaires`) et `api.reglementaire` portent la veille réglementaire (changement `suivre-veille-reglementaire`, §5.4.3) ; les autres paquets ne contiennent aucun code métier.
 
 ## 5.7 Modèle métier conceptuel (D-05)
 

@@ -25,8 +25,8 @@ import jakarta.inject.Inject;
 import org.eclipse.microprofile.config.inject.ConfigProperty;
 
 import io.argos.aigateway.ReponseIa;
-import io.argos.workspace.ContexteBase;
-import io.argos.workspace.ContexteBase.Contexte;
+import io.argos.commun.ContexteBase;
+import io.argos.commun.ContexteBase.Contexte;
 
 /**
  * Lecture des fiches d'analyse sous la RLS (REG-05, REG-07) et implémentation du point d'extension

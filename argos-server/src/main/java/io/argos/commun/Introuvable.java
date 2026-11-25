@@ -1,4 +1,4 @@
-package io.argos.workspace;
+package io.argos.commun;
 
 /**
  * Ressource absente du point de vue du compte courant, sans refus d'accès à un espace : réponse

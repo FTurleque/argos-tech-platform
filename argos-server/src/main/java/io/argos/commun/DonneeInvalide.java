@@ -1,4 +1,4 @@
-package io.argos.workspace;
+package io.argos.commun;
 
 /**
  * Donnée d'entrée invalide (HTTP 400). Le code vaut {@code DONNEE_INVALIDE} sauf motif plus précis,

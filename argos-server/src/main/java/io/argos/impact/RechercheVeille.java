@@ -3,12 +3,10 @@ package io.argos.impact;
 import java.sql.Array;
 import java.sql.Connection;
 import java.sql.PreparedStatement;
-import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Timestamp;
 import java.sql.Types;
 import java.time.Instant;
-import java.time.OffsetDateTime;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.HashMap;
@@ -27,6 +25,9 @@ import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.inject.Inject;
 import jakarta.transaction.Transactional;
 
+import io.argos.commun.ContexteBase;
+import io.argos.commun.Conversions;
+import io.argos.commun.Jdbc;
 import io.argos.signal.SignalQueries;
 
 /**
@@ -36,7 +37,7 @@ import io.argos.signal.SignalQueries;
  * {@code search_signals}.
  *
  * <p>Toute la recherche s'exécute sous le rôle {@code argos_app} avec le compte de l'appelant
- * ({@link RlsSession}). La sélection des candidats passe par la fonction
+ * ({@link ContexteBase}). La sélection des candidats passe par la fonction
  * {@code argos_rechercher_veille} (migration V11), qui applique explicitement les règles de
  * visibilité des politiques RLS pour que l'index GIN reste utilisable ; chaque élément restitué est
  * ensuite relu sous la RLS, qui écarte tout élément que l'appelant ne voit pas. Les projets cités
@@ -107,6 +108,10 @@ public class RechercheVeille {
     private record Candidat(String type, UUID id, double rang) {
     }
 
+    /** Candidat de la page et nombre total d'éléments de la sélection, répété sur chaque ligne. */
+    private record LigneCandidat(Candidat candidat, long total) {
+    }
+
     @Inject
     DataSource dataSource;
 
@@ -129,31 +134,22 @@ public class RechercheVeille {
             return new Resultats(List.of(), pageBornee, tailleBornee, 0, AUCUN_RESULTAT);
         }
         try (Connection connexion = dataSource.getConnection()) {
-            RlsSession.account(connexion, compteId);
-            List<Candidat> candidats = new ArrayList<>();
-            long total = 0;
+            ContexteBase.appliquer(connexion, ContexteBase.Contexte.duCompte(compteId));
             // Sélection matérialisée une fois : le total la compte, la page en garde les meilleurs (tri partiel).
-            try (PreparedStatement requete = connexion.prepareStatement("WITH r AS MATERIALIZED (SELECT * " + selection() + ")"
+            List<LigneCandidat> lignes = Jdbc.lister(connexion, "WITH r AS MATERIALIZED (SELECT * " + selection() + ")"
                     + " SELECT r.type, r.id, r.rang, (SELECT count(*) FROM r) FROM r"
-                    + " ORDER BY r.rang DESC, r.date_ref DESC NULLS LAST, r.id LIMIT ? OFFSET ?")) {
-                int positionSuivante = parametres(connexion, requete, criteres);
-                requete.setInt(positionSuivante, tailleBornee);
-                requete.setLong(positionSuivante + 1, (long) pageBornee * tailleBornee);
-                try (ResultSet resultat = requete.executeQuery()) {
-                    while (resultat.next()) {
-                        candidats.add(new Candidat(resultat.getString(1), resultat.getObject(2, UUID.class), resultat.getDouble(3)));
-                        total = resultat.getLong(4);
-                    }
-                }
-            }
+                    + " ORDER BY r.rang DESC, r.date_ref DESC NULLS LAST, r.id LIMIT ? OFFSET ?", requete -> {
+                        int positionSuivante = parametres(connexion, requete, criteres);
+                        requete.setInt(positionSuivante, tailleBornee);
+                        requete.setLong(positionSuivante + 1, (long) pageBornee * tailleBornee);
+                    }, resultat -> new LigneCandidat(
+                            new Candidat(resultat.getString(1), resultat.getObject(2, UUID.class), resultat.getDouble(3)),
+                            resultat.getLong(4)));
+            List<Candidat> candidats = lignes.stream().map(LigneCandidat::candidat).toList();
+            long total = lignes.isEmpty() ? 0 : lignes.get(lignes.size() - 1).total();
             if (candidats.isEmpty() && pageBornee > 0) {
-                try (PreparedStatement requete = connexion.prepareStatement("SELECT count(*) " + selection())) {
-                    parametres(connexion, requete, criteres);
-                    try (ResultSet resultat = requete.executeQuery()) {
-                        resultat.next();
-                        total = resultat.getLong(1);
-                    }
-                }
+                total = Jdbc.unique(connexion, "SELECT count(*) " + selection(),
+                        requete -> parametres(connexion, requete, criteres), resultat -> resultat.getLong(1)).orElse(0L);
             }
             List<Element> elements = restituer(connexion, candidats, espaces);
             return new Resultats(elements, pageBornee, tailleBornee, total, total == 0 ? AUCUN_RESULTAT : null);
@@ -203,7 +199,7 @@ public class RechercheVeille {
     }
 
     /** Relit sous la RLS les éléments de la page, dans l'ordre de pertinence, avec leurs projets visibles. */
-    private static List<Element> restituer(Connection connexion, List<Candidat> candidats, Set<UUID> espaces) throws SQLException {
+    private static List<Element> restituer(Connection connexion, List<Candidat> candidats, Set<UUID> espaces) {
         List<UUID> signaux = candidats.stream().filter(candidat -> AVIS_SECURITE.equals(candidat.type())).map(Candidat::id).toList();
         List<UUID> actualites = candidats.stream().filter(candidat -> !AVIS_SECURITE.equals(candidat.type())).map(Candidat::id).toList();
         Map<UUID, Element> lus = new HashMap<>();
@@ -213,20 +209,16 @@ public class RechercheVeille {
                     SELECT DISTINCT i.signal_id, p.id, p.name FROM project_impact i JOIN project p ON p.id = i.project_id
                     WHERE i.signal_id = ANY (?) AND i.workspace_id = ANY (?) ORDER BY p.name, p.id
                     """, signaux, espaces));
-            try (PreparedStatement requete = connexion.prepareStatement("""
+            Jdbc.lister(connexion, """
                     SELECT id, source, external_id, title, left(summary, ?), severity, coalesce(published_at, modified_at)
                     FROM signal WHERE id = ANY (?)
-                    """)) {
-                requete.setInt(1, EXTRAIT_MAX);
-                requete.setArray(2, connexion.createArrayOf("uuid", signaux.toArray()));
-                try (ResultSet resultat = requete.executeQuery()) {
-                    while (resultat.next()) {
-                        UUID id = resultat.getObject(1, UUID.class);
-                        lus.put(id, new Element(AVIS_SECURITE, id, resultat.getString(2), resultat.getString(3), resultat.getString(4),
-                                resultat.getString(5), resultat.getString(6), instant(resultat, 7), null, 0, List.of()));
-                    }
-                }
-            }
+                    """, requete -> {
+                        requete.setInt(1, EXTRAIT_MAX);
+                        requete.setArray(2, connexion.createArrayOf("uuid", signaux.toArray()));
+                    }, resultat -> new Element(AVIS_SECURITE, resultat.getObject(1, UUID.class), resultat.getString(2),
+                            resultat.getString(3), resultat.getString(4), resultat.getString(5), resultat.getString(6),
+                            Conversions.instant(resultat, 7), null, 0, List.of()))
+                    .forEach(element -> lus.put(element.id(), element));
         }
         if (!actualites.isEmpty()) {
             projets.putAll(projets(connexion, """
@@ -234,19 +226,15 @@ public class RechercheVeille {
                     WHERE ai.actualite_id = ANY (?) AND ai.workspace_id = ANY (?) ORDER BY p.name, p.id
                     """, actualites, espaces));
             // Lecture sous la RLS : une actualité que l'appelant ne voit pas n'est pas restituée.
-            try (PreparedStatement requete = connexion.prepareStatement("""
+            Jdbc.lister(connexion, """
                     SELECT id, type, titre, left(texte, ?), lien, coalesce(publie_le, recu_le) FROM actualite WHERE id = ANY (?)
-                    """)) {
-                requete.setInt(1, EXTRAIT_MAX);
-                requete.setArray(2, connexion.createArrayOf("uuid", actualites.toArray()));
-                try (ResultSet resultat = requete.executeQuery()) {
-                    while (resultat.next()) {
-                        UUID id = resultat.getObject(1, UUID.class);
-                        lus.put(id, new Element(resultat.getString(2), id, "WEB", null, resultat.getString(3), resultat.getString(4), null,
-                                instant(resultat, 6), lienSur(resultat.getString(5)), 0, List.of()));
-                    }
-                }
-            }
+                    """, requete -> {
+                        requete.setInt(1, EXTRAIT_MAX);
+                        requete.setArray(2, connexion.createArrayOf("uuid", actualites.toArray()));
+                    }, resultat -> new Element(resultat.getString(2), resultat.getObject(1, UUID.class), "WEB", null,
+                            resultat.getString(3), resultat.getString(4), null, Conversions.instant(resultat, 6),
+                            lienSur(resultat.getString(5)), 0, List.of()))
+                    .forEach(element -> lus.put(element.id(), element));
         }
         List<Element> elements = new ArrayList<>();
         for (Candidat candidat : candidats) {
@@ -260,22 +248,17 @@ public class RechercheVeille {
         return elements;
     }
 
-    private static Map<UUID, List<ProjetVise>> projets(Connection connexion, String sql, List<UUID> ids, Set<UUID> espaces)
-            throws SQLException {
+    private static Map<UUID, List<ProjetVise>> projets(Connection connexion, String sql, List<UUID> ids, Set<UUID> espaces) {
         Map<UUID, List<ProjetVise>> projets = new LinkedHashMap<>();
         if (espaces.isEmpty()) {
             return projets;
         }
-        try (PreparedStatement requete = connexion.prepareStatement(sql)) {
+        Jdbc.lister(connexion, sql, requete -> {
             requete.setArray(1, connexion.createArrayOf("uuid", ids.toArray()));
             requete.setArray(2, connexion.createArrayOf("uuid", espaces.toArray()));
-            try (ResultSet resultat = requete.executeQuery()) {
-                while (resultat.next()) {
-                    projets.computeIfAbsent(resultat.getObject(1, UUID.class), cle -> new ArrayList<>())
-                            .add(new ProjetVise(resultat.getObject(2, UUID.class), resultat.getString(3)));
-                }
-            }
-        }
+        }, resultat -> Map.entry(resultat.getObject(1, UUID.class),
+                new ProjetVise(resultat.getObject(2, UUID.class), resultat.getString(3))))
+                .forEach(ligne -> projets.computeIfAbsent(ligne.getKey(), cle -> new ArrayList<>()).add(ligne.getValue()));
         return projets;
     }
 
@@ -308,10 +291,5 @@ public class RechercheVeille {
 
     private static boolean vide(String texte) {
         return texte == null || texte.isBlank();
-    }
-
-    private static Instant instant(ResultSet resultat, int column) throws SQLException {
-        OffsetDateTime value = resultat.getObject(column, OffsetDateTime.class);
-        return value == null ? null : value.toInstant();
     }
 }

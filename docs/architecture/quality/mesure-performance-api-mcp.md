@@ -8,8 +8,8 @@ Cible : p95 < 500 ms par opération de consultation, hors appels externes et IA 
 
 | Élément | Valeur |
 |---|---|
-| Date | 2026-11-24T22:36:03.034Z |
-| Révision Git | 05cd4cd |
+| Date | 2026-11-25T17:23:30.639Z |
+| Révision Git | 36662c7 |
 | Environnement | pile de test locale (PostgreSQL de e2e/compose.yaml, quarkus:dev http://localhost:8090, Keycloak des Dev Services) |
 | Système | win32 10.0.19045 x64, 16 cœurs, 48 Gio |
 | Node.js | v24.18.0 |
@@ -24,22 +24,22 @@ Cible : p95 < 500 ms par opération de consultation, hors appels externes et IA 
 
 | Opération | Type | Appels | p50 (ms) | p95 (ms) | max (ms) | Erreurs | Verdict |
 |---|---|---|---|---|---|---|---|
-| GET /api/v1/projects | REST | 200 | 15.7 | 22.2 | 28.6 | 0 | dans la cible |
-| GET /api/v1/projects/{id}/inventory/summary | REST | 200 | 17.5 | 26.8 | 33.4 | 0 | dans la cible |
-| GET /api/v1/projects/{id}/inventory/components | REST | 200 | 25.2 | 35.1 | 53.1 | 0 | dans la cible |
-| GET /api/v1/impacts/{id} | REST | 200 | 13.1 | 16.9 | 18.2 | 0 | dans la cible |
-| GET /api/v1/signals/{id}/impacts | REST | 200 | 19.2 | 31.3 | 35.2 | 0 | dans la cible |
-| GET /api/v1/me/veille | REST | 200 | 59.3 | 93.4 | 110.5 | 0 | dans la cible |
-| GET /api/v1/recherche | REST | 200 | 33.3 | 46.2 | 60.6 | 0 | dans la cible |
-| GET /api/v1/subscriptions | REST | 200 | 13.4 | 18.7 | 24.4 | 0 | dans la cible |
-| GET /api/v1/alertes | REST | 200 | 12.9 | 17.7 | 18.9 | 0 | dans la cible |
-| MCP get_project_context | MCP | 200 | 51.5 | 65.1 | 85.5 | 0 | dans la cible |
-| MCP get_technology_standard | MCP | 200 | 11.6 | 17.9 | 45.6 | 0 | dans la cible |
-| MCP upcoming_releases | MCP | 200 | 114.7 | 135.8 | 171 | 0 | dans la cible |
-| MCP get_regulatory_changes | MCP | 200 | 11.7 | 18.4 | 20.6 | 0 | dans la cible |
-| MCP check_dependency | MCP | 200 | 48.2 | 62.4 | 113 | 0 | dans la cible |
-| MCP search_signals | MCP | 200 | 31.4 | 44.2 | 58 | 0 | dans la cible |
-| MCP get_security_alerts | MCP | 200 | 98.8 | 124.9 | 159.9 | 0 | dans la cible |
+| GET /api/v1/projects | REST | 200 | 14.6 | 24.3 | 41.9 | 0 | dans la cible |
+| GET /api/v1/projects/{id}/inventory/summary | REST | 200 | 15.6 | 29.5 | 40.3 | 0 | dans la cible |
+| GET /api/v1/projects/{id}/inventory/components | REST | 200 | 16.4 | 27.6 | 29 | 0 | dans la cible |
+| GET /api/v1/impacts/{id} | REST | 200 | 14.7 | 19.5 | 24.8 | 0 | dans la cible |
+| GET /api/v1/signals/{id}/impacts | REST | 200 | 14.9 | 19 | 23.5 | 0 | dans la cible |
+| GET /api/v1/me/veille | REST | 200 | 49.6 | 72.2 | 82.5 | 0 | dans la cible |
+| GET /api/v1/recherche | REST | 200 | 28.7 | 36.8 | 42 | 0 | dans la cible |
+| GET /api/v1/subscriptions | REST | 200 | 15 | 17 | 35.1 | 0 | dans la cible |
+| GET /api/v1/alertes | REST | 200 | 12.7 | 18.8 | 25.7 | 0 | dans la cible |
+| MCP get_project_context | MCP | 200 | 47.2 | 61.2 | 69.3 | 0 | dans la cible |
+| MCP get_technology_standard | MCP | 200 | 9.3 | 16.7 | 24.6 | 0 | dans la cible |
+| MCP upcoming_releases | MCP | 200 | 105.2 | 117.1 | 131.5 | 0 | dans la cible |
+| MCP get_regulatory_changes | MCP | 200 | 12 | 18 | 20.8 | 0 | dans la cible |
+| MCP check_dependency | MCP | 200 | 44.9 | 52.8 | 69.1 | 0 | dans la cible |
+| MCP search_signals | MCP | 200 | 29.7 | 36.2 | 49.7 | 0 | dans la cible |
+| MCP get_security_alerts | MCP | 200 | 89.9 | 101 | 119.1 | 0 | dans la cible |
 
 ## Opérations exclues
 

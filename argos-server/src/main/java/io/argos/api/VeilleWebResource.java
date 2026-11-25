@@ -26,9 +26,9 @@ import org.eclipse.microprofile.openapi.annotations.tags.Tag;
 import org.jboss.resteasy.reactive.RestResponse;
 
 import io.argos.api.security.Access;
-import io.argos.api.security.Caller;
-import io.argos.api.security.LimiteDebitAtteinte;
-import io.argos.api.security.LimiteurDebit;
+import io.argos.commun.securite.Caller;
+import io.argos.commun.securite.LimiteDebitAtteinte;
+import io.argos.commun.securite.LimiteurDebit;
 import io.argos.impact.RapprochementActualites;
 import io.argos.signal.web.ActualitesWeb;
 import io.argos.signal.web.CollecteWeb;

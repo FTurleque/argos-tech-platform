@@ -24,8 +24,8 @@ import jakarta.transaction.Transactional;
 import org.eclipse.microprofile.config.inject.ConfigProperty;
 
 import io.argos.horloge.LectureHeure;
-import io.argos.workspace.ContexteBase;
-import io.argos.workspace.DonneeInvalide;
+import io.argos.commun.ContexteBase;
+import io.argos.commun.DonneeInvalide;
 
 /**
  * Consultation de l'activité d'un projet (PIN-01, PIN-02, PIN-05). La lecture s'exécute sous le rôle
@@ -61,7 +61,7 @@ public class ActiviteQueries {
         }
         LocalDate debut = fin.minusDays(jours - 1L);
         try (Connection connexion = dataSource.getConnection()) {
-            ContexteBase.appliquer(connexion, new ContexteBase.Contexte(accountId, null, null));
+            ContexteBase.appliquer(connexion, ContexteBase.Contexte.duCompte(accountId));
             return new VueActivite(projectId, new VueActivite.Periode(debut, fin, jours), compteurs(connexion, projectId, debut, fin),
                     jalons(connexion, projectId), fraicheur(connexion, projectId));
         } catch (SQLException erreur) {

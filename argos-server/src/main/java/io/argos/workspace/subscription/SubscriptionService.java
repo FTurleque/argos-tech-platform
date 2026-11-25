@@ -4,7 +4,6 @@ import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
-import java.sql.Statement;
 import java.time.Instant;
 import java.time.OffsetDateTime;
 import java.util.ArrayList;
@@ -23,6 +22,8 @@ import jakarta.transaction.Transactional;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
+
+import io.argos.commun.ContexteBase;
 
 /**
  * Abonnements de veille {@code TEAM} et {@code PERSONAL} (ABO-01 à ABO-04, ABO-06) ; état actif ou
@@ -76,7 +77,7 @@ public class SubscriptionService {
                 VALUES (?, ?, ?, ?, ?::jsonb, ?, ?, ?, 'ACTIVE', now())
                 """;
         try (Connection connection = dataSource.getConnection()) {
-            session(connection, accountId);
+            ContexteBase.appliquer(connection, ContexteBase.Contexte.duCompte(accountId));
             try (PreparedStatement statement = connection.prepareStatement(sql)) {
                 statement.setObject(1, id);
                 statement.setString(2, validated.scope());
@@ -165,7 +166,7 @@ public class SubscriptionService {
     @Transactional
     public boolean delete(UUID subscriptionId, UUID accountId) {
         try (Connection connection = dataSource.getConnection()) {
-            session(connection, accountId);
+            ContexteBase.appliquer(connection, ContexteBase.Contexte.duCompte(accountId));
             try (PreparedStatement statement = connection.prepareStatement("DELETE FROM subscription WHERE id = ?")) {
                 statement.setObject(1, subscriptionId);
                 return statement.executeUpdate() == 1;
@@ -178,7 +179,7 @@ public class SubscriptionService {
     private Optional<Subscription> changeState(UUID subscriptionId, UUID accountId, String state) {
         int updated;
         try (Connection connection = dataSource.getConnection()) {
-            session(connection, accountId);
+            ContexteBase.appliquer(connection, ContexteBase.Contexte.duCompte(accountId));
             try (PreparedStatement statement = connection.prepareStatement("UPDATE subscription SET state = ? WHERE id = ?")) {
                 statement.setString(1, state);
                 statement.setObject(2, subscriptionId);
@@ -211,7 +212,7 @@ public class SubscriptionService {
             return suspend(subscriptionId, userId).isPresent() ? LeaveOutcome.LEFT : LeaveOutcome.NOT_FOUND;
         }
         try (Connection connection = dataSource.getConnection()) {
-            session(connection, userId);
+            ContexteBase.appliquer(connection, ContexteBase.Contexte.duCompte(userId));
             if (!memberWorkspaces.contains(subscription.ownerWorkspaceId())) {
                 return LeaveOutcome.NOT_FOUND;
             }
@@ -300,7 +301,7 @@ public class SubscriptionService {
     private List<Subscription> query(UUID accountId, String sql, Object... params) {
         List<Subscription> result = new ArrayList<>();
         try (Connection connection = dataSource.getConnection()) {
-            session(connection, accountId);
+            ContexteBase.appliquer(connection, ContexteBase.Contexte.duCompte(accountId));
             try (PreparedStatement statement = connection.prepareStatement(sql)) {
                 for (int index = 0; index < params.length; index++) {
                     if (params[index] instanceof Set<?> set) {
@@ -324,21 +325,6 @@ public class SubscriptionService {
             throw new IllegalStateException("filtres d'abonnement illisibles", error);
         }
         return result;
-    }
-
-    /**
-     * Rôle {@code argos_app} et compte courant pour la transaction en cours (protocole de la migration V2) ;
-     * aucune donnée d'autorisation n'est lue ici.
-     */
-    private static void session(Connection connection, UUID accountId) throws SQLException {
-        try (Statement statement = connection.createStatement()) {
-            statement.execute("SET LOCAL ROLE argos_app");
-        }
-        try (PreparedStatement statement = connection.prepareStatement(
-                "SELECT set_config('argos.compte_courant', ?, true), set_config('argos.espace_courant', '', true)")) {
-            statement.setString(1, accountId == null ? "" : accountId.toString());
-            statement.execute();
-        }
     }
 
     private static boolean blank(String value) {

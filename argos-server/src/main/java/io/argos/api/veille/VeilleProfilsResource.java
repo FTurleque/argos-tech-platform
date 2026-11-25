@@ -31,13 +31,14 @@ import io.argos.api.Erreur;
 import io.argos.api.SignauxAbonnements;
 import io.argos.api.preference.ResolutionPreferences;
 import io.argos.api.security.Access;
-import io.argos.api.security.Caller;
 import io.argos.api.security.LimiteDebitAtteinte;
 import io.argos.api.security.LimiteurDebit;
+import io.argos.commun.securite.Caller;
 import io.argos.catalog.profil.CatalogueProfils;
 import io.argos.catalog.profil.ManifesteProfil;
 import io.argos.catalog.profil.Rubrique;
 import io.argos.impact.ImpactQueries;
+import io.argos.impact.MatchRules;
 import io.argos.regintel.FicheAnalyse;
 import io.argos.regintel.FichesReglementaires;
 import io.argos.signal.SignalQueries;
@@ -88,7 +89,7 @@ public class VeilleProfilsResource {
     }
 
     @Schema(name = "ProjetConcerne")
-    public record ProjetVue(UUID projetId, String projet, String niveau) {
+    public record ProjetVue(UUID projetId, String projet, MatchRules.Level niveau) {
     }
 
     /**

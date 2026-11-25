@@ -84,7 +84,7 @@ Une alerte ne cite que les projets que le destinataire est autorisé à voir (AC
 - enregistrement des alertes et résumés, avec leur état d'envoi par canal (`EN_ATTENTE`, `ENVOYEE`, `EN_ECHEC`), le nombre de tentatives et l'échéance de la suivante ;
 - envoi d'e-mails ;
 - événement CDI `AlerteEmise` à chaque alerte ou résumé enregistré ;
-- migration `V23__adresse_verifiee_des_comptes.sql` : les adresses déjà enregistrées sont effacées ; aucun e-mail ne part vers un compte tant qu'il ne s'est pas reconnecté avec un jeton qui déclare son adresse vérifiée, les alertes restant visibles dans Argos et sur le poste. Les alertes au canal e-mail d'un compte sans adresse passent en échec sans envoi (ALR-06).
+- migration `V24__adresse_verifiee_des_comptes.sql` : les adresses déjà enregistrées sont effacées ; aucun e-mail ne part vers un compte tant qu'il ne s'est pas reconnecté avec un jeton qui déclare son adresse vérifiée, les alertes restant visibles dans Argos et sur le poste. Les alertes au canal e-mail d'un compte sans adresse passent en échec sans envoi (ALR-06).
 
 ## Qualités mesurables
 

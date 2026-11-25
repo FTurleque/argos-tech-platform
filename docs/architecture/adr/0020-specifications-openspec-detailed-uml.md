@@ -1,8 +1,8 @@
 # ADR-0020 — Spécifier les exigences avec OpenSpec et le schéma `detailed-uml`
 
-- **Statut** : Proposé
-- **Date** : 2026-11-15
-- **Décideurs** : Non déterminé
+- **Statut** : Accepté
+- **Date** : 2026-11-24 (acceptation ; proposition du 2026-11-15)
+- **Décideurs** : porteur du projet (acceptation du 2026-11-24)
 - **Remplace** : —
 - **Remplacé par** : —
 
@@ -42,7 +42,7 @@ Contraintes observées sur OpenSpec 1.14.3 (copie isolée) : l'archivage ne cons
 
 ## Décision
 
-Option A, proposée. Le schéma `openspec/schemas/detailed-uml/` est sélectionné par `openspec/config.yaml`. Les exigences normatives vivent dans OpenSpec (identifiants `<PRÉFIXE>-<NN>`), le contexte fonctionnel et les diagrammes métier dans `docs/specifications/<capability-path>.md`, la vue consolidée dans arc42, les décisions structurantes dans les ADR. Les liens écrits depuis `openspec/` partent de la racine du dépôt.
+Option A retenue. Le schéma `openspec/schemas/detailed-uml/` est sélectionné par `openspec/config.yaml`. Les exigences normatives vivent dans OpenSpec (identifiants `<PRÉFIXE>-<NN>`), le contexte fonctionnel et les diagrammes métier dans `docs/specifications/<capability-path>.md`, la vue consolidée dans arc42, les décisions structurantes dans les ADR. Les liens écrits depuis `openspec/` partent de la racine du dépôt.
 
 ## Conséquences positives
 

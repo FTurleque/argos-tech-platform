@@ -1,4 +1,4 @@
-package io.argos.workspace;
+package io.argos.commun;
 
 import java.sql.Connection;
 import java.sql.PreparedStatement;
@@ -8,11 +8,13 @@ import java.util.UUID;
 
 import javax.sql.DataSource;
 
+import io.quarkus.narayana.jta.QuarkusTransaction;
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.inject.Inject;
 
 /**
- * Exécute un traitement dans une transaction PostgreSQL soumise à la RLS (ACC-04, ADR-0016).
+ * Point unique d'application du contexte RLS et frontière transactionnelle du serveur (ACC-04, ADR-0016,
+ * ADR-0037).
  *
  * <p>Chaque transaction bascule sur le rôle {@code argos_app} et transmet le compte courant, son
  * sujet OIDC, son e-mail vérifié et l'espace courant. Les politiques de la migration V2 n'exposent
@@ -29,6 +31,11 @@ public class ContexteBase {
         /** Contexte d'un compte déjà identifié, sans sujet. */
         public Contexte(UUID compteId, String email, UUID espaceId) {
             this(compteId, null, email, espaceId);
+        }
+
+        /** Contexte d'un compte, sans sujet, sans courriel et sans espace courant. */
+        public static Contexte duCompte(UUID compteId) {
+            return new Contexte(compteId, null, null, null);
         }
 
         public static Contexte aucun() {
@@ -49,24 +56,19 @@ public class ContexteBase {
     @Inject
     DataSource dataSource;
 
+    /**
+     * Exécute le travail dans une nouvelle transaction JTA : le contexte est appliqué avant le travail ; la
+     * transaction est validée si le travail réussit et annulée s'il lève une exception, relancée telle quelle.
+     */
     public <T> T executer(Contexte contexte, Travail<T> travail) {
-        try (Connection connexion = dataSource.getConnection()) {
-            boolean autoCommit = connexion.getAutoCommit();
-            connexion.setAutoCommit(false);
-            try {
+        return QuarkusTransaction.requiringNew().call(() -> {
+            try (Connection connexion = dataSource.getConnection()) {
                 appliquer(connexion, contexte);
-                T resultat = travail.executer(connexion);
-                connexion.commit();
-                return resultat;
-            } catch (SQLException | RuntimeException erreur) {
-                connexion.rollback();
-                throw erreur;
-            } finally {
-                connexion.setAutoCommit(autoCommit);
+                return travail.executer(connexion);
+            } catch (SQLException erreur) {
+                throw new ErreurBase("Accès à la base impossible", erreur);
             }
-        } catch (SQLException erreur) {
-            throw new IllegalStateException("Accès à la base impossible", erreur);
-        }
+        });
     }
 
     /**

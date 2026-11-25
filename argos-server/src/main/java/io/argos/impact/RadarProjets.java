@@ -1,13 +1,7 @@
 package io.argos.impact;
 
-import java.sql.Connection;
-import java.sql.PreparedStatement;
-import java.sql.ResultSet;
-import java.sql.SQLException;
 import java.time.Instant;
 import java.time.LocalDate;
-import java.time.OffsetDateTime;
-import java.time.ZoneOffset;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.HashMap;
@@ -19,8 +13,6 @@ import java.util.Set;
 import java.util.UUID;
 import java.util.stream.Collectors;
 
-import javax.sql.DataSource;
-
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.enterprise.event.Event;
 import jakarta.enterprise.event.Observes;
@@ -28,6 +20,9 @@ import jakarta.inject.Inject;
 
 import org.jboss.logging.Logger;
 
+import io.argos.commun.ContexteBase;
+import io.argos.commun.Conversions;
+import io.argos.commun.Jdbc;
 import io.argos.observabilite.ErreursImprevues;
 
 import io.argos.catalog.standard.ReferentielStandardsEnBase;
@@ -87,7 +82,10 @@ public class RadarProjets {
     }
 
     @Inject
-    DataSource dataSource;
+    Jdbc jdbc;
+
+    @Inject
+    ContexteBase contexteBase;
 
     @Inject
     ReferentielStandardsEnBase referentiel;
@@ -220,39 +218,15 @@ public class RadarProjets {
 
     /** Dettes de version de l'espace visibles du compte (RLS, ADR-0016). */
     public List<DetteVersion> dettes(UUID compteId, UUID espaceId) {
-        try (Connection connexion = dataSource.getConnection()) {
-            boolean autoCommit = connexion.getAutoCommit();
-            connexion.setAutoCommit(false);
-            try {
-                RlsSession.account(connexion, compteId);
-                List<DetteVersion> liste = new ArrayList<>();
-                try (PreparedStatement requete = connexion.prepareStatement("""
-                        SELECT d.id, d.project_id, p.name, d.cle, d.version, d.cycle, d.fin_support_le, d.version_standard,
-                               d.source, d.cree_le
-                        FROM dette_version d JOIN project p ON p.id = d.project_id
-                        WHERE d.workspace_id = ? ORDER BY d.fin_support_le, p.name, d.cle
-                        """)) {
-                    requete.setObject(1, espaceId);
-                    try (ResultSet resultat = requete.executeQuery()) {
-                        while (resultat.next()) {
-                            liste.add(new DetteVersion(resultat.getObject(1, UUID.class), resultat.getObject(2, UUID.class),
-                                    resultat.getString(3), resultat.getString(4), resultat.getString(5), resultat.getString(6),
-                                    resultat.getObject(7, LocalDate.class), resultat.getString(8), resultat.getString(9),
-                                    resultat.getObject(10, OffsetDateTime.class).toInstant()));
-                        }
-                    }
-                }
-                connexion.commit();
-                return liste;
-            } catch (SQLException | RuntimeException erreur) {
-                connexion.rollback();
-                throw erreur;
-            } finally {
-                connexion.setAutoCommit(autoCommit);
-            }
-        } catch (SQLException erreur) {
-            throw new IllegalStateException("lecture des dettes de version impossible", erreur);
-        }
+        return contexteBase.executer(ContexteBase.Contexte.duCompte(compteId), connexion -> Jdbc.lister(connexion, """
+                SELECT d.id, d.project_id, p.name, d.cle, d.version, d.cycle, d.fin_support_le, d.version_standard,
+                       d.source, d.cree_le
+                FROM dette_version d JOIN project p ON p.id = d.project_id
+                WHERE d.workspace_id = ? ORDER BY d.fin_support_le, p.name, d.cle
+                """, Jdbc.parametres(espaceId), resultat -> new DetteVersion(resultat.getObject(1, UUID.class),
+                resultat.getObject(2, UUID.class), resultat.getString(3), resultat.getString(4), resultat.getString(5),
+                resultat.getString(6), resultat.getObject(7, LocalDate.class), resultat.getString(8),
+                resultat.getString(9), Conversions.instant(resultat, 10))));
     }
 
     // ------------------------------------------------------------------ interne
@@ -295,42 +269,22 @@ public class RadarProjets {
         if (ids.isEmpty()) {
             return noms;
         }
-        try (Connection connexion = dataSource.getConnection();
-                PreparedStatement requete = connexion.prepareStatement("SELECT id, name FROM project WHERE id = ANY (?)")) {
-            requete.setArray(1, connexion.createArrayOf("uuid", ids.toArray()));
-            try (ResultSet resultat = requete.executeQuery()) {
-                while (resultat.next()) {
-                    noms.put(resultat.getObject(1, UUID.class), resultat.getString(2));
-                }
-            }
-        } catch (SQLException erreur) {
-            throw new IllegalStateException("lecture des projets impossible", erreur);
-        }
+        jdbc.lister("SELECT id, name FROM project WHERE id = ANY (?)",
+                requete -> requete.setArray(1, requete.getConnection().createArrayOf("uuid", ids.toArray())),
+                resultat -> Map.entry(resultat.getObject(1, UUID.class), resultat.getString(2)))
+                .forEach(ligne -> noms.put(ligne.getKey(), ligne.getValue()));
         return noms;
     }
 
     private int enregistrerDette(InventoryQueries.ComponentMatch composant, CalendrierSorties.Echeance fin, String versionStandard,
             Instant maintenant) {
-        try (Connection connexion = dataSource.getConnection(); PreparedStatement requete = connexion.prepareStatement("""
+        return jdbc.modifier("""
                 INSERT INTO dette_version (id, project_id, workspace_id, component_id, cle, version, cycle, fin_support_le,
                     version_standard, source, cree_le)
                 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                 ON CONFLICT (project_id, component_id) DO NOTHING
-                """)) {
-            requete.setObject(1, UUID.randomUUID());
-            requete.setObject(2, composant.projectId());
-            requete.setObject(3, composant.workspaceId());
-            requete.setObject(4, composant.componentId());
-            requete.setString(5, composant.packageKey());
-            requete.setString(6, composant.version());
-            requete.setString(7, fin.version());
-            requete.setObject(8, fin.date());
-            requete.setString(9, versionStandard);
-            requete.setString(10, fin.source());
-            requete.setObject(11, maintenant.atOffset(ZoneOffset.UTC));
-            return requete.executeUpdate();
-        } catch (SQLException erreur) {
-            throw new IllegalStateException("enregistrement de la dette de version impossible", erreur);
-        }
+                """, Jdbc.parametres(UUID.randomUUID(), composant.projectId(), composant.workspaceId(),
+                composant.componentId(), composant.packageKey(), composant.version(), fin.version(), fin.date(),
+                versionStandard, fin.source(), Conversions.utc(maintenant)));
     }
 }

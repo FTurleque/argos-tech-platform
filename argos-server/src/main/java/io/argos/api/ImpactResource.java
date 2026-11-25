@@ -23,12 +23,12 @@ import org.eclipse.microprofile.openapi.annotations.responses.APIResponse;
 import org.eclipse.microprofile.openapi.annotations.tags.Tag;
 
 import io.argos.api.security.Access;
-import io.argos.api.security.Caller;
+import io.argos.commun.securite.Caller;
 import io.argos.impact.EtatImpact;
 import io.argos.impact.ImpactQueries;
 import io.argos.impact.TraitementImpacts;
-import io.argos.workspace.DonneeInvalide;
-import io.argos.workspace.RegleViolee;
+import io.argos.commun.DonneeInvalide;
+import io.argos.commun.RegleViolee;
 
 /**
  * Consultation d'un impact et de sa provenance (COR-03-S1), limitée au périmètre autorisé (COR-08-S2), avec son état

@@ -149,7 +149,7 @@ Le jeton d'accès du royaume de test expire vite : en redemander un si `/mcp` si
 - [PROPOSITION] Le résultat structuré est aussi renvoyé, sérialisé, dans un bloc `content` de type `text` (`quarkus.mcp.server.tools.structured-content.compatibility-mode=true`) : la spécification MCP 2025-06-18 le recommande pour les clients qui ne lisent que `content`.
 - [DÉCISION — porteur du projet, 2026-11-18] Les négociations `initialize` des versions avec session sont limitées comme les appels d'outils (60 par minute), comptées par sujet du jeton car aucun compte Argos n'est exigé pour négocier, et une session inactive est fermée après 30 minutes (valeur par défaut de l'extension, inscrite dans la configuration).
 - [PROPOSITION] Le compteur de débit est tenu en mémoire de l'instance unique (ADR-0017, ADR-0026).
-- [PROPOSITION] Le module `mcp` dépend de `api.security` (établissement de l'appelant) et de lui seul dans `api` (`ModuleBoundariesTest.mcpNeLitQueLaSecuriteDeLApi`).
+- [PROPOSITION] Le module `mcp` ne dépend d'aucune classe du module `api` : l'appelant (`Caller`, `CallerResolver`) et le limiteur de débit viennent du noyau commun `io.argos.commun.securite` (ADR-0037, `ModuleBoundariesTest`).
 
 - [DÉCISION — porteur du projet, 2026-11-19 ; G6] Une seule requête de liste des projets visibles : les outils MCP passent par la requête paginée `InventoryQueries.projects` (ou son équivalent unifié) ; `visibleProjects` disparaît si plus rien ne l'utilise ; comportement des outils MCP inchangé pour l'appelant (cloisonnement, contenu), tests MCP verts.
 - [DÉCISION — porteur du projet, 2026-11-19 ; H3] Outils MCP : l'ordre des projets de l'API (nom, espace, identifiant) et la lecture paginée sans instantané commun au-delà de 200 projets sont acceptés.

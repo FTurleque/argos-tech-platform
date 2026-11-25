@@ -1,4 +1,4 @@
-package io.argos.workspace;
+package io.argos.commun;
 
 /** Refus d'accès à une ressource d'espace ; journalisé par la couche d'exposition (ACC-06). */
 public class AccesRefuse extends RuntimeException {

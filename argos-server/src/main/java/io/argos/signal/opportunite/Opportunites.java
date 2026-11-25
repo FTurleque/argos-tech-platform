@@ -1,19 +1,16 @@
 package io.argos.signal.opportunite;
 
-import java.sql.Connection;
-import java.sql.PreparedStatement;
-import java.sql.ResultSet;
-import java.sql.SQLException;
 import java.time.LocalDate;
-import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 
-import javax.sql.DataSource;
 
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.inject.Inject;
+
+import io.argos.commun.Conversions;
+import io.argos.commun.Jdbc;
 
 /**
  * Lecture des opportunités collectées d'un profil. Données publiques de la plateforme, lues sous
@@ -31,7 +28,7 @@ public class Opportunites {
             """;
 
     @Inject
-    DataSource dataSource;
+    Jdbc jdbc;
 
     /**
      * Opportunités du profil dont une discipline figure parmi celles données et dont la date limite
@@ -48,25 +45,16 @@ public class Opportunites {
     }
 
     private List<Opportunite> lire(String sql, String profil, String[] disciplines, Object dernier) {
-        List<Opportunite> resultat = new ArrayList<>();
-        try (Connection connexion = dataSource.getConnection(); PreparedStatement requete = connexion.prepareStatement(sql)) {
+        return jdbc.lister(sql, requete -> {
             int position = 1;
             requete.setString(position++, profil);
             if (disciplines != null) {
-                requete.setArray(position++, connexion.createArrayOf("varchar", disciplines));
+                requete.setArray(position++, requete.getConnection().createArrayOf("varchar", disciplines));
             }
             requete.setObject(position, dernier);
-            try (ResultSet lignes = requete.executeQuery()) {
-                while (lignes.next()) {
-                    resultat.add(new Opportunite(lignes.getObject(1, UUID.class), lignes.getObject(2, UUID.class),
-                            lignes.getString(3), lignes.getString(4), lignes.getString(5), lignes.getString(6), lignes.getString(7),
-                            lignes.getString(8), SourcesProfil.tableau(lignes.getArray(9)), SourcesProfil.tableau(lignes.getArray(10)),
-                            lignes.getObject(11, LocalDate.class), SourcesProfil.instant(lignes, 12)));
-                }
-            }
-        } catch (SQLException erreur) {
-            throw new IllegalStateException("lecture des opportunités impossible", erreur);
-        }
-        return resultat;
+        }, lignes -> new Opportunite(lignes.getObject(1, UUID.class), lignes.getObject(2, UUID.class),
+                lignes.getString(3), lignes.getString(4), lignes.getString(5), lignes.getString(6), lignes.getString(7),
+                lignes.getString(8), SourcesProfil.tableau(lignes.getArray(9)), SourcesProfil.tableau(lignes.getArray(10)),
+                lignes.getObject(11, LocalDate.class), Conversions.instant(lignes, 12)));
     }
 }

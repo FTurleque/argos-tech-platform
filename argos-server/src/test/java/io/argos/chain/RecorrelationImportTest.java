@@ -16,6 +16,7 @@ import jakarta.inject.Inject;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
+import io.argos.inventory.StatutImport;
 import io.argos.impact.ImpactQueries;
 import io.argos.ingestion.SourceSynchronizer;
 import io.argos.inventory.ImportPlanifie;
@@ -200,7 +201,7 @@ class RecorrelationImportTest {
             InventoryService.ImportResult resultat = inventories.importSbom(projet,
                     sbom(LIB + "@1.5.0").getBytes(StandardCharsets.UTF_8), "manuel");
 
-            assertEquals("IMPORTED", resultat.status());
+            assertEquals(StatutImport.IMPORTED, resultat.status());
             assertEquals(LIB + "@1.5.0", baseDeTest.string("SELECT purl FROM component WHERE project_id = '" + projet + "'"),
                     "l'inventaire importé reste l'inventaire de référence");
             assertTrue(ouverts(projet).isEmpty());

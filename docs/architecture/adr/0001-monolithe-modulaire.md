@@ -1,8 +1,8 @@
 # ADR-0001 — Adopter un monolithe modulaire pour la première version
 
-- **Statut** : Proposé
-- **Date** : 2026-09-24
-- **Décideurs** : Non déterminé
+- **Statut** : Accepté
+- **Date** : 2026-11-24 (acceptation ; proposition du 2026-09-24)
+- **Décideurs** : porteur du projet (acceptation du 2026-11-24)
 - **Remplace** : —
 
 ## Contexte
@@ -39,7 +39,7 @@ ARGOS doit couvrir ingestion, veille, Project Intelligence, corrélation, recher
 
 ## Décision
 
-**Proposition : option A.** Un backend déployable unique, structuré en modules métier explicites avec ports/adapters.
+**Option A retenue.** Un backend déployable unique, structuré en modules métier explicites avec ports/adapters.
 
 ## Conséquences positives
 

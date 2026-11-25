@@ -30,9 +30,9 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 
 import io.argos.api.Erreur;
 import io.argos.api.security.Access;
-import io.argos.api.security.Caller;
+import io.argos.commun.securite.Caller;
 import io.argos.impact.RechercheVeille;
-import io.argos.workspace.DonneeInvalide;
+import io.argos.commun.DonneeInvalide;
 import io.argos.workspace.vue.VuesEnregistrees;
 
 /**

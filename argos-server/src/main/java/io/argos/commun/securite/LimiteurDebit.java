@@ -1,4 +1,4 @@
-package io.argos.api.security;
+package io.argos.commun.securite;
 
 import java.time.Duration;
 import java.util.ArrayDeque;

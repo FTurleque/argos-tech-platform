@@ -23,25 +23,25 @@ Les ADR enregistrent les décisions architecturales importantes d’ARGOS.
 
 ### Baseline initiale
 
-- [ADR-0001 — Monolithe modulaire](0001-monolithe-modulaire.md)
+- [ADR-0001 — Monolithe modulaire](0001-monolithe-modulaire.md) — **Accepté**
 - [ADR-0002 — PostgreSQL comme stockage principal](0002-postgresql-stockage-principal.md) — **Accepté v2.4**
-- [ADR-0003 — Modèle canonique d’événements](0003-modele-canonique-evenements.md)
+- [ADR-0003 — Modèle canonique d’événements](0003-modele-canonique-evenements.md) — **Accepté**
 - [ADR-0004 — AI Gateway Claude](0004-ai-gateway-claude.md) — **Remplacé par ADR-0029**
 - [ADR-0005 — Mermaid pour les diagrammes](0005-mermaid-diagrammes.md) — **Accepté**
 - [ADR-0006 — Collecteurs séparés](0006-collecteurs-separes.md) — **Remplacé par ADR-0028 pour la veille RSS/Atom et web** ; reste de la portée inchangé
-- [ADR-0007 — n8n périphérique](0007-n8n-peripherique.md)
-- [ADR-0008 — IAM OIDC](0008-iam-oidc.md)
+- [ADR-0007 — n8n périphérique](0007-n8n-peripherique.md) — Proposé
+- [ADR-0008 — IAM OIDC](0008-iam-oidc.md) — **Accepté** pour le principe (OIDC, autorisation fine dans ARGOS) ; le choix de l’IdP relève d’ADR-0027
 - [ADR-0009 — PolyForm Internal Use License 1.0.0](0009-licence-polyform-internal-use.md) — **Accepté**
 
 ### Compléments issus du dossier d’architecture v2.3
 
-- [ADR-0010 — Sources de vulnérabilités](0010-sources-vulnerabilites.md)
-- [ADR-0011 — SBOM CycloneDX](0011-sbom-cyclonedx.md)
-- [ADR-0012 — Dependency-Track optionnel](0012-dependency-track-optionnel.md)
-- [ADR-0013 — Corrélation déterministe](0013-correlation-deterministe.md)
-- [ADR-0014 — MCP lecture seule / Streamable HTTP](0014-mcp-readonly-streamable-http.md)
-- [ADR-0015 — PostgreSQL FTS / pgvector différé](0015-postgresql-fts-pgvector.md)
-- [ADR-0016 — Workspaces RBAC + RLS](0016-workspace-rbac-rls.md)
+- [ADR-0010 — Sources de vulnérabilités](0010-sources-vulnerabilites.md) — **Accepté**
+- [ADR-0011 — SBOM CycloneDX](0011-sbom-cyclonedx.md) — **Accepté**
+- [ADR-0012 — Dependency-Track optionnel](0012-dependency-track-optionnel.md) — Proposé
+- [ADR-0013 — Corrélation déterministe](0013-correlation-deterministe.md) — **Accepté**
+- [ADR-0014 — MCP lecture seule / Streamable HTTP](0014-mcp-readonly-streamable-http.md) — **Accepté**
+- [ADR-0015 — PostgreSQL FTS / pgvector différé](0015-postgresql-fts-pgvector.md) — **Accepté**
+- [ADR-0016 — Workspaces RBAC + RLS](0016-workspace-rbac-rls.md) — **Accepté**
 - [ADR-0017 — POC local Docker puis VM interne](0017-deploiement-vm-conteneurs.md) — cible VM interne remplacée par ADR-0026
 - [ADR-0018 — Veille réglementaire et validation MKP](0018-veille-reglementaire-mkp.md) — **Remplacé par ADR-0030**
 
@@ -51,15 +51,15 @@ Les ADR enregistrent les décisions architecturales importantes d’ARGOS.
 
 ### Gouvernance documentaire
 
-- [ADR-0020 — Spécifier les exigences avec OpenSpec et le schéma `detailed-uml`](0020-specifications-openspec-detailed-uml.md) — Proposé
+- [ADR-0020 — Spécifier les exigences avec OpenSpec et le schéma `detailed-uml`](0020-specifications-openspec-detailed-uml.md) — **Accepté**
 
 ### Licence
 
-- [ADR-0021 — Préserver la possibilité d'une double licence](0021-double-licence.md) — Proposé ; complète ADR-0009
+- [ADR-0021 — Préserver la possibilité d'une double licence](0021-double-licence.md) — **Accepté** ; complète ADR-0009
 
 ### Clients
 
-- [ADR-0022 — Client desktop Electron réutilisant l'IHM Vue.js 3](0022-client-desktop-electron.md) — Proposé
+- [ADR-0022 — Client desktop Electron réutilisant l'IHM Vue.js 3](0022-client-desktop-electron.md) — **Accepté**
 
 ### Personnalisation
 
@@ -96,10 +96,14 @@ Les ADR enregistrent les décisions architecturales importantes d’ARGOS.
 - [ADR-0035 — Comptes et isolation des bases de la plateforme](0035-comptes-et-isolation-des-bases.md) — **Proposé** ; précise ADR-0016, ADR-0026 et ADR-0027
 - [ADR-0036 — Pile d'observabilité du serveur](0036-pile-observabilite-serveur.md) — **Accepté**
 
+### Noyau du serveur
+
+- [ADR-0037 — Porter les mécanismes techniques partagés par un noyau commun du serveur](0037-noyau-commun-du-serveur.md) — **Accepté** ; précise ADR-0001 et ADR-0016
+
 ### Outillage de développement
 
 - [ADR-0034 — Vérifier chaque changement par GitHub Actions et suivre les dépendances avec Renovate](0034-integration-continue-github-actions-renovate.md) — Proposé
 
-Les ADR-0010 à ADR-0016 restent **Proposés** jusqu’à validation par revue d’architecture et/ou preuves produites pendant le POC.
+ADR-0007 et ADR-0012 restent **Proposés** : aucune dépendance à n8n ni à Dependency-Track dans le code livré.
 
 Utiliser [`template.md`](template.md) pour toute nouvelle décision.

@@ -31,7 +31,7 @@ class SubscriptionIsolationTest {
     @Test
     void abonnementsNeDependentQueDeLeurPaquetEtDuSocleTechnique() {
         classes().that().resideInAPackage(SUBSCRIPTION)
-                .should().onlyDependOnClassesThat().resideInAnyPackage(SUBSCRIPTION, "java..", "javax.sql..",
+                .should().onlyDependOnClassesThat().resideInAnyPackage(SUBSCRIPTION, "io.argos.commun", "java..", "javax.sql..",
                         "jakarta.enterprise..", "jakarta.inject..", "jakarta.transaction..", "com.fasterxml.jackson..")
                 .because("INV-D7 : la gestion des abonnements ne lit ni n'écrit aucune donnée d'autorisation")
                 .check(classes);
