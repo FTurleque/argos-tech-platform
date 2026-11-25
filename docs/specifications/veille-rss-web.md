@@ -120,8 +120,8 @@ Scénarios WEB-01-S1 à WEB-06-S1 du changement, couverts par `argos-server/src/
 - Résumé d'un article (WEB-04) : extrait déterministe des premières phrases, 280 caractères au plus, sans IA [PROPOSITION].
 - Nom de technologie (WEB-06) : portée d'un paquet npm à portée (`@angular/core` → `angular`), sinon nom du paquet, 3 caractères au moins, recherché comme mot entier [PROPOSITION].
 - Sources d'espace sans limite de nombre ; leur création est réservée aux administrateurs [PROPOSITION].
-- Les refus d'une demande de source réutilisent les erreurs communes du domaine : `DonneeInvalide` (HTTP 400, code du motif de refus ou `DONNEE_INVALIDE`, attribut en cause) et `RegleViolee` (HTTP 409, `LIMITE_SOURCES`, `SOURCE_EXISTANTE`, `COLLECTE_EN_COURS`) ; la RLS est appliquée par `ContexteBase`, seul mécanisme de contexte de cloisonnement du module `workspace` emprunté par `signal` [PROPOSITION].
-- Limite de débit : 10 requêtes par minute et par compte, commune à l'ajout et à la collecte à la demande, par le limiteur à fenêtre glissante `api.security.LimiteurDebit` partagé avec le serveur MCP [PROPOSITION].
+- Les refus d'une demande de source réutilisent les erreurs communes du domaine : `DonneeInvalide` (HTTP 400, code du motif de refus ou `DONNEE_INVALIDE`, attribut en cause) et `RegleViolee` (HTTP 409, `LIMITE_SOURCES`, `SOURCE_EXISTANTE`, `COLLECTE_EN_COURS`) ; la RLS est appliquée par `ContexteBase` du noyau commun (`io.argos.commun`), seul point d'application du contexte de cloisonnement [PROPOSITION].
+- Limite de débit : 10 requêtes par minute et par compte, commune à l'ajout et à la collecte à la demande, par le limiteur à fenêtre glissante `io.argos.commun.securite.LimiteurDebit` partagé avec le serveur MCP [PROPOSITION].
 - Un hôte introuvable est refusé comme un hôte interdit (`ADRESSE_INTERDITE`) ; Teredo, 100::/64 et 64:ff9b::/32 hors du préfixe NAT64 bien connu sont refusés quelle que soit l'IPv4 embarquée [PROPOSITION].
 - Dans un passage du planificateur, aucune source n'est commencée après 4 minutes, durée inférieure à la cadence de 5 minutes [PROPOSITION].
 
