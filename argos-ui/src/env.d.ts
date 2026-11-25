@@ -2,10 +2,6 @@
 
 interface ImportMetaEnv {
   readonly VITE_ARGOS_API_URL?: string
-  /** Émetteur OIDC : URL du royaume Keycloak (changement connecter-ihm-oidc). */
-  readonly VITE_ARGOS_OIDC_ISSUER?: string
-  /** Client public OIDC de l'IHM (`argos-ui`). */
-  readonly VITE_ARGOS_OIDC_CLIENT_ID?: string
 }
 
 /** Pont exposé par le client desktop Electron (argos-desktop/src/preload.js). */

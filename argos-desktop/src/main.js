@@ -17,21 +17,23 @@ const preferences = require('./preferences');
 const { creerPoste } = require('./poste');
 const canaux = require('./canaux');
 const { creerConnexion } = require('./connexion');
+const { resoudreReglages } = require('./reglages-emballes');
 const http = require('node:http');
 
 const APP_ID = 'io.argos.desktop';
 const DEV = process.argv.includes('--dev');
 const DEV_URL = process.env.ARGOS_UI_DEV_URL || 'http://localhost:5173';
-// Réglages fixés à l'emballage : champ `argos` du package.json livré (`apiUrl`, `oidcUrl`), renseigné par
-// `electron-builder -c.extraMetadata.argos.apiUrl=…` ; la variable d'environnement garde la priorité.
-const REGLAGES_EMBALLES = /** @type {{argos?: {apiUrl?: string, oidcUrl?: string}}} */ (require('../package.json')).argos || {};
-// URL du serveur ARGOS : sert uniquement à la politique de sécurité du contenu.
-// L'IHM lit la sienne au moment du build (VITE_ARGOS_API_URL).
-const API_URL = process.env.ARGOS_API_URL || REGLAGES_EMBALLES.apiUrl || 'http://localhost:8080';
-// Émetteur OIDC (royaume Keycloak) : origine ajoutée à la CSP et seule destination acceptée pour
-// l'autorisation ouverte dans le navigateur du système (changement connecter-ihm-oidc, ACC-10).
-// L'IHM lit le sien au moment du build (VITE_ARGOS_OIDC_ISSUER) ; les deux doivent coïncider.
-const OIDC_URL = process.env.ARGOS_OIDC_URL || REGLAGES_EMBALLES.oidcUrl || 'http://localhost:8180/realms/argos';
+// Adresses du serveur ARGOS et de l'émetteur OIDC (royaume Keycloak) : variable d'environnement, puis champ
+// `argos` du package.json livré (`apiUrl`, `oidcUrl`, renseigné par `electron-builder -c.extraMetadata.argos.apiUrl=…`),
+// puis valeur par défaut (src/reglages-emballes.js, testé). L'URL du serveur sert à la politique de sécurité du
+// contenu ; l'émetteur s'y ajoute et reste la seule destination acceptée pour l'autorisation ouverte dans le
+// navigateur du système (changement connecter-ihm-oidc, ACC-10). L'IHM lit le serveur au build
+// (VITE_ARGOS_API_URL) puis son émetteur dans la réponse publique du serveur (ACC-11) : les deux adresses
+// doivent coïncider avec celles-ci.
+const { apiUrl: API_URL, oidcUrl: OIDC_URL } = resoudreReglages(
+  process.env,
+  /** @type {{argos?: {apiUrl?: string, oidcUrl?: string}}} */ (require('../package.json')).argos,
+);
 const UI_DIR = app.isPackaged
   ? path.join(process.resourcesPath, 'ui')
   : path.join(__dirname, '..', '..', 'argos-ui', 'dist');

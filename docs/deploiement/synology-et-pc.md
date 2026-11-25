@@ -43,7 +43,7 @@ Pour développer, ne lancez que la base (`docker compose up -d postgres`) et sui
 
 ### Avec Keycloak sur le même poste (profil `idp-local`)
 
-Sans fournisseur d'identité existant, le profil `idp-local` ajoute un conteneur Keycloak (ADR-0027) et sa base, dans le même PostgreSQL. Dans `.env` : `ARGOS_OIDC_URL=http://keycloak:8080/realms/argos`, `ARGOS_ADMIN_EMAIL`, `ARGOS_ADMIN_MOT_DE_PASSE_INITIAL` (provisoire, à changer à la première connexion) et `ARGOS_KEYCLOAK_ADMIN_MOT_DE_PASSE` (console d'administration de Keycloak). Ces trois variables sont obligatoires avec ce profil : s'il en manque une, le conteneur `keycloak` s'arrête avant d'importer le royaume, avec un message qui la nomme (`docker compose logs keycloak`), et redémarre en boucle jusqu'à la correction du `.env`. Sans ce profil, elles ne sont pas demandées. Puis :
+Sans fournisseur d'identité existant, le profil `idp-local` ajoute un conteneur Keycloak (ADR-0027) et sa base, dans le même PostgreSQL. Dans `.env` : `ARGOS_OIDC_URL=http://keycloak:8080/realms/argos` (adresse du royaume pour le serveur, sur le réseau du projet), `ARGOS_OIDC_ISSUER_PUBLIC=http://localhost:8180/realms/argos` (émetteur public : l'adresse que joint le navigateur, voir [Adresses de l'instance](#adresses-de-linstance)), `ARGOS_ADMIN_EMAIL`, `ARGOS_ADMIN_MOT_DE_PASSE_INITIAL` (provisoire, d'au moins 12 caractères, à changer à la première connexion) et `ARGOS_KEYCLOAK_ADMIN_MOT_DE_PASSE` (console d'administration de Keycloak). `ARGOS_ADMIN_EMAIL`, `ARGOS_ADMIN_MOT_DE_PASSE_INITIAL` et `ARGOS_KEYCLOAK_ADMIN_MOT_DE_PASSE` sont obligatoires avec ce profil : s'il en manque une, le conteneur `keycloak` s'arrête avant d'importer le royaume, avec un message qui la nomme (`docker compose logs keycloak`), et redémarre en boucle jusqu'à la correction du `.env`. Sans ce profil, elles ne sont pas demandées. Puis :
 
 ```bash
 docker compose --profile idp-local up -d --build
@@ -51,16 +51,34 @@ docker compose --profile idp-local up -d --build
 
 `--build` construit aussi l'image Keycloak optimisée `argos-keycloak` ([`deploiement/keycloak/Dockerfile`](../../deploiement/keycloak/Dockerfile)) : Keycloak s'exécute en lecture seule et ne peut pas reconstruire son installation au démarrage (EXP-16). Après tout changement de `ARGOS_KEYCLOAK_VERSION`, relancez la commande avec `--build` ; sans `--build`, l'image de la version précédente reste servie.
 
-Keycloak répond sur <http://localhost:8180> (`ARGOS_KEYCLOAK_PORT`), Argos sur le port `ARGOS_PORT`. Le royaume importé ([`deploiement/keycloak/argos-realm.json`](../../deploiement/keycloak/argos-realm.json)) déclare les clients `argos-server`, `argos-ui` et `argos-mcp` et un seul compte, l'administrateur. Les adresses de retour de `argos-ui` visent `http://localhost:8088` : avec un autre `ARGOS_PORT`, adaptez-les dans la console Keycloak. Le royaume n'est importé qu'une fois, au premier démarrage sur une base `keycloak` vide : changer ensuite `ARGOS_ADMIN_EMAIL` ou `ARGOS_ADMIN_MOT_DE_PASSE_INITIAL` ne modifie ni le compte ni le royaume, qui se gèrent alors dans la console.
+Keycloak répond sur <http://localhost:8180> (`ARGOS_KEYCLOAK_PORT`), Argos sur le port `ARGOS_PORT`. Avec ces valeurs par défaut, le portail <http://localhost:8080> permet de se connecter depuis l'hôte. Le royaume importé ([`deploiement/keycloak/argos-realm.json`](../../deploiement/keycloak/argos-realm.json)) déclare les clients `argos-server`, `argos-ui` et `argos-mcp` et un seul compte, l'administrateur. Les adresses de retour, les origines et les adresses de fin de session de `argos-ui` sont exactes, sans joker : elles reprennent `ARGOS_PUBLIC_URL` (par défaut `http://localhost:` suivi de `ARGOS_PORT`) au moment de l'import. Le royaume n'est importé qu'une fois, au premier démarrage sur une base `keycloak` vide : changer ensuite `ARGOS_PUBLIC_URL`, `ARGOS_ADMIN_EMAIL` ou `ARGOS_ADMIN_MOT_DE_PASSE_INITIAL` ne modifie ni le compte ni le royaume, qui se gèrent alors dans la console ([Royaume déjà importé](#royaume-déjà-importé)).
+
+Le royaume livré est durci avant toute ouverture (ACC-13) :
+
+| Réglage | Valeur |
+|---|---|
+| Protection contre la force brute | blocage après 5 échecs, attente de 60 s qui croît à chaque série d'échecs, jusqu'à 15 min |
+| Mot de passe | au moins 12 caractères, ni l'identifiant ni l'adresse e-mail, différent des 3 derniers |
+| TLS (`sslRequired`) | `external` : le clair n'est accepté que depuis le réseau local et la machine elle-même |
+| Mot de passe provisoire de l'administrateur | à changer à la première connexion (la politique s'applique au nouveau mot de passe) |
+
+`node scripts/verifier-royaume.mjs` contrôle ces valeurs dans le fichier, et la CI l'exécute.
 
 La base `keycloak` porte les comptes et leurs sujets OIDC, auxquels Argos rattache ses propres comptes : elle est sauvegardée avec celle d'Argos ([Sauvegarder](#4-sauvegarder)). Après une reprise, restaurez-la **avant le premier démarrage de Keycloak** ([Restaurer](#5-restaurer)) : Keycloak n'importe le royaume que s'il n'existe pas, et un royaume réimporté donnerait de nouveaux sujets à tous les comptes, que les comptes Argos ne retrouveraient plus.
 
-Client desktop pour un serveur sur un autre port que 8080 :
+Client desktop pour un serveur sur une autre adresse ou un autre port que `http://localhost:8080` : l'IHM embarquée lit le serveur au build, le client desktop lit le serveur et l'émetteur à l'emballage (la variable d'environnement garde la priorité sur le champ `argos` du `package.json` emballé).
 
 ```powershell
-$env:VITE_ARGOS_API_URL = 'http://localhost:8088'
-npm --prefix argos-desktop run dist -- '-c.extraMetadata.argos.apiUrl=http://localhost:8088'
+$env:VITE_ARGOS_API_URL = 'http://192.168.1.20:8080'
+npm --prefix argos-desktop run dist -- '-c.extraMetadata.argos.apiUrl=http://192.168.1.20:8080' '-c.extraMetadata.argos.oidcUrl=http://192.168.1.20:8180/realms/argos'
 ```
+
+| Réglage | Portail web | Client desktop |
+|---|---|---|
+| Adresse du serveur | `VITE_ARGOS_API_URL` au build de l'IHM (vide dans l'image : même adresse que la page) | `VITE_ARGOS_API_URL` au build de l'IHM, puis `apiUrl` à l'emballage ou `ARGOS_API_URL` à l'exécution |
+| Émetteur OIDC | lu au démarrage de la page dans la réponse de `GET /api/v1/system/info` (`oidcIssuer`), réglé par `ARGOS_OIDC_ISSUER_PUBLIC` | `oidcUrl` à l'emballage ou `ARGOS_OIDC_URL` à l'exécution : même valeur que l'émetteur public du serveur |
+
+L'IHM, web ou embarquée, lit l'émetteur et le client OIDC dans la réponse publique du serveur : changer d'émetteur demande de modifier `.env` et de redémarrer `argos`, sans reconstruire l'image. Le client desktop doit recevoir la même adresse, car il en tire sa politique de sécurité du contenu et la destination qu'il accepte d'ouvrir dans le navigateur du système.
 
 L'installateur est écrit dans `argos-desktop/release/` ; `"ARGOS Setup 0.1.0.exe" /S` l'installe sans interface dans le profil de l'utilisateur. Il n'est pas signé : Windows SmartScreen peut demander une confirmation.
 
@@ -97,6 +115,45 @@ Par défaut, Argos n'écoute que sur le NAS lui-même (`ARGOS_BIND=127.0.0.1`) :
 | Nom de domaine en HTTPS | Panneau de configuration › Portail de connexion › Avancé › **Proxy inversé** : source `https://argos.votre-domaine`, destination `http://localhost:8080` ; certificat Let's Encrypt dans Panneau de configuration › Sécurité › Certificat |
 
 N'ouvrez pas le port 8080 sur votre box. Tant que l'authentification (OIDC, ADR-0008) n'est pas en place, Argos ne doit pas être exposé sur Internet.
+
+### Adresses de l'instance
+
+Trois adresses distinctes coexistent, et chacune a une valeur par défaut pour l'installation locale :
+
+| Adresse | Variable | Défaut | Qui la consomme |
+|---|---|---|---|
+| Adresse publique d'Argos, telle que l'ouvre le navigateur, sans « / » final | `ARGOS_PUBLIC_URL` | `http://localhost:` + `ARGOS_PORT` (8080) | adresse de retour, origine et fin de session du client `argos-ui` du royaume livré (à l'import) ; liens des e-mails |
+| Émetteur public : le royaume tel que le joint le navigateur et que le portent les jetons | `ARGOS_OIDC_ISSUER_PUBLIC` (avec Keycloak local, `ARGOS_KEYCLOAK_PUBLIC_URL` + `/realms/argos`) | `ARGOS_OIDC_URL` | IHM (lecture au démarrage), politique de sécurité du contenu, `KC_HOSTNAME` de Keycloak |
+| Adresse interne du royaume, pour le serveur | `ARGOS_OIDC_URL` | aucune (obligatoire) | validation des jetons par le serveur |
+
+Pour se connecter **depuis un autre poste** du réseau local avec le profil `idp-local`, réglez seulement ces variables dans `.env` (remplacez `192.168.1.20` par l'adresse du NAS), puis `docker compose --profile idp-local up -d` :
+
+```bash
+ARGOS_BIND=0.0.0.0
+ARGOS_PUBLIC_URL=http://192.168.1.20:8080
+ARGOS_KEYCLOAK_BIND=0.0.0.0
+ARGOS_KEYCLOAK_PUBLIC_URL=http://192.168.1.20:8180
+ARGOS_OIDC_ISSUER_PUBLIC=http://192.168.1.20:8180/realms/argos
+```
+
+Le royaume livré est déjà durci ; ne l'ouvrez pas avant d'avoir vérifié qu'il l'est : `node scripts/verifier-royaume.mjs` sur le dépôt, ou, sur un royaume déjà importé, les réglages de [Royaume déjà importé](#royaume-déjà-importé). `ARGOS_PUBLIC_URL` sert à l'import du royaume : sur une base `keycloak` vide, il faut le régler avant le premier démarrage de Keycloak.
+
+Avec un Keycloak existant (sans profil `idp-local`), `ARGOS_OIDC_URL` est l'adresse du royaume, `ARGOS_OIDC_ISSUER_PUBLIC` peut rester vide quand cette adresse est aussi celle que joint le navigateur, et le client `argos-ui` du royaume déclare l'adresse publique d'Argos comme adresse de retour.
+
+### Royaume déjà importé
+
+Keycloak n'importe le royaume qu'une fois : une installation existante garde ses anciens réglages. Dans la console d'administration (royaume `argos`) :
+
+1. Clients › `argos-ui` : adresses de redirection valides = `<ARGOS_PUBLIC_URL>/` (et `http://127.0.0.1/argos/retour` pour le client desktop), origines web autorisées = `<ARGOS_PUBLIC_URL>` et `app://argos`, adresses de redirection après déconnexion = `<ARGOS_PUBLIC_URL>/`, sans joker.
+2. Paramètres du royaume › Défenses de sécurité › Détection des attaques par force brute : activée, 5 échecs, attente de 60 s, attente maximale de 15 min, blocage temporaire.
+3. Authentification › Politiques › Politique de mot de passe : longueur minimale 12, pas le nom d'utilisateur, pas l'e-mail, historique de 3.
+4. Paramètres du royaume › Général › SSL requis : « Requêtes externes ».
+
+### HTTPS derrière le reverse proxy
+
+Pour un nom de domaine en HTTPS, le reverse proxy de DSM termine TLS : il ajoute l'en-tête `Strict-Transport-Security` (Panneau de configuration › Portail de connexion › Avancé › Proxy inversé › en-têtes personnalisés), qu'Argos ne pose pas. Dans `.env`, `ARGOS_PUBLIC_URL`, `ARGOS_KEYCLOAK_PUBLIC_URL` et `ARGOS_OIDC_ISSUER_PUBLIC` prennent des adresses `https://`. Une fois le passage en HTTPS vérifié, passez « SSL requis » du royaume à « Toutes les requêtes » (`sslRequired: all` dans la console ou dans `argos-realm.json` avant un premier import) : Keycloak refuse alors tout accès en clair, y compris depuis le réseau local.
+
+Ordre de mise en service : durcir avant d'exposer. Le royaume durci (force brute, politique de mot de passe, TLS) est en place avant d'ouvrir Keycloak hors de `127.0.0.1` (`ARGOS_KEYCLOAK_BIND`) ou derrière un nom de domaine.
 
 ### 4. Sauvegarder
 

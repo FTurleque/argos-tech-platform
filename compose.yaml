@@ -134,18 +134,24 @@ services:
       # Pool de connexions de Keycloak, compté dans le budget de max_connections de PostgreSQL (EXP-11).
       KC_DB_POOL_MAX_SIZE: ${ARGOS_KEYCLOAK_DB_POOL_MAX_SIZE:-10}
       KC_HTTP_ENABLED: "true"
-      # Adresse vue par le navigateur et dans les jetons ; les appels d'Argos passent par le réseau du projet.
-      KC_HOSTNAME: http://localhost:${ARGOS_KEYCLOAK_PORT:-8180}
+      # Adresse vue par le navigateur et dans les jetons (émetteur public) ; les appels d'Argos passent par le
+      # réseau du projet. Depuis un autre poste, ARGOS_KEYCLOAK_PUBLIC_URL nomme l'adresse joignable de Keycloak.
+      KC_HOSTNAME: ${ARGOS_KEYCLOAK_PUBLIC_URL:-http://localhost:${ARGOS_KEYCLOAK_PORT:-8180}}
       KC_HOSTNAME_BACKCHANNEL_DYNAMIC: "true"
       KC_HEALTH_ENABLED: "true"
       KC_BOOTSTRAP_ADMIN_USERNAME: ${ARGOS_KEYCLOAK_ADMIN:-admin}
       KC_BOOTSTRAP_ADMIN_PASSWORD: ${ARGOS_KEYCLOAK_ADMIN_MOT_DE_PASSE:-}
       ARGOS_ADMIN_EMAIL: ${ARGOS_ADMIN_EMAIL:-}
       ARGOS_ADMIN_MOT_DE_PASSE_INITIAL: ${ARGOS_ADMIN_MOT_DE_PASSE_INITIAL:-}
+      # Adresse publique d'Argos, substituée à l'import du royaume dans les adresses de retour, les origines et
+      # les adresses de fin de session du client argos-ui (sans joker).
+      ARGOS_PUBLIC_URL: ${ARGOS_PUBLIC_URL:-http://localhost:${ARGOS_PORT:-8080}}
     volumes:
       - ./deploiement/keycloak/argos-realm.json:/opt/keycloak/data/import/argos-realm.json:ro
     ports:
-      - "127.0.0.1:${ARGOS_KEYCLOAK_PORT:-8180}:8080"
+      # 127.0.0.1 par défaut : le royaume livré est durci (force brute, politique de mot de passe, TLS exigé hors
+      # réseau privé) avant toute ouverture ; ARGOS_KEYCLOAK_BIND=0.0.0.0 pour l'atteindre depuis un autre poste.
+      - "${ARGOS_KEYCLOAK_BIND:-127.0.0.1}:${ARGOS_KEYCLOAK_PORT:-8180}:8080"
     mem_limit: ${ARGOS_KEYCLOAK_MEM_LIMIT:-768m}
     logging: *journaux
     healthcheck:
@@ -185,6 +191,10 @@ services:
       ARGOS_DB_POOL_MAX_SIZE: ${ARGOS_DB_POOL_MAX_SIZE:-10}
       # Fournisseur d'identité OIDC (Keycloak, ADR-0027) : obligatoire, Argos refuse de démarrer sans.
       ARGOS_OIDC_URL: ${ARGOS_OIDC_URL:-}
+      # Émetteur public : adresse du royaume que joint le navigateur et que portent les jetons. L'IHM le lit au
+      # démarrage et la politique de sécurité du contenu le nomme. Sans valeur, c'est ARGOS_OIDC_URL ; avec le
+      # profil idp-local, ARGOS_OIDC_URL est l'adresse interne et l'émetteur public celle de Keycloak.
+      ARGOS_OIDC_ISSUER_PUBLIC: ${ARGOS_OIDC_ISSUER_PUBLIC:-${ARGOS_OIDC_URL:-}}
       ARGOS_OIDC_CLIENT_ID: ${ARGOS_OIDC_CLIENT_ID:-argos-server}
       ARGOS_OIDC_AUDIENCE: ${ARGOS_OIDC_AUDIENCE:-argos-server}
       ARGOS_ADMIN_EMAIL: ${ARGOS_ADMIN_EMAIL:-}

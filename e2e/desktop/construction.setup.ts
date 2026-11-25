@@ -9,7 +9,7 @@ import { existsSync } from 'node:fs'
 import { join } from 'node:path'
 import { test as setup } from '@playwright/test'
 import { DOSSIER_IHM, verifierBinaireElectron } from '../support/electron'
-import { EMETTEUR, URL_API } from '../support/environnement'
+import { URL_API } from '../support/environnement'
 
 setup.setTimeout(5 * 60_000)
 
@@ -23,7 +23,7 @@ function executerOutil(script: string, args: string[]): void {
     cwd: DOSSIER_IHM,
     stdio: 'pipe',
     encoding: 'utf8',
-    env: { ...process.env, VITE_ARGOS_API_URL: URL_API, VITE_ARGOS_OIDC_ISSUER: EMETTEUR },
+    env: { ...process.env, VITE_ARGOS_API_URL: URL_API },
   })
   if (resultat.error) throw resultat.error
   if (resultat.status !== 0) throw new Error(`Construction de argos-ui en échec (${script}) :\n${resultat.stdout}\n${resultat.stderr}`)
