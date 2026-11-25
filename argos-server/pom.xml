@@ -24,7 +24,7 @@
     <rome.version>2.1.0</rome.version>
     <jsoup.version>1.22.1</jsoup.version>
     <maven-artifact.version>3.9.16</maven-artifact.version>
-    <compiler-plugin.version>3.14.0</compiler-plugin.version>
+    <compiler-plugin.version>3.16.0</compiler-plugin.version>
     <surefire-plugin.version>3.5.3</surefire-plugin.version>
     <!-- Inventaire des dépendances tierces et de leurs licences (profil « licences », décision F3 du
          porteur du projet, 2026-11-19). CycloneDX Maven Plugin, licence Apache-2.0. -->
