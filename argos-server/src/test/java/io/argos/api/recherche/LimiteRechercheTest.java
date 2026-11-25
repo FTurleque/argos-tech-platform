@@ -7,8 +7,8 @@ import java.util.UUID;
 
 import org.junit.jupiter.api.Test;
 
-import io.argos.api.security.LimiteDebitAtteinte;
-import io.argos.api.security.LimiteurDebit;
+import io.argos.commun.securite.LimiteDebitAtteinte;
+import io.argos.commun.securite.LimiteurDebit;
 
 /** RCH-06-S3 : la limite de la recherche se relâche quand la fenêtre d'une minute s'écoule (horloge injectée). */
 class LimiteRechercheTest {

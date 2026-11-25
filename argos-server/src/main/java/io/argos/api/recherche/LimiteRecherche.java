@@ -7,8 +7,8 @@ import jakarta.enterprise.context.ApplicationScoped;
 
 import org.eclipse.microprofile.config.inject.ConfigProperty;
 
-import io.argos.api.security.LimiteDebitAtteinte;
-import io.argos.api.security.LimiteurDebit;
+import io.argos.commun.securite.LimiteDebitAtteinte;
+import io.argos.commun.securite.LimiteurDebit;
 
 /**
  * Limite de débit par compte de la recherche plein texte et du rappel d'une vue enregistrée (RCH-06,
