@@ -1,8 +1,8 @@
 # ADR-0036 — Pile d'observabilité du serveur
 
-- **Statut** : Proposé
-- **Date** : 2026-11-24
-- **Décideurs** : porteur du projet (décisions Q-1, Q-2 et Q-4 du changement `instrumenter-observabilite`, 2026-11-24) ; acceptation de l'ADR à venir
+- **Statut** : Accepté
+- **Date** : 2026-11-25 (acceptation ; proposition du 2026-11-24)
+- **Décideurs** : porteur du projet (décisions Q-1, Q-2 et Q-4 du changement `instrumenter-observabilite`, 2026-11-24 ; acceptation du 2026-11-25)
 - **Remplace** : —
 - **Remplacé par** : —
 
