@@ -22,12 +22,12 @@ import org.eclipse.microprofile.openapi.annotations.responses.APIResponse;
 import org.eclipse.microprofile.openapi.annotations.tags.Tag;
 
 import io.argos.api.security.Access;
-import io.argos.api.security.Caller;
+import io.argos.commun.securite.Caller;
 import io.argos.impact.EtatImpact;
 import io.argos.impact.ImpactQueries;
 import io.argos.signal.SignalQueries;
 import io.argos.vulnintel.Enricher;
-import io.argos.workspace.DonneeInvalide;
+import io.argos.commun.DonneeInvalide;
 
 /** Consultation d'un signal de sécurité, de sa provenance (COL-02-S1) et de ses impacts (COR-08-S1). */
 @Path("/api/v1/signals")

@@ -31,7 +31,7 @@ import io.argos.testsupport.Api;
 import io.argos.testsupport.StubServer;
 import io.argos.testsupport.StubServer.Stub;
 import io.argos.testsupport.TestDb;
-import io.argos.workspace.RegleViolee;
+import io.argos.commun.RegleViolee;
 import io.quarkus.arc.ClientProxy;
 import io.quarkus.test.common.QuarkusTestResource;
 import io.quarkus.test.junit.QuarkusTest;

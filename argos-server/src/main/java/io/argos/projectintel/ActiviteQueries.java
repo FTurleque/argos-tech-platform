@@ -24,8 +24,8 @@ import jakarta.transaction.Transactional;
 import org.eclipse.microprofile.config.inject.ConfigProperty;
 
 import io.argos.horloge.LectureHeure;
-import io.argos.workspace.ContexteBase;
-import io.argos.workspace.DonneeInvalide;
+import io.argos.commun.ContexteBase;
+import io.argos.commun.DonneeInvalide;
 
 /**
  * Consultation de l'activité d'un projet (PIN-01, PIN-02, PIN-05). La lecture s'exécute sous le rôle

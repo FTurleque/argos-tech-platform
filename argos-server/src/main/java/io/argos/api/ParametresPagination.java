@@ -3,7 +3,7 @@ package io.argos.api;
 import java.math.BigInteger;
 import java.util.regex.Pattern;
 
-import io.argos.workspace.DonneeInvalide;
+import io.argos.commun.DonneeInvalide;
 
 /**
  * Lecture des paramètres de pagination des listes de l'API REST ({@code page}, {@code size}, {@code taille},

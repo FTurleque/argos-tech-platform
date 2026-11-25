@@ -18,7 +18,7 @@ import org.eclipse.microprofile.openapi.annotations.Operation;
 import org.eclipse.microprofile.openapi.annotations.tags.Tag;
 
 import io.argos.api.security.Access;
-import io.argos.api.security.Caller;
+import io.argos.commun.securite.Caller;
 import io.argos.impact.ImpactQueries;
 import io.argos.signal.SignalQueries;
 import io.argos.workspace.subscription.SubscriptionService;

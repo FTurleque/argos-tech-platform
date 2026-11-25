@@ -19,8 +19,8 @@ import javax.sql.DataSource;
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.inject.Inject;
 
-import io.argos.workspace.ContexteBase;
-import io.argos.workspace.ContexteBase.Contexte;
+import io.argos.commun.ContexteBase;
+import io.argos.commun.ContexteBase.Contexte;
 
 /**
  * Objets suivis et jours de rappel d'un compte pour un profil de veille (tables {@code suivi_profil}

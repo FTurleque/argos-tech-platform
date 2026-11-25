@@ -31,8 +31,8 @@ import io.argos.catalog.profil.ManifesteProfil;
 import io.argos.catalog.profil.Rubrique;
 import io.argos.ingestion.web.GardeAdresses;
 import io.argos.ingestion.web.RecuperationRefusee;
-import io.argos.workspace.DonneeInvalide;
-import io.argos.workspace.RegleViolee;
+import io.argos.commun.DonneeInvalide;
+import io.argos.commun.RegleViolee;
 
 /**
  * Registre des sources d'un profil de veille (ART-05, Q-1) : déclaration par l'administrateur

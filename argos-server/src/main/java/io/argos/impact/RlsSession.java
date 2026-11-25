@@ -11,7 +11,7 @@ import java.util.UUID;
  * (ADR-0016) : rôle {@code argos_app}, compte courant, aucun espace courant. La politique RLS de
  * {@code project_impact} n'expose alors que les impacts des espaces dont le compte est membre.
  *
- * <p>Même protocole que {@code io.argos.workspace.ContexteBase#appliquer}, que {@code impact} ne
+ * <p>Même protocole que {@code io.argos.commun.ContexteBase#appliquer}, que {@code impact} ne
  * peut pas utiliser directement (ModuleBoundariesTest).
  */
 final class RlsSession {

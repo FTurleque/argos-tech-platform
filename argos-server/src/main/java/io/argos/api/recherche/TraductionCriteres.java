@@ -15,15 +15,15 @@ import jakarta.inject.Inject;
 
 import io.argos.alerting.Gravite;
 import io.argos.api.ParametresPagination;
-import io.argos.api.security.Caller;
+import io.argos.commun.securite.Caller;
 import io.argos.catalog.profil.CatalogueProfils;
 import io.argos.catalog.profil.ManifesteProfil;
 import io.argos.impact.RechercheVeille;
 import io.argos.inventory.InventoryQueries;
-import io.argos.workspace.AccesRefuse;
-import io.argos.workspace.DonneeInvalide;
-import io.argos.workspace.Introuvable;
-import io.argos.workspace.MotifRefus;
+import io.argos.commun.AccesRefuse;
+import io.argos.commun.DonneeInvalide;
+import io.argos.commun.Introuvable;
+import io.argos.commun.MotifRefus;
 
 /**
  * Validation des mots et filtres saisis (entrées non fiables) et traduction en critères de

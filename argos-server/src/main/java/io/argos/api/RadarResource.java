@@ -25,14 +25,14 @@ import org.eclipse.microprofile.openapi.annotations.tags.Tag;
 
 import io.argos.alerting.RappelsRadar;
 import io.argos.api.security.Access;
-import io.argos.api.security.Caller;
+import io.argos.commun.securite.Caller;
 import io.argos.catalog.standard.ReferentielEspace;
 import io.argos.catalog.standard.SaisieStandard;
 import io.argos.horloge.LectureHeure;
 import io.argos.impact.RadarProjets;
 import io.argos.releaseradar.CalendrierSorties;
 import io.argos.releaseradar.CyclesDeVie;
-import io.argos.workspace.DonneeInvalide;
+import io.argos.commun.DonneeInvalide;
 
 /**
  * Référentiel des standards et radar des sorties d'un espace (RAD-01 à RAD-06). Les membres de l'espace

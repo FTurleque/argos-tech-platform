@@ -18,13 +18,13 @@ import jakarta.inject.Inject;
 
 import org.eclipse.microprofile.config.inject.ConfigProperty;
 
-import io.argos.workspace.AccesRefuse;
-import io.argos.workspace.ContexteBase;
-import io.argos.workspace.ContexteBase.Contexte;
-import io.argos.workspace.DonneeInvalide;
-import io.argos.workspace.Introuvable;
-import io.argos.workspace.MotifRefus;
-import io.argos.workspace.RegleViolee;
+import io.argos.commun.AccesRefuse;
+import io.argos.commun.ContexteBase;
+import io.argos.commun.ContexteBase.Contexte;
+import io.argos.commun.DonneeInvalide;
+import io.argos.commun.Introuvable;
+import io.argos.commun.MotifRefus;
+import io.argos.commun.RegleViolee;
 
 /**
  * Vues enregistrées (RCH-04) : une recherche nommée d'un compte, visible de lui seul. Les critères

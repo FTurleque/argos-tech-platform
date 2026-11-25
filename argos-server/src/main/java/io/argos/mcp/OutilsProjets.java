@@ -12,7 +12,7 @@ import java.util.stream.Collectors;
 
 import jakarta.inject.Inject;
 
-import io.argos.api.security.Caller;
+import io.argos.commun.securite.Caller;
 import io.argos.impact.ImpactQueries;
 import io.argos.inventory.InventoryQueries;
 import io.quarkiverse.mcp.server.Tool;

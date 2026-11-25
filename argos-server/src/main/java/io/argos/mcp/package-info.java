@@ -11,7 +11,7 @@
  *
  * <p>Dépendances autorisées : {@code workspace}, {@code catalog}, {@code inventory}, {@code signal},
  * {@code vulnintel}, {@code releaseradar}, {@code regintel}, {@code impact}, {@code alerting},
- * {@code projectintel}, {@code audit} et, dans {@code api}, seulement {@code api.security}.
+ * {@code projectintel} et {@code audit}.
  * Vérifiées par {@code ModuleBoundariesTest}.
  */
 package io.argos.mcp;

@@ -19,7 +19,7 @@ import jakarta.inject.Inject;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
 
-import io.argos.workspace.ContexteBase;
+import io.argos.commun.ContexteBase;
 
 /**
  * Consultation des alertes et résumés d'un compte, et remise au client desktop (contrat utilisé par

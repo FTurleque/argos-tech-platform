@@ -33,9 +33,9 @@ import org.jboss.resteasy.reactive.RestResponse;
 import io.argos.api.Erreur;
 import io.argos.api.ParametresPagination;
 import io.argos.api.security.Access;
-import io.argos.api.security.Caller;
-import io.argos.api.security.LimiteDebitAtteinte;
-import io.argos.api.security.LimiteurDebit;
+import io.argos.commun.securite.Caller;
+import io.argos.commun.securite.LimiteDebitAtteinte;
+import io.argos.commun.securite.LimiteurDebit;
 import io.argos.catalog.dictionnaire.DictionnaireMetier;
 import io.argos.horloge.LectureHeure;
 import io.argos.regintel.CollecteReglementaire;
@@ -44,7 +44,7 @@ import io.argos.regintel.EcheancesReglementaires;
 import io.argos.regintel.ExpertiseFiches;
 import io.argos.regintel.FicheAnalyse;
 import io.argos.regintel.FichesEnBase;
-import io.argos.workspace.Introuvable;
+import io.argos.commun.Introuvable;
 import io.quarkus.security.Authenticated;
 
 /**

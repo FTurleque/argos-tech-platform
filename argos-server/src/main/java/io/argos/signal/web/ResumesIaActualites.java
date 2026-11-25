@@ -24,8 +24,8 @@ import io.argos.aigateway.EntreeIa;
 import io.argos.aigateway.PasserelleIa;
 import io.argos.aigateway.RegistrePrompts;
 import io.argos.aigateway.ReponseIa;
-import io.argos.workspace.ContexteBase;
-import io.argos.workspace.ContexteBase.Contexte;
+import io.argos.commun.ContexteBase;
+import io.argos.commun.ContexteBase.Contexte;
 
 /**
  * Résumé IA d'une actualité de la veille web, demandé explicitement par l'utilisateur (tâche

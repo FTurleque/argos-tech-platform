@@ -17,8 +17,8 @@ aucune dépendance nouvelle (D3).
 
 ## 2. Paquet du noyau commun (AUD-ARC-05)
 
-- [ ] 2.1 Créer le paquet du noyau commun et y déplacer les erreurs du domaine partagées (`DonneeInvalide`, `RegleViolee`, `Introuvable`, `AccesRefuse`, `MotifRefus`) et le contexte RLS ; sous-paquet sécurité pour `Caller` et `LimiteurDebit` ; mettre à jour les imports — couvre AUD-ARC-05 — vérification : `mvn -B -f argos-server/pom.xml verify` passe
-- [ ] 2.2 Test des frontières : entrée `commun` autorisée à tous, `commun` sans dépendance ; retirer les cinq règles d'exception et les entrées `ALLOWED` devenues inutiles (design.md, D5) ; règle NC-3 — couvre AUD-ARC-05 — vérification : `ModuleBoundariesTest` passe sans règle d'exception ; un exemple de violation (paquet d'exemples de test) est détecté
+- [x] 2.1 Créer le paquet du noyau commun et y déplacer les erreurs du domaine partagées (`DonneeInvalide`, `RegleViolee`, `Introuvable`, `AccesRefuse`, `MotifRefus`) et le contexte RLS ; sous-paquet sécurité pour `Caller` et `LimiteurDebit` ; mettre à jour les imports — couvre AUD-ARC-05 — vérification : `mvn -B -f argos-server/pom.xml verify` passe
+- [x] 2.2 Test des frontières : entrée `commun` autorisée à tous, `commun` sans dépendance ; retirer les cinq règles d'exception et les entrées `ALLOWED` devenues inutiles (design.md, D5) ; règle NC-3 — couvre AUD-ARC-05 — vérification : `ModuleBoundariesTest` passe sans règle d'exception ; un exemple de violation (paquet d'exemples de test) est détecté
 - [ ] 2.3 Documentation du groupe : arc42 §5.3 (composant « commun » : responsabilité, « ne doit pas »), §5.5 (règle de dépendance vers le noyau), §5.2 (diagramme de composants), inventaire `/docs/architecture/diagrams/README.md` si le diagramme change — vérification : `node scripts/verifier-docs.mjs` sans erreur
 
 ## 3. Contexte RLS unique (AUD-ARC-04)

@@ -21,7 +21,7 @@ import io.argos.ingestion.web.LecteurPage;
 import io.argos.ingestion.web.RecuperateurWeb;
 import io.argos.ingestion.web.RecuperationRefusee;
 import io.argos.observabilite.TacheObservee;
-import io.argos.workspace.RegleViolee;
+import io.argos.commun.RegleViolee;
 import io.quarkus.scheduler.Scheduled;
 
 /**

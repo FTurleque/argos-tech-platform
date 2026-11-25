@@ -28,7 +28,7 @@ import org.eclipse.microprofile.config.inject.ConfigProperty;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 
-import io.argos.workspace.ContexteBase;
+import io.argos.commun.ContexteBase;
 
 /**
  * Consultation des inventaires (INV-02, INV-03) et recherche des composants par clé de paquet

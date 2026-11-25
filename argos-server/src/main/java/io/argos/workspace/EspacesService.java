@@ -1,5 +1,11 @@
 package io.argos.workspace;
 
+import io.argos.commun.ContexteBase;
+import io.argos.commun.DonneeInvalide;
+import io.argos.commun.RegleViolee;
+import io.argos.commun.Introuvable;
+import io.argos.commun.AccesRefuse;
+import io.argos.commun.MotifRefus;
 import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
@@ -19,7 +25,7 @@ import jakarta.inject.Inject;
 import org.eclipse.microprofile.config.inject.ConfigProperty;
 
 import io.argos.horloge.LectureHeure;
-import io.argos.workspace.ContexteBase.Contexte;
+import io.argos.commun.ContexteBase.Contexte;
 
 /**
  * Espaces, appartenances, rôles et invitations (ACC-03, ACC-04, ACC-05).

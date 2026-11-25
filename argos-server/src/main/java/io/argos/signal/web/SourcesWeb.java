@@ -23,10 +23,10 @@ import io.argos.ingestion.web.LecteurFlux;
 import io.argos.ingestion.web.LecteurPage;
 import io.argos.ingestion.web.RecuperateurWeb;
 import io.argos.ingestion.web.RecuperationRefusee;
-import io.argos.workspace.ContexteBase;
-import io.argos.workspace.DonneeInvalide;
-import io.argos.workspace.RegleViolee;
-import io.argos.workspace.ContexteBase.Contexte;
+import io.argos.commun.ContexteBase;
+import io.argos.commun.DonneeInvalide;
+import io.argos.commun.RegleViolee;
+import io.argos.commun.ContexteBase.Contexte;
 
 /**
  * Sources de veille web d'un espace ou personnelles (WEB-01, WEB-02, WEB-03, Q-3).

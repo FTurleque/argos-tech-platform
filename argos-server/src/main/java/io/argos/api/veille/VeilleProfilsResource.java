@@ -26,7 +26,7 @@ import org.eclipse.microprofile.openapi.annotations.tags.Tag;
 import io.argos.api.SignauxAbonnements;
 import io.argos.api.preference.ResolutionPreferences;
 import io.argos.api.security.Access;
-import io.argos.api.security.Caller;
+import io.argos.commun.securite.Caller;
 import io.argos.catalog.profil.CatalogueProfils;
 import io.argos.catalog.profil.ManifesteProfil;
 import io.argos.catalog.profil.Rubrique;

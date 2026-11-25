@@ -35,8 +35,8 @@ import io.argos.impact.RadarProjets;
 import io.argos.observabilite.ErreursImprevues;
 import io.argos.observabilite.TacheObservee;
 import io.argos.regintel.EcheancesReglementaires;
-import io.argos.workspace.ContexteBase;
-import io.argos.workspace.ContexteBase.Contexte;
+import io.argos.commun.ContexteBase;
+import io.argos.commun.ContexteBase.Contexte;
 
 /**
  * Rappels d'échéance du radar (RAD-04) et annonces de changement de standard (RAD-06).

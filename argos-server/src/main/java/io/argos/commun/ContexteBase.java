@@ -1,4 +1,4 @@
-package io.argos.workspace;
+package io.argos.commun;
 
 import java.sql.Connection;
 import java.sql.PreparedStatement;

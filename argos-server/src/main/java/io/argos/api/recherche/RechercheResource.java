@@ -16,9 +16,9 @@ import org.eclipse.microprofile.openapi.annotations.responses.APIResponse;
 import org.eclipse.microprofile.openapi.annotations.tags.Tag;
 
 import io.argos.api.security.Access;
-import io.argos.api.security.Caller;
+import io.argos.commun.securite.Caller;
 import io.argos.impact.RechercheVeille;
-import io.argos.workspace.DonneeInvalide;
+import io.argos.commun.DonneeInvalide;
 
 /**
  * Recherche plein texte et filtres combinables sur la veille de l'appelant (RCH-01 à RCH-03) : signaux

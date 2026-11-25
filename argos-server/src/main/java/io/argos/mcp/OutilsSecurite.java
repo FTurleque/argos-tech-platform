@@ -18,7 +18,7 @@ import java.util.UUID;
 import jakarta.inject.Inject;
 
 import io.argos.alerting.Gravite;
-import io.argos.api.security.Caller;
+import io.argos.commun.securite.Caller;
 import io.argos.catalog.PackageKey;
 import io.argos.catalog.standard.ReferentielStandards;
 import io.argos.impact.ImpactQueries;
@@ -29,9 +29,9 @@ import io.argos.releaseradar.CalendrierSorties;
 import io.argos.signal.AffectedPackage;
 import io.argos.signal.SignalQueries;
 import io.argos.vulnintel.Enricher;
-import io.argos.workspace.AccesRefuse;
-import io.argos.workspace.Introuvable;
-import io.argos.workspace.MotifRefus;
+import io.argos.commun.AccesRefuse;
+import io.argos.commun.Introuvable;
+import io.argos.commun.MotifRefus;
 import io.quarkiverse.mcp.server.Tool;
 import io.quarkiverse.mcp.server.ToolArg;
 

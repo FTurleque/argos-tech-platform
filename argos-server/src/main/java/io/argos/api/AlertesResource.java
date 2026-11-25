@@ -22,9 +22,9 @@ import org.eclipse.microprofile.openapi.annotations.tags.Tag;
 
 import io.argos.alerting.ConsultationAlertes;
 import io.argos.api.security.Access;
-import io.argos.api.security.Caller;
-import io.argos.workspace.Introuvable;
-import io.argos.workspace.RegleViolee;
+import io.argos.commun.securite.Caller;
+import io.argos.commun.Introuvable;
+import io.argos.commun.RegleViolee;
 
 /**
  * Alertes et résumés de l'appelant (ALR-06). Contrat du client desktop ({@code notifier-sur-le-poste}) :

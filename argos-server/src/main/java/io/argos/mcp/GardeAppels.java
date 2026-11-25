@@ -17,15 +17,15 @@ import org.jboss.logging.Logger;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 
-import io.argos.api.security.Caller;
-import io.argos.api.security.CallerResolver;
-import io.argos.api.security.LimiteurDebit;
+import io.argos.commun.securite.Caller;
+import io.argos.commun.securite.CallerResolver;
+import io.argos.commun.securite.LimiteurDebit;
 import io.argos.audit.JournalAppelsMcp;
 import io.argos.audit.JournalAppelsMcp.Issue;
 import io.argos.audit.JournalRefus;
-import io.argos.workspace.AccesRefuse;
+import io.argos.commun.AccesRefuse;
 import io.argos.workspace.InscriptionRefusee;
-import io.argos.workspace.Introuvable;
+import io.argos.commun.Introuvable;
 import io.quarkiverse.mcp.server.ToolCallException;
 
 /**

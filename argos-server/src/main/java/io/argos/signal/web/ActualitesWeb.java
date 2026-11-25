@@ -18,8 +18,8 @@ import java.util.UUID;
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.inject.Inject;
 
-import io.argos.workspace.ContexteBase;
-import io.argos.workspace.ContexteBase.Contexte;
+import io.argos.commun.ContexteBase;
+import io.argos.commun.ContexteBase.Contexte;
 
 /**
  * Restitution des actualités web (WEB-01-S1, WEB-04, WEB-05) sous le rôle {@code argos_app} avec le

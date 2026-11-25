@@ -22,10 +22,10 @@ import javax.sql.DataSource;
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.inject.Inject;
 
-import io.argos.workspace.ContexteBase;
-import io.argos.workspace.ContexteBase.Contexte;
-import io.argos.workspace.DonneeInvalide;
-import io.argos.workspace.Introuvable;
+import io.argos.commun.ContexteBase;
+import io.argos.commun.ContexteBase.Contexte;
+import io.argos.commun.DonneeInvalide;
+import io.argos.commun.Introuvable;
 
 /**
  * Domaines métier, experts et dictionnaire de chaque espace (module {@code catalog}, décision D1 du

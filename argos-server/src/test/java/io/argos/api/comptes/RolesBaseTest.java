@@ -25,8 +25,8 @@ import org.junit.jupiter.api.Test;
 import io.argos.testsupport.Api;
 import io.argos.testsupport.ParametresSql;
 import io.argos.testsupport.TestDb;
-import io.argos.workspace.ContexteBase;
-import io.argos.workspace.ContexteBase.Contexte;
+import io.argos.commun.ContexteBase;
+import io.argos.commun.ContexteBase.Contexte;
 import io.quarkus.test.junit.QuarkusTest;
 
 /**
