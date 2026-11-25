@@ -37,6 +37,7 @@ import io.argos.commun.Jdbc;
 import io.argos.impact.ImpactQueries;
 import io.argos.execution.ExecuteurBorne;
 import io.argos.impact.ImpactsRecorded;
+import io.argos.impact.MatchRules;
 import io.argos.workspace.subscription.SubscriptionService;
 
 /**
@@ -101,7 +102,11 @@ public class MoteurAlertes {
     }
 
     private record Plan(Destinataires.Destinataire destinataire, Map<String, Map<UUID, ImpactQueries.ImpactView>> immediates,
-            Set<String> resumes) {
+            Set<CleResume> resumes) {
+    }
+
+    /** Résumé périodique visé : fréquence et canal de la règle d'alerte. */
+    private record CleResume(String frequence, String canal) {
     }
 
     /** Avertit au démarrage en exploitation si les liens des messages visent encore le poste local. */
@@ -180,9 +185,8 @@ public class MoteurAlertes {
             return 0;
         }
         int elements = 0;
-        for (String cle : plan.resumes()) {
-            String[] frequenceCanal = cle.split(":");
-            elements += ajouterAuResume(evenement, compte, frequenceCanal[0], frequenceCanal[1], maintenant);
+        for (CleResume cle : plan.resumes()) {
+            elements += ajouterAuResume(evenement, compte, cle.frequence(), cle.canal(), maintenant);
         }
         return elements;
     }
@@ -225,14 +229,14 @@ public class MoteurAlertes {
                     canal -> new LinkedHashMap<>());
             concernes.forEach(impact -> parImpact.put(impact.id(), impact));
         } else {
-            plan.resumes().add(regle.frequenceResume() + ":" + regle.canal());
+            plan.resumes().add(new CleResume(regle.frequenceResume(), regle.canal()));
         }
     }
 
     /** Règle immédiate, gravité minimale atteinte et au moins un impact exact ou probable (ALR-01, ALR-02). */
     private static boolean declencheImmediate(RegleAlerte regle, List<ImpactQueries.ImpactView> concernes, String gravite) {
         return regle.immediate() && regle.seuilAtteint(gravite)
-                && concernes.stream().anyMatch(impact -> !"A_VERIFIER".equals(impact.level()));
+                && concernes.stream().anyMatch(impact -> impact.level() != MatchRules.Level.A_VERIFIER);
     }
 
     /** Clé du paquet d'un impact : celle de l'événement, sinon dérivée du PURL du composant. */
@@ -260,8 +264,8 @@ public class MoteurAlertes {
         Map<UUID, ContenuAlerte.Projet> projets = new LinkedHashMap<>();
         for (ImpactQueries.ImpactView vue : vues) {
             ContenuAlerte.Projet actuel = projets.get(vue.projectId());
-            if (actuel == null || rangNiveau(vue.level()) < rangNiveau(actuel.niveau())) {
-                projets.put(vue.projectId(), new ContenuAlerte.Projet(vue.projectId(), vue.projectName(), vue.level()));
+            if (actuel == null || rangNiveau(vue.level()) < rangNiveau(actuel.niveauImpact())) {
+                projets.put(vue.projectId(), ContenuAlerte.Projet.impact(vue.projectId(), vue.projectName(), vue.level()));
             }
         }
         List<ContenuAlerte.Projet> tries = projets.values().stream()
@@ -271,11 +275,12 @@ public class MoteurAlertes {
                 lienBase.replaceAll("/+$", "") + "/signaux/" + signal.signalId());
     }
 
-    private static int rangNiveau(String niveau) {
+    /** Rang d'un niveau dans une alerte : le plus fort d'abord. */
+    private static int rangNiveau(MatchRules.Level niveau) {
         return switch (niveau) {
-            case "EXACT" -> 0;
-            case "PROBABLE" -> 1;
-            default -> 2;
+            case EXACT -> 0;
+            case PROBABLE -> 1;
+            case A_VERIFIER -> 2;
         };
     }
 

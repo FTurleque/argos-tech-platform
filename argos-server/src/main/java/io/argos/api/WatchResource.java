@@ -20,6 +20,7 @@ import org.eclipse.microprofile.openapi.annotations.tags.Tag;
 import io.argos.api.security.Access;
 import io.argos.commun.securite.Caller;
 import io.argos.impact.ImpactQueries;
+import io.argos.impact.MatchRules;
 import io.argos.signal.SignalQueries;
 import io.argos.workspace.subscription.SubscriptionService;
 
@@ -34,7 +35,7 @@ import io.argos.workspace.subscription.SubscriptionService;
 public class WatchResource {
 
     /** Impact restitué dans la veille : seulement ceux du périmètre autorisé. */
-    public record WatchImpact(UUID impactId, UUID projectId, String projectName, String level) {
+    public record WatchImpact(UUID impactId, UUID projectId, String projectName, MatchRules.Level level) {
     }
 
     /** Élément de veille : un signal, les abonnements qui l'ont retenu et les impacts visibles. */

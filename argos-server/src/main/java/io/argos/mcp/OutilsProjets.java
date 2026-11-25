@@ -99,6 +99,6 @@ public class OutilsProjets {
 
     private Map<String, Long> alertesParNiveau(Caller appelant, InventoryQueries.ProjectItem projet) {
         return impacts.forProject(projet.id(), appelant.accountId(), appelant.memberWorkspaces()).stream()
-                .collect(Collectors.groupingBy(ImpactQueries.ImpactView::level, TreeMap::new, Collectors.counting()));
+                .collect(Collectors.groupingBy(impact -> impact.level().name(), TreeMap::new, Collectors.counting()));
     }
 }

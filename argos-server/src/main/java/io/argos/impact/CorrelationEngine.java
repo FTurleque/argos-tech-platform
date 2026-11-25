@@ -63,9 +63,9 @@ public class CorrelationEngine {
     private static final Logger LOG = Logger.getLogger(CorrelationEngine.class);
     private static final ObjectMapper MAPPER = new ObjectMapper();
 
-    /** Résultat d'une corrélation. {@code analysis} : NONE, DONE, UNAVAILABLE ou BUDGET_EXHAUSTED. */
+    /** Résultat d'une corrélation. {@code analysis} : état de l'analyse complémentaire. */
     public record CorrelationReport(UUID signalId, int created, int updated, int resolved, int reopened,
-            List<UUID> impactIds, String analysis, List<ComplementaryAnalysis.Suggestion> suggestions) {
+            List<UUID> impactIds, StatutAnalyse analysis, List<ComplementaryAnalysis.Suggestion> suggestions) {
     }
 
     private record Deterministic(int created, int updated, int resolved, int reopened, List<UUID> impactIds,
@@ -152,19 +152,19 @@ public class CorrelationEngine {
         if (outcome.resolved() > 0) {
             impactsTraites.fire(new ImpactsTraites(signalId));
         }
-        String status = "NONE";
+        StatutAnalyse status = StatutAnalyse.NONE;
         List<ComplementaryAnalysis.Suggestion> suggestions = List.of();
         if (analysis.isResolvable()) {
             ComplementaryAnalysis complementary = analysis.get();
             if (!complementary.budgetAvailable()) {
-                status = "BUDGET_EXHAUSTED";
+                status = StatutAnalyse.BUDGET_EXHAUSTED;
             } else {
                 try {
                     // Les suggestions sont informatives : elles ne créent aucun impact (COR-04).
                     suggestions = List.copyOf(complementary.analyze(signalId, outcome.impactIds()));
-                    status = "DONE";
+                    status = StatutAnalyse.DONE;
                 } catch (IllegalStateException erreur) {
-                    status = "UNAVAILABLE";
+                    status = StatutAnalyse.UNAVAILABLE;
                     LOG.infof(erreur, "analyse complémentaire indisponible pour le signal %s : %s", signalId, erreur.getMessage());
                 }
             }
@@ -280,13 +280,13 @@ public class CorrelationEngine {
         // notamment au titre d'un abonnement réactivé (ABO-07-S2, [PROPOSITION] PI-4).
         if (EtatImpact.ACTIFS.contains(etat) && change) {
             bilan.items.add(new ImpactsRecorded.Item(upsert.impactId(), component.projectId(), component.workspaceId(),
-                    correspondance.best().level().name(), component.packageKey()));
+                    correspondance.best().level(), component.packageKey()));
         }
     }
 
     /** Vrai si l'impact existant est redevenu actif, a changé de niveau ou porte une autre version de l'avis. */
     private static boolean aChange(Precedent precedent, Correspondance correspondance) {
-        return precedent.reactive() || !precedent.level().equals(correspondance.best().level().name())
+        return precedent.reactive() || precedent.level() != correspondance.best().level()
                 || !precedent.signalVersionId().equals(correspondance.signal().currentVersionId());
     }
 
@@ -342,7 +342,7 @@ public class CorrelationEngine {
     }
 
     /** Impact existant : niveau, version de l'avis, et vrai s'il est redevenu actif depuis sa dernière corrélation. */
-    private record Precedent(String level, UUID signalVersionId, boolean reactive) {
+    private record Precedent(MatchRules.Level level, UUID signalVersionId, boolean reactive) {
     }
 
     /** État de l'impact existant pour ce signal, ce projet et ce composant, s'il existe. */
@@ -354,7 +354,7 @@ public class CorrelationEngine {
                 FROM project_impact i
                 WHERE i.signal_id = ? AND i.project_id = ? AND i.component_id = ?
                 """, Jdbc.parametres(signalId, component.projectId(), component.componentId()),
-                resultat -> new Precedent(resultat.getString(1), resultat.getObject(2, UUID.class), resultat.getBoolean(3)));
+                resultat -> new Precedent(ImpactQueries.niveau(resultat.getString(1)), resultat.getObject(2, UUID.class), resultat.getBoolean(3)));
     }
 
     /**

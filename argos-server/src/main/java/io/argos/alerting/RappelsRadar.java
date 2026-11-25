@@ -265,7 +265,7 @@ public class RappelsRadar {
     private ContenuAlerte contenu(String titre, List<RadarProjets.ProjetConcerne> projets, String source,
             String identifiant, UUID espaceId) {
         List<ContenuAlerte.Projet> cites = projets.stream()
-                .map(projet -> new ContenuAlerte.Projet(projet.id(), projet.nom(), projet.version() == null ? "version inconnue"
+                .map(projet -> ContenuAlerte.Projet.radar(projet.id(), projet.nom(), projet.version() == null ? "version inconnue"
                         : "version " + projet.version()))
                 .toList();
         String url = "endoflife.date".equals(source) ? "https://endoflife.date" : null;

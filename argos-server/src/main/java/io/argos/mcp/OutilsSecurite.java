@@ -106,7 +106,7 @@ public class OutilsSecurite {
 
     /** Alerte : impact d'un signal sur un composant d'un projet de l'appelant. */
     public record Alerte(UUID impactId, UUID projetId, String projet, UUID espaceId, String composant, String version,
-            Boolean transitive, String niveau, String methode, UUID signalId, String signalSource, String signalIdentifiant,
+            Boolean transitive, MatchRules.Level niveau, String methode, UUID signalId, String signalSource, String signalIdentifiant,
             boolean exploitationAveree, String detecteLe, TexteExterne titre) {
     }
 
@@ -119,7 +119,7 @@ public class OutilsSecurite {
     }
 
     /** Projet de l'appelant concerné par le signal. */
-    public record ProjetConcerne(UUID projetId, String projet, String composant, String niveau) {
+    public record ProjetConcerne(UUID projetId, String projet, String composant, MatchRules.Level niveau) {
     }
 
     /** Réponse de {@code explain_change}. */

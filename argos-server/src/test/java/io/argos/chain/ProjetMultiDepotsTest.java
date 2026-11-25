@@ -31,6 +31,7 @@ import org.junit.jupiter.api.Test;
 import io.argos.impact.ImpactQueries;
 import io.argos.ingestion.SourceSynchronizer;
 import io.argos.inventory.InventoryQueries;
+import io.argos.inventory.StatutImport;
 import io.argos.inventory.InventoryService;
 import io.argos.inventory.ProjectDirectory;
 import io.argos.scm.RepositoryRef;
@@ -125,7 +126,7 @@ class ProjetMultiDepotsTest {
 
         InventoryService.ImportProjet resultat = inventories.importerProjet(projet);
 
-        assertEquals(List.of("IMPORTED", "IMPORTED"), resultat.depots().stream().map(depot -> depot.result().status()).toList());
+        assertEquals(List.of(StatutImport.IMPORTED, StatutImport.IMPORTED), resultat.depots().stream().map(depot -> depot.result().status()).toList());
         assertEquals("groupe/front", resultat.depots().get(0).repository(), "dépôt principal d'abord");
         String chemin = "/api/v1/projects/" + projet + "/inventory";
         Api.enTantQue("alice").when().get(chemin + "/components")
@@ -170,7 +171,7 @@ class ProjetMultiDepotsTest {
 
         InventoryService.ImportProjet resultat = inventories.importerProjet(projet);
 
-        assertEquals(List.of("REJECTED", "IMPORTED"), resultat.depots().stream().map(depot -> depot.result().status()).toList());
+        assertEquals(List.of(StatutImport.REJECTED, StatutImport.IMPORTED), resultat.depots().stream().map(depot -> depot.result().status()).toList());
         String chemin = "/api/v1/projects/" + projet + "/inventory";
         Api.enTantQue("alice").when().get(chemin + "/components")
                 .then().statusCode(200)

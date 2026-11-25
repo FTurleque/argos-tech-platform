@@ -45,7 +45,7 @@ public class ImpactQueries {
      */
     public record ImpactView(UUID id, UUID signalId, String signalSource, String signalExternalId, String signalTitle,
             UUID signalVersionId, UUID projectId, String projectName, UUID workspaceId, UUID componentId,
-            String componentPurl, String componentVersion, Boolean transitive, String level, String method,
+            String componentPurl, String componentVersion, Boolean transitive, MatchRules.Level level, String method,
             String inventoryOrigin, Instant inventoryDate, String provenance, Instant createdAt, Instant updatedAt,
             String etat, @JsonInclude(JsonInclude.Include.NON_NULL) List<TransitionView> historique,
             @JsonInclude(JsonInclude.Include.NON_NULL) List<String> transitionsPossibles) {
@@ -289,11 +289,23 @@ public class ImpactQueries {
                 });
     }
 
+    /** Niveau d'impact lu en base ; une valeur absente ou inconnue est une erreur, jamais un niveau par défaut. */
+    static MatchRules.Level niveau(String valeur) {
+        if (valeur == null) {
+            throw new IllegalStateException("niveau d'impact absent en base");
+        }
+        try {
+            return MatchRules.Level.valueOf(valeur);
+        } catch (IllegalArgumentException erreur) {
+            throw new IllegalStateException("niveau d'impact inconnu en base : " + valeur, erreur);
+        }
+    }
+
     private static ImpactView view(ResultSet resultat) throws SQLException {
         return new ImpactView(resultat.getObject(1, UUID.class), resultat.getObject(2, UUID.class), resultat.getString(3),
                 resultat.getString(4), resultat.getString(5), resultat.getObject(6, UUID.class), resultat.getObject(7, UUID.class),
                 resultat.getString(8), resultat.getObject(9, UUID.class), resultat.getObject(10, UUID.class), resultat.getString(11),
-                resultat.getString(12), (Boolean) resultat.getObject(13), resultat.getString(14), resultat.getString(15),
+                resultat.getString(12), (Boolean) resultat.getObject(13), niveau(resultat.getString(14)), resultat.getString(15),
                 resultat.getString(16), Conversions.instant(resultat, 17), resultat.getString(18),
                 Conversions.instant(resultat, 19), Conversions.instant(resultat, 20), resultat.getString(21), null, null);
     }

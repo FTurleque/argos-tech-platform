@@ -39,6 +39,7 @@ import com.cronutils.model.definition.CronDefinitionBuilder;
 import com.cronutils.model.time.ExecutionTime;
 import com.cronutils.parser.CronParser;
 
+import io.argos.inventory.StatutImport;
 import io.argos.inventory.ImportPlanifie;
 import io.argos.inventory.InventoryService;
 import io.argos.inventory.ProjectDirectory;
@@ -304,7 +305,7 @@ class ImportPlanifieTest {
                 java.util.Collections.singletonList(new String[] {"m", "pkg:npm/manuel@1.0.0"}), List.of("m"))
                 .getBytes(StandardCharsets.UTF_8), "manuel");
 
-        assertEquals("IMPORTED", manuel.status());
+        assertEquals(StatutImport.IMPORTED, manuel.status());
         assertEquals(1, composants(projet), "l'import manuel remplace l'inventaire de référence (INV-01)");
         assertEquals("pkg:npm/manuel@1.0.0", baseDeTest.string("SELECT purl FROM component WHERE project_id = '" + projet + "'"));
         assertEquals("manuel", baseDeTest.string("SELECT source_ref FROM repository_inventory WHERE project_id = '" + projet + "'"));
@@ -329,7 +330,7 @@ class ImportPlanifieTest {
             assertEquals(0, composants(projet), "rien n'est écrit tant que le verrou est tenu");
             verrou.rollback();
             verrou.setAutoCommit(true);
-            assertEquals("IMPORTED", manuel.get(20, TimeUnit.SECONDS).status());
+            assertEquals(StatutImport.IMPORTED, manuel.get(20, TimeUnit.SECONDS).status());
         } finally {
             fil.shutdownNow();
         }
@@ -363,7 +364,7 @@ class ImportPlanifieTest {
             verrou.setAutoCommit(true);
         }
 
-        assertEquals("IMPORTED", manuel.get(30, TimeUnit.SECONDS).status());
+        assertEquals(StatutImport.IMPORTED, manuel.get(30, TimeUnit.SECONDS).status());
         assertEquals(1, planifie.get(30, TimeUnit.SECONDS).importes());
         assertEquals(5, composants(projet), "inventaire de l'import terminé en dernier");
         assertEquals(0, baseDeTest.count("SELECT count(*) FROM component WHERE project_id = '" + projet

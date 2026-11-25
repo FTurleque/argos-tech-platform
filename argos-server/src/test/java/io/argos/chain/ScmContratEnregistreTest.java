@@ -22,6 +22,7 @@ import org.eclipse.microprofile.config.inject.ConfigProperty;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
+import io.argos.inventory.StatutImport;
 import io.argos.inventory.InventoryService;
 import io.argos.inventory.ProjectDirectory;
 import io.argos.scm.AccesRefuse;
@@ -133,7 +134,7 @@ class ScmContratEnregistreTest {
 
         InventoryService.ImportResult resultat = inventories.refresh(projet);
 
-        assertEquals("IMPORTED", resultat.status(), resultat.reason());
+        assertEquals(StatutImport.IMPORTED, resultat.status(), resultat.reason());
         assertEquals("SBOM", resultat.origin());
         Api.enTantQue("alice").when().get("/api/v1/projects/" + projet + "/inventory")
                 .then().statusCode(200)
@@ -158,7 +159,7 @@ class ScmContratEnregistreTest {
 
         InventoryService.ImportResult resultat = inventories.refresh(projet);
 
-        assertEquals("IMPORTED", resultat.status(), resultat.reason());
+        assertEquals(StatutImport.IMPORTED, resultat.status(), resultat.reason());
         assertEquals("MANIFEST", resultat.origin());
         Api.enTantQue("alice").when().get("/api/v1/projects/" + projet + "/inventory")
                 .then().statusCode(200)
@@ -194,7 +195,7 @@ class ScmContratEnregistreTest {
 
         InventoryService.ImportResult resultat = inventories.refresh(projet);
 
-        assertEquals("ERROR", resultat.status());
+        assertEquals(StatutImport.ERROR, resultat.status());
         assertTrue(resultat.reason().contains("introuvable"), resultat.reason());
         assertTrue(StubServer.received(depot + "/contents/package.json").isEmpty(), "aucun repli sur un dépôt introuvable");
     }
@@ -256,7 +257,7 @@ class ScmContratEnregistreTest {
 
         InventoryService.ImportResult resultat = inventories.refresh(projet);
 
-        assertEquals("IMPORTED", resultat.status(), resultat.reason());
+        assertEquals(StatutImport.IMPORTED, resultat.status(), resultat.reason());
         assertEquals("MANIFEST", resultat.origin());
         Api.enTantQue("alice").when().get("/api/v1/projects/" + projet + "/inventory")
                 .then().statusCode(200)
@@ -305,7 +306,7 @@ class ScmContratEnregistreTest {
         assertBorne(quota.reprise(), avant.plusSeconds(120));
 
         InventoryService.ImportResult resultat = inventories.refresh(projet);
-        assertEquals("ERROR", resultat.status());
+        assertEquals(StatutImport.ERROR, resultat.status());
         assertTrue(resultat.reason().contains("quota"), resultat.reason());
         Api.enTantQue("alice").when().get("/api/v1/projects/" + projet + "/inventory")
                 .then().statusCode(200)

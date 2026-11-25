@@ -25,6 +25,7 @@ import org.eclipse.microprofile.config.inject.ConfigProperty;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
+import io.argos.inventory.StatutImport;
 import io.argos.inventory.InventoryService;
 import io.argos.inventory.ProjectDirectory;
 import io.argos.scm.ParametresForges;
@@ -209,7 +210,7 @@ class ScmContractTest {
 
         InventoryService.ImportResult resultat = inventories.refresh(projet);
 
-        assertEquals("IMPORTED", resultat.status());
+        assertEquals(StatutImport.IMPORTED, resultat.status());
         assertEquals("SBOM", resultat.origin());
         Api.enTantQue("alice").when().get("/api/v1/projects/" + projet + "/inventory")
                 .then().statusCode(200)
@@ -235,7 +236,7 @@ class ScmContractTest {
         StubServer.programmer(GITHUB_SBOM, fixture(200, "scm/github/dependency-graph-sbom.json", Map.of()));
         InventoryService.ImportResult refus = inventories.refresh(projet);
 
-        assertEquals("REJECTED", refus.status());
+        assertEquals(StatutImport.REJECTED, refus.status());
         assertTrue(refus.reason().contains("SPDX JSON"));
         Api.enTantQue("alice").when().get("/api/v1/projects/" + projet + "/inventory/failures")
                 .then().statusCode(200)

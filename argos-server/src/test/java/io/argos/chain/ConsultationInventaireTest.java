@@ -23,6 +23,7 @@ import jakarta.inject.Inject;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
+import io.argos.inventory.StatutImport;
 import io.argos.inventory.InventoryQueries;
 import io.argos.inventory.InventoryService;
 import io.argos.inventory.ProjectDirectory;
@@ -75,7 +76,7 @@ class ConsultationInventaireTest {
             composants.add(new String[] {nom, "pkg:npm/" + nom + "@1.0." + rang});
         }
         String sbom = Fixtures.cyclonedx("1.6", "2026-11-18T00:00:00Z", composants, List.of("paquet-01"));
-        assertEquals("IMPORTED", inventories.importSbom(projet, bytes(sbom), "ci").status());
+        assertEquals(StatutImport.IMPORTED, inventories.importSbom(projet, bytes(sbom), "ci").status());
     }
 
     @Test
@@ -266,7 +267,7 @@ class ConsultationInventaireTest {
                 + "{\"type\":\"library\",\"bom-ref\":\"b\",\"name\":\"b\",\"purl\":\"pkg:npm/b@2.0.0\"},"
                 + "{\"type\":\"library\",\"name\":\"outil-interne\",\"group\":\"fr.exemple\",\"version\":\"1.0\"}],"
                 + "\"dependencies\":[{\"ref\":\"root\",\"dependsOn\":[\"a\"]}]}";
-        assertEquals("IMPORTED", inventories.importSbom(projet, bytes(sbom), "ci").status());
+        assertEquals(StatutImport.IMPORTED, inventories.importSbom(projet, bytes(sbom), "ci").status());
         String chemin = "/api/v1/projects/" + projet + "/inventory";
         io.restassured.path.json.JsonPath complet = Api.enTantQue("alice").when().get(chemin)
                 .then().statusCode(200).extract().jsonPath();
