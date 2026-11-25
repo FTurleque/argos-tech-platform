@@ -184,7 +184,7 @@ Frontières à aligner (capture de la seule panne d'accès aux données ; une er
 
 ## 8.6 Observabilité
 
-Pile retenue par [ADR-0036](../adr/0036-pile-observabilite-serveur.md) (Proposé) : journaux JSON de Quarkus, Micrometer avec registre Prometheus ; traçage distribué (OpenTelemetry) différé jusqu'à l'existence d'un collecteur. Exigences EXP-13 à EXP-15, fiche [`exploitation-plateforme`](../../specifications/exploitation-plateforme.md).
+Pile retenue par [ADR-0036](../adr/0036-pile-observabilite-serveur.md) (Accepté) : journaux JSON de Quarkus, Micrometer avec registre Prometheus ; traçage distribué (OpenTelemetry) différé jusqu'à l'existence d'un collecteur. Exigences EXP-13 à EXP-15, fiche [`exploitation-plateforme`](../../specifications/exploitation-plateforme.md).
 
 **Journaux.** En production, une ligne JSON par événement (`quarkus.log.console.json.enabled`), texte en développement et en test. Une erreur se journalise avec l'exception en premier argument (`LOG.errorf(erreur, "…")`) : le journal porte son type, son message, sa pile et ses causes. Aucun jeton, mot de passe ni adresse e-mail n'est journalisé ; le filtre `masquage-jetons` (`observabilite.FiltreJetons`) remplace tout jeton JWT cité dans un message, y compris par une extension, et dans le message d'une exception journalisée et de ses causes (pile conservée).
 
