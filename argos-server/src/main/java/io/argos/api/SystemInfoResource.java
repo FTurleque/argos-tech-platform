@@ -44,7 +44,7 @@ public class SystemInfoResource {
     @GET
     @Produces(MediaType.APPLICATION_JSON)
     @Operation(summary = "Identité et version du serveur ARGOS")
-    public SystemInfo info() {
+    public SystemInfo lireIdentiteServeur() {
         return new SystemInfo(applicationName, applicationVersion, "v1", emetteurPublic, clientIdIhm);
     }
 }

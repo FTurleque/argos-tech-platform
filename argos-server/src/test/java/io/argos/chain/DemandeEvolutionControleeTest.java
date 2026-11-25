@@ -85,7 +85,7 @@ class DemandeEvolutionControleeTest {
     }
 
     private String demandeEnregistree() {
-        return baseDeTest.string("SELECT demande_url FROM fiche_reglementaire WHERE id = '" + fiche + "'");
+        return baseDeTest.string("SELECT demande_url FROM fiche_reglementaire WHERE id = ?", fiche);
     }
 
     /** REG-09-S1 : un non-membre reçoit la réponse d'une fiche inexistante, quel que soit le ticket, sans appel à la forge. */
@@ -114,9 +114,9 @@ class DemandeEvolutionControleeTest {
         }
         assertEquals(0, requetesVersLaForge(), "aucune requête envoyée à la forge");
         UUID jules = Api.compte("jules");
-        assertEquals(2, baseDeTest.count("SELECT count(*) FROM refus_acces WHERE compte_id = '" + jules
-                + "' AND motif = 'ROLE_INSUFFISANT' AND ressource = 'PUT /api/v1/reglementaire/fiches/" + fiche
-                + "/demande-evolution'"));
+        assertEquals(2, baseDeTest.count("SELECT count(*) FROM refus_acces WHERE compte_id = ?"
+                + " AND motif = 'ROLE_INSUFFISANT' AND ressource = ?", jules,
+                "PUT /api/v1/reglementaire/fiches/" + fiche + "/demande-evolution"));
         assertNull(demandeEnregistree(), "la fiche n'est pas modifiée");
     }
 

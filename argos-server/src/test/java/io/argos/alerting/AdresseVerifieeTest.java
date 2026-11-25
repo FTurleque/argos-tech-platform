@@ -61,7 +61,7 @@ class AdresseVerifieeTest {
         baseDeTest.reset();
         mailbox.clear();
         compte = Api.compte("alice");
-        sujet = baseDeTest.string("SELECT sujet_oidc FROM compte WHERE id = '" + compte + "'");
+        sujet = baseDeTest.string("SELECT sujet_oidc FROM compte WHERE id = ?", compte);
     }
 
     private Compte seConnecter(String adresse, boolean verifiee) {
@@ -71,13 +71,14 @@ class AdresseVerifieeTest {
     /** Alerte d'un résumé quotidien au canal e-mail pour le compte d'alice, puis tentative d'envoi. */
     private EnvoiAlertes.Issue diffuserUnResume() {
         UUID id = UUID.randomUUID();
+        String contenu = "{\"elements\":[{\"signalId\":\"" + UUID.randomUUID() + "\",\"titre\":\"Faille\","
+                + "\"gravite\":\"HIGH\",\"projets\":[],\"sources\":[],\"lien\":null}],\"resumeIa\":null,"
+                + "\"etatResumeIa\":\"SANS_OBJET\"}";
         baseDeTest.exec("INSERT INTO alerte(id, nature, compte_id, canal, fin_periode, titre, contenu, etat_resume_ia, etat, cree_le) "
-                + "VALUES ('" + id + "', 'DAILY', '" + compte + "', 'EMAIL', now(), 'Résumé', "
-                + "'{\"elements\":[{\"signalId\":\"" + UUID.randomUUID() + "\",\"titre\":\"Faille\",\"gravite\":\"HIGH\","
-                + "\"projets\":[],\"sources\":[],\"lien\":null}],\"resumeIa\":null,\"etatResumeIa\":\"SANS_OBJET\"}', "
-                + "'SANS_OBJET', 'EN_ATTENTE', now())");
+                + "VALUES (?, 'DAILY', ?, 'EMAIL', now(), 'Résumé', ?::jsonb, 'SANS_OBJET', 'EN_ATTENTE', now())",
+                id, compte, contenu);
         EnvoiAlertes.Issue issue = envoi.envoyer(List.of(id), Instant.now()).get(id);
-        assertEquals(1, baseDeTest.count("SELECT count(*) FROM alerte WHERE id = '" + id + "'"),
+        assertEquals(1, baseDeTest.count("SELECT count(*) FROM alerte WHERE id = ?", id),
                 "l'élément reste visible dans Argos");
         return issue;
     }
@@ -88,7 +89,7 @@ class AdresseVerifieeTest {
         Compte connecte = seConnecter(ADRESSE_NON_VERIFIEE, false);
 
         assertNull(connecte.email());
-        assertNull(baseDeTest.string("SELECT email FROM compte WHERE id = '" + compte + "'"));
+        assertNull(baseDeTest.string("SELECT email FROM compte WHERE id = ?", compte));
         assertEquals(EnvoiAlertes.Issue.EN_ECHEC, diffuserUnResume());
         assertEquals(0, mailbox.getTotalMessagesSent());
     }
@@ -135,12 +136,12 @@ class AdresseVerifieeTest {
      */
     @Test
     void alr08S4CompteExistantAvantLaMigration() throws IOException {
-        baseDeTest.exec("UPDATE compte SET email = '" + ANCIENNE_ADRESSE + "' WHERE id = '" + compte + "'");
+        baseDeTest.exec("UPDATE compte SET email = ? WHERE id = ?", ANCIENNE_ADRESSE, compte);
         Matcher effacement = EFFACEMENT.matcher(Files.readString(Path.of(MIGRATION)));
         assertTrue(effacement.find(), "la migration efface les adresses enregistrées");
         baseDeTest.exec(effacement.group());
 
-        assertNull(baseDeTest.string("SELECT email FROM compte WHERE id = '" + compte + "'"));
+        assertNull(baseDeTest.string("SELECT email FROM compte WHERE id = ?", compte));
         assertEquals(EnvoiAlertes.Issue.EN_ECHEC, diffuserUnResume());
         assertEquals(0, mailbox.getTotalMessagesSent(), "aucun e-mail avant la reconnexion");
 

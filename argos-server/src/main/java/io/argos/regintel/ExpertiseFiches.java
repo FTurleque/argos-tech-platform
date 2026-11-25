@@ -223,8 +223,9 @@ public class ExpertiseFiches {
         Objects.requireNonNull(compte);
         UUID espace = fiches.espaceDe(id).orElseThrow(() -> new Introuvable("Ressource introuvable."));
         base.executer(new Contexte(compte, null, espace), connexion -> {
-            exigerImpactProduit(lireExpertisable(connexion, id));
-            return null;
+            FicheAnalyse fiche = lireExpertisable(connexion, id);
+            exigerImpactProduit(fiche);
+            return fiche;
         });
     }
 

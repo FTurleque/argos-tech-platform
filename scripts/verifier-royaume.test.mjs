@@ -2,7 +2,7 @@
 // Exécution : node --test scripts/*.test.mjs (aucune dépendance, aucun accès réseau).
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { ecartsDepot, ecartsRoyaume, POLITIQUE_MOT_DE_PASSE } from './verifier-royaume.mjs';
+import { ecartsDepot, ecartsRoyaume, REGLES_MOT_DE_PASSE } from './verifier-royaume.mjs';
 
 const CONFORME = {
   sslRequired: 'external',
@@ -10,7 +10,7 @@ const CONFORME = {
   failureFactor: 5,
   waitIncrementSeconds: 60,
   maxFailureWaitSeconds: 900,
-  passwordPolicy: POLITIQUE_MOT_DE_PASSE,
+  passwordPolicy: REGLES_MOT_DE_PASSE,
   clients: [{
     clientId: 'argos-ui',
     redirectUris: ['${ARGOS_PUBLIC_URL}/', 'http://127.0.0.1/argos/retour'],

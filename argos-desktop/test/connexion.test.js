@@ -164,6 +164,16 @@ test('l’URL ouverte est reconstruite depuis l’émetteur configuré, avec les
   assert.equal(urlAutorisationSure(autreChemin, contexte), undefined);
 });
 
+/** Envoie chaque retour à l'écoute et relève la réponse et l'état de l'écoute juste après. */
+async function envoyerRetours(retour, recherches, connexion) {
+  const releves = [];
+  for (const recherche of recherches) {
+    const reponse = await lire(`${retour}${recherche}`);
+    releves.push({ status: reponse.status, corps: reponse.corps, ecouteOuverte: connexion.enAttente() });
+  }
+  return releves;
+}
+
 test('ACC-14-S1 : un retour au state absent ou différent reçoit 400, ne transmet rien et laisse l’écoute ouverte', async () => {
   const retoursEtrangers = [
     '?code=code-etranger',
@@ -179,10 +189,7 @@ test('ACC-14-S1 : un retour au state absent ou différent reçoit 400, ne transm
     ouvrir: (url) => {
       const retour = new URL(url).searchParams.get('redirect_uri');
       setImmediate(async () => {
-        for (const recherche of retoursEtrangers) {
-          const reponse = await lire(`${retour}${recherche}`);
-          statuts.push({ status: reponse.status, corps: reponse.corps, ecouteOuverte: connexion.enAttente() });
-        }
+        statuts.push(...await envoyerRetours(retour, retoursEtrangers, connexion));
         // ACC-14-S2 : puis le retour au bon state est transmis et l'écoute se ferme.
         await lire(`${retour}?state=etat-1&session_state=x&code=bon-code`);
       });

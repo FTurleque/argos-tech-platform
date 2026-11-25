@@ -15,7 +15,7 @@ const RACINE = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 
 export const FICHIER_ROYAUME = 'deploiement/keycloak/argos-realm.json';
 export const CLIENT_PORTAIL = 'argos-ui';
-export const POLITIQUE_MOT_DE_PASSE = 'length(12) and notUsername and notEmail and passwordHistory(3)';
+export const REGLES_MOT_DE_PASSE = 'length(12) and notUsername and notEmail and passwordHistory(3)';
 export const SEUILS_FORCE_BRUTE = Object.freeze({ failureFactor: 5, waitIncrementSeconds: 60, maxFailureWaitSeconds: 900 });
 export const TLS_EXIGE = 'external';
 const JOKER = '*';
@@ -34,8 +34,8 @@ function adressesClientPortail(client) {
   ];
 }
 
-/** Écarts, triés, entre un royaume (JSON déjà lu) et les réglages de sécurité exigés. */
-export function ecartsRoyaume(royaume) {
+/** Écarts de la protection contre la force brute : activation, seuils, blocage temporaire. */
+function ecartsForceBrute(royaume) {
   const ecarts = [];
   if (royaume.bruteForceProtected !== true) {
     ecarts.push('bruteForceProtected : la protection contre la force brute doit être activée');
@@ -46,20 +46,28 @@ export function ecartsRoyaume(royaume) {
   if (royaume.permanentLockout === true) {
     ecarts.push('permanentLockout : le blocage définitif ne doit pas être activé (blocage temporaire croissant)');
   }
-  if (royaume.passwordPolicy !== POLITIQUE_MOT_DE_PASSE) {
-    ecarts.push(`passwordPolicy : « ${POLITIQUE_MOT_DE_PASSE} » attendue, « ${royaume.passwordPolicy ?? ''} » trouvée`);
+  return ecarts;
+}
+
+/** Écarts des adresses du client du portail : client présent, aucun joker. */
+function ecartsClientPortail(royaume) {
+  const client = (royaume.clients ?? []).find((candidat) => candidat.clientId === CLIENT_PORTAIL);
+  if (client === undefined) return [`client ${CLIENT_PORTAIL} : absent du royaume`];
+  return adressesClientPortail(client)
+    .filter(({ adresse }) => adresse.includes(JOKER))
+    .map(({ nature, adresse }) => `client ${CLIENT_PORTAIL}, ${nature} : joker interdit dans « ${adresse} »`);
+}
+
+/** Écarts, triés, entre un royaume (JSON déjà lu) et les réglages de sécurité exigés. */
+export function ecartsRoyaume(royaume) {
+  const ecarts = ecartsForceBrute(royaume);
+  if (royaume.passwordPolicy !== REGLES_MOT_DE_PASSE) {
+    ecarts.push(`passwordPolicy : « ${REGLES_MOT_DE_PASSE} » attendue, « ${royaume.passwordPolicy ?? ''} » trouvée`);
   }
   if (royaume.sslRequired !== TLS_EXIGE) {
     ecarts.push(`sslRequired : « ${TLS_EXIGE} » attendu, « ${royaume.sslRequired ?? 'absent'} » trouvé`);
   }
-  const client = (royaume.clients ?? []).find((candidat) => candidat.clientId === CLIENT_PORTAIL);
-  if (client === undefined) {
-    ecarts.push(`client ${CLIENT_PORTAIL} : absent du royaume`);
-  } else {
-    for (const { nature, adresse } of adressesClientPortail(client)) {
-      if (adresse.includes(JOKER)) ecarts.push(`client ${CLIENT_PORTAIL}, ${nature} : joker interdit dans « ${adresse} »`);
-    }
-  }
+  ecarts.push(...ecartsClientPortail(royaume));
   return ecarts.sort((premier, second) => premier.localeCompare(second, 'fr'));
 }
 

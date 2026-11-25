@@ -1,7 +1,6 @@
-// Configuration OIDC de l'IHM, propre à l'instance (ACC-11, design.md D1) : l'émetteur public et le client
-// public sont lus dans la réponse publique de GET /api/v1/system/info au démarrage de la page, jamais figés
-// dans le bundle. Aucune valeur de repli : sans réponse valable, aucune connexion n'est tentée.
-// Fonction pure, réseau injecté (tests/session.test.mjs).
+// Configuration OIDC de l'IHM, propre à l'instance (ACC-11, ADR-0038). Source : la réponse publique du serveur
+// à la lecture de l'identité, au démarrage de la page. Aucune valeur de repli : sans réponse valable, aucune
+// connexion n'est tentée. Fonction pure, réseau injecté (tests/session.test.mjs).
 import type { ConfigOidc } from './oidc.ts'
 
 const CHEMIN_IDENTITE = '/api/v1/system/info'

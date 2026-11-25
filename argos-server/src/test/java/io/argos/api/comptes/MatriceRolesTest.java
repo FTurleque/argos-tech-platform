@@ -152,7 +152,7 @@ class MatriceRolesTest {
         UUID texte = reg.texte("JORFTEXT000099400001", "Décret de la matrice", LocalDate.of(2026, 11, 2),
                 LocalDate.of(2027, 1, 1));
         fiche = reg.fiche(texte, espace, "carriere", "VALIDEE", "Résumé relu", ines);
-        baseDeTest.exec("UPDATE fiche_reglementaire SET etat_suivi = 'IMPACT_PRODUIT' WHERE id = '" + fiche + "'");
+        baseDeTest.exec("UPDATE fiche_reglementaire SET etat_suivi = 'IMPACT_PRODUIT' WHERE id = ?", fiche);
         for (String utilisateur : UTILISATEURS.values()) {
             jetons.put(utilisateur, Api.jeton(utilisateur));
             // Les préférences d'un compte survivent à TestDb.reset() : le profil de départ rend les cellules déterministes.

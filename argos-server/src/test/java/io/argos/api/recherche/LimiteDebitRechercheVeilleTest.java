@@ -79,8 +79,8 @@ class LimiteDebitRechercheVeilleTest {
     }
 
     private long refus(UUID compte, String ressource) {
-        return baseDeTest.count("SELECT count(*) FROM refus_acces WHERE compte_id = '" + compte
-                + "' AND motif = 'LIMITE_DEBIT' AND ressource = '" + ressource + "'");
+        return baseDeTest.count("SELECT count(*) FROM refus_acces WHERE compte_id = ?"
+                + " AND motif = 'LIMITE_DEBIT' AND ressource = ?", compte, ressource);
     }
 
     /**
