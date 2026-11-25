@@ -68,9 +68,6 @@ class RadarStandardsTest {
     TestDb baseDeTest;
 
     @Inject
-    Clock horloge;
-
-    @Inject
     ContexteBase base;
 
     @Inject
@@ -84,6 +81,9 @@ class RadarStandardsTest {
 
     @Inject
     ProjectDirectory projets;
+
+    @Inject
+    Clock horloge;
 
     @Inject
     InventoryService inventaires;

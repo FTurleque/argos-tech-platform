@@ -35,8 +35,8 @@ Un préfixe n'est jamais réattribué ; un identifiant d'exigence retiré n'est 
 
 | Capacité | Préfixe | Fiche | Spec de référence | Changement | Statut |
 |---|---|---|---|---|---|
-| `collecte-avis-securite` | `COL` | [fiche](collecte-avis-securite.md) | absente | `formaliser-chaine-securite-poc` ; `automatiser-chaine-veille` (COL-09, COL-10) ; `isoler-erreurs-aux-frontieres` (COL-11) | proposée |
-| `inventaire-sbom` | `INV` | [fiche](inventaire-sbom.md) | absente | `formaliser-chaine-securite-poc` ; `automatiser-chaine-veille` (INV-07 à INV-10) ; `isoler-erreurs-aux-frontieres` (INV-11) | proposée |
+| `collecte-avis-securite` | `COL` | [fiche](collecte-avis-securite.md) | [spec](/openspec/specs/collecte-avis-securite/spec.md) | `formaliser-chaine-securite-poc` ; `automatiser-chaine-veille` (COL-09, COL-10) ; `2026-11-25-isoler-erreurs-aux-frontieres` (archivé, COL-11) | proposée |
+| `inventaire-sbom` | `INV` | [fiche](inventaire-sbom.md) | [spec](/openspec/specs/inventaire-sbom/spec.md) | `formaliser-chaine-securite-poc` ; `automatiser-chaine-veille` (INV-07 à INV-10) ; `2026-11-25-isoler-erreurs-aux-frontieres` (archivé, INV-11) | proposée |
 | `correlation-impact` | `COR` | [fiche](correlation-impact.md) | absente | `formaliser-chaine-securite-poc` ; `automatiser-chaine-veille` (COR-09 à COR-12) | proposée |
 | `abonnements-veille` | `ABO` | [fiche](abonnements-veille.md) | absente | `formaliser-chaine-securite-poc` ; `automatiser-chaine-veille` (ABO-07, ABO-08) | proposée |
 | `performance-api-mcp` | `PERF` | [fiche](performance-api-mcp.md) | absente | `automatiser-chaine-veille` | proposée |
@@ -45,15 +45,15 @@ Un préfixe n'est jamais réattribué ; un identifiant d'exigence retiré n'est 
 | `comptes-acces` | `ACC` | [fiche](comptes-acces.md) | [spec](/openspec/specs/comptes-acces/spec.md) | `2026-11-17-gerer-comptes-et-acces` (archivé) ; `2026-11-18-connecter-ihm-oidc` (archivé, ACC-07 à ACC-10) | livrée |
 | `alertes-digests` | `ALR` | [fiche](alertes-digests.md) | [spec](/openspec/specs/alertes-digests/spec.md) | `2026-11-16-diffuser-alertes-et-digests` (archivé) ; `automatiser-chaine-veille` (ALR-07, proposé) | livrée |
 | `notifications-poste` | `NOT` | [fiche](notifications-poste.md) | absente | `notifier-sur-le-poste` | implémentée, non archivée |
-| `serveur-mcp` | `MCP` | [fiche](serveur-mcp.md) | absente | `exposer-serveur-mcp` ; `isoler-erreurs-aux-frontieres` (MCP-08) | proposée |
+| `serveur-mcp` | `MCP` | [fiche](serveur-mcp.md) | [spec](/openspec/specs/serveur-mcp/spec.md) | `exposer-serveur-mcp` ; `2026-11-25-isoler-erreurs-aux-frontieres` (archivé, MCP-08) | proposée |
 | `passerelle-ia` | `IAG` | [fiche](passerelle-ia.md) | [spec](/openspec/specs/passerelle-ia/spec.md) | `2026-11-17-encadrer-appels-ia` (archivé) | livrée |
 | `veille-reglementaire` | `REG` | [fiche](veille-reglementaire.md) | [spec](/openspec/specs/veille-reglementaire/spec.md) | `2026-11-17-suivre-veille-reglementaire` (archivé) | livrée |
-| `radar-standards` | `RAD` | [fiche](radar-standards.md) | [spec](/openspec/specs/radar-standards/spec.md) | `2026-11-16-construire-radar-et-standards` (archivé) ; `isoler-erreurs-aux-frontieres` (RAD-07) | livrée |
-| `veille-rss-web` | `WEB` | [fiche](veille-rss-web.md) | [spec](/openspec/specs/veille-rss-web/spec.md) | `2026-11-16-collecter-veille-rss-web` (archivé) ; `epingler-adresse-veille-web` (WEB-07) | livrée |
+| `radar-standards` | `RAD` | [fiche](radar-standards.md) | [spec](/openspec/specs/radar-standards/spec.md) | `2026-11-16-construire-radar-et-standards` (archivé) ; `2026-11-25-isoler-erreurs-aux-frontieres` (archivé, RAD-07) | livrée |
+| `veille-rss-web` | `WEB` | [fiche](veille-rss-web.md) | [spec](/openspec/specs/veille-rss-web/spec.md) | `2026-11-16-collecter-veille-rss-web` (archivé) ; `2026-11-25-epingler-adresse-veille-web` (archivé, WEB-07) | livrée |
 | `recherche-veille` | `RCH` | [fiche](recherche-veille.md) | [spec](/openspec/specs/recherche-veille/spec.md) | `2026-11-18-rechercher-et-filtrer` (archivé) | livrée |
 | `activite-projets` | `PIN` | [fiche](activite-projets.md) | [spec](/openspec/specs/activite-projets/spec.md) | `2026-11-17-mesurer-activite-projets` (archivé) | livrée |
 | `profil-artiste` | `ART` | [fiche](profil-artiste.md) | [spec](/openspec/specs/profil-artiste/spec.md) | `2026-11-17-ajouter-profil-artiste` (archivé) | livrée |
-| `exploitation-plateforme` | `EXP` | [fiche](exploitation-plateforme.md) | [spec](/openspec/specs/exploitation-plateforme/spec.md) | `2026-11-24-fiabiliser-sauvegarde-et-roles-base` (archivé, EXP-01 à EXP-06) ; `completer-configuration-conteneurs` ; `instrumenter-observabilite` ; `durcir-conteneurs-de-service` | livrée (EXP-01 à EXP-06) ; suite implémentée ou proposée, non archivée |
+| `exploitation-plateforme` | `EXP` | [fiche](exploitation-plateforme.md) | [spec](/openspec/specs/exploitation-plateforme/spec.md) | `2026-11-24-fiabiliser-sauvegarde-et-roles-base` (archivé, EXP-01 à EXP-06) ; `completer-configuration-conteneurs` ; `2026-11-25-instrumenter-observabilite` (archivé, EXP-13 à EXP-15) ; `durcir-conteneurs-de-service` | livrée (EXP-01 à EXP-06, EXP-13 à EXP-15) ; suite implémentée ou proposée, non archivée |
 
 ## Inventaire des diagrammes métier
 
@@ -215,14 +215,14 @@ Exigence au statut [PROPOSITION], issue de la décision K2 du porteur du projet 
 
 | Changement | Capacité | Exigences | Scénarios | Diagrammes métier | Questions ouvertes | Tests écrits |
 |---|---|---|---|---|---|---|
-| [`instrumenter-observabilite`](/openspec/changes/instrumenter-observabilite/proposal.md) | `exploitation-plateforme` (EXP-13 à EXP-15) | 3 | 11 | 1 | 1 | 11 |
-| [`isoler-erreurs-aux-frontieres`](/openspec/changes/isoler-erreurs-aux-frontieres/proposal.md) | `collecte-avis-securite` (COL-11) | 1 | 3 | 0 | 0 | 4 |
+| [`instrumenter-observabilite`](/openspec/changes/archive/2026-11-25-instrumenter-observabilite/proposal.md) | `exploitation-plateforme` (EXP-13 à EXP-15) | 3 | 11 | 1 | 1 | 11 |
+| [`isoler-erreurs-aux-frontieres`](/openspec/changes/archive/2026-11-25-isoler-erreurs-aux-frontieres/proposal.md) | `collecte-avis-securite` (COL-11) | 1 | 3 | 0 | 0 | 4 |
 | | `inventaire-sbom` (INV-11) | 1 | 2 | 0 | 0 | 2 |
 | | `radar-standards` (RAD-07) | 1 | 3 | 0 | 0 | 3 |
 | | `serveur-mcp` (MCP-08) | 1 | 2 | 0 | 0 | 2 |
 | **Total** | | **7** | **21** | **1** | **1** | **22** |
 
-Exigences au statut [PROPOSITION], implémentées le 2026-11-24, changements non archivés. « Tests écrits » compte les méthodes de test qui couvrent un scénario : `observabilite/JournauxJsonTest`, `MetriquesEtSanteTest` et `BaseInjoignableTest` pour EXP-13 à EXP-15 ; `chain/FrontieresCollecteTest`, `ResilienceTest`, `ImportPlanifieTest`, `RadarStandardsTest` et `mcp/ErreursOutilsMcpTest` pour COL-11, INV-11, RAD-07 et MCP-08. Question ouverte : Q-3 d'`instrumenter-observabilite` (pile de collecte des métriques sur le NAS). Décisions du porteur du projet du 2026-11-24 : `/q/metrics` réservé à l'administrateur plateforme, retard d'une tâche au-delà de deux intervalles, identifiant de corrélation créé par le serveur, frontières d'erreur « isoler puis relancer », pas de type de panne dédié, composant au PURL mal encodé écarté.
+Exigences au statut [PROPOSITION], implémentées le 2026-11-24, changements archivés le 2026-11-25. « Tests écrits » compte les méthodes de test qui couvrent un scénario : `observabilite/JournauxJsonTest`, `MetriquesEtSanteTest` et `BaseInjoignableTest` pour EXP-13 à EXP-15 ; `chain/FrontieresCollecteTest`, `ResilienceTest`, `ImportPlanifieTest`, `RadarStandardsTest` et `mcp/ErreursOutilsMcpTest` pour COL-11, INV-11, RAD-07 et MCP-08. Question ouverte : Q-3 d'`instrumenter-observabilite` (pile de collecte des métriques sur le NAS). Décisions du porteur du projet du 2026-11-24 : `/q/metrics` réservé à l'administrateur plateforme, retard d'une tâche au-delà de deux intervalles, identifiant de corrélation créé par le serveur, frontières d'erreur « isoler puis relancer », pas de type de panne dédié, composant au PURL mal encodé écarté.
 
 ### Capacités restant à spécifier
 

@@ -3,8 +3,8 @@
 | Élément | Valeur |
 |---|---|
 | Préfixe d'exigences | `MCP` |
-| Spec de référence | `/openspec/specs/serveur-mcp/spec.md` — absente tant qu'aucun changement n'est archivé |
-| Changements en cours | [`exposer-serveur-mcp`](/openspec/changes/archive/2026-11-20-exposer-serveur-mcp/proposal.md) (implémenté, non archivé) ; [`isoler-erreurs-aux-frontieres`](/openspec/changes/isoler-erreurs-aux-frontieres/proposal.md) (MCP-08, implémentée, non archivée) |
+| Spec de référence | [`/openspec/specs/serveur-mcp/spec.md`](/openspec/specs/serveur-mcp/spec.md) |
+| Changements en cours | [`exposer-serveur-mcp`](/openspec/changes/archive/2026-11-20-exposer-serveur-mcp/proposal.md) (implémenté, non archivé) ; [`2026-11-25-isoler-erreurs-aux-frontieres`](/openspec/changes/archive/2026-11-25-isoler-erreurs-aux-frontieres/proposal.md) (MCP-08, archivé) |
 | Statut de la capacité | proposée ; implémentation et tests dans `argos-server`, changement non archivé |
 | Composants (arc42 §5) | `mcp-server`, `API & Security`, `audit`, modules métier en lecture |
 

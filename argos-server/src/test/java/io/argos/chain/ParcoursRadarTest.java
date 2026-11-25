@@ -47,9 +47,6 @@ class ParcoursRadarTest {
     TestDb baseDeTest;
 
     @Inject
-    Clock horloge;
-
-    @Inject
     ProjectDirectory projets;
 
     @Inject
@@ -58,9 +55,13 @@ class ParcoursRadarTest {
     @Inject
     RappelsRadar rappels;
 
+    @Inject
+    Clock horloge;
+
     @Test
     void referentielInventaireDetteRappelEtRadar() {
         baseDeTest.reset();
+        // La date du jour est lue au fuseau du serveur : au passage de minuit, celui de la JVM peut avoir un jour de retard.
         LocalDate aujourdhui = LectureHeure.jour(horloge);
         UUID espace = Api.nouvelEspace("lina", "Parcours radar");
         Api.ajouterMembre("lina", espace.toString(), "karim", "LECTEUR");
