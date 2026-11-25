@@ -1,13 +1,9 @@
 package io.argos.alerting;
 
-import java.sql.Connection;
-import java.sql.PreparedStatement;
-import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.time.Clock;
 import java.time.Duration;
 import java.time.Instant;
-import java.time.ZoneOffset;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.LinkedHashMap;
@@ -18,8 +14,6 @@ import java.util.Optional;
 import java.util.Set;
 import java.util.UUID;
 import java.util.stream.Collectors;
-
-import javax.sql.DataSource;
 
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.enterprise.event.Event;
@@ -38,6 +32,8 @@ import io.quarkus.narayana.jta.QuarkusTransactionException;
 import io.quarkus.runtime.LaunchMode;
 import io.quarkus.runtime.StartupEvent;
 
+import io.argos.commun.Conversions;
+import io.argos.commun.Jdbc;
 import io.argos.impact.ImpactQueries;
 import io.argos.execution.ExecuteurBorne;
 import io.argos.impact.ImpactsRecorded;
@@ -74,7 +70,7 @@ public class MoteurAlertes {
     ExecuteurResumeIa executeurIa;
 
     @Inject
-    DataSource dataSource;
+    Jdbc jdbc;
 
     @Inject
     Destinataires destinataires;
@@ -330,74 +326,45 @@ public class MoteurAlertes {
 
     /** Vrai si une alerte immédiate existe pour ce signal et ce destinataire, sur ce canal ou sur l'un d'eux. */
     boolean alerteExiste(UUID signalId, UUID compteId, String canal) {
-        return QuarkusTransaction.requiringNew().call(() -> {
-            try (Connection connexion = dataSource.getConnection(); PreparedStatement requete = connexion.prepareStatement("""
-                    SELECT 1 FROM alerte WHERE nature = 'IMMEDIATE' AND signal_id = ? AND compte_id = ?
-                      AND etat <> 'ANNULEE' AND (?::varchar IS NULL OR canal = ?::varchar)
-                    """)) {
-                requete.setObject(1, signalId);
-                requete.setObject(2, compteId);
-                requete.setString(3, canal);
-                requete.setString(4, canal);
-                try (ResultSet resultat = requete.executeQuery()) {
-                    return resultat.next();
-                }
-            }
-        });
+        return QuarkusTransaction.requiringNew().call(() -> jdbc.unique("""
+                SELECT 1 FROM alerte WHERE nature = 'IMMEDIATE' AND signal_id = ? AND compte_id = ?
+                  AND etat <> 'ANNULEE' AND (?::varchar IS NULL OR canal = ?::varchar)
+                """, Jdbc.parametres(signalId, compteId, canal, canal), resultat -> Boolean.TRUE).isPresent());
     }
 
     private Optional<UUID> creerImmediate(ImpactsRecorded evenement, UUID compte, String canal, ContenuAlerte contenu,
             Instant maintenant) {
-        return QuarkusTransaction.requiringNew().call(() -> {
-            try (Connection connexion = dataSource.getConnection(); PreparedStatement requete = connexion.prepareStatement("""
-                    INSERT INTO alerte(id, nature, compte_id, canal, signal_id, titre, gravite, contenu, resume_ia,
-                                       etat_resume_ia, etat, cree_le)
-                    VALUES (?, 'IMMEDIATE', ?, ?, ?, ?, ?, ?::jsonb, ?, ?, 'EN_ATTENTE', ?)
-                    ON CONFLICT (signal_id, compte_id, canal) WHERE nature = 'IMMEDIATE' DO UPDATE SET
-                           titre = excluded.titre, gravite = excluded.gravite, contenu = excluded.contenu,
-                           resume_ia = excluded.resume_ia, etat_resume_ia = excluded.etat_resume_ia, etat = 'EN_ATTENTE',
-                           tentatives = 0, prochain_essai = NULL, derniere_erreur = NULL, envoye_le = NULL,
-                           cree_le = excluded.cree_le
-                        WHERE alerte.etat = 'ANNULEE'
-                    RETURNING id
-                    """)) {
-                requete.setObject(1, UUID.randomUUID());
-                requete.setObject(2, compte);
-                requete.setString(3, canal);
-                requete.setObject(4, evenement.signalId());
-                requete.setString(5, evenement.signalTitle() == null ? evenement.signalExternalId() : evenement.signalTitle());
-                requete.setString(6, evenement.signalSeverity());
-                requete.setString(7, json(contenu));
-                requete.setString(8, contenu.resumeIa());
-                requete.setString(9, contenu.etatResumeIa());
-                requete.setObject(10, maintenant.atOffset(ZoneOffset.UTC));
-                try (ResultSet resultat = requete.executeQuery()) {
-                    return resultat.next() ? Optional.of(resultat.getObject(1, UUID.class)) : Optional.<UUID>empty();
-                }
-            }
-        });
+        return QuarkusTransaction.requiringNew().call(() -> jdbc.unique("""
+                INSERT INTO alerte(id, nature, compte_id, canal, signal_id, titre, gravite, contenu, resume_ia,
+                                   etat_resume_ia, etat, cree_le)
+                VALUES (?, 'IMMEDIATE', ?, ?, ?, ?, ?, ?::jsonb, ?, ?, 'EN_ATTENTE', ?)
+                ON CONFLICT (signal_id, compte_id, canal) WHERE nature = 'IMMEDIATE' DO UPDATE SET
+                       titre = excluded.titre, gravite = excluded.gravite, contenu = excluded.contenu,
+                       resume_ia = excluded.resume_ia, etat_resume_ia = excluded.etat_resume_ia, etat = 'EN_ATTENTE',
+                       tentatives = 0, prochain_essai = NULL, derniere_erreur = NULL, envoye_le = NULL,
+                       cree_le = excluded.cree_le
+                    WHERE alerte.etat = 'ANNULEE'
+                RETURNING id
+                """, Jdbc.parametres(UUID.randomUUID(), compte, canal, evenement.signalId(), titreDuSignal(evenement),
+                        evenement.signalSeverity(), json(contenu), contenu.resumeIa(), contenu.etatResumeIa(),
+                        Conversions.utc(maintenant)),
+                resultat -> resultat.getObject(1, UUID.class)));
     }
 
     private int ajouterAuResume(ImpactsRecorded evenement, UUID compte, String frequence, String canal, Instant maintenant) {
-        return QuarkusTransaction.requiringNew().call(() -> {
-            try (Connection connexion = dataSource.getConnection(); PreparedStatement requete = connexion.prepareStatement("""
-                    INSERT INTO resume_element(compte_id, signal_id, frequence, canal, titre, gravite, source,
-                                               identifiant_externe, enregistre_le)
-                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
-                    ON CONFLICT DO NOTHING
-                    """)) {
-                requete.setObject(1, compte);
-                requete.setObject(2, evenement.signalId());
-                requete.setString(3, frequence);
-                requete.setString(4, canal);
-                requete.setString(5, evenement.signalTitle() == null ? evenement.signalExternalId() : evenement.signalTitle());
-                requete.setString(6, evenement.signalSeverity());
-                requete.setString(7, evenement.signalSource());
-                requete.setString(8, evenement.signalExternalId());
-                requete.setObject(9, maintenant.atOffset(ZoneOffset.UTC));
-                return requete.executeUpdate();
-            }
-        });
+        return QuarkusTransaction.requiringNew().call(() -> jdbc.modifier("""
+                INSERT INTO resume_element(compte_id, signal_id, frequence, canal, titre, gravite, source,
+                                           identifiant_externe, enregistre_le)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+                ON CONFLICT DO NOTHING
+                """, Jdbc.parametres(compte, evenement.signalId(), frequence, canal, titreDuSignal(evenement),
+                        evenement.signalSeverity(), evenement.signalSource(), evenement.signalExternalId(),
+                        Conversions.utc(maintenant))));
+    }
+
+    /** Titre du signal, à défaut son identifiant externe. */
+    private static String titreDuSignal(ImpactsRecorded evenement) {
+        return evenement.signalTitle() == null ? evenement.signalExternalId() : evenement.signalTitle();
     }
 
     static String json(Object valeur) throws SQLException {

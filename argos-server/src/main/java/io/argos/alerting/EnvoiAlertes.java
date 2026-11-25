@@ -1,14 +1,11 @@
 package io.argos.alerting;
 
 import java.sql.Connection;
-import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.time.Clock;
 import java.time.Duration;
 import java.time.Instant;
-import java.time.ZoneOffset;
-import java.util.ArrayList;
 import java.util.Collection;
 import java.util.HashMap;
 import java.util.List;
@@ -29,6 +26,8 @@ import org.eclipse.microprofile.config.inject.ConfigProperty;
 import org.eclipse.microprofile.health.Readiness;
 import org.jboss.logging.Logger;
 
+import io.argos.commun.Conversions;
+import io.argos.commun.Jdbc;
 import io.argos.observabilite.ErreursImprevues;
 import io.argos.observabilite.TacheObservee;
 import io.micrometer.core.instrument.Counter;
@@ -60,6 +59,9 @@ public class EnvoiAlertes {
 
     @Inject
     DataSource dataSource;
+
+    @Inject
+    Jdbc jdbc;
 
     @Inject
     @Any
@@ -109,22 +111,13 @@ public class EnvoiAlertes {
         if (parCode.isEmpty()) {
             return Map.of();
         }
-        List<UUID> ids = QuarkusTransaction.requiringNew().call(() -> {
-            List<UUID> found = new ArrayList<>();
-            try (Connection connexion = dataSource.getConnection(); PreparedStatement requete = connexion.prepareStatement("""
-                    SELECT id FROM alerte WHERE etat = 'EN_ATTENTE' AND canal = ANY (?)
-                      AND (prochain_essai IS NULL OR prochain_essai <= ?) ORDER BY cree_le, id LIMIT 500
-                    """)) {
-                requete.setArray(1, connexion.createArrayOf("varchar", parCode.keySet().toArray()));
-                requete.setObject(2, maintenant.atOffset(ZoneOffset.UTC));
-                try (ResultSet resultat = requete.executeQuery()) {
-                    while (resultat.next()) {
-                        found.add(resultat.getObject(1, UUID.class));
-                    }
-                }
-            }
-            return found;
-        });
+        List<UUID> ids = QuarkusTransaction.requiringNew().call(() -> jdbc.lister("""
+                SELECT id FROM alerte WHERE etat = 'EN_ATTENTE' AND canal = ANY (?)
+                  AND (prochain_essai IS NULL OR prochain_essai <= ?) ORDER BY cree_le, id LIMIT 500
+                """, requete -> {
+                    requete.setArray(1, requete.getConnection().createArrayOf("varchar", parCode.keySet().toArray()));
+                    requete.setObject(2, Conversions.utc(maintenant));
+                }, resultat -> resultat.getObject(1, UUID.class)));
         return envoyer(ids, maintenant);
     }
 
@@ -269,63 +262,44 @@ public class EnvoiAlertes {
             if (AlertesSansObjet.annulerSiSansObjet(connexion, id)) {
                 return Optional.empty();
             }
-            Reservation reservation;
-            try (PreparedStatement requete = connexion.prepareStatement("""
+            Optional<Reservation> lue = Jdbc.unique(connexion, """
                     SELECT a.canal, a.tentatives, a.nature, a.compte_id, c.email, a.titre, a.gravite, a.contenu::text
                     FROM alerte a JOIN compte c ON c.id = a.compte_id
                     WHERE a.id = ? AND a.etat = 'EN_ATTENTE' AND (a.prochain_essai IS NULL OR a.prochain_essai <= ?)
                     FOR UPDATE OF a SKIP LOCKED
-                    """)) {
-                requete.setObject(1, id);
-                requete.setObject(2, maintenant.atOffset(ZoneOffset.UTC));
-                try (ResultSet resultat = requete.executeQuery()) {
-                    if (!resultat.next() || !canauxDiffuses.contains(resultat.getString(1))) {
-                        return Optional.empty();
-                    }
-                    int faites = resultat.getInt(2);
-                    reservation = new Reservation(resultat.getString(1), faites + 1, faites >= tentativesMax, resultat.getString(3),
-                            resultat.getObject(4, UUID.class), resultat.getString(5), resultat.getString(6), resultat.getString(7),
-                            resultat.getString(8));
-                }
+                    """, Jdbc.parametres(id, Conversions.utc(maintenant)), this::lireReservation)
+                    .filter(candidate -> canauxDiffuses.contains(candidate.canal()));
+            if (lue.isEmpty()) {
+                return Optional.empty();
             }
+            Reservation reservation = lue.get();
             if (reservation.epuisee()) {
-                executer(connexion, "UPDATE alerte SET etat = 'EN_ECHEC', prochain_essai = NULL, "
-                        + "derniere_erreur = 'tentatives épuisées' WHERE id = ?", id);
+                Jdbc.modifier(connexion, "UPDATE alerte SET etat = 'EN_ECHEC', prochain_essai = NULL, "
+                        + "derniere_erreur = 'tentatives épuisées' WHERE id = ?", Jdbc.parametres(id));
             } else {
-                executer(connexion, "UPDATE alerte SET tentatives = tentatives + 1, prochain_essai = ? WHERE id = ?",
-                        maintenant.plus(BAIL).atOffset(ZoneOffset.UTC), id);
+                Jdbc.modifier(connexion, "UPDATE alerte SET tentatives = tentatives + 1, prochain_essai = ? WHERE id = ?",
+                        Jdbc.parametres(Conversions.utc(maintenant.plus(BAIL)), id));
             }
             return Optional.of(reservation);
         }
     }
 
+    /** Message lu à la réservation : le numéro de la tentative en cours suit celles déjà faites. */
+    private Reservation lireReservation(ResultSet resultat) throws SQLException {
+        int faites = resultat.getInt(2);
+        return new Reservation(resultat.getString(1), faites + 1, faites >= tentativesMax, resultat.getString(3),
+                resultat.getObject(4, UUID.class), resultat.getString(5), resultat.getString(6), resultat.getString(7),
+                resultat.getString(8));
+    }
+
     private void enregistrerSucces(UUID id, Instant maintenant) {
-        enregistrer("UPDATE alerte SET etat = 'ENVOYEE', envoye_le = ?, prochain_essai = NULL, derniere_erreur = NULL "
-                + "WHERE id = ?", maintenant.atOffset(ZoneOffset.UTC), id);
+        jdbc.modifier("UPDATE alerte SET etat = 'ENVOYEE', envoye_le = ?, prochain_essai = NULL, derniere_erreur = NULL "
+                + "WHERE id = ?", Jdbc.parametres(Conversions.utc(maintenant), id));
     }
 
     private void enregistrerEchec(UUID id, boolean abandon, Instant prochainEssai, String erreur) {
-        enregistrer("UPDATE alerte SET etat = ?, prochain_essai = ?, derniere_erreur = ? WHERE id = ?",
-                abandon ? "EN_ECHEC" : "EN_ATTENTE",
-                prochainEssai == null ? null : prochainEssai.atOffset(ZoneOffset.UTC), erreur, id);
-    }
-
-    private void enregistrer(String sql, Object... valeurs) {
-        try (Connection connexion = dataSource.getConnection()) {
-            executer(connexion, sql, valeurs);
-        } catch (SQLException erreur) {
-            throw new IllegalStateException("enregistrement de l'issue d'une alerte impossible", erreur);
-        }
-    }
-
-    /** Exécute une mise à jour paramétrée, positions liées dans l'ordre des valeurs. */
-    static void executer(Connection connexion, String sql, Object... valeurs) throws SQLException {
-        try (PreparedStatement requete = connexion.prepareStatement(sql)) {
-            for (int position = 0; position < valeurs.length; position++) {
-                requete.setObject(position + 1, valeurs[position]);
-            }
-            requete.executeUpdate();
-        }
+        jdbc.modifier("UPDATE alerte SET etat = ?, prochain_essai = ?, derniere_erreur = ? WHERE id = ?",
+                Jdbc.parametres(abandon ? "EN_ECHEC" : "EN_ATTENTE", Conversions.utc(prochainEssai), erreur, id));
     }
 
     private Map<String, CanalDiffusion> parCode() {

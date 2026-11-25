@@ -43,6 +43,7 @@ import com.cronutils.model.definition.CronDefinitionBuilder;
 import com.cronutils.model.time.ExecutionTime;
 import com.cronutils.parser.CronParser;
 
+import io.argos.commun.Jdbc;
 import io.argos.impact.CorrelationEngine;
 import io.argos.ingestion.SourceSynchronizer;
 import io.argos.inventory.InventoryService;
@@ -256,10 +257,12 @@ class AlertesTest {
     /** Le passage planifié de diffusion relève la file d'envoi même quand il se termine sur une erreur imprévue. */
     @Test
     void laFileEstReleveeMemeQuandLePassageEchoue() {
-        DataSource enErreur = (DataSource) Proxy.newProxyInstance(getClass().getClassLoader(), new Class<?>[] {DataSource.class},
-                (proxy, methode, arguments) -> {
-                    throw new IllegalArgumentException("erreur imprévue simulée");
-                });
+        Jdbc enErreur = new Jdbc() {
+            @Override
+            public <T> List<T> lister(String sql, Liaison liaison, Lecture<T> lecture) {
+                throw new IllegalArgumentException("erreur imprévue simulée");
+            }
+        };
         AtomicBoolean relevee = new AtomicBoolean();
         SanteEnvoiAlertes releveur = new SanteEnvoiAlertes() {
             @Override
@@ -269,7 +272,7 @@ class AlertesTest {
             }
         };
 
-        try (Substitution base = Substitution.remplacer(envoi, "dataSource", enErreur);
+        try (Substitution base = Substitution.remplacer(envoi, "jdbc", enErreur);
                 Substitution sante = Substitution.remplacer(envoi, "sante", releveur)) {
             assertThrows(IllegalArgumentException.class, () -> Substitution.reel(envoi).planifie());
         }
