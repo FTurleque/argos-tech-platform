@@ -261,7 +261,7 @@ class RadarStandardsTest {
                 new Cycle("2", LocalDate.of(2024, 1, 15), aujourdhui.plusDays(166), false, "2.4.0", LocalDate.of(2025, 3, 1))));
         enregistrer("nina", saisie(BIBLIO, "Biblio UI", "ADOPT", "2.4", "Front", "Courante", "2027-06-30", "biblio-ui"))
                 .statusCode(200);
-        radar.actualiser(aujourdhui, Instant.now());
+        radar.actualiser(aujourdhui, horloge.instant());
 
         Api.enTantQue("paul").queryParam("horizon", "30j").get(chemin("/echeances")).then().statusCode(200)
                 .body("echeances", hasSize(1))

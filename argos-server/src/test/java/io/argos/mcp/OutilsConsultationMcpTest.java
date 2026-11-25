@@ -6,6 +6,7 @@ import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.nio.charset.StandardCharsets;
+import java.time.Clock;
 import java.time.Instant;
 import java.time.LocalDate;
 import java.time.temporal.ChronoUnit;
@@ -18,6 +19,7 @@ import jakarta.inject.Inject;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
+import io.argos.horloge.LectureHeure;
 import io.argos.ingestion.SourceSynchronizer;
 import io.argos.inventory.InventoryService;
 import io.argos.inventory.ProjectDirectory;
@@ -47,6 +49,9 @@ class OutilsConsultationMcpTest {
 
     @Inject
     TestDb baseDeTest;
+
+    @Inject
+    Clock horloge;
 
     @Inject
     SourceSynchronizer synchronisation;
@@ -181,10 +186,11 @@ class OutilsConsultationMcpTest {
         UUID projet = projets.create(espace, "app-oscar", null, null);
         inventaires.importSbom(projet, Fixtures.cyclonedx("1.6", Instant.now().minus(1, ChronoUnit.DAYS).toString(),
                 List.<String[]>of(new String[] {"c0", BIBLIO + "@3.2"}), List.of("c0")).getBytes(StandardCharsets.UTF_8), "ci");
-        LocalDate dans10Jours = LocalDate.now().plusDays(10);
+        LocalDate aujourdhui = LectureHeure.jour(horloge);
+        LocalDate dans10Jours = aujourdhui.plusDays(10);
         RadarFixtures.standard(baseDeTest, espace, BIBLIO, "Biblio", "ADOPT", "3.2.9", "Version courante", "biblio");
-        cycle("biblio", "3.2", LocalDate.of(2020, 1, 1), dans10Jours, "3.2.9", LocalDate.now().minusDays(5));
-        cycle("biblio", "4.0", LocalDate.now().plusDays(400), null, "4.0.1", LocalDate.now().plusDays(450));
+        cycle("biblio", "3.2", LocalDate.of(2020, 1, 1), dans10Jours, "3.2.9", aujourdhui.minusDays(5));
+        cycle("biblio", "4.0", aujourdhui.plusDays(400), null, "4.0.1", aujourdhui.plusDays(450));
 
         ExtractableResponse<Response> reponse = Mcp.appeler("oscar", "upcoming_releases", Map.of());
         String base = "result.structuredContent.";

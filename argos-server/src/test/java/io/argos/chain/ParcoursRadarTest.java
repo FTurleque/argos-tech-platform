@@ -83,7 +83,7 @@ class ParcoursRadarTest {
                 new Cycle("17", LocalDate.of(2024, 9, 26), LocalDate.of(2029, 11, 8), false, "17.12", LocalDate.of(2026, 11, 9))));
 
         // 3. Tâche quotidienne : synchronisation, dette de version, rappel J0.
-        RappelsRadar.Bilan bilan = rappels.executer(aujourdhui, Instant.now());
+        RappelsRadar.Bilan bilan = rappels.executer(aujourdhui, horloge.instant());
         assertEquals(Map.of("postgresql", "A_JOUR"), bilan.radar().produits());
         assertEquals(1, bilan.radar().dettesCreees());
         assertEquals(2, bilan.rappels().size());

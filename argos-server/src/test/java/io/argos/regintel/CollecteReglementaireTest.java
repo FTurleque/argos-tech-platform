@@ -4,6 +4,7 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
+import java.time.Clock;
 import java.time.Instant;
 import java.time.LocalDate;
 import java.util.List;
@@ -13,6 +14,7 @@ import jakarta.inject.Inject;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
+import io.argos.horloge.LectureHeure;
 import io.argos.testsupport.Api;
 import io.argos.testsupport.ReglementaireFixtures;
 import io.argos.testsupport.StubServer;
@@ -39,6 +41,9 @@ class CollecteReglementaireTest {
 
     @Inject
     TestDb baseDeTest;
+
+    @Inject
+    Clock horloge;
 
     @Inject
     CollecteReglementaire collecte;
@@ -202,7 +207,7 @@ class CollecteReglementaireTest {
         Api.enTantQue("alice").when().get("/api/v1/reglementaire/collecte").then().statusCode(200)
                 .body("etat", org.hamcrest.Matchers.equalTo("NOMINAL"));
         ReglementaireFixtures.servirArchives(ReglementaireFixtures.archiveDu20(), ReglementaireFixtures.archiveDu21());
-        String hier = LocalDate.now().minusDays(2).toString();
+        String hier = LectureHeure.jour(horloge).minusDays(2).toString();
         Api.enTantQue("alice").contentType("application/json").body("{\"jour\":\"" + hier + "\"}")
                 .when().post("/api/v1/reglementaire/collectes").then().statusCode(200)
                 .body("joursCollectes", org.hamcrest.Matchers.contains(hier))
