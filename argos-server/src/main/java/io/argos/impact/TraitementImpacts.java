@@ -18,6 +18,7 @@ import jakarta.inject.Inject;
 import jakarta.transaction.Transactional;
 
 import io.argos.commun.ContexteBase;
+import io.argos.commun.Jdbc;
 
 /**
  * État de traitement des impacts (COR-09 à COR-11, décision J5 du porteur du projet, 2026-11-19 ; DC-5).
@@ -143,16 +144,11 @@ public class TraitementImpacts {
      * résolution système peut être annulée par la recorrélation ; une résolution décidée par un utilisateur autorisé
      * est respectée (décision J5).
      */
-    static boolean resoluParLeSysteme(Connection connexion, UUID impactId) throws SQLException {
-        try (PreparedStatement requete = connexion.prepareStatement("""
+    static boolean resoluParLeSysteme(Connection connexion, UUID impactId) {
+        return Jdbc.unique(connexion, """
                 SELECT actor_system FROM project_impact_transition
                 WHERE impact_id = ? AND to_state = 'RESOLU' ORDER BY occurred_at DESC, id DESC LIMIT 1
-                """)) {
-            requete.setObject(1, impactId);
-            try (ResultSet resultat = requete.executeQuery()) {
-                return resultat.next() && resultat.getBoolean(1);
-            }
-        }
+                """, Jdbc.parametres(impactId), resultat -> resultat.getBoolean(1)).orElse(false);
     }
 
     /**
@@ -172,17 +168,11 @@ public class TraitementImpacts {
     private record ImpactLu(EtatImpact etat, UUID espace, UUID signal, boolean composantPresent) {
     }
 
-    private static Optional<ImpactLu> lire(Connection connexion, UUID impactId) throws SQLException {
-        try (PreparedStatement requete = connexion.prepareStatement(
-                "SELECT state, workspace_id, signal_id, component_id IS NOT NULL FROM project_impact WHERE id = ?")) {
-            requete.setObject(1, impactId);
-            try (ResultSet resultat = requete.executeQuery()) {
-                return resultat.next()
-                        ? Optional.of(new ImpactLu(EtatImpact.valueOf(resultat.getString(1)), resultat.getObject(2, UUID.class),
-                                resultat.getObject(3, UUID.class), resultat.getBoolean(4)))
-                        : Optional.empty();
-            }
-        }
+    private static Optional<ImpactLu> lire(Connection connexion, UUID impactId) {
+        return Jdbc.unique(connexion,
+                "SELECT state, workspace_id, signal_id, component_id IS NOT NULL FROM project_impact WHERE id = ?",
+                Jdbc.parametres(impactId), resultat -> new ImpactLu(EtatImpact.valueOf(resultat.getString(1)),
+                        resultat.getObject(2, UUID.class), resultat.getObject(3, UUID.class), resultat.getBoolean(4)));
     }
 
     private static boolean changer(Connection connexion, UUID impactId, EtatImpact depart, EtatImpact vers) throws SQLException {
