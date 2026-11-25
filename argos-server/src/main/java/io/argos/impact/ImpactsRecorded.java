@@ -19,6 +19,6 @@ public record ImpactsRecorded(UUID signalId, String signalTitle, String signalSe
     }
 
     /** Impact enregistré : projet, espace, niveau ({@code EXACT}, {@code PROBABLE}, {@code A_VERIFIER}) et paquet. */
-    public record Item(UUID impactId, UUID projectId, UUID workspaceId, String level, String packageKey) {
+    public record Item(UUID impactId, UUID projectId, UUID workspaceId, MatchRules.Level level, String packageKey) {
     }
 }

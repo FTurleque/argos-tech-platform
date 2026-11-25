@@ -6,7 +6,7 @@ import java.util.Locale;
 import java.util.regex.Pattern;
 
 import io.argos.catalog.PackageKey;
-import io.argos.workspace.DonneeInvalide;
+import io.argos.commun.DonneeInvalide;
 
 /**
  * Entrée du référentiel telle que la saisit un administrateur d'espace (RAD-01). Les valeurs sont

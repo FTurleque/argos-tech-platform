@@ -1,15 +1,12 @@
 package io.argos.signal.web;
 
 import java.sql.Connection;
-import java.sql.PreparedStatement;
-import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.time.Clock;
 import java.time.Duration;
 import java.time.Instant;
 import java.time.OffsetDateTime;
 import java.time.ZoneOffset;
-import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
@@ -24,6 +21,9 @@ import jakarta.transaction.Transactional.TxType;
 
 import org.jboss.logging.Logger;
 
+import io.argos.commun.Conversions;
+import io.argos.commun.ErreurBase;
+import io.argos.commun.Jdbc;
 import io.argos.ingestion.web.LecteurFlux.ElementFlux;
 import io.argos.ingestion.web.LecteurPage;
 import io.argos.ingestion.web.LecteurPage.Instantane;
@@ -68,17 +68,19 @@ public class StockActualites {
 
         @Override
         public void close() {
-            try (Connection connexionVerrou = connexion; PreparedStatement requete = connexionVerrou.prepareStatement(
-                    DEVERROUILLER)) {
-                requete.setString(1, sourceId.toString());
-                requete.execute();
-            } catch (SQLException erreur) {
+            try (Connection connexionVerrou = connexion) {
+                Jdbc.unique(connexionVerrou, DEVERROUILLER, Jdbc.parametres(sourceId.toString()),
+                        resultat -> resultat.getBoolean(1));
+            } catch (SQLException | ErreurBase erreur) {
                 LOG.errorf(erreur, "libération du verrou de collecte de la source %s impossible", sourceId);
             }
         }
     }
 
     private static final Logger LOG = Logger.getLogger(StockActualites.class);
+
+    private static final int TITRE_MAX = 1000;
+    private static final int MOTIF_MAX = 1000;
 
     // Clé du verrou consultatif d'une source : espace de clés propre à la collecte web, identifiant lié.
     private static final String VERROUILLER = "SELECT pg_try_advisory_lock(hashtext('collecte_web'), hashtext(?))";
@@ -102,24 +104,18 @@ public class StockActualites {
     DataSource dataSource;
 
     @Inject
+    Jdbc jdbc;
+
+    @Inject
     Event<ActualiteRecue> evenements;
 
     @Transactional
     public Optional<SourceACollecter> source(UUID id) {
-        try (Connection connexion = dataSource.getConnection(); PreparedStatement requete = connexion.prepareStatement(
-                "SELECT id, type, adresse, libelle, espace_id, proprietaire_id, page_empreinte, page_texte FROM source_web WHERE id = ?")) {
-            requete.setObject(1, id);
-            try (ResultSet resultat = requete.executeQuery()) {
-                if (!resultat.next()) {
-                    return Optional.empty();
-                }
-                return Optional.of(new SourceACollecter(resultat.getObject(1, UUID.class), resultat.getString(2), resultat.getString(3),
-                        resultat.getString(4), resultat.getObject(5, UUID.class), resultat.getObject(6, UUID.class), resultat.getString(7),
-                        resultat.getString(8)));
-            }
-        } catch (SQLException erreur) {
-            throw new IllegalStateException("lecture de la source " + id + " impossible", erreur);
-        }
+        return jdbc.unique(
+                "SELECT id, type, adresse, libelle, espace_id, proprietaire_id, page_empreinte, page_texte FROM source_web WHERE id = ?",
+                Jdbc.parametres(id), resultat -> new SourceACollecter(resultat.getObject(1, UUID.class), resultat.getString(2),
+                        resultat.getString(3), resultat.getString(4), resultat.getObject(5, UUID.class),
+                        resultat.getObject(6, UUID.class), resultat.getString(7), resultat.getString(8)));
     }
 
     /**
@@ -133,21 +129,16 @@ public class StockActualites {
         Connection connexion = null;
         try {
             connexion = dataSource.getConnection();
-            connexion.setAutoCommit(true);
-            try (PreparedStatement requete = connexion.prepareStatement(VERROUILLER)) {
-                requete.setString(1, sourceId.toString());
-                try (ResultSet resultat = requete.executeQuery()) {
-                    resultat.next();
-                    if (!resultat.getBoolean(1)) {
-                        return Optional.empty();
-                    }
-                }
+            boolean obtenu = Jdbc.unique(connexion, VERROUILLER, Jdbc.parametres(sourceId.toString()),
+                    resultat -> resultat.getBoolean(1)).orElse(false);
+            if (!obtenu) {
+                return Optional.empty();
             }
             Verrou verrou = new Verrou(connexion, sourceId);
             connexion = null;
             return Optional.of(verrou);
         } catch (SQLException erreur) {
-            throw new IllegalStateException("verrouillage de la source " + sourceId + " impossible", erreur);
+            throw new ErreurBase("verrouillage de la source " + sourceId + " impossible", erreur);
         } finally {
             if (connexion != null) {
                 try {
@@ -163,52 +154,28 @@ public class StockActualites {
     /** Vrai si la prochaine collecte de la source est échue. */
     @Transactional
     public boolean echue(UUID sourceId) {
-        try (Connection connexion = dataSource.getConnection(); PreparedStatement requete = connexion.prepareStatement(
-                "SELECT 1 FROM source_web WHERE id = ? AND prochaine_collecte_le <= ?")) {
-            requete.setObject(1, sourceId);
-            requete.setObject(2, horloge.instant().atOffset(ZoneOffset.UTC));
-            try (ResultSet resultat = requete.executeQuery()) {
-                return resultat.next();
-            }
-        } catch (SQLException erreur) {
-            throw new IllegalStateException("lecture de la source " + sourceId + " impossible", erreur);
-        }
+        return jdbc.unique("SELECT 1 FROM source_web WHERE id = ? AND prochaine_collecte_le <= ?",
+                Jdbc.parametres(sourceId, Conversions.utc(horloge.instant())), resultat -> resultat.getInt(1)).isPresent();
     }
 
     /** Sources dont la prochaine collecte est échue, les plus anciennes d'abord. */
     @Transactional
     public List<UUID> echues(int limite) {
-        List<UUID> ids = new ArrayList<>();
-        try (Connection connexion = dataSource.getConnection(); PreparedStatement requete = connexion.prepareStatement(
-                "SELECT id FROM source_web WHERE prochaine_collecte_le <= ? ORDER BY prochaine_collecte_le, id LIMIT ?")) {
-            requete.setObject(1, horloge.instant().atOffset(ZoneOffset.UTC));
-            requete.setInt(2, limite);
-            try (ResultSet resultat = requete.executeQuery()) {
-                while (resultat.next()) {
-                    ids.add(resultat.getObject(1, UUID.class));
-                }
-            }
-        } catch (SQLException erreur) {
-            throw new IllegalStateException("lecture des sources échues impossible", erreur);
-        }
-        return ids;
+        return jdbc.lister("SELECT id FROM source_web WHERE prochaine_collecte_le <= ? ORDER BY prochaine_collecte_le, id LIMIT ?",
+                Jdbc.parametres(Conversions.utc(horloge.instant()), limite), resultat -> resultat.getObject(1, UUID.class));
     }
 
     /** Enregistre les éléments d'un flux ; renvoie le nombre de citations nouvelles pour cette source. */
     @Transactional
     public int integrerFlux(SourceACollecter source, List<ElementFlux> elements) {
         int nouvelles = 0;
-        try (Connection connexion = dataSource.getConnection()) {
-            for (ElementFlux element : elements) {
-                UUID actualite = actualite(connexion, source, Deduplication.article(element), "ARTICLE", element.titre(), element.lien(),
-                        element.texte(), element.publieLe());
-                if (citer(connexion, actualite, source.id(), element.lien())) {
-                    nouvelles++;
-                    evenements.fire(new ActualiteRecue(actualite, source.id(), source.espaceId()));
-                }
+        for (ElementFlux element : elements) {
+            UUID actualite = actualite(source, Deduplication.article(element), "ARTICLE", element.titre(), element.lien(),
+                    element.texte(), element.publieLe());
+            if (citer(actualite, source.id(), element.lien())) {
+                nouvelles++;
+                evenements.fire(new ActualiteRecue(actualite, source.id(), source.espaceId()));
             }
-        } catch (SQLException erreur) {
-            throw new IllegalStateException("enregistrement des actualités de la source " + source.id() + " impossible", erreur);
         }
         return nouvelles;
     }
@@ -221,38 +188,29 @@ public class StockActualites {
      */
     @Transactional
     public boolean integrerPage(SourceACollecter source, Instantane instantane) {
-        try (Connection connexion = dataSource.getConnection()) {
-            boolean change = source.pageEmpreinte() != null && !source.pageEmpreinte().equals(instantane.empreinte());
-            boolean citee = false;
-            if (change) {
-                String titre = "Modification de la page « " + source.libelle() + " »";
-                String apercu = LecteurPage.apercu(source.pageTexte(), instantane.texte());
-                UUID actualite = actualite(connexion, source, Deduplication.changementPage(source.adresse(), instantane.empreinte()),
-                        "CHANGEMENT_PAGE", titre, source.adresse(), apercu, horloge.instant());
-                citee = citer(connexion, actualite, source.id(), source.adresse());
-                if (citee) {
-                    evenements.fire(new ActualiteRecue(actualite, source.id(), source.espaceId()));
-                }
+        boolean change = source.pageEmpreinte() != null && !source.pageEmpreinte().equals(instantane.empreinte());
+        boolean citee = false;
+        if (change) {
+            String titre = "Modification de la page « " + source.libelle() + " »";
+            String apercu = LecteurPage.apercu(source.pageTexte(), instantane.texte());
+            UUID actualite = actualite(source, Deduplication.changementPage(source.adresse(), instantane.empreinte()),
+                    "CHANGEMENT_PAGE", titre, source.adresse(), apercu, horloge.instant());
+            citee = citer(actualite, source.id(), source.adresse());
+            if (citee) {
+                evenements.fire(new ActualiteRecue(actualite, source.id(), source.espaceId()));
             }
-            if (source.pageEmpreinte() == null || change) {
-                try (PreparedStatement requete = connexion.prepareStatement(
-                        "UPDATE source_web SET page_empreinte = ?, page_texte = ? WHERE id = ?")) {
-                    requete.setString(1, instantane.empreinte());
-                    requete.setString(2, instantane.texte());
-                    requete.setObject(3, source.id());
-                    requete.executeUpdate();
-                }
-            }
-            return citee;
-        } catch (SQLException erreur) {
-            throw new IllegalStateException("enregistrement de la page de la source " + source.id() + " impossible", erreur);
         }
+        if (source.pageEmpreinte() == null || change) {
+            jdbc.modifier("UPDATE source_web SET page_empreinte = ?, page_texte = ? WHERE id = ?",
+                    Jdbc.parametres(instantane.empreinte(), instantane.texte(), source.id()));
+        }
+        return citee;
     }
 
     /** Collecte réussie : source active, prochaine collecte après la fréquence. */
     @Transactional
     public void succes(UUID sourceId, Duration frequence) {
-        OffsetDateTime maintenant = horloge.instant().atOffset(ZoneOffset.UTC);
+        OffsetDateTime maintenant = Conversions.utc(horloge.instant());
         executer("""
                 UPDATE source_web SET etat = 'ACTIVE', echecs_consecutifs = 0, derniere_erreur = NULL,
                        derniere_collecte_le = ?, dernier_succes_le = ?, prochaine_collecte_le = ?
@@ -266,83 +224,46 @@ public class StockActualites {
      */
     @Transactional
     public void echec(UUID sourceId, String motif, Duration frequence) {
-        int echecs;
-        try (Connection connexion = dataSource.getConnection(); PreparedStatement requete = connexion.prepareStatement(
-                "UPDATE source_web SET echecs_consecutifs = echecs_consecutifs + 1 WHERE id = ? RETURNING echecs_consecutifs")) {
-            requete.setObject(1, sourceId);
-            try (ResultSet resultat = requete.executeQuery()) {
-                if (!resultat.next()) {
-                    return;
-                }
-                echecs = resultat.getInt(1);
-            }
-        } catch (SQLException erreur) {
-            throw new IllegalStateException("mise à jour de la source " + sourceId + " impossible", erreur);
+        Optional<Integer> echecsConsecutifs = jdbc.unique(
+                "UPDATE source_web SET echecs_consecutifs = echecs_consecutifs + 1 WHERE id = ? RETURNING echecs_consecutifs",
+                Jdbc.parametres(sourceId), resultat -> resultat.getInt(1));
+        if (echecsConsecutifs.isEmpty()) {
+            return;
         }
+        int echecs = echecsConsecutifs.get();
         Duration attente = frequence.multipliedBy(1L << Math.min(echecs - 1, 3));
-        OffsetDateTime maintenant = horloge.instant().atOffset(ZoneOffset.UTC);
+        OffsetDateTime maintenant = Conversions.utc(horloge.instant());
         executer("""
                 UPDATE source_web SET etat = 'EN_ERREUR', derniere_erreur = ?, derniere_collecte_le = ?,
                        prochaine_collecte_le = ?
                 WHERE id = ?
-                """, couper(motif, 1000), maintenant, maintenant.plus(attente), sourceId);
+                """, Conversions.couper(motif, MOTIF_MAX), maintenant, maintenant.plus(attente), sourceId);
     }
 
     /**
      * Actualité du périmètre de la source pour cette empreinte, créée si elle n'existe pas. Le contenu
      * d'une actualité existante n'est jamais modifié ; seules les actualités de ce périmètre sont lues.
      */
-    private static UUID actualite(Connection connexion, SourceACollecter source, String empreinte, String type, String titre,
-            String lien, String texte, Instant publieLe) throws SQLException {
+    private UUID actualite(SourceACollecter source, String empreinte, String type, String titre, String lien, String texte,
+            Instant publieLe) {
         boolean espace = source.espaceId() != null;
         UUID perimetre = espace ? source.espaceId() : source.proprietaireId();
-        try (PreparedStatement requete = connexion.prepareStatement(
-                INSERER_ACTUALITE + (espace ? CONFLIT_ESPACE : CONFLIT_PROPRIETAIRE))) {
-            requete.setObject(1, UUID.randomUUID());
-            requete.setObject(2, espace ? perimetre : null);
-            requete.setObject(3, espace ? null : perimetre);
-            requete.setString(4, empreinte);
-            requete.setString(5, type);
-            requete.setString(6, couper(titre, 1000));
-            requete.setString(7, lien);
-            requete.setString(8, texte == null ? "" : texte);
-            requete.setObject(9, publieLe == null ? null : publieLe.atOffset(ZoneOffset.UTC));
-            requete.executeUpdate();
-        }
-        try (PreparedStatement requete = connexion.prepareStatement(espace ? ACTUALITE_ESPACE : ACTUALITE_PROPRIETAIRE)) {
-            requete.setObject(1, perimetre);
-            requete.setString(2, empreinte);
-            try (ResultSet resultat = requete.executeQuery()) {
-                resultat.next();
-                return resultat.getObject(1, UUID.class);
-            }
-        }
+        jdbc.modifier(INSERER_ACTUALITE + (espace ? CONFLIT_ESPACE : CONFLIT_PROPRIETAIRE),
+                Jdbc.parametres(UUID.randomUUID(), espace ? perimetre : null, espace ? null : perimetre, empreinte, type,
+                        Conversions.couper(titre, TITRE_MAX), lien, texte == null ? "" : texte, Conversions.utc(publieLe)));
+        return jdbc.unique(espace ? ACTUALITE_ESPACE : ACTUALITE_PROPRIETAIRE, Jdbc.parametres(perimetre, empreinte),
+                resultat -> resultat.getObject(1, UUID.class))
+                .orElseThrow(() -> new IllegalStateException("actualité " + empreinte + " introuvable après son insertion"));
     }
 
-    private static boolean citer(Connection connexion, UUID actualite, UUID source, String lien) throws SQLException {
-        try (PreparedStatement requete = connexion.prepareStatement("""
+    private boolean citer(UUID actualite, UUID source, String lien) {
+        return jdbc.modifier("""
                 INSERT INTO actualite_source (actualite_id, source_id, lien, recu_le) VALUES (?, ?, ?, now())
                 ON CONFLICT DO NOTHING
-                """)) {
-            requete.setObject(1, actualite);
-            requete.setObject(2, source);
-            requete.setString(3, lien);
-            return requete.executeUpdate() == 1;
-        }
+                """, Jdbc.parametres(actualite, source, lien)) == 1;
     }
 
     private void executer(String sql, Object... parametres) {
-        try (Connection connexion = dataSource.getConnection(); PreparedStatement requete = connexion.prepareStatement(sql)) {
-            for (int indice = 0; indice < parametres.length; indice++) {
-                requete.setObject(indice + 1, parametres[indice]);
-            }
-            requete.executeUpdate();
-        } catch (SQLException erreur) {
-            throw new IllegalStateException("écriture de la collecte web impossible", erreur);
-        }
-    }
-
-    private static String couper(String valeur, int max) {
-        return valeur == null || valeur.length() <= max ? valeur : valeur.substring(0, max);
+        jdbc.modifier(sql, Jdbc.parametres(parametres));
     }
 }

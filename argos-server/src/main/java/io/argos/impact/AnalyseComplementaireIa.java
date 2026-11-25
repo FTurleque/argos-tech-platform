@@ -1,9 +1,6 @@
 package io.argos.impact;
 
-import java.sql.Array;
 import java.sql.Connection;
-import java.sql.PreparedStatement;
-import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
@@ -23,6 +20,7 @@ import io.argos.aigateway.EntreeIa;
 import io.argos.aigateway.PasserelleIa;
 import io.argos.aigateway.RegistrePrompts;
 import io.argos.aigateway.ReponseIa;
+import io.argos.commun.Jdbc;
 import io.quarkus.arc.DefaultBean;
 import io.quarkus.arc.lookup.LookupIfProperty;
 
@@ -104,59 +102,39 @@ public class AnalyseComplementaireIa implements ComplementaryAnalysis {
     private record Candidat(UUID id, String nom) {
     }
 
+    private record EspaceProjet(UUID espace, UUID projet) {
+    }
+
     private record Contexte(String titre, List<String> paquets, Map<UUID, List<Candidat>> candidats) {
     }
 
     /** Signal, paquets et candidats par espace, lus sous l'utilisateur de connexion (traitement système). */
     private Contexte lire(UUID signalId, List<UUID> impactIds) {
         try (Connection connexion = dataSource.getConnection()) {
-            String titre = "";
-            try (PreparedStatement requete = connexion.prepareStatement("SELECT coalesce(title, external_id) FROM signal WHERE id = ?")) {
-                requete.setObject(1, signalId);
-                try (ResultSet resultat = requete.executeQuery()) {
-                    if (resultat.next()) {
-                        titre = resultat.getString(1);
-                    }
-                }
-            }
-            List<String> paquets = new ArrayList<>();
-            try (PreparedStatement requete = connexion.prepareStatement(
-                    "SELECT package_key FROM signal_package WHERE signal_id = ? ORDER BY package_key LIMIT 20")) {
-                requete.setObject(1, signalId);
-                try (ResultSet resultat = requete.executeQuery()) {
-                    while (resultat.next()) {
-                        paquets.add(resultat.getString(1));
-                    }
-                }
-            }
+            List<String> titres = Jdbc.lister(connexion, "SELECT coalesce(title, external_id) FROM signal WHERE id = ?",
+                    Jdbc.parametres(signalId), resultat -> resultat.getString(1));
+            String titre = titres.isEmpty() ? "" : titres.get(0);
+            List<String> paquets = Jdbc.lister(connexion,
+                    "SELECT package_key FROM signal_package WHERE signal_id = ? ORDER BY package_key LIMIT 20",
+                    Jdbc.parametres(signalId), resultat -> resultat.getString(1));
             Set<UUID> espaces = new LinkedHashSet<>();
             Set<UUID> touches = new LinkedHashSet<>();
-            Array ids = connexion.createArrayOf("uuid", impactIds.toArray());
-            try (PreparedStatement requete = connexion.prepareStatement(
-                    "SELECT workspace_id, project_id FROM project_impact WHERE id = ANY (?) ORDER BY workspace_id")) {
-                requete.setArray(1, ids);
-                try (ResultSet resultat = requete.executeQuery()) {
-                    while (resultat.next()) {
-                        espaces.add(resultat.getObject(1, UUID.class));
-                        touches.add(resultat.getObject(2, UUID.class));
-                    }
-                }
-            }
+            Jdbc.lister(connexion, "SELECT workspace_id, project_id FROM project_impact WHERE id = ANY (?) ORDER BY workspace_id",
+                    requete -> requete.setArray(1, connexion.createArrayOf("uuid", impactIds.toArray())),
+                    resultat -> new EspaceProjet(resultat.getObject(1, UUID.class), resultat.getObject(2, UUID.class)))
+                    .forEach(ligne -> {
+                        espaces.add(ligne.espace());
+                        touches.add(ligne.projet());
+                    });
             Map<UUID, List<Candidat>> candidats = new LinkedHashMap<>();
             for (UUID espace : espaces) {
-                List<Candidat> liste = new ArrayList<>();
-                try (PreparedStatement requete = connexion.prepareStatement(
-                        "SELECT id, name FROM project WHERE workspace_id = ? AND NOT (id = ANY (?)) ORDER BY name, id LIMIT ?")) {
-                    requete.setObject(1, espace);
-                    requete.setArray(2, connexion.createArrayOf("uuid", touches.toArray()));
-                    requete.setInt(3, CANDIDATS_MAX);
-                    try (ResultSet resultat = requete.executeQuery()) {
-                        while (resultat.next()) {
-                            liste.add(new Candidat(resultat.getObject(1, UUID.class), resultat.getString(2)));
-                        }
-                    }
-                }
-                candidats.put(espace, liste);
+                candidats.put(espace, Jdbc.lister(connexion,
+                        "SELECT id, name FROM project WHERE workspace_id = ? AND NOT (id = ANY (?)) ORDER BY name, id LIMIT ?",
+                        requete -> {
+                            requete.setObject(1, espace);
+                            requete.setArray(2, connexion.createArrayOf("uuid", touches.toArray()));
+                            requete.setInt(3, CANDIDATS_MAX);
+                        }, resultat -> new Candidat(resultat.getObject(1, UUID.class), resultat.getString(2))));
             }
             return new Contexte(titre, paquets, candidats);
         } catch (SQLException erreur) {

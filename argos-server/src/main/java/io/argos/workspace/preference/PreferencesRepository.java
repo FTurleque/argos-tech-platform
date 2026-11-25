@@ -5,8 +5,9 @@ import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
-import java.sql.Statement;
 import java.util.Arrays;
+import java.util.Collection;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Optional;
 import java.util.Set;
@@ -17,6 +18,9 @@ import javax.sql.DataSource;
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.inject.Inject;
 import jakarta.transaction.Transactional;
+
+import io.argos.commun.ContexteBase;
+import io.argos.commun.Jdbc;
 
 /**
  * Accès à la table {@code workspace_preference_utilisateur}, clé : identifiant du compte Argos.
@@ -30,10 +34,12 @@ import jakarta.transaction.Transactional;
 public class PreferencesRepository {
 
     private final DataSource dataSource;
+    private final Jdbc jdbc;
 
     @Inject
-    public PreferencesRepository(DataSource dataSource) {
+    public PreferencesRepository(DataSource dataSource, Jdbc jdbc) {
         this.dataSource = dataSource;
+        this.jdbc = jdbc;
     }
 
     /** Préférences enregistrées ; {@link PreferencesUtilisateur#aucune} si rien n'est enregistré. */
@@ -41,7 +47,7 @@ public class PreferencesRepository {
     public PreferencesUtilisateur lire(UUID compte) {
         String sql = "SELECT mise_en_page, profils_actifs FROM workspace_preference_utilisateur WHERE compte_id = ?";
         try (Connection connexion = dataSource.getConnection()) {
-            session(connexion, compte);
+            ContexteBase.appliquer(connexion, ContexteBase.Contexte.duCompte(compte));
             try (PreparedStatement requete = connexion.prepareStatement(sql)) {
                 requete.setObject(1, compte);
                 try (ResultSet resultat = requete.executeQuery()) {
@@ -68,7 +74,7 @@ public class PreferencesRepository {
                 DO UPDATE SET mise_en_page = EXCLUDED.mise_en_page, modifie_le = now()
                 """;
         try (Connection connexion = dataSource.getConnection()) {
-            session(connexion, compte);
+            ContexteBase.appliquer(connexion, ContexteBase.Contexte.duCompte(compte));
             try (PreparedStatement requete = connexion.prepareStatement(sql)) {
                 requete.setObject(1, compte);
                 requete.setString(2, miseEnPage);
@@ -99,7 +105,7 @@ public class PreferencesRepository {
                 DO UPDATE SET profils_actifs = EXCLUDED.profils_actifs, modifie_le = now()
                 """ + (remplacer ? "" : " WHERE workspace_preference_utilisateur.profils_actifs IS NULL");
         try (Connection connexion = dataSource.getConnection()) {
-            session(connexion, compte);
+            ContexteBase.appliquer(connexion, ContexteBase.Contexte.duCompte(compte));
             try (PreparedStatement requete = connexion.prepareStatement(sql)) {
                 requete.setObject(1, compte);
                 requete.setArray(2, connexion.createArrayOf("varchar", profilsActifs.stream().sorted().toArray()));
@@ -110,15 +116,20 @@ public class PreferencesRepository {
         }
     }
 
-    /** Rôle {@code argos_app} et compte courant pour la transaction en cours (protocole de la migration V2). */
-    private static void session(Connection connexion, UUID compte) throws SQLException {
-        try (Statement instruction = connexion.createStatement()) {
-            instruction.execute("SET LOCAL ROLE argos_app");
+    /**
+     * Parmi les comptes donnés, ceux dont les profils actifs enregistrés contiennent le profil. Lecture technique,
+     * hors rôle applicatif ; elle n'accorde aucun droit (PRF-05).
+     */
+    public Set<UUID> comptesAvecProfil(Collection<UUID> comptes, String profil) {
+        if (comptes.isEmpty()) {
+            return Set.of();
         }
-        try (PreparedStatement requete = connexion.prepareStatement(
-                "SELECT set_config('argos.compte_courant', ?, true), set_config('argos.espace_courant', '', true)")) {
-            requete.setString(1, compte.toString());
-            requete.execute();
-        }
+        return new HashSet<>(jdbc.lister("""
+                SELECT compte_id FROM workspace_preference_utilisateur
+                WHERE compte_id = ANY (?) AND ? = ANY (profils_actifs)
+                """, requete -> {
+                    requete.setArray(1, requete.getConnection().createArrayOf("uuid", comptes.toArray()));
+                    requete.setString(2, profil);
+                }, resultat -> resultat.getObject(1, UUID.class)));
     }
 }

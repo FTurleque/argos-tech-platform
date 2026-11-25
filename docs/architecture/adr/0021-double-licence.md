@@ -1,8 +1,8 @@
 # ADR-0021 — Préserver la possibilité d'une double licence
 
-- **Statut** : Proposé
-- **Date** : 2026-11-15
-- **Décideurs** : titulaire des droits d'ARGOS
+- **Statut** : Accepté
+- **Date** : 2026-11-24 (acceptation ; proposition du 2026-11-15)
+- **Décideurs** : porteur du projet (acceptation du 2026-11-24)
 - **Remplace** : —
 - **Remplacé par** : —
 - **Complète** : [ADR-0009](0009-licence-polyform-internal-use.md) (Accepté), sans en modifier la décision
@@ -13,7 +13,7 @@
 - **Fait établi** : ADR-0009 ne définit aucune licence commerciale et conserve la possibilité pour le titulaire de faire évoluer sa stratégie de licence.
 - **Fait déclaré par le titulaire (2026-11-15)** : ARGOS lui appartient et il en est le seul contributeur. Aucune vente n'est prévue à court terme, mais la possibilité de vendre ARGOS à des clients doit être préservée.
 - **Fait établi (2026-11-15)** : plusieurs composants envisagés par l'architecture ont des licences restrictives pour une offre commerciale. FreshRSS est sous AGPL-3.0 (dépôt GitHub `FreshRSS/FreshRSS`) ; n8n est sous Sustainable Use License, qui n'autorise la distribution que gratuitement et à des fins non commerciales (`n8n-io/n8n`, `LICENSE.md`) ; changedetection.io est sous Apache-2.0 (`dgtlmoon/changedetection.io`).
-- **Question ouverte** : la compatibilité des licences des autres dépendances reste à vérifier ; aucune dépendance n'est encore déclarée dans le dépôt.
+- **Question ouverte** : la compatibilité des licences des autres dépendances reste à vérifier ; les dépendances sont déclarées dans les `pom.xml`, `package.json` et `Dockerfile`, et leurs licences sont contrôlées au build par le profil Maven `licences` (`argos-server/pom.xml`) et par l'étape de licences du `Dockerfile`.
 
 La possibilité de vendre ARGOS sous une licence propre au titulaire repose sur deux conditions qui se perdent facilement : rester seul titulaire des droits sur tout le code, et n'intégrer au produit distribué aucun composant dont la licence interdit ou contraint cette distribution. Une fois perdues, ces conditions sont coûteuses ou impossibles à rétablir (réécriture de code, accord de chaque contributeur, remplacement d'une dépendance).
 
@@ -49,7 +49,7 @@ Analyse du 2026-11-15, présentée comme telle.
 
 ## Décision
 
-Option A, **proposée**.
+Option A retenue.
 
 1. La licence publique d'ARGOS reste la PolyForm Internal Use License 1.0.0 (ADR-0009, inchangé).
 2. Le titulaire se réserve le droit de concéder ARGOS sous une **licence commerciale distincte**. Son texte (étendue, prix, support, garanties, responsabilité) n'est rédigé qu'à la décision de vendre, avec une revue juridique.

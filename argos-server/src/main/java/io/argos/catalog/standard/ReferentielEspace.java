@@ -22,10 +22,10 @@ import jakarta.enterprise.event.Event;
 import jakarta.inject.Inject;
 
 import io.argos.horloge.LectureHeure;
-import io.argos.workspace.ContexteBase;
-import io.argos.workspace.ContexteBase.Contexte;
-import io.argos.workspace.Introuvable;
-import io.argos.workspace.RegleViolee;
+import io.argos.commun.ContexteBase;
+import io.argos.commun.ContexteBase.Contexte;
+import io.argos.commun.Introuvable;
+import io.argos.commun.RegleViolee;
 
 /**
  * Référentiel des standards d'un espace (RAD-01, RAD-02, RAD-06) : chaque espace construit le sien,

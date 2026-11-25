@@ -20,6 +20,8 @@ import jakarta.inject.Inject;
 
 import org.jboss.logging.Logger;
 
+import io.quarkus.narayana.jta.QuarkusTransaction;
+import io.argos.commun.ErreurBase;
 import io.argos.observabilite.ErreursImprevues;
 
 /**
@@ -109,10 +111,8 @@ public class CyclesDeVie {
     }
 
     private void remplacer(String produit, List<ClientEndoflife.Cycle> cycles, Instant maintenant) {
-        try (Connection connexion = dataSource.getConnection()) {
-            boolean autoCommit = connexion.getAutoCommit();
-            connexion.setAutoCommit(false);
-            try {
+        QuarkusTransaction.requiringNew().run(() -> {
+            try (Connection connexion = dataSource.getConnection()) {
                 try (PreparedStatement requete = connexion.prepareStatement("""
                         INSERT INTO cycle_vie_produit (produit, etat, derniere_synchro_le, dernier_succes_le)
                         VALUES (?, 'A_JOUR', ?, ?)
@@ -145,16 +145,10 @@ public class CyclesDeVie {
                     }
                     requete.executeBatch();
                 }
-                connexion.commit();
-            } catch (SQLException | RuntimeException erreur) {
-                connexion.rollback();
-                throw erreur;
-            } finally {
-                connexion.setAutoCommit(autoCommit);
+            } catch (SQLException erreur) {
+                throw new ErreurBase("enregistrement du calendrier impossible", erreur);
             }
-        } catch (SQLException erreur) {
-            throw new IllegalStateException("enregistrement du calendrier impossible", erreur);
-        }
+        });
     }
 
     private void marquerEchec(String produit, String motif, Instant maintenant) {

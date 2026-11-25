@@ -18,9 +18,9 @@ import org.eclipse.microprofile.openapi.annotations.responses.APIResponse;
 import org.eclipse.microprofile.openapi.annotations.tags.Tag;
 
 import io.argos.api.security.Access;
-import io.argos.api.security.Caller;
-import io.argos.api.security.LimiteDebitAtteinte;
-import io.argos.api.security.LimiteurDebit;
+import io.argos.commun.securite.Caller;
+import io.argos.commun.securite.LimiteDebitAtteinte;
+import io.argos.commun.securite.LimiteurDebit;
 import io.argos.inventory.InventoryQueries;
 import io.argos.projectintel.ActiviteQueries;
 import io.argos.projectintel.SyntheseActivite;

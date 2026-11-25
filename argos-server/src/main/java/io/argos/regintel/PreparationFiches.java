@@ -30,6 +30,8 @@ import org.jboss.logging.Logger;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 
+import io.quarkus.narayana.jta.QuarkusTransaction;
+import io.argos.commun.ErreurBase;
 import io.argos.catalog.dictionnaire.DictionnaireMetier;
 import io.argos.catalog.dictionnaire.DictionnaireMetier.DictionnaireEspace;
 import io.argos.observabilite.ErreursImprevues;
@@ -162,9 +164,8 @@ public class PreparationFiches {
         Optional<AnalyseIa.Fiche> produite = analyseIa.preparer(espace, texte);
         String resume = produite.map(AnalyseIa.Fiche::resume).orElse(null);
         UUID id = UUID.randomUUID();
-        try (Connection connexion = dataSource.getConnection()) {
-            connexion.setAutoCommit(false);
-            try {
+        return QuarkusTransaction.requiringNew().call(() -> {
+            try (Connection connexion = dataSource.getConnection()) {
                 try (PreparedStatement requete = connexion.prepareStatement("""
                         INSERT INTO fiche_reglementaire (id, texte_id, espace_id, resume, resume_origine, date_effet,
                             date_effet_origine, date_effet_ia, articles_modifies, cree_le, modifie_le)
@@ -183,7 +184,6 @@ public class PreparationFiches {
                     requete.setTimestamp(10, Timestamp.from(maintenant));
                     requete.setTimestamp(11, Timestamp.from(maintenant));
                     if (requete.executeUpdate() == 0) {
-                        connexion.rollback();
                         return false;
                     }
                 }
@@ -219,15 +219,11 @@ public class PreparationFiches {
                     return description;
                 }).toList());
                 historiser(connexion, id, espace, "PREPARATION", detail, null, maintenant);
-                connexion.commit();
                 return true;
-            } catch (SQLException | RuntimeException erreur) {
-                connexion.rollback();
-                throw erreur;
+            } catch (SQLException erreur) {
+                throw new ErreurBase("préparation de la fiche impossible", erreur);
             }
-        } catch (SQLException erreur) {
-            throw new IllegalStateException("préparation de la fiche impossible", erreur);
-        }
+        });
     }
 
     private boolean existe(UUID texte, UUID espace) {

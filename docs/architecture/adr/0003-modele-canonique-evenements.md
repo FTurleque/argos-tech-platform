@@ -1,8 +1,8 @@
 # ADR-0003 — Introduire un modèle canonique d’événements
 
-- **Statut** : Proposé
-- **Date** : 2026-09-24
-- **Décideurs** : Non déterminé
+- **Statut** : Accepté
+- **Date** : 2026-11-24 (acceptation ; proposition du 2026-09-24)
+- **Décideurs** : porteur du projet (acceptation du 2026-11-24)
 - **Remplace** : —
 
 ## Contexte
@@ -40,7 +40,7 @@ ARGOS doit intégrer RSS, Web, GitHub, GitLab, CVE et potentiellement d’autres
 
 ## Décision
 
-**Proposition : option A.** Les adapters transforment les formats externes vers `IntelligenceItem`, `ProjectActivity` et autres événements métier canoniques. Le payload brut peut être conservé séparément pour audit/retraitement.
+**Option A retenue.** Les adapters transforment les formats externes vers des modèles normalisés propres au domaine ; le modèle réel de l'ingestion est `NormalizedAdvisory` (`io.argos.ingestion`), produit par l'adaptateur `OsvNormalizer`. Le payload brut peut être conservé séparément pour audit/retraitement.
 
 ## Conséquences positives
 

@@ -1,4 +1,4 @@
-package io.argos.api.security;
+package io.argos.commun.securite;
 
 /**
  * Requête refusée parce que le compte a atteint sa limite de débit ({@link LimiteurDebit}). La

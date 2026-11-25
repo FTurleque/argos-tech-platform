@@ -1,4 +1,4 @@
-package io.argos.api.security;
+package io.argos.commun.securite;
 
 import java.util.Set;
 import java.util.UUID;

@@ -26,9 +26,9 @@ import jakarta.inject.Inject;
 import org.eclipse.microprofile.config.inject.ConfigProperty;
 
 import io.argos.catalog.dictionnaire.DictionnaireMetier;
-import io.argos.workspace.ContexteBase;
-import io.argos.workspace.ContexteBase.Contexte;
-import io.argos.workspace.DonneeInvalide;
+import io.argos.commun.ContexteBase;
+import io.argos.commun.ContexteBase.Contexte;
+import io.argos.commun.DonneeInvalide;
 
 /**
  * Échéances des entrées en vigueur (REG-07) : jours de rappel de chaque espace (Q-2 : J-90, J-30 et J-7

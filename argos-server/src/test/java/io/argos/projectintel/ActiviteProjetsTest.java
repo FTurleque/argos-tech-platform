@@ -42,7 +42,7 @@ import io.argos.testsupport.StubServer;
 import io.argos.testsupport.StubServer.Stub;
 import io.argos.testsupport.Substitution;
 import io.argos.testsupport.TestDb;
-import io.argos.workspace.ContexteBase;
+import io.argos.commun.ContexteBase;
 import io.quarkus.test.common.QuarkusTestResource;
 import io.quarkus.test.junit.QuarkusTest;
 

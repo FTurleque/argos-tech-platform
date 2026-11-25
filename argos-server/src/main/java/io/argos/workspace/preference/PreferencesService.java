@@ -1,5 +1,6 @@
 package io.argos.workspace.preference;
 
+import java.util.Collection;
 import java.util.Objects;
 import java.util.Set;
 import java.util.UUID;
@@ -57,5 +58,10 @@ public class PreferencesService {
             throw new AucunProfilActifException();
         }
         repository.enregistrerProfilsSiAucun(compte, profilsActifs);
+    }
+
+    /** Parmi les comptes donnés, ceux qui ont activé le profil (lecture technique pour les alertes). */
+    public Set<UUID> comptesAvecProfil(Collection<UUID> comptes, String profil) {
+        return repository.comptesAvecProfil(Objects.requireNonNull(comptes), Objects.requireNonNull(profil));
     }
 }

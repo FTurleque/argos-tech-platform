@@ -11,7 +11,7 @@ import java.util.UUID;
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.inject.Inject;
 
-import io.argos.api.security.Caller;
+import io.argos.commun.securite.Caller;
 import io.argos.impact.ImpactQueries;
 import io.argos.signal.SignalQueries;
 import io.argos.workspace.subscription.SubscriptionRequest;

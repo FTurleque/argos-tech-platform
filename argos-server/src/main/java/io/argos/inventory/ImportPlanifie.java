@@ -2,6 +2,7 @@ package io.argos.inventory;
 
 import java.time.Clock;
 import java.time.Instant;
+import java.util.EnumMap;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -77,23 +78,13 @@ public class ImportPlanifie {
         ErreursImprevues imprevues = new ErreursImprevues();
         int relancees = relancerRecorrelations(imprevues);
         int projetsParcourus = 0;
-        int importes = 0;
-        int conserves = 0;
-        int refuses = 0;
-        int erreurs = 0;
-        int reportes = 0;
         Map<String, QuotaEpuise> quotas = new HashMap<>();
+        Map<Categorie, Integer> comptes = new EnumMap<>(Categorie.class);
         for (UUID projet : projects.avecDepots()) {
             projetsParcourus++;
             try {
                 for (InventoryService.ResultatDepot depot : inventories.importerProjet(projet, quotas).depots()) {
-                    switch (depot.result().status()) {
-                        case "IMPORTED" -> importes++;
-                        case "REJECTED" -> refuses++;
-                        case "ERROR" -> erreurs++;
-                        case "DEFERRED" -> reportes++;
-                        default -> conserves++;
-                    }
+                    comptes.merge(categorie(depot.result().status()), 1, Integer::sum);
                 }
             } catch (IllegalStateException erreur) {
                 enEchec++;
@@ -104,7 +95,9 @@ public class ImportPlanifie {
                 LOG.errorf(imprevue, "import planifié de l'inventaire du projet %s interrompu par une erreur imprévue", projet);
             }
         }
-        Bilan bilan = new Bilan(projetsParcourus, importes, conserves, refuses, erreurs, reportes, relancees, enEchec,
+        Bilan bilan = new Bilan(projetsParcourus, comptes.getOrDefault(Categorie.IMPORTES, 0),
+                comptes.getOrDefault(Categorie.CONSERVES, 0), comptes.getOrDefault(Categorie.REFUSES, 0),
+                comptes.getOrDefault(Categorie.ERREURS, 0), comptes.getOrDefault(Categorie.REPORTES, 0), relancees, enEchec,
                 imprevues.retenues());
         LOG.infof("import planifié des inventaires (%s) : %s", maintenant, bilan);
         return bilan;
@@ -128,5 +121,19 @@ public class ImportPlanifie {
             }
         }
         return relancees;
+    }
+
+    /** Rubrique du bilan où se compte l'issue d'un dépôt. */
+    enum Categorie { IMPORTES, CONSERVES, REFUSES, ERREURS, REPORTES }
+
+    /** Rubrique du bilan d'une issue : {@code KEPT} et {@code NONE} sont comptés « conservés ». */
+    static Categorie categorie(StatutImport statut) {
+        return switch (statut) {
+            case IMPORTED -> Categorie.IMPORTES;
+            case REJECTED -> Categorie.REFUSES;
+            case ERROR -> Categorie.ERREURS;
+            case DEFERRED -> Categorie.REPORTES;
+            case KEPT, NONE -> Categorie.CONSERVES;
+        };
     }
 }

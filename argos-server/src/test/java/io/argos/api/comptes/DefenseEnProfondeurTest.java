@@ -29,10 +29,10 @@ import io.argos.testsupport.Api;
 import io.argos.testsupport.TestDb;
 import io.argos.workspace.Compte;
 import io.argos.workspace.ComptesService;
-import io.argos.workspace.ContexteBase;
-import io.argos.workspace.ContexteBase.Contexte;
+import io.argos.commun.ContexteBase;
+import io.argos.commun.ContexteBase.Contexte;
 import io.argos.workspace.EspacesService;
-import io.argos.workspace.RegleViolee;
+import io.argos.commun.RegleViolee;
 import io.argos.workspace.Role;
 import io.quarkus.test.junit.QuarkusTest;
 

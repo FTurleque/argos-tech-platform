@@ -11,7 +11,7 @@ import jakarta.inject.Inject;
 import org.eclipse.microprofile.config.inject.ConfigProperty;
 import org.eclipse.microprofile.jwt.JsonWebToken;
 
-import io.argos.api.security.LimiteurDebit;
+import io.argos.commun.securite.LimiteurDebit;
 import io.argos.audit.JournalRefus;
 import io.quarkiverse.mcp.server.InitialCheck;
 import io.quarkiverse.mcp.server.InitialRequest;

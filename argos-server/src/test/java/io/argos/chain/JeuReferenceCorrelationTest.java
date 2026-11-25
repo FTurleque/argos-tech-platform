@@ -37,6 +37,7 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 
+import io.argos.inventory.StatutImport;
 import io.argos.catalog.PackageKey;
 import io.argos.impact.CorrelationEngine;
 import io.argos.ingestion.SourceSynchronizer;
@@ -285,7 +286,7 @@ class JeuReferenceCorrelationTest {
                 }
                 resultat = inventories.importManifests(projet, manifestes);
             }
-            assertEquals("IMPORTED", resultat.status(), "import de l'inventaire de " + nom + " : " + resultat.reason());
+            assertEquals(StatutImport.IMPORTED, resultat.status(), "import de l'inventaire de " + nom + " : " + resultat.reason());
             // Composants écartés faute de PURL, signalés à l'import (INV-01, décision D6) : exactement ceux annotés.
             List<String> signales = new ArrayList<>();
             projetDuJeu.path("composantsSignales").forEach(signale -> signales.add(String.join("|", signale.path("groupe").asText(),

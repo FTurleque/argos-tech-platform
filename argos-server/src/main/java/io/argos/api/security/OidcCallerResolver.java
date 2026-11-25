@@ -9,6 +9,8 @@ import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.inject.Inject;
 
 import io.argos.api.UtilisateurCourant;
+import io.argos.commun.securite.Caller;
+import io.argos.commun.securite.CallerResolver;
 import io.argos.workspace.Compte;
 import io.argos.workspace.EspacesService;
 import io.argos.workspace.Role;

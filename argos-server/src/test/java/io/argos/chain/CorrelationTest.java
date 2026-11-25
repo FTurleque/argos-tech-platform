@@ -27,6 +27,7 @@ import jakarta.inject.Inject;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
+import io.argos.impact.StatutAnalyse;
 import io.argos.impact.ComplementaryAnalysis;
 import io.argos.impact.CorrelationEngine;
 import io.argos.impact.ImpactQueries;
@@ -405,7 +406,7 @@ class CorrelationTest {
         assertEquals(1, impactsOf(project));
         assertEquals(List.of(signal), analysis.calls(), "l'analyse est sollicitée après l'enregistrement et échoue");
         CorrelationEngine.CorrelationReport report = engine.correlate(signal, Optional.empty());
-        assertEquals("UNAVAILABLE", report.analysis());
+        assertEquals(StatutAnalyse.UNAVAILABLE, report.analysis());
         assertEquals(1, report.impactIds().size());
     }
 
@@ -418,7 +419,7 @@ class CorrelationTest {
 
         assertEquals(1, impactsOf(project));
         assertTrue(analysis.calls().isEmpty(), "aucun appel au fournisseur d'IA");
-        assertEquals("BUDGET_EXHAUSTED", engine.correlate(signal, Optional.empty()).analysis());
+        assertEquals(StatutAnalyse.BUDGET_EXHAUSTED, engine.correlate(signal, Optional.empty()).analysis());
     }
 
     @Test
@@ -430,7 +431,7 @@ class CorrelationTest {
         UUID signal = publish("GHSA-SUGG", LIB, "0", "1.3.0");
         CorrelationEngine.CorrelationReport report = engine.correlate(signal, Optional.empty());
 
-        assertEquals("DONE", report.analysis());
+        assertEquals(StatutAnalyse.DONE, report.analysis());
         assertEquals(1, report.suggestions().size());
         assertEquals(0, impactsOf(unrelated), "une suggestion ne crée aucun impact, donc aucune alerte");
     }

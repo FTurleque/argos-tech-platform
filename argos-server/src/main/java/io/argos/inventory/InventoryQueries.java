@@ -28,7 +28,7 @@ import org.eclipse.microprofile.config.inject.ConfigProperty;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 
-import io.argos.workspace.ContexteBase;
+import io.argos.commun.ContexteBase;
 
 /**
  * Consultation des inventaires (INV-02, INV-03) et recherche des composants par clé de paquet
@@ -140,7 +140,7 @@ public class InventoryQueries {
     @Transactional
     public Optional<InventoryView> inventory(UUID projectId, UUID accountId) {
         try (Connection connexion = dataSource.getConnection()) {
-            ContexteBase.appliquer(connexion, new ContexteBase.Contexte(accountId, null, null));
+            ContexteBase.appliquer(connexion, ContexteBase.Contexte.duCompte(accountId));
             Optional<LigneInventaire> ligne = ligne(connexion, projectId);
             if (ligne.isEmpty()) {
                 return Optional.empty();
@@ -163,7 +163,7 @@ public class InventoryQueries {
     @Transactional
     public Optional<InventorySummary> summary(UUID projectId, UUID accountId) {
         try (Connection connexion = dataSource.getConnection()) {
-            ContexteBase.appliquer(connexion, new ContexteBase.Contexte(accountId, null, null));
+            ContexteBase.appliquer(connexion, ContexteBase.Contexte.duCompte(accountId));
             return summary(connexion, projectId);
         } catch (SQLException erreur) {
             throw new IllegalStateException("lecture de l'inventaire impossible", erreur);
@@ -246,7 +246,7 @@ public class InventoryQueries {
         String sql = "SELECT p.id, p.workspace_id, e.nom, p.name FROM project p LEFT JOIN espace e ON e.id = p.workspace_id"
                 + " ORDER BY p.name, e.nom, p.id LIMIT ? OFFSET ?";
         try (Connection connexion = dataSource.getConnection()) {
-            ContexteBase.appliquer(connexion, new ContexteBase.Contexte(accountId, null, null));
+            ContexteBase.appliquer(connexion, ContexteBase.Contexte.duCompte(accountId));
             long total = count(connexion, "SELECT count(*) FROM project", null);
             List<ProjectItem> items = new ArrayList<>();
             try (PreparedStatement requete = connexion.prepareStatement(sql)) {
@@ -277,7 +277,7 @@ public class InventoryQueries {
         String sql = "SELECT id, " + COMPONENT_NAME + " AS name, version, purl, package_key, transitive FROM component"
                 + " WHERE project_id = ? ORDER BY name, version NULLS FIRST, id LIMIT ? OFFSET ?";
         try (Connection connexion = dataSource.getConnection()) {
-            ContexteBase.appliquer(connexion, new ContexteBase.Contexte(accountId, null, null));
+            ContexteBase.appliquer(connexion, ContexteBase.Contexte.duCompte(accountId));
             long total = count(connexion, "SELECT count(*) FROM component WHERE project_id = ?", projectId);
             List<ComponentItem> lus = new ArrayList<>();
             try (PreparedStatement requete = connexion.prepareStatement(sql)) {
@@ -307,7 +307,7 @@ public class InventoryQueries {
         List<ImportFailure> failures = new ArrayList<>();
         String sql = "SELECT id, reason, source_ref, received_at FROM inventory_import_failure WHERE project_id = ? ORDER BY received_at";
         try (Connection connexion = dataSource.getConnection()) {
-            ContexteBase.appliquer(connexion, new ContexteBase.Contexte(accountId, null, null));
+            ContexteBase.appliquer(connexion, ContexteBase.Contexte.duCompte(accountId));
             try (PreparedStatement requete = connexion.prepareStatement(sql)) {
                 requete.setObject(1, projectId);
                 try (ResultSet lignes = requete.executeQuery()) {

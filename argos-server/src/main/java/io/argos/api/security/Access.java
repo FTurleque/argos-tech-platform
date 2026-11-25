@@ -1,5 +1,7 @@
 package io.argos.api.security;
 
+import io.argos.commun.securite.Caller;
+import io.argos.commun.securite.CallerResolver;
 import java.util.Optional;
 import java.util.UUID;
 import java.util.function.Supplier;
@@ -9,8 +11,8 @@ import jakarta.inject.Inject;
 import jakarta.ws.rs.NotAuthorizedException;
 import jakarta.ws.rs.NotFoundException;
 
-import io.argos.workspace.AccesRefuse;
-import io.argos.workspace.MotifRefus;
+import io.argos.commun.AccesRefuse;
+import io.argos.commun.MotifRefus;
 
 /**
  * Contrôles d'accès communs aux ressources REST de la veille. Les refus sont des

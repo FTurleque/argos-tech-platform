@@ -20,6 +20,7 @@ import jakarta.inject.Inject;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
+import io.argos.inventory.StatutImport;
 import io.argos.inventory.InventoryService;
 import io.argos.inventory.ProjectDirectory;
 import io.argos.scm.RepositoryFiles;
@@ -93,7 +94,7 @@ class InventoryTest {
 
         InventoryService.ImportResult result = inventories.importSbom(project, bytes(sbom), "ci");
 
-        assertEquals("IMPORTED", result.status());
+        assertEquals(StatutImport.IMPORTED, result.status());
         member().when().get("/api/v1/projects/" + project + "/inventory")
                 .then().statusCode(200)
                 .body("status", equalTo("AVAILABLE"))
@@ -130,7 +131,7 @@ class InventoryTest {
 
         InventoryService.ImportResult result = inventories.importSbom(project, bytes(sbom), "ci#1");
 
-        assertEquals("IMPORTED", result.status());
+        assertEquals(StatutImport.IMPORTED, result.status());
         assertEquals(1, result.components());
         assertEquals(122, result.ignored());
         assertEquals(100, result.ignoredComponents().size());
@@ -206,7 +207,7 @@ class InventoryTest {
 
         InventoryService.ImportResult fallback = inventories.refresh(project);
 
-        assertEquals("IMPORTED", fallback.status());
+        assertEquals(StatutImport.IMPORTED, fallback.status());
         assertEquals("MANIFEST", fallback.origin());
         member().when().get("/api/v1/projects/" + project + "/inventory")
                 .then().statusCode(200).body("inventory.origin", equalTo("MANIFEST"))
@@ -233,7 +234,7 @@ class InventoryTest {
         InventoryService.ImportResult rejected = inventories.importSbom(project,
                 bytes("{\"bomFormat\":\"CycloneDX\",\"specVersion\":\"1.4\",\"components\":[{\"purl\":\"pkg:npm/x@1\"}]}"), "ci#2");
 
-        assertEquals("REJECTED", rejected.status());
+        assertEquals(StatutImport.REJECTED, rejected.status());
         member().when().get("/api/v1/projects/" + project + "/inventory/failures")
                 .then().statusCode(200).body("[0].reason", containsString("1.4")).body("[0].sourceRef", equalTo("ci#2"));
         member().when().get("/api/v1/projects/" + project + "/inventory")

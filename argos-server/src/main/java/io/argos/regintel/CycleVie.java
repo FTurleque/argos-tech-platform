@@ -3,7 +3,7 @@ package io.argos.regintel;
 import java.util.Map;
 import java.util.Set;
 
-import io.argos.workspace.RegleViolee;
+import io.argos.commun.RegleViolee;
 
 /**
  * Cycle de vie du suivi d'un texte dans un espace (REG-06, DC-2) : nouveau, en analyse, sans impact ou

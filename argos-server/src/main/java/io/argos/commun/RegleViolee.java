@@ -1,4 +1,4 @@
-package io.argos.workspace;
+package io.argos.commun;
 
 /** Demande valide en forme mais contraire à une règle du domaine (par exemple INV-1). */
 public class RegleViolee extends RuntimeException {

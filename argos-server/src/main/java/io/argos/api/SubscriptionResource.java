@@ -21,7 +21,7 @@ import org.eclipse.microprofile.openapi.annotations.responses.APIResponse;
 import org.eclipse.microprofile.openapi.annotations.tags.Tag;
 
 import io.argos.api.security.Access;
-import io.argos.api.security.Caller;
+import io.argos.commun.securite.Caller;
 import io.argos.workspace.subscription.SubscriptionRequest;
 import io.argos.workspace.subscription.SubscriptionService;
 

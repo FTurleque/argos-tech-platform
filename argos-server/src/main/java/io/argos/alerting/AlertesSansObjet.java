@@ -1,11 +1,7 @@
 package io.argos.alerting;
 
 import java.sql.Connection;
-import java.sql.PreparedStatement;
-import java.sql.SQLException;
 import java.util.UUID;
-
-import javax.sql.DataSource;
 
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.enterprise.event.Observes;
@@ -17,6 +13,7 @@ import org.jboss.logging.Logger;
 import io.quarkus.narayana.jta.QuarkusTransaction;
 import io.quarkus.narayana.jta.QuarkusTransactionException;
 
+import io.argos.commun.Jdbc;
 import io.argos.impact.ImpactsTraites;
 
 /**
@@ -51,7 +48,7 @@ public class AlertesSansObjet {
             + "derniere_erreur = 'impacts écartés ou résolus avant l''envoi' WHERE ";
 
     @Inject
-    DataSource dataSource;
+    Jdbc jdbc;
 
     void surImpactsTraites(@Observes(during = TransactionPhase.AFTER_SUCCESS) ImpactsTraites evenement) {
         annulerOuJournaliser(evenement.signalId());
@@ -72,20 +69,12 @@ public class AlertesSansObjet {
 
     /** Annule les alertes immédiates en attente du signal qui n'ont plus d'impact actif ; renvoie leur nombre. */
     public int annuler(UUID signalId) {
-        return QuarkusTransaction.requiringNew().call(() -> {
-            try (Connection connexion = dataSource.getConnection();
-                    PreparedStatement requete = connexion.prepareStatement(ANNULER + "a.signal_id = ? AND " + SANS_OBJET)) {
-                requete.setObject(1, signalId);
-                return requete.executeUpdate();
-            }
-        });
+        return QuarkusTransaction.requiringNew().call(
+                () -> jdbc.modifier(ANNULER + "a.signal_id = ? AND " + SANS_OBJET, Jdbc.parametres(signalId)));
     }
 
     /** Annule l'alerte donnée si elle n'a plus d'objet, dans la transaction de l'appelant ; vrai si annulée. */
-    static boolean annulerSiSansObjet(Connection connexion, UUID alerteId) throws SQLException {
-        try (PreparedStatement requete = connexion.prepareStatement(ANNULER + "a.id = ? AND " + SANS_OBJET)) {
-            requete.setObject(1, alerteId);
-            return requete.executeUpdate() == 1;
-        }
+    static boolean annulerSiSansObjet(Connection connexion, UUID alerteId) {
+        return Jdbc.modifier(connexion, ANNULER + "a.id = ? AND " + SANS_OBJET, Jdbc.parametres(alerteId)) == 1;
     }
 }

@@ -1,11 +1,8 @@
 package io.argos.alerting;
 
 import java.sql.Connection;
-import java.sql.PreparedStatement;
-import java.sql.ResultSet;
 import java.time.Clock;
 import java.time.Instant;
-import java.time.ZoneOffset;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -27,6 +24,8 @@ import io.quarkus.narayana.jta.QuarkusTransaction;
 import io.quarkus.narayana.jta.QuarkusTransactionException;
 import io.quarkus.scheduler.Scheduled;
 
+import io.argos.commun.Conversions;
+import io.argos.commun.Jdbc;
 import io.argos.impact.ImpactQueries;
 import io.argos.observabilite.TacheObservee;
 
@@ -51,6 +50,9 @@ public class ResumesPeriodiques {
 
     @Inject
     DataSource dataSource;
+
+    @Inject
+    Jdbc jdbc;
 
     @Inject
     Destinataires destinataires;
@@ -90,23 +92,11 @@ public class ResumesPeriodiques {
 
     /** Compose et diffuse les résumés d'une fréquence à l'échéance donnée ; renvoie les résumés créés. */
     public List<UUID> composer(String frequence, Instant echeance) {
-        List<Boite> boites = new ArrayList<>();
-        QuarkusTransaction.requiringNew().run(() -> {
-            try (Connection connexion = dataSource.getConnection(); PreparedStatement requete = connexion.prepareStatement("""
-                    SELECT DISTINCT compte_id, canal FROM resume_element
-                    WHERE frequence = ? AND alerte_id IS NULL AND enregistre_le <= ? ORDER BY compte_id, canal
-                    """)) {
-                requete.setString(1, frequence);
-                requete.setObject(2, echeance.atOffset(ZoneOffset.UTC));
-                try (ResultSet resultat = requete.executeQuery()) {
-                    while (resultat.next()) {
-                        boites.add(new Boite(resultat.getObject(1, UUID.class), resultat.getString(2)));
-                    }
-                }
-            } catch (java.sql.SQLException erreur) {
-                throw new IllegalStateException("lecture des éléments de résumé impossible", erreur);
-            }
-        });
+        List<Boite> boites = QuarkusTransaction.requiringNew().call(() -> jdbc.lister("""
+                SELECT DISTINCT compte_id, canal FROM resume_element
+                WHERE frequence = ? AND alerte_id IS NULL AND enregistre_le <= ? ORDER BY compte_id, canal
+                """, Jdbc.parametres(frequence, Conversions.utc(echeance)),
+                resultat -> new Boite(resultat.getObject(1, UUID.class), resultat.getString(2))));
         List<UUID> crees = new ArrayList<>();
         for (Boite boite : boites) {
             composerOuJournaliser(boite, frequence, echeance, crees);
@@ -150,43 +140,22 @@ public class ResumesPeriodiques {
         }
     }
 
-    private static void retirerDejaAlertes(Connection connexion, Boite boite, String frequence)
-            throws java.sql.SQLException {
-        try (PreparedStatement requete = connexion.prepareStatement("""
+    private static void retirerDejaAlertes(Connection connexion, Boite boite, String frequence) {
+        Jdbc.modifier(connexion, """
                 DELETE FROM resume_element e WHERE e.compte_id = ? AND e.canal = ? AND e.frequence = ?
                   AND e.alerte_id IS NULL AND EXISTS (SELECT 1 FROM alerte a WHERE a.nature = 'IMMEDIATE'
                       AND a.etat <> 'ANNULEE' AND a.signal_id = e.signal_id AND a.compte_id = e.compte_id)
-                """)) {
-            lierBoite(requete, boite, frequence);
-            requete.executeUpdate();
-        }
+                """, Jdbc.parametres(boite.compte(), boite.canal(), frequence));
     }
 
-    /** Lie le compte, le canal et la fréquence aux trois premières positions de la requête. */
-    private static void lierBoite(PreparedStatement requete, Boite boite, String frequence) throws java.sql.SQLException {
-        requete.setObject(1, boite.compte());
-        requete.setString(2, boite.canal());
-        requete.setString(3, frequence);
-    }
-
-    private static List<Element> lireEnAttente(Connection connexion, Boite boite, String frequence, Instant echeance)
-            throws java.sql.SQLException {
-        try (PreparedStatement requete = connexion.prepareStatement("""
+    private static List<Element> lireEnAttente(Connection connexion, Boite boite, String frequence, Instant echeance) {
+        return Jdbc.lister(connexion, """
                 SELECT signal_id, titre, gravite, source, identifiant_externe FROM resume_element
                 WHERE compte_id = ? AND canal = ? AND frequence = ? AND alerte_id IS NULL AND enregistre_le <= ?
                 ORDER BY enregistre_le, signal_id
-                """)) {
-            lierBoite(requete, boite, frequence);
-            requete.setObject(4, echeance.atOffset(ZoneOffset.UTC));
-            try (ResultSet resultat = requete.executeQuery()) {
-                List<Element> enAttente = new ArrayList<>();
-                while (resultat.next()) {
-                    enAttente.add(new Element(resultat.getObject(1, UUID.class), resultat.getString(2),
-                            resultat.getString(3), resultat.getString(4), resultat.getString(5)));
-                }
-                return enAttente;
-            }
-        }
+                """, Jdbc.parametres(boite.compte(), boite.canal(), frequence, Conversions.utc(echeance)),
+                resultat -> new Element(resultat.getObject(1, UUID.class), resultat.getString(2),
+                        resultat.getString(3), resultat.getString(4), resultat.getString(5)));
     }
 
     /**
@@ -234,61 +203,44 @@ public class ResumesPeriodiques {
 
     /** Crée l'alerte de résumé de la période et renvoie son identifiant ; vide si elle existe déjà (ALR-03). */
     private static java.util.Optional<UUID> creerAlerteResume(Connection connexion, Boite boite, String frequence,
-            Instant echeance, List<ContenuAlerte.Element> contenus) throws java.sql.SQLException {
+            Instant echeance, List<ContenuAlerte.Element> contenus) {
         UUID id = UUID.randomUUID();
         String titre = contenus.size() + (contenus.size() == 1 ? " élément" : " éléments")
                 + (RegleAlerte.WEEKLY.equals(frequence) ? " cette semaine" : " depuis le dernier résumé");
-        try (PreparedStatement requete = connexion.prepareStatement("""
+        return Jdbc.unique(connexion, """
                 INSERT INTO alerte(id, nature, compte_id, canal, fin_periode, titre, gravite, contenu, resume_ia,
                                    etat_resume_ia, etat, cree_le)
                 VALUES (?, ?, ?, ?, ?, ?, NULL, ?::jsonb, NULL, 'SANS_OBJET', 'EN_ATTENTE', ?)
                 ON CONFLICT (compte_id, canal, nature, fin_periode) WHERE nature <> 'IMMEDIATE' DO NOTHING
                 RETURNING id
-                """)) {
-            requete.setObject(1, id);
-            requete.setString(2, frequence);
-            requete.setObject(3, boite.compte());
-            requete.setString(4, boite.canal());
-            requete.setObject(5, echeance.atOffset(ZoneOffset.UTC));
-            requete.setString(6, titre);
-            requete.setString(7, MoteurAlertes.json(new ContenuAlerte(contenus, null, "SANS_OBJET")));
-            requete.setObject(8, echeance.atOffset(ZoneOffset.UTC));
-            try (ResultSet resultat = requete.executeQuery()) {
-                return resultat.next() ? java.util.Optional.of(id) : java.util.Optional.<UUID>empty();
-            }
-        }
+                """, requete -> Jdbc.parametres(id, frequence, boite.compte(), boite.canal(), Conversions.utc(echeance), titre,
+                        MoteurAlertes.json(new ContenuAlerte(contenus, null, "SANS_OBJET")), Conversions.utc(echeance))
+                        .lier(requete),
+                resultat -> resultat.getObject(1, UUID.class));
     }
 
     /** Rattache les éléments retenus à l'alerte de résumé créée. */
     private static void rattacher(Connection connexion, UUID alerteId, Boite boite, String frequence,
-            List<UUID> retenus) throws java.sql.SQLException {
-        try (PreparedStatement requete = connexion.prepareStatement("""
+            List<UUID> retenus) {
+        Jdbc.modifier(connexion, """
                 UPDATE resume_element SET alerte_id = ?
                 WHERE compte_id = ? AND canal = ? AND frequence = ? AND signal_id = ANY (?) AND alerte_id IS NULL
-                """)) {
-            requete.setObject(1, alerteId);
-            requete.setObject(2, boite.compte());
-            requete.setString(3, boite.canal());
-            requete.setString(4, frequence);
-            requete.setArray(5, connexion.createArrayOf("uuid", retenus.toArray()));
-            requete.executeUpdate();
-        }
+                """, requete -> {
+                    Jdbc.parametres(alerteId, boite.compte(), boite.canal(), frequence).lier(requete);
+                    requete.setArray(5, connexion.createArrayOf("uuid", retenus.toArray()));
+                });
     }
 
-    private static void supprimer(Connection connexion, UUID compte, String canal, String frequence, List<UUID> signaux)
-            throws java.sql.SQLException {
+    private static void supprimer(Connection connexion, UUID compte, String canal, String frequence, List<UUID> signaux) {
         if (signaux.isEmpty()) {
             return;
         }
-        try (PreparedStatement requete = connexion.prepareStatement("""
+        Jdbc.modifier(connexion, """
                 DELETE FROM resume_element
                 WHERE compte_id = ? AND canal = ? AND frequence = ? AND signal_id = ANY (?) AND alerte_id IS NULL
-                """)) {
-            requete.setObject(1, compte);
-            requete.setString(2, canal);
-            requete.setString(3, frequence);
-            requete.setArray(4, connexion.createArrayOf("uuid", signaux.toArray()));
-            requete.executeUpdate();
-        }
+                """, requete -> {
+                    Jdbc.parametres(compte, canal, frequence).lier(requete);
+                    requete.setArray(4, connexion.createArrayOf("uuid", signaux.toArray()));
+                });
     }
 }
