@@ -121,14 +121,24 @@ function surEtat(etat: EtatSession, message: string | null): void {
 }
 
 /** Créé après la lecture de l'émetteur de l'instance (ACC-11) ; absent tant que le serveur n'a pas répondu. */
-let gestionnaire: GestionnaireSession | null = null
+let gestionnaire: GestionnaireSession | undefined
+
+/** Lecture de la configuration en cours : le chargement de la page et un clic sur « Se connecter » la partagent. */
+let chargement: Promise<GestionnaireSession | undefined> | undefined
 
 /**
  * Lit l'émetteur et le client de l'instance puis crée le gestionnaire de session. Sans réponse valable du
  * serveur, aucune connexion n'est tentée : l'état d'erreur le dit sur l'écran de connexion.
  */
-async function obtenirGestionnaire(): Promise<GestionnaireSession | null> {
-  if (gestionnaire !== null) return gestionnaire
+function obtenirGestionnaire(): Promise<GestionnaireSession | undefined> {
+  if (gestionnaire !== undefined) return Promise.resolve(gestionnaire)
+  chargement ??= creerGestionnaire().finally(() => {
+    chargement = undefined
+  })
+  return chargement
+}
+
+async function creerGestionnaire(): Promise<GestionnaireSession | undefined> {
   try {
     const config = await lireConfigurationOidc((url, init) => window.fetch(url, init), apiBaseUrl)
     gestionnaire = new GestionnaireSession({
@@ -172,14 +182,14 @@ async function apresConnexion(vue: string | null): Promise<string | null> {
 /** Au chargement : reprend un retour du fournisseur laissé dans l'adresse (portail web). */
 export async function demarrerSession(): Promise<string | null> {
   const session = await obtenirGestionnaire()
-  if (session === null) return null
+  if (session === undefined) return null
   return apresConnexion(await session.reprendre())
 }
 
 /** Lance la connexion ; renvoie la vue à afficher si elle aboutit sans quitter la page (desktop). */
 export async function seConnecter(retour: string): Promise<string | null> {
   const session = await obtenirGestionnaire()
-  if (session === null) return null
+  if (session === undefined) return null
   return apresConnexion(await session.seConnecter(retour))
 }
 

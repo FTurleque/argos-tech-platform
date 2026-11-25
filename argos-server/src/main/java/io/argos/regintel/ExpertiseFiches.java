@@ -215,14 +215,19 @@ public class ExpertiseFiches {
         void appliquer(PreparedStatement requete) throws SQLException;
     }
 
+    /** Contexte de l'appelant dans l'espace de la fiche ; fiche inconnue : « introuvable », comme une fiche invisible. */
+    private Contexte contexteDeFiche(UUID compte, UUID id) {
+        Objects.requireNonNull(compte);
+        UUID espace = fiches.espaceDe(id).orElseThrow(() -> new Introuvable("Ressource introuvable."));
+        return new Contexte(compte, null, espace);
+    }
+
     /**
      * Contrôle, sans appel à la forge, que la fiche est visible de l'appelant (sinon 404, comme une fiche
      * inexistante), qu'il en est l'expert (sinon 403) et qu'elle est à l'état « impact produit » (sinon 409).
      */
     private void controlerAvantForge(UUID compte, UUID id) {
-        Objects.requireNonNull(compte);
-        UUID espace = fiches.espaceDe(id).orElseThrow(() -> new Introuvable("Ressource introuvable."));
-        base.executer(new Contexte(compte, null, espace), connexion -> {
+        base.executer(contexteDeFiche(compte, id), connexion -> {
             FicheAnalyse fiche = lireExpertisable(connexion, id);
             exigerImpactProduit(fiche);
             return fiche;
@@ -240,9 +245,7 @@ public class ExpertiseFiches {
 
     /** Exécute le travail sur la fiche visible de l'expert, dans l'espace de la fiche, et renvoie la fiche à jour. */
     private FicheAnalyse travailler(UUID compte, UUID id, Travail travail) {
-        Objects.requireNonNull(compte);
-        UUID espace = fiches.espaceDe(id).orElseThrow(() -> new Introuvable("Ressource introuvable."));
-        return base.executer(new Contexte(compte, null, espace), connexion -> {
+        return base.executer(contexteDeFiche(compte, id), connexion -> {
             FicheAnalyse fiche = lireExpertisable(connexion, id);
             travail.executer(connexion, fiche);
             return fiches.lire(connexion, id, true).orElseThrow(() -> new IllegalStateException("fiche " + id + " illisible"));

@@ -165,7 +165,7 @@ function ouvrirSansErreur(ouvrirNavigateur, url, echec) {
  * @typedef {object} Ecoute
  * @property {import('node:http').Server|null} serveur serveur HTTP de l'interface de bouclage
  * @property {string|null} redirectUri adresse de redirection annoncée au royaume
- * @property {string|null} state state de l'URL d'autorisation validée, seul accepté au retour
+ * @property {string|undefined} state state de l'URL d'autorisation validée, seul accepté au retour
  * @property {((resultat: string|null) => void)|null} resoudre résout l'attente du retour
  * @property {unknown} minuterie minuterie du délai maximal, rendue par `planifier`
  */
@@ -193,7 +193,7 @@ function fermerEcoute(etat, resultat) {
 function ouvrirEcoute(etat, dependances) {
   return new Promise((resolve) => {
     /** @type {Ecoute} */
-    const courante = { serveur: null, redirectUri: null, state: null, resoudre: null, minuterie: null };
+    const courante = { serveur: null, redirectUri: null, state: undefined, resoudre: null, minuterie: null };
     const contexte = {
       courante,
       estActive: () => etat.ecoute === courante,
@@ -223,7 +223,7 @@ function attendreRetour(etat, courante, urlSure, options) {
     if (etat.ecoute === courante) fermerEcoute(etat, null);
   };
   return new Promise((resolve) => {
-    courante.state = new URL(urlSure).searchParams.get('state');
+    courante.state = new URL(urlSure).searchParams.get('state') ?? undefined;
     courante.resoudre = resolve;
     courante.minuterie = options.planifier(fermerSiCourante, options.delaiMaxMs);
     ouvrirSansErreur(options.ouvrirNavigateur, urlSure, fermerSiCourante);

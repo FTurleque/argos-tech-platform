@@ -252,11 +252,11 @@ node scripts/verifier-docs.mjs
 
 Le script contrôle les liens internes, les blocs Mermaid et les identifiants d'exigences cités ; voir le guide pour le détail et les limites.
 
-### Couverture du sprint 6 de l'audit du 2026-11-21
+### Couverture : déploiement du portail et durcissement des autorisations
 
 | Changement | Capacité | Exigences | Scénarios | Diagrammes | Tests écrits |
 |---|---|---|---|---|---|
 | [`rendre-portail-deployable`](/openspec/changes/rendre-portail-deployable/proposal.md) | `comptes-acces` | ACC-11 à ACC-13 | 12 | DC-1, DC-2 (arc42 §7.3, D-20) | tous les scénarios sauf ACC-11-S1 et ACC-11-S2, dont la recette est consignée dans [`recette-poste.md`](../deploiement/recette-poste.md) (R-7) |
 | [`durcir-autorisations-et-debits`](/openspec/changes/durcir-autorisations-et-debits/proposal.md) | `veille-reglementaire`, `alertes-digests`, `recherche-veille`, `profils-veille`, `comptes-acces` | REG-09, ALR-08, RCH-06, PRF-08, ACC-14 | 16 | DF-REG-2, DF-ACC-3 | tous les scénarios ; test matriciel point d'entrée × rôle (`MatriceRolesTest`, AUD-TST-05) |
 
-Ces exigences sont au statut [PROPOSITION] dans leurs fiches tant que les changements ne sont pas archivés.
+Ces exigences sont au statut [PROPOSITION] dans leurs fiches.

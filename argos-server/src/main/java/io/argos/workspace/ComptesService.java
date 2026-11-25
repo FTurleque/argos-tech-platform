@@ -61,8 +61,7 @@ public class ComptesService {
         Contexte contexte = new Contexte(null, identite.sujet(), email, null);
         Optional<Compte> existant = base.executer(contexte, connexion -> parSujet(connexion, identite.sujet()));
         if (existant.isPresent()) {
-            return Objects.equals(existant.get().email(), email) ? existant.get()
-                    : base.executer(contexte, connexion -> actualiserAdresse(connexion, identite.sujet(), email));
+            return compteAvecAdresseAJour(existant.get(), contexte, email);
         }
         boolean adminInitial = adminInitial(email);
         Creation creation = base.executer(contexte, connexion -> creer(connexion, identite, adminInitial));
@@ -104,6 +103,14 @@ public class ComptesService {
         return new Creation(parSujet(connexion, identite.sujet()).orElseThrow(), insere == 1);
     }
 
+    /** Le compte, après alignement de son adresse sur celle du jeton si elle diffère. */
+    private Compte compteAvecAdresseAJour(Compte compte, Contexte contexte, String adresseVerifiee) {
+        if (Objects.equals(compte.email(), adresseVerifiee)) {
+            return compte;
+        }
+        return base.executer(contexte, connexion -> actualiserAdresse(connexion, compte.sujetOidc(), adresseVerifiee));
+    }
+
     /**
      * Aligne l'adresse enregistrée sur celle que le fournisseur déclare vérifiée dans le dernier jeton (ALR-08) :
      * l'adresse vérifiée normalisée, ou aucune. Écriture conditionnelle : aucune écriture tant que l'adresse ne change pas.
@@ -116,7 +123,8 @@ public class ComptesService {
             requete.setString(3, adresseVerifiee);
             requete.executeUpdate();
         }
-        return parSujet(connexion, sujet).orElseThrow();
+        return parSujet(connexion, sujet).orElseThrow(
+                () -> new IllegalStateException("compte du sujet " + sujet + " disparu pendant la mise à jour de son adresse"));
     }
 
     /** Compte associé à un sujet OIDC, s'il existe. */

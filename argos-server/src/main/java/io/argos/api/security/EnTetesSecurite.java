@@ -54,7 +54,8 @@ public class EnTetesSecurite {
     }
 
     private static boolean estOutilDeDeveloppement(String chemin) {
-        return CHEMINS_OUTILS_DEVELOPPEMENT.stream().anyMatch(chemin::startsWith);
+        return CHEMINS_OUTILS_DEVELOPPEMENT.stream()
+                .anyMatch(outil -> chemin.equals(outil) || chemin.startsWith(outil + "/"));
     }
 
     /**
