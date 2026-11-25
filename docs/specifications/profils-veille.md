@@ -5,7 +5,7 @@
 | Préfixe d'exigences | `PRF` |
 | Spec de référence | [`/openspec/specs/profils-veille/spec.md`](/openspec/specs/profils-veille/spec.md) |
 | Changements archivés | [`2026-11-19-personnaliser-profils-et-affichage`](/openspec/changes/archive/2026-11-19-personnaliser-profils-et-affichage/proposal.md) |
-| Changements en cours | [`optimiser-ma-veille`](/openspec/changes/archive/2026-11-20-optimiser-ma-veille/proposal.md) — PRF-07 (latence de « Ma veille »), implémenté, non archivé ; [`durcir-autorisations-et-debits`](/openspec/changes/durcir-autorisations-et-debits/proposal.md) — PRF-08 (limite de débit) |
+| Changements en cours | [`optimiser-ma-veille`](/openspec/changes/archive/2026-11-20-optimiser-ma-veille/proposal.md) — PRF-07 (latence de « Ma veille »), implémenté, non archivé ; archivé le 2026-11-25 : [`durcir-autorisations-et-debits`](/openspec/changes/archive/2026-11-25-durcir-autorisations-et-debits/proposal.md) — PRF-08 (limite de débit) |
 | Statut de la capacité | livrée ; rapprochement propre au profil `expert-metier` absent (pas de capacité `regintel`) |
 | Composants (arc42 §5) | `catalog`, `workspace`, `impact-engine`, `signal`, `API & Security`, `mcp-server` |
 

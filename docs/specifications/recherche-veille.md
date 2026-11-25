@@ -5,7 +5,7 @@
 | Préfixe d'exigences | `RCH` |
 | Spec de référence | [`/openspec/specs/recherche-veille/spec.md`](/openspec/specs/recherche-veille/spec.md) |
 | Changements archivés | [`2026-11-18-rechercher-et-filtrer`](/openspec/changes/archive/2026-11-18-rechercher-et-filtrer/proposal.md) |
-| Changements en cours | [`durcir-autorisations-et-debits`](/openspec/changes/durcir-autorisations-et-debits/proposal.md) (RCH-06) |
+| Changements archivés, suite | [`durcir-autorisations-et-debits`](/openspec/changes/archive/2026-11-25-durcir-autorisations-et-debits/proposal.md) (RCH-06) |
 | Statut de la capacité | livrée |
 | Composants (arc42 §5) | `signal`, `impact-engine`, `API & Security`, `workspace`, `mcp-server`, IHM — couche contenu |
 
