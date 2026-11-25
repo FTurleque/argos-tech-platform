@@ -49,7 +49,7 @@ aucune dépendance nouvelle (D3).
 
 - [x] 7.1 Valider le changement et la documentation — vérification : `openspec validate extraire-noyau-commun --strict` réussit ; `node scripts/verifier-docs.mjs` sans erreur
 - [x] 7.2 Contrat inchangé — vérification : document `/q/openapi` identique avant et après (diff vide) ; suite `mvn -B -f argos-server/pom.xml verify` complète verte
-- [ ] 7.3 Performance non dégradée — vérification : `npm --prefix e2e run test:performance` sous le verrou de la pile E2E, toutes les opérations dans la cible d'arc42 §10.2 Q-05
+- [x] 7.3 Performance non dégradée — vérification : `npm --prefix e2e run test:performance` sous le verrou de la pile E2E, toutes les opérations dans la cible d'arc42 §10.2 Q-05
 
 ## Matrice de traçabilité
 
@@ -60,7 +60,7 @@ aucune dépendance nouvelle (D3).
 | AUD-QUA-06 | aucune | D3, DC-2 | 1.2, 4.1, 4.2, 4.3 | décision du porteur du 2026-11-24 ; tests de l'utilitaire ; tests de `signal`, `impact`, `alerting` | décision obtenue (1.2) ; tests non exécutés |
 | AUD-ARC-06 | aucune | D4, NC-5 | 5.1, 5.2, 5.3 | test de propriété NC-5 ; arc42 §5.3 | non exécuté |
 | AUD-QUA-04 | aucune | D2, DC-3, NC-2 | 1.2, 6.1, 6.2, 6.3 | décision du porteur du 2026-11-24 ; règle ArchUnit NC-2 ; tests des six sites | décision obtenue (1.2) ; tests non exécutés |
-| Contrat et performance inchangés | aucune | « Contrats d'interface », « Performance » | 7.2, 7.3 | diff `/q/openapi` ; campagne de performance | non exécuté |
+| Contrat et performance inchangés | aucune | « Contrats d'interface », « Performance » | 7.2, 7.3 | diff `/q/openapi` ; campagne de performance | campagne du 2026-11-25 : 16 opérations dans la cible, p95 maximal 117 ms |
 
 ## Décisions du porteur
 
