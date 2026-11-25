@@ -5,6 +5,7 @@ import static org.hamcrest.Matchers.hasSize;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 
 import java.nio.charset.StandardCharsets;
+import java.time.Clock;
 import java.time.Instant;
 import java.time.LocalDate;
 import java.time.temporal.ChronoUnit;
@@ -17,6 +18,7 @@ import jakarta.inject.Inject;
 import org.junit.jupiter.api.Test;
 
 import io.argos.alerting.RappelsRadar;
+import io.argos.horloge.LectureHeure;
 import io.argos.inventory.InventoryService;
 import io.argos.inventory.ProjectDirectory;
 import io.argos.testsupport.Api;
@@ -45,6 +47,9 @@ class ParcoursRadarTest {
     TestDb baseDeTest;
 
     @Inject
+    Clock horloge;
+
+    @Inject
     ProjectDirectory projets;
 
     @Inject
@@ -56,7 +61,7 @@ class ParcoursRadarTest {
     @Test
     void referentielInventaireDetteRappelEtRadar() {
         baseDeTest.reset();
-        LocalDate aujourdhui = LocalDate.now();
+        LocalDate aujourdhui = LectureHeure.jour(horloge);
         UUID espace = Api.nouvelEspace("lina", "Parcours radar");
         Api.ajouterMembre("lina", espace.toString(), "karim", "LECTEUR");
         String base = "/api/v1/radar/espaces/" + espace;
@@ -77,7 +82,7 @@ class ParcoursRadarTest {
                 new Cycle("17", LocalDate.of(2024, 9, 26), LocalDate.of(2029, 11, 8), false, "17.12", LocalDate.of(2026, 11, 9))));
 
         // 3. Tâche quotidienne : synchronisation, dette de version, rappel J0.
-        RappelsRadar.Bilan bilan = rappels.executer(aujourdhui, Instant.now());
+        RappelsRadar.Bilan bilan = rappels.executer(aujourdhui, horloge.instant());
         assertEquals(Map.of("postgresql", "A_JOUR"), bilan.radar().produits());
         assertEquals(1, bilan.radar().dettesCreees());
         assertEquals(2, bilan.rappels().size());

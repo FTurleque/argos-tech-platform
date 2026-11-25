@@ -10,6 +10,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 import java.nio.charset.StandardCharsets;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
+import java.time.Clock;
 import java.time.Instant;
 import java.time.LocalDate;
 import java.time.temporal.ChronoUnit;
@@ -27,6 +28,7 @@ import org.junit.jupiter.api.Test;
 import io.argos.alerting.EnvoiAlertes;
 import io.argos.alerting.RappelsRadar;
 import io.argos.catalog.standard.ReferentielEspace;
+import io.argos.horloge.LectureHeure;
 import io.argos.impact.RadarProjets;
 import io.argos.inventory.InventoryService;
 import io.argos.inventory.ProjectDirectory;
@@ -64,6 +66,9 @@ class RadarStandardsTest {
 
     @Inject
     TestDb baseDeTest;
+
+    @Inject
+    Clock horloge;
 
     @Inject
     ContexteBase base;
@@ -250,13 +255,13 @@ class RadarStandardsTest {
     /** RAD-03-S1 : une sortie dans 10 jours et une fin de support dans 166 jours : seule la sortie à 30 jours. */
     @Test
     void rad03S1Horizon30Jours() {
-        LocalDate aujourdhui = LocalDate.now();
+        LocalDate aujourdhui = LectureHeure.jour(horloge);
         RadarFixtures.publier("biblio-ui", RadarFixtures.reponse("biblio-ui",
                 new Cycle("3", aujourdhui.plusDays(10), null, false, null, null),
                 new Cycle("2", LocalDate.of(2024, 1, 15), aujourdhui.plusDays(166), false, "2.4.0", LocalDate.of(2025, 3, 1))));
         enregistrer("nina", saisie(BIBLIO, "Biblio UI", "ADOPT", "2.4", "Front", "Courante", "2027-06-30", "biblio-ui"))
                 .statusCode(200);
-        radar.actualiser(aujourdhui, Instant.now());
+        radar.actualiser(aujourdhui, horloge.instant());
 
         Api.enTantQue("paul").queryParam("horizon", "30j").get(chemin("/echeances")).then().statusCode(200)
                 .body("echeances", hasSize(1))
