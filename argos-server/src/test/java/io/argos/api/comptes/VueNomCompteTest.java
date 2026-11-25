@@ -1,10 +1,10 @@
 package io.argos.api.comptes;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.util.List;
+import java.util.Set;
 import java.util.UUID;
 
 import jakarta.inject.Inject;
@@ -38,6 +38,11 @@ class VueNomCompteTest {
         assertEquals(List.of(), identifiantsVisibles(Contexte.aucun()));
     }
 
+    private List<UUID> identifiantsDeLaTable(Contexte contexte) {
+        return base.executer(contexte, connexion -> Jdbc.lister(connexion, "SELECT id FROM compte", Jdbc.sansParametre(),
+                resultat -> resultat.getObject(1, UUID.class)));
+    }
+
     @Test
     void laVueNExposeQueLesComptesVisiblesDuCompteCourant() {
         String espace = Api.creerEspace("alice", "Espace de la vue des noms");
@@ -53,6 +58,7 @@ class VueNomCompteTest {
 
         List<UUID> visiblesParCarla = identifiantsVisibles(Contexte.duCompte(etranger));
         assertTrue(visiblesParCarla.contains(etranger));
-        assertFalse(visiblesParCarla.contains(alice), "un compte sans espace commun n'est pas visible");
+        assertEquals(Set.copyOf(identifiantsDeLaTable(Contexte.duCompte(etranger))), Set.copyOf(visiblesParCarla),
+                "la vue suit la politique RLS de la table compte");
     }
 }

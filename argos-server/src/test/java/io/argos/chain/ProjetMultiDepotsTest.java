@@ -29,6 +29,7 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
 import io.argos.impact.ImpactQueries;
+import io.argos.impact.MatchRules;
 import io.argos.ingestion.SourceSynchronizer;
 import io.argos.inventory.InventoryQueries;
 import io.argos.inventory.StatutImport;
@@ -228,8 +229,8 @@ class ProjetMultiDepotsTest {
 
         publier("GHSA-P7", "0", "1.3.0");
 
-        assertEquals("EXACT", ouverts(projet, "alice").get(0).level(), "meilleure preuve : SBOM fraîche du dépôt back");
-        assertEquals("PROBABLE", ouverts(seul, "alice").get(0).level(), "seule preuve : SBOM obsolète");
+        assertEquals(MatchRules.Level.EXACT, ouverts(projet, "alice").get(0).level(), "meilleure preuve : SBOM fraîche du dépôt back");
+        assertEquals(MatchRules.Level.PROBABLE, ouverts(seul, "alice").get(0).level(), "seule preuve : SBOM obsolète");
         assertEquals(1, ouverts(projet, "alice").size(), "un seul impact pour un paquet présent dans deux dépôts (COR-07)");
     }
 
