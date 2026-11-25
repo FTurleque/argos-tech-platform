@@ -1,8 +1,8 @@
 # ADR-0016 — Cloisonner les workspaces avec RBAC et PostgreSQL RLS
 
-- **Statut** : Proposé
-- **Date** : 2026-09-27
-- **Décideurs** : revue d’architecture ARGOS
+- **Statut** : Accepté
+- **Date** : 2026-11-24 (acceptation ; proposition du 2026-09-27)
+- **Décideurs** : porteur du projet (acceptation du 2026-11-24)
 - **Remplace** : —
 - **Remplacé par** : —
 

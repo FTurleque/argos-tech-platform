@@ -1,10 +1,10 @@
 # ADR-0008 — Utiliser l’IdP d’entreprise via OIDC en première intention
 
-- **Statut** : Proposé
-- **Date** : 2026-09-24
-- **Décideurs** : Non déterminé
+- **Statut** : Accepté
+- **Date** : 2026-11-24 (acceptation ; proposition du 2026-09-24)
+- **Décideurs** : porteur du projet (acceptation du 2026-11-24)
 - **Remplace** : —
-- **Complété par** : [ADR-0027](0027-keycloak-idp-auto-heberge.md) (Proposé) — Keycloak auto-hébergé, faute d'IdP d'entreprise (ADR-0025, ADR-0026)
+- **Complété par** : [ADR-0027](0027-keycloak-idp-auto-heberge.md) (Accepté) — Keycloak auto-hébergé, faute d'IdP d'entreprise (ADR-0025, ADR-0026)
 
 ## Contexte
 
@@ -41,7 +41,7 @@ ARGOS doit gérer des accès potentiellement sensibles par workspace/projet. Con
 
 ## Décision
 
-**Proposition : option A**, avec SAML uniquement si l’IdP l’impose. L’autorisation fine reste dans ARGOS : workspace, projet, rôle et permissions.
+**Option A retenue pour le principe** (OIDC ; autorisation fine dans ARGOS). Le choix de l'IdP est porté par [ADR-0027](0027-keycloak-idp-auto-heberge.md). SAML uniquement si l’IdP l’impose. L’autorisation fine reste dans ARGOS : workspace, projet, rôle et permissions.
 
 ## Conséquences positives
 

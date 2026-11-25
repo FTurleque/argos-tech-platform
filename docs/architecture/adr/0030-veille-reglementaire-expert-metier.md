@@ -3,15 +3,15 @@
 - **Statut** : Accepté
 - **Date** : 2026-11-18 (acceptation ; proposition du 2026-11-17)
 - **Décideurs** : porteur du projet (acceptation du 2026-11-18)
-- **Remplace** : [ADR-0018](0018-veille-reglementaire-mkp.md) (Proposé), à l'acceptation du présent ADR
+- **Remplace** : [ADR-0018](0018-veille-reglementaire-mkp.md) (remplacé le 2026-11-19)
 - **Remplacé par** : —
 
 ## Contexte
 
-- [ADR-0018](0018-veille-reglementaire-mkp.md) (Proposé) intègre la veille réglementaire dans un module `reg-intel` avec une validation obligatoire par un « MKP » et des domaines métier d'un éditeur de logiciels RH.
+- [ADR-0018](0018-veille-reglementaire-mkp.md) intégrait la veille réglementaire dans un module `reg-intel` avec une validation obligatoire par un « MKP » et des domaines métier d'un éditeur de logiciels RH.
 - Depuis [ADR-0025](0025-produit-ouvert-projet-personnel.md) (Accepté), Argos est un produit ouvert à tous les publics : le rôle s'appelle « expert métier » et les domaines ne sont plus ceux d'un éditeur.
 - Le porteur a tranché le 2026-11-17 (changement [`suivre-veille-reglementaire`](/openspec/changes/archive/2026-11-17-suivre-veille-reglementaire/proposal.md)) : source principale = jeux de données LEGI et JORF de la DILA sous Licence Ouverte, sans l'API PISTE de Légifrance (Q-1) ; rappels J-90, J-30 et J-7 paramétrables (Q-2) ; suivi externe GitHub et GitLab par les adapters `scm`, sans Jira (Q-3) ; aucun dictionnaire type (Q-4).
-- [ADR-0021](0021-double-licence.md) impose des composants gratuits sous licence permissive ; [ADR-0029](0029-passerelle-ia-ollama-local.md) (Proposé) rend l'IA facultative.
+- [ADR-0021](0021-double-licence.md) impose des composants gratuits sous licence permissive ; [ADR-0029](0029-passerelle-ia-ollama-local.md) (Accepté) rend l'IA facultative.
 
 ## Critères de décision
 
@@ -48,7 +48,7 @@
 - La fiche (résumé, articles modifiés, dates de publication et d'effet, domaines, liens officiels) reste visible des seuls experts de ses domaines jusqu'à sa validation ; corrections et décisions sont historisées ; toute fiche rappelle qu'elle ne constitue pas un avis juridique.
 - Le suivi d'un texte suit le cycle nouveau → en analyse → sans impact / impact produit → spécifié → livré ; le passage à « spécifié » exige une demande d'évolution GitHub ou GitLab associée.
 
-Le statut et le texte d'ADR-0018 restent inchangés jusqu'à l'acceptation du présent ADR.
+Le texte d'ADR-0018 reste inchangé.
 
 ## Conséquences positives
 

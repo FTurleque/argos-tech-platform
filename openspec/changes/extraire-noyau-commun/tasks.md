@@ -11,9 +11,9 @@ aucune dépendance nouvelle (D3).
 
 ## 1. Décisions préalables
 
-- [ ] 1.1 Vérifier que l'ADR du noyau commun a reçu la décision du porteur (`ecrire-decisions-architecture-socle`, tâche 3.2) ; s'il n'est pas accepté, s'arrêter et le signaler — couvre AUD-ARC-05 — vérification : statut de l'ADR relu
+- [x] 1.1 Vérifier que l'ADR du noyau commun a reçu la décision du porteur (`ecrire-decisions-architecture-socle`, tâche 3.2) ; s'il n'est pas accepté, s'arrêter et le signaler — couvre AUD-ARC-05 — vérification : statut de l'ADR relu
 - [x] 1.2 Soumettre au porteur les alternatives D2 (modèle transactionnel) et D3 (outil JDBC) de design.md et consigner sa décision sous « Décisions du porteur » — couvre AUD-QUA-04, AUD-QUA-06 — vérification : décision du porteur du 2026-11-24 (D2 tout en JTA, D3 utilitaire interne) consignée
-- [ ] 1.3 Consigner D2 (tout en JTA) et D3 (utilitaire JDBC interne) dans l'ADR du noyau commun s'il est encore Proposé, sinon dans un nouvel ADR Proposé ; mettre à jour `/docs/architecture/adr/README.md` et `/docs/architecture/arc42/09-decisions.md` — vérification : `node scripts/verifier-docs.mjs` sans erreur
+- [x] 1.3 Consigner D2 (tout en JTA) et D3 (utilitaire JDBC interne) dans l'ADR du noyau commun s'il est encore Proposé, sinon dans un nouvel ADR Proposé ; mettre à jour `/docs/architecture/adr/README.md` et `/docs/architecture/arc42/09-decisions.md` — vérification : `node scripts/verifier-docs.mjs` sans erreur
 
 ## 2. Paquet du noyau commun (AUD-ARC-05)
 
@@ -66,7 +66,7 @@ aucune dépendance nouvelle (D3).
 
 - 2026-11-24 — [DÉCISION] D2 : modèle transactionnel tout en JTA ; l'utilitaire manuel unique est écarté.
 - 2026-11-24 — [DÉCISION] D3 : utilitaire JDBC interne, sans dépendance nouvelle ; Jdbi est écarté.
-- ADR du noyau commun : décision attendue, l'ADR n'étant pas encore rédigé (tâche 1.1).
+- 2026-11-25 — [DÉCISION] ADR-0037 (noyau commun du serveur, D2 et D3 consignés) : « Accepté ».
 
 ## Workflow follow-up
 
