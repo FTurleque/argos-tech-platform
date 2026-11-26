@@ -175,6 +175,24 @@ async function espaceDe(token, nom) {
     ?? (await api(token, '/api/v1/espaces', { method: 'POST', body: JSON.stringify({ nom }) }))
 }
 
+/**
+ * Petit espace créé par alice, dont bob devient membre par invitation (l'inscription se fait sur invitation) : bob
+ * n'est membre que de cet espace.
+ */
+async function petitEspaceDeBob(jetons) {
+  const espace = await espaceDe(jetons[UTILISATEUR_REFERENCE], PETIT_ESPACE)
+  const moi = await requete(`${URL_API}/api/v1/moi`, { headers: { Accept: 'application/json',
+    Authorization: `Bearer ${jetons[UTILISATEUR_PETIT_ESPACE]}` } })
+  await moi.arrayBuffer()
+  const espacesDeBob = moi.ok ? await api(jetons[UTILISATEUR_PETIT_ESPACE], '/api/v1/espaces') : []
+  if (!espacesDeBob.some((candidat) => candidat.id === espace.id)) {
+    const invitation = await api(jetons[UTILISATEUR_REFERENCE], `/api/v1/espaces/${espace.id}/invitations`, {
+      method: 'POST', body: JSON.stringify({ email: `${UTILISATEUR_PETIT_ESPACE}@argos.test`, role: 'LECTEUR' }) })
+    await api(jetons[UTILISATEUR_PETIT_ESPACE], `/api/v1/invitations/${invitation.id}/acceptation`, { method: 'POST' })
+  }
+  return espace
+}
+
 /** Abonnements PERSONAL du compte, un par filtre, créés s'il n'en a aucun. */
 async function abonner(token, filtres) {
   const abonnements = await api(token, '/api/v1/subscriptions')
@@ -203,7 +221,7 @@ function impactsParEspace() {
  */
 async function preparer(jetons, reglages) {
   const espace = await espaceDe(jetons[UTILISATEUR_REFERENCE], ESPACE)
-  const petitEspace = await espaceDe(jetons[UTILISATEUR_PETIT_ESPACE], PETIT_ESPACE)
+  const petitEspace = await petitEspaceDeBob(jetons)
   psql(['-v', `espace=${espace.id}`, '-v', `projets=${reglages.projets}`, '-v', `composants=${reglages.composantsParProjet}`,
     '-v', `signaux=${reglages.signaux}`, '-v', `espace_petit=${petitEspace.id}`,
     '-v', `projets_volumineux=${reglages.projetsVolumineux}`, '-v', `impacts_petit=${reglages.impactsPetitEspace}`],

@@ -35,8 +35,8 @@
 
 ## 7. Campagne de performance (PERF-02, PRF-07)
 
-- [ ] 7.1 Jeu à plusieurs espaces, abonnements par paquet et technologie, plus de 500 000 impacts majoritairement résolus ; opération « Ma veille (petit espace) » (D10) — couvre PERF-02-S4, PRF-07-S3 — vérification : `npm --prefix e2e run test:performance` (code 0), tests `mesure.test.mjs`
-- [ ] 7.2 Fiche `/docs/specifications/performance-api-mcp.md` et rapport `docs/architecture/quality/mesure-performance-api-mcp.md` — vérification : `node scripts/verifier-docs.mjs`
+- [x] 7.1 Jeu à plusieurs espaces, abonnements par paquet et technologie, plus de 500 000 impacts majoritairement résolus ; opération « Ma veille (petit espace) » (D10) — couvre PERF-02-S4, PRF-07-S3 — vérification : `npm --prefix e2e run test:performance` (code 0), tests `mesure.test.mjs`
+- [x] 7.2 Fiche `/docs/specifications/performance-api-mcp.md` et rapport `docs/architecture/quality/mesure-performance-api-mcp.md` — vérification : `node scripts/verifier-docs.mjs`
 
 ## 8. Vérifications d'intégration
 
@@ -47,23 +47,23 @@
 
 | Exigence | Scénario | Conception / diagramme | Tâche | Test ou preuve | État de la preuve |
 |---|---|---|---|---|---|
-| COR-07 | COR-07-S1 | D2 | 2.1 | tests de corrélation existants | à exécuter |
-| COR-07 | COR-07-S2 | D2 | 2.1 | `CorrelationTest` (`cor07S1…`, `cor07S3…`) | à écrire |
-| COR-07 | COR-07-S3 | D2 | 2.1 | `CorrelationTest` (`cor07S1…`, `cor07S3…`) | à écrire |
-| COR-13 | COR-13-S1 | D3 / DC-1 | 2.2 | `RequetesConstantesTest` | à écrire |
-| COR-13 | COR-13-S2 | D3 / DC-1 | 2.2 | tests de corrélation existants | à exécuter |
-| ALR-10 | ALR-10-S1 | D4 / DC-2 | 3.1 | `RequetesConstantesTest` | à écrire |
-| ALR-10 | ALR-10-S2 | D5 | 3.1 | `AlertesTest` | à écrire |
-| ALR-10 | ALR-10-S3 | D4 | 3.1 | `AlertesTest` | à écrire |
-| PRF-07 | PRF-07-S1 | D6, D7 | 7.1 | campagne de performance | à exécuter |
-| PRF-07 | PRF-07-S2 | D6 | 4.1 | `VeilleLectureGroupeeTest` | à exécuter |
-| PRF-07 | PRF-07-S3 | D6, D7, D10 | 4.1, 4.2, 7.1 | campagne de performance | à exécuter |
-| RAD-10 | RAD-10-S1 | D8 | 5.1 | `RequetesConstantesTest` | à écrire |
-| RAD-10 | RAD-10-S2 | D8 | 5.1 | `RequetesConstantesTest` | à écrire |
-| RCH-07 | RCH-07-S1 | D9 | 6.1 | `RechercheBorneeTest` | à écrire |
-| RCH-07 | RCH-07-S2 | D9 | 6.1 | `RechercheBorneeTest` | à écrire |
-| PERF-02 | PERF-02-S1 à S3 | D10 | 7.1 | `mesure.test.mjs`, campagne | à exécuter |
-| PERF-02 | PERF-02-S4 | D10 | 7.1 | campagne de performance | à exécuter |
+| COR-07 | COR-07-S1 | D2 | 2.1 | tests de corrélation existants | passe le 2026-11-26 |
+| COR-07 | COR-07-S2 | D2 | 2.1 | `CorrelationTest` (`cor07S1…`, `cor07S3…`) | écrit, passe le 2026-11-26 |
+| COR-07 | COR-07-S3 | D2 | 2.1 | `CorrelationTest` (`cor07S1…`, `cor07S3…`) | écrit, passe le 2026-11-26 |
+| COR-13 | COR-13-S1 | D3 / DC-1 | 2.2 | `RequetesConstantesTest` | écrit, passe le 2026-11-26 |
+| COR-13 | COR-13-S2 | D3 / DC-1 | 2.2 | tests de corrélation existants | passe le 2026-11-26 |
+| ALR-10 | ALR-10-S1 | D4 / DC-2 | 3.1 | `RequetesConstantesTest` | écrit, passe le 2026-11-26 |
+| ALR-10 | ALR-10-S2 | D5 | 3.1 | `AlertesTest` | écrit, passe le 2026-11-26 |
+| ALR-10 | ALR-10-S3 | D4 | 3.1 | `AlertesTest` | écrit, passe le 2026-11-26 |
+| PRF-07 | PRF-07-S1 | D6, D7 | 7.1 | campagne de performance | exécuté le 2026-11-26 : p95 412,4 ms |
+| PRF-07 | PRF-07-S2 | D6 | 4.1 | `VeilleLectureGroupeeTest` | passe le 2026-11-26 |
+| PRF-07 | PRF-07-S3 | D6, D7, D10 | 4.1, 4.2, 7.1 | campagne de performance | exécuté le 2026-11-26 : p95 115,5 ms |
+| RAD-10 | RAD-10-S1 | D8 | 5.1 | `RequetesConstantesTest` | écrit, passe le 2026-11-26 |
+| RAD-10 | RAD-10-S2 | D8 | 5.1 | `RequetesConstantesTest` | écrit, passe le 2026-11-26 |
+| RCH-07 | RCH-07-S1 | D9 | 6.1 | `RechercheBorneeTest` | écrit, passe le 2026-11-26 |
+| RCH-07 | RCH-07-S2 | D9 | 6.1 | `RechercheBorneeTest` | écrit, passe le 2026-11-26 |
+| PERF-02 | PERF-02-S1 à S3 | D10 | 7.1 | `mesure.test.mjs`, campagne | passe le 2026-11-26 |
+| PERF-02 | PERF-02-S4 | D10 | 7.1 | campagne de performance | exécuté le 2026-11-26 : code 0 |
 
 ## Workflow follow-up
 

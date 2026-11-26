@@ -1,0 +1,288 @@
+{
+  "date": "2026-11-26T22:11:11.625Z",
+  "revision": "238f7d6",
+  "environnement": {
+    "description": "pile de test locale (PostgreSQL de e2e/compose.yaml, quarkus:dev http://localhost:8090, Keycloak des Dev Services)",
+    "systeme": "win32 10.0.19045 x64, 16 cœurs, 48 Gio",
+    "node": "v24.18.0",
+    "serveurReutilise": false
+  },
+  "jeuDeDonnees": {
+    "description": "20 projets × 100 composants, 1000 avis, 20000 impacts actifs (espace d’alice) ; 500000 impacts résolus ou écartés (espace volumineux) ; 150 impacts actifs (petit espace de bob) ; abonnements PERSONAL par paquet et par technologie",
+    "espaces": [
+      {
+        "nom": "Espace performance",
+        "etats": {
+          "CONFIRME": 1964,
+          "OUVERT": 18036
+        }
+      },
+      {
+        "nom": "Espace volumineux",
+        "etats": {
+          "ECARTE": 50000,
+          "RESOLU": 450000
+        }
+      },
+      {
+        "nom": "Petit espace performance",
+        "etats": {
+          "OUVERT": 150
+        }
+      }
+    ],
+    "projets": 20,
+    "composantsParProjet": 100,
+    "signaux": 1000,
+    "impacts": 520150
+  },
+  "parametres": {
+    "projets": 20,
+    "composantsParProjet": 100,
+    "signaux": 1000,
+    "projetsVolumineux": 500,
+    "impactsPetitEspace": 150,
+    "appelsParOperation": 200,
+    "concurrence": 4,
+    "echauffement": 20
+  },
+  "resultats": [
+    {
+      "id": "GET /api/v1/projects",
+      "type": "REST",
+      "libelle": "projets visibles",
+      "appels": 200,
+      "p50Ms": 83.9,
+      "p95Ms": 188.5,
+      "maxMs": 320.4,
+      "erreurs": 0,
+      "premiereErreur": null,
+      "verdict": "DANS_LA_CIBLE"
+    },
+    {
+      "id": "GET /api/v1/projects/{id}/inventory/summary",
+      "type": "REST",
+      "libelle": "synthèse d’inventaire",
+      "appels": 200,
+      "p50Ms": 70,
+      "p95Ms": 129.7,
+      "maxMs": 187.1,
+      "erreurs": 0,
+      "premiereErreur": null,
+      "verdict": "DANS_LA_CIBLE"
+    },
+    {
+      "id": "GET /api/v1/projects/{id}/inventory/components",
+      "type": "REST",
+      "libelle": "composants d’inventaire (page 1)",
+      "appels": 200,
+      "p50Ms": 34.2,
+      "p95Ms": 74.7,
+      "maxMs": 184,
+      "erreurs": 0,
+      "premiereErreur": null,
+      "verdict": "DANS_LA_CIBLE"
+    },
+    {
+      "id": "GET /api/v1/impacts/{id}",
+      "type": "REST",
+      "libelle": "impact, provenance et historique",
+      "appels": 200,
+      "p50Ms": 29,
+      "p95Ms": 67.9,
+      "maxMs": 99.8,
+      "erreurs": 0,
+      "premiereErreur": null,
+      "verdict": "DANS_LA_CIBLE"
+    },
+    {
+      "id": "GET /api/v1/signals/{id}/impacts",
+      "type": "REST",
+      "libelle": "impacts d’un signal",
+      "appels": 200,
+      "p50Ms": 34.5,
+      "p95Ms": 54.4,
+      "maxMs": 80.9,
+      "erreurs": 0,
+      "premiereErreur": null,
+      "verdict": "DANS_LA_CIBLE"
+    },
+    {
+      "id": "GET /api/v1/me/veille",
+      "type": "REST",
+      "libelle": "Ma veille",
+      "appels": 200,
+      "p50Ms": 290.2,
+      "p95Ms": 412.4,
+      "maxMs": 486.2,
+      "erreurs": 0,
+      "premiereErreur": null,
+      "verdict": "DANS_LA_CIBLE"
+    },
+    {
+      "id": "GET /api/v1/me/veille (petit espace)",
+      "type": "REST",
+      "libelle": "Ma veille d’un membre d’un petit espace, table d’impacts volumineuse",
+      "appels": 200,
+      "p50Ms": 77.5,
+      "p95Ms": 115.5,
+      "maxMs": 149.6,
+      "erreurs": 0,
+      "premiereErreur": null,
+      "verdict": "DANS_LA_CIBLE"
+    },
+    {
+      "id": "GET /api/v1/recherche",
+      "type": "REST",
+      "libelle": "recherche plein texte « performance »",
+      "appels": 200,
+      "p50Ms": 76.1,
+      "p95Ms": 108.5,
+      "maxMs": 151.9,
+      "erreurs": 0,
+      "premiereErreur": null,
+      "verdict": "DANS_LA_CIBLE"
+    },
+    {
+      "id": "GET /api/v1/subscriptions",
+      "type": "REST",
+      "libelle": "abonnements",
+      "appels": 200,
+      "p50Ms": 13.9,
+      "p95Ms": 17.1,
+      "maxMs": 23.4,
+      "erreurs": 0,
+      "premiereErreur": null,
+      "verdict": "DANS_LA_CIBLE"
+    },
+    {
+      "id": "GET /api/v1/alertes",
+      "type": "REST",
+      "libelle": "alertes",
+      "appels": 200,
+      "p50Ms": 15.8,
+      "p95Ms": 23.8,
+      "maxMs": 37.3,
+      "erreurs": 0,
+      "premiereErreur": null,
+      "verdict": "DANS_LA_CIBLE"
+    },
+    {
+      "id": "MCP get_project_context",
+      "type": "MCP",
+      "libelle": "outil MCP get_project_context",
+      "appels": 200,
+      "p50Ms": 153,
+      "p95Ms": 234.1,
+      "maxMs": 386.2,
+      "erreurs": 0,
+      "premiereErreur": null,
+      "verdict": "DANS_LA_CIBLE"
+    },
+    {
+      "id": "MCP get_technology_standard",
+      "type": "MCP",
+      "libelle": "outil MCP get_technology_standard",
+      "appels": 200,
+      "p50Ms": 16.2,
+      "p95Ms": 26.2,
+      "maxMs": 37.1,
+      "erreurs": 0,
+      "premiereErreur": null,
+      "verdict": "DANS_LA_CIBLE"
+    },
+    {
+      "id": "MCP upcoming_releases",
+      "type": "MCP",
+      "libelle": "outil MCP upcoming_releases",
+      "appels": 200,
+      "p50Ms": 232.3,
+      "p95Ms": 369.1,
+      "maxMs": 463.5,
+      "erreurs": 0,
+      "premiereErreur": null,
+      "verdict": "DANS_LA_CIBLE"
+    },
+    {
+      "id": "MCP get_regulatory_changes",
+      "type": "MCP",
+      "libelle": "outil MCP get_regulatory_changes",
+      "appels": 200,
+      "p50Ms": 17.5,
+      "p95Ms": 32.2,
+      "maxMs": 47.6,
+      "erreurs": 0,
+      "premiereErreur": null,
+      "verdict": "DANS_LA_CIBLE"
+    },
+    {
+      "id": "MCP check_dependency",
+      "type": "MCP",
+      "libelle": "outil MCP check_dependency",
+      "appels": 200,
+      "p50Ms": 70.7,
+      "p95Ms": 114.2,
+      "maxMs": 135.7,
+      "erreurs": 0,
+      "premiereErreur": null,
+      "verdict": "DANS_LA_CIBLE"
+    },
+    {
+      "id": "MCP search_signals",
+      "type": "MCP",
+      "libelle": "outil MCP search_signals",
+      "appels": 200,
+      "p50Ms": 53,
+      "p95Ms": 91.9,
+      "maxMs": 125.9,
+      "erreurs": 0,
+      "premiereErreur": null,
+      "verdict": "DANS_LA_CIBLE"
+    },
+    {
+      "id": "MCP get_security_alerts",
+      "type": "MCP",
+      "libelle": "outil MCP get_security_alerts",
+      "appels": 200,
+      "p50Ms": 186.4,
+      "p95Ms": 279.8,
+      "maxMs": 356.7,
+      "erreurs": 0,
+      "premiereErreur": null,
+      "verdict": "DANS_LA_CIBLE"
+    }
+  ],
+  "exclues": [
+    {
+      "id": "POST /api/v1/ops/sources/{id}/synchronizations",
+      "motif": "synchronisation d’une source externe (OSV)"
+    },
+    {
+      "id": "collectes planifiées (réglementaire, artistes, radar, activité, veille web)",
+      "motif": "appels à des sources externes ; tâches désactivées pendant la campagne"
+    },
+    {
+      "id": "résumés IA des alertes, synthèses IA des fiches, analyse complémentaire",
+      "motif": "appel à un modèle d’IA (passerelle IA absente pendant la campagne)"
+    },
+    {
+      "id": "GET /api/v1/veille-web/… (récupération d’une page à la demande)",
+      "motif": "récupération d’une page externe"
+    },
+    {
+      "id": "MCP explain_change",
+      "motif": "synthèse d’un changement par le modèle d’IA"
+    },
+    {
+      "id": "écritures (transitions d’impact, abonnements, préférences, vues, imports)",
+      "motif": "hors du périmètre « consultation » de la cible"
+    }
+  ],
+  "verdict": {
+    "valide": true,
+    "dansLaCible": true,
+    "horsCible": [],
+    "enErreur": [],
+    "codeSortie": 0
+  }
+}
