@@ -100,6 +100,8 @@ Les ADR enregistrent les décisions architecturales importantes d’ARGOS.
 
 - [ADR-0037 — Porter les mécanismes techniques partagés par un noyau commun du serveur](0037-noyau-commun-du-serveur.md) — **Accepté** ; précise ADR-0001 et ADR-0016
 - [ADR-0039 — Exécuter hors requête les traitements longs, propager les événements selon trois styles et encadrer les appels sortants](0039-traitements-de-fond-evenements-et-appels-sortants.md) — Proposé ; précise ADR-0031 et ADR-0037
+- [ADR-0040 — Paginer les listes de l'API au format unique `page`, `size`, `{items, page, size, total}`](0040-pagination-des-listes-de-l-api.md) — Proposé ; précise arc42 §8.10
+- [ADR-0041 — Conserver les données journalisées pour une durée bornée par des règles déclarées par module](0041-conservation-des-donnees-journalisees.md) — Proposé ; précise ADR-0031 et ADR-0037
 
 ### Outillage de développement
 
