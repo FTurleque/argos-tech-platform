@@ -11,7 +11,7 @@
 - [ ] 2.1 Module `conservation` : `RegleConservation`, `SuppressionParLots`, `PurgesConservation` (`argos-purge-conservation`, `@TacheObservee`, SKIP), métriques ; ajout à `ModuleBoundariesTest` (transverse) et arc42 §5 — couvre EXP-17-S4 — vérification : `PurgesConservationTest`, `ModuleBoundariesTest` passent
 - [ ] 2.2 Règles `refus-acces`, `appels-mcp`, `appels-ia` (audit), `quotas-ia` (aigateway) — couvre EXP-17-S1, S2 — vérification : `ConservationTest` passe
 - [ ] 2.3 Règles `synchronisations`, `avis-mis-a-l-ecart`, `evenements-exploitation` (ingestion), `echecs-import` (inventory) — couvre EXP-17-S1, S3 — vérification : `ConservationTest` passe
-- [ ] 2.4 Règles `versions-avis`, `actualites` (signal) — couvre EXP-17-S3 — vérification : `ConservationTest` passe
+- [ ] 2.4 Règle `actualites` (signal) — couvre EXP-17-S1 — vérification : `ConservationTest` passe
 - [ ] 2.5 `ConservationCompleteTest` : liste fermée des tables de journal, d'échec ou d'historique, règle ou raison d'exclusion — couvre EXP-17 — vérification : le test passe et échoue sur une table nouvelle non déclarée
 - [ ] 2.6 Réglages `argos.conservation.*` dans `application.properties`, `.env.example`, `compose.yaml` si exposés, `README.md` du serveur — vérification : `node scripts/verifier-configuration.mjs` sans erreur
 - [ ] 2.7 ADR-0041 (Proposé), index, fiche `docs/specifications/exploitation-plateforme.md` (EXP-17) — vérification : `node scripts/verifier-docs.mjs` sans erreur
@@ -78,4 +78,4 @@
 - Basculer dans les fiches durables les statuts [PROPOSITION] de ce changement en [EXIGENCE] ou [EXISTANT] selon les preuves obtenues.
 - Archiver le changement uniquement sur demande explicite, après revue (`openspec archive retenir-importer-et-paginer`).
 - Après archivage, remplacer dans les fiches les liens vers `/openspec/changes/retenir-importer-et-paginer/` par la spec principale ou le dossier d'archive, puis exécuter `node scripts/verifier-docs.mjs`.
-- Index `project_impact (signal_version_id)` à créer par le sprint 10 (AUD-PER-09) pour la garde de la règle `versions-avis`.
+- Index utiles aux purges, à créer avec AUD-PER-09 (sprint 10) : `actualite (recu_le)`, `ingestion_failure (run_id)`, `sync_attempt (run_id)`.

@@ -9,7 +9,7 @@ public enum StatutImport {
     /** Document refusé : illisible, trop gros ou invalide. */
     REJECTED,
 
-    /** Inventaire conservé : aucune nouvelle SBOM disponible. */
+    /** Inventaire conservé : aucune nouvelle SBOM disponible, ou document identique à celui du dernier import (INV-14). */
     KEPT,
 
     /** Aucune source lisible : ni SBOM ni manifeste. */

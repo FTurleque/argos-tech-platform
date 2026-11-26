@@ -21,6 +21,16 @@ public record Page<T>(List<T> items, int page, int size, long total) {
         return new Page<>(items, pagination.page(), pagination.taille(), total);
     }
 
+    /**
+     * Page extraite d'une liste déjà triée et tenue en mémoire, pour une liste bornée en amont dont le filtre final
+     * s'applique hors de la base.
+     */
+    public static <T> Page<T> extraire(List<T> tous, Pagination pagination) {
+        int debut = (int) Math.min(pagination.decalage(), tous.size());
+        int fin = Math.min(debut + pagination.taille(), tous.size());
+        return de(tous.subList(debut, fin), pagination, tous.size());
+    }
+
     /** Même page, dont chaque élément est transformé par {@code conversion}. */
     public <R> Page<R> convertir(Function<? super T, ? extends R> conversion) {
         List<R> converties = items.stream().<R>map(conversion).toList();

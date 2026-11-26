@@ -260,7 +260,42 @@ class ProfilArtisteTest {
                 .body("items[0].explication", containsString("dans 20 jours"))
                 .body("items[1].territoires", contains("france"))
                 .body("items[2].dateAConfirmer", equalTo(true))
-                .body("items.titre", not(hasItem("Appel clos")));
+                .body("items.titre", not(hasItem("Appel clos")))
+                .body("page", equalTo(0)).body("size", equalTo(50)).body("total", equalTo(3));
+
+        // PERF-03-S5 : la liste est paginée au format commun.
+        Api.enTantQue("hugo").queryParam("page", 1).queryParam("size", 1)
+                .when().get("/api/v1/profils/artiste/opportunites").then().statusCode(200)
+                .body("items.titre", contains("Aide nationale"))
+                .body("page", equalTo(1)).body("size", equalTo(1)).body("total", equalTo(3));
+        Api.enTantQue("hugo").queryParam("size", "abc").when().get("/api/v1/profils/artiste/opportunites").then()
+                .statusCode(400).body("code", equalTo("DONNEE_INVALIDE")).body("attribut", equalTo("size"));
+    }
+
+    // ------------------------------------------------------------------ ART-08
+
+    /** ART-08-S1 et S2 : une opportunité sans date limite n'est restituée que pendant l'âge maximal (90 jours). */
+    @Test
+    void art08OpportuniteSansDateLimiteRestitueePendantLAgeMaximal() {
+        StubServer.programmer(JEU, Stub.succes(reponse(
+                enregistrement("AAP-RECENTE", "Résidence récente sans date", "Arts visuels", "Occitanie", null),
+                enregistrement("AAP-ANCIENNE", "Résidence ancienne sans date", "Arts visuels", "Occitanie", null))));
+        String source = declarer("DATA_CULTURE", StubServer.base() + JEU, "appels-residences", List.of(), List.of());
+        verifier(source);
+        ArtisteFixtures.collecter();
+        baseDeTest.exec("UPDATE opportunite SET recu_le = now() - interval '120 days' WHERE titre = 'Résidence ancienne sans date'");
+        baseDeTest.exec("UPDATE opportunite SET recu_le = now() - interval '10 days' WHERE titre = 'Résidence récente sans date'");
+        ArtisteFixtures.collecter();
+
+        activer("hugo", "developpeur", "artiste");
+        suivre("hugo", List.of("arts-visuels"), List.of("occitanie"));
+
+        Api.enTantQue("hugo").when().get("/api/v1/profils/artiste/opportunites").then().statusCode(200)
+                .body("items.titre", contains("Résidence récente sans date"))
+                .body("items[0].dateAConfirmer", equalTo(true))
+                .body("total", equalTo(1));
+        assertEquals(1, baseDeTest.count("SELECT count(*) FROM opportunite WHERE titre = 'Résidence ancienne sans date'"
+                + " AND recu_le < now() - interval '100 days'"), "une nouvelle collecte ne rajeunit pas la première collecte");
     }
 
     // ------------------------------------------------------------------ ART-05

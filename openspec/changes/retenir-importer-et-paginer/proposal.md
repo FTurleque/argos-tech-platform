@@ -7,7 +7,7 @@ Les tables de journal, d'échec et d'historique grossissent sans limite. Seul l'
 ## What Changes — Changements
 
 - Une purge quotidienne unique applique des règles de conservation que chaque module déclare pour ses propres tables : durée réglable par table, suppression par lots, échec d'une règle journalisé avec sa cause et compté, sans arrêter les autres règles (EXP-17).
-- Des règles de conservation pour les journaux des refus, des appels MCP et des appels IA, les compteurs de quotas IA, les synchronisations terminées et leurs tentatives, les avis mis à l'écart, les événements d'exploitation, les échecs d'import d'inventaire, les versions périmées des avis, les actualités et les opportunités échues (EXP-17).
+- Des règles de conservation pour les journaux des refus, des appels MCP et des appels IA, les compteurs de quotas IA, les synchronisations terminées et leurs tentatives, les avis mis à l'écart, les événements d'exploitation, les échecs d'import d'inventaire, les actualités et les opportunités échues (EXP-17).
 - Le journal des refus est borné par auteur, compte ou sujet OIDC, sur une fenêtre glissante d'une minute. Au-delà, le refus est toujours appliqué mais n'est plus écrit ; il est compté dans une métrique (ACC-15).
 - Une opportunité sans date limite n'est restituée que pendant un âge maximal réglable, compté depuis sa première collecte (ART-08).
 - **BREAKING** `GET /api/v1/profils/artiste/opportunites` est paginée : la réponse ajoute `page`, `size` et `total`, et `items` ne contient plus que la page demandée (PERF-03).
@@ -48,6 +48,7 @@ Non applicable : chaque comportement complète une capacité existante.
 - Listes déjà bornées par `limite` (alertes, fiches réglementaires, actualités web) : elles gardent leur paramètre `limite` [PROPOSITION — recommandation soumise au porteur le 2026-11-26 ; voir design.md, D6].
 - Les alertes et les éléments de résumé : la clé d'idempotence d'une alerte immédiate est la ligne d'alerte elle-même (`alerte_immediate_uk`, V8). La purger rouvrirait une alerte déjà envoyée. Purge reportée (design.md, écarts).
 - Les historiques métier attachés à une entité vivante (`project_impact_transition`, `standard_historique`, `fiche_historique`) : ils disparaissent avec leur entité et ne croissent qu'avec des décisions humaines.
+- Les versions d'un avis (`signal_version`) : COL-03-S2 exige que la version précédente reste consultable dans l'historique du signal. Les borner demanderait de modifier cette exigence.
 
 ## Acteurs et parties prenantes
 
@@ -86,7 +87,7 @@ Non applicable : chaque comportement complète une capacité existante.
 
 ## Impact
 
-- Code : `io.argos.conservation` (nouveau module technique), `io.argos.commun` (`Page`, `Pagination`), `audit`, `aigateway`, `ingestion`, `signal`, `inventory`, `api`.
+- Code : `io.argos.conservation` (nouveau module technique), `io.argos.commun` (`Page`, `Pagination`), `audit`, `aigateway`, `ingestion`, `signal`, `inventory`, `impact`, `api`.
 - Données : migration V26 (colonne d'empreinte de `repository_inventory`). Les suppressions planifiées retirent les lignes plus anciennes que la durée de conservation.
 - API : opérations rendues paginées (ruptures listées ci-dessus) ; IHM : appel des opportunités adapté.
 - Documentation : ADR-0040 et ADR-0041 (Proposés), arc42 §5, §8 et §9, fiches des capacités modifiées.

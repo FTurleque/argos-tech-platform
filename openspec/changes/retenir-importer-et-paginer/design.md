@@ -41,7 +41,7 @@
 | `audit` | Règles des journaux des refus, des appels MCP et des appels IA ; bornage du journal des refus | — | modifié |
 | `aigateway` | Règle des compteurs de quotas journaliers | — | modifié |
 | `ingestion` | Règles des synchronisations terminées, des avis mis à l'écart, des événements ; lectures paginées | Supprimer une synchronisation en cours ou à reprendre | modifié |
-| `signal` | Règles des versions d'avis, des actualités et des opportunités ; âge maximal des opportunités ; façade paginée de l'exploitation | Supprimer la version courante ou une version citée par un impact | modifié |
+| `signal` | Règles des actualités et des opportunités ; âge maximal des opportunités ; façade paginée de l'exploitation | Supprimer une version d'avis (COL-03-S2) | modifié |
 | `inventory` | Empreinte, conservation d'un document inchangé, écriture par lot, règle des échecs d'import, lectures paginées | Réécrire un composant inchangé | modifié |
 | `impact` | Lecture paginée des impacts d'un projet (`ImpactQueries.forProject`) | Toucher à la corrélation | modifié |
 | `api` | Lecture des paramètres `page`/`size`, opérations paginées | — | modifié |
@@ -55,7 +55,7 @@ flowchart LR
     audit["audit : refus, appels MCP, appels IA"] -- implémente --> contrat
     aigateway["aigateway : quotas IA"] -- implémente --> contrat
     ingestion["ingestion : synchronisations, avis mis à l'écart, événements"] -- implémente --> contrat
-    signal["signal : versions d'avis, actualités, opportunités"] -- implémente --> contrat
+    signal["signal : actualités, opportunités"] -- implémente --> contrat
     inventory["inventory : échecs d'import"] -- implémente --> contrat
     tache -- "Instance&lt;RegleConservation&gt;" --> contrat
     base[("PostgreSQL «database»")]
@@ -67,7 +67,7 @@ flowchart LR
 ## Modèle de domaine et invariants
 
 - **INV-1** Une règle de conservation porte un nom stable, unique (kebab-case), une durée réglable et une suppression qui ne retire que des lignes antérieures à la limite donnée.
-- **INV-2** Une synchronisation `RUNNING` ou `RETRYABLE`, la version courante d'un avis et une version citée par un impact ne sont jamais supprimées.
+- **INV-2** Une synchronisation `RUNNING` ou `RETRYABLE`, ou citée par un avis mis à l'écart, n'est jamais supprimée ; aucune version d'avis n'est supprimée.
 - **INV-3** Après l'écriture d'un dépôt, son empreinte enregistrée est celle du document écrit. L'empreinte n'est comparée que pour une lecture depuis la forge.
 - **INV-4** Une page vérifie `0 ≤ page`, `1 ≤ size ≤ 200`, `items.size() ≤ size` ; le tri se termine par l'identifiant.
 
@@ -235,11 +235,10 @@ Migration `V26__empreinte_import_et_conservation.sql` : `ALTER TABLE repository_
 | `avis-mis-a-l-ecart` | ingestion | `ingestion_failure` | `received_at` | P180D |
 | `evenements-exploitation` | ingestion | `ops_event` | `occurred_at` | P180D |
 | `echecs-import` | inventory | `inventory_import_failure` | `received_at` | P180D |
-| `versions-avis` | signal | `signal_version` non courantes et non citées par un impact | `collected_at` | P365D |
 | `actualites` | signal | `actualite` (cascade sur ses citations et rapprochements) | `recu_le` | P365D |
 | `opportunites` | signal | `opportunite` échues (D5) | échéance | P180D |
 
-- **Justification** : 180 jours couvrent deux trimestres d'enquête sur un refus ou un appel, dans la fourchette suggérée par l'audit (90 jours à un an). 90 jours suffisent pour des compteurs journaliers et des tentatives. Un an pour le contenu de veille (versions, actualités), aligné sur l'horizon de recherche usuel.
+- **Justification** : 180 jours couvrent deux trimestres d'enquête sur un refus ou un appel, dans la fourchette suggérée par l'audit (90 jours à un an). 90 jours suffisent pour des compteurs journaliers et des tentatives. Un an pour les actualités, contenu de veille consulté par la recherche.
 - **Alternatives écartées** : une durée unique pour toutes les tables, inadaptée à des contenus de nature différente.
 - **Compromis** : les durées sont des choix d'exploitation, réglables sans recompiler.
 - **ADR** : non : valeurs de configuration.
@@ -295,12 +294,13 @@ Migration `V26__empreinte_import_et_conservation.sql` : `ALTER TABLE repository_
 
 ## Risques
 
-- [Un index manque pour une purge] La garde de `versions-avis` (« non citée par un impact ») vérifie `project_impact.signal_version_id`, qui n'a pas d'index (V5). Le planificateur choisit une anti-jointure par hachage, qui parcourt `project_impact` une fois par lot. **Index à créer par le sprint 10 (AUD-PER-09) : `project_impact (signal_version_id)`.** Il est signalé dans la PR, pas créé ici. Les gardes de `synchronisations` (`ingestion_failure.run_id`, `sync_attempt.run_id`) sont dans le même cas, sur des tables bornées par leur propre conservation.
+- [Index absents pour certaines purges] Aucune purge ne lit `project_impact`. La règle `actualites` filtre sur `actualite.recu_le`, qui n'a pas d'index (seul `coalesce(publie_le, recu_le)` est indexé). Les gardes de `synchronisations` lisent `ingestion_failure.run_id` et `sync_attempt.run_id`, sans index, sur des tables bornées par leur propre conservation. Un lot rempli s'arrête tôt ; seul le dernier lot parcourt la table. Ces index relèvent d'AUD-PER-09 (sprint 10) : ils sont signalés dans la PR, pas créés ici.
 - [Suppression non désirée à la première exécution] → durées réglables avant déploiement ; journal des volumes supprimés par règle.
 - [Ruptures d'API] → listées dans proposal.md ; l'IHM est adaptée ; OpenAPI régénéré.
 
 ## Écarts code / tests / specs / documentation
 
+- Versions d'avis (`signal_version`) : non purgées. COL-03-S2 exige que la version précédente reste consultable. Le volume (`raw_content`) reste à borner par une décision du porteur qui modifierait cette exigence.
 - Alertes et éléments de résumé (`alerte`, `resume_element`) : non purgés. L'idempotence d'une alerte immédiate repose sur la ligne elle-même (`alerte_immediate_uk`). La purger permettrait un second envoi si le signal est recorrélé. Il faudrait d'abord une clé d'idempotence séparée. Reporté : constat à rouvrir hors de ce sprint, qui ne touche pas au moteur d'alertes.
 - `RappelsOpportunites` relit les opportunités pour chaque suiveur (AUD-PER-18, impact « N+1 par suiveur »). L'âge maximal borne le volume relu ; la lecture en une requête reste à faire.
 
@@ -309,7 +309,7 @@ Migration `V26__empreinte_import_et_conservation.sql` : `ALTER TABLE repository_
 | Exigence / scénario | Niveau de test | Moyen de preuve | État |
 |---|---|---|---|
 | EXP-17-S1, S2 | intégration | `ConservationTest` : lignes échues et récentes de chaque règle ; durée réglée | à écrire |
-| EXP-17-S3 | intégration | `ConservationTest` : synchronisation en cours, version courante, version citée | à écrire |
+| EXP-17-S3 | intégration | `ConservationTest` : synchronisation en cours ou citée par un avis mis à l'écart | à écrire |
 | EXP-17-S4 | unitaire | `PurgesConservationTest` : une règle en échec, les autres exécutées, métrique incrémentée | à écrire |
 | EXP-17-S5 | intégration | `ConservationTest` : opportunités échues | à écrire |
 | EXP-17 (complétude) | architecture | `ConservationCompleteTest` | à écrire |

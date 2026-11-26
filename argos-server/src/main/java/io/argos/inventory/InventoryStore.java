@@ -4,11 +4,12 @@ import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
-import java.sql.Types;
 import java.time.Clock;
 import java.time.ZoneOffset;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Optional;
+import java.util.Set;
 import java.util.UUID;
 
 import javax.sql.DataSource;
@@ -40,9 +41,17 @@ public class InventoryStore {
 
     /**
      * Inventaire lu pour un emplacement du projet : un dépôt, ou l'emplacement sans dépôt ({@code repositoryId}
-     * nul) d'un import manuel pour un projet sans dépôt principal ([PROPOSITION] P-B1).
+     * nul) d'un import manuel pour un projet sans dépôt principal ([PROPOSITION] P-B1). {@code empreinte} : empreinte
+     * du document lu ({@link EmpreinteDocument}), enregistrée avec le dernier import du dépôt ; {@code depuisForge} :
+     * lecture planifiée ou relancée depuis la forge, conservée sans écriture si le document est inchangé (INV-14).
      */
-    public record Remplacement(UUID repositoryId, String origin, ParsedInventory parsed, String sourceRef) {
+    public record Remplacement(UUID repositoryId, String origin, ParsedInventory parsed, String sourceRef, String empreinte,
+            boolean depuisForge) {
+
+        /** Remplacement sans empreinte, toujours écrit. */
+        public Remplacement(UUID repositoryId, String origin, ParsedInventory parsed, String sourceRef) {
+            this(repositoryId, origin, parsed, sourceRef, null, false);
+        }
     }
 
     @Inject
@@ -66,25 +75,56 @@ public class InventoryStore {
      * composant présent dans plusieurs dépôts vaut « direct » dès qu'un dépôt l'utilise directement. Pose le
      * marqueur de recorrélation et publie {@link InventoryReplaced}. Les emplacements absents de la liste gardent
      * leur dernier import réussi (INV-10-S2).
+     *
+     * <p>Un dépôt lu depuis sa forge dont le document a la même empreinte que son dernier import est conservé sans
+     * écriture (INV-14) ; si tous les dépôts sont conservés, ni l'union ni la recorrélation n'ont lieu (INV-09-S3).
+     *
+     * @return dépôts conservés faute de changement du document
      */
     @Transactional
-    public void remplacer(UUID projectId, List<Remplacement> remplacements) {
+    public Set<UUID> remplacer(UUID projectId, List<Remplacement> remplacements) {
         if (remplacements.isEmpty()) {
-            return;
+            return Set.of();
         }
-        String origin = remplacements.get(remplacements.size() - 1).origin();
+        Set<UUID> conserves = new HashSet<>();
+        String origin = null;
         try (Connection connexion = dataSource.getConnection()) {
             verrouiller(connexion, projectId);
             for (Remplacement remplacement : remplacements) {
+                if (inchange(connexion, remplacement)) {
+                    conserves.add(remplacement.repositoryId());
+                    continue;
+                }
                 UUID importId = UUID.randomUUID();
                 ecrireEntete(connexion, projectId, remplacement, importId);
                 ecrireOccurrences(connexion, projectId, remplacement, importId);
+                origin = remplacement.origin();
             }
-            reconstituer(connexion, projectId);
+            if (conserves.size() < remplacements.size()) {
+                reconstituer(connexion, projectId);
+            }
         } catch (SQLException erreur) {
             throw new IllegalStateException("enregistrement de l'inventaire impossible", erreur);
         }
-        replaced.fire(new InventoryReplaced(projectId, origin));
+        if (conserves.size() < remplacements.size()) {
+            replaced.fire(new InventoryReplaced(projectId, origin));
+        }
+        return Set.copyOf(conserves);
+    }
+
+    /** Vrai si le dépôt est lu depuis sa forge et que son document a l'empreinte de son dernier import. */
+    private static boolean inchange(Connection connexion, Remplacement remplacement) throws SQLException {
+        if (!remplacement.depuisForge() || remplacement.empreinte() == null || remplacement.repositoryId() == null) {
+            return false;
+        }
+        try (PreparedStatement requete = connexion.prepareStatement(
+                "SELECT 1 FROM repository_inventory WHERE repository_id = ? AND empreinte = ?")) {
+            requete.setObject(1, remplacement.repositoryId());
+            requete.setString(2, remplacement.empreinte());
+            try (ResultSet resultat = requete.executeQuery()) {
+                return resultat.next();
+            }
+        }
     }
 
     /**
@@ -189,15 +229,17 @@ public class InventoryStore {
         }
         try (PreparedStatement requete = connexion.prepareStatement("""
                 INSERT INTO repository_inventory(project_id, origin, source_date, spec_version, source_ref, import_id,
-                    imported_at, ignored_count, ignored_components, repository_id)
-                VALUES (?, ?, ?, ?, ?, ?, now(), ?, ?::jsonb, ?)
+                    imported_at, ignored_count, ignored_components, repository_id, empreinte)
+                VALUES (?, ?, ?, ?, ?, ?, now(), ?, ?::jsonb, ?, ?)
                 ON CONFLICT (repository_id) DO UPDATE SET origin = excluded.origin, source_date = excluded.source_date,
                     spec_version = excluded.spec_version, source_ref = excluded.source_ref,
                     import_id = excluded.import_id, imported_at = excluded.imported_at,
-                    ignored_count = excluded.ignored_count, ignored_components = excluded.ignored_components
+                    ignored_count = excluded.ignored_count, ignored_components = excluded.ignored_components,
+                    empreinte = excluded.empreinte
                 """)) {
             setEntete(requete, projectId, remplacement, importId);
             requete.setObject(9, remplacement.repositoryId());
+            requete.setString(10, remplacement.empreinte());
             requete.executeUpdate();
         }
     }
@@ -230,43 +272,8 @@ public class InventoryStore {
             }
             requete.executeUpdate();
         }
-        try (PreparedStatement composant = connexion.prepareStatement("""
-                INSERT INTO component(id, project_id, package_key, purl, version, transitive, import_id)
-                VALUES (?, ?, ?, ?, ?, ?, ?)
-                ON CONFLICT (project_id, package_key, (coalesce(version, '')))
-                DO UPDATE SET purl = excluded.purl, import_id = excluded.import_id
-                RETURNING id
-                """);
-                PreparedStatement occurrence = connexion.prepareStatement("""
-                        INSERT INTO component_occurrence(component_id, repository_id, project_id, transitive, import_id)
-                        VALUES (?, ?, ?, ?, ?)
-                        ON CONFLICT (component_id, (coalesce(repository_id, '00000000-0000-0000-0000-000000000000'::uuid)))
-                        DO UPDATE SET transitive = CASE
-                            WHEN component_occurrence.transitive = false OR excluded.transitive = false THEN false
-                            ELSE coalesce(component_occurrence.transitive, excluded.transitive) END
-                        """)) {
-            for (ParsedInventory.Item item : remplacement.parsed().components()) {
-                composant.setObject(1, UUID.randomUUID());
-                composant.setObject(2, projectId);
-                composant.setString(3, item.packageKey());
-                composant.setString(4, item.purl());
-                composant.setString(5, item.version());
-                setTransitive(composant, 6, item.transitive());
-                composant.setObject(7, importId);
-                UUID componentId;
-                try (ResultSet resultat = composant.executeQuery()) {
-                    resultat.next();
-                    componentId = resultat.getObject(1, UUID.class);
-                }
-                occurrence.setObject(1, componentId);
-                occurrence.setObject(2, remplacement.repositoryId());
-                occurrence.setObject(3, projectId);
-                setTransitive(occurrence, 4, item.transitive());
-                occurrence.setObject(5, importId);
-                occurrence.addBatch();
-            }
-            occurrence.executeBatch();
-        }
+        EcritureComposants.ecrire(connexion, projectId, remplacement.repositoryId(), remplacement.parsed().components(),
+                importId);
     }
 
     /**
@@ -341,14 +348,6 @@ public class InventoryStore {
             try (ResultSet resultat = requete.executeQuery()) {
                 return resultat.next();
             }
-        }
-    }
-
-    private static void setTransitive(PreparedStatement requete, int index, Boolean transitive) throws SQLException {
-        if (transitive == null) {
-            requete.setNull(index, Types.BOOLEAN);
-        } else {
-            requete.setBoolean(index, transitive);
         }
     }
 

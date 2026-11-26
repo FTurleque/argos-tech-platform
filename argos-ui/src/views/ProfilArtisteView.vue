@@ -189,6 +189,9 @@ onBeforeUnmount(() => annulation.abort())
     <output v-else-if="opportunites?.suivisRequis" class="status" data-suivis-requis>{{ opportunites.message }}</output>
     <template v-else-if="opportunites">
       <p v-if="opportunites.items.length === 0" class="muted">Aucune opportunité ouverte pour vos suivis.</p>
+      <p v-else-if="opportunites.total > opportunites.items.length" class="muted" data-page-partielle>
+        {{ opportunites.items.length }} opportunités affichées sur {{ opportunites.total }}, date limite la plus proche d'abord.
+      </p>
       <ul data-liste="opportunites">
         <li v-if="misEnAvant" class="actuelle" aria-current="true" :data-opportunite="misEnAvant.id">
           <strong>{{ misEnAvant.titre }}</strong> <span class="muted">(affichée ci-dessus)</span>
