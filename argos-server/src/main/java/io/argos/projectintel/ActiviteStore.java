@@ -8,9 +8,9 @@ import java.sql.SQLException;
 import java.sql.Timestamp;
 import java.time.Instant;
 import java.time.LocalDate;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.Optional;
 import java.util.UUID;
 
 import javax.sql.DataSource;
@@ -34,19 +34,20 @@ class ActiviteStore {
     @Inject
     DataSource dataSource;
 
-    /** Date de prochaine collecte du projet, absente s'il n'a jamais été collecté. */
+    /** Date de prochaine collecte de chaque projet déjà collecté, en une requête (AUD-PER-13). */
     @Transactional
-    Optional<Instant> prochaineCollecte(UUID projectId) {
+    Map<UUID, Instant> prochainesCollectes() {
+        Map<UUID, Instant> echeances = new HashMap<>();
         try (Connection connexion = dataSource.getConnection();
-                PreparedStatement requete = connexion.prepareStatement(
-                        "SELECT prochaine_collecte FROM activite_collecte WHERE project_id = ?")) {
-            requete.setObject(1, projectId);
-            try (ResultSet resultat = requete.executeQuery()) {
-                return resultat.next() ? Optional.of(resultat.getTimestamp(1).toInstant()) : Optional.empty();
+                PreparedStatement requete = connexion.prepareStatement("SELECT project_id, prochaine_collecte FROM activite_collecte");
+                ResultSet resultat = requete.executeQuery()) {
+            while (resultat.next()) {
+                echeances.put(resultat.getObject(1, UUID.class), resultat.getTimestamp(2).toInstant());
             }
         } catch (SQLException erreur) {
             throw new IllegalStateException("lecture de l'état de collecte impossible", erreur);
         }
+        return echeances;
     }
 
     /**

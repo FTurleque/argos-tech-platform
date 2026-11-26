@@ -5,7 +5,7 @@
 | Préfixe d'exigences | `RAD` |
 | Spec de référence | [`/openspec/specs/radar-standards/spec.md`](/openspec/specs/radar-standards/spec.md) |
 | Changements archivés | [`2026-11-16-construire-radar-et-standards`](/openspec/changes/archive/2026-11-16-construire-radar-et-standards/proposal.md) |
-| Changement en cours | [`2026-11-25-isoler-erreurs-aux-frontieres`](/openspec/changes/archive/2026-11-25-isoler-erreurs-aux-frontieres/proposal.md) (RAD-07, archivé) ; [`alimenter-inventaire-et-completer-ihm`](/openspec/changes/alimenter-inventaire-et-completer-ihm/proposal.md) (RAD-08, RAD-09) — implémenté, non archivé |
+| Changement en cours | [`2026-11-25-isoler-erreurs-aux-frontieres`](/openspec/changes/archive/2026-11-25-isoler-erreurs-aux-frontieres/proposal.md) (RAD-07, archivé) ; [`rendre-ingestion-asynchrone`](/openspec/changes/rendre-ingestion-asynchrone/proposal.md) (RAD-07 modifiée) — proposé, implémenté ; [`alimenter-inventaire-et-completer-ihm`](/openspec/changes/alimenter-inventaire-et-completer-ihm/proposal.md) (RAD-08, RAD-09) — implémenté, non archivé |
 | Statut de la capacité | livrée ; implémentation et tests dans `argos-server` et `argos-ui` |
 | Composants (arc42 §5) | `catalog`, `release-radar`, `impact-engine`, `alerting`, `ai-gateway`, IHM `argos-ui` |
 
@@ -69,7 +69,7 @@ API REST : `/api/v1/radar/espaces/{espaceId}/` — `standards` (GET, PUT), `stan
 | Annonce d'un changement de statut ou de version recommandée, avec sa justification, aux membres de l'espace dont un projet utilise la technologie ; une création n'est pas annoncée | RAD-06 | dossier v2.4 §8.2 (type STANDARD) | [PROPOSITION] |
 | Après chaque synchronisation des cycles de vie, la passerelle IA est consultée pour chaque technologie dont la version recommandée a atteint sa fin de support et n'est pas déjà `HOLD` ; une suggestion `HOLD` est enregistrée en attente si l'IA la recommande, sans modifier le référentiel, et jamais en double tant qu'une autre attend ; passerelle indisponible ou sortie refusée : rien n'est enregistré, l'absence est journalisée, les autres espaces sont traités ; version encore supportée : aucune demande à l'IA | RAD-08 | AUD-QUA-17 ; RAD-02-S2 ; ADR-0029 ; décision du porteur du projet, 2026-11-26 | [PROPOSITION] — [`alimenter-inventaire-et-completer-ihm`](/openspec/changes/alimenter-inventaire-et-completer-ihm/proposal.md) ; vérifiée par `SuggestionsRadarTest` |
 | Vue radar de l'espace pour tout membre : échéances par horizon, dettes de version, référentiel et suggestions en attente ; la décision sur une suggestion n'est proposée qu'à l'administrateur de l'espace | RAD-09 | AUD-QUA-17 ; AUD-ARC-22 ; RAD-02, RAD-03 ; ADR-0016 (Accepté) | [PROPOSITION] — `alimenter-inventaire-et-completer-ihm` ; vérifiée par `argos-ui/tests/vues/radar.spec.ts` |
-| Une clé mal encodée (`pkg:maven/%zz/x`) est refusée en 400 sur le champ `cle`, sans rien modifier ; une annonce en panne d'accès aux données ne fait pas répondre en erreur une modification déjà enregistrée (journalisée avec sa cause) ; une erreur imprévue de l'annonce remonte (500), la modification restant enregistrée | RAD-07 | AUD-QUA-20 ; arc42 §8.5 ; décision « isoler puis relancer » du porteur du projet, 2026-11-24 | [PROPOSITION] — `isoler-erreurs-aux-frontieres` ; vérifiée par `RadarStandardsTest` |
+| Une clé mal encodée (`pkg:maven/%zz/x`) est refusée en 400 sur le champ `cle`, sans rien modifier ; la modification enregistrée est confirmée sans attendre son annonce, qui s'exécute hors de la requête ; un échec de l'annonce (panne d'accès aux données ou erreur imprévue) ne change pas la réponse, est journalisé avec sa cause et, s'il est imprévu, compté (`argos_evenements_asynchrones_echecs_total`) | RAD-07 | AUD-QUA-20 ; AUD-ARC-09 ; arc42 §8.5 ; ADR-0039 (Proposé) ; décision du porteur du projet, 2026-11-26 | [PROPOSITION] — `isoler-erreurs-aux-frontieres`, `rendre-ingestion-asynchrone` ; vérifiée par `RadarStandardsTest` |
 
 Une version appartient à la branche la plus longue dont elle est égale ou qu'elle prolonge par « . » ou « - » (`14.10` → branche `14`).
 
@@ -116,7 +116,7 @@ Les statuts suivent le principe d'un radar technologique ; chaque changement est
 
 ## Critères d'acceptation
 
-Scénarios RAD-01-S1 à RAD-06-S1 du changement archivé ; RAD-07-S1 à RAD-07-S3 du changement `isoler-erreurs-aux-frontieres` ; RAD-08-S1 à RAD-08-S4, RAD-09-S1 et RAD-09-S2 du changement [`alimenter-inventaire-et-completer-ihm`](/openspec/changes/alimenter-inventaire-et-completer-ihm/specs/radar-standards/spec.md) ; aucun scénario qualité transverse supplémentaire.
+Scénarios RAD-01-S1 à RAD-06-S1 du changement archivé ; RAD-07-S1 à RAD-07-S3 du changement `isoler-erreurs-aux-frontieres`, RAD-07 modifiée (S3, S4) par `rendre-ingestion-asynchrone` ; RAD-08-S1 à RAD-08-S4, RAD-09-S1 et RAD-09-S2 du changement [`alimenter-inventaire-et-completer-ihm`](/openspec/changes/alimenter-inventaire-et-completer-ihm/specs/radar-standards/spec.md) ; aucun scénario qualité transverse supplémentaire.
 
 ## Interprétations introduites par un changement
 
@@ -157,6 +157,6 @@ Scénarios RAD-01-S1 à RAD-06-S1 du changement archivé ; RAD-07-S1 à RAD-07-S
 | RAD-06 | RAD-06-S1 | Composants | 1.3 | `RadarStandardsTest.rad06S1PassageEnHold` |
 | RAD-08 | RAD-08-S1 à S4 | `alimenter-inventaire-et-completer-ihm` design.md D4, DC-2 ; arc42 §6.9 | 2.1 | `impact/SuggestionsRadarTest` (`rad08S1VersionRecommandeeEnFinDeSupport` à `rad08S4VersionEncoreSupportee`, `uneVersionDejaEnHoldNEstPasSoumise`) |
 | RAD-09 | RAD-09-S1, RAD-09-S2 | `alimenter-inventaire-et-completer-ihm` design.md D6 | 4.2 | `argos-ui/tests/vues/radar.spec.ts` (Vitest) |
-| RAD-07 | RAD-07-S1 à S3 | `isoler-erreurs-aux-frontieres` design.md D2, D4, DC-3 | 1.2, 3.1, 3.3 | `RadarStandardsTest.rad07S1CleMalEncodee`, `rad07S2AnnonceEnPanneApresLEnregistrement`, `annonceEnErreurImprevueRemonteApresLEnregistrement` ; boucles du radar : `espaceEnErreurImprevueDansLaTacheQuotidienne`, `produitEnErreurImprevueDansLaSynchronisationDesCycles` |
+| RAD-07 | RAD-07-S1 à S4 | `isoler-erreurs-aux-frontieres` design.md D2, D4, DC-3 ; `rendre-ingestion-asynchrone` design.md D5, DC-5 | 1.2, 3.1, 3.3 ; 5.1 | `RadarStandardsTest.rad07S1CleMalEncodee`, `rad07S2AnnonceEnPanneApresLEnregistrement`, `rad07S3AnnonceEnErreurImprevueJournaliseeEtComptee`, `rad07S4AnnonceSansAttente` ; boucles du radar : `espaceEnErreurImprevueDansLaTacheQuotidienne`, `produitEnErreurImprevueDansLaSynchronisationDesCycles` |
 
 Tests dans `argos-server/src/test/java/io/argos/chain/` ; parcours de bout en bout : `ParcoursRadarTest`.

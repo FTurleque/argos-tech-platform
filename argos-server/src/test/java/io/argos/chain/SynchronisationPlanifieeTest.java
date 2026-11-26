@@ -4,6 +4,7 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.lang.reflect.Method;
+import java.time.Clock;
 import java.time.Duration;
 import java.time.Instant;
 import java.util.List;
@@ -23,6 +24,7 @@ import io.argos.testsupport.StubServer.Stub;
 import io.argos.testsupport.TestDb;
 import io.argos.vulnintel.CertFrSource;
 import io.argos.vulnintel.Enricher;
+import io.argos.vulnintel.TraitementEnrichissements;
 import io.quarkus.scheduler.Scheduled;
 import io.quarkus.test.common.QuarkusTestResource;
 import io.quarkus.test.junit.QuarkusTest;
@@ -53,6 +55,12 @@ class SynchronisationPlanifieeTest {
 
     @Inject
     Enricher enricher;
+
+    @Inject
+    TraitementEnrichissements enrichissements;
+
+    @Inject
+    Clock horloge;
 
     @BeforeEach
     void reset() {
@@ -145,6 +153,7 @@ class SynchronisationPlanifieeTest {
         Fixtures.stubOsv("GHSA-PL05", "2026-11-18T10:00:00Z", avis("GHSA-PL05", "2026-11-18T10:00:00Z", "CVE-2026-109163"));
 
         planification.synchroniserToutes(INSTANT_INITIAL);
+        enrichissements.enrichirSignauxEchus(horloge.instant());
 
         UUID signal = baseDeTest.uuid("SELECT id FROM signal WHERE external_id = 'GHSA-PL05'");
         assertTrue(enricher.forSignal(signal).stream()
@@ -157,6 +166,7 @@ class SynchronisationPlanifieeTest {
                 "GHSA-PL06", "2026-11-19T08:30:00Z", avis("GHSA-PL06", "2026-11-19T08:30:00Z", "CVE-2026-109163"));
 
         SynchronisationPlanifiee.Bilan bilan = planification.synchroniserToutes(INSTANT_INITIAL.plus(Duration.ofHours(1)));
+        enrichissements.enrichirSignauxEchus(horloge.instant());
 
         assertEquals("SUCCEEDED", bilan.rapports().get(0).state());
         assertEquals(1, bilan.rapports().get(0).created());

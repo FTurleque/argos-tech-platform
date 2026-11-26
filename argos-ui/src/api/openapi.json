@@ -1479,7 +1479,7 @@
         "type" : "object"
       },
       "Issue" : {
-        "enum" : [ "A_JOUR", "REPORTEE_QUOTA", "ECHEC", "NON_ECHUE", "SANS_DEPOT" ],
+        "enum" : [ "A_JOUR", "REPORTEE_QUOTA", "ECHEC", "SANS_DEPOT" ],
         "type" : "string"
       },
       "Jalon" : {
@@ -2688,37 +2688,6 @@
               "type" : "string"
             },
             "type" : "array"
-          }
-        },
-        "type" : "object"
-      },
-      "SyncResult" : {
-        "properties" : {
-          "attempts" : {
-            "format" : "int32",
-            "type" : "integer"
-          },
-          "created" : {
-            "format" : "int32",
-            "type" : "integer"
-          },
-          "message" : {
-            "type" : "string"
-          },
-          "rejected" : {
-            "format" : "int32",
-            "type" : "integer"
-          },
-          "state" : {
-            "type" : "string"
-          },
-          "unchanged" : {
-            "format" : "int32",
-            "type" : "integer"
-          },
-          "updated" : {
-            "format" : "int32",
-            "type" : "integer"
           }
         },
         "type" : "object"
@@ -3964,18 +3933,14 @@
           }
         } ],
         "responses" : {
-          "200" : {
-            "content" : {
-              "application/json" : {
-                "schema" : {
-                  "$ref" : "#/components/schemas/SyncResult"
-                }
-              }
-            },
-            "description" : "OK"
+          "202" : {
+            "description" : "Traitement démarré : identifiant du traitement"
+          },
+          "409" : {
+            "description" : "SYNCHRONISATION_EN_COURS ou LANCEMENT_SATURE"
           }
         },
-        "summary" : "Lance une synchronisation de la source et attend son résultat",
+        "summary" : "Lance une synchronisation de la source, poursuivie en tâche de fond (COL-12)",
         "tags" : [ "Exploitation" ]
       }
     },

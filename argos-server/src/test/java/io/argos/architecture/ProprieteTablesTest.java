@@ -46,7 +46,7 @@ class ProprieteTablesTest {
                     "project", "project_repository", "repository_inventory")),
             Map.entry("signal", Set.of("actualite", "actualite_source", "opportunite", "signal", "signal_alias",
                     "signal_package", "signal_version", "source_profil", "source_web")),
-            Map.entry("vulnintel", Set.of("enrichment")),
+            Map.entry("vulnintel", Set.of("enrichment", "enrichissement_attente")),
             Map.entry("releaseradar", Set.of("cycle_vie", "cycle_vie_produit")),
             Map.entry("regintel", Set.of("fiche_domaine", "fiche_historique", "fiche_reglementaire", "reg_collecte_jour",
                     "reg_parametres", "reg_source", "texte_officiel")),

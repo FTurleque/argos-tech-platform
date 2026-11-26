@@ -15,7 +15,7 @@ import java.util.stream.Collectors;
 
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.enterprise.event.Event;
-import jakarta.enterprise.event.Observes;
+import jakarta.enterprise.event.ObservesAsync;
 import jakarta.inject.Inject;
 
 import org.jboss.logging.Logger;
@@ -23,6 +23,7 @@ import org.jboss.logging.Logger;
 import io.argos.commun.ContexteBase;
 import io.argos.commun.Conversions;
 import io.argos.commun.Jdbc;
+import io.argos.execution.PublicationAsynchrone;
 import io.argos.observabilite.ErreursImprevues;
 
 import io.argos.catalog.standard.ReferentielStandardsEnBase;
@@ -101,6 +102,9 @@ public class RadarProjets {
 
     @Inject
     Event<AnnonceStandard> annonces;
+
+    @Inject
+    PublicationAsynchrone publication;
 
     /**
      * Synchronise le calendrier des produits suivis puis enregistre les dettes de version du jour. Une erreur imprévue
@@ -199,15 +203,18 @@ public class RadarProjets {
         return referentiel.espacesSuivis();
     }
 
-    /** Relaie un changement de standard aux projets de l'espace qui utilisent la technologie (RAD-06). */
-    void surStandardModifie(@Observes StandardModifie changement) {
+    /**
+     * Relaie un changement de standard aux projets de l'espace qui utilisent la technologie (RAD-06), hors de la
+     * requête qui l'a enregistré (RAD-07-S4, ADR-0039).
+     */
+    void surStandardModifie(@ObservesAsync StandardModifie changement) {
         try {
             List<InventoryQueries.ComponentMatch> composants = inventaires
                     .componentsMatching(List.of(changement.cle()), Optional.empty()).stream()
                     .filter(composant -> changement.espaceId().equals(composant.workspaceId())).toList();
             List<ProjetConcerne> projets = concernes(composants, nomsProjets(composants), changement.cle(), null);
             if (!projets.isEmpty()) {
-                annonces.fire(new AnnonceStandard(changement.espaceId(), changement.cle(), changement.libelle(),
+                publication.publier(annonces, new AnnonceStandard(changement.espaceId(), changement.cle(), changement.libelle(),
                         changement.ancienStatut().name(), changement.ancienneVersion(), changement.statut().name(),
                         changement.versionRecommandee(), changement.justification(), projets, changement.historiqueId()));
             }

@@ -35,7 +35,7 @@ Un préfixe n'est jamais réattribué ; un identifiant d'exigence retiré n'est 
 
 | Capacité | Préfixe | Fiche | Spec de référence | Changement | Statut |
 |---|---|---|---|---|---|
-| `collecte-avis-securite` | `COL` | [fiche](collecte-avis-securite.md) | [spec](/openspec/specs/collecte-avis-securite/spec.md) | `formaliser-chaine-securite-poc` ; `automatiser-chaine-veille` (COL-09, COL-10) ; `2026-11-25-isoler-erreurs-aux-frontieres` (archivé, COL-11) | proposée |
+| `collecte-avis-securite` | `COL` | [fiche](collecte-avis-securite.md) | [spec](/openspec/specs/collecte-avis-securite/spec.md) | `formaliser-chaine-securite-poc` ; `automatiser-chaine-veille` (COL-09, COL-10) ; `2026-11-25-isoler-erreurs-aux-frontieres` (archivé, COL-11) ; `rendre-ingestion-asynchrone` (COL-04 modifiée, COL-12) | proposée |
 | `inventaire-sbom` | `INV` | [fiche](inventaire-sbom.md) | [spec](/openspec/specs/inventaire-sbom/spec.md) | `formaliser-chaine-securite-poc` ; `automatiser-chaine-veille` (INV-07 à INV-10) ; `2026-11-25-isoler-erreurs-aux-frontieres` (archivé, INV-11) ; `alimenter-inventaire-et-completer-ihm` (INV-12, INV-13) | proposée |
 | `correlation-impact` | `COR` | [fiche](correlation-impact.md) | absente | `formaliser-chaine-securite-poc` ; `automatiser-chaine-veille` (COR-09 à COR-12) | proposée |
 | `abonnements-veille` | `ABO` | [fiche](abonnements-veille.md) | absente | `formaliser-chaine-securite-poc` ; `automatiser-chaine-veille` (ABO-07, ABO-08) | proposée |
@@ -48,7 +48,7 @@ Un préfixe n'est jamais réattribué ; un identifiant d'exigence retiré n'est 
 | `serveur-mcp` | `MCP` | [fiche](serveur-mcp.md) | [spec](/openspec/specs/serveur-mcp/spec.md) | `exposer-serveur-mcp` ; `2026-11-25-isoler-erreurs-aux-frontieres` (archivé, MCP-08) | proposée |
 | `passerelle-ia` | `IAG` | [fiche](passerelle-ia.md) | [spec](/openspec/specs/passerelle-ia/spec.md) | `2026-11-17-encadrer-appels-ia` (archivé) | livrée |
 | `veille-reglementaire` | `REG` | [fiche](veille-reglementaire.md) | [spec](/openspec/specs/veille-reglementaire/spec.md) | `2026-11-17-suivre-veille-reglementaire` (archivé) ; `durcir-autorisations-et-debits` (REG-09) | livrée, dont REG-09 |
-| `radar-standards` | `RAD` | [fiche](radar-standards.md) | [spec](/openspec/specs/radar-standards/spec.md) | `2026-11-16-construire-radar-et-standards` (archivé) ; `2026-11-25-isoler-erreurs-aux-frontieres` (archivé, RAD-07) ; `alimenter-inventaire-et-completer-ihm` (RAD-08, RAD-09) | livrée ; RAD-08 et RAD-09 implémentées, non archivées |
+| `radar-standards` | `RAD` | [fiche](radar-standards.md) | [spec](/openspec/specs/radar-standards/spec.md) | `2026-11-16-construire-radar-et-standards` (archivé) ; `2026-11-25-isoler-erreurs-aux-frontieres` (archivé, RAD-07) ; `rendre-ingestion-asynchrone` (RAD-07 modifiée) ; `alimenter-inventaire-et-completer-ihm` (RAD-08, RAD-09) | livrée ; RAD-08 et RAD-09 implémentées, non archivées |
 | `veille-rss-web` | `WEB` | [fiche](veille-rss-web.md) | [spec](/openspec/specs/veille-rss-web/spec.md) | `2026-11-16-collecter-veille-rss-web` (archivé) ; `2026-11-25-epingler-adresse-veille-web` (archivé, WEB-07) | livrée |
 | `recherche-veille` | `RCH` | [fiche](recherche-veille.md) | [spec](/openspec/specs/recherche-veille/spec.md) | `2026-11-18-rechercher-et-filtrer` (archivé) ; `durcir-autorisations-et-debits` (RCH-06) | livrée, dont RCH-06 |
 | `activite-projets` | `PIN` | [fiche](activite-projets.md) | [spec](/openspec/specs/activite-projets/spec.md) | `2026-11-17-mesurer-activite-projets` (archivé) ; `alimenter-inventaire-et-completer-ihm` (PIN-06) | livrée ; PIN-06 implémentée, non archivée |
@@ -238,6 +238,16 @@ Exigences au statut [PROPOSITION], implémentées le 2026-11-24, changements arc
 | **Total** | | **7** | **27** | **0** | **1** | **27** |
 
 Exigences au statut [PROPOSITION], issues des décisions du porteur du projet du 2026-11-26 (droits, producteur planifié des suggestions, test de contrat, Vitest) ; changement implémenté, non archivé. « Tests écrits » compte les scénarios couverts par au moins un test : `api/inventaire/AdministrationProjetsTest`, `ImportManuelTest`, `impact/SuggestionsRadarTest`, `projectintel/CollecteImmediateTest`, `alerting/LiensIhmTest` et `AlertesTest` côté serveur ; tests Vitest d'`argos-ui/tests/vues/` (inventaire, radar, profil artiste, signal) et `argos-ui/tests/liens-alertes.test.mjs` côté IHM ; PIN-06-S2 n'est couvert que pour un projet sans dépôt. Le client de l'IHM est vérifié contre l'instantané `argos-ui/src/api/openapi.json` (`argos-ui/tests/contrat-api.test.mjs`), lui-même comparé au schéma servi (`ContratClientIhmTest`) ; `MethodesAtteintesEnProductionTest` refuse toute méthode publique de `src/main` atteinte seulement par les tests. Diagrammes : séquences d'arc42 §6.8 (import manuel, D-21) et §6.9 (suggestions de l'IA, D-22). « Questions ouvertes » : Q-1 du changement (rôle minimal de la collecte immédiate, contributeur appliqué) ; Q-2 (seuil de couverture par module) ne porte sur aucune capacité. Matrice détaillée : [`tasks.md` du changement](/openspec/changes/alimenter-inventaire-et-completer-ihm/tasks.md#matrice-de-traçabilité).
+
+### Couverture du sprint 8 de l'audit du 2026-11-21
+
+| Changement | Capacité | Exigences | Scénarios | Diagrammes métier | Questions ouvertes | Tests écrits |
+|---|---|---|---|---|---|---|
+| [`rendre-ingestion-asynchrone`](/openspec/changes/rendre-ingestion-asynchrone/proposal.md) | `collecte-avis-securite` (COL-04 modifiée, COL-12) | 2 | 7 | 0 (DF-COL-1 mis à jour) | 2 | 7 |
+| | `radar-standards` (RAD-07 modifiée) | 1 | 4 | 0 | 0 | 4 |
+| **Total** | | **3** | **11** | **0** | **2** | **11** |
+
+Exigences au statut [PROPOSITION], implémentées le 2026-11-26, changement non archivé. « Tests écrits » compte les méthodes de test qui couvrent un scénario : `chain/EnrichmentTest` (COL-04-S1 à S4), `chain/LancementSynchronisationTest` (COL-12-S1 à S3), `chain/RadarStandardsTest` (RAD-07-S1 à S4). Questions ouvertes : Q-1 (clé d'API NVD) et Q-2 (seuil de l'archive OSV) du changement. Décisions du porteur du projet du 2026-11-26 : observateurs asynchrones pour la chaîne radar et l'évaluation des alertes, suppression de l'événement `AlerteEmise`, réponse 409 pour une synchronisation en cours, ADR-0039 au statut Proposé.
 
 ### Capacités restant à spécifier
 

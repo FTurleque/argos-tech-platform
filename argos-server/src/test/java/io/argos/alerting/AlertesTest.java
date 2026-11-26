@@ -53,6 +53,7 @@ import io.argos.testsupport.Fixtures;
 import io.argos.testsupport.SimulatedResumeIa;
 import io.argos.testsupport.StubServer;
 import io.argos.testsupport.Substitution;
+import io.argos.testsupport.Asynchrone;
 import io.argos.testsupport.TestDb;
 import io.quarkus.mailer.Mail;
 import io.quarkus.mailer.MockMailbox;
@@ -76,6 +77,9 @@ class AlertesTest {
 
     @Inject
     TestDb baseDeTest;
+
+    @Inject
+    Asynchrone asynchrone;
 
     @Inject
     DataSource dataSource;
@@ -132,6 +136,7 @@ class AlertesTest {
         UUID project = projects.create(espace, nom, null, null);
         inventories.importSbom(project, Fixtures.cyclonedx("1.6", Instant.now().minus(2, ChronoUnit.DAYS).toString(),
                 List.<String[]>of(new String[] {"c0", purl}), List.of("c0")).getBytes(StandardCharsets.UTF_8), "ci");
+        asynchrone.attendre();
         return project;
     }
 
@@ -142,6 +147,7 @@ class AlertesTest {
                 .replace("\"severity\":\"HIGH\"", "\"severity\":\"" + gravite + "\"");
         Fixtures.stubOsv(id, modifie, json);
         synchronizer.synchronize("OSV");
+        asynchrone.attendre();
         return baseDeTest.uuid("SELECT id FROM signal WHERE external_id = '" + id + "'");
     }
 
@@ -394,6 +400,7 @@ class AlertesTest {
         UUID signal = publier("GHSA-TROIS", LIB, "CRITICAL");
         // Rejeu de la corrélation : aucune seconde alerte (D2).
         engine.correlate(signal, Optional.empty());
+        asynchrone.attendre();
 
         assertEquals(1, alertes("canal = 'EMAIL'"), "une seule alerte malgré deux règles et un rejeu");
         assertEquals(1, alertes("canal = 'DESKTOP'"), "une alerte par canal");

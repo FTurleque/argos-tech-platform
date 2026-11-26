@@ -16,7 +16,6 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
 import com.fasterxml.jackson.databind.JsonNode;
-import com.fasterxml.jackson.databind.node.JsonNodeFactory;
 
 import io.argos.testsupport.DataSourceEnPanne;
 import io.argos.testsupport.StubServer;
@@ -212,9 +211,6 @@ class SourcesEnrichissementTest {
         Enricher enrichisseur = new Enricher();
         enrichisseur.dataSource = DataSourceEnPanne.creer();
 
-        assertThrows(IllegalStateException.class, () -> enrichisseur.retryMissing(1));
         assertThrows(IllegalStateException.class, () -> enrichisseur.forSignal(UUID.randomUUID()));
-        assertThrows(IllegalStateException.class, () -> enrichisseur.save(UUID.randomUUID(), "NVD",
-                new EnrichmentSource.Finding(CVE, JsonNodeFactory.instance.objectNode())));
     }
 }

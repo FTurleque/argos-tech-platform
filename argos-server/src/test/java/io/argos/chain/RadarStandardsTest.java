@@ -11,6 +11,7 @@ import java.nio.charset.StandardCharsets;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.time.Clock;
+import java.time.Duration;
 import java.time.Instant;
 import java.time.LocalDate;
 import java.time.temporal.ChronoUnit;
@@ -19,9 +20,11 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
+import java.util.concurrent.CountDownLatch;
 
 import jakarta.inject.Inject;
 
+import org.awaitility.Awaitility;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
@@ -34,7 +37,10 @@ import io.argos.inventory.InventoryService;
 import io.argos.inventory.ProjectDirectory;
 import io.argos.releaseradar.ClientEndoflife;
 import io.argos.releaseradar.CyclesDeVie;
+import io.argos.execution.ExecuteurEvenements;
+import io.micrometer.core.instrument.MeterRegistry;
 import io.argos.testsupport.Api;
+import io.argos.testsupport.Asynchrone;
 import io.argos.testsupport.Fixtures;
 import io.argos.testsupport.RadarFixtures;
 import io.argos.testsupport.RadarFixtures.Cycle;
@@ -63,6 +69,8 @@ class RadarStandardsTest {
     private static final String SPRING = "pkg:maven/org.springframework.boot/spring-boot";
     private static final String BIBLIO = "pkg:npm/biblio-ui";
     private static final String POSTGRES = "pkg:generic/postgresql";
+    private static final String ANNONCE = "AnnonceStandard";
+    private static final Duration ATTENTE_MAX = Duration.ofSeconds(30);
 
     @Inject
     TestDb baseDeTest;
@@ -90,6 +98,18 @@ class RadarStandardsTest {
 
     @Inject
     MockMailbox mailbox;
+
+    @Inject
+    Asynchrone asynchrone;
+
+    @Inject
+    ExecuteurEvenements evenements;
+
+    @Inject
+    MeterRegistry registre;
+
+    @Inject
+    EnvoiAlertes envoi;
 
     @Inject
     CyclesDeVie cyclesDeVie;
@@ -428,23 +448,57 @@ class RadarStandardsTest {
     }
 
     /**
-     * Une erreur imprévue de l'annonce n'est pas absorbée : elle remonte à la requête (500), l'entrée et son historique
-     * restant enregistrés par leur transaction validée (frontière d'erreur, arc42 §8.5).
+     * RAD-07-S3 : une erreur imprévue de l'annonce ne change pas la réponse, déjà confirmée ; elle n'est pas absorbée :
+     * journalisée avec sa cause et comptée parmi les échecs des observateurs asynchrones (arc42 §8.5, ADR-0039).
      */
     @Test
-    void annonceEnErreurImprevueRemonteApresLEnregistrement() {
+    void rad07S3AnnonceEnErreurImprevueJournaliseeEtComptee() {
         projet(espace, "Portail agent", BIBLIO + "@2.1.0");
         enregistrer("nina", saisie(BIBLIO, "Biblio UI", "ADOPT", "2.4", "Front", "Bibliothèque commune", "2027-06-30", null))
                 .statusCode(200);
+        double echecsAvant = echecsAnnonce();
 
         try (Substitution substitution = Substitution.remplacer(rappels, "envoi", envoiEnErreur(
                 new IllegalArgumentException("erreur imprévue simulée")))) {
             enregistrer("nina", saisie(BIBLIO, "Biblio UI", "HOLD", null, "Front", "Plus maintenue", "2027-06-30", null))
-                    .statusCode(500);
+                    .statusCode(200).body("statut", equalTo("HOLD"));
         }
 
+        Awaitility.await().atMost(ATTENTE_MAX).until(() -> echecsAnnonce() == echecsAvant + 1);
         assertEquals("HOLD", baseDeTest.string("SELECT statut FROM standard_technologie"));
         assertEquals(2, baseDeTest.count("SELECT count(*) FROM standard_historique"));
+    }
+
+    /** RAD-07-S4 : la modification est confirmée pendant que l'annonce attend encore ; l'annonce arrive ensuite. */
+    @Test
+    void rad07S4AnnonceSansAttente() {
+        projet(espace, "Portail agent", BIBLIO + "@2.1.0");
+        enregistrer("nina", saisie(BIBLIO, "Biblio UI", "ADOPT", "2.4", "Front", "Bibliothèque commune", "2027-06-30", null))
+                .statusCode(200);
+        CountDownLatch liberation = new CountDownLatch(1);
+        EnvoiAlertes envoiReel = Substitution.reel(envoi);
+        EnvoiAlertes envoiRetenu = new EnvoiAlertes() {
+            @Override
+            public Map<UUID, Issue> envoyer(Collection<UUID> ids, Instant maintenant) {
+                try {
+                    liberation.await();
+                } catch (InterruptedException interruption) {
+                    Thread.currentThread().interrupt();
+                }
+                return envoiReel.envoyer(ids, maintenant);
+            }
+        };
+
+        try (Substitution substitution = Substitution.remplacer(rappels, "envoi", envoiRetenu)) {
+            enregistrerSansAttendre("nina", saisie(BIBLIO, "Biblio UI", "HOLD", null, "Front", "Plus maintenue", "2027-06-30",
+                    null)).statusCode(200).body("statut", equalTo("HOLD"));
+            assertFalse(evenements.inactif(), "l'annonce est encore en cours après la réponse");
+            liberation.countDown();
+            asynchrone.attendre();
+        }
+
+        assertEquals(1, baseDeTest.count("SELECT count(*) FROM alerte WHERE nature = 'ANNONCE' AND compte_id = ?", compteLecteur));
+        assertEquals(1, mailbox.getMailsSentTo("paul@argos.test").size());
     }
 
     /** Tâche quotidienne : un espace en erreur imprévue n'empêche pas les rappels des autres ; l'erreur est relancée. */
@@ -536,7 +590,14 @@ class RadarStandardsTest {
         return "/api/v1/radar/espaces/" + espace + suffixe;
     }
 
+    /** Enregistre l'entrée puis attend la fin de son annonce, asynchrone (RAD-07-S4, ADR-0039). */
     private ValidatableResponse enregistrer(String utilisateur, Map<String, Object> corps) {
+        ValidatableResponse reponse = enregistrerSansAttendre(utilisateur, corps);
+        asynchrone.attendre();
+        return reponse;
+    }
+
+    private ValidatableResponse enregistrerSansAttendre(String utilisateur, Map<String, Object> corps) {
         return Api.enTantQue(utilisateur).contentType(ContentType.JSON).body(corps).put(chemin("/standards")).then();
     }
 
@@ -566,5 +627,10 @@ class RadarStandardsTest {
             resultat.next();
             return resultat.getLong(1);
         }
+    }
+
+    /** Échecs de la notification asynchrone des annonces, lus dans la métrique publiée (ADR-0039). */
+    private double echecsAnnonce() {
+        return registre.counter("argos.evenements.asynchrones.echecs", "evenement", ANNONCE).count();
     }
 }

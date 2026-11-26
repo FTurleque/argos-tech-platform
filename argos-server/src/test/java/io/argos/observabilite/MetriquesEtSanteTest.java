@@ -35,6 +35,7 @@ import io.argos.inventory.ProjectDirectory;
 import io.argos.testsupport.Api;
 import io.argos.testsupport.Fixtures;
 import io.argos.testsupport.StubServer;
+import io.argos.testsupport.Asynchrone;
 import io.argos.testsupport.TestDb;
 import io.quarkus.test.common.QuarkusTestResource;
 import io.quarkus.test.junit.QuarkusTest;
@@ -60,6 +61,9 @@ class MetriquesEtSanteTest {
 
     @Inject
     TestDb baseDeTest;
+
+    @Inject
+    Asynchrone asynchrone;
 
     @Inject
     TacheEssai tache;
@@ -114,6 +118,7 @@ class MetriquesEtSanteTest {
         UUID projet = projets.create(espace, NOM_PROJET, null, null);
         inventaires.importSbom(projet, Fixtures.cyclonedx("1.6", Instant.now().minus(1, ChronoUnit.DAYS).toString(),
                 List.<String[]>of(new String[] {"c0", LIB + "@1.2.0"}), List.of("c0")).getBytes(StandardCharsets.UTF_8), "ci");
+        asynchrone.attendre();
         Api.enTantQue("alice").contentType(ContentType.JSON)
                 .body("{\"scope\":\"PERSONAL\",\"filters\":[{\"type\":\"SEVERITY\",\"value\":\"HIGH\"}],"
                         + "\"channel\":\"email\",\"frequency\":\"immediate\",\"mandatory\":false}")
@@ -122,6 +127,7 @@ class MetriquesEtSanteTest {
                 .replace("\"severity\":\"HIGH\"", "\"severity\":\"CRITICAL\"");
         Fixtures.stubOsv("GHSA-OBSERVE", "2026-11-10T00:00:00Z", avis);
         synchroniseur.synchronize("OSV");
+        asynchrone.attendre();
         envoi.traiterEnAttente(Instant.now());
         assertEquals(1, baseDeTest.count("SELECT count(*) FROM alerte WHERE etat = 'ENVOYEE'"), "alerte envoyée");
 

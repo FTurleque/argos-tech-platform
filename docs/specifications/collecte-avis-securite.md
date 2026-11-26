@@ -4,7 +4,7 @@
 |---|---|
 | Préfixe d'exigences | `COL` |
 | Spec de référence | [`/openspec/specs/collecte-avis-securite/spec.md`](/openspec/specs/collecte-avis-securite/spec.md) |
-| Changement en cours | [`formaliser-chaine-securite-poc`](/openspec/changes/archive/2026-11-20-formaliser-chaine-securite-poc/specs/collecte-avis-securite/spec.md) — proposé, non archivé ; [`automatiser-chaine-veille`](/openspec/changes/archive/2026-11-20-automatiser-chaine-veille/specs/collecte-avis-securite/spec.md) — proposé, non archivé ; COL-09 et COL-10 implémentés par le volet A (2026-11-19) ; [`2026-11-25-isoler-erreurs-aux-frontieres`](/openspec/changes/archive/2026-11-25-isoler-erreurs-aux-frontieres/proposal.md) (COL-11, archivé) |
+| Changement en cours | [`formaliser-chaine-securite-poc`](/openspec/changes/archive/2026-11-20-formaliser-chaine-securite-poc/specs/collecte-avis-securite/spec.md) — proposé, non archivé ; [`automatiser-chaine-veille`](/openspec/changes/archive/2026-11-20-automatiser-chaine-veille/specs/collecte-avis-securite/spec.md) — proposé, non archivé ; COL-09 et COL-10 implémentés par le volet A (2026-11-19) ; [`2026-11-25-isoler-erreurs-aux-frontieres`](/openspec/changes/archive/2026-11-25-isoler-erreurs-aux-frontieres/proposal.md) (COL-11, archivé) ; [`rendre-ingestion-asynchrone`](/openspec/changes/rendre-ingestion-asynchrone/proposal.md) (COL-04 modifiée, COL-12) — proposé, implémenté |
 | Statut de la capacité | **proposée**, implémentée dans `argos-server` (changement non archivé) : paquets `io.argos.ingestion`, `io.argos.signal`, `io.argos.vulnintel` |
 | Composants (arc42 §5) | `source-ingestion`, `signal`, `vuln-intel`, `audit`, adaptateur PostgreSQL |
 
@@ -58,6 +58,8 @@ Disposer, sans veille manuelle, des avis de vulnérabilité qui concernent les c
 | Avis non normalisable → zone d'échec, lot poursuivi | COL-08 | arc42 §8.3, §8.5, §11.2 | [PROPOSITION] |
 | Synchronisation planifiée de chaque source, une heure par défaut, depuis le curseur persisté ; aucune seconde synchronisation d'une source déjà en cours ; index d'enrichissement rafraîchis à chaque cadence | COL-09 | décision J1 du porteur du projet, 2026-11-19 ; ADR-0031 | [PROPOSITION] — `automatiser-chaine-veille` ; implémentée et vérifiée le 2026-11-19 (`SynchronisationPlanifieeTest`) |
 | Avis connu inchangé si l'empreinte de son contenu normalisé est identique ; sinon nouvelle version | COL-10 | décision J2 du porteur du projet, 2026-11-19 | [PROPOSITION] — `automatiser-chaine-veille` ; implémentée et vérifiée le 2026-11-19 (`EmpreinteNormaliseeTest`, `CollecteTest`) |
+| L'enrichissement suit l'enregistrement du signal sans le retarder : le signal attend dans une file persistante, traitée par lots hors transaction ; une source indisponible est retentée avec un délai croissant, et un signal à CVE resté sans enrichissement est replacé en file | COL-04 | AUD-PER-02 ; ADR-0039 (Proposé) | [PROPOSITION] — `rendre-ingestion-asynchrone` ; vérifiée par `EnrichmentTest` |
+| Le lancement par l'exploitant répond 202 avec l'identifiant du traitement, poursuivi en tâche de fond ; un traitement en cours, attente de reprise comprise, refuse un second lancement (409 `SYNCHRONISATION_EN_COURS`) | COL-12 | AUD-PER-01, AUD-PER-27 ; décision du porteur du projet, 2026-11-26 | [PROPOSITION] — `rendre-ingestion-asynchrone` ; vérifiée par `LancementSynchronisationTest` |
 | Une erreur imprévue, y compris due à un avis mal formé (PURL mal encodé), termine la synchronisation de sa source en `FAILED` (motif `PERMANENT`, compté pour `DEGRADED`), jamais `RUNNING` ; les autres sources du passage sont synchronisées, puis le passage relance l'erreur et se termine en échec visible. Un PURL mal encodé est illisible : l'avis est indexé par écosystème et nom | COL-11 | AUD-QUA-20 ; arc42 §8.5 (frontières d'erreur) ; décision « isoler puis relancer » du porteur du projet, 2026-11-24 | [PROPOSITION] — `isoler-erreurs-aux-frontieres` ; vérifiée par `FrontieresCollecteTest`, `ResilienceTest` |
 
 ## Droits d'accès et restrictions
@@ -87,8 +89,8 @@ Les signaux de sécurité sont globaux, non rattachés à un espace (ADR-0016, c
 
 - **Question** : comment un avis OSV devient-il un signal enrichi, et que se passe-t-il quand une source répond en erreur ?
 - **Type** : UML séquence
-- **Portée** : implémenté dans `argos-server` (`io.argos.ingestion.SourceSynchronizer`, `SyncStore`, `RetryPolicy`, `io.argos.ingestion.osv`, `io.argos.vulnintel`) ; une synchronisation se lance par `POST /api/v1/ops/sources/{id}/synchronizations` ou par la tâche planifiée horaire `signal-synchronisation-sources` (`io.argos.signal.SynchronisationPlanifiee`, COL-09, changement `automatiser-chaine-veille`), qui suit la même séquence (DC-3 du changement)
-- **Exigences** : COL-01, COL-03, COL-04, COL-05, COL-06
+- **Portée** : implémenté dans `argos-server` (`io.argos.ingestion.SourceSynchronizer`, `SyncStore`, `RetryPolicy`, `io.argos.ingestion.osv`, `io.argos.vulnintel`) ; une synchronisation se lance par `POST /api/v1/ops/sources/{id}/synchronizations` (202, poursuivie en tâche de fond, COL-12) ou par la tâche planifiée horaire `signal-synchronisation-sources` (`io.argos.signal.SynchronisationPlanifiee`, COL-09, changement `automatiser-chaine-veille`), qui suit la même séquence (DC-3 du changement)
+- **Exigences** : COL-01, COL-03, COL-04, COL-05, COL-06, COL-12
 
 ```mermaid
 sequenceDiagram
@@ -101,6 +103,11 @@ sequenceDiagram
     participant DB as PostgreSQL
 
     Plan->>Ing: lancer la synchronisation OSV (demande de l'exploitant ou échéance planifiée)
+    alt traitement déjà en cours, attente de reprise comprise
+        Ing-->>Plan: refus (409 pour l'exploitant, source sautée pour l'échéance)
+    else traitement démarré
+        Ing-->>Plan: identifiant du traitement (202 pour l'exploitant), suite en tâche de fond
+    end
     Ing->>DB: lire le dernier curseur persisté
     Ing->>OSV: demander les avis depuis le curseur
     alt réponse reçue
@@ -109,29 +116,30 @@ sequenceDiagram
             Ing->>Ing: normaliser (voir DF-COL-2)
             Ing->>Sig: créer ou historiser le signal (source + identifiant externe)
             Sig->>DB: enregistrer signal, version et provenance
-            Sig->>Vuln: demander l'enrichissement
-            opt identifiant CVE présent
-                Vuln->>Sec: lire les données d'enrichissement
-                alt source secondaire disponible
-                    Sec-->>Vuln: données
-                    Vuln->>DB: rattacher l'enrichissement au signal
-                else source secondaire indisponible
-                    Vuln-->>Sig: enrichissement absent, signal conservé
-                end
-            end
+            Sig--)Vuln: signal enregistré
+            Vuln->>DB: placer le signal dans la file d'enrichissement
         end
         Ing->>DB: avancer le curseur après persistance durable
     else 429 avec Retry-After, timeout ou 5xx
         OSV--xIng: erreur transitoire
         Ing->>DB: enregistrer tentative et erreur, curseur inchangé
-        Ing->>Ing: attendre Retry-After ou un délai croissant, puis rejouer (tentatives bornées)
+        Ing->>Ing: attendre Retry-After ou un délai croissant, traitement toujours en cours, puis rejouer (tentatives bornées)
     else erreur permanente
         OSV--xIng: authentification refusée ou requête invalide
         Ing->>DB: enregistrer erreur permanente, sans nouvelle tentative
     end
+    loop file d'enrichissement, tâche planifiée, hors transaction
+        Vuln->>DB: lire les signaux échus (lot borné)
+        Vuln->>Sec: lire les données d'enrichissement des CVE
+        alt toutes les sources répondent
+            Vuln->>DB: rattacher l'enrichissement, retirer le signal de la file
+        else source secondaire indisponible
+            Vuln->>DB: rattacher les données reçues, reporter le signal (délai croissant)
+        end
+    end
 ```
 
-Le curseur n'avance qu'en fin de lot, après l'enregistrement durable des signaux (COL-05) : une panne entre deux avis fait rejouer le lot, et l'idempotence (COL-03) absorbe les avis déjà enregistrés. L'enrichissement est facultatif : son absence ne bloque pas le signal (COL-04-S3). La synchronisation se lance à la demande de l'exploitant par l'API d'exploitation, ou toutes les heures par le planificateur (COL-09, changement `automatiser-chaine-veille`) : la tâche planifiée suit la même séquence, saute une source déjà en cours de synchronisation (index unique `sync_run_one_running`) et retente une source `DEGRADED` [EXISTANT, 2026-11-19].
+Le curseur n'avance qu'en fin de lot, après l'enregistrement durable des signaux (COL-05) : une panne entre deux avis fait rejouer le lot, et l'idempotence (COL-03) absorbe les avis déjà enregistrés. L'enrichissement est facultatif et différé : la synchronisation n'attend aucune source secondaire (COL-04-S4), et un enrichissement manquant est repris par la file (COL-04-S3). La synchronisation se lance à la demande de l'exploitant par l'API d'exploitation, ou toutes les heures par le planificateur (COL-09, changement `automatiser-chaine-veille`) : la tâche planifiée suit la même séquence, saute une source déjà en cours de synchronisation (index unique `sync_run_one_running`) et retente une source `DEGRADED` [EXISTANT, 2026-11-19].
 
 ### DF-COL-2 — Traitement d'un avis reçu
 
@@ -215,4 +223,4 @@ Comportements absents des sources, ajoutés pour rendre les règles testables (c
 
 ## Traçabilité
 
-Voir la matrice du changement : [`tasks.md`](/openspec/changes/archive/2026-11-20-formaliser-chaine-securite-poc/tasks.md#matrice-de-traçabilité). Les scénarios COL-01-S1 à COL-08-S1 sont vérifiés par `argos-server/src/test/java/io/argos/chain/CollecteTest.java`, `ResilienceTest.java`, `EnrichmentTest.java` et `DocumentParsingTest.java` (contrat sur une réponse OSV réelle enregistrée) ; les sources externes y sont simulées. COL-09 et COL-10 : matrice du changement [`automatiser-chaine-veille`](/openspec/changes/archive/2026-11-20-automatiser-chaine-veille/tasks.md#matrice-de-traçabilité) ; vérifiés le 2026-11-19 par `argos-server/src/test/java/io/argos/chain/SynchronisationPlanifieeTest.java` (COL-09-S1 à S5), `argos-server/src/test/java/io/argos/ingestion/EmpreinteNormaliseeTest.java` et `CollecteTest.java` (COL-10-S1 à S4), et `MigrationV18Test.java` (migration V18). COL-11 : matrice du changement [`isoler-erreurs-aux-frontieres`](/openspec/changes/archive/2026-11-25-isoler-erreurs-aux-frontieres/tasks.md#matrice-de-traçabilité) ; vérifiée par `argos-server/src/test/java/io/argos/chain/FrontieresCollecteTest.java` (COL-11-S1 à S3) et `ResilienceTest.java` (erreur imprévue relancée après l'échec du traitement).
+Voir la matrice du changement : [`tasks.md`](/openspec/changes/archive/2026-11-20-formaliser-chaine-securite-poc/tasks.md#matrice-de-traçabilité). Les scénarios COL-01-S1 à COL-08-S1 sont vérifiés par `argos-server/src/test/java/io/argos/chain/CollecteTest.java`, `ResilienceTest.java`, `EnrichmentTest.java` et `DocumentParsingTest.java` (contrat sur une réponse OSV réelle enregistrée) ; les sources externes y sont simulées. COL-09 et COL-10 : matrice du changement [`automatiser-chaine-veille`](/openspec/changes/archive/2026-11-20-automatiser-chaine-veille/tasks.md#matrice-de-traçabilité) ; vérifiés le 2026-11-19 par `argos-server/src/test/java/io/argos/chain/SynchronisationPlanifieeTest.java` (COL-09-S1 à S5), `argos-server/src/test/java/io/argos/ingestion/EmpreinteNormaliseeTest.java` et `CollecteTest.java` (COL-10-S1 à S4), et `MigrationV18Test.java` (migration V18). COL-04 (modifiée) et COL-12 : matrice du changement [`rendre-ingestion-asynchrone`](/openspec/changes/rendre-ingestion-asynchrone/tasks.md#matrice-de-traçabilité) ; vérifiées par `EnrichmentTest.java` (COL-04-S1 à S4) et `LancementSynchronisationTest.java` (COL-12-S1 à S3). COL-11 : matrice du changement [`isoler-erreurs-aux-frontieres`](/openspec/changes/archive/2026-11-25-isoler-erreurs-aux-frontieres/tasks.md#matrice-de-traçabilité) ; vérifiée par `argos-server/src/test/java/io/argos/chain/FrontieresCollecteTest.java` (COL-11-S1 à S3) et `ResilienceTest.java` (erreur imprévue relancée après l'échec du traitement).

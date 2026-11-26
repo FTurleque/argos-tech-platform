@@ -26,6 +26,7 @@ import io.argos.inventory.ProjectDirectory;
 import io.argos.testsupport.Api;
 import io.argos.testsupport.Fixtures;
 import io.argos.testsupport.StubServer;
+import io.argos.testsupport.Asynchrone;
 import io.argos.testsupport.TestDb;
 import io.quarkus.test.common.QuarkusTestResource;
 import io.quarkus.test.junit.QuarkusTest;
@@ -45,6 +46,9 @@ class SubscriptionTest {
 
     @Inject
     TestDb baseDeTest;
+
+    @Inject
+    Asynchrone asynchrone;
 
     @Inject
     ProjectDirectory projects;
@@ -95,6 +99,7 @@ class SubscriptionTest {
         String json = Fixtures.osv(id, "2026-11-10T00:00:00Z", ecosystem, name, purl, "0", "9.9.9");
         Fixtures.stubOsv(id, "2026-11-10T00:00:00Z", json);
         synchronizer.synchronize("OSV");
+        asynchrone.attendre();
     }
 
     @Test
@@ -170,6 +175,7 @@ class SubscriptionTest {
         inventories.importSbom(projetPaie, Fixtures.cyclonedx("1.6", Instant.now().minus(1, ChronoUnit.DAYS).toString(),
                 java.util.Collections.singletonList(new String[] {"h", "pkg:cargo/hyper@0.14.0"}), List.of("h"))
                 .getBytes(StandardCharsets.UTF_8), "ci");
+        asynchrone.attendre();
         publish("GHSA-RUST2", "crates.io", "hyper", "pkg:cargo/hyper");
         assertEquals(1, baseDeTest.count("SELECT count(*) FROM project_impact WHERE project_id = '" + projetPaie + "'"));
 
@@ -224,6 +230,7 @@ class SubscriptionTest {
         inventories.importSbom(projet, Fixtures.cyclonedx("1.6", Instant.now().minus(1, ChronoUnit.DAYS).toString(),
                 java.util.Collections.singletonList(new String[] {"lib", "pkg:maven/org.exemple/lib@1.2.0"}), List.of("lib"))
                 .getBytes(StandardCharsets.UTF_8), "ci");
+        asynchrone.attendre();
         return projet;
     }
 
@@ -266,6 +273,7 @@ class SubscriptionTest {
         // Recorrélation du projet après la réactivation (import quotidien, J4) : impact inchangé, aucune alerte
         // pour le signal corrélé pendant la suspension ([PROPOSITION] PI-4, intégration du 2026-11-19).
         engine.correlateProject(projet);
+        asynchrone.attendre();
         assertEquals(0, baseDeTest.count("SELECT count(*) FROM alerte a JOIN signal s ON s.id = a.signal_id"
                 + " WHERE s.external_id = 'GHSA-SUSP1'"), "la recorrélation ne rejoue pas la période de suspension");
         assertEquals(1, alertesDe("jules"));

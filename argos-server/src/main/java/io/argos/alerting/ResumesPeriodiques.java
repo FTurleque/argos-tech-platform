@@ -14,7 +14,6 @@ import java.util.stream.Collectors;
 import javax.sql.DataSource;
 
 import jakarta.enterprise.context.ApplicationScoped;
-import jakarta.enterprise.event.Event;
 import jakarta.inject.Inject;
 
 import org.eclipse.microprofile.config.inject.ConfigProperty;
@@ -63,9 +62,6 @@ public class ResumesPeriodiques {
     @Inject
     EnvoiAlertes envoi;
 
-    @Inject
-    Event<AlerteEmise> emises;
-
     @ConfigProperty(name = "argos.alerting.lien-base")
     String lienBase;
 
@@ -111,10 +107,7 @@ public class ResumesPeriodiques {
      */
     private void composerOuJournaliser(Boite boite, String frequence, Instant echeance, List<UUID> crees) {
         try {
-            composerPour(boite.compte(), boite.canal(), frequence, echeance).ifPresent(id -> {
-                crees.add(id);
-                emises.fire(new AlerteEmise(id, boite.compte(), boite.canal(), frequence));
-            });
+            composerPour(boite.compte(), boite.canal(), frequence, echeance).ifPresent(crees::add);
         } catch (IllegalStateException | QuarkusTransactionException erreur) {
             LOG.errorf(erreur, "résumé %s du compte %s sur %s en échec", frequence, boite.compte(), boite.canal());
         }

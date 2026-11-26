@@ -72,6 +72,9 @@ public class TestDb {
     RecordingSleeper sleeper;
 
     @Inject
+    Asynchrone asynchrone;
+
+    @Inject
     SimulatedAnalysis analysis;
 
     @Inject
@@ -84,6 +87,8 @@ public class TestDb {
     jakarta.enterprise.inject.Instance<io.quarkus.mailer.MockMailbox> mailbox;
 
     public void reset() {
+        // Les observateurs asynchrones du test précédent (alertes, annonces) se terminent avant la remise à zéro.
+        asynchrone.attendre();
         exec("TRUNCATE " + String.join(", ", tablesVidees()) + " CASCADE");
         exec("DELETE FROM source WHERE id <> 'OSV'");
         exec("""
