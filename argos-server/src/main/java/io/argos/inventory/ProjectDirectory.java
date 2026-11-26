@@ -45,6 +45,10 @@ public class ProjectDirectory {
     public record Depot(UUID id, UUID projectId, RepositoryRef ref, List<String> manifestPaths, boolean principal) {
     }
 
+    /** Dépôt rattaché ; {@code principal} est vrai si le projet n'avait pas de dépôt principal. */
+    public record Rattachement(UUID id, boolean principal) {
+    }
+
     @Inject
     DataSource dataSource;
 
@@ -89,9 +93,9 @@ public class ProjectDirectory {
      * @throws DepotDejaRattache si le même dépôt (forge et identifiant) est déjà rattaché au projet
      */
     @Transactional
-    public UUID ajouterDepot(UUID projectId, RepositoryRef repository, List<String> manifestPaths) {
+    public Rattachement ajouterDepot(UUID projectId, RepositoryRef repository, List<String> manifestPaths) {
         boolean principal = depots(projectId).stream().noneMatch(Depot::principal);
-        return insererDepot(projectId, repository, manifestPaths, principal);
+        return new Rattachement(insererDepot(projectId, repository, manifestPaths, principal), principal);
     }
 
     /**
@@ -100,7 +104,7 @@ public class ProjectDirectory {
      */
     public UUID creer(UUID workspaceId, String name, Optional<DepotProjet> depot) {
         return create(workspaceId, name, depot.map(DepotProjet::reference).orElse(null),
-                depot.map(DepotProjet::manifestes).orElse(null));
+                depot.map(DepotProjet::manifestesOuDefaut).orElse(null));
     }
 
     /**
@@ -108,8 +112,8 @@ public class ProjectDirectory {
      *
      * @throws DepotDejaRattache si le même dépôt est déjà rattaché au projet
      */
-    public UUID rattacher(UUID projectId, DepotProjet depot) {
-        return ajouterDepot(projectId, depot.reference(), depot.manifestes());
+    public Rattachement rattacher(UUID projectId, DepotProjet depot) {
+        return ajouterDepot(projectId, depot.reference(), depot.manifestesOuDefaut());
     }
 
     /** Dépôts d'un projet, le principal d'abord, puis par date de rattachement (traitement technique). */

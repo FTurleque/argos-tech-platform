@@ -54,6 +54,13 @@ GET /api/v1/projects/{projectId}/inventory	401	200	200	404	404	200
 GET /api/v1/projects/{projectId}/inventory/components	401	200	200	404	404	200
 GET /api/v1/projects/{projectId}/inventory/failures	401	200	200	404	404	200
 GET /api/v1/projects/{projectId}/inventory/summary	401	200	200	404	404	200
+POST /api/v1/projects	401	403	400	404	404	403
+POST /api/v1/projects/{projectId}/activite/collecte	401	403	200	404	404	200
+POST /api/v1/projects/{projectId}/inventory/manifests	401	403	400	404	404	400
+POST /api/v1/projects/{projectId}/inventory/refresh	401	403	409	404	404	409
+POST /api/v1/projects/{projectId}/inventory/sbom	401	403	200	404	404	200
+POST /api/v1/projects/{projectId}/repositories	401	403	400	404	404	403
+DELETE /api/v1/projects/{projectId}/repositories/{repositoryId}	401	403	404	404	404	403
 GET /api/v1/radar/espaces/{espaceId}/dettes	401	200	200	404	404	200
 GET /api/v1/radar/espaces/{espaceId}/echeances	401	200	200	404	404	200
 GET /api/v1/radar/espaces/{espaceId}/parametres	401	200	200	404	404	200

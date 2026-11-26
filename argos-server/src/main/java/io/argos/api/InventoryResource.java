@@ -6,6 +6,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 
+import jakarta.annotation.PostConstruct;
 import jakarta.inject.Inject;
 import jakarta.ws.rs.Consumes;
 import jakarta.ws.rs.GET;
@@ -17,6 +18,7 @@ import jakarta.ws.rs.Produces;
 import jakarta.ws.rs.QueryParam;
 import jakarta.ws.rs.core.MediaType;
 
+import org.eclipse.microprofile.config.inject.ConfigProperty;
 import org.eclipse.microprofile.openapi.annotations.Operation;
 import org.eclipse.microprofile.openapi.annotations.enums.SchemaType;
 import org.eclipse.microprofile.openapi.annotations.media.Schema;
@@ -28,6 +30,8 @@ import io.argos.api.security.Access;
 import io.argos.commun.DonneeInvalide;
 import io.argos.commun.RegleViolee;
 import io.argos.commun.securite.Caller;
+import io.argos.commun.securite.LimiteDebitAtteinte;
+import io.argos.commun.securite.LimiteurDebit;
 import io.argos.inventory.InventoryQueries;
 import io.argos.inventory.InventoryService;
 
@@ -35,8 +39,8 @@ import io.argos.inventory.InventoryService;
  * Inventaire d'un projet : composants, origine et âge (INV-02, INV-03), synthèse sans composants (INV-06, décision
  * G5 du 2026-11-19), composants inventoriés paginés (INV-06, décision F5 du 2026-11-19), imports refusés (INV-05) ;
  * dépôts du projet dans la synthèse et dans chaque composant (INV-10, décision J6 du 2026-11-19). Import manuel
- * d'une SBOM, de manifestes ou relance depuis les dépôts par un contributeur ou un administrateur de l'espace
- * (INV-13 ; décision du porteur du projet, 2026-11-26), par les traitements de l'import planifié. Aucune route ne
+ * d'une SBOM, de manifestes ou relance depuis les dépôts, réservés à un contributeur ou à un administrateur de
+ * l'espace (INV-13) ; ces imports empruntent les traitements de l'import planifié. Aucune route ne
  * reçoit de notification de forge ni n'accepte une demande non authentifiée (INV-07-S3).
  */
 @Path("/api/v1/projects/{projectId}/inventory")
@@ -60,7 +64,13 @@ public class InventoryResource {
     }
 
     /** Nombre maximal de manifestes importés en une demande. */
-    static final int MANIFESTES_MAX = 20;
+    static final int MANIFESTES_PAR_IMPORT_MAX = 20;
+
+    /** Longueur maximale d'un chemin de manifeste. */
+    static final int CHEMIN_MAX = 200;
+
+    /** Longueur maximale de la liste des chemins, enregistrée comme référence de la source de l'import. */
+    static final int CHEMINS_CUMULES_MAX = 500;
 
     /** Référence de source d'un import manuel, enregistrée avec l'inventaire et ses échecs. */
     static final String SOURCE_MANUELLE = "import manuel";
@@ -80,6 +90,17 @@ public class InventoryResource {
 
     @Inject
     InventoryService imports;
+
+    @ConfigProperty(name = "argos.forges.debit.requetes-par-minute", defaultValue = "6")
+    int lecturesForgeParMinute;
+
+    /** Limite des relances d'import, qui consomment le quota des forges, par compte. */
+    private LimiteurDebit limiteurRelance;
+
+    @PostConstruct
+    void initialiser() {
+        limiteurRelance = new LimiteurDebit(lecturesForgeParMinute);
+    }
 
     @Inject
     InventoryQueries inventories;
@@ -154,8 +175,8 @@ public class InventoryResource {
     @Consumes(MediaType.APPLICATION_JSON)
     @Operation(summary = "Importer un inventaire de repli à partir de manifestes de dépendances (INV-13, INV-04)")
     @APIResponse(responseCode = "200", description = "Issue de l'import : IMPORTED (origine MANIFEST) ou NONE sans manifeste lisible")
-    @APIResponse(responseCode = "400", description = "Aucun manifeste, plus de " + MANIFESTES_MAX
-            + " ou manifeste sans chemin (DONNEE_INVALIDE)")
+    @APIResponse(responseCode = "400", description = "Aucun manifeste, plus de " + MANIFESTES_PAR_IMPORT_MAX
+            + ", chemin vide, trop long ou contenant une virgule (DONNEE_INVALIDE)")
     @APIResponse(responseCode = "401", description = "Non authentifié")
     @APIResponse(responseCode = "403", description = "Lecteur de l'espace du projet (refus journalisé)")
     @APIResponse(responseCode = "404", description = "Projet inconnu ou d'un espace dont l'appelant n'est pas membre (refus journalisé)")
@@ -172,8 +193,12 @@ public class InventoryResource {
     @APIResponse(responseCode = "403", description = "Lecteur de l'espace du projet (refus journalisé)")
     @APIResponse(responseCode = "404", description = "Projet inconnu ou d'un espace dont l'appelant n'est pas membre (refus journalisé)")
     @APIResponse(responseCode = "409", description = "Projet sans dépôt (PROJET_SANS_DEPOT)")
+    @APIResponse(responseCode = "429", description = "Limite de débit du compte atteinte")
     public InventoryService.ImportProjet relancer(@PathParam("projectId") UUID projectId) {
-        autoriserImport(projectId);
+        Caller caller = autoriserImport(projectId);
+        if (!limiteurRelance.admettre(caller.accountId())) {
+            throw new LimiteDebitAtteinte();
+        }
         InventoryService.ImportProjet resultat = imports.importerProjet(projectId);
         if (resultat.depots().isEmpty()) {
             throw new RegleViolee("PROJET_SANS_DEPOT", "Le projet n'a aucun dépôt à importer.");
@@ -186,9 +211,9 @@ public class InventoryResource {
     }
 
     /** Contributeur ou administrateur de l'espace du projet ; 404 sans refus journalisé pour un projet inconnu. */
-    private void autoriserImport(UUID projectId) {
+    private Caller autoriserImport(UUID projectId) {
         access.authenticated();
-        access.contributor(inventories.workspaceOf(projectId).orElseThrow(NotFoundException::new));
+        return access.contributor(inventories.workspaceOf(projectId).orElseThrow(NotFoundException::new));
     }
 
     /** Manifestes de la demande, par chemin, contenus encodés en UTF-8. */
@@ -196,17 +221,28 @@ public class InventoryResource {
         if (demande == null || demande.manifestes() == null || demande.manifestes().isEmpty()) {
             throw new DonneeInvalide("DONNEE_INVALIDE", "Au moins un manifeste est attendu.", "manifestes");
         }
-        if (demande.manifestes().size() > MANIFESTES_MAX) {
-            throw new DonneeInvalide("DONNEE_INVALIDE", "Au plus " + MANIFESTES_MAX + " manifestes par import.", "manifestes");
+        if (demande.manifestes().size() > MANIFESTES_PAR_IMPORT_MAX) {
+            throw new DonneeInvalide("DONNEE_INVALIDE", "Au plus " + MANIFESTES_PAR_IMPORT_MAX + " manifestes par import.", "manifestes");
         }
         Map<String, byte[]> contenus = new LinkedHashMap<>();
         for (Manifeste manifeste : demande.manifestes()) {
-            if (manifeste == null || manifeste.chemin() == null || manifeste.chemin().isBlank()) {
-                throw new DonneeInvalide("DONNEE_INVALIDE", "Chaque manifeste porte un chemin.", "chemin");
-            }
-            String contenu = manifeste.contenu() == null ? "" : manifeste.contenu();
-            contenus.put(manifeste.chemin().strip(), contenu.getBytes(StandardCharsets.UTF_8));
+            String contenu = manifeste == null || manifeste.contenu() == null ? "" : manifeste.contenu();
+            contenus.put(chemin(manifeste), contenu.getBytes(StandardCharsets.UTF_8));
+        }
+        if (String.join(",", contenus.keySet()).length() > CHEMINS_CUMULES_MAX) {
+            throw new DonneeInvalide("DONNEE_INVALIDE", "Chemins cumulés trop longs (" + CHEMINS_CUMULES_MAX + " caractères au plus).",
+                    "chemin");
         }
         return contenus;
+    }
+
+    /** Chemin d'un manifeste, non vide, d'au plus {@value #CHEMIN_MAX} caractères, sans virgule. */
+    private static String chemin(Manifeste manifeste) {
+        String chemin = manifeste == null || manifeste.chemin() == null ? "" : manifeste.chemin().strip();
+        if (chemin.isEmpty() || chemin.length() > CHEMIN_MAX || chemin.contains(",")) {
+            throw new DonneeInvalide("DONNEE_INVALIDE", "Chaque manifeste porte un chemin non vide, d'au plus " + CHEMIN_MAX
+                    + " caractères, sans virgule.", "chemin");
+        }
+        return chemin;
     }
 }

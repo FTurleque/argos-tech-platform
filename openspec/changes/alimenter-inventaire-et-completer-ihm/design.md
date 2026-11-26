@@ -219,7 +219,7 @@ Non applicable — aucune cible de performance dans les sources ; volumes borné
 ### D7 — Contrat client par test de contrat
 
 - **Statut** : [DÉCISION] porteur, 2026-11-26
-- **Choix** : instantané `argos-ui/src/api/openapi.json` ; test serveur `ContratOpenApiTest` qui compare le document de `/q/openapi?format=json` à l'instantané (régénération documentée par une propriété système) ; test IHM qui extrait de `src/api/*.ts` chaque appel `appelerApi(méthode, chemin)` et vérifie son existence dans l'instantané.
+- **Choix** : instantané `argos-ui/src/api/openapi.json` ; test serveur `ContratClientIhmTest` qui compare le document de `/q/openapi?format=json` à l'instantané (régénération documentée par une propriété système) ; test IHM qui extrait de `src/api/*.ts` chaque appel `appelerApi(méthode, chemin)` et vérifie son existence dans l'instantané.
 - **Alternatives écartées** : génération openapi-typescript.
 - **ADR** : non.
 
@@ -264,7 +264,7 @@ Non applicable — aucune cible de performance dans les sources ; volumes borné
 | RAD-09, ART-07 | composant (Vitest) | `tests/vues/*.spec.ts` | à écrire |
 | ALR-09-S1, S2 | intégration | `AlertesTest`, `RappelsRadarTest` adaptés | à écrire |
 | ALR-09-S3 | contrat IHM | `tests/liens-alertes.test.mjs` | à écrire |
-| Contrat client | contrat | `ContratOpenApiTest`, `tests/contrat-api.test.mjs` | à écrire |
+| Contrat client | contrat | `ContratClientIhmTest`, `tests/contrat-api.test.mjs` | à écrire |
 | `main.js` | unitaire | `argos-desktop/test/main.test.js`, `fenetre.test.js` | à écrire |
 | `appelerApi` | unitaire (Vitest) | `tests/vues/client.spec.ts` | à écrire |
 | Modules sans test | unitaire/intégration | classes dédiées par module, script de couverture | à écrire |

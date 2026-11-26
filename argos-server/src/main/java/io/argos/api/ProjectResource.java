@@ -122,12 +122,10 @@ public class ProjectResource {
     @APIResponse(responseCode = "409", description = "Dépôt déjà rattaché au projet (DEPOT_DEJA_RATTACHE)")
     public RestResponse<SaisieProjet.DepotRattache> rattacher(@PathParam("projectId") UUID projectId, SaisieProjet.Depot depot) {
         access.administrator(espaceDuProjet(projectId));
-        UUID id = projets.rattacher(projectId, SaisieProjet.depot(depot));
-        boolean principal = projets.depots(projectId).stream()
-                .anyMatch(rattache -> rattache.id().equals(id) && rattache.principal());
+        ProjectDirectory.Rattachement rattachement = projets.rattacher(projectId, SaisieProjet.depot(depot));
         return RestResponse.ResponseBuilder.<SaisieProjet.DepotRattache>created(
-                URI.create("/api/v1/projects/" + projectId + "/repositories/" + id))
-                .entity(new SaisieProjet.DepotRattache(id, principal)).build();
+                URI.create("/api/v1/projects/" + projectId + "/repositories/" + rattachement.id()))
+                .entity(new SaisieProjet.DepotRattache(rattachement.id(), rattachement.principal())).build();
     }
 
     @DELETE

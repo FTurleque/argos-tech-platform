@@ -4612,6 +4612,9 @@
           },
           "404" : {
             "description" : "Projet inconnu ou d'un espace dont l'appelant n'est pas membre"
+          },
+          "429" : {
+            "description" : "Limite de débit du compte atteinte"
           }
         },
         "summary" : "Collecter immédiatement l'activité du projet, en lecture seule sur sa forge (PIN-06)",
@@ -4850,7 +4853,7 @@
             "description" : "Issue de l'import : IMPORTED (origine MANIFEST) ou NONE sans manifeste lisible"
           },
           "400" : {
-            "description" : "Aucun manifeste, plus de 20 ou manifeste sans chemin (DONNEE_INVALIDE)"
+            "description" : "Aucun manifeste, plus de 20, chemin vide, trop long ou contenant une virgule (DONNEE_INVALIDE)"
           },
           "401" : {
             "description" : "Non authentifié"
@@ -4898,6 +4901,9 @@
           },
           "409" : {
             "description" : "Projet sans dépôt (PROJET_SANS_DEPOT)"
+          },
+          "429" : {
+            "description" : "Limite de débit du compte atteinte"
           }
         },
         "summary" : "Relancer l'import du projet depuis ses dépôts, en lecture seule sur les forges (INV-13, INV-07)",

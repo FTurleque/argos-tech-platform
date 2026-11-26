@@ -67,12 +67,19 @@ public class ActiviteResource {
     @ConfigProperty(name = "argos.activite.synthese.debit.requetes-par-minute", defaultValue = "10")
     int requetesParMinute;
 
+    @ConfigProperty(name = "argos.forges.debit.requetes-par-minute", defaultValue = "6")
+    int lecturesForgeParMinute;
+
     /** Limite des demandes de synthèse, qui sollicitent le modèle d'IA, par compte. */
     private LimiteurDebit limiteur;
+
+    /** Limite des collectes immédiates, qui consomment le quota de la forge, par compte. */
+    private LimiteurDebit limiteurCollecte;
 
     @PostConstruct
     void initialiser() {
         limiteur = new LimiteurDebit(requetesParMinute);
+        limiteurCollecte = new LimiteurDebit(lecturesForgeParMinute);
     }
 
     @GET
@@ -112,9 +119,13 @@ public class ActiviteResource {
     @APIResponse(responseCode = "401", description = "Non authentifié")
     @APIResponse(responseCode = "403", description = "Lecteur de l'espace du projet (refus journalisé)")
     @APIResponse(responseCode = "404", description = "Projet inconnu ou d'un espace dont l'appelant n'est pas membre")
+    @APIResponse(responseCode = "429", description = "Limite de débit du compte atteinte")
     public Collecte collecter(@PathParam("projectId") UUID projectId) {
         access.authenticated();
-        access.contributor(projets.workspaceOf(projectId).orElseThrow(NotFoundException::new));
+        Caller caller = access.contributor(projets.workspaceOf(projectId).orElseThrow(NotFoundException::new));
+        if (!limiteurCollecte.admettre(caller.accountId())) {
+            throw new LimiteDebitAtteinte();
+        }
         return new Collecte(collecte.collecterProjet(projectId, horloge.instant()));
     }
 

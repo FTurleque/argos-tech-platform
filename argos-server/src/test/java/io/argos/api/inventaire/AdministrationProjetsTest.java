@@ -70,7 +70,7 @@ class AdministrationProjetsTest {
         Api.enTantQue("alice").when().get(PROJETS + "/" + projet + "/inventory/summary").then().statusCode(200)
                 .body("status", equalTo("NO_SBOM"));
         assertEquals(1, baseDeTest.count("SELECT count(*) FROM project_repository WHERE project_id = ? AND provider = 'GITHUB'"
-                + " AND repository = 'org/portail' AND branch = 'main' AND principal", projet));
+                + " AND repository = 'org/portail' AND branch = 'main' AND principal", UUID.fromString(projet)));
     }
 
     @Test
@@ -88,7 +88,7 @@ class AdministrationProjetsTest {
         Api.enTantQue("alice").contentType(ContentType.JSON).body(depot("GITLAB", "groupe/api"))
                 .when().post(PROJETS + "/" + projet + "/repositories")
                 .then().statusCode(201).body("principal", equalTo(false));
-        assertEquals(2, baseDeTest.count("SELECT count(*) FROM project_repository WHERE project_id = ?", projet));
+        assertEquals(2, baseDeTest.count("SELECT count(*) FROM project_repository WHERE project_id = ?", UUID.fromString(projet)));
 
         Api.enTantQue("alice").contentType(ContentType.JSON).body(depot("GITLAB", "groupe/api"))
                 .when().post(PROJETS + "/" + projet + "/repositories")
@@ -145,6 +145,8 @@ class AdministrationProjetsTest {
         creerInvalide(Map.of("espaceId", espace.toString(), "nom", "p", "depot", depot("BITBUCKET", "org/app")), "forge");
         creerInvalide(Map.of("espaceId", espace.toString(), "nom", "p", "depot", Map.of("forge", "GITHUB")), "depot");
         creerInvalide(Map.of("espaceId", espace.toString(), "nom", "a".repeat(201)), "nom");
+        creerInvalide(Map.of("espaceId", espace.toString(), "nom", "p", "depot", depot("GITHUB", "sans-proprietaire")), "depot");
+        creerInvalide(Map.of("espaceId", espace.toString(), "nom", "p", "depot", depot("GITHUB", "../..")), "depot");
 
         assertEquals(0, baseDeTest.count("SELECT count(*) FROM project"));
     }

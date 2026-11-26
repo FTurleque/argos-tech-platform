@@ -24,7 +24,7 @@ final class SaisieProjet {
     static final int LONGUEUR_MAX = 200;
 
     /** Nombre maximal de manifestes déclarés pour un dépôt. */
-    static final int MANIFESTES_MAX = 20;
+    static final int MANIFESTES_PAR_DEPOT_MAX = 20;
 
     private static final String BRANCHE_PAR_DEFAUT = "main";
 
@@ -83,17 +83,21 @@ final class SaisieProjet {
         }
         String identifiant = texteObligatoire(depot.depot(), "L'identifiant du dépôt est obligatoire.", "depot");
         String branche = texteFacultatif(depot.branche(), "branche");
-        return new DepotProjet(forge, identifiant, branche == null ? BRANCHE_PAR_DEFAUT : branche,
+        DepotProjet saisi = new DepotProjet(forge, identifiant, branche == null ? BRANCHE_PAR_DEFAUT : branche,
                 texteFacultatif(depot.jobSbom(), "jobSbom"), texteFacultatif(depot.cheminSbom(), "cheminSbom"), manifestes(depot));
+        if (!saisi.identifiantValide()) {
+            throw invalide("L'identifiant d'un dépôt GitHub a la forme propriétaire/dépôt.", "depot");
+        }
+        return saisi;
     }
 
-    /** Manifestes déclarés, ou {@code null} pour les manifestes par défaut du module {@code inventory}. */
+    /** Manifestes déclarés ; liste vide pour les manifestes par défaut du module {@code inventory}. */
     private static List<String> manifestes(Depot depot) {
         if (depot.manifestes() == null || depot.manifestes().isEmpty()) {
-            return null;
+            return List.of();
         }
-        if (depot.manifestes().size() > MANIFESTES_MAX) {
-            throw invalide("Au plus " + MANIFESTES_MAX + " manifestes par dépôt.", "manifestes");
+        if (depot.manifestes().size() > MANIFESTES_PAR_DEPOT_MAX) {
+            throw invalide("Au plus " + MANIFESTES_PAR_DEPOT_MAX + " manifestes par dépôt.", "manifestes");
         }
         return depot.manifestes().stream().map(chemin -> texteObligatoire(chemin, "Chemin de manifeste vide.", "manifestes")).toList();
     }

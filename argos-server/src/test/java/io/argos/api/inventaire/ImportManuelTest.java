@@ -103,6 +103,12 @@ class ImportManuelTest {
         Api.enTantQue("hugo").contentType(ContentType.JSON).body(Map.of("manifestes", List.of()))
                 .when().post(chemin("/manifests"))
                 .then().statusCode(400).body("code", equalTo("DONNEE_INVALIDE")).body("attribut", equalTo("manifestes"));
+        for (String chemin : List.of("a,b.json", "x".repeat(201), " ")) {
+            Api.enTantQue("hugo").contentType(ContentType.JSON)
+                    .body(Map.of("manifestes", List.of(Map.of("chemin", chemin, "contenu", paquet))))
+                    .when().post(chemin("/manifests"))
+                    .then().statusCode(400).body("attribut", equalTo("chemin"));
+        }
     }
 
     @Test
