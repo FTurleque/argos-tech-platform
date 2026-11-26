@@ -58,7 +58,7 @@ Option A :
 2. le serveur se construit sur Temurin 17, JDK de l'image d'exécution, par `mvn clean verify` avec le profil `integration-continue` (plage de JDK `[17,18)` imposée par maven-enforcer) ;
 3. JaCoCo mesure la couverture des tests du serveur et fait échouer le build sous 85 % des lignes ou 70 % des branches (seuil global du porteur du projet, 2026-11-24) ; le rapport est publié à chaque exécution ;
 4. `npm audit` des trois projets npm fait échouer le build à partir du niveau `high` (porteur du projet, 2026-11-24) ;
-5. Renovate ouvre les pull requests de mise à jour des dépendances, des images et des actions ([`renovate.json`](/renovate.json)), trois jours au moins après la publication d'une version ; les versions majeures des images Java et Node.js suivent le workflow et ne sont pas proposées ; chaque pull request passe par le même workflow et une relecture avant fusion, sans fusion automatique.
+5. Renovate ouvre les pull requests de mise à jour des dépendances, des images et des actions ([`renovate.json`](/renovate.json)), trois jours au moins après la publication d'une version ; les versions majeures des images Java et Node.js suivent le workflow et ne sont pas proposées, de même que celles de `@types/node` (qui suivent la version de Node.js exécutée) ; TypeScript reste sous la version 7, avec laquelle le compilateur de Vue ne compile pas les composants ; chaque pull request passe par le même workflow et une relecture avant fusion, sans fusion automatique.
 
 La protection de `main` par le statut du workflow est un réglage du dépôt GitHub, effectué par le porteur du projet.
 
