@@ -197,10 +197,8 @@ async function petitEspaceDeBob(jetons) {
 async function abonner(token, filtres) {
   const abonnements = await api(token, '/api/v1/subscriptions')
   if (abonnements.length > 0) return
-  for (const filtre of filtres) {
-    await api(token, '/api/v1/subscriptions', { method: 'POST', body: JSON.stringify({ scope: 'PERSONAL',
-      filters: [filtre], channel: 'desktop', frequency: 'daily', mandatory: false }) })
-  }
+  await Promise.all(filtres.map((filtre) => api(token, '/api/v1/subscriptions', { method: 'POST',
+    body: JSON.stringify({ scope: 'PERSONAL', filters: [filtre], channel: 'desktop', frequency: 'daily', mandatory: false }) })))
 }
 
 function psql(args, entree) {
@@ -226,7 +224,7 @@ async function preparer(jetons, reglages) {
     '-v', `signaux=${reglages.signaux}`, '-v', `espace_petit=${petitEspace.id}`,
     '-v', `projets_volumineux=${reglages.projetsVolumineux}`, '-v', `impacts_petit=${reglages.impactsPetitEspace}`],
   readFileSync(join(ICI, 'donnees-performance.sql')))
-  for (const [utilisateur, filtres] of Object.entries(ABONNEMENTS)) await abonner(jetons[utilisateur], filtres)
+  await Promise.all(Object.entries(ABONNEMENTS).map(([utilisateur, filtres]) => abonner(jetons[utilisateur], filtres)))
   const token = jetons[UTILISATEUR_REFERENCE]
   const projets = await api(token, '/api/v1/projects?size=200')
   const projet = (projets.items ?? projets).find((candidat) => candidat.name === 'Projet performance 001')
@@ -300,6 +298,20 @@ async function mesurer(operation, jetons, reglages) {
   return resumerOperation(operation, durees, erreurs)
 }
 
+/**
+ * Mesure les opérations l'une après l'autre : deux opérations mesurées en même temps fausseraient leurs latences.
+ * Chaque résultat est affiché dès sa mesure.
+ */
+function mesurerEnSequence(operations, jetons, reglages) {
+  return operations.reduce(async (precedents, operation) => {
+    const resultats = await precedents
+    const resultat = await mesurer(operation, jetons, reglages)
+    console.log(`${resultat.id.padEnd(48)} p50 ${String(resultat.p50Ms).padStart(7)} ms  `
+      + `p95 ${String(resultat.p95Ms).padStart(7)} ms  ${resultat.verdict}`)
+    return [...resultats, resultat]
+  }, Promise.resolve([]))
+}
+
 function revision() {
   const git = cheminGit()
   if (!git) return 'inconnue'
@@ -307,6 +319,38 @@ function revision() {
     return execFileSync(git, ['rev-parse', '--short', 'HEAD'], { cwd: RACINE }).toString().trim()
   } catch {
     return 'inconnue'
+  }
+}
+
+/** Rapport de la campagne : date, révision, environnement, jeu de données, paramètres, mesures et verdict. */
+function construireRapport(reglages, contexte, resultats, serveurReutilise) {
+  const date = new Date().toISOString()
+  return {
+    date,
+    revision: revision(),
+    environnement: {
+      description: `pile de test locale (PostgreSQL de e2e/compose.yaml, quarkus:dev ${URL_API}, Keycloak des Dev Services)`,
+      systeme: `${platform()} ${release()} ${arch()}, ${cpus().length} cœurs, ${Math.round(totalmem() / 2 ** 30)} Gio`,
+      node: process.version,
+      serveurReutilise,
+    },
+    jeuDeDonnees: {
+      description: `${reglages.projets} projets × ${reglages.composantsParProjet} composants, ${reglages.signaux} avis, `
+        + `${reglages.projets * reglages.signaux} impacts actifs (espace d’${UTILISATEUR_REFERENCE}) ; `
+        + `${reglages.projetsVolumineux * reglages.signaux} impacts résolus ou écartés (espace volumineux) ; `
+        + `${reglages.impactsPetitEspace} impacts actifs (petit espace de ${UTILISATEUR_PETIT_ESPACE}) ; `
+        + 'abonnements PERSONAL par paquet et par technologie',
+      espaces: contexte.espaces,
+      projets: reglages.projets,
+      composantsParProjet: reglages.composantsParProjet,
+      signaux: reglages.signaux,
+      impacts: contexte.espaces.reduce((total, espace) => total
+        + Object.values(espace.etats).reduce((somme, nombre) => somme + nombre, 0), 0),
+    },
+    parametres: reglages,
+    resultats,
+    exclues: OPERATIONS_EXCLUES,
+    verdict: verdictGlobal(resultats),
   }
 }
 
@@ -327,41 +371,9 @@ async function principal() {
       [UTILISATEUR_PETIT_ESPACE]: await jeton(UTILISATEUR_PETIT_ESPACE),
     }
     const contexte = await preparer(jetons, reglages)
-    const resultats = []
-    for (const operation of operationsRetenues(contexte)) {
-      const resultat = await mesurer(operation, jetons, reglages)
-      console.log(`${resultat.id.padEnd(48)} p50 ${String(resultat.p50Ms).padStart(7)} ms  `
-        + `p95 ${String(resultat.p95Ms).padStart(7)} ms  ${resultat.verdict}`)
-      resultats.push(resultat)
-    }
-    const date = new Date().toISOString()
-    const rapport = {
-      date,
-      revision: revision(),
-      environnement: {
-        description: `pile de test locale (PostgreSQL de e2e/compose.yaml, quarkus:dev ${URL_API}, Keycloak des Dev Services)`,
-        systeme: `${platform()} ${release()} ${arch()}, ${cpus().length} cœurs, ${Math.round(totalmem() / 2 ** 30)} Gio`,
-        node: process.version,
-        serveurReutilise: serveur === null,
-      },
-      jeuDeDonnees: {
-        description: `${reglages.projets} projets × ${reglages.composantsParProjet} composants, ${reglages.signaux} avis, `
-          + `${reglages.projets * reglages.signaux} impacts actifs (espace d’${UTILISATEUR_REFERENCE}) ; `
-          + `${reglages.projetsVolumineux * reglages.signaux} impacts résolus ou écartés (espace volumineux) ; `
-          + `${reglages.impactsPetitEspace} impacts actifs (petit espace de ${UTILISATEUR_PETIT_ESPACE}) ; `
-          + 'abonnements PERSONAL par paquet et par technologie',
-        espaces: contexte.espaces,
-        projets: reglages.projets,
-        composantsParProjet: reglages.composantsParProjet,
-        signaux: reglages.signaux,
-        impacts: contexte.espaces.reduce((total, espace) => total
-          + Object.values(espace.etats).reduce((somme, nombre) => somme + nombre, 0), 0),
-      },
-      parametres: reglages,
-      resultats,
-      exclues: OPERATIONS_EXCLUES,
-      verdict: verdictGlobal(resultats),
-    }
+    const resultats = await mesurerEnSequence(operationsRetenues(contexte), jetons, reglages)
+    const rapport = construireRapport(reglages, contexte, resultats, serveur === null)
+    const date = rapport.date
     const dossier = join(E2E, 'resultats', 'performance')
     mkdirSync(dossier, { recursive: true })
     const jour = date.slice(0, 10)
