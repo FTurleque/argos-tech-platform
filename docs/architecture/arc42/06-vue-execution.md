@@ -38,7 +38,7 @@ sequenceDiagram
     end
 
     Corr->>Persist: enregistrer ProjectImpact et provenance
-    Corr->>Alert: évaluer règles d’alerte
+    Corr--)Alert: publier les impacts (asynchrone, ADR-0039)
     Alert->>Persist: enregistrer alerte/digest éventuel
     User->>API: consulter impacts
     API->>Persist: lire impacts autorisés
@@ -52,6 +52,7 @@ sequenceDiagram
 - toute analyse LLM doit être associée à la version du prompt/modèle ;
 - la politique de confidentialité doit être évaluée avant l’appel à `ai-gateway` ;
 - l’opération doit être idempotente sur la source + l’identifiant externe.
+- l’enrichissement par les sources secondaires et l’évaluation des alertes ne s’exécutent ni dans une transaction ouverte ni dans le fil d’une requête (file d’enrichissement, observateur asynchrone : ADR-0039, arc42 §8).
 
 ### 6.1.1 Alerte immédiate et résumé périodique
 

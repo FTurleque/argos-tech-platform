@@ -24,6 +24,9 @@ import jakarta.inject.Inject;
 import org.eclipse.microprofile.config.inject.ConfigProperty;
 import org.jboss.logging.Logger;
 
+import io.argos.commun.http.ClientsHttp;
+import io.argos.commun.http.LectureBornee;
+import io.argos.commun.http.ReponseTropVolumineuse;
 import io.argos.ingestion.SourceException;
 
 /**
@@ -76,7 +79,7 @@ public class ArchivesJorf {
         this.delai = delai;
         this.tailleMax = tailleMax;
         this.lecteurArchive = new ArchiveTar(entreesMax, 5L * 1024 * 1024, decompresseMax);
-        this.client = HttpClient.newBuilder().connectTimeout(delai).followRedirects(HttpClient.Redirect.NEVER).build();
+        this.client = ClientsHttp.client(delai);
     }
 
     /** Noms de toutes les archives quotidiennes de l'index, dans l'ordre chronologique. */
@@ -145,7 +148,7 @@ public class ArchivesJorf {
     }
 
     private byte[] get(URI uri, long max) {
-        HttpRequest requete = HttpRequest.newBuilder(uri).timeout(delai).GET().build();
+        HttpRequest requete = ClientsHttp.requete(uri, delai).build();
         try {
             HttpResponse<InputStream> reponse = client.send(requete, HttpResponse.BodyHandlers.ofInputStream());
             try (InputStream corps = reponse.body()) {
@@ -154,13 +157,11 @@ public class ArchivesJorf {
                             ? SourceException.Kind.TRANSIENT : SourceException.Kind.PERMANENT,
                             reponse.statusCode(), null, "HTTP " + reponse.statusCode() + " de " + uri.getHost(), null);
                 }
-                byte[] octets = corps.readNBytes((int) Math.min(Integer.MAX_VALUE - 8, max + 1));
-                if (octets.length > max) {
-                    throw new SourceException(SourceException.Kind.PERMANENT, 200, null,
-                            "réponse de " + uri.getHost() + " supérieure à " + max + " octets", null);
-                }
-                return octets;
+                return LectureBornee.octets(corps, max);
             }
+        } catch (ReponseTropVolumineuse depassement) {
+            throw new SourceException(SourceException.Kind.PERMANENT, 200, null,
+                    "réponse de " + uri.getHost() + " supérieure à " + max + " octets", depassement);
         } catch (IOException erreur) {
             throw SourceException.transientError(uri.getHost() + " injoignable : " + erreur.getClass().getSimpleName(), erreur);
         } catch (InterruptedException erreur) {

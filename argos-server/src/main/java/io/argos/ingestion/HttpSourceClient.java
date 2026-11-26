@@ -65,17 +65,17 @@ public class HttpSourceClient {
         return recevoir(uri, corps -> new String(LectureBornee.octets(corps, tailleMax), StandardCharsets.UTF_8));
     }
 
-    /** Lit le corps d'une réponse 200 ligne à ligne, sans le garder en mémoire, au plus la taille maximale. */
-    public void lignes(URI uri, Consumer<String> consommateur) {
-        recevoir(uri, corps -> {
-            LectureBornee.lignes(corps, tailleMax, consommateur);
-            return null;
-        });
+    /**
+     * Lit le corps d'une réponse 200 ligne à ligne, sans le garder en mémoire, au plus la taille maximale ; renvoie le
+     * nombre de lignes lues.
+     */
+    public long lignes(URI uri, Consumer<String> consommateur) {
+        return recevoir(uri, corps -> LectureBornee.lignes(corps, tailleMax, consommateur));
     }
 
-    /** Copie le corps d'une réponse 200 dans {@code cible}, au plus {@code tailleMaxFichier} octets. */
-    public void telechargerVers(URI uri, Path cible, long tailleMaxFichier) {
-        recevoir(uri, corps -> LectureBornee.copier(corps, cible, tailleMaxFichier));
+    /** Copie le corps d'une réponse 200 dans {@code cible}, au plus {@code tailleMaxFichier} octets ; renvoie la taille copiée. */
+    public long telechargerVers(URI uri, Path cible, long tailleMaxFichier) {
+        return recevoir(uri, corps -> LectureBornee.copier(corps, cible, tailleMaxFichier));
     }
 
     private <T> T recevoir(URI uri, LectureCorps<T> lecture) {

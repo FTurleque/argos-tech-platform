@@ -5,7 +5,7 @@
 | Préfixe d'exigences | `RAD` |
 | Spec de référence | [`/openspec/specs/radar-standards/spec.md`](/openspec/specs/radar-standards/spec.md) |
 | Changements archivés | [`2026-11-16-construire-radar-et-standards`](/openspec/changes/archive/2026-11-16-construire-radar-et-standards/proposal.md) |
-| Changement en cours | [`2026-11-25-isoler-erreurs-aux-frontieres`](/openspec/changes/archive/2026-11-25-isoler-erreurs-aux-frontieres/proposal.md) (RAD-07, archivé) |
+| Changement en cours | [`2026-11-25-isoler-erreurs-aux-frontieres`](/openspec/changes/archive/2026-11-25-isoler-erreurs-aux-frontieres/proposal.md) (RAD-07, archivé) ; [`rendre-ingestion-asynchrone`](/openspec/changes/rendre-ingestion-asynchrone/proposal.md) (RAD-07 modifiée) — proposé, implémenté |
 | Statut de la capacité | livrée ; implémentation et tests dans `argos-server` |
 | Composants (arc42 §5) | `catalog`, `release-radar`, `impact-engine`, `alerting` |
 
@@ -64,7 +64,7 @@ API REST : `/api/v1/radar/espaces/{espaceId}/` — `standards` (GET, PUT), `stan
 | Rappel d'une sortie ou d'une fin de support aux membres de l'espace dont un projet est concerné, aux jours de rappel de l'espace ; une fin de support ne concerne que les projets dont la version appartient à la branche | RAD-04 | dossier v2.4 §6.4 ; Q-1 | [PROPOSITION] |
 | Dette de version quand la fin de support d'une version de l'inventaire est atteinte, avec la version recommandée de l'espace | RAD-05 | dossier v2.4 §6.4 ; ADR-0013 | [PROPOSITION] |
 | Annonce d'un changement de statut ou de version recommandée, avec sa justification, aux membres de l'espace dont un projet utilise la technologie ; une création n'est pas annoncée | RAD-06 | dossier v2.4 §8.2 (type STANDARD) | [PROPOSITION] |
-| Une clé mal encodée (`pkg:maven/%zz/x`) est refusée en 400 sur le champ `cle`, sans rien modifier ; une annonce en panne d'accès aux données ne fait pas répondre en erreur une modification déjà enregistrée (journalisée avec sa cause) ; une erreur imprévue de l'annonce remonte (500), la modification restant enregistrée | RAD-07 | AUD-QUA-20 ; arc42 §8.5 ; décision « isoler puis relancer » du porteur du projet, 2026-11-24 | [PROPOSITION] — `isoler-erreurs-aux-frontieres` ; vérifiée par `RadarStandardsTest` |
+| Une clé mal encodée (`pkg:maven/%zz/x`) est refusée en 400 sur le champ `cle`, sans rien modifier ; la modification enregistrée est confirmée sans attendre son annonce, qui s'exécute hors de la requête ; un échec de l'annonce (panne d'accès aux données ou erreur imprévue) ne change pas la réponse, est journalisé avec sa cause et, s'il est imprévu, compté (`argos_evenements_asynchrones_echecs_total`) | RAD-07 | AUD-QUA-20 ; AUD-ARC-09 ; arc42 §8.5 ; ADR-0039 (Proposé) ; décision du porteur du projet, 2026-11-26 | [PROPOSITION] — `isoler-erreurs-aux-frontieres`, `rendre-ingestion-asynchrone` ; vérifiée par `RadarStandardsTest` |
 
 Une version appartient à la branche la plus longue dont elle est égale ou qu'elle prolonge par « . » ou « - » (`14.10` → branche `14`).
 
@@ -109,7 +109,7 @@ Les statuts suivent le principe d'un radar technologique ; chaque changement est
 
 ## Critères d'acceptation
 
-Scénarios RAD-01-S1 à RAD-06-S1 du changement archivé ; RAD-07-S1 à RAD-07-S3 du changement `isoler-erreurs-aux-frontieres` ; aucun scénario qualité transverse supplémentaire.
+Scénarios RAD-01-S1 à RAD-06-S1 du changement archivé ; RAD-07-S1 à RAD-07-S3 du changement `isoler-erreurs-aux-frontieres`, RAD-07 modifiée (S3, S4) par `rendre-ingestion-asynchrone` ; aucun scénario qualité transverse supplémentaire.
 
 ## Interprétations introduites par un changement
 
@@ -145,6 +145,6 @@ Scénarios RAD-01-S1 à RAD-06-S1 du changement archivé ; RAD-07-S1 à RAD-07-S
 | RAD-04 | RAD-04-S1 | DC-1 | 2.2 | `RadarStandardsTest.rad04S1RappelAJ30`, `rappelsParametrablesParEspace` |
 | RAD-05 | RAD-05-S1 | DC-1 | 2.3 | `RadarStandardsTest.rad05S1VersionPlusMaintenue` |
 | RAD-06 | RAD-06-S1 | Composants | 1.3 | `RadarStandardsTest.rad06S1PassageEnHold` |
-| RAD-07 | RAD-07-S1 à S3 | `isoler-erreurs-aux-frontieres` design.md D2, D4, DC-3 | 1.2, 3.1, 3.3 | `RadarStandardsTest.rad07S1CleMalEncodee`, `rad07S2AnnonceEnPanneApresLEnregistrement`, `annonceEnErreurImprevueRemonteApresLEnregistrement` ; boucles du radar : `espaceEnErreurImprevueDansLaTacheQuotidienne`, `produitEnErreurImprevueDansLaSynchronisationDesCycles` |
+| RAD-07 | RAD-07-S1 à S4 | `isoler-erreurs-aux-frontieres` design.md D2, D4, DC-3 ; `rendre-ingestion-asynchrone` design.md D5, DC-5 | 1.2, 3.1, 3.3 ; 5.1 | `RadarStandardsTest.rad07S1CleMalEncodee`, `rad07S2AnnonceEnPanneApresLEnregistrement`, `rad07S3AnnonceEnErreurImprevueJournaliseeEtComptee`, `rad07S4AnnonceSansAttente` ; boucles du radar : `espaceEnErreurImprevueDansLaTacheQuotidienne`, `produitEnErreurImprevueDansLaSynchronisationDesCycles` |
 
 Tests dans `argos-server/src/test/java/io/argos/chain/` ; parcours de bout en bout : `ParcoursRadarTest`.

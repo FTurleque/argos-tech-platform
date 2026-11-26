@@ -36,6 +36,7 @@ import io.quarkus.narayana.jta.QuarkusTransaction;
 import io.quarkus.narayana.jta.QuarkusTransactionException;
 
 import io.argos.commun.Jdbc;
+import io.argos.execution.PublicationAsynchrone;
 import io.argos.inventory.InventoryQueries;
 import io.argos.inventory.InventoryReplaced;
 import io.argos.inventory.InventoryStore;
@@ -98,6 +99,9 @@ public class CorrelationEngine {
 
     @Inject
     Event<ImpactsTraites> impactsTraites;
+
+    @Inject
+    PublicationAsynchrone publication;
 
     void onSignalChanged(@Observes(during = TransactionPhase.AFTER_SUCCESS) SignalChanged event) {
         try {
@@ -174,15 +178,14 @@ public class CorrelationEngine {
     }
 
     /**
-     * Publie les impacts enregistrés, après la validation de leur transaction et avant l'analyse
-     * complémentaire. L'observateur des alertes journalise lui-même une panne d'accès aux données : elle n'affecte ni
-     * les impacts ni la corrélation.
+     * Publie les impacts enregistrés, après la validation de leur transaction et avant l'analyse complémentaire, sans
+     * attendre l'évaluation des alertes (ADR-0039) : un échec de l'observateur n'affecte ni les impacts ni la corrélation.
      */
     private void publish(ImpactsRecorded recorded) {
         if (recorded.impacts().isEmpty()) {
             return;
         }
-        impactsRecorded.fire(recorded);
+        publication.publier(impactsRecorded, recorded);
     }
 
     private List<UUID> signalsWithActiveImpacts(UUID projectId) {

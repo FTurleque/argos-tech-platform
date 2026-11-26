@@ -21,11 +21,12 @@ import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.enterprise.event.Event;
 import jakarta.inject.Inject;
 
-import io.argos.horloge.LectureHeure;
 import io.argos.commun.ContexteBase;
 import io.argos.commun.ContexteBase.Contexte;
 import io.argos.commun.Introuvable;
 import io.argos.commun.RegleViolee;
+import io.argos.execution.PublicationAsynchrone;
+import io.argos.horloge.LectureHeure;
 
 /**
  * Référentiel des standards d'un espace (RAD-01, RAD-02, RAD-06) : chaque espace construit le sien,
@@ -82,6 +83,9 @@ public class ReferentielEspace {
     @Inject
     Event<StandardModifie> modifications;
 
+    @Inject
+    PublicationAsynchrone publication;
+
     /** Référentiel de l'espace, par libellé. */
     public List<EntreeReferentiel> lister(UUID compteId, UUID espaceId) {
         return base.executer(new Contexte(compteId, null, espaceId), connexion -> {
@@ -106,7 +110,7 @@ public class ReferentielEspace {
         SaisieStandard.Validee saisieValidee = Objects.requireNonNull(saisie, "saisie").valider();
         Resultat bilan = base.executer(new Contexte(compteId, null, espaceId),
                 connexion -> appliquer(connexion, compteId, espaceId, saisieValidee, "SAISIE"));
-        bilan.changement().ifPresent(modifications::fire);
+        bilan.changement().ifPresent(changement -> publication.publier(modifications, changement));
         return bilan.entree();
     }
 
@@ -221,7 +225,7 @@ public class ReferentielEspace {
         if (bilan == null) {
             return Optional.empty();
         }
-        bilan.changement().ifPresent(modifications::fire);
+        bilan.changement().ifPresent(changement -> publication.publier(modifications, changement));
         return Optional.of(bilan.entree());
     }
 

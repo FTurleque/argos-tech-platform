@@ -32,16 +32,22 @@ public final class LectureBornee {
         return corps;
     }
 
-    /** Corps lu ligne à ligne en UTF-8, sans le garder en mémoire ; au plus {@code tailleMax} octets en tout. */
-    public static void lignes(InputStream flux, long tailleMax, Consumer<String> consommateur) throws IOException {
+    /**
+     * Corps lu ligne à ligne en UTF-8, sans le garder en mémoire ; au plus {@code tailleMax} octets en tout. Renvoie le
+     * nombre de lignes lues.
+     */
+    public static long lignes(InputStream flux, long tailleMax, Consumer<String> consommateur) throws IOException {
+        long nombre = 0;
         try (BufferedReader lecteur = new BufferedReader(new InputStreamReader(new FluxBorne(flux, tailleMax),
                 StandardCharsets.UTF_8))) {
             String ligne = lecteur.readLine();
             while (ligne != null) {
                 consommateur.accept(ligne);
+                nombre++;
                 ligne = lecteur.readLine();
             }
         }
+        return nombre;
     }
 
     /** Copie le corps dans {@code cible} (remplacé), au plus {@code tailleMax} octets ; renvoie la taille copiée. */

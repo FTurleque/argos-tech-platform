@@ -24,6 +24,7 @@ import io.argos.inventory.ProjectDirectory;
 import io.argos.testsupport.Api;
 import io.argos.testsupport.Fixtures;
 import io.argos.testsupport.StubServer;
+import io.argos.testsupport.Asynchrone;
 import io.argos.testsupport.TestDb;
 import io.quarkus.mailer.MockMailbox;
 import io.quarkus.test.common.QuarkusTestResource;
@@ -44,6 +45,9 @@ class AlertesImpactsTraitesTest {
 
     @Inject
     TestDb baseDeTest;
+
+    @Inject
+    Asynchrone asynchrone;
 
     @Inject
     ProjectDirectory projects;
@@ -94,6 +98,7 @@ class AlertesImpactsTraitesTest {
         }
         inventories.importSbom(projet, Fixtures.cyclonedx("1.6", genere.toString(), composants, List.of("c0"))
                 .getBytes(StandardCharsets.UTF_8), "ci");
+        asynchrone.attendre();
     }
 
     private UUID publier(String id, String corrige) {
@@ -102,6 +107,7 @@ class AlertesImpactsTraitesTest {
                 .replace("\"severity\":\"HIGH\"", "\"severity\":\"CRITICAL\"");
         Fixtures.stubOsv(id, modifie, json);
         synchronizer.synchronize("OSV");
+        asynchrone.attendre();
         return baseDeTest.uuid("SELECT id FROM signal WHERE external_id = '" + id + "'");
     }
 
@@ -142,6 +148,7 @@ class AlertesImpactsTraitesTest {
         // Rouvert par un contributeur puis recorrélé : l'impact redevient éligible (ALR-07, ALR-01).
         transition("karim", impact, Map.of("vers", "OUVERT"));
         engine.correlate(signal, Optional.empty());
+        asynchrone.attendre();
         assertEquals(1, alertes("canal = 'DESKTOP' AND etat = 'EN_ATTENTE'"), "même alerte remise en attente (ALR-03)");
         assertEquals(1, alertes("nature = 'IMMEDIATE'"));
     }

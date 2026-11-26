@@ -9,10 +9,12 @@ import java.util.concurrent.Callable;
 import java.util.concurrent.CancellationException;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Future;
+import java.util.concurrent.FutureTask;
 import java.util.concurrent.RejectedExecutionException;
 import java.util.concurrent.ThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
+import java.util.concurrent.atomic.AtomicInteger;
 
 import jakarta.annotation.PostConstruct;
 import jakarta.annotation.PreDestroy;
@@ -84,6 +86,7 @@ public abstract class ExecuteurBorne {
 
     private final String nomFils;
     private final String prefixeConfiguration;
+    private final AtomicInteger enCours = new AtomicInteger();
     private ThreadPoolExecutor executeur;
 
     /**
@@ -124,9 +127,9 @@ public abstract class ExecuteurBorne {
         return executeur.isShutdown();
     }
 
-    /** Vrai si aucune tâche n'est en cours ni en file. */
+    /** Vrai si aucune tâche soumise n'est en cours ni en file. */
     public boolean inactif() {
-        return executeur.getActiveCount() == 0 && executeur.getQueue().isEmpty();
+        return enCours.get() == 0;
     }
 
     /**
@@ -134,10 +137,19 @@ public abstract class ExecuteurBorne {
      * reçoit la corrélation du fil appelant et traite elle-même ses erreurs.
      */
     public boolean lancer(Runnable tache) {
+        Runnable suivie = Correlation.propagerAction(tache);
+        enCours.incrementAndGet();
         try {
-            executeur.execute(Correlation.propagerAction(tache));
+            executeur.execute(() -> {
+                try {
+                    suivie.run();
+                } finally {
+                    enCours.decrementAndGet();
+                }
+            });
             return true;
         } catch (RejectedExecutionException refus) {
+            enCours.decrementAndGet();
             LOG.debugf(refus, "tâche refusée par l'exécuteur %s", nomFils);
             return false;
         }
@@ -178,9 +190,19 @@ public abstract class ExecuteurBorne {
     }
 
     private <T> Optional<Future<T>> soumettre(Callable<T> tache) {
+        // done() s'exécute une seule fois, à la fin de la tâche comme à son annulation, démarrée ou non.
+        FutureTask<T> suivie = new FutureTask<>(Correlation.propager(tache)) {
+            @Override
+            protected void done() {
+                enCours.decrementAndGet();
+            }
+        };
+        enCours.incrementAndGet();
         try {
-            return Optional.of(executeur.submit(Correlation.propager(tache)));
+            executeur.execute(suivie);
+            return Optional.of(suivie);
         } catch (RejectedExecutionException refus) {
+            enCours.decrementAndGet();
             LOG.debugf(refus, "tâche refusée par l'exécuteur %s", nomFils);
             return Optional.empty();
         }

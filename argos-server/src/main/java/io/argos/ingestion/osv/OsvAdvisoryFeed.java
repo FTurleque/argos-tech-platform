@@ -74,6 +74,7 @@ public class OsvAdvisoryFeed implements AdvisoryFeed {
     @Override
     public Lecture lire(String position) {
         LectureOsv lecture = new LectureOsv(this, archiveTailleMax);
+        boolean prete = false;
         try {
             for (String ecosystem : ecosystems) {
                 List<FeedEntry> entrees = index(ecosystem, position);
@@ -82,10 +83,13 @@ public class OsvAdvisoryFeed implements AdvisoryFeed {
                 }
                 lecture.ajouter(entrees);
             }
+            prete = true;
             return lecture.trier();
-        } catch (RuntimeException erreur) {
-            lecture.close();
-            throw erreur;
+        } finally {
+            if (!prete) {
+                // Index illisible après le téléchargement d'une archive : ses fichiers temporaires sont supprimés.
+                lecture.close();
+            }
         }
     }
 

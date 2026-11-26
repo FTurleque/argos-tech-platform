@@ -23,6 +23,10 @@ import org.eclipse.microprofile.config.inject.ConfigProperty;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 
+import io.argos.commun.http.ClientsHttp;
+import io.argos.commun.http.LectureBornee;
+import io.argos.commun.http.ReponseTropVolumineuse;
+
 /**
  * Connecteur de l'API publique et gratuite endoflife.date (Q-2), version 1 :
  * {@code GET <base>/api/v1/products/<produit>}.
@@ -51,6 +55,10 @@ public class ClientEndoflife {
         public SourceIndisponible(String message) {
             super(message);
         }
+
+        public SourceIndisponible(String message, Throwable cause) {
+            super(message, cause);
+        }
     }
 
     private static final int CYCLES_MAX = 500;
@@ -69,7 +77,7 @@ public class ClientEndoflife {
 
     @PostConstruct
     void initialiser() {
-        client = HttpClient.newBuilder().connectTimeout(delai).followRedirects(HttpClient.Redirect.NEVER).build();
+        client = ClientsHttp.client(delai);
     }
 
     /** Cycles publiés pour le produit. */
@@ -79,8 +87,7 @@ public class ClientEndoflife {
         }
         URI uri = URI.create(base.replaceAll("/+$", "") + "/api/v1/products/"
                 + URLEncoder.encode(produit, StandardCharsets.UTF_8));
-        HttpRequest requete = HttpRequest.newBuilder(uri).timeout(delai).header("Accept", "application/json")
-                .header("User-Agent", "argos-server").GET().build();
+        HttpRequest requete = ClientsHttp.requete(uri, delai).header("Accept", "application/json").build();
         byte[] corps;
         try {
             HttpResponse<InputStream> reponse = client.send(requete, HttpResponse.BodyHandlers.ofInputStream());
@@ -91,16 +98,15 @@ public class ClientEndoflife {
                 if (reponse.statusCode() != 200) {
                     throw new SourceIndisponible("réponse HTTP " + reponse.statusCode());
                 }
-                corps = flux.readNBytes(tailleMax + 1);
+                corps = LectureBornee.octets(flux, tailleMax);
             }
+        } catch (ReponseTropVolumineuse depassement) {
+            throw new SourceIndisponible("réponse trop volumineuse", depassement);
         } catch (IOException injoignable) {
             throw new SourceIndisponible("source injoignable : " + injoignable.getClass().getSimpleName());
         } catch (InterruptedException interruption) {
             Thread.currentThread().interrupt();
             throw new SourceIndisponible("synchronisation interrompue");
-        }
-        if (corps.length > tailleMax) {
-            throw new SourceIndisponible("réponse trop volumineuse");
         }
         return lire(corps);
     }

@@ -60,7 +60,7 @@ class EnrichmentTest {
     private UUID collectLog4Shell() {
         Fixtures.stubOsv(LOG4SHELL, "2025-10-22T19:37:02.616807Z", Fixtures.resource("osv/GHSA-jfh8-c2jp-5v3q.json"));
         synchronizer.synchronize("OSV");
-        enrichissements.traiter(horloge.instant());
+        enrichissements.enrichirSignauxEchus(horloge.instant());
         return baseDeTest.uuid("SELECT id FROM signal WHERE external_id = '" + LOG4SHELL + "'");
     }
 
@@ -100,11 +100,11 @@ class EnrichmentTest {
         Api.enTantQue("alice").when().get("/api/v1/signals/" + signal)
                 .then().statusCode(200).body("signal.externalId", equalTo(LOG4SHELL));
 
-        assertEquals(1, baseDeTest.count("SELECT tentatives FROM enrichissement_attente WHERE signal_id = '" + signal + "'"));
+        assertEquals(1, baseDeTest.count("SELECT tentatives FROM enrichissement_attente WHERE signal_id = ?", signal));
 
         // La source répond de nouveau : le passage suivant de la file rattache les données EPSS, sans action manuelle.
         StubServer.programmer("/epss?cve=CVE-2021-44228", Stub.succes(Fixtures.resource("enrichment/epss-CVE-2021-44228.json")));
-        TraitementEnrichissements.Bilan bilan = enrichissements.traiter(horloge.instant().plus(Duration.ofHours(1)));
+        TraitementEnrichissements.Bilan bilan = enrichissements.enrichirSignauxEchus(horloge.instant().plus(Duration.ofHours(1)));
 
         assertEquals(1, bilan.enrichis());
         assertEquals(1, baseDeTest.count("SELECT count(*) FROM enrichment WHERE source = 'EPSS'"));
@@ -146,7 +146,7 @@ class EnrichmentTest {
         StubServer.programmer("/certfr/feed/", Stub.succes(Fixtures.resource("enrichment/certfr-feed.xml")));
 
         synchronizer.synchronize("OSV");
-        enrichissements.traiter(horloge.instant());
+        enrichissements.enrichirSignauxEchus(horloge.instant());
 
         UUID signal = baseDeTest.uuid("SELECT id FROM signal WHERE external_id = 'GHSA-HTTPD'");
         List<Enricher.EnrichmentView> views = enricher.forSignal(signal);

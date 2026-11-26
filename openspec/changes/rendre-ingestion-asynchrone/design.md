@@ -298,6 +298,7 @@ Aucune cible chiffrée dans les sources ([QUESTION] héritée de `mesure-perform
 - **Statut** : [PROPOSITION] — seuil : Q-2.
 - **Choix** : `AdvisoryFeed.lire(position)` rend une `Lecture` fermable ; OSV lit l'index en flux et, au-delà de `argos.sources.osv.seuil-archive` (1 000) avis pour un écosystème, télécharge `<export>/<écosystème>/all.zip` (plafond `argos.sources.osv.archive-taille-max-octets`, 1 Gio) ; chaque avis est lu dans l'archive, l'API servant de repli.
 - **Alternatives écartées** : archive seulement sans curseur (ne couvre pas une longue interruption) ; extraction complète en mémoire.
+- **Compromis** : une archive par écosystème reste sur disque jusqu'à la fin de la synchronisation ; le battement du traitement n'est pas rafraîchi pendant un téléchargement, qui doit durer moins que `argos.ingestion.running-expiry` (PT30M).
 - **ADR** : non : décision locale à l'adaptateur.
 
 ### D9 — Collecte d'activité par forge

@@ -118,6 +118,16 @@ class ExecuteurBorneTest {
         assertEquals(Optional.of("première"), issues.get(0).valeur());
     }
 
+    /** Une tâche encore en file, annulée au délai sans avoir démarré, ne laisse pas l'exécuteur actif. */
+    @Test
+    void uneTacheAnnuleeAvantDeDemarrerNeLaissePasLExecuteurActif() {
+        assertTrue(executeur.lancer(this::attendreSansFin));
+        ExecuteurBorne.Issue<String> issue = executeur.executer(() -> "jamais démarrée", Duration.ZERO);
+        assertEquals(ExecuteurBorne.Etat.DELAI_DEPASSE, issue.etat());
+        jamais.countDown();
+        Awaitility.await().atMost(GENEREUX).until(executeur::inactif);
+    }
+
     private void attendreSansFin() {
         try {
             jamais.await();

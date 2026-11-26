@@ -80,7 +80,7 @@ public class TraitementEnrichissements {
     @Scheduled(identity = "vulnintel-enrichissement", every = "{argos.enrichissement.cadence}",
             concurrentExecution = Scheduled.ConcurrentExecution.SKIP)
     void planifie() {
-        traiter(horloge.instant()).relancerErreurImprevue();
+        enrichirSignauxEchus(horloge.instant()).relancerErreurImprevue();
     }
 
     @TacheObservee
@@ -94,7 +94,7 @@ public class TraitementEnrichissements {
     }
 
     /** Enrichit les signaux échus à {@code maintenant} (méthode testable). */
-    public Bilan traiter(Instant maintenant) {
+    public Bilan enrichirSignauxEchus(Instant maintenant) {
         int enrichis = 0;
         int reportes = 0;
         int abandonnes = 0;
@@ -115,7 +115,7 @@ public class TraitementEnrichissements {
         try {
             List<String> indisponibles = enricher.enrich(attente.signalId());
             if (indisponibles.isEmpty()) {
-                file.terminer(attente.signalId());
+                file.terminer(attente);
                 return Issue.ENRICHI;
             }
             return reporter(attente, maintenant, "sources indisponibles : " + String.join(", ", indisponibles));
@@ -132,7 +132,7 @@ public class TraitementEnrichissements {
     private Issue reporter(FileEnrichissement.Attente attente, Instant maintenant, String motif) {
         int tentatives = attente.tentatives() + 1;
         if (tentatives >= tentativesMax) {
-            file.terminer(attente.signalId());
+            file.terminer(attente);
             LOG.warnf("enrichissement du signal %s abandonné après %d tentatives (%s)", attente.signalId(), tentatives, motif);
             return Issue.ABANDONNE;
         }

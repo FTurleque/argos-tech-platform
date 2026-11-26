@@ -21,21 +21,24 @@ public class FileEnrichissement {
     /** Longueur maximale du motif d'échec enregistré. */
     private static final int MOTIF_MAX = 1000;
 
-    /** Signal en attente d'enrichissement. */
-    public record Attente(UUID signalId, int tentatives) {
+    /** Signal en attente d'enrichissement, avec la date de sa dernière demande. */
+    public record Attente(UUID signalId, int tentatives, Instant demandeLe) {
     }
 
     @Inject
     Jdbc jdbc;
 
-    /** Place le signal en file, échu à {@code maintenant} ; un signal déjà en file devient échu sans perdre ses tentatives. */
+    /**
+     * Place le signal en file, échu à {@code maintenant} ; un signal déjà en file devient échu sans perdre ses tentatives
+     * et porte la date de cette nouvelle demande.
+     */
     @Transactional
     public void demander(UUID signalId, Instant maintenant) {
         jdbc.modifier("""
                 INSERT INTO enrichissement_attente (signal_id, demande_le, tentatives, prochain_essai_le)
                 VALUES (?, ?, 0, ?)
-                ON CONFLICT (signal_id) DO UPDATE SET prochain_essai_le =
-                    least(enrichissement_attente.prochain_essai_le, excluded.prochain_essai_le)
+                ON CONFLICT (signal_id) DO UPDATE SET demande_le = excluded.demande_le,
+                    prochain_essai_le = least(enrichissement_attente.prochain_essai_le, excluded.prochain_essai_le)
                 """, Jdbc.parametres(signalId, Conversions.utc(maintenant), Conversions.utc(maintenant)));
     }
 
@@ -43,16 +46,20 @@ public class FileEnrichissement {
     @Transactional
     public List<Attente> echus(Instant maintenant, int lot) {
         return jdbc.lister("""
-                SELECT signal_id, tentatives FROM enrichissement_attente WHERE prochain_essai_le <= ?
+                SELECT signal_id, tentatives, demande_le FROM enrichissement_attente WHERE prochain_essai_le <= ?
                 ORDER BY prochain_essai_le, signal_id LIMIT ?
                 """, Jdbc.parametres(Conversions.utc(maintenant), lot),
-                resultat -> new Attente(resultat.getObject(1, UUID.class), resultat.getInt(2)));
+                resultat -> new Attente(resultat.getObject(1, UUID.class), resultat.getInt(2), Conversions.instant(resultat, 3)));
     }
 
-    /** Retire le signal de la file : toutes les sources ont répondu, ou ses tentatives sont épuisées. */
+    /**
+     * Retire le signal de la file (toutes les sources ont répondu, ou ses tentatives sont épuisées), sauf s'il a été
+     * demandé de nouveau depuis sa lecture : il reste alors échu pour le passage suivant.
+     */
     @Transactional
-    public void terminer(UUID signalId) {
-        jdbc.modifier("DELETE FROM enrichissement_attente WHERE signal_id = ?", Jdbc.parametres(signalId));
+    public void terminer(FileEnrichissement.Attente attente) {
+        jdbc.modifier("DELETE FROM enrichissement_attente WHERE signal_id = ? AND demande_le = ?",
+                Jdbc.parametres(attente.signalId(), Conversions.utc(attente.demandeLe())));
     }
 
     /** Reporte le signal à {@code prochainEssai}, avec son nombre de tentatives et le motif. */

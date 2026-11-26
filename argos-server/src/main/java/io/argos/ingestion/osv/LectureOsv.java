@@ -95,17 +95,21 @@ final class LectureOsv implements AdvisoryFeed.Lecture {
 
     private Optional<Archive> telecharger(String ecosystem, URI uri) {
         Path fichier = null;
+        Optional<Archive> archive = Optional.empty();
         try {
             fichier = Files.createTempFile("argos-osv-", ".zip");
             feed.http().telechargerVers(uri, fichier, archiveTailleMax);
-            return Optional.of(new Archive(fichier, new ZipFile(fichier.toFile())));
+            archive = Optional.of(new Archive(fichier, new ZipFile(fichier.toFile())));
         } catch (SourceException indisponible) {
             LOG.warnf(indisponible, "archive OSV %s indisponible : avis lus par l'API (%s)", ecosystem, indisponible.getMessage());
         } catch (IOException illisible) {
             LOG.warnf(illisible, "archive OSV %s illisible : avis lus par l'API", ecosystem);
+        } finally {
+            if (archive.isEmpty()) {
+                supprimer(fichier);
+            }
         }
-        supprimer(fichier);
-        return Optional.empty();
+        return archive;
     }
 
     private static Optional<String> lireDansArchive(Archive archive, String identifiant) {

@@ -153,7 +153,7 @@ class SynchronisationPlanifieeTest {
         Fixtures.stubOsv("GHSA-PL05", "2026-11-18T10:00:00Z", avis("GHSA-PL05", "2026-11-18T10:00:00Z", "CVE-2026-109163"));
 
         planification.synchroniserToutes(INSTANT_INITIAL);
-        enrichissements.traiter(horloge.instant());
+        enrichissements.enrichirSignauxEchus(horloge.instant());
 
         UUID signal = baseDeTest.uuid("SELECT id FROM signal WHERE external_id = 'GHSA-PL05'");
         assertTrue(enricher.forSignal(signal).stream()
@@ -166,7 +166,7 @@ class SynchronisationPlanifieeTest {
                 "GHSA-PL06", "2026-11-19T08:30:00Z", avis("GHSA-PL06", "2026-11-19T08:30:00Z", "CVE-2026-109163"));
 
         SynchronisationPlanifiee.Bilan bilan = planification.synchroniserToutes(INSTANT_INITIAL.plus(Duration.ofHours(1)));
-        enrichissements.traiter(horloge.instant());
+        enrichissements.enrichirSignauxEchus(horloge.instant());
 
         assertEquals("SUCCEEDED", bilan.rapports().get(0).state());
         assertEquals(1, bilan.rapports().get(0).created());

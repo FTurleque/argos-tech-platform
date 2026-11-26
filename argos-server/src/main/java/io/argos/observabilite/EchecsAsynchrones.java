@@ -26,23 +26,23 @@ public class EchecsAsynchrones {
     MeterRegistry registre;
 
     /** Compte l'échec d'une tâche de fond. */
-    public void compterTraitement(String traitement) {
-        compteur(METRIQUE_TRAITEMENTS, "Tâches de fond terminées en erreur", "traitement", traitement).increment();
+    public void compterTraitement(String nomTraitement) {
+        compteur(METRIQUE_TRAITEMENTS, "Tâches de fond terminées en erreur", "traitement", nomTraitement).increment();
     }
 
     /** Compte l'échec de la notification asynchrone d'un événement. */
-    public void compterEvenement(String evenement) {
-        compteur(METRIQUE_EVENEMENTS, "Notifications asynchrones en erreur", "evenement", evenement).increment();
+    public void compterEvenement(String typeEvenement) {
+        compteur(METRIQUE_EVENEMENTS, "Notifications asynchrones en erreur", "evenement", typeEvenement).increment();
     }
 
     /** Nombre d'échecs comptés pour l'événement depuis le démarrage. */
-    public double evenements(String evenement) {
-        return compteur(METRIQUE_EVENEMENTS, "Notifications asynchrones en erreur", "evenement", evenement).count();
+    public double evenements(String typeEvenement) {
+        return compteur(METRIQUE_EVENEMENTS, "Notifications asynchrones en erreur", "evenement", typeEvenement).count();
     }
 
     /** Nombre d'échecs comptés pour la tâche de fond depuis le démarrage. */
-    public double traitements(String traitement) {
-        return compteur(METRIQUE_TRAITEMENTS, "Tâches de fond terminées en erreur", "traitement", traitement).count();
+    public double traitements(String nomTraitement) {
+        return compteur(METRIQUE_TRAITEMENTS, "Tâches de fond terminées en erreur", "traitement", nomTraitement).count();
     }
 
     private Counter compteur(String nom, String description, String etiquette, String valeur) {

@@ -42,6 +42,7 @@ import io.argos.testsupport.Fixtures;
 import io.argos.testsupport.SimulatedResumeIa;
 import io.argos.testsupport.StubServer;
 import io.argos.testsupport.StubServer.Stub;
+import io.argos.testsupport.Asynchrone;
 import io.argos.testsupport.TestDb;
 import io.quarkus.mailer.MockMailbox;
 import io.quarkus.test.common.QuarkusTestResource;
@@ -65,6 +66,9 @@ class ParcoursIaTest {
 
     @Inject
     TestDb baseDeTest;
+
+    @Inject
+    Asynchrone asynchrone;
 
     @Inject
     ProjectDirectory projects;
@@ -116,6 +120,7 @@ class ParcoursIaTest {
         if (purl != null) {
             inventories.importSbom(project, Fixtures.cyclonedx("1.6", Instant.now().minus(2, ChronoUnit.DAYS).toString(),
                     List.<String[]>of(new String[] {"c0", purl}), List.of("c0")).getBytes(StandardCharsets.UTF_8), "ci");
+            asynchrone.attendre();
         }
         return project;
     }
@@ -126,6 +131,7 @@ class ParcoursIaTest {
                 .replace("\"severity\":\"HIGH\"", "\"severity\":\"CRITICAL\"");
         Fixtures.stubOsv(id, modifie, json);
         synchronizer.synchronize("OSV");
+        asynchrone.attendre();
         return baseDeTest.uuid("SELECT id FROM signal WHERE external_id = '" + id + "'");
     }
 
