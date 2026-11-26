@@ -19,9 +19,11 @@ public final class ArtisteFixtures {
     private ArtisteFixtures() {
     }
 
-    /** Remet à zéro les données du profil et les préférences des utilisateurs donnés. */
+    /**
+     * Retire les préférences des utilisateurs donnés, conservées par {@link TestDb#reset()} ; les données du
+     * profil (opportunités, sources, suivis et rappels) sont vidées par la remise à zéro.
+     */
     public static void reinitialiser(TestDb baseDeTest, String... utilisateurs) {
-        baseDeTest.exec("TRUNCATE opportunite, source_profil, suivi_profil, suivi_rappels CASCADE");
         for (String utilisateur : utilisateurs) {
             baseDeTest.exec("DELETE FROM workspace_preference_utilisateur WHERE compte_id = '" + Api.compte(utilisateur) + "'");
         }
