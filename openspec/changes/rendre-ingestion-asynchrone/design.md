@@ -324,17 +324,17 @@ Aucune cible chiffrée dans les sources ([QUESTION] héritée de `mesure-perform
 
 | Exigence / scénario | Niveau de test | Moyen de preuve | État |
 |---|---|---|---|
-| COL-12-S1 | intégration | `LancementSynchronisationTest` : 202 et `runId` pendant qu'une réponse OSV est retenue, puis traitement `SUCCEEDED` | à écrire |
-| COL-12-S2 | intégration | même classe : second POST → 409 `SYNCHRONISATION_EN_COURS` | à écrire |
-| COL-12-S3 | intégration (concurrence) | attente simulée qui lance une seconde synchronisation (manuelle et planifiée) pendant l'attente : « déjà en cours », un seul `RUNNING` | à écrire |
-| COL-04-S1 à S3 | intégration | `EnrichmentTest` : passage de la file après synchronisation ; EPSS rattrapé au passage suivant | à adapter |
-| COL-04-S4 | intégration | réponse NVD retenue : la synchronisation se termine sans attendre | à écrire |
-| INV-4 | architecture | `AppelsReseauHorsTransactionTest` + classe d'exemple | à écrire |
-| INV-5 | architecture | `ObservateursEvenementsTest` + classe d'exemple | à écrire |
-| RAD-07-S2 à S4 | intégration | `RadarStandardsTest` (attente bornée), annonce retenue, compteur d'échecs | à adapter |
-| D7 | architecture + unitaire | `ClientsHttpCommunsTest` ; `LectureBorneeTest` | à écrire |
-| D8 | intégration | `OsvArchiveTest` (archive servie par le serveur simulé, seuil 1) | à écrire |
-| D9 | intégration | `ActiviteDepotCaracterisationTest` / test de collecte : une requête d'échéances, deux forges | à écrire |
+| COL-12-S1 | intégration | `LancementSynchronisationTest` : 202 et `runId` pendant qu'une réponse OSV est retenue, puis traitement `SUCCEEDED` | écrit |
+| COL-12-S2 | intégration | même classe : second POST → 409 `SYNCHRONISATION_EN_COURS` | écrit |
+| COL-12-S3 | intégration (concurrence) | attente simulée qui lance une seconde synchronisation (manuelle et planifiée) pendant l'attente : « déjà en cours », un seul `RUNNING` | écrit |
+| COL-04-S1 à S3 | intégration | `EnrichmentTest` : passage de la file après synchronisation ; EPSS rattrapé au passage suivant | écrit |
+| COL-04-S4 | intégration | réponse NVD retenue : la synchronisation se termine sans attendre | écrit |
+| INV-4 | architecture | `AppelsReseauHorsTransactionTest` + classe d'exemple | écrit |
+| INV-5 | architecture | `ObservateursEvenementsTest` + classe d'exemple | écrit |
+| RAD-07-S2 à S4 | intégration | `RadarStandardsTest` (attente bornée), annonce retenue, compteur d'échecs | écrit |
+| D7 | architecture + unitaire | `ClientsHttpCommunsTest` ; `LectureBorneeTest` | écrit |
+| D8 | intégration | `OsvArchiveTest` (archive servie par le serveur simulé, seuil 1) | écrit |
+| D9 | intégration | `ActiviteDepotCaracterisationTest` / test de collecte : une requête d'échéances, deux forges | écrit |
 
 ## Documentation durable impactée
 

@@ -46,6 +46,9 @@ public class TestDb {
     RecordingSleeper sleeper;
 
     @Inject
+    Asynchrone asynchrone;
+
+    @Inject
     SimulatedAnalysis analysis;
 
     @Inject
@@ -58,6 +61,8 @@ public class TestDb {
     jakarta.enterprise.inject.Instance<io.quarkus.mailer.MockMailbox> mailbox;
 
     public void reset() {
+        // Les observateurs asynchrones du test précédent (alertes, annonces) se terminent avant la remise à zéro.
+        asynchrone.attendre();
         exec("""
                 TRUNCATE fiche_historique, fiche_domaine, fiche_reglementaire, texte_officiel, reg_collecte_jour,
                          reg_parametres, regle_dictionnaire, expert_domaine, domaine_metier, dette_version, standard_historique, standard_suggestion, standard_technologie, radar_parametres,

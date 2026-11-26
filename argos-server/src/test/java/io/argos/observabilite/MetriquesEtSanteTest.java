@@ -127,6 +127,7 @@ class MetriquesEtSanteTest {
                 .replace("\"severity\":\"HIGH\"", "\"severity\":\"CRITICAL\"");
         Fixtures.stubOsv("GHSA-OBSERVE", "2026-11-10T00:00:00Z", avis);
         synchroniseur.synchronize("OSV");
+        asynchrone.attendre();
         envoi.traiterEnAttente(Instant.now());
         assertEquals(1, baseDeTest.count("SELECT count(*) FROM alerte WHERE etat = 'ENVOYEE'"), "alerte envoyée");
 

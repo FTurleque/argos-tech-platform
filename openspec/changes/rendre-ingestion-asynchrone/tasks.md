@@ -30,43 +30,43 @@
 
 ## 5. Événements (AUD-ARC-09, AUD-ARC-19)
 
-- [ ] 5.1 `StandardModifie`, `AnnonceStandard`, `ImpactsRecorded` publiés par `PublicationAsynchrone` et observés par `@ObservesAsync` — RAD-07-S2 à S4 — vérification : `RadarStandardsTest`, `ParcoursRadarTest`, tests d'alertes passent avec attente bornée
+- [x] 5.1 `StandardModifie`, `AnnonceStandard`, `ImpactsRecorded` publiés par `PublicationAsynchrone` et observés par `@ObservesAsync` — RAD-07-S2 à S4 — vérification : `RadarStandardsTest`, `ParcoursRadarTest`, tests d'alertes passent avec attente bornée
 - [x] 5.2 Suppression d'`AlerteEmise` et de ses cinq émissions — vérification : `grep -rn AlerteEmise argos-server/src` vide
 - [x] 5.3 Règle `ObservateursEvenementsTest` (observateurs synchrones inter-modules en liste fermée) et classe d'exemple — INV-5 — vérification : test passe
 - [x] 5.4 arc42 §8 (événements entre modules, règle 3 des frontières d'erreur), fiche `radar-standards.md` (RAD-07) — vérification : `node scripts/verifier-docs.mjs`
 
 ## 6. Clients HTTP communs (AUD-ARC-10)
 
-- [ ] 6.1 `ForgeHttp`, `ClientEndoflife`, `FournisseurOllama`, `ArchivesJorf` sur `ClientsHttp` et `LectureBornee` — vérification : tests SCM, radar, IA, réglementaires passent
+- [x] 6.1 `ForgeHttp`, `ClientEndoflife`, `FournisseurOllama`, `ArchivesJorf` sur `ClientsHttp` et `LectureBornee` — vérification : tests SCM, radar, IA, réglementaires passent
 - [x] 6.2 Règle `ClientsHttpCommunsTest` : `HttpClient.newBuilder` seulement dans `commun.http` — vérification : test passe
 - [x] 6.3 arc42 §5.3 (commun) et §8.3 — vérification : `node scripts/verifier-docs.mjs`
 
 ## 7. Collecte d'activité (AUD-PER-13)
 
-- [ ] 7.1 `ActiviteStore.prochainesCollectes()`, `ExecuteurCollecteActivite`, `CollecteActivite` par forge — design D9 — vérification : tests d'activité passent ; test : deux forges collectées, une requête d'échéances
+- [x] 7.1 `ActiviteStore.prochainesCollectes()`, `ExecuteurCollecteActivite`, `CollecteActivite` par forge — design D9 — vérification : tests d'activité passent ; test : deux forges collectées, une requête d'échéances
 - [x] 7.2 arc42 §8.5 (exécuteurs, `ExecuteurCollecteActivite`) — vérification : `node scripts/verifier-docs.mjs`
 
 ## 8. Vérifications d'intégration
 
-- [ ] 8.1 `openspec validate rendre-ingestion-asynchrone --strict` réussit
-- [ ] 8.2 CI locale (`.github/workflows/integration-continue.yml`) : build et tests serveur, IHM, documentation ; `archgate check`
-- [ ] 8.3 Revue par le superviseur de code ; remontées corrigées
+- [x] 8.1 `openspec validate rendre-ingestion-asynchrone --strict` réussit
+- [x] 8.2 CI locale (`.github/workflows/integration-continue.yml`) : build et tests serveur, IHM, documentation ; `archgate check`
+- [x] 8.3 Revue par le superviseur de code ; remontées corrigées
 
 ## Matrice de traçabilité
 
 | Exigence | Scénario | Conception / diagramme | Tâche | Test ou preuve | État de la preuve |
 |---|---|---|---|---|---|
-| COL-04 | COL-04-S1 | D3, DC-2 | 2.2 | `chain/EnrichmentTest#col04S1ExploitationAvereeSignaleeParKev` | à adapter |
-| COL-04 | COL-04-S2 | D3, DC-2 | 2.2 | `chain/EnrichmentTest#col04S2NvdRattacheAuSignalExistant` | à adapter |
-| COL-04 | COL-04-S3 | D3, DC-2 | 2.2 | `chain/EnrichmentTest#col04S3SourceSecondaireIndisponible` | à adapter |
-| COL-04 | COL-04-S4 | D3, DC-2 | 2.2 | `chain/EnrichmentTest` (réponse NVD retenue) | à écrire |
-| COL-12 | COL-12-S1 | D1, DC-1 | 3.2 | `chain/LancementSynchronisationTest` | à écrire |
-| COL-12 | COL-12-S2 | D1, DC-1 | 3.2 | `chain/LancementSynchronisationTest` | à écrire |
-| COL-12 | COL-12-S3 | D2, DC-3 | 3.1, 3.3 | `chain/LancementSynchronisationTest` (attente de reprise) | à écrire |
-| RAD-07 | RAD-07-S1 | — | — | `chain/RadarStandardsTest` (clé mal encodée) | existant |
-| RAD-07 | RAD-07-S2 | D5, DC-5 | 5.1 | `chain/RadarStandardsTest#rad07S2AnnonceEnPanneApresLEnregistrement` | à adapter |
-| RAD-07 | RAD-07-S3 | D5, DC-5 | 5.1 | `chain/RadarStandardsTest` (erreur imprévue comptée) | à adapter |
-| RAD-07 | RAD-07-S4 | D5, DC-5 | 5.1 | `chain/RadarStandardsTest` (annonce retenue) | à écrire |
+| COL-04 | COL-04-S1 | D3, DC-2 | 2.2 | `chain/EnrichmentTest#col04S1ExploitationAvereeSignaleeParKev` | exécuté le 2026-11-26 |
+| COL-04 | COL-04-S2 | D3, DC-2 | 2.2 | `chain/EnrichmentTest#col04S2NvdRattacheAuSignalExistant` | exécuté le 2026-11-26 |
+| COL-04 | COL-04-S3 | D3, DC-2 | 2.2 | `chain/EnrichmentTest#col04S3SourceSecondaireIndisponible`, `#leRattrapageReplaceEnFileUnSignalSansEnrichissement` | exécuté le 2026-11-26 |
+| COL-04 | COL-04-S4 | D3, DC-2 | 2.2 | `chain/EnrichmentTest#col04S4EnregistrementSansAttenteDesSourcesSecondaires` | exécuté le 2026-11-26 |
+| COL-12 | COL-12-S1 | D1, DC-1 | 3.2 | `chain/LancementSynchronisationTest#col12S1LancementAccepteAvantLaFinDuTraitement` | exécuté le 2026-11-26 |
+| COL-12 | COL-12-S2 | D1, DC-1 | 3.2 | `chain/LancementSynchronisationTest#col12S2SecondLancementRefusePendantLeTraitement` | exécuté le 2026-11-26 |
+| COL-12 | COL-12-S3 | D2, DC-3 | 3.1, 3.3 | `chain/LancementSynchronisationTest#col12S3AttenteDeRepriseExclusive` | exécuté le 2026-11-26 |
+| RAD-07 | RAD-07-S1 | — | — | `chain/RadarStandardsTest#rad07S1CleMalEncodee` | exécuté le 2026-11-26 |
+| RAD-07 | RAD-07-S2 | D5, DC-5 | 5.1 | `chain/RadarStandardsTest#rad07S2AnnonceEnPanneApresLEnregistrement` | exécuté le 2026-11-26 |
+| RAD-07 | RAD-07-S3 | D5, DC-5 | 5.1 | `chain/RadarStandardsTest#rad07S3AnnonceEnErreurImprevueJournaliseeEtComptee` | exécuté le 2026-11-26 |
+| RAD-07 | RAD-07-S4 | D5, DC-5 | 5.1 | `chain/RadarStandardsTest#rad07S4AnnonceSansAttente` | exécuté le 2026-11-26 |
 
 ## Workflow follow-up
 
