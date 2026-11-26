@@ -32,6 +32,9 @@ import io.argos.testsupport.Api;
 @QuarkusTest
 class CloisonnementTest {
 
+    /** Contexte vide : aucun compte, sujet, courriel ni espace courant. */
+    private static final Contexte SANS_CONTEXTE = new Contexte(null, null, null, null);
+
     @Inject
     DataSource dataSource;
 
@@ -72,7 +75,7 @@ class CloisonnementTest {
 
         // Rôle applicatif sans aucun contexte : zéro ligne d'espace.
         for (String table : List.of("espace", "appartenance", "invitation")) {
-            long lignes = base.executer(new Contexte(null, null, null, null), connexion -> compter(connexion, "SELECT count(*) FROM " + table));
+            long lignes = base.executer(SANS_CONTEXTE, connexion -> compter(connexion, "SELECT count(*) FROM " + table));
             assertEquals(0, lignes, "lignes visibles sans contexte dans " + table);
         }
     }

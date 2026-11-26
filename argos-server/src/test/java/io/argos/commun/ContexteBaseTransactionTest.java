@@ -21,6 +21,9 @@ import org.junit.jupiter.api.Test;
 @QuarkusTest
 class ContexteBaseTransactionTest {
 
+    /** Contexte vide : aucun compte, sujet, courriel ni espace courant. */
+    private static final Contexte SANS_CONTEXTE = new Contexte(null, null, null, null);
+
     private static final String TABLE = "contexte_essai";
 
     @Inject
@@ -58,7 +61,7 @@ class ContexteBaseTransactionTest {
     @Test
     void uneExceptionMetierAnnuleLaTransactionEtEstRelanceeTelleQuelle() {
         DonneeInvalide refus = new DonneeInvalide("DONNEE_INVALIDE", "refus", "valeur");
-        DonneeInvalide relancee = assertThrows(DonneeInvalide.class, () -> base.executer(new Contexte(null, null, null, null), connexion -> {
+        DonneeInvalide relancee = assertThrows(DonneeInvalide.class, () -> base.executer(SANS_CONTEXTE, connexion -> {
             inserer(connexion, 2);
             throw refus;
         }));
@@ -68,7 +71,7 @@ class ContexteBaseTransactionTest {
 
     @Test
     void uneErreurSqlAnnuleLaTransactionEtEstTraduiteEnErreurBase() {
-        ErreurBase erreur = assertThrows(ErreurBase.class, () -> base.executer(new Contexte(null, null, null, null), connexion -> {
+        ErreurBase erreur = assertThrows(ErreurBase.class, () -> base.executer(SANS_CONTEXTE, connexion -> {
             inserer(connexion, 3);
             throw new SQLException("panne simulée");
         }));
@@ -78,11 +81,11 @@ class ContexteBaseTransactionTest {
 
     @Test
     void deuxExecutionsSuccessivesSontIndependantes() {
-        base.executer(new Contexte(null, null, null, null), connexion -> {
+        base.executer(SANS_CONTEXTE, connexion -> {
             inserer(connexion, 4);
             return Boolean.TRUE;
         });
-        assertThrows(ErreurBase.class, () -> base.executer(new Contexte(null, null, null, null), connexion -> {
+        assertThrows(ErreurBase.class, () -> base.executer(SANS_CONTEXTE, connexion -> {
             inserer(connexion, 5);
             throw new SQLException("panne simulée");
         }));

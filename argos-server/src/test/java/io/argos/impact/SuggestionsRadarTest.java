@@ -71,8 +71,8 @@ class SuggestionsRadarTest {
     }
 
     private long enAttente() {
-        return baseDeTest.count("SELECT count(*) FROM standard_suggestion WHERE espace_id = '" + espace
-                + "' AND etat = 'EN_ATTENTE' AND statut = 'HOLD' AND origine = 'IA'");
+        return baseDeTest.count("SELECT count(*) FROM standard_suggestion WHERE espace_id = ? AND etat = 'EN_ATTENTE'"
+                + " AND statut = 'HOLD' AND origine = 'IA'", espace);
     }
 
     @Test
@@ -85,7 +85,7 @@ class SuggestionsRadarTest {
         assertEquals(1, enAttente());
         assertEquals(JUSTIFICATION, baseDeTest.string("SELECT justification FROM standard_suggestion WHERE espace_id = '"
                 + espace + "'"));
-        assertEquals("ADOPT", baseDeTest.string("SELECT statut FROM standard_technologie WHERE espace_id = '" + espace + "'"),
+        assertEquals("ADOPT", baseDeTest.string("SELECT statut FROM standard_technologie WHERE espace_id = ?", espace),
                 "le référentiel est inchangé");
         assertTrue(StubServer.received(CHAT).get(0).body().contains("PostgreSQL"), "la technologie est transmise");
     }

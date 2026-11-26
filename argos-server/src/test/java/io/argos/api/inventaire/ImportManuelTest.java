@@ -89,7 +89,7 @@ class ImportManuelTest {
         String volumineux = "{\"bomFormat\":\"CycloneDX\",\"specVersion\":\"1.6\",\"bourrage\":\"" + "x".repeat(21_000_000) + "\"}";
         Api.enTantQue("hugo").contentType(ContentType.JSON).body(volumineux).when().post(chemin("/sbom"))
                 .then().statusCode(200).body("status", equalTo("REJECTED"));
-        assertEquals(0, baseDeTest.count("SELECT count(*) FROM inventory WHERE project_id = '" + projet + "'"));
+        assertEquals(0, baseDeTest.count("SELECT count(*) FROM inventory WHERE project_id = ?", projet));
     }
 
     @Test
@@ -126,8 +126,12 @@ class ImportManuelTest {
         Api.enTantQue("jules").when().post(chemin("/refresh")).then().statusCode(404);
         Api.enTantQue("hugo").when().post("/api/v1/projects/" + UUID.randomUUID() + "/inventory/refresh").then().statusCode(404);
 
-        assertEquals(2, baseDeTest.count("SELECT count(*) FROM refus_acces WHERE compte_id = '" + Api.compte("ines")
-                + "' AND motif = 'ROLE_INSUFFISANT'"));
+        assertEquals(2, refus("ines", "ROLE_INSUFFISANT"));
         assertEquals(0, baseDeTest.count("SELECT count(*) FROM inventory"));
+    }
+
+    /** Refus journalisés pour le compte de l'utilisateur, avec le motif donné. */
+    private long refus(String utilisateur, String motif) {
+        return baseDeTest.count("SELECT count(*) FROM refus_acces WHERE compte_id = ? AND motif = ?", Api.compte(utilisateur), motif);
     }
 }

@@ -69,8 +69,8 @@ class AdministrationProjetsTest {
                 .body("items.id", contains(projet)).body("items.name", contains("portail"));
         Api.enTantQue("alice").when().get(PROJETS + "/" + projet + "/inventory/summary").then().statusCode(200)
                 .body("status", equalTo("NO_SBOM"));
-        assertEquals(1, baseDeTest.count("SELECT count(*) FROM project_repository WHERE project_id = '" + projet
-                + "' AND provider = 'GITHUB' AND repository = 'org/portail' AND branch = 'main' AND principal"));
+        assertEquals(1, baseDeTest.count("SELECT count(*) FROM project_repository WHERE project_id = ? AND provider = 'GITHUB'"
+                + " AND repository = 'org/portail' AND branch = 'main' AND principal", projet));
     }
 
     @Test
@@ -88,7 +88,7 @@ class AdministrationProjetsTest {
         Api.enTantQue("alice").contentType(ContentType.JSON).body(depot("GITLAB", "groupe/api"))
                 .when().post(PROJETS + "/" + projet + "/repositories")
                 .then().statusCode(201).body("principal", equalTo(false));
-        assertEquals(2, baseDeTest.count("SELECT count(*) FROM project_repository WHERE project_id = '" + projet + "'"));
+        assertEquals(2, baseDeTest.count("SELECT count(*) FROM project_repository WHERE project_id = ?", projet));
 
         Api.enTantQue("alice").contentType(ContentType.JSON).body(depot("GITLAB", "groupe/api"))
                 .when().post(PROJETS + "/" + projet + "/repositories")
@@ -121,8 +121,7 @@ class AdministrationProjetsTest {
 
         assertEquals(1, baseDeTest.count("SELECT count(*) FROM project"));
         assertEquals(1, baseDeTest.count("SELECT count(*) FROM project_repository"));
-        assertEquals(2, baseDeTest.count("SELECT count(*) FROM refus_acces WHERE compte_id = '" + Api.compte("hugo")
-                + "' AND motif = 'ROLE_INSUFFISANT'"));
+        assertEquals(2, refus("hugo", "ROLE_INSUFFISANT"));
     }
 
     @Test
@@ -134,8 +133,7 @@ class AdministrationProjetsTest {
                 .when().post(PROJETS + "/" + projet + "/repositories").then().statusCode(404);
         Api.enTantQue("jules").when().delete(PROJETS + "/" + projet + "/repositories/" + UUID.randomUUID()).then().statusCode(404);
 
-        assertEquals(3, baseDeTest.count("SELECT count(*) FROM refus_acces WHERE compte_id = '" + Api.compte("jules")
-                + "' AND motif = 'NON_MEMBRE'"));
+        assertEquals(3, refus("jules", "NON_MEMBRE"));
         given().contentType(ContentType.JSON).body(Map.of("espaceId", espace.toString(), "nom", "x"))
                 .when().post(PROJETS).then().statusCode(401);
     }
@@ -154,5 +152,10 @@ class AdministrationProjetsTest {
     private void creerInvalide(Map<String, Object> corps, String attribut) {
         Api.enTantQue("alice").contentType(ContentType.JSON).body(corps).when().post(PROJETS)
                 .then().statusCode(400).body("code", equalTo("DONNEE_INVALIDE")).body("attribut", equalTo(attribut));
+    }
+
+    /** Refus journalisés pour le compte de l'utilisateur, avec le motif donné. */
+    private long refus(String utilisateur, String motif) {
+        return baseDeTest.count("SELECT count(*) FROM refus_acces WHERE compte_id = ? AND motif = ?", Api.compte(utilisateur), motif);
     }
 }

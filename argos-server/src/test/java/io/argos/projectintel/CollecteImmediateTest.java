@@ -49,7 +49,7 @@ class CollecteImmediateTest {
 
         Api.enTantQue("hugo").when().post(collecte(projet)).then().statusCode(200).body("issue", equalTo("A_JOUR"));
 
-        assertEquals(1, baseDeTest.count("SELECT count(*) FROM activite_collecte WHERE project_id = '" + projet + "'"));
+        assertEquals(1, baseDeTest.count("SELECT count(*) FROM activite_collecte WHERE project_id = ?", projet));
     }
 
     @Test
@@ -66,9 +66,12 @@ class CollecteImmediateTest {
         Api.enTantQue("ines").when().post(collecte(projet)).then().statusCode(403);
         Api.enTantQue("jules").when().post(collecte(projet)).then().statusCode(404);
 
-        assertEquals(1, baseDeTest.count("SELECT count(*) FROM refus_acces WHERE compte_id = '" + Api.compte("ines")
-                + "' AND motif = 'ROLE_INSUFFISANT'"));
-        assertEquals(1, baseDeTest.count("SELECT count(*) FROM refus_acces WHERE compte_id = '" + Api.compte("jules")
-                + "' AND motif = 'NON_MEMBRE'"));
+        assertEquals(1, refus("ines", "ROLE_INSUFFISANT"));
+        assertEquals(1, refus("jules", "NON_MEMBRE"));
+    }
+
+    /** Refus journalisés pour le compte de l'utilisateur, avec le motif donné. */
+    private long refus(String utilisateur, String motif) {
+        return baseDeTest.count("SELECT count(*) FROM refus_acces WHERE compte_id = ? AND motif = ?", Api.compte(utilisateur), motif);
     }
 }
