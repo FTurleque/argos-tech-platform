@@ -53,6 +53,16 @@
       "enabled": false
     },
     {
+      "description": "@types/node décrit les API de la version de Node.js exécutée (22, workflow et image) : sa majeure la suit.",
+      "matchPackageNames": ["@types/node"],
+      "allowedVersions": "<23.0.0"
+    },
+    {
+      "description": "TypeScript 7 : le compilateur de Vue (compiler-sfc, vue-tsc) ne compile pas les composants avec lui.",
+      "matchPackageNames": ["typescript"],
+      "allowedVersions": "<7.0.0"
+    },
+    {
       "description": "jacoco-maven-plugin suit l'agent org.jacoco géré par le BOM Quarkus : sa version change avec Quarkus.",
       "matchPackageNames": ["org.jacoco:jacoco-maven-plugin"],
       "enabled": false
