@@ -1,6 +1,8 @@
 package io.argos.execution;
 
 import java.time.Duration;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Optional;
 import java.util.concurrent.ArrayBlockingQueue;
 import java.util.concurrent.Callable;
@@ -122,17 +124,71 @@ public abstract class ExecuteurBorne {
         return executeur.isShutdown();
     }
 
-    /** Exécute la tâche et attend son résultat au plus {@code delai}. */
-    public <T> Issue<T> executer(Callable<T> tache, Duration delai) {
-        Future<T> demande;
+    /** Vrai si aucune tâche n'est en cours ni en file. */
+    public boolean inactif() {
+        return executeur.getActiveCount() == 0 && executeur.getQueue().isEmpty();
+    }
+
+    /**
+     * Soumet la tâche sans attendre son issue ; faux si elle est refusée (file pleine ou exécuteur arrêté). La tâche
+     * reçoit la corrélation du fil appelant et traite elle-même ses erreurs.
+     */
+    public boolean lancer(Runnable tache) {
         try {
-            demande = executeur.submit(Correlation.propager(tache));
+            executeur.execute(Correlation.propagerAction(tache));
+            return true;
         } catch (RejectedExecutionException refus) {
             LOG.debugf(refus, "tâche refusée par l'exécuteur %s", nomFils);
-            return Issue.manquee(Etat.REFUSEE, refus);
+            return false;
         }
+    }
+
+    /** Soumet la tâche sans attendre ; refusée, elle s'exécute sur le fil appelant : aucune tâche n'est perdue. */
+    public void lancerOuExecuter(Runnable tache) {
+        if (!lancer(tache)) {
+            tache.run();
+        }
+    }
+
+    /** Exécute la tâche et attend son résultat au plus {@code delai}. */
+    public <T> Issue<T> executer(Callable<T> tache, Duration delai) {
+        Optional<Future<T>> demande = soumettre(tache);
+        if (demande.isEmpty()) {
+            return Issue.manquee(Etat.REFUSEE, new RejectedExecutionException("tâche refusée par " + nomFils));
+        }
+        return attendre(demande.get(), delai.toNanos());
+    }
+
+    /**
+     * Soumet toutes les tâches puis attend leurs issues, dans l'ordre, au plus {@code delai} pour l'ensemble : une
+     * tâche encore en cours à l'échéance est annulée par interruption ; une tâche refusée a l'issue {@link Etat#REFUSEE}.
+     */
+    public <T> List<Issue<T>> executerTous(List<Callable<T>> taches, Duration delai) {
+        long echeance = System.nanoTime() + delai.toNanos();
+        List<Optional<Future<T>>> demandes = taches.stream().map(this::soumettre).toList();
+        List<Issue<T>> issues = new ArrayList<>();
+        for (Optional<Future<T>> demande : demandes) {
+            if (demande.isEmpty()) {
+                issues.add(Issue.manquee(Etat.REFUSEE, new RejectedExecutionException("tâche refusée par " + nomFils)));
+            } else {
+                issues.add(attendre(demande.get(), Math.max(0, echeance - System.nanoTime())));
+            }
+        }
+        return issues;
+    }
+
+    private <T> Optional<Future<T>> soumettre(Callable<T> tache) {
         try {
-            return Issue.obtenue(demande.get(delai.toNanos(), TimeUnit.NANOSECONDS));
+            return Optional.of(executeur.submit(Correlation.propager(tache)));
+        } catch (RejectedExecutionException refus) {
+            LOG.debugf(refus, "tâche refusée par l'exécuteur %s", nomFils);
+            return Optional.empty();
+        }
+    }
+
+    private <T> Issue<T> attendre(Future<T> demande, long delaiNanos) {
+        try {
+            return Issue.obtenue(demande.get(delaiNanos, TimeUnit.NANOSECONDS));
         } catch (InterruptedException interruption) {
             demande.cancel(true);
             Thread.currentThread().interrupt();

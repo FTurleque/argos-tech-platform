@@ -5,8 +5,13 @@ import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.time.Duration;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Optional;
+import java.util.concurrent.Callable;
 import java.util.concurrent.CountDownLatch;
+
+import org.awaitility.Awaitility;
 
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
@@ -19,6 +24,9 @@ import org.junit.jupiter.api.Test;
 class ExecuteurBorneTest {
 
     private static final Duration GENEREUX = Duration.ofSeconds(30);
+
+    /** Délai d'un lot dont la seconde tâche ne se termine jamais : la première, immédiate, s'y termine. */
+    private static final Duration DELAI_DU_LOT = Duration.ofSeconds(2);
 
     /** Exécuteur d'essai : un fil, file d'une demande. */
     private static final class ExecuteurEssai extends ExecuteurBorne {
@@ -77,6 +85,45 @@ class ExecuteurBorneTest {
         }, Duration.ZERO);
         assertEquals(ExecuteurBorne.Etat.DELAI_DEPASSE, issue.etat());
         assertTrue(issue.valeur().isEmpty());
+    }
+
+    @Test
+    void uneTacheLanceeSansAttenteSExecuteEtLExecuteurRedevientInactif() throws InterruptedException {
+        CountDownLatch executee = new CountDownLatch(1);
+        assertTrue(executeur.lancer(executee::countDown));
+        executee.await();
+        Awaitility.await().atMost(GENEREUX).until(executeur::inactif);
+    }
+
+    @Test
+    void uneTacheRefuseeParLaFilePleineSExecuteSurLeFilAppelant() {
+        assertTrue(executeur.lancer(this::attendreSansFin));
+        Awaitility.await().atMost(GENEREUX).until(() -> !executeur.inactif());
+        assertTrue(executeur.lancer(this::attendreSansFin), "la file d'une demande accepte une tâche");
+        assertFalse(executeur.lancer(() -> { }), "file pleine : tâche refusée");
+        List<String> filsExecutants = new ArrayList<>();
+        executeur.lancerOuExecuter(() -> filsExecutants.add(Thread.currentThread().getName()));
+        assertEquals(List.of(Thread.currentThread().getName()), filsExecutants);
+    }
+
+    @Test
+    void unLotDeTachesRendUneIssueParTacheDansLOrdre() {
+        Callable<String> lente = () -> {
+            attendreSansFin();
+            return "trop tard";
+        };
+        List<ExecuteurBorne.Issue<String>> issues = executeur.executerTous(List.of(() -> "première", lente), DELAI_DU_LOT);
+        assertEquals(List.of(ExecuteurBorne.Etat.OBTENU, ExecuteurBorne.Etat.DELAI_DEPASSE),
+                issues.stream().map(ExecuteurBorne.Issue::etat).toList());
+        assertEquals(Optional.of("première"), issues.get(0).valeur());
+    }
+
+    private void attendreSansFin() {
+        try {
+            jamais.await();
+        } catch (InterruptedException interruption) {
+            Thread.currentThread().interrupt();
+        }
     }
 
     @Test

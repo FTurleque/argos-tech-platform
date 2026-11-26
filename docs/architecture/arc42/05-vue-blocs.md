@@ -162,7 +162,7 @@ le service de `workspace`.
 | catalog | `domaine_metier`, `expert_domaine`, `regle_dictionnaire`, `standard_technologie`, `standard_suggestion`, `standard_historique` |
 | inventory | `project`, `project_repository`, `inventory`, `repository_inventory`, `component`, `component_occurrence`, `inventory_import_failure` |
 | signal | `signal`, `signal_alias`, `signal_package`, `signal_version`, `actualite`, `actualite_source`, `source_web`, `source_profil`, `opportunite` |
-| vulnintel | `enrichment` |
+| vulnintel | `enrichment`, `enrichissement_attente` |
 | releaseradar | `cycle_vie`, `cycle_vie_produit` |
 | regintel | `texte_officiel`, `fiche_reglementaire`, `fiche_domaine`, `fiche_historique`, `reg_source`, `reg_parametres`, `reg_collecte_jour` |
 | impact | `project_impact`, `project_impact_transition`, `actualite_impact`, `dette_version` |
