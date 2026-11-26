@@ -46,8 +46,12 @@ export const LISTE_BLANCHE = [
     raison: 'composant du record public EvenementHistorique, propriété JSON « le »' },
   { fichier: 'argos-desktop/test/electron-factice.js', nom: 'on',
     raison: 'doublure de l\'API Electron : méthode on() d\'ipcRenderer et de Notification' },
+  { fichier: 'argos-desktop/test/electron-principal-factice.js', nom: 'on',
+    raison: 'doublure de l\'API Electron : méthode on() d\'app, de BrowserWindow, de webContents et de Tray' },
   { fichier: 'argos-desktop/test/poste.test.js', nom: 'on',
     raison: 'doublure de l\'API Electron : méthode on() de Notification' },
+  { fichier: 'argos-ui/tests/vues/reglages-poste.spec.ts', nom: 'vi',
+    raison: 'API de Vitest : vi.hoisted() n\'est remonté avant les imports que sous ce nom' },
   { fichier: 'e2e/support/electron.ts', nom: 'on',
     raison: 'signature de l\'API Electron : méthode on() de BrowserWindow' },
 ];

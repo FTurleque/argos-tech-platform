@@ -39,6 +39,9 @@ import io.quarkus.test.junit.QuarkusTest;
 @QuarkusTest
 class CouvertureRlsTest {
 
+    /** Contexte vide : aucun compte, sujet, courriel ni espace courant. */
+    private static final Contexte SANS_CONTEXTE = new Contexte(null, null, null, null);
+
     /**
      * Données de référence partagées par tous les espaces, lisibles par tout compte : avis publics,
      * calendrier des cycles de vie, textes officiels publiés, opportunités publiques. Aucune ne porte
@@ -127,7 +130,7 @@ class CouvertureRlsTest {
             if (compterEnProprietaire(sql) > 0) {
                 peuplees++;
             }
-            long lignes = base.executer(Contexte.aucun(), connexion -> compter(connexion, sql));
+            long lignes = base.executer(SANS_CONTEXTE, connexion -> compter(connexion, sql));
             if (lignes != 0) {
                 visiblesSansContexte.put(table.nom(), lignes);
             }

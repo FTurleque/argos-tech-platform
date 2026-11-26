@@ -18,7 +18,7 @@ public final class Conversions {
     }
 
     /** Instant d'une colonne {@code timestamptz} désignée par son nom. */
-    public static Instant instant(ResultSet resultat, String colonne) throws SQLException {
+    static Instant instant(ResultSet resultat, String colonne) throws SQLException {
         return versInstant(resultat.getObject(colonne, OffsetDateTime.class));
     }
 

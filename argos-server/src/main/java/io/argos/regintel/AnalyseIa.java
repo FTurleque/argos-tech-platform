@@ -40,11 +40,6 @@ public class AnalyseIa {
     @Inject
     PasserelleIa passerelle;
 
-    /** Vrai si un appel imputé à l'espace serait accepté. */
-    public boolean disponible(UUID espace) {
-        return passerelle.disponible(espace);
-    }
-
     /** Domaine proposé parmi ceux de l'espace ; vide sans IA, sans proposition ou hors liste. */
     public Optional<Proposition> proposerDomaine(UUID espace, TexteOfficiel texte, List<Domaine> domaines) {
         if (domaines.isEmpty()) {

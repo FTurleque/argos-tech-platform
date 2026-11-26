@@ -79,7 +79,7 @@ public final class LimiteurDebit {
     }
 
     /** Nombre de comptes suivis. */
-    public int comptesSuivis() {
+    int comptesSuivis() {
         return appels.size();
     }
 }

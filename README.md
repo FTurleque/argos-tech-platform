@@ -77,6 +77,7 @@ L'intégration continue ([workflow](.github/workflows/integration-continue.yml),
 
 ```bash
 mvn -B -f argos-server/pom.xml clean verify                 # tests du serveur, seuil de couverture (Docker requis)
+node scripts/verifier-couverture-modules.mjs                # seuils de couverture par module (après mvn verify)
 npm --prefix argos-ui test && npm --prefix argos-ui run typecheck && npm --prefix argos-ui run build
 npm --prefix argos-desktop run check                        # syntaxe, types (tsc --checkJs) et tests
 npm --prefix e2e ci && npm --prefix e2e run typecheck       # types des parcours E2E (tsc --strict)

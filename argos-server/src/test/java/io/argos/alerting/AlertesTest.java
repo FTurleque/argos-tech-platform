@@ -315,7 +315,7 @@ class AlertesTest {
         assertTrue(corps.contains("Gravité : CRITICAL"), "gravité");
         assertTrue(corps.contains("portail-rh (EXACT)"), "projet autorisé du destinataire");
         assertTrue(corps.contains("OSV GHSA-ALR1 <https://osv.dev/vulnerability/GHSA-ALR1>"), "source");
-        assertTrue(corps.contains("/signaux/" + signal), "lien vers l'élément");
+        assertTrue(corps.contains("http://localhost:5173/#/signaux/" + signal), "lien vers la vue du signal (ALR-09-S1)");
     }
 
     @Test
@@ -523,7 +523,7 @@ class AlertesTest {
                 .body("[0].titre", equalTo("Vulnérabilité de test GHSA-POSTE"))
                 .body("[0].gravite", equalTo("CRITICAL"))
                 .body("[0].contenu.elements[0].projets[0].nom", equalTo("app"))
-                .body("[0].contenu.elements[0].lien", containsString("/signaux/"))
+                .body("[0].contenu.elements[0].lien", containsString("/#/signaux/"))
                 .body("[0].contenu.etatResumeIa", equalTo("DISPONIBLE"))
                 .extract().path("[0].id");
         assertTrue(mailbox.getMailsSentTo("alice@argos.test").isEmpty(), "aucun e-mail pour une règle desktop");

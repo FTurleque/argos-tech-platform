@@ -373,6 +373,7 @@ class ConsultationInventaireTest {
                         hasItems("projectId", "items", "page", "size", "total"))
                 .body("components.schemas.ComponentItem.properties.keySet()",
                         hasItems("id", "name", "version", "purl", "packageKey", "transitive", "repositories"))
-                .body("paths.'/api/v1/projects'.post", nullValue());
+                .body("paths.'/api/v1/projects'.post.requestBody", notNullValue())
+                .body("paths.'/api/v1/projects'.post.responses.keySet()", hasItems("201", "400", "401", "403", "404"));
     }
 }

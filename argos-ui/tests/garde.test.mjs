@@ -8,7 +8,7 @@ import { decisionExpiration, decisionGarde } from '../src/session/garde.ts'
 import { ROUTES } from './support/routes.mjs'
 
 test('seules l’état du serveur, la connexion et l’écran de refus sont publiques', () => {
-  assert.equal(ROUTES.length, 13, 'routes lues dans router.ts')
+  assert.equal(ROUTES.length, 17, 'routes lues dans router.ts')
   assert.deepEqual(ROUTES.filter((route) => route.publique).map((route) => route.name).sort(), ['compte-non-cree', 'connexion', 'status'])
   const routeur = readFileSync(new URL('../src/router.ts', import.meta.url), 'utf8')
   assert.match(routeur, /publique \? \{ path, name, component, meta: \{ public: true \} \} : \{ path, name, component \}/,

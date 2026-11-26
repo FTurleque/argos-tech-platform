@@ -90,7 +90,7 @@ public class GardeAdresses {
     }
 
     /** Analyse et vérifie une adresse saisie ; lève {@link RecuperationRefusee} si elle est refusée. */
-    public DestinationControlee verifier(String adresse) {
+    DestinationControlee verifier(String adresse) {
         return verifier(analyser(adresse), Motif.ADRESSE_INTERDITE);
     }
 

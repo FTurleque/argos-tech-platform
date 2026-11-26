@@ -5,8 +5,9 @@
 | Préfixe d'exigences | `ART` |
 | Spec de référence | [`/openspec/specs/profil-artiste/spec.md`](/openspec/specs/profil-artiste/spec.md) |
 | Changements archivés | [`2026-11-17-ajouter-profil-artiste`](/openspec/changes/archive/2026-11-17-ajouter-profil-artiste/proposal.md) |
-| Statut de la capacité | livrée |
-| Composants (arc42 §5) | `catalog` (pack), `workspace` (suivis sous RLS), `signal` (registre des sources et opportunités), `impact-engine` (stratégie), `source-ingestion`, `alerting`, `API & Security` |
+| Changement en cours | [`alimenter-inventaire-et-completer-ihm`](/openspec/changes/alimenter-inventaire-et-completer-ihm/proposal.md) (ART-07) — implémenté, non archivé |
+| Statut de la capacité | livrée ; vue du profil artiste dans `argos-ui` (ART-07, [PROPOSITION]) |
+| Composants (arc42 §5) | `catalog` (pack), `workspace` (suivis sous RLS), `signal` (registre des sources et opportunités), `impact-engine` (stratégie), `source-ingestion`, `alerting`, `API & Security`, IHM `argos-ui` |
 
 ## Objectif
 
@@ -16,7 +17,7 @@
 
 | Acteur | Interaction | Statut |
 |---|---|---|
-| Artiste | active le profil, choisit ses disciplines, ses territoires et ses jours de rappel | [EXISTANT] — ART-02 |
+| Artiste | active le profil, choisit ses disciplines, ses territoires et ses jours de rappel ; consulte dans l'IHM ses suivis, les opportunités rapprochées, leur résumé et les rubriques de sa veille | [EXISTANT] — ART-02 ; [PROPOSITION] — ART-07 pour l'IHM |
 | Administrateur plateforme | déclare les sources du pack, enregistre leurs conditions d'usage, lance une collecte | [EXISTANT] — ART-05 |
 | data.culture.gouv.fr | publie des jeux de données sous Licence Ouverte Etalab, lus par l'API Opendatasoft « explore v2.1 » | [DÉCISION] — Q-1 |
 | Organismes publics et sociétés de gestion | publient appels, aides et informations par des flux RSS/Atom publics | [DÉCISION] — Q-1 |
@@ -28,13 +29,15 @@ Inclus :
 - le pack `artiste` du catalogue (cinq rubriques, listes de disciplines et de territoires, trois garde-fous) ;
 - les suivis de l'utilisateur, la stratégie discipline + territoire + date limite, les rappels J-30, J-7 et J-1 paramétrables ;
 - le registre des sources du pack et la collecte des seules sources vérifiées ;
-- le gabarit de résumé sans avis d'éligibilité.
+- le gabarit de résumé sans avis d'éligibilité ;
+- la vue du profil artiste dans `argos-ui`, web et desktop : choix des disciplines et des territoires suivis, opportunités rapprochées, résumé d'une opportunité à une adresse stable, sources vérifiées, rubriques de la veille (ART-07).
 
 Exclus :
 
 - les profils `comedien` et `politique` : changements dédiés ;
 - la candidature en ligne aux appels ;
-- un écran du profil artiste dans `argos-ui` : la capacité est exposée par l'API REST ;
+- l'administration des sources du pack dans l'IHM (déclaration, conditions d'usage, collecte) : routes REST réservées à l'administrateur plateforme ;
+- le réglage des jours de rappel dans l'IHM : il passe par `PUT /api/v1/profils/artiste/suivis` ;
 - toute source hors data.culture.gouv.fr et flux RSS/Atom publics tant que ses conditions d'usage ne sont pas vérifiées (Q-1) ;
 - un périmètre géographique hors de France (Q-2).
 
@@ -54,7 +57,7 @@ Exclus :
 | Opportunité collectée | rubrique, titre, organisme, critères, lien officiel, disciplines, territoires, date limite | texte brut (balises retirées, longueurs bornées) ; lien http(s) seulement ; valeurs ramenées aux listes du pack, à défaut celles déclarées pour la source ; date absente ou illisible : « date à confirmer » | [EXISTANT] — ART-03 |
 | Opportunité restituée | champs ci-dessus, explication de la décision, résumé | ordre : date limite la plus proche, « date à confirmer » en dernier | [EXISTANT] — ART-03, ART-06 |
 
-API REST `/api/v1/profils/artiste/` : `listes` (GET), `suivis` (GET, PUT), `opportunites` (GET), `opportunites/{id}/resume` (GET) ; pour l'administrateur plateforme : `sources` (GET, POST), `sources/{id}/conditions-usage` (PUT), `collectes` (POST, limité à 10 par minute et par compte). Rubriques de la veille : `GET /api/v1/preferences/rubriques` (union des rubriques des profils actifs).
+API REST `/api/v1/profils/artiste/` : `listes` (GET), `suivis` (GET, PUT), `opportunites` (GET), `opportunites/{id}/resume` (GET) ; pour l'administrateur plateforme : `sources` (GET, POST), `sources/{id}/conditions-usage` (PUT), `collectes` (POST, limité à 10 par minute et par compte). Rubriques de la veille : `GET /api/v1/preferences/rubriques` (union des rubriques des profils actifs). IHM : vue `ProfilArtisteView` aux adresses `/#/profils/artiste` et `/#/profils/artiste/opportunites/{id}` (opportunité mise en avant avec son résumé, cible des liens des rappels, ALR-09), module `argos-ui/src/api/artiste.ts`.
 
 ## Règles métier
 
@@ -66,6 +69,7 @@ API REST `/api/v1/profils/artiste/` : `listes` (GET), `suivis` (GET, PUT), `oppo
 | Rappel aux jours de rappel du compte (J-30, J-7, J-1 par défaut), avec la date limite, le lien officiel et la mention « aucun avis d'éligibilité » ; aucun rappel pour une date à confirmer | ART-04 | ALR-04 ; Q-4 | [EXISTANT] |
 | Aucune requête vers une source dont les conditions d'usage ne sont pas enregistrées ; état « conditions d'usage à vérifier » | ART-05 | ADR-0024 point 8 ; ADR-0025 | [EXISTANT] |
 | Résumé composé sans IA : critères tels qu'énoncés, date limite, lien vers le texte officiel, mention fixe ; aucun champ ni aucune formule sur l'éligibilité | ART-06 | ADR-0024 point 7 | [EXISTANT] |
+| Vue de l'IHM, web et desktop : choix des disciplines et territoires suivis, opportunités rapprochées, résumé d'une opportunité (marqué « produit par l'IA » lorsqu'il l'est), sources vérifiées et rubriques de la veille, à une adresse stable par opportunité ; sans suivi, message « suivis requis » sans liste | ART-07 | AUD-ARC-15 ; ART-02, ART-03, ART-05 ; AUD-ARC-22 | [PROPOSITION] — [`alimenter-inventaire-et-completer-ihm`](/openspec/changes/alimenter-inventaire-et-completer-ihm/proposal.md) ; vérifiée par `argos-ui/tests/vues/profil-artiste.spec.ts` |
 
 ## Droits d'accès et restrictions
 
@@ -85,6 +89,7 @@ API REST `/api/v1/profils/artiste/` : `listes` (GET), `suivis` (GET, PUT), `oppo
 - Récupération par le collecteur de la veille web (`RecuperateurWeb`) : réseaux privés refusés, redirections vérifiées, durée et taille bornées (SSRF) ; aucune adresse lue dans un contenu n'est récupérée.
 - Contenu externe traité comme non fiable : JSON analysé sans doublon de clé, texte brut sans balises ni scripts, longueurs bornées, nombre d'éléments par collecte borné (`argos.profil-artiste.elements-max`) ; liens `javascript:` ou `data:` écartés (XSS).
 - Requêtes SQL paramétrées ; aucun contenu externe envoyé à un modèle d'IA (le résumé est un gabarit).
+- Vue de l'IHM : titres, critères et organismes, issus des sources, sont rendus comme texte ; seuls les liens `http(s)` sont rendus cliquables (`urlSure`).
 
 ## Qualités mesurables
 
@@ -116,7 +121,7 @@ Trois critères structurés suffisent à décider, sans IA ; le résumé ne juge
 
 ## Critères d'acceptation
 
-Scénarios ART-01-S1 à ART-06-S1 du changement ; aucun scénario qualité transverse supplémentaire.
+Scénarios ART-01-S1 à ART-06-S1 du changement ; ART-07-S1 à ART-07-S3 du changement [`alimenter-inventaire-et-completer-ihm`](/openspec/changes/alimenter-inventaire-et-completer-ihm/specs/profil-artiste/spec.md) [PROPOSITION] ; aucun scénario qualité transverse supplémentaire.
 
 ## Interprétations introduites par un changement
 
@@ -130,12 +135,14 @@ Scénarios ART-01-S1 à ART-06-S1 du changement ; aucun scénario qualité trans
 ## Écarts constatés
 
 - Aucun jeu de données data.culture.gouv.fr n'est encore déclaré en exploitation : la correspondance des champs est à confirmer pour chaque jeu retenu par l'administrateur plateforme.
-- Pas d'écran du profil artiste dans `argos-ui` : la tâche 5.2 est vérifiée par un parcours de bout en bout au niveau de l'API (`ParcoursArtisteTest`).
+- La tâche 5.2 du changement archivé est vérifiée par un parcours de bout en bout au niveau de l'API (`ParcoursArtisteTest`) ; la vue `ProfilArtisteView` l'est par des tests de composants (Vitest), sans parcours E2E.
+- ART-07 (sources vérifiées) : la section « Sources vérifiées » n'apparaît qu'à l'administrateur plateforme, car `GET /api/v1/profils/artiste/sources` lui est réservé (`403` sinon) ; les autres utilisateurs ne voient pas les sources vérifiées.
+- ART-07-S3 (mention de l'IA) : le résumé d'une opportunité est un gabarit composé sans IA (ART-06) ; la vue sait afficher la mention « produit par l'IA », mais le serveur n'en produit jamais, si bien qu'elle n'apparaît pas.
 - Un flux RSS/Atom ne porte pas de date limite structurée : ses éléments sont restitués « date à confirmer », sans rappel.
 - Un rappel n'est calculé que pour le jour exact (aujourd'hui + N), comme les rappels du radar : un jour sans exécution n'est pas rattrapé.
 - Un `PUT /suivis` sans `rappelsJours` conserve les jours déjà enregistrés ; aucun appel ne rétablit les jours par défaut, qu'il faut renvoyer explicitement (`[30, 7, 1]`).
 - La restriction d'hôte des sources `DATA_CULTURE` porte sur l'adresse initiale : une redirection vers un autre hôte public reste acceptée, sous le garde SSRF de la veille web.
-- ART-01-S1 est prouvé par `GET /api/v1/preferences/rubriques`, que ni `/api/v1/me/watch` ni `argos-ui` n'emploient ; les opportunités paraissent sous `/api/v1/profils/artiste/opportunites`, pas dans la veille principale.
+- ART-01-S1 est prouvé par `GET /api/v1/preferences/rubriques`, lu par la vue du profil artiste (section « Rubriques de ma veille ») mais pas par `/api/v1/me/watch` ; les opportunités paraissent sous `/api/v1/profils/artiste/opportunites`, pas dans la veille principale.
 
 ## Questions ouvertes
 
@@ -156,3 +163,4 @@ Scénarios ART-01-S1 à ART-06-S1 du changement ; aucun scénario qualité trans
 | ART-04 | ART-04-S1 | DC-1 | 2.4 | `RappelsOpportunitesTest.art04S1RappelALEcheanceAvecDateLimiteEtLienOfficiel`, `lesJoursDeRappelSontParametrables` |
 | ART-05 | ART-05-S1 | Composants | 1.1, 3.1 | `ProfilArtisteTest.art05S1SourceNonVerifieeNonCollectee`, `lesAdressesDesSourcesSontControlees` |
 | ART-06 | ART-06-S1 | Composants | 3.2 | `ProfilArtisteTest.art06S1ResumeSansAvisDEligibilite`, `StrategieDisciplineTerritoireTest.art06LeGabaritDeResumeNeSePrononcePasSurLEligibilite` |
+| ART-07 | ART-07-S1 à ART-07-S3 | `alimenter-inventaire-et-completer-ihm` design.md D6 | 3.1 | `argos-ui/tests/vues/profil-artiste.spec.ts` (suivis, « suivis requis », opportunité de l'adresse, résumé sans mention de l'IA, sources réservées à l'administrateur plateforme) |

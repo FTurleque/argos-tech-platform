@@ -117,13 +117,17 @@ public abstract class ExecuteurBorne {
                 }, new ThreadPoolExecutor.AbortPolicy());
     }
 
+    /** Arrête l'exécuteur ; les tâches encore en cours ou en file sont interrompues et leur nombre journalisé. */
     @PreDestroy
     protected void arreter() {
+        if (!inactif()) {
+            LOG.warnf("arrêt de l'exécuteur %s : %d tâche(s) en cours ou en file interrompue(s)", nomFils, enCours.get());
+        }
         executeur.shutdownNow();
     }
 
     /** Vrai une fois l'exécuteur arrêté. */
-    public boolean arrete() {
+    boolean arrete() {
         return executeur.isShutdown();
     }
 

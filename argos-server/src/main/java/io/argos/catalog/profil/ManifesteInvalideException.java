@@ -14,7 +14,7 @@ public class ManifesteInvalideException extends RuntimeException {
         this.erreurs = List.copyOf(erreurs);
     }
 
-    public List<String> erreurs() {
+    List<String> erreurs() {
         return erreurs;
     }
 }

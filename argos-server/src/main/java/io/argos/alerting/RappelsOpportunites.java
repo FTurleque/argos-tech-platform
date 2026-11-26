@@ -149,7 +149,7 @@ public class RappelsOpportunites {
     private ContenuAlerte contenu(RapprochementOpportunites.Restitution restitution, String titre) {
         String officiel = restitution.lien();
         String lien = officiel != null ? officiel
-                : lienBase.replaceAll("/+$", "") + "/profils/artiste/opportunites/" + restitution.id();
+                : LiensIhm.lien(lienBase, LiensIhm.OPPORTUNITE, restitution.id());
         return new ContenuAlerte(List.of(new ContenuAlerte.Element(null, titre + ". " + ResumeOpportunite.MENTION, null,
                 List.of(), List.of(new ContenuAlerte.Source(restitution.sourceLibelle(), restitution.organisme(), officiel)),
                 lien)), null, "SANS_OBJET");

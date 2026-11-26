@@ -89,14 +89,16 @@ class MatriceRolesTest {
     /**
      * Opérations dont le corps n'est pas vide : sans lui, la validation précéderait le contrôle des droits. Les corps
      * choisis n'ont aucun effet pour un appel autorisé (ressource inconnue, transition ou décision refusée par l'état de
-     * la fiche), sauf l'invitation, que seul l'administrateur de l'espace crée.
+     * la fiche, nom de projet vide), sauf l'invitation, que seul l'administrateur de l'espace crée. Les paramètres d'un
+     * corps sont résolus comme ceux du chemin.
      */
     private static final Map<String, String> CORPS = Map.of(
             "PUT /api/v1/reglementaire/fiches/{id}/demande-evolution", TICKET,
             "POST /api/v1/espaces/{espaceId}/invitations", "{\"email\":\"invite-matrice@argos.test\",\"role\":\"LECTEUR\"}",
             "PUT /api/v1/espaces/{espaceId}/membres/{compteId}/role", "{\"role\":\"LECTEUR\"}",
             "POST /api/v1/reglementaire/fiches/{id}/transitions", "{\"etat\":\"NOUVEAU\"}",
-            "POST /api/v1/reglementaire/fiches/{id}/rejet", "{\"motif\":\"Rejet de la matrice\"}");
+            "POST /api/v1/reglementaire/fiches/{id}/rejet", "{\"motif\":\"Rejet de la matrice\"}",
+            "POST /api/v1/projects", "{\"espaceId\":\"{espaceId}\",\"nom\":\" \"}");
 
     /** Ressources techniques des tests d'observabilité : absentes de l'application livrée, hors matrice. */
     private static final String PREFIXE_RESSOURCES_DE_TEST = " /api/v1/essai-observabilite/";
@@ -274,7 +276,7 @@ class MatriceRolesTest {
                         .setParam("http.socket.timeout", DELAI_REPONSE_MS)
                         .setParam("http.connection.timeout", DELAI_REPONSE_MS)));
         if (!"GET".equals(methode)) {
-            requete = requete.contentType(ContentType.JSON).body(CORPS.getOrDefault(operation, CORPS_VIDE));
+            requete = requete.contentType(ContentType.JSON).body(resoudre(CORPS.getOrDefault(operation, CORPS_VIDE)));
         }
         return requete.when().request(methode, chemin).then().extract().statusCode();
     }
@@ -288,6 +290,7 @@ class MatriceRolesTest {
                 .replace("{compteId}", RESSOURCE_INCONNUE.toString())
                 .replace("{invitationId}", RESSOURCE_INCONNUE.toString())
                 .replace("{suggestionId}", RESSOURCE_INCONNUE.toString())
+                .replace("{repositoryId}", RESSOURCE_INCONNUE.toString())
                 .replace("{versionId}", RESSOURCE_INCONNUE.toString());
         if (chemin.startsWith(PREFIXE_FICHES)) {
             return resolu.replace("{id}", fiche.toString());

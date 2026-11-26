@@ -34,8 +34,4 @@ public class BalisageExterne {
         String tronque = texte.substring(0, texte.offsetByCodePoints(0, longueurMax));
         return new TexteExterne(TexteExterne.NATURE, source, tronque, true, longueur);
     }
-
-    public int longueurMax() {
-        return longueurMax;
-    }
 }

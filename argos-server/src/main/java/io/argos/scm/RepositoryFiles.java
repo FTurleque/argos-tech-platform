@@ -74,16 +74,6 @@ public class RepositoryFiles {
         return new Lecture(ref);
     }
 
-    /** Dernière SBOM produite pour la branche principale, avec son format ; vide si aucune n'est disponible. */
-    public Optional<SbomDocument> latestSbom(RepositoryRef ref) {
-        return lecture(ref).latestSbom();
-    }
-
-    /** Fichier du dépôt sur la branche principale ; vide s'il n'existe pas dans un dépôt existant. */
-    public Optional<byte[]> file(RepositoryRef ref, String filePath) {
-        return lecture(ref).file(filePath);
-    }
-
     /**
      * Appels successifs sur un même dépôt (SBOM puis manifestes) : après un 404 GitHub, le dépôt
      * n'est interrogé qu'une fois, et son existence vaut pour les fichiers absents suivants.

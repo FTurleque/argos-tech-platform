@@ -5,9 +5,12 @@ import java.sql.DriverManager;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
-import java.sql.Statement;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Optional;
+import java.util.Set;
 import java.util.UUID;
+import java.util.regex.Pattern;
 
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.inject.Inject;
@@ -18,13 +21,36 @@ import io.argos.vulnintel.CertFrSource;
 import io.argos.vulnintel.KevSource;
 
 /**
- * Remise à zéro des données de veille entre deux tests et requêtes de vérification, sous le
- * propriétaire de la base (hors RLS, droit de vider une table), comme les migrations. Les comptes et
- * les espaces, créés par l'API avec des jetons réels, sont conservés : chaque test crée ses propres
- * espaces.
+ * Remise à zéro des données entre deux tests et requêtes de vérification, sous le propriétaire de la
+ * base (hors RLS, droit de vider une table), comme les migrations.
+ *
+ * <p>Les tables vidées se lisent dans le catalogue ({@code pg_tables}, schéma {@code public}) : toute
+ * table y est vidée, en un seul {@code TRUNCATE … CASCADE}, sauf les {@link #TABLES_CONSERVEES} et les
+ * {@link #TABLES_REMISES_A_ZERO}, qui gardent leurs lignes de référence. Une table ajoutée par une
+ * migration est donc vidée sans autre déclaration ; {@code NettoyageBaseTest} vérifie la partition.
  */
 @ApplicationScoped
 public class TestDb {
+
+    /**
+     * Tables conservées d'un test à l'autre : historique des migrations ; comptes, espaces,
+     * appartenances et invitations créés par l'API avec des jetons réels (chaque test crée ses propres
+     * espaces) ; préférences des utilisateurs (retirées par utilisateur, {@code ArtisteFixtures}) ;
+     * prompts IA inscrits au démarrage du serveur ({@code RegistrePrompts}).
+     */
+    public static final Set<String> TABLES_CONSERVEES = Set.of("flyway_schema_history", "compte", "espace",
+            "appartenance", "invitation", "workspace_preference_utilisateur", "ia_prompt");
+
+    /**
+     * Référentiels des sources, initialisés par les migrations : seules les sources ajoutées par un
+     * test sont retirées, et l'état de santé de chaque source revient à l'état nominal.
+     */
+    public static final Set<String> TABLES_REMISES_A_ZERO = Set.of("source", "reg_source");
+
+    private static final Pattern NOM_DE_TABLE = Pattern.compile("[a-z_][a-z0-9_]*");
+
+    /** Tables vidées, lues une fois dans le catalogue : les migrations ne changent plus pendant les tests. */
+    private volatile List<String> tablesVidees;
 
     @ConfigProperty(name = "quarkus.datasource.jdbc.url")
     String urlBase;
@@ -63,13 +89,7 @@ public class TestDb {
     public void reset() {
         // Les observateurs asynchrones du test précédent (alertes, annonces) se terminent avant la remise à zéro.
         asynchrone.attendre();
-        exec("""
-                TRUNCATE fiche_historique, fiche_domaine, fiche_reglementaire, texte_officiel, reg_collecte_jour,
-                         reg_parametres, regle_dictionnaire, expert_domaine, domaine_metier, dette_version, standard_historique, standard_suggestion, standard_technologie, radar_parametres,
-                         cycle_vie, cycle_vie_produit, activite_compteur, activite_jalon, activite_collecte, workspace_vue, actualite_impact, actualite_source, actualite, source_web, resume_element, alerte, subscription_opt_out, subscription, refus_acces, mcp_appel, ia_appel, ia_quota_jour, project_impact, inventory_import_failure,
-                         component_occurrence, repository_inventory, project_repository, component, inventory, project, enrichment, signal_package, signal_alias,
-                         signal_version, signal, ops_event, ingestion_failure, sync_attempt, sync_run, sync_cursor CASCADE
-                """);
+        exec("TRUNCATE " + String.join(", ", tablesVidees()) + " CASCADE");
         exec("DELETE FROM source WHERE id <> 'OSV'");
         exec("""
                 UPDATE reg_source SET etat = 'NOMINAL', echecs_consecutifs = 0, dernier_succes_le = NULL,
@@ -89,6 +109,42 @@ public class TestDb {
             mailbox.get().clear();
         }
         StubServer.reset();
+    }
+
+    /** Tables du schéma {@code public}, par ordre alphabétique, lues dans le catalogue. */
+    public List<String> tablesDuSchema() {
+        List<String> tables = new ArrayList<>();
+        try (Connection connection = connexionProprietaire();
+                PreparedStatement requete = connection.prepareStatement(
+                        "SELECT tablename FROM pg_tables WHERE schemaname = 'public' ORDER BY tablename");
+                ResultSet resultSet = requete.executeQuery()) {
+            while (resultSet.next()) {
+                tables.add(resultSet.getString(1));
+            }
+        } catch (SQLException exception) {
+            throw new IllegalStateException("catalogue des tables illisible", exception);
+        }
+        return tables;
+    }
+
+    /** Tables vidées par {@link #reset()} : toutes celles du schéma, hors tables conservées ou remises à zéro. */
+    public List<String> tablesVidees() {
+        List<String> connues = tablesVidees;
+        if (connues == null) {
+            connues = tablesDuSchema().stream()
+                    .filter(table -> !TABLES_CONSERVEES.contains(table) && !TABLES_REMISES_A_ZERO.contains(table))
+                    .map(TestDb::identifiant)
+                    .toList();
+            tablesVidees = connues;
+        }
+        return connues;
+    }
+
+    private static String identifiant(String table) {
+        if (!NOM_DE_TABLE.matcher(table).matches()) {
+            throw new IllegalStateException("nom de table inattendu : " + table);
+        }
+        return table;
     }
 
     /** Instruction, avec ou sans paramètres liés. */
