@@ -7,7 +7,10 @@ import ConnexionView from './views/ConnexionView.vue'
 import InventaireView from './views/InventaireView.vue'
 import RechercheView from './views/RechercheView.vue'
 import ReglagesPosteView from './views/ReglagesPosteView.vue'
+import ProfilArtisteView from './views/ProfilArtisteView.vue'
 import ProfilsVeilleView from './views/ProfilsVeilleView.vue'
+import RadarView from './views/RadarView.vue'
+import SignalView from './views/SignalView.vue'
 import StatusView from './views/StatusView.vue'
 import VeilleView from './views/VeilleView.vue'
 
@@ -37,6 +40,9 @@ const VUES_PROTEGEES: readonly VueAdressee[] = [
   [RechercheView, { recherche: '/recherche', 'vue-recherche': '/recherche/vues/:id' }],
   [VeilleView, { veille: '/veille' }],
   [ProfilsVeilleView, { 'profils-veille': '/veille/profils' }],
+  [SignalView, { signal: '/signaux/:id' }],
+  [RadarView, { 'radar-espace': '/espaces/:id/radar' }],
+  [ProfilArtisteView, { 'profil-artiste': '/profils/artiste', opportunite: '/profils/artiste/opportunites/:id' }],
 ]
 
 /** Une route par adresse de chaque vue ; les vues publiques portent `meta.public`. */
@@ -46,9 +52,12 @@ function routes(vues: readonly VueAdressee[], publique: boolean): RouteRecordRaw
   )
 }
 
+/** Routes de l'IHM : vues publiques puis protégées (reprises par les tests de composants avec un historique en mémoire). */
+export const ROUTES_IHM: readonly RouteRecordRaw[] = [...routes(VUES_PUBLIQUES, true), ...routes(VUES_PROTEGEES, false)]
+
 // Historique par « hash » : fonctionne aussi bien servi par un serveur web que chargé par le desktop.
 // La garde des vues est posée par installerSession (session/session.ts).
 export const router = createRouter({
   history: createWebHashHistory(),
-  routes: [...routes(VUES_PUBLIQUES, true), ...routes(VUES_PROTEGEES, false)],
+  routes: [...ROUTES_IHM],
 })

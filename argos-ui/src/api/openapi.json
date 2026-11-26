@@ -1,0 +1,7068 @@
+{
+  "components" : {
+    "schemas" : {
+      "Actualite" : {
+        "properties" : {
+          "contenu" : {
+            "$ref" : "#/components/schemas/ContenuExterne"
+          },
+          "id" : {
+            "$ref" : "#/components/schemas/UUID"
+          },
+          "lien" : {
+            "type" : "string"
+          },
+          "publieLe" : {
+            "$ref" : "#/components/schemas/Instant"
+          },
+          "recuLe" : {
+            "$ref" : "#/components/schemas/Instant"
+          },
+          "sources" : {
+            "items" : {
+              "$ref" : "#/components/schemas/Citation"
+            },
+            "type" : "array"
+          },
+          "titre" : {
+            "type" : "string"
+          },
+          "type" : {
+            "type" : "string"
+          }
+        },
+        "type" : "object"
+      },
+      "AffectedPackage" : {
+        "properties" : {
+          "declaredPurl" : {
+            "type" : "boolean"
+          },
+          "ecosystem" : {
+            "type" : "string"
+          },
+          "name" : {
+            "type" : "string"
+          },
+          "packageKey" : {
+            "type" : "string"
+          },
+          "ranges" : {
+            "items" : {
+              "$ref" : "#/components/schemas/VersionRange"
+            },
+            "type" : "array"
+          },
+          "versions" : {
+            "items" : {
+              "type" : "string"
+            },
+            "type" : "array"
+          }
+        },
+        "type" : "object"
+      },
+      "AlerteVue" : {
+        "properties" : {
+          "canal" : {
+            "type" : "string"
+          },
+          "contenu" : {
+            "$ref" : "#/components/schemas/ContenuAlerte"
+          },
+          "creeLe" : {
+            "$ref" : "#/components/schemas/Instant"
+          },
+          "envoyeLe" : {
+            "$ref" : "#/components/schemas/Instant"
+          },
+          "etat" : {
+            "type" : "string"
+          },
+          "gravite" : {
+            "type" : "string"
+          },
+          "id" : {
+            "$ref" : "#/components/schemas/UUID"
+          },
+          "nature" : {
+            "type" : "string"
+          },
+          "tentatives" : {
+            "format" : "int32",
+            "type" : "integer"
+          },
+          "titre" : {
+            "type" : "string"
+          }
+        },
+        "type" : "object"
+      },
+      "Avancement" : {
+        "properties" : {
+          "fermes" : {
+            "format" : "int32",
+            "type" : "integer"
+          },
+          "libelle" : {
+            "type" : "string"
+          },
+          "pourcentage" : {
+            "format" : "int32",
+            "type" : "integer"
+          },
+          "total" : {
+            "format" : "int32",
+            "type" : "integer"
+          }
+        },
+        "type" : "object"
+      },
+      "ChangementRole" : {
+        "properties" : {
+          "role" : {
+            "$ref" : "#/components/schemas/Role"
+          }
+        },
+        "type" : "object"
+      },
+      "ChoixMiseEnPage" : {
+        "properties" : {
+          "miseEnPage" : {
+            "type" : "string"
+          }
+        },
+        "type" : "object"
+      },
+      "ChoixProfils" : {
+        "properties" : {
+          "profilsActifs" : {
+            "items" : {
+              "type" : "string"
+            },
+            "type" : "array"
+          }
+        },
+        "type" : "object"
+      },
+      "ChoixSuivisArtiste" : {
+        "properties" : {
+          "disciplines" : {
+            "items" : {
+              "type" : "string"
+            },
+            "type" : "array"
+          },
+          "rappelsJours" : {
+            "items" : {
+              "format" : "int32",
+              "type" : "integer"
+            },
+            "type" : "array"
+          },
+          "territoires" : {
+            "items" : {
+              "type" : "string"
+            },
+            "type" : "array"
+          }
+        },
+        "type" : "object"
+      },
+      "Citation" : {
+        "properties" : {
+          "libelle" : {
+            "type" : "string"
+          },
+          "lien" : {
+            "type" : "string"
+          },
+          "portee" : {
+            "type" : "string"
+          },
+          "sourceId" : {
+            "$ref" : "#/components/schemas/UUID"
+          }
+        },
+        "type" : "object"
+      },
+      "Code" : {
+        "properties" : {
+          "identifiant" : {
+            "type" : "string"
+          },
+          "libelle" : {
+            "type" : "string"
+          }
+        },
+        "type" : "object"
+      },
+      "Collecte" : {
+        "properties" : {
+          "issue" : {
+            "$ref" : "#/components/schemas/Issue"
+          }
+        },
+        "type" : "object"
+      },
+      "CollecteReglementaireDemandee" : {
+        "properties" : {
+          "jour" : {
+            "$ref" : "#/components/schemas/LocalDate"
+          }
+        },
+        "type" : "object"
+      },
+      "ComponentItem" : {
+        "properties" : {
+          "id" : {
+            "$ref" : "#/components/schemas/UUID"
+          },
+          "name" : {
+            "type" : "string"
+          },
+          "packageKey" : {
+            "type" : "string"
+          },
+          "purl" : {
+            "type" : "string"
+          },
+          "repositories" : {
+            "items" : {
+              "$ref" : "#/components/schemas/ComponentRepository"
+            },
+            "type" : "array"
+          },
+          "transitive" : {
+            "type" : "boolean"
+          },
+          "version" : {
+            "type" : "string"
+          }
+        },
+        "type" : "object"
+      },
+      "ComponentPage" : {
+        "properties" : {
+          "items" : {
+            "items" : {
+              "$ref" : "#/components/schemas/ComponentItem"
+            },
+            "type" : "array"
+          },
+          "page" : {
+            "format" : "int32",
+            "type" : "integer"
+          },
+          "projectId" : {
+            "$ref" : "#/components/schemas/UUID"
+          },
+          "size" : {
+            "format" : "int32",
+            "type" : "integer"
+          },
+          "total" : {
+            "format" : "int64",
+            "type" : "integer"
+          }
+        },
+        "type" : "object"
+      },
+      "ComponentRepository" : {
+        "properties" : {
+          "id" : {
+            "$ref" : "#/components/schemas/UUID"
+          },
+          "provider" : {
+            "type" : "string"
+          },
+          "repository" : {
+            "type" : "string"
+          }
+        },
+        "type" : "object"
+      },
+      "ComponentView" : {
+        "properties" : {
+          "id" : {
+            "$ref" : "#/components/schemas/UUID"
+          },
+          "packageKey" : {
+            "type" : "string"
+          },
+          "purl" : {
+            "type" : "string"
+          },
+          "transitive" : {
+            "type" : "boolean"
+          },
+          "version" : {
+            "type" : "string"
+          }
+        },
+        "type" : "object"
+      },
+      "CompteCourant" : {
+        "properties" : {
+          "adminPlateforme" : {
+            "type" : "boolean"
+          },
+          "creeLe" : {
+            "$ref" : "#/components/schemas/OffsetDateTime"
+          },
+          "email" : {
+            "type" : "string"
+          },
+          "id" : {
+            "$ref" : "#/components/schemas/UUID"
+          },
+          "nomAffiche" : {
+            "type" : "string"
+          }
+        },
+        "type" : "object"
+      },
+      "Compteurs" : {
+        "properties" : {
+          "fusionsFusionnees" : {
+            "format" : "int32",
+            "type" : "integer"
+          },
+          "fusionsOuvertes" : {
+            "format" : "int32",
+            "type" : "integer"
+          },
+          "pipelinesAutres" : {
+            "format" : "int32",
+            "type" : "integer"
+          },
+          "pipelinesEchoues" : {
+            "format" : "int32",
+            "type" : "integer"
+          },
+          "pipelinesReussis" : {
+            "format" : "int32",
+            "type" : "integer"
+          },
+          "ticketsFermes" : {
+            "format" : "int32",
+            "type" : "integer"
+          },
+          "ticketsOuverts" : {
+            "format" : "int32",
+            "type" : "integer"
+          },
+          "versionsPubliees" : {
+            "format" : "int32",
+            "type" : "integer"
+          }
+        },
+        "type" : "object"
+      },
+      "ConditionsUsageSource" : {
+        "properties" : {
+          "conditionsUrl" : {
+            "type" : "string"
+          },
+          "conditionsUsage" : {
+            "type" : "string"
+          },
+          "licence" : {
+            "type" : "string"
+          }
+        },
+        "type" : "object"
+      },
+      "ContenuAlerte" : {
+        "properties" : {
+          "elements" : {
+            "items" : {
+              "$ref" : "#/components/schemas/Element"
+            },
+            "type" : "array"
+          },
+          "etatResumeIa" : {
+            "type" : "string"
+          },
+          "mentionResumeIa" : {
+            "type" : "string"
+          },
+          "resumeIa" : {
+            "type" : "string"
+          }
+        },
+        "type" : "object"
+      },
+      "ContenuExterne" : {
+        "properties" : {
+          "fiable" : {
+            "type" : "boolean"
+          },
+          "nature" : {
+            "type" : "string"
+          },
+          "texte" : {
+            "type" : "string"
+          }
+        },
+        "type" : "object"
+      },
+      "CorpsDecision" : {
+        "properties" : {
+          "dateRevue" : {
+            "type" : "string"
+          },
+          "decision" : {
+            "type" : "string"
+          },
+          "responsable" : {
+            "type" : "string"
+          }
+        },
+        "type" : "object"
+      },
+      "CorrectionFiche" : {
+        "properties" : {
+          "dateEffet" : {
+            "$ref" : "#/components/schemas/LocalDate"
+          },
+          "dateEffetAConfirmer" : {
+            "type" : "boolean"
+          },
+          "domaines" : {
+            "items" : {
+              "type" : "string"
+            },
+            "type" : "array"
+          },
+          "resume" : {
+            "type" : "string"
+          }
+        },
+        "type" : "object"
+      },
+      "CreateSubscription" : {
+        "properties" : {
+          "channel" : {
+            "type" : "string"
+          },
+          "filters" : {
+            "items" : {
+              "$ref" : "#/components/schemas/Filter"
+            },
+            "type" : "array"
+          },
+          "frequency" : {
+            "type" : "string"
+          },
+          "mandatory" : {
+            "type" : "boolean"
+          },
+          "scope" : {
+            "type" : "string"
+          },
+          "teamWorkspaceId" : {
+            "$ref" : "#/components/schemas/UUID"
+          }
+        },
+        "type" : "object"
+      },
+      "CriteresRecherche" : {
+        "description" : "Mots et filtres d'une recherche de veille",
+        "properties" : {
+          "gravite" : {
+            "type" : "string"
+          },
+          "horizonJours" : {
+            "format" : "int32",
+            "type" : "integer"
+          },
+          "profils" : {
+            "items" : {
+              "type" : "string"
+            },
+            "type" : "array"
+          },
+          "projets" : {
+            "items" : {
+              "format" : "uuid",
+              "pattern" : "[a-fA-F0-9]{8}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{12}",
+              "type" : "string"
+            },
+            "type" : "array"
+          },
+          "technologies" : {
+            "items" : {
+              "type" : "string"
+            },
+            "type" : "array"
+          },
+          "texte" : {
+            "type" : "string"
+          },
+          "types" : {
+            "items" : {
+              "type" : "string"
+            },
+            "type" : "array"
+          }
+        },
+        "type" : "object"
+      },
+      "DeclarationSourceArtiste" : {
+        "properties" : {
+          "adresse" : {
+            "type" : "string"
+          },
+          "disciplines" : {
+            "items" : {
+              "type" : "string"
+            },
+            "type" : "array"
+          },
+          "libelle" : {
+            "type" : "string"
+          },
+          "rubrique" : {
+            "type" : "string"
+          },
+          "territoires" : {
+            "items" : {
+              "type" : "string"
+            },
+            "type" : "array"
+          },
+          "type" : {
+            "type" : "string"
+          }
+        },
+        "type" : "object"
+      },
+      "Demande" : {
+        "properties" : {
+          "adresse" : {
+            "type" : "string"
+          },
+          "etat" : {
+            "type" : "string"
+          },
+          "forge" : {
+            "type" : "string"
+          }
+        },
+        "type" : "object"
+      },
+      "DemandeEvolution" : {
+        "properties" : {
+          "adresse" : {
+            "type" : "string"
+          }
+        },
+        "type" : "object"
+      },
+      "DemandeTransitionImpact" : {
+        "description" : "Transition d'état demandée pour un impact",
+        "properties" : {
+          "commentaire" : {
+            "description" : "Commentaire facultatif ; au plus 1 000 caractères",
+            "type" : "string"
+          },
+          "motif" : {
+            "description" : "Motif, obligatoire pour ECARTE ; au plus 1 000 caractères",
+            "type" : "string"
+          },
+          "vers" : {
+            "description" : "État d'arrivée",
+            "enum" : [ "OUVERT", "CONFIRME", "ECARTE", "RESOLU" ],
+            "type" : "string"
+          }
+        },
+        "required" : [ "vers" ],
+        "type" : "object"
+      },
+      "DepotProjet" : {
+        "description" : "Dépôt GitHub ou GitLab d'un projet",
+        "properties" : {
+          "branche" : {
+            "description" : "Branche principale ; main par défaut",
+            "type" : "string"
+          },
+          "cheminSbom" : {
+            "description" : "Chemin de la SBOM : dans le dépôt (GitHub) ou dans les artefacts du job (GitLab)",
+            "type" : "string"
+          },
+          "depot" : {
+            "description" : "owner/repo (GitHub), chemin ou identifiant numérique (GitLab)",
+            "type" : "string"
+          },
+          "forge" : {
+            "enum" : [ "GITHUB", "GITLAB" ],
+            "type" : "string"
+          },
+          "jobSbom" : {
+            "description" : "Job CI GitLab qui publie la SBOM",
+            "type" : "string"
+          },
+          "manifestes" : {
+            "description" : "Manifestes lus pour l'inventaire de repli ; package.json et requirements.txt par défaut",
+            "items" : {
+              "type" : "string"
+            },
+            "type" : "array"
+          }
+        },
+        "required" : [ "forge", "depot" ],
+        "type" : "object"
+      },
+      "DepotRattache" : {
+        "properties" : {
+          "id" : {
+            "$ref" : "#/components/schemas/UUID"
+          },
+          "principal" : {
+            "type" : "boolean"
+          }
+        },
+        "type" : "object"
+      },
+      "DetailActualite" : {
+        "properties" : {
+          "actualite" : {
+            "$ref" : "#/components/schemas/Actualite"
+          },
+          "rapprochements" : {
+            "items" : {
+              "$ref" : "#/components/schemas/Rapprochement"
+            },
+            "type" : "array"
+          },
+          "resume" : {
+            "$ref" : "#/components/schemas/Resume1"
+          }
+        },
+        "type" : "object"
+      },
+      "DetteVersion" : {
+        "properties" : {
+          "cle" : {
+            "type" : "string"
+          },
+          "creeLe" : {
+            "$ref" : "#/components/schemas/Instant"
+          },
+          "cycle" : {
+            "type" : "string"
+          },
+          "finSupport" : {
+            "$ref" : "#/components/schemas/LocalDate"
+          },
+          "id" : {
+            "$ref" : "#/components/schemas/UUID"
+          },
+          "projet" : {
+            "type" : "string"
+          },
+          "projetId" : {
+            "$ref" : "#/components/schemas/UUID"
+          },
+          "source" : {
+            "type" : "string"
+          },
+          "version" : {
+            "type" : "string"
+          },
+          "versionStandard" : {
+            "type" : "string"
+          }
+        },
+        "type" : "object"
+      },
+      "DomaineMetier" : {
+        "properties" : {
+          "code" : {
+            "type" : "string"
+          },
+          "experts" : {
+            "items" : {
+              "$ref" : "#/components/schemas/Expert"
+            },
+            "type" : "array"
+          },
+          "libelle" : {
+            "type" : "string"
+          },
+          "regles" : {
+            "items" : {
+              "$ref" : "#/components/schemas/Regle"
+            },
+            "type" : "array"
+          }
+        },
+        "type" : "object"
+      },
+      "DomaineRattache" : {
+        "properties" : {
+          "code" : {
+            "type" : "string"
+          },
+          "confiance" : {
+            "format" : "int32",
+            "type" : "integer"
+          },
+          "libelle" : {
+            "type" : "string"
+          },
+          "motif" : {
+            "type" : "string"
+          },
+          "origine" : {
+            "type" : "string"
+          }
+        },
+        "type" : "object"
+      },
+      "EcheanceRadar" : {
+        "properties" : {
+          "cle" : {
+            "type" : "string"
+          },
+          "date" : {
+            "$ref" : "#/components/schemas/LocalDate"
+          },
+          "libelle" : {
+            "type" : "string"
+          },
+          "nature" : {
+            "type" : "string"
+          },
+          "note" : {
+            "type" : "string"
+          },
+          "source" : {
+            "type" : "string"
+          },
+          "version" : {
+            "type" : "string"
+          }
+        },
+        "type" : "object"
+      },
+      "Element" : {
+        "properties" : {
+          "gravite" : {
+            "type" : "string"
+          },
+          "lien" : {
+            "type" : "string"
+          },
+          "projets" : {
+            "items" : {
+              "$ref" : "#/components/schemas/Projet"
+            },
+            "type" : "array"
+          },
+          "signalId" : {
+            "$ref" : "#/components/schemas/UUID"
+          },
+          "sources" : {
+            "items" : {
+              "$ref" : "#/components/schemas/Source"
+            },
+            "type" : "array"
+          },
+          "titre" : {
+            "type" : "string"
+          }
+        },
+        "type" : "object"
+      },
+      "Element1" : {
+        "properties" : {
+          "date" : {
+            "$ref" : "#/components/schemas/Instant"
+          },
+          "extrait" : {
+            "type" : "string"
+          },
+          "gravite" : {
+            "type" : "string"
+          },
+          "id" : {
+            "$ref" : "#/components/schemas/UUID"
+          },
+          "identifiant" : {
+            "type" : "string"
+          },
+          "lien" : {
+            "type" : "string"
+          },
+          "pertinence" : {
+            "format" : "double",
+            "type" : "number"
+          },
+          "projets" : {
+            "items" : {
+              "$ref" : "#/components/schemas/ProjetVise"
+            },
+            "type" : "array"
+          },
+          "source" : {
+            "type" : "string"
+          },
+          "titre" : {
+            "type" : "string"
+          },
+          "type" : {
+            "type" : "string"
+          }
+        },
+        "type" : "object"
+      },
+      "ElementVeilleProfils" : {
+        "properties" : {
+          "abonnements" : {
+            "description" : "Abonnements PERSONAL de l'appelant qui ont retenu l'élément (décision Q-3) ; vide si l'élément ne vient que de ses profils actifs. Un élément sans profil vient seulement de ces abonnements.",
+            "items" : {
+              "format" : "uuid",
+              "pattern" : "[a-fA-F0-9]{8}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{12}",
+              "type" : "string"
+            },
+            "type" : "array"
+          },
+          "date" : {
+            "$ref" : "#/components/schemas/Instant"
+          },
+          "dateEffet" : {
+            "$ref" : "#/components/schemas/LocalDate"
+          },
+          "gardeFous" : {
+            "items" : {
+              "type" : "string"
+            },
+            "type" : "array"
+          },
+          "gravite" : {
+            "type" : "string"
+          },
+          "id" : {
+            "$ref" : "#/components/schemas/UUID"
+          },
+          "identifiant" : {
+            "type" : "string"
+          },
+          "lien" : {
+            "type" : "string"
+          },
+          "mentionIa" : {
+            "description" : "Mention « produit par l'IA » quand le résumé vient du modèle (ADR-0023) ; absente sinon.",
+            "type" : "string"
+          },
+          "mentionSource" : {
+            "description" : "Mention de la source, de sa licence et de la date de dernière mise à jour des données, quand la source l'exige (Licence Ouverte des textes officiels) ; absente sinon.",
+            "type" : "string"
+          },
+          "mentionValidation" : {
+            "type" : "string"
+          },
+          "profils" : {
+            "items" : {
+              "type" : "string"
+            },
+            "type" : "array"
+          },
+          "projets" : {
+            "items" : {
+              "$ref" : "#/components/schemas/ProjetConcerne"
+            },
+            "type" : "array"
+          },
+          "resume" : {
+            "type" : "string"
+          },
+          "rubriques" : {
+            "items" : {
+              "$ref" : "#/components/schemas/RubriqueElementVeille"
+            },
+            "type" : "array"
+          },
+          "source" : {
+            "type" : "string"
+          },
+          "titre" : {
+            "type" : "string"
+          },
+          "type" : {
+            "type" : "string"
+          }
+        },
+        "type" : "object"
+      },
+      "EnrichmentView" : {
+        "properties" : {
+          "data" : {
+            "type" : "string"
+          },
+          "fetchedAt" : {
+            "$ref" : "#/components/schemas/Instant"
+          },
+          "reference" : {
+            "type" : "string"
+          },
+          "source" : {
+            "type" : "string"
+          }
+        },
+        "type" : "object"
+      },
+      "EntreeReferentiel" : {
+        "properties" : {
+          "cle" : {
+            "type" : "string"
+          },
+          "dateRevue" : {
+            "$ref" : "#/components/schemas/LocalDate"
+          },
+          "espaceId" : {
+            "$ref" : "#/components/schemas/UUID"
+          },
+          "id" : {
+            "$ref" : "#/components/schemas/UUID"
+          },
+          "justification" : {
+            "type" : "string"
+          },
+          "libelle" : {
+            "type" : "string"
+          },
+          "modifieLe" : {
+            "$ref" : "#/components/schemas/Instant"
+          },
+          "produitCycleVie" : {
+            "type" : "string"
+          },
+          "responsable" : {
+            "type" : "string"
+          },
+          "statut" : {
+            "$ref" : "#/components/schemas/Statut"
+          },
+          "versionRecommandee" : {
+            "type" : "string"
+          }
+        },
+        "type" : "object"
+      },
+      "Erreur" : {
+        "description" : "Demande refusée",
+        "properties" : {
+          "attribut" : {
+            "type" : "string"
+          },
+          "code" : {
+            "type" : "string"
+          },
+          "message" : {
+            "type" : "string"
+          }
+        },
+        "type" : "object"
+      },
+      "EspaceDeCompte" : {
+        "properties" : {
+          "creeLe" : {
+            "$ref" : "#/components/schemas/OffsetDateTime"
+          },
+          "id" : {
+            "$ref" : "#/components/schemas/UUID"
+          },
+          "nom" : {
+            "type" : "string"
+          },
+          "role" : {
+            "$ref" : "#/components/schemas/Role"
+          }
+        },
+        "type" : "object"
+      },
+      "Etat" : {
+        "enum" : [ "NOUVEAU", "EN_ANALYSE", "SANS_IMPACT", "IMPACT_PRODUIT", "SPECIFIE", "LIVRE" ],
+        "type" : "string"
+      },
+      "EtatProduit" : {
+        "properties" : {
+          "dernierSucces" : {
+            "$ref" : "#/components/schemas/Instant"
+          },
+          "derniereErreur" : {
+            "type" : "string"
+          },
+          "derniereSynchro" : {
+            "$ref" : "#/components/schemas/Instant"
+          },
+          "etat" : {
+            "type" : "string"
+          },
+          "produit" : {
+            "type" : "string"
+          }
+        },
+        "type" : "object"
+      },
+      "EvenementHistorique" : {
+        "properties" : {
+          "action" : {
+            "type" : "string"
+          },
+          "auteur" : {
+            "$ref" : "#/components/schemas/UUID"
+          },
+          "detail" : {
+            "type" : "string"
+          },
+          "le" : {
+            "$ref" : "#/components/schemas/Instant"
+          }
+        },
+        "type" : "object"
+      },
+      "Expert" : {
+        "properties" : {
+          "compteId" : {
+            "$ref" : "#/components/schemas/UUID"
+          },
+          "email" : {
+            "type" : "string"
+          }
+        },
+        "type" : "object"
+      },
+      "ExpertsDomaine" : {
+        "properties" : {
+          "comptes" : {
+            "items" : {
+              "format" : "uuid",
+              "pattern" : "[a-fA-F0-9]{8}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{12}",
+              "type" : "string"
+            },
+            "type" : "array"
+          }
+        },
+        "type" : "object"
+      },
+      "FicheAnalyse" : {
+        "properties" : {
+          "articlesModifies" : {
+            "items" : {
+              "type" : "string"
+            },
+            "type" : "array"
+          },
+          "dateEffet" : {
+            "$ref" : "#/components/schemas/LocalDate"
+          },
+          "dateEffetIa" : {
+            "$ref" : "#/components/schemas/LocalDate"
+          },
+          "dateEffetLibelle" : {
+            "type" : "string"
+          },
+          "dateEffetOrigine" : {
+            "type" : "string"
+          },
+          "decideLe" : {
+            "$ref" : "#/components/schemas/Instant"
+          },
+          "demande" : {
+            "$ref" : "#/components/schemas/Demande"
+          },
+          "domaines" : {
+            "items" : {
+              "$ref" : "#/components/schemas/DomaineRattache"
+            },
+            "type" : "array"
+          },
+          "espaceId" : {
+            "$ref" : "#/components/schemas/UUID"
+          },
+          "etatSuivi" : {
+            "$ref" : "#/components/schemas/Etat"
+          },
+          "etatValidation" : {
+            "type" : "string"
+          },
+          "historique" : {
+            "items" : {
+              "$ref" : "#/components/schemas/EvenementHistorique"
+            },
+            "type" : "array"
+          },
+          "id" : {
+            "$ref" : "#/components/schemas/UUID"
+          },
+          "libelleSuivi" : {
+            "type" : "string"
+          },
+          "mentionAvisJuridique" : {
+            "type" : "string"
+          },
+          "mentionIa" : {
+            "type" : "string"
+          },
+          "mentionSource" : {
+            "type" : "string"
+          },
+          "mentionValidation" : {
+            "type" : "string"
+          },
+          "motifDateEffet" : {
+            "type" : "string"
+          },
+          "peutExpertiser" : {
+            "type" : "boolean"
+          },
+          "resume" : {
+            "type" : "string"
+          },
+          "resumeOrigine" : {
+            "type" : "string"
+          },
+          "texte" : {
+            "$ref" : "#/components/schemas/Texte"
+          }
+        },
+        "type" : "object"
+      },
+      "Filter" : {
+        "properties" : {
+          "type" : {
+            "type" : "string"
+          },
+          "value" : {
+            "type" : "string"
+          }
+        },
+        "type" : "object"
+      },
+      "Fraicheur" : {
+        "properties" : {
+          "complet" : {
+            "type" : "boolean"
+          },
+          "derniereMiseAJour" : {
+            "$ref" : "#/components/schemas/Instant"
+          },
+          "donneesDepuis" : {
+            "$ref" : "#/components/schemas/LocalDate"
+          },
+          "etat" : {
+            "type" : "string"
+          },
+          "motif" : {
+            "type" : "string"
+          },
+          "prochaineCollecte" : {
+            "$ref" : "#/components/schemas/Instant"
+          }
+        },
+        "type" : "object"
+      },
+      "IgnoredComponent" : {
+        "properties" : {
+          "group" : {
+            "type" : "string"
+          },
+          "name" : {
+            "type" : "string"
+          },
+          "reason" : {
+            "type" : "string"
+          },
+          "version" : {
+            "type" : "string"
+          }
+        },
+        "type" : "object"
+      },
+      "ImpactView" : {
+        "properties" : {
+          "componentId" : {
+            "$ref" : "#/components/schemas/UUID"
+          },
+          "componentPurl" : {
+            "type" : "string"
+          },
+          "componentVersion" : {
+            "type" : "string"
+          },
+          "createdAt" : {
+            "$ref" : "#/components/schemas/Instant"
+          },
+          "etat" : {
+            "type" : "string"
+          },
+          "historique" : {
+            "items" : {
+              "$ref" : "#/components/schemas/TransitionView"
+            },
+            "type" : "array"
+          },
+          "id" : {
+            "$ref" : "#/components/schemas/UUID"
+          },
+          "inventoryDate" : {
+            "$ref" : "#/components/schemas/Instant"
+          },
+          "inventoryOrigin" : {
+            "type" : "string"
+          },
+          "level" : {
+            "$ref" : "#/components/schemas/Level"
+          },
+          "method" : {
+            "type" : "string"
+          },
+          "projectId" : {
+            "$ref" : "#/components/schemas/UUID"
+          },
+          "projectName" : {
+            "type" : "string"
+          },
+          "provenance" : {
+            "type" : "string"
+          },
+          "signalExternalId" : {
+            "type" : "string"
+          },
+          "signalId" : {
+            "$ref" : "#/components/schemas/UUID"
+          },
+          "signalSource" : {
+            "type" : "string"
+          },
+          "signalTitle" : {
+            "type" : "string"
+          },
+          "signalVersionId" : {
+            "$ref" : "#/components/schemas/UUID"
+          },
+          "transitionsPossibles" : {
+            "items" : {
+              "type" : "string"
+            },
+            "type" : "array"
+          },
+          "transitive" : {
+            "type" : "boolean"
+          },
+          "updatedAt" : {
+            "$ref" : "#/components/schemas/Instant"
+          },
+          "workspaceId" : {
+            "$ref" : "#/components/schemas/UUID"
+          }
+        },
+        "type" : "object"
+      },
+      "ImportFailure" : {
+        "properties" : {
+          "id" : {
+            "$ref" : "#/components/schemas/UUID"
+          },
+          "reason" : {
+            "type" : "string"
+          },
+          "receivedAt" : {
+            "$ref" : "#/components/schemas/Instant"
+          },
+          "sourceRef" : {
+            "type" : "string"
+          }
+        },
+        "type" : "object"
+      },
+      "ImportProjet" : {
+        "properties" : {
+          "depots" : {
+            "items" : {
+              "$ref" : "#/components/schemas/ResultatDepot"
+            },
+            "type" : "array"
+          },
+          "projectId" : {
+            "$ref" : "#/components/schemas/UUID"
+          }
+        },
+        "type" : "object"
+      },
+      "ImportResult" : {
+        "properties" : {
+          "components" : {
+            "format" : "int32",
+            "type" : "integer"
+          },
+          "ignored" : {
+            "format" : "int32",
+            "type" : "integer"
+          },
+          "ignoredComponents" : {
+            "items" : {
+              "$ref" : "#/components/schemas/IgnoredComponent"
+            },
+            "type" : "array"
+          },
+          "origin" : {
+            "type" : "string"
+          },
+          "reason" : {
+            "type" : "string"
+          },
+          "status" : {
+            "$ref" : "#/components/schemas/StatutImport"
+          }
+        },
+        "type" : "object"
+      },
+      "Instant" : {
+        "examples" : [ "2022-03-10T16:15:50Z" ],
+        "format" : "date-time",
+        "type" : "string"
+      },
+      "IntegrityReport" : {
+        "properties" : {
+          "impacts" : {
+            "format" : "int64",
+            "type" : "integer"
+          },
+          "intact" : {
+            "type" : "boolean"
+          },
+          "withoutComponent" : {
+            "format" : "int64",
+            "type" : "integer"
+          },
+          "withoutMethod" : {
+            "format" : "int64",
+            "type" : "integer"
+          },
+          "withoutProject" : {
+            "format" : "int64",
+            "type" : "integer"
+          },
+          "withoutProvenance" : {
+            "format" : "int64",
+            "type" : "integer"
+          },
+          "withoutSignal" : {
+            "format" : "int64",
+            "type" : "integer"
+          }
+        },
+        "type" : "object"
+      },
+      "InventorySummary" : {
+        "properties" : {
+          "ageDays" : {
+            "format" : "int64",
+            "type" : "integer"
+          },
+          "componentCount" : {
+            "format" : "int64",
+            "type" : "integer"
+          },
+          "ignoredComponents" : {
+            "items" : {
+              "$ref" : "#/components/schemas/IgnoredComponent"
+            },
+            "type" : "array"
+          },
+          "ignoredCount" : {
+            "format" : "int32",
+            "type" : "integer"
+          },
+          "importedAt" : {
+            "$ref" : "#/components/schemas/Instant"
+          },
+          "obsolete" : {
+            "type" : "boolean"
+          },
+          "origin" : {
+            "type" : "string"
+          },
+          "projectId" : {
+            "$ref" : "#/components/schemas/UUID"
+          },
+          "repositories" : {
+            "items" : {
+              "$ref" : "#/components/schemas/RepositorySummary"
+            },
+            "type" : "array"
+          },
+          "sourceDate" : {
+            "$ref" : "#/components/schemas/Instant"
+          },
+          "specVersion" : {
+            "type" : "string"
+          }
+        },
+        "type" : "object"
+      },
+      "InventoryView" : {
+        "properties" : {
+          "ageDays" : {
+            "format" : "int64",
+            "type" : "integer"
+          },
+          "components" : {
+            "items" : {
+              "$ref" : "#/components/schemas/ComponentView"
+            },
+            "type" : "array"
+          },
+          "ignoredComponents" : {
+            "items" : {
+              "$ref" : "#/components/schemas/IgnoredComponent"
+            },
+            "type" : "array"
+          },
+          "ignoredCount" : {
+            "format" : "int32",
+            "type" : "integer"
+          },
+          "importedAt" : {
+            "$ref" : "#/components/schemas/Instant"
+          },
+          "obsolete" : {
+            "type" : "boolean"
+          },
+          "origin" : {
+            "type" : "string"
+          },
+          "projectId" : {
+            "$ref" : "#/components/schemas/UUID"
+          },
+          "sourceDate" : {
+            "$ref" : "#/components/schemas/Instant"
+          },
+          "specVersion" : {
+            "type" : "string"
+          }
+        },
+        "type" : "object"
+      },
+      "Invitation" : {
+        "properties" : {
+          "creeLe" : {
+            "$ref" : "#/components/schemas/OffsetDateTime"
+          },
+          "email" : {
+            "type" : "string"
+          },
+          "espaceId" : {
+            "$ref" : "#/components/schemas/UUID"
+          },
+          "etat" : {
+            "type" : "string"
+          },
+          "expireLe" : {
+            "$ref" : "#/components/schemas/OffsetDateTime"
+          },
+          "id" : {
+            "$ref" : "#/components/schemas/UUID"
+          },
+          "invitePar" : {
+            "type" : "string"
+          },
+          "role" : {
+            "$ref" : "#/components/schemas/Role"
+          }
+        },
+        "type" : "object"
+      },
+      "Issue" : {
+        "enum" : [ "A_JOUR", "REPORTEE_QUOTA", "ECHEC", "NON_ECHUE", "SANS_DEPOT" ],
+        "type" : "string"
+      },
+      "Jalon" : {
+        "properties" : {
+          "avancement" : {
+            "$ref" : "#/components/schemas/Avancement"
+          },
+          "echeance" : {
+            "$ref" : "#/components/schemas/LocalDate"
+          },
+          "etat" : {
+            "type" : "string"
+          },
+          "ticketsFermes" : {
+            "format" : "int32",
+            "type" : "integer"
+          },
+          "ticketsTotal" : {
+            "format" : "int32",
+            "type" : "integer"
+          },
+          "titre" : {
+            "type" : "string"
+          }
+        },
+        "type" : "object"
+      },
+      "Level" : {
+        "enum" : [ "EXACT", "PROBABLE", "A_VERIFIER" ],
+        "type" : "string"
+      },
+      "ListesArtiste" : {
+        "properties" : {
+          "disciplines" : {
+            "items" : {
+              "$ref" : "#/components/schemas/ValeurListeArtiste"
+            },
+            "type" : "array"
+          },
+          "rappelsJoursParDefaut" : {
+            "items" : {
+              "format" : "int32",
+              "type" : "integer"
+            },
+            "type" : "array"
+          },
+          "territoires" : {
+            "items" : {
+              "$ref" : "#/components/schemas/ValeurListeArtiste"
+            },
+            "type" : "array"
+          }
+        },
+        "type" : "object"
+      },
+      "LocalDate" : {
+        "examples" : [ "2022-03-10" ],
+        "format" : "date",
+        "type" : "string"
+      },
+      "ManifesteImporte" : {
+        "properties" : {
+          "chemin" : {
+            "type" : "string"
+          },
+          "contenu" : {
+            "type" : "string"
+          }
+        },
+        "required" : [ "chemin", "contenu" ],
+        "type" : "object"
+      },
+      "ManifestesImportes" : {
+        "properties" : {
+          "manifestes" : {
+            "items" : {
+              "$ref" : "#/components/schemas/ManifesteImporte"
+            },
+            "type" : "array"
+          }
+        },
+        "required" : [ "manifestes" ],
+        "type" : "object"
+      },
+      "Membre" : {
+        "properties" : {
+          "compteId" : {
+            "$ref" : "#/components/schemas/UUID"
+          },
+          "depuis" : {
+            "$ref" : "#/components/schemas/OffsetDateTime"
+          },
+          "nomAffiche" : {
+            "type" : "string"
+          },
+          "role" : {
+            "$ref" : "#/components/schemas/Role"
+          }
+        },
+        "type" : "object"
+      },
+      "MiseEnPageCatalogue" : {
+        "properties" : {
+          "description" : {
+            "type" : "string"
+          },
+          "identifiant" : {
+            "type" : "string"
+          },
+          "libelle" : {
+            "type" : "string"
+          },
+          "parDefaut" : {
+            "type" : "boolean"
+          }
+        },
+        "type" : "object"
+      },
+      "NouveauProjet" : {
+        "properties" : {
+          "depot" : {
+            "$ref" : "#/components/schemas/DepotProjet"
+          },
+          "espaceId" : {
+            "$ref" : "#/components/schemas/UUID"
+          },
+          "nom" : {
+            "type" : "string"
+          }
+        },
+        "required" : [ "espaceId", "nom" ],
+        "type" : "object"
+      },
+      "NouvelEspace" : {
+        "properties" : {
+          "nom" : {
+            "type" : "string"
+          }
+        },
+        "type" : "object"
+      },
+      "NouvelleInvitation" : {
+        "properties" : {
+          "email" : {
+            "type" : "string"
+          },
+          "role" : {
+            "$ref" : "#/components/schemas/Role"
+          }
+        },
+        "type" : "object"
+      },
+      "NouvelleSource" : {
+        "properties" : {
+          "adresse" : {
+            "type" : "string"
+          },
+          "espaceId" : {
+            "$ref" : "#/components/schemas/UUID"
+          },
+          "libelle" : {
+            "type" : "string"
+          },
+          "portee" : {
+            "type" : "string"
+          },
+          "type" : {
+            "type" : "string"
+          }
+        },
+        "type" : "object"
+      },
+      "NouvelleVue" : {
+        "properties" : {
+          "criteres" : {
+            "$ref" : "#/components/schemas/CriteresRecherche"
+          },
+          "nom" : {
+            "type" : "string"
+          }
+        },
+        "type" : "object"
+      },
+      "OffsetDateTime" : {
+        "examples" : [ "2022-03-10T12:15:50-04:00" ],
+        "format" : "date-time",
+        "type" : "string"
+      },
+      "OperationEvent" : {
+        "properties" : {
+          "detail" : {
+            "type" : "string"
+          },
+          "kind" : {
+            "type" : "string"
+          },
+          "occurredAt" : {
+            "$ref" : "#/components/schemas/Instant"
+          }
+        },
+        "type" : "object"
+      },
+      "OpportuniteArtiste" : {
+        "properties" : {
+          "dateAConfirmer" : {
+            "type" : "boolean"
+          },
+          "dateLimite" : {
+            "$ref" : "#/components/schemas/LocalDate"
+          },
+          "disciplines" : {
+            "items" : {
+              "type" : "string"
+            },
+            "type" : "array"
+          },
+          "explication" : {
+            "type" : "string"
+          },
+          "id" : {
+            "$ref" : "#/components/schemas/UUID"
+          },
+          "lienOfficiel" : {
+            "type" : "string"
+          },
+          "organisme" : {
+            "type" : "string"
+          },
+          "resume" : {
+            "$ref" : "#/components/schemas/Resume"
+          },
+          "rubrique" : {
+            "type" : "string"
+          },
+          "territoires" : {
+            "items" : {
+              "type" : "string"
+            },
+            "type" : "array"
+          },
+          "titre" : {
+            "type" : "string"
+          }
+        },
+        "type" : "object"
+      },
+      "OpportunitesArtiste" : {
+        "properties" : {
+          "items" : {
+            "items" : {
+              "$ref" : "#/components/schemas/OpportuniteArtiste"
+            },
+            "type" : "array"
+          },
+          "message" : {
+            "type" : "string"
+          },
+          "suivisRequis" : {
+            "type" : "boolean"
+          }
+        },
+        "type" : "object"
+      },
+      "Page" : {
+        "properties" : {
+          "items" : {
+            "items" : {
+              "$ref" : "#/components/schemas/ImpactView"
+            },
+            "type" : "array"
+          },
+          "page" : {
+            "format" : "int32",
+            "type" : "integer"
+          },
+          "size" : {
+            "format" : "int32",
+            "type" : "integer"
+          },
+          "total" : {
+            "format" : "int64",
+            "type" : "integer"
+          }
+        },
+        "type" : "object"
+      },
+      "Parametres" : {
+        "properties" : {
+          "rappelsJours" : {
+            "items" : {
+              "format" : "int32",
+              "type" : "integer"
+            },
+            "type" : "array"
+          }
+        },
+        "type" : "object"
+      },
+      "Periode" : {
+        "properties" : {
+          "debut" : {
+            "$ref" : "#/components/schemas/LocalDate"
+          },
+          "fin" : {
+            "$ref" : "#/components/schemas/LocalDate"
+          },
+          "jours" : {
+            "format" : "int32",
+            "type" : "integer"
+          }
+        },
+        "type" : "object"
+      },
+      "PreferencesEffectives" : {
+        "properties" : {
+          "message" : {
+            "type" : "string"
+          },
+          "miseEnPage" : {
+            "type" : "string"
+          },
+          "miseEnPageChoisie" : {
+            "type" : "string"
+          },
+          "miseEnPageIndisponible" : {
+            "type" : "boolean"
+          },
+          "profilsActifs" : {
+            "items" : {
+              "type" : "string"
+            },
+            "type" : "array"
+          },
+          "profilsIndisponibles" : {
+            "items" : {
+              "type" : "string"
+            },
+            "type" : "array"
+          },
+          "profilsParDefaut" : {
+            "type" : "boolean"
+          }
+        },
+        "type" : "object"
+      },
+      "ProfilCatalogue" : {
+        "properties" : {
+          "description" : {
+            "type" : "string"
+          },
+          "gardeFous" : {
+            "items" : {
+              "type" : "string"
+            },
+            "type" : "array"
+          },
+          "identifiant" : {
+            "type" : "string"
+          },
+          "libelle" : {
+            "type" : "string"
+          },
+          "rubriques" : {
+            "items" : {
+              "$ref" : "#/components/schemas/RubriqueProfil"
+            },
+            "type" : "array"
+          },
+          "version" : {
+            "type" : "string"
+          }
+        },
+        "type" : "object"
+      },
+      "ProjectInventory" : {
+        "properties" : {
+          "inventory" : {
+            "$ref" : "#/components/schemas/InventoryView"
+          },
+          "projectId" : {
+            "$ref" : "#/components/schemas/UUID"
+          },
+          "status" : {
+            "type" : "string"
+          }
+        },
+        "type" : "object"
+      },
+      "ProjectInventorySummary" : {
+        "properties" : {
+          "projectId" : {
+            "$ref" : "#/components/schemas/UUID"
+          },
+          "status" : {
+            "type" : "string"
+          },
+          "summary" : {
+            "$ref" : "#/components/schemas/InventorySummary"
+          }
+        },
+        "type" : "object"
+      },
+      "ProjectItem" : {
+        "properties" : {
+          "id" : {
+            "$ref" : "#/components/schemas/UUID"
+          },
+          "name" : {
+            "type" : "string"
+          },
+          "workspaceId" : {
+            "$ref" : "#/components/schemas/UUID"
+          },
+          "workspaceName" : {
+            "type" : "string"
+          }
+        },
+        "type" : "object"
+      },
+      "ProjectPage" : {
+        "properties" : {
+          "items" : {
+            "items" : {
+              "$ref" : "#/components/schemas/ProjectItem"
+            },
+            "type" : "array"
+          },
+          "page" : {
+            "format" : "int32",
+            "type" : "integer"
+          },
+          "size" : {
+            "format" : "int32",
+            "type" : "integer"
+          },
+          "total" : {
+            "format" : "int64",
+            "type" : "integer"
+          }
+        },
+        "type" : "object"
+      },
+      "Projet" : {
+        "properties" : {
+          "id" : {
+            "$ref" : "#/components/schemas/UUID"
+          },
+          "niveau" : {
+            "type" : "string"
+          },
+          "nom" : {
+            "type" : "string"
+          }
+        },
+        "type" : "object"
+      },
+      "ProjetConcerne" : {
+        "properties" : {
+          "niveau" : {
+            "$ref" : "#/components/schemas/Level"
+          },
+          "projet" : {
+            "type" : "string"
+          },
+          "projetId" : {
+            "$ref" : "#/components/schemas/UUID"
+          }
+        },
+        "type" : "object"
+      },
+      "ProjetCree" : {
+        "properties" : {
+          "espaceId" : {
+            "$ref" : "#/components/schemas/UUID"
+          },
+          "id" : {
+            "$ref" : "#/components/schemas/UUID"
+          },
+          "nom" : {
+            "type" : "string"
+          }
+        },
+        "type" : "object"
+      },
+      "ProjetVise" : {
+        "properties" : {
+          "projet" : {
+            "type" : "string"
+          },
+          "projetId" : {
+            "$ref" : "#/components/schemas/UUID"
+          }
+        },
+        "type" : "object"
+      },
+      "Radar" : {
+        "properties" : {
+          "depuis" : {
+            "$ref" : "#/components/schemas/LocalDate"
+          },
+          "echeances" : {
+            "items" : {
+              "$ref" : "#/components/schemas/EcheanceRadar"
+            },
+            "type" : "array"
+          },
+          "horizon" : {
+            "type" : "string"
+          },
+          "jusqua" : {
+            "$ref" : "#/components/schemas/LocalDate"
+          },
+          "sources" : {
+            "items" : {
+              "$ref" : "#/components/schemas/EtatProduit"
+            },
+            "type" : "array"
+          }
+        },
+        "type" : "object"
+      },
+      "RappelsReglementaires" : {
+        "properties" : {
+          "rappelsJours" : {
+            "items" : {
+              "format" : "int32",
+              "type" : "integer"
+            },
+            "type" : "array"
+          }
+        },
+        "type" : "object"
+      },
+      "Rapport" : {
+        "properties" : {
+          "erreur" : {
+            "type" : "string"
+          },
+          "etat" : {
+            "type" : "string"
+          },
+          "nouvelles" : {
+            "format" : "int32",
+            "type" : "integer"
+          },
+          "sourceId" : {
+            "$ref" : "#/components/schemas/UUID"
+          }
+        },
+        "type" : "object"
+      },
+      "Rapprochement" : {
+        "properties" : {
+          "actualiteId" : {
+            "$ref" : "#/components/schemas/UUID"
+          },
+          "creeLe" : {
+            "$ref" : "#/components/schemas/Instant"
+          },
+          "espaceId" : {
+            "$ref" : "#/components/schemas/UUID"
+          },
+          "id" : {
+            "$ref" : "#/components/schemas/UUID"
+          },
+          "methode" : {
+            "type" : "string"
+          },
+          "niveau" : {
+            "type" : "string"
+          },
+          "projetId" : {
+            "$ref" : "#/components/schemas/UUID"
+          },
+          "projetNom" : {
+            "type" : "string"
+          },
+          "technologie" : {
+            "type" : "string"
+          }
+        },
+        "type" : "object"
+      },
+      "Regle" : {
+        "properties" : {
+          "type" : {
+            "$ref" : "#/components/schemas/TypeRegle"
+          },
+          "valeur" : {
+            "type" : "string"
+          }
+        },
+        "type" : "object"
+      },
+      "ReglesDictionnaire" : {
+        "properties" : {
+          "regles" : {
+            "items" : {
+              "$ref" : "#/components/schemas/Regle"
+            },
+            "type" : "array"
+          }
+        },
+        "type" : "object"
+      },
+      "RejectedAdvisory" : {
+        "properties" : {
+          "externalId" : {
+            "type" : "string"
+          },
+          "id" : {
+            "$ref" : "#/components/schemas/UUID"
+          },
+          "reason" : {
+            "type" : "string"
+          },
+          "receivedAt" : {
+            "$ref" : "#/components/schemas/Instant"
+          }
+        },
+        "type" : "object"
+      },
+      "RejetFiche" : {
+        "properties" : {
+          "motif" : {
+            "type" : "string"
+          }
+        },
+        "type" : "object"
+      },
+      "RepositoryFailure" : {
+        "properties" : {
+          "reason" : {
+            "type" : "string"
+          },
+          "receivedAt" : {
+            "$ref" : "#/components/schemas/Instant"
+          }
+        },
+        "type" : "object"
+      },
+      "RepositorySummary" : {
+        "properties" : {
+          "branch" : {
+            "type" : "string"
+          },
+          "id" : {
+            "$ref" : "#/components/schemas/UUID"
+          },
+          "importedAt" : {
+            "$ref" : "#/components/schemas/Instant"
+          },
+          "lastFailure" : {
+            "$ref" : "#/components/schemas/RepositoryFailure"
+          },
+          "origin" : {
+            "type" : "string"
+          },
+          "principal" : {
+            "type" : "boolean"
+          },
+          "provider" : {
+            "type" : "string"
+          },
+          "repository" : {
+            "type" : "string"
+          },
+          "sourceDate" : {
+            "$ref" : "#/components/schemas/Instant"
+          }
+        },
+        "type" : "object"
+      },
+      "ResultatDepot" : {
+        "properties" : {
+          "provider" : {
+            "type" : "string"
+          },
+          "repository" : {
+            "type" : "string"
+          },
+          "repositoryId" : {
+            "$ref" : "#/components/schemas/UUID"
+          },
+          "result" : {
+            "$ref" : "#/components/schemas/ImportResult"
+          }
+        },
+        "type" : "object"
+      },
+      "Resultats" : {
+        "properties" : {
+          "elements" : {
+            "items" : {
+              "$ref" : "#/components/schemas/Element1"
+            },
+            "type" : "array"
+          },
+          "message" : {
+            "type" : "string"
+          },
+          "page" : {
+            "format" : "int32",
+            "type" : "integer"
+          },
+          "taille" : {
+            "format" : "int32",
+            "type" : "integer"
+          },
+          "total" : {
+            "format" : "int64",
+            "type" : "integer"
+          }
+        },
+        "type" : "object"
+      },
+      "Resume" : {
+        "properties" : {
+          "criteres" : {
+            "type" : "string"
+          },
+          "criteresTronques" : {
+            "type" : "boolean"
+          },
+          "dateLimite" : {
+            "type" : "string"
+          },
+          "mention" : {
+            "type" : "string"
+          },
+          "organisme" : {
+            "type" : "string"
+          },
+          "texteOfficiel" : {
+            "type" : "string"
+          },
+          "titre" : {
+            "type" : "string"
+          }
+        },
+        "type" : "object"
+      },
+      "Resume1" : {
+        "properties" : {
+          "extrait" : {
+            "$ref" : "#/components/schemas/ContenuExterne"
+          },
+          "methode" : {
+            "type" : "string"
+          }
+        },
+        "type" : "object"
+      },
+      "ResumeIaActualite" : {
+        "properties" : {
+          "etat" : {
+            "type" : "string"
+          },
+          "mention" : {
+            "type" : "string"
+          },
+          "methode" : {
+            "type" : "string"
+          },
+          "sources" : {
+            "items" : {
+              "type" : "string"
+            },
+            "type" : "array"
+          },
+          "texte" : {
+            "type" : "string"
+          }
+        },
+        "type" : "object"
+      },
+      "Role" : {
+        "enum" : [ "LECTEUR", "CONTRIBUTEUR", "ADMINISTRATEUR" ],
+        "type" : "string"
+      },
+      "RubriqueElementVeille" : {
+        "properties" : {
+          "identifiant" : {
+            "type" : "string"
+          },
+          "libelle" : {
+            "type" : "string"
+          },
+          "profil" : {
+            "type" : "string"
+          }
+        },
+        "type" : "object"
+      },
+      "RubriqueProfil" : {
+        "properties" : {
+          "identifiant" : {
+            "type" : "string"
+          },
+          "libelle" : {
+            "type" : "string"
+          }
+        },
+        "type" : "object"
+      },
+      "RubriqueVeille" : {
+        "properties" : {
+          "identifiant" : {
+            "type" : "string"
+          },
+          "libelle" : {
+            "type" : "string"
+          },
+          "profil" : {
+            "type" : "string"
+          }
+        },
+        "type" : "object"
+      },
+      "SaisieDomaineMetier" : {
+        "properties" : {
+          "libelle" : {
+            "type" : "string"
+          }
+        },
+        "type" : "object"
+      },
+      "SaisieStandard" : {
+        "properties" : {
+          "cle" : {
+            "type" : "string"
+          },
+          "dateRevue" : {
+            "type" : "string"
+          },
+          "justification" : {
+            "type" : "string"
+          },
+          "libelle" : {
+            "type" : "string"
+          },
+          "produitCycleVie" : {
+            "type" : "string"
+          },
+          "responsable" : {
+            "type" : "string"
+          },
+          "statut" : {
+            "type" : "string"
+          },
+          "versionRecommandee" : {
+            "type" : "string"
+          }
+        },
+        "type" : "object"
+      },
+      "SignalDetail" : {
+        "properties" : {
+          "enrichments" : {
+            "items" : {
+              "$ref" : "#/components/schemas/EnrichmentView"
+            },
+            "type" : "array"
+          },
+          "exploited" : {
+            "type" : "boolean"
+          },
+          "signal" : {
+            "$ref" : "#/components/schemas/SignalView"
+          },
+          "versions" : {
+            "items" : {
+              "$ref" : "#/components/schemas/SignalVersionView"
+            },
+            "type" : "array"
+          }
+        },
+        "type" : "object"
+      },
+      "SignalVersionView" : {
+        "properties" : {
+          "collectedAt" : {
+            "$ref" : "#/components/schemas/Instant"
+          },
+          "contentHash" : {
+            "type" : "string"
+          },
+          "id" : {
+            "$ref" : "#/components/schemas/UUID"
+          },
+          "sourceModifiedAt" : {
+            "$ref" : "#/components/schemas/Instant"
+          },
+          "versionNo" : {
+            "format" : "int32",
+            "type" : "integer"
+          }
+        },
+        "type" : "object"
+      },
+      "SignalView" : {
+        "properties" : {
+          "affected" : {
+            "items" : {
+              "$ref" : "#/components/schemas/AffectedPackage"
+            },
+            "type" : "array"
+          },
+          "aliases" : {
+            "items" : {
+              "type" : "string"
+            },
+            "type" : "array"
+          },
+          "collectedAt" : {
+            "$ref" : "#/components/schemas/Instant"
+          },
+          "currentVersionId" : {
+            "$ref" : "#/components/schemas/UUID"
+          },
+          "externalId" : {
+            "type" : "string"
+          },
+          "id" : {
+            "$ref" : "#/components/schemas/UUID"
+          },
+          "modifiedAt" : {
+            "$ref" : "#/components/schemas/Instant"
+          },
+          "publishedAt" : {
+            "$ref" : "#/components/schemas/Instant"
+          },
+          "severity" : {
+            "type" : "string"
+          },
+          "source" : {
+            "type" : "string"
+          },
+          "summary" : {
+            "type" : "string"
+          },
+          "title" : {
+            "type" : "string"
+          }
+        },
+        "type" : "object"
+      },
+      "Source" : {
+        "properties" : {
+          "identifiant" : {
+            "type" : "string"
+          },
+          "nom" : {
+            "type" : "string"
+          },
+          "url" : {
+            "type" : "string"
+          }
+        },
+        "type" : "object"
+      },
+      "SourceProfil" : {
+        "properties" : {
+          "adresse" : {
+            "type" : "string"
+          },
+          "conditionsUrl" : {
+            "type" : "string"
+          },
+          "conditionsUsage" : {
+            "type" : "string"
+          },
+          "conditionsVerifieesLe" : {
+            "$ref" : "#/components/schemas/Instant"
+          },
+          "conditionsVerifieesPar" : {
+            "$ref" : "#/components/schemas/UUID"
+          },
+          "creeLe" : {
+            "$ref" : "#/components/schemas/Instant"
+          },
+          "derniereCollecteLe" : {
+            "$ref" : "#/components/schemas/Instant"
+          },
+          "derniereErreur" : {
+            "type" : "string"
+          },
+          "disciplines" : {
+            "items" : {
+              "type" : "string"
+            },
+            "type" : "array"
+          },
+          "etat" : {
+            "type" : "string"
+          },
+          "id" : {
+            "$ref" : "#/components/schemas/UUID"
+          },
+          "libelle" : {
+            "type" : "string"
+          },
+          "licence" : {
+            "type" : "string"
+          },
+          "profil" : {
+            "type" : "string"
+          },
+          "rubrique" : {
+            "type" : "string"
+          },
+          "territoires" : {
+            "items" : {
+              "type" : "string"
+            },
+            "type" : "array"
+          },
+          "type" : {
+            "type" : "string"
+          }
+        },
+        "type" : "object"
+      },
+      "SourceStatus" : {
+        "properties" : {
+          "consecutiveFailures" : {
+            "format" : "int32",
+            "type" : "integer"
+          },
+          "cursor" : {
+            "type" : "string"
+          },
+          "label" : {
+            "type" : "string"
+          },
+          "lastError" : {
+            "type" : "string"
+          },
+          "lastFailureAt" : {
+            "$ref" : "#/components/schemas/Instant"
+          },
+          "lastSuccessAt" : {
+            "$ref" : "#/components/schemas/Instant"
+          },
+          "sourceId" : {
+            "type" : "string"
+          },
+          "state" : {
+            "type" : "string"
+          }
+        },
+        "type" : "object"
+      },
+      "SourceWeb" : {
+        "properties" : {
+          "adresse" : {
+            "type" : "string"
+          },
+          "creeLe" : {
+            "$ref" : "#/components/schemas/Instant"
+          },
+          "dernierSuccesLe" : {
+            "$ref" : "#/components/schemas/Instant"
+          },
+          "derniereCollecteLe" : {
+            "$ref" : "#/components/schemas/Instant"
+          },
+          "derniereErreur" : {
+            "type" : "string"
+          },
+          "echecsConsecutifs" : {
+            "format" : "int32",
+            "type" : "integer"
+          },
+          "espaceId" : {
+            "$ref" : "#/components/schemas/UUID"
+          },
+          "etat" : {
+            "type" : "string"
+          },
+          "id" : {
+            "$ref" : "#/components/schemas/UUID"
+          },
+          "libelle" : {
+            "type" : "string"
+          },
+          "portee" : {
+            "type" : "string"
+          },
+          "prochaineCollecteLe" : {
+            "$ref" : "#/components/schemas/Instant"
+          },
+          "proprietaireId" : {
+            "$ref" : "#/components/schemas/UUID"
+          },
+          "type" : {
+            "type" : "string"
+          }
+        },
+        "type" : "object"
+      },
+      "Statut" : {
+        "enum" : [ "ADOPT", "TRIAL", "ASSESS", "HOLD" ],
+        "type" : "string"
+      },
+      "StatutImport" : {
+        "enum" : [ "IMPORTED", "REJECTED", "KEPT", "NONE", "ERROR", "DEFERRED" ],
+        "type" : "string"
+      },
+      "Subscription" : {
+        "properties" : {
+          "channel" : {
+            "type" : "string"
+          },
+          "createdAt" : {
+            "$ref" : "#/components/schemas/Instant"
+          },
+          "filters" : {
+            "items" : {
+              "$ref" : "#/components/schemas/Filter"
+            },
+            "type" : "array"
+          },
+          "frequency" : {
+            "type" : "string"
+          },
+          "id" : {
+            "$ref" : "#/components/schemas/UUID"
+          },
+          "mandatory" : {
+            "type" : "boolean"
+          },
+          "ownerUserId" : {
+            "$ref" : "#/components/schemas/UUID"
+          },
+          "ownerWorkspaceId" : {
+            "$ref" : "#/components/schemas/UUID"
+          },
+          "scope" : {
+            "type" : "string"
+          },
+          "state" : {
+            "type" : "string"
+          }
+        },
+        "type" : "object"
+      },
+      "Suggestion" : {
+        "properties" : {
+          "cle" : {
+            "type" : "string"
+          },
+          "creeLe" : {
+            "$ref" : "#/components/schemas/Instant"
+          },
+          "decideLe" : {
+            "$ref" : "#/components/schemas/Instant"
+          },
+          "espaceId" : {
+            "$ref" : "#/components/schemas/UUID"
+          },
+          "etat" : {
+            "type" : "string"
+          },
+          "id" : {
+            "$ref" : "#/components/schemas/UUID"
+          },
+          "justification" : {
+            "type" : "string"
+          },
+          "origine" : {
+            "type" : "string"
+          },
+          "statut" : {
+            "$ref" : "#/components/schemas/Statut"
+          },
+          "versionRecommandee" : {
+            "type" : "string"
+          }
+        },
+        "type" : "object"
+      },
+      "SuivisArtiste" : {
+        "properties" : {
+          "complets" : {
+            "type" : "boolean"
+          },
+          "disciplines" : {
+            "items" : {
+              "type" : "string"
+            },
+            "type" : "array"
+          },
+          "rappelsJours" : {
+            "items" : {
+              "format" : "int32",
+              "type" : "integer"
+            },
+            "type" : "array"
+          },
+          "rappelsParDefaut" : {
+            "type" : "boolean"
+          },
+          "territoires" : {
+            "items" : {
+              "type" : "string"
+            },
+            "type" : "array"
+          }
+        },
+        "type" : "object"
+      },
+      "SyncResult" : {
+        "properties" : {
+          "attempts" : {
+            "format" : "int32",
+            "type" : "integer"
+          },
+          "created" : {
+            "format" : "int32",
+            "type" : "integer"
+          },
+          "message" : {
+            "type" : "string"
+          },
+          "rejected" : {
+            "format" : "int32",
+            "type" : "integer"
+          },
+          "state" : {
+            "type" : "string"
+          },
+          "unchanged" : {
+            "format" : "int32",
+            "type" : "integer"
+          },
+          "updated" : {
+            "format" : "int32",
+            "type" : "integer"
+          }
+        },
+        "type" : "object"
+      },
+      "Synthese" : {
+        "properties" : {
+          "etat" : {
+            "type" : "string"
+          },
+          "indicateurs" : {
+            "items" : {
+              "type" : "string"
+            },
+            "type" : "array"
+          },
+          "mention" : {
+            "type" : "string"
+          },
+          "periode" : {
+            "$ref" : "#/components/schemas/Periode"
+          },
+          "texte" : {
+            "type" : "string"
+          }
+        },
+        "type" : "object"
+      },
+      "SystemInfo" : {
+        "properties" : {
+          "apiVersion" : {
+            "type" : "string"
+          },
+          "application" : {
+            "type" : "string"
+          },
+          "oidcClientId" : {
+            "type" : "string"
+          },
+          "oidcIssuer" : {
+            "type" : "string"
+          },
+          "version" : {
+            "type" : "string"
+          }
+        },
+        "type" : "object"
+      },
+      "Texte" : {
+        "properties" : {
+          "codesModifies" : {
+            "items" : {
+              "$ref" : "#/components/schemas/Code"
+            },
+            "type" : "array"
+          },
+          "datePublication" : {
+            "$ref" : "#/components/schemas/LocalDate"
+          },
+          "identifiant" : {
+            "type" : "string"
+          },
+          "lienConsolide" : {
+            "type" : "string"
+          },
+          "lienPublie" : {
+            "type" : "string"
+          },
+          "ministere" : {
+            "type" : "string"
+          },
+          "nature" : {
+            "type" : "string"
+          },
+          "nor" : {
+            "type" : "string"
+          },
+          "numero" : {
+            "type" : "string"
+          },
+          "titre" : {
+            "type" : "string"
+          }
+        },
+        "type" : "object"
+      },
+      "TransitionFiche" : {
+        "properties" : {
+          "etat" : {
+            "type" : "string"
+          }
+        },
+        "type" : "object"
+      },
+      "TransitionView" : {
+        "properties" : {
+          "auteur" : {
+            "type" : "string"
+          },
+          "auteurCompteId" : {
+            "$ref" : "#/components/schemas/UUID"
+          },
+          "commentaire" : {
+            "type" : "string"
+          },
+          "date" : {
+            "$ref" : "#/components/schemas/Instant"
+          },
+          "de" : {
+            "type" : "string"
+          },
+          "motif" : {
+            "type" : "string"
+          },
+          "systeme" : {
+            "type" : "boolean"
+          },
+          "vers" : {
+            "type" : "string"
+          }
+        },
+        "type" : "object"
+      },
+      "TypeRegle" : {
+        "enum" : [ "NATURE", "MINISTERE", "NOR", "CODE", "MOT_CLE" ],
+        "type" : "string"
+      },
+      "UUID" : {
+        "format" : "uuid",
+        "pattern" : "[a-fA-F0-9]{8}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{12}",
+        "type" : "string"
+      },
+      "ValeurListeArtiste" : {
+        "properties" : {
+          "identifiant" : {
+            "type" : "string"
+          },
+          "libelle" : {
+            "type" : "string"
+          }
+        },
+        "type" : "object"
+      },
+      "VeilleProfils" : {
+        "properties" : {
+          "elements" : {
+            "items" : {
+              "$ref" : "#/components/schemas/ElementVeilleProfils"
+            },
+            "type" : "array"
+          },
+          "profilsActifs" : {
+            "items" : {
+              "type" : "string"
+            },
+            "type" : "array"
+          }
+        },
+        "type" : "object"
+      },
+      "Version" : {
+        "properties" : {
+          "dateRevue" : {
+            "$ref" : "#/components/schemas/LocalDate"
+          },
+          "justification" : {
+            "type" : "string"
+          },
+          "modifieLe" : {
+            "$ref" : "#/components/schemas/Instant"
+          },
+          "modifiePar" : {
+            "$ref" : "#/components/schemas/UUID"
+          },
+          "origine" : {
+            "type" : "string"
+          },
+          "responsable" : {
+            "type" : "string"
+          },
+          "statut" : {
+            "$ref" : "#/components/schemas/Statut"
+          },
+          "versionRecommandee" : {
+            "type" : "string"
+          }
+        },
+        "type" : "object"
+      },
+      "VersionRange" : {
+        "properties" : {
+          "fixed" : {
+            "type" : "string"
+          },
+          "introduced" : {
+            "type" : "string"
+          },
+          "lastAffected" : {
+            "type" : "string"
+          },
+          "type" : {
+            "type" : "string"
+          }
+        },
+        "type" : "object"
+      },
+      "VueActivite" : {
+        "properties" : {
+          "compteurs" : {
+            "$ref" : "#/components/schemas/Compteurs"
+          },
+          "fraicheur" : {
+            "$ref" : "#/components/schemas/Fraicheur"
+          },
+          "jalons" : {
+            "items" : {
+              "$ref" : "#/components/schemas/Jalon"
+            },
+            "type" : "array"
+          },
+          "periode" : {
+            "$ref" : "#/components/schemas/Periode"
+          },
+          "projectId" : {
+            "$ref" : "#/components/schemas/UUID"
+          }
+        },
+        "type" : "object"
+      },
+      "VueEnregistree" : {
+        "properties" : {
+          "creeLe" : {
+            "$ref" : "#/components/schemas/Instant"
+          },
+          "criteres" : {
+            "$ref" : "#/components/schemas/CriteresRecherche"
+          },
+          "id" : {
+            "$ref" : "#/components/schemas/UUID"
+          },
+          "nom" : {
+            "type" : "string"
+          }
+        },
+        "type" : "object"
+      },
+      "WatchImpact" : {
+        "properties" : {
+          "impactId" : {
+            "$ref" : "#/components/schemas/UUID"
+          },
+          "level" : {
+            "$ref" : "#/components/schemas/Level"
+          },
+          "projectId" : {
+            "$ref" : "#/components/schemas/UUID"
+          },
+          "projectName" : {
+            "type" : "string"
+          }
+        },
+        "type" : "object"
+      },
+      "WatchItem" : {
+        "properties" : {
+          "externalId" : {
+            "type" : "string"
+          },
+          "impacts" : {
+            "items" : {
+              "$ref" : "#/components/schemas/WatchImpact"
+            },
+            "type" : "array"
+          },
+          "modifiedAt" : {
+            "$ref" : "#/components/schemas/Instant"
+          },
+          "severity" : {
+            "type" : "string"
+          },
+          "signalId" : {
+            "$ref" : "#/components/schemas/UUID"
+          },
+          "source" : {
+            "type" : "string"
+          },
+          "subscriptions" : {
+            "items" : {
+              "format" : "uuid",
+              "pattern" : "[a-fA-F0-9]{8}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{12}",
+              "type" : "string"
+            },
+            "type" : "array",
+            "uniqueItems" : true
+          },
+          "title" : {
+            "type" : "string"
+          }
+        },
+        "type" : "object"
+      }
+    },
+    "securitySchemes" : {
+      "SecurityScheme" : {
+        "description" : "Authentication",
+        "openIdConnectUrl" : "<émetteur>/.well-known/openid-configuration",
+        "type" : "openIdConnect"
+      }
+    }
+  },
+  "info" : {
+    "title" : "ARGOS API",
+    "version" : "v1"
+  },
+  "openapi" : "3.1.0",
+  "paths" : {
+    "/api/v1/alertes" : {
+      "get" : {
+        "parameters" : [ {
+          "in" : "query",
+          "name" : "canal",
+          "schema" : {
+            "type" : "string"
+          }
+        }, {
+          "in" : "query",
+          "name" : "etat",
+          "schema" : {
+            "type" : "string"
+          }
+        }, {
+          "description" : "Nombre maximal d'alertes, de 1 à 200 ; une valeur hors bornes est ramenée à la borne la plus proche ; une valeur non entière donne 400",
+          "in" : "query",
+          "name" : "limite",
+          "schema" : {
+            "default" : 50,
+            "type" : "integer"
+          }
+        } ],
+        "responses" : {
+          "200" : {
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "items" : {
+                    "$ref" : "#/components/schemas/AlerteVue"
+                  },
+                  "type" : "array"
+                }
+              }
+            },
+            "description" : "Alertes et résumés de l'appelant"
+          },
+          "400" : {
+            "description" : "Paramètre limite non entier"
+          },
+          "401" : {
+            "description" : "Non authentifié"
+          }
+        },
+        "summary" : "Alertes et résumés de l'appelant, des plus récents aux plus anciens (filtres : canal, état)",
+        "tags" : [ "Alertes" ]
+      }
+    },
+    "/api/v1/alertes/{id}" : {
+      "get" : {
+        "parameters" : [ {
+          "in" : "path",
+          "name" : "id",
+          "required" : true,
+          "schema" : {
+            "$ref" : "#/components/schemas/UUID"
+          }
+        } ],
+        "responses" : {
+          "200" : {
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/AlerteVue"
+                }
+              }
+            },
+            "description" : "OK"
+          }
+        },
+        "summary" : "Alerte ou résumé de l'appelant",
+        "tags" : [ "Alertes" ]
+      }
+    },
+    "/api/v1/alertes/{id}/remise" : {
+      "post" : {
+        "parameters" : [ {
+          "in" : "path",
+          "name" : "id",
+          "required" : true,
+          "schema" : {
+            "$ref" : "#/components/schemas/UUID"
+          }
+        } ],
+        "responses" : {
+          "200" : {
+            "content" : {
+              "application/json" : {
+                "schema" : { }
+              }
+            },
+            "description" : "OK"
+          }
+        },
+        "summary" : "Confirme la remise d'une alerte DESKTOP au client desktop",
+        "tags" : [ "Alertes" ]
+      }
+    },
+    "/api/v1/catalogue/mises-en-page" : {
+      "get" : {
+        "responses" : {
+          "200" : {
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "items" : {
+                    "$ref" : "#/components/schemas/MiseEnPageCatalogue"
+                  },
+                  "type" : "array"
+                }
+              }
+            },
+            "description" : "OK"
+          },
+          "401" : {
+            "description" : "Not Authorized"
+          },
+          "403" : {
+            "description" : "Not Allowed"
+          }
+        },
+        "security" : [ {
+          "SecurityScheme" : [ ]
+        } ],
+        "summary" : "Mises en page publiées au catalogue",
+        "tags" : [ "Catalogue" ]
+      }
+    },
+    "/api/v1/catalogue/profils" : {
+      "get" : {
+        "responses" : {
+          "200" : {
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "items" : {
+                    "$ref" : "#/components/schemas/ProfilCatalogue"
+                  },
+                  "type" : "array"
+                }
+              }
+            },
+            "description" : "OK"
+          },
+          "401" : {
+            "description" : "Not Authorized"
+          },
+          "403" : {
+            "description" : "Not Allowed"
+          }
+        },
+        "security" : [ {
+          "SecurityScheme" : [ ]
+        } ],
+        "summary" : "Profils de veille publiés au catalogue",
+        "tags" : [ "Catalogue" ]
+      }
+    },
+    "/api/v1/espaces" : {
+      "get" : {
+        "responses" : {
+          "200" : {
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "items" : {
+                    "$ref" : "#/components/schemas/EspaceDeCompte"
+                  },
+                  "type" : "array"
+                }
+              }
+            },
+            "description" : "Espaces et rôle de l'utilisateur dans chacun"
+          },
+          "401" : {
+            "description" : "Non authentifié"
+          },
+          "403" : {
+            "description" : "Not Allowed"
+          }
+        },
+        "security" : [ {
+          "SecurityScheme" : [ ]
+        } ],
+        "summary" : "Espaces dont l'utilisateur est membre",
+        "tags" : [ "Comptes et accès" ]
+      },
+      "post" : {
+        "requestBody" : {
+          "content" : {
+            "application/json" : {
+              "schema" : {
+                "$ref" : "#/components/schemas/NouvelEspace"
+              }
+            }
+          },
+          "required" : true
+        },
+        "responses" : {
+          "201" : {
+            "description" : "Espace créé"
+          },
+          "400" : {
+            "description" : "Nom invalide"
+          },
+          "401" : {
+            "description" : "Non authentifié"
+          },
+          "403" : {
+            "description" : "Not Allowed"
+          }
+        },
+        "security" : [ {
+          "SecurityScheme" : [ ]
+        } ],
+        "summary" : "Créer un espace dont l'utilisateur devient administrateur",
+        "tags" : [ "Comptes et accès" ]
+      }
+    },
+    "/api/v1/espaces/{espaceId}" : {
+      "get" : {
+        "parameters" : [ {
+          "in" : "path",
+          "name" : "espaceId",
+          "required" : true,
+          "schema" : {
+            "$ref" : "#/components/schemas/UUID"
+          }
+        } ],
+        "responses" : {
+          "200" : {
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/EspaceDeCompte"
+                }
+              }
+            },
+            "description" : "Espace"
+          },
+          "401" : {
+            "description" : "Non authentifié"
+          },
+          "403" : {
+            "description" : "Not Allowed"
+          },
+          "404" : {
+            "description" : "Espace introuvable ou utilisateur non membre"
+          }
+        },
+        "security" : [ {
+          "SecurityScheme" : [ ]
+        } ],
+        "summary" : "Espace dont l'utilisateur est membre",
+        "tags" : [ "Comptes et accès" ]
+      }
+    },
+    "/api/v1/espaces/{espaceId}/invitations" : {
+      "get" : {
+        "parameters" : [ {
+          "in" : "path",
+          "name" : "espaceId",
+          "required" : true,
+          "schema" : {
+            "$ref" : "#/components/schemas/UUID"
+          }
+        } ],
+        "responses" : {
+          "200" : {
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "items" : {
+                    "$ref" : "#/components/schemas/Invitation"
+                  },
+                  "type" : "array"
+                }
+              }
+            },
+            "description" : "Invitations"
+          },
+          "401" : {
+            "description" : "Non authentifié"
+          },
+          "403" : {
+            "description" : "Rôle insuffisant"
+          },
+          "404" : {
+            "description" : "Espace introuvable ou utilisateur non membre"
+          }
+        },
+        "security" : [ {
+          "SecurityScheme" : [ ]
+        } ],
+        "summary" : "Invitations de l'espace (administrateurs de l'espace)",
+        "tags" : [ "Comptes et accès" ]
+      },
+      "post" : {
+        "parameters" : [ {
+          "in" : "path",
+          "name" : "espaceId",
+          "required" : true,
+          "schema" : {
+            "$ref" : "#/components/schemas/UUID"
+          }
+        } ],
+        "requestBody" : {
+          "content" : {
+            "application/json" : {
+              "schema" : {
+                "$ref" : "#/components/schemas/NouvelleInvitation"
+              }
+            }
+          },
+          "required" : true
+        },
+        "responses" : {
+          "201" : {
+            "description" : "Invitation créée"
+          },
+          "400" : {
+            "description" : "Adresse ou rôle invalide"
+          },
+          "401" : {
+            "description" : "Non authentifié"
+          },
+          "403" : {
+            "description" : "Rôle insuffisant"
+          },
+          "404" : {
+            "description" : "Espace introuvable ou utilisateur non membre"
+          }
+        },
+        "security" : [ {
+          "SecurityScheme" : [ ]
+        } ],
+        "summary" : "Inviter une adresse e-mail avec un rôle (administrateurs de l'espace)",
+        "tags" : [ "Comptes et accès" ]
+      }
+    },
+    "/api/v1/espaces/{espaceId}/invitations/{invitationId}" : {
+      "delete" : {
+        "parameters" : [ {
+          "in" : "path",
+          "name" : "espaceId",
+          "required" : true,
+          "schema" : {
+            "$ref" : "#/components/schemas/UUID"
+          }
+        }, {
+          "in" : "path",
+          "name" : "invitationId",
+          "required" : true,
+          "schema" : {
+            "$ref" : "#/components/schemas/UUID"
+          }
+        } ],
+        "responses" : {
+          "204" : {
+            "description" : "Invitation révoquée"
+          },
+          "401" : {
+            "description" : "Non authentifié"
+          },
+          "403" : {
+            "description" : "Rôle insuffisant"
+          },
+          "404" : {
+            "description" : "Espace introuvable ou utilisateur non membre"
+          },
+          "409" : {
+            "description" : "Aucune invitation en attente avec cet identifiant"
+          }
+        },
+        "security" : [ {
+          "SecurityScheme" : [ ]
+        } ],
+        "summary" : "Révoquer une invitation en attente (administrateurs de l'espace)",
+        "tags" : [ "Comptes et accès" ]
+      }
+    },
+    "/api/v1/espaces/{espaceId}/membres" : {
+      "get" : {
+        "parameters" : [ {
+          "in" : "path",
+          "name" : "espaceId",
+          "required" : true,
+          "schema" : {
+            "$ref" : "#/components/schemas/UUID"
+          }
+        } ],
+        "responses" : {
+          "200" : {
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "items" : {
+                    "$ref" : "#/components/schemas/Membre"
+                  },
+                  "type" : "array"
+                }
+              }
+            },
+            "description" : "Membres"
+          },
+          "401" : {
+            "description" : "Non authentifié"
+          },
+          "403" : {
+            "description" : "Not Allowed"
+          },
+          "404" : {
+            "description" : "Espace introuvable ou utilisateur non membre"
+          }
+        },
+        "security" : [ {
+          "SecurityScheme" : [ ]
+        } ],
+        "summary" : "Membres de l'espace et leurs rôles",
+        "tags" : [ "Comptes et accès" ]
+      }
+    },
+    "/api/v1/espaces/{espaceId}/membres/{compteId}" : {
+      "delete" : {
+        "parameters" : [ {
+          "in" : "path",
+          "name" : "compteId",
+          "required" : true,
+          "schema" : {
+            "$ref" : "#/components/schemas/UUID"
+          }
+        }, {
+          "in" : "path",
+          "name" : "espaceId",
+          "required" : true,
+          "schema" : {
+            "$ref" : "#/components/schemas/UUID"
+          }
+        } ],
+        "responses" : {
+          "204" : {
+            "description" : "Accès révoqué"
+          },
+          "401" : {
+            "description" : "Non authentifié"
+          },
+          "403" : {
+            "description" : "Rôle insuffisant"
+          },
+          "404" : {
+            "description" : "Espace introuvable ou utilisateur non membre"
+          },
+          "409" : {
+            "description" : "Dernier administrateur ou membre inconnu"
+          }
+        },
+        "security" : [ {
+          "SecurityScheme" : [ ]
+        } ],
+        "summary" : "Révoquer l'accès d'un membre (administrateurs de l'espace)",
+        "tags" : [ "Comptes et accès" ]
+      }
+    },
+    "/api/v1/espaces/{espaceId}/membres/{compteId}/role" : {
+      "put" : {
+        "parameters" : [ {
+          "in" : "path",
+          "name" : "compteId",
+          "required" : true,
+          "schema" : {
+            "$ref" : "#/components/schemas/UUID"
+          }
+        }, {
+          "in" : "path",
+          "name" : "espaceId",
+          "required" : true,
+          "schema" : {
+            "$ref" : "#/components/schemas/UUID"
+          }
+        } ],
+        "requestBody" : {
+          "content" : {
+            "application/json" : {
+              "schema" : {
+                "$ref" : "#/components/schemas/ChangementRole"
+              }
+            }
+          },
+          "required" : true
+        },
+        "responses" : {
+          "200" : {
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/Membre"
+                }
+              }
+            },
+            "description" : "Membre avec son nouveau rôle"
+          },
+          "400" : {
+            "description" : "Bad Request"
+          },
+          "401" : {
+            "description" : "Non authentifié"
+          },
+          "403" : {
+            "description" : "Rôle insuffisant"
+          },
+          "404" : {
+            "description" : "Espace introuvable ou utilisateur non membre"
+          },
+          "409" : {
+            "description" : "Dernier administrateur ou membre inconnu"
+          }
+        },
+        "security" : [ {
+          "SecurityScheme" : [ ]
+        } ],
+        "summary" : "Changer le rôle d'un membre (administrateurs de l'espace)",
+        "tags" : [ "Comptes et accès" ]
+      }
+    },
+    "/api/v1/essai-observabilite/erreur" : {
+      "get" : {
+        "parameters" : [ {
+          "in" : "query",
+          "name" : "marqueur",
+          "schema" : {
+            "type" : "string"
+          }
+        } ],
+        "responses" : {
+          "200" : {
+            "content" : {
+              "text/plain" : {
+                "schema" : {
+                  "type" : "string"
+                }
+              }
+            },
+            "description" : "OK"
+          }
+        },
+        "summary" : "Erreur",
+        "tags" : [ "Ressource Essai Journaux" ]
+      }
+    },
+    "/api/v1/essai-observabilite/erreur-jeton" : {
+      "get" : {
+        "parameters" : [ {
+          "in" : "query",
+          "name" : "marqueur",
+          "schema" : {
+            "type" : "string"
+          }
+        } ],
+        "responses" : {
+          "200" : {
+            "content" : {
+              "text/plain" : {
+                "schema" : {
+                  "type" : "string"
+                }
+              }
+            },
+            "description" : "OK"
+          }
+        },
+        "summary" : "Erreur Citant Le Jeton",
+        "tags" : [ "Ressource Essai Journaux" ]
+      }
+    },
+    "/api/v1/essai-observabilite/etapes" : {
+      "get" : {
+        "parameters" : [ {
+          "in" : "query",
+          "name" : "marqueur",
+          "schema" : {
+            "type" : "string"
+          }
+        } ],
+        "responses" : {
+          "200" : {
+            "content" : {
+              "text/plain" : {
+                "schema" : {
+                  "type" : "string"
+                }
+              }
+            },
+            "description" : "OK"
+          }
+        },
+        "summary" : "Etapes",
+        "tags" : [ "Ressource Essai Journaux" ]
+      }
+    },
+    "/api/v1/impacts/{id}" : {
+      "get" : {
+        "parameters" : [ {
+          "in" : "path",
+          "name" : "id",
+          "required" : true,
+          "schema" : {
+            "$ref" : "#/components/schemas/UUID"
+          }
+        } ],
+        "responses" : {
+          "200" : {
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ImpactView"
+                }
+              }
+            },
+            "description" : "OK"
+          }
+        },
+        "summary" : "Impact, signal source, projet, composant, inventaire utilisé, méthode d'analyse, état de traitement et historique de ses transitions",
+        "tags" : [ "Impacts" ]
+      }
+    },
+    "/api/v1/impacts/{id}/transitions" : {
+      "post" : {
+        "parameters" : [ {
+          "in" : "path",
+          "name" : "id",
+          "required" : true,
+          "schema" : {
+            "$ref" : "#/components/schemas/UUID"
+          }
+        } ],
+        "requestBody" : {
+          "content" : {
+            "application/json" : {
+              "schema" : {
+                "$ref" : "#/components/schemas/DemandeTransitionImpact"
+              }
+            }
+          },
+          "required" : true
+        },
+        "responses" : {
+          "200" : {
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ImpactView"
+                }
+              }
+            },
+            "description" : "Impact après la transition, avec son historique"
+          },
+          "400" : {
+            "description" : "État inconnu, motif manquant pour ECARTE ou texte trop long (DONNEE_INVALIDE)"
+          },
+          "401" : {
+            "description" : "Non authentifié"
+          },
+          "403" : {
+            "description" : "Rôle insuffisant (LECTEUR) ; refus journalisé"
+          },
+          "404" : {
+            "description" : "Impact inconnu ou d'un autre espace ; refus journalisé dans le second cas"
+          },
+          "409" : {
+            "description" : "Transition non prévue depuis l'état courant (TRANSITION_INTERDITE), le message nomme les transitions possibles"
+          }
+        },
+        "summary" : "Change l'état de traitement d'un impact (CONTRIBUTEUR ou ADMINISTRATEUR de l'espace du projet)",
+        "tags" : [ "Impacts" ]
+      }
+    },
+    "/api/v1/invitations" : {
+      "get" : {
+        "responses" : {
+          "200" : {
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "items" : {
+                    "$ref" : "#/components/schemas/Invitation"
+                  },
+                  "type" : "array"
+                }
+              }
+            },
+            "description" : "Invitations en attente"
+          },
+          "401" : {
+            "description" : "Non authentifié"
+          },
+          "403" : {
+            "description" : "Not Allowed"
+          }
+        },
+        "security" : [ {
+          "SecurityScheme" : [ ]
+        } ],
+        "summary" : "Invitations en attente adressées à l'utilisateur",
+        "tags" : [ "Comptes et accès" ]
+      }
+    },
+    "/api/v1/invitations/{invitationId}/acceptation" : {
+      "post" : {
+        "parameters" : [ {
+          "in" : "path",
+          "name" : "invitationId",
+          "required" : true,
+          "schema" : {
+            "$ref" : "#/components/schemas/UUID"
+          }
+        } ],
+        "responses" : {
+          "200" : {
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/EspaceDeCompte"
+                }
+              }
+            },
+            "description" : "Espace rejoint, avec le rôle de l'invitation"
+          },
+          "401" : {
+            "description" : "Non authentifié"
+          },
+          "403" : {
+            "description" : "Not Allowed"
+          },
+          "404" : {
+            "description" : "Aucune invitation adressée à l'utilisateur avec cet identifiant (non journalisé)"
+          },
+          "409" : {
+            "description" : "Invitation déjà acceptée ou révoquée (INVITATION_INACTIVE), expirée (INVITATION_EXPIREE), ou utilisateur déjà membre (DEJA_MEMBRE)"
+          }
+        },
+        "security" : [ {
+          "SecurityScheme" : [ ]
+        } ],
+        "summary" : "Accepter une invitation et rejoindre l'espace",
+        "tags" : [ "Comptes et accès" ]
+      }
+    },
+    "/api/v1/me/veille" : {
+      "get" : {
+        "responses" : {
+          "401" : {
+            "description" : "Not Authorized"
+          },
+          "403" : {
+            "description" : "Not Allowed"
+          },
+          "429" : {
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/Erreur"
+                }
+              }
+            },
+            "description" : "Limite de débit du compte atteinte, en-tête Retry-After"
+          }
+        },
+        "security" : [ {
+          "SecurityScheme" : [ ]
+        } ],
+        "summary" : "Veille de l'appelant : union sans doublon des éléments de ses profils actifs et de ses abonnements PERSONAL, avec rubriques et garde-fous",
+        "tags" : [ "Veille" ]
+      }
+    },
+    "/api/v1/me/watch" : {
+      "get" : {
+        "responses" : {
+          "200" : {
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "items" : {
+                    "$ref" : "#/components/schemas/WatchItem"
+                  },
+                  "type" : "array"
+                }
+              }
+            },
+            "description" : "OK"
+          }
+        },
+        "summary" : "Veille de l'appelant : socle TEAM hérité et abonnements PERSONAL",
+        "tags" : [ "Veille" ]
+      }
+    },
+    "/api/v1/moi" : {
+      "get" : {
+        "responses" : {
+          "200" : {
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/CompteCourant"
+                }
+              }
+            },
+            "description" : "Compte de l'utilisateur connecté"
+          },
+          "401" : {
+            "description" : "Non authentifié"
+          },
+          "403" : {
+            "description" : "Inscription sur invitation : aucune invitation en attente"
+          }
+        },
+        "security" : [ {
+          "SecurityScheme" : [ ]
+        } ],
+        "summary" : "Compte courant, créé à la première connexion",
+        "tags" : [ "Comptes et accès" ]
+      }
+    },
+    "/api/v1/ops/impacts/integrity" : {
+      "get" : {
+        "responses" : {
+          "200" : {
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/IntegrityReport"
+                }
+              }
+            },
+            "description" : "OK"
+          }
+        },
+        "summary" : "Contrôle d'intégrité : aucun impact sans signal, projet, méthode ou provenance, aucun impact ouvert ou confirmé sans composant",
+        "tags" : [ "Impacts" ]
+      }
+    },
+    "/api/v1/ops/sources" : {
+      "get" : {
+        "responses" : {
+          "200" : {
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "items" : {
+                    "$ref" : "#/components/schemas/SourceStatus"
+                  },
+                  "type" : "array"
+                }
+              }
+            },
+            "description" : "OK"
+          }
+        },
+        "summary" : "État de chaque source : NOMINAL, FAILING ou DEGRADED",
+        "tags" : [ "Exploitation" ]
+      }
+    },
+    "/api/v1/ops/sources/{id}/events" : {
+      "get" : {
+        "parameters" : [ {
+          "in" : "path",
+          "name" : "id",
+          "required" : true,
+          "schema" : {
+            "type" : "string"
+          }
+        } ],
+        "responses" : {
+          "200" : {
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "items" : {
+                    "$ref" : "#/components/schemas/OperationEvent"
+                  },
+                  "type" : "array"
+                }
+              }
+            },
+            "description" : "OK"
+          }
+        },
+        "summary" : "Événements d'exploitation datés de la source",
+        "tags" : [ "Exploitation" ]
+      }
+    },
+    "/api/v1/ops/sources/{id}/rejected" : {
+      "get" : {
+        "parameters" : [ {
+          "in" : "path",
+          "name" : "id",
+          "required" : true,
+          "schema" : {
+            "type" : "string"
+          }
+        } ],
+        "responses" : {
+          "200" : {
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "items" : {
+                    "$ref" : "#/components/schemas/RejectedAdvisory"
+                  },
+                  "type" : "array"
+                }
+              }
+            },
+            "description" : "OK"
+          }
+        },
+        "summary" : "Avis mis à l'écart par la source, avec leur motif",
+        "tags" : [ "Exploitation" ]
+      }
+    },
+    "/api/v1/ops/sources/{id}/synchronizations" : {
+      "post" : {
+        "parameters" : [ {
+          "in" : "path",
+          "name" : "id",
+          "required" : true,
+          "schema" : {
+            "type" : "string"
+          }
+        } ],
+        "responses" : {
+          "200" : {
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/SyncResult"
+                }
+              }
+            },
+            "description" : "OK"
+          }
+        },
+        "summary" : "Lance une synchronisation de la source et attend son résultat",
+        "tags" : [ "Exploitation" ]
+      }
+    },
+    "/api/v1/preferences" : {
+      "get" : {
+        "responses" : {
+          "200" : {
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/PreferencesEffectives"
+                }
+              }
+            },
+            "description" : "OK"
+          },
+          "401" : {
+            "description" : "Not Authorized"
+          },
+          "403" : {
+            "description" : "Not Allowed"
+          }
+        },
+        "security" : [ {
+          "SecurityScheme" : [ ]
+        } ],
+        "summary" : "Préférences appliquées à l'utilisateur courant",
+        "tags" : [ "Préférences" ]
+      }
+    },
+    "/api/v1/preferences/mise-en-page" : {
+      "put" : {
+        "requestBody" : {
+          "content" : {
+            "application/json" : {
+              "schema" : {
+                "$ref" : "#/components/schemas/ChoixMiseEnPage"
+              }
+            }
+          },
+          "required" : true
+        },
+        "responses" : {
+          "200" : {
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/PreferencesEffectives"
+                }
+              }
+            },
+            "description" : "Mise en page enregistrée"
+          },
+          "400" : {
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/Erreur"
+                }
+              }
+            },
+            "description" : "Mise en page absente du catalogue"
+          },
+          "401" : {
+            "description" : "Not Authorized"
+          },
+          "403" : {
+            "description" : "Not Allowed"
+          }
+        },
+        "security" : [ {
+          "SecurityScheme" : [ ]
+        } ],
+        "summary" : "Choisir sa mise en page parmi celles publiées au catalogue",
+        "tags" : [ "Préférences" ]
+      }
+    },
+    "/api/v1/preferences/profils" : {
+      "put" : {
+        "requestBody" : {
+          "content" : {
+            "application/json" : {
+              "schema" : {
+                "$ref" : "#/components/schemas/ChoixProfils"
+              }
+            }
+          },
+          "required" : true
+        },
+        "responses" : {
+          "200" : {
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/PreferencesEffectives"
+                }
+              }
+            },
+            "description" : "Profils actifs enregistrés"
+          },
+          "400" : {
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/Erreur"
+                }
+              }
+            },
+            "description" : "Profil absent du catalogue, ou aucun profil actif"
+          },
+          "401" : {
+            "description" : "Not Authorized"
+          },
+          "403" : {
+            "description" : "Not Allowed"
+          }
+        },
+        "security" : [ {
+          "SecurityScheme" : [ ]
+        } ],
+        "summary" : "Remplacer l'ensemble de ses profils de veille actifs",
+        "tags" : [ "Préférences" ]
+      }
+    },
+    "/api/v1/preferences/rubriques" : {
+      "get" : {
+        "responses" : {
+          "200" : {
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "items" : {
+                    "$ref" : "#/components/schemas/RubriqueVeille"
+                  },
+                  "type" : "array"
+                }
+              }
+            },
+            "description" : "OK"
+          },
+          "401" : {
+            "description" : "Not Authorized"
+          },
+          "403" : {
+            "description" : "Not Allowed"
+          }
+        },
+        "security" : [ {
+          "SecurityScheme" : [ ]
+        } ],
+        "summary" : "Rubriques de la veille de l'utilisateur, issues de ses profils actifs",
+        "tags" : [ "Préférences" ]
+      }
+    },
+    "/api/v1/profils/artiste/collectes" : {
+      "post" : {
+        "responses" : {
+          "401" : {
+            "description" : "Not Authorized"
+          },
+          "403" : {
+            "description" : "Not Allowed"
+          },
+          "429" : {
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/Erreur"
+                }
+              }
+            },
+            "description" : "Limite de débit du compte atteinte"
+          }
+        },
+        "security" : [ {
+          "SecurityScheme" : [ ]
+        } ],
+        "summary" : "Collecte les sources du profil ; les sources non vérifiées ne sont pas collectées (administrateur plateforme)",
+        "tags" : [ "Profil artiste" ]
+      }
+    },
+    "/api/v1/profils/artiste/listes" : {
+      "get" : {
+        "responses" : {
+          "200" : {
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ListesArtiste"
+                }
+              }
+            },
+            "description" : "OK"
+          },
+          "401" : {
+            "description" : "Not Authorized"
+          },
+          "403" : {
+            "description" : "Not Allowed"
+          }
+        },
+        "security" : [ {
+          "SecurityScheme" : [ ]
+        } ],
+        "summary" : "Disciplines et territoires du profil artiste, et jours de rappel par défaut",
+        "tags" : [ "Profil artiste" ]
+      }
+    },
+    "/api/v1/profils/artiste/opportunites" : {
+      "get" : {
+        "responses" : {
+          "401" : {
+            "description" : "Not Authorized"
+          },
+          "403" : {
+            "description" : "Not Allowed"
+          },
+          "409" : {
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/Erreur"
+                }
+              }
+            },
+            "description" : "Profil artiste inactif pour l'utilisateur"
+          }
+        },
+        "security" : [ {
+          "SecurityScheme" : [ ]
+        } ],
+        "summary" : "Opportunités ouvertes correspondant à ses disciplines et territoires suivis",
+        "tags" : [ "Profil artiste" ]
+      }
+    },
+    "/api/v1/profils/artiste/opportunites/{id}/resume" : {
+      "get" : {
+        "parameters" : [ {
+          "in" : "path",
+          "name" : "id",
+          "required" : true,
+          "schema" : {
+            "$ref" : "#/components/schemas/UUID"
+          }
+        } ],
+        "responses" : {
+          "401" : {
+            "description" : "Not Authorized"
+          },
+          "403" : {
+            "description" : "Not Allowed"
+          },
+          "404" : {
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/Erreur"
+                }
+              }
+            },
+            "description" : "Opportunité inconnue"
+          }
+        },
+        "security" : [ {
+          "SecurityScheme" : [ ]
+        } ],
+        "summary" : "Résumé d'une opportunité : critères tels qu'énoncés et lien vers le texte officiel",
+        "tags" : [ "Profil artiste" ]
+      }
+    },
+    "/api/v1/profils/artiste/sources" : {
+      "get" : {
+        "responses" : {
+          "200" : {
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "items" : {
+                    "$ref" : "#/components/schemas/SourceProfil"
+                  },
+                  "type" : "array"
+                }
+              }
+            },
+            "description" : "OK"
+          },
+          "401" : {
+            "description" : "Not Authorized"
+          },
+          "403" : {
+            "description" : "Not Allowed"
+          }
+        },
+        "security" : [ {
+          "SecurityScheme" : [ ]
+        } ],
+        "summary" : "Sources du profil et état de leurs conditions d'usage (administrateur plateforme)",
+        "tags" : [ "Profil artiste" ]
+      },
+      "post" : {
+        "requestBody" : {
+          "content" : {
+            "application/json" : {
+              "schema" : {
+                "$ref" : "#/components/schemas/DeclarationSourceArtiste"
+              }
+            }
+          },
+          "required" : true
+        },
+        "responses" : {
+          "201" : {
+            "description" : "Source déclarée, état CONDITIONS_A_VERIFIER"
+          },
+          "400" : {
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/Erreur"
+                }
+              }
+            },
+            "description" : "Adresse, type, rubrique ou valeur invalide"
+          },
+          "401" : {
+            "description" : "Not Authorized"
+          },
+          "403" : {
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/Erreur"
+                }
+              }
+            },
+            "description" : "Réservé à l'administrateur plateforme"
+          },
+          "409" : {
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/Erreur"
+                }
+              }
+            },
+            "description" : "Adresse déjà déclarée"
+          }
+        },
+        "security" : [ {
+          "SecurityScheme" : [ ]
+        } ],
+        "summary" : "Déclare une source du profil ; elle n'est collectée qu'après l'enregistrement de ses conditions d'usage",
+        "tags" : [ "Profil artiste" ]
+      }
+    },
+    "/api/v1/profils/artiste/sources/{id}/conditions-usage" : {
+      "put" : {
+        "parameters" : [ {
+          "in" : "path",
+          "name" : "id",
+          "required" : true,
+          "schema" : {
+            "$ref" : "#/components/schemas/UUID"
+          }
+        } ],
+        "requestBody" : {
+          "content" : {
+            "application/json" : {
+              "schema" : {
+                "$ref" : "#/components/schemas/ConditionsUsageSource"
+              }
+            }
+          },
+          "required" : true
+        },
+        "responses" : {
+          "400" : {
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/Erreur"
+                }
+              }
+            },
+            "description" : "Licence ou conditions absentes"
+          },
+          "401" : {
+            "description" : "Not Authorized"
+          },
+          "403" : {
+            "description" : "Not Allowed"
+          },
+          "404" : {
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/Erreur"
+                }
+              }
+            },
+            "description" : "Source inconnue"
+          }
+        },
+        "security" : [ {
+          "SecurityScheme" : [ ]
+        } ],
+        "summary" : "Enregistre les conditions d'usage vérifiées d'une source (administrateur plateforme)",
+        "tags" : [ "Profil artiste" ]
+      }
+    },
+    "/api/v1/profils/artiste/suivis" : {
+      "get" : {
+        "responses" : {
+          "401" : {
+            "description" : "Not Authorized"
+          },
+          "403" : {
+            "description" : "Not Allowed"
+          },
+          "409" : {
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/Erreur"
+                }
+              }
+            },
+            "description" : "Profil artiste inactif pour l'utilisateur"
+          }
+        },
+        "security" : [ {
+          "SecurityScheme" : [ ]
+        } ],
+        "summary" : "Disciplines, territoires et jours de rappel suivis par l'utilisateur courant",
+        "tags" : [ "Profil artiste" ]
+      },
+      "put" : {
+        "requestBody" : {
+          "content" : {
+            "application/json" : {
+              "schema" : {
+                "$ref" : "#/components/schemas/ChoixSuivisArtiste"
+              }
+            }
+          },
+          "required" : true
+        },
+        "responses" : {
+          "200" : {
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/SuivisArtiste"
+                }
+              }
+            },
+            "description" : "Suivis enregistrés"
+          },
+          "400" : {
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/Erreur"
+                }
+              }
+            },
+            "description" : "Valeur absente des listes du profil, ou liste vide"
+          },
+          "401" : {
+            "description" : "Not Authorized"
+          },
+          "403" : {
+            "description" : "Not Allowed"
+          },
+          "409" : {
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/Erreur"
+                }
+              }
+            },
+            "description" : "Profil artiste inactif pour l'utilisateur"
+          }
+        },
+        "security" : [ {
+          "SecurityScheme" : [ ]
+        } ],
+        "summary" : "Choisir ses disciplines, ses territoires et, au besoin, ses jours de rappel",
+        "tags" : [ "Profil artiste" ]
+      }
+    },
+    "/api/v1/projects" : {
+      "get" : {
+        "parameters" : [ {
+          "description" : "Numéro de page, à partir de 0 ; une valeur négative vaut 0 ; une valeur non entière donne 400",
+          "in" : "query",
+          "name" : "page",
+          "schema" : {
+            "default" : 0,
+            "type" : "integer"
+          }
+        }, {
+          "description" : "Taille de page, de 1 à 200 ; une valeur hors bornes est ramenée à la borne la plus proche ; une valeur non entière donne 400",
+          "in" : "query",
+          "name" : "size",
+          "schema" : {
+            "default" : 50,
+            "type" : "integer"
+          }
+        } ],
+        "responses" : {
+          "200" : {
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ProjectPage"
+                }
+              }
+            },
+            "description" : "Page de projets ; liste vide si l'appelant n'est membre d'aucun espace qui en contient"
+          },
+          "400" : {
+            "description" : "Paramètre page ou size non entier"
+          },
+          "401" : {
+            "description" : "Non authentifié"
+          }
+        },
+        "summary" : "Projets des espaces de l'appelant, triés par nom de projet, nom d'espace puis identifiant (liste paginée)",
+        "tags" : [ "Inventaires" ]
+      },
+      "post" : {
+        "requestBody" : {
+          "content" : {
+            "application/json" : {
+              "schema" : {
+                "$ref" : "#/components/schemas/NouveauProjet"
+              }
+            }
+          },
+          "required" : true
+        },
+        "responses" : {
+          "201" : {
+            "description" : "Projet créé ; le dépôt donné devient son dépôt principal"
+          },
+          "400" : {
+            "description" : "Saisie invalide (DONNEE_INVALIDE, attribut en cause)"
+          },
+          "401" : {
+            "description" : "Non authentifié"
+          },
+          "403" : {
+            "description" : "Appelant non administrateur de l'espace (refus journalisé)"
+          },
+          "404" : {
+            "description" : "Espace dont l'appelant n'est pas membre (refus journalisé)"
+          }
+        },
+        "summary" : "Créer un projet dans un espace, avec son premier dépôt facultatif (INV-12)",
+        "tags" : [ "Inventaires" ]
+      }
+    },
+    "/api/v1/projects/{projectId}/activite" : {
+      "get" : {
+        "parameters" : [ {
+          "in" : "path",
+          "name" : "projectId",
+          "required" : true,
+          "schema" : {
+            "$ref" : "#/components/schemas/UUID"
+          }
+        }, {
+          "in" : "query",
+          "name" : "jours",
+          "schema" : {
+            "default" : 30,
+            "format" : "int32",
+            "type" : "integer"
+          }
+        } ],
+        "responses" : {
+          "200" : {
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/VueActivite"
+                }
+              }
+            },
+            "description" : "Activité agrégée du projet, sans indicateur par personne"
+          },
+          "400" : {
+            "description" : "Période hors de 1 à 397 jours"
+          },
+          "401" : {
+            "description" : "Non authentifié"
+          },
+          "404" : {
+            "description" : "Projet inconnu ou d'un espace dont l'appelant n'est pas membre"
+          }
+        },
+        "summary" : "Compteurs d'activité du projet sur une période, jalons et fraîcheur des données",
+        "tags" : [ "Activité des projets" ]
+      }
+    },
+    "/api/v1/projects/{projectId}/activite/collecte" : {
+      "post" : {
+        "parameters" : [ {
+          "in" : "path",
+          "name" : "projectId",
+          "required" : true,
+          "schema" : {
+            "$ref" : "#/components/schemas/UUID"
+          }
+        } ],
+        "responses" : {
+          "200" : {
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/Collecte"
+                }
+              }
+            },
+            "description" : "Issue : A_JOUR, REPORTEE_QUOTA, ECHEC ou SANS_DEPOT ; les indicateurs existants sont conservés sauf A_JOUR"
+          },
+          "401" : {
+            "description" : "Non authentifié"
+          },
+          "403" : {
+            "description" : "Lecteur de l'espace du projet (refus journalisé)"
+          },
+          "404" : {
+            "description" : "Projet inconnu ou d'un espace dont l'appelant n'est pas membre"
+          }
+        },
+        "summary" : "Collecter immédiatement l'activité du projet, en lecture seule sur sa forge (PIN-06)",
+        "tags" : [ "Activité des projets" ]
+      }
+    },
+    "/api/v1/projects/{projectId}/activite/synthese" : {
+      "get" : {
+        "parameters" : [ {
+          "in" : "path",
+          "name" : "projectId",
+          "required" : true,
+          "schema" : {
+            "$ref" : "#/components/schemas/UUID"
+          }
+        }, {
+          "in" : "query",
+          "name" : "jours",
+          "schema" : {
+            "default" : 30,
+            "format" : "int32",
+            "type" : "integer"
+          }
+        } ],
+        "responses" : {
+          "200" : {
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/Synthese"
+                }
+              }
+            },
+            "description" : "Synthèse marquée « produite par l'IA » et indicateurs dont elle découle"
+          },
+          "400" : {
+            "description" : "Période hors de 1 à 397 jours"
+          },
+          "401" : {
+            "description" : "Non authentifié"
+          },
+          "404" : {
+            "description" : "Projet inconnu ou d'un espace dont l'appelant n'est pas membre"
+          },
+          "429" : {
+            "description" : "Limite de débit du compte atteinte"
+          }
+        },
+        "summary" : "Synthèse produite par l'IA à partir des seuls indicateurs affichés",
+        "tags" : [ "Activité des projets" ]
+      }
+    },
+    "/api/v1/projects/{projectId}/impacts" : {
+      "get" : {
+        "parameters" : [ {
+          "in" : "path",
+          "name" : "projectId",
+          "required" : true,
+          "schema" : {
+            "$ref" : "#/components/schemas/UUID"
+          }
+        }, {
+          "description" : "États de traitement retenus, paramètre répétable (OUVERT, CONFIRME, ECARTE, RESOLU) ; absent : OUVERT et CONFIRME ; une valeur inconnue donne 400",
+          "in" : "query",
+          "name" : "etat",
+          "schema" : {
+            "items" : {
+              "type" : "string"
+            },
+            "type" : "array"
+          }
+        } ],
+        "responses" : {
+          "200" : {
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "items" : {
+                    "$ref" : "#/components/schemas/ImpactView"
+                  },
+                  "type" : "array"
+                }
+              }
+            },
+            "description" : "Impacts du projet aux états demandés ; par défaut OUVERT et CONFIRME"
+          },
+          "400" : {
+            "description" : "État inconnu (DONNEE_INVALIDE)"
+          },
+          "401" : {
+            "description" : "Non authentifié"
+          },
+          "404" : {
+            "description" : "Projet inconnu ou d'un espace dont l'appelant n'est pas membre (refus journalisé)"
+          }
+        },
+        "summary" : "Impacts du projet filtrés par état de traitement (COR-12-S2), triés par date de création",
+        "tags" : [ "Inventaires" ]
+      }
+    },
+    "/api/v1/projects/{projectId}/inventory" : {
+      "get" : {
+        "parameters" : [ {
+          "in" : "path",
+          "name" : "projectId",
+          "required" : true,
+          "schema" : {
+            "$ref" : "#/components/schemas/UUID"
+          }
+        } ],
+        "responses" : {
+          "200" : {
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ProjectInventory"
+                }
+              }
+            },
+            "description" : "OK"
+          }
+        },
+        "summary" : "Inventaire de référence du projet, son origine et l'âge de la SBOM",
+        "tags" : [ "Inventaires" ]
+      }
+    },
+    "/api/v1/projects/{projectId}/inventory/components" : {
+      "get" : {
+        "parameters" : [ {
+          "in" : "path",
+          "name" : "projectId",
+          "required" : true,
+          "schema" : {
+            "$ref" : "#/components/schemas/UUID"
+          }
+        }, {
+          "description" : "Numéro de page, à partir de 0 ; une valeur négative vaut 0 ; une valeur non entière donne 400",
+          "in" : "query",
+          "name" : "page",
+          "schema" : {
+            "default" : 0,
+            "type" : "integer"
+          }
+        }, {
+          "description" : "Taille de page, de 1 à 200 ; une valeur hors bornes est ramenée à la borne la plus proche ; une valeur non entière donne 400",
+          "in" : "query",
+          "name" : "size",
+          "schema" : {
+            "default" : 50,
+            "type" : "integer"
+          }
+        } ],
+        "responses" : {
+          "200" : {
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ComponentPage"
+                }
+              }
+            },
+            "description" : "Page de composants : nom, version, PURL, direct ou transitif, dépôts qui le contiennent (repositories, INV-10) ; page vide si le projet n'a pas d'inventaire"
+          },
+          "400" : {
+            "description" : "Paramètre page ou size non entier"
+          },
+          "401" : {
+            "description" : "Non authentifié"
+          },
+          "404" : {
+            "description" : "Projet inconnu ou d'un espace dont l'appelant n'est pas membre (refus journalisé)"
+          }
+        },
+        "summary" : "Composants inventoriés du projet, triés par nom, version puis identifiant (liste paginée)",
+        "tags" : [ "Inventaires" ]
+      }
+    },
+    "/api/v1/projects/{projectId}/inventory/failures" : {
+      "get" : {
+        "parameters" : [ {
+          "in" : "path",
+          "name" : "projectId",
+          "required" : true,
+          "schema" : {
+            "$ref" : "#/components/schemas/UUID"
+          }
+        } ],
+        "responses" : {
+          "200" : {
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "items" : {
+                    "$ref" : "#/components/schemas/ImportFailure"
+                  },
+                  "type" : "array"
+                }
+              }
+            },
+            "description" : "OK"
+          }
+        },
+        "summary" : "Imports de SBOM ou de manifestes refusés, avec leur motif",
+        "tags" : [ "Inventaires" ]
+      }
+    },
+    "/api/v1/projects/{projectId}/inventory/manifests" : {
+      "post" : {
+        "parameters" : [ {
+          "in" : "path",
+          "name" : "projectId",
+          "required" : true,
+          "schema" : {
+            "$ref" : "#/components/schemas/UUID"
+          }
+        } ],
+        "requestBody" : {
+          "content" : {
+            "application/json" : {
+              "schema" : {
+                "$ref" : "#/components/schemas/ManifestesImportes"
+              }
+            }
+          },
+          "required" : true
+        },
+        "responses" : {
+          "200" : {
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ImportResult"
+                }
+              }
+            },
+            "description" : "Issue de l'import : IMPORTED (origine MANIFEST) ou NONE sans manifeste lisible"
+          },
+          "400" : {
+            "description" : "Aucun manifeste, plus de 20 ou manifeste sans chemin (DONNEE_INVALIDE)"
+          },
+          "401" : {
+            "description" : "Non authentifié"
+          },
+          "403" : {
+            "description" : "Lecteur de l'espace du projet (refus journalisé)"
+          },
+          "404" : {
+            "description" : "Projet inconnu ou d'un espace dont l'appelant n'est pas membre (refus journalisé)"
+          }
+        },
+        "summary" : "Importer un inventaire de repli à partir de manifestes de dépendances (INV-13, INV-04)",
+        "tags" : [ "Inventaires" ]
+      }
+    },
+    "/api/v1/projects/{projectId}/inventory/refresh" : {
+      "post" : {
+        "parameters" : [ {
+          "in" : "path",
+          "name" : "projectId",
+          "required" : true,
+          "schema" : {
+            "$ref" : "#/components/schemas/UUID"
+          }
+        } ],
+        "responses" : {
+          "200" : {
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ImportProjet"
+                }
+              }
+            },
+            "description" : "Issue de l'import de chaque dépôt, le principal d'abord"
+          },
+          "401" : {
+            "description" : "Non authentifié"
+          },
+          "403" : {
+            "description" : "Lecteur de l'espace du projet (refus journalisé)"
+          },
+          "404" : {
+            "description" : "Projet inconnu ou d'un espace dont l'appelant n'est pas membre (refus journalisé)"
+          },
+          "409" : {
+            "description" : "Projet sans dépôt (PROJET_SANS_DEPOT)"
+          }
+        },
+        "summary" : "Relancer l'import du projet depuis ses dépôts, en lecture seule sur les forges (INV-13, INV-07)",
+        "tags" : [ "Inventaires" ]
+      }
+    },
+    "/api/v1/projects/{projectId}/inventory/sbom" : {
+      "post" : {
+        "parameters" : [ {
+          "in" : "path",
+          "name" : "projectId",
+          "required" : true,
+          "schema" : {
+            "$ref" : "#/components/schemas/UUID"
+          }
+        } ],
+        "requestBody" : {
+          "content" : {
+            "application/json" : {
+              "schema" : {
+                "format" : "binary",
+                "type" : "string"
+              }
+            }
+          },
+          "required" : true
+        },
+        "responses" : {
+          "200" : {
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ImportResult"
+                }
+              }
+            },
+            "description" : "Issue de l'import : IMPORTED, ou REJECTED avec son motif (inventaire conservé)"
+          },
+          "401" : {
+            "description" : "Non authentifié"
+          },
+          "403" : {
+            "description" : "Lecteur de l'espace du projet (refus journalisé)"
+          },
+          "404" : {
+            "description" : "Projet inconnu ou d'un espace dont l'appelant n'est pas membre (refus journalisé)"
+          }
+        },
+        "summary" : "Importer une SBOM CycloneDX JSON qui remplace l'inventaire du dépôt principal (INV-13)",
+        "tags" : [ "Inventaires" ]
+      }
+    },
+    "/api/v1/projects/{projectId}/inventory/summary" : {
+      "get" : {
+        "parameters" : [ {
+          "in" : "path",
+          "name" : "projectId",
+          "required" : true,
+          "schema" : {
+            "$ref" : "#/components/schemas/UUID"
+          }
+        } ],
+        "responses" : {
+          "200" : {
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ProjectInventorySummary"
+                }
+              }
+            },
+            "description" : "Origine, dates, âge, obsolescence, nombre de composants inventoriés, composants ignorés faute de PURL et dépôts du projet avec leur dernier import et leur dernier échec (repositories, INV-10) ; statut NO_SBOM sans synthèse si le projet n'a pas d'inventaire"
+          },
+          "401" : {
+            "description" : "Non authentifié"
+          },
+          "404" : {
+            "description" : "Projet inconnu ou d'un espace dont l'appelant n'est pas membre (refus journalisé)"
+          }
+        },
+        "summary" : "Synthèse de l'inventaire de référence du projet, sans la liste des composants",
+        "tags" : [ "Inventaires" ]
+      }
+    },
+    "/api/v1/projects/{projectId}/repositories" : {
+      "post" : {
+        "parameters" : [ {
+          "in" : "path",
+          "name" : "projectId",
+          "required" : true,
+          "schema" : {
+            "$ref" : "#/components/schemas/UUID"
+          }
+        } ],
+        "requestBody" : {
+          "content" : {
+            "application/json" : {
+              "schema" : {
+                "$ref" : "#/components/schemas/DepotProjet"
+              }
+            }
+          },
+          "required" : true
+        },
+        "responses" : {
+          "201" : {
+            "description" : "Dépôt rattaché ; principal si le projet n'en avait pas"
+          },
+          "400" : {
+            "description" : "Saisie invalide (DONNEE_INVALIDE, attribut en cause)"
+          },
+          "401" : {
+            "description" : "Non authentifié"
+          },
+          "403" : {
+            "description" : "Appelant non administrateur de l'espace du projet (refus journalisé)"
+          },
+          "404" : {
+            "description" : "Projet inconnu ou d'un espace dont l'appelant n'est pas membre"
+          },
+          "409" : {
+            "description" : "Dépôt déjà rattaché au projet (DEPOT_DEJA_RATTACHE)"
+          }
+        },
+        "summary" : "Rattacher un dépôt GitHub ou GitLab au projet (INV-12)",
+        "tags" : [ "Inventaires" ]
+      }
+    },
+    "/api/v1/projects/{projectId}/repositories/{repositoryId}" : {
+      "delete" : {
+        "parameters" : [ {
+          "in" : "path",
+          "name" : "projectId",
+          "required" : true,
+          "schema" : {
+            "$ref" : "#/components/schemas/UUID"
+          }
+        }, {
+          "in" : "path",
+          "name" : "repositoryId",
+          "required" : true,
+          "schema" : {
+            "$ref" : "#/components/schemas/UUID"
+          }
+        } ],
+        "responses" : {
+          "204" : {
+            "description" : "Dépôt détaché"
+          },
+          "401" : {
+            "description" : "Non authentifié"
+          },
+          "403" : {
+            "description" : "Appelant non administrateur de l'espace du projet (refus journalisé)"
+          },
+          "404" : {
+            "description" : "Projet ou dépôt inconnu, ou projet d'un espace dont l'appelant n'est pas membre"
+          }
+        },
+        "summary" : "Détacher un dépôt du projet et reconstituer l'inventaire du projet (INV-12, INV-10-S3)",
+        "tags" : [ "Inventaires" ]
+      }
+    },
+    "/api/v1/radar/espaces/{espaceId}/dettes" : {
+      "get" : {
+        "parameters" : [ {
+          "in" : "path",
+          "name" : "espaceId",
+          "required" : true,
+          "schema" : {
+            "$ref" : "#/components/schemas/UUID"
+          }
+        } ],
+        "responses" : {
+          "200" : {
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "items" : {
+                    "$ref" : "#/components/schemas/DetteVersion"
+                  },
+                  "type" : "array"
+                }
+              }
+            },
+            "description" : "Composants en fin de support, avec la version standard de l'espace"
+          },
+          "401" : {
+            "description" : "Non authentifié"
+          },
+          "404" : {
+            "description" : "Espace inconnu ou dont l'appelant n'est pas membre"
+          }
+        },
+        "summary" : "Impacts « dette de version » des projets de l'espace (membres)",
+        "tags" : [ "Radar et standards" ]
+      }
+    },
+    "/api/v1/radar/espaces/{espaceId}/echeances" : {
+      "get" : {
+        "parameters" : [ {
+          "in" : "path",
+          "name" : "espaceId",
+          "required" : true,
+          "schema" : {
+            "$ref" : "#/components/schemas/UUID"
+          }
+        }, {
+          "in" : "query",
+          "name" : "horizon",
+          "schema" : {
+            "default" : "30j",
+            "type" : "string"
+          }
+        } ],
+        "responses" : {
+          "200" : {
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/Radar"
+                }
+              }
+            },
+            "description" : "Échéances par date croissante, source citée, et fraîcheur du calendrier"
+          },
+          "400" : {
+            "description" : "Horizon inconnu : 30j, 6m ou 1a"
+          },
+          "401" : {
+            "description" : "Non authentifié"
+          },
+          "404" : {
+            "description" : "Espace inconnu ou dont l'appelant n'est pas membre"
+          }
+        },
+        "summary" : "Radar : sorties, correctifs et fins de support des technologies de l'espace sur un horizon (membres)",
+        "tags" : [ "Radar et standards" ]
+      }
+    },
+    "/api/v1/radar/espaces/{espaceId}/parametres" : {
+      "get" : {
+        "parameters" : [ {
+          "in" : "path",
+          "name" : "espaceId",
+          "required" : true,
+          "schema" : {
+            "$ref" : "#/components/schemas/UUID"
+          }
+        } ],
+        "responses" : {
+          "200" : {
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/Parametres"
+                }
+              }
+            },
+            "description" : "Jours de rappel de l'espace"
+          },
+          "401" : {
+            "description" : "Non authentifié"
+          },
+          "404" : {
+            "description" : "Espace inconnu ou dont l'appelant n'est pas membre"
+          }
+        },
+        "summary" : "Jours de rappel avant une échéance (membres) : J-30, J-7 et J0 par défaut",
+        "tags" : [ "Radar et standards" ]
+      },
+      "put" : {
+        "parameters" : [ {
+          "in" : "path",
+          "name" : "espaceId",
+          "required" : true,
+          "schema" : {
+            "$ref" : "#/components/schemas/UUID"
+          }
+        } ],
+        "requestBody" : {
+          "content" : {
+            "application/json" : {
+              "schema" : {
+                "$ref" : "#/components/schemas/Parametres"
+              }
+            }
+          },
+          "required" : true
+        },
+        "responses" : {
+          "200" : {
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/Parametres"
+                }
+              }
+            },
+            "description" : "Jours de rappel enregistrés"
+          },
+          "400" : {
+            "description" : "De 1 à 10 jours distincts entre 0 et 365"
+          },
+          "401" : {
+            "description" : "Non authentifié"
+          },
+          "403" : {
+            "description" : "Membre non administrateur de l'espace"
+          },
+          "404" : {
+            "description" : "Espace inconnu ou dont l'appelant n'est pas membre"
+          }
+        },
+        "summary" : "Remplace les jours de rappel de l'espace (administrateur)",
+        "tags" : [ "Radar et standards" ]
+      }
+    },
+    "/api/v1/radar/espaces/{espaceId}/standards" : {
+      "get" : {
+        "parameters" : [ {
+          "in" : "path",
+          "name" : "espaceId",
+          "required" : true,
+          "schema" : {
+            "$ref" : "#/components/schemas/UUID"
+          }
+        } ],
+        "responses" : {
+          "200" : {
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "items" : {
+                    "$ref" : "#/components/schemas/EntreeReferentiel"
+                  },
+                  "type" : "array"
+                }
+              }
+            },
+            "description" : "Technologies, statuts, versions recommandées, responsables et revues"
+          },
+          "401" : {
+            "description" : "Non authentifié"
+          },
+          "404" : {
+            "description" : "Espace inconnu ou dont l'appelant n'est pas membre"
+          }
+        },
+        "summary" : "Référentiel des standards de l'espace (membres)",
+        "tags" : [ "Radar et standards" ]
+      },
+      "put" : {
+        "parameters" : [ {
+          "in" : "path",
+          "name" : "espaceId",
+          "required" : true,
+          "schema" : {
+            "$ref" : "#/components/schemas/UUID"
+          }
+        } ],
+        "requestBody" : {
+          "content" : {
+            "application/json" : {
+              "schema" : {
+                "$ref" : "#/components/schemas/SaisieStandard"
+              }
+            }
+          },
+          "required" : true
+        },
+        "responses" : {
+          "200" : {
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/EntreeReferentiel"
+                }
+              }
+            },
+            "description" : "Entrée enregistrée et historisée ; un changement de statut ou de version est annoncé"
+          },
+          "400" : {
+            "description" : "Champ manquant ou invalide, nommé dans l'attribut de l'erreur"
+          },
+          "401" : {
+            "description" : "Non authentifié"
+          },
+          "403" : {
+            "description" : "Membre non administrateur de l'espace"
+          },
+          "404" : {
+            "description" : "Espace inconnu ou dont l'appelant n'est pas membre"
+          },
+          "409" : {
+            "description" : "Modification concurrente de la même technologie"
+          }
+        },
+        "summary" : "Crée ou modifie l'entrée d'une technologie (administrateur de l'espace)",
+        "tags" : [ "Radar et standards" ]
+      }
+    },
+    "/api/v1/radar/espaces/{espaceId}/standards/historique" : {
+      "get" : {
+        "parameters" : [ {
+          "in" : "path",
+          "name" : "espaceId",
+          "required" : true,
+          "schema" : {
+            "$ref" : "#/components/schemas/UUID"
+          }
+        }, {
+          "in" : "query",
+          "name" : "cle",
+          "schema" : {
+            "type" : "string"
+          }
+        } ],
+        "responses" : {
+          "200" : {
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "items" : {
+                    "$ref" : "#/components/schemas/Version"
+                  },
+                  "type" : "array"
+                }
+              }
+            },
+            "description" : "Valeurs successives, de la plus récente à la plus ancienne"
+          },
+          "401" : {
+            "description" : "Non authentifié"
+          },
+          "404" : {
+            "description" : "Espace inconnu ou dont l'appelant n'est pas membre"
+          }
+        },
+        "summary" : "Historique d'une technologie du référentiel (membres)",
+        "tags" : [ "Radar et standards" ]
+      }
+    },
+    "/api/v1/radar/espaces/{espaceId}/suggestions" : {
+      "get" : {
+        "parameters" : [ {
+          "in" : "path",
+          "name" : "espaceId",
+          "required" : true,
+          "schema" : {
+            "$ref" : "#/components/schemas/UUID"
+          }
+        } ],
+        "responses" : {
+          "200" : {
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "items" : {
+                    "$ref" : "#/components/schemas/Suggestion"
+                  },
+                  "type" : "array"
+                }
+              }
+            },
+            "description" : "Suggestions et leur état"
+          },
+          "401" : {
+            "description" : "Non authentifié"
+          },
+          "404" : {
+            "description" : "Espace inconnu ou dont l'appelant n'est pas membre"
+          }
+        },
+        "summary" : "Suggestions de l'IA pour le référentiel, en attente d'abord (membres)",
+        "tags" : [ "Radar et standards" ]
+      }
+    },
+    "/api/v1/radar/espaces/{espaceId}/suggestions/{suggestionId}/decision" : {
+      "post" : {
+        "parameters" : [ {
+          "in" : "path",
+          "name" : "espaceId",
+          "required" : true,
+          "schema" : {
+            "$ref" : "#/components/schemas/UUID"
+          }
+        }, {
+          "in" : "path",
+          "name" : "suggestionId",
+          "required" : true,
+          "schema" : {
+            "$ref" : "#/components/schemas/UUID"
+          }
+        } ],
+        "requestBody" : {
+          "content" : {
+            "application/json" : {
+              "schema" : {
+                "$ref" : "#/components/schemas/CorpsDecision"
+              }
+            }
+          },
+          "required" : true
+        },
+        "responses" : {
+          "200" : {
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "items" : {
+                    "$ref" : "#/components/schemas/Suggestion"
+                  },
+                  "type" : "array"
+                }
+              }
+            },
+            "description" : "Décision enregistrée ; acceptée, la suggestion est appliquée au référentiel"
+          },
+          "400" : {
+            "description" : "Décision inconnue ou entrée résultante invalide"
+          },
+          "401" : {
+            "description" : "Non authentifié"
+          },
+          "403" : {
+            "description" : "Membre non administrateur de l'espace"
+          },
+          "404" : {
+            "description" : "Espace ou suggestion introuvable"
+          },
+          "409" : {
+            "description" : "Suggestion déjà décidée"
+          }
+        },
+        "summary" : "Accepte ou rejette une suggestion en attente (administrateur de l'espace)",
+        "tags" : [ "Radar et standards" ]
+      }
+    },
+    "/api/v1/recherche" : {
+      "get" : {
+        "parameters" : [ {
+          "description" : "Gravité minimale : LOW, MODERATE, MEDIUM, HIGH, CRITICAL",
+          "in" : "query",
+          "name" : "gravite",
+          "schema" : {
+            "type" : "string"
+          }
+        }, {
+          "description" : "Éléments des N derniers jours (1 à 3 650)",
+          "in" : "query",
+          "name" : "horizon",
+          "schema" : {
+            "format" : "int32",
+            "type" : "integer"
+          }
+        }, {
+          "description" : "Numéro de page, à partir de 0 ; une valeur négative ou non entière donne 400",
+          "in" : "query",
+          "name" : "page",
+          "schema" : {
+            "default" : 0,
+            "type" : "integer"
+          }
+        }, {
+          "description" : "Profil de veille (répétable)",
+          "in" : "query",
+          "name" : "profil",
+          "schema" : {
+            "items" : {
+              "type" : "string"
+            },
+            "type" : "array"
+          }
+        }, {
+          "description" : "Identifiant de projet (répétable)",
+          "in" : "query",
+          "name" : "projet",
+          "schema" : {
+            "items" : {
+              "type" : "string"
+            },
+            "type" : "array"
+          }
+        }, {
+          "description" : "Mots recherchés (syntaxe web : mots, \"expression\", or, -exclusion)",
+          "in" : "query",
+          "name" : "q",
+          "schema" : {
+            "type" : "string"
+          }
+        }, {
+          "description" : "Taille de page, de 1 à 100 ; une valeur hors bornes ou non entière donne 400",
+          "in" : "query",
+          "name" : "taille",
+          "schema" : {
+            "default" : 20,
+            "type" : "integer"
+          }
+        }, {
+          "description" : "Technologie (répétable)",
+          "in" : "query",
+          "name" : "technologie",
+          "schema" : {
+            "items" : {
+              "type" : "string"
+            },
+            "type" : "array"
+          }
+        }, {
+          "description" : "AVIS_SECURITE, ARTICLE ou CHANGEMENT_PAGE (répétable)",
+          "in" : "query",
+          "name" : "type",
+          "schema" : {
+            "items" : {
+              "type" : "string"
+            },
+            "type" : "array"
+          }
+        } ],
+        "responses" : {
+          "200" : {
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/Resultats"
+                }
+              }
+            },
+            "description" : "Page de résultats ; liste vide et message explicite si rien ne correspond"
+          },
+          "400" : {
+            "description" : "Filtre inconnu ou mal formé, paramètre page ou taille non entier ou hors bornes"
+          },
+          "401" : {
+            "description" : "Non authentifié"
+          },
+          "404" : {
+            "description" : "Projet filtré inconnu ou d'un espace dont l'appelant n'est pas membre (même réponse, second refus journalisé), y compris avec un paramètre page ou taille non entier ou hors bornes : les projets filtrés sont contrôlés avant la lecture de la pagination"
+          },
+          "429" : {
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/Erreur"
+                }
+              }
+            },
+            "description" : "Limite de débit du compte atteinte, en-tête Retry-After"
+          }
+        },
+        "summary" : "Recherche plein texte (français et anglais) et filtres combinables, du plus pertinent au moins pertinent",
+        "tags" : [ "Recherche" ]
+      }
+    },
+    "/api/v1/reglementaire/calendrier" : {
+      "get" : {
+        "parameters" : [ {
+          "in" : "query",
+          "name" : "depuis",
+          "schema" : {
+            "type" : "string"
+          }
+        }, {
+          "in" : "query",
+          "name" : "espace",
+          "schema" : {
+            "$ref" : "#/components/schemas/UUID"
+          }
+        }, {
+          "in" : "query",
+          "name" : "jusqua",
+          "schema" : {
+            "type" : "string"
+          }
+        } ],
+        "responses" : {
+          "200" : {
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "items" : {
+                    "$ref" : "#/components/schemas/FicheAnalyse"
+                  },
+                  "type" : "array"
+                }
+              }
+            },
+            "description" : "OK"
+          },
+          "401" : {
+            "description" : "Not Authorized"
+          },
+          "403" : {
+            "description" : "Not Allowed"
+          }
+        },
+        "security" : [ {
+          "SecurityScheme" : [ ]
+        } ],
+        "summary" : "Calendrier des entrées en vigueur des fiches validées (douze mois à venir par défaut)",
+        "tags" : [ "Veille réglementaire" ]
+      }
+    },
+    "/api/v1/reglementaire/collecte" : {
+      "get" : {
+        "responses" : {
+          "401" : {
+            "description" : "Not Authorized"
+          },
+          "403" : {
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/Erreur"
+                }
+              }
+            },
+            "description" : "Réservé à l'administrateur plateforme"
+          }
+        },
+        "security" : [ {
+          "SecurityScheme" : [ ]
+        } ],
+        "summary" : "État de la source JORF et des jours collectés (administrateur plateforme)",
+        "tags" : [ "Veille réglementaire" ]
+      }
+    },
+    "/api/v1/reglementaire/collectes" : {
+      "post" : {
+        "requestBody" : {
+          "content" : {
+            "application/json" : {
+              "schema" : {
+                "$ref" : "#/components/schemas/CollecteReglementaireDemandee"
+              }
+            }
+          },
+          "required" : true
+        },
+        "responses" : {
+          "400" : {
+            "description" : "Bad Request"
+          },
+          "401" : {
+            "description" : "Not Authorized"
+          },
+          "403" : {
+            "description" : "Not Allowed"
+          },
+          "429" : {
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/Erreur"
+                }
+              }
+            },
+            "description" : "Limite de débit du compte atteinte"
+          }
+        },
+        "security" : [ {
+          "SecurityScheme" : [ ]
+        } ],
+        "summary" : "Lance la collecte du jour et des jours manqués, ou rejoue un jour (administrateur plateforme)",
+        "tags" : [ "Veille réglementaire" ]
+      }
+    },
+    "/api/v1/reglementaire/espaces/{espaceId}/domaines" : {
+      "get" : {
+        "parameters" : [ {
+          "in" : "path",
+          "name" : "espaceId",
+          "required" : true,
+          "schema" : {
+            "$ref" : "#/components/schemas/UUID"
+          }
+        } ],
+        "responses" : {
+          "401" : {
+            "description" : "Not Authorized"
+          },
+          "403" : {
+            "description" : "Not Allowed"
+          },
+          "404" : {
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/Erreur"
+                }
+              }
+            },
+            "description" : "Espace inconnu ou hors périmètre"
+          }
+        },
+        "security" : [ {
+          "SecurityScheme" : [ ]
+        } ],
+        "summary" : "Domaines métier de l'espace, avec leurs règles de rattachement et leurs experts",
+        "tags" : [ "Veille réglementaire" ]
+      }
+    },
+    "/api/v1/reglementaire/espaces/{espaceId}/domaines/{code}" : {
+      "delete" : {
+        "parameters" : [ {
+          "in" : "path",
+          "name" : "code",
+          "required" : true,
+          "schema" : {
+            "type" : "string"
+          }
+        }, {
+          "in" : "path",
+          "name" : "espaceId",
+          "required" : true,
+          "schema" : {
+            "$ref" : "#/components/schemas/UUID"
+          }
+        } ],
+        "responses" : {
+          "204" : {
+            "description" : "Domaine supprimé"
+          },
+          "401" : {
+            "description" : "Not Authorized"
+          },
+          "403" : {
+            "description" : "Not Allowed"
+          }
+        },
+        "security" : [ {
+          "SecurityScheme" : [ ]
+        } ],
+        "summary" : "Supprime un domaine métier, ses règles, ses experts et ses rattachements (administrateur de l'espace)",
+        "tags" : [ "Veille réglementaire" ]
+      },
+      "put" : {
+        "parameters" : [ {
+          "in" : "path",
+          "name" : "code",
+          "required" : true,
+          "schema" : {
+            "type" : "string"
+          }
+        }, {
+          "in" : "path",
+          "name" : "espaceId",
+          "required" : true,
+          "schema" : {
+            "$ref" : "#/components/schemas/UUID"
+          }
+        } ],
+        "requestBody" : {
+          "content" : {
+            "application/json" : {
+              "schema" : {
+                "$ref" : "#/components/schemas/SaisieDomaineMetier"
+              }
+            }
+          },
+          "required" : true
+        },
+        "responses" : {
+          "400" : {
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/Erreur"
+                }
+              }
+            },
+            "description" : "Code ou libellé invalide"
+          },
+          "401" : {
+            "description" : "Not Authorized"
+          },
+          "403" : {
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/Erreur"
+                }
+              }
+            },
+            "description" : "Réservé à un administrateur de l'espace"
+          }
+        },
+        "security" : [ {
+          "SecurityScheme" : [ ]
+        } ],
+        "summary" : "Crée un domaine métier ou change son libellé (administrateur de l'espace)",
+        "tags" : [ "Veille réglementaire" ]
+      }
+    },
+    "/api/v1/reglementaire/espaces/{espaceId}/domaines/{code}/experts" : {
+      "put" : {
+        "parameters" : [ {
+          "in" : "path",
+          "name" : "code",
+          "required" : true,
+          "schema" : {
+            "type" : "string"
+          }
+        }, {
+          "in" : "path",
+          "name" : "espaceId",
+          "required" : true,
+          "schema" : {
+            "$ref" : "#/components/schemas/UUID"
+          }
+        } ],
+        "requestBody" : {
+          "content" : {
+            "application/json" : {
+              "schema" : {
+                "$ref" : "#/components/schemas/ExpertsDomaine"
+              }
+            }
+          },
+          "required" : true
+        },
+        "responses" : {
+          "400" : {
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/Erreur"
+                }
+              }
+            },
+            "description" : "Compte non membre contributeur ou administrateur de l'espace"
+          },
+          "401" : {
+            "description" : "Not Authorized"
+          },
+          "403" : {
+            "description" : "Not Allowed"
+          }
+        },
+        "security" : [ {
+          "SecurityScheme" : [ ]
+        } ],
+        "summary" : "Désigne les experts métier du domaine parmi les membres contributeurs ou administrateurs",
+        "tags" : [ "Veille réglementaire" ]
+      }
+    },
+    "/api/v1/reglementaire/espaces/{espaceId}/domaines/{code}/regles" : {
+      "put" : {
+        "parameters" : [ {
+          "in" : "path",
+          "name" : "code",
+          "required" : true,
+          "schema" : {
+            "type" : "string"
+          }
+        }, {
+          "in" : "path",
+          "name" : "espaceId",
+          "required" : true,
+          "schema" : {
+            "$ref" : "#/components/schemas/UUID"
+          }
+        } ],
+        "requestBody" : {
+          "content" : {
+            "application/json" : {
+              "schema" : {
+                "$ref" : "#/components/schemas/ReglesDictionnaire"
+              }
+            }
+          },
+          "required" : true
+        },
+        "responses" : {
+          "400" : {
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/Erreur"
+                }
+              }
+            },
+            "description" : "Règle invalide"
+          },
+          "401" : {
+            "description" : "Not Authorized"
+          },
+          "403" : {
+            "description" : "Not Allowed"
+          }
+        },
+        "security" : [ {
+          "SecurityScheme" : [ ]
+        } ],
+        "summary" : "Remplace les règles de rattachement déterministes du domaine (administrateur de l'espace)",
+        "tags" : [ "Veille réglementaire" ]
+      }
+    },
+    "/api/v1/reglementaire/espaces/{espaceId}/rappels" : {
+      "get" : {
+        "parameters" : [ {
+          "in" : "path",
+          "name" : "espaceId",
+          "required" : true,
+          "schema" : {
+            "$ref" : "#/components/schemas/UUID"
+          }
+        } ],
+        "responses" : {
+          "200" : {
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/RappelsReglementaires"
+                }
+              }
+            },
+            "description" : "OK"
+          },
+          "401" : {
+            "description" : "Not Authorized"
+          },
+          "403" : {
+            "description" : "Not Allowed"
+          }
+        },
+        "security" : [ {
+          "SecurityScheme" : [ ]
+        } ],
+        "summary" : "Jours de rappel avant une entrée en vigueur (J-90, J-30 et J-7 par défaut)",
+        "tags" : [ "Veille réglementaire" ]
+      },
+      "put" : {
+        "parameters" : [ {
+          "in" : "path",
+          "name" : "espaceId",
+          "required" : true,
+          "schema" : {
+            "$ref" : "#/components/schemas/UUID"
+          }
+        } ],
+        "requestBody" : {
+          "content" : {
+            "application/json" : {
+              "schema" : {
+                "$ref" : "#/components/schemas/RappelsReglementaires"
+              }
+            }
+          },
+          "required" : true
+        },
+        "responses" : {
+          "400" : {
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/Erreur"
+                }
+              }
+            },
+            "description" : "De 1 à 10 jours entre 0 et 365"
+          },
+          "401" : {
+            "description" : "Not Authorized"
+          },
+          "403" : {
+            "description" : "Not Allowed"
+          }
+        },
+        "security" : [ {
+          "SecurityScheme" : [ ]
+        } ],
+        "summary" : "Règle les jours de rappel de l'espace (administrateur de l'espace)",
+        "tags" : [ "Veille réglementaire" ]
+      }
+    },
+    "/api/v1/reglementaire/fiches" : {
+      "get" : {
+        "parameters" : [ {
+          "in" : "query",
+          "name" : "domaine",
+          "schema" : {
+            "type" : "string"
+          }
+        }, {
+          "in" : "query",
+          "name" : "espace",
+          "schema" : {
+            "$ref" : "#/components/schemas/UUID"
+          }
+        }, {
+          "in" : "query",
+          "name" : "etat",
+          "schema" : {
+            "type" : "string"
+          }
+        }, {
+          "description" : "Nombre maximal de fiches, de 1 à 200 ; une valeur hors bornes ou non entière donne 400",
+          "in" : "query",
+          "name" : "limite",
+          "schema" : {
+            "default" : 50,
+            "type" : "integer"
+          }
+        } ],
+        "responses" : {
+          "400" : {
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/Erreur"
+                }
+              }
+            },
+            "description" : "Critère invalide"
+          },
+          "401" : {
+            "description" : "Not Authorized"
+          },
+          "403" : {
+            "description" : "Not Allowed"
+          }
+        },
+        "security" : [ {
+          "SecurityScheme" : [ ]
+        } ],
+        "summary" : "Fiches d'analyse visibles : validées pour tout membre, en attente pour les experts de leurs domaines",
+        "tags" : [ "Veille réglementaire" ]
+      }
+    },
+    "/api/v1/reglementaire/fiches/{id}" : {
+      "get" : {
+        "parameters" : [ {
+          "in" : "path",
+          "name" : "id",
+          "required" : true,
+          "schema" : {
+            "$ref" : "#/components/schemas/UUID"
+          }
+        } ],
+        "responses" : {
+          "401" : {
+            "description" : "Not Authorized"
+          },
+          "403" : {
+            "description" : "Not Allowed"
+          },
+          "404" : {
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/Erreur"
+                }
+              }
+            },
+            "description" : "Fiche inconnue, hors périmètre ou non validée pour un non-expert"
+          }
+        },
+        "security" : [ {
+          "SecurityScheme" : [ ]
+        } ],
+        "summary" : "Fiche d'analyse et son historique",
+        "tags" : [ "Veille réglementaire" ]
+      },
+      "put" : {
+        "parameters" : [ {
+          "in" : "path",
+          "name" : "id",
+          "required" : true,
+          "schema" : {
+            "$ref" : "#/components/schemas/UUID"
+          }
+        } ],
+        "requestBody" : {
+          "content" : {
+            "application/json" : {
+              "schema" : {
+                "$ref" : "#/components/schemas/CorrectionFiche"
+              }
+            }
+          },
+          "required" : true
+        },
+        "responses" : {
+          "400" : {
+            "description" : "Bad Request"
+          },
+          "401" : {
+            "description" : "Not Authorized"
+          },
+          "403" : {
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/Erreur"
+                }
+              }
+            },
+            "description" : "Réservé à un expert d'un des domaines de la fiche"
+          },
+          "409" : {
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/Erreur"
+                }
+              }
+            },
+            "description" : "Fiche déjà validée ou rejetée"
+          }
+        },
+        "security" : [ {
+          "SecurityScheme" : [ ]
+        } ],
+        "summary" : "Corrige une fiche en attente : résumé, date d'effet, domaines (expert du domaine) ; chaque correction est historisée",
+        "tags" : [ "Veille réglementaire" ]
+      }
+    },
+    "/api/v1/reglementaire/fiches/{id}/demande-evolution" : {
+      "put" : {
+        "parameters" : [ {
+          "in" : "path",
+          "name" : "id",
+          "required" : true,
+          "schema" : {
+            "$ref" : "#/components/schemas/UUID"
+          }
+        } ],
+        "requestBody" : {
+          "content" : {
+            "application/json" : {
+              "schema" : {
+                "$ref" : "#/components/schemas/DemandeEvolution"
+              }
+            }
+          },
+          "required" : true
+        },
+        "responses" : {
+          "400" : {
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/Erreur"
+                }
+              }
+            },
+            "description" : "Adresse non reconnue ou demande inexistante"
+          },
+          "401" : {
+            "description" : "Not Authorized"
+          },
+          "403" : {
+            "description" : "Not Allowed"
+          },
+          "429" : {
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/Erreur"
+                }
+              }
+            },
+            "description" : "Limite de débit du compte atteinte"
+          }
+        },
+        "security" : [ {
+          "SecurityScheme" : [ ]
+        } ],
+        "summary" : "Associe un ticket ou une demande de fusion GitHub ou GitLab à un texte « impact produit »",
+        "tags" : [ "Veille réglementaire" ]
+      }
+    },
+    "/api/v1/reglementaire/fiches/{id}/rejet" : {
+      "post" : {
+        "parameters" : [ {
+          "in" : "path",
+          "name" : "id",
+          "required" : true,
+          "schema" : {
+            "$ref" : "#/components/schemas/UUID"
+          }
+        } ],
+        "requestBody" : {
+          "content" : {
+            "application/json" : {
+              "schema" : {
+                "$ref" : "#/components/schemas/RejetFiche"
+              }
+            }
+          },
+          "required" : true
+        },
+        "responses" : {
+          "200" : {
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/FicheAnalyse"
+                }
+              }
+            },
+            "description" : "OK"
+          },
+          "400" : {
+            "description" : "Bad Request"
+          },
+          "401" : {
+            "description" : "Not Authorized"
+          },
+          "403" : {
+            "description" : "Not Allowed"
+          }
+        },
+        "security" : [ {
+          "SecurityScheme" : [ ]
+        } ],
+        "summary" : "Rejette une fiche en attente : elle n'est jamais diffusée",
+        "tags" : [ "Veille réglementaire" ]
+      }
+    },
+    "/api/v1/reglementaire/fiches/{id}/transitions" : {
+      "post" : {
+        "parameters" : [ {
+          "in" : "path",
+          "name" : "id",
+          "required" : true,
+          "schema" : {
+            "$ref" : "#/components/schemas/UUID"
+          }
+        } ],
+        "requestBody" : {
+          "content" : {
+            "application/json" : {
+              "schema" : {
+                "$ref" : "#/components/schemas/TransitionFiche"
+              }
+            }
+          },
+          "required" : true
+        },
+        "responses" : {
+          "400" : {
+            "description" : "Bad Request"
+          },
+          "401" : {
+            "description" : "Not Authorized"
+          },
+          "403" : {
+            "description" : "Not Allowed"
+          },
+          "409" : {
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/Erreur"
+                }
+              }
+            },
+            "description" : "Transition hors de l'ordre du cycle de vie"
+          }
+        },
+        "security" : [ {
+          "SecurityScheme" : [ ]
+        } ],
+        "summary" : "Fait avancer le texte dans son cycle de vie : SANS_IMPACT, IMPACT_PRODUIT, SPECIFIE, LIVRE",
+        "tags" : [ "Veille réglementaire" ]
+      }
+    },
+    "/api/v1/reglementaire/fiches/{id}/validation" : {
+      "post" : {
+        "parameters" : [ {
+          "in" : "path",
+          "name" : "id",
+          "required" : true,
+          "schema" : {
+            "$ref" : "#/components/schemas/UUID"
+          }
+        } ],
+        "responses" : {
+          "401" : {
+            "description" : "Not Authorized"
+          },
+          "403" : {
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/Erreur"
+                }
+              }
+            },
+            "description" : "Réservé à un expert d'un des domaines de la fiche"
+          },
+          "409" : {
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/Erreur"
+                }
+              }
+            },
+            "description" : "Fiche déjà décidée, ou résumé à rédiger"
+          }
+        },
+        "security" : [ {
+          "SecurityScheme" : [ ]
+        } ],
+        "summary" : "Valide une fiche : elle devient visible des membres de l'espace et le texte passe en analyse",
+        "tags" : [ "Veille réglementaire" ]
+      }
+    },
+    "/api/v1/signals/{id}" : {
+      "get" : {
+        "parameters" : [ {
+          "in" : "path",
+          "name" : "id",
+          "required" : true,
+          "schema" : {
+            "$ref" : "#/components/schemas/UUID"
+          }
+        } ],
+        "responses" : {
+          "200" : {
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/SignalDetail"
+                }
+              }
+            },
+            "description" : "OK"
+          }
+        },
+        "summary" : "Signal, provenance, historique des versions et enrichissements",
+        "tags" : [ "Signaux de sécurité" ]
+      }
+    },
+    "/api/v1/signals/{id}/impacts" : {
+      "get" : {
+        "parameters" : [ {
+          "in" : "path",
+          "name" : "id",
+          "required" : true,
+          "schema" : {
+            "$ref" : "#/components/schemas/UUID"
+          }
+        }, {
+          "description" : "États de traitement retenus, paramètre répétable (OUVERT, CONFIRME, ECARTE, RESOLU) ; absent : OUVERT et CONFIRME (COR-12-S2) ; une valeur inconnue donne 400",
+          "in" : "query",
+          "name" : "etat",
+          "schema" : {
+            "items" : {
+              "type" : "string"
+            },
+            "type" : "array"
+          }
+        }, {
+          "description" : "Numéro de page, à partir de 0 ; une valeur négative vaut 0 ; une valeur non entière donne 400",
+          "in" : "query",
+          "name" : "page",
+          "schema" : {
+            "default" : 0,
+            "type" : "integer"
+          }
+        }, {
+          "description" : "Taille de page, de 1 à 200 ; une valeur hors bornes est ramenée à la borne la plus proche ; une valeur non entière donne 400",
+          "in" : "query",
+          "name" : "size",
+          "schema" : {
+            "default" : 50,
+            "type" : "integer"
+          }
+        } ],
+        "responses" : {
+          "200" : {
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/Page"
+                }
+              }
+            },
+            "description" : "Page d'impacts du signal dans les espaces de l'appelant"
+          },
+          "400" : {
+            "description" : "Paramètre page ou size non entier, ou état inconnu (DONNEE_INVALIDE)"
+          },
+          "401" : {
+            "description" : "Non authentifié"
+          },
+          "404" : {
+            "description" : "Signal inconnu"
+          }
+        },
+        "summary" : "Impacts du signal limités aux espaces de l'appelant, filtrés par état de traitement (liste paginée)",
+        "tags" : [ "Signaux de sécurité" ]
+      }
+    },
+    "/api/v1/signals/{id}/versions/{versionId}/raw" : {
+      "get" : {
+        "parameters" : [ {
+          "in" : "path",
+          "name" : "id",
+          "required" : true,
+          "schema" : {
+            "$ref" : "#/components/schemas/UUID"
+          }
+        }, {
+          "in" : "path",
+          "name" : "versionId",
+          "required" : true,
+          "schema" : {
+            "$ref" : "#/components/schemas/UUID"
+          }
+        } ],
+        "responses" : {
+          "200" : {
+            "content" : {
+              "text/plain" : {
+                "schema" : {
+                  "type" : "string"
+                }
+              }
+            },
+            "description" : "OK"
+          }
+        },
+        "summary" : "Contenu brut reçu de la source pour une version du signal",
+        "tags" : [ "Signaux de sécurité" ]
+      }
+    },
+    "/api/v1/subscriptions" : {
+      "get" : {
+        "responses" : {
+          "200" : {
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "items" : {
+                    "$ref" : "#/components/schemas/Subscription"
+                  },
+                  "type" : "array"
+                }
+              }
+            },
+            "description" : "OK"
+          }
+        },
+        "summary" : "Abonnements visibles de l'appelant, actifs ou suspendus : socle TEAM de ses espaces et abonnements PERSONAL ; chacun porte son état (state : ACTIVE ou SUSPENDED)",
+        "tags" : [ "Veille" ]
+      },
+      "post" : {
+        "requestBody" : {
+          "content" : {
+            "application/json" : {
+              "schema" : {
+                "$ref" : "#/components/schemas/CreateSubscription"
+              }
+            }
+          },
+          "required" : true
+        },
+        "responses" : {
+          "200" : {
+            "content" : {
+              "application/json" : {
+                "schema" : { }
+              }
+            },
+            "description" : "OK"
+          },
+          "400" : {
+            "description" : "Bad Request"
+          }
+        },
+        "summary" : "Crée un abonnement TEAM (administrateur de l'espace) ou PERSONAL (appelant)",
+        "tags" : [ "Veille" ]
+      }
+    },
+    "/api/v1/subscriptions/{id}" : {
+      "delete" : {
+        "parameters" : [ {
+          "in" : "path",
+          "name" : "id",
+          "required" : true,
+          "schema" : {
+            "$ref" : "#/components/schemas/UUID"
+          }
+        } ],
+        "responses" : {
+          "204" : {
+            "description" : "Abonnement supprimé"
+          },
+          "401" : {
+            "description" : "Non authentifié"
+          },
+          "403" : {
+            "description" : "Abonnement TEAM : l'appelant n'administre pas l'espace (refus journalisé)"
+          },
+          "404" : {
+            "description" : "Abonnement inconnu, invisible ou déjà supprimé"
+          }
+        },
+        "summary" : "Supprime définitivement un abonnement, actif ou suspendu, avec ses critères et les retraits",
+        "tags" : [ "Veille" ]
+      }
+    },
+    "/api/v1/subscriptions/{id}/leave" : {
+      "post" : {
+        "parameters" : [ {
+          "in" : "path",
+          "name" : "id",
+          "required" : true,
+          "schema" : {
+            "$ref" : "#/components/schemas/UUID"
+          }
+        } ],
+        "responses" : {
+          "200" : {
+            "content" : {
+              "application/json" : {
+                "schema" : { }
+              }
+            },
+            "description" : "OK"
+          }
+        },
+        "summary" : "Quitte un abonnement : refusé pour un abonnement TEAM obligatoire ; suspend un abonnement PERSONAL",
+        "tags" : [ "Veille" ]
+      }
+    },
+    "/api/v1/subscriptions/{id}/reactivation" : {
+      "post" : {
+        "parameters" : [ {
+          "in" : "path",
+          "name" : "id",
+          "required" : true,
+          "schema" : {
+            "$ref" : "#/components/schemas/UUID"
+          }
+        } ],
+        "responses" : {
+          "200" : {
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/Subscription"
+                }
+              }
+            },
+            "description" : "Abonnement actif (state = ACTIVE)"
+          },
+          "401" : {
+            "description" : "Non authentifié"
+          },
+          "403" : {
+            "description" : "Abonnement TEAM : l'appelant n'administre pas l'espace (refus journalisé)"
+          },
+          "404" : {
+            "description" : "Abonnement inconnu, invisible ou supprimé"
+          }
+        },
+        "summary" : "Réactive un abonnement suspendu, sans rejouer la période de suspension (idempotent)",
+        "tags" : [ "Veille" ]
+      }
+    },
+    "/api/v1/subscriptions/{id}/suspension" : {
+      "post" : {
+        "parameters" : [ {
+          "in" : "path",
+          "name" : "id",
+          "required" : true,
+          "schema" : {
+            "$ref" : "#/components/schemas/UUID"
+          }
+        } ],
+        "responses" : {
+          "200" : {
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/Subscription"
+                }
+              }
+            },
+            "description" : "Abonnement suspendu (state = SUSPENDED)"
+          },
+          "401" : {
+            "description" : "Non authentifié"
+          },
+          "403" : {
+            "description" : "Abonnement TEAM : l'appelant n'administre pas l'espace (refus journalisé)"
+          },
+          "404" : {
+            "description" : "Abonnement inconnu ou invisible de l'appelant"
+          }
+        },
+        "summary" : "Suspend un abonnement : critères conservés, plus aucune notification (idempotent)",
+        "tags" : [ "Veille" ]
+      }
+    },
+    "/api/v1/system/info" : {
+      "get" : {
+        "responses" : {
+          "200" : {
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/SystemInfo"
+                }
+              }
+            },
+            "description" : "OK"
+          }
+        },
+        "summary" : "Identité et version du serveur ARGOS",
+        "tags" : [ "Système" ]
+      }
+    },
+    "/api/v1/veille-web/actualites" : {
+      "get" : {
+        "parameters" : [ {
+          "in" : "query",
+          "name" : "espaceId",
+          "schema" : {
+            "$ref" : "#/components/schemas/UUID"
+          }
+        }, {
+          "description" : "Nombre maximal d'actualités, de 1 à 200 ; une valeur hors bornes est ramenée à la borne la plus proche ; une valeur non entière donne 400",
+          "in" : "query",
+          "name" : "limite",
+          "schema" : {
+            "default" : 50,
+            "type" : "integer"
+          }
+        } ],
+        "responses" : {
+          "200" : {
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "items" : {
+                    "$ref" : "#/components/schemas/Actualite"
+                  },
+                  "type" : "array"
+                }
+              }
+            },
+            "description" : "Actualités, contenu externe cité et marqué non fiable"
+          },
+          "400" : {
+            "description" : "Paramètre limite non entier"
+          },
+          "401" : {
+            "description" : "Non authentifié"
+          },
+          "404" : {
+            "description" : "Espace dont l'appelant n'est pas membre"
+          }
+        },
+        "summary" : "Actualités des sources visibles, chacune restituée une fois avec toutes ses sources",
+        "tags" : [ "Veille web" ]
+      }
+    },
+    "/api/v1/veille-web/actualites/{id}" : {
+      "get" : {
+        "parameters" : [ {
+          "in" : "path",
+          "name" : "id",
+          "required" : true,
+          "schema" : {
+            "$ref" : "#/components/schemas/UUID"
+          }
+        } ],
+        "responses" : {
+          "200" : {
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/DetailActualite"
+                }
+              }
+            },
+            "description" : "Actualité, résumé et rapprochements"
+          },
+          "401" : {
+            "description" : "Non authentifié"
+          },
+          "404" : {
+            "description" : "Actualité inconnue ou invisible pour l'appelant"
+          }
+        },
+        "summary" : "Détail d'une actualité : résumé extractif et rapprochements « à vérifier »",
+        "tags" : [ "Veille web" ]
+      }
+    },
+    "/api/v1/veille-web/actualites/{id}/resume-ia" : {
+      "post" : {
+        "parameters" : [ {
+          "in" : "path",
+          "name" : "id",
+          "required" : true,
+          "schema" : {
+            "$ref" : "#/components/schemas/UUID"
+          }
+        } ],
+        "responses" : {
+          "200" : {
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ResumeIaActualite"
+                }
+              }
+            },
+            "description" : "Résumé IA (état DISPONIBLE) ou extrait déterministe et motif"
+          },
+          "401" : {
+            "description" : "Non authentifié"
+          },
+          "404" : {
+            "description" : "Actualité inconnue ou invisible pour l'appelant"
+          },
+          "429" : {
+            "description" : "Limite de débit du compte atteinte"
+          }
+        },
+        "summary" : "Résumé IA d'une actualité visible, marqué « produit par l'IA » avec ses sources ; sans IA disponible, résumé extractif déterministe",
+        "tags" : [ "Veille web" ]
+      }
+    },
+    "/api/v1/veille-web/sources" : {
+      "get" : {
+        "responses" : {
+          "200" : {
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "items" : {
+                    "$ref" : "#/components/schemas/SourceWeb"
+                  },
+                  "type" : "array"
+                }
+              }
+            },
+            "description" : "Sources et état de chacune"
+          },
+          "401" : {
+            "description" : "Non authentifié"
+          }
+        },
+        "summary" : "Sources visibles : personnelles de l'appelant et sources de ses espaces, avec leur état",
+        "tags" : [ "Veille web" ]
+      },
+      "post" : {
+        "requestBody" : {
+          "content" : {
+            "application/json" : {
+              "schema" : {
+                "$ref" : "#/components/schemas/NouvelleSource"
+              }
+            }
+          },
+          "required" : true
+        },
+        "responses" : {
+          "201" : {
+            "description" : "Source créée et première collecte intégrée"
+          },
+          "400" : {
+            "description" : "Adresse interdite ou invalide, contenu qui n'est pas un flux ou une page"
+          },
+          "401" : {
+            "description" : "Non authentifié"
+          },
+          "403" : {
+            "description" : "Source d'espace demandée par un membre non administrateur"
+          },
+          "404" : {
+            "description" : "Espace inconnu ou dont l'appelant n'est pas membre"
+          },
+          "409" : {
+            "description" : "Limite de sources personnelles atteinte ou adresse déjà suivie"
+          },
+          "429" : {
+            "description" : "Limite de débit du compte atteinte"
+          }
+        },
+        "summary" : "Ajoute un flux RSS/Atom ou une page surveillée, personnel ou d'un espace (administrateur)",
+        "tags" : [ "Veille web" ]
+      }
+    },
+    "/api/v1/veille-web/sources/{id}" : {
+      "delete" : {
+        "parameters" : [ {
+          "in" : "path",
+          "name" : "id",
+          "required" : true,
+          "schema" : {
+            "$ref" : "#/components/schemas/UUID"
+          }
+        } ],
+        "responses" : {
+          "204" : {
+            "description" : "Source supprimée"
+          },
+          "401" : {
+            "description" : "Non authentifié"
+          },
+          "403" : {
+            "description" : "Source d'espace et appelant non administrateur"
+          },
+          "404" : {
+            "description" : "Source inconnue ou invisible pour l'appelant"
+          }
+        },
+        "summary" : "Supprime une source (propriétaire ou administrateur de l'espace)",
+        "tags" : [ "Veille web" ]
+      }
+    },
+    "/api/v1/veille-web/sources/{id}/collectes" : {
+      "post" : {
+        "parameters" : [ {
+          "in" : "path",
+          "name" : "id",
+          "required" : true,
+          "schema" : {
+            "$ref" : "#/components/schemas/UUID"
+          }
+        } ],
+        "responses" : {
+          "200" : {
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/Rapport"
+                }
+              }
+            },
+            "description" : "Résultat de la collecte ; une erreur fait passer la source EN_ERREUR"
+          },
+          "401" : {
+            "description" : "Non authentifié"
+          },
+          "403" : {
+            "description" : "Source d'espace et appelant non administrateur"
+          },
+          "404" : {
+            "description" : "Source inconnue ou invisible pour l'appelant"
+          },
+          "409" : {
+            "description" : "Collecte de cette source déjà en cours"
+          },
+          "429" : {
+            "description" : "Limite de débit du compte atteinte"
+          }
+        },
+        "summary" : "Collecte immédiatement une source (propriétaire ou administrateur de l'espace)",
+        "tags" : [ "Veille web" ]
+      }
+    },
+    "/api/v1/vues" : {
+      "get" : {
+        "responses" : {
+          "200" : {
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "items" : {
+                    "$ref" : "#/components/schemas/VueEnregistree"
+                  },
+                  "type" : "array"
+                }
+              }
+            },
+            "description" : "Vues de l'appelant, par nom"
+          },
+          "401" : {
+            "description" : "Non authentifié"
+          }
+        },
+        "summary" : "Vues enregistrées de l'appelant",
+        "tags" : [ "Recherche" ]
+      },
+      "post" : {
+        "requestBody" : {
+          "content" : {
+            "application/json" : {
+              "schema" : {
+                "$ref" : "#/components/schemas/NouvelleVue"
+              }
+            }
+          },
+          "required" : true
+        },
+        "responses" : {
+          "201" : {
+            "description" : "Vue enregistrée"
+          },
+          "400" : {
+            "description" : "Nom ou filtre invalide"
+          },
+          "401" : {
+            "description" : "Non authentifié"
+          },
+          "404" : {
+            "description" : "Projet inconnu ou d'un espace dont l'appelant n'est pas membre"
+          },
+          "409" : {
+            "description" : "Nom déjà utilisé ou nombre maximal de vues atteint"
+          }
+        },
+        "summary" : "Enregistre une recherche et ses filtres sous un nom",
+        "tags" : [ "Recherche" ]
+      }
+    },
+    "/api/v1/vues/{id}" : {
+      "delete" : {
+        "parameters" : [ {
+          "in" : "path",
+          "name" : "id",
+          "required" : true,
+          "schema" : {
+            "$ref" : "#/components/schemas/UUID"
+          }
+        } ],
+        "responses" : {
+          "204" : {
+            "description" : "Vue supprimée"
+          },
+          "401" : {
+            "description" : "Non authentifié"
+          },
+          "404" : {
+            "description" : "Vue inconnue ou d'un autre utilisateur"
+          }
+        },
+        "summary" : "Supprime une vue de l'appelant",
+        "tags" : [ "Recherche" ]
+      },
+      "get" : {
+        "parameters" : [ {
+          "in" : "path",
+          "name" : "id",
+          "required" : true,
+          "schema" : {
+            "$ref" : "#/components/schemas/UUID"
+          }
+        } ],
+        "responses" : {
+          "200" : {
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/VueEnregistree"
+                }
+              }
+            },
+            "description" : "Vue, ses mots et ses filtres"
+          },
+          "401" : {
+            "description" : "Non authentifié"
+          },
+          "404" : {
+            "description" : "Vue inconnue ou d'un autre utilisateur"
+          }
+        },
+        "summary" : "Vue enregistrée de l'appelant",
+        "tags" : [ "Recherche" ]
+      }
+    },
+    "/api/v1/vues/{id}/resultats" : {
+      "get" : {
+        "parameters" : [ {
+          "in" : "path",
+          "name" : "id",
+          "required" : true,
+          "schema" : {
+            "$ref" : "#/components/schemas/UUID"
+          }
+        }, {
+          "description" : "Numéro de page, à partir de 0 ; une valeur négative ou non entière donne 400",
+          "in" : "query",
+          "name" : "page",
+          "schema" : {
+            "default" : 0,
+            "type" : "integer"
+          }
+        }, {
+          "description" : "Taille de page, de 1 à 100 ; une valeur hors bornes ou non entière donne 400",
+          "in" : "query",
+          "name" : "taille",
+          "schema" : {
+            "default" : 20,
+            "type" : "integer"
+          }
+        } ],
+        "responses" : {
+          "200" : {
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/Resultats"
+                }
+              }
+            },
+            "description" : "Page de résultats de la vue"
+          },
+          "400" : {
+            "description" : "Filtre de la vue devenu invalide (profil retiré du catalogue), paramètre page ou taille non entier ou hors bornes"
+          },
+          "401" : {
+            "description" : "Non authentifié"
+          },
+          "404" : {
+            "description" : "Vue inconnue ou d'un autre utilisateur"
+          },
+          "429" : {
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/Erreur"
+                }
+              }
+            },
+            "description" : "Limite de débit de la recherche atteinte (compteur commun avec GET /api/v1/recherche), en-tête Retry-After"
+          }
+        },
+        "summary" : "Rappelle une vue : applique ses mots et ses filtres sous les droits courants",
+        "tags" : [ "Recherche" ]
+      }
+    }
+  },
+  "tags" : [ {
+    "name" : "Activité des projets"
+  }, {
+    "name" : "Alertes"
+  }, {
+    "name" : "Catalogue"
+  }, {
+    "name" : "Comptes et accès"
+  }, {
+    "name" : "Exploitation"
+  }, {
+    "name" : "Impacts"
+  }, {
+    "name" : "Inventaires"
+  }, {
+    "name" : "Profil artiste"
+  }, {
+    "name" : "Préférences"
+  }, {
+    "name" : "Radar et standards"
+  }, {
+    "name" : "Recherche"
+  }, {
+    "name" : "Signaux de sécurité"
+  }, {
+    "name" : "Système"
+  }, {
+    "name" : "Veille"
+  }, {
+    "name" : "Veille réglementaire"
+  }, {
+    "name" : "Veille web"
+  } ]
+}

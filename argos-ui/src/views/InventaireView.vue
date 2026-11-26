@@ -8,9 +8,16 @@
 // liste, lien d'une alerte). Les autres écrans y mènent par lien (« Projets concernés » du détail d'une alerte).
 // Dépôts du projet (INV-10, décision J6 du 2026-11-19) : tableau des dépôts avec leur dernier import et leur dernier
 // échec, et colonne « Dépôts » des composants pour un projet à plusieurs dépôts.
+// Alimentation (INV-12, INV-13, PIN-06) : création d'un projet, rattachement et détachement d'un dépôt, imports
+// manuels, relance de l'import et activité du projet avec sa collecte immédiate ; l'issue de chaque action est
+// affichée et l'inventaire relu après une action aboutie.
 import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { fetchComposantsProjet, fetchProjets, fetchSyntheseInventaire } from '../api/inventaire'
+import type { ProjetCree } from '../api/projets'
+import ActiviteProjet from '../contenu/ActiviteProjet.vue'
+import AlimentationInventaire from '../contenu/AlimentationInventaire.vue'
+import CreationProjet from '../contenu/CreationProjet.vue'
 import ComposantsIgnores from '../contenu/ComposantsIgnores.vue'
 import ComposantsInventories from '../contenu/ComposantsInventories.vue'
 import type { ComposantsIgnoresVue } from '../contenu/composants-ignores'
@@ -124,6 +131,24 @@ async function charger(): Promise<void> {
   if (etat.resume?.etat === 'DISPONIBLE') await chargerPage(0, false)
 }
 
+/** Relit l'inventaire après une action d'alimentation, sans effacer l'écran pendant la lecture. */
+async function relire(): Promise<void> {
+  const projet = id.value
+  if (!projet) return
+  annulation.abort()
+  annulation = new AbortController()
+  const etat = await chargerInventaireProjet(projet, fetchSyntheseInventaire, annulation.signal)
+  if (etat === null) return
+  if (etat.erreur) {
+    erreur.value = etat.erreur
+    return
+  }
+  resume.value = etat.resume
+  ignores.value = etat.ignores
+  depots.value = etat.depots
+  if (etat.resume?.etat === 'DISPONIBLE') await chargerPage(0, false)
+}
+
 async function aller(cible: string): Promise<void> {
   if (cible === id.value) await charger()
   else await router.push(`/inventaire/${cible}`)
@@ -139,6 +164,12 @@ async function afficher(): Promise<void> {
   erreurSaisie.value = messageIdentifiantProjet(saisie.value)
   if (erreurSaisie.value) return
   await aller(saisie.value.trim().toLowerCase())
+}
+
+/** Projet créé : la liste est relue et le nouveau projet affiché. */
+async function surCreation(projet: ProjetCree): Promise<void> {
+  await chargerListe()
+  await aller(projet.id)
 }
 
 watch(id, charger, { immediate: true })
@@ -285,7 +316,12 @@ onBeforeUnmount(() => {
         <h2 id="titre-composants-ignores">Composants ignorés</h2>
         <ComposantsIgnores :vue="ignores" :projet="id ?? ''" />
       </section>
+      <AlimentationInventaire v-if="id" :projet-id="id" :depots="depots" @modifie="relire" />
+      <ActiviteProjet v-if="id" :projet-id="id" />
     </template>
+  </section>
+  <section class="card">
+    <CreationProjet @cree="surCreation" />
   </section>
 </template>
 
