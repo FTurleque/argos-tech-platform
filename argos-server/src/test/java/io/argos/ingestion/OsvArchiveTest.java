@@ -8,9 +8,14 @@ import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.net.URI;
 import java.nio.charset.StandardCharsets;
+import java.nio.file.DirectoryStream;
+import java.nio.file.Files;
+import java.nio.file.Path;
 import java.time.Duration;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipOutputStream;
 
@@ -41,6 +46,9 @@ class OsvArchiveTest {
     private static final long ARCHIVE_MAX = 1_000_000;
     private static final Duration DELAI = Duration.ofSeconds(1);
     private static final long TAILLE_MINUSCULE = 8;
+    private static final String INDEX_NPM = "/osv-export/npm/modified_id.csv";
+    private static final String FICHIERS_TEMPORAIRES = "argos-osv-*.zip";
+    private static final int ERREUR_SERVEUR = 500;
 
     @Inject
     HttpSourceClient http;
@@ -63,6 +71,54 @@ class OsvArchiveTest {
 
     private OsvAdvisoryFeed feed(int seuil) {
         return new OsvAdvisoryFeed(http, exportUrl, apiUrl, List.of("Maven"), seuil, ARCHIVE_MAX);
+    }
+
+    /** Archives OSV temporaires présentes dans le dossier temporaire du système. */
+    private static Set<Path> archivesTemporaires() throws IOException {
+        Set<Path> fichiers = new HashSet<>();
+        try (DirectoryStream<Path> dossier = Files.newDirectoryStream(Path.of(System.getProperty("java.io.tmpdir")),
+                FICHIERS_TEMPORAIRES)) {
+            dossier.forEach(fichiers::add);
+        }
+        return fichiers;
+    }
+
+    @Test
+    void fermerLaLectureSupprimeLArchiveTemporaire() throws IOException {
+        StubServer.programmer(ARCHIVE, Stub.octets(zip(Map.of("GHSA-A1.json", "{\"id\":\"GHSA-A1\"}"))));
+        Set<Path> avant = archivesTemporaires();
+
+        try (AdvisoryFeed.Lecture lecture = feed(1).lire(null)) {
+            assertEquals("{\"id\":\"GHSA-A1\"}", lecture.avis(lecture.entrees().get(0)).content());
+            assertEquals(avant.size() + 1, archivesTemporaires().size(), "archive téléchargée pendant la lecture");
+        }
+
+        assertEquals(avant, archivesTemporaires(), "archive fermée et supprimée à la fermeture de la lecture");
+    }
+
+    @Test
+    void unIndexIllisibleApresLArchiveFermeEtSupprimeLArchive() throws IOException {
+        StubServer.programmer(ARCHIVE, Stub.octets(zip(Map.of("GHSA-A1.json", "{\"id\":\"GHSA-A1\"}"))));
+        StubServer.programmer(INDEX_NPM, Stub.status(ERREUR_SERVEUR));
+        Set<Path> avant = archivesTemporaires();
+        OsvAdvisoryFeed deuxEcosystemes = new OsvAdvisoryFeed(http, exportUrl, apiUrl, List.of("Maven", "npm"), 1, ARCHIVE_MAX);
+
+        assertThrows(SourceException.class, () -> deuxEcosystemes.lire(null));
+
+        assertEquals(1, StubServer.received(ARCHIVE).size(), "archive Maven téléchargée avant l'index npm");
+        assertEquals(avant, archivesTemporaires(), "archive fermée et supprimée quand la lecture n'aboutit pas");
+    }
+
+    @Test
+    void unFichierQuiNEstPasUneArchiveEstSupprimeEtLesAvisSontLusParLApi() throws IOException {
+        StubServer.programmer(ARCHIVE, Stub.octets("pas une archive".getBytes(StandardCharsets.UTF_8)));
+        StubServer.programmer(API + "GHSA-A1", Stub.succes("{\"id\":\"GHSA-A1\"}"));
+        Set<Path> avant = archivesTemporaires();
+
+        try (AdvisoryFeed.Lecture lecture = feed(1).lire(null)) {
+            assertEquals(avant, archivesTemporaires(), "fichier illisible supprimé dès le téléchargement");
+            assertEquals("{\"id\":\"GHSA-A1\"}", lecture.avis(lecture.entrees().get(0)).content());
+        }
     }
 
     @Test

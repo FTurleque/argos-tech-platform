@@ -1,5 +1,6 @@
 package io.argos.ingestion.osv;
 
+import java.io.Closeable;
 import java.io.IOException;
 import java.io.InputStream;
 import java.net.URI;
@@ -34,8 +35,26 @@ final class LectureOsv implements AdvisoryFeed.Lecture {
 
     private static final Logger LOG = Logger.getLogger(LectureOsv.class);
 
-    /** Archive d'un écosystème : fichier temporaire et son accès. */
-    private record Archive(Path fichier, ZipFile zip) {
+    /**
+     * Archive d'un écosystème : fichier temporaire et son accès, possédés par la lecture. Fermer l'archive ferme son
+     * accès puis supprime le fichier ; un échec de fermeture est journalisé avec sa cause et n'empêche pas la suppression.
+     */
+    private record Archive(Path fichier, ZipFile zip) implements Closeable {
+
+        /** Ouvre le fichier téléchargé ; un fichier qui n'est pas une archive ZIP lève une erreur sans rien laisser ouvert. */
+        static Archive ouvrir(Path fichier) throws IOException {
+            return new Archive(fichier, new ZipFile(fichier.toFile()));
+        }
+
+        @Override
+        public void close() {
+            try {
+                zip.close();
+            } catch (IOException erreur) {
+                LOG.warnf(erreur, "fermeture de l'archive OSV %s impossible", fichier);
+            }
+            supprimer(fichier);
+        }
     }
 
     private final OsvAdvisoryFeed feed;
@@ -86,9 +105,7 @@ final class LectureOsv implements AdvisoryFeed.Lecture {
 
     @Override
     public void close() {
-        for (Archive archive : archives) {
-            fermer(archive);
-        }
+        archives.forEach(Archive::close);
         archives.clear();
         archiveParAvis.clear();
     }
@@ -99,7 +116,7 @@ final class LectureOsv implements AdvisoryFeed.Lecture {
         try {
             fichier = Files.createTempFile("argos-osv-", ".zip");
             feed.http().telechargerVers(uri, fichier, archiveTailleMax);
-            archive = Optional.of(new Archive(fichier, new ZipFile(fichier.toFile())));
+            archive = Optional.of(Archive.ouvrir(fichier));
         } catch (SourceException indisponible) {
             LOG.warnf(indisponible, "archive OSV %s indisponible : avis lus par l'API (%s)", ecosystem, indisponible.getMessage());
         } catch (IOException illisible) {
@@ -123,15 +140,6 @@ final class LectureOsv implements AdvisoryFeed.Lecture {
             LOG.warnf(illisible, "avis OSV %s illisible dans l'archive : lu par l'API", identifiant);
             return Optional.empty();
         }
-    }
-
-    private static void fermer(Archive archive) {
-        try {
-            archive.zip().close();
-        } catch (IOException erreur) {
-            LOG.warnf(erreur, "fermeture de l'archive OSV %s impossible", archive.fichier());
-        }
-        supprimer(archive.fichier());
     }
 
     private static void supprimer(Path fichier) {
