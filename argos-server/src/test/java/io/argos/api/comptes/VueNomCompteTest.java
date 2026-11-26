@@ -35,7 +35,7 @@ class VueNomCompteTest {
 
     @Test
     void sansContexteLaVueNeRenvoieRien() {
-        assertEquals(List.of(), identifiantsVisibles(Contexte.aucun()));
+        assertEquals(List.of(), identifiantsVisibles(new Contexte(null, null, null, null)));
     }
 
     private List<UUID> identifiantsDeLaTable(Contexte contexte) {

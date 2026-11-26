@@ -118,7 +118,7 @@ public abstract class ExecuteurBorne {
     }
 
     /** Vrai une fois l'exécuteur arrêté. */
-    public boolean arrete() {
+    boolean arrete() {
         return executeur.isShutdown();
     }
 

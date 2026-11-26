@@ -84,13 +84,32 @@ public class ProjectDirectory {
     }
 
     /**
-     * Rattache un dépôt à un projet (INV-10) ; il devient principal si le projet n'en a pas. Aucune API ne l'expose :
-     * l'administration des dépôts d'un projet est hors du changement ([PROPOSITION] P-7).
+     * Rattache un dépôt à un projet (INV-10, INV-12) ; il devient principal si le projet n'en a pas.
+     *
+     * @throws DepotDejaRattache si le même dépôt (forge et identifiant) est déjà rattaché au projet
      */
     @Transactional
     public UUID ajouterDepot(UUID projectId, RepositoryRef repository, List<String> manifestPaths) {
         boolean principal = depots(projectId).stream().noneMatch(Depot::principal);
         return insererDepot(projectId, repository, manifestPaths, principal);
+    }
+
+    /**
+     * Crée un projet demandé par l'administrateur de son espace (INV-12) ; le dépôt donné, facultatif, devient son
+     * dépôt principal.
+     */
+    public UUID creer(UUID workspaceId, String name, Optional<DepotProjet> depot) {
+        return create(workspaceId, name, depot.map(DepotProjet::reference).orElse(null),
+                depot.map(DepotProjet::manifestes).orElse(null));
+    }
+
+    /**
+     * Rattache au projet un dépôt demandé par l'administrateur de son espace (INV-12).
+     *
+     * @throws DepotDejaRattache si le même dépôt est déjà rattaché au projet
+     */
+    public UUID rattacher(UUID projectId, DepotProjet depot) {
+        return ajouterDepot(projectId, depot.reference(), depot.manifestes());
     }
 
     /** Dépôts d'un projet, le principal d'abord, puis par date de rattachement (traitement technique). */
@@ -194,7 +213,7 @@ public class ProjectDirectory {
                 throw new IllegalArgumentException("projet inconnu : " + projectId, erreur);
             }
             if ("23505".equals(erreur.getSQLState())) {
-                throw new IllegalArgumentException("dépôt déjà rattaché au projet : " + repository.repository(), erreur);
+                throw new DepotDejaRattache(repository, erreur);
             }
             throw new IllegalStateException("rattachement du dépôt impossible", erreur);
         }

@@ -98,7 +98,7 @@ class CollecteTest {
 
         assertEquals("SUCCEEDED", report.state());
         assertEquals(1, report.created());
-        SignalQueries.SignalView signal = signals.findByExternalId("OSV", "GHSA-jfh8-c2jp-5v3q").orElseThrow();
+        SignalQueries.SignalView signal = signals.find(baseDeTest.uuid("SELECT id FROM signal WHERE source = \'OSV\' AND external_id = \'GHSA-jfh8-c2jp-5v3q\'")).orElseThrow();
         assertTrue(signal.affected().stream()
                 .anyMatch(paquet -> paquet.packageKey().equals("pkg:maven/org.apache.logging.log4j/log4j-core")
                         && paquet.ranges().stream().anyMatch(plage -> "2.15.0".equals(plage.fixed()))));
@@ -152,7 +152,7 @@ class CollecteTest {
 
         assertEquals(1, report.updated());
         assertEquals(1, baseDeTest.count("SELECT count(*) FROM signal"));
-        SignalQueries.SignalView signal = signals.findByExternalId("OSV", "GHSA-0002").orElseThrow();
+        SignalQueries.SignalView signal = signals.find(baseDeTest.uuid("SELECT id FROM signal WHERE source = \'OSV\' AND external_id = \'GHSA-0002\'")).orElseThrow();
         assertEquals("1.4.0", signal.affected().get(0).ranges().get(0).fixed());
         List<SignalQueries.SignalVersionView> history = signals.versions(signal.id());
         assertEquals(2, history.size());

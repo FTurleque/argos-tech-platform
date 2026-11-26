@@ -58,7 +58,7 @@ class ContexteBaseTransactionTest {
     @Test
     void uneExceptionMetierAnnuleLaTransactionEtEstRelanceeTelleQuelle() {
         DonneeInvalide refus = new DonneeInvalide("DONNEE_INVALIDE", "refus", "valeur");
-        DonneeInvalide relancee = assertThrows(DonneeInvalide.class, () -> base.executer(Contexte.aucun(), connexion -> {
+        DonneeInvalide relancee = assertThrows(DonneeInvalide.class, () -> base.executer(new Contexte(null, null, null, null), connexion -> {
             inserer(connexion, 2);
             throw refus;
         }));
@@ -68,7 +68,7 @@ class ContexteBaseTransactionTest {
 
     @Test
     void uneErreurSqlAnnuleLaTransactionEtEstTraduiteEnErreurBase() {
-        ErreurBase erreur = assertThrows(ErreurBase.class, () -> base.executer(Contexte.aucun(), connexion -> {
+        ErreurBase erreur = assertThrows(ErreurBase.class, () -> base.executer(new Contexte(null, null, null, null), connexion -> {
             inserer(connexion, 3);
             throw new SQLException("panne simulée");
         }));
@@ -78,11 +78,11 @@ class ContexteBaseTransactionTest {
 
     @Test
     void deuxExecutionsSuccessivesSontIndependantes() {
-        base.executer(Contexte.aucun(), connexion -> {
+        base.executer(new Contexte(null, null, null, null), connexion -> {
             inserer(connexion, 4);
             return Boolean.TRUE;
         });
-        assertThrows(ErreurBase.class, () -> base.executer(Contexte.aucun(), connexion -> {
+        assertThrows(ErreurBase.class, () -> base.executer(new Contexte(null, null, null, null), connexion -> {
             inserer(connexion, 5);
             throw new SQLException("panne simulée");
         }));

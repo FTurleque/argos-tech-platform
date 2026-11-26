@@ -43,6 +43,11 @@ public class RegistrePrompts {
     public static final String FICHE_REGLEMENTAIRE = "fiche-reglementaire";
     /** Domaine métier proposé pour un texte qu'aucune règle du dictionnaire ne rattache ({@code regintel}, REG-02-S2). */
     public static final String DOMAINE_REGLEMENTAIRE = "domaine-reglementaire";
+    /**
+     * Suggestion de passer à HOLD une version recommandée arrivée en fin de support ({@code impact}, RAD-08) : la
+     * suggestion reste en attente de la décision d'un administrateur de l'espace (RAD-02).
+     */
+    public static final String SUGGESTION_STANDARD = "suggestion-standard";
 
     private static final String REGLES_COMMUNES = """
             Règles impératives :
@@ -62,6 +67,8 @@ public class RegistrePrompts {
     private static final int LONGUEUR_JUSTIFICATION_PROJETS = 600;
     /** Longueur maximale, en caractères, de la justification du domaine proposé. */
     private static final int LONGUEUR_JUSTIFICATION_DOMAINE = 400;
+    /** Longueur maximale, en caractères, de la justification d'une suggestion du référentiel. */
+    private static final int LONGUEUR_JUSTIFICATION_SUGGESTION = 600;
 
     private final Map<String, PromptIa> prompts = new LinkedHashMap<>();
 
@@ -103,6 +110,19 @@ public class RegistrePrompts {
                 """ + REGLES_COMMUNES, List.of(new ChampSortie("domaine", TypeChamp.ENTIERS, true, 1),
                 new ChampSortie("confiance", TypeChamp.ENTIERS, true, 1),
                 new ChampSortie("justification", TypeChamp.TEXTE, true, LONGUEUR_JUSTIFICATION_DOMAINE))));
+        publierSuggestionStandard();
+    }
+
+    private void publierSuggestionStandard() {
+        publier(new PromptIa(SUGGESTION_STANDARD, 1, """
+                Tu es l'assistant du radar technologique d'Argos. Les données décrivent une technologie du référentiel
+                d'un espace : son libellé, la version recommandée, la date de fin de support publiée et sa source.
+                Indique 1 s'il convient de suggérer de passer cette version au statut HOLD, 2 sinon, avec une
+                justification courte fondée sur les seules données. Cette suggestion sera examinée par un
+                administrateur de l'espace ; elle ne modifie pas le référentiel.
+                Schéma de la réponse : {"avis": [1 ou 2], "justification": "texte"}.
+                """ + REGLES_COMMUNES, List.of(new ChampSortie("avis", TypeChamp.ENTIERS, true, 1),
+                new ChampSortie("justification", TypeChamp.TEXTE, true, LONGUEUR_JUSTIFICATION_SUGGESTION))));
     }
 
     private void publier(PromptIa prompt) {
@@ -114,7 +134,7 @@ public class RegistrePrompts {
         return Optional.ofNullable(prompts.get(tache));
     }
 
-    public List<PromptIa> tous() {
+    List<PromptIa> tous() {
         return List.copyOf(prompts.values());
     }
 

@@ -272,7 +272,7 @@ public class MoteurAlertes {
                 .sorted(Comparator.comparing(ContenuAlerte.Projet::nom)).toList();
         return new ContenuAlerte.Element(signal.signalId(), signal.titre(), signal.gravite(), tries,
                 List.of(new ContenuAlerte.Source(signal.source(), signal.externe(), urlSource(signal.source(), signal.externe()))),
-                lienBase.replaceAll("/+$", "") + "/signaux/" + signal.signalId());
+                LiensIhm.lien(lienBase, LiensIhm.SIGNAL, signal.signalId()));
     }
 
     /** Rang d'un niveau dans une alerte : le plus fort d'abord. */

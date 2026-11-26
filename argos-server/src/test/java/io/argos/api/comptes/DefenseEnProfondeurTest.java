@@ -136,7 +136,7 @@ class DefenseEnProfondeurTest {
         assertEquals(0L, (long) base.executer(contexte,
                 connexion -> compter(connexion, "SELECT count(*) FROM compte WHERE id = '" + jules + "'")),
                 "un compte sans espace commun ni invitation n'est pas lisible");
-        assertEquals(0L, (long) base.executer(Contexte.aucun(), connexion -> compter(connexion, "SELECT count(*) FROM compte")),
+        assertEquals(0L, (long) base.executer(new Contexte(null, null, null, null), connexion -> compter(connexion, "SELECT count(*) FROM compte")),
                 "sans contexte, aucun compte");
         assertEquals("f", baseDeTest.string("SELECT has_function_privilege('public', 'argos_est_membre(uuid)', 'EXECUTE')::text")
                 .substring(0, 1));

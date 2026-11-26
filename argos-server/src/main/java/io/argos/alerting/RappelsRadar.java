@@ -28,6 +28,7 @@ import io.quarkus.scheduler.Scheduled;
 import io.argos.horloge.LectureHeure;
 import io.argos.impact.AnnonceStandard;
 import io.argos.impact.RadarProjets;
+import io.argos.impact.SuggestionsRadar;
 import io.argos.observabilite.ErreursImprevues;
 import io.argos.observabilite.TacheObservee;
 import io.argos.regintel.EcheancesReglementaires;
@@ -101,6 +102,9 @@ public class RappelsRadar {
     @ConfigProperty(name = "argos.alerting.fuseau")
     String fuseau;
 
+    @Inject
+    SuggestionsRadar suggestions;
+
     @TacheObservee
     @Scheduled(identity = "argos-radar-quotidien", cron = "{argos.radar.tache.cron}",
             timeZone = "{argos.alerting.fuseau}", concurrentExecution = Scheduled.ConcurrentExecution.SKIP)
@@ -109,12 +113,15 @@ public class RappelsRadar {
     }
 
     /**
-     * Tâche quotidienne du radar (DC-1) pour le jour donné. Une erreur imprévue de l'actualisation ou des rappels d'un
-     * espace est journalisée avec sa cause et retenue dans le bilan ; les étapes et les espaces suivants sont traités.
+     * Tâche quotidienne du radar (DC-1) pour le jour donné : actualisation des cycles de vie, suggestions de l'IA sur
+     * les versions recommandées arrivées en fin de support (RAD-08), puis rappels. Une erreur imprévue d'une étape ou
+     * d'un espace est journalisée avec sa cause et retenue dans le bilan ; les étapes et les espaces suivants sont
+     * traités.
      */
     public Bilan executer(LocalDate aujourdhui, Instant maintenant) {
         ErreursImprevues imprevues = new ErreursImprevues();
         RadarProjets.Bilan bilan = actualiserOuJournaliser(aujourdhui, maintenant, imprevues);
+        suggestions.produire(aujourdhui).erreursImprevues().forEach(imprevues::retenir);
         List<UUID> crees = new ArrayList<>();
         for (UUID espace : espacesSuivisOuJournaliser()) {
             rappelerEspaceOuJournaliser(espace, aujourdhui, maintenant, crees, imprevues);
@@ -271,7 +278,7 @@ public class RappelsRadar {
         String url = "endoflife.date".equals(source) ? "https://endoflife.date" : null;
         return new ContenuAlerte(List.of(new ContenuAlerte.Element(null, titre, null, cites,
                 List.of(new ContenuAlerte.Source(source, identifiant, url)),
-                lienBase.replaceAll("/+$", "") + "/espaces/" + espaceId + "/radar")), null, "SANS_OBJET");
+                LiensIhm.lien(lienBase, LiensIhm.RADAR_ESPACE, espaceId))), null, "SANS_OBJET");
     }
 
     /**

@@ -114,7 +114,7 @@ class ScmContratEnregistreTest {
     void githubSbomTrouveeEtTransmiseAvecJetonBearer() {
         sert(GITHUB_SBOM, ENREGISTREMENTS_GITHUB + "200-sbom-cyclonedx.http");
 
-        SbomDocument sbom = forges().latestSbom(GITHUB).orElseThrow();
+        SbomDocument sbom = forges().lecture(GITHUB).latestSbom().orElseThrow();
 
         assertEquals(SbomDocument.Format.CYCLONEDX_JSON, sbom.format());
         assertEquals(Fixtures.corpsEnregistre(ENREGISTREMENTS_GITHUB + "200-sbom-cyclonedx.http"),
@@ -132,7 +132,7 @@ class ScmContratEnregistreTest {
         UUID projet = projects.create(espace, "demo", GITHUB, List.of(GITHUB_MANIFESTE_CHEMIN));
         sert(GITHUB_SBOM, ENREGISTREMENTS_GITHUB + "200-sbom-cyclonedx.http");
 
-        InventoryService.ImportResult resultat = inventories.refresh(projet);
+        InventoryService.ImportResult resultat = inventories.importerProjet(projet).depots().get(0).result();
 
         assertEquals(StatutImport.IMPORTED, resultat.status(), resultat.reason());
         assertEquals("SBOM", resultat.origin());
@@ -157,7 +157,7 @@ class ScmContratEnregistreTest {
         sert(GITHUB_DEPOT + "/contents/requirements.txt?ref=main", ENREGISTREMENTS_GITHUB + "404-fichier-absent.http");
         sert(GITHUB_DEPOT + "/contents/demo/requirements.txt?ref=main", ENREGISTREMENTS_GITHUB + "404-fichier-absent.http");
 
-        InventoryService.ImportResult resultat = inventories.refresh(projet);
+        InventoryService.ImportResult resultat = inventories.importerProjet(projet).depots().get(0).result();
 
         assertEquals(StatutImport.IMPORTED, resultat.status(), resultat.reason());
         assertEquals("MANIFEST", resultat.origin());
@@ -178,7 +178,7 @@ class ScmContratEnregistreTest {
         sert(depot + "/contents/bom.json?ref=main", ENREGISTREMENTS_GITHUB + "404-depot-contenu.http");
         sert(depot, ENREGISTREMENTS_GITHUB + "404-depot.http");
 
-        DepotIntrouvable erreur = assertThrows(DepotIntrouvable.class, () -> forges().latestSbom(absent));
+        DepotIntrouvable erreur = assertThrows(DepotIntrouvable.class, () -> forges().lecture(absent).latestSbom());
 
         assertTrue(erreur.getMessage().contains("argos-poc-inexistant-7f3a/depot-inexistant"));
         assertFalse(erreur.getMessage().contains(jetonGithub), "le jeton n'apparaît dans aucun message");
@@ -193,7 +193,7 @@ class ScmContratEnregistreTest {
         sert(depot + "/contents/bom.json?ref=main", ENREGISTREMENTS_GITHUB + "404-depot-contenu.http");
         sert(depot, ENREGISTREMENTS_GITHUB + "404-depot.http");
 
-        InventoryService.ImportResult resultat = inventories.refresh(projet);
+        InventoryService.ImportResult resultat = inventories.importerProjet(projet).depots().get(0).result();
 
         assertEquals(StatutImport.ERROR, resultat.status());
         assertTrue(resultat.reason().contains("introuvable"), resultat.reason());
@@ -204,9 +204,9 @@ class ScmContratEnregistreTest {
     void githubJetonRefuse() {
         sert(GITHUB_SBOM, ENREGISTREMENTS_GITHUB + "401-jeton-refuse.http");
 
-        AccesRefuse erreur = assertThrows(AccesRefuse.class, () -> forges().latestSbom(GITHUB));
+        AccesRefuse erreur = assertThrows(AccesRefuse.class, () -> forges().lecture(GITHUB).latestSbom());
 
-        assertEquals(401, erreur.status());
+        assertTrue(erreur.getMessage().contains("(HTTP 401)"), erreur.getMessage());
         assertTrue(erreur.getMessage().contains("jeton d'accès refusé"));
         assertFalse(erreur.getMessage().contains(jetonGithub), "le jeton n'apparaît dans aucun message");
         assertEquals(1, StubServer.received("/github/").size(), "aucune vérification du dépôt après un 401");
@@ -216,18 +216,18 @@ class ScmContratEnregistreTest {
     void githubLimiteDeDebitPrincipaleEtSecondaire() {
         sert(GITHUB_SBOM, ENREGISTREMENTS_GITHUB + "403-limite-debit.http");
         Instant avant = Instant.now();
-        QuotaEpuise principale = assertThrows(QuotaEpuise.class, () -> forges().latestSbom(GITHUB));
+        QuotaEpuise principale = assertThrows(QuotaEpuise.class, () -> forges().lecture(GITHUB).latestSbom());
         assertBorne(principale.reprise(), avant.plusSeconds(900));
 
         sert(GITHUB_SBOM, ENREGISTREMENTS_GITHUB + "403-limite-secondaire.http");
         avant = Instant.now();
-        QuotaEpuise secondaire = assertThrows(QuotaEpuise.class, () -> forges().latestSbom(GITHUB));
+        QuotaEpuise secondaire = assertThrows(QuotaEpuise.class, () -> forges().lecture(GITHUB).latestSbom());
         assertBorne(secondaire.reprise(), avant.plusSeconds(60));
 
         // Limite secondaire signalée par son seul message : ni Retry-After ni quota principal épuisé.
         sert(GITHUB_SBOM, ENREGISTREMENTS_GITHUB + "403-limite-secondaire-sans-delai.http");
         avant = Instant.now();
-        QuotaEpuise sansDelai = assertThrows(QuotaEpuise.class, () -> forges().latestSbom(GITHUB));
+        QuotaEpuise sansDelai = assertThrows(QuotaEpuise.class, () -> forges().lecture(GITHUB).latestSbom());
         assertBorne(sansDelai.reprise(), avant.plusSeconds(3600));
     }
 
@@ -239,7 +239,7 @@ class ScmContratEnregistreTest {
         StubServer.programmer(GITLAB_SBOM, new StubServer.Stub(200, Fixtures.resource("scm/gitlab/gl-sbom-npm-npm.cdx.json"),
                 Map.of("Content-Type", "application/json")));
 
-        SbomDocument sbom = forges().latestSbom(GITLAB).orElseThrow();
+        SbomDocument sbom = forges().lecture(GITLAB).latestSbom().orElseThrow();
 
         assertEquals(SbomDocument.Format.CYCLONEDX_JSON, sbom.format());
         StubServer.Received requete = StubServer.received("/gitlab/").get(0);
@@ -255,7 +255,7 @@ class ScmContratEnregistreTest {
         sert(GITLAB_PACKAGE, ENREGISTREMENTS_GITLAB + "200-manifeste-package-json.http");
         sert(GITLAB_REQUIREMENTS, ENREGISTREMENTS_GITLAB + "404-fichier-absent.http");
 
-        InventoryService.ImportResult resultat = inventories.refresh(projet);
+        InventoryService.ImportResult resultat = inventories.importerProjet(projet).depots().get(0).result();
 
         assertEquals(StatutImport.IMPORTED, resultat.status(), resultat.reason());
         assertEquals("MANIFEST", resultat.origin());
@@ -274,7 +274,7 @@ class ScmContratEnregistreTest {
         sert("/gitlab/api/v4/projects/argos-poc-inexistant-7f3a%2Fdepot-inexistant/repository/files/package.json/raw?ref=main",
                 ENREGISTREMENTS_GITLAB + "404-projet-fichier.http");
 
-        DepotIntrouvable erreur = assertThrows(DepotIntrouvable.class, () -> forges().file(absent, "package.json"));
+        DepotIntrouvable erreur = assertThrows(DepotIntrouvable.class, () -> forges().lecture(absent).file("package.json"));
 
         assertTrue(erreur.getMessage().contains("GITLAB"));
         assertFalse(erreur.getMessage().contains(jetonGitlab), "le jeton n'apparaît dans aucun message");
@@ -283,13 +283,13 @@ class ScmContratEnregistreTest {
     @Test
     void gitlabJetonRefuseEtArtefactInterdit() {
         sert(GITLAB_PACKAGE, ENREGISTREMENTS_GITLAB + "401-jeton-refuse.http");
-        AccesRefuse refuse = assertThrows(AccesRefuse.class, () -> forges().file(GITLAB, "package.json"));
-        assertEquals(401, refuse.status());
+        AccesRefuse refuse = assertThrows(AccesRefuse.class, () -> forges().lecture(GITLAB).file("package.json"));
+        assertTrue(refuse.getMessage().contains("(HTTP 401)"), refuse.getMessage());
         assertFalse(refuse.getMessage().contains(jetonGitlab));
 
         sert(GITLAB_SBOM, ENREGISTREMENTS_GITLAB + "403-artefact-interdit.http");
-        AccesRefuse interdit = assertThrows(AccesRefuse.class, () -> forges().latestSbom(GITLAB));
-        assertEquals(403, interdit.status(), "403 avec quota restant : accès refusé, pas limite de débit");
+        AccesRefuse interdit = assertThrows(AccesRefuse.class, () -> forges().lecture(GITLAB).latestSbom());
+        assertTrue(interdit.getMessage().contains("(HTTP 403)"), interdit.getMessage());
     }
 
     @Test
@@ -298,14 +298,14 @@ class ScmContratEnregistreTest {
         UUID projet = projects.create(espace, "js-npm", GITLAB, List.of("package.json"));
         sert(GITLAB_SBOM, ENREGISTREMENTS_GITLAB + "404-artefact-absent.http");
         sert(GITLAB_PACKAGE, ENREGISTREMENTS_GITLAB + "200-manifeste-package-json.http");
-        assertEquals("MANIFEST", inventories.refresh(projet).origin());
+        assertEquals("MANIFEST", inventories.importerProjet(projet).depots().get(0).result().origin());
 
         sert(GITLAB_SBOM, ENREGISTREMENTS_GITLAB + "429-limite-debit.http");
         Instant avant = Instant.now();
-        QuotaEpuise quota = assertThrows(QuotaEpuise.class, () -> forges().latestSbom(GITLAB));
+        QuotaEpuise quota = assertThrows(QuotaEpuise.class, () -> forges().lecture(GITLAB).latestSbom());
         assertBorne(quota.reprise(), avant.plusSeconds(120));
 
-        InventoryService.ImportResult resultat = inventories.refresh(projet);
+        InventoryService.ImportResult resultat = inventories.importerProjet(projet).depots().get(0).result();
         assertEquals(StatutImport.ERROR, resultat.status());
         assertTrue(resultat.reason().contains("quota"), resultat.reason());
         Api.enTantQue("alice").when().get("/api/v1/projects/" + projet + "/inventory")

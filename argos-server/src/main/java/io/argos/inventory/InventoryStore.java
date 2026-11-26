@@ -141,12 +141,6 @@ public class InventoryStore {
         }
     }
 
-    /** Enregistre un import refusé pour un import manuel (sans dépôt). */
-    @Transactional(Transactional.TxType.REQUIRES_NEW)
-    public void recordFailure(UUID projectId, String reason, String sourceRef) {
-        recordFailure(projectId, null, reason, sourceRef);
-    }
-
     /** Enregistre un import refusé ou en erreur, rattaché au dépôt concerné s'il est connu (INV-05, INV-07-S2). */
     @Transactional(Transactional.TxType.REQUIRES_NEW)
     public void recordFailure(UUID projectId, UUID repositoryId, String reason, String sourceRef) {

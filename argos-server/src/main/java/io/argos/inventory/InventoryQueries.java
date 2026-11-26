@@ -475,20 +475,6 @@ public class InventoryQueries {
         return keys;
     }
 
-    /** Origine de l'inventaire de référence du projet (traitement technique), s'il existe. */
-    @Transactional
-    public Optional<String> origin(UUID projectId) {
-        try (Connection connexion = dataSource.getConnection();
-                PreparedStatement requete = connexion.prepareStatement("SELECT origin FROM inventory WHERE project_id = ?")) {
-            requete.setObject(1, projectId);
-            try (ResultSet lignes = requete.executeQuery()) {
-                return lignes.next() ? Optional.of(lignes.getString(1)) : Optional.empty();
-            }
-        } catch (SQLException erreur) {
-            throw new IllegalStateException("lecture de l'inventaire impossible", erreur);
-        }
-    }
-
     /** Espace du projet, s'il existe. */
     @Transactional
     public Optional<UUID> workspaceOf(UUID projectId) {

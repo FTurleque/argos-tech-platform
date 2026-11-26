@@ -35,7 +35,7 @@ public final class Correlation {
     }
 
     /** Identifiant de corrélation du fil courant, vide hors requête et hors exécution planifiée. */
-    public static String courant() {
+    static String courant() {
         Object valeur = MDC.get(CLE_CORRELATION);
         return valeur == null ? "" : valeur.toString();
     }

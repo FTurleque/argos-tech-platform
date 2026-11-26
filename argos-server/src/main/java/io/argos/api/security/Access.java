@@ -64,6 +64,18 @@ public class Access {
     }
 
     /**
+     * Appelant authentifié et contributeur ou administrateur de l'espace donné : un non-membre reçoit le refus de
+     * {@link #member(UUID)}, un lecteur le refus journalisé « interdit » ({@link #forbidden()}).
+     */
+    public Caller contributor(UUID espaceId) {
+        Caller caller = member(espaceId);
+        if (!caller.contributorOf(espaceId)) {
+            throw forbidden();
+        }
+        return caller;
+    }
+
+    /**
      * Appelant authentifié et membre de l'espace d'un projet désigné dans le chemin. L'espace n'est lu qu'après
      * l'authentification ; un projet inconnu (espace absent) reçoit 404 sans refus journalisé, un projet d'un autre
      * espace le refus journalisé de {@link #member(UUID)}, avec la même réponse « introuvable ».

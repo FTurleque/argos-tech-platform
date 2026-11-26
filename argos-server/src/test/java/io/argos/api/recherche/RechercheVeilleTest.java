@@ -232,7 +232,7 @@ class RechercheVeilleTest {
         assertFalse(selection.contains(signal), "rattaché seulement par le nom d'un projet invisible");
 
         // Sans compte courant, la sélection ne renvoie rien.
-        long sansContexte = base.executer(Contexte.aucun(), connexion -> {
+        long sansContexte = base.executer(new Contexte(null, null, null, null), connexion -> {
             try (PreparedStatement requete = connexion.prepareStatement("""
                     SELECT count(*) FROM argos_rechercher_veille(NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL)
                     """); ResultSet resultat = requete.executeQuery()) {

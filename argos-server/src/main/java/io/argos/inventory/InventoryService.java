@@ -53,11 +53,6 @@ public class InventoryService {
 
     /** Issue de l'import des dépôts d'un projet, le dépôt principal d'abord. */
     public record ImportProjet(UUID projectId, List<ResultatDepot> depots) {
-
-        /** Vrai si au moins un dépôt a été importé : l'inventaire du projet a été remplacé et sera recorrélé. */
-        public boolean importe() {
-            return depots.stream().anyMatch(depot -> depot.result().status() == StatutImport.IMPORTED);
-        }
     }
 
     /** Lecture d'un dépôt : son issue et, s'il est importé, l'inventaire à écrire. */
@@ -115,21 +110,6 @@ public class InventoryService {
         store.replace(projectId, new InventoryStore.Remplacement(cible, "MANIFEST", parsed.get(),
                 String.join(",", manifests.keySet())));
         return new ImportResult(StatutImport.IMPORTED, "MANIFEST", parsed.get().components().size(), 0, null);
-    }
-
-    /**
-     * Rafraîchit l'inventaire depuis les dépôts du projet ({@link #importerProjet}) et renvoie l'issue du dépôt
-     * principal (ou du premier dépôt). Un inventaire SBOM existant est conservé en l'absence de nouvelle SBOM ; son
-     * âge le signale (INV-03, COR-06).
-     *
-     * @throws IllegalStateException si aucun dépôt n'est rattaché au projet
-     */
-    public ImportResult refresh(UUID projectId) {
-        ImportProjet resultat = importerProjet(projectId);
-        if (resultat.depots().isEmpty()) {
-            throw new IllegalStateException("aucun dépôt rattaché au projet " + projectId);
-        }
-        return resultat.depots().get(0).result();
     }
 
     /** Importe chaque dépôt du projet (INV-07, INV-10) ; voir {@link #importerProjet(UUID, Map)}. */

@@ -135,16 +135,21 @@ public class ReferentielEspace {
     }
 
     /**
-     * Enregistre une suggestion de l'IA en attente de décision (RAD-02-S2). Traitement technique : le
-     * référentiel n'est ni lu ni modifié ; la suggestion n'a d'effet qu'acceptée par un administrateur.
+     * Enregistre une suggestion de l'IA en attente de décision (RAD-02-S2, RAD-08). Traitement technique : le
+     * référentiel n'est ni lu ni modifié ; la suggestion n'a d'effet qu'acceptée par un administrateur. Une
+     * suggestion encore en attente pour la même technologie de l'espace n'est pas dupliquée (RAD-08-S2).
+     *
+     * @return identifiant de la suggestion enregistrée, vide si une suggestion était déjà en attente
      */
-    public UUID suggerer(UUID espaceId, String cle, String statut, String versionRecommandee, String justification) {
+    public Optional<UUID> suggerer(UUID espaceId, String cle, String statut, String versionRecommandee, String justification) {
         SaisieStandard.Validee saisieValidee = new SaisieStandard(cle, null, statut, versionRecommandee, "IA", justification,
                 LectureHeure.jour(horloge).toString(), null).valider();
         UUID id = UUID.randomUUID();
         try (Connection connexion = dataSource.getConnection(); PreparedStatement requete = connexion.prepareStatement("""
                 INSERT INTO standard_suggestion (id, espace_id, cle, statut, version_recommandee, justification, origine, cree_le)
-                VALUES (?, ?, ?, ?, ?, ?, 'IA', ?)
+                SELECT ?, ?, ?, ?, ?, ?, 'IA', ?
+                WHERE NOT EXISTS (SELECT 1 FROM standard_suggestion
+                                  WHERE espace_id = ? AND cle = ? AND etat = 'EN_ATTENTE')
                 """)) {
             requete.setObject(1, id);
             requete.setObject(2, espaceId);
@@ -153,11 +158,26 @@ public class ReferentielEspace {
             requete.setString(5, saisieValidee.versionRecommandee());
             requete.setString(6, saisieValidee.justification());
             requete.setObject(7, horloge.instant().atOffset(ZoneOffset.UTC));
-            requete.executeUpdate();
+            requete.setObject(8, espaceId);
+            requete.setString(9, saisieValidee.cle());
+            return requete.executeUpdate() == 1 ? Optional.of(id) : Optional.empty();
         } catch (SQLException erreur) {
             throw new IllegalStateException("enregistrement de la suggestion impossible", erreur);
         }
-        return id;
+    }
+
+    /** Vrai si une suggestion attend une décision pour cette technologie de l'espace (traitement technique). */
+    public boolean suggestionEnAttente(UUID espaceId, String cle) {
+        try (Connection connexion = dataSource.getConnection(); PreparedStatement requete = connexion.prepareStatement(
+                "SELECT 1 FROM standard_suggestion WHERE espace_id = ? AND cle = ? AND etat = 'EN_ATTENTE'")) {
+            requete.setObject(1, espaceId);
+            requete.setString(2, cle);
+            try (ResultSet resultat = requete.executeQuery()) {
+                return resultat.next();
+            }
+        } catch (SQLException erreur) {
+            throw new IllegalStateException("lecture des suggestions impossible", erreur);
+        }
     }
 
     /** Suggestions de l'espace, en attente d'abord. */

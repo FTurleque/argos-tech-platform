@@ -198,7 +198,8 @@ class RadarStandardsTest {
         enregistrer("nina", saisie(POSTGRES, "PostgreSQL", "ADOPT", "14", "DBA", "Version courante", "2027-06-30", "postgresql"))
                 .statusCode(200);
 
-        UUID suggestion = referentiel.suggerer(espace, POSTGRES, "HOLD", null, "La version 14 a atteint sa fin de support.");
+        UUID suggestion = referentiel.suggerer(espace, POSTGRES, "HOLD", null, "La version 14 a atteint sa fin de support.")
+                .orElseThrow();
 
         Api.enTantQue("paul").get(chemin("/suggestions")).then().statusCode(200)
                 .body("$", hasSize(1)).body("[0].etat", equalTo("EN_ATTENTE")).body("[0].origine", equalTo("IA"))

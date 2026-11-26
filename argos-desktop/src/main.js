@@ -18,6 +18,7 @@ const { creerPoste } = require('./poste');
 const canaux = require('./canaux');
 const { creerConnexion } = require('./connexion');
 const { resoudreReglages } = require('./reglages-emballes');
+const { optionsFenetre, gestionnaireNavigation, gestionnaireOuverture, gestionnairePermissions } = require('./fenetre');
 const http = require('node:http');
 
 const APP_ID = 'io.argos.desktop';
@@ -42,11 +43,6 @@ const ASSETS = path.join(__dirname, '..', 'assets');
 const ARG_DEMARRAGE = '--demarrage-session';
 // Le démarrage avec la session n'est proposé que là où Electron sait le configurer.
 const DEMARRAGE_DISPONIBLE = process.platform === 'win32' || process.platform === 'darwin';
-// Taille de la fenêtre principale, en pixels : à l'ouverture, puis minimale pour garder l'IHM lisible.
-const FENETRE_LARGEUR = 1200;
-const FENETRE_HAUTEUR = 820;
-const FENETRE_LARGEUR_MIN = 820;
-const FENETRE_HAUTEUR_MIN = 560;
 
 let mainWindow = null;
 let tray = null;
@@ -67,15 +63,6 @@ function showMainWindow() {
   canaux.afficherFenetre(mainWindow);
 }
 
-function isExternalWebUrl(url) {
-  try {
-    const { protocol: schema } = new URL(url);
-    return schema === 'https:' || schema === 'http:';
-  } catch {
-    return false;
-  }
-}
-
 function registerUiProtocol() {
   const csp = contentSecurityPolicy(API_URL, OIDC_URL);
   protocol.handle(SCHEME, async (request) => {
@@ -91,43 +78,26 @@ function registerUiProtocol() {
   });
 }
 
+/** Ouvre une URL web dans le navigateur du système. */
+function ouvrirExterne(url) {
+  return shell.openExternal(url);
+}
+
 function createWindow() {
-  mainWindow = new BrowserWindow({
-    width: FENETRE_LARGEUR,
-    height: FENETRE_HAUTEUR,
-    minWidth: FENETRE_LARGEUR_MIN,
-    minHeight: FENETRE_HAUTEUR_MIN,
-    title: 'ARGOS',
-    icon: path.join(ASSETS, 'icon.png'),
-    show: false,
-    autoHideMenuBar: true,
-    webPreferences: {
-      preload: path.join(__dirname, 'preload.js'),
-      contextIsolation: true,
-      nodeIntegration: false,
-      sandbox: true,
-      // La lecture périodique des alertes tourne dans la page, même fenêtre masquée : sans cela,
-      // Chromium espace les minuteries d'une page cachée et le délai de 30 s n'est plus tenu.
-      backgroundThrottling: false,
-    },
-  });
+  mainWindow = new BrowserWindow(optionsFenetre({
+    preload: path.join(__dirname, 'preload.js'),
+    icone: path.join(ASSETS, 'icon.png'),
+  }));
 
   mainWindow.once('ready-to-show', () => {
     if (!lanceAvecLaSession()) mainWindow.show();
   });
 
   // Les liens externes s'ouvrent dans le navigateur du système, jamais dans l'application.
-  mainWindow.webContents.setWindowOpenHandler(({ url }) => {
-    if (isExternalWebUrl(url)) shell.openExternal(url);
-    return { action: 'deny' };
-  });
-  mainWindow.webContents.on('will-navigate', (event, url) => {
-    const allowed = DEV ? url.startsWith(DEV_URL) : url.startsWith(ORIGIN + '/');
-    if (!allowed) {
-      event.preventDefault();
-      if (isExternalWebUrl(url)) shell.openExternal(url);
-    }
-  });
+  mainWindow.webContents.setWindowOpenHandler(gestionnaireOuverture(ouvrirExterne));
+  mainWindow.webContents.on('will-navigate', gestionnaireNavigation({
+    dev: DEV, devUrl: DEV_URL, origine: ORIGIN, ouvrirExterne,
+  }));
 
   mainWindow.on('close', (event) => {
     if (!quitting) {
@@ -248,9 +218,8 @@ app.whenReady().then(() => {
   reglages = preferences.lire(systemeFichiers, fichierReglages);
   if (!DEMARRAGE_DISPONIBLE) reglages = { ...reglages, demarrageSession: false };
   appliquerDemarrage(); // désactivé par défaut (Q-2)
-  session.defaultSession.setPermissionRequestHandler((_wc, permission, callback) => {
-    callback(permission === 'notifications');
-  });
+  // Seules les notifications sont accordées à la page (fenetre.js).
+  session.defaultSession.setPermissionRequestHandler(gestionnairePermissions);
   if (!DEV) registerUiProtocol();
   createWindow();
   createTray();

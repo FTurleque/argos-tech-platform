@@ -72,7 +72,7 @@ class CloisonnementTest {
 
         // Rôle applicatif sans aucun contexte : zéro ligne d'espace.
         for (String table : List.of("espace", "appartenance", "invitation")) {
-            long lignes = base.executer(Contexte.aucun(), connexion -> compter(connexion, "SELECT count(*) FROM " + table));
+            long lignes = base.executer(new Contexte(null, null, null, null), connexion -> compter(connexion, "SELECT count(*) FROM " + table));
             assertEquals(0, lignes, "lignes visibles sans contexte dans " + table);
         }
     }

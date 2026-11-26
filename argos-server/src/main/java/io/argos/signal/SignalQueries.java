@@ -126,12 +126,6 @@ public class SignalQueries {
     }
 
     @Transactional
-    public Optional<SignalView> findByExternalId(String source, String externalId) {
-        return findIds("SELECT id FROM signal WHERE source = ? AND external_id = ?", source, externalId).stream()
-                .findFirst().flatMap(this::find);
-    }
-
-    @Transactional
     public List<SignalVersionView> versions(UUID signalId) {
         return jdbc.lister("""
                 SELECT id, version_no, content_hash, source_modified_at, collected_at FROM signal_version

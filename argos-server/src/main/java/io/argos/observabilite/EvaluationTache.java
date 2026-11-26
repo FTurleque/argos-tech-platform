@@ -37,7 +37,7 @@ public record EvaluationTache(Etat etat, Optional<Duration> retardTolere) {
         }
 
         /** Vrai pour un état publié comme dégradé. */
-        public boolean degrade() {
+        boolean degrade() {
             return this == EN_ECHEC || this == EN_RETARD;
         }
     }

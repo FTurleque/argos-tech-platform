@@ -127,7 +127,7 @@ class CouvertureRlsTest {
             if (compterEnProprietaire(sql) > 0) {
                 peuplees++;
             }
-            long lignes = base.executer(Contexte.aucun(), connexion -> compter(connexion, sql));
+            long lignes = base.executer(new Contexte(null, null, null, null), connexion -> compter(connexion, sql));
             if (lignes != 0) {
                 visiblesSansContexte.put(table.nom(), lignes);
             }
