@@ -23,7 +23,7 @@
     <quarkus-mcp-server.version>2.0.4</quarkus-mcp-server.version>
     <rome.version>2.1.0</rome.version>
     <jsoup.version>1.24.1</jsoup.version>
-    <maven-artifact.version>3.9.16</maven-artifact.version>
+    <maven-artifact.version>3.10.2</maven-artifact.version>
     <compiler-plugin.version>3.16.0</compiler-plugin.version>
     <surefire-plugin.version>3.5.3</surefire-plugin.version>
     <!-- Inventaire des dépendances tierces et de leurs licences (profil « licences », décision F3 du
