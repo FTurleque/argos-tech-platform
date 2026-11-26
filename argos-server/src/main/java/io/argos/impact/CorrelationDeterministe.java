@@ -39,12 +39,11 @@ import io.argos.signal.SignalQueries;
  * lot, quel que soit le nombre de signaux et de composants (design.md, DC-1). Appelée par {@link CorrelationEngine}
  * dans une transaction par lot.
  *
- * <p>Règles inchangées : un nouveau calcul met à jour l'impact existant du triplet au lieu d'en créer un second
- * (COR-07) et ne le réécrit pas s'il ne change pas ; il conserve son état de traitement (COR-09-S2). Un impact actif qui
- * n'est plus vérifié passe {@code RESOLU} avec l'auteur « système » et un {@link MotifSysteme} (COR-11) ; un impact
- * {@code ECARTE} n'est jamais modifié par le système ; un impact résolu par le système de nouveau vérifié repasse
- * {@code OUVERT}. Un impact dont le composant a quitté l'inventaire puis y revient à la même version retrouve ce
- * composant (INV-C4).
+ * <p>Un nouveau calcul met à jour l'impact existant du triplet (COR-07) et ne le réécrit pas s'il ne change pas ; il
+ * conserve son état de traitement (COR-09-S2). Un impact actif qui n'est plus vérifié passe {@code RESOLU} avec
+ * l'auteur « système » et un {@link MotifSysteme} (COR-11) ; un impact {@code ECARTE} n'est jamais modifié par le
+ * système ; un impact résolu par le système de nouveau vérifié repasse {@code OUVERT}. Un impact dont le composant a
+ * quitté l'inventaire puis y revient à la même version retrouve ce composant (INV-C4).
  */
 @ApplicationScoped
 class CorrelationDeterministe {
@@ -93,15 +92,14 @@ class CorrelationDeterministe {
     /**
      * Corrèle les signaux donnés avec tous les projets, ou avec un seul projet, dans la transaction de l'appelant.
      *
-     * @return un résultat par signal, dans l'ordre des identifiants donnés
-     * @throws IllegalArgumentException si un signal est inconnu
+     * <p>Un signal inconnu (supprimé depuis la constitution du lot) n'a pas de résultat ; l'appelant le constate.
+     *
+     * @return un résultat par signal connu, dans l'ordre des identifiants donnés
      */
     List<Resultat> correler(List<UUID> signalIds, Optional<UUID> projectId) throws SQLException {
         Map<UUID, SignalQueries.SignalView> signaux = signals.findAll(signalIds);
-        for (UUID signalId : signalIds) {
-            if (!signaux.containsKey(signalId)) {
-                throw new IllegalArgumentException("signal inconnu : " + signalId);
-            }
+        if (signaux.isEmpty()) {
+            return List.of();
         }
         Instant maintenant = horloge.instant();
         Map<UUID, Bilan> bilans = new LinkedHashMap<>();
@@ -214,18 +212,22 @@ class CorrelationDeterministe {
         } else if (impact.modifie()) {
             bilan.updated++;
         }
-        Existant avant = existants.get(triplet);
-        boolean change = avant == null || aChange(avant, correspondance);
-        EtatImpact etat = impact.etat();
-        if (rouverts.contains(impact.id())) {
+        boolean rouvert = rouverts.contains(impact.id());
+        if (rouvert) {
             bilan.reopened++;
-            etat = EtatImpact.OUVERT;
-            change = true;
         }
-        if (EtatImpact.ACTIFS.contains(etat) && change) {
+        if (aPublier(impact, rouvert, existants.get(triplet), correspondance)) {
             bilan.items.add(new ImpactsRecorded.Item(impact.id(), composant.projectId(), composant.workspaceId(),
                     correspondance.level(), composant.packageKey()));
         }
+    }
+
+    /** Vrai si l'impact est actif et nouveau, rouvert, de niveau changé ou porté par une autre version de l'avis. */
+    private static boolean aPublier(Enregistre impact, boolean rouvert, Existant avant, Correspondance correspondance) {
+        if (rouvert) {
+            return true;
+        }
+        return EtatImpact.ACTIFS.contains(impact.etat()) && (avant == null || aChange(avant, correspondance));
     }
 
     /** Vrai si l'impact existant est redevenu actif, a changé de niveau ou porte une autre version de l'avis. */

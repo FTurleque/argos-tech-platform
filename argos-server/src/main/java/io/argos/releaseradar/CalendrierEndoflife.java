@@ -92,6 +92,13 @@ public class CalendrierEndoflife implements CalendrierSorties {
         if (cle == null || version == null || version.isBlank()) {
             return Optional.empty();
         }
+        return cycleLePlusLong(version, produits, cycles).filter(ligne -> ligne.finSupport() != null)
+                .map(ligne -> new Echeance(cle, ligne.cycle(), Nature.FIN_DE_SUPPORT, ligne.finSupport(), SOURCE, null));
+    }
+
+    /** Cycle le plus long auquel appartient la version, parmi les cycles des produits donnés. */
+    private static Optional<LigneCycle> cycleLePlusLong(String version, Set<String> produits,
+            Map<String, List<LigneCycle>> cycles) {
         LigneCycle meilleur = null;
         for (String produit : produits) {
             for (LigneCycle ligne : cycles.getOrDefault(produit, List.of())) {
@@ -100,10 +107,7 @@ public class CalendrierEndoflife implements CalendrierSorties {
                 }
             }
         }
-        if (meilleur == null || meilleur.finSupport() == null) {
-            return Optional.empty();
-        }
-        return Optional.of(new Echeance(cle, meilleur.cycle(), Nature.FIN_DE_SUPPORT, meilleur.finSupport(), SOURCE, null));
+        return Optional.ofNullable(meilleur);
     }
 
     /** Vrai si la version appartient au cycle : égale, ou prolongée par « . » ou « - ». */

@@ -85,9 +85,9 @@ class RequetesConstantesTest {
         baseDeTest.reset();
     }
 
-    private static int compter(IntSupplier traitement) {
+    private static int compterInstructions(IntSupplier traitementMesure) {
         try (CompteurInstructions compteur = CompteurInstructions.demarrer()) {
-            traitement.getAsInt();
+            traitementMesure.getAsInt();
             return compteur.nombre();
         }
     }
@@ -136,8 +136,8 @@ class RequetesConstantesTest {
         publierAvis(GRAND);
         assertEquals(PETIT + GRAND, baseDeTest.count("SELECT count(*) FROM project_impact"));
 
-        int instructionsPetit = compter(() -> correlation.correlateProject(petit).size());
-        int instructionsGrand = compter(() -> correlation.correlateProject(grand).size());
+        int instructionsPetit = compterInstructions(() -> correlation.correlateProject(petit).size());
+        int instructionsGrand = compterInstructions(() -> correlation.correlateProject(grand).size());
 
         assertTrue(instructionsPetit > 0, "le compteur voit les instructions du fil courant");
         assertEquals(instructionsPetit, instructionsGrand, "COR-13-S1 : même nombre d'instructions pour 2 et 20 signaux");
@@ -160,8 +160,8 @@ class RequetesConstantesTest {
 
     private ImpactsRecorded impactsDe(UUID signal, UUID projet) {
         List<ImpactsRecorded.Item> items = new ArrayList<>();
-        UUID impact = baseDeTest.uuid("SELECT id FROM project_impact WHERE project_id = '" + projet + "'");
-        UUID espace = baseDeTest.uuid("SELECT workspace_id FROM project_impact WHERE id = '" + impact + "'");
+        UUID impact = UUID.fromString(baseDeTest.string("SELECT id::text FROM project_impact WHERE project_id = ?", projet));
+        UUID espace = UUID.fromString(baseDeTest.string("SELECT workspace_id::text FROM project_impact WHERE id = ?", impact));
         items.add(new ImpactsRecorded.Item(impact, projet, espace, MatchRules.Level.EXACT, LIB));
         return new ImpactsRecorded(signal, "Faille de volume", "CRITICAL", "OSV", "GHSA-VOL-ALERTES", items);
     }
@@ -187,8 +187,8 @@ class RequetesConstantesTest {
                 "SELECT count(*) FROM alerte WHERE nature = 'IMMEDIATE' AND signal_id = ?", signal),
                 "une alerte immédiate par membre");
 
-        int requetesPetit = compter(() -> moteur.evaluer(impactsDe(signal, projetPetit), Instant.now()).alertes().size());
-        int requetesGrand = compter(() -> moteur.evaluer(impactsDe(signal, projetGrand), Instant.now()).alertes().size());
+        int requetesPetit = compterInstructions(() -> moteur.evaluer(impactsDe(signal, projetPetit), Instant.now()).alertes().size());
+        int requetesGrand = compterInstructions(() -> moteur.evaluer(impactsDe(signal, projetGrand), Instant.now()).alertes().size());
 
         assertTrue(requetesPetit > 0, "le compteur voit les requêtes du fil courant");
         assertEquals(requetesPetit, requetesGrand, "ALR-10-S1 : même nombre de requêtes pour 2 et 12 membres");
@@ -217,21 +217,21 @@ class RequetesConstantesTest {
         RadarFixtures.standard(baseDeTest, espacePetit, POSTGRES, "PostgreSQL", "ADOPT", "17", "Version courante", "postgresql");
         radar.actualiser(finDeSupport.minusDays(1), Instant.now());
 
-        int requetesPetit = compter(() -> radar.enregistrerDettes(finDeSupport, Instant.now()));
+        int requetesPetit = compterInstructions(() -> radar.enregistrerDettes(finDeSupport, Instant.now()));
         assertEquals(3, baseDeTest.count("SELECT count(*) FROM dette_version"), "RAD-10-S1 : les 3 composants du petit espace");
 
         baseDeTest.exec("DELETE FROM standard_technologie WHERE espace_id = ?", espacePetit);
         UUID espaceGrand = Api.nouvelEspace("carla", "Grand radar");
         projet(espaceGrand, "grand", versionsPostgres(30));
         RadarFixtures.standard(baseDeTest, espaceGrand, POSTGRES, "PostgreSQL", "ADOPT", "17", "Version courante", "postgresql");
-        int requetesGrand = compter(() -> radar.enregistrerDettes(finDeSupport, Instant.now()));
+        int requetesGrand = compterInstructions(() -> radar.enregistrerDettes(finDeSupport, Instant.now()));
 
         assertEquals(33, baseDeTest.count("SELECT count(*) FROM dette_version"));
         assertEquals(requetesPetit, requetesGrand, "RAD-10-S1 : même nombre de requêtes pour 3 et 30 composants");
 
         LocalDate aujourdhui = finDeSupport.minusDays(30);
-        int requetesUnJour = compter(() -> radar.echeancesTouchant(espaceGrand, List.of(aujourdhui.plusDays(30))).size());
-        int requetesTroisJours = compter(() -> radar.echeancesTouchant(espaceGrand,
+        int requetesUnJour = compterInstructions(() -> radar.echeancesTouchant(espaceGrand, List.of(aujourdhui.plusDays(30))).size());
+        int requetesTroisJours = compterInstructions(() -> radar.echeancesTouchant(espaceGrand,
                 List.of(aujourdhui.plusDays(30), aujourdhui.plusDays(7), aujourdhui.plusDays(1))).size());
         assertEquals(requetesUnJour, requetesTroisJours, "RAD-10-S2 : une seule lecture pour plusieurs jours de rappel");
         assertEquals(1, radar.echeancesTouchant(espaceGrand, List.of(finDeSupport)).get(finDeSupport).size());

@@ -128,9 +128,14 @@ public class CorrelationEngine {
         return List.copyOf(ids);
     }
 
-    /** Corrèle un signal avec tous les projets, ou avec un seul projet. */
+    /**
+     * Corrèle un signal avec tous les projets, ou avec un seul projet.
+     *
+     * @throws IllegalArgumentException si le signal est inconnu
+     */
     public CorrelationReport correlate(UUID signalId, Optional<UUID> projectId) {
-        return correlerLot(List.of(signalId), projectId, true).get(0);
+        return correlerLot(List.of(signalId), projectId, true).stream().findFirst()
+                .orElseThrow(() -> new IllegalArgumentException("signal inconnu : " + signalId));
     }
 
     /**
@@ -141,6 +146,11 @@ public class CorrelationEngine {
             boolean analyseSystematique) {
         List<CorrelationDeterministe.Resultat> resultats = QuarkusTransaction.requiringNew()
                 .call(() -> deterministe.correler(signalIds, projectId));
+        if (resultats.size() < signalIds.size()) {
+            // Signal supprimé entre la constitution du lot et sa corrélation : le reste du lot est corrélé.
+            LOG.warnf("%d signaux du lot introuvables, non corrélés (projet %s)", signalIds.size() - resultats.size(),
+                    projectId.map(UUID::toString).orElse("tous"));
+        }
         List<CorrelationReport> reports = new ArrayList<>();
         for (CorrelationDeterministe.Resultat resultat : resultats) {
             publish(resultat.recorded());

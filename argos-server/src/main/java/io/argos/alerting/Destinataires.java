@@ -1,6 +1,7 @@
 package io.argos.alerting;
 
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
@@ -65,7 +66,7 @@ public class Destinataires {
                 GROUP BY c.id, c.email ORDER BY c.id
                 """, requete -> requete.setArray(1, requete.getConnection().createArrayOf("uuid", espaces.toArray())),
                 resultat -> new Membre(new Destinataire(resultat.getObject(1, UUID.class), resultat.getString(2)),
-                        Set.of((UUID[]) resultat.getArray(3).getArray())));
+                        Set.copyOf(Arrays.asList((UUID[]) resultat.getArray(3).getArray()))));
     }
 
     /**

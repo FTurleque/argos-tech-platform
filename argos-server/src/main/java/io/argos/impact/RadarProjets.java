@@ -327,19 +327,19 @@ public class RadarProjets {
                 ON CONFLICT (project_id, component_id) DO NOTHING
                 """, requete -> {
                     requete.setObject(1, Conversions.utc(maintenant));
-                    requete.setArray(2, tableau(requete, "uuid", dettes, dette -> dette.composant().projectId()));
-                    requete.setArray(3, tableau(requete, "uuid", dettes, dette -> dette.composant().workspaceId()));
-                    requete.setArray(4, tableau(requete, "uuid", dettes, dette -> dette.composant().componentId()));
-                    requete.setArray(5, tableau(requete, "varchar", dettes, dette -> dette.composant().packageKey()));
-                    requete.setArray(6, tableau(requete, "varchar", dettes, dette -> dette.composant().version()));
-                    requete.setArray(7, tableau(requete, "varchar", dettes, dette -> dette.fin().version()));
-                    requete.setArray(8, tableau(requete, "varchar", dettes, dette -> dette.fin().date().toString()));
-                    requete.setArray(9, tableau(requete, "varchar", dettes, Dette::versionStandard));
-                    requete.setArray(10, tableau(requete, "varchar", dettes, dette -> dette.fin().source()));
+                    requete.setArray(2, tableauDesDettes(requete, "uuid", dettes, dette -> dette.composant().projectId()));
+                    requete.setArray(3, tableauDesDettes(requete, "uuid", dettes, dette -> dette.composant().workspaceId()));
+                    requete.setArray(4, tableauDesDettes(requete, "uuid", dettes, dette -> dette.composant().componentId()));
+                    requete.setArray(5, tableauDesDettes(requete, "varchar", dettes, dette -> dette.composant().packageKey()));
+                    requete.setArray(6, tableauDesDettes(requete, "varchar", dettes, dette -> dette.composant().version()));
+                    requete.setArray(7, tableauDesDettes(requete, "varchar", dettes, dette -> dette.fin().version()));
+                    requete.setArray(8, tableauDesDettes(requete, "varchar", dettes, dette -> dette.fin().date().toString()));
+                    requete.setArray(9, tableauDesDettes(requete, "varchar", dettes, Dette::versionStandard));
+                    requete.setArray(10, tableauDesDettes(requete, "varchar", dettes, dette -> dette.fin().source()));
                 });
     }
 
-    private static Array tableau(PreparedStatement requete, String type, List<Dette> dettes,
+    private static Array tableauDesDettes(PreparedStatement requete, String type, List<Dette> dettes,
             Function<Dette, Object> valeur) throws SQLException {
         return requete.getConnection().createArrayOf(type, dettes.stream().map(valeur).toArray());
     }

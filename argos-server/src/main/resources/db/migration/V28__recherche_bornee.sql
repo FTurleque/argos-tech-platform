@@ -1,15 +1,16 @@
 -- Recherche bornée (changement OpenSpec accelerer-requetes-chaudes, tâche 6.1 ; constat AUD-PER-07 de l'audit du
 -- 2026-11-21). Exigence : RCH-07 (seule la page demandée est classée, total plafonné). Conception : design.md, D9.
 --
--- argos_selectionner_veille applique les mêmes critères et les mêmes règles de visibilité que la fonction de V11,
--- mais renvoie au plus p_plafond candidats, les plus récents (date de publication, sinon de modification ou de
--- réception), sans calculer de pertinence : chaque branche s'arrête à p_plafond lignes et aucune sélection complète
--- n'est matérialisée. RechercheVeille calcule la pertinence (ts_rank) sur ces seuls candidats, compte le total
--- plafonné et classe la page. L'application relit ensuite chaque élément restitué sous argos_app : la RLS reste le
--- garde-fou de la restitution.
+-- argos_selectionner_veille applique les critères et les règles de visibilité de la recherche et renvoie au plus
+-- p_plafond candidats par type d'élément, les plus récents (date de publication, sinon de modification ou de
+-- réception), sans calculer de pertinence. La branche des avis, de loin la plus volumineuse, s'arrête à p_plafond
+-- lignes dans l'ordre de l'index signal_date ; celle des actualités web lit les actualités visibles de l'appelant
+-- pour n'en garder qu'une par empreinte (WEB-05), puis les p_plafond plus récentes. RechercheVeille calcule la
+-- pertinence (ts_rank) sur ces seuls candidats, compte le total plafonné et classe la page. L'application relit
+-- ensuite chaque élément restitué sous argos_app : la RLS reste le garde-fou de la restitution.
 --
--- Paramètres : ceux de la fonction de V11 (voir V11__recherche_veille.sql), puis p_plafond, nombre maximal de
--- candidats renvoyés.
+-- Paramètres : ceux décrits dans V11__recherche_veille.sql, puis p_plafond, nombre maximal de candidats renvoyés par
+-- type d'élément (strictement positif).
 CREATE FUNCTION argos_selectionner_veille(p_requete tsquery, p_depuis timestamptz, p_types varchar[],
         p_projets uuid[], p_techno_requete tsquery, p_techno_termes varchar[], p_techno_ecosystemes varchar[],
         p_gravites varchar[], p_paquets varchar[], p_sources varchar[], p_plafond integer)
@@ -20,6 +21,9 @@ DECLARE
     v_compte  uuid := argos_compte_courant();
     v_espaces uuid[];
 BEGIN
+    IF p_plafond IS NULL OR p_plafond < 1 THEN
+        RAISE EXCEPTION 'plafond de candidats invalide : %', p_plafond USING ERRCODE = '22023';
+    END IF;
     IF v_compte IS NULL THEN
         RETURN;
     END IF;
@@ -111,6 +115,6 @@ REVOKE EXECUTE ON FUNCTION argos_selectionner_veille(tsquery, timestamptz, varch
 GRANT EXECUTE ON FUNCTION argos_selectionner_veille(tsquery, timestamptz, varchar[], uuid[], tsquery, varchar[],
     varchar[], varchar[], varchar[], varchar[], integer) TO argos_app;
 
--- La fonction de V11, qui classait et renvoyait toute la sélection, n'a plus d'appelant.
+-- argos_selectionner_veille est la seule sélection de la recherche.
 DROP FUNCTION argos_rechercher_veille(tsquery, timestamptz, varchar[], uuid[], tsquery, varchar[], varchar[],
     varchar[], varchar[], varchar[]);

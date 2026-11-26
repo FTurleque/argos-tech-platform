@@ -185,8 +185,13 @@ public class MoteurAlertes {
             return Lecture.vide();
         }
         Map<UUID, Set<UUID>> espacesParCompte = new LinkedHashMap<>();
-        membres.forEach(membre -> espacesParCompte.put(membre.destinataire().compteId(), membre.espaces()));
-        return new Lecture(membres, impacts.actifsDuSignal(signalId, espaces),
+        Set<UUID> espacesDesMembres = new LinkedHashSet<>();
+        membres.forEach(membre -> {
+            espacesParCompte.put(membre.destinataire().compteId(), membre.espaces());
+            espacesDesMembres.addAll(membre.espaces());
+        });
+        // Tous les espaces des destinataires : une alerte cite chaque projet de leurs espaces touché par le signal.
+        return new Lecture(membres, impacts.actifsDuSignal(signalId, espacesDesMembres),
                 abonnements.activesDesComptes(espacesParCompte), alertesExistantes(signalId, espacesParCompte.keySet()));
     }
 

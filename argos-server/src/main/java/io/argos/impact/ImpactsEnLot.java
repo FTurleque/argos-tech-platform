@@ -68,7 +68,7 @@ final class ImpactsEnLot {
     /**
      * Rattache à chaque composant revenu dans l'inventaire l'impact que son signal portait sur la même clé de paquet
      * et la même version avant son retrait (composant nul), s'il n'existe pas déjà d'impact pour ce composant (INV-C4) :
-     * l'upsert qui suit met alors à jour cet impact, avec son historique, au lieu d'en créer un second.
+     * l'upsert qui suit met alors à jour cet impact, avec son historique (COR-07).
      */
     static void rattacher(Connection connexion, List<Ligne> lignes) {
         if (lignes.isEmpty()) {
@@ -88,7 +88,7 @@ final class ImpactsEnLot {
                                         ORDER BY i.updated_at DESC, i.id LIMIT 1) orphelin
                     WHERE NOT EXISTS (SELECT 1 FROM project_impact j WHERE j.signal_id = d.signal_id
                                         AND j.project_id = d.project_id AND j.component_id = d.component_id)
-                    ORDER BY orphelin.id)
+                    ORDER BY orphelin.id, d.component_id)
                 UPDATE project_impact i SET component_id = c.component_id, updated_at = now()
                 FROM cibles c WHERE i.id = c.id
                 """, requete -> {

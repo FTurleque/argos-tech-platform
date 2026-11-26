@@ -13,12 +13,12 @@ CREATE INDEX project_impact_composant ON project_impact (component_id) WHERE com
 CREATE INDEX dette_version_composant ON dette_version (component_id);
 
 -- ---------------------------------------------------------------------------
--- Listes d'exploitation : filtre et ordre de lecture.
+-- Listes d'exploitation : filtre et ordre de lecture (du plus récent au plus ancien, puis identifiant).
 -- ---------------------------------------------------------------------------
-CREATE INDEX ingestion_failure_source ON ingestion_failure (source_id, received_at);
-CREATE INDEX ops_event_source ON ops_event (source_id, occurred_at);
+CREATE INDEX ingestion_failure_source ON ingestion_failure (source_id, received_at DESC, id DESC);
+CREATE INDEX ops_event_source ON ops_event (source_id, occurred_at DESC, id DESC);
 CREATE INDEX sync_attempt_run ON sync_attempt (run_id);
-CREATE INDEX inventory_import_failure_projet ON inventory_import_failure (project_id, received_at);
+CREATE INDEX inventory_import_failure_projet ON inventory_import_failure (project_id, received_at DESC, id DESC);
 CREATE INDEX inventory_import_failure_depot ON inventory_import_failure (repository_id, received_at)
     WHERE repository_id IS NOT NULL;
 

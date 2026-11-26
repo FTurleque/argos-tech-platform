@@ -74,6 +74,8 @@ class RechercheBorneeTest {
     void rch07S1SelectionPlusGrandeQueLePlafond() {
         // Avis le plus ancien, le plus pertinent : hors des 1 000 plus récents, il n'est pas classé.
         avis("ANCIEN-", 1, "plafond plafond plafond plafond plafond");
+        baseDeTest.exec("UPDATE signal SET published_at = now() - interval '1 year', modified_at = now() - interval '1 year'"
+                + " WHERE external_id = 'ANCIEN-1'");
         avis("BORNE-", AU_DELA_DU_PLAFOND, "Faille plafond");
 
         RechercheVeille.Resultats resultats = chercher("plafond");

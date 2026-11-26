@@ -36,6 +36,6 @@ La campagne respecte la cible Q-05 : p95 = 250 ms < 500 ms.
 ## Lecture
 
 - Le coût dominant d'une recherche par mots est le classement (`ts_rank`) de tous les éléments correspondants : il croît avec leur nombre. Un mot présent dans tous les éléments (120 000 classés) dépasse la cible d'un facteur 7 ; c'est la limite connue du risque R-16, à surveiller avant tout moteur dédié.
-- Les opérateurs plein texte de PostgreSQL ne sont pas « leakproof » : sous la RLS, l'index GIN d'une table protégée serait inutilisable. La sélection passe donc par la fonction `argos_rechercher_veille` (migration V11), qui applique explicitement les règles de visibilité, puis la page est relue sous la RLS.
+- Les opérateurs plein texte de PostgreSQL ne sont pas « leakproof » : sous la RLS, l'index GIN d'une table protégée serait inutilisable. La sélection passe donc par une fonction qui applique explicitement les règles de visibilité, puis la page est relue sous la RLS : `argos_rechercher_veille` (migration V11) lors de cette mesure, `argos_selectionner_veille` (migration V28, candidats plafonnés) aujourd'hui.
 - `toast_tuple_target = 256` sur `signal` et `actualite` range le vecteur et les textes hors de la ligne : les parcours sans mots lisent des lignes étroites.
 - Mesure sur un poste partagé : les valeurs sont indicatives d'un ordre de grandeur, pas d'une capacité de production.

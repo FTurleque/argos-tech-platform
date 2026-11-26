@@ -122,10 +122,10 @@ Migration `V27__index_requetes_chaudes.sql` (index seulement ; V26 est attribué
 |---|---|---|
 | `project_impact_composant (component_id) WHERE component_id IS NOT NULL` | project_impact | AUD-PER-09 (clé étrangère `ON DELETE SET NULL`) |
 | `dette_version_composant (component_id)` | dette_version | AUD-PER-09 (`ON DELETE CASCADE`) |
-| `ingestion_failure_source (source_id, received_at)` | ingestion_failure | AUD-PER-09 |
-| `ops_event_source (source_id, occurred_at)` | ops_event | AUD-PER-09 |
+| `ingestion_failure_source (source_id, received_at DESC, id DESC)` | ingestion_failure | AUD-PER-09 |
+| `ops_event_source (source_id, occurred_at DESC, id DESC)` | ops_event | AUD-PER-09 |
 | `sync_attempt_run (run_id)` | sync_attempt | AUD-PER-09 |
-| `inventory_import_failure_projet (project_id, received_at)` | inventory_import_failure | AUD-PER-09 |
+| `inventory_import_failure_projet (project_id, received_at DESC, id DESC)` | inventory_import_failure | AUD-PER-09 |
 | `inventory_import_failure_depot (repository_id, received_at)`, `actualite_recue (recu_le)`, `ingestion_failure_run (run_id)` | inventory_import_failure, actualite, ingestion_failure | AUD-PER-09 ; purges du changement `retenir-importer-et-paginer` (sprint 9) |
 | suppression `project_impact_signal`, `project_impact_project` | project_impact | AUD-PER-29 (couverts par `project_impact_signal_etat`, `project_impact_projet_etat`, `project_impact_triplet_uk`) |
 | `project_impact_actifs_recents (workspace_id, updated_at DESC, id) WHERE state IN ('OUVERT','CONFIRME')`, suppression `project_impact_recents` | project_impact | AUD-PER-26 |
@@ -201,6 +201,12 @@ Migration appliquée au démarrage (ADR-0032). Les suppressions d'index sont sû
 - **Alternatives écartées** : relecture sous la RLS par destinataire dans une transaction unique — N requêtes.
 - **ADR** : non : application d'ADR-0016.
 
+### D4 bis — Contenu d'une alerte
+
+- **Statut** : [PROPOSITION]
+- **Choix** : les impacts actifs du signal sont lus dans tous les espaces des destinataires, pas seulement dans ceux de l'événement : une alerte cite chaque projet de ses espaces touché par le signal, comme la relecture sous la RLS du destinataire.
+- **ADR** : non.
+
 ### D5 — Diffusion par la seule tâche d'envoi
 
 - **Statut** : [PROPOSITION]
@@ -232,7 +238,7 @@ Migration appliquée au démarrage (ADR-0032). Les suppressions d'index sont sû
 ### D9 — Recherche bornée
 
 - **Statut** : [DÉCISION] (porteur, 2026-11-26) pour le total plafonné ; [PROPOSITION] pour le reste.
-- **Choix** : `WITH c AS (SELECT … FROM argos_rechercher_veille(…) ORDER BY date_ref DESC NULLS LAST, id LIMIT 1001)` : seuls ces candidats sont comptés (total = min(n, 1000), `totalPlafonne` = n > 1000) et classés (`ORDER BY rang DESC, date_ref DESC, id LIMIT taille OFFSET …` sur 1 000 au plus). `ts_rank` n'est calculé que pour ces candidats : la fonction renvoie la date et l'identifiant, le rang est calculé ensuite.
+- **Choix** : `argos_selectionner_veille` (V28) renvoie au plus 1 001 candidats par type d'élément, les plus récents : la branche des avis s'arrête à ce plafond dans l'ordre de l'index `signal_date` ; celle des actualités web lit les actualités visibles de l'appelant (une par empreinte) avant de garder les plus récentes. `WITH candidats AS (… ORDER BY date_ref DESC NULLS LAST, id LIMIT 1001)` : seuls ces candidats sont comptés (total = min(n, 1000), `totalPlafonne` = n > 1000) et classés (`ORDER BY rang DESC, date_ref DESC, id LIMIT taille OFFSET …` sur 1 000 au plus). `ts_rank` n'est calculé que pour ces candidats : la fonction renvoie la date et l'identifiant, le rang est calculé ensuite.
 - **Justification** : coût borné par 1 000 candidats, plus par la sélection.
 - **Compromis** : un résultat très pertinent mais plus ancien que les 1 000 plus récents n'est pas classé ; les pages au-delà de 1 000 ne sont pas atteignables.
 - **ADR** : non.
@@ -247,6 +253,8 @@ Migration appliquée au démarrage (ADR-0032). Les suppressions d'index sont sû
 
 - Plan d'exécution différent sur le NAS (PostgreSQL identique, matériel plus lent) → mesure à refaire sur le NAS (hors périmètre, R-16 du registre).
 - SQL ensembliste plus difficile à relire → tests d'équivalence COR-13-S2 sur les cas de COR-11 existants.
+- Réactivation détectée en comparant l'horodatage applicatif d'une transition (`occurred_at`) à `updated_at` (horloge de la base) : une dérive entre les deux horloges peut republier un impact une fois de plus (comportement existant).
+- `CREATE INDEX` de V27 pose un verrou d'écriture sur chaque table pendant la migration : sur une base volumineuse, la mise à jour se fait hors période d'import.
 
 ## Écarts code / tests / specs / documentation
 
