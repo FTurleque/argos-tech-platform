@@ -1,6 +1,6 @@
 // Vue radar d'un espace (RAD-09) : consultation par un lecteur sans commande de décision, décision par
 // l'administrateur envoyée au serveur.
-import { describe, expect, it } from 'vitest'
+import { describe, expect, test } from 'vitest'
 import type { VueWrapper } from '@vue/test-utils'
 import { appelsVers, attendre, cliquer, erreurApi, monter, simulerApi, texte, type TableApi } from './support'
 
@@ -113,7 +113,7 @@ function verifierDecisionAppliquee(wrapper: VueWrapper): void {
 }
 
 describe('RadarView : consultation et décision', () => {
-  it('un lecteur voit échéances, dettes, référentiel et suggestions, sans commande de décision', async () => {
+  test('un lecteur voit échéances, dettes, référentiel et suggestions, sans commande de décision', async () => {
     const appels = simulerApi(lectures('LECTEUR'))
     const { wrapper } = await monter(ADRESSE_RADAR)
     expect(appelsVers(appels, 'GET', `${BASE}/echeances`)[0].chemin).toContain('horizon=30j')
@@ -121,7 +121,7 @@ describe('RadarView : consultation et décision', () => {
     expect(wrapper.find('[data-decision]').exists()).toBe(false)
   })
 
-  it('l’administrateur accepte une suggestion : décision envoyée, liste et référentiel relus', async () => {
+  test('l’administrateur accepte une suggestion : décision envoyée, liste et référentiel relus', async () => {
     const appels = simulerApi(decisionAcceptee())
     const { wrapper } = await monter(ADRESSE_RADAR)
     await cliquer(wrapper, '[data-decision="ACCEPTER"]')
@@ -131,7 +131,7 @@ describe('RadarView : consultation et décision', () => {
 })
 
 describe('RadarView : horizons et erreurs', () => {
-  it('change d’horizon et affiche l’erreur d’une section sans masquer les autres', async () => {
+  test('change d’horizon et affiche l’erreur d’une section sans masquer les autres', async () => {
     const appels = simulerApi({ ...lectures('LECTEUR'), [`GET ${BASE}/dettes`]: erreurApi(500, 'Dettes illisibles.') })
     const { wrapper } = await monter(ADRESSE_RADAR)
     expect(wrapper.text()).toContain('Dettes illisibles.')
@@ -141,7 +141,7 @@ describe('RadarView : horizons et erreurs', () => {
     expect(appelsVers(appels, 'GET', `${BASE}/echeances`).map((appel) => appel.chemin.split('=')[1])).toEqual(['30j', '6m'])
   })
 
-  it('affiche le refus d’un espace dont l’utilisateur n’est pas membre', async () => {
+  test('affiche le refus d’un espace dont l’utilisateur n’est pas membre', async () => {
     simulerApi(espaceRefuse())
     const { wrapper } = await monter(ADRESSE_RADAR)
     expect(texte(wrapper, '[data-erreur="espace"]')).toBe('Espace introuvable.')

@@ -1,11 +1,11 @@
 // Recherche et vues enregistrées (RCH-01 à RCH-04).
-import { describe, expect, it } from 'vitest'
+import { describe, expect, test } from 'vitest'
 import { appelsVers, attendre, erreurApi, monter, simulerApi } from './support'
 
 const VUE_ID = '33333333-3333-4333-8333-333333333333'
 
 describe('RechercheView', () => {
-  it('liste les vues enregistrées et lance une recherche', async () => {
+  test('liste les vues enregistrées et lance une recherche', async () => {
     const appels = simulerApi({
       'GET /api/v1/vues': { corps: [{ id: VUE_ID, nom: 'Java critique', criteres: null, creeLe: '2026-11-01T00:00:00Z' }] },
       'GET /api/v1/recherche': { corps: { elements: [], page: 0, taille: 20, total: 0, message: null } },
@@ -20,7 +20,7 @@ describe('RechercheView', () => {
     expect(recherches[0].chemin).toContain('log4j')
   })
 
-  it('affiche l’échec de la lecture des vues', async () => {
+  test('affiche l’échec de la lecture des vues', async () => {
     simulerApi({ 'GET /api/v1/vues': erreurApi(500, 'Vues illisibles.') })
     const { wrapper } = await monter('/recherche')
     expect(wrapper.findAll('[role="alert"]').some((alerte) => alerte.text().length > 0)).toBe(true)

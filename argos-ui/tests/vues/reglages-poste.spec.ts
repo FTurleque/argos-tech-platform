@@ -1,5 +1,5 @@
 // Réglages du poste (client desktop, NOT-04) : le pont desktop est posé avant le chargement des modules.
-import { describe, expect, it, vi } from 'vitest'
+import { describe, expect, test, vi } from 'vitest'
 import { attendre, monter, simulerApi } from './support'
 
 const pont = vi.hoisted(() => {
@@ -16,7 +16,7 @@ const pont = vi.hoisted(() => {
 })
 
 describe('ReglagesPosteView', () => {
-  it('affiche les réglages lus dans le client desktop', async () => {
+  test('affiche les réglages lus dans le client desktop', async () => {
     simulerApi({})
     const { wrapper } = await monter('/poste')
     const cases = wrapper.findAll('input[type="checkbox"]')
@@ -25,7 +25,7 @@ describe('ReglagesPosteView', () => {
     expect((cases[1].element as HTMLInputElement).checked).toBe(false)
   })
 
-  it('signale un réglage non enregistré', async () => {
+  test('signale un réglage non enregistré', async () => {
     simulerApi({})
     const enregistrement = vi.spyOn(pont, 'setSettings')
     const { wrapper } = await monter('/poste')

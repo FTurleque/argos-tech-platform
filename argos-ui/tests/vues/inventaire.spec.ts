@@ -1,6 +1,6 @@
 // Vue d'inventaire (INV-01, INV-06, INV-10) et alimentation de l'inventaire (INV-12, INV-13, PIN-06) : appels
 // envoyés par les formulaires et issue affichée.
-import { describe, expect, it } from 'vitest'
+import { describe, expect, test } from 'vitest'
 import {
   appelsVers,
   choisirFichiers,
@@ -128,7 +128,7 @@ function options(wrapper: Awaited<ReturnType<typeof monter>>['wrapper'], selecte
 }
 
 describe('InventaireView : liste et création de projet', () => {
-  it('liste les projets et propose les seuls espaces administrés, avec leur radar', async () => {
+  test('liste les projets et propose les seuls espaces administrés, avec leur radar', async () => {
     simulerApi(lectures())
     const { wrapper } = await monter('/inventaire')
     expect(options(wrapper, '#choix-projet')).toContain('Portail — Équipe plateforme')
@@ -136,7 +136,7 @@ describe('InventaireView : liste et création de projet', () => {
     expect(wrapper.find(`a[href="/espaces/${ESPACE_ID}/radar"]`).exists()).toBe(true)
   })
 
-  it('crée un projet avec son dépôt puis affiche le projet créé', async () => {
+  test('crée un projet avec son dépôt puis affiche le projet créé', async () => {
     const appels = simulerApi(creationAboutie())
     const { wrapper, router } = await monter('/inventaire')
     await wrapper.get('#creation-nom').setValue('  Nouveau  ')
@@ -149,7 +149,7 @@ describe('InventaireView : liste et création de projet', () => {
     expect(router.currentRoute.value.fullPath).toBe(`/inventaire/${NOUVEAU_PROJET_ID}`)
   })
 
-  it('affiche le refus de la création renvoyé par le serveur', async () => {
+  test('affiche le refus de la création renvoyé par le serveur', async () => {
     simulerApi({ ...lectures(), 'POST /api/v1/projects': erreurApi(400, 'Le nom du projet est obligatoire.', 'DONNEE_INVALIDE') })
     const { wrapper } = await monter('/inventaire')
     await wrapper.get('#creation-nom').setValue('Projet')
@@ -157,7 +157,7 @@ describe('InventaireView : liste et création de projet', () => {
     expect(texte(wrapper, '[data-erreur="creation-projet"]')).toBe('Le nom du projet est obligatoire.')
   })
 
-  it('affiche l’échec de la lecture des projets', async () => {
+  test('affiche l’échec de la lecture des projets', async () => {
     simulerApi({ 'GET /api/v1/projects': erreurApi(500, 'Panne.'), 'GET /api/v1/espaces': { corps: [] } })
     const { wrapper } = await monter('/inventaire')
     expect(wrapper.text()).toContain('Recharger la liste')
@@ -165,7 +165,7 @@ describe('InventaireView : liste et création de projet', () => {
 })
 
 describe('InventaireView : imports manuels', () => {
-  it('importe une SBOM choisie et affiche l’issue', async () => {
+  test('importe une SBOM choisie et affiche l’issue', async () => {
     const appels = simulerApi({ ...lectures(), [`POST ${BASE_PROJET}/inventory/sbom`]: { corps: IMPORT_REUSSI } })
     const { wrapper } = await monter(`/inventaire/${PROJET_ID}`)
     const document = { bomFormat: 'CycloneDX', specVersion: '1.5', components: [] }
@@ -177,7 +177,7 @@ describe('InventaireView : imports manuels', () => {
     )
   })
 
-  it('refuse localement un fichier SBOM qui n’est pas du JSON, sans appel', async () => {
+  test('refuse localement un fichier SBOM qui n’est pas du JSON, sans appel', async () => {
     const appels = simulerApi(lectures())
     const { wrapper } = await monter(`/inventaire/${PROJET_ID}`)
     await choisirFichiers(wrapper, '#fichier-sbom', [new File(['<bom/>'], 'sbom.xml')])
@@ -186,7 +186,7 @@ describe('InventaireView : imports manuels', () => {
     expect(texte(wrapper, '[data-erreur="alimentation"]')).toContain('sbom.xml')
   })
 
-  it('importe des manifestes et affiche le refus du serveur', async () => {
+  test('importe des manifestes et affiche le refus du serveur', async () => {
     const refus = erreurApi(403, 'Rôle contributeur requis.', 'ROLE_INSUFFISANT')
     const appels = simulerApi({ ...lectures(), [`POST ${BASE_PROJET}/inventory/manifests`]: refus })
     const { wrapper } = await monter(`/inventaire/${PROJET_ID}`)
@@ -199,7 +199,7 @@ describe('InventaireView : imports manuels', () => {
 })
 
 describe('InventaireView : dépôts du projet', () => {
-  it('rattache un dépôt saisi', async () => {
+  test('rattache un dépôt saisi', async () => {
     const appels = simulerApi(actionsDepots())
     const { wrapper } = await monter(`/inventaire/${PROJET_ID}`)
     await wrapper.get('#rattachement-depot').setValue('acme/second')
@@ -210,7 +210,7 @@ describe('InventaireView : dépôts du projet', () => {
     expect(texte(wrapper, '[data-issue="alimentation"]')).toBe('Dépôt acme/second rattaché.')
   })
 
-  it('détache un dépôt du projet', async () => {
+  test('détache un dépôt du projet', async () => {
     const appels = simulerApi(actionsDepots())
     const { wrapper } = await monter(`/inventaire/${PROJET_ID}`)
     await cliquer(wrapper, 'button[aria-label="Détacher le dépôt acme/portail"]')
@@ -218,7 +218,7 @@ describe('InventaireView : dépôts du projet', () => {
     expect(texte(wrapper, '[data-issue="alimentation"]')).toBe('Dépôt acme/portail détaché.')
   })
 
-  it('relance l’import et affiche l’issue de chaque dépôt', async () => {
+  test('relance l’import et affiche l’issue de chaque dépôt', async () => {
     const appels = simulerApi(actionsDepots())
     const { wrapper } = await monter(`/inventaire/${PROJET_ID}`)
     await cliquer(wrapper, '[data-action="relancer"]')
@@ -228,7 +228,7 @@ describe('InventaireView : dépôts du projet', () => {
 })
 
 describe('InventaireView : activité du projet', () => {
-  it('affiche l’activité et collecte maintenant', async () => {
+  test('affiche l’activité et collecte maintenant', async () => {
     const appels = simulerApi({ ...lectures(), [`POST ${BASE_PROJET}/activite/collecte`]: { corps: { issue: 'REPORTEE_QUOTA' } } })
     const { wrapper } = await monter(`/inventaire/${PROJET_ID}`)
     expect(texte(wrapper, '[data-fraicheur]')).toContain('Collecte à jour')
@@ -238,7 +238,7 @@ describe('InventaireView : activité du projet', () => {
     expect(appelsVers(appels, 'GET', `${BASE_PROJET}/activite`)).toHaveLength(2)
   })
 
-  it('affiche le refus de la collecte', async () => {
+  test('affiche le refus de la collecte', async () => {
     simulerApi({ ...lectures(), [`POST ${BASE_PROJET}/activite/collecte`]: erreurApi(403, 'Rôle contributeur requis.') })
     const { wrapper } = await monter(`/inventaire/${PROJET_ID}`)
     await cliquer(wrapper, '[data-action="collecter"]')

@@ -1,5 +1,5 @@
 // Vue d'un signal (ALR-09-S1) : provenance et historique, ou erreur.
-import { describe, expect, it } from 'vitest'
+import { describe, expect, test } from 'vitest'
 import { erreurApi, monter, simulerApi } from './support'
 
 const SIGNAL_ID = '12121212-1212-4121-8121-121212121212'
@@ -24,7 +24,7 @@ const DETAIL = {
 }
 
 describe('SignalView', () => {
-  it('affiche le signal, sa provenance et ses paquets affectés, titre rendu comme texte', async () => {
+  test('affiche le signal, sa provenance et ses paquets affectés, titre rendu comme texte', async () => {
     simulerApi({
       [`GET /api/v1/signals/${SIGNAL_ID}`]: { corps: DETAIL },
       [`GET /api/v1/signals/${SIGNAL_ID}/impacts`]: { corps: { items: [], page: 0, size: 50, total: 0 } },
@@ -38,13 +38,13 @@ describe('SignalView', () => {
     expect(wrapper.text()).toContain('Alias : CVE-2026-0001')
   })
 
-  it('affiche l’erreur d’un signal introuvable', async () => {
+  test('affiche l’erreur d’un signal introuvable', async () => {
     simulerApi({ [`GET /api/v1/signals/${SIGNAL_ID}`]: erreurApi(404, 'Signal introuvable.') })
     const { wrapper } = await monter(`/signaux/${SIGNAL_ID}`)
     expect(wrapper.get('[role="alert"]').text()).toContain('Signal introuvable.')
   })
 
-  it('refuse un identifiant qui n’est pas un UUID, sans appel', async () => {
+  test('refuse un identifiant qui n’est pas un UUID, sans appel', async () => {
     const appels = simulerApi({})
     const { wrapper } = await monter('/signaux/pas-un-uuid')
     expect(appels).toHaveLength(0)

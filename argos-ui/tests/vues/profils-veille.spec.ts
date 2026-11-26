@@ -1,5 +1,5 @@
 // Choix des profils de veille actifs (PRF-01).
-import { describe, expect, it } from 'vitest'
+import { describe, expect, test } from 'vitest'
 import { appelsVers, attendre, erreurApi, monter, simulerApi } from './support'
 
 const PREFERENCES = {
@@ -17,7 +17,7 @@ const CATALOGUE = [
 ]
 
 describe('ProfilsVeilleView', () => {
-  it('active un profil en envoyant l’ensemble complet demandé', async () => {
+  test('active un profil en envoyant l’ensemble complet demandé', async () => {
     const appels = simulerApi({
       'GET /api/v1/catalogue/profils': { corps: CATALOGUE },
       'GET /api/v1/preferences': { corps: PREFERENCES },
@@ -32,7 +32,7 @@ describe('ProfilsVeilleView', () => {
     expect(wrapper.findAll('button.profil')[1].attributes('aria-pressed')).toBe('true')
   })
 
-  it('affiche l’échec de la lecture du catalogue', async () => {
+  test('affiche l’échec de la lecture du catalogue', async () => {
     simulerApi({
       'GET /api/v1/catalogue/profils': erreurApi(400, 'Catalogue illisible.'),
       'GET /api/v1/preferences': { corps: PREFERENCES },

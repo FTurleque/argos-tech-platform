@@ -1,5 +1,5 @@
 // Choix de la mise en page (AFF-01, AFF-03, AFF-04).
-import { describe, expect, it } from 'vitest'
+import { describe, expect, test } from 'vitest'
 import { appelsVers, attendre, erreurApi, monter, simulerApi } from './support'
 
 const PREFERENCES = {
@@ -17,7 +17,7 @@ const CATALOGUE = [
 ]
 
 describe('AffichageView', () => {
-  it('liste les mises en page et enregistre le choix', async () => {
+  test('liste les mises en page et enregistre le choix', async () => {
     const appels = simulerApi({
       'GET /api/v1/preferences': { corps: PREFERENCES },
       'GET /api/v1/catalogue/mises-en-page': { corps: CATALOGUE },
@@ -32,7 +32,7 @@ describe('AffichageView', () => {
     expect(wrapper.findAll('[role="radio"]')[1].attributes('aria-checked')).toBe('true')
   })
 
-  it('affiche le refus du serveur', async () => {
+  test('affiche le refus du serveur', async () => {
     simulerApi({
       'GET /api/v1/preferences': erreurApi(500, 'Préférences illisibles.'),
       'GET /api/v1/catalogue/mises-en-page': { corps: CATALOGUE },

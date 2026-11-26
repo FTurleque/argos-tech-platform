@@ -1,5 +1,5 @@
 // « Ma veille » (PRF-02) et abonnements (ABO-07, ABO-08).
-import { describe, expect, it } from 'vitest'
+import { describe, expect, test } from 'vitest'
 import { appelsVers, attendre, erreurApi, monter, simulerApi, type Repondeur, type TableApi } from './support'
 
 const ABONNEMENT_ID = '44444444-4444-4444-8444-444444444444'
@@ -26,7 +26,7 @@ function lectures(veille: Repondeur): TableApi {
 }
 
 describe('VeilleView', () => {
-  it('affiche une veille vide et suspend un abonnement', async () => {
+  test('affiche une veille vide et suspend un abonnement', async () => {
     const appels = simulerApi({
       ...lectures({ corps: { profilsActifs: ['securite'], elements: [] } }),
       [`POST /api/v1/subscriptions/${ABONNEMENT_ID}/suspension`]: { corps: { ...ABONNEMENT, state: 'SUSPENDED' } },
@@ -40,7 +40,7 @@ describe('VeilleView', () => {
     expect(appelsVers(appels, 'POST', `/api/v1/subscriptions/${ABONNEMENT_ID}/suspension`)).toHaveLength(1)
   })
 
-  it('affiche l’échec de la lecture de la veille', async () => {
+  test('affiche l’échec de la lecture de la veille', async () => {
     simulerApi(lectures(erreurApi(400, 'Veille indisponible.')))
     const { wrapper } = await monter('/veille')
     expect(wrapper.get('[role="alert"]').text()).toContain('Veille indisponible.')

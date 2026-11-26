@@ -345,3 +345,71 @@ sequenceDiagram
 
 Aucun flux n'entre depuis une forge ou une CI : seule la tâche planifiée, ou un import manuel, déclenche un import. L'import manuel prend le même verrou consultatif par projet, si bien que deux imports d'un même projet s'exécutent l'un après l'autre. Un dépôt en échec garde son dernier import réussi ; une recorrélation en échec laisse le marqueur posé, et le passage suivant la relance. La tâche est désactivée dans le profil de test et dans la pile E2E.
 
+## 6.8 Scénario nominal — import manuel d'une SBOM par l'API
+
+**Type : UML sequence diagram. Portée : import manuel d'une SBOM CycloneDX JSON depuis la vue d'inventaire de l'IHM (INV-13, changement `alimenter-inventaire-et-completer-ihm`, DC-1 de sa conception ; décision du porteur du projet, 2026-11-26).**
+
+```mermaid
+sequenceDiagram
+    actor Contributeur as Contributeur de l'espace
+    participant UI as Vue.js 3 SPA (vue d'inventaire)
+    participant API as API & Security (InventoryResource, Access)
+    participant Core as inventory (InventoryService)
+    participant Persist as PostgreSQL
+    participant Impact as impact-engine
+
+    Contributeur->>UI: choisit un fichier SBOM
+    UI->>API: POST /api/v1/projects/{id}/inventory/sbom (JSON, jeton)
+    API->>API: contributeur ou administrateur de l'espace du projet ?
+    alt projet inconnu ou appelant non membre
+        API-->>UI: 404 (refus journalisé NON_MEMBRE pour un non-membre)
+    else lecteur
+        API-->>UI: 403 (refus journalisé ROLE_INSUFFISANT)
+    else autorisé
+        API->>Core: importSbom(projet, document, "import manuel")
+        Core->>Core: contrôle CycloneDX 1.5 ou 1.6, taille (20 Mio)
+        alt document refusé
+            Core->>Persist: échec enregistré, inventaire en place conservé
+            Core-->>API: REJECTED et motif
+        else document conforme
+            Core->>Persist: verrou du projet, inventaire du dépôt principal remplacé
+            Core-)Impact: InventoryReplaced (après validation)
+            Core-->>API: IMPORTED, origine SBOM, nombre de composants
+        end
+        API-->>UI: 200 et issue de l'import
+    end
+```
+
+L'API contrôle le rôle, le module `inventory` écrit : le traitement est celui de l'import planifié (§6.7), avec le même verrou par projet et la même recorrélation après validation (INV-08, INV-09). Un refus de rôle n'écrit rien. L'import de manifestes (`…/inventory/manifests`), la relance depuis les dépôts (`…/inventory/refresh`, 409 `PROJET_SANS_DEPOT` sans dépôt) et la collecte immédiate de l'activité (`…/activite/collecte`) suivent la même séquence de contrôle ; la création d'un projet et le rattachement ou le détachement d'un dépôt exigent le rôle d'administrateur de l'espace (INV-12). Un corps HTTP au-delà de 24 Mio (`quarkus.http.limits.max-body-size`) est refusé par le serveur HTTP (413) avant l'API.
+
+## 6.9 Scénario nominal — suggestions de l'IA sur le référentiel des standards
+
+**Type : UML sequence diagram. Portée : production des suggestions `HOLD` par la tâche quotidienne du radar (RAD-08, changement `alimenter-inventaire-et-completer-ihm`, DC-2 de sa conception ; ADR-0029).**
+
+```mermaid
+sequenceDiagram
+    participant Alert as alerting (RappelsRadar)
+    participant Impact as impact-engine (RadarProjets, SuggestionsRadar)
+    participant Release as release-radar (CalendrierSorties)
+    participant AI as ai-gateway
+    participant Cat as catalog (ReferentielEspace)
+
+    Alert->>Alert: tâche planifiée argos-radar-quotidien (06:00)
+    Alert->>Impact: actualiser (cycles de vie, dettes de version)
+    Alert->>Impact: produire les suggestions du jour
+    loop technologie recommandée, reliée au calendrier, hors HOLD
+        Impact->>Release: fin de support de la version recommandée
+        opt fin de support atteinte et aucune suggestion en attente
+            Impact->>AI: prompt suggestion-standard (données publiques)
+            alt sortie validée, avis 1
+                Impact->>Cat: suggerer(espace, clé, HOLD, version, justification)
+            else passerelle indisponible, sortie refusée ou avis 2
+                Impact->>Impact: journaliser, technologie suivante
+            end
+        end
+    end
+    Alert->>Alert: rappels d'échéance
+```
+
+La suggestion est enregistrée `EN_ATTENTE` et n'a d'effet qu'acceptée par un administrateur de l'espace, depuis l'API ou la vue radar de l'IHM (RAD-02, RAD-09) ; le référentiel n'est jamais modifié par la tâche. Une erreur d'accès aux données d'un espace est journalisée et n'arrête que cet espace ; une erreur imprévue est retenue dans le bilan de la tâche et relancée en fin de passage (§8.5).
+

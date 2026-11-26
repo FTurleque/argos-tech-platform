@@ -1,6 +1,6 @@
 // Vue du profil artiste (ART-07) : enregistrement des suivis, message « suivis requis », opportunité de l'adresse
 // mise en avant avec son résumé, sources vérifiées pour l'administrateur plateforme.
-import { afterEach, describe, expect, it } from 'vitest'
+import { afterEach, describe, expect, test } from 'vitest'
 import { etatSession } from '../../src/session/session'
 import type { VueWrapper } from '@vue/test-utils'
 import { appelsVers, erreurApi, monter, simulerApi, soumettre, texte, type AppelApi, type TableApi } from './support'
@@ -111,7 +111,7 @@ afterEach(() => {
 })
 
 describe('ProfilArtisteView : suivis', () => {
-  it('sans suivi, affiche le message « suivis requis » sans liste', async () => {
+  test('sans suivi, affiche le message « suivis requis » sans liste', async () => {
     simulerApi(lectures(SANS_SUIVI, SUIVIS_REQUIS))
     const { wrapper } = await monter('/profils/artiste')
     expect(texte(wrapper, '[data-suivis-requis]')).toBe(MESSAGE_SUIVIS)
@@ -119,7 +119,7 @@ describe('ProfilArtisteView : suivis', () => {
     expect(texte(wrapper, '[data-liste="rubriques"]')).toContain('Résidences')
   })
 
-  it('enregistre les suivis choisis puis affiche les opportunités rapprochées', async () => {
+  test('enregistre les suivis choisis puis affiche les opportunités rapprochées', async () => {
     const appels = simulerApi(enregistrementDesSuivis())
     const { wrapper } = await monter('/profils/artiste')
     await wrapper.get('input[name="discipline"][value="musique"]').setValue(true)
@@ -131,7 +131,7 @@ describe('ProfilArtisteView : suivis', () => {
     expect(texte(wrapper, '[data-liste="opportunites"]')).toContain('Concours de composition')
   })
 
-  it('affiche le refus des suivis renvoyé par le serveur', async () => {
+  test('affiche le refus des suivis renvoyé par le serveur', async () => {
     simulerApi({
       [`GET ${BASE}/listes`]: { corps: LISTES },
       [`GET ${BASE}/suivis`]: erreurApi(409, 'Activez le profil artiste pour choisir vos suivis.', 'PROFIL_INACTIF'),
@@ -145,14 +145,14 @@ describe('ProfilArtisteView : suivis', () => {
 })
 
 describe('ProfilArtisteView : opportunité de l’adresse', () => {
-  it('met en avant l’opportunité avec son résumé, liens dangereux non rendus', async () => {
+  test('met en avant l’opportunité avec son résumé, liens dangereux non rendus', async () => {
     const { wrapper, appels } = await monterOpportunite({ ...RESUME, mentionIa: 'produit par l’IA' })
     expect(appelsVers(appels, 'GET', `${BASE}/opportunites/${OPPORTUNITE_ID}/resume`)).toHaveLength(1)
     verifierMiseEnAvant(wrapper)
     expect(wrapper.find('a[href^="javascript:"]').exists()).toBe(false)
   })
 
-  it('sans mention de l’IA, le résumé n’est pas marqué « produit par l’IA »', async () => {
+  test('sans mention de l’IA, le résumé n’est pas marqué « produit par l’IA »', async () => {
     const { wrapper } = await monterOpportunite(RESUME)
     expect(wrapper.find('[data-resume]').exists()).toBe(true)
     expect(wrapper.find('[data-mention="ia"]').exists()).toBe(false)
@@ -160,7 +160,7 @@ describe('ProfilArtisteView : opportunité de l’adresse', () => {
 })
 
 describe('ProfilArtisteView : sources', () => {
-  it('affiche les seules sources vérifiées à l’administrateur plateforme', async () => {
+  test('affiche les seules sources vérifiées à l’administrateur plateforme', async () => {
     etatSession.compte = ADMIN_PLATEFORME
     simulerApi(registreDesSources())
     const { wrapper } = await monter('/profils/artiste')

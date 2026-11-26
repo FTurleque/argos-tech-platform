@@ -4,7 +4,7 @@
 const test = require('node:test');
 const assert = require('node:assert/strict');
 const path = require('node:path');
-const os = require('node:os');
+const systemeExploitation = require('node:os');
 const systemeFichiers = require('node:fs');
 const { contentSecurityPolicy, SCHEME, ORIGIN } = require('../src/ui-protocol');
 const { API_URL_PAR_DEFAUT, OIDC_URL_PAR_DEFAUT } = require('../src/reglages-emballes');
@@ -33,7 +33,7 @@ function naviguer(fenetre, url) {
 
 /** Dossier de ressources d'une application empaquetée contenant `ui/index.html`. */
 function creerRessources(contexte) {
-  const dossier = systemeFichiers.mkdtempSync(path.join(os.tmpdir(), 'argos-desktop-ressources-'));
+  const dossier = systemeFichiers.mkdtempSync(path.join(systemeExploitation.tmpdir(), 'argos-desktop-ressources-'));
   systemeFichiers.mkdirSync(path.join(dossier, 'ui'));
   systemeFichiers.writeFileSync(path.join(dossier, 'ui', 'index.html'), CONTENU_INDEX, 'utf8');
   contexte.after(() => systemeFichiers.rmSync(dossier, { recursive: true, force: true }));

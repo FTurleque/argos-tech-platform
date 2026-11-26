@@ -41,8 +41,8 @@ async function charger(): Promise<void> {
   erreur.value = ''
   chargement.value = true
   try {
-    const lu = await fetchSignal(id.value, signal)
-    if (!signal.aborted) detail.value = lu
+    const detailLu = await fetchSignal(id.value, signal)
+    if (!signal.aborted) detail.value = detailLu
   } catch (echec) {
     if (!signal.aborted) erreur.value = messageEchec(echec)
   } finally {

@@ -1,7 +1,7 @@
 // Outillage des tests de composants (Vitest, happy-dom) : API simulée derrière `fetch` et montage d'une vue par son
 // adresse, avec le routeur de l'IHM en mémoire (`createMemoryHistory`). Aucun réseau, aucun navigateur réel.
 import { flushPromises, mount, type VueWrapper } from '@vue/test-utils'
-import { vi } from 'vitest'
+import { vi as simulation } from 'vitest'
 import { defineComponent, h as creerNoeud } from 'vue'
 import { createMemoryHistory, createRouter, RouterView, type Router } from 'vue-router'
 import { apiBaseUrl } from '../../src/api/client'
@@ -59,7 +59,7 @@ function repondre(table: TableApi, appel: AppelApi): ReponseSimulee {
 /** Remplace `fetch` par l'API simulée ; renvoie la liste des appels reçus, dans l'ordre. */
 export function simulerApi(table: TableApi): AppelApi[] {
   const appels: AppelApi[] = []
-  vi.stubGlobal('fetch', async (adresse: string, init: RequestInit = {}) => {
+  simulation.stubGlobal('fetch', async (adresse: string, init: RequestInit = {}) => {
     if (init.signal?.aborted) throw new DOMException('Appel annulé', 'AbortError')
     const appel: AppelApi = {
       methode: init.method ?? 'GET',
