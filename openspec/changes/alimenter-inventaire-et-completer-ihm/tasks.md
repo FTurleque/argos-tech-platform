@@ -55,9 +55,9 @@ contrat, Vitest. Aucun changement sur la synchronisation des sources (sprint 8 e
 
 ## 8. Vérifications d'intégration
 
-- [ ] 8.1 Valider le changement — vérification : `openspec validate alimenter-inventaire-et-completer-ihm --strict` réussit
-- [ ] 8.2 CI locale : `mvn -B -f argos-server/pom.xml -P integration-continue clean verify`, `npm test`, `npm run typecheck`, `npm run build` (argos-ui), `npm run check` (argos-desktop), scripts de `outils` — vérification : tout vert
-- [ ] 8.3 `archgate check` et relecture par le superviseur de code ; remontées corrigées
+- [x] 8.1 Valider le changement — vérification : `openspec validate alimenter-inventaire-et-completer-ihm --strict` réussit
+- [x] 8.2 CI locale : `mvn -B -f argos-server/pom.xml -P integration-continue clean verify`, `npm test`, `npm run typecheck`, `npm run build` (argos-ui), `npm run check` (argos-desktop), scripts de `outils` — vérification : tout vert
+- [x] 8.3 `archgate check` et relecture par le superviseur de code ; remontées corrigées
 
 ## Matrice de traçabilité
 
