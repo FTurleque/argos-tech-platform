@@ -30,7 +30,7 @@
 
 ## 5. Import d'inventaire (AUD-PER-19, AUD-PER-20)
 
-- [ ] 5.1 Migration `V26__empreinte_import_et_conservation.sql` (colonne `empreinte`) — vérification : démarrage Flyway des tests
+- [ ] 5.1 Migration `V26__empreinte_dernier_import_depot.sql` (colonne `empreinte`) — vérification : démarrage Flyway des tests
 - [ ] 5.2 `EmpreinteDocument` ; empreinte enregistrée par tout import d'un dépôt ; comparaison sous verrou pour une lecture depuis la forge ; `KEPT` sans écriture ni `InventoryReplaced` — couvre INV-14-S1, S2, S3, INV-09-S3 — vérification : `ImportInchangeTest` passe
 - [ ] 5.3 Écriture par lot (`unnest`), dédoublonnage, PURL réécrit seulement s'il change — couvre INV-14-S4 — vérification : `ImportInchangeTest` (nombre d'instructions constant) et tests d'inventaire existants passent
 - [ ] 5.4 Fiche `docs/specifications/inventaire-sbom.md` (INV-14, INV-09) — vérification : `node scripts/verifier-docs.mjs` sans erreur

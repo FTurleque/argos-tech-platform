@@ -38,7 +38,7 @@ class PaginationTest {
 
     @Test
     void pageReprendLaDemandeAppliquee() {
-        Page<String> page = Page.de(List.of("a", "b"), new Pagination(-1, 500), 42);
+        Page<String> page = Page.depuis(List.of("a", "b"), new Pagination(-1, 500), 42);
         assertEquals(0, page.page());
         assertEquals(Pagination.TAILLE_MAX, page.size());
         assertEquals(42, page.total());
@@ -48,7 +48,7 @@ class PaginationTest {
     @Test
     void pageImmuableEtConvertible() {
         List<Integer> source = new ArrayList<>(List.of(1, 2));
-        Page<Integer> page = Page.de(source, Pagination.PREMIERE, 2);
+        Page<Integer> page = Page.depuis(source, Pagination.PREMIERE, 2);
         source.add(3);
         assertEquals(2, page.items().size());
         assertThrows(UnsupportedOperationException.class, () -> page.items().add(4));

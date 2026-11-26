@@ -79,6 +79,7 @@ API : `/api/v1/moi`, `/api/v1/espaces`, `/api/v1/espaces/{espaceId}/membres`, `/
 | Seules les ressources statiques de l'IHM sont servies sans session ; API et routes techniques hors identité et santé refusées ; CSP nommant l'émetteur, `frame-ancestors 'none'`, `nosniff`, `Referrer-Policy` | ACC-12 | AUD-SEC-05, AUD-TST-25 ; ADR-0033 (Accepté) | [PROPOSITION] — `rendre-portail-deployable` |
 | Royaume livré : force brute (5 échecs, 60 s, 15 min), mot de passe de 12 caractères sans identifiant ni e-mail et avec historique de 3, TLS exigé hors réseau privé, adresses sans joker | ACC-13 | AUD-SEC-29, AUD-DEP-25 ; ADR-0027 (Accepté) ; décision du porteur, 2026-11-24 | [PROPOSITION] — `rendre-portail-deployable` |
 | L'écoute de bouclage du desktop ne se ferme que sur le retour dont le state est celui de l'URL d'autorisation validée (comparaison en temps constant) ; tout autre retour reçoit 400, sans rien reprendre de la requête, et laisse l'écoute ouverte | ACC-14 | AUD-SEC-23 ; ACC-10 ; ADR-0033 point 4 (Accepté) | [PROPOSITION] — `durcir-autorisations-et-debits` |
+| Au plus `argos.audit.refus.par-minute` refus (30 par défaut) sont écrits au journal par minute glissante et par auteur (compte, ou sujet OIDC sans compte) ; au-delà, le refus est appliqué sans être écrit et il est compté (`argos_refus_non_journalises_total`) | ACC-15 | AUD-SEC-03 | [PROPOSITION — `retenir-importer-et-paginer`] |
 
 ## Droits d'accès et restrictions
 
@@ -231,5 +232,6 @@ Scénarios ACC-07-S1 à ACC-10-S4 : tests `node:test` d'`argos-ui/tests/` et d'`
 | ACC-12 | ACC-12-S1 à ACC-12-S4 | `rendre-portail-deployable` D3, D4 | 4.1, 4.2 | `CheminsPublicsTest`, `EnTetesSecuriteTest` ; recette R-7 |
 | ACC-13 | ACC-13-S1 à ACC-13-S4 | `rendre-portail-deployable` D5 | 3.1 à 3.3 | `RoyaumeLivreTest` ; `scripts/verifier-royaume.test.mjs` |
 | ACC-14 | ACC-14-S1, ACC-14-S2 | `durcir-autorisations-et-debits` D4 ; DF-ACC-3 | 4.1, 4.2 | `argos-desktop/test/connexion.test.js` |
+| ACC-15 | S1, S2 | `retenir-importer-et-paginer` design.md D7 | 3.1 | `audit/JournalRefusBorneTest` |
 
 Tests dans [`argos-server/src/test/java/io/argos/api/comptes/`](/argos-server/src/test/java/io/argos/api/comptes/) ; parcours de bout en bout : `ParcoursComptesEtAccesTest`. Les numéros de tâche des lignes ACC-07 à ACC-10 renvoient au [`tasks.md` de `connecter-ihm-oidc`](/openspec/changes/archive/2026-11-18-connecter-ihm-oidc/tasks.md#matrice-de-traçabilité).

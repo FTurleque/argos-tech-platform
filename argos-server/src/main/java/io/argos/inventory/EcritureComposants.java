@@ -61,7 +61,7 @@ final class EcritureComposants {
         if (composants.isEmpty()) {
             return;
         }
-        Tableaux tableaux = Tableaux.de(connexion, composants);
+        Tableaux tableaux = Tableaux.depuis(connexion, composants);
         try (PreparedStatement requete = connexion.prepareStatement(INSERTION_COMPOSANTS)) {
             requete.setObject(1, projectId);
             requete.setObject(2, importId);
@@ -95,9 +95,9 @@ final class EcritureComposants {
     /** Un composant par paquet et version (version absente et vide confondues), dans l'ordre de première lecture. */
     static List<ParsedInventory.Item> dedoublonner(List<ParsedInventory.Item> lus) {
         Map<String, ParsedInventory.Item> uniques = new LinkedHashMap<>();
-        for (ParsedInventory.Item lu : lus) {
-            String cle = lu.packageKey() + SEPARATEUR_CLE + (lu.version() == null ? "" : lu.version());
-            uniques.merge(cle, lu, (premier, doublon) -> new ParsedInventory.Item(premier.packageKey(), premier.purl(),
+        for (ParsedInventory.Item composantLu : lus) {
+            String cle = composantLu.packageKey() + SEPARATEUR_CLE + (composantLu.version() == null ? "" : composantLu.version());
+            uniques.merge(cle, composantLu, (premier, doublon) -> new ParsedInventory.Item(premier.packageKey(), premier.purl(),
                     premier.version(), fusionnerTransitif(premier.transitive(), doublon.transitive())));
         }
         return new ArrayList<>(uniques.values());
@@ -117,7 +117,7 @@ final class EcritureComposants {
     /** Colonnes des composants à écrire, en tableaux SQL de même longueur. */
     private record Tableaux(Array identifiants, Array cles, Array purls, Array versions, Array transitifs) {
 
-        static Tableaux de(Connection connexion, List<ParsedInventory.Item> composants) throws SQLException {
+        static Tableaux depuis(Connection connexion, List<ParsedInventory.Item> composants) throws SQLException {
             int nombre = composants.size();
             UUID[] identifiants = new UUID[nombre];
             String[] cles = new String[nombre];

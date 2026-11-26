@@ -145,7 +145,7 @@ Le contrat exécutable reste `/q/openapi`. Format commun (ADR-0040, Proposé) :
 | `GET /api/v1/ops/sources/{id}/events` (exploitant) | tableau | page | `occurred_at` décroissant, `id` |
 | `GET /api/v1/projects/{projectId}/inventory/failures` (membre) | tableau | page | `received_at` décroissant, `id` |
 | `GET /api/v1/projects/{projectId}/impacts` (membre) | tableau | page, filtre `etat` conservé | `created_at`, `id` (ordre de `GET /signals/{id}/impacts`) |
-| `GET /api/v1/projects/{projectId}/inventory` (membre) | `inventory.components` tableau | `inventory.components` page | nom, version, `id` (ordre de `/components`) |
+| `GET /api/v1/projects/{projectId}/inventory` (membre) | `inventory.components` tableau | `inventory.components` page | clé de paquet, version, `id` |
 | `GET /api/v1/profils/artiste/opportunites` (utilisateur du profil) | `{suivisRequis, message, items}` | mêmes champs + `page`, `size`, `total` | date limite la plus proche, titre, `id` |
 
 `ProjectPage`, `ComponentPage` et la page d'impacts d'un signal gardent leur forme JSON, déjà conforme. Le type Java commun `Page<T>` est adopté par les nouvelles listes ; ces trois types existants restent en place, sans changement d'OpenAPI.
@@ -164,7 +164,7 @@ erDiagram
     }
 ```
 
-Migration `V26__empreinte_import_et_conservation.sql` : `ALTER TABLE repository_inventory ADD COLUMN empreinte varchar(64)`, contrôle de forme (`^[0-9a-f]{64}$`). Une ligne existante a une empreinte nulle : son premier passage réécrit l'inventaire et enregistre l'empreinte. Aucune autre table n'est modifiée. Aucun index n'est créé (périmètre du sprint 10).
+Migration `V26__empreinte_dernier_import_depot.sql` : `ALTER TABLE repository_inventory ADD COLUMN empreinte varchar(64)`, contrôle de forme (`^[0-9a-f]{64}$`). Une ligne existante a une empreinte nulle : son premier passage réécrit l'inventaire et enregistre l'empreinte. Aucune autre table n'est modifiée. Aucun index n'est créé (périmètre du sprint 10).
 
 ## Transactions, concurrence et idempotence
 

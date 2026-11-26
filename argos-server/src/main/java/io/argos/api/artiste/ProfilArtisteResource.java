@@ -116,7 +116,7 @@ public class ProfilArtisteResource {
     public record OpportunitesVue(boolean suivisRequis, String message, List<OpportuniteVue> items, int page, int size,
             long total) {
 
-        static OpportunitesVue de(Page<OpportuniteVue> page) {
+        static OpportunitesVue depuis(Page<OpportuniteVue> page) {
             return new OpportunitesVue(false, null, page.items(), page.page(), page.size(), page.total());
         }
     }
@@ -251,7 +251,7 @@ public class ProfilArtisteResource {
                         opportunite.disciplines(), opportunite.territoires(), opportunite.decision().explication(),
                         opportunite.resume()))
                 .toList();
-        return OpportunitesVue.de(Page.extraire(restituees, pagination));
+        return OpportunitesVue.depuis(Page.extraire(restituees, pagination));
     }
 
     @GET

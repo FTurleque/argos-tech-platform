@@ -17,7 +17,7 @@ public record Page<T>(List<T> items, int page, int size, long total) {
     }
 
     /** Page des éléments lus pour la demande {@code pagination}, sur {@code total} éléments au total. */
-    public static <T> Page<T> de(List<T> items, Pagination pagination, long total) {
+    public static <T> Page<T> depuis(List<T> items, Pagination pagination, long total) {
         return new Page<>(items, pagination.page(), pagination.taille(), total);
     }
 
@@ -28,7 +28,7 @@ public record Page<T>(List<T> items, int page, int size, long total) {
     public static <T> Page<T> extraire(List<T> tous, Pagination pagination) {
         int debut = (int) Math.min(pagination.decalage(), tous.size());
         int fin = Math.min(debut + pagination.taille(), tous.size());
-        return de(tous.subList(debut, fin), pagination, tous.size());
+        return depuis(tous.subList(debut, fin), pagination, tous.size());
     }
 
     /** Même page, dont chaque élément est transformé par {@code conversion}. */
