@@ -45,7 +45,7 @@ class CheminsEchecInventaireTest {
         assertEquals("effacement du marqueur de recorrélation impossible",
                 assertThrows(IllegalStateException.class, () -> store.recorrelationTerminee(PROJET, UUID.randomUUID())).getMessage());
         assertEquals("enregistrement de l'échec d'import impossible",
-                assertThrows(IllegalStateException.class, () -> store.recordFailure(PROJET, "motif", "ref")).getMessage());
+                assertThrows(IllegalStateException.class, () -> store.recordFailure(PROJET, null, "motif", "ref")).getMessage());
     }
 
     @Test

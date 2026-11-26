@@ -62,7 +62,7 @@ class ForgesSimuleesTest {
     void fichierGithubLuAvecLeJetonEtCheminNettoye() {
         StubServer.programmer(DEPOT_GH + "/contents/docs/sbom.json", Stub.succes("{\"bomFormat\": \"CycloneDX\"}"));
 
-        Optional<byte[]> contenu = fichiers.file(DEPOT_GITHUB, "../docs/./sbom.json");
+        Optional<byte[]> contenu = fichiers.lecture(DEPOT_GITHUB).file("../docs/./sbom.json");
 
         assertArrayEquals("{\"bomFormat\": \"CycloneDX\"}".getBytes(StandardCharsets.UTF_8), contenu.orElseThrow());
         StubServer.Received requete = StubServer.received(DEPOT_GH + "/contents").get(0);
@@ -84,29 +84,30 @@ class ForgesSimuleesTest {
 
     @Test
     void depotGithubIntrouvableOuRefuseApresUn404() {
-        assertThrows(DepotIntrouvable.class, () -> fichiers.file(DEPOT_GITHUB, "package.json"));
+        assertThrows(DepotIntrouvable.class, () -> fichiers.lecture(DEPOT_GITHUB).file("package.json"));
 
         StubServer.programmer(DEPOT_GH, Stub.status(403));
-        assertEquals(403, assertThrows(AccesRefuse.class, () -> fichiers.file(DEPOT_GITHUB, "package.json")).status());
+        assertTrue(assertThrows(AccesRefuse.class, () -> fichiers.lecture(DEPOT_GITHUB).file("package.json")).getMessage()
+                .contains("(HTTP 403)"));
     }
 
     @Test
     void projetGitlabIntrouvableDistingueDUnFichierAbsent() {
         StubServer.programmer(PROJET_GL + "/repository/files/package.json/raw",
                 new Stub(404, "{\"message\": \"404 File Not Found\"}", Map.of(), false, null));
-        assertEquals(Optional.empty(), fichiers.file(DEPOT_GITLAB, "package.json"));
+        assertEquals(Optional.empty(), fichiers.lecture(DEPOT_GITLAB).file("package.json"));
         assertEquals(List.of(JETON_GITLAB), StubServer.received(PROJET_GL).get(0).headers().get("Private-token"));
 
         StubServer.programmer(PROJET_GL + "/repository/files/package.json/raw", new Stub(404,
                 "{\"message\": \"" + RepositoryFiles.PROJET_GITLAB_INTROUVABLE + "\"}", Map.of(), false, null));
-        assertThrows(DepotIntrouvable.class, () -> fichiers.file(DEPOT_GITLAB, "package.json"));
+        assertThrows(DepotIntrouvable.class, () -> fichiers.lecture(DEPOT_GITLAB).file("package.json"));
     }
 
     @Test
     void sbomGitlabLueDansLArtefactDuJob() {
         StubServer.programmer(PROJET_GL + "/jobs/artifacts/main/raw/bom.json", Stub.succes("SPDXVersion: SPDX-2.3"));
 
-        SbomDocument document = fichiers.latestSbom(DEPOT_GITLAB).orElseThrow();
+        SbomDocument document = fichiers.lecture(DEPOT_GITLAB).latestSbom().orElseThrow();
 
         assertEquals(SbomDocument.Format.SPDX_TAG_VALUE, document.format());
         assertTrue(StubServer.received(PROJET_GL).get(0).pathAndQuery().endsWith("?job=sbom"));
@@ -114,32 +115,34 @@ class ForgesSimuleesTest {
 
     @Test
     void sbomSansCheminOuSansJobGitlabAbsenteSansAppel() {
-        assertEquals(Optional.empty(), fichiers.latestSbom(new RepositoryRef("GITHUB", "org/depot", "main", null, " ")));
-        assertEquals(Optional.empty(), fichiers.latestSbom(new RepositoryRef("GITLAB", "42", "main", null, "bom.json")));
+        assertEquals(Optional.empty(), fichiers.lecture(new RepositoryRef("GITHUB", "org/depot", "main", null, " ")).latestSbom());
+        assertEquals(Optional.empty(), fichiers.lecture(new RepositoryRef("GITLAB", "42", "main", null, "bom.json")).latestSbom());
         assertEquals(List.of(), StubServer.received("/forge-"));
     }
 
     @Test
     void forgeNonPriseEnChargeEtDepotGithubInvalideRefuses() {
         RepositoryRef bitbucket = new RepositoryRef("BITBUCKET", "org/depot", "main", "job", "bom.json");
-        assertThrows(ScmException.class, () -> fichiers.file(bitbucket, "package.json"));
-        assertThrows(ScmException.class, () -> fichiers.latestSbom(bitbucket));
-        assertThrows(ScmException.class, () -> fichiers.file(new RepositoryRef("GITHUB", "../..", "main", null, null), "x"));
+        assertThrows(ScmException.class, () -> fichiers.lecture(bitbucket).file("package.json"));
+        assertThrows(ScmException.class, () -> fichiers.lecture(bitbucket).latestSbom());
+        assertThrows(ScmException.class, () -> fichiers.lecture(new RepositoryRef("GITHUB", "../..", "main", null, null)).file("x"));
     }
 
     @Test
     void jetonRefuseErreurDeForgeEtRedirectionDistingues() {
         String fichier = DEPOT_GH + "/contents/package.json";
         StubServer.programmer(fichier, Stub.status(401));
-        assertEquals(401, assertThrows(AccesRefuse.class, () -> fichiers.file(DEPOT_GITHUB, "package.json")).status());
+        assertTrue(assertThrows(AccesRefuse.class, () -> fichiers.lecture(DEPOT_GITHUB).file("package.json")).getMessage()
+                .contains("(HTTP 401)"));
 
         StubServer.programmer(fichier, Stub.status(500));
-        ScmException erreur = assertThrows(ScmException.class, () -> fichiers.file(DEPOT_GITHUB, "package.json"));
+        ScmException erreur = assertThrows(ScmException.class, () -> fichiers.lecture(DEPOT_GITHUB).file("package.json"));
         assertTrue(erreur.getMessage().startsWith("HTTP 500"), erreur.getMessage());
         assertFalse(erreur.getMessage().contains(JETON_GITHUB), "aucun jeton dans le message");
 
         StubServer.programmer(fichier, new Stub(302, "", Map.of("Location", "https://ailleurs.invalid/"), false, null));
-        assertTrue(assertThrows(ScmException.class, () -> fichiers.file(DEPOT_GITHUB, "package.json")).getMessage().startsWith("HTTP 302"));
+        assertTrue(assertThrows(ScmException.class, () -> fichiers.lecture(DEPOT_GITHUB).file("package.json")).getMessage()
+                .startsWith("HTTP 302"));
     }
 
     @Test
@@ -147,7 +150,7 @@ class ForgesSimuleesTest {
         StubServer.programmer(DEPOT_GH + "/contents/package.json", new Stub(403, "", Map.of("x-ratelimit-remaining", "0",
                 "x-ratelimit-reset", String.valueOf(Instant.now().plusSeconds(600).getEpochSecond())), false, null));
 
-        QuotaEpuise quota = assertThrows(QuotaEpuise.class, () -> fichiers.file(DEPOT_GITHUB, "package.json"));
+        QuotaEpuise quota = assertThrows(QuotaEpuise.class, () -> fichiers.lecture(DEPOT_GITHUB).file("package.json"));
 
         assertTrue(quota.reprise().isAfter(Instant.now()), String.valueOf(quota.reprise()));
     }
@@ -157,7 +160,7 @@ class ForgesSimuleesTest {
         RepositoryFiles bornes = new RepositoryFiles(parametres(), TAILLE_REDUITE, Clock.systemUTC());
         StubServer.programmer(DEPOT_GH + "/contents/package.json", Stub.succes("{\"dependencies\": {}}"));
 
-        assertTrue(assertThrows(ScmException.class, () -> bornes.file(DEPOT_GITHUB, "package.json")).getMessage()
+        assertTrue(assertThrows(ScmException.class, () -> bornes.lecture(DEPOT_GITHUB).file("package.json")).getMessage()
                 .contains("taille maximale"));
     }
 
@@ -166,7 +169,7 @@ class ForgesSimuleesTest {
         RepositoryFiles injoignable = new RepositoryFiles(new ParametresForges(DELAI, "http://localhost:1/gl", "http://localhost:1/gh",
                 Optional.of(JETON_GITLAB), Optional.of(JETON_GITHUB)), TAILLE_MAX, Clock.systemUTC());
 
-        ScmException erreur = assertThrows(ScmException.class, () -> injoignable.file(DEPOT_GITHUB, "package.json"));
+        ScmException erreur = assertThrows(ScmException.class, () -> injoignable.lecture(DEPOT_GITHUB).file("package.json"));
 
         assertTrue(erreur.getMessage().startsWith("erreur réseau"), erreur.getMessage());
     }
