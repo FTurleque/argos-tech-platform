@@ -30,7 +30,7 @@
          porteur du projet, 2026-11-19). CycloneDX Maven Plugin, licence Apache-2.0. -->
     <cyclonedx-plugin.version>2.9.3</cyclonedx-plugin.version>
     <!-- Lancement du script de vérification des licences dans le même profil. Licence Apache-2.0. -->
-    <exec-plugin.version>3.6.4</exec-plugin.version>
+    <exec-plugin.version>3.7.0</exec-plugin.version>
     <skipITs>true</skipITs>
     <!-- Garde du JDK de build (maven-enforcer, licence Apache-2.0) : Java 17 ou plus par défaut ; le profil
          « integration-continue » resserre la plage sur le JDK de l'image d'exécution (eclipse-temurin:17-jre). -->
