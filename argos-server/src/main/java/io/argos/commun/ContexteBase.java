@@ -38,10 +38,6 @@ public class ContexteBase {
             return new Contexte(compteId, null, null, null);
         }
 
-        public static Contexte aucun() {
-            return new Contexte(null, null, null, null);
-        }
-
         public Contexte dansEspace(UUID espace) {
             return new Contexte(compteId, sujet, email, espace);
         }

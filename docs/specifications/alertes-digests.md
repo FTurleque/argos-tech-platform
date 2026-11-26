@@ -5,7 +5,7 @@
 | Préfixe d'exigences | `ALR` |
 | Spec de référence | [`/openspec/specs/alertes-digests/spec.md`](/openspec/specs/alertes-digests/spec.md) |
 | Changements archivés | [`2026-11-16-diffuser-alertes-et-digests`](/openspec/changes/archive/2026-11-16-diffuser-alertes-et-digests/proposal.md) |
-| Changements archivés, suite | [`durcir-autorisations-et-debits`](/openspec/changes/archive/2026-11-25-durcir-autorisations-et-debits/proposal.md) (ALR-08) |
+| Changements archivés, suite | [`durcir-autorisations-et-debits`](/openspec/changes/archive/2026-11-25-durcir-autorisations-et-debits/proposal.md) (ALR-08) ; [`2026-11-26-alimenter-inventaire-et-completer-ihm`](/openspec/changes/archive/2026-11-26-alimenter-inventaire-et-completer-ihm/proposal.md) (ALR-09) |
 | Changement en cours | [`automatiser-chaine-veille`](/openspec/changes/archive/2026-11-20-automatiser-chaine-veille/specs/alertes-digests/spec.md) — proposé ; ALR-07 implémenté et intégré le 2026-11-19 (volets A, B et C réunis) |
 | Statut de la capacité | livrée ; implémentation et tests dans `argos-server` |
 | Composants (arc42 §5) | `alerting`, `workspace`, `impact-engine` |
@@ -49,7 +49,7 @@ Configuration par variables d'environnement (aucun secret versionné) :
 | `ARGOS_SMTP_USER`, `ARGOS_SMTP_PASSWORD` | authentification au relais | aucune |
 | `ARGOS_SMTP_STARTTLS` | `DISABLED`, `OPTIONAL` ou `REQUIRED` | `OPTIONAL` |
 | `ARGOS_MAIL_FROM` | expéditeur | `argos@localhost` |
-| `ARGOS_PUBLIC_URL` | adresse de l'IHM pour les liens | `http://localhost:5173` |
+| `ARGOS_PUBLIC_URL` | adresse publique de l'IHM, base des liens des alertes, résumés et rappels (`argos.alerting.lien-base`, ALR-09) | `http://localhost:5173` (serveur seul) ; `http://localhost:${ARGOS_PORT}` dans `compose.yaml` |
 | `ARGOS_RESUME_QUOTIDIEN_CRON`, `ARGOS_RESUME_HEBDOMADAIRE_CRON`, `ARGOS_ALERTES_FUSEAU` | horaires des résumés | `0 0 8 * * ?`, `0 0 8 ? * MON`, `Europe/Paris` |
 
 ## Entrées, sorties et validations
@@ -73,6 +73,7 @@ Configuration par variables d'environnement (aucun secret versionné) :
 | Résumé IA demandé avec un délai borné ; alerte envoyée sans lui s'il est indisponible, refusé ou au-delà du plafond, avec mention dans le message | ALR-05 | baseline v2.3 §6 ; QS-10 | [EXISTANT] |
 | Diffusion par e-mail (relais SMTP du Synology) et vers le client desktop ; nouvelles tentatives bornées puis état « en échec » | ALR-06 | ADR-0022 (Proposé) ; [DÉCISION] du 2026-11-16 (Q-1) | [EXISTANT] |
 | Aucune alerte immédiate ni mention dans un résumé pour un impact `écarté` ou `résolu` ; un impact rouvert redevient éligible ; un abonnement suspendu ne produit aucune notification (ABO-07) | ALR-07 | décisions J5 et J7 du porteur du projet, 2026-11-19 | [PROPOSITION] — changement [`automatiser-chaine-veille`](/openspec/changes/archive/2026-11-20-automatiser-chaine-veille/specs/alertes-digests/spec.md) |
+| Chaque lien d'une alerte, d'un résumé ou d'un rappel est l'adresse publique de la plateforme suivie d'un gabarit de l'historique « hash » de l'IHM vers une vue existante : `/#/signaux/{id}` (signal), `/#/espaces/{id}/radar` (radar de l'espace), `/#/profils/artiste/opportunites/{id}` (opportunité) ; aucun lien ne vise un chemin que l'IHM ne sert pas | ALR-09 | AUD-ARC-22 ; ALR-06 ; ADR-0038 | [PROPOSITION] — [`alimenter-inventaire-et-completer-ihm`](/openspec/changes/archive/2026-11-26-alimenter-inventaire-et-completer-ihm/proposal.md) ; vérifiée par `LiensIhmTest`, `AlertesTest`, `argos-ui/tests/liens-alertes.test.mjs` |
 | E-mail (alerte, résumé, rappel) seulement vers l'adresse que le fournisseur d'identité déclare vérifiée, enregistrée normalisée à la création du compte et tenue à jour à chaque connexion ; sans adresse vérifiée connue, aucun e-mail et l'élément reste visible dans Argos et sur le poste | ALR-08 | AUD-SEC-04 ; ALR-06 ; ADR-0027 (Accepté) ; décision du porteur, 2026-11-24 (comptes existants) | [PROPOSITION] — `durcir-autorisations-et-debits` |
 
 ## Droits d'accès et restrictions
@@ -114,7 +115,7 @@ Seuls les impacts établis qui satisfont une règle immédiate déclenchent une 
 
 ## Critères d'acceptation
 
-Scénarios ALR-01-S1 à ALR-06-S2 du changement ; QS-10 (résilience sans IA).
+Scénarios ALR-01-S1 à ALR-06-S2 du changement ; QS-10 (résilience sans IA) ; ALR-09-S1 à ALR-09-S3 du changement [`alimenter-inventaire-et-completer-ihm`](/openspec/changes/archive/2026-11-26-alimenter-inventaire-et-completer-ihm/specs/alertes-digests/spec.md) [PROPOSITION].
 
 ## Interprétations introduites par un changement
 
@@ -127,7 +128,7 @@ Interprétations du changement `diffuser-alertes-et-digests`, à faire valider [
 - aucun résumé envoyé quand il est vide (ALR-04-S2) ;
 - canaux `EMAIL` et `DESKTOP` seulement ; tout autre canal d'abonnement (`IN_APP`, par exemple) ne déclenche aucune diffusion ;
 - le résumé IA porte sur le seul signal ; il est produit par la passerelle IA (`ResumeIaPasserelle`, capacité [`passerelle-ia`](passerelle-ia.md)) et vaut `INDISPONIBLE` si Ollama est injoignable ;
-- le lien vers l'élément vise `<ARGOS_PUBLIC_URL>/signaux/<id>` ; la page correspondante de l'IHM reste à créer ;
+- le lien vers l'élément vise `<ARGOS_PUBLIC_URL>/#/signaux/<id>`, la vue du signal de l'IHM (`SignalView`), affichée après connexion (ALR-09) ;
 - cinq tentatives au plus, délai initial d'une minute doublé à chaque échec, plafonné à 30 minutes ; une adresse e-mail absente est un échec définitif ;
 - chaque envoi dure au plus 10 s (`quarkus.mailer.timeout`, variable `ARGOS_SMTP_TIMEOUT`) ; toute erreur, y compris un contenu illisible ou un relais qui ne répond pas, compte comme une tentative ; aucun verrou n'est tenu pendant l'envoi ;
 - STARTTLS exigé par défaut (`ARGOS_SMTP_STARTTLS=REQUIRED`) : les identifiants SMTP ne circulent jamais en clair ; un avertissement est journalisé au démarrage en exploitation si `ARGOS_PUBLIC_URL` n'est pas défini ;
@@ -137,7 +138,8 @@ Interprétations du changement `diffuser-alertes-et-digests`, à faire valider [
 ## Écarts constatés
 
 - Le code de `argos-server` implémente les règles de cette fiche : module `io.argos.alerting` (`MoteurAlertes`, `RegleAlerte`, `ResumesPeriodiques`, `EnvoiAlertes`, `CanalEmail`, `ConsultationAlertes`), `io.argos.api.AlertesResource`, événement `io.argos.impact.ImpactsRecorded`, migration `V8__alertes_et_resumes.sql`.
-- L'IHM ne présente pas encore les alertes ni la page d'un signal visée par le lien des messages.
+- L'IHM présente les alertes (`AlertesView`, `/#/alertes` et `/#/alertes/{id}`) et les vues visées par les liens des messages : signal (`SignalView`, `/#/signaux/{id}` : provenance, gravité, résumé de la source, paquets, historique, impacts dans les espaces de l'utilisateur), radar d'un espace (`RadarView`) et opportunité du profil artiste (`ProfilArtisteView`). Les gabarits sont centralisés dans `io.argos.alerting.LiensIhm`, utilisé par `MoteurAlertes`, `RappelsRadar` et `RappelsOpportunites` ; `argos-ui/tests/liens-alertes.test.mjs` lit ces gabarits dans le source Java et échoue si l'un d'eux n'a pas de route dans `argos-ui/src/router.ts` (ALR-09-S3).
+- Un lien sans le préfixe `/#/` (forme `<ARGOS_PUBLIC_URL>/signaux/<id>`) ne mène à aucune vue de l'IHM : les messages déjà remis sous cette forme gardent un lien mort (rupture visible d'ALR-09).
 - ALR-07 (`automatiser-chaine-veille`, volet C, 2026-11-19) : `MoteurAlertes` et `ResumesPeriodiques` ne relisent que les impacts `ouvert` et `confirmé` (`ImpactQueries#forSignals`). Une alerte immédiate encore en attente (e-mail en nouvelle tentative, alerte du poste pas encore remise) dont tous les impacts visibles du destinataire ont été écartés ou résolus passe `ANNULEE` (`AlertesSansObjet`, sur l'événement `ImpactsTraites`, et contrôle à la réservation dans `EnvoiAlertes`) ; elle n'est plus envoyée ni remise et reste consultable. Si l'impact repasse ouvert, la même ligne d'alerte est remise en attente (clé d'idempotence ALR-03 inchangée). Nouvel état d'alerte `ANNULEE` (migration V20) [PROPOSITION P-17].
 - Une corrélation ne publie au moteur d'alertes que les impacts nouveaux, rouverts, dont le niveau change ou portés par une nouvelle version de l'avis : la recorrélation quotidienne d'un projet sans changement (J4) ne produit aucune alerte, et la réactivation d'un abonnement ne rejoue pas les signaux corrélés pendant sa suspension (ABO-07-S2, J7) [PROPOSITION PI-4 de `automatiser-chaine-veille`, intégration du 2026-11-19 ; `chain/SubscriptionTest#abo07S1EtS2SuspensionPuisReactivationSansRejeu`, parcours `e2e/tests/chaine-automatisee.spec.ts`].
 
@@ -163,5 +165,6 @@ Interprétations du changement `diffuser-alertes-et-digests`, à faire valider [
 | ALR-06 | ALR-06-S1, ALR-06-S2 | DC-1 | 1.1, 3.2, 3.3 | `AlertesTest.alr01S1EtAlr06S1…`, `EchecSmtpTest`, `RelaisMuetTest`, `AlertesTest.contrat…`, `rls…`, `cloisonnement…` |
 | ALR-07 | ALR-07-S1, ALR-07-S2 | `automatiser-chaine-veille` : D5, DC-5 | 3.4 (de ce changement) | `alerting/AlertesImpactsTraitesTest` — vérifié le 2026-11-19 (intégration) |
 | ALR-08 | ALR-08-S1 à ALR-08-S4 | `durcir-autorisations-et-debits` D2 | 2.1, 2.2 | `AdresseVerifieeTest` (adresse non vérifiée, vérifiée, modifiée, migration puis reconnexion) |
+| ALR-09 | ALR-09-S1 à ALR-09-S3 | `alimenter-inventaire-et-completer-ihm` D5 | 4.1 à 4.3 | `LiensIhmTest` (`alr09S1LienDUnSignal`, `alr09S2LiensDuRadarEtDesOpportunites`), `AlertesTest`, `argos-ui/tests/liens-alertes.test.mjs` (ALR-09-S3), `argos-ui/tests/vues/signal.spec.ts` |
 
 Tests : `argos-server/src/test/java/io/argos/alerting/`. Matrice détaillée : [`tasks.md`](/openspec/changes/archive/2026-11-16-diffuser-alertes-et-digests/tasks.md#matrice-de-traçabilité).

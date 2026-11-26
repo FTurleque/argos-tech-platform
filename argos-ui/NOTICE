@@ -13,6 +13,9 @@ Outillage de build et de test (devDependencies, non livré)
   @vitejs/plugin-vue 6.0.11 MIT          https://github.com/vitejs/vite-plugin-vue
   typescript 6.0.3          Apache-2.0   https://github.com/microsoft/TypeScript
   vue-tsc 3.3.14            MIT          https://github.com/vuejs/language-tools
+  vitest 5.1.0              MIT          https://github.com/vitest-dev/vitest
+  @vue/test-utils 2.5.1     MIT          https://github.com/vuejs/test-utils
+  happy-dom 21.0.4          MIT          https://github.com/capricorn86/happy-dom
 
 Polices embarquées (mises en page, ADR-0023 point 5)
   Fichiers de police (woff2, woff ; sous-ensemble latin) sous SIL Open Font License 1.1 (OFL-1.1),

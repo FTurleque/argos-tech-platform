@@ -74,6 +74,7 @@ watch(id, charger, { immediate: true })
         <h1>{{ alerte.titre }}</h1>
         <p class="muted">Gravité {{ gravite(alerte.gravite) }} · {{ date(alerte.creeLe) }}</p>
         <div v-for="element in alerte.contenu?.elements ?? []" :key="element.signalId">
+          <p v-if="estUuid(element.signalId)"><RouterLink :to="`/signaux/${element.signalId}`">Voir le signal</RouterLink></p>
           <h2>Projets concernés</h2>
           <ul>
             <li v-for="projet in element.projets" :key="projet.id">

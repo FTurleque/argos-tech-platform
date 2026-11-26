@@ -99,11 +99,6 @@ public class ArchivesJorf {
         return index.stream().filter(nom -> nom.startsWith(prefixe)).sorted().toList();
     }
 
-    /** Textes publiés le jour donné, lus dans toutes ses archives (index relu). */
-    public Lecture lire(LocalDate jour) {
-        return lire(jour, index(), Set.of());
-    }
-
     /**
      * Textes publiés le jour donné, lus dans les archives de l'index qui ne figurent pas parmi
      * {@code dejaLues}.

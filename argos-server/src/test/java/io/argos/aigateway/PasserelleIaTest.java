@@ -137,7 +137,7 @@ class PasserelleIaTest {
             assertEquals(prompt.empreinte(), baseDeTest.string("SELECT empreinte FROM ia_prompt WHERE tache = '" + prompt.tache()
                     + "' AND version = " + prompt.version()), prompt.tache());
         }
-        assertEquals(5, registre.tous().size());
+        assertEquals(6, registre.tous().size());
         assertThrows(IllegalArgumentException.class, () -> passerelle.demander(
                 new DemandeIa("tache-inconnue", null, List.of(EntreeIa.publique("titre", "x")), List.of())));
     }

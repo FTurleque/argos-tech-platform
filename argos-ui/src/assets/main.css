@@ -43,6 +43,8 @@ body { margin: 0; }
 .card h2 { font-size: 1.1rem; }
 
 .muted { color: var(--muted); font-size: 0.9rem; }
+/* Message d'état (rôle status implicite) affiché comme un paragraphe. */
+output { display: block; margin: 1em 0; }
 code { background: #eef1f5; padding: 0.05rem 0.3rem; border-radius: 4px; font-size: 0.85em; }
 
 .status { display: flex; flex-direction: column; gap: 0.25rem; padding: 0.75rem 1rem; border-radius: 8px; border-left: 4px solid var(--border); background: #f8fafc; }

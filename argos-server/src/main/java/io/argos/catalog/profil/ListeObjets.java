@@ -23,10 +23,4 @@ public record ListeObjets(String typeObjet, List<ValeurListe> valeurs) {
     public List<String> identifiants() {
         return valeurs.stream().filter(valeur -> valeur != null).map(ValeurListe::identifiant).toList();
     }
-
-    /** Valeur portant cet identifiant. */
-    public Optional<ValeurListe> valeur(String identifiant) {
-        return valeurs.stream().filter(valeur -> valeur != null && valeur.identifiant() != null && valeur.identifiant().equals(identifiant))
-                .findFirst();
-    }
 }

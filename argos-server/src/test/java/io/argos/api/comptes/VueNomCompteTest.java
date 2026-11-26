@@ -23,6 +23,9 @@ import org.junit.jupiter.api.Test;
 @QuarkusTest
 class VueNomCompteTest {
 
+    /** Contexte vide : aucun compte, sujet, courriel ni espace courant. */
+    private static final Contexte SANS_CONTEXTE = new Contexte(null, null, null, null);
+
     private static final String LECTURE = "SELECT id FROM compte_nom_public";
 
     @Inject
@@ -35,7 +38,7 @@ class VueNomCompteTest {
 
     @Test
     void sansContexteLaVueNeRenvoieRien() {
-        assertEquals(List.of(), identifiantsVisibles(Contexte.aucun()));
+        assertEquals(List.of(), identifiantsVisibles(SANS_CONTEXTE));
     }
 
     private List<UUID> identifiantsDeLaTable(Contexte contexte) {

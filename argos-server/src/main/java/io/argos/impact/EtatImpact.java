@@ -45,11 +45,6 @@ public enum EtatImpact {
         return Set.copyOf(inactifs);
     }
 
-    /** Vrai si la transition vers {@code vers} est permise (COR-10). */
-    public boolean peutAller(EtatImpact vers) {
-        return suivants().contains(vers);
-    }
-
     /** État désigné par son code ({@code OUVERT}…), sans tenir compte de la casse ni des espaces. */
     public static Optional<EtatImpact> depuis(String code) {
         if (code == null || code.isBlank()) {

@@ -41,6 +41,7 @@ function deconnecter(): void {
         <RouterLink to="/veille">Ma veille</RouterLink>
         <RouterLink to="/recherche">Recherche</RouterLink>
         <RouterLink to="/inventaire">Inventaire</RouterLink>
+        <RouterLink to="/profils/artiste">Profil artiste</RouterLink>
         <RouterLink to="/affichage">Mise en page</RouterLink>
         <RouterLink v-if="isDesktop" to="/alertes">
           Alertes<template v-if="etatPoste.ouvertes > 0"> ({{ etatPoste.ouvertes }})</template>

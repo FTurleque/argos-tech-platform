@@ -100,10 +100,6 @@ public final class RegleAlerte {
         return canal;
     }
 
-    public String frequence() {
-        return frequence;
-    }
-
     public boolean immediate() {
         return IMMEDIATE.equals(frequence);
     }

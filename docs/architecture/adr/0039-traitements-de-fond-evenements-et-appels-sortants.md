@@ -79,5 +79,5 @@
 
 - **Exigences** : COL-04, COL-12, RAD-07
 - **Scénarios qualité** : arc42 §10
-- **Diagrammes** : arc42 §5.3, §6.1, §8 ; `openspec/changes/rendre-ingestion-asynchrone/design.md` (DC-1 à DC-5)
+- **Diagrammes** : arc42 §5.3, §6.1, §8 ; `openspec/changes/archive/2026-11-26-rendre-ingestion-asynchrone/design.md` (DC-1 à DC-5)
 - **Fichiers source** : `argos-server/src/main/java/io/argos/execution/`, `argos-server/src/main/java/io/argos/commun/http/`, `argos-server/src/main/java/io/argos/vulnintel/TraitementEnrichissements.java`, `argos-server/src/main/java/io/argos/ingestion/LancementSynchronisation.java`

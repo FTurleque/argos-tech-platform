@@ -41,8 +41,10 @@ Chaque relation doit porter une action et le protocole lorsqu’il est architect
 | D-18 | UML sequenceDiagram | tâche quotidienne du radar : calendrier endoflife.date, dette de version, rappels | `arc42/08-concepts-transverses.md` §8.15 |
 | D-19 | UML sequenceDiagram | texte officiel JORF → qualification, fiche, validation par l'expert, rappel ; source indisponible | `arc42/06-vue-execution.md` §6.6 |
 | D-20 | flowchart | adresses de l'instance : adresse publique d'Argos, émetteur public, adresse interne du royaume, publication des ports | `arc42/07-vue-deploiement.md` §7.3 |
+| D-21 | UML sequenceDiagram | import manuel d'une SBOM par l'API : contrôle de rôle, import par `inventory`, recorrélation | `arc42/06-vue-execution.md` §6.8 |
+| D-22 | UML sequenceDiagram | suggestions de l'IA sur le référentiel des standards par la tâche quotidienne du radar | `arc42/06-vue-execution.md` §6.9 |
 
-Les diagrammes de séquence de `arc42/06-vue-execution.md` (D-06 à D-09, D-16, D-17, D-19) nomment leurs participants comme les composants de la section 5.
+Les diagrammes de séquence de `arc42/06-vue-execution.md` (D-06 à D-09, D-16, D-17, D-19, D-21, D-22) nomment leurs participants comme les composants de la section 5.
 
 Le collecteur RSS/Atom et web intégré (ADR-0028) n'ajoute aucun diagramme d'architecture : DF-WEB-1 ([`veille-rss-web`](../../specifications/veille-rss-web.md#df-web-1--acceptation-dune-adresse)) et DC-1 du changement `collecter-veille-rss-web` décrivent l'acceptation d'une adresse et la collecte.
 

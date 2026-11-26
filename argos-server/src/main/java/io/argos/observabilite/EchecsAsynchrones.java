@@ -35,16 +35,6 @@ public class EchecsAsynchrones {
         compteur(METRIQUE_EVENEMENTS, "Notifications asynchrones en erreur", "evenement", typeEvenement).increment();
     }
 
-    /** Nombre d'échecs comptés pour l'événement depuis le démarrage. */
-    public double evenements(String typeEvenement) {
-        return compteur(METRIQUE_EVENEMENTS, "Notifications asynchrones en erreur", "evenement", typeEvenement).count();
-    }
-
-    /** Nombre d'échecs comptés pour la tâche de fond depuis le démarrage. */
-    public double traitements(String nomTraitement) {
-        return compteur(METRIQUE_TRAITEMENTS, "Tâches de fond terminées en erreur", "traitement", nomTraitement).count();
-    }
-
     private Counter compteur(String nom, String description, String etiquette, String valeur) {
         return Counter.builder(nom).description(description).tag(etiquette, valeur).register(registre);
     }

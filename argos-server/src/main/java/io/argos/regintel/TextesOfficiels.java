@@ -115,19 +115,6 @@ public class TextesOfficiels {
         return ids;
     }
 
-    /** Texte connu par son identifiant officiel. */
-    public Optional<TexteOfficiel> parIdentifiant(String identifiant) {
-        try (Connection connexion = dataSource.getConnection(); PreparedStatement requete = connexion.prepareStatement(
-                "SELECT " + COLONNES + " FROM texte_officiel WHERE identifiant = ?")) {
-            requete.setString(1, identifiant);
-            try (ResultSet resultat = requete.executeQuery()) {
-                return resultat.next() ? Optional.of(texte(resultat, 1)) : Optional.empty();
-            }
-        } catch (SQLException erreur) {
-            throw new IllegalStateException("lecture du texte officiel impossible", erreur);
-        }
-    }
-
     /** Lit un texte à partir de la colonne {@code debut} (ordre de {@link #COLONNES}). */
     static TexteOfficiel texte(ResultSet resultat, int debut) throws SQLException {
         int colonne = debut;

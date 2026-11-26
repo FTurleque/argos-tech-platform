@@ -137,6 +137,21 @@ class ExecuteurBorneTest {
     }
 
     @Test
+    void uneAttenteInterrompueAnnuleLaTacheEtGardeLInterruption() {
+        Thread.currentThread().interrupt();
+        try {
+            ExecuteurBorne.Issue<String> issue = executeur.executer(() -> {
+                jamais.await();
+                return "jamais rendu";
+            }, GENEREUX);
+            assertEquals(ExecuteurBorne.Etat.INTERROMPUE, issue.etat());
+            assertTrue(Thread.currentThread().isInterrupted(), "interruption du fil appelant conservée");
+        } finally {
+            Thread.interrupted();
+        }
+    }
+
+    @Test
     void lExecuteurSArreteALaDestructionDuBeanEtRefuseEnsuite() {
         assertFalse(executeur.arrete());
         executeur.arreter();

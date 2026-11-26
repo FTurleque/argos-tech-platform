@@ -21,11 +21,6 @@ public final class ErreursImprevues {
         retenues.add(erreur);
     }
 
-    /** Nombre d'unités en erreur imprévue. */
-    public int nombre() {
-        return retenues.size();
-    }
-
     /** Erreurs retenues, dans l'ordre du passage. */
     public List<RuntimeException> retenues() {
         return List.copyOf(retenues);

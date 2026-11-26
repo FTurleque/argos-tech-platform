@@ -1,5 +1,7 @@
 package io.argos.impact;
 
+import com.fasterxml.jackson.annotation.JsonProperty;
+
 import java.sql.Connection;
 import java.sql.ResultSet;
 import java.sql.SQLException;
@@ -84,6 +86,7 @@ public class ImpactQueries {
     public record IntegrityReport(long impacts, long withoutSignal, long withoutProject, long withoutComponent,
             long withoutMethod, long withoutProvenance) {
 
+        @JsonProperty("intact")
         public boolean intact() {
             return withoutSignal + withoutProject + withoutComponent + withoutMethod + withoutProvenance == 0;
         }

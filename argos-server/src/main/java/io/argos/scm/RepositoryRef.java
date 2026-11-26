@@ -10,4 +10,12 @@ package io.argos.scm;
  * @param sbomPath chemin de la SBOM : dans les artefacts du job (GitLab) ou dans le dépôt (GitHub)
  */
 public record RepositoryRef(String provider, String repository, String branch, String sbomJob, String sbomPath) {
+
+    /** Vrai si l'identifiant est lisible par la forge : {@code owner/repo} pour GitHub, non vide pour GitLab. */
+    public boolean identifiantValide() {
+        if ("GITHUB".equals(provider)) {
+            return ForgeHttp.depotGithubValide(repository);
+        }
+        return repository != null && !repository.isBlank();
+    }
 }

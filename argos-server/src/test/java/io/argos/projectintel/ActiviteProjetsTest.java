@@ -3,6 +3,7 @@ package io.argos.projectintel;
 import static org.hamcrest.Matchers.containsString;
 import static org.hamcrest.Matchers.empty;
 import static org.hamcrest.Matchers.equalTo;
+import static org.hamcrest.Matchers.contains;
 import static org.hamcrest.Matchers.hasItems;
 import static org.hamcrest.Matchers.hasSize;
 import static org.hamcrest.Matchers.not;
@@ -348,7 +349,8 @@ class ActiviteProjetsTest {
                 WHERE table_name IN ('activite_compteur', 'activite_jalon', 'activite_collecte')"""),
                 "colonnes revues : toute nouvelle colonne impose de revoir ce test");
         Api.enTantQue("alice").queryParam("format", "json").when().get("/q/openapi").then().statusCode(200)
-                .body("paths.keySet().findAll { it.contains('/activite') }", hasSize(2))
+                .body("paths.keySet().findAll { it.contains('/activite') }", hasSize(3))
+                .body("paths.'/api/v1/projects/{projectId}/activite/collecte'.keySet()", contains("post"))
                 .body("paths.'/api/v1/projects/{projectId}/activite'.get.parameters.name", hasItems("jours"))
                 .body("paths.'/api/v1/projects/{projectId}/activite'.get.parameters.name", not(hasItems("contributeur")));
     }

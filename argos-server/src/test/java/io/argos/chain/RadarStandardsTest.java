@@ -38,7 +38,7 @@ import io.argos.inventory.ProjectDirectory;
 import io.argos.releaseradar.ClientEndoflife;
 import io.argos.releaseradar.CyclesDeVie;
 import io.argos.execution.ExecuteurEvenements;
-import io.argos.observabilite.EchecsAsynchrones;
+import io.micrometer.core.instrument.MeterRegistry;
 import io.argos.testsupport.Api;
 import io.argos.testsupport.Asynchrone;
 import io.argos.testsupport.Fixtures;
@@ -106,7 +106,7 @@ class RadarStandardsTest {
     ExecuteurEvenements evenements;
 
     @Inject
-    EchecsAsynchrones echecs;
+    MeterRegistry registre;
 
     @Inject
     EnvoiAlertes envoi;
@@ -218,7 +218,8 @@ class RadarStandardsTest {
         enregistrer("nina", saisie(POSTGRES, "PostgreSQL", "ADOPT", "14", "DBA", "Version courante", "2027-06-30", "postgresql"))
                 .statusCode(200);
 
-        UUID suggestion = referentiel.suggerer(espace, POSTGRES, "HOLD", null, "La version 14 a atteint sa fin de support.");
+        UUID suggestion = referentiel.suggerer(espace, POSTGRES, "HOLD", null, "La version 14 a atteint sa fin de support.")
+                .orElseThrow();
 
         Api.enTantQue("paul").get(chemin("/suggestions")).then().statusCode(200)
                 .body("$", hasSize(1)).body("[0].etat", equalTo("EN_ATTENTE")).body("[0].origine", equalTo("IA"))
@@ -455,7 +456,7 @@ class RadarStandardsTest {
         projet(espace, "Portail agent", BIBLIO + "@2.1.0");
         enregistrer("nina", saisie(BIBLIO, "Biblio UI", "ADOPT", "2.4", "Front", "Bibliothèque commune", "2027-06-30", null))
                 .statusCode(200);
-        double echecsAvant = echecs.evenements(ANNONCE);
+        double echecsAvant = echecsAnnonce();
 
         try (Substitution substitution = Substitution.remplacer(rappels, "envoi", envoiEnErreur(
                 new IllegalArgumentException("erreur imprévue simulée")))) {
@@ -463,7 +464,7 @@ class RadarStandardsTest {
                     .statusCode(200).body("statut", equalTo("HOLD"));
         }
 
-        Awaitility.await().atMost(ATTENTE_MAX).until(() -> echecs.evenements(ANNONCE) == echecsAvant + 1);
+        Awaitility.await().atMost(ATTENTE_MAX).until(() -> echecsAnnonce() == echecsAvant + 1);
         assertEquals("HOLD", baseDeTest.string("SELECT statut FROM standard_technologie"));
         assertEquals(2, baseDeTest.count("SELECT count(*) FROM standard_historique"));
     }
@@ -626,5 +627,10 @@ class RadarStandardsTest {
             resultat.next();
             return resultat.getLong(1);
         }
+    }
+
+    /** Échecs de la notification asynchrone des annonces, lus dans la métrique publiée (ADR-0039). */
+    private double echecsAnnonce() {
+        return registre.counter("argos.evenements.asynchrones.echecs", "evenement", ANNONCE).count();
     }
 }

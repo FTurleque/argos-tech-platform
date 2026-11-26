@@ -205,7 +205,7 @@ class InventoryTest {
         StubServer.programmer("/gitlab/api/v4/projects/groupe%2Ffront/repository/files/package.json/raw?ref=main",
                 Stub.succes("{\"dependencies\":{\"lodash\":\"4.17.20\"}}"));
 
-        InventoryService.ImportResult fallback = inventories.refresh(project);
+        InventoryService.ImportResult fallback = inventories.importerProjet(project).depots().get(0).result();
 
         assertEquals(StatutImport.IMPORTED, fallback.status());
         assertEquals("MANIFEST", fallback.origin());
@@ -217,7 +217,7 @@ class InventoryTest {
                 Stub.succes(Fixtures.cyclonedx("1.6", "2026-11-15T00:00:00Z",
                         java.util.Collections.singletonList(new String[] {"l", "pkg:npm/lodash@4.17.21"}), List.of("l"))));
 
-        InventoryService.ImportResult sbom = inventories.refresh(project);
+        InventoryService.ImportResult sbom = inventories.importerProjet(project).depots().get(0).result();
 
         assertEquals("SBOM", sbom.origin());
         member().when().get("/api/v1/projects/" + project + "/inventory")
@@ -257,12 +257,12 @@ class InventoryTest {
         StubServer.programmer("/gitlab/api/v4/projects/groupe%2Fapi/jobs/artifacts/main/raw/reports/bom.json?job=cyclonedx",
                 Stub.succes("{\"bomFormat\":\"CycloneDX\"}"));
         assertEquals("{\"bomFormat\":\"CycloneDX\"}",
-                new String(repositoryFiles.latestSbom(gitlab).orElseThrow().contenu(), StandardCharsets.UTF_8));
-        assertTrue(repositoryFiles.file(gitlab, "package.json").isEmpty(), "404 : fichier absent");
+                new String(repositoryFiles.lecture(gitlab).latestSbom().orElseThrow().contenu(), StandardCharsets.UTF_8));
+        assertTrue(repositoryFiles.lecture(gitlab).file("package.json").isEmpty(), "404 : fichier absent");
 
         RepositoryRef github = new RepositoryRef("GITHUB", "org/app", "main", null, "sbom/bom.json");
         StubServer.programmer("/github/repos/org/app/contents/sbom/bom.json?ref=main", Stub.succes("{\"bomFormat\":\"CycloneDX\"}"));
-        assertTrue(repositoryFiles.latestSbom(github).isPresent());
+        assertTrue(repositoryFiles.lecture(github).latestSbom().isPresent());
         StubServer.Received request = StubServer.received("/github/repos/org/app/contents/sbom/bom.json").get(0);
         assertEquals(List.of("application/vnd.github.raw+json"), request.headers().get("Accept"));
         Map<String, List<String>> headers = StubServer.received("/gitlab/").get(0).headers();
