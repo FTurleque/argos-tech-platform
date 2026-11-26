@@ -101,6 +101,23 @@ export async function attendre(): Promise<void> {
   for (let tour = 0; tour < 5; tour += 1) await flushPromises()
 }
 
+/** Soumet un formulaire et attend les appels qu'il déclenche. */
+export async function soumettre(wrapper: VueWrapper, selecteur: string): Promise<void> {
+  await wrapper.get(selecteur).trigger('submit')
+  await attendre()
+}
+
+/** Clique sur un élément et attend les appels qu'il déclenche. */
+export async function cliquer(wrapper: VueWrapper, selecteur: string): Promise<void> {
+  await wrapper.get(selecteur).trigger('click')
+  await attendre()
+}
+
+/** Texte d'un élément, espaces de bord retirés. */
+export function texte(wrapper: VueWrapper, selecteur: string): string {
+  return wrapper.get(selecteur).text().trim()
+}
+
 /** Fichier choisi dans un champ `<input type="file">`, comme le ferait l'utilisateur. */
 export async function choisirFichiers(wrapper: VueWrapper, selecteur: string, fichiers: File[]): Promise<void> {
   const champ = wrapper.get(selecteur)

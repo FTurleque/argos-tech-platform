@@ -6,20 +6,29 @@ import { erreurApi, simulerApi } from './support'
 
 const JETON = 'jeton-de-test'
 const DELAI_COURT_MS = 20
+const surRefus = vi.fn()
 
-describe('appelerApi', () => {
-  const surRefus = vi.fn()
+beforeEach(() => {
+  surRefus.mockReset()
+  configurerAutorisation({ jeton: () => JETON, surRefus })
+})
 
-  beforeEach(() => {
-    surRefus.mockReset()
-    configurerAutorisation({ jeton: () => JETON, surRefus })
-  })
+afterEach(() => {
+  configurerAutorisation({ jeton: () => null, surRefus: () => {} })
+})
 
-  afterEach(() => {
-    configurerAutorisation({ jeton: () => null, surRefus: () => {} })
-    vi.useRealTimers()
-  })
+/** Serveur qui ne répond jamais : l'appel n'aboutit que par l'annulation de son signal. */
+function simulerServeurMuet(): void {
+  vi.stubGlobal(
+    'fetch',
+    (_adresse: string, init: RequestInit) =>
+      new Promise((_resoudre, rejeter) => {
+        init.signal?.addEventListener('abort', () => rejeter(new DOMException('Interrompu', 'AbortError')))
+      }),
+  )
+}
 
+describe('appelerApi : demande envoyée', () => {
   it('ajoute le jeton porteur aux appels de /api/v1, sauf à l’identité publique du serveur', async () => {
     const appels = simulerApi({ 'GET /api/v1/moi': { corps: { id: 'moi' } }, 'GET /api/v1/system/info': { corps: {} } })
     await appelerApi('/api/v1/moi')
@@ -40,7 +49,9 @@ describe('appelerApi', () => {
     simulerApi({ 'DELETE /api/v1/vues/1': { statut: 204 } })
     await expect(appelerApi('/api/v1/vues/1', { methode: 'DELETE' })).resolves.toBeUndefined()
   })
+})
 
+describe('appelerApi : refus du serveur', () => {
   it('lève une ApiError portant le statut, le code et le message du corps Erreur', async () => {
     simulerApi({ 'POST /api/v1/projects': erreurApi(400, 'Nom obligatoire.', 'DONNEE_INVALIDE') })
     const echec = await appelerApi('/api/v1/projects', { methode: 'POST', corps: {} }).catch((erreur: unknown) => erreur)
@@ -61,26 +72,16 @@ describe('appelerApi', () => {
     expect(surRefus).toHaveBeenNthCalledWith(1, 'NON_AUTHENTIFIE', '/api/v1/moi')
     expect(surRefus).toHaveBeenNthCalledWith(2, 'INTERDIT', '/api/v1/espaces')
   })
+})
 
+describe('appelerApi : sans réponse du serveur', () => {
   it('lève DELAI_DEPASSE quand le serveur ne répond pas dans le délai', async () => {
-    vi.stubGlobal(
-      'fetch',
-      (_adresse: string, init: RequestInit) =>
-        new Promise((_resoudre, rejeter) => {
-          init.signal?.addEventListener('abort', () => rejeter(new DOMException('Délai', 'AbortError')))
-        }),
-    )
+    simulerServeurMuet()
     await expect(appelerApi('/api/v1/moi', { delaiMs: DELAI_COURT_MS })).rejects.toMatchObject({ motif: 'DELAI_DEPASSE' })
   })
 
   it('lève ANNULE quand l’appelant annule l’appel', async () => {
-    vi.stubGlobal(
-      'fetch',
-      (_adresse: string, init: RequestInit) =>
-        new Promise((_resoudre, rejeter) => {
-          init.signal?.addEventListener('abort', () => rejeter(new DOMException('Annulé', 'AbortError')))
-        }),
-    )
+    simulerServeurMuet()
     const annulation = new AbortController()
     const appel = appelerApi('/api/v1/moi', { signal: annulation.signal })
     annulation.abort()

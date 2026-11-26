@@ -5,6 +5,7 @@
 // chaque import sont décidés par le serveur ; ce module transmet les saisies et restitue les réponses.
 import { appelerApi } from './client'
 import { avecIdentifiants } from './identifiants'
+import type { ComposantIgnoreApi } from './inventaire-modele.ts'
 
 /** Délai des opérations qui lisent une forge ou analysent un document (imports, relance, collecte). */
 const DELAI_TRAITEMENT_MS = 30_000
@@ -48,14 +49,6 @@ export interface DepotRattache {
 /** Issue d'un import d'inventaire (énumération `StatutImport` du serveur). */
 export type StatutImport = 'IMPORTED' | 'REJECTED' | 'KEPT' | 'NONE' | 'ERROR' | 'DEFERRED'
 
-/** Composant écarté faute de PURL exploitable (schéma `IgnoredComponent`). */
-export interface ComposantEcarte {
-  name: string | null
-  group: string | null
-  version: string | null
-  reason: string | null
-}
-
 /** Résultat d'un import (schéma `ImportResult`). */
 export interface ResultatImport {
   status: StatutImport
@@ -63,7 +56,8 @@ export interface ResultatImport {
   components: number
   ignored: number
   reason: string | null
-  ignoredComponents: ComposantEcarte[] | null
+  /** Composants écartés faute de PURL exploitable (schéma `IgnoredComponent`, partagé avec la synthèse). */
+  ignoredComponents: ComposantIgnoreApi[] | null
 }
 
 /** Manifeste de dépendances transmis tel quel (chemin dans le dépôt et contenu texte). */
