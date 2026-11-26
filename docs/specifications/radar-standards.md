@@ -4,8 +4,7 @@
 |---|---|
 | Préfixe d'exigences | `RAD` |
 | Spec de référence | [`/openspec/specs/radar-standards/spec.md`](/openspec/specs/radar-standards/spec.md) |
-| Changements archivés | [`2026-11-16-construire-radar-et-standards`](/openspec/changes/archive/2026-11-16-construire-radar-et-standards/proposal.md) ; [`2026-11-26-alimenter-inventaire-et-completer-ihm`](/openspec/changes/archive/2026-11-26-alimenter-inventaire-et-completer-ihm/proposal.md) (RAD-08, RAD-09) |
-| Changement en cours | [`2026-11-25-isoler-erreurs-aux-frontieres`](/openspec/changes/archive/2026-11-25-isoler-erreurs-aux-frontieres/proposal.md) (RAD-07, archivé) ; [`rendre-ingestion-asynchrone`](/openspec/changes/rendre-ingestion-asynchrone/proposal.md) (RAD-07 modifiée) — proposé, implémenté |
+| Changements archivés | [`2026-11-16-construire-radar-et-standards`](/openspec/changes/archive/2026-11-16-construire-radar-et-standards/proposal.md) ; [`2026-11-25-isoler-erreurs-aux-frontieres`](/openspec/changes/archive/2026-11-25-isoler-erreurs-aux-frontieres/proposal.md) (RAD-07) ; [`2026-11-26-rendre-ingestion-asynchrone`](/openspec/changes/archive/2026-11-26-rendre-ingestion-asynchrone/proposal.md) (RAD-07 modifiée) ; [`2026-11-26-alimenter-inventaire-et-completer-ihm`](/openspec/changes/archive/2026-11-26-alimenter-inventaire-et-completer-ihm/proposal.md) (RAD-08, RAD-09) |
 | Statut de la capacité | livrée ; implémentation et tests dans `argos-server` et `argos-ui` |
 | Composants (arc42 §5) | `catalog`, `release-radar`, `impact-engine`, `alerting`, `ai-gateway`, IHM `argos-ui` |
 

@@ -68,8 +68,8 @@ Source : dossier v2.4 §8.2 (type STANDARD). Statut : [EXIGENCE].
 - **THEN** les utilisateurs des deux projets reçoivent l'annonce avec la justification
 
 ### Requirement: RAD-07 Enregistrement d'un standard sans erreur différée
-Le système DOIT (MUST) refuser par une erreur de saisie (400) une clé de technologie mal encodée, sans rien modifier, et NE DOIT PAS (MUST NOT) répondre en erreur à une modification du référentiel déjà enregistrée lorsque son annonce (RAD-06) échoue sur une panne d'accès aux données ; cet échec est journalisé avec sa cause.
-Source : AUD-QUA-20 ; RAD-01-S2 ; RAD-06 ; arc42 §8.5. Statut : [PROPOSITION].
+Le système DOIT (MUST) refuser par une erreur de saisie (400) une clé de technologie mal encodée, sans rien modifier, et DOIT (MUST) confirmer une modification enregistrée du référentiel sans attendre son annonce (RAD-06) ; un échec de l'annonce NE DOIT PAS (MUST NOT) changer la réponse et est journalisé avec sa cause.
+Source : AUD-QUA-20 ; AUD-ARC-09 ; RAD-01-S2 ; RAD-06 ; arc42 §8.5 ; ADR-0039 (Proposé). Statut : [PROPOSITION].
 
 #### Scenario: RAD-07-S1 Clé mal encodée
 - **GIVEN** un administrateur de l'espace
@@ -86,8 +86,14 @@ Source : AUD-QUA-20 ; RAD-01-S2 ; RAD-06 ; arc42 §8.5. Statut : [PROPOSITION].
 #### Scenario: RAD-07-S3 Erreur imprévue de l'annonce
 - **GIVEN** une bibliothèque utilisée par un projet de l'espace, et l'annonce du changement de standard qui échoue sur une erreur imprévue
 - **WHEN** l'administrateur la passe en HOLD avec une justification
-- **THEN** l'erreur est journalisée avec sa cause et la requête répond en erreur serveur, sans détail interne
-- **AND** l'entrée et sa ligne d'historique restent persistées
+- **THEN** la modification est confirmée à l'administrateur avec l'entrée enregistrée
+- **AND** l'erreur est journalisée avec sa cause et comptée parmi les échecs de traitement asynchrone exposés à l'exploitant
+
+#### Scenario: RAD-07-S4 Annonce sans attente
+- **GIVEN** une bibliothèque utilisée par un projet de l'espace, et l'annonce du changement de standard qui tarde
+- **WHEN** l'administrateur la passe en HOLD avec une justification
+- **THEN** la modification est confirmée sans attendre la fin de l'annonce
+- **AND** les utilisateurs du projet reçoivent ensuite l'annonce (RAD-06-S1)
 
 ### Requirement: RAD-08 Suggestions de l'IA produites après la synchronisation des cycles de vie
 Le système DOIT (MUST), après chaque synchronisation des cycles de vie, demander à la passerelle IA une suggestion de passage à `HOLD` pour chaque standard d'espace dont la version recommandée a atteint sa fin de support, et l'enregistrer en attente sans modifier le référentiel ; il NE DOIT PAS (MUST NOT) dupliquer une suggestion encore en attente.
