@@ -4,8 +4,7 @@
 |---|---|
 | Préfixe d'exigences | `ART` |
 | Spec de référence | [`/openspec/specs/profil-artiste/spec.md`](/openspec/specs/profil-artiste/spec.md) |
-| Changements archivés | [`2026-11-17-ajouter-profil-artiste`](/openspec/changes/archive/2026-11-17-ajouter-profil-artiste/proposal.md) |
-| Changement en cours | [`alimenter-inventaire-et-completer-ihm`](/openspec/changes/alimenter-inventaire-et-completer-ihm/proposal.md) (ART-07) — implémenté, non archivé |
+| Changements archivés | [`2026-11-17-ajouter-profil-artiste`](/openspec/changes/archive/2026-11-17-ajouter-profil-artiste/proposal.md) ; [`2026-11-26-alimenter-inventaire-et-completer-ihm`](/openspec/changes/archive/2026-11-26-alimenter-inventaire-et-completer-ihm/proposal.md) (ART-07) |
 | Statut de la capacité | livrée ; vue du profil artiste dans `argos-ui` (ART-07, [PROPOSITION]) |
 | Composants (arc42 §5) | `catalog` (pack), `workspace` (suivis sous RLS), `signal` (registre des sources et opportunités), `impact-engine` (stratégie), `source-ingestion`, `alerting`, `API & Security`, IHM `argos-ui` |
 
@@ -69,7 +68,7 @@ API REST `/api/v1/profils/artiste/` : `listes` (GET), `suivis` (GET, PUT), `oppo
 | Rappel aux jours de rappel du compte (J-30, J-7, J-1 par défaut), avec la date limite, le lien officiel et la mention « aucun avis d'éligibilité » ; aucun rappel pour une date à confirmer | ART-04 | ALR-04 ; Q-4 | [EXISTANT] |
 | Aucune requête vers une source dont les conditions d'usage ne sont pas enregistrées ; état « conditions d'usage à vérifier » | ART-05 | ADR-0024 point 8 ; ADR-0025 | [EXISTANT] |
 | Résumé composé sans IA : critères tels qu'énoncés, date limite, lien vers le texte officiel, mention fixe ; aucun champ ni aucune formule sur l'éligibilité | ART-06 | ADR-0024 point 7 | [EXISTANT] |
-| Vue de l'IHM, web et desktop : choix des disciplines et territoires suivis, opportunités rapprochées, résumé d'une opportunité (marqué « produit par l'IA » lorsqu'il l'est), sources vérifiées et rubriques de la veille, à une adresse stable par opportunité ; sans suivi, message « suivis requis » sans liste | ART-07 | AUD-ARC-15 ; ART-02, ART-03, ART-05 ; AUD-ARC-22 | [PROPOSITION] — [`alimenter-inventaire-et-completer-ihm`](/openspec/changes/alimenter-inventaire-et-completer-ihm/proposal.md) ; vérifiée par `argos-ui/tests/vues/profil-artiste.spec.ts` |
+| Vue de l'IHM, web et desktop : choix des disciplines et territoires suivis, opportunités rapprochées, résumé d'une opportunité (marqué « produit par l'IA » lorsqu'il l'est), sources vérifiées et rubriques de la veille, à une adresse stable par opportunité ; sans suivi, message « suivis requis » sans liste | ART-07 | AUD-ARC-15 ; ART-02, ART-03, ART-05 ; AUD-ARC-22 | [PROPOSITION] — [`alimenter-inventaire-et-completer-ihm`](/openspec/changes/archive/2026-11-26-alimenter-inventaire-et-completer-ihm/proposal.md) ; vérifiée par `argos-ui/tests/vues/profil-artiste.spec.ts` |
 
 ## Droits d'accès et restrictions
 
@@ -121,7 +120,7 @@ Trois critères structurés suffisent à décider, sans IA ; le résumé ne juge
 
 ## Critères d'acceptation
 
-Scénarios ART-01-S1 à ART-06-S1 du changement ; ART-07-S1 à ART-07-S3 du changement [`alimenter-inventaire-et-completer-ihm`](/openspec/changes/alimenter-inventaire-et-completer-ihm/specs/profil-artiste/spec.md) [PROPOSITION] ; aucun scénario qualité transverse supplémentaire.
+Scénarios ART-01-S1 à ART-06-S1 du changement ; ART-07-S1 à ART-07-S3 du changement [`alimenter-inventaire-et-completer-ihm`](/openspec/changes/archive/2026-11-26-alimenter-inventaire-et-completer-ihm/specs/profil-artiste/spec.md) [PROPOSITION] ; aucun scénario qualité transverse supplémentaire.
 
 ## Interprétations introduites par un changement
 

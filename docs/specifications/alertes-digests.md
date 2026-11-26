@@ -5,8 +5,8 @@
 | Préfixe d'exigences | `ALR` |
 | Spec de référence | [`/openspec/specs/alertes-digests/spec.md`](/openspec/specs/alertes-digests/spec.md) |
 | Changements archivés | [`2026-11-16-diffuser-alertes-et-digests`](/openspec/changes/archive/2026-11-16-diffuser-alertes-et-digests/proposal.md) |
-| Changements archivés, suite | [`durcir-autorisations-et-debits`](/openspec/changes/archive/2026-11-25-durcir-autorisations-et-debits/proposal.md) (ALR-08) |
-| Changement en cours | [`automatiser-chaine-veille`](/openspec/changes/archive/2026-11-20-automatiser-chaine-veille/specs/alertes-digests/spec.md) — proposé ; ALR-07 implémenté et intégré le 2026-11-19 (volets A, B et C réunis) ; [`alimenter-inventaire-et-completer-ihm`](/openspec/changes/alimenter-inventaire-et-completer-ihm/proposal.md) (ALR-09) — implémenté, non archivé |
+| Changements archivés, suite | [`durcir-autorisations-et-debits`](/openspec/changes/archive/2026-11-25-durcir-autorisations-et-debits/proposal.md) (ALR-08) ; [`2026-11-26-alimenter-inventaire-et-completer-ihm`](/openspec/changes/archive/2026-11-26-alimenter-inventaire-et-completer-ihm/proposal.md) (ALR-09) |
+| Changement en cours | [`automatiser-chaine-veille`](/openspec/changes/archive/2026-11-20-automatiser-chaine-veille/specs/alertes-digests/spec.md) — proposé ; ALR-07 implémenté et intégré le 2026-11-19 (volets A, B et C réunis) |
 | Statut de la capacité | livrée ; implémentation et tests dans `argos-server` |
 | Composants (arc42 §5) | `alerting`, `workspace`, `impact-engine` |
 
@@ -73,7 +73,7 @@ Configuration par variables d'environnement (aucun secret versionné) :
 | Résumé IA demandé avec un délai borné ; alerte envoyée sans lui s'il est indisponible, refusé ou au-delà du plafond, avec mention dans le message | ALR-05 | baseline v2.3 §6 ; QS-10 | [EXISTANT] |
 | Diffusion par e-mail (relais SMTP du Synology) et vers le client desktop ; nouvelles tentatives bornées puis état « en échec » | ALR-06 | ADR-0022 (Proposé) ; [DÉCISION] du 2026-11-16 (Q-1) | [EXISTANT] |
 | Aucune alerte immédiate ni mention dans un résumé pour un impact `écarté` ou `résolu` ; un impact rouvert redevient éligible ; un abonnement suspendu ne produit aucune notification (ABO-07) | ALR-07 | décisions J5 et J7 du porteur du projet, 2026-11-19 | [PROPOSITION] — changement [`automatiser-chaine-veille`](/openspec/changes/archive/2026-11-20-automatiser-chaine-veille/specs/alertes-digests/spec.md) |
-| Chaque lien d'une alerte, d'un résumé ou d'un rappel est l'adresse publique de la plateforme suivie d'un gabarit de l'historique « hash » de l'IHM vers une vue existante : `/#/signaux/{id}` (signal), `/#/espaces/{id}/radar` (radar de l'espace), `/#/profils/artiste/opportunites/{id}` (opportunité) ; aucun lien ne vise un chemin que l'IHM ne sert pas | ALR-09 | AUD-ARC-22 ; ALR-06 ; ADR-0038 | [PROPOSITION] — [`alimenter-inventaire-et-completer-ihm`](/openspec/changes/alimenter-inventaire-et-completer-ihm/proposal.md) ; vérifiée par `LiensIhmTest`, `AlertesTest`, `argos-ui/tests/liens-alertes.test.mjs` |
+| Chaque lien d'une alerte, d'un résumé ou d'un rappel est l'adresse publique de la plateforme suivie d'un gabarit de l'historique « hash » de l'IHM vers une vue existante : `/#/signaux/{id}` (signal), `/#/espaces/{id}/radar` (radar de l'espace), `/#/profils/artiste/opportunites/{id}` (opportunité) ; aucun lien ne vise un chemin que l'IHM ne sert pas | ALR-09 | AUD-ARC-22 ; ALR-06 ; ADR-0038 | [PROPOSITION] — [`alimenter-inventaire-et-completer-ihm`](/openspec/changes/archive/2026-11-26-alimenter-inventaire-et-completer-ihm/proposal.md) ; vérifiée par `LiensIhmTest`, `AlertesTest`, `argos-ui/tests/liens-alertes.test.mjs` |
 | E-mail (alerte, résumé, rappel) seulement vers l'adresse que le fournisseur d'identité déclare vérifiée, enregistrée normalisée à la création du compte et tenue à jour à chaque connexion ; sans adresse vérifiée connue, aucun e-mail et l'élément reste visible dans Argos et sur le poste | ALR-08 | AUD-SEC-04 ; ALR-06 ; ADR-0027 (Accepté) ; décision du porteur, 2026-11-24 (comptes existants) | [PROPOSITION] — `durcir-autorisations-et-debits` |
 
 ## Droits d'accès et restrictions
@@ -115,7 +115,7 @@ Seuls les impacts établis qui satisfont une règle immédiate déclenchent une 
 
 ## Critères d'acceptation
 
-Scénarios ALR-01-S1 à ALR-06-S2 du changement ; QS-10 (résilience sans IA) ; ALR-09-S1 à ALR-09-S3 du changement [`alimenter-inventaire-et-completer-ihm`](/openspec/changes/alimenter-inventaire-et-completer-ihm/specs/alertes-digests/spec.md) [PROPOSITION].
+Scénarios ALR-01-S1 à ALR-06-S2 du changement ; QS-10 (résilience sans IA) ; ALR-09-S1 à ALR-09-S3 du changement [`alimenter-inventaire-et-completer-ihm`](/openspec/changes/archive/2026-11-26-alimenter-inventaire-et-completer-ihm/specs/alertes-digests/spec.md) [PROPOSITION].
 
 ## Interprétations introduites par un changement
 
