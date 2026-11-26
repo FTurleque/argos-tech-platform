@@ -256,7 +256,7 @@ services:
   # modèle plus gros dépasse vite la mémoire du NAS (ADR-0029) et demande de relever ARGOS_OLLAMA_MEM_LIMIT.
   ollama:
     <<: *durcissement
-    image: ollama/ollama:${ARGOS_OLLAMA_VERSION:-0.12.6}
+    image: ollama/ollama:${ARGOS_OLLAMA_VERSION:-0.40.17}
     profiles: ["ia"]
     restart: unless-stopped
     # Utilisateur root de l'image, sans capacité (EXP-16) : il n'écrit que dans son volume, qui lui appartient,
