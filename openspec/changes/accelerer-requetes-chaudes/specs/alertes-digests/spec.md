@@ -7,7 +7,7 @@ Le système DOIT (MUST) évaluer les règles d'alerte des impacts publiés d'un 
 Source : AUD-PER-04 ; critère de sortie du sprint 10 ; décision du porteur du projet (2026-11-26, lecture technique filtrée par appartenance). Statut : [PROPOSITION].
 
 #### Scenario: ALR-10-S1 Nombre de requêtes constant
-- **GIVEN** deux espaces touchés par un signal, l'un de 2 membres, l'autre de 12 membres, chacun avec des abonnements immédiats et périodiques sur deux canaux
+- **GIVEN** deux espaces touchés par un signal, l'un de 2 membres, l'autre de 11 membres, chacun avec des abonnements immédiats et périodiques sur deux canaux
 - **WHEN** les règles sont évaluées pour chaque espace
 - **THEN** les deux évaluations exécutent le même nombre de requêtes
 

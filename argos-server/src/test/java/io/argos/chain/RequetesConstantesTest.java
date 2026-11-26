@@ -53,7 +53,8 @@ class RequetesConstantesTest {
     private static final String POSTGRES = "pkg:generic/postgresql";
     private static final int PETIT = 2;
     private static final int GRAND = 20;
-    private static final List<String> MEMBRES_DU_GRAND_ESPACE = List.of("dave", "erin", "frank", "gina", "hugo", "ines",
+    // dave reste sans compte : AuthentificationMcpTest vérifie le refus d'une personne non inscrite.
+    private static final List<String> MEMBRES_DU_GRAND_ESPACE = List.of("erin", "frank", "gina", "hugo", "ines",
             "jules", "karim", "lina", "marc", "nina");
 
     @Inject
@@ -166,7 +167,7 @@ class RequetesConstantesTest {
         return new ImpactsRecorded(signal, "Faille de volume", "CRITICAL", "OSV", "GHSA-VOL-ALERTES", items);
     }
 
-    /** ALR-10-S1 : les règles de 12 membres s'évaluent avec autant de requêtes que celles de 2 membres. */
+    /** ALR-10-S1 : les règles de 11 membres s'évaluent avec autant de requêtes que celles de 2 membres. */
     @Test
     void alr09S1EvaluationEnNombreFixeDeRequetes() {
         UUID espacePetit = Api.nouvelEspace("alice", "Petit espace d'alertes");
@@ -191,7 +192,7 @@ class RequetesConstantesTest {
         int requetesGrand = compterInstructions(() -> moteur.evaluer(impactsDe(signal, projetGrand), Instant.now()).alertes().size());
 
         assertTrue(requetesPetit > 0, "le compteur voit les requêtes du fil courant");
-        assertEquals(requetesPetit, requetesGrand, "ALR-10-S1 : même nombre de requêtes pour 2 et 12 membres");
+        assertEquals(requetesPetit, requetesGrand, "ALR-10-S1 : même nombre de requêtes pour 2 et 11 membres");
     }
 
     private static List<String> versionsPostgres(int nombre) {

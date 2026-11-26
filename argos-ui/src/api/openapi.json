@@ -2192,6 +2192,9 @@
           "total" : {
             "format" : "int64",
             "type" : "integer"
+          },
+          "totalPlafonne" : {
+            "type" : "boolean"
           }
         },
         "type" : "object"
