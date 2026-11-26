@@ -59,8 +59,8 @@ function repondre(table: TableApi, appel: AppelApi): ReponseSimulee {
 /** Remplace `fetch` par l'API simulée ; renvoie la liste des appels reçus, dans l'ordre. */
 export function simulerApi(table: TableApi): AppelApi[] {
   const appels: AppelApi[] = []
-  simulation.stubGlobal('fetch', async (adresse: string, init: RequestInit = {}) => {
-    if (init.signal?.aborted) throw new DOMException('Appel annulé', 'AbortError')
+  simulation.stubGlobal('fetch', (adresse: string, init: RequestInit = {}) => {
+    if (init.signal?.aborted) return Promise.reject(new DOMException('Appel annulé', 'AbortError'))
     const appel: AppelApi = {
       methode: init.method ?? 'GET',
       chemin: String(adresse).slice(apiBaseUrl.length),
@@ -68,7 +68,7 @@ export function simulerApi(table: TableApi): AppelApi[] {
       entetes: lireEntetes(init.headers),
     }
     appels.push(appel)
-    return reponseHttp(repondre(table, appel))
+    return Promise.resolve(reponseHttp(repondre(table, appel)))
   })
   return appels
 }

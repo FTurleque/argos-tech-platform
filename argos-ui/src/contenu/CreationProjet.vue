@@ -93,7 +93,7 @@ onBeforeUnmount(() => annulation.abort())
       </fieldset>
       <button type="submit" :disabled="enCours">Créer le projet</button>
     </form>
-    <p class="muted" role="status" data-issue="creation-projet">{{ issue }}</p>
+    <output class="muted" data-issue="creation-projet">{{ issue }}</output>
     <p v-if="erreur" class="status status-down" role="alert" data-erreur="creation-projet">{{ erreur }}</p>
   </section>
 </template>

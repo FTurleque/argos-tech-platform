@@ -56,7 +56,7 @@ onBeforeUnmount(() => annulation.abort())
 
 <template>
   <section class="card" aria-labelledby="titre-signal">
-    <p v-if="chargement" class="muted" role="status">Chargement du signal…</p>
+    <output v-if="chargement" class="muted">Chargement du signal…</output>
     <template v-if="erreur">
       <h1 id="titre-signal">Signal</h1>
       <p class="status status-down" role="alert">

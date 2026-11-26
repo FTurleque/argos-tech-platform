@@ -35,8 +35,8 @@ function fabriqueFenetres(journal) {
     once(evenement, ecouteur) { this.ecouteurs[evenement] = ecouteur; }
     on(evenement, ecouteur) { this.ecouteurs[evenement] = ecouteur; }
     loadURL(url) { this.urlChargee = url; }
-    show() {}
-    hide() {}
+    show() { /* doublure d'Electron : sans effet dans les tests */ }
+    hide() { /* doublure d'Electron : sans effet dans les tests */ }
   };
 }
 
@@ -49,14 +49,14 @@ function fabriqueZoneNotification(journal) {
     }
     setToolTip(infobulle) { this.infobulle = infobulle; }
     setContextMenu(menu) { this.menu = menu; }
-    on() {}
+    on() { /* doublure d'Electron : sans effet dans les tests */ }
   };
 }
 
 class NotificationFactice {
   static isSupported() { return false; }
-  on() {}
-  show() {}
+  on() { /* doublure d'Electron : sans effet dans les tests */ }
+  show() { /* doublure d'Electron : sans effet dans les tests */ }
 }
 
 /** Objet `app` factice : instance unique accordée, prêt immédiatement. */

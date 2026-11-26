@@ -124,7 +124,7 @@ onBeforeUnmount(() => annulation.abort())
       <button type="button" :disabled="collecte" data-action="collecter" @click="collecter">Collecter maintenant</button>
       <button type="button" class="secondary" data-action="synthese" @click="demanderSynthese">Synthèse de l’activité</button>
     </div>
-    <p class="muted" role="status" aria-live="polite" data-issue="collecte">{{ issue }}</p>
+    <output class="muted" aria-live="polite" data-issue="collecte">{{ issue }}</output>
     <p v-if="erreurCollecte" class="status status-down" role="alert" data-erreur="collecte">{{ erreurCollecte }}</p>
     <p v-if="erreurSynthese" class="status status-down" role="alert">{{ erreurSynthese }}</p>
     <div v-if="synthese" class="synthese">

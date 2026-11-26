@@ -115,8 +115,8 @@ function ratio(valeur, origine) {
 /** Seuils globaux déclarés par les propriétés du pom.xml. */
 export function seuilsDuPom(textePom) {
   const lire = (propriete) => {
-    const echappee = propriete.replaceAll('.', '\\.');
-    const trouve = new RegExp(`<${echappee}>\\s*([^<]*?)\\s*</${echappee}>`).exec(textePom);
+    const echappee = propriete.replaceAll('.', String.raw`\.`);
+    const trouve = new RegExp(String.raw`<${echappee}>\s*([^<]*?)\s*</${echappee}>`).exec(textePom);
     if (trouve === null) throw new EntreeInvalide(`propriété ${propriete} absente du pom`);
     return ratio(trouve[1], propriete);
   };

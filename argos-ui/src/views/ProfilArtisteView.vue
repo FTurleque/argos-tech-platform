@@ -180,13 +180,13 @@ onBeforeUnmount(() => annulation.abort())
       </fieldset>
       <button type="submit" :disabled="enregistrement">Enregistrer mes suivis</button>
     </form>
-    <p class="muted" role="status" aria-live="polite" data-issue="suivis">{{ issueSuivis }}</p>
+    <output class="muted" aria-live="polite" data-issue="suivis">{{ issueSuivis }}</output>
   </section>
 
   <section class="card" aria-labelledby="titre-opportunites">
     <h2 id="titre-opportunites">Opportunités</h2>
     <p v-if="erreurOpportunites" class="status status-down" role="alert" data-erreur="opportunites">{{ erreurOpportunites }}</p>
-    <p v-else-if="opportunites?.suivisRequis" class="status" role="status" data-suivis-requis>{{ opportunites.message }}</p>
+    <output v-else-if="opportunites?.suivisRequis" class="status" data-suivis-requis>{{ opportunites.message }}</output>
     <template v-else-if="opportunites">
       <p v-if="opportunites.items.length === 0" class="muted">Aucune opportunité ouverte pour vos suivis.</p>
       <ul data-liste="opportunites">

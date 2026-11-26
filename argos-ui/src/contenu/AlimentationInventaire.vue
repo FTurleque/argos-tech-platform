@@ -115,7 +115,7 @@ function relancer(): Promise<void> {
 <template>
   <section aria-labelledby="titre-alimentation" class="alimentation" :aria-busy="enCours ? 'true' : undefined">
     <h2 id="titre-alimentation">Alimenter l’inventaire</h2>
-    <p class="muted" role="status" aria-live="polite" data-issue="alimentation">{{ issue }}</p>
+    <output class="muted" aria-live="polite" data-issue="alimentation">{{ issue }}</output>
     <p v-if="erreur" class="status status-down" role="alert" data-erreur="alimentation">{{ erreur }}</p>
 
     <h3>Dépôts</h3>

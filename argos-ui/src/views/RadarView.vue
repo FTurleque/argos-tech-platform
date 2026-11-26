@@ -194,7 +194,7 @@ onBeforeUnmount(() => annulation.abort())
 
   <section class="card" aria-labelledby="titre-suggestions" :aria-busy="decisionEnCours ? 'true' : undefined">
     <h2 id="titre-suggestions">Suggestions en attente</h2>
-    <p class="muted" role="status" aria-live="polite" data-issue="decision">{{ issueDecision }}</p>
+    <output class="muted" aria-live="polite" data-issue="decision">{{ issueDecision }}</output>
     <p v-if="erreurDecision" class="status status-down" role="alert" data-erreur="decision">{{ erreurDecision }}</p>
     <p v-if="erreurSuggestions" class="status status-down" role="alert">{{ erreurSuggestions }}</p>
     <p v-else-if="enAttente.length === 0" class="muted">Aucune suggestion en attente.</p>
