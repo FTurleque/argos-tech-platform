@@ -324,7 +324,7 @@ Migration `V26__empreinte_dernier_import_depot.sql` : `ALTER TABLE repository_in
 - `/docs/specifications/exploitation-plateforme.md`, `performance-api-mcp.md`, `comptes-acces.md`, `inventaire-sbom.md`, `profil-artiste.md`.
 - arc42 §5 (module `conservation`, liste fermée), §8.10 (pagination), §8 (conservation), §9 (index des décisions), §12 (glossaire : règle de conservation).
 - ADR-0040 (pagination) et ADR-0041 (conservation), au statut Proposé.
-- `README.md` du serveur et `.env.example` : variables `ARGOS_CONSERVATION_*`, contrôlées par `scripts/verifier-configuration.mjs`.
+- `.env.example` et `compose.yaml` : variable `ARGOS_CONSERVATION_CRON`, contrôlée par `scripts/verifier-configuration.mjs`.
 
 ## Questions ouvertes
 
