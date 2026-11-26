@@ -9,7 +9,7 @@
 // 2 si le rapport, le pom ou une option est inexploitable.
 
 import { readFileSync } from 'node:fs';
-import { dirname, join, resolve } from 'node:path';
+import { dirname, resolve } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 
 const RACINE = resolve(dirname(fileURLToPath(import.meta.url)), '..');
@@ -157,8 +157,8 @@ function lireFichier(chemin) {
 export function verifier(argumentsLigne, racine = RACINE, sortie = console) {
   try {
     const options = lireOptions(argumentsLigne);
-    const seuils = seuilsEffectifs(options, lireFichier(join(racine, options.pom ?? POM_PAR_DEFAUT)));
-    const agregats = agregerParModule(lireFichier(join(racine, options.rapport ?? RAPPORT_PAR_DEFAUT)));
+    const seuils = seuilsEffectifs(options, lireFichier(resolve(racine, options.pom ?? POM_PAR_DEFAUT)));
+    const agregats = agregerParModule(lireFichier(resolve(racine, options.rapport ?? RAPPORT_PAR_DEFAUT)));
     for (const { module, lignes, branches } of tauxParModule(agregats)) {
       sortie.log(`${module.padEnd(16)} lignes ${enPourcentage(lignes).padStart(8)}   branches ${enPourcentage(branches).padStart(8)}`);
     }
