@@ -20,7 +20,7 @@
     <quarkus.platform.artifact-id>quarkus-bom</quarkus.platform.artifact-id>
     <quarkus.platform.version>3.40.1.2</quarkus.platform.version>
     <archunit.version>1.5.1</archunit.version>
-    <quarkus-mcp-server.version>2.0.4</quarkus-mcp-server.version>
+    <quarkus-mcp-server.version>2.1.0</quarkus-mcp-server.version>
     <rome.version>2.1.0</rome.version>
     <jsoup.version>1.24.1</jsoup.version>
     <maven-artifact.version>3.10.2</maven-artifact.version>
