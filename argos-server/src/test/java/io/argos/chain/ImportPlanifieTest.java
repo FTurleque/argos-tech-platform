@@ -71,6 +71,9 @@ import io.restassured.path.json.JsonPath;
 @TestProfile(ImportPlanifieTest.JetonsFictifs.class)
 class ImportPlanifieTest {
 
+    /** Imports manuels de l'inventaire (INV-13), seules opérations d'écriture sous /inventory. */
+    private static final List<String> IMPORTS_MANUELS = List.of("/sbom", "/manifests", "/refresh");
+
     /** Jetons fictifs des forges, pour vérifier qu'ils n'apparaissent dans aucun motif d'échec. */
     public static class JetonsFictifs implements QuarkusTestProfile {
         @Override
@@ -268,10 +271,17 @@ class ImportPlanifieTest {
         chemins2.forEach((chemin, operations) -> {
             assertFalse(chemin.toLowerCase().matches(".*(hook|pipeline).*"), "route entrante inattendue : " + chemin);
             if (chemin.contains("/inventory")) {
-                assertEquals(List.of("get"), operations.keySet().stream().filter(cle -> !cle.equals("parameters")).toList(),
-                        "l'inventaire n'est exposé qu'en lecture : " + chemin);
+                List<String> attendues = IMPORTS_MANUELS.stream().anyMatch(chemin::endsWith) ? List.of("post") : List.of("get");
+                assertEquals(attendues, operations.keySet().stream().filter(cle -> !cle.equals("parameters")).toList(),
+                        "l'inventaire n'est modifié que par les imports manuels authentifiés : " + chemin);
             }
         });
+        for (String importManuel : IMPORTS_MANUELS) {
+            assertEquals(401, given().contentType("application/json").body(corps)
+                    .when().post("/api/v1/projects/" + projet + "/inventory" + importManuel).then().extract().statusCode(),
+                    "import manuel refusé sans authentification : " + importManuel);
+        }
+        assertEquals(0, composants(projet), "aucun import déclenché");
     }
 
     /** INV-07-S4 : cadence lue dans la configuration, au fuseau configuré, sans recompilation. */
