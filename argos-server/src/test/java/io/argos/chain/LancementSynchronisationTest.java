@@ -56,6 +56,9 @@ class LancementSynchronisationTest {
 
     @AfterEach
     void libererLeServeurSimule() {
+        if (baseDeTest.count("SELECT count(*) FROM sync_run WHERE state = 'RUNNING'") > 0) {
+            libererLaSourceRetenue();
+        }
         StubServer.liberer();
         Awaitility.await().atMost(ATTENTE_MAX).until(() -> baseDeTest.count(
                 "SELECT count(*) FROM sync_run WHERE state = 'RUNNING'") == 0);
@@ -76,7 +79,7 @@ class LancementSynchronisationTest {
                 .extract().path("runId");
 
         assertEquals("RUNNING", baseDeTest.string("SELECT state FROM sync_run WHERE id = ?::uuid", runId));
-        StubServer.liberer();
+        libererLaSourceRetenue();
         Awaitility.await().atMost(ATTENTE_MAX)
                 .until(() -> "SUCCEEDED".equals(baseDeTest.string("SELECT state FROM sync_run WHERE id = ?::uuid", runId)));
         assertEquals(1, baseDeTest.count("SELECT count(*) FROM signal WHERE external_id = 'GHSA-L1'"));
@@ -122,5 +125,14 @@ class LancementSynchronisationTest {
         assertEquals("SUCCEEDED", rapport.state());
         assertEquals(2, rapport.attempts());
         assertEquals(1, baseDeTest.count("SELECT count(*) FROM sync_run WHERE source_id = 'OSV'"));
+    }
+
+    /**
+     * Libère la réponse retenue de la source une fois sa demande reçue : {@link StubServer#liberer()} ne libère que les
+     * réponses déjà en attente, et le traitement asynchrone peut interroger la source après la réponse 202.
+     */
+    private static void libererLaSourceRetenue() {
+        Awaitility.await().atMost(ATTENTE_MAX).until(() -> !StubServer.received(CSV).isEmpty());
+        StubServer.liberer();
     }
 }
