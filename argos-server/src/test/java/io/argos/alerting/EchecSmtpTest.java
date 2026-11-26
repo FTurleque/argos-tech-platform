@@ -23,6 +23,7 @@ import io.argos.inventory.ProjectDirectory;
 import io.argos.testsupport.Api;
 import io.argos.testsupport.Fixtures;
 import io.argos.testsupport.StubServer;
+import io.argos.testsupport.Asynchrone;
 import io.argos.testsupport.TestDb;
 import io.quarkus.test.common.QuarkusTestResource;
 import io.quarkus.test.junit.QuarkusTest;
@@ -69,6 +70,9 @@ class EchecSmtpTest {
     TestDb baseDeTest;
 
     @Inject
+    Asynchrone asynchrone;
+
+    @Inject
     ProjectDirectory projects;
 
     @Inject
@@ -93,6 +97,7 @@ class EchecSmtpTest {
         UUID project = projects.create(spaceA, "app", null, null);
         inventories.importSbom(project, Fixtures.cyclonedx("1.6", Instant.now().minus(1, ChronoUnit.DAYS).toString(),
                 List.<String[]>of(new String[] {"c0", LIB + "@1.2.0"}), List.of("c0")).getBytes(StandardCharsets.UTF_8), "ci");
+        asynchrone.attendre();
         Api.enTantQue("alice").contentType(ContentType.JSON)
                 .body("{\"scope\":\"PERSONAL\",\"filters\":[{\"type\":\"SEVERITY\",\"value\":\"HIGH\"}],"
                         + "\"channel\":\"email\",\"frequency\":\"immediate\",\"mandatory\":false}")
@@ -103,6 +108,7 @@ class EchecSmtpTest {
         Fixtures.stubOsv("GHSA-SMTP", "2026-11-10T00:00:00Z", json);
         Instant instantDepart = Instant.now();
         synchronizer.synchronize("OSV");
+        asynchrone.attendre();
 
         // Première tentative à l'émission : échec, nouvelle tentative programmée.
         assertEquals("EN_ATTENTE|1", etat());

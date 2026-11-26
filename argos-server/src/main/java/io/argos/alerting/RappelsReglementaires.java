@@ -11,7 +11,6 @@ import java.util.Optional;
 import java.util.UUID;
 
 import jakarta.enterprise.context.ApplicationScoped;
-import jakarta.enterprise.event.Event;
 import jakarta.inject.Inject;
 
 import org.eclipse.microprofile.config.inject.ConfigProperty;
@@ -60,9 +59,6 @@ public class RappelsReglementaires {
 
     @Inject
     EnvoiAlertes envoi;
-
-    @Inject
-    Event<AlerteEmise> emises;
 
     @ConfigProperty(name = "argos.alerting.fuseau")
     String fuseau;
@@ -136,10 +132,7 @@ public class RappelsReglementaires {
         List<UUID> crees = new ArrayList<>();
         comptes.forEach((compte, email) -> {
             String canal = email == null || email.isBlank() ? "DESKTOP" : "EMAIL";
-            messages.creer(message, compte, canal, maintenant).ifPresent(id -> {
-                crees.add(id);
-                emises.fire(new AlerteEmise(id, compte, canal, "RAPPEL"));
-            });
+            messages.creer(message, compte, canal, maintenant).ifPresent(crees::add);
         });
         return crees;
     }

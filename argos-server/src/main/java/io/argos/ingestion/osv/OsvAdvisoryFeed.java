@@ -23,9 +23,11 @@ import io.argos.ingestion.SourceException;
 /**
  * Adapter OSV, source principale (ADR-0010).
  *
- * <p>Les avis modifiés sont lus dans l'index {@code <écosystème>/modified_id.csv} de l'export
- * public OSV (lignes {@code <date ISO>,<identifiant>}), puis chaque avis est lu par
- * {@code GET /v1/vulns/<identifiant>} de l'API OSV.
+ * <p>Les avis modifiés sont lus, en flux, dans l'index {@code <écosystème>/modified_id.csv} de l'export public OSV
+ * (lignes {@code <date ISO>,<identifiant>}). Chaque avis est lu par {@code GET /v1/vulns/<identifiant>} de l'API OSV ;
+ * au-delà de {@code argos.sources.osv.seuil-archive} avis à lire pour un écosystème (amorçage, longue interruption),
+ * ils sont lus dans l'archive {@code <écosystème>/all.zip} de l'export, téléchargée une fois par synchronisation
+ * ({@link LectureOsv}).
  */
 @ApplicationScoped
 public class OsvAdvisoryFeed implements AdvisoryFeed {
@@ -36,16 +38,22 @@ public class OsvAdvisoryFeed implements AdvisoryFeed {
     private final String exportUrl;
     private final String apiUrl;
     private final List<String> ecosystems;
+    private final int seuilArchive;
+    private final long archiveTailleMax;
 
     @Inject
     public OsvAdvisoryFeed(HttpSourceClient http,
             @ConfigProperty(name = "argos.sources.osv.export-url") String exportUrl,
             @ConfigProperty(name = "argos.sources.osv.api-url") String apiUrl,
-            @ConfigProperty(name = "argos.sources.osv.ecosystems") List<String> ecosystems) {
+            @ConfigProperty(name = "argos.sources.osv.ecosystems") List<String> ecosystems,
+            @ConfigProperty(name = "argos.sources.osv.seuil-archive") int seuilArchive,
+            @ConfigProperty(name = "argos.sources.osv.archive-taille-max-octets") long archiveTailleMax) {
         this.http = http;
         this.exportUrl = trimSlash(exportUrl);
         this.apiUrl = trimSlash(apiUrl);
         this.ecosystems = List.copyOf(ecosystems);
+        this.seuilArchive = seuilArchive;
+        this.archiveTailleMax = archiveTailleMax;
     }
 
     @Override
@@ -57,31 +65,32 @@ public class OsvAdvisoryFeed implements AdvisoryFeed {
     public List<FeedEntry> changesSince(String position) {
         List<FeedEntry> entries = new ArrayList<>();
         for (String ecosystem : ecosystems) {
-            String csv = http.telecharger(URI.create(exportUrl + "/" + encode(ecosystem) + "/modified_id.csv"));
-            for (String line : csv.split("\\R")) {
-                if (line.isBlank()) {
-                    continue;
-                }
-                int comma = line.indexOf(',');
-                if (comma < 0) {
-                    throw new SourceException(SourceException.Kind.PERMANENT, null, null,
-                            "index OSV non conforme pour " + ecosystem, null);
-                }
-                Instant modified;
-                try {
-                    modified = Instant.parse(line.substring(0, comma).trim());
-                } catch (DateTimeParseException error) {
-                    throw new SourceException(SourceException.Kind.PERMANENT, null, null,
-                            "date illisible dans l'index OSV pour " + ecosystem, error);
-                }
-                FeedEntry entry = new FeedEntry(line.substring(comma + 1).trim(), modified);
-                if (entry.isAfter(position)) {
-                    entries.add(entry);
-                }
-            }
+            entries.addAll(index(ecosystem, position));
         }
         entries.sort(FeedEntry.ORDER);
         return entries;
+    }
+
+    @Override
+    public Lecture lire(String position) {
+        LectureOsv lecture = new LectureOsv(this, archiveTailleMax);
+        boolean prete = false;
+        try {
+            for (String ecosystem : ecosystems) {
+                List<FeedEntry> entrees = index(ecosystem, position);
+                if (entrees.size() > seuilArchive) {
+                    lecture.archiver(ecosystem, URI.create(exportUrl + "/" + encode(ecosystem) + "/all.zip"), entrees);
+                }
+                lecture.ajouter(entrees);
+            }
+            prete = true;
+            return lecture.trier();
+        } finally {
+            if (!prete) {
+                // Index illisible après le téléchargement d'une archive : ses fichiers temporaires sont supprimés.
+                lecture.close();
+            }
+        }
     }
 
     @Override
@@ -92,6 +101,38 @@ public class OsvAdvisoryFeed implements AdvisoryFeed {
     @Override
     public NormalizedAdvisory normalize(RawAdvisory raw) {
         return OsvNormalizer.normalize(raw);
+    }
+
+    HttpSourceClient http() {
+        return http;
+    }
+
+    /** Avis de l'index de l'écosystème postérieurs à la position, lus ligne à ligne. */
+    private List<FeedEntry> index(String ecosystem, String position) {
+        List<FeedEntry> entries = new ArrayList<>();
+        http.lignes(URI.create(exportUrl + "/" + encode(ecosystem) + "/modified_id.csv"), line -> {
+            if (!line.isBlank()) {
+                FeedEntry entry = entree(ecosystem, line);
+                if (entry.isAfter(position)) {
+                    entries.add(entry);
+                }
+            }
+        });
+        return entries;
+    }
+
+    private static FeedEntry entree(String ecosystem, String line) {
+        int comma = line.indexOf(',');
+        if (comma < 0) {
+            throw new SourceException(SourceException.Kind.PERMANENT, null, null, "index OSV non conforme pour " + ecosystem, null);
+        }
+        try {
+            Instant modified = Instant.parse(line.substring(0, comma).trim());
+            return new FeedEntry(line.substring(comma + 1).trim(), modified);
+        } catch (DateTimeParseException error) {
+            throw new SourceException(SourceException.Kind.PERMANENT, null, null, "date illisible dans l'index OSV pour " + ecosystem,
+                    error);
+        }
     }
 
     private static String encode(String value) {

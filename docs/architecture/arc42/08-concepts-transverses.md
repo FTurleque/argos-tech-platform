@@ -105,6 +105,8 @@ Royaume Keycloak livré [PROPOSITION — `rendre-portail-deployable`, ACC-13] : 
 
 Débits par compte [PROPOSITION — `durcir-autorisations-et-debits`, RCH-06, PRF-08] : `LimiteurDebit` (fenêtre glissante d'une minute, par compte, une instance) limite le serveur MCP, la veille web, l'activité, le profil artiste, la veille réglementaire (10 requêtes par minute chacun, MCP 60), la recherche et le rappel d'une vue enregistrée (compteur commun, `argos.recherche.debit.requetes-par-minute`, 60) et « Ma veille » (compteur distinct, `argos.veille.debit.requetes-par-minute`, 60) ; au-delà, 429 avec `Retry-After` et refus journalisé `LIMITE_DEBIT`. La campagne de performance relève la limite de « Ma veille » par configuration.
 
+Appels sortants ([ADR-0039](../adr/0039-traitements-de-fond-evenements-et-appels-sortants.md), Proposé) : chaque client `java.net.http` du serveur (sources d'avis et d'enrichissement, forges, endoflife.date, archives JORF, passerelle IA) est construit par `io.argos.commun.http.ClientsHttp` : redirections refusées, `User-Agent: argos-server`, délai de connexion propre au client ; chaque corps est lu sous une taille maximale par `LectureBornee` (sources : `argos.sources.taille-max-octets`, 64 Mio ; archive OSV : `argos.sources.osv.archive-taille-max-octets`, 1 Gio, copiée dans un fichier temporaire supprimé après la synchronisation). `ClientsHttpCommunsTest` refuse un client construit ailleurs. Le transport épinglé de la veille web (Vert.x, ci-dessous) garde son propre transport et son plafond.
+
 Les zones de confiance, les flux qui les franchissent et le contrôle appliqué à chacun sont D-12 : [`../diagrams/d-12-frontieres-confiance.md`](../diagrams/d-12-frontieres-confiance.md).
 
 ### Veille RSS/Atom et pages surveillées (ADR-0028, Accepté)
@@ -143,7 +145,7 @@ Risque résiduel : le contrôle repose sur le code d'Argos seul ; aucun filtrage
 
 ### Tâches planifiées
 
-Les traitements périodiques sont des méthodes `@Scheduled` de `quarkus-scheduler` (ADR-0031, Accepté), sans chevauchement d'une exécution avec la suivante (`SKIP`), dont l'expression est lue dans la configuration ; la valeur `off` désactive une tâche. ADR-0031 décrit les tâches existantes à sa date d'acceptation ; cette liste tient l'inventaire à jour (état au 2026-11-19, 13 tâches).
+Les traitements périodiques sont des méthodes `@Scheduled` de `quarkus-scheduler` (ADR-0031, Accepté), sans chevauchement d'une exécution avec la suivante (`SKIP`), dont l'expression est lue dans la configuration ; la valeur `off` désactive une tâche. ADR-0031 décrit les tâches existantes à sa date d'acceptation ; cette liste tient l'inventaire à jour (15 tâches).
 
 | Identité | Module | Échéance (propriété) | Défaut |
 |---|---|---|---|
@@ -160,18 +162,20 @@ Les traitements périodiques sont des méthodes `@Scheduled` de `quarkus-schedul
 | `rappels-reglementaires` | `alerting` | `argos.reglementaire.rappels.cron` | 07:15 |
 | `collecte-profil-artiste` | `signal.opportunite` | `argos.profil-artiste.collecte.cron` | 05:00 |
 | `rappels-profil-artiste` | `alerting` | `argos.profil-artiste.rappels.cron` | 07:00 |
+| `vulnintel-enrichissement` | `vulnintel` | `argos.enrichissement.cadence` | toutes les 30 secondes, 5 signaux par passage |
+| `vulnintel-rattrapage` | `vulnintel` | `argos.enrichissement.rattrapage.cadence` | toutes les 6 heures |
 
-Exécuteurs (changement `injecter-horloge-et-executeurs`, AUD-QUA-11 ; [DÉCISION] du porteur du projet, 2026-11-24, Q-4 : beans et `@PreDestroy`) : chaque fil créé par le serveur appartient à un bean `@ApplicationScoped`, qui crée son exécuteur à l'initialisation avec les tailles de sa configuration et l'arrête à l'arrêt de l'application (`shutdownNow`, tâches en cours interrompues). `io.argos.execution.ExecuteurBorne` porte le motif « soumettre, attendre avec délai, annuler » et propage la corrélation des journaux : `ExecuteurResumeIa` (résumés IA des alertes, `argos.alerting.resume-ia.fils`, `fils-max`, `file` : 2, 2, 16) et `ExecuteurSyntheseIa` (synthèses d'activité, `argos.activite.synthese.fils`, `fils-max`, `file` : 1, 2, 8) ; `ingestion.web.MinuterieCoupure` coupe la lecture d'une réponse trop lente (`argos.veille-web.minuterie.fils` : 1). Une demande expirée est annulée ; une file pleine vaut résultat indisponible. Aucun exécuteur statique.
+Exécuteurs (changement `injecter-horloge-et-executeurs`, AUD-QUA-11 ; [DÉCISION] du porteur du projet, 2026-11-24, Q-4 : beans et `@PreDestroy`) : chaque fil créé par le serveur appartient à un bean `@ApplicationScoped`, qui crée son exécuteur à l'initialisation avec les tailles de sa configuration et l'arrête à l'arrêt de l'application (`shutdownNow`, tâches en cours interrompues). `io.argos.execution.ExecuteurBorne` porte le motif « soumettre, attendre avec délai, annuler » et propage la corrélation des journaux : `ExecuteurResumeIa` (résumés IA des alertes, `argos.alerting.resume-ia.fils`, `fils-max`, `file` : 2, 2, 16) et `ExecuteurSyntheseIa` (synthèses d'activité, `argos.activite.synthese.fils`, `fils-max`, `file` : 1, 2, 8), `LancementSynchronisation` (synchronisations lancées par l'exploitant, poursuivies en tâche de fond, `argos.ingestion.lancement.*` : 1, 2, 8 ; file pleine : 409 `LANCEMENT_SATURE`), `ExecuteurEvenements` (observateurs asynchrones, `argos.evenements.*` : 2, 4, 256 ; file pleine : exécution sur le fil émetteur) et `ExecuteurCollecteActivite` (une tâche par forge, `argos.activite.forges.*` : 2, 2, 8, passage borné par `argos.activite.duree-max-passage`) ; `ingestion.web.MinuterieCoupure` coupe la lecture d'une réponse trop lente (`argos.veille-web.minuterie.fils` : 1). Une demande expirée est annulée ; une file pleine vaut résultat indisponible, sauf mention contraire ci-dessus. `ExecuteurBorne.lancer` soumet une tâche de fond sans attendre son issue ; son bean journalise avec sa cause et compte (`argos_traitements_fond_echecs_total`) toute erreur imprévue qui en sort ; `executerTous` soumet un lot et l'attend sous un délai global. Aucun exécuteur statique.
 
 Chaque méthode `@Scheduled` porte `@TacheObservee` (module technique `observabilite`, contrôlé par `TachesObserveesTest`) : son exécution reçoit un identifiant de corrélation et le nom de sa tâche dans le MDC, est mesurée et alimente le contrôle de santé `tache-<identité>` (§8.6). Une échéance manquée (serveur arrêté) n'est pas rattrapée : la tâche s'exécute à l'échéance suivante (ADR-0031). Dans la pile E2E, les tâches qui joindraient une source externe sont désactivées, sauf la synchronisation des sources d'avis et l'import des inventaires, rapprochées (toutes les 5 secondes) et dirigées vers les sources et forges simulées de `e2e/support/sources-simulees.mjs` ([PROPOSITION] PI-1 du changement `automatiser-chaine-veille`).
 
 ### Frontières d'erreur
 
-Une **frontière d'erreur** est le point où un traitement itère sur des unités indépendantes (source, projet, espace, produit, texte, message), reçoit un événement d'un autre composant (observateur synchrone) ou répond à un client externe (garde MCP). Règle ([DÉCISION] du porteur du projet, 2026-11-24, « isoler puis relancer » ; changement `isoler-erreurs-aux-frontieres`, AUD-QUA-20, AUD-QUA-23) :
+Une **frontière d'erreur** est le point où un traitement itère sur des unités indépendantes (source, projet, espace, produit, texte, message, signal), reçoit un événement d'un autre composant (observateur), s'exécute sans appelant (tâche de fond) ou répond à un client externe (garde MCP). Règle ([DÉCISION] du porteur du projet, 2026-11-24, « isoler puis relancer » ; changement `isoler-erreurs-aux-frontieres`, AUD-QUA-20, AUD-QUA-23) :
 
 1. À l'intérieur d'une unité, les erreurs prévues sont capturées précisément et traduites en résultats typés (rejet, refus, source indisponible, panne d'accès aux données journalisée) ; aucune capture large.
 2. Dans une boucle sur des unités indépendantes, l'erreur d'exécution d'une unité est journalisée au niveau erreur avec l'exception en premier argument (`LOG.errorf(erreur, "…")` : pile et causes), l'unité est comptée en échec et les unités suivantes sont traitées ; la première erreur imprévue est ensuite relancée, les suivantes attachées en erreurs supprimées (`observabilite.ErreursImprevues`). Une erreur imprévue n'est jamais absorbée : l'exécution planifiée se termine en échec visible (§8.6). La méthode testable d'un passage rend un bilan portant les erreurs retenues, que son point d'entrée `@Scheduled` relance (`relancerErreurImprevue()`).
-3. Observateur synchrone et garde MCP : la panne d'accès aux données est traitée (journalisée ; `INDISPONIBLE` pour un outil MCP) ; une erreur imprévue est journalisée puis propagée à l'émetteur ou au client (erreur de protocole MCP, sans message interne). Un observateur transactionnel `AFTER_SUCCESS` ne peut plus annuler la transaction validée : le conteneur CDI journalise l'erreur qui en sort, au niveau erreur avec sa pile.
+3. Observateur, tâche de fond et garde MCP : la panne d'accès aux données est traitée (journalisée ; `INDISPONIBLE` pour un outil MCP). Une erreur imprévue d'un observateur synchrone ou d'une garde MCP est journalisée puis propagée à l'émetteur ou au client (erreur de protocole MCP, sans message interne). Un observateur transactionnel `AFTER_SUCCESS` ne peut plus annuler la transaction validée : le conteneur CDI journalise l'erreur qui en sort, au niveau erreur avec sa pile. Une erreur imprévue d'un observateur asynchrone ou d'une tâche de fond n'a pas d'appelant : `PublicationAsynchrone` ou le bean de l'exécuteur la journalise avec sa cause et la compte (`argos_evenements_asynchrones_echecs_total`, `argos_traitements_fond_echecs_total`, §8.6).
 4. Une donnée externe ne fait jamais sortir d'un analyseur une erreur d'exécution non typée : un PURL mal encodé est illisible (`PackageKey.parse` vide) et chaque appelant applique sa règle.
 5. `InterruptedException` rétablit l'indicateur d'interruption ; `Error` n'est pas capturée.
 6. Chaque frontière a un test qui simule une erreur imprévue autre que la panne d'accès aux données.
@@ -188,7 +192,9 @@ Inventaire des frontières :
 | préparation des fiches (`PreparationFiches.preparer`) | `regintel` | texte | `VeilleReglementaireTest` |
 | collecte d'activité (`CollecteActivite`) | `projectintel` | projet | `ActiviteProjetsTest` |
 | diffusion des alertes (`EnvoiAlertes.envoyer`) | `alerting` | message | `AlertesTest` |
-| observateurs `StandardModifie`, `AnnonceStandard`, `ImpactsRecorded` | `impact`, `alerting` | événement (règle 3) | `RadarStandardsTest`, `AlertesTest` |
+| observateurs asynchrones `StandardModifie`, `AnnonceStandard`, `ImpactsRecorded` | `impact`, `alerting` | événement (règle 3) | `RadarStandardsTest`, `AlertesTest` |
+| synchronisation lancée par l'exploitant (`LancementSynchronisation`) | `ingestion` | traitement (règle 3) | `LancementSynchronisationTest` |
+| file d'enrichissement (`TraitementEnrichissements.enrichirSignauxEchus`) | `vulnintel` | signal | `EnrichmentTest` |
 | garde des outils (`GardeAppels`) | `mcp` | appel d'outil (règle 3) | `ErreursOutilsMcpTest` |
 | appel du fournisseur de modèle (`PasserelleIa`) | `aigateway` | pannes prévues = modèle indisponible ; erreur imprévue propagée | `PasserelleIaTest` |
 
@@ -213,6 +219,8 @@ Pile retenue par [ADR-0036](../adr/0036-pile-observabilite-serveur.md) (Accepté
 | `argos_alertes_envois_total` | `issue` (`envoyee`, `a_retenter`, `en_echec`, `ignoree`) | diffusion des alertes |
 | `argos_ia_appels_total` | `tache` (tâche IA), `issue` | passerelle IA |
 | `argos_ia_duree_seconds` | `tache` | idem |
+| `argos_traitements_fond_echecs_total` | `traitement` (`synchronisation`) | tâches de fond (ADR-0039) |
+| `argos_evenements_asynchrones_echecs_total` | `evenement` (nom du type d'événement) | observateurs asynchrones (ADR-0039) |
 
 Métriques reportées : couverture SBOM, impacts détectés, coût IA en jetons (le journal `ia_appel` les trace déjà).
 
@@ -269,7 +277,19 @@ Le budget d’abonnement utilisé par le développeur pour Claude/Claude Code es
 
 ## 8.9 Messaging
 
-Aucun broker n’est imposé au MVP. Une file/broker ne sera introduite qu’après mesure d’un besoin réel de backlog, multi-consommateurs ou scalabilité indépendante.
+Aucun broker n’est imposé au MVP. Une file/broker ne sera introduite qu’après mesure d’un besoin réel de backlog, multi-consommateurs ou scalabilité indépendante. Un travail réseau qui doit survivre au redémarrage est tenu dans une table propre au module et traité par une tâche planifiée (file d'enrichissement `enrichissement_attente`, ADR-0039).
+
+### Événements entre modules
+
+Règle ([ADR-0039](../adr/0039-traitements-de-fond-evenements-et-appels-sortants.md), Proposé ; [DÉCISION] du porteur du projet, 2026-11-26, sur le périmètre) : un événement CDI publié par un module et observé par un autre l'est selon l'un de trois styles.
+
+| Style | Quand | Événements |
+|---|---|---|
+| `@Observes` synchrone | travail court, local, sans appel réseau, dont l'émetteur ou sa réponse a besoin avant de continuer, ou invalidation en mémoire ; liste fermée (`ObservateursEvenementsTest`) | `EcheanceSynchronisation` → `RafraichissementIndex` ; `CompteCree` → `ActivationProfilParDefaut` |
+| `@Observes(during = AFTER_SUCCESS)` | travail court en base qui suit une modification validée | `SignalChanged` → `Enricher` (mise en file), `CorrelationEngine` ; `InventoryReplaced` → `CorrelationEngine` ; `ImpactsTraites` → `AlertesSansObjet` ; `ActualiteRecue` → `RapprochementActualites` |
+| `@ObservesAsync` par `PublicationAsynchrone` | travail long, réseau, IA, envoi, ou travail qu'une requête ne doit pas attendre | `StandardModifie` → `RadarProjets` ; `AnnonceStandard` → `RappelsRadar` ; `ImpactsRecorded` → `MoteurAlertes` |
+
+Hors transaction JTA, un observateur `AFTER_SUCCESS` est appelé immédiatement sur le fil de l'émetteur : un travail qu'une requête ne doit pas attendre est donc asynchrone, jamais `AFTER_SUCCESS`. Les observateurs asynchrones s'exécutent sur `ExecuteurEvenements`, avec la corrélation des journaux de l'émetteur ; leurs effets (alertes, annonces) suivent la réponse de la requête. Aucune source externe n'est appelée transaction ouverte (`AppelsReseauHorsTransactionTest`).
 
 ## 8.10 Performance
 

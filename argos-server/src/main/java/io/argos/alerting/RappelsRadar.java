@@ -16,8 +16,7 @@ import java.util.Set;
 import java.util.UUID;
 
 import jakarta.enterprise.context.ApplicationScoped;
-import jakarta.enterprise.event.Event;
-import jakarta.enterprise.event.Observes;
+import jakarta.enterprise.event.ObservesAsync;
 import jakarta.inject.Inject;
 
 import org.eclipse.microprofile.config.inject.ConfigProperty;
@@ -91,9 +90,6 @@ public class RappelsRadar {
 
     @Inject
     EnvoiAlertes envoi;
-
-    @Inject
-    Event<AlerteEmise> emises;
 
     @ConfigProperty(name = "argos.alerting.lien-base")
     String lienBase;
@@ -173,13 +169,14 @@ public class RappelsRadar {
     }
 
     /** Annonce un changement de standard aux membres de l'espace dont un projet utilise la technologie. */
-    void surAnnonce(@Observes AnnonceStandard annonce) {
+    void surAnnonce(@ObservesAsync AnnonceStandard annonce) {
         annoncerOuJournaliser(annonce);
     }
 
     /**
-     * Observateur synchrone du relais d'un changement de standard : une panne d'accès aux données pendant l'annonce
-     * est journalisée avec sa cause et ne remonte pas à la modification du référentiel qui l'a déclenchée.
+     * Observateur asynchrone du relais d'un changement de standard (RAD-07, ADR-0039) : la modification du référentiel
+     * est déjà confirmée. Une panne d'accès aux données pendant l'annonce est journalisée avec sa cause ; une erreur
+     * imprévue sort de l'observateur, journalisée et comptée par la publication asynchrone.
      */
     private void annoncerOuJournaliser(AnnonceStandard annonce) {
         try {
@@ -288,10 +285,7 @@ public class RappelsRadar {
         List<UUID> crees = new ArrayList<>();
         for (Destinataires.Destinataire destinataire : destinataires.membres(Set.of(espaceId))) {
             String canal = destinataire.email() == null || destinataire.email().isBlank() ? "DESKTOP" : "EMAIL";
-            creer(message, destinataire.compteId(), canal, maintenant).ifPresent(id -> {
-                crees.add(id);
-                emises.fire(new AlerteEmise(id, destinataire.compteId(), canal, message.nature()));
-            });
+            creer(message, destinataire.compteId(), canal, maintenant).ifPresent(crees::add);
         }
         return crees;
     }

@@ -14,6 +14,10 @@ import java.time.Instant;
 import java.util.Locale;
 import java.util.Optional;
 
+import io.argos.commun.http.ClientsHttp;
+import io.argos.commun.http.LectureBornee;
+import io.argos.commun.http.ReponseTropVolumineuse;
+
 /**
  * Lecture HTTP commune aux adapters GitLab et GitHub : requêtes {@code GET} uniquement (lecture seule,
  * PIN-05), aucune redirection suivie (le jeton ne part jamais vers un autre hôte), taille de réponse
@@ -46,7 +50,7 @@ final class ForgeHttp {
     ForgeHttp(Duration timeout, Clock horloge) {
         this.timeout = timeout;
         this.horloge = horloge;
-        this.client = HttpClient.newBuilder().connectTimeout(timeout).followRedirects(HttpClient.Redirect.NEVER).build();
+        this.client = ClientsHttp.client(timeout);
     }
 
     /**
@@ -56,7 +60,7 @@ final class ForgeHttp {
      * @throws ScmException pour une erreur réseau ou une réponse au-delà de {@code tailleMax}
      */
     Reponse get(URI uri, Optional<String> jeton, boolean github, String accept, long tailleMax) {
-        HttpRequest.Builder requete = HttpRequest.newBuilder(uri).timeout(timeout).GET();
+        HttpRequest.Builder requete = ClientsHttp.requete(uri, timeout);
         if (accept != null) {
             requete.header("Accept", accept);
         }
@@ -69,15 +73,14 @@ final class ForgeHttp {
             HttpResponse<InputStream> reponse = client.send(requete.build(), HttpResponse.BodyHandlers.ofInputStream());
             byte[] corps;
             try (InputStream flux = reponse.body()) {
-                corps = flux.readNBytes((int) Math.min(Integer.MAX_VALUE - 8L, tailleMax + 1));
-            }
-            if (corps.length > tailleMax) {
-                throw new ScmException("réponse de " + uri.getHost() + " au-delà de la taille maximale", null);
+                corps = LectureBornee.octets(flux, tailleMax);
             }
             quota(reponse.statusCode(), reponse.headers(), corps, horloge.instant()).ifPresent(reprise -> {
                 throw new QuotaEpuise(uri.getHost(), reprise);
             });
             return new Reponse(reponse.statusCode(), corps, reponse.headers());
+        } catch (ReponseTropVolumineuse depassement) {
+            throw new ScmException("réponse de " + uri.getHost() + " au-delà de la taille maximale", depassement);
         } catch (IOException erreur) {
             throw new ScmException("erreur réseau vers " + uri.getHost(), erreur);
         } catch (InterruptedException erreur) {

@@ -57,6 +57,20 @@ public final class Correlation {
         };
     }
 
+    /** Action à exécuter sur un autre fil avec les valeurs de corrélation du fil appelant, comme {@link #propager}. */
+    public static Runnable propagerAction(Runnable action) {
+        Map<String, Object> valeurs = Map.copyOf(MDC.getMap());
+        return () -> {
+            Map<String, Object> precedentes = Map.copyOf(MDC.getMap());
+            remplacer(valeurs);
+            try {
+                action.run();
+            } finally {
+                remplacer(precedentes);
+            }
+        };
+    }
+
     private static void remplacer(Map<String, Object> valeurs) {
         MDC.clear();
         valeurs.forEach(MDC::put);

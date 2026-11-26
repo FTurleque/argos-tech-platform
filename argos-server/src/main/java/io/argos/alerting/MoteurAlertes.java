@@ -16,8 +16,8 @@ import java.util.UUID;
 import java.util.stream.Collectors;
 
 import jakarta.enterprise.context.ApplicationScoped;
-import jakarta.enterprise.event.Event;
 import jakarta.enterprise.event.Observes;
+import jakarta.enterprise.event.ObservesAsync;
 import jakarta.enterprise.inject.Instance;
 import jakarta.inject.Inject;
 
@@ -55,7 +55,7 @@ import io.argos.workspace.subscription.SubscriptionService;
  *   <li>tout autre élément concerné entre dans le prochain résumé du destinataire (ALR-01-S2, ALR-04).</li>
  * </ol>
  * Le résumé IA est demandé une fois par signal avec un délai borné ; son absence ne retient aucune
- * alerte (ALR-05). Les alertes enregistrées sont publiées ({@link AlerteEmise}) puis diffusées.
+ * alerte (ALR-05). Les alertes enregistrées sont ensuite diffusées.
  */
 @ApplicationScoped
 public class MoteurAlertes {
@@ -88,9 +88,6 @@ public class MoteurAlertes {
     @Inject
     EnvoiAlertes envoi;
 
-    @Inject
-    Event<AlerteEmise> emises;
-
     @ConfigProperty(name = "argos.alerting.lien-base")
     String lienBase;
 
@@ -116,14 +113,14 @@ public class MoteurAlertes {
         }
     }
 
-    void surImpacts(@Observes ImpactsRecorded evenement) {
+    void surImpacts(@ObservesAsync ImpactsRecorded evenement) {
         evaluerOuJournaliser(evenement);
     }
 
     /**
-     * Observateur synchrone de la publication des impacts : une panne d'accès aux données pendant l'évaluation des
-     * alertes est journalisée avec sa cause et ne remonte pas à l'émetteur, dont l'enregistrement des impacts reste
-     * acquis.
+     * Observateur asynchrone de la publication des impacts (ADR-0039) : la corrélation n'attend pas l'évaluation des
+     * alertes. Une panne d'accès aux données pendant l'évaluation est journalisée avec sa cause ; une erreur imprévue
+     * sort de l'observateur, journalisée et comptée par la publication asynchrone.
      */
     private void evaluerOuJournaliser(ImpactsRecorded evenement) {
         try {
@@ -170,10 +167,7 @@ public class MoteurAlertes {
         for (Map.Entry<String, Map<UUID, ImpactQueries.ImpactView>> canal : plan.immediates().entrySet()) {
             ContenuAlerte contenu = new ContenuAlerte(List.of(element(SignalCite.depuis(evenement), canal.getValue().values(),
                     lienBase)), resume.texte(), resume.etat());
-            creerImmediate(evenement, compte, canal.getKey(), contenu, maintenant).ifPresent(id -> {
-                creees.add(id);
-                emises.fire(new AlerteEmise(id, compte, canal.getKey(), RegleAlerte.IMMEDIATE));
-            });
+            creerImmediate(evenement, compte, canal.getKey(), contenu, maintenant).ifPresent(creees::add);
         }
         return creees;
     }

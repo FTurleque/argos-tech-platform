@@ -94,7 +94,10 @@ public class SyncStore {
                 sourceId);
         if (retryable.isPresent()) {
             UUID id = UUID.fromString(retryable.get());
-            resume(id);
+            update("""
+                    UPDATE sync_run SET state = 'RUNNING', heartbeat_at = now(), next_attempt_at = NULL
+                    WHERE id = ? AND state = 'RETRYABLE'
+                    """, id);
             return Optional.of(id);
         }
         UUID id = UUID.randomUUID();
@@ -110,9 +113,14 @@ public class SyncStore {
         return queryString("SELECT attempts::text FROM sync_run WHERE id = ?", runId).map(Integer::parseInt).orElse(0);
     }
 
+    /**
+     * Reprend le traitement après son attente : vrai s'il est toujours {@code RUNNING} (INV-2). Faux s'il a expiré et
+     * qu'un autre lancement l'a repris ; l'appelant s'arrête alors sans rien écrire.
+     */
     @Transactional
-    public void resume(UUID runId) {
-        update("UPDATE sync_run SET state = 'RUNNING', heartbeat_at = now(), next_attempt_at = NULL WHERE id = ?", runId);
+    public boolean reprendre(UUID runId) {
+        return update("UPDATE sync_run SET heartbeat_at = now(), next_attempt_at = NULL WHERE id = ? AND state = 'RUNNING'",
+                runId) == 1;
     }
 
     @Transactional
@@ -124,12 +132,25 @@ public class SyncStore {
                 truncate(error.getMessage()), error.retryAfter().map(Duration::getSeconds).orElse(null));
     }
 
+    /**
+     * Attente d'une nouvelle tentative après une erreur transitoire (COL-06) : le traitement reste {@code RUNNING},
+     * donc exclusif (index {@code sync_run_one_running}, COL-12-S3), avec la date de sa prochaine tentative.
+     */
     @Transactional
-    public void markRetryable(UUID runId, int attempts, Instant nextAttemptAt, String error) {
+    public void attendreReprise(UUID runId, int attempts, Instant nextAttemptAt, String error) {
         update("""
-                UPDATE sync_run SET state = 'RETRYABLE', attempts = ?, next_attempt_at = ?, error_kind = 'TRANSIENT',
-                       last_error = ?, heartbeat_at = now() WHERE id = ?
+                UPDATE sync_run SET attempts = ?, next_attempt_at = ?, error_kind = 'TRANSIENT', last_error = ?,
+                       heartbeat_at = now() WHERE id = ? AND state = 'RUNNING'
                 """, attempts, utc(nextAttemptAt), truncate(error), runId);
+    }
+
+    /** Laisse le traitement {@code RETRYABLE} : le prochain lancement le reprend depuis le curseur persisté. */
+    @Transactional
+    public void abandonner(UUID runId, int attempts, String motif) {
+        update("""
+                UPDATE sync_run SET state = 'RETRYABLE', attempts = ?, next_attempt_at = NULL, last_error = ?,
+                       heartbeat_at = now() WHERE id = ? AND state = 'RUNNING'
+                """, attempts, truncate(motif), runId);
     }
 
     @Transactional

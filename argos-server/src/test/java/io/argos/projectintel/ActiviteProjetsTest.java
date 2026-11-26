@@ -24,7 +24,9 @@ import java.time.temporal.ChronoUnit;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.Set;
 import java.util.UUID;
+import java.util.concurrent.ConcurrentHashMap;
 
 import jakarta.inject.Inject;
 
@@ -162,6 +164,43 @@ class ActiviteProjetsTest {
         assertEquals(1, bilan.echecs());
         assertEquals(List.of(imprevue), bilan.erreursImprevues());
         assertThrows(IllegalArgumentException.class, bilan::relancerErreurImprevue);
+    }
+
+    /**
+     * AUD-PER-13 : les forges sont collectées chacune sur sa tâche, les projets échus seulement ; au passage suivant,
+     * aucun projet n'est échu et aucune forge n'est appelée.
+     */
+    @Test
+    void lesForgesSontCollecteesEnParalleleEtLesProjetsNonEchusSautes() {
+        projets.create(espace, "app github", new RepositoryRef("GITHUB", "demo/github", "main", null, null), List.of());
+        projets.create(espace, "app gitlab", new RepositoryRef("GITLAB", "groupe/gitlab", "main", null, null), List.of());
+        Map<String, String> filsParForge = new ConcurrentHashMap<>();
+        ParametresForges forgesFactices = new ParametresForges(Duration.ofSeconds(1), "http://localhost", "http://localhost",
+                Optional.empty(), Optional.empty());
+        RepositoryActivity doublure = new RepositoryActivity(forgesFactices, 1, 0, 1, Clock.systemUTC()) {
+            @Override
+            public ActiviteDepot lire(RepositoryRef ref, Instant depuis) {
+                filsParForge.put(ref.provider(), Thread.currentThread().getName());
+                return new ActiviteDepot(List.of(), List.of(), List.of(), List.of(), List.of(), true);
+            }
+        };
+
+        CollecteActivite.Bilan premier;
+        CollecteActivite.Bilan second;
+        Map<String, String> filsDuPremierPassage;
+        try (Substitution substitution = Substitution.remplacer(collecte, "forges", doublure)) {
+            premier = collecte.collecter(Instant.now());
+            filsDuPremierPassage = Map.copyOf(filsParForge);
+            filsParForge.clear();
+            second = collecte.collecter(Instant.now());
+        }
+
+        assertEquals(2, premier.aJour());
+        assertEquals(Set.of("GITHUB", "GITLAB"), filsDuPremierPassage.keySet());
+        assertTrue(filsDuPremierPassage.values().stream().allMatch(fil -> fil.equals("argos-collecte-activite")),
+                filsDuPremierPassage.toString());
+        assertEquals(0, second.aJour(), "aucun projet échu au passage suivant");
+        assertTrue(filsParForge.isEmpty(), "aucune forge appelée pour un projet non échu");
     }
 
     @Test

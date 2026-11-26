@@ -12,7 +12,10 @@ import jakarta.ws.rs.Produces;
 import jakarta.ws.rs.core.MediaType;
 
 import org.eclipse.microprofile.openapi.annotations.Operation;
+import org.eclipse.microprofile.openapi.annotations.responses.APIResponse;
 import org.eclipse.microprofile.openapi.annotations.tags.Tag;
+
+import org.jboss.resteasy.reactive.ResponseStatus;
 
 import io.argos.api.security.Access;
 import io.argos.signal.SourceOperations;
@@ -22,6 +25,9 @@ import io.argos.signal.SourceOperations;
 @Tag(name = "Exploitation")
 @Produces(MediaType.APPLICATION_JSON)
 public class SourceOperationsResource {
+
+    /** Statut HTTP d'une demande acceptée, traitée en tâche de fond. */
+    private static final int ACCEPTE = 202;
 
     @Inject
     Access access;
@@ -56,11 +62,14 @@ public class SourceOperationsResource {
 
     @POST
     @Path("/{id}/synchronizations")
-    @Operation(summary = "Lance une synchronisation de la source et attend son résultat")
-    public SourceOperations.SyncResult synchronize(@PathParam("id") String id) {
+    @ResponseStatus(ACCEPTE)
+    @Operation(summary = "Lance une synchronisation de la source, poursuivie en tâche de fond (COL-12)")
+    @APIResponse(responseCode = "202", description = "Traitement démarré : identifiant du traitement")
+    @APIResponse(responseCode = "409", description = "SYNCHRONISATION_EN_COURS ou LANCEMENT_SATURE")
+    public SourceOperations.SyncLaunch synchronize(@PathParam("id") String id) {
         access.operator();
         requireSource(id);
-        return operations.synchronize(id);
+        return operations.lancer(id);
     }
 
     private void requireSource(String id) {

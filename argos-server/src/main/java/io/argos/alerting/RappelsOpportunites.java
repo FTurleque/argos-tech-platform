@@ -12,7 +12,6 @@ import java.util.Set;
 import java.util.UUID;
 
 import jakarta.enterprise.context.ApplicationScoped;
-import jakarta.enterprise.event.Event;
 import jakarta.inject.Inject;
 
 import org.eclipse.microprofile.config.inject.ConfigProperty;
@@ -59,9 +58,6 @@ public class RappelsOpportunites {
 
     @Inject
     EnvoiAlertes envoi;
-
-    @Inject
-    Event<AlerteEmise> emises;
 
     @ConfigProperty(name = "argos.profil-artiste.rappels-jours")
     List<Integer> rappelsParDefaut;
@@ -145,10 +141,7 @@ public class RappelsOpportunites {
             String titre = "Date limite " + quand + " (" + limite + ") : " + restitution.titre();
             String cle = "OPPORTUNITE|" + restitution.id() + "|" + limite + "|J-" + restant;
             RappelsRadar.Message message = new RappelsRadar.Message("RAPPEL", cle, titre, contenu(restitution, titre));
-            messages.creer(message, suiveur.compteId(), canal, maintenant).ifPresent(id -> {
-                crees.add(id);
-                emises.fire(new AlerteEmise(id, suiveur.compteId(), canal, "RAPPEL"));
-            });
+            messages.creer(message, suiveur.compteId(), canal, maintenant).ifPresent(crees::add);
         }
         return crees;
     }

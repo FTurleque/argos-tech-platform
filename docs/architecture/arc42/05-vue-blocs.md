@@ -135,9 +135,9 @@ Tous les modules métier dépendent de `commun` (ADR-0037) ; seules quelques ar�
 | Composant | Responsabilité | Ne doit pas |
 |---|---|---|
 | API & Security | REST/OpenAPI, authn/authz, validation | contenir les règles métier |
-| commun | contexte RLS (`ContexteBase`), frontière transactionnelle JTA, utilitaire JDBC (`Jdbc`, `Conversions`, `ErreurBase`), erreurs du domaine partagées ; `commun.securite` : appelant (`Caller`, `CallerResolver`) et limiteur de débit (`LimiteurDebit`) (`io.argos.commun`, ADR-0037) | dépendre d'un module ; contenir une règle métier ; citer une table |
+| commun | contexte RLS (`ContexteBase`), frontière transactionnelle JTA, utilitaire JDBC (`Jdbc`, `Conversions`, `ErreurBase`), erreurs du domaine partagées ; `commun.securite` : appelant (`Caller`, `CallerResolver`) et limiteur de débit (`LimiteurDebit`) ; `commun.http` : fabrique des clients HTTP sortants et lecture bornée des réponses (`ClientsHttp`, `LectureBornee`, ADR-0039) (`io.argos.commun`, ADR-0037) | dépendre d'un module ; contenir une règle métier ; citer une table |
 | workspace | équipes, rôles, abonnements TEAM/PERSONAL, vues ; lectures publiées pour les autres modules (`LectureMembres`, `PreferencesService`, vue `compte_nom_public`) | confondre préférence de veille et autorisation |
-| source-ingestion | collecte, idempotence, normalisation | connaître la présentation UI |
+| source-ingestion | collecte, idempotence, normalisation ; synchronisation lancée par l'exploitant poursuivie en tâche de fond (`LancementSynchronisation`, ADR-0039) ; lecture OSV par archive d'écosystème au-delà d'un seuil | connaître la présentation UI ; appeler une source dans une transaction |
 | catalog | technologies, standards, domaines métier | dépendre d’un fournisseur externe |
 | inventory | projets, dépôts (un ou plusieurs par projet, inventaire = union des dépôts), SBOM, PURL ; import quotidien planifié des inventaires depuis les forges, sérialisé avec l'import manuel par projet (`ImportPlanifie`, changement `automatiser-chaine-veille`) | calculer seul l’impact sécurité ; dépendre d'`impact-engine` (la recorrélation passe par l'événement `InventoryReplaced`) ; exposer un point d'entrée entrant (webhook) |
 | release-radar | calendrier public endoflife.date (copie locale, fraîcheur), échéances par technologie du référentiel (`io.argos.releaseradar`, fiche [`radar-standards`](../../specifications/radar-standards.md)) | décider d’un statut du référentiel ; utiliser la correspondance produit d’un autre espace |
@@ -162,7 +162,7 @@ le service de `workspace`.
 | catalog | `domaine_metier`, `expert_domaine`, `regle_dictionnaire`, `standard_technologie`, `standard_suggestion`, `standard_historique` |
 | inventory | `project`, `project_repository`, `inventory`, `repository_inventory`, `component`, `component_occurrence`, `inventory_import_failure` |
 | signal | `signal`, `signal_alias`, `signal_package`, `signal_version`, `actualite`, `actualite_source`, `source_web`, `source_profil`, `opportunite` |
-| vulnintel | `enrichment` |
+| vulnintel | `enrichment`, `enrichissement_attente` |
 | releaseradar | `cycle_vie`, `cycle_vie_produit` |
 | regintel | `texte_officiel`, `fiche_reglementaire`, `fiche_domaine`, `fiche_historique`, `reg_source`, `reg_parametres`, `reg_collecte_jour` |
 | impact | `project_impact`, `project_impact_transition`, `actualite_impact`, `dette_version` |

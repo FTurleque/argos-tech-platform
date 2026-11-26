@@ -21,6 +21,9 @@ import org.eclipse.microprofile.config.inject.ConfigProperty;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 
+import io.argos.commun.http.ClientsHttp;
+import io.argos.commun.http.LectureBornee;
+
 import io.argos.aigateway.FournisseurModele;
 
 /**
@@ -36,6 +39,9 @@ import io.argos.aigateway.FournisseurModele;
 public class FournisseurOllama implements FournisseurModele {
 
     private static final int TAILLE_MAX_REPONSE = 1024 * 1024;
+
+    /** Délai de connexion maximal au service local, plus court que le délai d'une demande. */
+    private static final Duration CONNEXION_MAX = Duration.ofSeconds(5);
 
     @ConfigProperty(name = "argos.ia.ollama.url")
     String url;
@@ -57,11 +63,7 @@ public class FournisseurOllama implements FournisseurModele {
             throw new IllegalStateException("argos.ia.ollama.url invalide : adresse http(s) sans identifiants attendue");
         }
         chat = URI.create(base + "/api/chat");
-        client = HttpClient.newBuilder()
-                .connectTimeout(delai.compareTo(Duration.ofSeconds(5)) < 0 ? delai : Duration.ofSeconds(5))
-                .followRedirects(HttpClient.Redirect.NEVER)
-                .proxy(HttpClient.Builder.NO_PROXY)
-                .build();
+        client = ClientsHttp.clientSansProxy(delai.compareTo(CONNEXION_MAX) < 0 ? delai : CONNEXION_MAX);
     }
 
     @Override
@@ -79,21 +81,17 @@ public class FournisseurOllama implements FournisseurModele {
                 "messages", List.of(
                         Map.of("role", "system", "content", demande.consignes()),
                         Map.of("role", "user", "content", demande.message())));
-        HttpRequest requete = HttpRequest.newBuilder(chat)
-                .timeout(delai)
+        HttpRequest requete = ClientsHttp.requete(chat, delai)
                 .header("Content-Type", "application/json")
                 .POST(HttpRequest.BodyPublishers.ofString(json.writeValueAsString(corps), StandardCharsets.UTF_8))
                 .build();
         HttpResponse<InputStream> reponse = client.send(requete, HttpResponse.BodyHandlers.ofInputStream());
         byte[] octets;
         try (InputStream flux = reponse.body()) {
-            octets = flux.readNBytes(TAILLE_MAX_REPONSE + 1);
-        }
-        if (reponse.statusCode() != 200) {
-            throw new IOException("Ollama a répondu " + reponse.statusCode());
-        }
-        if (octets.length > TAILLE_MAX_REPONSE) {
-            throw new IOException("réponse d'Ollama trop volumineuse");
+            if (reponse.statusCode() != 200) {
+                throw new IOException("Ollama a répondu " + reponse.statusCode());
+            }
+            octets = LectureBornee.octets(flux, TAILLE_MAX_REPONSE);
         }
         JsonNode racine = json.readTree(octets);
         JsonNode contenu = racine.path("message").path("content");
