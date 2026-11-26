@@ -174,7 +174,7 @@ class ImportPlanifieTest {
         baseDeTest.exec("DELETE FROM component_occurrence WHERE project_id = '" + outil + "'");
         baseDeTest.exec("DELETE FROM component WHERE project_id = '" + outil + "'");
         // Sans empreinte, le passage suivant réécrit l'inventaire du second projet même si sa SBOM n'a pas changé (INV-14).
-        baseDeTest.exec("UPDATE repository_inventory SET empreinte = NULL WHERE project_id = '" + outil + "'");
+        baseDeTest.exec("UPDATE repository_inventory SET empreinte = NULL WHERE project_id = ?", outil);
 
         ImportPlanifie.Bilan bilan = importPlanifie.importer(Instant.parse("2026-11-21T02:00:00Z"));
 
@@ -227,7 +227,7 @@ class ImportPlanifieTest {
         baseDeTest.exec("DELETE FROM component_occurrence WHERE project_id = '" + outil + "'");
         baseDeTest.exec("DELETE FROM component WHERE project_id = '" + outil + "'");
         // Sans empreinte, le passage suivant réécrit l'inventaire du second projet même si sa SBOM n'a pas changé (INV-14).
-        baseDeTest.exec("UPDATE repository_inventory SET empreinte = NULL WHERE project_id = '" + outil + "'");
+        baseDeTest.exec("UPDATE repository_inventory SET empreinte = NULL WHERE project_id = ?", outil);
         InventoryService reel = Substitution.reel(inventories);
         IllegalArgumentException imprevue = new IllegalArgumentException("erreur imprévue simulée");
         InventoryService doublure = new InventoryService() {
@@ -252,9 +252,14 @@ class ImportPlanifieTest {
         assertThrows(IllegalArgumentException.class, bilan::relancerErreurImprevue, "le passage planifié relance l'erreur");
     }
 
+    /** Identifiant et version de ligne de chaque composant d'un projet : change si un composant est réécrit. */
+    private static final String VERSIONS_DES_COMPOSANTS =
+            "SELECT string_agg(id::text || xmin::text, ',' ORDER BY id) FROM component WHERE project_id = ?";
+
+    private static final String LODASH = "SELECT id::text FROM component WHERE project_id = ? AND version = '4.17.21'";
+
     private String importDuProjet(UUID projet) {
-        return baseDeTest.string("SELECT import_id::text || '|' || imported_at::text FROM inventory WHERE project_id = '"
-                + projet + "'");
+        return baseDeTest.string("SELECT import_id::text || '|' || imported_at::text FROM inventory WHERE project_id = ?", projet);
     }
 
     /** INV-14-S1, INV-09-S3 : un passage qui relit une SBOM inchangée conserve l'inventaire sans l'écrire ni le recorréler. */
@@ -264,9 +269,8 @@ class ImportPlanifieTest {
         servirForgesNominales();
         importPlanifie.importer(Instant.parse("2026-11-20T02:00:00Z"));
         String avant = importDuProjet(outil);
-        String composantsAvant = baseDeTest.string("SELECT string_agg(id::text || xmin::text, ',' ORDER BY id) FROM component"
-                + " WHERE project_id = '" + outil + "'");
-        assertNotNull(baseDeTest.string("SELECT empreinte FROM repository_inventory WHERE project_id = '" + outil + "'"));
+        String composantsAvant = baseDeTest.string(VERSIONS_DES_COMPOSANTS, outil);
+        assertNotNull(baseDeTest.string("SELECT empreinte FROM repository_inventory WHERE project_id = ?", outil));
 
         InventoryService.ImportProjet second = inventories.importerProjet(outil);
 
@@ -275,8 +279,7 @@ class ImportPlanifieTest {
         assertEquals("SBOM", resultat.origin());
         assertEquals(InventoryService.MOTIF_DOCUMENT_INCHANGE, resultat.reason());
         assertEquals(avant, importDuProjet(outil), "ni réécriture ni nouvel identifiant d'import, donc aucune recorrélation");
-        assertEquals(composantsAvant, baseDeTest.string("SELECT string_agg(id::text || xmin::text, ',' ORDER BY id) FROM component"
-                + " WHERE project_id = '" + outil + "'"), "aucun composant réécrit");
+        assertEquals(composantsAvant, baseDeTest.string(VERSIONS_DES_COMPOSANTS, outil), "aucun composant réécrit");
     }
 
     /** INV-14-S2 : une SBOM modifiée est importée ; les composants déjà présents gardent leur identifiant. */
@@ -287,7 +290,7 @@ class ImportPlanifieTest {
                 List.<String[]>of(new String[] {"lodash", "pkg:npm/lodash@4.17.21"}), List.of("lodash")),
                 Map.of("Content-Type", "application/json")));
         importPlanifie.importer(Instant.parse("2026-11-20T02:00:00Z"));
-        String lodash = baseDeTest.string("SELECT id::text FROM component WHERE project_id = '" + web + "' AND version = '4.17.21'");
+        String lodash = baseDeTest.string(LODASH, web);
         StubServer.programmer(GITLAB_SBOM, new Stub(200, Fixtures.cyclonedx("1.6", "2026-11-16T06:12:44Z",
                 List.<String[]>of(new String[] {"lodash", "pkg:npm/lodash@4.17.21"}, new String[] {"chalk", "pkg:npm/chalk@5.3.0"}),
                 List.of("lodash", "chalk")), Map.of("Content-Type", "application/json")));
@@ -296,7 +299,7 @@ class ImportPlanifieTest {
 
         assertEquals(StatutImport.IMPORTED, second.depots().get(0).result().status());
         assertEquals(2, composants(web));
-        assertEquals(lodash, baseDeTest.string("SELECT id::text FROM component WHERE project_id = '" + web + "' AND version = '4.17.21'"));
+        assertEquals(lodash, baseDeTest.string(LODASH, web));
     }
 
     /** INV-14-S3 : un import manuel du même document est toujours appliqué. */
@@ -333,9 +336,9 @@ class ImportPlanifieTest {
 
         assertEquals(StatutImport.IMPORTED, bilan.depots().get(0).result().status());
         assertEquals(nombre, composants(web), "le doublon de paquet et de version donne un seul composant");
-        assertEquals(0, baseDeTest.count("SELECT count(*) FROM component WHERE project_id = '" + web + "'"
-                + " AND package_key = 'pkg:npm/paquet-0' AND transitive IS DISTINCT FROM false"), "direct s'il l'est une fois");
-        assertEquals(nombre, baseDeTest.count("SELECT count(*) FROM component_occurrence WHERE project_id = '" + web + "'"));
+        assertEquals(0, baseDeTest.count("SELECT count(*) FROM component WHERE project_id = ?"
+                + " AND package_key = 'pkg:npm/paquet-0' AND transitive IS DISTINCT FROM false", web), "direct s'il l'est une fois");
+        assertEquals(nombre, baseDeTest.count("SELECT count(*) FROM component_occurrence WHERE project_id = ?", web));
     }
 
     /** INV-07-S3 : aucune route n'accepte une notification de pipeline ou un webhook de forge. */

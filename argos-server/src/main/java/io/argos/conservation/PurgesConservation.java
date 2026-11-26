@@ -76,7 +76,10 @@ public class PurgesConservation {
         executer(horloge.instant());
     }
 
-    /** Applique toutes les règles à l'instant {@code maintenant} et rend le bilan de chacune. */
+    /**
+     * Applique toutes les règles à l'instant {@code maintenant} et rend le bilan de chacune. L'appelant n'ouvre pas de
+     * transaction : chaque lot de suppression est validé à part.
+     */
     public List<Bilan> executer(Instant maintenant) {
         List<RegleConservation> declarees = new ArrayList<>();
         regles.forEach(declarees::add);

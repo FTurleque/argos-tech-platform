@@ -59,12 +59,12 @@ Proposition : **option A**.
 
 ## Conséquences négatives
 
-- Rupture de contrat pour chaque liste qui rendait un tableau, et pour la recherche (`taille`, `elements`) quand elle sera alignée.
+- Rupture de contrat pour chaque liste qui rendait un tableau.
 - Un `count(*)` par page.
 
 ## Conséquences neutres / compromis
 
-- Les listes bornées par `limite` (alertes, fiches, actualités) gardent ce paramètre tant qu'elles ne sont pas alignées.
+- La recherche garde son format (`page`, `taille`, `elements`), et les listes bornées par `limite` (alertes, fiches, actualités) gardent ce paramètre (décisions du porteur du projet, 2026-11-26). `GET /api/v1/me/veille` est une liste au sens de cette décision.
 - La pagination par décalage convient à des tables bornées par la conservation des données (ADR-0041).
 
 ## Méthode de validation

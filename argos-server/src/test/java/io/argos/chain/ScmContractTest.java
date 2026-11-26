@@ -216,9 +216,9 @@ class ScmContractTest {
                 .then().statusCode(200)
                 .body("inventory.origin", equalTo("SBOM"))
                 .body("inventory.sourceDate", equalTo("2026-11-15T06:12:44Z"))
-                .body("inventory.components", hasSize(3))
-                .body("inventory.components.find { it.packageKey == 'pkg:npm/express' }.transitive", equalTo(false))
-                .body("inventory.components.find { it.packageKey == 'pkg:npm/body-parser' }.transitive", equalTo(true));
+                .body("inventory.components.items", hasSize(3))
+                .body("inventory.components.items.find { it.packageKey == 'pkg:npm/express' }.transitive", equalTo(false))
+                .body("inventory.components.items.find { it.packageKey == 'pkg:npm/body-parser' }.transitive", equalTo(true));
     }
 
     @Test
@@ -240,12 +240,12 @@ class ScmContractTest {
         assertTrue(refus.reason().contains("SPDX JSON"));
         Api.enTantQue("alice").when().get("/api/v1/projects/" + projet + "/inventory/failures")
                 .then().statusCode(200)
-                .body("[0].reason", containsString("SPDX JSON non acceptée"))
-                .body("[0].sourceRef", equalTo("GITHUB:org/app@main"));
+                .body("items[0].reason", containsString("SPDX JSON non acceptée"))
+                .body("items[0].sourceRef", equalTo("GITHUB:org/app@main"));
         Api.enTantQue("alice").when().get("/api/v1/projects/" + projet + "/inventory")
                 .then().statusCode(200)
                 .body("inventory.origin", equalTo("MANIFEST"))
-                .body("inventory.components", hasSize(2));
+                .body("inventory.components.items", hasSize(2));
     }
 
     @Test

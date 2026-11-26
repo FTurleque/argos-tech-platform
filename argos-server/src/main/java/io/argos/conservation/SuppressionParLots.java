@@ -10,9 +10,10 @@ import org.eclipse.microprofile.config.inject.ConfigProperty;
 import io.argos.commun.Jdbc;
 
 /**
- * Suppression par lots des lignes échues (ADR-0041) : chaque lot est une instruction autonome, validée hors
- * transaction JTA, ce qui borne la durée des verrous et le volume de chaque instruction. Le SQL fourni par la règle se
- * termine par un paramètre {@code LIMIT ?}, lié ici à la taille du lot.
+ * Suppression par lots des lignes échues (ADR-0041) : chaque lot est une instruction autonome, validée à part tant
+ * que l'appelant n'ouvre pas de transaction JTA (la tâche de purge n'en ouvre pas), ce qui borne la durée des verrous
+ * et le volume de chaque instruction. Le SQL fourni par la règle se termine par un paramètre {@code LIMIT ?}, lié ici
+ * à la taille du lot.
  */
 @ApplicationScoped
 public class SuppressionParLots {

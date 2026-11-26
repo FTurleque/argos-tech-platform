@@ -40,6 +40,7 @@ public class InventoryService {
     /**
      * Issue d'un import : IMPORTED, REJECTED, KEPT (inventaire conservé, SBOM absente ou document inchangé), NONE
      * (aucune source), ERROR (forge en erreur) ou DEFERRED (quota de la forge épuisé pendant ce passage, dépôt non interrogé).
+     * Pour KEPT, {@code components} et {@code ignored} valent 0 : ils ne décrivent pas l'inventaire conservé.
      * {@code ignored} compte les composants écartés faute de PURL exploitable ; {@code ignoredComponents}
      * les décrit, au plus {@value ParsedInventory#MAX_SIGNALED} (INV-01, décision D6 du 2026-11-18).
      */

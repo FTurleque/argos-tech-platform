@@ -145,7 +145,7 @@ Le contrat exécutable reste `/q/openapi`. Format commun (ADR-0040, Proposé) :
 | `GET /api/v1/ops/sources/{id}/events` (exploitant) | tableau | page | `occurred_at` décroissant, `id` |
 | `GET /api/v1/projects/{projectId}/inventory/failures` (membre) | tableau | page | `received_at` décroissant, `id` |
 | `GET /api/v1/projects/{projectId}/impacts` (membre) | tableau | page, filtre `etat` conservé | `created_at`, `id` (ordre de `GET /signals/{id}/impacts`) |
-| `GET /api/v1/projects/{projectId}/inventory` (membre) | `inventory.components` tableau | `inventory.components` page | clé de paquet, version, `id` |
+| `GET /api/v1/projects/{projectId}/inventory` (membre) | `inventory.components` tableau | `inventory.components` page | clé de paquet, version (nulle en dernier), `id` |
 | `GET /api/v1/profils/artiste/opportunites` (utilisateur du profil) | `{suivisRequis, message, items}` | mêmes champs + `page`, `size`, `total` | date limite la plus proche, titre, `id` |
 
 `ProjectPage`, `ComponentPage` et la page d'impacts d'un signal gardent leur forme JSON, déjà conforme. Le type Java commun `Page<T>` est adopté par les nouvelles listes ; ces trois types existants restent en place, sans changement d'OpenAPI.
@@ -256,7 +256,7 @@ Migration `V26__empreinte_dernier_import_depot.sql` : `ALTER TABLE repository_in
 - **Choix** : échéance = `date_limite` si elle existe, sinon `recu_le` + âge maximal (`argos.profil-artiste.opportunites.age-max`, P90D). La restitution exclut les opportunités échues (ART-08). La règle `opportunites` supprime celles dont l'échéance précède la limite de conservation.
 - **Justification** : `recu_le` est la première collecte (l'upsert ne la change pas) ; un élément de flux n'a pas d'autre date fiable.
 - **Alternatives écartées** : la date de publication du flux, non lue aujourd'hui (`LecteurFlux.ElementFlux` n'en porte pas). `modifie_le`, rafraîchie à chaque collecte, ferait vivre un élément tant qu'il reste dans le flux.
-- **Compromis** : un élément encore présent dans le flux après sa purge serait recollecté comme nouveau ; avec 90 + 180 jours, ce cas suppose un flux qui garde des éléments de plus de neuf mois.
+- **Compromis** : une opportunité encore publiée par sa source après sa purge est recollectée avec une nouvelle première collecte : sans date limite, elle redevient ouverte pour l'âge maximal (cas d'un flux qui garde des éléments plus de neuf mois) ; avec une date limite dépassée de plus que la durée de conservation, elle est réinsérée puis supprimée à chaque passage, sans jamais être restituée (ART-03-S2).
 - **ADR** : non : décision locale.
 
 ### D6 — Format de pagination commun et périmètre
@@ -265,7 +265,7 @@ Migration `V26__empreinte_dernier_import_depot.sql` : `ALTER TABLE repository_in
 - **Choix** : `page`/`size` → `{items, page, size, total}`, 50 par défaut, 200 au plus, tri terminé par l'identifiant (`commun.Pagination`, `commun.Page<T>`, `api.ParametresPagination.pagination`). Le format s'applique à toute liste dont la taille croît avec les données collectées, importées ou journalisées.
 - **Justification** : c'est le format le plus répandu (projets, composants, impacts d'un signal) et celui que l'IHM sait lire (`PageImpactsApi`). Le total sert l'affichage « n sur N ». La pagination par décalage suffit pour des tables bornées par la conservation (EXP-17).
 - **Alternatives écartées** : la pagination par curseur (clé de tri) : plus stable sous insertion, mais elle romprait les trois listes paginées existantes et l'IHM, pour un gain non mesuré sur des tables bornées. Le format `page`/`taille`/`elements` de la recherche, utilisé par une seule opération.
-- **Compromis** : la recherche (`taille`, `elements`) et `/me/veille` restent à aligner par le sprint 10. Les listes bornées par `limite` (alertes, fiches, actualités) les gardent : la recommandation est soumise au porteur ; l'aligner touche le desktop, qui interroge `/alertes` en boucle. Les listes bornées par la configuration ne sont pas paginées.
+- **Compromis** : la recherche garde son format (`page`, `taille`, `elements`) [DÉCISION — porteur du projet, 2026-11-26] ; `/me/veille` sera alignée après la fusion de ce changement. Les listes bornées par `limite` (alertes, fiches, actualités) le gardent pour ce sprint [DÉCISION — porteur du projet, 2026-11-26, option 1] : elles sont déjà bornées, et les aligner touche le desktop, qui interroge `/alertes` en boucle. Écart consigné ci-dessous. Les listes bornées par la configuration ne sont pas paginées.
 - **ADR** : candidat ADR-0040 (Proposé).
 
 ### D7 — Bornage du journal des refus dans `JournalRefus`
@@ -302,6 +302,7 @@ Migration `V26__empreinte_dernier_import_depot.sql` : `ALTER TABLE repository_in
 
 - Versions d'avis (`signal_version`) : non purgées. COL-03-S2 exige que la version précédente reste consultable. Le volume (`raw_content`) reste à borner par une décision du porteur qui modifierait cette exigence.
 - Alertes et éléments de résumé (`alerte`, `resume_element`) : non purgés. L'idempotence d'une alerte immédiate repose sur la ligne elle-même (`alerte_immediate_uk`). La purger permettrait un second envoi si le signal est recorrélé. Il faudrait d'abord une clé d'idempotence séparée. Reporté : constat à rouvrir hors de ce sprint, qui ne touche pas au moteur d'alertes.
+- Listes bornées par `limite` (`GET /api/v1/alertes`, `GET /api/v1/reglementaire/fiches`, `GET /api/v1/veille-web/actualites`) : bornées (200 au plus) mais pas au format commun de PERF-03 (D6, décision du porteur du 2026-11-26). Leur alignement, IHM et desktop compris, reste à planifier.
 - `RappelsOpportunites` relit les opportunités pour chaque suiveur (AUD-PER-18, impact « N+1 par suiveur »). L'âge maximal borne le volume relu ; la lecture en une requête reste à faire.
 
 ## Stratégie de vérification
@@ -328,4 +329,3 @@ Migration `V26__empreinte_dernier_import_depot.sql` : `ALTER TABLE repository_in
 ## Questions ouvertes
 
 - Durées de conservation par défaut (D3) et âge maximal des opportunités (D5) : proposées et réglables. Une autre valeur ne change ni les specs ni les tâches.
-- Listes bornées par `limite` : recommandation soumise au porteur (D6). La réponse peut ajouter une tâche, sans changer le format.

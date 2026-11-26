@@ -18,7 +18,7 @@ import io.quarkus.test.junit.QuarkusTest;
 import io.quarkus.test.junit.QuarkusTestProfile;
 import io.quarkus.test.junit.TestProfile;
 
-/** Journal des refus borné par auteur (ACC-15) : au-delà de la limite, le refus n'est plus écrit mais compté. */
+/** Journal des refus borné par auteur (ACC-15) : au-delà de la limite, le refus n'est pas écrit mais compté. */
 @QuarkusTest
 @TestProfile(JournalRefusBorneTest.LimiteBasse.class)
 class JournalRefusBorneTest {

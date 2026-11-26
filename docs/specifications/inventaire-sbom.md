@@ -203,7 +203,7 @@ sequenceDiagram
     end
 ```
 
-La synthèse (origine, âge, obsolescence, nombre de composants) et les composants ignorés sont lus sur `/inventory/summary`, sans la liste des composants (INV-01-S3, INV-03, INV-06-S4 ; décision G5) ; la page de composants est un appel distinct. La réponse de `/inventory`, composants compris, est inchangée et n'est plus lue par la vue.
+La synthèse (origine, âge, obsolescence, nombre de composants) et les composants ignorés sont lus sur `/inventory/summary`, sans la liste des composants (INV-01-S3, INV-03, INV-06-S4 ; décision G5) ; la page de composants est un appel distinct. La réponse de `/inventory` porte l'inventaire et une page de ses composants (PERF-03, [PROPOSITION] `retenir-importer-et-paginer`) ; la vue ne la lit pas.
 
 ### DF-INV-4 — Projet à plusieurs dépôts
 

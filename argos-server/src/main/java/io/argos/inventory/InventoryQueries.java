@@ -537,7 +537,7 @@ public class InventoryQueries {
             throws SQLException {
         long total = count(connexion, "SELECT count(*) FROM component WHERE project_id = ?", projectId);
         List<ComponentView> components = Jdbc.lister(connexion, "SELECT id, purl, package_key, version, transitive FROM component"
-                + " WHERE project_id = ? ORDER BY package_key, version NULLS FIRST, id LIMIT ? OFFSET ?",
+                + " WHERE project_id = ? ORDER BY package_key, version NULLS LAST, id LIMIT ? OFFSET ?",
                 Jdbc.parametres(projectId, taille, decalage),
                 lignes -> new ComponentView(lignes.getObject(1, UUID.class), lignes.getString(2), lignes.getString(3),
                         lignes.getString(4), (Boolean) lignes.getObject(5)));

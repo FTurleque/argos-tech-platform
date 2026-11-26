@@ -43,9 +43,9 @@ Non applicable : chaque comportement complète une capacité existante.
 
 - AUD-PER-09 (index manquants) et AUD-PER-25 (`updated_at` de la corrélation) : sprint 10 [DÉCISION — répartition du porteur, 2026-11-26]. Ce changement ne crée aucun index sur `project_impact` et ne touche ni à la corrélation, ni au moteur d'alertes, ni au radar.
 - Recorrélation différentielle (seulement les paquets modifiés) : elle relève du moteur de corrélation (sprint 10). Un inventaire modifié reste recorrélé en entier.
-- Pagination de `/me/veille` et de la recherche : le sprint 10 y applique le format commun. Listes du radar : sprint 10.
+- Pagination de `/me/veille` : appliquée après la fusion de ce changement ; la recherche garde son format (`page`, `taille`, `elements`) [DÉCISION — porteur du projet, 2026-11-26]. Listes du radar : sprint 10.
 - Listes bornées par la configuration : catalogue, mises en page, profils, rubriques, espaces, membres et invitations, abonnements, vues enregistrées, sources, domaines. Leur taille ne dépend pas de l'historique.
-- Listes déjà bornées par `limite` (alertes, fiches réglementaires, actualités web) : elles gardent leur paramètre `limite` [PROPOSITION — recommandation soumise au porteur le 2026-11-26 ; voir design.md, D6].
+- Listes déjà bornées par `limite` (alertes, fiches réglementaires, actualités web) : elles gardent leur paramètre `limite` pour ce sprint [DÉCISION — porteur du projet, 2026-11-26, option 1 ; design.md, D6].
 - Les alertes et les éléments de résumé : la clé d'idempotence d'une alerte immédiate est la ligne d'alerte elle-même (`alerte_immediate_uk`, V8). La purger rouvrirait une alerte déjà envoyée. Purge reportée (design.md, écarts).
 - Les historiques métier attachés à une entité vivante (`project_impact_transition`, `standard_historique`, `fiche_historique`) : ils disparaissent avec leur entité et ne croissent qu'avec des décisions humaines.
 - Les versions d'un avis (`signal_version`) : COL-03-S2 exige que la version précédente reste consultable dans l'historique du signal. Les borner demanderait de modifier cette exigence.

@@ -1,13 +1,8 @@
 package io.argos.audit;
 
-import java.time.Instant;
-
 import jakarta.enterprise.context.ApplicationScoped;
-import jakarta.inject.Inject;
 
-import io.argos.commun.Conversions;
-import io.argos.conservation.RegleConservation;
-import io.argos.conservation.SuppressionParLots;
+import io.argos.conservation.RegleParHorodatage;
 
 /**
  * Règles de conservation des journaux du module {@code audit} (ADR-0041, EXP-17) : refus d'accès, appels MCP et
@@ -20,58 +15,28 @@ public final class ConservationJournaux {
 
     /** Journal des refus d'accès ({@code argos.conservation.refus-acces}). */
     @ApplicationScoped
-    public static class RefusAcces implements RegleConservation {
+    public static class RefusAcces extends RegleParHorodatage {
 
-        @Inject
-        SuppressionParLots suppression;
-
-        @Override
-        public String nom() {
-            return "refus-acces";
-        }
-
-        @Override
-        public long purger(Instant limite) {
-            return suppression.supprimer("DELETE FROM refus_acces WHERE id IN"
-                    + " (SELECT id FROM refus_acces WHERE horodatage < ? LIMIT ?)", Conversions.utc(limite));
+        public RefusAcces() {
+            super("refus-acces", "DELETE FROM refus_acces WHERE id IN (SELECT id FROM refus_acces WHERE horodatage < ? LIMIT ?)");
         }
     }
 
     /** Journal des appels d'outils MCP ({@code argos.conservation.appels-mcp}). */
     @ApplicationScoped
-    public static class AppelsMcp implements RegleConservation {
+    public static class AppelsMcp extends RegleParHorodatage {
 
-        @Inject
-        SuppressionParLots suppression;
-
-        @Override
-        public String nom() {
-            return "appels-mcp";
-        }
-
-        @Override
-        public long purger(Instant limite) {
-            return suppression.supprimer("DELETE FROM mcp_appel WHERE id IN"
-                    + " (SELECT id FROM mcp_appel WHERE horodatage < ? LIMIT ?)", Conversions.utc(limite));
+        public AppelsMcp() {
+            super("appels-mcp", "DELETE FROM mcp_appel WHERE id IN (SELECT id FROM mcp_appel WHERE horodatage < ? LIMIT ?)");
         }
     }
 
     /** Journal des appels de la passerelle IA ({@code argos.conservation.appels-ia}). */
     @ApplicationScoped
-    public static class AppelsIa implements RegleConservation {
+    public static class AppelsIa extends RegleParHorodatage {
 
-        @Inject
-        SuppressionParLots suppression;
-
-        @Override
-        public String nom() {
-            return "appels-ia";
-        }
-
-        @Override
-        public long purger(Instant limite) {
-            return suppression.supprimer("DELETE FROM ia_appel WHERE id IN"
-                    + " (SELECT id FROM ia_appel WHERE horodatage < ? LIMIT ?)", Conversions.utc(limite));
+        public AppelsIa() {
+            super("appels-ia", "DELETE FROM ia_appel WHERE id IN (SELECT id FROM ia_appel WHERE horodatage < ? LIMIT ?)");
         }
     }
 }
