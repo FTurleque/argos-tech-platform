@@ -9,6 +9,6 @@ CREATE TABLE enrichissement_attente (
     demande_le        timestamptz NOT NULL,
     tentatives        integer     NOT NULL DEFAULT 0 CHECK (tentatives >= 0),
     prochain_essai_le timestamptz NOT NULL,
-    derniere_erreur   varchar(1000)
+    derniere_erreur   text        CHECK (char_length(derniere_erreur) <= 1000)
 );
 CREATE INDEX enrichissement_attente_echeance ON enrichissement_attente (prochain_essai_le);
