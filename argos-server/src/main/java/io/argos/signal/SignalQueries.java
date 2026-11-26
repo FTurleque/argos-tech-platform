@@ -181,15 +181,16 @@ public class SignalQueries {
         }
         Set<String> sources = new java.util.HashSet<>();
         criteria.sources().forEach(source -> sources.add(source.toUpperCase(Locale.ROOT)));
+        // Une sous-requête par critère, chacune sur son index (expressions de la migration V27, signal_package_key) ;
+        // leur union désigne les signaux retenus, triés par date de modification puis identifiant.
         String sql = """
-                SELECT DISTINCT s.id, s.modified_at FROM signal s
-                LEFT JOIN signal_package p ON p.signal_id = s.id
-                WHERE lower(p.ecosystem) = ANY (?)
-                   OR split_part(substr(p.package_key, 5), '/', 1) = ANY (?)
-                   OR lower(regexp_replace(p.package_key, '^.*/', '')) = ANY (?)
-                   OR p.package_key = ANY (?)
-                   OR s.source = ANY (?)
-                ORDER BY s.modified_at DESC LIMIT ?
+                SELECT s.id FROM signal s
+                JOIN (SELECT p.signal_id FROM signal_package p WHERE lower(p.ecosystem) = ANY (?)
+                      UNION SELECT p.signal_id FROM signal_package p WHERE split_part(substr(p.package_key, 5), '/', 1) = ANY (?)
+                      UNION SELECT p.signal_id FROM signal_package p WHERE lower(regexp_replace(p.package_key, '^.*/', '')) = ANY (?)
+                      UNION SELECT p.signal_id FROM signal_package p WHERE p.package_key = ANY (?)
+                      UNION SELECT t.id FROM signal t WHERE t.source = ANY (?)) retenus ON retenus.signal_id = s.id
+                ORDER BY s.modified_at DESC, s.id LIMIT ?
                 """;
         List<UUID> ids = jdbc.lister(sql, requete -> {
             requete.setArray(1, requete.getConnection().createArrayOf("varchar", ecosystems.toArray()));

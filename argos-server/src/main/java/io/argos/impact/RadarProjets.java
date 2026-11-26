@@ -1,16 +1,22 @@
 package io.argos.impact;
 
+import java.sql.Array;
+import java.sql.PreparedStatement;
+import java.sql.SQLException;
 import java.time.Instant;
 import java.time.LocalDate;
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.Comparator;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
 import java.util.UUID;
+import java.util.function.Function;
 import java.util.stream.Collectors;
 
 import jakarta.enterprise.context.ApplicationScoped;
@@ -42,8 +48,8 @@ import io.argos.releaseradar.CyclesDeVie;
  *   <li>{@link #actualiser} synchronise les produits suivis puis crée les impacts « dette de version »
  *       (RAD-05) : composant d'un projet dont la version a atteint sa fin de support, avec la version
  *       standard de l'espace ;</li>
- *   <li>{@link #echeancesTouchant} donne les échéances d'un jour qui touchent au moins un projet de
- *       l'espace, pour les rappels (RAD-04) ;</li>
+ *   <li>{@link #echeancesTouchant} donne les échéances des jours de rappel qui touchent au moins un projet
+ *       de l'espace (RAD-04) ;</li>
  *   <li>un changement de standard ({@link StandardModifie}) qui touche au moins un projet est relayé
  *       par {@link AnnonceStandard} (RAD-06).</li>
  * </ul>
@@ -158,41 +164,60 @@ public class RadarProjets {
         return creees;
     }
 
+    /**
+     * Dettes de version d'un espace, en un nombre fixe de requêtes (RAD-10) : technologies suivies, composants de
+     * l'espace qui les utilisent, calendrier de leurs produits, puis une insertion pour toutes les dettes du jour.
+     */
     private int enregistrerDettes(UUID espace, LocalDate aujourdhui, Instant maintenant) {
-        int creees = 0;
         Map<String, TechnologieSuivie> parCle = technologies(espace);
-        for (InventoryQueries.ComponentMatch composant : composants(espace, parCle)) {
+        List<InventoryQueries.ComponentMatch> composants = composants(espace, parCle);
+        if (composants.isEmpty()) {
+            return 0;
+        }
+        CalendrierSorties.FinsDeSupport fins = calendrier.finsDeSupport(parCle.keySet(), Set.of(espace));
+        List<Dette> dettes = new ArrayList<>();
+        for (InventoryQueries.ComponentMatch composant : composants) {
             if (composant.version() == null) {
                 continue;
             }
-            Optional<CalendrierSorties.Echeance> fin = calendrier.finDeSupport(composant.packageKey(), composant.version(), Set.of(espace));
+            Optional<CalendrierSorties.Echeance> fin = fins.pour(composant.packageKey(), composant.version());
             if (fin.isPresent() && !fin.get().date().isAfter(aujourdhui)) {
-                creees += enregistrerDette(composant, fin.get(), parCle.get(composant.packageKey()).versionRecommandee(), maintenant);
+                dettes.add(new Dette(composant, fin.get(), parCle.get(composant.packageKey()).versionRecommandee()));
             }
         }
-        return creees;
+        return enregistrerDettes(dettes, maintenant);
     }
 
-    /** Échéances (sortie, fin de support) datées du jour donné qui touchent au moins un projet de l'espace. */
-    public List<EcheanceProjets> echeancesTouchant(UUID espace, LocalDate jour) {
+    /**
+     * Échéances (sortie, fin de support) datées de chacun des jours donnés qui touchent au moins un projet de l'espace,
+     * en une seule lecture du calendrier et des composants de l'espace (RAD-10-S2).
+     *
+     * @return échéances par jour ; un jour sans échéance est absent
+     */
+    public Map<LocalDate, List<EcheanceProjets>> echeancesTouchant(UUID espace, Collection<LocalDate> jours) {
         Map<String, TechnologieSuivie> parCle = technologies(espace);
-        if (parCle.isEmpty()) {
-            return List.of();
+        if (parCle.isEmpty() || jours.isEmpty()) {
+            return Map.of();
         }
-        List<CalendrierSorties.Echeance> echeances = calendrier.echeances(parCle.keySet(), Set.of(espace), jour, jour)
-                .stream().filter(echeance -> echeance.nature() != CalendrierSorties.Nature.CORRECTIF).toList();
+        Set<LocalDate> demandes = new HashSet<>(jours);
+        LocalDate depuis = demandes.stream().min(Comparator.naturalOrder()).orElseThrow();
+        LocalDate jusqua = demandes.stream().max(Comparator.naturalOrder()).orElseThrow();
+        List<CalendrierSorties.Echeance> echeances = calendrier.echeances(parCle.keySet(), Set.of(espace), depuis, jusqua)
+                .stream().filter(echeance -> echeance.nature() != CalendrierSorties.Nature.CORRECTIF)
+                .filter(echeance -> demandes.contains(echeance.date())).toList();
         if (echeances.isEmpty()) {
-            return List.of();
+            return Map.of();
         }
         List<InventoryQueries.ComponentMatch> composants = composants(espace, parCle);
         Map<UUID, String> noms = nomsProjets(composants);
-        List<EcheanceProjets> resultat = new ArrayList<>();
+        Map<LocalDate, List<EcheanceProjets>> resultat = new LinkedHashMap<>();
         for (CalendrierSorties.Echeance echeance : echeances) {
             List<ProjetConcerne> projets = concernes(composants, noms, echeance.cle(),
                     echeance.nature() == CalendrierSorties.Nature.FIN_DE_SUPPORT ? echeance.version() : null);
             if (!projets.isEmpty()) {
-                resultat.add(new EcheanceProjets(espace, parCle.get(echeance.cle()).libelle(), echeance.cle(), echeance.version(),
-                        echeance.nature().name(), echeance.date(), echeance.source(), projets));
+                resultat.computeIfAbsent(echeance.date(), date -> new ArrayList<>()).add(new EcheanceProjets(espace,
+                        parCle.get(echeance.cle()).libelle(), echeance.cle(), echeance.version(), echeance.nature().name(),
+                        echeance.date(), echeance.source(), projets));
             }
         }
         return resultat;
@@ -210,8 +235,7 @@ public class RadarProjets {
     void surStandardModifie(@ObservesAsync StandardModifie changement) {
         try {
             List<InventoryQueries.ComponentMatch> composants = inventaires
-                    .componentsMatching(List.of(changement.cle()), Optional.empty()).stream()
-                    .filter(composant -> changement.espaceId().equals(composant.workspaceId())).toList();
+                    .componentsMatching(List.of(changement.cle()), Optional.empty(), Optional.of(changement.espaceId()));
             List<ProjetConcerne> projets = concernes(composants, nomsProjets(composants), changement.cle(), null);
             if (!projets.isEmpty()) {
                 publication.publier(annonces, new AnnonceStandard(changement.espaceId(), changement.cle(), changement.libelle(),
@@ -248,8 +272,8 @@ public class RadarProjets {
         if (parCle.isEmpty()) {
             return List.of();
         }
-        return inventaires.componentsMatching(parCle.keySet(), Optional.empty()).stream()
-                .filter(composant -> espace.equals(composant.workspaceId())).toList();
+        // Filtre d'espace en base : les composants des autres espaces ne sont jamais lus (RAD-10-S1).
+        return inventaires.componentsMatching(parCle.keySet(), Optional.empty(), Optional.of(espace));
     }
 
     /** Projets qui utilisent la clé ; pour une fin de support, seulement ceux dont la version est du cycle. */
@@ -283,15 +307,40 @@ public class RadarProjets {
         return noms;
     }
 
-    private int enregistrerDette(InventoryQueries.ComponentMatch composant, CalendrierSorties.Echeance fin, String versionStandard,
-            Instant maintenant) {
+    /** Dette de version à enregistrer : composant, fin de support atteinte et version standard de l'espace. */
+    private record Dette(InventoryQueries.ComponentMatch composant, CalendrierSorties.Echeance fin, String versionStandard) {
+    }
+
+    /** Enregistre les dettes en une instruction ; une dette existante n'est pas dupliquée. */
+    private int enregistrerDettes(List<Dette> dettes, Instant maintenant) {
+        if (dettes.isEmpty()) {
+            return 0;
+        }
         return jdbc.modifier("""
                 INSERT INTO dette_version (id, project_id, workspace_id, component_id, cle, version, cycle, fin_support_le,
                     version_standard, source, cree_le)
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                SELECT gen_random_uuid(), d.project_id, d.workspace_id, d.component_id, d.cle, d.version, d.cycle,
+                       d.fin_support_le::date, d.version_standard, d.source, ?
+                FROM unnest(?::uuid[], ?::uuid[], ?::uuid[], ?::varchar[], ?::varchar[], ?::varchar[], ?::varchar[],
+                            ?::varchar[], ?::varchar[])
+                     AS d(project_id, workspace_id, component_id, cle, version, cycle, fin_support_le, version_standard, source)
                 ON CONFLICT (project_id, component_id) DO NOTHING
-                """, Jdbc.parametres(UUID.randomUUID(), composant.projectId(), composant.workspaceId(),
-                composant.componentId(), composant.packageKey(), composant.version(), fin.version(), fin.date(),
-                versionStandard, fin.source(), Conversions.utc(maintenant)));
+                """, requete -> {
+                    requete.setObject(1, Conversions.utc(maintenant));
+                    requete.setArray(2, tableau(requete, "uuid", dettes, dette -> dette.composant().projectId()));
+                    requete.setArray(3, tableau(requete, "uuid", dettes, dette -> dette.composant().workspaceId()));
+                    requete.setArray(4, tableau(requete, "uuid", dettes, dette -> dette.composant().componentId()));
+                    requete.setArray(5, tableau(requete, "varchar", dettes, dette -> dette.composant().packageKey()));
+                    requete.setArray(6, tableau(requete, "varchar", dettes, dette -> dette.composant().version()));
+                    requete.setArray(7, tableau(requete, "varchar", dettes, dette -> dette.fin().version()));
+                    requete.setArray(8, tableau(requete, "varchar", dettes, dette -> dette.fin().date().toString()));
+                    requete.setArray(9, tableau(requete, "varchar", dettes, Dette::versionStandard));
+                    requete.setArray(10, tableau(requete, "varchar", dettes, dette -> dette.fin().source()));
+                });
+    }
+
+    private static Array tableau(PreparedStatement requete, String type, List<Dette> dettes,
+            Function<Dette, Object> valeur) throws SQLException {
+        return requete.getConnection().createArrayOf(type, dettes.stream().map(valeur).toArray());
     }
 }

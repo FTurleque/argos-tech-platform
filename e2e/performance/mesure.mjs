@@ -14,10 +14,18 @@ export const PARAMETRES_PAR_DEFAUT = Object.freeze({
   projets: 20,
   composantsParProjet: 100,
   signaux: 1000,
+  // Espace volumineux d'un autre compte : projets × signaux impacts, tous résolus ou écartés (PERF-02-S4, PRF-07-S3).
+  projetsVolumineux: 500,
+  // Petit espace de bob : impacts actifs, moins de 200 (PRF-07-S3).
+  impactsPetitEspace: 150,
   appelsParOperation: 200,
   concurrence: 4,
   echauffement: 20,
 })
+
+/** Compte de référence de la campagne et membre du petit espace (PRF-07-S3). */
+export const UTILISATEUR_REFERENCE = 'alice'
+export const UTILISATEUR_PETIT_ESPACE = 'bob'
 
 /** Requête refusée par la garde réseau : la campagne échoue en nommant l'hôte (PERF-02-S3). */
 export class HoteNonLocal extends Error {
@@ -56,6 +64,8 @@ export function parametres(env = {}) {
     projets: entierPositif(env.ARGOS_PERF_PROJETS, defauts.projets),
     composantsParProjet: entierPositif(env.ARGOS_PERF_COMPOSANTS, defauts.composantsParProjet),
     signaux: entierPositif(env.ARGOS_PERF_SIGNAUX, defauts.signaux),
+    projetsVolumineux: entierPositif(env.ARGOS_PERF_PROJETS_VOLUMINEUX, defauts.projetsVolumineux),
+    impactsPetitEspace: entierPositif(env.ARGOS_PERF_IMPACTS_PETIT_ESPACE, defauts.impactsPetitEspace),
     appelsParOperation: entierPositif(env.ARGOS_PERF_APPELS, defauts.appelsParOperation),
     concurrence: entierPositif(env.ARGOS_PERF_CONCURRENCE, defauts.concurrence),
     echauffement: entierPositif(env.ARGOS_PERF_ECHAUFFEMENT, defauts.echauffement),
@@ -134,8 +144,9 @@ export const OPERATIONS_EXCLUES = Object.freeze([
  */
 export function operationsRetenues(contexte) {
   const { projet, signal, impact, paquet, nomPaquet } = contexte
-  const rest = (id, libelle, chemin) => ({ id, type: 'REST', libelle, chemin })
-  const mcp = (outil, args) => ({ id: `MCP ${outil}`, type: 'MCP', libelle: `outil MCP ${outil}`, outil, args })
+  const rest = (id, libelle, chemin, utilisateur = UTILISATEUR_REFERENCE) => ({ id, type: 'REST', libelle, chemin, utilisateur })
+  const mcp = (outil, args) => ({ id: `MCP ${outil}`, type: 'MCP', libelle: `outil MCP ${outil}`, outil, args,
+    utilisateur: UTILISATEUR_REFERENCE })
   return [
     rest('GET /api/v1/projects', 'projets visibles', '/api/v1/projects'),
     rest('GET /api/v1/projects/{id}/inventory/summary', 'synthèse d’inventaire', `/api/v1/projects/${projet}/inventory/summary`),
@@ -143,6 +154,8 @@ export function operationsRetenues(contexte) {
     rest('GET /api/v1/impacts/{id}', 'impact, provenance et historique', `/api/v1/impacts/${impact}`),
     rest('GET /api/v1/signals/{id}/impacts', 'impacts d’un signal', `/api/v1/signals/${signal}/impacts`),
     rest('GET /api/v1/me/veille', 'Ma veille', '/api/v1/me/veille'),
+    rest('GET /api/v1/me/veille (petit espace)', 'Ma veille d’un membre d’un petit espace, table d’impacts volumineuse',
+      '/api/v1/me/veille', UTILISATEUR_PETIT_ESPACE),
     rest('GET /api/v1/recherche', 'recherche plein texte « performance »', '/api/v1/recherche?q=performance'),
     rest('GET /api/v1/subscriptions', 'abonnements', '/api/v1/subscriptions'),
     rest('GET /api/v1/alertes', 'alertes', '/api/v1/alertes'),
@@ -167,6 +180,32 @@ function libelleVerdict(verdict) {
   if (!verdict.valide) return `campagne invalide : ${verdict.enErreur.join(', ')}`
   if (!verdict.dansLaCible) return `hors cible : ${verdict.horsCible.join(', ')}`
   return 'toutes les opérations dans la cible'
+}
+
+/** Tableau des espaces du jeu de données et de leurs impacts par état (PERF-02-S4) ; vide si le rapport n'en a pas. */
+function tableauEspaces(espaces) {
+  if (!Array.isArray(espaces) || espaces.length === 0) return []
+  return [
+    '## Espaces du jeu de données',
+    '',
+    '| Espace | OUVERT | CONFIRME | RESOLU | ECARTE |',
+    '|---|---|---|---|---|',
+    ...espaces.map((espace) => `| ${cellule(espace.nom)} | ${espace.etats.OUVERT ?? 0} | ${espace.etats.CONFIRME ?? 0}`
+      + ` | ${espace.etats.RESOLU ?? 0} | ${espace.etats.ECARTE ?? 0} |`),
+    '',
+  ]
+}
+
+/** Répartition des impacts lue en base (lignes « espace|état|nombre ») : un espace par nom, ses impacts par état. */
+export function espacesDuJeu(lignes) {
+  const parNom = new Map()
+  for (const ligne of lignes.split('\n').map((texte) => texte.trim()).filter(Boolean)) {
+    const [nom, etat, nombre] = ligne.split('|')
+    const espace = parNom.get(nom) ?? { nom, etats: {} }
+    espace.etats[etat] = Number(nombre)
+    parNom.set(nom, espace)
+  }
+  return [...parNom.values()]
 }
 
 /** Rapport Markdown versionné (PERF-02-S1) : date, révision, environnement, jeu de données, concurrence, mesures. */
@@ -195,6 +234,7 @@ export function rapportMarkdown(rapport) {
     `| Verdict | ${libelleVerdict(verdict)} |`,
     `| Code de sortie | ${verdict.codeSortie} |`,
     '',
+    ...tableauEspaces(rapport.jeuDeDonnees.espaces),
     '## Mesures par opération',
     '',
     '| Opération | Type | Appels | p50 (ms) | p95 (ms) | max (ms) | Erreurs | Verdict |',

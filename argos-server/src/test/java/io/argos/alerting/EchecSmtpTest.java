@@ -110,7 +110,10 @@ class EchecSmtpTest {
         synchronizer.synchronize("OSV");
         asynchrone.attendre();
 
-        // Première tentative à l'émission : échec, nouvelle tentative programmée.
+        // Première tentative au passage de la tâche d'envoi qui suit l'émission (ALR-10-S2) : échec, nouvelle
+        // tentative programmée.
+        assertEquals("EN_ATTENTE|0", etat());
+        envoi.traiterEnAttente(instantDepart);
         assertEquals("EN_ATTENTE|1", etat());
         UUID id = baseDeTest.uuid("SELECT id FROM alerte");
         assertEquals(Map.of(), envoi.traiterEnAttente(instantDepart), "aucune tentative avant l'échéance");

@@ -332,6 +332,17 @@ public class InventoryQueries {
      */
     @Transactional
     public List<ComponentMatch> componentsMatching(Collection<String> packageKeys, Optional<UUID> projectId) {
+        return componentsMatching(packageKeys, projectId, Optional.empty());
+    }
+
+    /**
+     * Composants dont la clé de paquet figure parmi celles données, éventuellement limités à un projet et à un espace :
+     * le filtre d'espace s'applique en base (radar, RAD-10), jamais après lecture des composants de tous les espaces.
+     * Origine et date retenues comme pour {@link #componentsMatching(Collection, Optional)}.
+     */
+    @Transactional
+    public List<ComponentMatch> componentsMatching(Collection<String> packageKeys, Optional<UUID> projectId,
+            Optional<UUID> workspaceId) {
         if (packageKeys.isEmpty()) {
             return new ArrayList<>();
         }
@@ -342,6 +353,7 @@ public class InventoryQueries {
                 LEFT JOIN component_occurrence o ON o.component_id = c.id
                 LEFT JOIN repository_inventory ri ON ri.repository_id = o.repository_id
                 WHERE c.package_key = ANY (?) AND (?::uuid IS NULL OR c.project_id = ?::uuid)
+                  AND (?::uuid IS NULL OR p.workspace_id = ?::uuid)
                 ORDER BY c.project_id, c.package_key, c.version, c.id
                 """;
         Map<UUID, ComponentMatch> meilleures = new LinkedHashMap<>();
@@ -349,6 +361,8 @@ public class InventoryQueries {
             requete.setArray(1, connexion.createArrayOf("varchar", packageKeys.toArray()));
             requete.setObject(2, projectId.orElse(null));
             requete.setObject(3, projectId.orElse(null));
+            requete.setObject(4, workspaceId.orElse(null));
+            requete.setObject(5, workspaceId.orElse(null));
             try (ResultSet lignes = requete.executeQuery()) {
                 while (lignes.next()) {
                     String origin = lignes.getString(8);

@@ -95,16 +95,36 @@ public class ImpactQueries {
     private static final int TAILLE_PAGE_MAX = 200;
     private static final int TAILLE_PAGE_MIN = 1;
 
-    private static final String SELECT = """
+    private static final String COLONNES = """
             SELECT i.id, i.signal_id, s.source, s.external_id, s.title, i.signal_version_id, i.project_id, p.name,
                    i.workspace_id, i.component_id, coalesce(c.purl, i.component_purl),
                    CASE WHEN c.id IS NULL THEN i.component_version ELSE c.version END, i.transitive, i.level, i.method,
                    i.inventory_origin, i.inventory_date, i.provenance::text, i.created_at, i.updated_at, i.state
-            FROM project_impact i
+            """;
+
+    private static final String JOINTURES = """
             JOIN signal s ON s.id = i.signal_id
             JOIN project p ON p.id = i.project_id
             LEFT JOIN component c ON c.id = i.component_id
             """;
+
+    private static final String SELECT = COLONNES + "FROM project_impact i\n" + JOINTURES;
+
+    /**
+     * Impacts actifs les plus récents, lus espace par espace : chaque branche suit l'index partiel
+     * {@code project_impact_actifs_recents} (migration V27) et s'arrête à la limite, sans lire les impacts des autres
+     * espaces ni les impacts résolus ou écartés ; la fusion garde les plus récents de tous les espaces. Le prédicat
+     * d'état reprend celui de l'index, littéral, pour que le planificateur puisse l'employer.
+     */
+    private static final String RECENTS = COLONNES + """
+            FROM (SELECT recent.id, recent.updated_at
+                  FROM unnest(?::uuid[]) espace(id)
+                  CROSS JOIN LATERAL (SELECT r.id, r.updated_at FROM project_impact r
+                                      WHERE r.workspace_id = espace.id AND r.state IN ('OUVERT', 'CONFIRME')
+                                      ORDER BY r.updated_at DESC, r.id LIMIT ?) recent
+                  ORDER BY recent.updated_at DESC, recent.id LIMIT ?) recents
+            JOIN project_impact i ON i.id = recents.id
+            """ + JOINTURES + "ORDER BY i.updated_at DESC, i.id";
 
     @Inject
     DataSource dataSource;
@@ -190,6 +210,24 @@ public class ImpactQueries {
         }
     }
 
+    /**
+     * Impacts actifs d'un signal dans les espaces donnés, lus une fois pour tous les destinataires de ses alertes
+     * (ALR-10, décision du porteur du projet du 2026-11-26). Lecture technique, hors rôle applicatif : l'appelant
+     * restreint ensuite chaque destinataire aux impacts des espaces dont il est membre (même règle que la politique
+     * {@code project_impact_lecture}) ; un impact écarté ou résolu n'est jamais alerté (ALR-07).
+     */
+    @Transactional
+    public List<ImpactView> actifsDuSignal(UUID signalId, Set<UUID> workspaces) {
+        if (workspaces.isEmpty()) {
+            return new ArrayList<>();
+        }
+        return jdbc.lister(SELECT + " WHERE i.signal_id = ? AND i.workspace_id = ANY (?) AND i.state IN ('OUVERT', 'CONFIRME')"
+                + " ORDER BY i.created_at, i.id", requete -> {
+                    requete.setObject(1, signalId);
+                    requete.setArray(2, requete.getConnection().createArrayOf("uuid", workspaces.toArray()));
+                }, ImpactQueries::view);
+    }
+
     /** Impacts actifs d'un projet, vides si le projet n'appartient à aucun des espaces donnés. */
     @Transactional
     public List<ImpactView> forProject(UUID projectId, UUID accountId, Set<UUID> workspaces) {
@@ -216,7 +254,7 @@ public class ImpactQueries {
         }
     }
 
-    /** Impacts actifs les plus récents des espaces donnés (serveur MCP, {@code get_security_alerts}). */
+    /** Impacts actifs les plus récents des espaces donnés (« Ma veille », serveur MCP {@code get_security_alerts}). */
     @Transactional
     public List<ImpactView> forWorkspaces(UUID accountId, Set<UUID> workspaces, int limit) {
         if (workspaces.isEmpty()) {
@@ -224,13 +262,12 @@ public class ImpactQueries {
         }
         try (Connection connexion = dataSource.getConnection()) {
             ContexteBase.appliquer(connexion, ContexteBase.Contexte.duCompte(accountId));
-            return Jdbc.lister(connexion, SELECT
-                    + " WHERE i.workspace_id = ANY (?) AND i.state = ANY (?) ORDER BY i.updated_at DESC, i.id LIMIT ?",
-                    requete -> {
-                        requete.setArray(1, uuids(connexion, workspaces));
-                        requete.setArray(2, etats(connexion, EtatImpact.ACTIFS));
-                        requete.setInt(3, Math.min(Math.max(limit, TAILLE_PAGE_MIN), TAILLE_PAGE_MAX));
-                    }, ImpactQueries::view);
+            int limite = Math.min(Math.max(limit, TAILLE_PAGE_MIN), TAILLE_PAGE_MAX);
+            return Jdbc.lister(connexion, RECENTS, requete -> {
+                requete.setArray(1, uuids(connexion, workspaces));
+                requete.setInt(2, limite);
+                requete.setInt(3, limite);
+            }, ImpactQueries::view);
         } catch (SQLException erreur) {
             throw new IllegalStateException("lecture des impacts impossible", erreur);
         }

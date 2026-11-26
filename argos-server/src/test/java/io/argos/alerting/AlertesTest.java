@@ -148,6 +148,8 @@ class AlertesTest {
         Fixtures.stubOsv(id, modifie, json);
         synchronizer.synchronize("OSV");
         asynchrone.attendre();
+        // Passage de la tâche planifiée d'envoi, qui diffuse les alertes en attente (ALR-10-S2).
+        envoi.traiterEnAttente(Instant.now());
         return baseDeTest.uuid("SELECT id FROM signal WHERE external_id = '" + id + "'");
     }
 
@@ -289,7 +291,7 @@ class AlertesTest {
     private static Destinataires destinatairesEnErreur(RuntimeException erreur) {
         return new Destinataires() {
             @Override
-            public List<Destinataire> membres(Set<UUID> espaces) {
+            public List<Membre> membresEtEspaces(Set<UUID> espaces) {
                 throw erreur;
             }
         };

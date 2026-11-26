@@ -6,6 +6,7 @@
 | Spec de référence | [`/openspec/specs/recherche-veille/spec.md`](/openspec/specs/recherche-veille/spec.md) |
 | Changements archivés | [`2026-11-18-rechercher-et-filtrer`](/openspec/changes/archive/2026-11-18-rechercher-et-filtrer/proposal.md) |
 | Changements archivés, suite | [`durcir-autorisations-et-debits`](/openspec/changes/archive/2026-11-25-durcir-autorisations-et-debits/proposal.md) (RCH-06) |
+| Changement en cours, sprint 10 | [`accelerer-requetes-chaudes`](/openspec/changes/accelerer-requetes-chaudes/proposal.md) (RCH-07) — proposé, implémenté |
 | Statut de la capacité | livrée |
 | Composants (arc42 §5) | `signal`, `impact-engine`, `API & Security`, `workspace`, `mcp-server`, IHM — couche contenu |
 
@@ -61,10 +62,11 @@ Utilisateur authentifié par un jeton OIDC valide ; la recherche est déclenché
 | Un profil ne retient que les types d'éléments de ses catégories de sources : `avis-securite` pour les signaux ; les actualités web ne relèvent d'aucune catégorie publiée | RCH-02 | manifestes du catalogue | [PROPOSITION] |
 | L'horizon porte sur la date de l'élément (publication, sinon modification ou réception) : éléments des N derniers jours | RCH-02 | maquette « Fil de veille » | [PROPOSITION] |
 | Limite de débit par compte de 60 requêtes par minute (`argos.recherche.debit.requetes-par-minute`), commune à `GET /api/v1/recherche` et à `GET /api/v1/vues/{id}/resultats` ; au-delà, 429 avec `Retry-After`, refus journalisé `LIMITE_DEBIT`, aucune recherche exécutée | RCH-06 | AUD-SEC-09 ; décision du porteur, 2026-11-24 | [PROPOSITION] — `durcir-autorisations-et-debits` |
+| La sélection renvoie au plus 1 001 candidats, les plus récents ; la pertinence n'est calculée que pour les 1 000 plus récents ; le total restitué vaut au plus 1 000, avec `totalPlafonne` vrai au-delà (« plus de 1 000 résultats ») | RCH-07 | AUD-PER-07 ; décision du porteur du projet, 2026-11-26 | [PROPOSITION] — `accelerer-requetes-chaudes` |
 
 ## Droits d'accès et restrictions
 
-- Sélection : la fonction `argos_rechercher_veille` (migration V11), exécutée par le rôle `argos_app` avec le compte courant, applique explicitement les règles de visibilité des politiques RLS (espaces lisibles, actualité de son périmètre citée par une source visible, impacts et rapprochements d'un espace lisible) ; sans compte courant, elle ne renvoie rien.
+- Sélection : la fonction `argos_selectionner_veille` (migration V28), exécutée par le rôle `argos_app` avec le compte courant, applique explicitement les règles de visibilité des politiques RLS (espaces lisibles, actualité de son périmètre citée par une source visible, impacts et rapprochements d'un espace lisible) ; sans compte courant, elle ne renvoie rien.
 - Restitution : chaque élément de la page est relu sous la RLS d'`argos_app` ; les projets cités sont limités, en plus, aux espaces de l'appelant.
 - Les mots saisis ne sont que des paramètres liés : aucune saisie n'est concaténée au SQL.
 
@@ -131,3 +133,4 @@ Scénarios RCH-01-S1 à RCH-05-S1 du changement ; QS-13 (recherche).
 | RCH-04 | RCH-04-S1, RCH-04-S2 | Composants, Écran de recherche | 2.1, 5.3, 4.2 | `RechercheVeilleTest.rch04S1VueRappelee`, `rch04S2VueDUnAutreUtilisateur`, `argos-ui/tests/recherche.test.mjs`, E2E `e2e/tests/recherche.spec.ts` (portail) et `e2e/desktop/recherche.spec.ts` (vue enregistrée sur le portail, rappelée dans le client desktop) |
 | RCH-05 | RCH-05-S1 | Performance | 2.2 | `MesurePerformanceRechercheTest`, [rapport QS-13](../architecture/quality/mesure-qs13-recherche.md) |
 | RCH-06 | RCH-06-S1 à RCH-06-S3 | `durcir-autorisations-et-debits` D3 | 3.1, 3.3 | `LimiteDebitRechercheVeilleTest`, `LimiteRechercheTest` (horloge injectée), `LimiteurDebitTest` |
+| RCH-07 | RCH-07-S1, S2 | `accelerer-requetes-chaudes` D9 | 6.1 | `RechercheBorneeTest` ; `argos-ui/tests/recherche.test.mjs` |

@@ -20,13 +20,12 @@ Les sprints 1 à 8 sont livrés ; l'évaluation des alertes et la chaîne radar 
 
 ## What Changes — Changements
 
-- Migration Flyway : index sur `project_impact (component_id)`, `dette_version (component_id)`, `ingestion_failure (source_id, received_at)`, `ops_event (source_id, occurred_at)`, `sync_attempt (run_id)`, `inventory_import_failure (project_id, received_at)` ; suppression de `project_impact_signal` et `project_impact_project` ; remplacement de `project_impact_recents` par un index partiel `(workspace_id, updated_at DESC, id)` restreint aux états `OUVERT` et `CONFIRME` ; index d'expressions sur `signal_package` pour les critères de technologie, et index `signal (modified_at DESC, id)`.
+- Migration Flyway : index sur `project_impact (component_id)`, `dette_version (component_id)`, `ingestion_failure (source_id, received_at)`, `ops_event (source_id, occurred_at)`, `sync_attempt (run_id)`, `inventory_import_failure (project_id, received_at)`, `inventory_import_failure (repository_id, received_at)`, et, pour les purges du sprint 9, `actualite (recu_le)` et `ingestion_failure (run_id)` ; suppression de `project_impact_signal` et `project_impact_project` ; remplacement de `project_impact_recents` par un index partiel `(workspace_id, updated_at DESC, id)` restreint aux états `OUVERT` et `CONFIRME` ; index d'expressions sur `signal_package` pour les critères de technologie, et index `signal (modified_at DESC, id)`.
 - Corrélation : un impact n'est réécrit que si l'une de ses valeurs change ; `updated_at` ne bouge pas sinon. La corrélation d'un projet traite ses signaux par lots : pour chaque lot, un nombre fixe d'instructions SQL ensemblistes (signaux, composants, verrous, rattachement, upsert, réouvertures, résolutions), quel que soit le nombre de signaux et de composants.
 - Alertes : les destinataires, leurs espaces, leurs abonnements actifs, les impacts visibles et les alertes existantes sont lus en un nombre fixe de requêtes par signal ; les alertes et éléments de résumé sont écrits par lot ; l'observateur ne diffuse plus : la tâche planifiée d'envoi diffuse les alertes en attente.
 - Ma veille : impacts lus espace par espace sur l'index partiel ; signaux des abonnements cherchés par des sous-requêtes indexées ; la campagne de performance mesure un appelant d'un petit espace dans une table d'au moins 500 000 impacts majoritairement résolus, avec des abonnements et plusieurs espaces de tailles différentes.
 - Radar : composants filtrés par espace en SQL ; calendrier lu une fois par espace ; dettes écrites par lot ; rappels de tous les jours de rappel calculés en une passe.
 - Recherche : seule la page demandée est classée et matérialisée ; le classement porte au plus sur 1 000 candidats ; le total est plafonné à 1 000, avec l'indicateur `totalPlafonne` (décision du porteur, 2026-11-26).
-- Ma veille paginée selon le format commun des listes de l'API (ADR-0040 du sprint 9), une fois ce format fusionné.
 
 ## Capabilities — Capacités
 
@@ -37,8 +36,8 @@ Aucune.
 ### Modified Capabilities — Capacités modifiées
 
 - `correlation-impact` : COR-07 modifiée (aucune réécriture sans changement) ; COR-13 ajoutée (corrélation par lots en un nombre fixe d'instructions).
-- `alertes-digests` : ALR-09 ajoutée (évaluation en un nombre fixe de requêtes, diffusion par la tâche d'envoi).
-- `radar-standards` : RAD-08 ajoutée (radar en un nombre fixe de requêtes par espace).
+- `alertes-digests` : ALR-10 ajoutée (évaluation en un nombre fixe de requêtes, diffusion par la tâche d'envoi).
+- `radar-standards` : RAD-10 ajoutée (radar en un nombre fixe de requêtes par espace).
 - `recherche-veille` : RCH-07 ajoutée (seule la page demandée est classée ; total plafonné).
 - `profils-veille` : PRF-07 modifiée (petit espace dans une grande table, abonnements mesurés).
 - `performance-api-mcp` : PERF-02 modifiée (jeu de données à plusieurs espaces de tailles différentes, avec abonnements et impacts résolus).
@@ -48,7 +47,7 @@ Aucune.
 ### Inclus
 
 - `argos-server/src/main/java` : `impact` (`CorrelationEngine`, `TraitementImpacts`, `ImpactQueries`, `RadarProjets`, `RechercheVeille`), `alerting` (`MoteurAlertes`, `Destinataires`, `RappelsRadar`), `signal/SignalQueries`, `api/SignauxAbonnements`, `api/veille/VeilleProfilsResource`, `inventory/InventoryQueries`, `releaseradar/CalendrierEndoflife`, `workspace/subscription/SubscriptionService`.
-- Migration Flyway V26.
+- Migrations Flyway V27 (index) et V28 (recherche bornée) ; V26 est attribuée au sprint 9.
 - Tests : nombre de requêtes de la corrélation, des alertes et du radar (compteur d'instructions JDBC), non-réécriture d'un impact inchangé, index présents et redondants absents, recherche paginée et total plafonné, non-régression des droits (COR-08, ALR-07, RCH-03).
 - Campagne de performance : jeu de données à plusieurs espaces, abonnements, impacts résolus en masse.
 - Documentation : fiches `correlation-impact`, `alertes-digests`, `radar-standards`, `recherche-veille`, `profils-veille`, `performance-api-mcp` ; arc42 §8.7 (inventaire des index) ; rapport de mesure.
@@ -58,6 +57,7 @@ Aucune.
 - Rétention et purges, import d'inventaire (réécriture nocturne, insertion par lot), pagination des listes d'exploitation et de `GET /projects/{id}/impacts` : sprint 9, mené en parallèle.
 - Exécution de la corrélation d'inventaire en tâche de fond : l'observateur `InventoryReplaced` reste `AFTER_SUCCESS` ; le critère de sortie porte sur le nombre de requêtes, et le déplacer change le contrat de l'import (sprint 9).
 - Mesure sur le NAS : la campagne s'exécute sur la pile de test locale (PERF-01).
+- Pagination de `GET /api/v1/me/veille` au format commun des listes (ADR-0040, sprint 9) : tâche de suivi, après la fusion du sprint 9, qui porte ce format (décision du porteur du projet, 2026-11-26).
 
 ## Acteurs et parties prenantes
 
@@ -97,8 +97,8 @@ Aucune.
 ## Impact
 
 - **Composants** (arc42 §5) : correlation-engine, alerting, release-radar, search, workspace-service (abonnements), API.
-- **Contrats d'interface** : OpenAPI — `GET /api/v1/recherche` et outil MCP `search_signals` : champ `totalPlafonne` ajouté, `total` plafonné à 1 000 ; `GET /api/v1/me/veille` paginé (ADR-0040) ; événements CDI inchangés.
-- **Données et persistance** : migration V26 (index seulement ; aucune donnée ni droit ne change).
+- **Contrats d'interface** : OpenAPI — `GET /api/v1/recherche` et outil MCP `search_signals` : champ `totalPlafonne` ajouté, `total` plafonné à 1 000 ; événements CDI inchangés.
+- **Données et persistance** : migrations V27 (index) et V28 (fonction de sélection bornée de la recherche) ; aucune donnée ni droit ne change.
 - **Sécurité, confidentialité, droits** : l'évaluation des alertes lit les impacts du signal par une lecture technique filtrée explicitement par appartenance (même règle que `argos_espace_lisible`), au lieu d'une relecture sous la RLS de chaque destinataire (décision du porteur, 2026-11-26) ; aucune lecture d'API ne change de rôle.
 - **Exploitation et observabilité** : paramètre `argos.correlation.taille-lot` ; les alertes immédiates partent au passage suivant de la tâche d'envoi (cadence existante).
 - **Documentation durable à mettre à jour** : fiches citées au périmètre, `docs/specifications/README.md`, arc42 §8.7, `docs/architecture/quality/mesure-performance-api-mcp.md`.
@@ -113,4 +113,4 @@ complète — plusieurs composants, une migration, un contrat d'API et une lectu
 | ID | Question | Bloquante ? | Destinataire |
 |---|---|---|---|
 | Q-1 | Taille d'un lot de corrélation : 500 signaux par défaut ([QUESTION], aucune source ne fixe la valeur). | non | porteur du projet |
-| Q-2 | Pagination de Ma veille : taille par défaut de l'ADR-0040 (50) ou page unique de 200 tant que l'IHM ne pagine pas ? | non : tranchée à la fusion du sprint 9 | porteur du projet |
+| Q-2 | Pagination de Ma veille (tâche de suivi) : taille par défaut de l'ADR-0040 (50) ou page unique de 200 tant que l'IHM ne pagine pas ? | non : tranchée à la fusion du sprint 9 | porteur du projet |

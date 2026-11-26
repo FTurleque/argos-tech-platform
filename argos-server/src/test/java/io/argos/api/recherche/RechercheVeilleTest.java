@@ -221,8 +221,8 @@ class RechercheVeilleTest {
         List<UUID> selection = base.executer(new Contexte(oscar, null, null), connexion -> {
             List<UUID> trouves = new ArrayList<>();
             try (PreparedStatement requete = connexion.prepareStatement("""
-                    SELECT current_user, id FROM argos_rechercher_veille(argos_requete_recherche('Portail'), NULL, NULL,
-                        NULL, NULL, NULL, NULL, NULL, NULL, NULL)
+                    SELECT current_user, id FROM argos_selectionner_veille(argos_requete_recherche('Portail'), NULL, NULL,
+                        NULL, NULL, NULL, NULL, NULL, NULL, NULL, 1001)
                     """); ResultSet resultat = requete.executeQuery()) {
                 while (resultat.next()) {
                     assertEquals("argos_app", resultat.getString(1));
@@ -237,7 +237,7 @@ class RechercheVeilleTest {
         // Sans compte courant, la sélection ne renvoie rien.
         long sansContexte = base.executer(SANS_CONTEXTE, connexion -> {
             try (PreparedStatement requete = connexion.prepareStatement("""
-                    SELECT count(*) FROM argos_rechercher_veille(NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL)
+                    SELECT count(*) FROM argos_selectionner_veille(NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, 1001)
                     """); ResultSet resultat = requete.executeQuery()) {
                 resultat.next();
                 return resultat.getLong(1);

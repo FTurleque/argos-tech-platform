@@ -4,7 +4,11 @@ import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.SQLException;
 import java.time.Instant;
+import java.time.OffsetDateTime;
 import java.time.ZoneOffset;
+import java.util.Collection;
+import java.util.HashSet;
+import java.util.List;
 import java.util.Optional;
 import java.util.Set;
 import java.util.UUID;
@@ -30,8 +34,8 @@ import io.argos.commun.Jdbc;
  * est écrit dans la même transaction : deux demandes concurrentes ne produisent jamais deux transitions depuis le même
  * état (concurrence optimiste, 409 pour la seconde).
  *
- * <p>Transition système : appelée par {@link CorrelationEngine} sous son verrou par signal, dans sa transaction et
- * sous l'utilisateur de connexion (traitement technique), avec un {@link MotifSysteme}.
+ * <p>Transitions système : appliquées par lot par {@link CorrelationEngine} sous ses verrous par signal, dans sa
+ * transaction et sous l'utilisateur de connexion (traitement technique), avec un {@link MotifSysteme} par impact.
  */
 @ApplicationScoped
 public class TraitementImpacts {
@@ -139,29 +143,67 @@ public class TraitementImpacts {
     }
 
     /**
-     * Vrai si la dernière transition de l'impact vers {@code RESOLU} a été faite par le système (COR-11) : seule une
-     * résolution système peut être annulée par la recorrélation ; une résolution décidée par un utilisateur autorisé
-     * est respectée (décision J5).
+     * Parmi les impacts donnés, ceux dont la dernière transition vers {@code RESOLU} a été faite par le système (COR-11),
+     * lus en une instruction : seule une résolution système peut être annulée par la recorrélation ; une résolution
+     * décidée par un utilisateur autorisé est respectée (décision J5).
      */
-    static boolean resoluParLeSysteme(Connection connexion, UUID impactId) {
-        return Jdbc.unique(connexion, """
-                SELECT actor_system FROM project_impact_transition
-                WHERE impact_id = ? AND to_state = 'RESOLU' ORDER BY occurred_at DESC, id DESC LIMIT 1
-                """, Jdbc.parametres(impactId), resultat -> resultat.getBoolean(1)).orElse(false);
+    static Set<UUID> resolusParLeSysteme(Connection connexion, Collection<UUID> impactIds) {
+        if (impactIds.isEmpty()) {
+            return Set.of();
+        }
+        return new HashSet<>(Jdbc.lister(connexion, """
+                SELECT derniere.impact_id FROM (
+                    SELECT DISTINCT ON (impact_id) impact_id, actor_system FROM project_impact_transition
+                    WHERE impact_id = ANY (?) AND to_state = 'RESOLU' ORDER BY impact_id, occurred_at DESC, id DESC) derniere
+                WHERE derniere.actor_system
+                """, requete -> requete.setArray(1, connexion.createArrayOf("uuid", impactIds.toArray())),
+                resultat -> resultat.getObject(1, UUID.class)));
+    }
+
+    /** Transition système demandée pour un impact : état de départ attendu, état visé et motif. */
+    record TransitionSysteme(UUID impactId, EtatImpact depart, EtatImpact vers, MotifSysteme motif) {
     }
 
     /**
-     * Transition système, dans la transaction et la connexion de l'appelant ({@link CorrelationEngine}).
+     * Transitions système d'un lot d'impacts en une instruction, dans la transaction et la connexion de l'appelant
+     * ({@link CorrelationEngine}) : chaque impact encore à son état de départ change d'état et reçoit sa ligne
+     * d'historique, à un horodatage strictement croissant par impact ; un impact dont l'état a changé entre-temps
+     * n'est pas modifié (concurrence optimiste, comme {@link #systeme}).
      *
-     * @return vrai si l'impact était encore à l'état {@code depart} et a été modifié
+     * @return identifiants des impacts modifiés
      */
-    static boolean systeme(Connection connexion, UUID impactId, UUID espace, EtatImpact depart, EtatImpact vers, MotifSysteme motif,
-            Instant maintenant) throws SQLException {
-        if (!changer(connexion, impactId, depart, vers)) {
-            return false;
+    static Set<UUID> systemeParLot(Connection connexion, List<TransitionSysteme> transitions, Instant maintenant) {
+        if (transitions.isEmpty()) {
+            return Set.of();
         }
-        historiser(connexion, impactId, espace, depart, vers, null, motif.name(), null, maintenant);
-        return true;
+        OffsetDateTime horodatage = maintenant.atOffset(ZoneOffset.UTC);
+        return new HashSet<>(Jdbc.lister(connexion, """
+                WITH demandes AS (
+                    SELECT * FROM unnest(?::uuid[], ?::varchar[], ?::varchar[], ?::varchar[]) AS d(impact_id, depart, vers, motif)),
+                changes AS (
+                    UPDATE project_impact i SET state = d.vers FROM demandes d
+                    WHERE i.id = d.impact_id AND i.state = d.depart
+                    RETURNING i.id, i.workspace_id, d.depart, d.vers, d.motif)
+                INSERT INTO project_impact_transition(id, impact_id, workspace_id, from_state, to_state, actor_account_id,
+                       actor_system, reason, comment, occurred_at)
+                SELECT gen_random_uuid(), c.id, c.workspace_id, c.depart, c.vers, NULL, true, c.motif, NULL,
+                       greatest(?::timestamptz, coalesce((SELECT max(t.occurred_at) + interval '1 microsecond'
+                                                          FROM project_impact_transition t WHERE t.impact_id = c.id),
+                                                         ?::timestamptz))
+                FROM changes c
+                RETURNING impact_id
+                """, requete -> {
+                    requete.setArray(1, connexion.createArrayOf("uuid",
+                            transitions.stream().map(TransitionSysteme::impactId).toArray()));
+                    requete.setArray(2, connexion.createArrayOf("varchar",
+                            transitions.stream().map(transition -> transition.depart().name()).toArray()));
+                    requete.setArray(3, connexion.createArrayOf("varchar",
+                            transitions.stream().map(transition -> transition.vers().name()).toArray()));
+                    requete.setArray(4, connexion.createArrayOf("varchar",
+                            transitions.stream().map(transition -> transition.motif().name()).toArray()));
+                    requete.setObject(5, horodatage);
+                    requete.setObject(6, horodatage);
+                }, resultat -> resultat.getObject(1, UUID.class)));
     }
 
     private record ImpactLu(EtatImpact etat, UUID espace, UUID signal, boolean composantPresent) {
