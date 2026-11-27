@@ -21,7 +21,8 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import io.argos.catalog.profil.CatalogueProfils;
 import io.argos.commun.DonneeInvalide;
 import io.argos.commun.securite.Caller;
-import io.argos.impact.RechercheVeille;
+import io.argos.impact.ProjetsConcernes;
+import io.argos.signal.recherche.RechercheVeille;
 
 /**
  * Entrées non fiables de la recherche hors du conteneur (RCH-03, décision G4) : filtres inconnus ou mal formés refusés
@@ -51,6 +52,8 @@ class TraductionCriteresTest {
         traduction.profils = new CatalogueProfils(new ObjectMapper(), List.of("developpeur", "expert-metier", "artiste"),
                 Optional.empty());
         traduction.recherche = recherche;
+        // Page vide : les projets concernés sont complétés sans lecture en base.
+        traduction.projetsConcernes = new ProjetsConcernes();
     }
 
     /** Recherche simulée : garde la page et la taille demandées, rend une page vide. */
@@ -59,7 +62,7 @@ class TraductionCriteresTest {
         private final List<int[]> demandes = new ArrayList<>();
 
         @Override
-        public Resultats rechercher(Criteres criteres, UUID compteId, Set<UUID> espaces, int page, int taille) {
+        public Resultats rechercher(Criteres criteres, UUID compteId, int page, int taille) {
             demandes.add(new int[] {page, taille});
             return new Resultats(List.of(), page, taille, 0, false, null);
         }
