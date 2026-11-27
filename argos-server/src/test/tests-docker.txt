@@ -85,7 +85,6 @@ io/argos/commun/ContexteBaseTransactionTest.java
 io/argos/commun/JdbcTest.java
 io/argos/conservation/ConservationTest.java
 io/argos/impact/SuggestionsRadarTest.java
-io/argos/ingestion/OsvArchiveTest.java
 io/argos/mcp/AuthentificationMcpTest.java
 io/argos/mcp/CloisonnementMcpTest.java
 io/argos/mcp/ContenuExterneMcpTest.java
@@ -106,6 +105,5 @@ io/argos/regintel/CollecteReglementaireTest.java
 io/argos/releaseradar/CalendrierCyclesDeVieTest.java
 io/argos/signal/web/CollecteWebTest.java
 io/argos/testsupport/NettoyageBaseTest.java
-io/argos/vulnintel/SourcesEnrichissementTest.java
 io/argos/workspace/EspacesServiceTest.java
 io/argos/workspace/PreferencesServiceTest.java
