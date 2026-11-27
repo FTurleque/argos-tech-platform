@@ -247,7 +247,7 @@ sequenceDiagram
 
 ### Preuves nécessaires
 
-- tests d’intégration avec GitHub/GitLab/FreshRSS ;
+- tests d’intégration avec GitHub, GitLab et les flux RSS/Atom ;
 - tests d’idempotence ;
 - test de reprise après arrêt forcé ;
 - métriques de retry et backlog ;

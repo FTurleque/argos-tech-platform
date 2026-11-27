@@ -2,58 +2,43 @@
 
 Cette documentation constitue la **source d’architecture versionnée** du projet ARGOS.
 
-> **Baseline active : [v2.4 — 27 septembre 2026](baseline-v2.4.md)**  
-> Baseline précédente : [v2.3](baseline-v2.3.md)
+> Baselines de cadrage : [v2.4 — 27 septembre 2026](baseline-v2.4.md) et [v2.3](baseline-v2.3.md). Ce sont des documents datés ; les ADR acceptés qui les précisent ou les remplacent font foi, et arc42 décrit l’architecture livrée.
 
-## Synthèse exécutive
+## Synthèse
 
-ARGOS est en **phase de POC** : le socle `argos-server` et `argos-ui` porte les capacités du lot 1 (collecte des avis, inventaire SBOM, corrélation, abonnements, comptes et accès, profils et mises en page), dont les changements OpenSpec ne sont pas archivés. Le reste de la documentation décrit l’architecture cible.
+ARGOS est un **POC fonctionnel**, produit ouvert à tous les publics porté à titre personnel ([ADR-0025](adr/0025-produit-ouvert-projet-personnel.md)) et hébergé sur le serveur Synology du porteur ([ADR-0026](adr/0026-hebergement-synology.md)). Le serveur `argos-server`, l’IHM `argos-ui` et le client desktop `argos-desktop` portent les capacités des 19 spécifications principales OpenSpec ; l’état de chacune est tenu dans le [registre des spécifications](../specifications/README.md).
 
-La v2.4 fixe désormais la stack applicative :
+Choix structurants, tous fixés par des ADR acceptés :
 
-- **Java 17 minimum** ;
-- **Quarkus** pour le backend et les API ;
-- **Vue.js 3** pour l’IHM ;
-- **PostgreSQL** comme stockage principal ;
-- monolithe modulaire proposé pour limiter la complexité initiale ;
-- modèle canonique pour découpler ARGOS des formats externes ;
-- Claude/Anthropic encapsulé derrière un **AI Gateway** ;
-- FreshRSS et changedetection.io séparés ;
-- n8n limité aux automatisations périphériques ;
-- SBOM CycloneDX et corrélation déterministe ;
-- serveur **MCP lecture seule** ;
-- veille réglementaire avec **validation MKP obligatoire** ;
-- personnalisation à deux niveaux : **socle d’équipe + veille personnelle** ;
-- arc42 + C4 + ADR + Mermaid comme documentation-as-code.
+- **Java 17 minimum**, **Quarkus**, **Vue.js 3** et **PostgreSQL** (ADR-0019) ;
+- monolithe modulaire avec un noyau commun du serveur (ADR-0001, ADR-0037) ;
+- modèle canonique pour découpler ARGOS des formats externes (ADR-0003) ;
+- schéma versionné par des migrations Flyway appliquées au démarrage (ADR-0032) ;
+- Keycloak auto-hébergé comme fournisseur d’identité, autorisation fine dans ARGOS par RBAC et RLS (ADR-0008, ADR-0016, ADR-0027) ;
+- session OIDC de l’IHM en mémoire, desktop connecté par l’interface de bouclage (ADR-0033) ;
+- collecteur RSS/Atom et pages surveillées intégré au serveur (ADR-0028) ;
+- passerelle IA servie par un modèle local Ollama, facultatif (ADR-0029) ;
+- SBOM CycloneDX et corrélation déterministe (ADR-0011, ADR-0013) ;
+- serveur **MCP lecture seule** (ADR-0014) ;
+- veille réglementaire validée par l’expert métier, données ouvertes JORF (ADR-0030) ;
+- profils de veille cumulables et mises en page sélectionnables (ADR-0023, ADR-0024) ;
+- traitements périodiques par `quarkus-scheduler` dans le serveur (ADR-0031) ;
+- observabilité sans collecteur : journaux JSON, métriques Prometheus, santé (ADR-0036) ;
+- client desktop Electron réutilisant l’IHM (ADR-0022) ;
+- arc42 + C4 + ADR + Mermaid comme documentation-as-code (ADR-0005).
 
-## POC v2.4
-
-Le POC représente **≈ 20–24 j.h de travail effectif**, soit environ un mois concentré. Une démonstration peut démarrer localement via **Docker Compose sur le poste de développement**. Si VM, proxy/SSO, sécurité et équipes pilotes sont sur le chemin critique, prévoir **6 à 10 semaines calendaires**.
-
-Le MVP est désormais estimé à **≈ 50–60 j.h cumulés**, avec une durée calendaire potentiellement plus longue à cause des dépendances inter-équipes et des urgences opérationnelles.
+Décisions proposées, en attente d’acceptation par le porteur : ADR-0007 (n8n), ADR-0012 (Dependency-Track), ADR-0034 (intégration continue), ADR-0035 (comptes des bases), ADR-0038 (configuration de l’IHM à l’exécution), ADR-0039 (traitements de fond), ADR-0040 (pagination), ADR-0041 (conservation des données).
 
 ## Personnalisation
 
-Un développeur hérite du socle de veille de son équipe et peut ajouter des technologies, thèmes ou sources à titre personnel pour apprendre ou préparer de futurs besoins. Ces préférences n’accordent aucun droit supplémentaire sur les projets ou données internes.
-
-## IA : deux budgets distincts
-
-- développement : ne pas dimensionner le projet sur un plan Claude Pro seul ; prévoir une capacité supérieure ou des crédits d’usage, puis mesurer ;
-- runtime ARGOS : Claude API/Console est facturée séparément et passe par l’AI Gateway avec quotas et plafond.
+Un utilisateur hérite du socle de veille de son espace et peut ajouter des technologies, thèmes ou sources à titre personnel. Ces préférences n’accordent aucun droit supplémentaire sur les projets ou données internes.
 
 ## État de la preuve
 
-- **Observé** : artefact présent dans le dépôt ;
+- **Observé** ([EXISTANT]) : artefact présent dans le dépôt ;
 - **Décision proposée** : ADR `Proposé` ;
-- **Hypothèse à valider** : preuve/mesure/environnement manquant ;
-- **Accepté** : ADR validé.
-
-ADR acceptés structurants à ce stade :
-
-- ADR-0002 — PostgreSQL ;
-- ADR-0005 — Mermaid ;
-- ADR-0009 — licence PolyForm Internal Use ;
-- ADR-0019 — Java 17+ / Quarkus / Vue.js 3 / PostgreSQL.
+- **Hypothèse à valider** : preuve, mesure ou environnement manquant ;
+- **Accepté** : ADR validé par le porteur du projet.
 
 ## Navigation arc42
 
@@ -72,37 +57,22 @@ ADR acceptés structurants à ce stade :
 
 ## Registres associés
 
-- [Baseline v2.4](baseline-v2.4.md)
 - [ADR](adr/README.md)
 - [Scénarios qualité](quality/scenarios.md)
 - [Audit d’accessibilité des mises en page](quality/audit-accessibilite-mises-en-page.md)
 - [Mesure de la corrélation sur le jeu de référence annoté](quality/mesure-correlation-jeu-reference.md)
-- [Registre des risques](risks/register.md)
+- [Mesure de la latence de l’API et du serveur MCP](quality/mesure-performance-api-mcp.md)
+- [Registre des risques](risks/register.md) (registre unique)
 - [Inventaire des diagrammes](diagrams/README.md)
 - [Spécifications fonctionnelles et couverture des exigences](../specifications/README.md)
-
-## Priorités avant le premier commit applicatif
-
-1. initialiser Maven/Quarkus en Java 17 ;
-2. initialiser l’IHM Vue.js 3 ;
-3. créer PostgreSQL local + migrations ;
-4. créer Docker Compose local ;
-5. mettre en place les frontières de modules et tests ArchUnit ;
-6. connecter OSV puis importer une SBOM CycloneDX ;
-7. produire la première corrélation et alerte ;
-8. prototyper deux outils MCP lecture seule ;
-9. engager en parallèle les demandes VM/proxy/SSO/RSSI/DPO ;
-10. mesurer charge, qualité et coûts IA avant le go/no-go MVP.
+- [Guide de déploiement](../deploiement/synology-et-pc.md) et [recette sur le poste installé](../deploiement/recette-poste.md)
 
 ## Questions encore ouvertes
 
-1. Quel fournisseur d’identité OIDC/SAML est imposé ?
-2. Quelles classes de données peuvent être transmises à Claude/Anthropic ?
-3. FreshRSS et changedetection.io seront-ils hébergés par ARGOS ou consommés comme services existants ?
-4. Flyway ou Liquibase ?
-5. Quels SLO sont réellement nécessaires après le POC ?
-6. Quelle stack d’observabilité et quel coffre-fort de secrets sont disponibles en interne ?
-7. Quel mécanisme Teams/e-mail est disponible ?
-8. Quelle politique de conservation des données de veille, d’audit et d’activité projet ?
+1. Quels SLO, RPO et RTO retenir pour une instance partagée, puis pour un hébergement en ligne ?
+2. Quelle pile de collecte des métriques et des journaux sur le NAS (Q-3 d’`instrumenter-observabilite`) ?
+3. Quelles durées de conservation par défaut pour les données journalisées (Q-9 de la fiche `exploitation-plateforme`) ?
+4. Quels canaux de notification ajouter à l’e-mail et au client desktop ?
+5. Faut-il chiffrer les archives de sauvegarde (Q-2 de `fiabiliser-sauvegarde-et-roles-base`) ?
 
 Toute réponse structurante doit être reflétée dans un ADR, une exigence qualité ou une contrainte.

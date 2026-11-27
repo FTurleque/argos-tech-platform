@@ -1,3 +1,10 @@
+---
+id: ADR-0034
+title: "Vérifier chaque changement par GitHub Actions et suivre les dépendances avec Renovate"
+domain: architecture
+rules: false
+---
+
 # ADR-0034 — Vérifier chaque changement par GitHub Actions et suivre les dépendances avec Renovate
 
 - **Statut** : Proposé

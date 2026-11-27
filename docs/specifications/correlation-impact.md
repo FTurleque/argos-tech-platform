@@ -4,9 +4,9 @@
 |---|---|
 | Préfixe d'exigences | `COR` |
 | Spec de référence | [`/openspec/specs/correlation-impact/spec.md`](/openspec/specs/correlation-impact/spec.md) |
-| Changement en cours | [`formaliser-chaine-securite-poc`](/openspec/changes/archive/2026-11-20-formaliser-chaine-securite-poc/specs/correlation-impact/spec.md) — proposé, non archivé ; [`automatiser-chaine-veille`](/openspec/changes/archive/2026-11-20-automatiser-chaine-veille/specs/correlation-impact/spec.md) — proposé ; COR-09 à COR-12 implémentés et intégrés le 2026-11-19 (volets A, B et C réunis) |
+| Changements archivés | [`2026-11-20-formaliser-chaine-securite-poc`](/openspec/changes/archive/2026-11-20-formaliser-chaine-securite-poc/specs/correlation-impact/spec.md) (COR-01 à COR-08) ; [`2026-11-20-automatiser-chaine-veille`](/openspec/changes/archive/2026-11-20-automatiser-chaine-veille/specs/correlation-impact/spec.md) (COR-09 à COR-12) |
 | Changement du sprint 10 | [`2026-11-27-accelerer-requetes-chaudes`](/openspec/changes/archive/2026-11-27-accelerer-requetes-chaudes/proposal.md) (COR-07 modifiée, COR-13) — archivé |
-| Statut de la capacité | **proposée**, implémentée dans `argos-server` (changement non archivé) : paquet `io.argos.impact` |
+| Statut de la capacité | **livrée**, implémentée dans `argos-server` : paquet `io.argos.impact` |
 | Composants (arc42 §5) | `impact-engine`, `inventory`, `vuln-intel`, `workspace`, `ai-gateway` (facultatif), `audit` |
 
 Tout le contenu de cette fiche porte le statut [PROPOSITION] (changement `formaliser-chaine-securite-poc`) sauf mention contraire.

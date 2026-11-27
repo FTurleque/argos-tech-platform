@@ -1,23 +1,12 @@
 # 11. Risques et dette technique
 
-## 11.1 Risques prioritaires
+## 11.1 Risques
 
-| ID | Risque | Probabilité | Impact | Exposition | Mitigation | Propriétaire | Cible |
-|---|---|---:|---:|---:|---|---|---|
-| R-01 | envoi de données sensibles à Claude | M | Très élevé | Critique | classification, policy enforcement, audit, minimisation | Sécurité à confirmer | avant POC données internes |
-| R-02 | faux sentiment d’avancement projet | M | Élevé | Élevée | métriques factuelles, provenance, pas de % IA arbitraire | Produit/Tech Lead | MVP |
-| R-03 | couplage aux formats GitHub/GitLab | M | Élevé | Élevée | adapters + modèle canonique | Backend | MVP |
-| R-04 | perte/duplication d’événements | M | Élevé | Élevée | idempotence, curseurs durables, replay tests | Backend | MVP |
-| R-05 | coût LLM incontrôlé | M | Moyen/Élevé | Élevée | quotas, cache, batch, préfiltrage, métriques | Produit/FinOps | MVP |
-| R-06 | dérive vers une plateforme trop complexe | Élevée | Élevé | Critique | monolithe modulaire, scope MVP, ADR | Architecte/PO | continu |
-| R-07 | licence/compliance composant mal comprise | M | Élevé | Élevée | revue licences/SBOM, validation juridique | Architecture/Juridique | avant prod |
-| R-08 | dépendance excessive à Claude | M | Moyen | Moyenne | AI Gateway, structured output, fallback déterministe | Backend | V1 |
-| R-09 | métriques projet interprétées comme surveillance individuelle | M | Très élevé | Critique | finalité explicite, agrégation, RGPD, gouvernance | Produit/DPO | avant prod |
-| R-10 | restauration non testée | M | Élevé | Élevée | runbook + exercices restore | Ops | avant prod |
+Le registre unique des risques est [`../risks/register.md`](../risks/register.md) : identifiants, probabilité, impact, exposition, mitigation, indicateur, propriétaire et statut. Cette section n'en reprend pas le tableau.
 
-M = moyenne. Les probabilités doivent être recalibrées après POC.
+Risques d'exposition critique au registre : R-06 (architecture trop complexe trop tôt), R-09 (données projet perçues comme surveillance individuelle), R-11 (injection d'instructions depuis un contenu externe), R-12 (falsification de requête côté serveur), R-13 (secret exposé), R-17 (fuite inter-espaces par des embeddings, si activés).
 
-## 11.2 Dette technique acceptée au MVP
+## 11.2 Dette technique acceptée
 
 ### Acceptable temporairement
 
@@ -25,57 +14,45 @@ M = moyenne. Les probabilités doivent être recalibrées après POC.
 - absence de broker si les volumes restent faibles ;
 - PostgreSQL FTS avant moteur de recherche spécialisé ;
 - table de jobs/retry avant plateforme distribuée ;
-- FreshRSS/changedetection sur le même hôte si environnement POC ;
-- observabilité sans collecteur : journaux JSON, métriques Prometheus lues à la demande et contrôles de santé (ADR-0036), sans traçage distribué ni historique des métriques.
+- observabilité sans collecteur : journaux JSON, métriques Prometheus lues à la demande et contrôles de santé (ADR-0036), sans traçage distribué ni historique des métriques ;
+- secrets dans un fichier `.env` hors dépôt, sans coffre-fort ;
+- client desktop non signé.
 
-### Non acceptable même au MVP
+### Non acceptable
 
 - secrets dans Git ;
-- données CONFIDENTIAL envoyées au LLM sans politique ;
+- données CONFIDENTIAL ou RESTRICTED envoyées au modèle d'IA ;
 - traitement non idempotent ;
 - métriques projet non traçables ;
 - suppression des erreurs silencieuse ;
-- dépendance directe du domaine aux SDK GitHub/GitLab/Anthropic ;
+- dépendance directe du domaine aux SDK GitHub/GitLab ou au fournisseur d'IA ;
 - commit intégré à `main` sans le statut vert de l'intégration continue (§8.11, ADR-0034).
 
 ## 11.3 Zones d’incertitude
 
-- volumétrie ;
-- fournisseurs SCM réels ;
-- IdP ;
-- hébergement ;
-- classification des données ;
-- politique RGPD ;
-- canaux de notification ;
+- volumétrie d'une instance partagée ;
+- hébergement en ligne ;
+- politique RGPD d'une instance ouverte à d'autres utilisateurs ;
+- canaux de notification au-delà de l'e-mail et du client desktop ;
 - pile de collecte des métriques et des journaux sur le NAS (Q-3 d'`instrumenter-observabilite`) ;
 - besoin réel de RAG/pgvector ;
 - exigences de disponibilité.
 
-## 11.4 Points à valider par POC
+## 11.4 Points restant à valider sur une installation réelle
 
-1. ingestion RSS via FreshRSS ;
-2. changedetection.io → ARGOS ;
-3. webhook + resynchronisation GitHub/GitLab ;
-4. idempotence/replay ;
-5. modèle canonique ;
-6. classification technologique ;
-7. corrélation projet ↔ technologie ;
-8. structured output Claude ;
-9. enforcement de politique de données ;
-10. coût/token par cas d’usage ;
-11. FTS PostgreSQL ;
-12. pertinence ou non de pgvector.
+1. démarrage et exploitation sur le NAS (recette R-8 de [`recette-poste.md`](/docs/deploiement/recette-poste.md)) ;
+2. connexion du portail et du client desktop depuis un second poste ;
+3. récupération des SBOM sur un dépôt pilote réel (R-4) ;
+4. précision et rappel de la corrélation sur les projets pilotes (R-5) ;
+5. qualité des résumés d'un petit modèle local ;
+6. FTS PostgreSQL à grande échelle (R-16) ;
+7. pertinence ou non de pgvector.
 
-## 11.5 Registre opérationnel
+## 11.5 Preuves nécessaires
 
-Le registre détaillé et vivant est maintenu dans [`../risks/register.md`](../risks/register.md).
-
-## 11.6 Preuves nécessaires
-
-- résultats POC ;
 - incidents/tests chaos ;
-- analyse de licences ;
+- analyse de licences (contrôle des licences du serveur, [`argos-server/README.md`](/argos-server/README.md#licences-des-dépendances)) ;
 - revue sécurité ;
 - AIPD ou justification documentée ;
-- test de restauration ;
-- métriques de coût et qualité IA.
+- test de restauration (R-6) ;
+- mesures de charge et de qualité de l'IA.

@@ -8,13 +8,13 @@ Les valeurs ci-dessous sont des **cibles initiales à valider**. Elles deviendro
 |---|---:|---|
 | Traçabilité | 1 | chaque alerte/analyse renvoie à sa provenance |
 | Sécurité | 1 | aucun accès ou transfert non autorisé |
-| Confidentialité | 1 | aucune donnée CONFIDENTIAL/RESTRICTED envoyée au LLM par défaut |
+| Confidentialité | 1 | aucune donnée CONFIDENTIAL/RESTRICTED envoyée au modèle d’IA |
 | Fiabilité | 1 | ingestion idempotente et reprenable |
 | Maintenabilité | 2 | ajout d’un adapter sans modifier le domaine |
 | Observabilité | 2 | tout traitement externe corrélable de bout en bout |
 | Performance | 2 | interactions UI courantes p95 < 500 ms hors LLM/externe |
 | Disponibilité | 2 | cible à définir selon environnement |
-| Coût | 2 | appels IA mesurés, plafonnables et optimisés |
+| Coût | 2 | composants gratuits ; appels IA mesurés et plafonnés (par jour, par espace, par compte) |
 | Portabilité | 3 | déploiement conteneurisé sans dépendance propriétaire obligatoire |
 
 ## 10.2 Scénarios principaux
@@ -77,20 +77,20 @@ Les valeurs ci-dessous sont des **cibles initiales à valider**. Elles deviendro
 | Mesure | latence API p95 |
 | Seuil | < 500 ms, cible initiale |
 | Vérification | test de charge ; campagne automatisée `npm --prefix e2e run test:performance` (PERF-01, PERF-02, changement `automatiser-chaine-veille`) |
-| Résultat | mesuré le 2026-11-19 sur la pile de test locale (20 projets × 100 composants, 1 000 avis, 20 000 impacts ; 200 appels par opération, 4 clients simultanés) : 15 opérations sur 16 dans la cible (p95 de 15,1 à 129,6 ms) ; **hors cible** : `GET /api/v1/me/veille`, p95 = 533,8 ms (branche intégrée, révision `7c5b9d7` ; 618 ms à la première mesure du volet C) ([rapport](../quality/mesure-performance-api-mcp.md)) [EXISTANT] |
+| Résultat | mesuré le 2026-11-27 sur la pile de test locale (révision `496add9` ; 20 projets × 100 composants, 1 000 avis, 20 000 impacts actifs, 500 000 impacts résolus ou écartés ; 200 appels par opération, 4 clients simultanés) : 17 opérations API et MCP sur 17 dans la cible, p95 de 16,9 à 185,5 ms ; `GET /api/v1/me/veille` : p95 = 185,5 ms ([rapport](../quality/mesure-performance-api-mcp.md)) [EXISTANT] |
 | Propriétaire | Backend/Frontend à confirmer |
 
-### Q-06 — Maîtrise des coûts Claude
+### Q-06 — Maîtrise de la charge IA
 
 | Champ | Valeur |
 |---|---|
 | Stimulus | volume d’items augmente fortement |
-| Environnement | production |
-| Réponse | quotas, préfiltrage, cache et routage limitent les appels |
-| Mesure | coût estimé par workspace/mois et tokens par use case |
-| Seuil | budget configurable ; valeur exacte Non déterminée |
-| Vérification | métriques + alerte budget |
-| Propriétaire | Product Owner / FinOps à confirmer |
+| Environnement | production, passerelle IA active |
+| Réponse | le plafond journalier de l’instance et les quotas journaliers par espace et par compte bornent les appels au modèle local ; au-delà, l’appel est refusé et Argos garde son résultat déterministe |
+| Mesure | appels par jour pour l’instance, par espace et par compte ; refus pour plafond ou quota |
+| Seuil | 1 000 appels par jour pour l’instance, 100 par espace, 20 par compte (`ARGOS_IA_PLAFOND_JOUR`, `ARGOS_IA_QUOTA_ESPACE_JOUR`, `ARGOS_IA_QUOTA_COMPTE_JOUR`) |
+| Vérification | tests de la passerelle IA (capacité [`passerelle-ia`](../../specifications/passerelle-ia.md)) ; métriques des appels IA sur `/q/metrics` |
+| Propriétaire | porteur du projet |
 
 ## 10.3 Scénarios d’usage, changement et défaillance
 

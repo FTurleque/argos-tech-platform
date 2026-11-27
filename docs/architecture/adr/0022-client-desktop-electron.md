@@ -1,3 +1,10 @@
+---
+id: ADR-0022
+title: "Ajouter un client desktop Electron qui réutilise l'IHM Vue.js 3"
+domain: architecture
+rules: false
+---
+
 # ADR-0022 — Ajouter un client desktop Electron qui réutilise l'IHM Vue.js 3
 
 - **Statut** : Accepté

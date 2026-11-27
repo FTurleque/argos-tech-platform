@@ -1,3 +1,10 @@
+---
+id: ADR-0025
+title: "Faire d'Argos un produit ouvert à tous les publics, porté à titre personnel"
+domain: architecture
+rules: false
+---
+
 # ADR-0025 — Faire d'Argos un produit ouvert à tous les publics, porté à titre personnel
 
 - **Statut** : Accepté

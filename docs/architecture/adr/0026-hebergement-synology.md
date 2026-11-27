@@ -1,3 +1,10 @@
+---
+id: ADR-0026
+title: "Héberger Argos sur le serveur Synology du porteur avant toute offre en ligne"
+domain: architecture
+rules: false
+---
+
 # ADR-0026 — Héberger Argos sur le serveur Synology du porteur avant toute offre en ligne
 
 - **Statut** : Accepté

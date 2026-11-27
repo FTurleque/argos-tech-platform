@@ -1,3 +1,10 @@
+---
+id: ADR-0017
+title: "Démarrer le POC localement puis migrer sur VM interne"
+domain: architecture
+rules: false
+---
+
 # ADR-0017 — Démarrer le POC localement puis migrer sur VM interne
 
 - **Statut** : Remplacé pour la cible d’hébergement (VM interne) ; POC local toujours valable

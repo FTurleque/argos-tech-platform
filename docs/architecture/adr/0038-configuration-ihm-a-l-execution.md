@@ -1,3 +1,10 @@
+---
+id: ADR-0038
+title: "Configuration de l'IHM lue à l'exécution dans la réponse publique du serveur"
+domain: architecture
+rules: false
+---
+
 # ADR-0038 — Configuration de l'IHM lue à l'exécution dans la réponse publique du serveur
 
 - **Statut** : Proposé

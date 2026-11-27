@@ -10,7 +10,7 @@ flowchart LR
 
     subgraph ARGOS["«Software System» ARGOS"]
         WEB["«Container»\nVue.js 3 SPA\nInterface utilisateur"]
-        DESK["«Container»\nClient desktop Electron\nemballe la SPA (ADR-0022, proposé)"]
+        DESK["«Container»\nClient desktop Electron\nemballe la SPA (ADR-0022)"]
         BACK["«Container»\nQuarkus Backend\nAPI, métier, ingestion, MCP, IA"]
         DB["«database»\nPostgreSQL\nMétier, audit, recherche"]
     end
@@ -38,21 +38,21 @@ flowchart LR
 - aucune logique métier critique dans l’IHM ;
 - session OIDC (exigences ACC-07 à ACC-10 de la capacité [`comptes-acces`](../../specifications/comptes-acces.md), livrées ; ADR-0033, Accepté) : code d’autorisation + PKCE S256 auprès de Keycloak, jetons en mémoire seulement, jeton porteur joint aux appels de `/api/v1` sauf l’identité du serveur ; toute vue sauf l’état du serveur exige une session.
 
-### Client desktop Electron (proposé, ADR-0022)
+### Client desktop Electron (ADR-0022)
 
 - même build Vue.js 3 que la SPA, servi par un protocole interne (`app://argos`) ;
 - notifications natives et icône de zone de notification ;
 - ni base de données ni serveur embarqué : client de l’API REST uniquement ;
 - alertes du poste (capacité [`notifications-poste`](../../specifications/notifications-poste.md)) : la couche contenu de l’IHM lit les alertes `DESKTOP` en attente et confirme leur remise ; le processus principal affiche la notification (titre, gravité, nombre de projets), tient le compteur d’alertes ouvertes de la zone de notification et les réglages du poste (notifications du poste, démarrage avec la session désactivé par défaut) ; il n’appelle pas l’API ;
 - fenêtre fermée, l’application reste dans la zone de notification ; quittée, plus rien ne tourne (aucun service en arrière-plan) ;
-- connexion OIDC ([PROPOSITION], ADR-0033) : l’autorisation s’ouvre dans le navigateur du système ; le processus principal écoute le retour sur `127.0.0.1` (port éphémère, RFC 8252) et le rend à l’IHM, qui échange le code ; la CSP n’ajoute que l’origine du fournisseur d’identité configuré.
+- connexion OIDC (ADR-0033, Accepté) : l’autorisation s’ouvre dans le navigateur du système ; le processus principal écoute le retour sur `127.0.0.1` (port éphémère, RFC 8252) et le rend à l’IHM, qui échange le code ; la CSP n’ajoute que l’origine du fournisseur d’identité configuré.
 
 ### Quarkus Backend
 
 - **Java 17 minimum** ;
 - API REST/OpenAPI ;
 - règles métier, ingestion, corrélation, alerting, AI Gateway et serveur MCP ;
-- monolithe modulaire proposé ;
+- monolithe modulaire (ADR-0001) ;
 - aucune dépendance du domaine aux SDK externes.
 
 ### PostgreSQL

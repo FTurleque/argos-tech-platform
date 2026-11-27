@@ -4,11 +4,13 @@ schema: detailed-uml
 # Detailed structures live in openspec/schemas/detailed-uml/templates/.
 context: |
   Rédiger tous les artefacts en français ; garder en anglais les marqueurs OpenSpec (## Why, ## What Changes, ## Capabilities, ## Purpose, ## ADDED/MODIFIED/REMOVED/RENAMED Requirements, ### Requirement:, #### Scenario:, GIVEN/WHEN/THEN/AND, MUST/SHALL, **Reason**, **Migration**, FROM/TO).
-  ARGOS est en phase de conception. Le dépôt contient un socle applicatif sans fonctionnalité métier
-  (argos-server, argos-ui, argos-desktop). Rien n'est [EXISTANT] sans preuve versionnée.
+  ARGOS est un POC fonctionnel, porté à titre personnel et ouvert à tous les publics (ADR-0025) : argos-server (monolithe
+  modulaire Quarkus), argos-ui, argos-desktop, déployés par compose.yaml avec Keycloak (ADR-0027) et Ollama facultatif
+  (ADR-0029). Les capacités livrées sont dans openspec/specs/ ; rien n'est [EXISTANT] sans preuve versionnée.
   Architecture consolidée : docs/architecture/ (arc42, C4, Mermaid). ADR : docs/architecture/adr/ ; un ADR « Proposé » reste une proposition.
+  Migrations : Flyway, un numéro V<n> réservé par changement avant son développement (ADR-0032).
   Fiches fonctionnelles durables : docs/specifications/<capability-path>.md ; index, préfixes d'identifiants et couverture : docs/specifications/README.md.
-  Stack acceptée (ADR-0019) : Java 17+, Quarkus, Vue.js 3, PostgreSQL ; API REST + OpenAPI.
+  Stack acceptée (ADR-0019) : Java 17+, Quarkus, Vue.js 3, PostgreSQL ; API REST + OpenAPI ; client desktop Electron (ADR-0022).
   Diagrammes : Mermaid uniquement (ADR-0005), versionnés dans le Markdown qui les explique.
   Liens internes écrits depuis openspec/ : chemins depuis la racine du dépôt (/docs/...).
 

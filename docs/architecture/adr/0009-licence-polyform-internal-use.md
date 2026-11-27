@@ -1,3 +1,10 @@
+---
+id: ADR-0009
+title: "Utiliser PolyForm Internal Use License 1.0.0"
+domain: architecture
+rules: false
+---
+
 # ADR-0009 — Utiliser PolyForm Internal Use License 1.0.0
 
 - **Statut** : Accepté

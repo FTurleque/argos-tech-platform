@@ -1,6 +1,6 @@
 # D-13 — Modèle physique
 
-Modèle physique de la base PostgreSQL d'Argos tel que le produisent les migrations Flyway `V1__socle.sql` à `V21__index_impacts_recents.sql` (V21 n'ajoute qu'un index) ([`argos-server/src/main/resources/db/migration/`](/argos-server/src/main/resources/db/migration/)). Chaque entité porte ses clés et ses colonnes significatives ; la définition complète (types exacts, contraintes `CHECK`, index, fonctions, politiques RLS) reste celle des migrations. Le modèle métier conceptuel est D-05 (arc42 [§5.7](../arc42/05-vue-blocs.md)).
+Modèle physique de la base PostgreSQL d'Argos tel que le produisent les migrations Flyway `V1__socle.sql` à `V28__recherche_bornee.sql` (V21 et V27 n'ajoutent ou ne retirent que des index, V22 et V24 que des rôles, des droits et des politiques, V23 la vue `compte_nom_public`, V28 une fonction de recherche) ([`argos-server/src/main/resources/db/migration/`](/argos-server/src/main/resources/db/migration/)). Chaque entité porte ses clés et ses colonnes significatives ; la définition complète (types exacts, contraintes `CHECK`, index, fonctions, politiques RLS) reste celle des migrations. Le modèle métier conceptuel est D-05 (arc42 [§5.7](../arc42/05-vue-blocs.md)).
 
 Conventions : `PK` clé primaire, `FK` clé étrangère, `UK` unicité ; un type suffixé `_arr` est un tableau PostgreSQL (`varchar(64)[]`, `integer[]`). Une ligne pointillée relie deux tables par une référence logique, sans clé étrangère. Les entités d'un autre bloc (`compte`, `espace`, `project`, `component`, `signal`) n'y sont répétées qu'avec leur clé.
 
@@ -12,7 +12,7 @@ erDiagram
         uuid id PK
         text sujet_oidc UK
         text nom_affiche
-        text email
+        text email "adresse vérifiée, posée à la connexion (V24)"
         boolean admin_plateforme
         timestamptz cree_le
     }
@@ -81,7 +81,7 @@ erDiagram
     compte |o..o{ refus_acces : "journalisé"
 ```
 
-## D-13.2 — Chaîne sécurité : collecte, inventaire, impacts, abonnements (V3 à V6, V11, V17 à V20)
+## D-13.2 — Chaîne sécurité : collecte, inventaire, impacts, abonnements (V3 à V6, V11, V17 à V20, V25, V26)
 
 ```mermaid
 erDiagram
@@ -161,6 +161,13 @@ erDiagram
         varchar reference PK
         jsonb data
     }
+    enrichissement_attente {
+        uuid signal_id PK, FK "file d'enrichissement (V25)"
+        timestamptz demande_le
+        integer tentatives
+        timestamptz prochain_essai_le
+        text derniere_erreur "1 000 caractères au plus"
+    }
     espace {
         uuid id PK
     }
@@ -217,6 +224,7 @@ erDiagram
         varchar origin "SBOM, MANIFEST"
         timestamptz source_date
         timestamptz imported_at
+        varchar empreinte "empreinte du dernier import (V26)"
     }
     component_occurrence {
         uuid component_id FK "UK avec repository_id"
@@ -273,6 +281,7 @@ erDiagram
     signal ||--o{ signal_alias : "alias"
     signal ||--o{ signal_package : "affecte"
     signal ||--o{ enrichment : "enrichi par"
+    signal ||--o| enrichissement_attente : "en attente d'enrichissement"
     espace ||--o{ project : "suit"
     project ||--o| inventory : "inventaire de référence"
     inventory ||--o{ component : "liste"
@@ -609,4 +618,4 @@ erDiagram
 
 Les politiques RLS, appliquées sous le rôle `argos_app` (ADR-0016, migration V2), couvrent les tables : `compte`, `espace`, `appartenance`, `invitation` (V2) ; `project`, `inventory`, `component`, `inventory_import_failure` (V4) ; `project_impact` (V5), `project_impact_transition` (V20) ; `subscription`, `subscription_opt_out` (V6) ; `workspace_preference_utilisateur` (V7) ; `alerte`, `resume_element` (V8) ; `source_web`, `actualite`, `actualite_source`, `actualite_impact` (V10) ; `workspace_vue` (V11) ; `standard_technologie`, `standard_historique`, `standard_suggestion`, `radar_parametres`, `dette_version` (V12) ; `activite_compteur`, `activite_jalon`, `activite_collecte` (V14) ; `suivi_profil`, `suivi_rappels` (V15) ; `domaine_metier`, `expert_domaine`, `regle_dictionnaire`, `reg_parametres`, `fiche_reglementaire`, `fiche_domaine`, `fiche_historique` (V16) ; `project_repository`, `repository_inventory`, `component_occurrence` (V19).
 
-Les tables de la collecte des avis (`source`, `sync_*`, `ingestion_failure`, `ops_event`, `signal*`, `enrichment`), du calendrier des produits (`cycle_vie*`), des sources du profil artiste (`source_profil`, `opportunite`) et de la collecte réglementaire (`texte_officiel`, `reg_source`, `reg_collecte_jour`) sont communes à tous les espaces. `refus_acces`, `mcp_appel`, `ia_prompt`, `ia_appel` et `ia_quota_jour` sont des journaux et compteurs internes, écrits sous l'utilisateur de connexion, sur lesquels `argos_app` n'a aucun droit.
+Les tables de la collecte des avis (`source`, `sync_*`, `ingestion_failure`, `ops_event`, `signal*`, `enrichment`, `enrichissement_attente`), du calendrier des produits (`cycle_vie*`), des sources du profil artiste (`source_profil`, `opportunite`) et de la collecte réglementaire (`texte_officiel`, `reg_source`, `reg_collecte_jour`) sont communes à tous les espaces. `refus_acces`, `mcp_appel`, `ia_prompt`, `ia_appel` et `ia_quota_jour` sont des journaux et compteurs internes, écrits sous l'utilisateur de connexion, sur lesquels `argos_app` n'a aucun droit.

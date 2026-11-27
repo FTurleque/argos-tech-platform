@@ -1,3 +1,10 @@
+---
+id: ADR-0029
+title: "Servir la passerelle IA par un modèle local Ollama"
+domain: architecture
+rules: false
+---
+
 # ADR-0029 — Servir la passerelle IA par un modèle local Ollama
 
 - **Statut** : Accepté
@@ -8,7 +15,7 @@
 
 ## Contexte
 
-- [ADR-0004](0004-ai-gateway-claude.md) (Proposé) encapsule Claude, fournisseur payant, derrière une passerelle IA. Argos est un produit ouvert porté à titre personnel ([ADR-0025](0025-produit-ouvert-projet-personnel.md), Accepté) et hébergé sur le Synology du porteur ([ADR-0026](0026-hebergement-synology.md), Accepté) : tout budget d'API est personnel.
+- [ADR-0004](0004-ai-gateway-claude.md) (Remplacé par le présent ADR) encapsule Claude, fournisseur payant, derrière une passerelle IA. Argos est un produit ouvert porté à titre personnel ([ADR-0025](0025-produit-ouvert-projet-personnel.md), Accepté) et hébergé sur le Synology du porteur ([ADR-0026](0026-hebergement-synology.md), Accepté) : tout budget d'API est personnel.
 - Le porteur a tranché le 2026-11-16 (changement [`encadrer-appels-ia`](/openspec/changes/archive/2026-11-17-encadrer-appels-ia/proposal.md)) : coût nul avec le fournisseur local Ollama (MIT) et un plafond de charge de 1 000 appels par jour pour l'instance (Q-1) ; 100 appels par jour et par espace (Q-2) ; modèle par défaut `qwen2.5:1.5b` (Apache-2.0), remplaçable par tâche (Q-3) ; seules les données publiques et internes sortent vers le modèle, jamais de secrets, de jetons ni de données personnelles (Q-4).
 - [ADR-0021](0021-double-licence.md) impose des composants gratuits sous licence permissive.
 - La passerelle elle-même (point d'appel unique, prompts versionnés, classes de données, quotas, validation des sorties, traçabilité) reste la décision d'ADR-0004 ; seul le fournisseur change.
@@ -40,9 +47,9 @@
 
 ## Décision
 
-**Proposition : option B.** La passerelle `ai-gateway` appelle un serveur Ollama local (`argos.ia.ollama.url`, par défaut `http://localhost:11434`, variable `ARGOS_OLLAMA_URL`) avec le modèle `qwen2.5:1.5b` par défaut, remplaçable par tâche (`argos.ia.modeles.<tâche>`). Le service Ollama est facultatif : il figure dans `compose.yaml` sous le profil `ia`, désactivé par défaut. Le plafond journalier de l'instance et le quota journalier par espace remplacent le plafond de dépense ; le coût tracé de chaque appel est nul. Le contrat interne de la passerelle reste indépendant du fournisseur (R-08) : revenir à un fournisseur distant ne demanderait qu'un autre adaptateur.
+**Option B retenue.** La passerelle `ai-gateway` appelle un serveur Ollama local (`argos.ia.ollama.url`, par défaut `http://localhost:11434`, variable `ARGOS_OLLAMA_URL`) avec le modèle `qwen2.5:1.5b` par défaut, remplaçable par tâche (`argos.ia.modeles.<tâche>`). Le service Ollama est facultatif : il figure dans `compose.yaml` sous le profil `ia`, désactivé par défaut. Le plafond journalier de l'instance et le quota journalier par espace remplacent le plafond de dépense ; le coût tracé de chaque appel est nul. Le contrat interne de la passerelle reste indépendant du fournisseur (R-08) : revenir à un fournisseur distant ne demanderait qu'un autre adaptateur.
 
-Le statut et le texte d'ADR-0004 restent inchangés jusqu'à l'acceptation du présent ADR.
+Le présent ADR remplace ADR-0004, dont le texte reste inchangé.
 
 ## Conséquences positives
 

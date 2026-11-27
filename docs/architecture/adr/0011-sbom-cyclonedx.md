@@ -1,3 +1,10 @@
+---
+id: ADR-0011
+title: "Utiliser CycloneDX comme inventaire SBOM de référence"
+domain: architecture
+rules: false
+---
+
 # ADR-0011 — Utiliser CycloneDX comme inventaire SBOM de référence
 
 - **Statut** : Accepté

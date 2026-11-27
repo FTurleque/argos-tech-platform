@@ -1,3 +1,10 @@
+---
+id: ADR-0037
+title: "Porter les mécanismes techniques partagés par un noyau commun du serveur"
+domain: architecture
+rules: false
+---
+
 # ADR-0037 — Porter les mécanismes techniques partagés par un noyau commun du serveur
 
 - **Statut** : Accepté
