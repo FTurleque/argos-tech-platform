@@ -16,7 +16,7 @@ import java.util.UUID;
 import org.junit.jupiter.api.Test;
 
 import io.argos.alerting.Gravite;
-import io.argos.impact.RechercheVeille;
+import io.argos.signal.recherche.RechercheVeille;
 
 /**
  * Validation des arguments de {@code search_signals} ({@link OutilsSecurite.DemandeSignaux}) : ordre des

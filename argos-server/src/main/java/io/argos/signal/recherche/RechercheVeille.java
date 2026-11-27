@@ -1,4 +1,4 @@
-package io.argos.impact;
+package io.argos.signal.recherche;
 
 import java.sql.Array;
 import java.sql.Connection;
@@ -11,7 +11,6 @@ import java.time.Instant;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.HashMap;
-import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Locale;
@@ -33,9 +32,9 @@ import io.argos.signal.SignalQueries;
 
 /**
  * Recherche plein texte et filtres combinables sur les éléments de veille (RCH-01 à RCH-03,
- * ADR-0015) : signaux de sécurité publics et actualités web cloisonnées, avec les projets visibles
- * qu'ils concernent. Une seule requête sert le portail, le client desktop (API REST) et l'outil MCP
- * {@code search_signals}.
+ * ADR-0015) : signaux de sécurité publics et actualités web cloisonnées. Une seule requête sert le portail, le client
+ * desktop (API REST) et l'outil MCP {@code search_signals}. Les éléments sont restitués sans leurs projets : le
+ * module {@code impact} les complète des projets visibles concernés ({@code io.argos.impact.ProjetsConcernes}).
  *
  * <p>Toute la recherche s'exécute sous le rôle {@code argos_app} avec le compte de l'appelant
  * ({@link ContexteBase}). La sélection des candidats passe par la fonction
@@ -43,8 +42,7 @@ import io.argos.signal.SignalQueries;
  * visibilité des politiques RLS pour que l'index GIN reste utilisable et renvoie au plus
  * {@value #PLAFOND} + 1 candidats, les plus récents ; la pertinence n'est calculée que pour les
  * {@value #PLAFOND} plus récents, le total est plafonné à {@value #PLAFOND} (RCH-07). Chaque élément
- * restitué est ensuite relu sous la RLS, qui écarte tout élément que l'appelant ne voit pas. Les
- * projets cités sont limités, en plus, aux espaces de l'appelant.
+ * restitué est ensuite relu sous la RLS, qui écarte tout élément que l'appelant ne voit pas.
  *
  * <p>Les mots recherchés sont analysés par les configurations {@code french}, {@code english} et
  * {@code simple} (Q-1) ; ils ne sont jamais concaténés au SQL.
@@ -95,7 +93,7 @@ public class RechercheVeille {
             Set<String> gravites, Instant depuis, Set<String> paquets, Set<String> sources) {
     }
 
-    /** Projet visible de l'appelant concerné par l'élément. */
+    /** Projet visible de l'appelant concerné par l'élément (complété par le module {@code impact}). */
     public record ProjetVise(UUID projetId, String projet) {
     }
 
@@ -105,6 +103,12 @@ public class RechercheVeille {
      */
     public record Element(String type, UUID id, String source, String identifiant, String titre, String extrait,
             String gravite, Instant date, String lien, double pertinence, List<ProjetVise> projets) {
+
+        /** Le même élément, avec les projets donnés. */
+        public Element avecProjets(List<ProjetVise> projetsConcernes) {
+            return new Element(type, id, source, identifiant, titre, extrait, gravite, date, lien, pertinence,
+                    List.copyOf(projetsConcernes));
+        }
     }
 
     /**
@@ -148,18 +152,6 @@ public class RechercheVeille {
 
     private static final String UUID_SQL = "uuid";
 
-    /** Projets visibles touchés par les avis : identifiants des avis, espaces de l'appelant. */
-    private static final String PROJETS_DES_SIGNAUX = """
-            SELECT DISTINCT i.signal_id, p.id, p.name FROM project_impact i JOIN project p ON p.id = i.project_id
-            WHERE i.signal_id = ANY (?) AND i.workspace_id = ANY (?) ORDER BY p.name, p.id
-            """;
-
-    /** Projets visibles touchés par les actualités : identifiants des actualités, espaces de l'appelant. */
-    private static final String PROJETS_DES_ACTUALITES = """
-            SELECT DISTINCT ai.actualite_id, p.id, p.name FROM actualite_impact ai JOIN project p ON p.id = ai.project_id
-            WHERE ai.actualite_id = ANY (?) AND ai.workspace_id = ANY (?) ORDER BY p.name, p.id
-            """;
-
     /** Avis de la page : longueur de l'extrait, identifiants. */
     private static final String SIGNAUX = """
             SELECT id, source, external_id, title, left(summary, ?), severity, coalesce(published_at, modified_at)
@@ -195,8 +187,9 @@ public class RechercheVeille {
         return types;
     }
 
+    /** Page de résultats de l'appelant {@code compteId}, éléments restitués sans leurs projets. */
     @Transactional
-    public Resultats rechercher(Criteres criteres, UUID compteId, Set<UUID> espaces, int page, int taille) {
+    public Resultats rechercher(Criteres criteres, UUID compteId, int page, int taille) {
         int pageBornee = Math.max(page, 0);
         int tailleBornee = Math.min(Math.max(taille, 1), TAILLE_MAX);
         if (criteres.types() != null && criteres.types().isEmpty()) {
@@ -224,7 +217,7 @@ public class RechercheVeille {
                 }, resultat -> resultat.getLong(1)).orElse(0L);
             }
             long total = Math.min(selectionnes, PLAFOND);
-            List<Element> elements = restituer(connexion, candidats, espaces);
+            List<Element> elements = restituer(connexion, candidats);
             return new Resultats(elements, pageBornee, tailleBornee, total, selectionnes > PLAFOND,
                     total == 0 ? AUCUN_RESULTAT : null);
         } catch (SQLException erreur) {
@@ -270,18 +263,15 @@ public class RechercheVeille {
         return 11;
     }
 
-    /** Relit sous la RLS les éléments de la page, dans l'ordre de pertinence, avec leurs projets visibles. */
-    private static List<Element> restituer(Connection connexion, List<Candidat> candidats, Set<UUID> espaces) {
+    /** Relit sous la RLS les éléments de la page, dans l'ordre de pertinence. */
+    private static List<Element> restituer(Connection connexion, List<Candidat> candidats) {
         List<UUID> signaux = candidats.stream().filter(candidat -> AVIS_SECURITE.equals(candidat.type())).map(Candidat::id).toList();
         List<UUID> actualites = candidats.stream().filter(candidat -> !AVIS_SECURITE.equals(candidat.type())).map(Candidat::id).toList();
         Map<UUID, Element> lus = new HashMap<>();
-        Map<UUID, List<ProjetVise>> projets = new HashMap<>();
         if (!signaux.isEmpty()) {
-            projets.putAll(projets(connexion, PROJETS_DES_SIGNAUX, signaux, espaces));
             lire(connexion, SIGNAUX, signaux, RechercheVeille::signal, lus);
         }
         if (!actualites.isEmpty()) {
-            projets.putAll(projets(connexion, PROJETS_DES_ACTUALITES, actualites, espaces));
             lire(connexion, ACTUALITES, actualites, RechercheVeille::actualite, lus);
         }
         List<Element> elements = new ArrayList<>();
@@ -289,23 +279,10 @@ public class RechercheVeille {
             Element element = lus.get(candidat.id());
             if (element != null) {
                 elements.add(new Element(element.type(), element.id(), element.source(), element.identifiant(), element.titre(),
-                        element.extrait(), element.gravite(), element.date(), element.lien(), candidat.rang(),
-                        projets.getOrDefault(candidat.id(), List.of())));
+                        element.extrait(), element.gravite(), element.date(), element.lien(), candidat.rang(), List.of()));
             }
         }
         return elements;
-    }
-
-    private static Map<UUID, List<ProjetVise>> projets(Connection connexion, String sql, List<UUID> ids, Set<UUID> espaces) {
-        Map<UUID, List<ProjetVise>> projets = new LinkedHashMap<>();
-        if (espaces.isEmpty()) {
-            return projets;
-        }
-        Jdbc.lister(connexion, sql, Jdbc.parametres(new Jdbc.Tableau(UUID_SQL, ids), new Jdbc.Tableau(UUID_SQL, espaces)),
-                resultat -> Map.entry(resultat.getObject(1, UUID.class),
-                new ProjetVise(resultat.getObject(2, UUID.class), resultat.getString(3))))
-                .forEach(ligne -> projets.computeIfAbsent(ligne.getKey(), cle -> new ArrayList<>()).add(ligne.getValue()));
-        return projets;
     }
 
     /** Ajoute à {@code lus} les éléments relus par {@code sql} (extrait borné, identifiants), indexés par identifiant. */

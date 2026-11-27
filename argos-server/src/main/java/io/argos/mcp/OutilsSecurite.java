@@ -23,7 +23,8 @@ import io.argos.catalog.PackageKey;
 import io.argos.catalog.standard.ReferentielStandards;
 import io.argos.impact.ImpactQueries;
 import io.argos.impact.MatchRules;
-import io.argos.impact.RechercheVeille;
+import io.argos.impact.ProjetsConcernes;
+import io.argos.signal.recherche.RechercheVeille;
 import io.argos.inventory.InventoryQueries;
 import io.argos.releaseradar.CalendrierSorties;
 import io.argos.signal.AffectedPackage;
@@ -157,6 +158,9 @@ public class OutilsSecurite {
 
     @Inject
     RechercheVeille recherche;
+
+    @Inject
+    ProjetsConcernes projetsConcernes;
 
     @Tool(name = "check_dependency", structuredContent = true,
             annotations = @Tool.Annotations(title = "Vérifier une dépendance", readOnlyHint = true, destructiveHint = false,
@@ -345,8 +349,10 @@ public class OutilsSecurite {
     private Signaux rechercherSignaux(Caller appelant, CriteresSignaux criteres) {
         criteres.projets().forEach(id -> exigerProjetVisible(appelant, id, inventaires));
         List<SignalResume> resultats = new ArrayList<>();
-        for (RechercheVeille.Element element : recherche.rechercher(criteres.recherche(), appelant.accountId(),
-                appelant.memberWorkspaces(), 0, criteres.limite()).elements()) {
+        RechercheVeille.Resultats trouves = projetsConcernes.completer(
+                recherche.rechercher(criteres.recherche(), appelant.accountId(), 0, criteres.limite()),
+                appelant.accountId(), appelant.memberWorkspaces());
+        for (RechercheVeille.Element element : trouves.elements()) {
             signaux.find(element.id()).ifPresent(signal -> resultats.add(resume(signal, element)));
         }
         return new Signaux(resultats.size(), resultats);
