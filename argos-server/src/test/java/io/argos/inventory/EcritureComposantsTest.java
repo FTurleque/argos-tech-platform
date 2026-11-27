@@ -2,13 +2,13 @@ package io.argos.inventory;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotEquals;
-import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.nio.charset.StandardCharsets;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 
 import org.junit.jupiter.api.Test;
 
@@ -39,9 +39,9 @@ class EcritureComposantsTest {
 
     @Test
     void transitifInconnuSansOccurrenceConnue() {
-        assertNull(EcritureComposants.fusionnerTransitif(null, null));
-        assertEquals(Boolean.TRUE, EcritureComposants.fusionnerTransitif(null, true));
-        assertEquals(Boolean.FALSE, EcritureComposants.fusionnerTransitif(true, false));
+        assertEquals(Optional.empty(), EcritureComposants.fusionnerTransitif(null, null));
+        assertEquals(Optional.of(Boolean.TRUE), EcritureComposants.fusionnerTransitif(null, true));
+        assertEquals(Optional.of(Boolean.FALSE), EcritureComposants.fusionnerTransitif(true, false));
     }
 
     @Test

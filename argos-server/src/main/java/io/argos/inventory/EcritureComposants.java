@@ -8,7 +8,10 @@ import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.UUID;
+
+import io.argos.commun.Jdbc;
 
 /**
  * Écriture par lot des composants et des occurrences d'un emplacement (INV-14, AUD-PER-20) : trois instructions,
@@ -62,32 +65,17 @@ final class EcritureComposants {
             return;
         }
         Tableaux tableaux = Tableaux.depuis(connexion, composants);
-        try (PreparedStatement requete = connexion.prepareStatement(INSERTION_COMPOSANTS)) {
-            requete.setObject(1, projectId);
-            requete.setObject(2, importId);
-            requete.setArray(3, tableaux.identifiants());
-            requete.setArray(4, tableaux.cles());
-            requete.setArray(5, tableaux.purls());
-            requete.setArray(6, tableaux.versions());
-            requete.setArray(7, tableaux.transitifs());
-            requete.executeUpdate();
-        }
-        try (PreparedStatement requete = connexion.prepareStatement(MISE_A_JOUR_PURL)) {
-            requete.setObject(1, importId);
-            requete.setArray(2, tableaux.cles());
-            requete.setArray(3, tableaux.purls());
-            requete.setArray(4, tableaux.versions());
-            requete.setObject(5, projectId);
-            requete.executeUpdate();
-        }
-        try (PreparedStatement requete = connexion.prepareStatement(INSERTION_OCCURRENCES)) {
-            requete.setObject(1, repositoryId);
-            requete.setObject(2, projectId);
-            requete.setObject(3, importId);
-            requete.setArray(4, tableaux.cles());
-            requete.setArray(5, tableaux.versions());
-            requete.setArray(6, tableaux.transitifs());
-            requete.setObject(7, projectId);
+        executer(connexion, INSERTION_COMPOSANTS, projectId, importId, tableaux.identifiants(), tableaux.cles(), tableaux.purls(),
+                tableaux.versions(), tableaux.transitifs());
+        executer(connexion, MISE_A_JOUR_PURL, importId, tableaux.cles(), tableaux.purls(), tableaux.versions(), projectId);
+        executer(connexion, INSERTION_OCCURRENCES, repositoryId, projectId, importId, tableaux.cles(), tableaux.versions(),
+                tableaux.transitifs(), projectId);
+    }
+
+    /** Exécute une écriture avec les valeurs données, dans l'ordre des paramètres. */
+    private static void executer(Connection connexion, String sql, Object... valeurs) throws SQLException {
+        try (PreparedStatement requete = connexion.prepareStatement(sql)) {
+            Jdbc.parametres(valeurs).lier(requete);
             requete.executeUpdate();
         }
     }
@@ -98,20 +86,23 @@ final class EcritureComposants {
         for (ParsedInventory.Item composantLu : lus) {
             String cle = composantLu.packageKey() + SEPARATEUR_CLE + (composantLu.version() == null ? "" : composantLu.version());
             uniques.merge(cle, composantLu, (premier, doublon) -> new ParsedInventory.Item(premier.packageKey(), premier.purl(),
-                    premier.version(), fusionnerTransitif(premier.transitive(), doublon.transitive())));
+                    premier.version(), fusionnerTransitif(premier.transitive(), doublon.transitive()).orElse(null)));
         }
         return new ArrayList<>(uniques.values());
     }
 
-    /** Direct dès qu'une occurrence est directe ; transitif si une occurrence l'est ; inconnu sinon. */
-    static Boolean fusionnerTransitif(Boolean premier, Boolean second) {
+    /**
+     * Direct ({@code false}) dès qu'une occurrence est directe ; transitif ({@code true}) si une occurrence l'est ;
+     * vide si la transitivité des deux occurrences est inconnue.
+     */
+    static Optional<Boolean> fusionnerTransitif(Boolean premier, Boolean second) {
         if (Boolean.FALSE.equals(premier) || Boolean.FALSE.equals(second)) {
-            return Boolean.FALSE;
+            return Optional.of(Boolean.FALSE);
         }
         if (Boolean.TRUE.equals(premier) || Boolean.TRUE.equals(second)) {
-            return Boolean.TRUE;
+            return Optional.of(Boolean.TRUE);
         }
-        return null;
+        return Optional.empty();
     }
 
     /** Colonnes des composants à écrire, en tableaux SQL de même longueur. */

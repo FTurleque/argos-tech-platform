@@ -8,6 +8,7 @@ import java.util.UUID;
 
 import jakarta.annotation.PostConstruct;
 import jakarta.inject.Inject;
+import jakarta.ws.rs.BeanParam;
 import jakarta.ws.rs.Consumes;
 import jakarta.ws.rs.GET;
 import jakarta.ws.rs.NotFoundException;
@@ -113,13 +114,8 @@ public class InventoryResource {
     @APIResponse(responseCode = "200", description = "Inventaire ; inventory.components est une page de composants")
     @APIResponse(responseCode = "400", description = "Paramètre page ou size non entier")
     public ProjectInventory inventory(@PathParam("projectId") UUID projectId,
-            @Parameter(description = ParametresPagination.DESCRIPTION_PAGE,
-                    schema = @Schema(type = SchemaType.INTEGER, defaultValue = "0"))
-            @QueryParam(ParametresPagination.PAGE) String page,
-            @Parameter(description = ParametresPagination.DESCRIPTION_TAILLE,
-                    schema = @Schema(type = SchemaType.INTEGER, defaultValue = "" + Pagination.TAILLE_DEFAUT))
-            @QueryParam(ParametresPagination.TAILLE) String size) {
-        Pagination pagination = ParametresPagination.pagination(page, size);
+            @BeanParam DemandePage demande) {
+        Pagination pagination = demande.pagination();
         Caller caller = authorize(projectId);
         return inventories.inventory(projectId, caller.accountId(), pagination)
                 .map(inventaire -> new ProjectInventory(projectId, "AVAILABLE", inventaire))
@@ -167,13 +163,8 @@ public class InventoryResource {
     @APIResponse(responseCode = "200", description = "Page d'imports refusés ou en erreur")
     @APIResponse(responseCode = "400", description = "Paramètre page ou size non entier")
     public Page<InventoryQueries.ImportFailure> failures(@PathParam("projectId") UUID projectId,
-            @Parameter(description = ParametresPagination.DESCRIPTION_PAGE,
-                    schema = @Schema(type = SchemaType.INTEGER, defaultValue = "0"))
-            @QueryParam(ParametresPagination.PAGE) String page,
-            @Parameter(description = ParametresPagination.DESCRIPTION_TAILLE,
-                    schema = @Schema(type = SchemaType.INTEGER, defaultValue = "" + Pagination.TAILLE_DEFAUT))
-            @QueryParam(ParametresPagination.TAILLE) String size) {
-        Pagination pagination = ParametresPagination.pagination(page, size);
+            @BeanParam DemandePage demande) {
+        Pagination pagination = demande.pagination();
         Caller caller = authorize(projectId);
         return inventories.failures(projectId, caller.accountId(), pagination);
     }

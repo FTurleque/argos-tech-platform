@@ -6,6 +6,7 @@ import java.util.Optional;
 import java.util.UUID;
 
 import jakarta.inject.Inject;
+import jakarta.ws.rs.BeanParam;
 import jakarta.ws.rs.Consumes;
 import jakarta.ws.rs.DELETE;
 import jakarta.ws.rs.GET;
@@ -90,13 +91,8 @@ public class ProjectResource {
             @Parameter(description = "États de traitement retenus, paramètre répétable (OUVERT, CONFIRME, ECARTE, RESOLU) ;"
                     + " absent : OUVERT et CONFIRME ; une valeur inconnue donne 400")
             @QueryParam("etat") List<String> etat,
-            @Parameter(description = ParametresPagination.DESCRIPTION_PAGE,
-                    schema = @Schema(type = SchemaType.INTEGER, defaultValue = "0"))
-            @QueryParam(ParametresPagination.PAGE) String page,
-            @Parameter(description = ParametresPagination.DESCRIPTION_TAILLE,
-                    schema = @Schema(type = SchemaType.INTEGER, defaultValue = "" + Pagination.TAILLE_DEFAUT))
-            @QueryParam(ParametresPagination.TAILLE) String size) {
-        Pagination pagination = ParametresPagination.pagination(page, size);
+            @BeanParam DemandePage demande) {
+        Pagination pagination = demande.pagination();
         Caller caller = access.memberOfProject(() -> inventories.workspaceOf(projectId));
         return impacts.forProject(projectId, caller.accountId(), caller.memberWorkspaces(), SignalResource.etats(etat), pagination);
     }

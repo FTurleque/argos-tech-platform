@@ -14,6 +14,7 @@ import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Proxy;
 import java.nio.charset.StandardCharsets;
 import java.sql.Connection;
+import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Statement;
@@ -74,6 +75,12 @@ class AlertesTest {
     private static final String LIB = "pkg:maven/org.exemple/lib";
     private static final String HAUTE = "[{\"type\":\"SEVERITY\",\"value\":\"HIGH\"}]";
     private static final ZoneId PARIS = ZoneId.of("Europe/Paris");
+
+    /** Comptage des alertes par nature, canal et état ; un critère nul n'est pas appliqué. */
+    private static final String ALERTES = """
+            SELECT count(*) FROM alerte
+            WHERE (?::varchar IS NULL OR nature = ?) AND (?::varchar IS NULL OR canal = ?) AND (?::varchar IS NULL OR etat = ?)
+            """;
 
     @Inject
     TestDb baseDeTest;
@@ -150,7 +157,7 @@ class AlertesTest {
         asynchrone.attendre();
         // Passage de la tâche planifiée d'envoi, qui diffuse les alertes en attente (ALR-10-S2).
         envoi.traiterEnAttente(Instant.now());
-        return baseDeTest.uuid("SELECT id FROM signal WHERE external_id = '" + id + "'");
+        return baseDeTest.uuid("SELECT id FROM signal WHERE external_id = ?", id);
     }
 
     private static void regle(String utilisateur, String canal, String frequence, String filtres) {
@@ -160,8 +167,9 @@ class AlertesTest {
                 .when().post("/api/v1/subscriptions").then().statusCode(201);
     }
 
-    private long alertes(String condition) {
-        return baseDeTest.count("SELECT count(*) FROM alerte WHERE " + condition);
+    /** Nombre d'alertes de la nature, du canal et de l'état donnés ; un critère nul n'est pas appliqué. */
+    private long alertes(String nature, String canal, String etat) {
+        return baseDeTest.count(ALERTES, nature, nature, canal, canal, etat, etat);
     }
 
     private static Instant lundiProchain8h() {
@@ -176,7 +184,7 @@ class AlertesTest {
         projet(spaceA, "app", LIB + "@1.2.0");
         regle("alice", "email", "immediate", HAUTE);
         publier("GHSA-UNIQ", LIB, "CRITICAL");
-        assertEquals(1, alertes("nature = 'IMMEDIATE'"));
+        assertEquals(1, alertes("IMMEDIATE", null, null));
 
         SQLException doublon = assertThrows(SQLException.class, () -> {
             try (Connection connexion = dataSource.getConnection(); Statement instruction = connexion.createStatement()) {
@@ -205,7 +213,7 @@ class AlertesTest {
 
         assertEquals("SUCCEEDED", baseDeTest.string("SELECT state FROM sync_run WHERE source_id = 'OSV'"));
         assertEquals(1, baseDeTest.count("SELECT count(*) FROM project_impact"), "impacts de la corrélation enregistrés");
-        assertEquals(0, alertes("true"));
+        assertEquals(0, alertes(null, null, null));
     }
 
     /**
@@ -225,7 +233,7 @@ class AlertesTest {
 
         assertEquals("SUCCEEDED", baseDeTest.string("SELECT state FROM sync_run WHERE source_id = 'OSV'"));
         assertEquals(1, baseDeTest.count("SELECT count(*) FROM project_impact"));
-        assertEquals(0, alertes("true"));
+        assertEquals(0, alertes(null, null, null));
     }
 
     /** Diffusion : une erreur imprévue sur un message n'empêche pas l'envoi des suivants ; elle est relancée ensuite. */
@@ -236,7 +244,7 @@ class AlertesTest {
         regle("alice", "email", "immediate", HAUTE);
         regle("paul", "email", "immediate", HAUTE);
         publier("GHSA-FR-ENVOI", LIB, "CRITICAL");
-        assertEquals(2, alertes("etat = 'ENVOYEE'"));
+        assertEquals(2, alertes(null, null, "ENVOYEE"));
         baseDeTest.exec("UPDATE alerte SET etat = 'EN_ATTENTE', envoye_le = NULL, prochain_essai = NULL, tentatives = 0");
         List<UUID> ids = List.of(baseDeTest.uuid("SELECT id FROM alerte ORDER BY id LIMIT 1"),
                 baseDeTest.uuid("SELECT id FROM alerte ORDER BY id DESC LIMIT 1"));
@@ -258,8 +266,8 @@ class AlertesTest {
             assertThrows(IllegalArgumentException.class, () -> envoi.envoyer(ids, Instant.now()));
         }
 
-        assertEquals(1, alertes("etat = 'ENVOYEE'"), "le message suivant est envoyé");
-        assertEquals(1, alertes("etat = 'EN_ATTENTE'"), "le message en erreur reste en attente");
+        assertEquals(1, alertes(null, null, "ENVOYEE"), "le message suivant est envoyé");
+        assertEquals(1, alertes(null, null, "EN_ATTENTE"), "le message en erreur reste en attente");
     }
 
     /** Le passage planifié de diffusion relève la file d'envoi même quand il se termine sur une erreur imprévue. */
@@ -306,7 +314,7 @@ class AlertesTest {
 
         UUID signal = publier("GHSA-ALR1", LIB, "CRITICAL");
 
-        assertEquals(1, alertes("nature = 'IMMEDIATE' AND canal = 'EMAIL' AND etat = 'ENVOYEE'"));
+        assertEquals(1, alertes("IMMEDIATE", "EMAIL", "ENVOYEE"));
         List<Mail> mails = mailbox.getMailsSentTo("alice@argos.test");
         assertEquals(1, mails.size());
         Mail mail = mails.get(0);
@@ -336,10 +344,10 @@ class AlertesTest {
 
         UUID signal = publier("GHSA-LOW", LIB, "LOW");
 
-        assertEquals(0, alertes("nature = 'IMMEDIATE'"));
+        assertEquals(0, alertes("IMMEDIATE", null, null));
         assertTrue(mailbox.getMailsSentTo("alice@argos.test").isEmpty());
         assertEquals(1, baseDeTest.count("SELECT count(*) FROM resume_element WHERE frequence = 'DAILY' AND canal = 'EMAIL'"
-                + " AND signal_id = '" + signal + "'"));
+                + " AND signal_id = ?", signal));
 
         List<UUID> crees = resumes.composer("DAILY", Instant.now().plus(1, ChronoUnit.DAYS));
         assertEquals(1, crees.size());
@@ -355,10 +363,10 @@ class AlertesTest {
 
         UUID signal = publier("GHSA-NOPURL", null, "CRITICAL");
 
-        assertEquals("A_VERIFIER", baseDeTest.string("SELECT level FROM project_impact WHERE signal_id = '" + signal + "'"));
-        assertEquals(0, alertes("true"));
+        assertEquals("A_VERIFIER", baseDeTest.string("SELECT level FROM project_impact WHERE signal_id = ?", signal));
+        assertEquals(0, alertes(null, null, null));
         assertTrue(mailbox.getMailsSentTo("alice@argos.test").isEmpty());
-        assertEquals(1, baseDeTest.count("SELECT count(*) FROM resume_element WHERE signal_id = '" + signal + "'"));
+        assertEquals(1, baseDeTest.count("SELECT count(*) FROM resume_element WHERE signal_id = ?", signal));
         Api.enTantQue("alice").when().get("/api/v1/me/watch")
                 .then().statusCode(200)
                 .body("find { it.signalId == '" + signal + "' }.impacts[0].level", equalTo("A_VERIFIER"));
@@ -404,8 +412,8 @@ class AlertesTest {
         engine.correlate(signal, Optional.empty());
         asynchrone.attendre();
 
-        assertEquals(1, alertes("canal = 'EMAIL'"), "une seule alerte malgré deux règles et un rejeu");
-        assertEquals(1, alertes("canal = 'DESKTOP'"), "une alerte par canal");
+        assertEquals(1, alertes(null, "EMAIL", null), "une seule alerte malgré deux règles et un rejeu");
+        assertEquals(1, alertes(null, "DESKTOP", null), "une alerte par canal");
         assertEquals(1, mailbox.getMailsSentTo("alice@argos.test").size());
         String corps = mailbox.getMailsSentTo("alice@argos.test").get(0).getText();
         assertTrue(corps.contains("alpha (EXACT), beta (EXACT), gamma (EXACT)"), corps);
@@ -421,7 +429,8 @@ class AlertesTest {
 
         publier("GHSA-PLAFOND", LIB, "CRITICAL");
 
-        assertEquals(1, alertes("etat = 'ENVOYEE' AND etat_resume_ia = 'PLAFOND_ATTEINT' AND resume_ia IS NULL"));
+        assertEquals(1, baseDeTest.count("SELECT count(*) FROM alerte"
+                + " WHERE etat = 'ENVOYEE' AND etat_resume_ia = 'PLAFOND_ATTEINT' AND resume_ia IS NULL"));
         assertTrue(resumeIa.calls().isEmpty(), "aucun appel au-delà du plafond");
         assertTrue(mailbox.getMailsSentTo("alice@argos.test").get(0).getText().contains("Résumé IA non disponible."));
     }
@@ -444,14 +453,14 @@ class AlertesTest {
         assertEquals("REFUSE", etatIa("GHSA-REFUS"));
         assertEquals("INDISPONIBLE", etatIa("GHSA-LENT"));
         assertEquals("DISPONIBLE", etatIa("GHSA-OK"));
-        assertEquals(4, alertes("etat = 'ENVOYEE'"));
+        assertEquals(4, alertes(null, null, "ENVOYEE"));
         assertTrue(mailbox.getMailsSentTo("alice@argos.test").stream()
                 .anyMatch(message -> message.getText().contains("Résumé (produit par l'IA, à vérifier sur les sources)")));
     }
 
     private String etatIa(String externe) {
         return baseDeTest.string("SELECT a.etat_resume_ia FROM alerte a JOIN signal s ON s.id = a.signal_id"
-                + " WHERE s.external_id = '" + externe + "'");
+                + " WHERE s.external_id = ?", externe);
     }
 
     // ------------------------------------------------------------------ 3.1 résumés
@@ -476,7 +485,7 @@ class AlertesTest {
 
         publier("GHSA-HEBDO1", LIB, "CRITICAL");
         publier("GHSA-HEBDO2", LIB, "MODERATE");
-        assertEquals(0, alertes("nature = 'IMMEDIATE'"), "une règle hebdomadaire n'alerte pas immédiatement");
+        assertEquals(0, alertes("IMMEDIATE", null, null), "une règle hebdomadaire n'alerte pas immédiatement");
 
         Instant lundi = lundiProchain8h();
         List<UUID> crees = resumes.composer("WEEKLY", lundi);
@@ -504,7 +513,7 @@ class AlertesTest {
 
         assertTrue(resumes.composer("DAILY", Instant.now().plus(1, ChronoUnit.DAYS)).isEmpty());
         assertTrue(resumes.composer("WEEKLY", lundiProchain8h()).isEmpty());
-        assertEquals(0, alertes("true"));
+        assertEquals(0, alertes(null, null, null));
         assertTrue(mailbox.getMailsSentTo("alice@argos.test").isEmpty());
     }
 
@@ -583,10 +592,10 @@ class AlertesTest {
             instruction.execute("SET LOCAL ROLE argos_app");
             assertEquals("argos_app", string(instruction, "SELECT current_user"));
             assertEquals(0, count(instruction, "SELECT count(*) FROM alerte"), "sans contexte, aucune ligne");
-            instruction.execute("SELECT set_config('argos.compte_courant', '" + jules + "', true)");
+            compteCourant(connexion, jules);
             assertEquals(0, count(instruction, "SELECT count(*) FROM alerte"));
             assertEquals(0, instruction.executeUpdate("UPDATE alerte SET etat = 'ENVOYEE'"), "aucune alerte d'autrui modifiable");
-            instruction.execute("SELECT set_config('argos.compte_courant', '" + alice + "', true)");
+            compteCourant(connexion, alice);
             assertEquals(2, count(instruction, "SELECT count(*) FROM alerte"));
             assertEquals(1, instruction.executeUpdate("UPDATE alerte SET etat = 'ENVOYEE'"), "seule l'alerte DESKTOP est remise");
             SQLException ecriture = assertThrows(SQLException.class,
@@ -610,9 +619,9 @@ class AlertesTest {
         UUID critique = publier("GHSA-E2E-CRIT", LIB, "CRITICAL");
         Instant fin = Instant.now();
 
-        assertEquals("EXACT", baseDeTest.string("SELECT level FROM project_impact WHERE signal_id = '" + critique + "'"));
-        assertEquals(1, alertes("canal = 'EMAIL' AND etat = 'ENVOYEE'"));
-        assertEquals(1, alertes("canal = 'DESKTOP' AND etat = 'EN_ATTENTE'"));
+        assertEquals("EXACT", baseDeTest.string("SELECT level FROM project_impact WHERE signal_id = ?", critique));
+        assertEquals(1, alertes(null, "EMAIL", "ENVOYEE"));
+        assertEquals(1, alertes(null, "DESKTOP", "EN_ATTENTE"));
         Duration delai = Duration.between(debut, fin);
         assertTrue(delai.compareTo(Duration.ofHours(1)) < 0, "alerte en moins de la cible (Q-4) : " + delai);
         System.out.printf("[parcours ALR] collecte → alerte e-mail et desktop : %d ms%n", delai.toMillis());
@@ -622,20 +631,28 @@ class AlertesTest {
 
         // Un résumé par canal des règles concernées : e-mail et desktop.
         assertEquals(2, lendemain.size());
-        assertEquals(1, alertes("nature = 'DAILY' AND canal = 'EMAIL' AND etat = 'ENVOYEE'"));
-        assertEquals(1, alertes("nature = 'DAILY' AND canal = 'DESKTOP' AND etat = 'EN_ATTENTE'"));
+        assertEquals(1, alertes("DAILY", "EMAIL", "ENVOYEE"));
+        assertEquals(1, alertes("DAILY", "DESKTOP", "EN_ATTENTE"));
         List<Mail> mails = mailbox.getMailsSentTo("alice@argos.test");
         assertEquals(2, mails.size(), "une alerte puis un résumé");
         String resume = mails.get(1).getText();
         assertTrue(resume.contains("GHSA-E2E-LOW"), "l'élément non alerté figure dans le résumé");
         assertFalse(resume.contains("GHSA-E2E-CRIT"), "l'élément déjà alerté n'est pas répété");
-        assertEquals(0, baseDeTest.count("SELECT count(*) FROM resume_element WHERE signal_id = '" + critique + "'"));
-        assertEquals(2, baseDeTest.count("SELECT count(*) FROM resume_element WHERE signal_id = '" + faible
-                + "' AND alerte_id IS NOT NULL"));
+        assertEquals(0, baseDeTest.count("SELECT count(*) FROM resume_element WHERE signal_id = ?", critique));
+        assertEquals(2, baseDeTest.count("SELECT count(*) FROM resume_element WHERE signal_id = ? AND alerte_id IS NOT NULL",
+                faible));
         assertTrue(resumes.composer("DAILY", Instant.now().plus(2, ChronoUnit.DAYS)).isEmpty(), "rien de nouveau");
         // Diffusion répétée : aucun second envoi.
         envoi.traiterEnAttente(Instant.now().plus(2, ChronoUnit.DAYS));
         assertEquals(2, mailbox.getMailsSentTo("alice@argos.test").size());
+    }
+
+    /** Compte courant de la transaction, lu par les politiques RLS. */
+    private static void compteCourant(Connection connexion, UUID compte) throws SQLException {
+        try (PreparedStatement contexte = connexion.prepareStatement("SELECT set_config('argos.compte_courant', ?, true)")) {
+            contexte.setString(1, compte.toString());
+            contexte.execute();
+        }
     }
 
     private static String string(Statement instruction, String sql) throws Exception {
