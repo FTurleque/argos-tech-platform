@@ -24,7 +24,7 @@ Chaque application a son compte PostgreSQL, ni superutilisateur ni propriétaire
 
 Les rôles et les deux bases sont créés au premier démarrage du volume par [`deploiement/postgres/initialiser-bases.sh`](../../deploiement/postgres/initialiser-bases.sh). Les quatre mots de passe (`ARGOS_DB_ADMIN_PASSWORD`, `ARGOS_DB_OWNER_PASSWORD`, `ARGOS_DB_PASSWORD`, `ARGOS_KEYCLOAK_DB_PASSWORD`) sont obligatoires : sans eux, `docker compose` refuse de démarrer et nomme la variable manquante. Un volume créé avant ces comptes se migre selon [Passer aux comptes de base distincts](#passer-aux-comptes-de-base-distincts).
 
-L'image `argos` est construite à partir du [`Dockerfile`](../../Dockerfile) : elle compile l'IHM, l'embarque dans le serveur, contrôle les licences des dépendances du serveur et ne garde qu'un JRE 17 et les avis de licence ([Avis de licence de l'image](#avis-de-licence-de-limage)). Elle cible les processeurs x86-64, ce qui couvre le DS1522+ (AMD Ryzen R1600) et les PC.
+L'image `argos` est construite à partir du [`Dockerfile`](../../Dockerfile) : elle compile l'IHM, l'embarque dans le serveur, contrôle les licences des dépendances du serveur et de l'IHM et ne garde qu'un JRE 17 et les avis de licence ([Avis de licence de l'image](#avis-de-licence-de-limage)). Elle cible les processeurs x86-64, ce qui couvre le DS1522+ (AMD Ryzen R1600) et les PC.
 
 ## Choisir le fournisseur d'identité
 
@@ -342,7 +342,16 @@ npm --prefix argos-desktop run dist -- '-c.extraMetadata.argos.apiUrl=http://192
 
 Le client desktop se connecte par l'interface de bouclage ([ADR-0033](../architecture/adr/0033-session-oidc-ihm-memoire-bouclage.md)) : le client `argos-ui` du royaume accepte `http://127.0.0.1/argos/retour` et l'origine `app://argos`, déjà déclarées par le royaume livré ([Royaume déjà importé](#royaume-déjà-importé) pour un royaume existant). Changer d'émetteur côté serveur demande de modifier `.env` et de redémarrer `argos`, sans reconstruire l'image ; le client desktop, lui, reçoit la nouvelle adresse par `ARGOS_OIDC_URL` ou par un nouvel emballage.
 
-L'installateur est écrit dans `argos-desktop/release/` ; `"ARGOS Setup 0.1.0.exe" /S` l'installe sans interface dans le profil de l'utilisateur. Il n'est pas signé : Windows SmartScreen peut demander une confirmation.
+L'installateur est écrit dans `argos-desktop/release/` ; `"ARGOS-Setup-0.1.0.exe" /S` l'installe sans interface dans le profil de l'utilisateur. Un installeur emballé sur le poste pour une autre adresse de serveur reçoit les mises à jour publiées, emballées pour les adresses par défaut : `ARGOS_API_URL` et `ARGOS_OIDC_URL` à l'exécution gardent alors l'adresse du serveur, ou `ARGOS_MISE_A_JOUR=off` coupe la mise à jour.
+
+### Distribution et mise à jour
+
+Décisions du porteur du projet du 2026-11-27 ([ADR-0042](../architecture/adr/0042-distribution-et-mise-a-jour-du-client-desktop.md)) :
+
+- une étiquette `desktop-v<version>`, égale à la version de `argos-desktop/package.json`, déclenche le workflow « Publication du client desktop », qui publie dans la release GitHub du dépôt l'installeur Windows (`ARGOS-Setup-<version>.exe`) et l'AppImage Linux (`ARGOS-<version>.AppImage`), leurs fichiers `latest.yml` et `latest-linux.yml`, leurs empreintes SHA-256 (`SHA256SUMS-*.txt`) et une attestation de provenance ;
+- le client installé cherche une version plus récente au démarrage, la télécharge en arrière-plan, vérifie son empreinte SHA-512 et l'installe à la fermeture d'ARGOS, après une notification ; `ARGOS_MISE_A_JOUR=off` désactive la recherche ; sous macOS, la mise à jour reste manuelle ;
+- les installeurs ne sont pas signés tant qu'aucun certificat n'est fourni : Windows SmartScreen demande une confirmation au premier lancement. L'origine d'un installeur se vérifie par `gh attestation verify <fichier> --repo FTurleque/argos-tech-platform`, son contenu par l'empreinte SHA-256 publiée. Les secrets `ARGOS_CSC_LINK` (certificat PKCS#12 en base64) et `ARGOS_CSC_KEY_PASSWORD` du dépôt suffisent à signer les publications suivantes ;
+- l'installeur livre, dans ses ressources (`resources/licences/THIRD-PARTY-npm.txt`), l'avis des dépendances npm de l'IHM et du client avec leurs textes de licence ; Electron y ajoute ses propres avis (`LICENSE.electron.txt`, `LICENSES.chromium.html`).
 
 Les recettes à dérouler avec cette installation sont dans [`recette-poste.md`](recette-poste.md).
 
@@ -485,7 +494,7 @@ La somme des pools (20) reste sous `max_connections` (40) : la marge sert aux mi
 
 ## Avis de licence de l'image
 
-La construction de l'image contrôle les licences des dépendances livrées du serveur (profil Maven `licences`, [README du serveur](../../argos-server/README.md#licences-des-dépendances)) : elle échoue si une dépendance n'a aucune licence déclarée ou porte une licence non admise, et affiche la liste des écarts. Ce contrôle demande l'accès au dépôt Maven Central, comme le reste de la construction.
+La construction de l'image contrôle les licences des dépendances livrées du serveur (profil Maven `licences`, [README du serveur](../../argos-server/README.md#licences-des-dépendances)) et celles des dépendances npm de l'IHM (`scripts/verifier-licences-npm.mjs`) : elle échoue si une dépendance n'a aucune licence déclarée ou porte une licence non admise, et affiche la liste des écarts. Ce contrôle demande l'accès au dépôt Maven Central, comme le reste de la construction.
 
 L'image contient les avis de licence dans `/opt/argos/licenses/` :
 
@@ -498,10 +507,11 @@ L'image contient les avis de licence dans `/opt/argos/licenses/` :
 | `BSD-2-Clause.txt`, `BSD-3-Clause.txt` | textes des licences BSD à deux et trois clauses |
 | `EPL-2.0.txt` | texte de l'Eclipse Public License 2.0 (neuf API Jakarta embarquées par Quarkus) |
 | `JDOM.txt` | texte de la licence de JDOM (lecture des flux RSS et Atom) |
+| `THIRD-PARTY-npm.txt` | dépendances npm de l'IHM servie (vue, vue-router, polices…), leurs versions, leurs licences et leurs textes de licence, générés à la construction de l'image par `scripts/verifier-licences-npm.mjs` |
 
-[DÉCISION — porteur du projet, 2026-11-19 (H1)] L'image livre les textes des licences MIT, BSD (variantes présentes) et EPL-2.0 des dépendances du serveur, à côté des avis existants ; les avis npm de l'IHM ne sont pas ajoutés. Seuls les textes des licences effectivement retenues par les dépendances entrent dans l'image. Le dossier (0755) et les fichiers (0444) appartiennent à root : l'utilisateur d'exécution (UID 1001) les lit sans pouvoir les modifier.
+[DÉCISION — porteur du projet, 2026-11-27] L'image livre les textes des licences MIT, BSD (variantes présentes) et EPL-2.0 des dépendances du serveur, à côté des avis existants, et l'avis des dépendances npm de l'IHM avec leurs textes ([ADR-0042](../architecture/adr/0042-distribution-et-mise-a-jour-du-client-desktop.md)). Seuls les textes des licences effectivement retenues par les dépendances entrent dans l'image. Le dossier (0755) et les fichiers (0444) appartiennent à root : l'utilisateur d'exécution (UID 1001) les lit sans pouvoir les modifier.
 
-[DÉCISION — porteur du projet, 2026-11-19] `JDOM.txt` est livré en plus des textes nommés par la décision H1 : la clause 2 de la licence de JDOM impose de reproduire l'avis dans la documentation d'une distribution binaire ([README du serveur](../../argos-server/README.md#licences-des-dépendances)).
+[DÉCISION — porteur du projet, 2026-11-19] `JDOM.txt` est livré en plus des textes des licences MIT, BSD et EPL-2.0 : la clause 2 de la licence de JDOM impose de reproduire l'avis dans la documentation d'une distribution binaire ([README du serveur](../../argos-server/README.md#licences-des-dépendances)).
 
 Pour les lire sans démarrer Argos :
 

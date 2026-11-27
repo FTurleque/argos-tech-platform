@@ -139,23 +139,47 @@ function preparerProcessus({ environnement, dev, dossierRessources }) {
   };
 }
 
-/** Exécute main.js avec `electron` et `../package.json` remplacés. */
-function executerMain(electron, packageLivre) {
+/** autoUpdater factice d'electron-updater : recherches et réglages inscrits dans le journal. */
+function creerMiseAJourFactice(journal) {
+  journal.miseAJour = { recherches: 0, ecouteurs: {}, autoDownload: false, autoInstallOnAppQuit: false };
+  const miseAJour = journal.miseAJour;
+  return {
+    set autoDownload(valeur) { miseAJour.autoDownload = valeur; },
+    set autoInstallOnAppQuit(valeur) { miseAJour.autoInstallOnAppQuit = valeur; },
+    on(evenement, ecouteur) { miseAJour.ecouteurs[evenement] = ecouteur; },
+    checkForUpdates() {
+      miseAJour.recherches += 1;
+      return Promise.resolve(undefined);
+    },
+  };
+}
+
+/**
+ * Exécute main.js avec `electron`, `electron-updater` et `../package.json` remplacés ; le remplacement reste actif
+ * jusqu'à l'appel de la fonction renvoyée, car electron-updater n'est chargé qu'au démarrage de l'application.
+ */
+function executerMain(electron, packageLivre, journal) {
   const chargementOrigine = Module._load;
   Module._load = function chargerDepuisMain(request, parent, ...reste) {
     if (parent && parent.filename === MAIN) {
       if (request === 'electron') return electron;
+      if (request === 'electron-updater') return { autoUpdater: creerMiseAJourFactice(journal) };
       if (request === '../package.json') return packageLivre;
     }
     return chargementOrigine.call(this, request, parent, ...reste);
   };
+  const retablir = () => {
+    Module._load = chargementOrigine;
+    delete require.cache[MAIN];
+  };
   try {
     delete require.cache[MAIN];
     require(MAIN);
-  } finally {
-    Module._load = chargementOrigine;
-    delete require.cache[MAIN];
+  } catch (erreur) {
+    retablir();
+    throw erreur;
   }
+  return retablir;
 }
 
 /**
@@ -176,11 +200,13 @@ async function chargerMain(options = {}) {
     dev: options.dev ?? false,
     dossierRessources: options.dossierRessources,
   });
+  let retablirChargement = () => {};
   try {
-    executerMain(electron, { ...PACKAGE_LIVRE, argos: options.emballes });
+    retablirChargement = executerMain(electron, { ...PACKAGE_LIVRE, argos: options.emballes }, journal);
     await journal.pret;
     await new Promise((resoudre) => setImmediate(resoudre));
   } finally {
+    retablirChargement();
     restaurer();
   }
   return journal;

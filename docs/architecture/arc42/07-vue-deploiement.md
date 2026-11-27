@@ -70,7 +70,9 @@ flowchart TB
 - contrôle de santé et journaux bornés sur chaque conteneur ; plafonds mémoire cumulés de 4,75 Gio avec les profils `ia` et `idp-local` sur les 8 Go du DS1522+, pools de connexions sous `max_connections` ; conteneur `argos` en lecture seule, sans capacité système ni élévation de privilèges (EXP-09 à EXP-12), de même que `postgres`, `keycloak` (image optimisée construite localement) et `ollama` (EXP-16) ;
 - aucun port ouvert par défaut : accès distant par VPN ; exposition publique seulement via le reverse proxy de DSM en HTTPS ;
 - OIDC avec un fournisseur d’identité auto-hébergé ;
-- image x86-64 unique (NAS DS1522+ et PC), même `compose.yaml` partout ; guide : [`/docs/deploiement/synology-et-pc.md`](/docs/deploiement/synology-et-pc.md).
+- image x86-64 unique (NAS DS1522+ et PC), même `compose.yaml` partout ; guide : [`/docs/deploiement/synology-et-pc.md`](/docs/deploiement/synology-et-pc.md) ;
+- avis de licence de l'image et de l'installeur desktop : dépendances du serveur et dépendances npm de l'IHM, avec leurs textes, licences contrôlées à chaque construction (ADR-0021, ADR-0042) ;
+- client desktop publié par GitHub Releases sur une étiquette `desktop-v*` (Windows, Linux), mis à jour au démarrage par electron-updater après vérification de l'empreinte SHA-512 ; installeurs non signés, provenance attestée (ADR-0042).
 
 ### Adresses de l'instance
 

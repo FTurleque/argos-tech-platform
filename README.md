@@ -71,7 +71,7 @@ cd argos-desktop
 npm install
 npm run start            # construit l'IHM puis ouvre le desktop
 npm run dev              # variante : recharge à chaud, avec « npm run dev » lancé dans argos-ui
-npm run dist             # installeurs (Windows NSIS, Linux AppImage) dans argos-desktop/release/
+npm run dist             # installeurs (Windows NSIS, Linux AppImage) dans argos-desktop/release/ (publication : ADR-0042)
 ```
 
 **Connexion en développement.** Le royaume de test ([`argos-server/src/test/resources/keycloak/argos-realm.json`](argos-server/src/test/resources/keycloak/argos-realm.json)) déclare des comptes dont le mot de passe est égal à l'identifiant : `alice` est l'administratrice plateforme (`alice@argos.test`) ; `bob`, `carla` et les autres n'entrent dans un espace qu'après une invitation. « Se connecter » dans le portail ou le desktop ouvre la page de Keycloak.
@@ -91,6 +91,7 @@ mvn -B -f argos-server/pom.xml clean verify                 # tests du serveur, 
 node scripts/verifier-couverture-modules.mjs                # seuils de couverture par module (après mvn verify)
 npm --prefix argos-ui test && npm --prefix argos-ui run typecheck && npm --prefix argos-ui run build
 npm --prefix argos-desktop run check                        # syntaxe, types (tsc --checkJs) et tests
+node scripts/verifier-licences-npm.mjs --paquet argos-ui --paquet argos-desktop   # licences npm livrées (après npm ci)
 npm --prefix e2e ci && npm --prefix e2e run typecheck       # types des parcours E2E (tsc --strict)
 node --test scripts/*.test.mjs "e2e/performance/*.test.mjs"
 node scripts/verifier-docs.mjs                              # liens, Mermaid, identifiants d'exigences

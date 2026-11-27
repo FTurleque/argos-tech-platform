@@ -60,6 +60,7 @@ Les ADR enregistrent les décisions architecturales importantes d’ARGOS.
 ### Clients
 
 - [ADR-0022 — Client desktop Electron réutilisant l'IHM Vue.js 3](0022-client-desktop-electron.md) — **Accepté**
+- [ADR-0042 — Distribuer le client desktop par GitHub Releases, mis à jour par electron-updater, sans certificat payant](0042-distribution-et-mise-a-jour-du-client-desktop.md) — **Accepté** ; précise ADR-0022
 
 ### Personnalisation
 

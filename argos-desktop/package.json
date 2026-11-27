@@ -13,7 +13,7 @@
     "check:syntax": "node scripts/verifier-syntaxe.mjs",
     "typecheck": "tsc -p tsconfig.json",
     "test": "node --test \"test/*.test.js\"",
-    "dist": "npm --prefix ../argos-ui run build && electron-builder"
+    "dist": "npm --prefix ../argos-ui run build && node ../scripts/verifier-licences-npm.mjs --paquet ../argos-ui --paquet . --sortie licences-tierces/THIRD-PARTY-npm.txt && electron-builder"
   },
   "devDependencies": {
     "electron": "^45.3.2",
@@ -35,11 +35,16 @@
       {
         "from": "../argos-ui/dist",
         "to": "ui"
+      },
+      {
+        "from": "licences-tierces",
+        "to": "licences"
       }
     ],
     "win": {
       "target": "nsis",
-      "icon": "assets/icon.ico"
+      "icon": "assets/icon.ico",
+      "artifactName": "ARGOS-Setup-${version}.${ext}"
     },
     "nsis": {
       "oneClick": false,
@@ -48,11 +53,23 @@
     "linux": {
       "target": "AppImage",
       "icon": "assets/icon.png",
-      "category": "Development"
+      "category": "Development",
+      "artifactName": "ARGOS-${version}.${ext}"
     },
     "mac": {
       "target": "dmg",
       "icon": "assets/icon.png"
-    }
+    },
+    "publish": [
+      {
+        "provider": "github",
+        "owner": "FTurleque",
+        "repo": "argos-tech-platform",
+        "releaseType": "release"
+      }
+    ]
+  },
+  "dependencies": {
+    "electron-updater": "^6.8.12"
   }
 }

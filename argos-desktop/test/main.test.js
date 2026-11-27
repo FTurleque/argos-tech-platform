@@ -135,3 +135,19 @@ test('en mode développement, l’IHM vient du serveur de développement et le p
   assert.equal(naviguer(fenetre, `${DEV_URL}/projets`), false);
   assert.equal(naviguer(fenetre, `${ORIGIN}/index.html`), true);
 });
+
+test('AUD-DEP-15 : application empaquetée, la mise à jour par GitHub Releases est recherchée au démarrage', async (contexte) => {
+  const dossierRessources = creerRessources(contexte);
+  const journal = await chargerMain({ empaquetee: true, dossierRessources });
+  const attendue = process.platform === 'darwin' ? 0 : 1;
+  assert.equal(journal.miseAJour?.recherches ?? 0, attendue);
+  if (attendue) {
+    assert.equal(journal.miseAJour.autoDownload, true);
+    assert.equal(journal.miseAJour.autoInstallOnAppQuit, true);
+  }
+});
+
+test('AUD-DEP-15 : lancée depuis les sources, l’application ne charge pas electron-updater', async () => {
+  const journal = await chargerMain();
+  assert.equal(journal.miseAJour, undefined);
+});
