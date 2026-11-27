@@ -111,7 +111,8 @@ jobs:
             export CSC_IDENTITY_AUTO_DISCOVERY=false
             echo "::notice::Aucun certificat fourni : installeur non signé."
           fi
-          npx electron-builder "$CIBLE" --publish always
+          # electron-builder installé par npm ci (version du package-lock), lancé par Node sans npx ni script de paquet.
+          node node_modules/electron-builder/cli.js "$CIBLE" --publish always
       - name: Empreintes SHA-256
         working-directory: argos-desktop/release
         env:

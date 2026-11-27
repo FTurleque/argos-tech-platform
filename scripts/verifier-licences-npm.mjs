@@ -36,9 +36,14 @@ export class EntreeInvalide extends Error {}
  */
 export function licenceAdmise(expression) {
   if (typeof expression !== 'string' || expression === '') return false;
-  const normalisee = expression.replace(/[()]/g, ' ').trim();
-  return normalisee.split(/\s+OR\s+/i)
-    .some((choix) => choix.split(/\s+AND\s+/i).every((terme) => LICENCES_ADMISES.has(terme.trim())));
+  const choix = [[]];
+  for (const jeton of expression.replaceAll('(', ' ').replaceAll(')', ' ').split(' ')) {
+    const operateur = jeton.toUpperCase();
+    if (jeton === '' || operateur === 'AND') continue;
+    if (operateur === 'OR') choix.push([]);
+    else choix[choix.length - 1].push(jeton);
+  }
+  return choix.some((termes) => termes.length > 0 && termes.every((terme) => LICENCES_ADMISES.has(terme)));
 }
 
 /** Emplacement, dans le package-lock, de la dépendance `nom` demandée depuis l'emplacement `depuis`. */
