@@ -21,6 +21,8 @@
 
 - [x] 4.1 Lecture des impacts récents espace par espace sur l'index partiel (D6) — couvre PRF-07-S2, S3 — vérification : `VeilleLectureGroupeeTest` vert
 - [x] 4.2 Recherche des abonnements par sous-requêtes indexées (D7) — couvre PRF-07-S3 — vérification : `IndexRequetesChaudesTest` (plan sans parcours séquentiel de `signal_package`), tests d'abonnements verts
+- [x] 4.5 Paginer `GET /api/v1/me/veille` au format ADR-0040 dans l'union composée (D11) — couvre PRF-09-S1 à S3 — vérification : `VeillePagineeTest`, tests de veille existants adaptés, `ContratClientIhmTest`
+- [x] 4.6 IHM « Ma veille » paginée (total, position, page précédente et suivante), tests e2e et campagne adaptés à `items` — couvre PRF-09-S4 — vérification : `npm test`, `typecheck`, e2e `typecheck`, `mesure.test.mjs`
 - [x] 4.4 Fiche `/docs/specifications/profils-veille.md` (PRF-07) — vérification : `node scripts/verifier-docs.mjs`
 
 ## 5. Radar (AUD-PER-05)
@@ -58,6 +60,8 @@
 | PRF-07 | PRF-07-S1 | D6, D7 | 7.1 | campagne de performance | exécuté le 2026-11-26 : p95 163,1 ms |
 | PRF-07 | PRF-07-S2 | D6 | 4.1 | `VeilleLectureGroupeeTest` | passe le 2026-11-26 |
 | PRF-07 | PRF-07-S3 | D6, D7, D10 | 4.1, 4.2, 7.1 | campagne de performance | exécuté le 2026-11-26 : p95 61,4 ms |
+| PRF-09 | PRF-09-S1 à S3 | D11 | 4.5 | `VeillePagineeTest` | écrit, passe le 2026-11-27 |
+| PRF-09 | PRF-09-S4 | D11 | 4.6 | `argos-ui/tests/vues/veille.spec.ts`, `tests/veille-affichee.test.mjs` | écrit, passe le 2026-11-27 |
 | RAD-10 | RAD-10-S1 | D8 | 5.1 | `RequetesConstantesTest` | écrit, passe le 2026-11-26 |
 | RAD-10 | RAD-10-S2 | D8 | 5.1 | `RequetesConstantesTest` | écrit, passe le 2026-11-26 |
 | RCH-07 | RCH-07-S1 | D9 | 6.1 | `RechercheBorneeTest` | écrit, passe le 2026-11-26 |
@@ -71,4 +75,3 @@
 - Archiver le changement uniquement sur demande explicite, après revue (`openspec archive accelerer-requetes-chaudes`).
 - Après archivage, remplacer dans les fiches les liens vers /openspec/changes/accelerer-requetes-chaudes/ par la spec principale ou le dossier d'archive, puis exécuter `node scripts/verifier-docs.mjs`.
 - Mesurer la campagne sur le NAS (R-16).
-- Paginer `GET /api/v1/me/veille` au format ADR-0040 après la fusion du sprint 9 (décision du porteur du projet, 2026-11-26).

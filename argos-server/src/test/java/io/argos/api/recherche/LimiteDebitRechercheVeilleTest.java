@@ -75,6 +75,7 @@ class LimiteDebitRechercheVeilleTest {
                 .body("code", equalTo("LIMITE_DEBIT"))
                 .body("message", equalTo(MESSAGE_LIMITE))
                 .body("$", not(hasKey("elements")))
+                .body("$", not(hasKey("items")))
                 .body("$", not(hasKey("resultats")));
     }
 

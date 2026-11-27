@@ -117,7 +117,7 @@ export function rubriquesDuSommaire(
       ajouter({ profil, identifiant: rubrique.identifiant, libelle: rubrique.libelle })
     }
   }
-  for (const element of veille.elements ?? []) {
+  for (const element of veille.items ?? []) {
     for (const rubrique of element.rubriques ?? []) {
       ajouter({ profil: rubrique.profil, identifiant: rubrique.identifiant, libelle: rubrique.libelle })
     }
@@ -136,6 +136,31 @@ export function veilleAffichee(
     exemple: false,
     composeeLe,
     rubriques: rubriquesDuSommaire(veille, catalogue),
-    elements: (veille.elements ?? []).map((element) => elementAffiche(element, catalogue, abonnements)),
+    elements: (veille.items ?? []).map((element) => elementAffiche(element, catalogue, abonnements)),
+  }
+}
+
+/** Position d'une page de la veille (PRF-09) : numéro de page, nombre de pages, libellés du total et de la position. */
+export interface PositionVeille {
+  page: number
+  /** Nombre de pages (au moins 1). */
+  pages: number
+  /** Nombre total d'éléments de la veille, toutes pages confondues. */
+  synthese: string
+  /** « Page n sur m ». */
+  libelle: string
+}
+
+/** Position de la page reçue, d'après la page, la taille et le total établis par le serveur. */
+export function positionVeille(veille: VeilleProfils): PositionVeille {
+  const total = Math.max(0, veille.total ?? 0)
+  const taille = Math.max(1, veille.size ?? 1)
+  const pages = Math.max(1, Math.ceil(total / taille))
+  const page = Math.min(Math.max(0, veille.page ?? 0), pages - 1)
+  return {
+    page,
+    pages,
+    synthese: total > 1 ? `${total} éléments dans votre veille` : `${total} élément dans votre veille`,
+    libelle: `Page ${page + 1} sur ${pages}`,
   }
 }

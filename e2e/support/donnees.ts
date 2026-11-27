@@ -235,7 +235,16 @@ export interface ElementVeille {
   mentionValidation: string | null
 }
 
-export async function veilleDe(utilisateur: string): Promise<{ profilsActifs: string[]; elements: ElementVeille[] }> {
+/** Page de `GET /api/v1/me/veille` (PRF-09) : les jeux des parcours tiennent dans la première page. */
+export interface PageVeille {
+  profilsActifs: string[]
+  items: ElementVeille[]
+  page: number
+  size: number
+  total: number
+}
+
+export async function veilleDe(utilisateur: string): Promise<PageVeille> {
   return api(utilisateur, '/api/v1/me/veille')
 }
 

@@ -18,19 +18,25 @@ import jakarta.inject.Inject;
 import jakarta.ws.rs.GET;
 import jakarta.ws.rs.Path;
 import jakarta.ws.rs.Produces;
+import jakarta.ws.rs.QueryParam;
 import jakarta.ws.rs.core.MediaType;
 
 import org.eclipse.microprofile.config.inject.ConfigProperty;
 import org.eclipse.microprofile.openapi.annotations.Operation;
+import org.eclipse.microprofile.openapi.annotations.enums.SchemaType;
 import org.eclipse.microprofile.openapi.annotations.media.Content;
 import org.eclipse.microprofile.openapi.annotations.media.Schema;
+import org.eclipse.microprofile.openapi.annotations.parameters.Parameter;
 import org.eclipse.microprofile.openapi.annotations.responses.APIResponse;
 import org.eclipse.microprofile.openapi.annotations.tags.Tag;
 
 import io.argos.api.Erreur;
+import io.argos.api.ParametresPagination;
 import io.argos.api.SignauxAbonnements;
 import io.argos.api.preference.ResolutionPreferences;
 import io.argos.api.security.Access;
+import io.argos.commun.Page;
+import io.argos.commun.Pagination;
 import io.argos.commun.securite.LimiteDebitAtteinte;
 import io.argos.commun.securite.LimiteurDebit;
 import io.argos.commun.securite.Caller;
@@ -65,6 +71,9 @@ import io.quarkus.security.Authenticated;
  * union, dans la limite de ses droits (décision Q-3 de {@code profils-veille}, ABO-04) : un même avis est restitué
  * une fois, avec ses rubriques de profil et les abonnements qui l'ont retenu ; un avis que seul un abonnement
  * retient n'a pas de rubrique. Les projets concernés restent limités aux espaces de l'appelant.
+ *
+ * <p>La veille est restituée par pages au format commun des listes (PRF-09, ADR-0040) : l'union est composée entière,
+ * triée ({@link #ORDRE}), puis la page demandée en est extraite ; {@code total} est la taille de l'union.
  */
 @Path("/api/v1/me/veille")
 @Tag(name = "Veille")
@@ -110,9 +119,23 @@ public class VeilleProfilsResource {
             String mentionSource) {
     }
 
+    /**
+     * Page de la veille (PRF-09, ADR-0040) : éléments de la page, numéro de page, taille appliquée, nombre d'éléments
+     * de l'union et profils actifs de l'appelant.
+     */
     @Schema(name = "VeilleProfils")
-    public record Veille(List<String> profilsActifs, List<ElementVue> elements) {
+    public record Veille(List<ElementVue> items, int page, int size, long total, List<String> profilsActifs) {
+
+        Veille(Page<ElementVue> page, List<String> profilsActifs) {
+            this(page.items(), page.page(), page.size(), page.total(), profilsActifs);
+        }
     }
+
+    /** Ordre de la veille : date la plus récente d'abord, sans date en dernier, puis type et identifiant (texte). */
+    static final Comparator<ElementVue> ORDRE = Comparator
+            .comparing(ElementVue::date, Comparator.nullsLast(Comparator.reverseOrder()))
+            .thenComparing(ElementVue::type)
+            .thenComparing(element -> element.id().toString());
 
     @Inject
     Access access;
@@ -154,9 +177,19 @@ public class VeilleProfilsResource {
     @GET
     @Operation(summary = "Veille de l'appelant : union sans doublon des éléments de ses profils actifs et de ses"
             + " abonnements PERSONAL, avec rubriques et garde-fous")
+    @APIResponse(responseCode = "200", description = "Page de la veille, triée par date décroissante, puis type et identifiant")
+    @APIResponse(responseCode = "400", description = "Paramètre page ou size non entier (DONNEE_INVALIDE)",
+            content = @Content(schema = @Schema(implementation = Erreur.class)))
     @APIResponse(responseCode = "429", description = "Limite de débit du compte atteinte, en-tête Retry-After",
             content = @Content(schema = @Schema(implementation = Erreur.class)))
-    public Veille veille() {
+    public Veille veille(
+            @Parameter(description = ParametresPagination.DESCRIPTION_PAGE,
+                    schema = @Schema(type = SchemaType.INTEGER, defaultValue = "0"))
+            @QueryParam(ParametresPagination.PAGE) String page,
+            @Parameter(description = ParametresPagination.DESCRIPTION_TAILLE,
+                    schema = @Schema(type = SchemaType.INTEGER, defaultValue = "" + Pagination.TAILLE_DEFAUT))
+            @QueryParam(ParametresPagination.TAILLE) String size) {
+        Pagination pagination = ParametresPagination.pagination(page, size);
         Caller caller = access.authenticated();
         if (!limiteur.admettre(caller.accountId())) {
             throw new LimiteDebitAtteinte();
@@ -191,9 +224,9 @@ public class VeilleProfilsResource {
                             retenu.gardeFous(), element.mentionValidation(), element.projets(), retenu.abonnements(),
                             element.mentionIa(), element.mentionSource());
                 })
-                .sorted(Comparator.comparing(ElementVue::date, Comparator.nullsLast(Comparator.reverseOrder())))
+                .sorted(ORDRE)
                 .toList();
-        return new Veille(actifs.stream().map(ManifesteProfil::identifiant).toList(), elements);
+        return new Veille(Page.extraire(elements, pagination), actifs.stream().map(ManifesteProfil::identifiant).toList());
     }
 
     /**

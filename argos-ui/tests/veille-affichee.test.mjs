@@ -4,7 +4,14 @@
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
 import { readFileSync } from 'node:fs'
-import { elementAffiche, gravite, nature, rubriquesDuSommaire, veilleAffichee } from '../src/contenu/veille-affichee.ts'
+import {
+  elementAffiche,
+  gravite,
+  nature,
+  positionVeille,
+  rubriquesDuSommaire,
+  veilleAffichee,
+} from '../src/contenu/veille-affichee.ts'
 
 const ABO = '7f6e5d4c-3b2a-4190-8f7e-6d5c4b3a2910'
 const SECURITE = { profil: 'developpeur', identifiant: 'securite', libelle: 'Sécurité' }
@@ -47,7 +54,10 @@ const FICHE = {
 
 const VEILLE = {
   profilsActifs: ['developpeur', 'expert-metier'],
-  elements: [
+  page: 0,
+  size: 50,
+  total: 3,
+  items: [
     avis('a', { abonnements: [ABO] }),
     avis('seul-abonnement', { profils: [], rubriques: [], projets: [], abonnements: [ABO], gravite: 'UNKNOWN' }),
     FICHE,
@@ -91,7 +101,7 @@ test('mention IA : seulement si le serveur la donne et qu’un résumé est affi
 })
 
 test('élément retenu par un abonnement personnel seul : sans rubrique, origine nommée par ses critères', () => {
-  const element = elementAffiche(VEILLE.elements[1], CATALOGUE, ABONNEMENTS)
+  const element = elementAffiche(VEILLE.items[1], CATALOGUE, ABONNEMENTS)
   assert.deepEqual(element.rubriques, [])
   assert.deepEqual(element.mentions.origines, ['Abonnement personnel (technologie : rust)'])
   assert.deepEqual(element.projets, [])
@@ -99,7 +109,7 @@ test('élément retenu par un abonnement personnel seul : sans rubrique, origine
 })
 
 test('élément d’un profil et d’un abonnement : origines profil puis abonnement, projets et niveaux', () => {
-  const element = elementAffiche(VEILLE.elements[0], CATALOGUE, ABONNEMENTS)
+  const element = elementAffiche(VEILLE.items[0], CATALOGUE, ABONNEMENTS)
   assert.deepEqual(element.mentions.origines, ['Profil Développeur', 'Abonnement personnel (technologie : rust)'])
   assert.deepEqual(element.projets, [{ nom: 'Projet 1', niveau: { code: 'EXACT', libelle: 'correspondance exacte' } }])
   assert.deepEqual(element.gravite, { code: 'elevee', libelle: 'élevée' })
@@ -125,7 +135,7 @@ test('sommaire : rubriques des profils actifs d’après le catalogue, puis cell
   ])
   // Sans catalogue : rubriques portées par les éléments, dans l'ordre de première apparition.
   assert.deepEqual(rubriquesDuSommaire(VEILLE).map((rubrique) => rubrique.identifiant), ['securite', 'reglementation'])
-  assert.deepEqual(veilleAffichee({ profilsActifs: [], elements: [] }).elements, [])
+  assert.deepEqual(veilleAffichee({ profilsActifs: [], items: [], page: 0, size: 50, total: 0 }).elements, [])
 })
 
 test('module pur : imports de types, sauf les libellés de la couche contenu ; ni réseau ni Vue', () => {
@@ -137,4 +147,20 @@ test('module pur : imports de types, sauf les libellés de la couche contenu ; n
   }
   assert.doesNotMatch(source, /\bfetch\s*\(|appelerApi|from 'vue'/)
   assert.doesNotMatch(source, /\.(filter|sort)\(/, 'aucun élément filtré ni trié')
+})
+
+test('PRF-09 : position de la page de la veille, d’après la page, la taille et le total du serveur', () => {
+  assert.deepEqual(positionVeille({ ...VEILLE, page: 1, size: 50, total: 60 }), {
+    page: 1,
+    pages: 2,
+    synthese: '60 éléments dans votre veille',
+    libelle: 'Page 2 sur 2',
+  })
+  assert.deepEqual(positionVeille({ ...VEILLE, items: [], page: 0, size: 50, total: 0 }), {
+    page: 0,
+    pages: 1,
+    synthese: '0 élément dans votre veille',
+    libelle: 'Page 1 sur 1',
+  })
+  assert.equal(positionVeille({ ...VEILLE, page: 0, size: 50, total: 1 }).synthese, '1 élément dans votre veille')
 })

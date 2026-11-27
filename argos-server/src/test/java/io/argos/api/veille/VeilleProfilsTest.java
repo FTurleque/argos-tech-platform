@@ -109,7 +109,7 @@ class VeilleProfilsTest {
     }
 
     private static List<String> identifiants(JsonPath veille) {
-        return veille.getList("elements.identifiant");
+        return veille.getList("items.identifiant");
     }
 
     /**
@@ -128,14 +128,14 @@ class VeilleProfilsTest {
                 + " publié le 2026-01-01 ; la fiche en attente n'est pas restituée");
 
         assertTrue(identifiants(veille).containsAll(List.of(VALIDEE, AVIS)), veille.prettify());
-        String avis = "elements.find { it.identifiant == '" + AVIS + "' }.";
+        String avis = "items.find { it.identifiant == '" + AVIS + "' }.";
         assertEquals("AVIS_SECURITE", veille.getString(avis + "type"));
         assertEquals(List.of("developpeur"), veille.getList(avis + "profils"));
         assertEquals(List.of("securite"), veille.getList(avis + "rubriques.identifiant"));
         assertEquals(List.of(projet.toString()), veille.getList(avis + "projets.projetId"));
         assertTrue(veille.getList(avis + "gardeFous", String.class).stream().anyMatch(gardeFou -> gardeFou.contains("impact")));
 
-        String fiche = "elements.find { it.identifiant == '" + VALIDEE + "' }.";
+        String fiche = "items.find { it.identifiant == '" + VALIDEE + "' }.";
         assertEquals("FICHE_REGLEMENTAIRE", veille.getString(fiche + "type"));
         assertEquals(List.of("expert-metier"), veille.getList(fiche + "profils"));
         assertEquals(List.of("reglementation"), veille.getList(fiche + "rubriques.identifiant"));
@@ -190,10 +190,10 @@ class VeilleProfilsTest {
         activer("jules", "developpeur", "expert-metier");
 
         JsonPath veille = veille("jules");
-        String fiche = "elements.find { it.identifiant == '" + VALIDEE + "' }.";
+        String fiche = "items.find { it.identifiant == '" + VALIDEE + "' }.";
         assertEquals(ReponseIa.MENTION, veille.getString(fiche + "mentionIa"), veille.prettify());
         assertTrue(veille.getString(fiche + "mentionSource").startsWith(FicheAnalyse.SOURCE), veille.prettify());
-        String avis = "elements.find { it.identifiant == '" + AVIS + "' }.";
+        String avis = "items.find { it.identifiant == '" + AVIS + "' }.";
         assertNull(veille.getString(avis + "mentionIa"), veille.prettify());
         assertNull(veille.getString(avis + "mentionSource"), veille.prettify());
     }
@@ -209,7 +209,7 @@ class VeilleProfilsTest {
         activer("jules", "expert-metier");
 
         JsonPath veille = veille("jules");
-        String fiche = "elements.find { it.identifiant == '" + EN_ATTENTE + "' }.";
+        String fiche = "items.find { it.identifiant == '" + EN_ATTENTE + "' }.";
         assertEquals(FicheAnalyse.MENTION_VALIDEE, veille.getString(fiche + "mentionValidation"));
         assertEquals(List.of("reglementation"), veille.getList(fiche + "rubriques.identifiant"));
 

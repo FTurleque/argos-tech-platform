@@ -109,22 +109,22 @@ class ProfilDemonstrationTest {
         activer("jules", "developpeur", "expert-metier");
 
         JsonPath ines = veille("ines");
-        assertEquals(List.of(AVIS), ines.getList("elements.identifiant"));
-        assertEquals(List.of("developpeur"), ines.getList("elements[0].profils"));
-        assertEquals(List.of("securite"), ines.getList("elements[0].rubriques.identifiant"));
+        assertEquals(List.of(AVIS), ines.getList("items.identifiant"));
+        assertEquals(List.of("developpeur"), ines.getList("items[0].profils"));
+        assertEquals(List.of("securite"), ines.getList("items[0].rubriques.identifiant"));
 
         JsonPath oscar = veille("oscar");
-        assertEquals(List.of(FICHE), oscar.getList("elements.identifiant"));
-        assertEquals(List.of("reglementation"), oscar.getList("elements[0].rubriques.identifiant"));
+        assertEquals(List.of(FICHE), oscar.getList("items.identifiant"));
+        assertEquals(List.of("reglementation"), oscar.getList("items[0].rubriques.identifiant"));
 
         JsonPath jules = veille("jules");
-        assertEquals(List.of(FICHE, AVIS), jules.getList("elements.identifiant"));
+        assertEquals(List.of(FICHE, AVIS), jules.getList("items.identifiant"));
         for (JsonPath veille : List.of(ines, oscar, jules)) {
-            assertFalse(veille.getList("elements.profils.flatten()").isEmpty(), veille.prettify());
+            assertFalse(veille.getList("items.profils.flatten()").isEmpty(), veille.prettify());
             assertFalse(veille.getList("profilsActifs").contains("demonstration"), veille.prettify());
-            assertFalse(veille.getList("elements.profils.flatten()").contains("demonstration"), veille.prettify());
-            assertFalse(veille.getList("elements.rubriques.profil.flatten()").contains("demonstration"), veille.prettify());
-            assertFalse(veille.<String>getList("elements.gardeFous.flatten()").stream()
+            assertFalse(veille.getList("items.profils.flatten()").contains("demonstration"), veille.prettify());
+            assertFalse(veille.getList("items.rubriques.profil.flatten()").contains("demonstration"), veille.prettify());
+            assertFalse(veille.<String>getList("items.gardeFous.flatten()").stream()
                     .anyMatch(gardeFou -> gardeFou.startsWith("Mention de démonstration")), veille.prettify());
         }
     }
@@ -136,11 +136,11 @@ class ProfilDemonstrationTest {
         activer("ines", "developpeur", "demonstration");
 
         JsonPath veille = veille("ines");
-        assertEquals(List.of(AVIS), veille.getList("elements.identifiant"), "une seule occurrence");
-        assertEquals(List.of("developpeur", "demonstration"), veille.getList("elements[0].profils"));
-        assertEquals(List.of("developpeur", "demonstration"), veille.getList("elements[0].rubriques.profil"));
-        assertEquals(List.of("securite", "demonstration"), veille.getList("elements[0].rubriques.identifiant"));
-        assertEquals(true, veille.getList("elements[0].gardeFous", String.class).stream()
+        assertEquals(List.of(AVIS), veille.getList("items.identifiant"), "une seule occurrence");
+        assertEquals(List.of("developpeur", "demonstration"), veille.getList("items[0].profils"));
+        assertEquals(List.of("developpeur", "demonstration"), veille.getList("items[0].rubriques.profil"));
+        assertEquals(List.of("securite", "demonstration"), veille.getList("items[0].rubriques.identifiant"));
+        assertEquals(true, veille.getList("items[0].gardeFous", String.class).stream()
                 .anyMatch(gardeFou -> gardeFou.startsWith("Mention de démonstration")));
     }
 

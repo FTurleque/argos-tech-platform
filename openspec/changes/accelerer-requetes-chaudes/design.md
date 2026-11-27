@@ -21,6 +21,7 @@
 | COR-13 | D3, Traitements | DC-1 |
 | ALR-10 | D4, D5, Sécurité | DC-2 |
 | PRF-07 | D6, D7, Performance | — |
+| PRF-09 | D11, Contrats d'interface | — |
 | RAD-10 | D8 | — |
 | RCH-07 | D9, Contrats d'interface | — |
 | PERF-02 | D10, Performance | — |
@@ -109,7 +110,7 @@ Non applicable — aucun cycle de vie ne change ; les transitions système de CO
 | Élément | Valeur |
 |---|---|
 | `GET /api/v1/recherche`, outil MCP `search_signals` | champ booléen `totalPlafonne` ajouté ; `total` vaut au plus 1 000 ; paramètres inchangés |
-| `GET /api/v1/me/veille` | inchangé ; sa pagination au format ADR-0040 est une tâche de suivi, après la fusion du sprint 9 (décision du porteur, 2026-11-26) |
+| `GET /api/v1/me/veille` | paramètres `page` et `size` (ADR-0040) ; réponse `VeilleProfils` = `{items, page, size, total, profilsActifs}` ; `elements` devient `items` ; client IHM et tests e2e adaptés (D11) |
 | Événements CDI | `ImpactsRecorded` inchangé |
 
 Compatibilité : champs ajoutés seulement ; l'IHM affiche « plus de 1 000 résultats » quand `totalPlafonne` est vrai.
@@ -249,6 +250,15 @@ Migration appliquée au démarrage (ADR-0032). Les suppressions d'index sont sû
 - **Choix** : `donnees-performance.sql` reçoit une liste d'espaces (grand espace de référence d'alice, espace volumineux d'un autre compte, petit espace de bob) ; impacts résolus en masse dans l'espace volumineux pour dépasser 500 000 lignes ; abonnements `PERSONAL` par paquet et par technologie ; opération « Ma veille (petit espace) » mesurée avec le jeton de bob.
 - **ADR** : non.
 
+### D11 — Ma veille paginée dans l'union composée
+
+- **Statut** : [DÉCISION] (porteur, 2026-11-27) pour le découpage dans l'union, la taille par défaut et l'interface paginée ; [PROPOSITION] pour le reste.
+- **Choix** : la ressource compose l'union (impacts récents bornés à 200, fiches validées, avis des abonnements, rubriques, garde-fous), la trie par date décroissante (sans date en dernier), puis par type et identifiant, et en extrait la page par `Page.extraire` ; `total` est la taille de l'union. Paramètres lus par `ParametresPagination.pagination`. L'IHM lit une page, affiche le total, la position et les boutons « Page précédente » et « Page suivante » ; la mise en page reçoit les éléments de la page.
+- **Justification** : contenu, droits et garde-fous de l'union inchangés (PRF-02, PRF-05) ; coût de composition borné par D6 et D7.
+- **Alternatives écartées** : pagination en base de chaque source puis fusion par clé de parcours — refonte de la composition (doublons, rubriques, garde-fous), écartée par le porteur.
+- **Compromis** : l'union est composée entière à chaque page ; les regroupements par rubrique d'une mise en page portent sur la page affichée.
+- **ADR** : ADR-0040 appliqué.
+
 ## Risques
 
 - Plan d'exécution différent sur le NAS (PostgreSQL identique, matériel plus lent) → mesure à refaire sur le NAS (hors périmètre, R-16 du registre).
@@ -273,6 +283,8 @@ Migration appliquée au démarrage (ADR-0032). Les suppressions d'index sont sû
 | RAD-10-S1, S2 | intégration | `RequetesConstantesTest`, `RadarStandardsTest` | à écrire |
 | RCH-07-S1, S2 | intégration | `RechercheBorneeTest` | à écrire |
 | PRF-07-S2 | intégration | `VeilleLectureGroupeeTest` vert | à exécuter |
+| PRF-09-S1 à S3 | intégration | `VeillePagineeTest` | à écrire |
+| PRF-09-S4 | IHM, e2e | tests IHM de la pagination de Ma veille ; `e2e/tests/veille.spec.ts` | à écrire |
 | PRF-07-S1, S3, PERF-02-S4 | campagne | `npm --prefix e2e run test:performance` | à exécuter |
 | Index (V27) | intégration | `IndexRequetesChaudesTest` (pg_indexes) | écrit |
 
@@ -284,4 +296,4 @@ Migration appliquée au démarrage (ADR-0032). Les suppressions d'index sont sû
 
 ## Questions ouvertes
 
-Q-1 et Q-2 de la proposition ; aucune ne change l'approche.
+Q-1 de la proposition, qui ne change pas l'approche ; Q-2 est tranchée (D11).

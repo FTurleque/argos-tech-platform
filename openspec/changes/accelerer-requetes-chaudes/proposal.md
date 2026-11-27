@@ -26,6 +26,7 @@ Les sprints 1 à 8 sont livrés ; l'évaluation des alertes et la chaîne radar 
 - Ma veille : impacts lus espace par espace sur l'index partiel ; signaux des abonnements cherchés par des sous-requêtes indexées ; la campagne de performance mesure un appelant d'un petit espace dans une table d'au moins 500 000 impacts majoritairement résolus, avec des abonnements et plusieurs espaces de tailles différentes.
 - Radar : composants filtrés par espace en SQL ; calendrier lu une fois par espace ; dettes écrites par lot ; rappels de tous les jours de rappel calculés en une passe.
 - Recherche : seule la page demandée est classée et matérialisée ; le classement porte au plus sur 1 000 candidats ; le total est plafonné à 1 000, avec l'indicateur `totalPlafonne` (décision du porteur, 2026-11-26).
+- Ma veille paginée au format commun des listes (ADR-0040) : `page` et `size` (50 par défaut), réponse `{items, page, size, total, profilsActifs}` découpée dans l'union composée ; l'interface affiche le total et passe d'une page à l'autre (décisions du porteur, 2026-11-27).
 
 ## Capabilities — Capacités
 
@@ -39,7 +40,7 @@ Aucune.
 - `alertes-digests` : ALR-10 ajoutée (évaluation en un nombre fixe de requêtes, diffusion par la tâche d'envoi).
 - `radar-standards` : RAD-10 ajoutée (radar en un nombre fixe de requêtes par espace).
 - `recherche-veille` : RCH-07 ajoutée (seule la page demandée est classée ; total plafonné).
-- `profils-veille` : PRF-07 modifiée (petit espace dans une grande table, abonnements mesurés).
+- `profils-veille` : PRF-07 modifiée (petit espace dans une grande table, abonnements mesurés) ; PRF-09 ajoutée (Ma veille paginée au format commun).
 - `performance-api-mcp` : PERF-02 modifiée (jeu de données à plusieurs espaces de tailles différentes, avec abonnements et impacts résolus).
 
 ## Périmètre
@@ -57,7 +58,6 @@ Aucune.
 - Rétention et purges, import d'inventaire (réécriture nocturne, insertion par lot), pagination des listes d'exploitation et de `GET /projects/{id}/impacts` : sprint 9, mené en parallèle.
 - Exécution de la corrélation d'inventaire en tâche de fond : l'observateur `InventoryReplaced` reste `AFTER_SUCCESS` ; le critère de sortie porte sur le nombre de requêtes, et le déplacer change le contrat de l'import (sprint 9).
 - Mesure sur le NAS : la campagne s'exécute sur la pile de test locale (PERF-01).
-- Pagination de `GET /api/v1/me/veille` au format commun des listes (ADR-0040, sprint 9) : tâche de suivi, après la fusion du sprint 9, qui porte ce format (décision du porteur du projet, 2026-11-26).
 
 ## Acteurs et parties prenantes
 
@@ -66,7 +66,7 @@ Aucune.
 | Membre d'espace | voit Ma veille et la recherche répondre dans la cible, quel que soit le volume des autres espaces | [PROPOSITION] — AUD-PER-06, AUD-PER-26, AUD-PER-07 |
 | Destinataire d'alertes | reçoit ses alertes par la tâche d'envoi, sans ralentir l'ingestion | [PROPOSITION] — AUD-PER-04 |
 | Exploitant | voit l'import nocturne recorréler sans réécrire les impacts inchangés | [PROPOSITION] — AUD-PER-25, AUD-PER-03 |
-| Porteur du projet | a tranché le 2026-11-26 : lecture technique filtrée par appartenance pour les alertes ; total de recherche plafonné à 1 000 ; sprint 10 élargi à AUD-PER-09 et AUD-PER-25 | [DÉCISION] |
+| Porteur du projet | a tranché le 2026-11-26 : lecture technique filtrée par appartenance pour les alertes ; total de recherche plafonné à 1 000 ; sprint 10 élargi à AUD-PER-09 et AUD-PER-25 ; le 2026-11-27 : Ma veille paginée dans ce changement, page découpée dans l'union composée, 50 par défaut, interface paginée | [DÉCISION] |
 
 ## Sources et preuves
 
@@ -84,7 +84,7 @@ Aucune.
 | Migrations Flyway, numéro attribué | [DÉCISION] | ADR-0032 (Accepté) |
 | Noyau commun, JTA, utilitaire `Jdbc` | [DÉCISION] | ADR-0037 (Accepté) |
 | Observateurs asynchrones, tâches de fond | [PROPOSITION] | ADR-0039 (Proposé) |
-| Format commun de pagination | [PROPOSITION] | ADR-0040 (sprint 9, en cours) |
+| Format commun de pagination | [PROPOSITION] | ADR-0040 (Proposé) ; `commun.Pagination`, `commun.Page`, `api.ParametresPagination` |
 | Cible p95 < 500 ms | [PROPOSITION] | PERF-01, PRF-07 |
 | Critère de sortie du sprint 10 | [PROPOSITION] | `/docs/audit/2026-11-21/sprints.md`, « Sprint 10 » |
 
@@ -97,7 +97,7 @@ Aucune.
 ## Impact
 
 - **Composants** (arc42 §5) : correlation-engine, alerting, release-radar, search, workspace-service (abonnements), API.
-- **Contrats d'interface** : OpenAPI — `GET /api/v1/recherche` et outil MCP `search_signals` : champ `totalPlafonne` ajouté, `total` plafonné à 1 000 ; événements CDI inchangés.
+- **Contrats d'interface** : OpenAPI — `GET /api/v1/recherche` et outil MCP `search_signals` : champ `totalPlafonne` ajouté, `total` plafonné à 1 000 ; `GET /api/v1/me/veille` : paramètres `page` et `size`, réponse `{items, page, size, total, profilsActifs}` (le champ `elements` devient `items`) ; événements CDI inchangés.
 - **Données et persistance** : migrations V27 (index) et V28 (fonction de sélection bornée de la recherche) ; aucune donnée ni droit ne change.
 - **Sécurité, confidentialité, droits** : l'évaluation des alertes lit les impacts du signal par une lecture technique filtrée explicitement par appartenance (même règle que `argos_espace_lisible`), au lieu d'une relecture sous la RLS de chaque destinataire (décision du porteur, 2026-11-26) ; aucune lecture d'API ne change de rôle.
 - **Exploitation et observabilité** : paramètre `argos.correlation.taille-lot` ; les alertes immédiates partent au passage suivant de la tâche d'envoi (cadence existante).
@@ -113,4 +113,4 @@ complète — plusieurs composants, une migration, un contrat d'API et une lectu
 | ID | Question | Bloquante ? | Destinataire |
 |---|---|---|---|
 | Q-1 | Taille d'un lot de corrélation : 500 signaux par défaut ([QUESTION], aucune source ne fixe la valeur). | non | porteur du projet |
-| Q-2 | Pagination de Ma veille (tâche de suivi) : taille par défaut de l'ADR-0040 (50) ou page unique de 200 tant que l'IHM ne pagine pas ? | non : tranchée à la fusion du sprint 9 | porteur du projet |
+| Q-2 | Pagination de Ma veille : taille par défaut de l'ADR-0040 (50) ou page unique de 200 tant que l'IHM ne pagine pas ? | tranchée le 2026-11-27 : 50, interface paginée | porteur du projet |

@@ -125,11 +125,11 @@ class VeilleAbonnementsPersonnelsTest {
     }
 
     private static List<String> identifiants(JsonPath veille) {
-        return veille.getList("elements.identifiant");
+        return veille.getList("items.identifiant");
     }
 
     private static String element(String identifiant) {
-        return "elements.find { it.identifiant == '" + identifiant + "' }.";
+        return "items.find { it.identifiant == '" + identifiant + "' }.";
     }
 
     /**

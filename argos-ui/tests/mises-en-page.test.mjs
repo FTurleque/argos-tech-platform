@@ -112,7 +112,7 @@ test('AFF-02 : la veille réelle de /me/veille, transposée, garde ses faits et 
     projets: [{ projetId: 'p1', projet: 'Paie', niveau: 'EXACT' }, { projetId: 'p2', projet: 'Paie', niveau: 'PROBABLE' }],
     abonnements: ['abo'], mentionIa: null, mentionSource: null,
   }
-  const veille = veilleAffichee({ profilsActifs: ['expert-metier'], elements: [fiche, avis] })
+  const veille = veilleAffichee({ profilsActifs: ['expert-metier'], items: [fiche, avis], page: 0, size: 50, total: 2 })
   const pages = {}
   for (const id of IDENTIFIANTS) pages[id] = await rendu.rendre(id, veille)
   const reference = articles(pages.classique).map(faits)

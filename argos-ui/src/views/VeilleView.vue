@@ -4,9 +4,11 @@
 // dans la mise en page de sa préférence. Vue de la couche contenu : elle lit l'API, transpose la réponse vers
 // le modèle commun (`contenu/veille-affichee.ts`, conversion de forme seulement) et la transmet au sélecteur
 // central des mises en page. Elle ne filtre, ne dédoublonne ni ne retire aucun élément ni aucune mention
-// (arc42 §5.1). Elle liste aussi les abonnements de l'utilisateur avec leur état (actif ou suspendu) et
-// propose de suspendre, réactiver ou supprimer un abonnement personnel (ABO-07, ABO-08) ; le serveur décide
-// des droits et renvoie l'état.
+// (arc42 §5.1). La veille est lue page par page (PRF-09) : la vue affiche le total, la position et les boutons
+// de page ; la mise en page reçoit les éléments de la page affichée ; seule la dernière lecture lancée est
+// retenue. Elle liste aussi les abonnements de l'utilisateur avec leur état (actif ou suspendu) et propose de
+// suspendre, réactiver ou supprimer un abonnement personnel (ABO-07, ABO-08) ; le serveur décide des droits et
+// renvoie l'état.
 import { computed, onMounted, onUnmounted, ref } from 'vue'
 import { ApiError } from '../api/client'
 import {
@@ -35,7 +37,7 @@ import {
 } from '../contenu/abonnements'
 import { STATUT_INTROUVABLE } from '../api/statuts-http'
 import { resoudreMiseEnPage } from '../contenu/resolution'
-import { veilleAffichee } from '../contenu/veille-affichee'
+import { positionVeille, veilleAffichee } from '../contenu/veille-affichee'
 import { libelleProfil, messageErreurVeille } from '../contenu/veille-profils'
 import MiseEnPage from '../mises-en-page/MiseEnPage.vue'
 import { IDENTIFIANTS_MISES_EN_PAGE } from '../mises-en-page/registre'
@@ -52,14 +54,25 @@ const miseEnPage = computed(() => resoudreMiseEnPage(preferences.value, IDENTIFI
 const affichee = computed(() =>
   veille.value ? veilleAffichee(veille.value, catalogue.value, abonnements.value, composeeLe.value) : null,
 )
+const position = computed(() => (veille.value ? positionVeille(veille.value) : null))
+const premierePage = computed(() => !position.value || position.value.page <= 0)
+const dernierePage = computed(() => !position.value || position.value.page >= position.value.pages - 1)
+const changementDePage = ref(false)
 const profilsActifs = computed(() =>
   (veille.value?.profilsActifs ?? []).map((profil) => libelleProfil(profil, catalogue.value)).join(', '),
 )
 
 let chargementCourant: AbortController | null = null
+let lectureCourante: AbortController | null = null
+
+/** Annule le chargement complet et la lecture de page en cours : seule la lecture suivante sera retenue. */
+function annulerLectures(): void {
+  chargementCourant?.abort()
+  lectureCourante?.abort()
+}
 
 async function charger(): Promise<void> {
-  chargementCourant?.abort()
+  annulerLectures()
   const controleur = new AbortController()
   chargementCourant = controleur
   chargement.value = true
@@ -68,7 +81,7 @@ async function charger(): Promise<void> {
   // mise en page : leur échec n'empêche pas d'afficher la veille (identifiants lisibles, mise en page
   // « classique » par défaut, AFF-04).
   const [resultatVeille, resultatCatalogue, resultatAbonnements, resultatPreferences] = await Promise.allSettled([
-    lireVeille(controleur.signal),
+    lireVeille(0, controleur.signal),
     lireCatalogueProfils(controleur.signal),
     lireAbonnements(controleur.signal),
     lirePreferences(controleur.signal),
@@ -89,15 +102,43 @@ async function charger(): Promise<void> {
   }
 }
 
-/** Relit le seul contenu de « Ma veille » ; un échec laisse le contenu affiché et le signale. */
-async function rechargerVeille(): Promise<void> {
+/**
+ * Lit la page demandée de « Ma veille » ; une page devenue vide au-delà de la dernière (veille réduite entre deux
+ * lectures) est remplacée par la dernière page. Un échec laisse le contenu affiché et le signale.
+ */
+async function lirePage(numero: number): Promise<void> {
+  annulerLectures()
+  const controleur = new AbortController()
+  lectureCourante = controleur
   try {
-    veille.value = await lireVeille()
+    let lue = await lireVeille(numero, controleur.signal)
+    if (lue.items.length === 0 && lue.page > 0 && lue.total > 0) {
+      lue = await lireVeille(positionVeille(lue).pages - 1, controleur.signal)
+    }
+    if (controleur.signal.aborted) return
+    veille.value = lue
     composeeLe.value = new Date().toISOString()
     erreur.value = ''
   } catch (echec) {
+    if (controleur.signal.aborted) return
     erreur.value =
       echec instanceof ApiError ? messageErreurVeille('veille', echec.status, echec.message) : 'Erreur inattendue.'
+  }
+}
+
+/** Relit la page affichée de « Ma veille ». */
+async function rechargerVeille(): Promise<void> {
+  await lirePage(veille.value?.page ?? 0)
+}
+
+/** Passe à une autre page ; sans effet hors des bornes ou pendant un chargement. */
+async function allerPage(numero: number, bloque: boolean): Promise<void> {
+  if (bloque || changementDePage.value) return
+  changementDePage.value = true
+  try {
+    await lirePage(numero)
+  } finally {
+    changementDePage.value = false
   }
 }
 
@@ -145,7 +186,7 @@ function annulerSuppression(): void {
 }
 
 onMounted(charger)
-onUnmounted(() => chargementCourant?.abort())
+onUnmounted(annulerLectures)
 </script>
 
 <template>
@@ -158,13 +199,14 @@ onUnmounted(() => chargementCourant?.abort())
       <RouterLink to="/affichage">Changer de mise en page</RouterLink>
     </p>
     <p v-if="veille" class="muted">Profils actifs : {{ profilsActifs }}</p>
+    <p v-if="veille && position && veille.total > 0" class="muted" data-champ="synthese-veille">{{ position.synthese }}</p>
     <p v-if="miseEnPage.message" class="status status-down" role="status">{{ miseEnPage.message }}</p>
     <p v-if="chargement" class="muted" role="status">Chargement de votre veille…</p>
     <p v-if="erreur" class="status status-down" role="alert">
       {{ erreur }}
       <button type="button" class="secondary" @click="charger">Réessayer</button>
     </p>
-    <p v-if="veille && veille.elements.length === 0" class="vide" role="status">
+    <p v-if="veille && veille.total === 0" class="vide" role="status">
       Aucun élément dans votre veille pour l’instant. Vos profils actifs ne rangent encore aucun élément de vos
       espaces, et aucun abonnement personnel n’en retient.
     </p>
@@ -176,6 +218,26 @@ onUnmounted(() => chargementCourant?.abort())
     :veille="affichee"
     :niveau-titre="2"
   />
+
+  <nav v-if="position && position.pages > 1" class="card pagination" aria-label="Pagination de ma veille">
+    <button
+      type="button"
+      class="secondary"
+      :aria-disabled="premierePage || changementDePage ? 'true' : undefined"
+      @click="allerPage(position.page - 1, premierePage)"
+    >
+      Page précédente
+    </button>
+    <span data-champ="position-veille" role="status" aria-live="polite">{{ position.libelle }}</span>
+    <button
+      type="button"
+      class="secondary"
+      :aria-disabled="dernierePage || changementDePage ? 'true' : undefined"
+      @click="allerPage(position.page + 1, dernierePage)"
+    >
+      Page suivante
+    </button>
+  </nav>
 
   <section v-if="abonnements.length > 0" class="card" aria-labelledby="titre-abonnements">
     <h2 id="titre-abonnements">Mes abonnements</h2>
@@ -216,6 +278,8 @@ onUnmounted(() => chargementCourant?.abort())
 </template>
 
 <style scoped>
+.pagination { display: flex; flex-wrap: wrap; align-items: center; gap: 0.75rem; }
+.pagination button[aria-disabled='true'] { opacity: 0.55; cursor: not-allowed; }
 .vide {
   padding: 0.75rem 1rem;
   border: 1px dashed var(--border);
