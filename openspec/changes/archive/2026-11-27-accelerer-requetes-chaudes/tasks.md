@@ -42,8 +42,8 @@
 
 ## 8. Vérifications d'intégration
 
-- [ ] 8.1 Valider le changement — vérification : `openspec validate accelerer-requetes-chaudes --strict` réussit
-- [ ] 8.2 CI locale complète (JDK 17 : `mvn -B -f argos-server/pom.xml verify`, IHM, e2e selon `.github/workflows/integration-continue.yml`) verte
+- [x] 8.1 Valider le changement — vérification : `openspec validate accelerer-requetes-chaudes --strict` réussit
+- [x] 8.2 CI locale complète (JDK 17 : `mvn -B -f argos-server/pom.xml verify`, IHM, e2e selon `.github/workflows/integration-continue.yml`) verte
 
 ## Matrice de traçabilité
 

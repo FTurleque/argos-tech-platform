@@ -5,7 +5,7 @@
 | Préfixe d'exigences | `PERF` |
 | Spec de référence | [`/openspec/specs/performance-api-mcp/spec.md`](/openspec/specs/performance-api-mcp/spec.md) |
 | Changements en cours | [`automatiser-chaine-veille`](/openspec/changes/archive/2026-11-20-automatiser-chaine-veille/specs/performance-api-mcp/spec.md) — proposé ; campagne implémentée (volet C) et exécutée sur la branche intégrée le 2026-11-19 ; [`2026-11-27-retenir-importer-et-paginer`](/openspec/changes/archive/2026-11-27-retenir-importer-et-paginer/proposal.md) (PERF-03, archivé) |
-| Changement en cours, sprint 10 | [`accelerer-requetes-chaudes`](/openspec/changes/accelerer-requetes-chaudes/proposal.md) (PERF-02 modifiée) — proposé, implémenté |
+| Changement du sprint 10 | [`2026-11-27-accelerer-requetes-chaudes`](/openspec/changes/archive/2026-11-27-accelerer-requetes-chaudes/proposal.md) (PERF-02 modifiée) — archivé |
 | Statut de la capacité | proposée |
 | Composants (arc42 §5) | `API & Security`, serveur MCP (`mcp`), `e2e/` (campagne de mesure) |
 
@@ -51,7 +51,7 @@ Vérifier, par une mesure automatisée et gratuite, que les consultations de l'A
 | p95 < 500 ms par opération de consultation API ou outil MCP, hors appels externes et IA, sur la pile de test locale | PERF-01 | décision J8 du porteur du projet, 2026-11-19 ; arc42 §8 ; arc42 §10.2 Q-05 | [DÉCISION] pour la vérification de la cible ; cible arc42 « initiale » [PROPOSITION] |
 | Commande dédiée, hors build par défaut ; outils gratuits sous licence permissive ; aucune requête hors du poste ; rapport versionné | PERF-02 | décision J8 du porteur du projet, 2026-11-19 ; ADR-0021 | [DÉCISION] |
 | Outil retenu : script Node sans dépendance (`fetch`, `node:perf_hooks`) ; autocannon (MIT) ou Gatling (Apache-2.0) restent des alternatives permises | PERF-02 | proposition P-9 du changement | [PROPOSITION] |
-| Le jeu de données de la campagne compte plusieurs espaces de tailles différentes, des abonnements `PERSONAL` par paquet et par technologie et au moins 500 000 impacts majoritairement résolus ; « Ma veille » est mesurée aussi pour le membre d'un petit espace | PERF-02 | critère de sortie du sprint 10 | [PROPOSITION] — `accelerer-requetes-chaudes` |
+| Le jeu de données de la campagne compte plusieurs espaces de tailles différentes, des abonnements `PERSONAL` par paquet et par technologie et au moins 500 000 impacts majoritairement résolus ; « Ma veille » est mesurée aussi pour le membre d'un petit espace | PERF-02 | critère de sortie du sprint 10 | [PROPOSITION] — `2026-11-27-accelerer-requetes-chaudes` |
 | Toute liste de l'API REST qui croît avec les données collectées, importées ou journalisées est paginée : paramètres `page` (à partir de 0) et `size` (50 par défaut, de 1 à 200), réponse `{items, page, size, total}`, tri stable terminé par l'identifiant ; une valeur non entière donne 400 `DONNEE_INVALIDE`. Listes concernées par ce changement : avis mis à l'écart et événements d'une source, échecs d'import, impacts et inventaire d'un projet, opportunités du profil artiste | PERF-03 | AUD-PER-10 ; ADR-0040 (Proposé) | [PROPOSITION — `2026-11-27-retenir-importer-et-paginer`] |
 
 ## Droits d'accès et restrictions
@@ -123,7 +123,7 @@ Aucune.
 |---|---|---|---|---|
 | PERF-01 | PERF-01-S1, PERF-01-S2, PERF-01-S3 | design.md D8, DC-8 ; DF-PERF-1 | 3.6, 3.7 | [rapport du 2026-11-19](../architecture/quality/mesure-performance-api-mcp.md) (S2 constaté : une opération hors cible, code 1 ; S1 non atteint) ; `e2e/performance/mesure.test.mjs` (S2, S3) |
 | PERF-02 | PERF-02-S1, PERF-02-S2, PERF-02-S3 | design.md D8, DC-8 ; DF-PERF-1 | 3.6, 3.7 | `e2e/performance/mesure.test.mjs` (S1 à S3) ; rapports JSON (`e2e/resultats/performance/rapport-2026-11-19.json`) et Markdown du 2026-11-19 |
-| PERF-02 (modifiée) | PERF-02-S4 | `accelerer-requetes-chaudes` D10 | 7.1 | `e2e/performance/mesure.test.mjs` ; campagne du 2026-11-27 (révision `496add9`) : dix-sept opérations dans la cible, code de sortie 0 ; [rapport](../architecture/quality/mesure-performance-api-mcp.md) |
+| PERF-02 (modifiée) | PERF-02-S4 | `2026-11-27-accelerer-requetes-chaudes` D10 | 7.1 | `e2e/performance/mesure.test.mjs` ; campagne du 2026-11-27 (révision `496add9`) : dix-sept opérations dans la cible, code de sortie 0 ; [rapport](../architecture/quality/mesure-performance-api-mcp.md) |
 | PERF-03 | S1 à S5 | `2026-11-27-retenir-importer-et-paginer` design.md D6 | 1.1, 4.3, 6.1 à 6.4 | `api/ListesPagineesTest`, `commun/PaginationTest`, `chain/ProfilArtisteTest` |
 
 Matrice détaillée : [`tasks.md` du changement](/openspec/changes/archive/2026-11-20-automatiser-chaine-veille/tasks.md#matrice-de-traçabilité).
