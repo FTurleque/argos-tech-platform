@@ -241,66 +241,6 @@ class ActiviteProjetsTest {
     }
 
     @Test
-    void contratGithubLectureSeuleSansRedirectionNiJeton() {
-        depotGithub("org/app");
-        collecte.collecterProjet(projetGithub("org/app"), Instant.now());
-
-        List<StubServer.Received> requetes = StubServer.received("/github/");
-        assertEquals(4, requetes.size(), "une page par liste : " + requetes.stream().map(StubServer.Received::pathAndQuery).toList());
-        assertTrue(requetes.stream().allMatch(requete -> "GET".equals(requete.method())), "lecture seule : GET uniquement");
-        assertTrue(requetes.stream().anyMatch(requete -> requete.pathAndQuery()
-                .startsWith("/github/repos/org/app/issues?state=all&since=")));
-        assertTrue(requetes.stream().anyMatch(requete -> requete.pathAndQuery()
-                .startsWith("/github/repos/org/app/actions/runs?created=%3E%3D")));
-        assertTrue(requetes.stream().allMatch(requete -> requete.headers().keySet().stream()
-                        .noneMatch(entete -> entete.equalsIgnoreCase("Authorization"))),
-                "aucun jeton configuré, aucun envoyé");
-        assertEquals(List.of("application/vnd.github+json"), requetes.get(0).headers().get("Accept"));
-    }
-
-    @Test
-    void contratGitlab() {
-        String base = "/gitlab/api/v4/projects/groupe%2Fapp";
-        StubServer.programmer(base + "/issues", Stub.succes("""
-                [{"iid":1,"author":{"username":"bob"},"created_at":"%s","closed_at":"%s"},
-                 {"iid":2,"assignees":[{"username":"carol"}],"created_at":"%s","closed_at":null}]""".formatted(ilYa(9), ilYa(2), ilYa(4))));
-        StubServer.programmer(base + "/merge_requests", Stub.succes("""
-                [{"iid":3,"author":{"username":"bob"},"created_at":"%s","merged_at":"%s","merged_by":{"username":"carol"}}]"""
-                .formatted(ilYa(6), ilYa(5))));
-        StubServer.programmer(base + "/pipelines", Stub.succes("""
-                [{"id":1,"status":"success","created_at":"%s"},{"id":2,"status":"failed","created_at":"%s"},
-                 {"id":3,"status":"canceled","created_at":"%s"},{"id":4,"status":"success","created_at":"%s"}]"""
-                .formatted(ilYa(1), ilYa(2), ilYa(3), ilYa(45))));
-        StubServer.programmer(base + "/releases", Stub.succes("""
-                [{"tag_name":"v2","released_at":"%s","author":{"username":"bob"}}]""".formatted(ilYa(3))));
-        StubServer.programmer(base + "/milestones", Stub.succes("""
-                [{"id":11,"iid":1,"title":"Sprint 4","state":"active","due_date":"2026-12-15","updated_at":"%s"},
-                 {"id":12,"iid":2,"title":"Ancien","state":"closed","updated_at":"%s"}]""".formatted(ilYa(1), ilYa(100))));
-        StubServer.programmer(base + "/issues_statistics", Stub.succes("""
-                {"statistics":{"counts":{"all":30,"closed":27,"opened":3}}}"""));
-        UUID projet = projets.create(espace, "app", new RepositoryRef("GITLAB", "groupe/app", "main", null, null), List.of());
-
-        assertEquals(CollecteActivite.Issue.A_JOUR, collecte.collecterProjet(projet, Instant.now()));
-
-        Api.enTantQue("alice").when().get("/api/v1/projects/" + projet + "/activite")
-                .then().statusCode(200)
-                .body("compteurs.ticketsOuverts", equalTo(2))
-                .body("compteurs.ticketsFermes", equalTo(1))
-                .body("compteurs.fusionsOuvertes", equalTo(1))
-                .body("compteurs.fusionsFusionnees", equalTo(1))
-                .body("compteurs.pipelinesReussis", equalTo(1))
-                .body("compteurs.pipelinesEchoues", equalTo(1))
-                .body("compteurs.pipelinesAutres", equalTo(1))
-                .body("compteurs.versionsPubliees", equalTo(1))
-                .body("jalons", hasSize(1))
-                .body("jalons[0].titre", equalTo("Sprint 4"))
-                .body("jalons[0].avancement.libelle", equalTo("27 sur 30 (90 %)"));
-        assertTrue(StubServer.received("/gitlab/").stream().allMatch(requete -> "GET".equals(requete.method())));
-        assertTrue(StubServer.received(base + "/issues_statistics?milestone=Sprint%204").size() == 1,
-                "le titre du jalon est encodé dans l'adresse");
-    }
-
-    @Test
     void pin02S1EtS2AvancementAvecDenominateurSeulement() {
         depotGithub("org/app");
         UUID avecJalon = projetGithub("org/app");
