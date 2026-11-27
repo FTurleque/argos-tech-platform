@@ -35,7 +35,6 @@ io/argos/api/comptes/RoyaumeLivreTest.java
 io/argos/api/comptes/VueNomCompteTest.java
 io/argos/api/inventaire/AdministrationProjetsTest.java
 io/argos/api/inventaire/ImportManuelTest.java
-io/argos/api/preference/MiseEnPageRetireeTest.java
 io/argos/api/preference/PreferencesResourceTest.java
 io/argos/api/recherche/LimiteDebitRechercheVeilleTest.java
 io/argos/api/recherche/MesurePerformanceRechercheTest.java
@@ -48,9 +47,7 @@ io/argos/api/veille/VeillePagineeTest.java
 io/argos/api/veille/VeilleProfilsTest.java
 io/argos/architecture/ConservationCompleteTest.java
 io/argos/artefact/ArtefactEmpaqueteIT.java
-io/argos/audit/JournalRefusBorneTest.java
 io/argos/audit/JournauxAuditTest.java
-io/argos/chain/ActiviteDepotCaracterisationTest.java
 io/argos/chain/CollecteTest.java
 io/argos/chain/ConsultationInventaireTest.java
 io/argos/chain/CorrelationTest.java
@@ -107,7 +104,6 @@ io/argos/projectintel/CollecteImmediateTest.java
 io/argos/projectintel/ParcoursActiviteTest.java
 io/argos/regintel/CollecteReglementaireTest.java
 io/argos/releaseradar/CalendrierCyclesDeVieTest.java
-io/argos/scm/ForgesSimuleesTest.java
 io/argos/signal/web/CollecteWebTest.java
 io/argos/testsupport/NettoyageBaseTest.java
 io/argos/vulnintel/SourcesEnrichissementTest.java
