@@ -1,6 +1,8 @@
 # Publication du client desktop ARGOS (AUD-DEP-15 ; décisions du porteur du projet, 2026-11-27) : sur une étiquette
-# desktop-v<version>, les installeurs Windows (NSIS) et Linux (AppImage) sont construits et publiés dans la release
-# GitHub du dépôt, canal de mise à jour lu par electron-updater (argos-desktop/src/mise-a-jour.js). Intégrité : les
+# desktop-v<version>, une release brouillon de même étiquette est créée, les installeurs Windows (NSIS) et Linux
+# (AppImage) y sont déposés (electron-builder, préfixe d'étiquette « desktop-v » de argos-desktop/package.json), puis la
+# release est publiée comme dernière version : le canal de mise à jour lu par electron-updater
+# (argos-desktop/src/mise-a-jour.js) ne voit une version qu'une fois tous ses fichiers présents. Intégrité : les
 # fichiers latest*.yml portent l'empreinte SHA-512 de chaque installeur, vérifiée par la mise à jour ; une attestation
 # de provenance (Sigstore) et les empreintes SHA-256 sont publiées. Sans certificat de signature de code, les
 # installeurs ne sont pas signés (Windows SmartScreen avertit au premier lancement) ; fournir les secrets
@@ -27,8 +29,36 @@ env:
   NODE_VERSION: '22'
 
 jobs:
+  brouillon:
+    name: Release brouillon et version
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: Étiquette conforme à la version du client desktop
+        run: |
+          attendue="desktop-v$(node -p "require('./argos-desktop/package.json').version")"
+          if [ "$GITHUB_REF_NAME" != "$attendue" ]; then
+            echo "::error::Étiquette $GITHUB_REF_NAME différente de $attendue (version de argos-desktop/package.json)."
+            exit 1
+          fi
+      - name: Release brouillon
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          NOTES: >-
+            Installeurs du client desktop ARGOS (ADR-0042). Empreintes : SHA256SUMS-*.txt ;
+            provenance : gh attestation verify <fichier> --repo FTurleque/argos-tech-platform.
+        run: |
+          gh release create "$GITHUB_REF_NAME" --repo "$GITHUB_REPOSITORY" --draft --verify-tag \
+            --title "ARGOS desktop ${GITHUB_REF_NAME#desktop-v}" --notes "$NOTES"
+
   installeurs:
     name: Installeur ${{ matrix.libelle }}
+    needs: brouillon
     strategy:
       fail-fast: true
       matrix:
@@ -48,6 +78,8 @@ jobs:
       attestations: write
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
       - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
         with:
           node-version: ${{ env.NODE_VERSION }}
@@ -55,13 +87,6 @@ jobs:
           cache-dependency-path: |
             argos-ui/package-lock.json
             argos-desktop/package-lock.json
-      - name: Étiquette conforme à la version du client desktop
-        run: |
-          attendue="desktop-v$(node -p "require('./argos-desktop/package.json').version")"
-          if [ "$GITHUB_REF_NAME" != "$attendue" ]; then
-            echo "::error::Étiquette $GITHUB_REF_NAME différente de $attendue (version de argos-desktop/package.json)."
-            exit 1
-          fi
       - name: Dépendances de l'IHM et du desktop
         run: |
           npm --prefix argos-ui ci --ignore-scripts
@@ -72,7 +97,7 @@ jobs:
           npm --prefix argos-ui run build
           node scripts/verifier-licences-npm.mjs --paquet argos-ui --paquet argos-desktop \
             --sortie argos-desktop/licences-tierces/THIRD-PARTY-npm.txt
-      - name: Installeur publié dans la release
+      - name: Installeur déposé dans la release brouillon
         working-directory: argos-desktop
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -101,4 +126,17 @@ jobs:
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           SYSTEME: ${{ runner.os }}
-        run: gh release upload "$GITHUB_REF_NAME" "SHA256SUMS-$SYSTEME.txt" --clobber
+        run: gh release upload "$GITHUB_REF_NAME" "SHA256SUMS-$SYSTEME.txt" --repo "$GITHUB_REPOSITORY" --clobber
+
+  publication:
+    name: Publication de la release
+    needs: installeurs
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      contents: write
+    steps:
+      - name: Release publiée comme dernière version
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: gh release edit "$GITHUB_REF_NAME" --repo "$GITHUB_REPOSITORY" --draft=false --latest

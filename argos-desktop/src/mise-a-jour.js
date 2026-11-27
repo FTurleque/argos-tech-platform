@@ -41,7 +41,14 @@ function creerMiseAJour({ estEmpaquete, plateforme, env, chargerMiseAJour, notif
     /** Lance la recherche d'une version plus récente ; renvoie vrai si elle est lancée. */
     demarrer() {
       if (!active) return false;
-      const miseAJour = chargerMiseAJour();
+      let miseAJour;
+      try {
+        miseAJour = chargerMiseAJour();
+      } catch (erreur) {
+        // Module absent ou incompatible : ARGOS démarre sans mise à jour automatique.
+        journal.error('Mise à jour d’ARGOS indisponible :', messageErreur(erreur));
+        return false;
+      }
       miseAJour.autoDownload = true;
       miseAJour.autoInstallOnAppQuit = true;
       miseAJour.on('error', (erreur) => journal.error('Mise à jour d’ARGOS impossible :', messageErreur(erreur)));
@@ -49,7 +56,8 @@ function creerMiseAJour({ estEmpaquete, plateforme, env, chargerMiseAJour, notif
         journal.info(`Mise à jour d’ARGOS ${information.version} téléchargée.`);
         notifier(texteVersionPrete(information.version));
       });
-      Promise.resolve(miseAJour.checkForUpdates()).catch((erreur) => {
+      // Une erreur levée dès l'appel comme une promesse rejetée est journalisée sans interrompre ARGOS.
+      Promise.resolve().then(() => miseAJour.checkForUpdates()).catch((erreur) => {
         journal.error('Recherche de mise à jour d’ARGOS impossible :', messageErreur(erreur));
       });
       return true;

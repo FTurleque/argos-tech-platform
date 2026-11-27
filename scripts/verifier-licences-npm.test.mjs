@@ -10,7 +10,8 @@ const VERROU = {
   packages: {
     '': { dependencies: { vue: '^3.5.0' }, devDependencies: { vite: '^8.0.0' } },
     'node_modules/vue': { version: '3.5.46', license: 'MIT', dependencies: { '@vue/shared': '3.5.46', outil: '^1' },
-      optionalDependencies: { 'binaire-autre-plateforme': '1.0.0' } },
+      optionalDependencies: { 'binaire-autre-plateforme': '1.0.0' }, peerDependencies: { pair: '^1', vite: '^8' } },
+    'node_modules/pair': { version: '1.0.0', license: 'ISC' },
     'node_modules/@vue/shared': { version: '3.5.46', license: 'MIT' },
     'node_modules/vue/node_modules/outil': { version: '1.2.0', license: '(MIT OR GPL-3.0)' },
     'node_modules/outil': { version: '2.0.0', license: 'GPL-3.0' },
@@ -25,6 +26,7 @@ test('licenceAdmise : identifiants admis, choix OR, conjonction AND, licence abs
   assert.ok(!licenceAdmise('MIT AND GPL-3.0'));
   assert.ok(!licenceAdmise('GPL-3.0'));
   assert.ok(!licenceAdmise(undefined));
+  assert.ok(!licenceAdmise({ type: 'MIT' }));
 });
 
 test('resoudre : copie imbriquée avant la copie de premier niveau, comme le chargeur de Node', () => {
@@ -35,7 +37,7 @@ test('resoudre : copie imbriquée avant la copie de premier niveau, comme le cha
 
 test('dependancesLivrees : dépendances atteintes depuis `dependencies`, sans les outils de développement', () => {
   assert.deepEqual(dependancesLivrees(VERROU).map(({ nom, version }) => `${nom}@${version}`),
-    ['@vue/shared@3.5.46', 'outil@1.2.0', 'vue@3.5.46']);
+    ['@vue/shared@3.5.46', 'outil@1.2.0', 'pair@1.0.0', 'vue@3.5.46']);
 });
 
 test('dependancesLivrees : une dépendance obligatoire absente du verrou est une entrée invalide', () => {

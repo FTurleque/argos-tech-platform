@@ -117,13 +117,15 @@ function creerElectronPrincipal({ empaquetee, lireFichier }) {
   return { electron, journal };
 }
 
-/** Remplace temporairement les variables de réglage et les arguments du processus. */
-function preparerProcessus({ environnement, dev, dossierRessources }) {
+/** Remplace temporairement les variables de réglage, les arguments et, si demandée, la plateforme du processus. */
+function preparerProcessus({ environnement, dev, dossierRessources, plateforme }) {
   const sauvegarde = {
     variables: Object.fromEntries(VARIABLES_REGLAGES.map((nom) => [nom, process.env[nom]])),
     argv: process.argv,
     ressources: Object.getOwnPropertyDescriptor(process, 'resourcesPath'),
+    plateforme: Object.getOwnPropertyDescriptor(process, 'platform'),
   };
+  if (plateforme) Object.defineProperty(process, 'platform', { value: plateforme, configurable: true });
   for (const nom of VARIABLES_REGLAGES) delete process.env[nom];
   Object.assign(process.env, environnement);
   process.argv = dev ? [...process.argv, '--dev'] : process.argv.filter((argument) => argument !== '--dev');
@@ -136,6 +138,7 @@ function preparerProcessus({ environnement, dev, dossierRessources }) {
     process.argv = sauvegarde.argv;
     if (sauvegarde.ressources) Object.defineProperty(process, 'resourcesPath', sauvegarde.ressources);
     else delete process.resourcesPath;
+    if (sauvegarde.plateforme) Object.defineProperty(process, 'platform', sauvegarde.plateforme);
   };
 }
 
@@ -187,7 +190,7 @@ function executerMain(electron, packageLivre, journal) {
  * le journal des appels.
  * @param {{
  *   environnement?: Record<string, string>, emballes?: {apiUrl?: string, oidcUrl?: string}, dev?: boolean,
- *   empaquetee?: boolean, dossierRessources?: string, lireFichier?: (url: string) => unknown,
+ *   empaquetee?: boolean, dossierRessources?: string, lireFichier?: (url: string) => unknown, plateforme?: string,
  * }} [options]
  */
 async function chargerMain(options = {}) {
@@ -199,6 +202,7 @@ async function chargerMain(options = {}) {
     environnement: options.environnement ?? {},
     dev: options.dev ?? false,
     dossierRessources: options.dossierRessources,
+    plateforme: options.plateforme,
   });
   let retablirChargement = () => {};
   try {

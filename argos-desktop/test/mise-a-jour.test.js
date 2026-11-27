@@ -39,10 +39,11 @@ function creer({ estEmpaquete = true, plateforme = 'win32', env = {}, miseAJour 
   return { instance, notifications, journal, miseAJour, chargements: () => chargements };
 }
 
-test('application empaquetée sous Windows ou Linux : recherche lancée, téléchargement et installation à la fermeture', () => {
+test('application empaquetée sous Windows ou Linux : recherche lancée, téléchargement et installation à la fermeture', async () => {
   for (const plateforme of ['win32', 'linux']) {
     const { instance, miseAJour } = creer({ plateforme });
     assert.equal(instance.demarrer(), true, plateforme);
+    await new Promise((resolve) => setImmediate(resolve));
     assert.equal(miseAJour.recherches, 1);
     assert.equal(miseAJour.autoDownload, true);
     assert.equal(miseAJour.autoInstallOnAppQuit, true);
@@ -84,4 +85,26 @@ test('erreur de mise à jour ou recherche en échec : journalisées avec leur ca
     'Mise à jour d’ARGOS impossible : empreinte SHA-512 différente',
     'Recherche de mise à jour d’ARGOS impossible : dépôt injoignable',
   ]);
+});
+
+test('electron-updater qui ne se charge pas : erreur journalisée, ARGOS démarre sans mise à jour', () => {
+  const journal = creerJournal();
+  const instance = creerMiseAJour({
+    estEmpaquete: true,
+    plateforme: 'linux',
+    env: {},
+    chargerMiseAJour: () => { throw new Error('module introuvable'); },
+    notifier: () => {},
+    journal,
+  });
+  assert.equal(instance.demarrer(), false);
+  assert.deepEqual(journal.erreurs, ['Mise à jour d’ARGOS indisponible : module introuvable']);
+});
+
+test('recherche qui lève dès l’appel : erreur journalisée, sans rejet non géré', async () => {
+  const miseAJour = creerMiseAJourFactice(() => { throw new Error('flux illisible'); });
+  const { instance, journal } = creer({ miseAJour });
+  assert.equal(instance.demarrer(), true);
+  await new Promise((resolve) => setImmediate(resolve));
+  assert.deepEqual(journal.erreurs, ['Recherche de mise à jour d’ARGOS impossible : flux illisible']);
 });

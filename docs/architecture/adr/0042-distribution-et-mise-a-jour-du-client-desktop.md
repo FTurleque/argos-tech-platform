@@ -66,9 +66,12 @@ reproduction de leur avis de licence (constat AUD-DEP-19).
 Option A et option 1.
 
 1. Le workflow `.github/workflows/publication-desktop.yml` construit, sur une étiquette `desktop-v<version>` égale à
-   la version de `argos-desktop/package.json`, les installeurs Windows (NSIS) et Linux (AppImage) et les publie dans
-   la release GitHub du dépôt, avec leurs fichiers `latest*.yml` (empreinte SHA-512), leurs empreintes SHA-256 et une
-   attestation de provenance (`actions/attest-build-provenance`).
+   la version de `argos-desktop/package.json`, les installeurs Windows (NSIS) et Linux (AppImage) et les dépose dans
+   une release brouillon de même étiquette (préfixe `desktop-v` de la configuration de publication d'electron-builder),
+   avec leurs fichiers `latest*.yml` (empreinte SHA-512), leurs empreintes SHA-256 et une attestation de provenance
+   (`actions/attest-build-provenance`) ; la release n'est publiée, comme dernière version, qu'une fois tous ses
+   fichiers déposés. electron-updater lit la dernière release publiée du dépôt : aucune autre release du dépôt ne doit
+   être marquée « dernière version ».
 2. Les installeurs ne sont pas signés tant qu'aucun certificat n'est fourni ; les secrets `ARGOS_CSC_LINK` et
    `ARGOS_CSC_KEY_PASSWORD` suffisent à les signer, sans autre changement.
 3. Le client desktop empaqueté (Windows et Linux) cherche une nouvelle version au démarrage par electron-updater

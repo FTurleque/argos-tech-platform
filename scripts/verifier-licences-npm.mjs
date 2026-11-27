@@ -30,9 +30,12 @@ const CODE_ENTREE_INVALIDE = 2;
 /** Erreur d'entrée (option ou fichier inexploitable), distincte d'un refus de licence. */
 export class EntreeInvalide extends Error {}
 
-/** Vrai si l'expression SPDX n'emploie que des licences admises (un choix OR suffit, tout terme AND compte). */
+/**
+ * Vrai si l'expression SPDX n'emploie que des licences admises (un choix OR suffit, tout terme AND compte). Une licence
+ * déclarée dans l'ancien format (objet ou tableau) n'est pas admise : elle est signalée telle quelle.
+ */
 export function licenceAdmise(expression) {
-  if (!expression) return false;
+  if (typeof expression !== 'string' || expression === '') return false;
   const normalisee = expression.replace(/[()]/g, ' ').trim();
   return normalisee.split(/\s+OR\s+/i)
     .some((choix) => choix.split(/\s+AND\s+/i).every((terme) => LICENCES_ADMISES.has(terme.trim())));
@@ -66,13 +69,16 @@ export function dependancesLivrees(verrou) {
       if (facultative) continue;
       throw new EntreeInvalide(`dépendance ${nom} introuvable dans le package-lock (depuis « ${depuis || 'racine'} »)`);
     }
-    if (vus.has(emplacement)) continue;
     const description = paquets[emplacement];
+    // Une dépendance facultative ou pair que seul le développement installe (outil de build) n'est pas livrée.
+    if (vus.has(emplacement) || (facultative && (description.dev || description.devOptional))) continue;
     vus.set(emplacement, { nom, version: description.version, licence: description.license, emplacement });
     for (const suivante of Object.keys(description.dependencies ?? {})) {
       aVisiter.push({ depuis: emplacement, nom: suivante, facultative: false });
     }
-    for (const suivante of Object.keys(description.optionalDependencies ?? {})) {
+    // Dépendances facultatives et pairs : livrées quand npm les a installées (présentes dans le verrou).
+    const facultatives = { ...description.optionalDependencies, ...description.peerDependencies };
+    for (const suivante of Object.keys(facultatives)) {
       aVisiter.push({ depuis: emplacement, nom: suivante, facultative: true });
     }
   }
@@ -161,7 +167,7 @@ function principal(arguments_) {
   for (const { dossier, dependances, refusees, sansTexte } of bilans) {
     console.log(`${dossier} : ${dependances.length} dépendances livrées.`);
     for (const { nom, version, licence } of refusees) {
-      console.error(`ERREUR ${nom} ${version} : licence non admise (${licence ?? 'absente'})`);
+      console.error(`ERREUR ${nom} ${version} : licence non admise (${licence === undefined ? 'absente' : JSON.stringify(licence)})`);
     }
     for (const { nom, version } of sansTexte) {
       console.error(`ERREUR ${nom} ${version} : aucun texte de licence dans le paquet installé (npm ci exécuté ?)`);
