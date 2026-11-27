@@ -350,9 +350,10 @@
         <argos.jdk.plage>[17,18)</argos.jdk.plage>
       </properties>
     </profile>
-    <!-- Tests sans Docker (AUD-TST-03) : les classes @QuarkusTest et @QuarkusIntegrationTest sont écartées par
-         io.argos.testsupport.TestsSansDocker ; seuls les tests unitaires et d'architecture s'exécutent, sans
-         PostgreSQL ni Keycloak. Commande : mvn -f argos-server/pom.xml -P sans-docker test
+    <!-- Tests sans Docker (AUD-TST-03) : les classes @QuarkusTest et @QuarkusIntegrationTest, nommées dans
+         src/test/tests-docker.txt (liste tenue à jour par ListeTestsDockerTest), sont exclues avant leur découverte :
+         Quarkus ne construit aucune application et aucun Dev Service ne démarre. Seuls les tests unitaires et
+         d'architecture s'exécutent, sans PostgreSQL ni Keycloak. Commande : mvn -f argos-server/pom.xml -P sans-docker test
          Le seuil de couverture JaCoCo (phase verify) suppose la suite complète : il ne s'applique pas ici. -->
     <profile>
       <id>sans-docker</id>
@@ -364,12 +365,7 @@
           <plugin>
             <artifactId>maven-surefire-plugin</artifactId>
             <configuration>
-              <systemPropertyVariables>
-                <argos.tests.sans-docker>true</argos.tests.sans-docker>
-              </systemPropertyVariables>
-              <properties>
-                <configurationParameters>junit.jupiter.extensions.autodetection.enabled=true</configurationParameters>
-              </properties>
+              <excludesFile>${project.basedir}/src/test/tests-docker.txt</excludesFile>
             </configuration>
           </plugin>
         </plugins>
