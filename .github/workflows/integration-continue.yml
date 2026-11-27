@@ -144,6 +144,53 @@ jobs:
         working-directory: e2e
         run: npm audit --audit-level="$NPM_AUDIT_NIVEAU"
 
+  e2e:
+    # AUD-TST-20, AUD-TST-23 : campagne de bout en bout (portail web, client desktop, MCP, chaîne automatisée et audit
+    # d'accessibilité des écrans) contre l'image construite par le Dockerfile, puis audit du banc des mises en page.
+    name: E2E et accessibilité sur l'image construite
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+          cache-dependency-path: |
+            e2e/package-lock.json
+            argos-ui/package-lock.json
+            argos-desktop/package-lock.json
+      - name: Image ARGOS
+        run: docker build -t argos:e2e .
+      - name: Dépendances de e2e, de l'IHM et du desktop
+        run: |
+          npm --prefix e2e ci --ignore-scripts
+          npm --prefix argos-ui ci --ignore-scripts
+          npm --prefix argos-desktop ci --ignore-scripts
+      # Seul le script d'installation du paquet electron s'exécute : il télécharge le binaire piloté par le projet
+      # « desktop » (support/electron.ts).
+      - name: Binaire Electron
+        run: node argos-desktop/node_modules/electron/install.js
+      - name: Navigateur Chromium
+        working-directory: e2e
+        run: npx playwright install --with-deps chromium
+      # Écran virtuel (xvfb) pour le client desktop ; la pile démarre l'image (e2e/compose.image.yaml).
+      - name: Campagne de bout en bout
+        working-directory: e2e
+        env:
+          ARGOS_E2E_IMAGE: argos:e2e
+        run: xvfb-run -a npm test
+      - name: Audit d'accessibilité des mises en page (banc d'essai)
+        working-directory: e2e
+        run: npm run test:accessibilite
+      - name: Rapports Playwright
+        if: ${{ failure() }}
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: rapports-e2e
+          path: e2e/test-results/
+          if-no-files-found: ignore
+
   changements:
     name: Migrations fusionnées et fichiers modifiés
     runs-on: ubuntu-latest

@@ -1,0 +1,91 @@
+# ARGOS — pile e2e sur l'image construite (AUD-TST-20), en complément de e2e/compose.yaml :
+#   ARGOS_E2E_IMAGE=argos:e2e npm --prefix e2e test
+# scripts/lancer.mjs ajoute ce fichier quand ARGOS_E2E_IMAGE est défini et démarre la base et le Keycloak de test,
+# qui importe le royaume des tests du serveur ; Playwright démarre ensuite l'image (playwright.config.ts), après les
+# sources simulées. Le serveur et le portail web sont ceux de l'image (Dockerfile), lancée en profil de production.
+# L'image partage le réseau de l'hôte (Linux seulement, cas de l'intégration continue) : elle joint la base
+# (55432), le Keycloak (8180) et les sources simulées (8099) sur la boucle locale, sous les adresses que voient aussi
+# le navigateur et le client desktop ; l'émetteur des jetons est donc le même pour tous.
+# Base jetable en authentification « trust » : les mots de passe ci-dessous sont les noms publics des rôles
+# (support/base-e2e.mjs) et le secret du client de test du royaume ; aucun n'est un secret.
+name: argos-e2e
+
+services:
+  keycloak:
+    image: quay.io/keycloak/keycloak:${ARGOS_KEYCLOAK_VERSION:-26.7.4}
+    command: ["start-dev", "--import-realm"]
+    environment:
+      KC_HOSTNAME: http://localhost:8180
+      KC_HEALTH_ENABLED: "true"
+    volumes:
+      - ../argos-server/src/test/resources/keycloak/argos-realm.json:/opt/keycloak/data/import/argos-realm.json:ro
+    ports:
+      - "127.0.0.1:8180:8080"
+    healthcheck:
+      test:
+        - CMD-SHELL
+        - |
+          exec 3<>/dev/tcp/localhost/9000
+          printf 'GET /health/ready HTTP/1.1\r\nHost: localhost\r\nConnection: close\r\n\r\n' >&3
+          grep -q UP <&3
+      interval: 5s
+      timeout: 5s
+      retries: 40
+      start_period: 20s
+
+  argos:
+    image: ${ARGOS_E2E_IMAGE:?ARGOS_E2E_IMAGE obligatoire : étiquette de l'image construite}
+    network_mode: host
+    depends_on:
+      postgres:
+        condition: service_healthy
+      keycloak:
+        condition: service_healthy
+    environment:
+      QUARKUS_HTTP_PORT: "8090"
+      ARGOS_DB_URL: jdbc:postgresql://localhost:55432/argos
+      ARGOS_DB_USER: argos_connexion
+      ARGOS_DB_PASSWORD: argos_connexion
+      ARGOS_DB_OWNER: argos
+      ARGOS_DB_OWNER_PASSWORD: argos
+      ARGOS_OIDC_URL: http://localhost:8180/realms/argos
+      ARGOS_OIDC_ISSUER_PUBLIC: http://localhost:8180/realms/argos
+      QUARKUS_OIDC_CREDENTIALS_SECRET: secret-de-test
+      ARGOS_ADMIN_EMAIL: alice@argos.test
+      ARGOS_PUBLIC_URL: http://localhost:8090
+      ARGOS_SMTP_HOST: localhost
+      ARGOS_SMTP_PORT: "2525"
+      ARGOS_SMTP_STARTTLS: DISABLED
+      ARGOS_IA_ACTIVE: "false"
+      # Tâches planifiées qui joindraient une source externe : désactivées (playwright.config.ts).
+      ARGOS_REGLEMENTAIRE_COLLECTE_CRON: "off"
+      ARGOS_ARTISTE_COLLECTE_CRON: "off"
+      ARGOS_RADAR_CRON: "off"
+      ARGOS_ACTIVITE_CADENCE: "off"
+      ARGOS_VEILLE_WEB_CADENCE: "off"
+      # Chaîne automatisée sur les sources et forges simulées (support/sources-simulees.mjs).
+      ARGOS_INGESTION_PLANIFICATION_CADENCE: 5s
+      ARGOS_INVENTORY_IMPORT_CRON: "*/5 * * * * ?"
+      ARGOS_SOURCES_OSV_EXPORT_URL: http://localhost:8099/osv-export
+      ARGOS_SOURCES_OSV_API_URL: http://localhost:8099/osv-api
+      ARGOS_SOURCES_OSV_ECOSYSTEMS: Maven
+      ARGOS_SOURCES_NVD_URL: http://localhost:8099/nvd
+      ARGOS_SOURCES_KEV_URL: http://localhost:8099/kev.json
+      ARGOS_SOURCES_EPSS_URL: http://localhost:8099/epss
+      ARGOS_SOURCES_CERTFR_FEED_URL: http://localhost:8099/certfr/feed/
+      ARGOS_SOURCES_CERTFR_BASE_URL: http://localhost:8099/certfr/
+      ARGOS_SCM_GITLAB_URL: http://localhost:8099/gitlab
+      ARGOS_SCM_GITHUB_URL: http://localhost:8099/github
+      ARGOS_GITLAB_TOKEN: jeton-fictif-e2e
+      ARGOS_GITHUB_TOKEN: jeton-fictif-e2e
+    healthcheck:
+      test:
+        - CMD-SHELL
+        - |
+          exec 3<>/dev/tcp/localhost/8090
+          printf 'GET /q/health/ready HTTP/1.1\r\nHost: localhost\r\nConnection: close\r\n\r\n' >&3
+          head -n 1 <&3 | grep -q ' 200 '
+      interval: 5s
+      timeout: 5s
+      retries: 40
+      start_period: 30s
