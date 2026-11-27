@@ -1,23 +1,39 @@
 #!/usr/bin/env node
-// Contrôle documentaire ARGOS : liens internes et ancres, blocs Mermaid,
+// Contrôle documentaire ARGOS : liens internes et ancres, chemins du dépôt cités en code en ligne, blocs Mermaid,
 // identifiants d'exigences OpenSpec cités dans la documentation.
+// Fichiers contrôlés : README.md de la racine et de chaque sous-projet (dossier de premier niveau qui en a un),
+// Markdown de docs/ et openspec/ (hors modèles du schéma et changements archivés).
 // Usage : node scripts/verifier-docs.mjs [--rendu]
-//   --rendu : rend chaque bloc Mermaid avec Mermaid CLI (mmdc) s'il est installé.
+//   --rendu : rend chaque bloc Mermaid avec Mermaid CLI (mmdc) ; mmdc absent est une erreur. La configuration de
+//   Puppeteer (scripts/mermaid-puppeteer.json) lance le navigateur sans bac à sable, ce qu'exigent les exécuteurs Linux
+//   de l'intégration continue ; PUPPETEER_EXECUTABLE_PATH désigne un navigateur déjà installé.
 // Code de sortie : 0 sans erreur, 1 en cas d'erreur.
 
 import { readFileSync, readdirSync, statSync, existsSync, writeFileSync, mkdtempSync, rmSync } from 'node:fs';
 import { join, dirname, resolve, relative, sep } from 'node:path';
 import { tmpdir } from 'node:os';
 import { spawnSync } from 'node:child_process';
-import { fileURLToPath } from 'node:url';
+import { fileURLToPath, pathToFileURL } from 'node:url';
 
 const RACINE = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const AVEC_RENDU = process.argv.includes('--rendu');
+const CONFIGURATION_PUPPETEER = join(RACINE, 'scripts', 'mermaid-puppeteer.json');
 
 // Dossiers parcourus et exclusions. Les modèles du schéma contiennent des
 // liens fictifs (<capability-path>) et la copie officielle est en anglais.
 const DOSSIERS = ['docs', 'openspec'];
 const FICHIERS_RACINE = ['README.md'];
+// Dossiers de premier niveau sans README de sous-projet à contrôler.
+const HORS_SOUS_PROJETS = new Set(['docs', 'openspec', 'node_modules']);
+// Chemins cités entre accents graves : seuls ceux qui commencent par un dossier du dépôt et désignent un fichier (nom
+// avec extension) ou un dossier (« / » final) sont contrôlés ; un chemin généré (sortie de build, rapports), un motif
+// (joker, gabarit) ou un nom de dépôt de forge (`e2e/chaine-front`) ne l'est pas. Le plan d'audit de docs/audit/ est
+// conservé hors du dépôt par le porteur du projet : ses citations ne sont pas contrôlées.
+const DOSSIERS_CITES = ['docs', 'openspec', 'argos-server', 'argos-ui', 'argos-desktop', 'e2e', 'scripts', 'deploiement',
+  '.github', '.archgate'];
+const CHEMIN_GENERE = /(^|\/)(target|node_modules|release|resultats|dist|test-results|playwright-report)(\/|$)/;
+const CHEMIN_MOTIF = /[<>*{}$|\s]|\.\.\./;
+const CHEMINS_HORS_DEPOT = ['docs/audit/'];
 const EXCLUS = [
   join('openspec', 'schemas'),
   join('openspec', 'changes', 'archive'),
@@ -126,6 +142,44 @@ function verifierLiens(fichier, texte) {
       verifierLien(fichier, `${rel(fichier)}:${index + 1}`, lien[1]);
     }
   });
+}
+
+/**
+ * Chemins du dépôt cités entre accents graves dans une ligne : début par un dossier du dépôt (« / » initial admis),
+ * ancre et numéro de ligne retirés ; motifs, chemins générés et noms sans extension ni « / » final exclus.
+ */
+export function cheminsCites(ligne) {
+  const chemins = [];
+  for (const code of ligne.matchAll(/`([^`]+)`/g)) {
+    const brut = code[1].trim().replace(/^\//, '').replace(/#.*$/, '').replace(/:\d+(-\d+)?$/, '');
+    const premier = brut.split('/')[0];
+    if (!brut.includes('/') || !DOSSIERS_CITES.includes(premier)) continue;
+    if (CHEMIN_MOTIF.test(brut) || CHEMIN_GENERE.test(brut)) continue;
+    if (CHEMINS_HORS_DEPOT.some((prefixe) => brut.startsWith(prefixe))) continue;
+    const dossier = brut.endsWith('/');
+    if (!dossier && !/\.[A-Za-z0-9]+$/.test(brut.split('/').pop())) continue;
+    chemins.push(dossier ? brut.slice(0, -1) : brut);
+  }
+  return chemins;
+}
+
+function verifierCheminsCites(fichier, texte) {
+  lignesHorsCode(texte, false).forEach((ligne, index) => {
+    for (const chemin of cheminsCites(ligne)) {
+      // Un README de sous-projet cite aussi ses fichiers depuis son propre dossier (`scripts/lancer.mjs` dans e2e/).
+      const trouve = existsSync(join(RACINE, chemin)) || existsSync(join(dirname(fichier), chemin));
+      if (!trouve) erreurs.push(`${rel(fichier)}:${index + 1} chemin cité introuvable : ${chemin}`);
+    }
+  });
+}
+
+/** README.md des dossiers de premier niveau (sous-projets), triés. */
+export function readmeSousProjets(racine) {
+  return readdirSync(racine, { withFileTypes: true })
+    .filter((entree) => entree.isDirectory() && !entree.name.startsWith('.') && !HORS_SOUS_PROJETS.has(entree.name))
+    .map((entree) => join(racine, entree.name, 'README.md'))
+    .filter(existsSync)
+    .sort();
 }
 
 const blocsMermaid = [];
@@ -249,21 +303,37 @@ function executerMmdc(args) {
   return spawnSync(commande, { shell: true, encoding: 'utf8' });
 }
 
+// Un lancement de mmdc par fichier Markdown : mmdc rend tous les blocs Mermaid d'une entrée .md dans le même
+// navigateur. Si le fichier échoue, ses blocs sont rendus un à un pour nommer le bloc en cause.
+function rendreFichier(dossierRendu, nom, blocs) {
+  const entree = join(dossierRendu, `${nom}.md`);
+  writeFileSync(entree, blocs.map((bloc) => `\`\`\`mermaid\n${bloc.source}\n\`\`\`\n`).join('\n'));
+  if (executerMmdc(['-q', '-p', CONFIGURATION_PUPPETEER, '-i', entree, '-o', join(dossierRendu, `${nom}-rendu.md`)]).status === 0) {
+    return;
+  }
+  blocs.forEach((bloc, rang) => {
+    const source = join(dossierRendu, `${nom}-${rang}.mmd`);
+    writeFileSync(source, bloc.source);
+    const rendu = executerMmdc(['-q', '-p', CONFIGURATION_PUPPETEER, '-i', source, '-o', join(dossierRendu, `${nom}-${rang}.svg`)]);
+    if (rendu.status !== 0) {
+      erreurs.push(`${bloc.emplacement} rendu Mermaid en échec : ${(rendu.stderr || rendu.stdout).trim().split('\n')[0]}`);
+    }
+  });
+}
+
 function rendreMermaid() {
   if (executerMmdc(['--version']).status !== 0) {
-    avertissements.push('rendu non exécuté : Mermaid CLI (mmdc) introuvable — installation : npm install -g @mermaid-js/mermaid-cli');
+    erreurs.push('rendu demandé, Mermaid CLI (mmdc) introuvable — installation : npm install -g @mermaid-js/mermaid-cli');
     return;
+  }
+  const parFichier = new Map();
+  for (const bloc of blocsMermaid) {
+    const fichier = bloc.emplacement.replace(/:\d+$/, '');
+    parFichier.set(fichier, [...(parFichier.get(fichier) ?? []), bloc]);
   }
   const dossierRendu = mkdtempSync(join(tmpdir(), 'argos-mermaid-'));
   try {
-    blocsMermaid.forEach((bloc, rang) => {
-      const entree = join(dossierRendu, `d${rang}.mmd`);
-      writeFileSync(entree, bloc.source);
-      const rendu = executerMmdc(['-q', '-i', entree, '-o', join(dossierRendu, `d${rang}.svg`)]);
-      if (rendu.status !== 0) {
-        erreurs.push(`${bloc.emplacement} rendu Mermaid en échec : ${(rendu.stderr || rendu.stdout).trim().split('\n')[0]}`);
-      }
-    });
+    [...parFichier.values()].forEach((blocs, rang) => rendreFichier(dossierRendu, `f${rang}`, blocs));
   } finally {
     rmSync(dossierRendu, { recursive: true, force: true });
   }
@@ -283,16 +353,22 @@ function afficherRapport(nombreFichiers) {
   process.stdout.write(`${lignes.join('\n')}\n`);
 }
 
-const fichiers = [
-  ...FICHIERS_RACINE.map((fichier) => join(RACINE, fichier)).filter(existsSync),
-  ...DOSSIERS.flatMap((dossier) => listerMarkdown(join(RACINE, dossier))),
-];
-for (const fichier of fichiers) {
-  const texte = readFileSync(fichier, 'utf8');
-  verifierLiens(fichier, texte);
-  verifierBlocs(fichier, texte);
+function controler() {
+  const fichiers = [
+    ...FICHIERS_RACINE.map((fichier) => join(RACINE, fichier)).filter(existsSync),
+    ...readmeSousProjets(RACINE),
+    ...DOSSIERS.flatMap((dossier) => listerMarkdown(join(RACINE, dossier))),
+  ];
+  for (const fichier of fichiers) {
+    const texte = readFileSync(fichier, 'utf8');
+    verifierLiens(fichier, texte);
+    verifierCheminsCites(fichier, texte);
+    verifierBlocs(fichier, texte);
+  }
+  verifierIdentifiants(fichiers);
+  if (AVEC_RENDU) rendreMermaid();
+  afficherRapport(fichiers.length);
+  process.exit(erreurs.length === 0 ? 0 : 1);
 }
-verifierIdentifiants(fichiers);
-if (AVEC_RENDU) rendreMermaid();
-afficherRapport(fichiers.length);
-process.exit(erreurs.length === 0 ? 0 : 1);
+
+if (import.meta.url === pathToFileURL(process.argv[1] ?? '').href) controler();

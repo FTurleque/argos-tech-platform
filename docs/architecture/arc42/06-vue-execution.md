@@ -288,7 +288,7 @@ sequenceDiagram
     Ingestion->>DILA: GET index et archives (sans redirection, tailles bornées)
     alt source indisponible
         DILA--xIngestion: erreur HTTP ou délai dépassé
-        Reg->>Persist: jour EN_ECHEC, source DEGRADE ; repris à la collecte suivante, abandonné après 5 échecs de ses archives
+        Reg->>Persist: jour EN_ECHEC, source DEGRADE, repris à la collecte suivante, abandonné après 5 échecs de ses archives
     else archives lues
         DILA-->>Ingestion: JORF_AAAAMMJJ-HHMMSS.tar.gz
         Ingestion-->>Reg: textes lus (XML sans DTD ni entité externe)

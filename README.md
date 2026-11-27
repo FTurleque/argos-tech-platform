@@ -82,11 +82,13 @@ npm --prefix argos-ui test && npm --prefix argos-ui run typecheck && npm --prefi
 npm --prefix argos-desktop run check                        # syntaxe, types (tsc --checkJs) et tests
 npm --prefix e2e ci && npm --prefix e2e run typecheck       # types des parcours E2E (tsc --strict)
 node --test scripts/*.test.mjs "e2e/performance/*.test.mjs"
-node scripts/verifier-docs.mjs                              # liens, Mermaid, identifiants d'exigences
+node scripts/verifier-docs.mjs --rendu                      # liens, chemins cités, rendu Mermaid (mmdc), identifiants
 node scripts/verifier-nommage.mjs                           # aucun identifiant d'une ou deux lettres
 node scripts/verifier-configuration.mjs                     # variables : application.properties, compose.yaml, .env.example
 npm --prefix argos-ui audit --audit-level=high              # de même pour argos-desktop et e2e
 ```
+
+`node scripts/verifier-docs.mjs --rendu` contrôle aussi les README des sous-projets et rend chaque diagramme avec Mermaid CLI (`npm install -g @mermaid-js/mermaid-cli@12.2.0`, version de l'intégration continue) ; sans mmdc, il échoue.
 
 Le build du serveur se lance toujours avec `clean` : un build incrémental peut réutiliser des classes compilées par un autre JDK ou ne lancer aucun test. L'IDE doit compiler hors de `target/` (dossier de sortie propre à l'IDE), pour que ses classes ne se mêlent pas à celles de Maven. L'intégration continue impose un JDK 17 (profil `integration-continue`, `mvn -P integration-continue clean verify` pour reproduire la contrainte) ; en local, Java 17 ou plus est accepté. Le rapport de couverture JaCoCo est écrit dans `argos-server/target/site/jacoco/index.html`.
 
