@@ -171,9 +171,10 @@ jobs:
       # « desktop » (support/electron.ts).
       - name: Binaire Electron
         run: node argos-desktop/node_modules/electron/install.js
+      # Playwright installé par npm ci (version du package-lock), lancé par Node sans npx.
       - name: Navigateur Chromium
         working-directory: e2e
-        run: npx playwright install --with-deps chromium
+        run: node node_modules/@playwright/test/cli.js install --with-deps chromium
       # Écran virtuel (xvfb) pour le client desktop ; la pile démarre l'image (e2e/compose.image.yaml).
       - name: Campagne de bout en bout
         working-directory: e2e
