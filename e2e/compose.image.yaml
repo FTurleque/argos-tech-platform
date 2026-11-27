@@ -4,8 +4,10 @@
 # qui importe le royaume des tests du serveur ; Playwright démarre ensuite l'image (playwright.config.ts), après les
 # sources simulées. Le serveur et le portail web sont ceux de l'image (Dockerfile), lancée en profil de production.
 # L'image partage le réseau de l'hôte (Linux seulement, cas de l'intégration continue) : elle joint la base
-# (55432), le Keycloak (8180) et les sources simulées (8099) sur la boucle locale, sous les adresses que voient aussi
-# le navigateur et le client desktop ; l'émetteur des jetons est donc le même pour tous.
+# (55432), le Keycloak (8180) et les sources simulées (ARGOS_E2E_PORT_SOURCES, 8099 par défaut) sur la boucle locale,
+# sous les adresses que voient aussi le navigateur et le client desktop ; l'émetteur des jetons est donc le même pour
+# tous. Les ports du serveur (8090) et du Keycloak (8180) sont fixes dans ce mode : ARGOS_E2E_URL_API et
+# ARGOS_E2E_EMETTEUR gardent leurs valeurs par défaut.
 # Base jetable en authentification « trust » : les mots de passe ci-dessous sont les noms publics des rôles
 # (support/base-e2e.mjs) et le secret du client de test du royaume ; aucun n'est un secret.
 name: argos-e2e
@@ -34,7 +36,7 @@ services:
       start_period: 20s
 
   argos:
-    image: ${ARGOS_E2E_IMAGE:?ARGOS_E2E_IMAGE obligatoire : étiquette de l'image construite}
+    image: "${ARGOS_E2E_IMAGE:?ARGOS_E2E_IMAGE obligatoire, étiquette de l'image construite}"
     network_mode: host
     depends_on:
       postgres:
@@ -53,31 +55,30 @@ services:
       QUARKUS_OIDC_CREDENTIALS_SECRET: secret-de-test
       ARGOS_ADMIN_EMAIL: alice@argos.test
       ARGOS_PUBLIC_URL: http://localhost:8090
-      ARGOS_SMTP_HOST: localhost
-      ARGOS_SMTP_PORT: "2525"
-      ARGOS_SMTP_STARTTLS: DISABLED
+      # Aucun relais SMTP dans la pile : les e-mails sont simulés.
+      QUARKUS_MAILER_MOCK: "true"
       ARGOS_IA_ACTIVE: "false"
-      # Tâches planifiées qui joindraient une source externe : désactivées (playwright.config.ts).
-      ARGOS_REGLEMENTAIRE_COLLECTE_CRON: "off"
-      ARGOS_ARTISTE_COLLECTE_CRON: "off"
-      ARGOS_RADAR_CRON: "off"
-      ARGOS_ACTIVITE_CADENCE: "off"
-      ARGOS_VEILLE_WEB_CADENCE: "off"
-      # Chaîne automatisée sur les sources et forges simulées (support/sources-simulees.mjs).
-      ARGOS_INGESTION_PLANIFICATION_CADENCE: 5s
-      ARGOS_INVENTORY_IMPORT_CRON: "*/5 * * * * ?"
-      ARGOS_SOURCES_OSV_EXPORT_URL: http://localhost:8099/osv-export
-      ARGOS_SOURCES_OSV_API_URL: http://localhost:8099/osv-api
-      ARGOS_SOURCES_OSV_ECOSYSTEMS: Maven
-      ARGOS_SOURCES_NVD_URL: http://localhost:8099/nvd
-      ARGOS_SOURCES_KEV_URL: http://localhost:8099/kev.json
-      ARGOS_SOURCES_EPSS_URL: http://localhost:8099/epss
-      ARGOS_SOURCES_CERTFR_FEED_URL: http://localhost:8099/certfr/feed/
-      ARGOS_SOURCES_CERTFR_BASE_URL: http://localhost:8099/certfr/
-      ARGOS_SCM_GITLAB_URL: http://localhost:8099/gitlab
-      ARGOS_SCM_GITHUB_URL: http://localhost:8099/github
-      ARGOS_GITLAB_TOKEN: jeton-fictif-e2e
-      ARGOS_GITHUB_TOKEN: jeton-fictif-e2e
+      # Tâches planifiées et chaîne sur les sources simulées : valeurs de support/pile.mjs (ENVIRONNEMENT_SERVEUR),
+      # transmises par Playwright au lancement de l'image.
+      ARGOS_REGLEMENTAIRE_COLLECTE_CRON:
+      ARGOS_ARTISTE_COLLECTE_CRON:
+      ARGOS_RADAR_CRON:
+      ARGOS_ACTIVITE_CADENCE:
+      ARGOS_VEILLE_WEB_CADENCE:
+      ARGOS_INGESTION_PLANIFICATION_CADENCE:
+      ARGOS_INVENTORY_IMPORT_CRON:
+      ARGOS_SOURCES_OSV_EXPORT_URL:
+      ARGOS_SOURCES_OSV_API_URL:
+      ARGOS_SOURCES_OSV_ECOSYSTEMS:
+      ARGOS_SOURCES_NVD_URL:
+      ARGOS_SOURCES_KEV_URL:
+      ARGOS_SOURCES_EPSS_URL:
+      ARGOS_SOURCES_CERTFR_FEED_URL:
+      ARGOS_SOURCES_CERTFR_BASE_URL:
+      ARGOS_SCM_GITLAB_URL:
+      ARGOS_SCM_GITHUB_URL:
+      ARGOS_GITLAB_TOKEN:
+      ARGOS_GITHUB_TOKEN:
     healthcheck:
       test:
         - CMD-SHELL

@@ -90,7 +90,7 @@ Ce que le parcours ne couvre pas : le raisonnement et la réponse rédigée d'un
 
 ## Audit d'accessibilité des écrans
 
-`tests/accessibilite-ecrans.spec.ts` (projet `portail-web`) audite, sur la pile réelle et le jeu de données des parcours, les écrans livrés depuis l’audit du 17/11 : la vue d’inventaire (`alice`), les actions de « Mes abonnements » avec la confirmation de suppression (`jules`) et le traitement des impacts d’un avis, détail, actions et formulaire de transition compris (`ines`). Pour chaque zone (`support/audit-accessibilite.ts`) : contraste de chaque texte rendu (RGAA 3.2), parcours au clavier de chaque élément focalisable dans l’ordre du document avec un contour de focus visible, épais d’au moins 2 px et contrasté (RGAA 3.3, 10.7, 12.8), nom accessible de chaque bouton, lecture à 320 px sans défilement horizontal (RGAA 10.11). Les actions sont ouvertes puis annulées : aucune donnée n’est modifiée.
+`tests/accessibilite-ecrans.spec.ts` (projet `portail-web`) audite, sur la pile réelle et le jeu de données des parcours, les écrans de gestion : la vue d’inventaire (`alice`), les actions de « Mes abonnements » avec la confirmation de suppression (`jules`) et le traitement des impacts d’un avis, détail, actions et formulaire de transition compris (`ines`). Pour chaque zone (`support/audit-accessibilite.ts`) : contraste de chaque texte rendu (RGAA 3.2), parcours au clavier de chaque élément focalisable dans l’ordre du document avec un contour de focus visible, épais d’au moins 2 px et contrasté (RGAA 3.3, 10.7, 12.8), nom accessible de chaque bouton, lecture à 320 px sans défilement horizontal (RGAA 10.11). Les actions sont ouvertes puis annulées : aucune donnée n’est modifiée.
 
 ## Audit d'accessibilité des mises en page
 

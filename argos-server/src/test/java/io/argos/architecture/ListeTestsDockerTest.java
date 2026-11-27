@@ -20,9 +20,9 @@ import org.junit.jupiter.api.Test;
  * Liste des tests qui exigent Docker (AUD-TST-03) : {@code src/test/tests-docker.txt} nomme exactement les classes
  * annotées {@code @QuarkusTest} ou {@code @QuarkusIntegrationTest}, qui démarrent PostgreSQL et Keycloak par les Dev
  * Services, et celles qui démarrent elles-mêmes un conteneur (Testcontainers). Le profil Maven {@code sans-docker}
- * l'emploie comme fichier d'exclusion de Surefire : les classes sont écartées avant leur découverte, si bien que Quarkus ne construit aucune application et que Docker n'est pas
- * sollicité. Une classe ajoutée, supprimée ou renommée sans mise à jour de la liste fait échouer ce test, qui affiche
- * le contenu attendu.
+ * l'emploie comme fichier d'exclusion de Surefire : les classes sont écartées avant leur découverte, si bien que
+ * Quarkus ne construit aucune application et que Docker n'est pas sollicité. Une classe ajoutée, supprimée ou renommée
+ * sans mise à jour de la liste fait échouer ce test, qui affiche le contenu attendu.
  */
 class ListeTestsDockerTest {
 

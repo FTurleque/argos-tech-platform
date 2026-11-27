@@ -257,6 +257,8 @@
           <systemPropertyVariables>
             <java.util.logging.manager>org.jboss.logmanager.LogManager</java.util.logging.manager>
             <maven.home>${maven.home}</maven.home>
+            <!-- Le jar est lancé sous le profil de test, contre le PostgreSQL et le Keycloak des Dev Services. -->
+            <quarkus.test.integration-test-profile>test</quarkus.test.integration-test-profile>
           </systemPropertyVariables>
         </configuration>
       </plugin>

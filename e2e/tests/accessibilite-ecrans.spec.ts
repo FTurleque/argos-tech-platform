@@ -1,5 +1,5 @@
-// Audit d'accessibilité des écrans livrés depuis l'audit du 17/11 (AUD-TST-23) : vue d'inventaire, actions sur les
-// abonnements de « Ma veille » et traitement des impacts d'un avis. Chaque écran est audité sur la pile réelle, avec
+// Audit d'accessibilité des écrans de gestion (AUD-TST-23) : vue d'inventaire, actions sur les abonnements de
+// « Ma veille » et traitement des impacts d'un avis. Chaque écran est audité sur la pile réelle, avec
 // le jeu de données des parcours (support/donnees.ts) : contrastes, parcours au clavier et focus, noms accessibles,
 // redistribution à 320 px (support/audit-accessibilite.ts). Aucune donnée n'est modifiée : les actions sont ouvertes,
 // puis annulées.

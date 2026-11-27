@@ -66,11 +66,14 @@ export async function verifierClavier(page: Page, selecteur: string): Promise<vo
 export async function verifierRedistribution(page: Page, selecteur: string): Promise<void> {
   const tailleInitiale = page.viewportSize()
   await page.setViewportSize({ width: LARGEUR_ETROITE, height: HAUTEUR_ETROITE })
-  await expect(page.locator(selecteur)).toBeVisible()
-  const debord = await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth)
-  expect(debord, 'défilement horizontal à 320 px').toBeLessThanOrEqual(0)
-  await page.screenshot({ path: test.info().outputPath('etroit.png'), fullPage: true })
-  if (tailleInitiale) await page.setViewportSize(tailleInitiale)
+  try {
+    await expect(page.locator(selecteur)).toBeVisible()
+    const debord = await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth)
+    expect(debord, 'défilement horizontal à 320 px').toBeLessThanOrEqual(0)
+    await page.screenshot({ path: test.info().outputPath('etroit.png'), fullPage: true })
+  } finally {
+    if (tailleInitiale) await page.setViewportSize(tailleInitiale)
+  }
 }
 
 /** Les trois contrôles sur une zone : contrastes, clavier, redistribution. */

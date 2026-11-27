@@ -11,41 +11,12 @@ import { URL_API, URL_IHM } from './support/environnement'
 import { identificationBaseE2E } from './support/base-e2e.mjs'
 import { cheminDocker } from './support/docker.mjs'
 import { ligneServeurMaven } from './support/maven.mjs'
-import { argumentsCompose, IMAGE, REUTILISER } from './support/pile.mjs'
+import { argumentsCompose, ENVIRONNEMENT_SERVEUR, IMAGE, PORT_SOURCES, REUTILISER } from './support/pile.mjs'
 
 const DEUX_MINUTES = 120_000
 const CINQ_MINUTES = 5 * 60_000
 
-// Tâches planifiées qui joindraient une source externe : désactivées (aucun appel à Internet).
-const SANS_COLLECTE_EXTERNE = {
-  ARGOS_REGLEMENTAIRE_COLLECTE_CRON: 'off',
-  ARGOS_ARTISTE_COLLECTE_CRON: 'off',
-  ARGOS_RADAR_CRON: 'off',
-  ARGOS_ACTIVITE_CADENCE: 'off',
-  ARGOS_VEILLE_WEB_CADENCE: 'off',
-}
-
-// Chaîne automatisée (automatiser-chaine-veille, tâche 4.3 ; [PROPOSITION] PI-1) : la synchronisation des sources
-// d'avis (J1) et l'import des inventaires (J3) restent actifs, rapprochés à 5 secondes, et n'interrogent que les
-// sources et forges simulées de support/sources-simulees.mjs ; jetons de forge fictifs.
-const PORT_SOURCES = Number(process.env.ARGOS_E2E_PORT_SOURCES ?? 8099)
 const SOURCES = `http://localhost:${PORT_SOURCES}`
-const CHAINE_SIMULEE = {
-  ARGOS_INGESTION_PLANIFICATION_CADENCE: '5s',
-  ARGOS_INVENTORY_IMPORT_CRON: '*/5 * * * * ?',
-  ARGOS_SOURCES_OSV_EXPORT_URL: `${SOURCES}/osv-export`,
-  ARGOS_SOURCES_OSV_API_URL: `${SOURCES}/osv-api`,
-  ARGOS_SOURCES_OSV_ECOSYSTEMS: 'Maven',
-  ARGOS_SOURCES_NVD_URL: `${SOURCES}/nvd`,
-  ARGOS_SOURCES_KEV_URL: `${SOURCES}/kev.json`,
-  ARGOS_SOURCES_EPSS_URL: `${SOURCES}/epss`,
-  ARGOS_SOURCES_CERTFR_FEED_URL: `${SOURCES}/certfr/feed/`,
-  ARGOS_SOURCES_CERTFR_BASE_URL: `${SOURCES}/certfr/`,
-  ARGOS_SCM_GITLAB_URL: `${SOURCES}/gitlab`,
-  ARGOS_SCM_GITHUB_URL: `${SOURCES}/github`,
-  ARGOS_GITLAB_TOKEN: 'jeton-fictif-e2e',
-  ARGOS_GITHUB_TOKEN: 'jeton-fictif-e2e',
-}
 
 /** Image construite (e2e/compose.image.yaml), au premier plan : Playwright l'arrête à la fin des tests. */
 function serveurImage() {
@@ -58,6 +29,7 @@ function serveurImage() {
     reuseExistingServer: false,
     stdout: 'ignore' as const,
     stderr: 'pipe' as const,
+    env: { ...ENVIRONNEMENT_SERVEUR },
   }
 }
 
@@ -72,8 +44,7 @@ function serveurDeveloppement() {
     stdout: 'ignore' as const,
     stderr: 'pipe' as const,
     env: {
-      ...SANS_COLLECTE_EXTERNE,
-      ...CHAINE_SIMULEE,
+      ...ENVIRONNEMENT_SERVEUR,
       _DEV_QUARKUS_DATASOURCE_JDBC_URL: 'jdbc:postgresql://localhost:55432/argos',
       ...identificationBaseE2E(),
       QUARKUS_HTTP_PORT: new URL(URL_API).port,

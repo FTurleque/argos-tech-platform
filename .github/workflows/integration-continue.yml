@@ -23,7 +23,7 @@ concurrency:
 env:
   # Les installations npm se font avec --ignore-scripts : aucun script d'installation des paquets ne s'exécute.
   # Les tests du desktop remplacent le module electron par un double (test/electron-factice.js) : le binaire
-  # d'Electron n'est pas nécessaire ; ses déclarations de types restent dans le paquet npm.
+  # d'Electron n'est nécessaire qu'au job e2e, qui le télécharge ; ses déclarations de types restent dans le paquet npm.
   # Version majeure de Node.js de l'image (Dockerfile, étage « ui » : node:22-slim).
   NODE_VERSION: '22'
   # Niveau de npm audit qui fait échouer le build (décision du porteur du projet, 2026-11-24).

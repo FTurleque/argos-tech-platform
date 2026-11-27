@@ -9,6 +9,7 @@ import java.nio.charset.StandardCharsets;
 import java.time.Clock;
 import java.time.Duration;
 import java.time.Instant;
+import java.time.ZoneOffset;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -26,8 +27,8 @@ import io.argos.testsupport.ServeurHttpSimule;
  * le serveur HTTP local est une réponse de {@code api.github.com} ou de {@code gitlab.com} enregistrée le 2026-11-18
  * avec ses en-têtes ({@code fixtures/scm/enregistrees/}, voir {@code fixtures/NOTICE}), sauf les limites de débit et
  * l'artefact SBOM GitLab, composés d'après la documentation des forges faute de pouvoir les provoquer sans
- * authentification. Aucune forge réelle n'est appelée ; les jetons sont des valeurs fictives. Les limites de débit
- * enregistrées portent une date de reprise relative à l'instant présent : l'horloge est celle du système.
+ * authentification. Aucune forge réelle n'est appelée ; les jetons sont des valeurs fictives. Les dates de reprise des
+ * limites de débit enregistrées sont relatives à l'instant de l'horloge fixe du test.
  */
 class RepositoryFilesContratEnregistreTest {
 
@@ -42,7 +43,8 @@ class RepositoryFilesContratEnregistreTest {
     private static final long REPRISE_SECONDAIRE_SECONDES = 60;
     private static final long REPRISE_SANS_DELAI_SECONDES = 3600;
     private static final long REPRISE_GITLAB_SECONDES = 120;
-    private static final long TOLERANCE_SECONDES = 2;
+    private static final Instant MAINTENANT = Instant.parse("2026-11-18T10:00:00Z");
+    private static final Clock HORLOGE = Clock.fixed(MAINTENANT, ZoneOffset.UTC);
 
     /** Dépôt public dont les réponses GitHub ont été enregistrées. */
     private static final RepositoryRef GITHUB = new RepositoryRef("GITHUB", "CycloneDX/cyclonedx-node-npm", "main", null,
@@ -122,20 +124,17 @@ class RepositoryFilesContratEnregistreTest {
     @Test
     void githubLimiteDeDebitPrincipaleEtSecondaire() {
         sert(GITHUB_SBOM, ENREGISTREMENTS_GITHUB + "403-limite-debit.http");
-        Instant avant = Instant.now();
         QuotaEpuise principale = assertThrows(QuotaEpuise.class, () -> forges().lecture(GITHUB).latestSbom());
-        assertBorne(principale.reprise(), avant.plusSeconds(REPRISE_PRINCIPALE_SECONDES));
+        assertEquals(MAINTENANT.plusSeconds(REPRISE_PRINCIPALE_SECONDES), principale.reprise());
 
         sert(GITHUB_SBOM, ENREGISTREMENTS_GITHUB + "403-limite-secondaire.http");
-        avant = Instant.now();
         QuotaEpuise secondaire = assertThrows(QuotaEpuise.class, () -> forges().lecture(GITHUB).latestSbom());
-        assertBorne(secondaire.reprise(), avant.plusSeconds(REPRISE_SECONDAIRE_SECONDES));
+        assertEquals(MAINTENANT.plusSeconds(REPRISE_SECONDAIRE_SECONDES), secondaire.reprise());
 
         // Limite secondaire signalée par son seul message : ni Retry-After ni quota principal épuisé.
         sert(GITHUB_SBOM, ENREGISTREMENTS_GITHUB + "403-limite-secondaire-sans-delai.http");
-        avant = Instant.now();
         QuotaEpuise sansDelai = assertThrows(QuotaEpuise.class, () -> forges().lecture(GITHUB).latestSbom());
-        assertBorne(sansDelai.reprise(), avant.plusSeconds(REPRISE_SANS_DELAI_SECONDES));
+        assertEquals(MAINTENANT.plusSeconds(REPRISE_SANS_DELAI_SECONDES), sansDelai.reprise());
     }
 
     // --- GitLab -------------------------------------------------------------------------------
@@ -182,9 +181,8 @@ class RepositoryFilesContratEnregistreTest {
     @Test
     void gitlabLimiteDeDebit() {
         sert(GITLAB_SBOM, ENREGISTREMENTS_GITLAB + "429-limite-debit.http");
-        Instant avant = Instant.now();
         QuotaEpuise quota = assertThrows(QuotaEpuise.class, () -> forges().lecture(GITLAB).latestSbom());
-        assertBorne(quota.reprise(), avant.plusSeconds(REPRISE_GITLAB_SECONDES));
+        assertEquals(MAINTENANT.plusSeconds(REPRISE_GITLAB_SECONDES), quota.reprise());
     }
 
     @Test
@@ -199,23 +197,17 @@ class RepositoryFilesContratEnregistreTest {
     private static RepositoryFiles forges() {
         ParametresForges forges = new ParametresForges(DELAI, serveur.base() + "/gitlab", serveur.base() + "/github",
                 Optional.of(JETON_GITLAB), Optional.of(JETON_GITHUB));
-        return new RepositoryFiles(forges, TAILLE_DOCUMENT_MAX, Clock.systemUTC());
+        return new RepositoryFiles(forges, TAILLE_DOCUMENT_MAX, HORLOGE);
     }
 
     /** Sert, sur le chemin donné, une réponse enregistrée rejouée avec son statut, ses en-têtes et son corps. */
     private static void sert(String chemin, String enregistrement) {
-        Fixtures.ReponseHttp reponse = Fixtures.lireReponse(enregistrement);
+        Fixtures.ReponseHttp reponse = Fixtures.lireReponse(enregistrement, MAINTENANT);
         serveur.programmer(chemin, new ServeurHttpSimule.Stub(reponse.status(), reponse.corps(), reponse.entetes()));
     }
 
     private static List<String> entete(ServeurHttpSimule.Received requete, String nom) {
         return requete.headers().entrySet().stream().filter(entree -> entree.getKey().equalsIgnoreCase(nom))
                 .flatMap(entree -> entree.getValue().stream()).toList();
-    }
-
-    /** La reprise annoncée tombe à deux secondes près sur l'instant attendu. */
-    private static void assertBorne(Instant reprise, Instant attendu) {
-        assertTrue(Math.abs(Duration.between(attendu, reprise).toSeconds()) <= TOLERANCE_SECONDES,
-                "reprise " + reprise + " au lieu de " + attendu);
     }
 }
