@@ -6,7 +6,6 @@ import static org.hamcrest.Matchers.hasItem;
 import static org.hamcrest.Matchers.hasSize;
 import static org.hamcrest.Matchers.not;
 import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.nio.charset.StandardCharsets;
 import java.time.Instant;
@@ -19,8 +18,6 @@ import jakarta.inject.Inject;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
-import io.argos.catalog.profil.CatalogueProfils;
-import io.argos.catalog.profil.StrategieDeclaree;
 import io.argos.impact.MatchRules;
 import io.argos.ingestion.SourceSynchronizer;
 import io.argos.inventory.InventoryService;
@@ -47,9 +44,6 @@ class ProfilsDeVeilleTest {
 
     @Inject
     TestDb baseDeTest;
-
-    @Inject
-    CatalogueProfils catalogue;
 
     @Inject
     ProjectDirectory projects;
@@ -86,15 +80,6 @@ class ProfilsDeVeilleTest {
     private static void activer(String utilisateur, String profilsJson) {
         Api.enTantQue(utilisateur).contentType(ContentType.JSON).body("{\"profilsActifs\":" + profilsJson + "}")
                 .when().put("/api/v1/preferences/profils").then().statusCode(200);
-    }
-
-    /** Chaque stratégie déclarée par le profil developpeur est exécutée par le moteur d'impact. */
-    @Test
-    void lesStrategiesDuProfilDeveloppeurSontImplementeesParLeMoteurDImpact() {
-        List<String> strategies = catalogue.trouver("developpeur").orElseThrow().strategies().stream()
-                .map(StrategieDeclaree::identifiant).toList();
-        assertEquals(List.of(MatchRules.STRATEGY), strategies);
-        assertTrue(MatchRules.IMPLEMENTED_STRATEGIES.containsAll(strategies));
     }
 
     /** PRF-03-S2 : avec le seul profil developpeur, l'impact est restitué avec un niveau calculé sans IA. */

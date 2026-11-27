@@ -12,6 +12,8 @@ import com.fasterxml.jackson.databind.DeserializationFeature;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.junit.jupiter.api.Test;
 
+import io.argos.impact.MatchRules;
+
 /** Format du manifeste et catalogue des profils (PRF-03-S1, PRF-04, ADR-0024). */
 class CatalogueProfilsTest {
 
@@ -51,6 +53,16 @@ class CatalogueProfilsTest {
                 && !manifeste.description().isBlank()), "libellé et description renseignés");
         assertTrue(catalogue.trouver("expert-metier").orElseThrow().gardeFous().stream().map(GardeFou::description)
                 .anyMatch("Une fiche n'est diffusée qu'après validation par l'expert métier référent (ADR-0018)."::equals));
+    }
+
+    /** PRF-03-S2 : chaque stratégie déclarée par le profil developpeur est exécutée par le moteur d'impact. */
+    @Test
+    void lesStrategiesDuProfilDeveloppeurSontImplementeesParLeMoteurDImpact() {
+        CatalogueProfils catalogue = new CatalogueProfils(CatalogueProfils.lire(MAPPER, List.of("developpeur")), Set.of());
+        List<String> strategies = catalogue.trouver("developpeur").orElseThrow().strategies().stream()
+                .map(StrategieDeclaree::identifiant).toList();
+        assertEquals(List.of(MatchRules.STRATEGY), strategies);
+        assertTrue(MatchRules.IMPLEMENTED_STRATEGIES.containsAll(strategies));
     }
 
     @Test
