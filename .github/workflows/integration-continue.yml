@@ -134,7 +134,8 @@ jobs:
         run: node scripts/verifier-docs.mjs --rendu
       - name: Contrôle de nommage
         run: node scripts/verifier-nommage.mjs
-      # EXP-07 : variables lues par le serveur, transmises par compose.yaml et décrites par .env.example.
+      # EXP-07 : variables lues par le serveur, transmises par compose.yaml et décrites par .env.example ;
+      # variables ARGOS_* de production citées par le guide de déploiement.
       - name: Parité de la configuration de déploiement
         run: node scripts/verifier-configuration.mjs
       # ACC-13-S4 : force brute, politique de mot de passe, TLS et adresses sans joker du royaume livré.
