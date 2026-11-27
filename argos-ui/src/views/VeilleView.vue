@@ -206,10 +206,10 @@ onUnmounted(annulerLectures)
       {{ erreur }}
       <button type="button" class="secondary" @click="charger">Réessayer</button>
     </p>
-    <p v-if="veille && veille.total === 0" class="vide" role="status">
+    <output v-if="veille && veille.total === 0" class="vide">
       Aucun élément dans votre veille pour l’instant. Vos profils actifs ne rangent encore aucun élément de vos
       espaces, et aucun abonnement personnel n’en retient.
-    </p>
+    </output>
   </section>
 
   <MiseEnPage
@@ -228,7 +228,7 @@ onUnmounted(annulerLectures)
     >
       Page précédente
     </button>
-    <span data-champ="position-veille" role="status" aria-live="polite">{{ position.libelle }}</span>
+    <output data-champ="position-veille" aria-live="polite">{{ position.libelle }}</output>
     <button
       type="button"
       class="secondary"
@@ -281,6 +281,7 @@ onUnmounted(annulerLectures)
 .pagination { display: flex; flex-wrap: wrap; align-items: center; gap: 0.75rem; }
 .pagination button[aria-disabled='true'] { opacity: 0.55; cursor: not-allowed; }
 .vide {
+  display: block;
   padding: 0.75rem 1rem;
   border: 1px dashed var(--border);
   border-radius: 8px;
