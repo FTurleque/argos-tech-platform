@@ -4,6 +4,7 @@ import io.argos.commun.securite.Caller;
 import io.argos.commun.securite.CallerResolver;
 import java.util.Optional;
 import java.util.UUID;
+import java.util.function.BiPredicate;
 import java.util.function.Supplier;
 
 import jakarta.enterprise.context.ApplicationScoped;
@@ -56,11 +57,7 @@ public class Access {
      * un membre d'un autre rôle le refus journalisé « interdit » ({@link #forbidden()}).
      */
     public Caller administrator(UUID espaceId) {
-        Caller caller = member(espaceId);
-        if (!caller.adminOf(espaceId)) {
-            throw forbidden();
-        }
-        return caller;
+        return memberWithRole(espaceId, Caller::adminOf);
     }
 
     /**
@@ -68,8 +65,13 @@ public class Access {
      * {@link #member(UUID)}, un lecteur le refus journalisé « interdit » ({@link #forbidden()}).
      */
     public Caller contributor(UUID espaceId) {
+        return memberWithRole(espaceId, Caller::contributorOf);
+    }
+
+    /** Membre de l'espace ({@link #member(UUID)}) dont le rôle satisfait {@code role} ; sinon refus « interdit ». */
+    private Caller memberWithRole(UUID espaceId, BiPredicate<Caller, UUID> role) {
         Caller caller = member(espaceId);
-        if (!caller.contributorOf(espaceId)) {
+        if (!role.test(caller, espaceId)) {
             throw forbidden();
         }
         return caller;

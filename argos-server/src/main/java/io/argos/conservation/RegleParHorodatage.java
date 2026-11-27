@@ -33,6 +33,26 @@ public abstract class RegleParHorodatage implements RegleConservation {
         this.suppressionSql = GABARIT_SUPPRESSION.formatted(identifiant(table), identifiant(colonneHorodatage));
     }
 
+    /**
+     * Règle produite par le module propriétaire de la table plutôt que déclarée par une sous-classe : utile quand
+     * plusieurs tables du module se purgent de la même façon.
+     *
+     * @param suppression suppression par lots, injectée dans le producteur
+     */
+    public static RegleConservation produite(SuppressionParLots suppression, String nomRegle, String table,
+            String colonneHorodatage) {
+        return new Produite(suppression, nomRegle, table, colonneHorodatage);
+    }
+
+    /** Règle hors bean CDI, qui reçoit sa suppression par lots de son producteur. */
+    private static final class Produite extends RegleParHorodatage {
+
+        Produite(SuppressionParLots suppression, String nomRegle, String table, String colonneHorodatage) {
+            super(nomRegle, table, colonneHorodatage);
+            this.suppression = suppression;
+        }
+    }
+
     private static String identifiant(String nom) {
         if (!IDENTIFIANT_SQL.matcher(nom).matches()) {
             throw new IllegalArgumentException("identifiant SQL invalide : " + nom);

@@ -201,10 +201,8 @@ public class MoteurAlertes {
         jdbc.lister("""
                 SELECT compte_id, canal FROM alerte
                 WHERE nature = 'IMMEDIATE' AND signal_id = ? AND compte_id = ANY (?) AND etat <> 'ANNULEE'
-                """, requete -> {
-                    requete.setObject(1, signalId);
-                    requete.setArray(2, requete.getConnection().createArrayOf("uuid", comptes.toArray()));
-                }, resultat -> Map.entry(resultat.getObject(1, UUID.class), resultat.getString(2)))
+                """, Jdbc.parametres(signalId, new Jdbc.Tableau("uuid", comptes)),
+                resultat -> Map.entry(resultat.getObject(1, UUID.class), resultat.getString(2)))
                 .forEach(ligne -> canaux.computeIfAbsent(ligne.getKey(), compte -> new HashSet<>()).add(ligne.getValue()));
         return canaux;
     }
@@ -399,20 +397,12 @@ public class MoteurAlertes {
                        cree_le = excluded.cree_le
                     WHERE alerte.etat = 'ANNULEE'
                 RETURNING id
-                """, requete -> {
-                    requete.setObject(1, evenement.signalId());
-                    requete.setString(2, titreDuSignal(evenement));
-                    requete.setString(3, evenement.signalSeverity());
-                    requete.setString(4, resume.texte());
-                    requete.setString(5, resume.etat());
-                    requete.setObject(6, Conversions.utc(maintenant));
-                    requete.setArray(7, requete.getConnection().createArrayOf("uuid",
-                            alertes.stream().map(AlerteAEcrire::compte).toArray()));
-                    requete.setArray(8, requete.getConnection().createArrayOf("varchar",
-                            alertes.stream().map(AlerteAEcrire::canal).toArray()));
-                    requete.setArray(9, requete.getConnection().createArrayOf("text",
-                            alertes.stream().map(AlerteAEcrire::contenu).toArray()));
-                }, resultat -> resultat.getObject(1, UUID.class));
+                """, Jdbc.parametres(evenement.signalId(), titreDuSignal(evenement), evenement.signalSeverity(), resume.texte(),
+                        resume.etat(), Conversions.utc(maintenant),
+                        new Jdbc.Tableau("uuid", alertes.stream().map(AlerteAEcrire::compte).toList()),
+                        new Jdbc.Tableau("varchar", alertes.stream().map(AlerteAEcrire::canal).toList()),
+                        new Jdbc.Tableau("text", alertes.stream().map(AlerteAEcrire::contenu).toList())),
+                resultat -> resultat.getObject(1, UUID.class));
     }
 
     /** Ajoute les éléments aux résumés en une instruction ; un élément déjà présent n'est pas dupliqué. */
@@ -426,20 +416,11 @@ public class MoteurAlertes {
                 SELECT d.compte_id, ?, d.frequence, d.canal, ?, ?, ?, ?, ?
                 FROM unnest(?::uuid[], ?::varchar[], ?::varchar[]) AS d(compte_id, frequence, canal)
                 ON CONFLICT DO NOTHING
-                """, requete -> {
-                    requete.setObject(1, evenement.signalId());
-                    requete.setString(2, titreDuSignal(evenement));
-                    requete.setString(3, evenement.signalSeverity());
-                    requete.setString(4, evenement.signalSource());
-                    requete.setString(5, evenement.signalExternalId());
-                    requete.setObject(6, Conversions.utc(maintenant));
-                    requete.setArray(7, requete.getConnection().createArrayOf("uuid",
-                            elements.stream().map(ElementAEcrire::compte).toArray()));
-                    requete.setArray(8, requete.getConnection().createArrayOf("varchar",
-                            elements.stream().map(ElementAEcrire::frequence).toArray()));
-                    requete.setArray(9, requete.getConnection().createArrayOf("varchar",
-                            elements.stream().map(ElementAEcrire::canal).toArray()));
-                });
+                """, Jdbc.parametres(evenement.signalId(), titreDuSignal(evenement), evenement.signalSeverity(),
+                        evenement.signalSource(), evenement.signalExternalId(), Conversions.utc(maintenant),
+                        new Jdbc.Tableau("uuid", elements.stream().map(ElementAEcrire::compte).toList()),
+                        new Jdbc.Tableau("varchar", elements.stream().map(ElementAEcrire::frequence).toList()),
+                        new Jdbc.Tableau("varchar", elements.stream().map(ElementAEcrire::canal).toList())));
     }
 
     /** Titre du signal, à défaut son identifiant externe. */

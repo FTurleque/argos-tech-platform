@@ -180,8 +180,9 @@ public class TestDb {
         }
     }
 
-    public UUID uuid(String sql) {
-        String value = string(sql);
+    /** Identifiant lu en première colonne de la première ligne, avec ou sans paramètres liés ; nul sans ligne. */
+    public UUID uuid(String sql, Object... parametres) {
+        String value = string(sql, parametres);
         return value == null ? null : UUID.fromString(value);
     }
 

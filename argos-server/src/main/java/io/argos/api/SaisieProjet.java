@@ -2,6 +2,7 @@ package io.argos.api;
 
 import java.util.List;
 import java.util.Locale;
+import java.util.Optional;
 import java.util.Set;
 import java.util.UUID;
 
@@ -82,9 +83,9 @@ final class SaisieProjet {
             throw invalide("La forge doit être GITHUB ou GITLAB.", "forge");
         }
         String identifiant = texteObligatoire(depot.depot(), "L'identifiant du dépôt est obligatoire.", "depot");
-        String branche = texteFacultatif(depot.branche(), "branche");
-        DepotProjet saisi = new DepotProjet(forge, identifiant, branche == null ? BRANCHE_PAR_DEFAUT : branche,
-                texteFacultatif(depot.jobSbom(), "jobSbom"), texteFacultatif(depot.cheminSbom(), "cheminSbom"), manifestes(depot));
+        String branche = texteFacultatif(depot.branche(), "branche").orElse(BRANCHE_PAR_DEFAUT);
+        DepotProjet saisi = new DepotProjet(forge, identifiant, branche, texteFacultatif(depot.jobSbom(), "jobSbom").orElse(null),
+                texteFacultatif(depot.cheminSbom(), "cheminSbom").orElse(null), manifestes(depot));
         if (!saisi.identifiantValide()) {
             throw invalide("L'identifiant d'un dépôt GitHub a la forme propriétaire/dépôt.", "depot");
         }
@@ -103,22 +104,19 @@ final class SaisieProjet {
     }
 
     private static String texteObligatoire(String valeur, String message, String attribut) {
-        String texte = texteFacultatif(valeur, attribut);
-        if (texte == null) {
-            throw invalide(message, attribut);
-        }
-        return texte;
+        return texteFacultatif(valeur, attribut).orElseThrow(() -> invalide(message, attribut));
     }
 
-    private static String texteFacultatif(String valeur, String attribut) {
+    /** Valeur saisie sans espaces de tête ni de fin ; vide si elle est absente ou blanche. */
+    private static Optional<String> texteFacultatif(String valeur, String attribut) {
         if (valeur == null || valeur.isBlank()) {
-            return null;
+            return Optional.empty();
         }
         String texte = valeur.strip();
         if (texte.length() > LONGUEUR_MAX || texte.contains(",")) {
             throw invalide("Valeur trop longue (" + LONGUEUR_MAX + " caractères au plus) ou contenant une virgule.", attribut);
         }
-        return texte;
+        return Optional.of(texte);
     }
 
     private static DonneeInvalide invalide(String message, String attribut) {

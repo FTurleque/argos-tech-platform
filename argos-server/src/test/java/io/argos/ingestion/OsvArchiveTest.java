@@ -26,6 +26,7 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
 import io.argos.ingestion.osv.OsvAdvisoryFeed;
+import io.argos.ingestion.osv.ParametresOsv;
 import io.argos.testsupport.StubServer;
 import io.argos.testsupport.StubServer.Stub;
 import io.quarkus.test.common.QuarkusTestResource;
@@ -70,7 +71,7 @@ class OsvArchiveTest {
     }
 
     private OsvAdvisoryFeed feed(int seuil) {
-        return new OsvAdvisoryFeed(http, exportUrl, apiUrl, List.of("Maven"), seuil, ARCHIVE_MAX);
+        return new OsvAdvisoryFeed(http, new ParametresOsv(exportUrl, apiUrl, List.of("Maven"), seuil, ARCHIVE_MAX));
     }
 
     /** Archives OSV temporaires présentes dans le dossier temporaire du système. */
@@ -101,7 +102,8 @@ class OsvArchiveTest {
         StubServer.programmer(ARCHIVE, Stub.octets(zip(Map.of("GHSA-A1.json", "{\"id\":\"GHSA-A1\"}"))));
         StubServer.programmer(INDEX_NPM, Stub.status(ERREUR_SERVEUR));
         Set<Path> avant = archivesTemporaires();
-        OsvAdvisoryFeed deuxEcosystemes = new OsvAdvisoryFeed(http, exportUrl, apiUrl, List.of("Maven", "npm"), 1, ARCHIVE_MAX);
+        OsvAdvisoryFeed deuxEcosystemes = new OsvAdvisoryFeed(http,
+                new ParametresOsv(exportUrl, apiUrl, List.of("Maven", "npm"), 1, ARCHIVE_MAX));
 
         assertThrows(SourceException.class, () -> deuxEcosystemes.lire(null));
 

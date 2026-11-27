@@ -5,6 +5,7 @@ import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.List;
 import java.util.Optional;
 import java.util.stream.Collectors;
@@ -45,13 +46,31 @@ public class Jdbc {
         return requete -> { };
     }
 
-    /** Liaison des valeurs données, dans l'ordre, à partir du premier paramètre. */
+    /**
+     * Tableau SQL à lier par {@link #parametres} : type PostgreSQL de ses éléments ({@code uuid}, {@code text}…) et
+     * valeurs dans l'ordre, {@code null} admis.
+     */
+    public record Tableau(String typeElement, Collection<?> valeurs) {
+    }
+
+    /**
+     * Liaison des valeurs données, dans l'ordre, à partir du premier paramètre ; un {@link Tableau} est lié comme
+     * tableau SQL créé sur la connexion de la requête.
+     */
     public static Liaison parametres(Object... valeurs) {
         return requete -> {
             for (int index = 0; index < valeurs.length; index++) {
-                requete.setObject(index + 1, valeurs[index]);
+                lier(requete, index + 1, valeurs[index]);
             }
         };
+    }
+
+    private static void lier(PreparedStatement requete, int position, Object valeur) throws SQLException {
+        if (valeur instanceof Tableau tableau) {
+            requete.setArray(position, requete.getConnection().createArrayOf(tableau.typeElement(), tableau.valeurs().toArray()));
+        } else {
+            requete.setObject(position, valeur);
+        }
     }
 
     public <T> List<T> lister(String sql, Liaison liaison, Lecture<T> lecture) {

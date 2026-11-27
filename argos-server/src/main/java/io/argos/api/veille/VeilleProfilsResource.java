@@ -15,23 +15,21 @@ import java.util.UUID;
 
 import jakarta.annotation.PostConstruct;
 import jakarta.inject.Inject;
+import jakarta.ws.rs.BeanParam;
 import jakarta.ws.rs.GET;
 import jakarta.ws.rs.Path;
 import jakarta.ws.rs.Produces;
-import jakarta.ws.rs.QueryParam;
 import jakarta.ws.rs.core.MediaType;
 
 import org.eclipse.microprofile.config.inject.ConfigProperty;
 import org.eclipse.microprofile.openapi.annotations.Operation;
-import org.eclipse.microprofile.openapi.annotations.enums.SchemaType;
 import org.eclipse.microprofile.openapi.annotations.media.Content;
 import org.eclipse.microprofile.openapi.annotations.media.Schema;
-import org.eclipse.microprofile.openapi.annotations.parameters.Parameter;
 import org.eclipse.microprofile.openapi.annotations.responses.APIResponse;
 import org.eclipse.microprofile.openapi.annotations.tags.Tag;
 
 import io.argos.api.Erreur;
-import io.argos.api.ParametresPagination;
+import io.argos.api.DemandePage;
 import io.argos.api.SignauxAbonnements;
 import io.argos.api.preference.ResolutionPreferences;
 import io.argos.api.security.Access;
@@ -182,14 +180,8 @@ public class VeilleProfilsResource {
             content = @Content(schema = @Schema(implementation = Erreur.class)))
     @APIResponse(responseCode = "429", description = "Limite de débit du compte atteinte, en-tête Retry-After",
             content = @Content(schema = @Schema(implementation = Erreur.class)))
-    public Veille veille(
-            @Parameter(description = ParametresPagination.DESCRIPTION_PAGE,
-                    schema = @Schema(type = SchemaType.INTEGER, defaultValue = "0"))
-            @QueryParam(ParametresPagination.PAGE) String page,
-            @Parameter(description = ParametresPagination.DESCRIPTION_TAILLE,
-                    schema = @Schema(type = SchemaType.INTEGER, defaultValue = "" + Pagination.TAILLE_DEFAUT))
-            @QueryParam(ParametresPagination.TAILLE) String size) {
-        Pagination pagination = ParametresPagination.pagination(page, size);
+    public Veille veille(@BeanParam DemandePage demande) {
+        Pagination pagination = demande.pagination();
         Caller caller = access.authenticated();
         if (!limiteur.admettre(caller.accountId())) {
             throw new LimiteDebitAtteinte();

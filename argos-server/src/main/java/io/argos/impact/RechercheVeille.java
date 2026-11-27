@@ -3,6 +3,7 @@ package io.argos.impact;
 import java.sql.Array;
 import java.sql.Connection;
 import java.sql.PreparedStatement;
+import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Timestamp;
 import java.sql.Types;
@@ -145,6 +146,34 @@ public class RechercheVeille {
             ORDER BY rang DESC, date_ref DESC NULLS LAST, id LIMIT ? OFFSET ?
             """;
 
+    private static final String UUID_SQL = "uuid";
+
+    /** Projets visibles touchés par les avis : identifiants des avis, espaces de l'appelant. */
+    private static final String PROJETS_DES_SIGNAUX = """
+            SELECT DISTINCT i.signal_id, p.id, p.name FROM project_impact i JOIN project p ON p.id = i.project_id
+            WHERE i.signal_id = ANY (?) AND i.workspace_id = ANY (?) ORDER BY p.name, p.id
+            """;
+
+    /** Projets visibles touchés par les actualités : identifiants des actualités, espaces de l'appelant. */
+    private static final String PROJETS_DES_ACTUALITES = """
+            SELECT DISTINCT ai.actualite_id, p.id, p.name FROM actualite_impact ai JOIN project p ON p.id = ai.project_id
+            WHERE ai.actualite_id = ANY (?) AND ai.workspace_id = ANY (?) ORDER BY p.name, p.id
+            """;
+
+    /** Avis de la page : longueur de l'extrait, identifiants. */
+    private static final String SIGNAUX = """
+            SELECT id, source, external_id, title, left(summary, ?), severity, coalesce(published_at, modified_at)
+            FROM signal WHERE id = ANY (?)
+            """;
+
+    /**
+     * Actualités de la page : longueur de l'extrait, identifiants. Lecture sous la RLS : une actualité que l'appelant
+     * ne voit pas n'est pas restituée.
+     */
+    private static final String ACTUALITES = """
+            SELECT id, type, titre, left(texte, ?), lien, coalesce(publie_le, recu_le) FROM actualite WHERE id = ANY (?)
+            """;
+
     /** Nombre de candidats sélectionnés (au plus {@value #PLAFOND} + 1), pour une page au-delà des résultats. */
     private static final String NOMBRE = """
             SELECT count(*) FROM argos_selectionner_veille(argos_requete_recherche(?), ?::timestamptz, ?::varchar[],
@@ -248,36 +277,12 @@ public class RechercheVeille {
         Map<UUID, Element> lus = new HashMap<>();
         Map<UUID, List<ProjetVise>> projets = new HashMap<>();
         if (!signaux.isEmpty()) {
-            projets.putAll(projets(connexion, """
-                    SELECT DISTINCT i.signal_id, p.id, p.name FROM project_impact i JOIN project p ON p.id = i.project_id
-                    WHERE i.signal_id = ANY (?) AND i.workspace_id = ANY (?) ORDER BY p.name, p.id
-                    """, signaux, espaces));
-            Jdbc.lister(connexion, """
-                    SELECT id, source, external_id, title, left(summary, ?), severity, coalesce(published_at, modified_at)
-                    FROM signal WHERE id = ANY (?)
-                    """, requete -> {
-                        requete.setInt(1, EXTRAIT_MAX);
-                        requete.setArray(2, connexion.createArrayOf("uuid", signaux.toArray()));
-                    }, resultat -> new Element(AVIS_SECURITE, resultat.getObject(1, UUID.class), resultat.getString(2),
-                            resultat.getString(3), resultat.getString(4), resultat.getString(5), resultat.getString(6),
-                            Conversions.instant(resultat, 7), null, 0, List.of()))
-                    .forEach(element -> lus.put(element.id(), element));
+            projets.putAll(projets(connexion, PROJETS_DES_SIGNAUX, signaux, espaces));
+            lire(connexion, SIGNAUX, signaux, RechercheVeille::signal, lus);
         }
         if (!actualites.isEmpty()) {
-            projets.putAll(projets(connexion, """
-                    SELECT DISTINCT ai.actualite_id, p.id, p.name FROM actualite_impact ai JOIN project p ON p.id = ai.project_id
-                    WHERE ai.actualite_id = ANY (?) AND ai.workspace_id = ANY (?) ORDER BY p.name, p.id
-                    """, actualites, espaces));
-            // Lecture sous la RLS : une actualité que l'appelant ne voit pas n'est pas restituée.
-            Jdbc.lister(connexion, """
-                    SELECT id, type, titre, left(texte, ?), lien, coalesce(publie_le, recu_le) FROM actualite WHERE id = ANY (?)
-                    """, requete -> {
-                        requete.setInt(1, EXTRAIT_MAX);
-                        requete.setArray(2, connexion.createArrayOf("uuid", actualites.toArray()));
-                    }, resultat -> new Element(resultat.getString(2), resultat.getObject(1, UUID.class), "WEB", null,
-                            resultat.getString(3), resultat.getString(4), null, Conversions.instant(resultat, 6),
-                            lienSur(resultat.getString(5)), 0, List.of()))
-                    .forEach(element -> lus.put(element.id(), element));
+            projets.putAll(projets(connexion, PROJETS_DES_ACTUALITES, actualites, espaces));
+            lire(connexion, ACTUALITES, actualites, RechercheVeille::actualite, lus);
         }
         List<Element> elements = new ArrayList<>();
         for (Candidat candidat : candidats) {
@@ -296,13 +301,31 @@ public class RechercheVeille {
         if (espaces.isEmpty()) {
             return projets;
         }
-        Jdbc.lister(connexion, sql, requete -> {
-            requete.setArray(1, connexion.createArrayOf("uuid", ids.toArray()));
-            requete.setArray(2, connexion.createArrayOf("uuid", espaces.toArray()));
-        }, resultat -> Map.entry(resultat.getObject(1, UUID.class),
+        Jdbc.lister(connexion, sql, Jdbc.parametres(new Jdbc.Tableau(UUID_SQL, ids), new Jdbc.Tableau(UUID_SQL, espaces)),
+                resultat -> Map.entry(resultat.getObject(1, UUID.class),
                 new ProjetVise(resultat.getObject(2, UUID.class), resultat.getString(3))))
                 .forEach(ligne -> projets.computeIfAbsent(ligne.getKey(), cle -> new ArrayList<>()).add(ligne.getValue()));
         return projets;
+    }
+
+    /** Ajoute à {@code lus} les éléments relus par {@code sql} (extrait borné, identifiants), indexés par identifiant. */
+    private static void lire(Connection connexion, String sql, List<UUID> ids, Jdbc.Lecture<Element> lecture,
+            Map<UUID, Element> lus) {
+        Jdbc.lister(connexion, sql, Jdbc.parametres(EXTRAIT_MAX, new Jdbc.Tableau(UUID_SQL, ids)), lecture)
+                .forEach(element -> lus.put(element.id(), element));
+    }
+
+    /** Avis de sécurité lu par {@link #SIGNAUX}, sans rang ni projet. */
+    private static Element signal(ResultSet resultat) throws SQLException {
+        return new Element(AVIS_SECURITE, resultat.getObject(1, UUID.class), resultat.getString(2), resultat.getString(3),
+                resultat.getString(4), resultat.getString(5), resultat.getString(6), Conversions.instant(resultat, 7), null, 0,
+                List.of());
+    }
+
+    /** Actualité lue par {@link #ACTUALITES}, sans rang ni projet. */
+    private static Element actualite(ResultSet resultat) throws SQLException {
+        return new Element(resultat.getString(2), resultat.getObject(1, UUID.class), "WEB", null, resultat.getString(3),
+                resultat.getString(4), null, Conversions.instant(resultat, 6), lienSur(resultat.getString(5)), 0, List.of());
     }
 
     /** Lien restituable : seules les adresses absolues http et https le sont (XSS, R-11). */
