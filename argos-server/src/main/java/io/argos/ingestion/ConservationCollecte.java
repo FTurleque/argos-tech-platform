@@ -67,8 +67,7 @@ public final class ConservationCollecte {
     public static class AvisMisALEcart extends RegleParHorodatage {
 
         public AvisMisALEcart() {
-            super("avis-mis-a-l-ecart", "DELETE FROM ingestion_failure WHERE id IN"
-                    + " (SELECT id FROM ingestion_failure WHERE received_at < ? LIMIT ?)");
+            super("avis-mis-a-l-ecart", "ingestion_failure", "received_at");
         }
     }
 
@@ -77,7 +76,7 @@ public final class ConservationCollecte {
     public static class EvenementsExploitation extends RegleParHorodatage {
 
         public EvenementsExploitation() {
-            super("evenements-exploitation", "DELETE FROM ops_event WHERE id IN (SELECT id FROM ops_event WHERE occurred_at < ? LIMIT ?)");
+            super("evenements-exploitation", "ops_event", "occurred_at");
         }
     }
 }

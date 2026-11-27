@@ -129,7 +129,7 @@ class ImportPlanifieTest {
     }
 
     private long composants(UUID projet) {
-        return baseDeTest.count("SELECT count(*) FROM component WHERE project_id = '" + projet + "'");
+        return baseDeTest.count("SELECT count(*) FROM component WHERE project_id = ?", projet);
     }
 
     @Test
@@ -149,14 +149,14 @@ class ImportPlanifieTest {
         assertEquals("2026-11-15T06:12:44Z", gitlab.getString("summary.sourceDate"), "date de la source enregistrée");
         assertNotNull(gitlab.getString("summary.importedAt"), "date d'import enregistrée");
         assertEquals("GITLAB:gitlab-org/security-products/tests/js-npm@master",
-                baseDeTest.string("SELECT source_ref FROM repository_inventory WHERE project_id = '" + web + "'"), "origine enregistrée");
+                baseDeTest.string("SELECT source_ref FROM repository_inventory WHERE project_id = ?", web), "origine enregistrée");
         JsonPath github = Api.enTantQue("alice").when().get("/api/v1/projects/" + outil + "/inventory/summary")
                 .then().statusCode(200).extract().jsonPath();
         assertEquals("SBOM", github.getString("summary.origin"));
         assertEquals(5, github.getInt("summary.componentCount"));
         assertNotNull(github.getString("summary.repositories[0].importedAt"));
         assertEquals("GITHUB:CycloneDX/cyclonedx-node-npm@main",
-                baseDeTest.string("SELECT source_ref FROM repository_inventory WHERE project_id = '" + outil + "'"));
+                baseDeTest.string("SELECT source_ref FROM repository_inventory WHERE project_id = ?", outil));
         List<StubServer.Received> requetes = new ArrayList<>(StubServer.received("/gitlab/"));
         requetes.addAll(StubServer.received("/github/"));
         assertTrue(requetes.stream().allMatch(requete -> "GET".equals(requete.method())), "forges interrogées en lecture seule");
@@ -169,10 +169,10 @@ class ImportPlanifieTest {
         servirForgesNominales();
         importPlanifie.importer(Instant.parse("2026-11-20T02:00:00Z"));
         long avant = composants(web);
-        String importAvant = baseDeTest.string("SELECT import_id::text FROM inventory WHERE project_id = '" + web + "'");
+        String importAvant = baseDeTest.string("SELECT import_id::text FROM inventory WHERE project_id = ?", web);
         StubServer.programmer(GITLAB_SBOM, Stub.status(503));
-        baseDeTest.exec("DELETE FROM component_occurrence WHERE project_id = '" + outil + "'");
-        baseDeTest.exec("DELETE FROM component WHERE project_id = '" + outil + "'");
+        baseDeTest.exec("DELETE FROM component_occurrence WHERE project_id = ?", outil);
+        baseDeTest.exec("DELETE FROM component WHERE project_id = ?", outil);
         // Sans empreinte, le passage suivant réécrit l'inventaire du second projet même si sa SBOM n'a pas changé (INV-14).
         baseDeTest.exec("UPDATE repository_inventory SET empreinte = NULL WHERE project_id = ?", outil);
 
@@ -182,12 +182,12 @@ class ImportPlanifieTest {
         assertEquals(1, bilan.erreurs());
         assertEquals(5, composants(outil), "le second projet est importé");
         assertEquals(avant, composants(web), "l'inventaire en place du premier projet est conservé");
-        assertEquals(importAvant, baseDeTest.string("SELECT import_id::text FROM inventory WHERE project_id = '" + web + "'"));
-        String motif = baseDeTest.string("SELECT reason FROM inventory_import_failure WHERE project_id = '" + web + "'");
+        assertEquals(importAvant, baseDeTest.string("SELECT import_id::text FROM inventory WHERE project_id = ?", web));
+        String motif = baseDeTest.string("SELECT reason FROM inventory_import_failure WHERE project_id = ?", web);
         assertTrue(motif.contains("503"), motif);
         assertFalse(motif.contains("jeton-fictif"), "aucun jeton dans le motif");
-        assertEquals(baseDeTest.string("SELECT id::text FROM project_repository WHERE project_id = '" + web + "'"),
-                baseDeTest.string("SELECT repository_id::text FROM inventory_import_failure WHERE project_id = '" + web + "'"));
+        assertEquals(baseDeTest.string("SELECT id::text FROM project_repository WHERE project_id = ?", web),
+                baseDeTest.string("SELECT repository_id::text FROM inventory_import_failure WHERE project_id = ?", web));
         Api.enTantQue("alice").when().get("/api/v1/projects/" + web + "/inventory/summary")
                 .then().statusCode(200)
                 .body("summary.repositories[0].lastFailure.reason", org.hamcrest.Matchers.containsString("503"));
@@ -224,8 +224,8 @@ class ImportPlanifieTest {
         servirForgesNominales();
         importPlanifie.importer(Instant.parse("2026-11-20T02:00:00Z"));
         long avant = composants(web);
-        baseDeTest.exec("DELETE FROM component_occurrence WHERE project_id = '" + outil + "'");
-        baseDeTest.exec("DELETE FROM component WHERE project_id = '" + outil + "'");
+        baseDeTest.exec("DELETE FROM component_occurrence WHERE project_id = ?", outil);
+        baseDeTest.exec("DELETE FROM component WHERE project_id = ?", outil);
         // Sans empreinte, le passage suivant réécrit l'inventaire du second projet même si sa SBOM n'a pas changé (INV-14).
         baseDeTest.exec("UPDATE repository_inventory SET empreinte = NULL WHERE project_id = ?", outil);
         InventoryService reel = Substitution.reel(inventories);
@@ -411,8 +411,8 @@ class ImportPlanifieTest {
 
         assertEquals(StatutImport.IMPORTED, manuel.status());
         assertEquals(1, composants(projet), "l'import manuel remplace l'inventaire de référence (INV-01)");
-        assertEquals("pkg:npm/manuel@1.0.0", baseDeTest.string("SELECT purl FROM component WHERE project_id = '" + projet + "'"));
-        assertEquals("manuel", baseDeTest.string("SELECT source_ref FROM repository_inventory WHERE project_id = '" + projet + "'"));
+        assertEquals("pkg:npm/manuel@1.0.0", baseDeTest.string("SELECT purl FROM component WHERE project_id = ?", projet));
+        assertEquals("manuel", baseDeTest.string("SELECT source_ref FROM repository_inventory WHERE project_id = ?", projet));
     }
 
     /** INV-08-S2 : le verrou du projet sérialise les imports ; un import attend que l'autre ait fini. */
@@ -471,10 +471,10 @@ class ImportPlanifieTest {
         assertEquals(StatutImport.IMPORTED, manuel.get(30, TimeUnit.SECONDS).status());
         assertEquals(1, planifie.get(30, TimeUnit.SECONDS).importes());
         assertEquals(5, composants(projet), "inventaire de l'import terminé en dernier");
-        assertEquals(0, baseDeTest.count("SELECT count(*) FROM component WHERE project_id = '" + projet
-                + "' AND purl IN ('pkg:npm/manuel@1.0.0', 'pkg:npm/autre@2.0.0')"), "aucun composant de l'autre import");
+        assertEquals(0, baseDeTest.count("SELECT count(*) FROM component WHERE project_id = ?"
+                + " AND purl IN ('pkg:npm/manuel@1.0.0', 'pkg:npm/autre@2.0.0')", projet), "aucun composant de l'autre import");
         assertEquals("GITHUB:CycloneDX/cyclonedx-node-npm@main",
-                baseDeTest.string("SELECT source_ref FROM repository_inventory WHERE project_id = '" + projet + "'"));
+                baseDeTest.string("SELECT source_ref FROM repository_inventory WHERE project_id = ?", projet));
     }
 
     /** Attend (10 s au plus, sans sommeil fixe) que {@code nombre} transactions attendent un verrou consultatif. */

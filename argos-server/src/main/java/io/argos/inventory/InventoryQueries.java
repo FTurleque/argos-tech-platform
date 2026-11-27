@@ -470,15 +470,8 @@ public class InventoryQueries {
      */
     @Transactional
     public Optional<UUID> importCourant(UUID projectId) {
-        try (Connection connexion = dataSource.getConnection();
-                PreparedStatement requete = connexion.prepareStatement("SELECT import_id FROM inventory WHERE project_id = ?")) {
-            requete.setObject(1, projectId);
-            try (ResultSet lignes = requete.executeQuery()) {
-                return lignes.next() ? Optional.of(lignes.getObject(1, UUID.class)) : Optional.empty();
-            }
-        } catch (SQLException erreur) {
-            throw new IllegalStateException("lecture de l'inventaire impossible", erreur);
-        }
+        return identifiantDuProjet("SELECT import_id FROM inventory WHERE project_id = ?", projectId,
+                "lecture de l'inventaire impossible");
     }
 
     /** Dépôts de chacun des composants donnés, le principal d'abord, lus sous le contexte de la connexion. */
@@ -526,14 +519,15 @@ public class InventoryQueries {
     /** Espace du projet, s'il existe. */
     @Transactional
     public Optional<UUID> workspaceOf(UUID projectId) {
-        try (Connection connexion = dataSource.getConnection();
-                PreparedStatement requete = connexion.prepareStatement("SELECT workspace_id FROM project WHERE id = ?")) {
-            requete.setObject(1, projectId);
-            try (ResultSet lignes = requete.executeQuery()) {
-                return lignes.next() ? Optional.of(lignes.getObject(1, UUID.class)) : Optional.empty();
-            }
+        return identifiantDuProjet("SELECT workspace_id FROM project WHERE id = ?", projectId, "lecture du projet impossible");
+    }
+
+    /** Identifiant lu par une requête dont le seul paramètre est le projet, vide si aucune ligne ne correspond. */
+    private Optional<UUID> identifiantDuProjet(String sql, UUID projectId, String echec) {
+        try (Connection connexion = dataSource.getConnection()) {
+            return Jdbc.unique(connexion, sql, Jdbc.parametres(projectId), lignes -> lignes.getObject(1, UUID.class));
         } catch (SQLException erreur) {
-            throw new IllegalStateException("lecture du projet impossible", erreur);
+            throw new IllegalStateException(echec, erreur);
         }
     }
 

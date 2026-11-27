@@ -18,7 +18,7 @@ public final class ConservationJournaux {
     public static class RefusAcces extends RegleParHorodatage {
 
         public RefusAcces() {
-            super("refus-acces", "DELETE FROM refus_acces WHERE id IN (SELECT id FROM refus_acces WHERE horodatage < ? LIMIT ?)");
+            super("refus-acces", "refus_acces", "horodatage");
         }
     }
 
@@ -27,7 +27,7 @@ public final class ConservationJournaux {
     public static class AppelsMcp extends RegleParHorodatage {
 
         public AppelsMcp() {
-            super("appels-mcp", "DELETE FROM mcp_appel WHERE id IN (SELECT id FROM mcp_appel WHERE horodatage < ? LIMIT ?)");
+            super("appels-mcp", "mcp_appel", "horodatage");
         }
     }
 
@@ -36,7 +36,7 @@ public final class ConservationJournaux {
     public static class AppelsIa extends RegleParHorodatage {
 
         public AppelsIa() {
-            super("appels-ia", "DELETE FROM ia_appel WHERE id IN (SELECT id FROM ia_appel WHERE horodatage < ? LIMIT ?)");
+            super("appels-ia", "ia_appel", "horodatage");
         }
     }
 }
