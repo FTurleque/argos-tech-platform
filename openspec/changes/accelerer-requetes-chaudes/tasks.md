@@ -57,9 +57,9 @@
 | ALR-10 | ALR-10-S1 | D4 / DC-2 | 3.1 | `RequetesConstantesTest` | écrit, passe le 2026-11-26 |
 | ALR-10 | ALR-10-S2 | D5 | 3.1 | `AlertesTest` | écrit, passe le 2026-11-26 |
 | ALR-10 | ALR-10-S3 | D4 | 3.1 | `AlertesTest` | écrit, passe le 2026-11-26 |
-| PRF-07 | PRF-07-S1 | D6, D7 | 7.1 | campagne de performance | exécuté le 2026-11-26 : p95 163,1 ms |
+| PRF-07 | PRF-07-S1 | D6, D7 | 7.1 | campagne de performance | exécuté le 2026-11-27 : p95 185,5 ms |
 | PRF-07 | PRF-07-S2 | D6 | 4.1 | `VeilleLectureGroupeeTest` | passe le 2026-11-26 |
-| PRF-07 | PRF-07-S3 | D6, D7, D10 | 4.1, 4.2, 7.1 | campagne de performance | exécuté le 2026-11-26 : p95 61,4 ms |
+| PRF-07 | PRF-07-S3 | D6, D7, D10 | 4.1, 4.2, 7.1 | campagne de performance | exécuté le 2026-11-27 : p95 67,8 ms |
 | PRF-09 | PRF-09-S1 à S3 | D11 | 4.5 | `VeillePagineeTest` | écrit, passe le 2026-11-27 |
 | PRF-09 | PRF-09-S4 | D11 | 4.6 | `argos-ui/tests/vues/veille.spec.ts`, `tests/veille-affichee.test.mjs` | écrit, passe le 2026-11-27 |
 | RAD-10 | RAD-10-S1 | D8 | 5.1 | `RequetesConstantesTest` | écrit, passe le 2026-11-26 |
@@ -67,7 +67,7 @@
 | RCH-07 | RCH-07-S1 | D9 | 6.1 | `RechercheBorneeTest` | écrit, passe le 2026-11-26 |
 | RCH-07 | RCH-07-S2 | D9 | 6.1 | `RechercheBorneeTest` | écrit, passe le 2026-11-26 |
 | PERF-02 | PERF-02-S1 à S3 | D10 | 7.1 | `mesure.test.mjs`, campagne | passe le 2026-11-26 |
-| PERF-02 | PERF-02-S4 | D10 | 7.1 | campagne de performance | exécuté le 2026-11-26 : code 0 |
+| PERF-02 | PERF-02-S4 | D10 | 7.1 | campagne de performance | exécuté le 2026-11-27 : code 0 |
 
 ## Workflow follow-up
 

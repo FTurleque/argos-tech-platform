@@ -123,7 +123,7 @@ Aucune.
 |---|---|---|---|---|
 | PERF-01 | PERF-01-S1, PERF-01-S2, PERF-01-S3 | design.md D8, DC-8 ; DF-PERF-1 | 3.6, 3.7 | [rapport du 2026-11-19](../architecture/quality/mesure-performance-api-mcp.md) (S2 constaté : une opération hors cible, code 1 ; S1 non atteint) ; `e2e/performance/mesure.test.mjs` (S2, S3) |
 | PERF-02 | PERF-02-S1, PERF-02-S2, PERF-02-S3 | design.md D8, DC-8 ; DF-PERF-1 | 3.6, 3.7 | `e2e/performance/mesure.test.mjs` (S1 à S3) ; rapports JSON (`e2e/resultats/performance/rapport-2026-11-19.json`) et Markdown du 2026-11-19 |
-| PERF-02 (modifiée) | PERF-02-S4 | `accelerer-requetes-chaudes` D10 | 7.1 | `e2e/performance/mesure.test.mjs` ; campagne du 2026-11-26 : dix-sept opérations dans la cible, code de sortie 0 ; [rapport](../architecture/quality/mesure-performance-api-mcp.md) |
+| PERF-02 (modifiée) | PERF-02-S4 | `accelerer-requetes-chaudes` D10 | 7.1 | `e2e/performance/mesure.test.mjs` ; campagne du 2026-11-27 (révision `496add9`) : dix-sept opérations dans la cible, code de sortie 0 ; [rapport](../architecture/quality/mesure-performance-api-mcp.md) |
 | PERF-03 | S1 à S5 | `2026-11-27-retenir-importer-et-paginer` design.md D6 | 1.1, 4.3, 6.1 à 6.4 | `api/ListesPagineesTest`, `commun/PaginationTest`, `chain/ProfilArtisteTest` |
 
 Matrice détaillée : [`tasks.md` du changement](/openspec/changes/archive/2026-11-20-automatiser-chaine-veille/tasks.md#matrice-de-traçabilité).
