@@ -1,18 +1,25 @@
+---
+id: ADR-0033
+title: "Tenir la session OIDC de l'IHM en mémoire et connecter le desktop par l'interface de bouclage"
+domain: architecture
+rules: false
+---
+
 # ADR-0033 — Tenir la session OIDC de l'IHM en mémoire et connecter le desktop par l'interface de bouclage
 
 - **Statut** : Accepté
 - **Date** : 2026-11-18 (acceptation ; proposition du 2026-11-17)
 - **Décideurs** : porteur du projet (acceptation du 2026-11-18)
-- **Complète** : [ADR-0027](0027-keycloak-idp-auto-heberge.md) (Proposé) pour les clients ; précise [ADR-0022](0022-client-desktop-electron.md) point 6 (Proposé)
+- **Complète** : [ADR-0027](0027-keycloak-idp-auto-heberge.md) (Accepté) pour les clients ; précise [ADR-0022](0022-client-desktop-electron.md) point 6 (Accepté)
 - **Remplace** : —
 - **Remplacé par** : —
 
 ## Contexte
 
-- L'API exige un jeton OIDC émis par Keycloak pour le client public `argos-ui`, Authorization Code + PKCE S256 (ADR-0027, Proposé ; `argos-server/src/main/resources/application.properties`).
-- La même IHM Vue 3 tourne dans le navigateur (portail web) et dans le client desktop Electron, servie par le protocole interne `app://argos` sous une CSP stricte (ADR-0022, Proposé ; `argos-desktop/src/ui-protocol.js`).
+- L'API exige un jeton OIDC émis par Keycloak pour le client public `argos-ui`, Authorization Code + PKCE S256 (ADR-0027, Accepté ; `argos-server/src/main/resources/application.properties`).
+- La même IHM Vue 3 tourne dans le navigateur (portail web) et dans le client desktop Electron, servie par le protocole interne `app://argos` sous une CSP stricte (ADR-0022, Accepté ; `argos-desktop/src/ui-protocol.js`).
 - ADR-0022 point 6 prévoit pour le desktop « le navigateur du système et une redirection locale (RFC 8252) » et la conservation des jetons « via le magasin sécurisé du système (`safeStorage`) ».
-- La demande du lot 7 impose des jetons en mémoire seulement (jamais `localStorage`, `sessionStorage` ni cookie lisible), aucune dépendance payante et des licences permissives (ADR-0021, Proposé).
+- La demande du lot 7 impose des jetons en mémoire seulement (jamais `localStorage`, `sessionStorage` ni cookie lisible), aucune dépendance payante et des licences permissives (ADR-0021, Accepté).
 - RFC 8252 : les applications natives utilisent un agent utilisateur externe (§8.12) ; la redirection vers l'interface de bouclage accepte un port quelconque (§7.3).
 
 ## Critères de décision
@@ -52,7 +59,7 @@
 
 ## Décision
 
-**Proposition : option B, sans l'option C ni l'option D.**
+**Option B retenue, sans l'option C ni l'option D.**
 
 1. La session OIDC de l'IHM (`argos-ui/src/session/`) est une implémentation minimale sans dépendance : PKCE S256, state aléatoire vérifié, adresse nettoyée au retour, renouvellement avant expiration, fin de session chez le fournisseur.
 2. Les jetons vivent dans la seule mémoire de la page (champ privé), jamais dans un stockage du navigateur, un cookie, une adresse ou un journal ; ils sont perdus au rechargement de la page ou à la fermeture du desktop.

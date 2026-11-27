@@ -1,3 +1,10 @@
+---
+id: ADR-0018
+title: "Intégrer la veille réglementaire avec validation MKP obligatoire"
+domain: architecture
+rules: false
+---
+
 # ADR-0018 — Intégrer la veille réglementaire avec validation MKP obligatoire
 
 - **Statut** : Remplacé par [ADR-0030](0030-veille-reglementaire-expert-metier.md)

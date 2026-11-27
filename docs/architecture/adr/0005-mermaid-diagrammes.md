@@ -1,3 +1,10 @@
+---
+id: ADR-0005
+title: "Utiliser Mermaid comme source des diagrammes d’architecture"
+domain: architecture
+rules: false
+---
+
 # ADR-0005 — Utiliser Mermaid comme source des diagrammes d’architecture
 
 - **Statut** : Accepté

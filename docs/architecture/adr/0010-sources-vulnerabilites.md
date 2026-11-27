@@ -1,3 +1,10 @@
+---
+id: ADR-0010
+title: "Utiliser OSV comme source principale de vulnérabilités"
+domain: architecture
+rules: false
+---
+
 # ADR-0010 — Utiliser OSV comme source principale de vulnérabilités
 
 - **Statut** : Accepté

@@ -1,3 +1,10 @@
+---
+id: ADR-0008
+title: "Utiliser l’IdP d’entreprise via OIDC en première intention"
+domain: architecture
+rules: false
+---
+
 # ADR-0008 — Utiliser l’IdP d’entreprise via OIDC en première intention
 
 - **Statut** : Accepté

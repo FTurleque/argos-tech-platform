@@ -1,3 +1,10 @@
+---
+id: ADR-0036
+title: "Pile d'observabilité du serveur"
+domain: architecture
+rules: false
+---
+
 # ADR-0036 — Pile d'observabilité du serveur
 
 - **Statut** : Accepté

@@ -1,3 +1,10 @@
+---
+id: ADR-0007
+title: "Limiter n8n aux automatisations périphériques"
+domain: architecture
+rules: false
+---
+
 # ADR-0007 — Limiter n8n aux automatisations périphériques
 
 - **Statut** : Proposé

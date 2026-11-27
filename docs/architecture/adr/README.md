@@ -109,4 +109,23 @@ Les ADR enregistrent les décisions architecturales importantes d’ARGOS.
 
 ADR-0007 et ADR-0012 restent **Proposés** : aucune dépendance à n8n ni à Dependency-Track dans le code livré.
 
-Utiliser [`template.md`](template.md) pour toute nouvelle décision.
+Utiliser [`template.md`](template.md) pour toute nouvelle décision, précédé de l'en-tête décrit ci-dessous.
+
+## Outillage Archgate
+
+Les agents Archgate (développeur, relecteur) et la CLI `archgate` lisent ce dossier : `.archgate/config.json` le désigne (`paths.adrs`) ; `.archgate/adrs/` ne contient qu'un README, car la CLI repère le projet à ce dossier. Chaque ADR commence par un en-tête YAML, que la CLI exige :
+
+```yaml
+---
+id: ADR-0042
+title: "Titre de la décision, sans le numéro"
+domain: architecture
+rules: false
+---
+```
+
+- `id` et `title` reprennent le numéro et le titre de la ligne `# ADR-NNNN — …` ;
+- `domain: architecture` pour tous les ADR (aucun domaine propre déclaré dans `.archgate/config.json`) ;
+- `rules: false` tant qu'aucun fichier `.rules.ts` ne vérifie la décision.
+
+Le statut reste porté par la ligne **Statut** du document ; l'en-tête ne le reprend pas. `archgate adr list` liste tous les ADR du dossier ; `archgate check` signale `README.md` et `template.md` comme non analysés, ce qui est attendu.

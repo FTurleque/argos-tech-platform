@@ -1,3 +1,10 @@
+---
+id: ADR-0014
+title: "Intégrer un serveur MCP en lecture seule via Streamable HTTP"
+domain: architecture
+rules: false
+---
+
 # ADR-0014 — Intégrer un serveur MCP en lecture seule via Streamable HTTP
 
 - **Statut** : Accepté

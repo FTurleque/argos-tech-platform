@@ -1,3 +1,10 @@
+---
+id: ADR-0021
+title: "Préserver la possibilité d'une double licence"
+domain: architecture
+rules: false
+---
+
 # ADR-0021 — Préserver la possibilité d'une double licence
 
 - **Statut** : Accepté
