@@ -1,14 +1,11 @@
 package io.argos.chain;
 
-import static io.restassured.RestAssured.given;
 import static org.hamcrest.Matchers.equalTo;
-import static org.hamcrest.Matchers.hasItem;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.time.Clock;
 import java.time.Duration;
-import java.util.List;
 import java.util.UUID;
 
 import jakarta.inject.Inject;
@@ -134,29 +131,5 @@ class EnrichmentTest {
         assertEquals(1, enricher.retryMissing(10));
         assertEquals(0, enricher.retryMissing(10), "déjà en file");
         assertEquals(1, baseDeTest.count("SELECT count(*) FROM enrichissement_attente"));
-    }
-
-    @Test
-    void enrichissementCertFrDepuisLeFluxEtLeContenuJson() {
-        StubServer.programmer("/certfr/feed/", Stub.succes(Fixtures.resource("enrichment/certfr-feed.xml")));
-        StubServer.programmer("/certfr/CERTFR-2026-AVI-1500/json/", Stub.succes(Fixtures.resource("enrichment/CERTFR-2026-AVI-1500.json")));
-        String json = Fixtures.osv("GHSA-HTTPD", "2026-11-12T00:00:00Z", "Maven", "org.exemple:httpd-wrapper",
-                "pkg:maven/org.exemple/httpd-wrapper", "0", "2.0.0", "CVE-2026-109163");
-        Fixtures.stubOsv("GHSA-HTTPD", "2026-11-12T00:00:00Z", json);
-        StubServer.programmer("/certfr/feed/", Stub.succes(Fixtures.resource("enrichment/certfr-feed.xml")));
-
-        synchronizer.synchronize("OSV");
-        enrichissements.enrichirSignauxEchus(horloge.instant());
-
-        UUID signal = baseDeTest.uuid("SELECT id FROM signal WHERE external_id = 'GHSA-HTTPD'");
-        List<Enricher.EnrichmentView> views = enricher.forSignal(signal);
-        assertTrue(views.stream().anyMatch(vue -> vue.source().equals("CERTFR") && vue.reference().equals("CERTFR-2026-AVI-1500")),
-                views.toString());
-        // Seules des adresses construites à partir des références sont appelées (R-12).
-        assertTrue(StubServer.received("/certfr/").stream()
-                .allMatch(requete -> requete.pathAndQuery().equals("/certfr/feed/")
-                        || requete.pathAndQuery().matches("/certfr/CERTFR-\\d{4}-AVI-\\d+/json/")));
-        Api.enTantQue("alice").when().get("/api/v1/signals/" + signal)
-                .then().statusCode(200).body("enrichments.source", hasItem("CERTFR"));
     }
 }

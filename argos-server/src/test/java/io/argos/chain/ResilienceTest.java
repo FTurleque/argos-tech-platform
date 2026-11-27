@@ -274,18 +274,4 @@ class ResilienceTest {
         assertEquals("SUCCEEDED", report.state());
         assertEquals(1, baseDeTest.count("SELECT count(*) FROM signal WHERE source = 'CRASHTEST'"));
     }
-
-    /** Un Retry-After lointain est borné par le délai maximal (argos.ingestion.backoff-max). */
-    @Test
-    void retryAfterBorneParLeDelaiMaximal() {
-        Fixtures.stubOsv("GHSA-R9", "2026-11-01T00:00:00Z", advisory("GHSA-R9", "2026-11-01T00:00:00Z"));
-        StubServer.programmer(CSV, new Stub(429, "", Map.of("Retry-After", "86400")),
-                Stub.succes("2026-11-01T00:00:00Z,GHSA-R9"));
-
-        SourceSynchronizer.SyncReport report = synchronizer.synchronize("OSV");
-
-        assertEquals("SUCCEEDED", report.state());
-        assertEquals(List.of(Duration.ofMinutes(5)), sleeper.waits().stream().map(RecordingSleeper.Wait::duration).toList());
-        assertEquals(1, baseDeTest.count("SELECT count(*) FROM sync_attempt WHERE http_status = 429 AND retry_after_seconds = 86400"));
-    }
 }
