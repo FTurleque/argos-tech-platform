@@ -14,6 +14,7 @@ import org.junit.jupiter.api.Test;
 
 import io.argos.testsupport.DataSourceEnPanne;
 import io.argos.testsupport.TestDb;
+import io.micrometer.core.instrument.simple.SimpleMeterRegistry;
 import io.quarkus.test.junit.QuarkusTest;
 
 /**
@@ -69,6 +70,9 @@ class JournauxAuditTest {
     void refusNonJournaliseSansInterrompreLAppelant() {
         JournalRefus enPanne = new JournalRefus();
         enPanne.dataSource = DataSourceEnPanne.creer();
+        enPanne.registre = new SimpleMeterRegistry();
+        enPanne.refusParMinute = 1;
+        enPanne.initialiser();
 
         assertDoesNotThrow(() -> enPanne.enregistrer(null, "sujet", "GET /x", "MOTIF"));
         assertEquals(0, baseDeTest.count("SELECT count(*) FROM refus_acces"));

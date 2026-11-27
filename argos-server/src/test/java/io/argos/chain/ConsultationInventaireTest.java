@@ -166,10 +166,11 @@ class ConsultationInventaireTest {
                 .then().statusCode(200)
                 .body("size", equalTo(InventoryQueries.DEFAULT_PAGE_SIZE))
                 .body("items", hasSize(25));
-        // L'inventaire complet reste restitué par le point d'accès existant (clients actuels).
+        // L'inventaire porte une page de ses composants, au format commun (PERF-03).
         Api.enTantQue("alice").when().get("/api/v1/projects/" + projet + "/inventory")
                 .then().statusCode(200)
-                .body("inventory.components", hasSize(25));
+                .body("inventory.components.items", hasSize(25))
+                .body("inventory.components.total", equalTo(25));
     }
 
     /** Même nom, plusieurs versions : ordre par version puis identifiant, identique d'un appel à l'autre. */
@@ -291,7 +292,7 @@ class ConsultationInventaireTest {
                 .body("summary.ignoredComponents[0].reason", equalTo("SANS_PURL"))
                 .body("summary.components", nullValue())
                 .body("inventory", nullValue());
-        assertEquals(2, complet.getList("inventory.components").size(), "réponse complète inchangée pour ses clients");
+        assertEquals(2, complet.getList("inventory.components.items").size(), "page de composants de l'inventaire");
     }
 
     /**

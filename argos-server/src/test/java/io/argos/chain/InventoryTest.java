@@ -101,12 +101,12 @@ class InventoryTest {
                 .body("inventory.origin", equalTo("SBOM"))
                 .body("inventory.sourceDate", equalTo("2026-11-10T08:00:00Z"))
                 .body("inventory.specVersion", equalTo("1.6"))
-                .body("inventory.components", hasSize(2))
-                .body("inventory.components.find { it.packageKey == 'pkg:maven/org.exemple/a' }.version", equalTo("1.0.0"))
-                .body("inventory.components.find { it.packageKey == 'pkg:maven/org.exemple/a' }.transitive", equalTo(false))
-                .body("inventory.components.find { it.packageKey == 'pkg:maven/org.exemple/b' }.purl",
+                .body("inventory.components.items", hasSize(2))
+                .body("inventory.components.items.find { it.packageKey == 'pkg:maven/org.exemple/a' }.version", equalTo("1.0.0"))
+                .body("inventory.components.items.find { it.packageKey == 'pkg:maven/org.exemple/a' }.transitive", equalTo(false))
+                .body("inventory.components.items.find { it.packageKey == 'pkg:maven/org.exemple/b' }.purl",
                         equalTo("pkg:maven/org.exemple/b@2.1.0"))
-                .body("inventory.components.find { it.packageKey == 'pkg:maven/org.exemple/b' }.transitive", equalTo(true));
+                .body("inventory.components.items.find { it.packageKey == 'pkg:maven/org.exemple/b' }.transitive", equalTo(true));
     }
 
     /**
@@ -139,7 +139,7 @@ class InventoryTest {
         assertEquals(1, baseDeTest.count("SELECT count(*) FROM component"), "l'inventaire reste fondé sur le PURL");
         member().when().get("/api/v1/projects/" + project + "/inventory")
                 .then().statusCode(200)
-                .body("inventory.components", hasSize(1))
+                .body("inventory.components.items", hasSize(1))
                 .body("inventory.ignoredCount", equalTo(122))
                 .body("inventory.ignoredComponents", hasSize(100))
                 .body("inventory.ignoredComponents[0].name", equalTo("log4j-core"))
@@ -170,8 +170,8 @@ class InventoryTest {
 
         member().when().get("/api/v1/projects/" + project + "/inventory")
                 .then().statusCode(200)
-                .body("inventory.components", hasSize(1))
-                .body("inventory.components[0].purl", equalTo("pkg:maven/org.exemple/a@1.1.0"))
+                .body("inventory.components.items", hasSize(1))
+                .body("inventory.components.items[0].purl", equalTo("pkg:maven/org.exemple/a@1.1.0"))
                 .body("inventory.sourceDate", equalTo("2026-11-10T00:00:00Z"));
     }
 
@@ -211,7 +211,7 @@ class InventoryTest {
         assertEquals("MANIFEST", fallback.origin());
         member().when().get("/api/v1/projects/" + project + "/inventory")
                 .then().statusCode(200).body("inventory.origin", equalTo("MANIFEST"))
-                .body("inventory.components[0].purl", equalTo("pkg:npm/lodash@4.17.20"));
+                .body("inventory.components.items[0].purl", equalTo("pkg:npm/lodash@4.17.20"));
 
         StubServer.programmer("/gitlab/api/v4/projects/groupe%2Ffront/jobs/artifacts/main/raw/bom.json?job=sbom",
                 Stub.succes(Fixtures.cyclonedx("1.6", "2026-11-15T00:00:00Z",
@@ -222,7 +222,7 @@ class InventoryTest {
         assertEquals("SBOM", sbom.origin());
         member().when().get("/api/v1/projects/" + project + "/inventory")
                 .then().statusCode(200).body("inventory.origin", equalTo("SBOM"))
-                .body("inventory.components[0].version", equalTo("4.17.21"));
+                .body("inventory.components.items[0].version", equalTo("4.17.21"));
     }
 
     @Test
@@ -236,10 +236,10 @@ class InventoryTest {
 
         assertEquals(StatutImport.REJECTED, rejected.status());
         member().when().get("/api/v1/projects/" + project + "/inventory/failures")
-                .then().statusCode(200).body("[0].reason", containsString("1.4")).body("[0].sourceRef", equalTo("ci#2"));
+                .then().statusCode(200).body("items[0].reason", containsString("1.4")).body("items[0].sourceRef", equalTo("ci#2"));
         member().when().get("/api/v1/projects/" + project + "/inventory")
-                .then().statusCode(200).body("inventory.components", hasSize(1))
-                .body("inventory.components[0].packageKey", equalTo("pkg:maven/org.exemple/a"));
+                .then().statusCode(200).body("inventory.components.items", hasSize(1))
+                .body("inventory.components.items[0].packageKey", equalTo("pkg:maven/org.exemple/a"));
     }
 
     @Test

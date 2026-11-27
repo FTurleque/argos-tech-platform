@@ -352,11 +352,12 @@ class EtatTraitementImpactTest {
         // Liste des impacts du projet (COR-12-S2 au sens strict) : même filtre, même défaut.
         String projetChemin = "/api/v1/projects/" + projet + "/impacts";
         Api.enTantQue("jules").queryParam("etat", "OUVERT").when().get(projetChemin)
-                .then().statusCode(200).body("$", hasSize(1)).body("[0].id", equalTo(ids.get(0).toString()));
+                .then().statusCode(200).body("items", hasSize(1)).body("items[0].id", equalTo(ids.get(0).toString()))
+                .body("total", equalTo(1));
         Api.enTantQue("karim").when().get(projetChemin)
-                .then().statusCode(200).body("$", hasSize(1)).body("[0].etat", equalTo("OUVERT"));
+                .then().statusCode(200).body("items", hasSize(1)).body("items[0].etat", equalTo("OUVERT"));
         Api.enTantQue("jules").queryParam("etat", "ECARTE").queryParam("etat", "RESOLU").when().get(projetChemin)
-                .then().statusCode(200).body("$", hasSize(2));
+                .then().statusCode(200).body("items", hasSize(2));
         Api.enTantQue("jules").queryParam("etat", "INCONNU").when().get(projetChemin)
                 .then().statusCode(400).body("code", equalTo("DONNEE_INVALIDE"));
         Api.enTantQue("ines").when().get(projetChemin).then().statusCode(404);

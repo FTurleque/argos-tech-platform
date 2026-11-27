@@ -7,6 +7,8 @@ import java.util.UUID;
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.inject.Inject;
 
+import io.argos.commun.Page;
+import io.argos.commun.Pagination;
 import io.argos.commun.RegleViolee;
 import io.argos.ingestion.LancementSynchronisation;
 import io.argos.ingestion.SourceSynchronizer;
@@ -51,14 +53,16 @@ public class SourceOperations {
                 state.consecutiveFailures(), state.lastSuccessAt(), state.lastFailureAt(), state.lastError(), state.cursor())).toList();
     }
 
-    public List<RejectedAdvisory> rejected(String sourceId) {
-        return store.failures(sourceId).stream()
-                .map(failure -> new RejectedAdvisory(failure.id(), failure.externalId(), failure.reason(), failure.receivedAt())).toList();
+    /** Page des avis mis à l'écart de la source, du plus récent au plus ancien. */
+    public Page<RejectedAdvisory> rejected(String sourceId, Pagination pagination) {
+        return store.failures(sourceId, pagination)
+                .convertir(failure -> new RejectedAdvisory(failure.id(), failure.externalId(), failure.reason(), failure.receivedAt()));
     }
 
-    public List<OperationEvent> events(String sourceId) {
-        return store.events(sourceId).stream().map(event -> new OperationEvent(event.kind(), event.detail(), event.occurredAt()))
-                .toList();
+    /** Page des événements d'exploitation de la source, du plus récent au plus ancien. */
+    public Page<OperationEvent> events(String sourceId, Pagination pagination) {
+        return store.events(sourceId, pagination)
+                .convertir(event -> new OperationEvent(event.kind(), event.detail(), event.occurredAt()));
     }
 
     /**

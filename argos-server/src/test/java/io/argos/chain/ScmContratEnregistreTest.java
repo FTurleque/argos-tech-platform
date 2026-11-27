@@ -139,10 +139,10 @@ class ScmContratEnregistreTest {
         Api.enTantQue("alice").when().get("/api/v1/projects/" + projet + "/inventory")
                 .then().statusCode(200)
                 .body("inventory.origin", equalTo("SBOM"))
-                .body("inventory.components", hasSize(5))
-                .body("inventory.components.find { it.packageKey == 'pkg:npm/uuid' }.version", equalTo("8.3.2"))
-                .body("inventory.components.find { it.packageKey == 'pkg:npm/uuid' }.transitive", equalTo(false))
-                .body("inventory.components.find { it.packageKey == 'pkg:npm/undici-types' }.transitive", equalTo(true));
+                .body("inventory.components.items", hasSize(5))
+                .body("inventory.components.items.find { it.packageKey == 'pkg:npm/uuid' }.version", equalTo("8.3.2"))
+                .body("inventory.components.items.find { it.packageKey == 'pkg:npm/uuid' }.transitive", equalTo(false))
+                .body("inventory.components.items.find { it.packageKey == 'pkg:npm/undici-types' }.transitive", equalTo(true));
         assertTrue(StubServer.received(GITHUB_DEPOT + "/contents/demo/bundled").isEmpty(), "SBOM présente : aucun manifeste lu");
     }
 
@@ -164,9 +164,9 @@ class ScmContratEnregistreTest {
         Api.enTantQue("alice").when().get("/api/v1/projects/" + projet + "/inventory")
                 .then().statusCode(200)
                 .body("inventory.origin", equalTo("MANIFEST"))
-                .body("inventory.components", hasSize(2))
-                .body("inventory.components.find { it.packageKey == 'pkg:npm/is-obj' }.version", equalTo("3.0.0"))
-                .body("inventory.components.find { it.packageKey == 'pkg:npm/bundle-dependencies' }.version", equalTo("1.0.2"));
+                .body("inventory.components.items", hasSize(2))
+                .body("inventory.components.items.find { it.packageKey == 'pkg:npm/is-obj' }.version", equalTo("3.0.0"))
+                .body("inventory.components.items.find { it.packageKey == 'pkg:npm/bundle-dependencies' }.version", equalTo("1.0.2"));
         assertEquals(1, StubServer.received(GITHUB_DEPOT).stream().filter(requete -> requete.pathAndQuery().equals(GITHUB_DEPOT)).count(),
                 "trois 404 GitHub dans un même rafraîchissement : une seule vérification du dépôt");
     }
@@ -262,8 +262,8 @@ class ScmContratEnregistreTest {
         Api.enTantQue("alice").when().get("/api/v1/projects/" + projet + "/inventory")
                 .then().statusCode(200)
                 .body("inventory.origin", equalTo("MANIFEST"))
-                .body("inventory.components", hasSize(4))
-                .body("inventory.components.find { it.packageKey == 'pkg:npm/decamelize' }.version", equalTo("1.1.1"));
+                .body("inventory.components.items", hasSize(4))
+                .body("inventory.components.items.find { it.packageKey == 'pkg:npm/decamelize' }.version", equalTo("1.1.1"));
         assertTrue(StubServer.received("/gitlab/").stream().noneMatch(requete -> requete.pathAndQuery().equals(GITLAB_PROJET)),
                 "GitLab : le corps du 404 suffit, aucune vérification du projet");
     }
@@ -311,7 +311,7 @@ class ScmContratEnregistreTest {
         Api.enTantQue("alice").when().get("/api/v1/projects/" + projet + "/inventory")
                 .then().statusCode(200)
                 .body("inventory.origin", equalTo("MANIFEST"))
-                .body("inventory.components", hasSize(4));
+                .body("inventory.components.items", hasSize(4));
     }
 
     @Test

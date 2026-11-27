@@ -2,6 +2,7 @@ package io.argos.chain;
 
 import static io.restassured.RestAssured.given;
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNotEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
@@ -39,10 +40,10 @@ import com.cronutils.model.definition.CronDefinitionBuilder;
 import com.cronutils.model.time.ExecutionTime;
 import com.cronutils.parser.CronParser;
 
-import io.argos.inventory.StatutImport;
 import io.argos.inventory.ImportPlanifie;
 import io.argos.inventory.InventoryService;
 import io.argos.inventory.ProjectDirectory;
+import io.argos.inventory.StatutImport;
 import io.argos.scm.QuotaEpuise;
 import io.argos.scm.RepositoryRef;
 import io.argos.testsupport.Api;
@@ -172,6 +173,8 @@ class ImportPlanifieTest {
         StubServer.programmer(GITLAB_SBOM, Stub.status(503));
         baseDeTest.exec("DELETE FROM component_occurrence WHERE project_id = '" + outil + "'");
         baseDeTest.exec("DELETE FROM component WHERE project_id = '" + outil + "'");
+        // Sans empreinte, le passage suivant réécrit l'inventaire du second projet même si sa SBOM n'a pas changé (INV-14).
+        baseDeTest.exec("UPDATE repository_inventory SET empreinte = NULL WHERE project_id = ?", outil);
 
         ImportPlanifie.Bilan bilan = importPlanifie.importer(Instant.parse("2026-11-21T02:00:00Z"));
 
@@ -223,6 +226,8 @@ class ImportPlanifieTest {
         long avant = composants(web);
         baseDeTest.exec("DELETE FROM component_occurrence WHERE project_id = '" + outil + "'");
         baseDeTest.exec("DELETE FROM component WHERE project_id = '" + outil + "'");
+        // Sans empreinte, le passage suivant réécrit l'inventaire du second projet même si sa SBOM n'a pas changé (INV-14).
+        baseDeTest.exec("UPDATE repository_inventory SET empreinte = NULL WHERE project_id = ?", outil);
         InventoryService reel = Substitution.reel(inventories);
         IllegalArgumentException imprevue = new IllegalArgumentException("erreur imprévue simulée");
         InventoryService doublure = new InventoryService() {
@@ -245,6 +250,95 @@ class ImportPlanifieTest {
         assertEquals(avant, composants(web), "l'inventaire en place du premier projet est conservé");
         assertEquals(List.of(imprevue), bilan.erreursImprevues());
         assertThrows(IllegalArgumentException.class, bilan::relancerErreurImprevue, "le passage planifié relance l'erreur");
+    }
+
+    /** Identifiant et version de ligne de chaque composant d'un projet : change si un composant est réécrit. */
+    private static final String VERSIONS_DES_COMPOSANTS =
+            "SELECT string_agg(id::text || xmin::text, ',' ORDER BY id) FROM component WHERE project_id = ?";
+
+    private static final String LODASH = "SELECT id::text FROM component WHERE project_id = ? AND version = '4.17.21'";
+
+    private String importDuProjet(UUID projet) {
+        return baseDeTest.string("SELECT import_id::text || '|' || imported_at::text FROM inventory WHERE project_id = ?", projet);
+    }
+
+    /** INV-14-S1, INV-09-S3 : un passage qui relit une SBOM inchangée conserve l'inventaire sans l'écrire ni le recorréler. */
+    @Test
+    void inv14S1DocumentInchangeConserve() {
+        UUID outil = projects.create(espace, "outil", GITHUB, List.of("package.json"));
+        servirForgesNominales();
+        importPlanifie.importer(Instant.parse("2026-11-20T02:00:00Z"));
+        String avant = importDuProjet(outil);
+        String composantsAvant = baseDeTest.string(VERSIONS_DES_COMPOSANTS, outil);
+        assertNotNull(baseDeTest.string("SELECT empreinte FROM repository_inventory WHERE project_id = ?", outil));
+
+        InventoryService.ImportProjet second = inventories.importerProjet(outil);
+
+        InventoryService.ImportResult resultat = second.depots().get(0).result();
+        assertEquals(StatutImport.KEPT, resultat.status());
+        assertEquals("SBOM", resultat.origin());
+        assertEquals(InventoryService.MOTIF_DOCUMENT_INCHANGE, resultat.reason());
+        assertEquals(avant, importDuProjet(outil), "ni réécriture ni nouvel identifiant d'import, donc aucune recorrélation");
+        assertEquals(composantsAvant, baseDeTest.string(VERSIONS_DES_COMPOSANTS, outil), "aucun composant réécrit");
+    }
+
+    /** INV-14-S2 : une SBOM modifiée est importée ; les composants déjà présents gardent leur identifiant. */
+    @Test
+    void inv14S2DocumentModifieImporte() {
+        UUID web = projects.create(espace, "web", GITLAB, List.of("package.json"));
+        StubServer.programmer(GITLAB_SBOM, new Stub(200, Fixtures.cyclonedx("1.6", "2026-11-15T06:12:44Z",
+                List.<String[]>of(new String[] {"lodash", "pkg:npm/lodash@4.17.21"}), List.of("lodash")),
+                Map.of("Content-Type", "application/json")));
+        importPlanifie.importer(Instant.parse("2026-11-20T02:00:00Z"));
+        String lodash = baseDeTest.string(LODASH, web);
+        StubServer.programmer(GITLAB_SBOM, new Stub(200, Fixtures.cyclonedx("1.6", "2026-11-16T06:12:44Z",
+                List.<String[]>of(new String[] {"lodash", "pkg:npm/lodash@4.17.21"}, new String[] {"chalk", "pkg:npm/chalk@5.3.0"}),
+                List.of("lodash", "chalk")), Map.of("Content-Type", "application/json")));
+
+        InventoryService.ImportProjet second = inventories.importerProjet(web);
+
+        assertEquals(StatutImport.IMPORTED, second.depots().get(0).result().status());
+        assertEquals(2, composants(web));
+        assertEquals(lodash, baseDeTest.string(LODASH, web));
+    }
+
+    /** INV-14-S3 : un import manuel du même document est toujours appliqué. */
+    @Test
+    void inv14S3ImportManuelToujoursApplique() {
+        UUID outil = projects.create(espace, "outil", GITHUB, List.of("package.json"));
+        byte[] sbom = Fixtures.cyclonedx("1.6", "2026-11-15T06:12:44Z",
+                List.<String[]>of(new String[] {"lodash", "pkg:npm/lodash@4.17.21"}), List.of("lodash")).getBytes(StandardCharsets.UTF_8);
+        inventories.importSbom(outil, sbom, "import manuel");
+        String avant = importDuProjet(outil);
+
+        InventoryService.ImportResult second = inventories.importSbom(outil, sbom, "import manuel");
+
+        assertEquals(StatutImport.IMPORTED, second.status());
+        assertNotEquals(avant, importDuProjet(outil), "l'inventaire est réécrit");
+    }
+
+    /** INV-14-S4 : une grosse SBOM avec doublons donne un composant par paquet et version, direct s'il l'est une fois. */
+    @Test
+    void inv14S4GrosDocumentDedoublonne() {
+        UUID web = projects.create(espace, "web", GITLAB, List.of("package.json"));
+        List<String[]> composantsLus = new ArrayList<>();
+        List<String> directs = new ArrayList<>();
+        int nombre = 2000;
+        for (int rang = 0; rang < nombre; rang++) {
+            composantsLus.add(new String[] {"paquet-" + rang, "pkg:npm/paquet-" + rang + "@1.0." + rang});
+            directs.add("paquet-" + rang);
+        }
+        composantsLus.add(new String[] {"paquet-0-bis", "pkg:npm/paquet-0@1.0.0"});
+        StubServer.programmer(GITLAB_SBOM, new Stub(200, Fixtures.cyclonedx("1.6", "2026-11-15T06:12:44Z", composantsLus, directs),
+                Map.of("Content-Type", "application/json")));
+
+        InventoryService.ImportProjet bilan = inventories.importerProjet(web);
+
+        assertEquals(StatutImport.IMPORTED, bilan.depots().get(0).result().status());
+        assertEquals(nombre, composants(web), "le doublon de paquet et de version donne un seul composant");
+        assertEquals(0, baseDeTest.count("SELECT count(*) FROM component WHERE project_id = ?"
+                + " AND package_key = 'pkg:npm/paquet-0' AND transitive IS DISTINCT FROM false", web), "direct s'il l'est une fois");
+        assertEquals(nombre, baseDeTest.count("SELECT count(*) FROM component_occurrence WHERE project_id = ?", web));
     }
 
     /** INV-07-S3 : aucune route n'accepte une notification de pipeline ou un webhook de forge. */

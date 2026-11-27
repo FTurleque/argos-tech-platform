@@ -76,16 +76,17 @@ public class OutilsProjets {
 
     /** Contexte d'un projet avec ses composants (au plus {@value #COMPOSANTS_MAX}). */
     private ContexteProjet detail(Caller appelant, InventoryQueries.ProjectItem projet) {
-        Optional<InventoryQueries.InventoryView> inventaire = inventaires.inventory(projet.id(), appelant.accountId());
-        List<InventoryQueries.ComponentView> composants = inventaire.map(InventoryQueries.InventoryView::components)
-                .orElse(List.of());
+        Optional<InventoryQueries.InventoryView> inventaire = inventaires.premiersComposants(projet.id(), appelant.accountId(),
+                COMPOSANTS_MAX);
+        List<InventoryQueries.ComponentView> composants = inventaire.map(vue -> vue.components().items()).orElse(List.of());
+        long total = inventaire.map(vue -> vue.components().total()).orElse(0L);
         return new ContexteProjet(projet.id(), projet.name(), projet.workspaceId(),
                 inventaire.map(vue -> new Inventaire(vue.origin(), texte(vue.sourceDate()), vue.ageDays(), vue.obsolete(),
-                        vue.components().size())).orElse(null),
+                        Math.toIntExact(total))).orElse(null),
                 alertesParNiveau(appelant, projet),
-                composants.stream().limit(COMPOSANTS_MAX)
-                        .map(composant -> new Composant(composant.purl(), composant.version(), composant.transitive())).toList(),
-                composants.size() > COMPOSANTS_MAX);
+                composants.stream().map(composant -> new Composant(composant.purl(), composant.version(), composant.transitive()))
+                        .toList(),
+                total > COMPOSANTS_MAX);
     }
 
     /** Contexte d'un projet sans ses composants : synthèse de l'inventaire, sans lecture des composants (G5). */

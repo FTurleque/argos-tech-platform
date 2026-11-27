@@ -7,6 +7,7 @@ import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.Optional;
+import java.util.Set;
 import java.util.UUID;
 
 import jakarta.enterprise.context.ApplicationScoped;
@@ -33,9 +34,13 @@ public class InventoryService {
 
     private static final Logger LOG = Logger.getLogger(InventoryService.class);
 
+    /** Motif d'un dépôt dont le document lu sur la forge est celui de son dernier import (INV-14-S1). */
+    public static final String MOTIF_DOCUMENT_INCHANGE = "document inchangé depuis le dernier import";
+
     /**
-     * Issue d'un import : IMPORTED, REJECTED, KEPT (inventaire SBOM conservé), NONE (aucune source), ERROR (forge en
-     * erreur) ou DEFERRED (quota de la forge épuisé pendant ce passage, dépôt non interrogé).
+     * Issue d'un import : IMPORTED, REJECTED, KEPT (inventaire conservé, SBOM absente ou document inchangé), NONE
+     * (aucune source), ERROR (forge en erreur) ou DEFERRED (quota de la forge épuisé pendant ce passage, dépôt non interrogé).
+     * Pour KEPT, {@code components} et {@code ignored} valent 0 : ils ne décrivent pas l'inventaire conservé.
      * {@code ignored} compte les composants écartés faute de PURL exploitable ; {@code ignoredComponents}
      * les décrit, au plus {@value ParsedInventory#MAX_SIGNALED} (INV-01, décision D6 du 2026-11-18).
      */
@@ -94,7 +99,8 @@ public class InventoryService {
             LOG.infof(erreur, "SBOM refusée pour le projet %s : %s", projectId, erreur.getMessage());
             return new ImportResult(StatutImport.REJECTED, null, 0, 0, erreur.getMessage());
         }
-        store.replace(projectId, new InventoryStore.Remplacement(cible, "SBOM", parsed, sourceRef));
+        store.replace(projectId, new InventoryStore.Remplacement(cible, "SBOM", parsed, sourceRef,
+                EmpreinteDocument.sbom(document), false));
         return new ImportResult(StatutImport.IMPORTED, "SBOM", parsed.components().size(), parsed.ignoredCount(), null,
                 parsed.ignoredComponents());
     }
@@ -108,7 +114,7 @@ public class InventoryService {
             return new ImportResult(StatutImport.NONE, null, 0, 0, "aucun manifeste lisible");
         }
         store.replace(projectId, new InventoryStore.Remplacement(cible, "MANIFEST", parsed.get(),
-                String.join(",", manifests.keySet())));
+                String.join(",", manifests.keySet()), EmpreinteDocument.manifestes(manifests), false));
         return new ImportResult(StatutImport.IMPORTED, "MANIFEST", parsed.get().components().size(), 0, null);
     }
 
@@ -143,8 +149,11 @@ public class InventoryService {
             lecture.remplacement().ifPresent(remplacements::add);
             resultats.add(new ResultatDepot(depot.id(), ref.provider(), ref.repository(), lecture.result()));
         }
-        store.remplacer(projectId, remplacements);
-        return new ImportProjet(projectId, List.copyOf(resultats));
+        Set<UUID> conserves = store.remplacer(projectId, remplacements);
+        return new ImportProjet(projectId, resultats.stream().map(resultat -> conserves.contains(resultat.repositoryId())
+                ? new ResultatDepot(resultat.repositoryId(), resultat.provider(), resultat.repository(),
+                        new ImportResult(StatutImport.KEPT, resultat.result().origin(), 0, 0, MOTIF_DOCUMENT_INCHANGE))
+                : resultat).toList());
     }
 
     /**
@@ -185,7 +194,7 @@ public class InventoryService {
             }
             return new InventaireLu(new ImportResult(StatutImport.IMPORTED, "MANIFEST", parsed.get().components().size(), 0, null),
                     Optional.of(new InventoryStore.Remplacement(depot.id(), "MANIFEST", parsed.get(),
-                            String.join(",", manifests.keySet()))));
+                            String.join(",", manifests.keySet()), EmpreinteDocument.manifestes(manifests), true)));
         } catch (QuotaEpuise epuisement) {
             surQuota.accept(epuisement);
             store.recordFailure(projectId, depot.id(), epuisement.getMessage(), sourceRef);
@@ -209,7 +218,8 @@ public class InventoryService {
                 ParsedInventory parsed = CycloneDxParser.parse(sbom.contenu(), maxBytes);
                 return new InventaireLu(new ImportResult(StatutImport.IMPORTED, "SBOM", parsed.components().size(),
                         parsed.ignoredCount(), null, parsed.ignoredComponents()),
-                        Optional.of(new InventoryStore.Remplacement(repositoryId, "SBOM", parsed, sourceRef)));
+                        Optional.of(new InventoryStore.Remplacement(repositoryId, "SBOM", parsed, sourceRef,
+                                EmpreinteDocument.sbom(sbom.contenu()), true)));
             } catch (InvalidDocumentException erreur) {
                 reason = erreur.getMessage();
             }

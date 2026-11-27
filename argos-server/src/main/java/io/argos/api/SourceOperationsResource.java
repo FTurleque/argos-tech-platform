@@ -9,15 +9,21 @@ import jakarta.ws.rs.POST;
 import jakarta.ws.rs.Path;
 import jakarta.ws.rs.PathParam;
 import jakarta.ws.rs.Produces;
+import jakarta.ws.rs.QueryParam;
 import jakarta.ws.rs.core.MediaType;
 
 import org.eclipse.microprofile.openapi.annotations.Operation;
+import org.eclipse.microprofile.openapi.annotations.enums.SchemaType;
+import org.eclipse.microprofile.openapi.annotations.media.Schema;
+import org.eclipse.microprofile.openapi.annotations.parameters.Parameter;
 import org.eclipse.microprofile.openapi.annotations.responses.APIResponse;
 import org.eclipse.microprofile.openapi.annotations.tags.Tag;
 
 import org.jboss.resteasy.reactive.ResponseStatus;
 
 import io.argos.api.security.Access;
+import io.argos.commun.Page;
+import io.argos.commun.Pagination;
 import io.argos.signal.SourceOperations;
 
 /** Indicateurs d'exploitation des sources d'avis (COL-07-S1, COL-08), réservés au rôle d'exploitation. */
@@ -44,20 +50,38 @@ public class SourceOperationsResource {
 
     @GET
     @Path("/{id}/rejected")
-    @Operation(summary = "Avis mis à l'écart par la source, avec leur motif")
-    public List<SourceOperations.RejectedAdvisory> rejected(@PathParam("id") String id) {
+    @Operation(summary = "Avis mis à l'écart par la source, avec leur motif, du plus récent au plus ancien (liste paginée)")
+    @APIResponse(responseCode = "200", description = "Page d'avis mis à l'écart")
+    @APIResponse(responseCode = "400", description = "Paramètre page ou size non entier")
+    public Page<SourceOperations.RejectedAdvisory> rejected(@PathParam("id") String id,
+            @Parameter(description = ParametresPagination.DESCRIPTION_PAGE,
+                    schema = @Schema(type = SchemaType.INTEGER, defaultValue = "0"))
+            @QueryParam(ParametresPagination.PAGE) String page,
+            @Parameter(description = ParametresPagination.DESCRIPTION_TAILLE,
+                    schema = @Schema(type = SchemaType.INTEGER, defaultValue = "" + Pagination.TAILLE_DEFAUT))
+            @QueryParam(ParametresPagination.TAILLE) String size) {
+        Pagination pagination = ParametresPagination.pagination(page, size);
         access.operator();
         requireSource(id);
-        return operations.rejected(id);
+        return operations.rejected(id, pagination);
     }
 
     @GET
     @Path("/{id}/events")
-    @Operation(summary = "Événements d'exploitation datés de la source")
-    public List<SourceOperations.OperationEvent> events(@PathParam("id") String id) {
+    @Operation(summary = "Événements d'exploitation datés de la source, du plus récent au plus ancien (liste paginée)")
+    @APIResponse(responseCode = "200", description = "Page d'événements d'exploitation")
+    @APIResponse(responseCode = "400", description = "Paramètre page ou size non entier")
+    public Page<SourceOperations.OperationEvent> events(@PathParam("id") String id,
+            @Parameter(description = ParametresPagination.DESCRIPTION_PAGE,
+                    schema = @Schema(type = SchemaType.INTEGER, defaultValue = "0"))
+            @QueryParam(ParametresPagination.PAGE) String page,
+            @Parameter(description = ParametresPagination.DESCRIPTION_TAILLE,
+                    schema = @Schema(type = SchemaType.INTEGER, defaultValue = "" + Pagination.TAILLE_DEFAUT))
+            @QueryParam(ParametresPagination.TAILLE) String size) {
+        Pagination pagination = ParametresPagination.pagination(page, size);
         access.operator();
         requireSource(id);
-        return operations.events(id);
+        return operations.events(id, pagination);
     }
 
     @POST
