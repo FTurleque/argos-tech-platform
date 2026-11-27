@@ -157,7 +157,7 @@ public class MoteurAlertes {
 
     /** Évalue les règles de chaque destinataire possible pour les impacts publiés. */
     public Bilan evaluer(ImpactsRecorded evenement, Instant maintenant) {
-        Set<UUID> espaces = evenement.impacts().stream().map(ImpactsRecorded.Item::workspaceId)
+        Set<UUID> espaces = evenement.impacts().stream().map(ImpactsRecorded.Item::espaceId)
                 .collect(Collectors.toCollection(LinkedHashSet::new));
         Map<UUID, String> paquets = new LinkedHashMap<>();
         evenement.impacts().forEach(impact -> paquets.put(impact.impactId(), impact.packageKey()));
@@ -239,7 +239,7 @@ public class MoteurAlertes {
     private Optional<Plan> plan(ImpactsRecorded evenement, Destinataires.Membre membre, Lecture lecture,
             Map<UUID, String> paquets) {
         List<ImpactQueries.ImpactView> visibles = lecture.impacts().stream()
-                .filter(impact -> membre.espaces().contains(impact.workspaceId())).toList();
+                .filter(impact -> membre.espaces().contains(impact.espaceId())).toList();
         if (visibles.isEmpty()) {
             return Optional.empty();
         }

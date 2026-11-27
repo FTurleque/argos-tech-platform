@@ -89,7 +89,7 @@ public class SignalResource {
         Caller caller = access.authenticated();
         Set<EtatImpact> etats = etats(etat);
         signals.find(id).orElseThrow(NotFoundException::new);
-        return impacts.forSignal(id, caller.accountId(), caller.memberWorkspaces(), etats,
+        return impacts.forSignal(id, caller.accountId(), caller.espacesMembre(), etats,
                 ParametresPagination.entier(page, "page", 0), ParametresPagination.entier(size, "size", 50));
     }
 

@@ -17,6 +17,8 @@ import java.util.UUID;
 
 import javax.sql.DataSource;
 
+import com.fasterxml.jackson.annotation.JsonProperty;
+
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.inject.Inject;
 import jakarta.transaction.Transactional;
@@ -57,7 +59,8 @@ public class SubscriptionService {
     };
 
     /** Abonnement enregistré. */
-    public record Subscription(UUID id, String scope, UUID ownerWorkspaceId, UUID ownerUserId,
+    public record Subscription(UUID id, String scope, @JsonProperty("ownerWorkspaceId") UUID espaceProprietaireId,
+            UUID ownerUserId,
             List<SubscriptionRequest.Filter> filters, String channel, String frequency, boolean mandatory, String state,
             Instant createdAt) {
     }
@@ -83,7 +86,7 @@ public class SubscriptionService {
             try (PreparedStatement statement = connection.prepareStatement(sql)) {
                 statement.setObject(1, id);
                 statement.setString(2, validated.scope());
-                statement.setObject(3, "TEAM".equals(validated.scope()) ? request.ownerWorkspaceId() : null);
+                statement.setObject(3, "TEAM".equals(validated.scope()) ? request.espaceProprietaireId() : null);
                 statement.setObject(4, "PERSONAL".equals(validated.scope()) ? request.ownerUserId() : null);
                 statement.setString(5, MAPPER.writeValueAsString(validated.filters()));
                 statement.setString(6, validated.channel());
@@ -114,7 +117,7 @@ public class SubscriptionService {
      * {@code PERSONAL} (ABO-04).
      */
     @Transactional
-    public List<Subscription> activeFor(UUID userId, Set<UUID> memberWorkspaces) {
+    public List<Subscription> activeFor(UUID userId, Set<UUID> espacesMembre) {
         String sql = "SELECT " + COLUMNS + """
                  FROM subscription s WHERE s.state = 'ACTIVE' AND (
                     (s.scope = 'PERSONAL' AND s.owner_user_id = ?)
@@ -123,7 +126,7 @@ public class SubscriptionService {
                                                         WHERE o.subscription_id = s.id AND o.user_id = ?))))
                 ORDER BY s.created_at, s.id
                 """;
-        return query(userId, sql, userId, memberWorkspaces, userId);
+        return query(userId, sql, userId, espacesMembre, userId);
     }
 
     /**
@@ -184,7 +187,7 @@ public class SubscriptionService {
      * facultatifs qu'il a quittés. Chacun porte son état ; seuls les actifs s'appliquent ({@link #activeFor}).
      */
     @Transactional
-    public List<Subscription> listFor(UUID userId, Set<UUID> memberWorkspaces) {
+    public List<Subscription> listFor(UUID userId, Set<UUID> espacesMembre) {
         String sql = "SELECT " + COLUMNS + """
                  FROM subscription s WHERE (
                     (s.scope = 'PERSONAL' AND s.owner_user_id = ?)
@@ -193,7 +196,7 @@ public class SubscriptionService {
                                                         WHERE o.subscription_id = s.id AND o.user_id = ?))))
                 ORDER BY s.created_at, s.id
                 """;
-        return query(userId, sql, userId, memberWorkspaces, userId);
+        return query(userId, sql, userId, espacesMembre, userId);
     }
 
     /**
@@ -252,7 +255,7 @@ public class SubscriptionService {
      * {@code automatiser-chaine-veille}).
      */
     @Transactional
-    public LeaveOutcome leave(UUID subscriptionId, UUID userId, Set<UUID> memberWorkspaces) {
+    public LeaveOutcome leave(UUID subscriptionId, UUID userId, Set<UUID> espacesMembre) {
         Optional<Subscription> found = find(subscriptionId, userId)
                 .filter(candidate -> "PERSONAL".equals(candidate.scope()) || "ACTIVE".equals(candidate.state()));
         if (found.isEmpty()) {
@@ -267,7 +270,7 @@ public class SubscriptionService {
         }
         try (Connection connection = dataSource.getConnection()) {
             ContexteBase.appliquer(connection, ContexteBase.Contexte.duCompte(userId));
-            if (!memberWorkspaces.contains(subscription.ownerWorkspaceId())) {
+            if (!espacesMembre.contains(subscription.espaceProprietaireId())) {
                 return LeaveOutcome.NOT_FOUND;
             }
             if (subscription.mandatory()) {
@@ -330,7 +333,7 @@ public class SubscriptionService {
     /** Un abonnement d'équipe a une équipe et aucun utilisateur propriétaires ; un abonnement personnel, l'inverse. */
     private static void validerProprietaire(String scope, SubscriptionRequest request) {
         boolean equipe = scope.equals(PORTEE_EQUIPE);
-        if (equipe && request.ownerWorkspaceId() == null) {
+        if (equipe && request.espaceProprietaireId() == null) {
             throw new SubscriptionRejectedException("ownerWorkspaceId", "attribut manquant : équipe propriétaire");
         }
         if (equipe && request.ownerUserId() != null) {
@@ -339,7 +342,7 @@ public class SubscriptionService {
         if (!equipe && request.ownerUserId() == null) {
             throw new SubscriptionRejectedException("ownerUserId", "attribut manquant : utilisateur propriétaire");
         }
-        if (!equipe && request.ownerWorkspaceId() != null) {
+        if (!equipe && request.espaceProprietaireId() != null) {
             throw new SubscriptionRejectedException("ownerWorkspaceId", "un abonnement PERSONAL n'a pas d'équipe propriétaire");
         }
     }

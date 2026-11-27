@@ -328,7 +328,7 @@ public class RadarProjets {
                 """, requete -> {
                     requete.setObject(1, Conversions.utc(maintenant));
                     requete.setArray(2, tableauDesDettes(requete, "uuid", dettes, dette -> dette.composant().projectId()));
-                    requete.setArray(3, tableauDesDettes(requete, "uuid", dettes, dette -> dette.composant().workspaceId()));
+                    requete.setArray(3, tableauDesDettes(requete, "uuid", dettes, dette -> dette.composant().espaceId()));
                     requete.setArray(4, tableauDesDettes(requete, "uuid", dettes, dette -> dette.composant().componentId()));
                     requete.setArray(5, tableauDesDettes(requete, "varchar", dettes, dette -> dette.composant().packageKey()));
                     requete.setArray(6, tableauDesDettes(requete, "varchar", dettes, dette -> dette.composant().version()));

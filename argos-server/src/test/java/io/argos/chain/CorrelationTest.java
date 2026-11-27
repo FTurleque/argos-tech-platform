@@ -86,8 +86,8 @@ class CorrelationTest {
         spaceB = Api.nouvelEspace("jules", "Espace B");
     }
 
-    private UUID projectWithSbom(UUID workspace, String name, Instant generated, String... purls) {
-        UUID project = projects.create(workspace, name, null, null);
+    private UUID projectWithSbom(UUID espace, String name, Instant generated, String... purls) {
+        UUID project = projects.create(espace, name, null, null);
         List<String[]> components = new java.util.ArrayList<>();
         List<String> direct = new java.util.ArrayList<>();
         for (int rang = 0; rang < purls.length; rang++) {

@@ -7,7 +7,7 @@ import java.util.UUID;
  * Demande de création d'un abonnement de veille (ABO-01, ABO-02). Le propriétaire est un espace
  * d'équipe pour la portée {@code TEAM}, un utilisateur pour la portée {@code PERSONAL}.
  */
-public record SubscriptionRequest(String scope, UUID ownerWorkspaceId, UUID ownerUserId, List<Filter> filters,
+public record SubscriptionRequest(String scope, UUID espaceProprietaireId, UUID ownerUserId, List<Filter> filters,
         String channel, String frequency, Boolean mandatory) {
 
     /**

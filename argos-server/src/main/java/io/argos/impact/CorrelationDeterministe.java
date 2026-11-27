@@ -217,7 +217,7 @@ class CorrelationDeterministe {
             bilan.reopened++;
         }
         if (aPublier(impact, rouvert, existants.get(triplet), correspondance)) {
-            bilan.items.add(new ImpactsRecorded.Item(impact.id(), composant.projectId(), composant.workspaceId(),
+            bilan.items.add(new ImpactsRecorded.Item(impact.id(), composant.projectId(), composant.espaceId(),
                     correspondance.level(), composant.packageKey()));
         }
     }

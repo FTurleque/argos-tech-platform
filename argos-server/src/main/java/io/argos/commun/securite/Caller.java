@@ -8,32 +8,32 @@ import java.util.UUID;
  * espaces et leurs rôles (ABO-05, ADR-0016).
  *
  * @param accountId identifiant stable du compte Argos, relié au sujet du jeton OIDC
- * @param memberWorkspaces espaces dont il est membre, quel que soit son rôle
- * @param adminWorkspaces espaces qu'il administre (sous-ensemble de {@code memberWorkspaces})
+ * @param espacesMembre espaces dont il est membre, quel que soit son rôle
+ * @param espacesAdministres espaces qu'il administre (sous-ensemble de {@code espacesMembre})
  * @param operator vrai pour l'administrateur plateforme (état des sources, contrôle d'intégrité)
- * @param contributorWorkspaces espaces où il est {@code CONTRIBUTEUR} ou {@code ADMINISTRATEUR} (sous-ensemble de
- *        {@code memberWorkspaces}) : il peut y changer l'état de traitement des impacts (COR-10, P-5)
+ * @param espacesContributeur espaces où il est {@code CONTRIBUTEUR} ou {@code ADMINISTRATEUR} (sous-ensemble de
+ *        {@code espacesMembre}) : il peut y changer l'état de traitement des impacts (COR-10, P-5)
  */
-public record Caller(UUID accountId, Set<UUID> memberWorkspaces, Set<UUID> adminWorkspaces, boolean operator,
-        Set<UUID> contributorWorkspaces) {
+public record Caller(UUID accountId, Set<UUID> espacesMembre, Set<UUID> espacesAdministres, boolean operator,
+        Set<UUID> espacesContributeur) {
 
     public Caller {
-        memberWorkspaces = Set.copyOf(memberWorkspaces);
-        adminWorkspaces = Set.copyOf(adminWorkspaces);
-        contributorWorkspaces = Set.copyOf(contributorWorkspaces);
+        espacesMembre = Set.copyOf(espacesMembre);
+        espacesAdministres = Set.copyOf(espacesAdministres);
+        espacesContributeur = Set.copyOf(espacesContributeur);
     }
 
-    public boolean memberOf(UUID workspaceId) {
-        return memberWorkspaces.contains(workspaceId);
+    public boolean memberOf(UUID espaceId) {
+        return espacesMembre.contains(espaceId);
     }
 
-    public boolean adminOf(UUID workspaceId) {
-        return adminWorkspaces.contains(workspaceId) && memberWorkspaces.contains(workspaceId);
+    public boolean adminOf(UUID espaceId) {
+        return espacesAdministres.contains(espaceId) && espacesMembre.contains(espaceId);
     }
 
     /** Vrai si l'appelant est {@code CONTRIBUTEUR} ou {@code ADMINISTRATEUR} de l'espace. */
-    public boolean contributorOf(UUID workspaceId) {
-        return memberWorkspaces.contains(workspaceId)
-                && (contributorWorkspaces.contains(workspaceId) || adminWorkspaces.contains(workspaceId));
+    public boolean contributorOf(UUID espaceId) {
+        return espacesMembre.contains(espaceId)
+                && (espacesContributeur.contains(espaceId) || espacesAdministres.contains(espaceId));
     }
 }

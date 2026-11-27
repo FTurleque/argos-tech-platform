@@ -85,7 +85,7 @@ public class ImpactResource {
     public ImpactQueries.ImpactView transition(@PathParam("id") UUID id, DemandeTransition demande) {
         Caller caller = access.authenticated();
         ImpactQueries.ImpactView view = visible(caller, id);
-        if (!caller.contributorOf(view.workspaceId())) {
+        if (!caller.contributorOf(view.espaceId())) {
             throw access.forbidden();
         }
         EtatImpact vers = vers(demande);
@@ -121,11 +121,11 @@ public class ImpactResource {
 
     /** Impact visible de l'appelant ; sinon 404, avec un refus journalisé s'il existe dans un autre espace. */
     private ImpactQueries.ImpactView visible(Caller caller, UUID id) {
-        Optional<ImpactQueries.ImpactView> view = impacts.find(id, caller.accountId(), caller.memberWorkspaces());
+        Optional<ImpactQueries.ImpactView> view = impacts.find(id, caller.accountId(), caller.espacesMembre());
         if (view.isPresent()) {
             return view.get();
         }
-        if (impacts.workspaceOf(id).isPresent()) {
+        if (impacts.espaceDe(id).isPresent()) {
             throw access.outOfScope();
         }
         throw new NotFoundException();
@@ -133,7 +133,7 @@ public class ImpactResource {
 
     /** Transitions que l'appelant peut demander : aucune pour un lecteur. */
     private static ImpactQueries.ImpactView avecTransitions(Caller caller, ImpactQueries.ImpactView view) {
-        List<String> possibles = caller.contributorOf(view.workspaceId())
+        List<String> possibles = caller.contributorOf(view.espaceId())
                 ? EtatImpact.valueOf(view.etat()).suivants(view.componentId() != null).stream().sorted(Comparator.naturalOrder())
                         .map(EtatImpact::name).toList()
                 : List.of();

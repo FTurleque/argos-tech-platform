@@ -90,8 +90,8 @@ class SubscriptionTest {
         return "{\"scope\":\"PERSONAL\",\"filters\":" + filters + ",\"channel\":\"in_app\",\"frequency\":\"daily\",\"mandatory\":false}";
     }
 
-    private static String team(UUID workspace, String filters, boolean mandatory) {
-        return "{\"scope\":\"TEAM\",\"teamWorkspaceId\":\"" + workspace + "\",\"filters\":" + filters
+    private static String team(UUID espace, String filters, boolean mandatory) {
+        return "{\"scope\":\"TEAM\",\"teamWorkspaceId\":\"" + espace + "\",\"filters\":" + filters
                 + ",\"channel\":\"in_app\",\"frequency\":\"weekly\",\"mandatory\":" + mandatory + "}";
     }
 

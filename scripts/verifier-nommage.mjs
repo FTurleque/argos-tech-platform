@@ -30,10 +30,10 @@ import { fileURLToPath, pathToFileURL } from 'node:url';
 import { declarationsJava } from './nommage/java.mjs';
 import { declarationsJs } from './nommage/javascript.mjs';
 import { masquer } from './nommage/masquage.mjs';
-import { estCourt } from './nommage/outils.mjs';
+import { estCourt, TERMES_IMPOSES, termeEtranger } from './nommage/outils.mjs';
 import { declarationsVue } from './nommage/vue.mjs';
 
-export { estCourt };
+export { estCourt, termeEtranger };
 
 const RACINE = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 
@@ -60,13 +60,17 @@ const EXTENSIONS = /\.(java|ts|vue|js|mjs)$/;
 const EXCLUS = /(^|\/)(node_modules|dist|target)\/|^e2e\/resultats\/|\.min\.js$/;
 const GENERE = /@generated|auto-generated|généré automatiquement|fichier généré/i;
 
-/** Déclarations d'identifiants courts d'une source : [{ ligne, nom }], triées. */
+/**
+ * Déclarations interdites d'une source, triées : identifiants courts ({ ligne, nom }) et identifiants qui emploient un
+ * terme étranger à la langue du concept ({ ligne, nom, terme }).
+ */
 export function analyserSource(source, langage) {
   const trouves = new Map();
   const ajouter = (nom, position) => {
-    if (!estCourt(nom)) return;
+    const terme = termeEtranger(nom);
+    if (!estCourt(nom) && !terme) return;
     const ligne = source.slice(0, position).split('\n').length;
-    trouves.set(`${ligne}:${nom}`, { ligne, nom });
+    trouves.set(`${ligne}:${nom}`, terme ? { ligne, nom, terme } : { ligne, nom });
   };
   if (langage === 'java') declarationsJava(masquer(source, 'java'), ajouter);
   else if (langage === 'vue') declarationsVue(source, ajouter);
@@ -124,8 +128,11 @@ function principal(arguments_) {
   for (const { fichier, nom } of inutiles) {
     console.error(`ERREUR liste blanche : ${fichier}:${nom} ne correspond plus à aucune déclaration`);
   }
-  for (const { fichier, ligne, nom } of violations) {
-    console.error(`ERREUR ${fichier}:${ligne}:${nom} — identifiant de ${nom.length} lettre${nom.length > 1 ? 's' : ''} déclaré`);
+  for (const { fichier, ligne, nom, terme } of violations) {
+    const motif = terme
+      ? `« ${terme} » dans un identifiant : le projet dit « ${TERMES_IMPOSES[terme]} »`
+      : `identifiant de ${nom.length} lettre${nom.length > 1 ? 's' : ''} déclaré`;
+    console.error(`ERREUR ${fichier}:${ligne}:${nom} — ${motif}`);
   }
   console.log(`${analyses} fichiers analysés, ${violations.length} violation(s), ${LISTE_BLANCHE.length} exception(s) en liste blanche.`);
   return violations.length + inutiles.length === 0 ? 0 : 1;

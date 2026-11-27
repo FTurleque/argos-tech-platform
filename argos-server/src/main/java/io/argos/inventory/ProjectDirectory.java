@@ -31,7 +31,7 @@ public class ProjectDirectory {
     public static final List<String> DEFAULT_MANIFESTS = List.of("package.json", "requirements.txt");
 
     /** Projet suivi ; {@code repository} est absent si aucun dépôt n'est rattaché par les colonnes {@code scm_*}. */
-    public record Project(UUID id, UUID workspaceId, String name, Optional<RepositoryRef> repository,
+    public record Project(UUID id, UUID espaceId, String name, Optional<RepositoryRef> repository,
             List<String> manifestPaths) {
     }
 
@@ -60,7 +60,7 @@ public class ProjectDirectory {
      * les colonnes {@code scm_*} du projet.
      */
     @Transactional
-    public UUID create(UUID workspaceId, String name, RepositoryRef repository, List<String> manifestPaths) {
+    public UUID create(UUID espaceId, String name, RepositoryRef repository, List<String> manifestPaths) {
         UUID id = UUID.randomUUID();
         String sql = """
                 INSERT INTO project(id, workspace_id, name, scm_provider, scm_repository, scm_branch, sbom_job, sbom_path,
@@ -69,13 +69,13 @@ public class ProjectDirectory {
                 """;
         Optional<RepositoryRef> depot = Optional.ofNullable(repository);
         try {
-            ecrire(sql, id, workspaceId, name, depot.map(RepositoryRef::provider).orElse(null),
+            ecrire(sql, id, espaceId, name, depot.map(RepositoryRef::provider).orElse(null),
                     depot.map(RepositoryRef::repository).orElse(null), depot.map(RepositoryRef::branch).orElse(null),
                     depot.map(RepositoryRef::sbomJob).orElse(null), depot.map(RepositoryRef::sbomPath).orElse(null),
                     manifestes(manifestPaths));
         } catch (SQLException erreur) {
             if ("23503".equals(erreur.getSQLState())) {
-                throw new IllegalArgumentException("espace inconnu : " + workspaceId, erreur);
+                throw new IllegalArgumentException("espace inconnu : " + espaceId, erreur);
             }
             throw new IllegalStateException("création du projet impossible", erreur);
         }
@@ -100,8 +100,8 @@ public class ProjectDirectory {
      * Crée un projet demandé par l'administrateur de son espace (INV-12) ; le dépôt donné, facultatif, devient son
      * dépôt principal.
      */
-    public UUID creer(UUID workspaceId, String name, Optional<DepotProjet> depot) {
-        return create(workspaceId, name, depot.map(DepotProjet::reference).orElse(null),
+    public UUID creer(UUID espaceId, String name, Optional<DepotProjet> depot) {
+        return create(espaceId, name, depot.map(DepotProjet::reference).orElse(null),
                 depot.map(DepotProjet::manifestesOuDefaut).orElse(null));
     }
 

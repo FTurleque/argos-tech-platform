@@ -48,12 +48,12 @@ class InventoryTest {
     @Inject
     InventoryService inventories;
 
-    private UUID workspace;
+    private UUID espace;
 
     @BeforeEach
     void reset() {
         baseDeTest.reset();
-        workspace = Api.nouvelEspace("alice", "Équipe A");
+        espace = Api.nouvelEspace("alice", "Équipe A");
     }
 
     private static byte[] bytes(String texte) {
@@ -66,7 +66,7 @@ class InventoryTest {
 
     @Test
     void migrationIdentiteStableDesComposants() {
-        UUID project = projects.create(workspace, "api", null, null);
+        UUID project = projects.create(espace, "api", null, null);
         String sbom = Fixtures.cyclonedx("1.5", "2026-11-10T00:00:00Z",
                 java.util.Collections.singletonList(new String[] {"a", "pkg:maven/org.exemple/a@1.0.0"}), List.of("a"));
         inventories.importSbom(project, bytes(sbom), "test");
@@ -82,7 +82,7 @@ class InventoryTest {
 
     @Test
     void inv01S1EtInv02S1ImportSbomValideAvecTransitive() {
-        UUID project = projects.create(workspace, "api", null, null);
+        UUID project = projects.create(espace, "api", null, null);
         String sbom = Fixtures.cyclonedx("1.6", "2026-11-10T08:00:00Z", List.of(
                 new String[] {"a", "pkg:maven/org.exemple/a@1.0.0"},
                 new String[] {"b", "pkg:maven/org.exemple/b@2.1.0"}), List.of("a"));
@@ -111,7 +111,7 @@ class InventoryTest {
      */
     @Test
     void inv01S3ComposantsSansPurlSignalesALImport() {
-        UUID project = projects.create(workspace, "outil", null, null);
+        UUID project = projects.create(espace, "outil", null, null);
         StringBuilder comps = new StringBuilder(
                 "{\"type\":\"library\",\"bom-ref\":\"log4j\",\"group\":\"org.apache.logging.log4j\",\"name\":\"log4j-core\","
                         + "\"version\":\"2.14.1\",\"cpe\":\"cpe:2.3:a:apache:log4j:2.14.1:*:*:*:*:*:*:*\"},"
@@ -155,7 +155,7 @@ class InventoryTest {
 
     @Test
     void inv01S2NouvelleSbomRemplaceLaPrecedente() {
-        UUID project = projects.create(workspace, "api", null, null);
+        UUID project = projects.create(espace, "api", null, null);
         inventories.importSbom(project, bytes(Fixtures.cyclonedx("1.5", "2026-11-01T00:00:00Z", List.of(
                 new String[] {"a", "pkg:maven/org.exemple/a@1.0.0"},
                 new String[] {"old", "pkg:maven/org.exemple/old@1.0.0"}), List.of("a", "old"))), "ci#1");
@@ -172,11 +172,11 @@ class InventoryTest {
 
     @Test
     void inv03S1EtS2AgeDeLaSbomEtProjetSansSbom() {
-        UUID withSbom = projects.create(workspace, "avec", null, null);
+        UUID withSbom = projects.create(espace, "avec", null, null);
         Instant generated = Instant.now().minus(12, ChronoUnit.DAYS).truncatedTo(ChronoUnit.SECONDS);
         inventories.importSbom(withSbom, bytes(Fixtures.cyclonedx("1.5", generated.toString(),
                 java.util.Collections.singletonList(new String[] {"a", "pkg:npm/lodash@4.17.20"}), List.of("a"))), "ci");
-        UUID withoutSbom = projects.create(workspace, "sans", null, null);
+        UUID withoutSbom = projects.create(espace, "sans", null, null);
 
         member().when().get("/api/v1/projects/" + withSbom + "/inventory")
                 .then().statusCode(200).body("inventory.ageDays", equalTo(12)).body("inventory.obsolete", equalTo(false));
@@ -186,7 +186,7 @@ class InventoryTest {
 
     @Test
     void sbomDePlusDeTrenteJoursObsolete() {
-        UUID project = projects.create(workspace, "ancien", null, null);
+        UUID project = projects.create(espace, "ancien", null, null);
         inventories.importSbom(project, bytes(Fixtures.cyclonedx("1.5", Instant.now().minus(31, ChronoUnit.DAYS).toString(),
                 java.util.Collections.singletonList(new String[] {"a", "pkg:npm/lodash@4.17.20"}), List.of("a"))), "ci");
         member().when().get("/api/v1/projects/" + project + "/inventory")
@@ -196,7 +196,7 @@ class InventoryTest {
     @Test
     void inv04S1EtS2RepliSurLesManifestesPuisSbom() {
         RepositoryRef repo = new RepositoryRef("GITLAB", "groupe/front", "main", "sbom", "bom.json");
-        UUID project = projects.create(workspace, "front", repo, List.of("package.json", "requirements.txt"));
+        UUID project = projects.create(espace, "front", repo, List.of("package.json", "requirements.txt"));
         StubServer.programmer("/gitlab/api/v4/projects/groupe%2Ffront/repository/files/package.json/raw?ref=main",
                 Stub.succes("{\"dependencies\":{\"lodash\":\"4.17.20\"}}"));
 
@@ -222,7 +222,7 @@ class InventoryTest {
 
     @Test
     void inv05S1SbomNonConformeRefuseeEtMotifConsultable() {
-        UUID project = projects.create(workspace, "api", null, null);
+        UUID project = projects.create(espace, "api", null, null);
         inventories.importSbom(project, bytes(Fixtures.cyclonedx("1.5", "2026-11-01T00:00:00Z",
                 java.util.Collections.singletonList(new String[] {"a", "pkg:maven/org.exemple/a@1.0.0"}), List.of("a"))), "ci#1");
 

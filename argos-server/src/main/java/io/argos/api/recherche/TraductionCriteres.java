@@ -69,7 +69,7 @@ public class TraductionCriteres {
             throw invalide("taille", "page ≥ 0 et taille comprise entre 1 et 100.");
         }
         return projetsConcernes.completer(recherche.rechercher(criteresVeille, appelant.accountId(), numero, nombre),
-                appelant.accountId(), appelant.memberWorkspaces());
+                appelant.accountId(), appelant.espacesMembre());
     }
 
     /**
@@ -180,7 +180,7 @@ public class TraductionCriteres {
     }
 
     private void exigerProjetVisible(Caller appelant, UUID projet) {
-        Optional<UUID> espace = inventaires.workspaceOf(projet);
+        Optional<UUID> espace = inventaires.espaceDe(projet);
         if (espace.isEmpty()) {
             throw new Introuvable("Ressource introuvable.");
         }

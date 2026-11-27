@@ -229,7 +229,7 @@ public class VeilleProfilsResource {
      */
     private List<UnionProfils.CandidatAbonnement<ElementVue>> avisDesAbonnementsPersonnels(Caller caller) {
         List<SubscriptionService.Subscription> personnels = subscriptions
-                .activeFor(caller.accountId(), caller.memberWorkspaces()).stream()
+                .activeFor(caller.accountId(), caller.espacesMembre()).stream()
                 .filter(abonnement -> "PERSONAL".equals(abonnement.scope())
                         && caller.accountId().equals(abonnement.ownerUserId()))
                 .toList();
@@ -239,8 +239,8 @@ public class VeilleProfilsResource {
         SignauxAbonnements.Correspondances retenus = signauxAbonnements.pour(personnels, caller);
         Map<UUID, List<ProjetVue>> projets = new LinkedHashMap<>();
         for (ImpactQueries.ImpactView impact : impacts.forSignals(retenus.signaux().keySet(), caller.accountId(),
-                caller.memberWorkspaces())) {
-            if (caller.memberOf(impact.workspaceId())) {
+                caller.espacesMembre())) {
+            if (caller.memberOf(impact.espaceId())) {
                 projets.computeIfAbsent(impact.signalId(), cle -> new ArrayList<>())
                         .add(new ProjetVue(impact.projectId(), impact.projectName(), impact.level()));
             }
@@ -263,9 +263,9 @@ public class VeilleProfilsResource {
     /** Avis de sécurité qui impactent un projet des espaces de l'appelant, avec ces seuls projets. */
     private List<UnionProfils.Candidat<ElementVue>> avis(Caller caller) {
         Map<UUID, List<ImpactQueries.ImpactView>> parSignal = new LinkedHashMap<>();
-        for (ImpactQueries.ImpactView impact : impacts.forWorkspaces(caller.accountId(), caller.memberWorkspaces(),
+        for (ImpactQueries.ImpactView impact : impacts.pourEspaces(caller.accountId(), caller.espacesMembre(),
                 LIMITE_IMPACTS)) {
-            if (caller.memberOf(impact.workspaceId())) {
+            if (caller.memberOf(impact.espaceId())) {
                 parSignal.computeIfAbsent(impact.signalId(), cle -> new ArrayList<>()).add(impact);
             }
         }
@@ -293,7 +293,7 @@ public class VeilleProfilsResource {
     /** Fiches réglementaires validées des espaces de l'appelant (lecture sous la RLS). */
     private List<UnionProfils.Candidat<ElementVue>> fichesValidees(Caller caller) {
         List<UnionProfils.Candidat<ElementVue>> candidats = new ArrayList<>();
-        for (FichesReglementaires.Fiche fiche : fiches.fiches(caller.accountId(), caller.memberWorkspaces(),
+        for (FichesReglementaires.Fiche fiche : fiches.fiches(caller.accountId(), caller.espacesMembre(),
                 Optional.empty())) {
             // Garde-fou de la source (ADR-0018) : une fiche non validée n'est jamais candidate, quel que soit le profil.
             if (fiche.etat() != FichesReglementaires.Etat.VALIDEE || !caller.memberOf(fiche.espaceId())) {
