@@ -287,54 +287,18 @@ public class SubscriptionService {
         }
     }
 
+    private static final String PORTEE_EQUIPE = "TEAM";
+    private static final String PORTEE_PERSONNELLE = "PERSONAL";
+    private static final String FILTRE_GRAVITE = "SEVERITY";
+
     private record Validated(String scope, List<SubscriptionRequest.Filter> filters, String channel, String frequency) {
     }
 
     /** Contrôle des attributs obligatoires, dans l'ordre de la spec (ABO-02). */
     static Validated validate(SubscriptionRequest request) {
-        if (request == null) {
-            throw new SubscriptionRejectedException("scope", "demande vide : portée manquante");
-        }
-        if (blank(request.scope())) {
-            throw new SubscriptionRejectedException("scope", "attribut manquant : portée (scope)");
-        }
-        String scope = request.scope().strip().toUpperCase(Locale.ROOT);
-        if (!scope.equals("TEAM") && !scope.equals("PERSONAL")) {
-            throw new SubscriptionRejectedException("scope", "portée invalide : TEAM ou PERSONAL attendu");
-        }
-        if (scope.equals("TEAM") && request.ownerWorkspaceId() == null) {
-            throw new SubscriptionRejectedException("ownerWorkspaceId", "attribut manquant : équipe propriétaire");
-        }
-        if (scope.equals("TEAM") && request.ownerUserId() != null) {
-            throw new SubscriptionRejectedException("ownerUserId", "un abonnement TEAM n'a pas d'utilisateur propriétaire");
-        }
-        if (scope.equals("PERSONAL") && request.ownerUserId() == null) {
-            throw new SubscriptionRejectedException("ownerUserId", "attribut manquant : utilisateur propriétaire");
-        }
-        if (scope.equals("PERSONAL") && request.ownerWorkspaceId() != null) {
-            throw new SubscriptionRejectedException("ownerWorkspaceId", "un abonnement PERSONAL n'a pas d'équipe propriétaire");
-        }
-        if (request.filters() == null || request.filters().isEmpty()) {
-            throw new SubscriptionRejectedException("filters", "attribut manquant : filtres");
-        }
-        List<SubscriptionRequest.Filter> filters = new ArrayList<>();
-        for (SubscriptionRequest.Filter filter : request.filters()) {
-            if (filter == null || blank(filter.type()) || blank(filter.value())) {
-                throw new SubscriptionRejectedException("filters", "filtre incomplet : type et valeur attendus");
-            }
-            String type = filter.type().strip().toUpperCase(Locale.ROOT);
-            if (!FILTER_TYPES.contains(type)) {
-                throw new SubscriptionRejectedException("filters", "type de filtre inconnu : " + filter.type());
-            }
-            String value = filter.value().strip();
-            if (type.equals("SEVERITY")) {
-                value = value.toUpperCase(Locale.ROOT);
-                if (!SEVERITIES.contains(value)) {
-                    throw new SubscriptionRejectedException("filters", "gravité inconnue : " + filter.value());
-                }
-            }
-            filters.add(new SubscriptionRequest.Filter(type, value));
-        }
+        String scope = portee(request);
+        validerProprietaire(scope, request);
+        List<SubscriptionRequest.Filter> filters = filtres(request.filters());
         if (blank(request.channel())) {
             throw new SubscriptionRejectedException("channel", "attribut manquant : canal");
         }
@@ -344,8 +308,67 @@ public class SubscriptionService {
         if (request.mandatory() == null) {
             throw new SubscriptionRejectedException("mandatory", "attribut manquant : caractère obligatoire ou facultatif");
         }
-        return new Validated(scope, List.copyOf(filters), request.channel().strip().toUpperCase(Locale.ROOT),
+        return new Validated(scope, filters, request.channel().strip().toUpperCase(Locale.ROOT),
                 request.frequency().strip().toUpperCase(Locale.ROOT));
+    }
+
+    /** Portée normalisée de la demande : {@code TEAM} ou {@code PERSONAL}. */
+    private static String portee(SubscriptionRequest request) {
+        if (request == null) {
+            throw new SubscriptionRejectedException("scope", "demande vide : portée manquante");
+        }
+        if (blank(request.scope())) {
+            throw new SubscriptionRejectedException("scope", "attribut manquant : portée (scope)");
+        }
+        String scope = request.scope().strip().toUpperCase(Locale.ROOT);
+        if (!scope.equals(PORTEE_EQUIPE) && !scope.equals(PORTEE_PERSONNELLE)) {
+            throw new SubscriptionRejectedException("scope", "portée invalide : TEAM ou PERSONAL attendu");
+        }
+        return scope;
+    }
+
+    /** Un abonnement d'équipe a une équipe et aucun utilisateur propriétaires ; un abonnement personnel, l'inverse. */
+    private static void validerProprietaire(String scope, SubscriptionRequest request) {
+        boolean equipe = scope.equals(PORTEE_EQUIPE);
+        if (equipe && request.ownerWorkspaceId() == null) {
+            throw new SubscriptionRejectedException("ownerWorkspaceId", "attribut manquant : équipe propriétaire");
+        }
+        if (equipe && request.ownerUserId() != null) {
+            throw new SubscriptionRejectedException("ownerUserId", "un abonnement TEAM n'a pas d'utilisateur propriétaire");
+        }
+        if (!equipe && request.ownerUserId() == null) {
+            throw new SubscriptionRejectedException("ownerUserId", "attribut manquant : utilisateur propriétaire");
+        }
+        if (!equipe && request.ownerWorkspaceId() != null) {
+            throw new SubscriptionRejectedException("ownerWorkspaceId", "un abonnement PERSONAL n'a pas d'équipe propriétaire");
+        }
+    }
+
+    /** Filtres validés et normalisés ; au moins un filtre est exigé. */
+    private static List<SubscriptionRequest.Filter> filtres(List<SubscriptionRequest.Filter> recus) {
+        if (recus == null || recus.isEmpty()) {
+            throw new SubscriptionRejectedException("filters", "attribut manquant : filtres");
+        }
+        return recus.stream().map(SubscriptionService::filtre).toList();
+    }
+
+    /** Filtre complet, de type connu, gravité reconnue pour un filtre {@code SEVERITY}. */
+    private static SubscriptionRequest.Filter filtre(SubscriptionRequest.Filter filter) {
+        if (filter == null || blank(filter.type()) || blank(filter.value())) {
+            throw new SubscriptionRejectedException("filters", "filtre incomplet : type et valeur attendus");
+        }
+        String type = filter.type().strip().toUpperCase(Locale.ROOT);
+        if (!FILTER_TYPES.contains(type)) {
+            throw new SubscriptionRejectedException("filters", "type de filtre inconnu : " + filter.type());
+        }
+        String value = filter.value().strip();
+        if (type.equals(FILTRE_GRAVITE)) {
+            value = value.toUpperCase(Locale.ROOT);
+            if (!SEVERITIES.contains(value)) {
+                throw new SubscriptionRejectedException("filters", "gravité inconnue : " + filter.value());
+            }
+        }
+        return new SubscriptionRequest.Filter(type, value);
     }
 
     private static final String COLUMNS = """

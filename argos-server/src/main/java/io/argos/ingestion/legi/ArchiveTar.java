@@ -19,6 +19,17 @@ import java.util.zip.GZIPInputStream;
 public final class ArchiveTar {
 
     private static final int BLOC = 512;
+    /** Position et longueur du champ « taille » d'un en-tête ustar (octal). */
+    private static final int POSITION_TAILLE = 124;
+    private static final int LONGUEUR_TAILLE = 12;
+    /** Position du type d'entrée dans l'en-tête ustar. */
+    private static final int POSITION_TYPE = 156;
+    /** Taille lue au plus d'une entrée de métadonnées (nom long GNU, en-tête pax). */
+    private static final int METADONNEES_MAX = 65_536;
+    private static final char NOM_LONG_GNU = 'L';
+    private static final char ENTETE_PAX = 'x';
+    private static final char FICHIER_REGULIER = '0';
+    private static final char FICHIER_REGULIER_ANCIEN = '\0';
 
     /** Archive illisible ou hors des bornes. */
     public static final class ArchiveInvalide extends RuntimeException {
@@ -41,49 +52,56 @@ public final class ArchiveTar {
     public void lire(InputStream archiveCompressee, BiConsumer<String, byte[]> consommateur) {
         try (InputStream flux = new GZIPInputStream(archiveCompressee)) {
             byte[] entete = new byte[BLOC];
-            long total = 0;
-            int entrees = 0;
-            String nomLong = null;
-            while (true) {
-                if (!lireBloc(flux, entete)) {
-                    return;
-                }
-                if (estVide(entete)) {
-                    return;
-                }
-                if (++entrees > entreesMax) {
-                    throw new ArchiveInvalide("archive : plus de " + entreesMax + " entrées", null);
-                }
-                long taille = octal(entete, 124, 12);
-                if (taille < 0) {
-                    throw new ArchiveInvalide("archive : taille d'entrée invalide", null);
-                }
-                total += taille;
-                if (total > totalMax) {
-                    throw new ArchiveInvalide("archive : volume décompressé supérieur à " + totalMax + " octets", null);
-                }
-                char type = (char) entete[156];
-                String nom = nomLong != null ? nomLong : nom(entete);
-                nomLong = null;
-                if (type == 'L' || type == 'x') {
-                    byte[] meta = lireContenu(flux, taille, Math.min(taille, 65536));
-                    if (type == 'L') {
-                        nomLong = texte(meta, 0, meta.length);
-                    } else {
-                        nomLong = cheminPax(meta);
-                    }
-                    continue;
-                }
-                boolean regulier = type == '0' || type == '\0';
-                if (regulier && taille <= fichierMax && nom.endsWith(".xml")) {
-                    consommateur.accept(nom, lireContenu(flux, taille, taille));
-                } else {
-                    sauter(flux, taille);
-                }
+            Parcours parcours = new Parcours();
+            while (lireBloc(flux, entete) && !estVide(entete)) {
+                lireEntree(flux, entete, parcours, consommateur);
             }
         } catch (IOException erreur) {
             throw new ArchiveInvalide("archive illisible : " + erreur.getMessage(), erreur);
         }
+    }
+
+    /** État du parcours d'une archive : entrées lues, volume décompressé, nom long en attente de son entrée. */
+    private static final class Parcours {
+        private int entrees;
+        private long total;
+        private String nomLong;
+    }
+
+    /** Traite l'entrée dont l'en-tête vient d'être lu : métadonnées retenues, fichier XML remis ou contenu sauté. */
+    private void lireEntree(InputStream flux, byte[] entete, Parcours parcours, BiConsumer<String, byte[]> consommateur)
+            throws IOException {
+        long taille = compter(entete, parcours);
+        char type = (char) entete[POSITION_TYPE];
+        String nom = parcours.nomLong != null ? parcours.nomLong : nom(entete);
+        parcours.nomLong = null;
+        if (type == NOM_LONG_GNU || type == ENTETE_PAX) {
+            byte[] meta = lireContenu(flux, taille, Math.min(taille, METADONNEES_MAX));
+            parcours.nomLong = type == NOM_LONG_GNU ? texte(meta, 0, meta.length) : cheminPax(meta);
+            return;
+        }
+        boolean regulier = type == FICHIER_REGULIER || type == FICHIER_REGULIER_ANCIEN;
+        if (regulier && taille <= fichierMax && nom.endsWith(".xml")) {
+            consommateur.accept(nom, lireContenu(flux, taille, taille));
+        } else {
+            sauter(flux, taille);
+        }
+    }
+
+    /** Taille de l'entrée, après contrôle des bornes : nombre d'entrées, taille lisible, volume total. */
+    private long compter(byte[] entete, Parcours parcours) {
+        if (++parcours.entrees > entreesMax) {
+            throw new ArchiveInvalide("archive : plus de " + entreesMax + " entrées", null);
+        }
+        long taille = octal(entete, POSITION_TAILLE, LONGUEUR_TAILLE);
+        if (taille < 0) {
+            throw new ArchiveInvalide("archive : taille d'entrée invalide", null);
+        }
+        parcours.total += taille;
+        if (parcours.total > totalMax) {
+            throw new ArchiveInvalide("archive : volume décompressé supérieur à " + totalMax + " octets", null);
+        }
+        return taille;
     }
 
     private static boolean lireBloc(InputStream flux, byte[] bloc) throws IOException {

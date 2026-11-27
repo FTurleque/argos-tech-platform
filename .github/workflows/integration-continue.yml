@@ -45,7 +45,8 @@ jobs:
         run: java -version
       # Profil integration-continue : maven-enforcer refuse un JDK hors de [17,18) (JRE 17 de l'image).
       # Toujours « clean » : aucun résultat d'un build incrémental n'est réutilisé.
-      - name: Tests, couverture et seuil JaCoCo
+      # Phase verify : seuil JaCoCo et seuils de longueur et de complexité des méthodes (PMD, AUD-QUA-18).
+      - name: Tests, couverture, seuil JaCoCo et seuils des méthodes
         run: mvn -B -f argos-server/pom.xml -P integration-continue clean verify
       - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
         with:
@@ -127,6 +128,10 @@ jobs:
         run: node scripts/verifier-docs.mjs
       - name: Contrôle de nommage
         run: node scripts/verifier-nommage.mjs
+      # AUD-QUA-18 : les seuils des méthodes sont bloquants (PMD, job serveur) ; un fichier de plus de 300 lignes est
+      # signalé sans bloquer.
+      - name: Fichiers Java longs (signalement)
+        run: node scripts/signaler-fichiers-longs.mjs
       # EXP-07 : variables lues par le serveur, transmises par compose.yaml et décrites par .env.example ;
       # variables ARGOS_* de production citées par le guide de déploiement.
       - name: Parité de la configuration de déploiement

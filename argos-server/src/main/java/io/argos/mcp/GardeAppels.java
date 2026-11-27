@@ -87,6 +87,15 @@ public class GardeAppels {
     public <T> T appeler(String outil, Map<String, ?> parametres, Function<Caller, T> travail) {
         long debut = System.nanoTime();
         String parametresJson = json(parametres);
+        Caller appelant = appelantAdmis(outil, parametresJson, debut);
+        return executer(outil, parametresJson, debut, appelant, travail);
+    }
+
+    /**
+     * Appelant courant, authentifié, associé à un compte Argos et sous sa limite de débit ; un refus est journalisé
+     * puis signalé au client MCP.
+     */
+    private Caller appelantAdmis(String outil, String parametresJson, long debut) {
         Caller appelant;
         try {
             appelant = appelants.current().orElseThrow(() -> new ToolCallException("NON_AUTHENTIFIE : jeton absent ou invalide."));
@@ -101,6 +110,12 @@ public class GardeAppels {
             journalAppels.enregistrer(compte, null, outil, parametresJson, millisecondes(debut), Issue.REFUS_LIMITE);
             throw new ToolCallException("LIMITE_DEBIT : nombre maximal d'appels par minute atteint, réessayez plus tard.");
         }
+        return appelant;
+    }
+
+    /** Exécute la lecture métier pour l'appelant admis ; son issue est journalisée et ses erreurs traduites. */
+    private <T> T executer(String outil, String parametresJson, long debut, Caller appelant, Function<Caller, T> travail) {
+        UUID compte = appelant.accountId();
         try {
             T resultat = travail.apply(appelant);
             journalAppels.enregistrer(compte, null, outil, parametresJson, millisecondes(debut), Issue.SUCCES);

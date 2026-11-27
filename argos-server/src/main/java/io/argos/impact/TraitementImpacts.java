@@ -43,6 +43,9 @@ public class TraitementImpacts {
     /** Longueur maximale d'un motif ou d'un commentaire (design, « Sécurité et isolation »). */
     public static final int LONGUEUR_MAX = 1000;
 
+    /** Code SQLSTATE d'un droit insuffisant (politique RLS ou privilège refusé). */
+    private static final String REFUS_DE_DROIT = "42501";
+
     /** Transition non prévue depuis l'état courant (COR-10-S3), ou état modifié entre-temps. */
     public static final class TransitionInterdite extends RuntimeException {
 
@@ -101,13 +104,8 @@ public class TraitementImpacts {
     public Optional<EtatImpact> transitionner(UUID impactId, UUID compteId, EtatImpact vers, String motif,
             String commentaire, Instant maintenant) {
         String motifNettoye = nettoyer(motif);
-        String com = nettoyer(commentaire);
-        if (vers == EtatImpact.ECARTE && motifNettoye == null) {
-            throw new IllegalArgumentException("motif obligatoire pour écarter un impact");
-        }
-        if ((motifNettoye != null && motifNettoye.length() > LONGUEUR_MAX) || (com != null && com.length() > LONGUEUR_MAX)) {
-            throw new IllegalArgumentException("motif ou commentaire trop long");
-        }
+        String commentaireNettoye = nettoyer(commentaire);
+        validerTextes(vers, motifNettoye, commentaireNettoye);
         try (Connection connexion = dataSource.getConnection()) {
             ContexteBase.appliquer(connexion, ContexteBase.Contexte.duCompte(compteId));
             Optional<ImpactLu> lecture = lire(connexion, impactId);
@@ -121,25 +119,44 @@ public class TraitementImpacts {
                 throw new TransitionInterdite(depart, possibles);
             }
             if (!changer(connexion, impactId, depart, vers)) {
-                // Aucune ligne modifiée : état changé entre-temps (409), ou refus de la politique RLS.
-                EtatImpact maintenantLu = lire(connexion, impactId).map(ImpactLu::etat).orElse(depart);
-                if (maintenantLu != depart) {
-                    throw new TransitionInterdite(maintenantLu);
-                }
-                throw new ModificationRefusee();
+                throw refusDuChangement(connexion, impactId, depart);
             }
-            historiser(connexion, impactId, lecture.get().espace(), depart, vers, compteId, motifNettoye, com, maintenant);
+            historiser(connexion, impactId, lecture.get().espace(), depart, vers, compteId, motifNettoye, commentaireNettoye,
+                    maintenant);
             if (!EtatImpact.ACTIFS.contains(vers)) {
                 traites.fire(new ImpactsTraites(lecture.get().signal()));
             }
             return Optional.of(vers);
         } catch (SQLException erreur) {
-            if ("42501".equals(erreur.getSQLState())) {
+            if (REFUS_DE_DROIT.equals(erreur.getSQLState())) {
                 // Politique d'insertion de l'historique refusée (rôle insuffisant).
                 throw new ModificationRefusee();
             }
             throw new IllegalStateException("transition de l'impact impossible", erreur);
         }
+    }
+
+    /** Motif exigé pour écarter un impact ; motif et commentaire d'au plus {@link #LONGUEUR_MAX} caractères. */
+    static void validerTextes(EtatImpact vers, String motif, String commentaire) {
+        if (vers == EtatImpact.ECARTE && motif == null) {
+            throw new IllegalArgumentException("motif obligatoire pour écarter un impact");
+        }
+        if (tropLong(motif) || tropLong(commentaire)) {
+            throw new IllegalArgumentException("motif ou commentaire trop long");
+        }
+    }
+
+    private static boolean tropLong(String texte) {
+        return texte != null && texte.length() > LONGUEUR_MAX;
+    }
+
+    /**
+     * Aucune ligne modifiée : état changé entre-temps (transition interdite, 409), ou refus de la politique RLS
+     * (modification refusée).
+     */
+    private static RuntimeException refusDuChangement(Connection connexion, UUID impactId, EtatImpact depart) {
+        EtatImpact maintenantLu = lire(connexion, impactId).map(ImpactLu::etat).orElse(depart);
+        return maintenantLu != depart ? new TransitionInterdite(maintenantLu) : new ModificationRefusee();
     }
 
     /**
