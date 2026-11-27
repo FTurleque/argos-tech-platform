@@ -1,3 +1,10 @@
+---
+id: ADR-0041
+title: "Conserver les données journalisées pour une durée bornée par des règles déclarées par module"
+domain: architecture
+rules: false
+---
+
 # ADR-0041 — Conserver les données journalisées pour une durée bornée par des règles déclarées par module
 
 - **Statut** : Proposé

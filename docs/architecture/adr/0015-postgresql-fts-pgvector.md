@@ -1,3 +1,10 @@
+---
+id: ADR-0015
+title: "Utiliser PostgreSQL FTS au MVP et différer pgvector"
+domain: architecture
+rules: false
+---
+
 # ADR-0015 — Utiliser PostgreSQL FTS au MVP et différer pgvector
 
 - **Statut** : Accepté

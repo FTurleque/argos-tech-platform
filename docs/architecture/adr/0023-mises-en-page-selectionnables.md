@@ -1,3 +1,10 @@
+---
+id: ADR-0023
+title: "Séparer le contenu de la mise en page et laisser chaque utilisateur choisir la sienne"
+domain: architecture
+rules: false
+---
+
 # ADR-0023 — Séparer le contenu de la mise en page et laisser chaque utilisateur choisir la sienne
 
 - **Statut** : Accepté
@@ -53,7 +60,7 @@ Contraintes : le contenu et les droits ne dépendent jamais de l'affichage (ADR-
 
 ## Décision
 
-Option A, **proposée**.
+**Option A retenue.**
 
 1. `argos-ui` sépare une couche contenu et une couche mise en page. Une mise en page ne fait aucun appel réseau et n'applique aucune règle de droits : elle reçoit des modèles de vue déjà filtrés.
 2. Les quatre mises en page initiales sont `classique` (par défaut), `journal`, `fantaisie` et `gazette`.

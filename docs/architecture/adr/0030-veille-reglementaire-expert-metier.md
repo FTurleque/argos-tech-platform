@@ -1,3 +1,10 @@
+---
+id: ADR-0030
+title: "Veille réglementaire validée par l'expert métier, domaines propres à chaque espace et données ouvertes JORF"
+domain: architecture
+rules: false
+---
+
 # ADR-0030 — Veille réglementaire validée par l'expert métier, domaines propres à chaque espace et données ouvertes JORF
 
 - **Statut** : Accepté
@@ -40,7 +47,7 @@
 
 ## Décision
 
-**Proposition : option B, avec les données ouvertes JORF de la DILA.**
+**Option B retenue, avec les données ouvertes JORF de la DILA.**
 
 - Le module `reg-intel` collecte chaque jour les archives JORF de la DILA (Licence Ouverte), sans l'API PISTE ; un texte est enregistré une seule fois par identifiant officiel et un jour manqué est repris au retour de la source.
 - Chaque espace définit ses domaines métier, leurs règles déterministes (nature, ministère, préfixe NOR, code modifié, mot-clé) et leurs experts, désignés par un administrateur parmi les membres contributeurs ou administrateurs (module `catalog`, paquetage `dictionnaire`).

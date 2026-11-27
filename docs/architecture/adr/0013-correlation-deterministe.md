@@ -1,3 +1,10 @@
+---
+id: ADR-0013
+title: "Rendre la corrélation signal ↔ projet déterministe"
+domain: architecture
+rules: false
+---
+
 # ADR-0013 — Rendre la corrélation signal ↔ projet déterministe
 
 - **Statut** : Accepté

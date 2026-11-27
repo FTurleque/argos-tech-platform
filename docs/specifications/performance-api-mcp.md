@@ -4,9 +4,9 @@
 |---|---|
 | Préfixe d'exigences | `PERF` |
 | Spec de référence | [`/openspec/specs/performance-api-mcp/spec.md`](/openspec/specs/performance-api-mcp/spec.md) |
-| Changements en cours | [`automatiser-chaine-veille`](/openspec/changes/archive/2026-11-20-automatiser-chaine-veille/specs/performance-api-mcp/spec.md) — proposé ; campagne implémentée (volet C) et exécutée sur la branche intégrée le 2026-11-19 ; [`2026-11-27-retenir-importer-et-paginer`](/openspec/changes/archive/2026-11-27-retenir-importer-et-paginer/proposal.md) (PERF-03, archivé) |
+| Changements archivés | [`2026-11-20-automatiser-chaine-veille`](/openspec/changes/archive/2026-11-20-automatiser-chaine-veille/specs/performance-api-mcp/spec.md) (PERF-01, PERF-02) ; campagne implémentée (volet C) et exécutée sur la branche intégrée le 2026-11-19 ; [`2026-11-27-retenir-importer-et-paginer`](/openspec/changes/archive/2026-11-27-retenir-importer-et-paginer/proposal.md) (PERF-03) |
 | Changement du sprint 10 | [`2026-11-27-accelerer-requetes-chaudes`](/openspec/changes/archive/2026-11-27-accelerer-requetes-chaudes/proposal.md) (PERF-02 modifiée) — archivé |
-| Statut de la capacité | proposée |
+| Statut de la capacité | livrée |
 | Composants (arc42 §5) | `API & Security`, serveur MCP (`mcp`), `e2e/` (campagne de mesure) |
 
 Tout le contenu de cette fiche porte le statut [PROPOSITION] (changement `automatiser-chaine-veille`) sauf mention contraire.
@@ -67,7 +67,7 @@ La campagne s'authentifie avec les comptes du royaume de test du dépôt (`argos
 
 | Qualité | Cible | Source | Statut |
 |---|---|---|---|
-| Latence API et MCP, p95, hors appels externes et IA | < 500 ms | arc42 §8 ; arc42 §10.2 Q-05 ; QS-06 | [PROPOSITION] — cible initiale ; mesure de la recherche seule : p95 = 250 ms le 2026-11-16 (QS-13, [rapport](../architecture/quality/mesure-qs13-recherche.md)) [EXISTANT] ; campagne du 2026-11-19 : 15 opérations sur 16 dans la cible, `GET /api/v1/me/veille` hors cible (p95 = 533,8 ms sur la branche intégrée, 618 ms à la première exécution), code de sortie 1 ([rapport](../architecture/quality/mesure-performance-api-mcp.md)) [EXISTANT] |
+| Latence API et MCP, p95, hors appels externes et IA | < 500 ms | arc42 §8 ; arc42 §10.2 Q-05 ; QS-06 | [PROPOSITION] — cible initiale ; mesure de la recherche seule : p95 = 250 ms le 2026-11-16 (QS-13, [rapport](../architecture/quality/mesure-qs13-recherche.md)) [EXISTANT] ; campagne du 2026-11-27 (révision `496add9`) : 17 opérations API et MCP sur 17 dans la cible, `GET /api/v1/me/veille` p95 = 185,5 ms ([rapport](../architecture/quality/mesure-performance-api-mcp.md)) [EXISTANT] |
 
 ## Diagrammes
 

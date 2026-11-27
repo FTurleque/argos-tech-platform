@@ -1,3 +1,10 @@
+---
+id: ADR-0039
+title: "Exécuter hors requête les traitements longs, propager les événements selon trois styles et encadrer les appels sortants"
+domain: architecture
+rules: false
+---
+
 # ADR-0039 — Exécuter hors requête les traitements longs, propager les événements selon trois styles et encadrer les appels sortants
 
 - **Statut** : Proposé

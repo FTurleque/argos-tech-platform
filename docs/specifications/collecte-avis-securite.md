@@ -4,8 +4,8 @@
 |---|---|
 | Préfixe d'exigences | `COL` |
 | Spec de référence | [`/openspec/specs/collecte-avis-securite/spec.md`](/openspec/specs/collecte-avis-securite/spec.md) |
-| Changement en cours | [`formaliser-chaine-securite-poc`](/openspec/changes/archive/2026-11-20-formaliser-chaine-securite-poc/specs/collecte-avis-securite/spec.md) — proposé, non archivé ; [`automatiser-chaine-veille`](/openspec/changes/archive/2026-11-20-automatiser-chaine-veille/specs/collecte-avis-securite/spec.md) — proposé, non archivé ; COL-09 et COL-10 implémentés par le volet A (2026-11-19) ; [`2026-11-25-isoler-erreurs-aux-frontieres`](/openspec/changes/archive/2026-11-25-isoler-erreurs-aux-frontieres/proposal.md) (COL-11, archivé) ; [`2026-11-26-rendre-ingestion-asynchrone`](/openspec/changes/archive/2026-11-26-rendre-ingestion-asynchrone/proposal.md) (COL-04 modifiée, COL-12, archivé) |
-| Statut de la capacité | **proposée**, implémentée dans `argos-server` (changement non archivé) : paquets `io.argos.ingestion`, `io.argos.signal`, `io.argos.vulnintel` |
+| Changements archivés | [`2026-11-20-formaliser-chaine-securite-poc`](/openspec/changes/archive/2026-11-20-formaliser-chaine-securite-poc/specs/collecte-avis-securite/spec.md) (COL-01 à COL-08) ; [`2026-11-20-automatiser-chaine-veille`](/openspec/changes/archive/2026-11-20-automatiser-chaine-veille/specs/collecte-avis-securite/spec.md) (COL-09, COL-10) ; [`2026-11-25-isoler-erreurs-aux-frontieres`](/openspec/changes/archive/2026-11-25-isoler-erreurs-aux-frontieres/proposal.md) (COL-11, archivé) ; [`2026-11-26-rendre-ingestion-asynchrone`](/openspec/changes/archive/2026-11-26-rendre-ingestion-asynchrone/proposal.md) (COL-04 modifiée, COL-12, archivé) |
+| Statut de la capacité | **livrée**, implémentée dans `argos-server` : paquets `io.argos.ingestion`, `io.argos.signal`, `io.argos.vulnintel` |
 | Composants (arc42 §5) | `source-ingestion`, `signal`, `vuln-intel`, `audit`, adaptateur PostgreSQL |
 
 Tout le contenu de cette fiche porte le statut [PROPOSITION] (changement `formaliser-chaine-securite-poc`) sauf mention contraire.

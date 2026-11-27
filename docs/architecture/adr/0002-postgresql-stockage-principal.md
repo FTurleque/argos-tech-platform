@@ -1,3 +1,10 @@
+---
+id: ADR-0002
+title: "Utiliser PostgreSQL comme stockage principal"
+domain: architecture
+rules: false
+---
+
 # ADR-0002 — Utiliser PostgreSQL comme stockage principal
 
 - **Statut** : Accepté

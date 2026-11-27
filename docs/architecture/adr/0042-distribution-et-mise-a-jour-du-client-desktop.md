@@ -1,3 +1,10 @@
+---
+id: ADR-0042
+title: "Distribuer le client desktop par GitHub Releases, mis à jour par electron-updater, sans certificat payant"
+domain: architecture
+rules: false
+---
+
 # ADR-0042 — Distribuer le client desktop par GitHub Releases, mis à jour par electron-updater, sans certificat payant
 
 - **Statut** : Accepté

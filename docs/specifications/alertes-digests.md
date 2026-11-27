@@ -6,7 +6,7 @@
 | Spec de référence | [`/openspec/specs/alertes-digests/spec.md`](/openspec/specs/alertes-digests/spec.md) |
 | Changements archivés | [`2026-11-16-diffuser-alertes-et-digests`](/openspec/changes/archive/2026-11-16-diffuser-alertes-et-digests/proposal.md) |
 | Changements archivés, suite | [`durcir-autorisations-et-debits`](/openspec/changes/archive/2026-11-25-durcir-autorisations-et-debits/proposal.md) (ALR-08) ; [`2026-11-26-alimenter-inventaire-et-completer-ihm`](/openspec/changes/archive/2026-11-26-alimenter-inventaire-et-completer-ihm/proposal.md) (ALR-09) |
-| Changement en cours | [`automatiser-chaine-veille`](/openspec/changes/archive/2026-11-20-automatiser-chaine-veille/specs/alertes-digests/spec.md) — proposé ; ALR-07 implémenté et intégré le 2026-11-19 (volets A, B et C réunis) |
+| Changement du lot 18 | [`2026-11-20-automatiser-chaine-veille`](/openspec/changes/archive/2026-11-20-automatiser-chaine-veille/specs/alertes-digests/spec.md) (ALR-07) — archivé |
 | Changement du sprint 10 | [`2026-11-27-accelerer-requetes-chaudes`](/openspec/changes/archive/2026-11-27-accelerer-requetes-chaudes/proposal.md) (ALR-10) — archivé |
 | Statut de la capacité | livrée ; implémentation et tests dans `argos-server` |
 | Composants (arc42 §5) | `alerting`, `workspace`, `impact-engine` |

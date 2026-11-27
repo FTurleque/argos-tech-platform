@@ -1,3 +1,10 @@
+---
+id: ADR-0019
+title: "Retenir Java 17+, Quarkus, Vue.js 3 et PostgreSQL"
+domain: architecture
+rules: false
+---
+
 # ADR-0019 — Retenir Java 17+, Quarkus, Vue.js 3 et PostgreSQL
 
 - **Statut** : Accepté

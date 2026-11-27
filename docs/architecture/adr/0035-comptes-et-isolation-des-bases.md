@@ -1,3 +1,10 @@
+---
+id: ADR-0035
+title: "Comptes et isolation des bases de la plateforme"
+domain: architecture
+rules: false
+---
+
 # ADR-0035 — Comptes et isolation des bases de la plateforme
 
 - **Statut** : Proposé

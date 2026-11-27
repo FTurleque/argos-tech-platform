@@ -1,3 +1,10 @@
+---
+id: ADR-0040
+title: "Paginer les listes de l'API au format unique `page`, `size`, `{items, page, size, total}`"
+domain: architecture
+rules: false
+---
+
 # ADR-0040 — Paginer les listes de l'API au format unique `page`, `size`, `{items, page, size, total}`
 
 - **Statut** : Proposé

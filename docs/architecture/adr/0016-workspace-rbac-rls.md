@@ -1,3 +1,10 @@
+---
+id: ADR-0016
+title: "Cloisonner les workspaces avec RBAC et PostgreSQL RLS"
+domain: architecture
+rules: false
+---
+
 # ADR-0016 — Cloisonner les workspaces avec RBAC et PostgreSQL RLS
 
 - **Statut** : Accepté

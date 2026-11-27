@@ -130,7 +130,7 @@ Risque résiduel : le contrôle repose sur le code d'Argos seul ; aucun filtrage
 - Vue.js 3 consomme les contrats HTTP ; les statuts HTTP lus par l'IHM sont des constantes nommées d'un module partagé unique, `argos-ui/src/api/statuts-http.ts` (204, 400, 401, 403, 404, 409, 429), utilisé par tous les écrans et modules d'`argos-ui` ; aucune comparaison de statut n'écrit le nombre en dur ([DÉCISION] du porteur du projet, 2026-11-19, H4) ;
 - [DÉCISION — porteur du projet, 2026-11-19] moyen de contrôle de H4, qui inclut 204 dans le module partagé : `argos-ui/tests/statuts-http.test.mjs` échoue, hors du module partagé, sur une égalité ou une inégalité à un nombre de 100 à 599, un `case` sur un tel nombre, une liste de tels nombres ou une comparaison d'ordre d'une variable de statut ; une comparaison légitime à un nombre de cette plage passe par une constante nommée ;
 - adapters externes indépendants du domaine ;
-- contract tests sur GitHub/GitLab/FreshRSS/changedetection/MCP ;
+- contract tests sur GitHub, GitLab, les sources d’avis et MCP ;
 - stratégie de dépréciation documentée.
 
 ## 8.5 Résilience
@@ -278,8 +278,6 @@ Tous les appels runtime passent par l’AI Gateway : quotas, prompts versionnés
 
 Passerelle `io.argos.aigateway` (changement `encadrer-appels-ia`, fiche [`passerelle-ia`](../../specifications/passerelle-ia.md)) : fournisseur local Ollama (`argos.ia.ollama.url`, modèle `qwen2.5:1.5b` par défaut, remplaçable par tâche), retenu par [ADR-0029](../adr/0029-passerelle-ia-ollama-local.md) (Accepté), qui remplace ADR-0004 ; coût nul. Chaque demande passe, dans l'ordre, par le refus des entrées CONFIDENTIAL ou RESTRICTED, le refus des secrets et le masquage des données personnelles, la réservation sur le plafond journalier de l'instance (1 000 appels) le quota journalier de l'espace imputé (100 appels) et celui du compte pour ses demandes explicites (20 appels), rendue si le modèle n'a pas pu être joint, l'appel avec le prompt versionné (données entre balises `<donnees>`, séparées des consignes), puis la validation de la sortie par le schéma de la tâche. Le journal `ia_appel` trace modèle, version du prompt, jetons, coût, empreinte des entrées et issue, sans copie des données. Tout contenu produit porte la mention « produit par l'IA » et ses sources. Sans Ollama joignable, chaque demande est refusée comme indisponible et Argos fonctionne en mode déterministe.
 
-Le budget d’abonnement utilisé par le développeur pour Claude/Claude Code est distinct du budget Claude API/Console consommé par ARGOS.
-
 ## 8.9 Messaging
 
 Aucun broker n’est imposé au MVP. Une file/broker ne sera introduite qu’après mesure d’un besoin réel de backlog, multi-consommateurs ou scalabilité indépendante. Un travail réseau qui doit survivre au redémarrage est tenu dans une table propre au module et traité par une tâche planifiée (file d'enrichissement `enrichissement_attente`, ADR-0039).
@@ -342,7 +340,7 @@ Le workflow GitHub Actions [`.github/workflows/integration-continue.yml`](../../
 
 ## 8.12 Déploiement
 
-POC local Docker Compose, puis VM Linux interne pour le POC partagé/MVP. Voir ADR-0017 et section 7.
+Docker Compose sur un PC ou sur le serveur Synology du porteur (ADR-0026). Voir section 7 et le [guide de déploiement](/docs/deploiement/synology-et-pc.md).
 
 Assemblage Compose (`compose.yaml`, ADR-0026) [PROPOSITION — `completer-configuration-conteneurs`] :
 
