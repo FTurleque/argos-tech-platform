@@ -77,5 +77,5 @@ Proposition : **option A**.
 - **Exigences** : PERF-03
 - **Scénarios qualité** : arc42 §10
 - **Diagrammes** : —
-- **Changement** : `openspec/changes/retenir-importer-et-paginer/design.md` (D6)
+- **Changement** : `openspec/changes/archive/2026-11-27-retenir-importer-et-paginer/design.md` (D6)
 - **Fichiers source** : `argos-server/src/main/java/io/argos/commun/Pagination.java`, `argos-server/src/main/java/io/argos/commun/Page.java`, `argos-server/src/main/java/io/argos/api/ParametresPagination.java`

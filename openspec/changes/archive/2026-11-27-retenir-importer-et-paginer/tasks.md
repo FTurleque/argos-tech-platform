@@ -46,7 +46,7 @@
 ## 7. Vérifications d'intégration
 
 - [x] 7.1 Valider le changement — vérification : `openspec validate retenir-importer-et-paginer --strict` réussit
-- [ ] 7.2 CI locale complète (serveur JDK 17 `-P integration-continue clean verify` puis couverture par module, IHM, desktop, outils) et `archgate check` — vérification : tout est vert
+- [x] 7.2 CI locale complète (serveur JDK 17 `-P integration-continue clean verify` puis couverture par module, IHM, desktop, outils) et `archgate check` — vérification : tout est vert
 
 ## Matrice de traçabilité
 
