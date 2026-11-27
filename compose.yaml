@@ -2,7 +2,8 @@
 # ADR-0017 (POC local) et ADR-0026 (Synology).
 #
 #   docker compose up -d postgres     # développement : base seule, pour « mvn quarkus:dev »
-#   docker compose up -d --build      # Argos complet : http://localhost:8080 (fournisseur d'identité requis : profil « idp-local » ou Keycloak existant)
+#   docker compose up -d --build      # Argos complet : http://localhost:8080
+#                                     (fournisseur d'identité requis : profil « idp-local » ou Keycloak existant)
 #   docker compose --profile ia up -d # Argos avec le modèle local Ollama (facultatif, ADR-0029)
 #   docker compose exec ollama ollama pull qwen2.5:1.5b   # une fois : télécharge le modèle par défaut
 #
