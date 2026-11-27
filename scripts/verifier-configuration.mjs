@@ -5,6 +5,9 @@
 //     et figure dans .env.example ;
 //   - toute variable interpolée par compose.yaml (${NOM}, ${NOM:-défaut}, ${NOM:?message}) figure dans .env.example.
 // Une variable figure dans .env.example si une ligne « NOM=… » ou « # NOM=… » la déclare (réglage facultatif commenté).
+// Couverture du guide de déploiement (critère de sortie du sprint 12, AUD-DOC-03) :
+//   - toute variable ARGOS_* lue par le serveur en production ou interpolée par compose.yaml est citée entre accents
+//     graves (`ARGOS_…`) dans docs/deploiement/synology-et-pc.md.
 // Contrôle du durcissement (EXP-12, EXP-16, changement durcir-conteneurs-de-service) :
 //   - le fragment x-durcissement de compose.yaml déclare read_only: true, cap_drop: ALL et no-new-privileges:true ;
 //   - chaque service le fusionne (« <<: *durcissement ») et ne déclare ni cap_add, ni read_only, ni cap_drop, ni
@@ -13,7 +16,7 @@
 //     du service keycloak (« start --optimized » refuse ou signale une option d'exécution qui la contredit).
 // Usage : node scripts/verifier-configuration.mjs
 // Code de sortie : 0 sans écart, sans sortie ; 1 sinon, une ligne par écart sur la sortie d'erreur, nommant la variable
-// et le fichier où elle manque, le service et la clé de durcissement en cause, ou l'option de Keycloak divergente.
+// et le fichier où elle manque (guide compris), le service et la clé de durcissement en cause, ou l'option de Keycloak divergente.
 
 import { readFileSync } from 'node:fs';
 import { dirname, join, resolve } from 'node:path';
@@ -25,12 +28,14 @@ export const FICHIER_PROPRIETES = 'argos-server/src/main/resources/application.p
 export const FICHIER_COMPOSE = 'compose.yaml';
 export const FICHIER_MODELE = '.env.example';
 export const SERVICE_APPLICATIF = 'argos';
+export const FICHIER_GUIDE = 'docs/deploiement/synology-et-pc.md';
 
 const VARIABLE_ARGOS = /\$\{(ARGOS_[A-Z0-9_]+)/g;
 // « $${NOM} » est un dollar échappé (variable lue par le conteneur, pas par Compose) : il est ignoré.
 const INTERPOLATION_COMPOSE = /(?<!\$)\$\{([A-Za-z_]\w*)/g;
 const PROFIL_HORS_PRODUCTION = /^%(?!prod\.)[^.]+\./;
 const DECLARATION_MODELE = /^#?\s*([A-Za-z_]\w*)=/;
+const CITATION_GUIDE = /`(ARGOS_[A-Z0-9_]+)`/g;
 const INDENTATION_SERVICE = 2;
 const INDENTATION_CLE_SERVICE = 4;
 const INDENTATION_VARIABLE = 6;
@@ -255,12 +260,37 @@ export function ecartsParite({ proprietes, compose, modele }) {
   return [...new Set(ecarts)].sort((premier, second) => premier.localeCompare(second, 'fr'));
 }
 
-/** Écarts de parité, de durcissement puis d'options de Keycloak des fichiers du dépôt. */
+/** Variables ARGOS_* citées entre accents graves par le guide de déploiement. */
+export function variablesGuide(guide) {
+  return new Set([...guide.matchAll(CITATION_GUIDE)].map((citation) => citation[1]));
+}
+
+/**
+ * Écarts, triés, entre les variables ARGOS_* lues en production (serveur ou compose.yaml) et le guide de déploiement :
+ * une phrase par variable absente du guide.
+ */
+export function ecartsGuide({ proprietes, compose, guide }) {
+  const citees = variablesGuide(guide);
+  const ecarts = [];
+  for (const variable of variablesProduction(proprietes)) {
+    if (!citees.has(variable)) ecarts.push(`${variable} : lue par ${FICHIER_PROPRIETES}, absente de ${FICHIER_GUIDE}`);
+  }
+  for (const variable of variablesInterpolees(compose)) {
+    if (variable.startsWith('ARGOS_') && !citees.has(variable)) {
+      ecarts.push(`${variable} : interpolée par ${FICHIER_COMPOSE}, absente de ${FICHIER_GUIDE}`);
+    }
+  }
+  return [...new Set(ecarts)].sort((premier, second) => premier.localeCompare(second, 'fr'));
+}
+
+/** Écarts de parité, de couverture du guide, de durcissement puis d'options de Keycloak des fichiers du dépôt. */
 export function ecartsDepot(racine = RACINE) {
   const lire = (fichier) => readFileSync(join(racine, fichier), 'utf8');
   const compose = lire(FICHIER_COMPOSE);
+  const proprietes = lire(FICHIER_PROPRIETES);
   return [
-    ...ecartsParite({ proprietes: lire(FICHIER_PROPRIETES), compose, modele: lire(FICHIER_MODELE) }),
+    ...ecartsParite({ proprietes, compose, modele: lire(FICHIER_MODELE) }),
+    ...ecartsGuide({ proprietes, compose, guide: lire(FICHIER_GUIDE) }),
     ...ecartsDurcissement(compose),
     ...ecartsOptionsKeycloak(lire(FICHIER_IMAGE_KEYCLOAK), compose),
   ];
