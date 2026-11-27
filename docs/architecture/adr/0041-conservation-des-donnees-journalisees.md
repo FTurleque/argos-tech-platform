@@ -75,5 +75,5 @@ Proposition : **option A**.
 
 - **Exigences** : EXP-17, ACC-15
 - **Scénarios qualité** : arc42 §10
-- **Diagrammes** : `openspec/changes/retenir-importer-et-paginer/design.md` (DC-1, DC-2)
+- **Diagrammes** : `openspec/changes/archive/2026-11-27-retenir-importer-et-paginer/design.md` (DC-1, DC-2)
 - **Fichiers source** : `argos-server/src/main/java/io/argos/conservation/`

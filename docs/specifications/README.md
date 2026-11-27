@@ -36,13 +36,13 @@ Un préfixe n'est jamais réattribué ; un identifiant d'exigence retiré n'est 
 | Capacité | Préfixe | Fiche | Spec de référence | Changement | Statut |
 |---|---|---|---|---|---|
 | `collecte-avis-securite` | `COL` | [fiche](collecte-avis-securite.md) | [spec](/openspec/specs/collecte-avis-securite/spec.md) | `formaliser-chaine-securite-poc` ; `automatiser-chaine-veille` (COL-09, COL-10) ; `2026-11-25-isoler-erreurs-aux-frontieres` (archivé, COL-11) ; `2026-11-26-rendre-ingestion-asynchrone` (archivé, COL-04 modifiée, COL-12) | proposée |
-| `inventaire-sbom` | `INV` | [fiche](inventaire-sbom.md) | [spec](/openspec/specs/inventaire-sbom/spec.md) | `formaliser-chaine-securite-poc` ; `automatiser-chaine-veille` (INV-07 à INV-10) ; `2026-11-25-isoler-erreurs-aux-frontieres` (archivé, INV-11) ; `2026-11-26-alimenter-inventaire-et-completer-ihm` (archivé, INV-12, INV-13) | proposée |
+| `inventaire-sbom` | `INV` | [fiche](inventaire-sbom.md) | [spec](/openspec/specs/inventaire-sbom/spec.md) | `formaliser-chaine-securite-poc` ; `automatiser-chaine-veille` (INV-07 à INV-10) ; `2026-11-25-isoler-erreurs-aux-frontieres` (archivé, INV-11) ; `2026-11-26-alimenter-inventaire-et-completer-ihm` (archivé, INV-12, INV-13) ; `2026-11-27-retenir-importer-et-paginer` (archivé, INV-14, INV-09 modifiée) | proposée |
 | `correlation-impact` | `COR` | [fiche](correlation-impact.md) | absente | `formaliser-chaine-securite-poc` ; `automatiser-chaine-veille` (COR-09 à COR-12) | proposée |
 | `abonnements-veille` | `ABO` | [fiche](abonnements-veille.md) | absente | `formaliser-chaine-securite-poc` ; `automatiser-chaine-veille` (ABO-07, ABO-08) | proposée |
-| `performance-api-mcp` | `PERF` | [fiche](performance-api-mcp.md) | absente | `automatiser-chaine-veille` | proposée |
+| `performance-api-mcp` | `PERF` | [fiche](performance-api-mcp.md) | [spec](/openspec/specs/performance-api-mcp/spec.md) | `automatiser-chaine-veille` ; `2026-11-27-retenir-importer-et-paginer` (archivé, PERF-03) | proposée |
 | `affichage-personnalise` | `AFF` | [fiche](affichage-personnalise.md) | [spec](/openspec/specs/affichage-personnalise/spec.md) | `2026-11-19-personnaliser-profils-et-affichage` (archivé) | livrée |
 | `profils-veille` | `PRF` | [fiche](profils-veille.md) | [spec](/openspec/specs/profils-veille/spec.md) | `2026-11-19-personnaliser-profils-et-affichage` (archivé) ; `optimiser-ma-veille` (PRF-07) ; `durcir-autorisations-et-debits` (PRF-08) | livrée, dont PRF-07 et PRF-08 |
-| `comptes-acces` | `ACC` | [fiche](comptes-acces.md) | [spec](/openspec/specs/comptes-acces/spec.md) | `2026-11-17-gerer-comptes-et-acces` (archivé) ; `2026-11-18-connecter-ihm-oidc` (archivé, ACC-07 à ACC-10) ; `rendre-portail-deployable` (ACC-11 à ACC-13) ; `durcir-autorisations-et-debits` (ACC-14) | livrée, dont ACC-11 à ACC-14 |
+| `comptes-acces` | `ACC` | [fiche](comptes-acces.md) | [spec](/openspec/specs/comptes-acces/spec.md) | `2026-11-17-gerer-comptes-et-acces` (archivé) ; `2026-11-18-connecter-ihm-oidc` (archivé, ACC-07 à ACC-10) ; `rendre-portail-deployable` (ACC-11 à ACC-13) ; `durcir-autorisations-et-debits` (ACC-14) ; `2026-11-27-retenir-importer-et-paginer` (archivé, ACC-15) | livrée, dont ACC-11 à ACC-14 |
 | `alertes-digests` | `ALR` | [fiche](alertes-digests.md) | [spec](/openspec/specs/alertes-digests/spec.md) | `2026-11-16-diffuser-alertes-et-digests` (archivé) ; `automatiser-chaine-veille` (ALR-07, proposé) ; `durcir-autorisations-et-debits` (ALR-08) ; `2026-11-26-alimenter-inventaire-et-completer-ihm` (archivé, ALR-09) | livrée, dont ALR-08 et ALR-09 |
 | `notifications-poste` | `NOT` | [fiche](notifications-poste.md) | absente | `notifier-sur-le-poste` | implémentée, non archivée |
 | `serveur-mcp` | `MCP` | [fiche](serveur-mcp.md) | [spec](/openspec/specs/serveur-mcp/spec.md) | `exposer-serveur-mcp` ; `2026-11-25-isoler-erreurs-aux-frontieres` (archivé, MCP-08) | proposée |
@@ -52,8 +52,8 @@ Un préfixe n'est jamais réattribué ; un identifiant d'exigence retiré n'est 
 | `veille-rss-web` | `WEB` | [fiche](veille-rss-web.md) | [spec](/openspec/specs/veille-rss-web/spec.md) | `2026-11-16-collecter-veille-rss-web` (archivé) ; `2026-11-25-epingler-adresse-veille-web` (archivé, WEB-07) | livrée |
 | `recherche-veille` | `RCH` | [fiche](recherche-veille.md) | [spec](/openspec/specs/recherche-veille/spec.md) | `2026-11-18-rechercher-et-filtrer` (archivé) ; `durcir-autorisations-et-debits` (RCH-06) | livrée, dont RCH-06 |
 | `activite-projets` | `PIN` | [fiche](activite-projets.md) | [spec](/openspec/specs/activite-projets/spec.md) | `2026-11-17-mesurer-activite-projets` (archivé) ; `2026-11-26-alimenter-inventaire-et-completer-ihm` (archivé, PIN-06) | livrée, dont PIN-06 |
-| `profil-artiste` | `ART` | [fiche](profil-artiste.md) | [spec](/openspec/specs/profil-artiste/spec.md) | `2026-11-17-ajouter-profil-artiste` (archivé) ; `2026-11-26-alimenter-inventaire-et-completer-ihm` (archivé, ART-07) | livrée, dont ART-07 |
-| `exploitation-plateforme` | `EXP` | [fiche](exploitation-plateforme.md) | [spec](/openspec/specs/exploitation-plateforme/spec.md) | `2026-11-24-fiabiliser-sauvegarde-et-roles-base` (archivé, EXP-01 à EXP-06) ; `completer-configuration-conteneurs` ; `2026-11-25-instrumenter-observabilite` (archivé, EXP-13 à EXP-15) ; `durcir-conteneurs-de-service` | livrée (EXP-01 à EXP-06, EXP-13 à EXP-15) ; suite implémentée ou proposée, non archivée |
+| `profil-artiste` | `ART` | [fiche](profil-artiste.md) | [spec](/openspec/specs/profil-artiste/spec.md) | `2026-11-17-ajouter-profil-artiste` (archivé) ; `2026-11-26-alimenter-inventaire-et-completer-ihm` (archivé, ART-07) ; `2026-11-27-retenir-importer-et-paginer` (archivé, ART-08) | livrée, dont ART-07 |
+| `exploitation-plateforme` | `EXP` | [fiche](exploitation-plateforme.md) | [spec](/openspec/specs/exploitation-plateforme/spec.md) | `2026-11-24-fiabiliser-sauvegarde-et-roles-base` (archivé, EXP-01 à EXP-06) ; `completer-configuration-conteneurs` ; `2026-11-25-instrumenter-observabilite` (archivé, EXP-13 à EXP-15) ; `durcir-conteneurs-de-service` ; `2026-11-27-retenir-importer-et-paginer` (archivé, EXP-17) | livrée (EXP-01 à EXP-06, EXP-13 à EXP-15) ; suite implémentée ou proposée, non archivée |
 
 ## Inventaire des diagrammes métier
 
@@ -248,6 +248,19 @@ Exigences au statut [PROPOSITION], issues des décisions du porteur du projet du
 | **Total** | | **3** | **11** | **0** | **2** | **11** |
 
 Exigences au statut [PROPOSITION], implémentées et archivées le 2026-11-26. « Tests écrits » compte les méthodes de test qui couvrent un scénario : `chain/EnrichmentTest` (COL-04-S1 à S4), `chain/LancementSynchronisationTest` (COL-12-S1 à S3), `chain/RadarStandardsTest` (RAD-07-S1 à S4). Questions ouvertes : Q-1 (clé d'API NVD) et Q-2 (seuil de l'archive OSV) du changement. Décisions du porteur du projet du 2026-11-26 : observateurs asynchrones pour la chaîne radar et l'évaluation des alertes, suppression de l'événement `AlerteEmise`, réponse 409 pour une synchronisation en cours, ADR-0039 au statut Proposé.
+
+### Couverture du sprint 9 de l'audit du 2026-11-21
+
+| Changement | Capacité | Exigences | Scénarios | Diagrammes métier | Questions ouvertes | Tests écrits |
+|---|---|---|---|---|---|---|
+| [`2026-11-27-retenir-importer-et-paginer`](/openspec/changes/archive/2026-11-27-retenir-importer-et-paginer/proposal.md) | `exploitation-plateforme` (EXP-17) | 1 | 5 | 0 | 1 | 5 |
+| | `comptes-acces` (ACC-15) | 1 | 2 | 0 | 0 | 2 |
+| | `inventaire-sbom` (INV-14, INV-09 modifiée) | 2 | 8 | 0 | 0 | 5 |
+| | `performance-api-mcp` (PERF-03) | 1 | 5 | 0 | 0 | 5 |
+| | `profil-artiste` (ART-08) | 1 | 2 | 0 | 0 | 2 |
+| **Total** | | **6** | **22** | **0** | **1** | **19** |
+
+Exigences au statut [PROPOSITION], implémentées le 2026-11-26 et archivées le 2026-11-27. « Tests écrits » compte les scénarios couverts par au moins un test : `conservation/ConservationTest` et `PurgesConservationTest` (EXP-17-S1 à S5), `architecture/ConservationCompleteTest` (tables classées), `audit/JournalRefusBorneTest` (ACC-15-S1, S2), `chain/ImportPlanifieTest` (INV-14-S1 à S4, INV-09-S3), `api/ListesPagineesTest` et `commun/PaginationTest` (PERF-03-S1 à S5), `chain/ProfilArtisteTest` (ART-08-S1, S2) ; INV-09-S1, S2 et S4 sont inchangés. Question ouverte : Q-9 de la fiche `exploitation-plateforme` (durées de conservation par défaut). Décisions du porteur du projet du 2026-11-26 : format de pagination commun, listes bornées par `limite` et recherche gardant leur format, ADR-0040 et ADR-0041 au statut Proposé. Matrice détaillée : [`tasks.md` du changement](/openspec/changes/archive/2026-11-27-retenir-importer-et-paginer/tasks.md#matrice-de-traçabilité).
 
 ### Capacités restant à spécifier
 

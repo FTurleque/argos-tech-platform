@@ -167,7 +167,7 @@ Source : décision J4 du porteur du projet (2026-11-19, Q-INV-2) ; baseline v2.3
 
 #### Scenario: INV-09-S3 Import refusé ou inventaire conservé
 - **GIVEN** un projet avec un inventaire de référence et des impacts
-- **WHEN** le passage quotidien refuse la SBOM du dépôt (INV-05) ou conserve l'inventaire faute de nouvelle SBOM
+- **WHEN** le passage quotidien refuse la SBOM du dépôt (INV-05), conserve l'inventaire faute de nouvelle SBOM, ou lit un document identique à celui du dernier import (INV-14)
 - **THEN** aucune recorrélation n'est lancée pour ce projet
 - **AND** ses impacts et leurs états sont inchangés
 
@@ -292,3 +292,30 @@ Source : AUD-QUA-01 ; INV-08 ; décision du porteur du projet, 2026-11-26. Statu
 - **GIVEN** un lecteur de l'espace du projet
 - **WHEN** il tente un import ou une relance
 - **THEN** la réponse est 403 et le refus est journalisé
+
+### Requirement: INV-14 Document inchangé conservé et écriture par lot
+Le système DOIT (MUST) conserver sans écriture l'inventaire d'un dépôt lorsque le document lu sur sa forge (SBOM ou manifestes) est identique à celui de son dernier import réussi. Un import DOIT (MUST) écrire ses composants en un nombre d'instructions indépendant de leur nombre, et NE DOIT PAS (MUST NOT) réécrire un composant inchangé.
+Source : /docs/audit/2026-11-21/findings.md, AUD-PER-19 et AUD-PER-20 (actions). Statut : [PROPOSITION].
+
+#### Scenario: INV-14-S1 Passage nocturne sans changement
+- **GIVEN** un dépôt importé dont la SBOM n'a pas changé sur la forge
+- **WHEN** le passage quotidien lit de nouveau ce dépôt
+- **THEN** le résultat du dépôt est `KEPT`, motif « document inchangé depuis le dernier import »
+- **AND** l'inventaire, ses composants et leurs occurrences ne sont pas réécrits, et aucune recorrélation n'est lancée
+
+#### Scenario: INV-14-S2 Document modifié
+- **GIVEN** le même dépôt dont la SBOM ajoute un composant
+- **WHEN** le passage quotidien lit ce dépôt
+- **THEN** le résultat est `IMPORTED` et l'inventaire contient le nouveau composant
+- **AND** les composants déjà présents gardent leur identifiant
+
+#### Scenario: INV-14-S3 Import manuel toujours appliqué
+- **GIVEN** un dépôt principal dont le dernier import porte un document donné
+- **WHEN** un contributeur importe manuellement ce même document
+- **THEN** le résultat est `IMPORTED` et l'inventaire est réécrit
+
+#### Scenario: INV-14-S4 Gros document
+- **GIVEN** une SBOM de plusieurs milliers de composants, dont des doublons de même paquet et même version
+- **WHEN** elle est importée
+- **THEN** chaque paquet et version donne un seul composant, direct si une occurrence au moins est directe
+- **AND** le nombre d'instructions SQL de l'écriture ne dépend pas du nombre de composants
