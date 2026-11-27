@@ -232,6 +232,6 @@ Scénarios ACC-07-S1 à ACC-10-S4 : tests `node:test` d'`argos-ui/tests/` et d'`
 | ACC-12 | ACC-12-S1 à ACC-12-S4 | `rendre-portail-deployable` D3, D4 | 4.1, 4.2 | `CheminsPublicsTest`, `EnTetesSecuriteTest` ; recette R-7 |
 | ACC-13 | ACC-13-S1 à ACC-13-S4 | `rendre-portail-deployable` D5 | 3.1 à 3.3 | `RoyaumeLivreTest` ; `scripts/verifier-royaume.test.mjs` |
 | ACC-14 | ACC-14-S1, ACC-14-S2 | `durcir-autorisations-et-debits` D4 ; DF-ACC-3 | 4.1, 4.2 | `argos-desktop/test/connexion.test.js` |
-| ACC-15 | S1, S2 | `2026-11-27-retenir-importer-et-paginer` design.md D7 | 3.1 | `audit/JournalRefusBorneTest` |
+| ACC-15 | S1, S2 | `2026-11-27-retenir-importer-et-paginer` design.md D7 | 3.1 | `audit/JournalRefusTest` |
 
 Tests dans [`argos-server/src/test/java/io/argos/api/comptes/`](/argos-server/src/test/java/io/argos/api/comptes/) ; parcours de bout en bout : `ParcoursComptesEtAccesTest`. Les numéros de tâche des lignes ACC-07 à ACC-10 renvoient au [`tasks.md` de `connecter-ihm-oidc`](/openspec/changes/archive/2026-11-18-connecter-ihm-oidc/tasks.md#matrice-de-traçabilité).
