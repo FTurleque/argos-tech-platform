@@ -24,6 +24,7 @@ import com.fasterxml.jackson.annotation.JsonInclude;
 import io.argos.commun.ContexteBase;
 import io.argos.commun.Conversions;
 import io.argos.commun.Jdbc;
+import io.argos.commun.Pagination;
 
 /**
  * Consultation des impacts, limitée aux espaces autorisés de l'appelant (COR-08, ADR-0016) :
@@ -226,6 +227,39 @@ public class ImpactQueries {
                     requete.setObject(1, signalId);
                     requete.setArray(2, requete.getConnection().createArrayOf("uuid", workspaces.toArray()));
                 }, ImpactQueries::view);
+    }
+
+    /**
+     * Page des impacts d'un projet aux états donnés (COR-12-S2, ADR-0040), triés par date de création puis identifiant ;
+     * page vide si le projet n'appartient à aucun des espaces donnés.
+     */
+    @Transactional
+    public Page forProject(UUID projectId, UUID accountId, Set<UUID> workspaces, Set<EtatImpact> etats,
+            Pagination pagination) {
+        if (workspaces.isEmpty()) {
+            return new Page(List.of(), pagination.page(), pagination.taille(), 0);
+        }
+        try (Connection connexion = dataSource.getConnection()) {
+            ContexteBase.appliquer(connexion, ContexteBase.Contexte.duCompte(accountId));
+            Jdbc.Liaison filtre = requete -> {
+                requete.setObject(1, projectId);
+                requete.setArray(2, uuids(connexion, workspaces));
+                requete.setArray(3, etats(connexion, etats));
+            };
+            long total = Jdbc.unique(connexion, "SELECT count(*) FROM project_impact"
+                    + " WHERE project_id = ? AND workspace_id = ANY (?) AND state = ANY (?)", filtre,
+                    resultat -> resultat.getLong(1)).orElse(0L);
+            List<ImpactView> items = Jdbc.lister(connexion, SELECT
+                    + " WHERE i.project_id = ? AND i.workspace_id = ANY (?) AND i.state = ANY (?)"
+                    + " ORDER BY i.created_at, i.id LIMIT ? OFFSET ?", requete -> {
+                        filtre.lier(requete);
+                        requete.setInt(4, pagination.taille());
+                        requete.setLong(5, pagination.decalage());
+                    }, ImpactQueries::view);
+            return new Page(items, pagination.page(), pagination.taille(), total);
+        } catch (SQLException erreur) {
+            throw new IllegalStateException("lecture des impacts impossible", erreur);
+        }
     }
 
     /** Impacts actifs d'un projet, vides si le projet n'appartient à aucun des espaces donnés. */

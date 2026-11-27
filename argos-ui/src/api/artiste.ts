@@ -65,11 +65,17 @@ export interface OpportuniteArtiste {
   resume: ResumeOpportunite | null
 }
 
-/** Opportunités restituées (schéma `OpportunitesArtiste`) ; `suivisRequis` : aucune liste sans suivis complets. */
+/**
+ * Page d'opportunités restituées (schéma `OpportunitesArtiste`, format de pagination commun de l'API) ;
+ * `suivisRequis` : aucune liste sans suivis complets ; `total` : nombre d'opportunités ouvertes, toutes pages comprises.
+ */
 export interface OpportunitesArtiste {
   suivisRequis: boolean
   message: string | null
   items: OpportuniteArtiste[]
+  page: number
+  size: number
+  total: number
 }
 
 /** Source du profil et état de ses conditions d'usage (schéma `SourceProfil`). */

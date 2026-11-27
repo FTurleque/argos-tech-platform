@@ -18,19 +18,23 @@ import jakarta.ws.rs.POST;
 import jakarta.ws.rs.PUT;
 import jakarta.ws.rs.Path;
 import jakarta.ws.rs.PathParam;
+import jakarta.ws.rs.QueryParam;
 import jakarta.ws.rs.Produces;
 import jakarta.ws.rs.core.MediaType;
 
 import org.eclipse.microprofile.config.inject.ConfigProperty;
 import org.eclipse.microprofile.openapi.annotations.Operation;
+import org.eclipse.microprofile.openapi.annotations.enums.SchemaType;
 import org.eclipse.microprofile.openapi.annotations.media.Content;
 import org.eclipse.microprofile.openapi.annotations.media.Schema;
+import org.eclipse.microprofile.openapi.annotations.parameters.Parameter;
 import org.eclipse.microprofile.openapi.annotations.responses.APIResponse;
 import org.eclipse.microprofile.openapi.annotations.tags.Tag;
 import org.jboss.resteasy.reactive.RestResponse;
 
 import io.argos.alerting.RappelsOpportunites;
 import io.argos.api.Erreur;
+import io.argos.api.ParametresPagination;
 import io.argos.api.UtilisateurCourant;
 import io.argos.api.preference.ResolutionPreferences;
 import io.argos.api.security.Access;
@@ -48,6 +52,8 @@ import io.argos.signal.opportunite.CollecteOpportunites;
 import io.argos.signal.opportunite.SourceProfil;
 import io.argos.signal.opportunite.SourcesProfil;
 import io.argos.commun.Introuvable;
+import io.argos.commun.Page;
+import io.argos.commun.Pagination;
 import io.argos.commun.RegleViolee;
 import io.argos.workspace.preference.PreferencesService;
 import io.argos.workspace.suivi.SuivisProfil;
@@ -102,8 +108,17 @@ public class ProfilArtisteResource {
             String explication, ResumeOpportunite.Resume resume) {
     }
 
+    /**
+     * Page d'opportunités (ADR-0040, PERF-03) : les quatre champs communs d'une page, plus {@code suivisRequis} et
+     * {@code message} quand l'utilisateur n'a choisi aucune discipline ou aucun territoire.
+     */
     @Schema(name = "OpportunitesArtiste")
-    public record OpportunitesVue(boolean suivisRequis, String message, List<OpportuniteVue> items) {
+    public record OpportunitesVue(boolean suivisRequis, String message, List<OpportuniteVue> items, int page, int size,
+            long total) {
+
+        static OpportunitesVue depuis(Page<OpportuniteVue> page) {
+            return new OpportunitesVue(false, null, page.items(), page.page(), page.size(), page.total());
+        }
     }
 
     @Schema(name = "DeclarationSourceArtiste")
@@ -208,25 +223,35 @@ public class ProfilArtisteResource {
 
     @GET
     @Path("/opportunites")
-    @Operation(summary = "Opportunités ouvertes correspondant à ses disciplines et territoires suivis")
+    @Operation(summary = "Opportunités ouvertes correspondant à ses disciplines et territoires suivis, date limite la plus"
+            + " proche d'abord (liste paginée)")
+    @APIResponse(responseCode = "400", description = "Paramètre page ou size non entier",
+            content = @Content(schema = @Schema(implementation = Erreur.class)))
     @APIResponse(responseCode = "409", description = "Profil artiste inactif pour l'utilisateur",
             content = @Content(schema = @Schema(implementation = Erreur.class)))
-    public OpportunitesVue opportunites() {
+    public OpportunitesVue opportunites(
+            @Parameter(description = ParametresPagination.DESCRIPTION_PAGE,
+                    schema = @Schema(type = SchemaType.INTEGER, defaultValue = "0"))
+            @QueryParam(ParametresPagination.PAGE) String page,
+            @Parameter(description = ParametresPagination.DESCRIPTION_TAILLE,
+                    schema = @Schema(type = SchemaType.INTEGER, defaultValue = "" + Pagination.TAILLE_DEFAUT))
+            @QueryParam(ParametresPagination.TAILLE) String size) {
+        Pagination pagination = ParametresPagination.pagination(page, size);
         UUID compte = compteActif();
         SuivisProfil.Suivis suivisCompte = suivis.lire(compte, PROFIL);
         if (suivisCompte.valeurs(DISCIPLINE).isEmpty() || suivisCompte.valeurs(TERRITOIRE).isEmpty()) {
             return new OpportunitesVue(true,
                     "Choisissez au moins une discipline et un territoire pour recevoir les opportunités du profil artiste.",
-                    List.of());
+                    List.of(), pagination.page(), pagination.taille(), 0);
         }
-        List<OpportuniteVue> items = rapprochement.restituer(Set.copyOf(suivisCompte.valeurs(DISCIPLINE)),
+        List<OpportuniteVue> restituees = rapprochement.restituer(Set.copyOf(suivisCompte.valeurs(DISCIPLINE)),
                 Set.copyOf(suivisCompte.valeurs(TERRITOIRE)), LectureHeure.jour(horloge)).stream()
                 .map(opportunite -> new OpportuniteVue(opportunite.id(), opportunite.rubrique(), opportunite.titre(),
                         opportunite.organisme(), opportunite.dateLimite(), opportunite.dateLimite() == null, opportunite.lien(),
                         opportunite.disciplines(), opportunite.territoires(), opportunite.decision().explication(),
                         opportunite.resume()))
                 .toList();
-        return new OpportunitesVue(false, null, items);
+        return OpportunitesVue.depuis(Page.extraire(restituees, pagination));
     }
 
     @GET

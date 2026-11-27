@@ -97,8 +97,7 @@ public class OutilsReferentiel {
                     } else {
                         ProjetsVisibles.duCompte(appelant.accountId(), inventaires)
                                 .filter(projet -> appelant.memberOf(projet.workspaceId()))
-                                .forEach(projet -> inventaires.inventory(projet.id(), appelant.accountId())
-                                        .ifPresent(vue -> vue.components().forEach(composant -> cles.add(composant.packageKey()))));
+                                .forEach(projet -> cles.addAll(inventaires.clesDePaquets(projet.id(), appelant.accountId())));
                     }
                     LocalDate aujourdhui = LectureHeure.jour(horloge);
                     LocalDate jusqua = aujourdhui.plusDays(jours);

@@ -28,6 +28,8 @@ import org.eclipse.microprofile.openapi.annotations.tags.Tag;
 
 import io.argos.api.security.Access;
 import io.argos.commun.DonneeInvalide;
+import io.argos.commun.Page;
+import io.argos.commun.Pagination;
 import io.argos.commun.RegleViolee;
 import io.argos.commun.securite.Caller;
 import io.argos.commun.securite.LimiteDebitAtteinte;
@@ -106,10 +108,20 @@ public class InventoryResource {
     InventoryQueries inventories;
 
     @GET
-    @Operation(summary = "Inventaire de référence du projet, son origine et l'âge de la SBOM")
-    public ProjectInventory inventory(@PathParam("projectId") UUID projectId) {
+    @Operation(summary = "Inventaire de référence du projet, son origine, l'âge de la SBOM et une page de ses composants,"
+            + " triés par clé de paquet, version puis identifiant")
+    @APIResponse(responseCode = "200", description = "Inventaire ; inventory.components est une page de composants")
+    @APIResponse(responseCode = "400", description = "Paramètre page ou size non entier")
+    public ProjectInventory inventory(@PathParam("projectId") UUID projectId,
+            @Parameter(description = ParametresPagination.DESCRIPTION_PAGE,
+                    schema = @Schema(type = SchemaType.INTEGER, defaultValue = "0"))
+            @QueryParam(ParametresPagination.PAGE) String page,
+            @Parameter(description = ParametresPagination.DESCRIPTION_TAILLE,
+                    schema = @Schema(type = SchemaType.INTEGER, defaultValue = "" + Pagination.TAILLE_DEFAUT))
+            @QueryParam(ParametresPagination.TAILLE) String size) {
+        Pagination pagination = ParametresPagination.pagination(page, size);
         Caller caller = authorize(projectId);
-        return inventories.inventory(projectId, caller.accountId())
+        return inventories.inventory(projectId, caller.accountId(), pagination)
                 .map(inventaire -> new ProjectInventory(projectId, "AVAILABLE", inventaire))
                 .orElseGet(() -> new ProjectInventory(projectId, "NO_SBOM", null));
     }
@@ -151,10 +163,19 @@ public class InventoryResource {
 
     @GET
     @Path("/failures")
-    @Operation(summary = "Imports de SBOM ou de manifestes refusés, avec leur motif")
-    public List<InventoryQueries.ImportFailure> failures(@PathParam("projectId") UUID projectId) {
+    @Operation(summary = "Imports de SBOM ou de manifestes refusés, avec leur motif, du plus récent au plus ancien (liste paginée)")
+    @APIResponse(responseCode = "200", description = "Page d'imports refusés ou en erreur")
+    @APIResponse(responseCode = "400", description = "Paramètre page ou size non entier")
+    public Page<InventoryQueries.ImportFailure> failures(@PathParam("projectId") UUID projectId,
+            @Parameter(description = ParametresPagination.DESCRIPTION_PAGE,
+                    schema = @Schema(type = SchemaType.INTEGER, defaultValue = "0"))
+            @QueryParam(ParametresPagination.PAGE) String page,
+            @Parameter(description = ParametresPagination.DESCRIPTION_TAILLE,
+                    schema = @Schema(type = SchemaType.INTEGER, defaultValue = "" + Pagination.TAILLE_DEFAUT))
+            @QueryParam(ParametresPagination.TAILLE) String size) {
+        Pagination pagination = ParametresPagination.pagination(page, size);
         Caller caller = authorize(projectId);
-        return inventories.failures(projectId, caller.accountId());
+        return inventories.failures(projectId, caller.accountId(), pagination);
     }
 
     @POST

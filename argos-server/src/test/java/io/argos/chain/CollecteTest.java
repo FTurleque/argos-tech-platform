@@ -218,8 +218,8 @@ class CollecteTest {
         assertEquals("OSV", baseDeTest.string("SELECT source_id FROM ingestion_failure"));
         Api.enTantQue("alice")
                 .when().get("/api/v1/ops/sources/OSV/rejected")
-                .then().statusCode(200).body("[0].externalId", equalTo("GHSA-000B"))
-                .body("[0].reason", equalTo("identifiant externe absent"));
+                .then().statusCode(200).body("items[0].externalId", equalTo("GHSA-000B"))
+                .body("items[0].reason", equalTo("identifiant externe absent")).body("total", equalTo(1));
     }
 
     // ------------------------------------------------------------------ COL-10 (automatiser-chaine-veille, 1.4)

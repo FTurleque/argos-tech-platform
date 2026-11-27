@@ -1413,10 +1413,7 @@
             "type" : "integer"
           },
           "components" : {
-            "items" : {
-              "$ref" : "#/components/schemas/ComponentView"
-            },
-            "type" : "array"
+            "$ref" : "#/components/schemas/PageComponentView"
           },
           "ignoredComponents" : {
             "items" : {
@@ -1737,8 +1734,20 @@
           "message" : {
             "type" : "string"
           },
+          "page" : {
+            "format" : "int32",
+            "type" : "integer"
+          },
+          "size" : {
+            "format" : "int32",
+            "type" : "integer"
+          },
           "suivisRequis" : {
             "type" : "boolean"
+          },
+          "total" : {
+            "format" : "int64",
+            "type" : "integer"
           }
         },
         "type" : "object"
@@ -1748,6 +1757,98 @@
           "items" : {
             "items" : {
               "$ref" : "#/components/schemas/ImpactView"
+            },
+            "type" : "array"
+          },
+          "page" : {
+            "format" : "int32",
+            "type" : "integer"
+          },
+          "size" : {
+            "format" : "int32",
+            "type" : "integer"
+          },
+          "total" : {
+            "format" : "int64",
+            "type" : "integer"
+          }
+        },
+        "type" : "object"
+      },
+      "PageComponentView" : {
+        "properties" : {
+          "items" : {
+            "items" : {
+              "$ref" : "#/components/schemas/ComponentView"
+            },
+            "type" : "array"
+          },
+          "page" : {
+            "format" : "int32",
+            "type" : "integer"
+          },
+          "size" : {
+            "format" : "int32",
+            "type" : "integer"
+          },
+          "total" : {
+            "format" : "int64",
+            "type" : "integer"
+          }
+        },
+        "type" : "object"
+      },
+      "PageImportFailure" : {
+        "properties" : {
+          "items" : {
+            "items" : {
+              "$ref" : "#/components/schemas/ImportFailure"
+            },
+            "type" : "array"
+          },
+          "page" : {
+            "format" : "int32",
+            "type" : "integer"
+          },
+          "size" : {
+            "format" : "int32",
+            "type" : "integer"
+          },
+          "total" : {
+            "format" : "int64",
+            "type" : "integer"
+          }
+        },
+        "type" : "object"
+      },
+      "PageOperationEvent" : {
+        "properties" : {
+          "items" : {
+            "items" : {
+              "$ref" : "#/components/schemas/OperationEvent"
+            },
+            "type" : "array"
+          },
+          "page" : {
+            "format" : "int32",
+            "type" : "integer"
+          },
+          "size" : {
+            "format" : "int32",
+            "type" : "integer"
+          },
+          "total" : {
+            "format" : "int64",
+            "type" : "integer"
+          }
+        },
+        "type" : "object"
+      },
+      "PageRejectedAdvisory" : {
+        "properties" : {
+          "items" : {
+            "items" : {
+              "$ref" : "#/components/schemas/RejectedAdvisory"
             },
             "type" : "array"
           },
@@ -3876,23 +3977,39 @@
           "schema" : {
             "type" : "string"
           }
+        }, {
+          "description" : "Numéro de page, à partir de 0 ; une valeur négative vaut 0 ; une valeur non entière donne 400",
+          "in" : "query",
+          "name" : "page",
+          "schema" : {
+            "default" : 0,
+            "type" : "integer"
+          }
+        }, {
+          "description" : "Taille de page, de 1 à 200 ; une valeur hors bornes est ramenée à la borne la plus proche ; une valeur non entière donne 400",
+          "in" : "query",
+          "name" : "size",
+          "schema" : {
+            "default" : 50,
+            "type" : "integer"
+          }
         } ],
         "responses" : {
           "200" : {
             "content" : {
               "application/json" : {
                 "schema" : {
-                  "items" : {
-                    "$ref" : "#/components/schemas/OperationEvent"
-                  },
-                  "type" : "array"
+                  "$ref" : "#/components/schemas/PageOperationEvent"
                 }
               }
             },
-            "description" : "OK"
+            "description" : "Page d'événements d'exploitation"
+          },
+          "400" : {
+            "description" : "Paramètre page ou size non entier"
           }
         },
-        "summary" : "Événements d'exploitation datés de la source",
+        "summary" : "Événements d'exploitation datés de la source, du plus récent au plus ancien (liste paginée)",
         "tags" : [ "Exploitation" ]
       }
     },
@@ -3905,23 +4022,39 @@
           "schema" : {
             "type" : "string"
           }
+        }, {
+          "description" : "Numéro de page, à partir de 0 ; une valeur négative vaut 0 ; une valeur non entière donne 400",
+          "in" : "query",
+          "name" : "page",
+          "schema" : {
+            "default" : 0,
+            "type" : "integer"
+          }
+        }, {
+          "description" : "Taille de page, de 1 à 200 ; une valeur hors bornes est ramenée à la borne la plus proche ; une valeur non entière donne 400",
+          "in" : "query",
+          "name" : "size",
+          "schema" : {
+            "default" : 50,
+            "type" : "integer"
+          }
         } ],
         "responses" : {
           "200" : {
             "content" : {
               "application/json" : {
                 "schema" : {
-                  "items" : {
-                    "$ref" : "#/components/schemas/RejectedAdvisory"
-                  },
-                  "type" : "array"
+                  "$ref" : "#/components/schemas/PageRejectedAdvisory"
                 }
               }
             },
-            "description" : "OK"
+            "description" : "Page d'avis mis à l'écart"
+          },
+          "400" : {
+            "description" : "Paramètre page ou size non entier"
           }
         },
-        "summary" : "Avis mis à l'écart par la source, avec leur motif",
+        "summary" : "Avis mis à l'écart par la source, avec leur motif, du plus récent au plus ancien (liste paginée)",
         "tags" : [ "Exploitation" ]
       }
     },
@@ -4154,7 +4287,34 @@
     },
     "/api/v1/profils/artiste/opportunites" : {
       "get" : {
+        "parameters" : [ {
+          "description" : "Numéro de page, à partir de 0 ; une valeur négative vaut 0 ; une valeur non entière donne 400",
+          "in" : "query",
+          "name" : "page",
+          "schema" : {
+            "default" : 0,
+            "type" : "integer"
+          }
+        }, {
+          "description" : "Taille de page, de 1 à 200 ; une valeur hors bornes est ramenée à la borne la plus proche ; une valeur non entière donne 400",
+          "in" : "query",
+          "name" : "size",
+          "schema" : {
+            "default" : 50,
+            "type" : "integer"
+          }
+        } ],
         "responses" : {
+          "400" : {
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/Erreur"
+                }
+              }
+            },
+            "description" : "Paramètre page ou size non entier"
+          },
           "401" : {
             "description" : "Not Authorized"
           },
@@ -4175,7 +4335,7 @@
         "security" : [ {
           "SecurityScheme" : [ ]
         } ],
-        "summary" : "Opportunités ouvertes correspondant à ses disciplines et territoires suivis",
+        "summary" : "Opportunités ouvertes correspondant à ses disciplines et territoires suivis, date limite la plus proche d'abord (liste paginée)",
         "tags" : [ "Profil artiste" ]
       }
     },
@@ -4654,23 +4814,36 @@
             },
             "type" : "array"
           }
+        }, {
+          "description" : "Numéro de page, à partir de 0 ; une valeur négative vaut 0 ; une valeur non entière donne 400",
+          "in" : "query",
+          "name" : "page",
+          "schema" : {
+            "default" : 0,
+            "type" : "integer"
+          }
+        }, {
+          "description" : "Taille de page, de 1 à 200 ; une valeur hors bornes est ramenée à la borne la plus proche ; une valeur non entière donne 400",
+          "in" : "query",
+          "name" : "size",
+          "schema" : {
+            "default" : 50,
+            "type" : "integer"
+          }
         } ],
         "responses" : {
           "200" : {
             "content" : {
               "application/json" : {
                 "schema" : {
-                  "items" : {
-                    "$ref" : "#/components/schemas/ImpactView"
-                  },
-                  "type" : "array"
+                  "$ref" : "#/components/schemas/Page"
                 }
               }
             },
-            "description" : "Impacts du projet aux états demandés ; par défaut OUVERT et CONFIRME"
+            "description" : "Page d'impacts du projet aux états demandés ; par défaut OUVERT et CONFIRME"
           },
           "400" : {
-            "description" : "État inconnu (DONNEE_INVALIDE)"
+            "description" : "État inconnu, ou paramètre page ou size non entier (DONNEE_INVALIDE)"
           },
           "401" : {
             "description" : "Non authentifié"
@@ -4679,7 +4852,7 @@
             "description" : "Projet inconnu ou d'un espace dont l'appelant n'est pas membre (refus journalisé)"
           }
         },
-        "summary" : "Impacts du projet filtrés par état de traitement (COR-12-S2), triés par date de création",
+        "summary" : "Impacts du projet filtrés par état de traitement (COR-12-S2), triés par date de création puis identifiant (liste paginée)",
         "tags" : [ "Inventaires" ]
       }
     },
@@ -4692,6 +4865,22 @@
           "schema" : {
             "$ref" : "#/components/schemas/UUID"
           }
+        }, {
+          "description" : "Numéro de page, à partir de 0 ; une valeur négative vaut 0 ; une valeur non entière donne 400",
+          "in" : "query",
+          "name" : "page",
+          "schema" : {
+            "default" : 0,
+            "type" : "integer"
+          }
+        }, {
+          "description" : "Taille de page, de 1 à 200 ; une valeur hors bornes est ramenée à la borne la plus proche ; une valeur non entière donne 400",
+          "in" : "query",
+          "name" : "size",
+          "schema" : {
+            "default" : 50,
+            "type" : "integer"
+          }
         } ],
         "responses" : {
           "200" : {
@@ -4702,10 +4891,13 @@
                 }
               }
             },
-            "description" : "OK"
+            "description" : "Inventaire ; inventory.components est une page de composants"
+          },
+          "400" : {
+            "description" : "Paramètre page ou size non entier"
           }
         },
-        "summary" : "Inventaire de référence du projet, son origine et l'âge de la SBOM",
+        "summary" : "Inventaire de référence du projet, son origine, l'âge de la SBOM et une page de ses composants, triés par clé de paquet, version puis identifiant",
         "tags" : [ "Inventaires" ]
       }
     },
@@ -4769,23 +4961,39 @@
           "schema" : {
             "$ref" : "#/components/schemas/UUID"
           }
+        }, {
+          "description" : "Numéro de page, à partir de 0 ; une valeur négative vaut 0 ; une valeur non entière donne 400",
+          "in" : "query",
+          "name" : "page",
+          "schema" : {
+            "default" : 0,
+            "type" : "integer"
+          }
+        }, {
+          "description" : "Taille de page, de 1 à 200 ; une valeur hors bornes est ramenée à la borne la plus proche ; une valeur non entière donne 400",
+          "in" : "query",
+          "name" : "size",
+          "schema" : {
+            "default" : 50,
+            "type" : "integer"
+          }
         } ],
         "responses" : {
           "200" : {
             "content" : {
               "application/json" : {
                 "schema" : {
-                  "items" : {
-                    "$ref" : "#/components/schemas/ImportFailure"
-                  },
-                  "type" : "array"
+                  "$ref" : "#/components/schemas/PageImportFailure"
                 }
               }
             },
-            "description" : "OK"
+            "description" : "Page d'imports refusés ou en erreur"
+          },
+          "400" : {
+            "description" : "Paramètre page ou size non entier"
           }
         },
-        "summary" : "Imports de SBOM ou de manifestes refusés, avec leur motif",
+        "summary" : "Imports de SBOM ou de manifestes refusés, avec leur motif, du plus récent au plus ancien (liste paginée)",
         "tags" : [ "Inventaires" ]
       }
     },

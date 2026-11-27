@@ -17,6 +17,7 @@ import jakarta.inject.Inject;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
+import io.argos.commun.Pagination;
 import io.argos.impact.ImpactQueries;
 import io.argos.ingestion.SourceSynchronizer;
 import io.argos.inventory.InventoryQueries;
@@ -142,7 +143,8 @@ class CloisonnementMcpTest {
         assertTrue(impacts.forWorkspaces(lina, Set.of(espaceB), 50).isEmpty());
         assertTrue(impacts.forProject(projetP, lina, Set.of(espaceB)).isEmpty());
         assertFalse(ProjetsVisibles.duCompte(lina, inventaireQueries).anyMatch(projet -> projet.id().equals(projetP)));
-        assertTrue(inventaireQueries.inventory(projetP, lina).isEmpty());
+        assertTrue(inventaireQueries.inventory(projetP, lina, Pagination.PREMIERE).isEmpty());
+        assertTrue(inventaireQueries.clesDePaquets(projetP, lina).isEmpty());
         assertTrue(inventaireQueries.summary(projetP, lina).isEmpty());
 
         UUID marc = Api.compte("marc");
