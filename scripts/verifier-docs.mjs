@@ -29,8 +29,8 @@ const HORS_SOUS_PROJETS = new Set(['docs', 'openspec', 'node_modules']);
 // avec extension) ou un dossier (« / » final) sont contrôlés ; un chemin généré (sortie de build, rapports), un motif
 // (joker, gabarit) ou un nom de dépôt de forge (`e2e/chaine-front`) ne l'est pas. Le plan d'audit de docs/audit/ est
 // conservé hors du dépôt par le porteur du projet : ses citations ne sont pas contrôlées.
-const DOSSIERS_CITES = ['docs', 'openspec', 'argos-server', 'argos-ui', 'argos-desktop', 'e2e', 'scripts', 'deploiement',
-  '.github', '.archgate'];
+const DOSSIERS_CITES = new Set(['docs', 'openspec', 'argos-server', 'argos-ui', 'argos-desktop', 'e2e', 'scripts',
+  'deploiement', '.github', '.archgate']);
 const CHEMIN_GENERE = /(^|\/)(target|node_modules|release|resultats|dist|test-results|playwright-report)(\/|$)/;
 const CHEMIN_MOTIF = /[<>*{}$|\s]|\.\.\./;
 const CHEMINS_HORS_DEPOT = ['docs/audit/'];
@@ -144,6 +144,14 @@ function verifierLiens(fichier, texte) {
   });
 }
 
+const sansAncre = (chemin) => (chemin.includes('#') ? chemin.slice(0, chemin.indexOf('#')) : chemin);
+
+/** Chemin sans numéro de ligne final (« :12 » ou « :12-20 »). */
+function sansNumeroDeLigne(chemin) {
+  const deuxPoints = chemin.lastIndexOf(':');
+  return deuxPoints >= 0 && /^\d+(?:-\d+)?$/.test(chemin.slice(deuxPoints + 1)) ? chemin.slice(0, deuxPoints) : chemin;
+}
+
 /**
  * Chemins du dépôt cités entre accents graves dans une ligne : début par un dossier du dépôt (« / » initial admis),
  * ancre et numéro de ligne retirés ; motifs, chemins générés et noms sans extension ni « / » final exclus.
@@ -151,9 +159,9 @@ function verifierLiens(fichier, texte) {
 export function cheminsCites(ligne) {
   const chemins = [];
   for (const code of ligne.matchAll(/`([^`]+)`/g)) {
-    const brut = code[1].trim().replace(/^\//, '').replace(/#.*$/, '').replace(/:\d+(-\d+)?$/, '');
+    const brut = sansNumeroDeLigne(sansAncre(code[1].trim().replace(/^\//, '')));
     const premier = brut.split('/')[0];
-    if (!brut.includes('/') || !DOSSIERS_CITES.includes(premier)) continue;
+    if (!brut.includes('/') || !DOSSIERS_CITES.has(premier)) continue;
     if (CHEMIN_MOTIF.test(brut) || CHEMIN_GENERE.test(brut)) continue;
     if (CHEMINS_HORS_DEPOT.some((prefixe) => brut.startsWith(prefixe))) continue;
     const dossier = brut.endsWith('/');
