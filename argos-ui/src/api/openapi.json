@@ -2293,6 +2293,9 @@
           "total" : {
             "format" : "int64",
             "type" : "integer"
+          },
+          "totalPlafonne" : {
+            "type" : "boolean"
           }
         },
         "type" : "object"
@@ -2933,17 +2936,29 @@
       },
       "VeilleProfils" : {
         "properties" : {
-          "elements" : {
+          "items" : {
             "items" : {
               "$ref" : "#/components/schemas/ElementVeilleProfils"
             },
             "type" : "array"
+          },
+          "page" : {
+            "format" : "int32",
+            "type" : "integer"
           },
           "profilsActifs" : {
             "items" : {
               "type" : "string"
             },
             "type" : "array"
+          },
+          "size" : {
+            "format" : "int32",
+            "type" : "integer"
+          },
+          "total" : {
+            "format" : "int64",
+            "type" : "integer"
           }
         },
         "type" : "object"
@@ -3853,7 +3868,44 @@
     },
     "/api/v1/me/veille" : {
       "get" : {
+        "parameters" : [ {
+          "description" : "Numéro de page, à partir de 0 ; une valeur négative vaut 0 ; une valeur non entière donne 400",
+          "in" : "query",
+          "name" : "page",
+          "schema" : {
+            "default" : 0,
+            "type" : "integer"
+          }
+        }, {
+          "description" : "Taille de page, de 1 à 200 ; une valeur hors bornes est ramenée à la borne la plus proche ; une valeur non entière donne 400",
+          "in" : "query",
+          "name" : "size",
+          "schema" : {
+            "default" : 50,
+            "type" : "integer"
+          }
+        } ],
         "responses" : {
+          "200" : {
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/VeilleProfils"
+                }
+              }
+            },
+            "description" : "Page de la veille, triée par date décroissante, puis type et identifiant"
+          },
+          "400" : {
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/Erreur"
+                }
+              }
+            },
+            "description" : "Paramètre page ou size non entier (DONNEE_INVALIDE)"
+          },
           "401" : {
             "description" : "Not Authorized"
           },

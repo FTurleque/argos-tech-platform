@@ -9,6 +9,7 @@ import java.time.Instant;
 import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -162,11 +163,17 @@ public class RappelsRadar {
     private void rappelerEspaceOuJournaliser(UUID espace, LocalDate aujourdhui, Instant maintenant, List<UUID> crees,
             ErreursImprevues imprevues) {
         try {
+            // Échéances de tous les jours de rappel en une passe (RAD-10-S2).
+            Map<LocalDate, Integer> joursParDate = new LinkedHashMap<>();
             for (int jours : parametresTechniques(espace)) {
-                for (RadarProjets.EcheanceProjets echeance : radar.echeancesTouchant(espace, aujourdhui.plusDays(jours))) {
+                joursParDate.putIfAbsent(aujourdhui.plusDays(jours), jours);
+            }
+            Map<LocalDate, List<RadarProjets.EcheanceProjets>> parDate = radar.echeancesTouchant(espace, joursParDate.keySet());
+            joursParDate.forEach((date, jours) -> {
+                for (RadarProjets.EcheanceProjets echeance : parDate.getOrDefault(date, List.of())) {
                     crees.addAll(rappeler(echeance, jours, maintenant));
                 }
-            }
+            });
         } catch (IllegalStateException erreur) {
             LOG.errorf(erreur, "rappels du radar de l'espace %s en échec", espace);
         } catch (RuntimeException imprevue) {

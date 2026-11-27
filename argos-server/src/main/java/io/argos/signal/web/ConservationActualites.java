@@ -14,6 +14,6 @@ import io.argos.conservation.RegleParHorodatage;
 public class ConservationActualites extends RegleParHorodatage {
 
     public ConservationActualites() {
-        super("actualites", "DELETE FROM actualite WHERE id IN (SELECT id FROM actualite WHERE recu_le < ? LIMIT ?)");
+        super("actualites", "actualite", "recu_le");
     }
 }

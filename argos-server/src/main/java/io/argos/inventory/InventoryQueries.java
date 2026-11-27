@@ -366,6 +366,17 @@ public class InventoryQueries {
      */
     @Transactional
     public List<ComponentMatch> componentsMatching(Collection<String> packageKeys, Optional<UUID> projectId) {
+        return componentsMatching(packageKeys, projectId, Optional.empty());
+    }
+
+    /**
+     * Composants dont la clé de paquet figure parmi celles données, éventuellement limités à un projet et à un espace :
+     * le filtre d'espace s'applique en base (radar, RAD-10), jamais après lecture des composants de tous les espaces.
+     * Origine et date retenues comme pour {@link #componentsMatching(Collection, Optional)}.
+     */
+    @Transactional
+    public List<ComponentMatch> componentsMatching(Collection<String> packageKeys, Optional<UUID> projectId,
+            Optional<UUID> workspaceId) {
         if (packageKeys.isEmpty()) {
             return new ArrayList<>();
         }
@@ -376,6 +387,7 @@ public class InventoryQueries {
                 LEFT JOIN component_occurrence o ON o.component_id = c.id
                 LEFT JOIN repository_inventory ri ON ri.repository_id = o.repository_id
                 WHERE c.package_key = ANY (?) AND (?::uuid IS NULL OR c.project_id = ?::uuid)
+                  AND (?::uuid IS NULL OR p.workspace_id = ?::uuid)
                 ORDER BY c.project_id, c.package_key, c.version, c.id
                 """;
         Map<UUID, ComponentMatch> meilleures = new LinkedHashMap<>();
@@ -383,6 +395,8 @@ public class InventoryQueries {
             requete.setArray(1, connexion.createArrayOf("varchar", packageKeys.toArray()));
             requete.setObject(2, projectId.orElse(null));
             requete.setObject(3, projectId.orElse(null));
+            requete.setObject(4, workspaceId.orElse(null));
+            requete.setObject(5, workspaceId.orElse(null));
             try (ResultSet lignes = requete.executeQuery()) {
                 while (lignes.next()) {
                     String origin = lignes.getString(8);
@@ -456,15 +470,8 @@ public class InventoryQueries {
      */
     @Transactional
     public Optional<UUID> importCourant(UUID projectId) {
-        try (Connection connexion = dataSource.getConnection();
-                PreparedStatement requete = connexion.prepareStatement("SELECT import_id FROM inventory WHERE project_id = ?")) {
-            requete.setObject(1, projectId);
-            try (ResultSet lignes = requete.executeQuery()) {
-                return lignes.next() ? Optional.of(lignes.getObject(1, UUID.class)) : Optional.empty();
-            }
-        } catch (SQLException erreur) {
-            throw new IllegalStateException("lecture de l'inventaire impossible", erreur);
-        }
+        return identifiantDuProjet("SELECT import_id FROM inventory WHERE project_id = ?", projectId,
+                "lecture de l'inventaire impossible");
     }
 
     /** Dépôts de chacun des composants donnés, le principal d'abord, lus sous le contexte de la connexion. */
@@ -512,14 +519,15 @@ public class InventoryQueries {
     /** Espace du projet, s'il existe. */
     @Transactional
     public Optional<UUID> workspaceOf(UUID projectId) {
-        try (Connection connexion = dataSource.getConnection();
-                PreparedStatement requete = connexion.prepareStatement("SELECT workspace_id FROM project WHERE id = ?")) {
-            requete.setObject(1, projectId);
-            try (ResultSet lignes = requete.executeQuery()) {
-                return lignes.next() ? Optional.of(lignes.getObject(1, UUID.class)) : Optional.empty();
-            }
+        return identifiantDuProjet("SELECT workspace_id FROM project WHERE id = ?", projectId, "lecture du projet impossible");
+    }
+
+    /** Identifiant lu par une requête dont le seul paramètre est le projet, vide si aucune ligne ne correspond. */
+    private Optional<UUID> identifiantDuProjet(String sql, UUID projectId, String echec) {
+        try (Connection connexion = dataSource.getConnection()) {
+            return Jdbc.unique(connexion, sql, Jdbc.parametres(projectId), lignes -> lignes.getObject(1, UUID.class));
         } catch (SQLException erreur) {
-            throw new IllegalStateException("lecture du projet impossible", erreur);
+            throw new IllegalStateException(echec, erreur);
         }
     }
 

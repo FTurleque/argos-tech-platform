@@ -108,6 +108,8 @@ class AlertesImpactsTraitesTest {
         Fixtures.stubOsv(id, modifie, json);
         synchronizer.synchronize("OSV");
         asynchrone.attendre();
+        // Passage de la tâche planifiée d'envoi, qui diffuse les alertes en attente (ALR-10-S2).
+        envoi.traiterEnAttente(Instant.now());
         return baseDeTest.uuid("SELECT id FROM signal WHERE external_id = '" + id + "'");
     }
 

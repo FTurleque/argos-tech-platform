@@ -173,11 +173,20 @@ export function nombrePages(total: number, taille: number): number {
   return Math.ceil(total / taille)
 }
 
-/** Annonce des résultats pour les technologies d'assistance (zone `aria-live`). */
-export function annonceResultats(total: number, page: number, taille: number): string {
+/** Nombre de résultats en toutes lettres ; un total plafonné vaut « plus de » ce total. */
+function libelleNombre(total: number, plafonne: boolean): string {
+  if (plafonne) return `Plus de ${total.toLocaleString('fr-FR')} résultats`
+  return total === 1 ? '1 résultat' : `${total} résultats`
+}
+
+/**
+ * Annonce des résultats pour les technologies d'assistance (zone `aria-live`). Un total plafonné
+ * (RCH-07) s'annonce « plus de » ce total.
+ */
+export function annonceResultats(total: number, page: number, taille: number, plafonne = false): string {
   if (total <= 0) return 'Aucun résultat.'
   const pages = nombrePages(total, taille)
-  const nombre = total === 1 ? '1 résultat' : `${total} résultats`
+  const nombre = libelleNombre(total, plafonne)
   return pages > 1 ? `${nombre}, page ${page + 1} sur ${pages}.` : `${nombre}.`
 }
 

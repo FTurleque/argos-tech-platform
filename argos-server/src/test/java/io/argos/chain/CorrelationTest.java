@@ -5,6 +5,7 @@ import static org.hamcrest.Matchers.equalTo;
 import static org.hamcrest.Matchers.hasSize;
 import static org.hamcrest.Matchers.notNullValue;
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNotEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
@@ -363,13 +364,35 @@ class CorrelationTest {
         UUID signal = publish("GHSA-REPLAY", LIB, "0", "1.3.0");
         String impact = baseDeTest.string("SELECT id::text FROM project_impact");
 
+        String misAJour = baseDeTest.string("SELECT updated_at::text FROM project_impact");
+
         CorrelationEngine.CorrelationReport again = engine.correlate(signal, Optional.empty());
         engine.correlateProject(project);
 
         assertEquals(0, again.created());
-        assertEquals(1, again.updated());
+        assertEquals(0, again.updated(), "COR-07-S2 : un impact inchangé n'est pas réécrit");
         assertEquals(1, impactsOf(project));
         assertEquals(impact, baseDeTest.string("SELECT id::text FROM project_impact"));
+        assertEquals(misAJour, baseDeTest.string("SELECT updated_at::text FROM project_impact"),
+                "COR-07-S2 : la date de mise à jour d'un impact inchangé ne bouge pas");
+    }
+
+    /** COR-07-S3 : une nouvelle version de l'avis met à jour l'impact et sa date de mise à jour. */
+    @Test
+    void cor07S3NouvelleVersionDeLAvis() {
+        projectWithSbom(spaceA, "app", fresh(), LIB + "@1.2.0");
+        UUID signal = publish("GHSA-VERSION", LIB, "0", "1.3.0");
+        String misAJour = baseDeTest.string("SELECT updated_at::text FROM project_impact");
+        UUID versionInitiale = baseDeTest.uuid("SELECT signal_version_id FROM project_impact");
+
+        String json = Fixtures.osv("GHSA-VERSION", "2026-11-12T00:00:00Z", "Maven", "org.exemple:lib", LIB, "0", "1.4.0");
+        Fixtures.stubOsv("GHSA-VERSION", "2026-11-12T00:00:00Z", json);
+        synchronizer.synchronize("OSV");
+
+        UUID versionCourante = baseDeTest.uuid("SELECT current_version_id FROM signal WHERE id = '" + signal + "'");
+        assertNotEquals(versionInitiale, versionCourante, "le jeu de test publie une nouvelle version de l'avis");
+        assertEquals(versionCourante, baseDeTest.uuid("SELECT signal_version_id FROM project_impact"));
+        assertNotEquals(misAJour, baseDeTest.string("SELECT updated_at::text FROM project_impact"));
     }
 
     @Test

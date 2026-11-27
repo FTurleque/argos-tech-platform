@@ -38,10 +38,12 @@ import io.argos.signal.SignalQueries;
  *
  * <p>Toute la recherche s'exécute sous le rôle {@code argos_app} avec le compte de l'appelant
  * ({@link ContexteBase}). La sélection des candidats passe par la fonction
- * {@code argos_rechercher_veille} (migration V11), qui applique explicitement les règles de
- * visibilité des politiques RLS pour que l'index GIN reste utilisable ; chaque élément restitué est
- * ensuite relu sous la RLS, qui écarte tout élément que l'appelant ne voit pas. Les projets cités
- * sont limités, en plus, aux espaces de l'appelant.
+ * {@code argos_selectionner_veille} (migration V28), qui applique explicitement les règles de
+ * visibilité des politiques RLS pour que l'index GIN reste utilisable et renvoie au plus
+ * {@value #PLAFOND} + 1 candidats, les plus récents ; la pertinence n'est calculée que pour les
+ * {@value #PLAFOND} plus récents, le total est plafonné à {@value #PLAFOND} (RCH-07). Chaque élément
+ * restitué est ensuite relu sous la RLS, qui écarte tout élément que l'appelant ne voit pas. Les
+ * projets cités sont limités, en plus, aux espaces de l'appelant.
  *
  * <p>Les mots recherchés sont analysés par les configurations {@code french}, {@code english} et
  * {@code simple} (Q-1) ; ils ne sont jamais concaténés au SQL.
@@ -70,6 +72,9 @@ public class RechercheVeille {
     /** Longueur de l'extrait restitué, en caractères. */
     static final int EXTRAIT_MAX = 300;
     private static final int TAILLE_MAX = 100;
+
+    /** Nombre maximal de candidats classés par pertinence, et plafond du total restitué (RCH-07). */
+    public static final int PLAFOND = 1000;
     private static final Pattern LIEN_HTTP = Pattern.compile("(?i)^https?://\\S+$");
 
     /**
@@ -101,16 +106,51 @@ public class RechercheVeille {
             String gravite, Instant date, String lien, double pertinence, List<ProjetVise> projets) {
     }
 
-    /** Page de résultats, du plus pertinent au moins pertinent (puis du plus récent au plus ancien). */
-    public record Resultats(List<Element> elements, int page, int taille, long total, String message) {
+    /**
+     * Page de résultats, du plus pertinent au moins pertinent (puis du plus récent au plus ancien). {@code total} vaut
+     * au plus {@value #PLAFOND} ; {@code totalPlafonne} est vrai quand plus de {@value #PLAFOND} éléments
+     * correspondent (RCH-07).
+     */
+    public record Resultats(List<Element> elements, int page, int taille, long total, boolean totalPlafonne,
+            String message) {
     }
 
     private record Candidat(String type, UUID id, double rang) {
     }
 
-    /** Candidat de la page et nombre total d'éléments de la sélection, répété sur chaque ligne. */
-    private record LigneCandidat(Candidat candidat, long total) {
+    /** Candidat de la page et nombre de candidats sélectionnés (au plus {@value #PLAFOND} + 1), répété sur chaque ligne. */
+    private record LigneCandidat(Candidat candidat, long selectionnes) {
     }
+
+    /**
+     * Candidats bornés ({@value #PLAFOND} + 1 au plus, les plus récents), pertinence calculée sur les {@value #PLAFOND}
+     * plus récents seulement, puis page classée : pertinence, date, identifiant (RCH-01). Le nombre de candidats
+     * sélectionnés, répété sur chaque ligne, donne le total plafonné.
+     */
+    private static final String PAGE = """
+            WITH candidats AS (
+                SELECT c.type, c.id, c.date_ref FROM argos_selectionner_veille(argos_requete_recherche(?), ?::timestamptz,
+                     ?::varchar[], ?::uuid[], argos_requete_recherche(?), ?::varchar[], ?::varchar[], ?::varchar[],
+                     ?::varchar[], ?::varchar[], ?) c
+                ORDER BY c.date_ref DESC NULLS LAST, c.id LIMIT ?),
+            classes AS (
+                SELECT r.type, r.id, r.date_ref,
+                       CASE WHEN q.requete IS NULL THEN 0::real
+                            ELSE coalesce(ts_rank(s.recherche, q.requete), ts_rank(a.recherche, q.requete), 0::real) END AS rang
+                FROM (SELECT * FROM candidats ORDER BY date_ref DESC NULLS LAST, id LIMIT ?) r
+                CROSS JOIN (SELECT argos_requete_recherche(?) AS requete) q
+                LEFT JOIN signal s ON r.type = 'AVIS_SECURITE' AND s.id = r.id
+                LEFT JOIN actualite a ON r.type <> 'AVIS_SECURITE' AND a.id = r.id)
+            SELECT type, id, rang, (SELECT count(*) FROM candidats) FROM classes
+            ORDER BY rang DESC, date_ref DESC NULLS LAST, id LIMIT ? OFFSET ?
+            """;
+
+    /** Nombre de candidats sélectionnés (au plus {@value #PLAFOND} + 1), pour une page au-delà des résultats. */
+    private static final String NOMBRE = """
+            SELECT count(*) FROM argos_selectionner_veille(argos_requete_recherche(?), ?::timestamptz, ?::varchar[],
+                 ?::uuid[], argos_requete_recherche(?), ?::varchar[], ?::varchar[], ?::varchar[], ?::varchar[],
+                 ?::varchar[], ?) c
+            """;
 
     @Inject
     DataSource dataSource;
@@ -131,43 +171,46 @@ public class RechercheVeille {
         int pageBornee = Math.max(page, 0);
         int tailleBornee = Math.min(Math.max(taille, 1), TAILLE_MAX);
         if (criteres.types() != null && criteres.types().isEmpty()) {
-            return new Resultats(List.of(), pageBornee, tailleBornee, 0, AUCUN_RESULTAT);
+            return new Resultats(List.of(), pageBornee, tailleBornee, 0, false, AUCUN_RESULTAT);
         }
         try (Connection connexion = dataSource.getConnection()) {
             ContexteBase.appliquer(connexion, ContexteBase.Contexte.duCompte(compteId));
-            // Sélection matérialisée une fois : le total la compte, la page en garde les meilleurs (tri partiel).
-            List<LigneCandidat> lignes = Jdbc.lister(connexion, "WITH r AS MATERIALIZED (SELECT * " + selection() + ")"
-                    + " SELECT r.type, r.id, r.rang, (SELECT count(*) FROM r) FROM r"
-                    + " ORDER BY r.rang DESC, r.date_ref DESC NULLS LAST, r.id LIMIT ? OFFSET ?", requete -> {
-                        int positionSuivante = parametres(connexion, requete, criteres);
-                        requete.setInt(positionSuivante, tailleBornee);
-                        requete.setLong(positionSuivante + 1, (long) pageBornee * tailleBornee);
-                    }, resultat -> new LigneCandidat(
-                            new Candidat(resultat.getString(1), resultat.getObject(2, UUID.class), resultat.getDouble(3)),
-                            resultat.getLong(4)));
+            List<LigneCandidat> lignes = Jdbc.lister(connexion, PAGE, requete -> {
+                int suivant = parametres(connexion, requete, criteres);
+                requete.setInt(suivant, PLAFOND + 1);
+                requete.setInt(suivant + 1, PLAFOND + 1);
+                requete.setInt(suivant + 2, PLAFOND);
+                requete.setString(suivant + 3, texte(criteres));
+                requete.setInt(suivant + 4, tailleBornee);
+                requete.setLong(suivant + 5, (long) pageBornee * tailleBornee);
+            }, resultat -> new LigneCandidat(
+                    new Candidat(resultat.getString(1), resultat.getObject(2, UUID.class), resultat.getDouble(3)),
+                    resultat.getLong(4)));
             List<Candidat> candidats = lignes.stream().map(LigneCandidat::candidat).toList();
-            long total = lignes.isEmpty() ? 0 : lignes.get(lignes.size() - 1).total();
+            long selectionnes = lignes.isEmpty() ? 0 : lignes.get(lignes.size() - 1).selectionnes();
             if (candidats.isEmpty() && pageBornee > 0) {
-                total = Jdbc.unique(connexion, "SELECT count(*) " + selection(),
-                        requete -> parametres(connexion, requete, criteres), resultat -> resultat.getLong(1)).orElse(0L);
+                selectionnes = Jdbc.unique(connexion, NOMBRE, requete -> {
+                    int suivant = parametres(connexion, requete, criteres);
+                    requete.setInt(suivant, PLAFOND + 1);
+                }, resultat -> resultat.getLong(1)).orElse(0L);
             }
+            long total = Math.min(selectionnes, PLAFOND);
             List<Element> elements = restituer(connexion, candidats, espaces);
-            return new Resultats(elements, pageBornee, tailleBornee, total, total == 0 ? AUCUN_RESULTAT : null);
+            return new Resultats(elements, pageBornee, tailleBornee, total, selectionnes > PLAFOND,
+                    total == 0 ? AUCUN_RESULTAT : null);
         } catch (SQLException erreur) {
             throw new IllegalStateException("recherche de veille impossible", erreur);
         }
     }
 
-    private static String selection() {
-        return """
-                FROM argos_rechercher_veille(argos_requete_recherche(?), ?::timestamptz, ?::varchar[], ?::uuid[],
-                     argos_requete_recherche(?), ?::varchar[], ?::varchar[], ?::varchar[], ?::varchar[], ?::varchar[]) r
-                """;
+    /** Mots recherchés nettoyés, nuls s'ils sont absents. */
+    private static String texte(Criteres criteres) {
+        return vide(criteres.texte()) ? null : criteres.texte().strip();
     }
 
     /** Lie les critères aux dix paramètres de la sélection ; renvoie l'indice du paramètre suivant. */
     private static int parametres(Connection connexion, PreparedStatement requete, Criteres criteres) throws SQLException {
-        requete.setString(1, vide(criteres.texte()) ? null : criteres.texte().strip());
+        requete.setString(1, texte(criteres));
         if (criteres.depuis() == null) {
             requete.setNull(2, Types.TIMESTAMP_WITH_TIMEZONE);
         } else {

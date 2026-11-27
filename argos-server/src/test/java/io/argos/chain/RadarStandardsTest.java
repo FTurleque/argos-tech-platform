@@ -529,11 +529,11 @@ class RadarStandardsTest {
             }
 
             @Override
-            public List<EcheanceProjets> echeancesTouchant(UUID espaceId, LocalDate date) {
+            public Map<LocalDate, List<EcheanceProjets>> echeancesTouchant(UUID espaceId, Collection<LocalDate> jours) {
                 if (espaceId.equals(espace)) {
                     throw imprevue;
                 }
-                return reel.echeancesTouchant(espaceId, date);
+                return reel.echeancesTouchant(espaceId, jours);
             }
         };
 

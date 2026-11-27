@@ -6,6 +6,8 @@ import java.time.Duration;
 import java.time.Instant;
 import java.util.ArrayList;
 import java.util.Comparator;
+import java.util.HashMap;
+import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
@@ -41,12 +43,13 @@ import io.argos.impact.MatchRules;
 import io.argos.workspace.subscription.SubscriptionService;
 
 /**
- * Évaluation des règles d'alerte sur les impacts publiés par {@code impact-engine} (DC-1).
- *
- * <p>Pour chaque membre d'un espace touché :
+ * Évaluation des règles d'alerte sur les impacts publiés par {@code impact-engine} (DC-1), en un nombre de requêtes
+ * indépendant du nombre de membres et de canaux (ALR-10) :
  * <ol>
- *   <li>les impacts du signal qu'il est autorisé à voir sont relus sous son contexte (RLS, ACC-04) ; seuls
- *       les impacts ouverts ou confirmés sont retenus, jamais un impact écarté ou résolu (ALR-07) ;</li>
+ *   <li>les membres des espaces touchés, leurs espaces, les impacts actifs du signal dans ces espaces, leurs
+ *       abonnements actifs et leurs alertes immédiates existantes sont lus en une transaction ; chaque destinataire ne
+ *       voit que les impacts des espaces dont il est membre (lecture technique filtrée par appartenance, décision du
+ *       porteur du projet du 2026-11-26, ACC-04), jamais un impact écarté ou résolu (ALR-07) ;</li>
  *   <li>ses abonnements actifs donnent ses règles (ABO-03, ABO-04) ;</li>
  *   <li>une règle immédiate dont la gravité minimale est atteinte et qui concerne au moins un impact
  *       exact ou probable produit une alerte sur son canal (ALR-01) ; un impact « à vérifier » n'en
@@ -55,7 +58,8 @@ import io.argos.workspace.subscription.SubscriptionService;
  *   <li>tout autre élément concerné entre dans le prochain résumé du destinataire (ALR-01-S2, ALR-04).</li>
  * </ol>
  * Le résumé IA est demandé une fois par signal avec un délai borné ; son absence ne retient aucune
- * alerte (ALR-05). Les alertes enregistrées sont ensuite diffusées.
+ * alerte (ALR-05). Les alertes et éléments de résumé sont écrits par lot ; les alertes créées restent en attente et
+ * la tâche planifiée {@link EnvoiAlertes} les diffuse (ALR-10-S2).
  */
 @ApplicationScoped
 public class MoteurAlertes {
@@ -85,9 +89,6 @@ public class MoteurAlertes {
     @Inject
     Instance<ResumeIa> resumeIa;
 
-    @Inject
-    EnvoiAlertes envoi;
-
     @ConfigProperty(name = "argos.alerting.lien-base")
     String lienBase;
 
@@ -100,6 +101,30 @@ public class MoteurAlertes {
 
     private record Plan(Destinataires.Destinataire destinataire, Map<String, Map<UUID, ImpactQueries.ImpactView>> immediates,
             Set<CleResume> resumes) {
+    }
+
+    /**
+     * Données d'une évaluation, lues en une transaction : membres et leurs espaces, impacts actifs du signal dans les
+     * espaces touchés, abonnements actifs et canaux des alertes immédiates existantes de chaque membre.
+     */
+    private record Lecture(List<Destinataires.Membre> membres, List<ImpactQueries.ImpactView> impacts,
+            Map<UUID, List<SubscriptionService.Subscription>> abonnements, Map<UUID, Set<String>> alertesExistantes) {
+
+        static Lecture vide() {
+            return new Lecture(List.of(), List.of(), Map.of(), Map.of());
+        }
+
+        Set<String> canauxExistants(UUID compte) {
+            return alertesExistantes.getOrDefault(compte, Set.of());
+        }
+    }
+
+    /** Alerte immédiate à écrire : destinataire, canal et contenu sérialisé. */
+    private record AlerteAEcrire(UUID compte, String canal, String contenu) {
+    }
+
+    /** Élément de résumé à écrire : destinataire, fréquence et canal. */
+    private record ElementAEcrire(UUID compte, String frequence, String canal) {
     }
 
     /** Résumé périodique visé : fréquence et canal de la règle d'alerte. */
@@ -136,64 +161,92 @@ public class MoteurAlertes {
                 .collect(Collectors.toCollection(LinkedHashSet::new));
         Map<UUID, String> paquets = new LinkedHashMap<>();
         evenement.impacts().forEach(impact -> paquets.put(impact.impactId(), impact.packageKey()));
-        List<Destinataires.Destinataire> candidats = QuarkusTransaction.requiringNew()
-                .call(() -> destinataires.membres(espaces));
+        Lecture lecture = QuarkusTransaction.requiringNew().call(() -> lire(evenement.signalId(), espaces));
         List<Plan> plans = new ArrayList<>();
-        for (Destinataires.Destinataire destinataire : candidats) {
-            plan(evenement, destinataire, paquets).ifPresent(plans::add);
+        for (Destinataires.Membre membre : lecture.membres()) {
+            plan(evenement, membre, lecture, paquets).ifPresent(plans::add);
         }
-        ResumeObtenu resume = nouvelleAlerte(evenement, plans) ? resumeIa(evenement, espaces) : ResumeObtenu.sans("SANS_OBJET");
-
-        List<UUID> creees = new ArrayList<>();
-        int elements = 0;
+        ResumeObtenu resume = nouvelleAlerte(plans, lecture) ? resumeIa(evenement, espaces) : ResumeObtenu.sans("SANS_OBJET");
+        List<AlerteAEcrire> alertes = new ArrayList<>();
+        List<ElementAEcrire> elements = new ArrayList<>();
         for (Plan plan : plans) {
-            creees.addAll(creerImmediates(evenement, plan, resume, maintenant));
-            elements += ajouterAuxResumes(evenement, plan, maintenant);
+            alertes.addAll(immediates(evenement, plan, resume));
+            elements.addAll(elementsDeResume(plan, lecture));
         }
-        envoi.envoyer(creees, maintenant);
-        return new Bilan(List.copyOf(creees), elements);
+        return QuarkusTransaction.requiringNew().call(() -> new Bilan(
+                List.copyOf(creerImmediates(evenement, alertes, resume, maintenant)),
+                ajouterAuxResumes(evenement, elements, maintenant)));
+    }
+
+    /** Lit en une transaction les données de l'évaluation d'un signal (une requête par nature de donnée). */
+    private Lecture lire(UUID signalId, Set<UUID> espaces) {
+        List<Destinataires.Membre> membres = destinataires.membresEtEspaces(espaces);
+        if (membres.isEmpty()) {
+            return Lecture.vide();
+        }
+        Map<UUID, Set<UUID>> espacesParCompte = new LinkedHashMap<>();
+        Set<UUID> espacesDesMembres = new LinkedHashSet<>();
+        membres.forEach(membre -> {
+            espacesParCompte.put(membre.destinataire().compteId(), membre.espaces());
+            espacesDesMembres.addAll(membre.espaces());
+        });
+        // Tous les espaces des destinataires : une alerte cite chaque projet de leurs espaces touché par le signal.
+        return new Lecture(membres, impacts.actifsDuSignal(signalId, espacesDesMembres),
+                abonnements.activesDesComptes(espacesParCompte), alertesExistantes(signalId, espacesParCompte.keySet()));
+    }
+
+    /** Canaux des alertes immédiates (hors annulées) du signal pour chacun des comptes. */
+    private Map<UUID, Set<String>> alertesExistantes(UUID signalId, Set<UUID> comptes) {
+        Map<UUID, Set<String>> canaux = new HashMap<>();
+        jdbc.lister("""
+                SELECT compte_id, canal FROM alerte
+                WHERE nature = 'IMMEDIATE' AND signal_id = ? AND compte_id = ANY (?) AND etat <> 'ANNULEE'
+                """, requete -> {
+                    requete.setObject(1, signalId);
+                    requete.setArray(2, requete.getConnection().createArrayOf("uuid", comptes.toArray()));
+                }, resultat -> Map.entry(resultat.getObject(1, UUID.class), resultat.getString(2)))
+                .forEach(ligne -> canaux.computeIfAbsent(ligne.getKey(), compte -> new HashSet<>()).add(ligne.getValue()));
+        return canaux;
     }
 
     /** Vrai si au moins un plan prévoit une alerte immédiate qui n'existe pas encore. */
-    private boolean nouvelleAlerte(ImpactsRecorded evenement, List<Plan> plans) {
+    private static boolean nouvelleAlerte(List<Plan> plans, Lecture lecture) {
         return plans.stream().anyMatch(plan -> plan.immediates().keySet().stream()
-                .anyMatch(canal -> !alerteExiste(evenement.signalId(), plan.destinataire().compteId(), canal)));
+                .anyMatch(canal -> !lecture.canauxExistants(plan.destinataire().compteId()).contains(canal)));
     }
 
-    /** Alertes immédiates du plan, une par canal ; chaque alerte créée est publiée. */
-    private List<UUID> creerImmediates(ImpactsRecorded evenement, Plan plan, ResumeObtenu resume, Instant maintenant) {
-        UUID compte = plan.destinataire().compteId();
-        List<UUID> creees = new ArrayList<>();
+    /** Alertes immédiates du plan, une par canal. */
+    private List<AlerteAEcrire> immediates(ImpactsRecorded evenement, Plan plan, ResumeObtenu resume) {
+        List<AlerteAEcrire> alertes = new ArrayList<>();
         for (Map.Entry<String, Map<UUID, ImpactQueries.ImpactView>> canal : plan.immediates().entrySet()) {
             ContenuAlerte contenu = new ContenuAlerte(List.of(element(SignalCite.depuis(evenement), canal.getValue().values(),
                     lienBase)), resume.texte(), resume.etat());
-            creerImmediate(evenement, compte, canal.getKey(), contenu, maintenant).ifPresent(creees::add);
+            alertes.add(new AlerteAEcrire(plan.destinataire().compteId(), canal.getKey(), jsonOuErreur(contenu)));
         }
-        return creees;
+        return alertes;
     }
 
-    /** Éléments du plan ajoutés aux résumés, sauf si le destinataire a déjà reçu une alerte immédiate du signal. */
-    private int ajouterAuxResumes(ImpactsRecorded evenement, Plan plan, Instant maintenant) {
+    /**
+     * Éléments de résumé du plan, sauf si le destinataire a une alerte immédiate du signal : existante, ou prévue par
+     * ce plan (elle existe une fois les alertes écrites).
+     */
+    private static List<ElementAEcrire> elementsDeResume(Plan plan, Lecture lecture) {
         UUID compte = plan.destinataire().compteId();
-        if (plan.resumes().isEmpty() || alerteExiste(evenement.signalId(), compte, null)) {
-            return 0;
+        if (plan.resumes().isEmpty() || !plan.immediates().isEmpty() || !lecture.canauxExistants(compte).isEmpty()) {
+            return List.of();
         }
-        int elements = 0;
-        for (CleResume cle : plan.resumes()) {
-            elements += ajouterAuResume(evenement, compte, cle.frequence(), cle.canal(), maintenant);
-        }
-        return elements;
+        return plan.resumes().stream().map(cle -> new ElementAEcrire(compte, cle.frequence(), cle.canal())).toList();
     }
 
-    private Optional<Plan> plan(ImpactsRecorded evenement, Destinataires.Destinataire destinataire, Map<UUID, String> paquets) {
-        Set<UUID> espacesDuCompte = QuarkusTransaction.requiringNew().call(() -> destinataires.espacesDe(destinataire.compteId()));
-        List<ImpactQueries.ImpactView> visibles = QuarkusTransaction.requiringNew()
-                .call(() -> impacts.forSignals(List.of(evenement.signalId()), destinataire.compteId(), espacesDuCompte));
+    private Optional<Plan> plan(ImpactsRecorded evenement, Destinataires.Membre membre, Lecture lecture,
+            Map<UUID, String> paquets) {
+        List<ImpactQueries.ImpactView> visibles = lecture.impacts().stream()
+                .filter(impact -> membre.espaces().contains(impact.workspaceId())).toList();
         if (visibles.isEmpty()) {
             return Optional.empty();
         }
-        List<RegleAlerte> regles = QuarkusTransaction.requiringNew()
-                .call(() -> abonnements.activeFor(destinataire.compteId(), espacesDuCompte)).stream()
+        Destinataires.Destinataire destinataire = membre.destinataire();
+        List<RegleAlerte> regles = lecture.abonnements().getOrDefault(destinataire.compteId(), List.of()).stream()
                 .map(RegleAlerte::depuis).flatMap(Optional::stream).toList();
         Plan plan = new Plan(destinataire, new LinkedHashMap<>(), new LinkedHashSet<>());
         for (RegleAlerte regle : regles) {
@@ -323,20 +376,22 @@ public class MoteurAlertes {
         return ResumeObtenu.sans("INDISPONIBLE");
     }
 
-    /** Vrai si une alerte immédiate existe pour ce signal et ce destinataire, sur ce canal ou sur l'un d'eux. */
-    boolean alerteExiste(UUID signalId, UUID compteId, String canal) {
-        return QuarkusTransaction.requiringNew().call(() -> jdbc.unique("""
-                SELECT 1 FROM alerte WHERE nature = 'IMMEDIATE' AND signal_id = ? AND compte_id = ?
-                  AND etat <> 'ANNULEE' AND (?::varchar IS NULL OR canal = ?::varchar)
-                """, Jdbc.parametres(signalId, compteId, canal, canal), resultat -> Boolean.TRUE).isPresent());
-    }
-
-    private Optional<UUID> creerImmediate(ImpactsRecorded evenement, UUID compte, String canal, ContenuAlerte contenu,
+    /**
+     * Écrit les alertes immédiates en une instruction ; une alerte existante n'est remplacée que si elle avait été
+     * annulée (ALR-03, ALR-07-S1).
+     *
+     * @return identifiants des alertes créées ou rétablies
+     */
+    private List<UUID> creerImmediates(ImpactsRecorded evenement, List<AlerteAEcrire> alertes, ResumeObtenu resume,
             Instant maintenant) {
-        return QuarkusTransaction.requiringNew().call(() -> jdbc.unique("""
+        if (alertes.isEmpty()) {
+            return List.of();
+        }
+        return jdbc.lister("""
                 INSERT INTO alerte(id, nature, compte_id, canal, signal_id, titre, gravite, contenu, resume_ia,
                                    etat_resume_ia, etat, cree_le)
-                VALUES (?, 'IMMEDIATE', ?, ?, ?, ?, ?, ?::jsonb, ?, ?, 'EN_ATTENTE', ?)
+                SELECT gen_random_uuid(), 'IMMEDIATE', d.compte_id, d.canal, ?, ?, ?, d.contenu::jsonb, ?, ?, 'EN_ATTENTE', ?
+                FROM unnest(?::uuid[], ?::varchar[], ?::text[]) AS d(compte_id, canal, contenu)
                 ON CONFLICT (signal_id, compte_id, canal) WHERE nature = 'IMMEDIATE' DO UPDATE SET
                        titre = excluded.titre, gravite = excluded.gravite, contenu = excluded.contenu,
                        resume_ia = excluded.resume_ia, etat_resume_ia = excluded.etat_resume_ia, etat = 'EN_ATTENTE',
@@ -344,26 +399,61 @@ public class MoteurAlertes {
                        cree_le = excluded.cree_le
                     WHERE alerte.etat = 'ANNULEE'
                 RETURNING id
-                """, Jdbc.parametres(UUID.randomUUID(), compte, canal, evenement.signalId(), titreDuSignal(evenement),
-                        evenement.signalSeverity(), json(contenu), contenu.resumeIa(), contenu.etatResumeIa(),
-                        Conversions.utc(maintenant)),
-                resultat -> resultat.getObject(1, UUID.class)));
+                """, requete -> {
+                    requete.setObject(1, evenement.signalId());
+                    requete.setString(2, titreDuSignal(evenement));
+                    requete.setString(3, evenement.signalSeverity());
+                    requete.setString(4, resume.texte());
+                    requete.setString(5, resume.etat());
+                    requete.setObject(6, Conversions.utc(maintenant));
+                    requete.setArray(7, requete.getConnection().createArrayOf("uuid",
+                            alertes.stream().map(AlerteAEcrire::compte).toArray()));
+                    requete.setArray(8, requete.getConnection().createArrayOf("varchar",
+                            alertes.stream().map(AlerteAEcrire::canal).toArray()));
+                    requete.setArray(9, requete.getConnection().createArrayOf("text",
+                            alertes.stream().map(AlerteAEcrire::contenu).toArray()));
+                }, resultat -> resultat.getObject(1, UUID.class));
     }
 
-    private int ajouterAuResume(ImpactsRecorded evenement, UUID compte, String frequence, String canal, Instant maintenant) {
-        return QuarkusTransaction.requiringNew().call(() -> jdbc.modifier("""
+    /** Ajoute les éléments aux résumés en une instruction ; un élément déjà présent n'est pas dupliqué. */
+    private int ajouterAuxResumes(ImpactsRecorded evenement, List<ElementAEcrire> elements, Instant maintenant) {
+        if (elements.isEmpty()) {
+            return 0;
+        }
+        return jdbc.modifier("""
                 INSERT INTO resume_element(compte_id, signal_id, frequence, canal, titre, gravite, source,
                                            identifiant_externe, enregistre_le)
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+                SELECT d.compte_id, ?, d.frequence, d.canal, ?, ?, ?, ?, ?
+                FROM unnest(?::uuid[], ?::varchar[], ?::varchar[]) AS d(compte_id, frequence, canal)
                 ON CONFLICT DO NOTHING
-                """, Jdbc.parametres(compte, evenement.signalId(), frequence, canal, titreDuSignal(evenement),
-                        evenement.signalSeverity(), evenement.signalSource(), evenement.signalExternalId(),
-                        Conversions.utc(maintenant))));
+                """, requete -> {
+                    requete.setObject(1, evenement.signalId());
+                    requete.setString(2, titreDuSignal(evenement));
+                    requete.setString(3, evenement.signalSeverity());
+                    requete.setString(4, evenement.signalSource());
+                    requete.setString(5, evenement.signalExternalId());
+                    requete.setObject(6, Conversions.utc(maintenant));
+                    requete.setArray(7, requete.getConnection().createArrayOf("uuid",
+                            elements.stream().map(ElementAEcrire::compte).toArray()));
+                    requete.setArray(8, requete.getConnection().createArrayOf("varchar",
+                            elements.stream().map(ElementAEcrire::frequence).toArray()));
+                    requete.setArray(9, requete.getConnection().createArrayOf("varchar",
+                            elements.stream().map(ElementAEcrire::canal).toArray()));
+                });
     }
 
     /** Titre du signal, à défaut son identifiant externe. */
     private static String titreDuSignal(ImpactsRecorded evenement) {
         return evenement.signalTitle() == null ? evenement.signalExternalId() : evenement.signalTitle();
+    }
+
+    /** Contenu sérialisé ; une sérialisation impossible est une erreur imprévue, jamais un contenu vide. */
+    private static String jsonOuErreur(ContenuAlerte contenu) {
+        try {
+            return JSON.writeValueAsString(contenu);
+        } catch (JsonProcessingException erreur) {
+            throw new IllegalStateException("sérialisation du contenu d'alerte impossible", erreur);
+        }
     }
 
     static String json(Object valeur) throws SQLException {

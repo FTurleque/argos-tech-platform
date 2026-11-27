@@ -41,7 +41,7 @@ class OpenApiContractTest {
             .when().get("/q/openapi")
             .then()
             .statusCode(200)
-            .body("components.schemas.VeilleProfils.properties.keySet()", hasItems("profilsActifs", "elements"))
+            .body("components.schemas.VeilleProfils.properties.keySet()", hasItems("profilsActifs", "items", "page", "size", "total"))
             .body("components.schemas.ElementVeilleProfils.properties.keySet()", hasItems(
                     "type", "id", "titre", "date", "profils", "rubriques", "gardeFous", "mentionValidation", "projets",
                     "abonnements", "mentionIa", "mentionSource"))

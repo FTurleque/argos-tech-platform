@@ -5,8 +5,8 @@
 //
 // 1. démarre la base PostgreSQL jetable de e2e/compose.yaml et le serveur (quarkus:dev, port 8090, Keycloak des Dev
 //    Services) comme scripts/lancer.mjs et playwright.config.ts, ou réutilise un serveur prêt ;
-// 2. crée par l'API l'espace « Espace performance » d'alice et charge le jeu de données de référence
-//    (donnees-performance.sql, volume en paramètres) ;
+// 2. crée par l'API l'espace « Espace performance » d'alice et le petit espace de bob, charge le jeu de données de
+//    référence (donnees-performance.sql, volume en paramètres, espace volumineux compris) et les abonnements ;
 // 3. appelle chaque opération retenue (mesure.mjs) : échauffement puis N appels avec C clients simultanés ;
 // 4. écrit le rapport JSON dans e2e/resultats/performance/ et le rapport Markdown dans
 //    docs/architecture/quality/mesure-performance-api-mcp.md ;
@@ -24,6 +24,9 @@ import { cheminDocker } from '../support/docker.mjs'
 import { cheminMavenExige, lancementMaven } from '../support/maven.mjs'
 import {
   OPERATIONS_EXCLUES,
+  UTILISATEUR_PETIT_ESPACE,
+  UTILISATEUR_REFERENCE,
+  espacesDuJeu,
   operationsRetenues,
   parametres,
   rapportMarkdown,
@@ -41,6 +44,13 @@ const EMETTEUR = process.env.ARGOS_E2E_EMETTEUR ?? 'http://localhost:8180/realms
 const CLIENT_TEST = { id: 'argos-server', secret: 'secret-de-test' }
 const VERSION_MCP = '2026-07-28'
 const ESPACE = 'Espace performance'
+const PETIT_ESPACE = 'Petit espace performance'
+const PAQUET_REFERENCE = 'pkg:maven/org.perf/lib-1'
+// Abonnements PERSONAL de chaque compte (PRF-07-S3, PERF-02-S4) : par paquet et par technologie.
+const ABONNEMENTS = {
+  [UTILISATEUR_REFERENCE]: [{ type: 'PACKAGE', value: PAQUET_REFERENCE }, { type: 'TECHNOLOGY', value: 'java' }],
+  [UTILISATEUR_PETIT_ESPACE]: [{ type: 'PACKAGE', value: 'pkg:maven/org.perf/lib-2' }, { type: 'TECHNOLOGY', value: 'java' }],
+}
 
 // Tâches planifiées qui joindraient une source externe : désactivées (aucun appel à Internet), comme les parcours.
 const SANS_COLLECTE_EXTERNE = {
@@ -157,22 +167,65 @@ async function api(token, chemin, init = {}) {
   return reponse.status === 204 ? null : reponse.json()
 }
 
-/** Espace d'alice, jeu de données SQL et abonnement personnel ; renvoie les identifiants de référence. */
-async function preparer(token, reglages) {
+/** Espace du compte, créé par l'API s'il n'existe pas encore. */
+async function espaceDe(token, nom) {
   await api(token, '/api/v1/moi')
   const espaces = await api(token, '/api/v1/espaces')
-  const espace = espaces.find((candidat) => candidat.nom === ESPACE)
-    ?? (await api(token, '/api/v1/espaces', { method: 'POST', body: JSON.stringify({ nom: ESPACE }) }))
-  execFileSync(cheminDocker(), [...COMPOSE, 'exec', '-T', 'postgres', 'psql', '-U', 'argos', '-d', 'argos',
-    '-v', 'ON_ERROR_STOP=1', '-q', '-v', `espace=${espace.id}`, '-v', `projets=${reglages.projets}`,
-    '-v', `composants=${reglages.composantsParProjet}`, '-v', `signaux=${reglages.signaux}`],
-  { cwd: E2E, input: readFileSync(join(ICI, 'donnees-performance.sql')), stdio: ['pipe', 'pipe', 'inherit'] })
-  const abonnements = await api(token, '/api/v1/subscriptions')
-  if (abonnements.length === 0) {
-    await api(token, '/api/v1/subscriptions', { method: 'POST', body: JSON.stringify({ scope: 'PERSONAL',
-      filters: [{ type: 'PACKAGE', value: 'pkg:maven/org.perf/lib-1' }], channel: 'desktop', frequency: 'daily',
-      mandatory: false }) })
+  return espaces.find((candidat) => candidat.nom === nom)
+    ?? (await api(token, '/api/v1/espaces', { method: 'POST', body: JSON.stringify({ nom }) }))
+}
+
+/**
+ * Petit espace créé par alice, dont bob devient membre par invitation (l'inscription se fait sur invitation) : bob
+ * n'est membre que de cet espace.
+ */
+async function petitEspaceDeBob(jetons) {
+  const espace = await espaceDe(jetons[UTILISATEUR_REFERENCE], PETIT_ESPACE)
+  const moi = await requete(`${URL_API}/api/v1/moi`, { headers: { Accept: 'application/json',
+    Authorization: `Bearer ${jetons[UTILISATEUR_PETIT_ESPACE]}` } })
+  await moi.arrayBuffer()
+  const espacesDeBob = moi.ok ? await api(jetons[UTILISATEUR_PETIT_ESPACE], '/api/v1/espaces') : []
+  if (!espacesDeBob.some((candidat) => candidat.id === espace.id)) {
+    const invitation = await api(jetons[UTILISATEUR_REFERENCE], `/api/v1/espaces/${espace.id}/invitations`, {
+      method: 'POST', body: JSON.stringify({ email: `${UTILISATEUR_PETIT_ESPACE}@argos.test`, role: 'LECTEUR' }) })
+    await api(jetons[UTILISATEUR_PETIT_ESPACE], `/api/v1/invitations/${invitation.id}/acceptation`, { method: 'POST' })
   }
+  return espace
+}
+
+/** Abonnements PERSONAL du compte, un par filtre, créés s'il n'en a aucun. */
+async function abonner(token, filtres) {
+  const abonnements = await api(token, '/api/v1/subscriptions')
+  if (abonnements.length > 0) return
+  await Promise.all(filtres.map((filtre) => api(token, '/api/v1/subscriptions', { method: 'POST',
+    body: JSON.stringify({ scope: 'PERSONAL', filters: [filtre], channel: 'desktop', frequency: 'daily', mandatory: false }) })))
+}
+
+function psql(args, entree) {
+  return execFileSync(cheminDocker(), [...COMPOSE, 'exec', '-T', 'postgres', 'psql', '-U', 'argos', '-d', 'argos',
+    '-v', 'ON_ERROR_STOP=1', '-q', ...args], { cwd: E2E, input: entree, stdio: ['pipe', 'pipe', 'inherit'] })
+}
+
+/** Impacts de chaque espace par état, lus en base (PERF-02-S4). */
+function impactsParEspace() {
+  const lignes = psql(['-At', '-c', `SELECT e.nom, i.state, count(*) FROM project_impact i JOIN espace e
+    ON e.id = i.workspace_id GROUP BY e.nom, i.state ORDER BY e.nom, i.state`]).toString()
+  return espacesDuJeu(lignes)
+}
+
+/**
+ * Espaces d'alice et de bob, jeu de données SQL (espace volumineux compris) et abonnements personnels ; renvoie les
+ * identifiants de référence et la répartition des impacts par espace.
+ */
+async function preparer(jetons, reglages) {
+  const espace = await espaceDe(jetons[UTILISATEUR_REFERENCE], ESPACE)
+  const petitEspace = await petitEspaceDeBob(jetons)
+  psql(['-v', `espace=${espace.id}`, '-v', `projets=${reglages.projets}`, '-v', `composants=${reglages.composantsParProjet}`,
+    '-v', `signaux=${reglages.signaux}`, '-v', `espace_petit=${petitEspace.id}`,
+    '-v', `projets_volumineux=${reglages.projetsVolumineux}`, '-v', `impacts_petit=${reglages.impactsPetitEspace}`],
+  readFileSync(join(ICI, 'donnees-performance.sql')))
+  await Promise.all(Object.entries(ABONNEMENTS).map(([utilisateur, filtres]) => abonner(jetons[utilisateur], filtres)))
+  const token = jetons[UTILISATEUR_REFERENCE]
   const projets = await api(token, '/api/v1/projects?size=200')
   const projet = (projets.items ?? projets).find((candidat) => candidat.name === 'Projet performance 001')
   if (!projet) throw new Error('projet de référence absent : jeu de données non chargé')
@@ -182,7 +235,8 @@ async function preparer(token, reglages) {
   const impacts = await api(token, `/api/v1/signals/${signal}/impacts`)
   const impact = impacts.items[0]?.id
   if (!impact) throw new Error('impact de référence absent')
-  return { projet: projet.id, signal, impact, paquet: 'pkg:maven/org.perf/lib-1', nomPaquet: 'org.perf:lib-1' }
+  return { projet: projet.id, signal, impact, paquet: PAQUET_REFERENCE, nomPaquet: 'org.perf:lib-1',
+    espaces: impactsParEspace() }
 }
 
 let idMcp = 0
@@ -216,7 +270,8 @@ async function appelRest(token, chemin) {
 }
 
 /** Mesure une opération : échauffement, puis `appels` appels répartis sur `concurrence` clients. */
-async function mesurer(operation, token, reglages) {
+async function mesurer(operation, jetons, reglages) {
+  const token = jetons[operation.utilisateur]
   const appeler = operation.type === 'MCP'
     ? () => appelMcp(token, operation.outil, operation.args)
     : () => appelRest(token, operation.chemin)
@@ -243,6 +298,20 @@ async function mesurer(operation, token, reglages) {
   return resumerOperation(operation, durees, erreurs)
 }
 
+/**
+ * Mesure les opérations l'une après l'autre : deux opérations mesurées en même temps fausseraient leurs latences.
+ * Chaque résultat est affiché dès sa mesure.
+ */
+function mesurerEnSequence(operations, jetons, reglages) {
+  return operations.reduce(async (precedents, operation) => {
+    const resultats = await precedents
+    const resultat = await mesurer(operation, jetons, reglages)
+    console.log(`${resultat.id.padEnd(48)} p50 ${String(resultat.p50Ms).padStart(7)} ms  `
+      + `p95 ${String(resultat.p95Ms).padStart(7)} ms  ${resultat.verdict}`)
+    return [...resultats, resultat]
+  }, Promise.resolve([]))
+}
+
 function revision() {
   const git = cheminGit()
   if (!git) return 'inconnue'
@@ -250,6 +319,38 @@ function revision() {
     return execFileSync(git, ['rev-parse', '--short', 'HEAD'], { cwd: RACINE }).toString().trim()
   } catch {
     return 'inconnue'
+  }
+}
+
+/** Rapport de la campagne : date, révision, environnement, jeu de données, paramètres, mesures et verdict. */
+function construireRapport(reglages, contexte, resultats, serveurReutilise) {
+  const date = new Date().toISOString()
+  return {
+    date,
+    revision: revision(),
+    environnement: {
+      description: `pile de test locale (PostgreSQL de e2e/compose.yaml, quarkus:dev ${URL_API}, Keycloak des Dev Services)`,
+      systeme: `${platform()} ${release()} ${arch()}, ${cpus().length} cœurs, ${Math.round(totalmem() / 2 ** 30)} Gio`,
+      node: process.version,
+      serveurReutilise,
+    },
+    jeuDeDonnees: {
+      description: `${reglages.projets} projets × ${reglages.composantsParProjet} composants, ${reglages.signaux} avis, `
+        + `${reglages.projets * reglages.signaux} impacts actifs (espace d’${UTILISATEUR_REFERENCE}) ; `
+        + `${reglages.projetsVolumineux * reglages.signaux} impacts résolus ou écartés (espace volumineux) ; `
+        + `${reglages.impactsPetitEspace} impacts actifs (petit espace de ${UTILISATEUR_PETIT_ESPACE}) ; `
+        + 'abonnements PERSONAL par paquet et par technologie',
+      espaces: contexte.espaces,
+      projets: reglages.projets,
+      composantsParProjet: reglages.composantsParProjet,
+      signaux: reglages.signaux,
+      impacts: contexte.espaces.reduce((total, espace) => total
+        + Object.values(espace.etats).reduce((somme, nombre) => somme + nombre, 0), 0),
+    },
+    parametres: reglages,
+    resultats,
+    exclues: OPERATIONS_EXCLUES,
+    verdict: verdictGlobal(resultats),
   }
 }
 
@@ -265,38 +366,14 @@ async function principal() {
     if (executer(cheminDocker(), [...COMPOSE, 'up', '-d', '--wait']) !== 0) throw new Error('base de test indisponible : Docker est-il démarré ?')
     baseDemarree = !enMarche
     serveur = await demarrerServeur()
-    const token = await jeton('alice')
-    const contexte = await preparer(token, reglages)
-    const resultats = []
-    for (const operation of operationsRetenues(contexte)) {
-      const resultat = await mesurer(operation, token, reglages)
-      console.log(`${resultat.id.padEnd(48)} p50 ${String(resultat.p50Ms).padStart(7)} ms  `
-        + `p95 ${String(resultat.p95Ms).padStart(7)} ms  ${resultat.verdict}`)
-      resultats.push(resultat)
+    const jetons = {
+      [UTILISATEUR_REFERENCE]: await jeton(UTILISATEUR_REFERENCE),
+      [UTILISATEUR_PETIT_ESPACE]: await jeton(UTILISATEUR_PETIT_ESPACE),
     }
-    const date = new Date().toISOString()
-    const rapport = {
-      date,
-      revision: revision(),
-      environnement: {
-        description: `pile de test locale (PostgreSQL de e2e/compose.yaml, quarkus:dev ${URL_API}, Keycloak des Dev Services)`,
-        systeme: `${platform()} ${release()} ${arch()}, ${cpus().length} cœurs, ${Math.round(totalmem() / 2 ** 30)} Gio`,
-        node: process.version,
-        serveurReutilise: serveur === null,
-      },
-      jeuDeDonnees: {
-        description: `${reglages.projets} projets × ${reglages.composantsParProjet} composants, ${reglages.signaux} avis, `
-          + `${reglages.projets * reglages.signaux} impacts (un espace)`,
-        projets: reglages.projets,
-        composantsParProjet: reglages.composantsParProjet,
-        signaux: reglages.signaux,
-        impacts: reglages.projets * reglages.signaux,
-      },
-      parametres: reglages,
-      resultats,
-      exclues: OPERATIONS_EXCLUES,
-      verdict: verdictGlobal(resultats),
-    }
+    const contexte = await preparer(jetons, reglages)
+    const resultats = await mesurerEnSequence(operationsRetenues(contexte), jetons, reglages)
+    const rapport = construireRapport(reglages, contexte, resultats, serveur === null)
+    const date = rapport.date
     const dossier = join(E2E, 'resultats', 'performance')
     mkdirSync(dossier, { recursive: true })
     const jour = date.slice(0, 10)

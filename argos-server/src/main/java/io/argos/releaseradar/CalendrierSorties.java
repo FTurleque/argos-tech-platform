@@ -42,4 +42,18 @@ public interface CalendrierSorties {
 
     /** Fin de support connue de la version {@code version} de la clé {@code cle}, selon les espaces donnés. */
     Optional<Echeance> finDeSupport(String cle, String version, Set<UUID> espaces);
+
+    /**
+     * Fins de support des clés données selon les espaces donnés, lues une fois (RAD-10) : la fin de support de chaque
+     * version est ensuite évaluée en mémoire, comme {@link #finDeSupport}.
+     */
+    FinsDeSupport finsDeSupport(Collection<String> cles, Set<UUID> espaces);
+
+    /** Fins de support chargées pour un ensemble de clés : évaluation d'une version, sans lecture. */
+    @FunctionalInterface
+    interface FinsDeSupport {
+
+        /** Fin de support connue de la version de la clé ; vide pour une clé non chargée. */
+        Optional<Echeance> pour(String cle, String version);
+    }
 }

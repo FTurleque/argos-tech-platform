@@ -26,6 +26,7 @@ import org.junit.jupiter.api.Test;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 
+import io.argos.alerting.EnvoiAlertes;
 import io.argos.aigateway.ClasseDonnee;
 import io.argos.aigateway.DemandeIa;
 import io.argos.aigateway.EntreeIa;
@@ -91,6 +92,9 @@ class ParcoursIaTest {
     @Inject
     MockMailbox mailbox;
 
+    @Inject
+    EnvoiAlertes envoi;
+
     @ConfigProperty(name = "argos.ia.fuseau")
     ZoneId fuseau;
 
@@ -132,6 +136,8 @@ class ParcoursIaTest {
         Fixtures.stubOsv(id, modifie, json);
         synchronizer.synchronize("OSV");
         asynchrone.attendre();
+        // Passage de la tâche planifiée d'envoi, qui diffuse les alertes en attente (ALR-10-S2).
+        envoi.traiterEnAttente(Instant.now());
         return baseDeTest.uuid("SELECT id FROM signal WHERE external_id = '" + id + "'");
     }
 

@@ -7,8 +7,10 @@ import java.sql.SQLException;
 import java.time.Instant;
 import java.time.OffsetDateTime;
 import java.util.ArrayList;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Locale;
+import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
 import java.util.UUID;
@@ -122,6 +124,58 @@ public class SubscriptionService {
                 ORDER BY s.created_at, s.id
                 """;
         return query(userId, sql, userId, memberWorkspaces, userId);
+    }
+
+    /**
+     * Abonnements actifs de plusieurs comptes en une requête (évaluation des alertes, ALR-10) : pour chaque compte, les
+     * mêmes que {@link #activeFor} avec ses espaces donnés. Lecture technique, hors rôle applicatif : elle sert
+     * seulement à savoir quelles règles appliquer ; les espaces de chaque compte viennent de ses appartenances, lues
+     * par l'appelant dans la même évaluation.
+     *
+     * @param espacesParCompte espaces dont chaque compte est membre
+     * @return abonnements actifs de chaque compte, dans l'ordre de création ; un compte sans abonnement est absent
+     */
+    @Transactional
+    public Map<UUID, List<Subscription>> activesDesComptes(Map<UUID, Set<UUID>> espacesParCompte) {
+        Map<UUID, List<Subscription>> parCompte = new LinkedHashMap<>();
+        if (espacesParCompte.isEmpty()) {
+            return parCompte;
+        }
+        List<UUID> comptes = new ArrayList<>();
+        List<UUID> espaces = new ArrayList<>();
+        espacesParCompte.forEach((compte, espacesDuCompte) -> espacesDuCompte.forEach(espace -> {
+            comptes.add(compte);
+            espaces.add(espace);
+        }));
+        String sql = """
+                WITH membres AS (SELECT * FROM unnest(?::uuid[], ?::uuid[]) AS m(compte_id, espace_id)),
+                     destinataires AS (SELECT * FROM unnest(?::uuid[]) AS d(compte_id))
+                SELECT d.compte_id, """ + COLUMNS + """
+                 FROM destinataires d JOIN subscription s ON s.state = 'ACTIVE' AND (
+                    (s.scope = 'PERSONAL' AND s.owner_user_id = d.compte_id)
+                    OR (s.scope = 'TEAM'
+                        AND EXISTS (SELECT 1 FROM membres m WHERE m.compte_id = d.compte_id AND m.espace_id = s.owner_workspace_id)
+                        AND (s.mandatory OR NOT EXISTS (SELECT 1 FROM subscription_opt_out o
+                                                        WHERE o.subscription_id = s.id AND o.user_id = d.compte_id))))
+                ORDER BY d.compte_id, s.created_at, s.id
+                """;
+        try (Connection connection = dataSource.getConnection();
+                PreparedStatement statement = connection.prepareStatement(sql)) {
+            statement.setArray(1, connection.createArrayOf("uuid", comptes.toArray()));
+            statement.setArray(2, connection.createArrayOf("uuid", espaces.toArray()));
+            statement.setArray(3, connection.createArrayOf("uuid", espacesParCompte.keySet().toArray()));
+            try (ResultSet rows = statement.executeQuery()) {
+                while (rows.next()) {
+                    parCompte.computeIfAbsent(rows.getObject(1, UUID.class), compte -> new ArrayList<>())
+                            .add(subscription(rows, 2));
+                }
+            }
+        } catch (SQLException error) {
+            throw new IllegalStateException("lecture des abonnements impossible", error);
+        } catch (JsonProcessingException error) {
+            throw new IllegalStateException("filtres d'abonnement illisibles", error);
+        }
+        return parCompte;
     }
 
     /**
@@ -298,6 +352,15 @@ public class SubscriptionService {
             s.id, s.scope, s.owner_workspace_id, s.owner_user_id, s.filters::text, s.channel, s.frequency, s.mandatory,
             s.state, s.created_at""".replace("s.", "");
 
+    /** Abonnement lu à partir de la colonne {@code premiere} (colonnes {@link #COLUMNS}). */
+    private static Subscription subscription(ResultSet rows, int premiere) throws SQLException, JsonProcessingException {
+        return new Subscription(rows.getObject(premiere, UUID.class), rows.getString(premiere + 1),
+                rows.getObject(premiere + 2, UUID.class), rows.getObject(premiere + 3, UUID.class),
+                MAPPER.readValue(rows.getString(premiere + 4), FILTERS), rows.getString(premiere + 5),
+                rows.getString(premiere + 6), rows.getBoolean(premiere + 7), rows.getString(premiere + 8),
+                rows.getObject(premiere + 9, OffsetDateTime.class).toInstant());
+    }
+
     private List<Subscription> query(UUID accountId, String sql, Object... params) {
         List<Subscription> result = new ArrayList<>();
         try (Connection connection = dataSource.getConnection()) {
@@ -312,10 +375,7 @@ public class SubscriptionService {
             }
             try (ResultSet rows = statement.executeQuery()) {
                 while (rows.next()) {
-                    result.add(new Subscription(rows.getObject(1, UUID.class), rows.getString(2), rows.getObject(3, UUID.class),
-                            rows.getObject(4, UUID.class), MAPPER.readValue(rows.getString(5), FILTERS), rows.getString(6),
-                            rows.getString(7), rows.getBoolean(8), rows.getString(9),
-                            rows.getObject(10, OffsetDateTime.class).toInstant()));
+                    result.add(subscription(rows, 1));
                 }
             }
             }

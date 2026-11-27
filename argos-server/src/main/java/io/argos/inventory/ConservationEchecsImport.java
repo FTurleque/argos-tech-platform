@@ -12,7 +12,6 @@ import io.argos.conservation.RegleParHorodatage;
 public class ConservationEchecsImport extends RegleParHorodatage {
 
     public ConservationEchecsImport() {
-        super("echecs-import", "DELETE FROM inventory_import_failure WHERE id IN"
-                + " (SELECT id FROM inventory_import_failure WHERE received_at < ? LIMIT ?)");
+        super("echecs-import", "inventory_import_failure", "received_at");
     }
 }
