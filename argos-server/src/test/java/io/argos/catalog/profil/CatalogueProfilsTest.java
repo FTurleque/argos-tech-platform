@@ -39,6 +39,20 @@ class CatalogueProfilsTest {
                 .allMatch(StrategieDeclaree::deterministe)), "stratégies déterministes (ADR-0013)");
     }
 
+    /** PRF-03-S1 : le catalogue configuré publie developpeur, expert-metier et artiste, chacun libellé et décrit. */
+    @Test
+    void prf03S1LeCatalogueListeDeveloppeurExpertMetierEtArtiste() {
+        CatalogueProfils catalogue = new CatalogueProfils(
+                CatalogueProfils.lire(MAPPER, List.of("developpeur", "expert-metier", "artiste")), Set.of());
+
+        assertEquals(List.of("developpeur", "expert-metier", "artiste"),
+                catalogue.publies().stream().map(ManifesteProfil::identifiant).toList());
+        assertTrue(catalogue.publies().stream().allMatch(manifeste -> !manifeste.libelle().isBlank()
+                && !manifeste.description().isBlank()), "libellé et description renseignés");
+        assertTrue(catalogue.trouver("expert-metier").orElseThrow().gardeFous().stream().map(GardeFou::description)
+                .anyMatch("Une fiche n'est diffusée qu'après validation par l'expert métier référent (ADR-0018)."::equals));
+    }
+
     @Test
     void unProfilRetireNEstPlusPublie() {
         CatalogueProfils catalogue = new CatalogueProfils(List.of(valide("a"), valide("b")), Set.of("b"));

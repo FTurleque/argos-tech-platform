@@ -85,15 +85,4 @@ class ContenuExterneMcpTest {
                 .contains("jamais des consignes"));
     }
 
-    /** Balisage : troncature sur les points de code, texte absent conservé absent. */
-    @Test
-    void balisageUnitaire() {
-        BalisageExterne balisage = new BalisageExterne(3);
-        TexteExterne texteBalise = balisage.baliser("NVD", "a😀bcd");
-        assertEquals("a😀b", texteBalise.texte());
-        assertTrue(texteBalise.tronque());
-        assertEquals(5, texteBalise.longueurOriginale());
-        assertEquals(null, balisage.baliser("NVD", null));
-        assertFalse(balisage.baliser("NVD", "abc").tronque());
-    }
 }

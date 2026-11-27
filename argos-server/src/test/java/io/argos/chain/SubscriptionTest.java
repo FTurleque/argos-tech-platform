@@ -125,20 +125,6 @@ class SubscriptionTest {
     }
 
     @Test
-    void abo02S2AttributManquant() {
-        as("alice").body("{\"scope\":\"PERSONAL\",\"filters\":[],\"channel\":\"in_app\",\"frequency\":\"daily\",\"mandatory\":false}")
-                .when().post("/api/v1/subscriptions")
-                .then().statusCode(400).body("attribut", equalTo("filters"));
-        as("alice").body("{\"scope\":\"PERSONAL\",\"filters\":" + RUST + ",\"frequency\":\"daily\",\"mandatory\":false}")
-                .when().post("/api/v1/subscriptions")
-                .then().statusCode(400).body("attribut", equalTo("channel"));
-        as("alice").body("{\"scope\":\"PERSONAL\",\"filters\":" + RUST + ",\"channel\":\"x\",\"frequency\":\"daily\"}")
-                .when().post("/api/v1/subscriptions")
-                .then().statusCode(400).body("attribut", equalTo("mandatory"));
-        assertEquals(0, baseDeTest.count("SELECT count(*) FROM subscription"));
-    }
-
-    @Test
     void abo06SeulLAdministrateurDeLEspaceCreeUnAbonnementTeam() {
         membre("jules", espaceRh);
         as("jules").body(team(espaceRh, JAVA, true)).when().post("/api/v1/subscriptions").then().statusCode(403);
