@@ -129,8 +129,15 @@ jobs:
           cache-dependency-path: e2e/package-lock.json
       - name: Tests des scripts et de la campagne de performance
         run: node --test scripts/*.test.mjs "e2e/performance/*.test.mjs"
-      - name: Contrôle documentaire
-        run: node scripts/verifier-docs.mjs
+      # Rendu des diagrammes Mermaid (AUD-DOC-06) : Mermaid CLI 12.2.0 (licence MIT, outil de la CI seulement, non livré),
+      # installé sans script d'installation, avec le Google Chrome de
+      # l'image de l'exécuteur ; scripts/mermaid-puppeteer.json le lance sans bac à sable.
+      - name: Mermaid CLI
+        run: npm install -g --ignore-scripts @mermaid-js/mermaid-cli@12.2.0
+      - name: Contrôle documentaire (liens, chemins cités, rendu Mermaid, identifiants)
+        env:
+          PUPPETEER_EXECUTABLE_PATH: /usr/bin/google-chrome
+        run: node scripts/verifier-docs.mjs --rendu
       - name: Contrôle de nommage
         run: node scripts/verifier-nommage.mjs
       # EXP-07 : variables lues par le serveur, transmises par compose.yaml et décrites par .env.example ;

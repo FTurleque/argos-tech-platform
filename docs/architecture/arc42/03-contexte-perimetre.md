@@ -88,7 +88,7 @@ flowchart LR
     ARGOS -->|collecte les avis via HTTPS| AVIS
     ARGOS -->|lit le calendrier via HTTPS| EOL
     ARGOS -->|télécharge les archives via HTTPS| JORF
-    ARGOS -->|récupère flux et pages via HTTP(S)| WEB
+    ARGOS -->|récupère flux et pages via HTTP ou HTTPS| WEB
     ARGOS -->|envoie alertes et résumés via SMTP| SMTP
 ```
 
