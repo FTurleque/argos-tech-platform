@@ -18,6 +18,7 @@ import java.util.UUID;
 import jakarta.inject.Inject;
 
 import io.argos.alerting.Gravite;
+import io.argos.commun.Pagination;
 import io.argos.commun.securite.Caller;
 import io.argos.catalog.PackageKey;
 import io.argos.catalog.standard.ReferentielStandards;
@@ -416,7 +417,8 @@ public class OutilsSecurite {
                     .map(version -> new VersionSignal(version.versionNo(), texte(version.sourceModifiedAt()),
                             texte(version.collectedAt()), version.contentHash()))
                     .toList();
-            ImpactQueries.Page page = impacts.forSignal(id, appelant.accountId(), appelant.espacesMembre(), 0, 50);
+            ImpactQueries.Page page = impacts.forSignal(id, appelant.accountId(), appelant.espacesMembre(), 0,
+                    Pagination.TAILLE_DEFAUT);
             List<ProjetConcerne> projets = page.items().stream()
                     .map(impact -> new ProjetConcerne(impact.projectId(), impact.projectName(), impact.componentPurl(),
                             impact.level())).toList();

@@ -238,13 +238,13 @@ public class RechercheVeille {
         } else {
             requete.setTimestamp(2, Timestamp.from(criteres.depuis()));
         }
-        tableau(connexion, requete, 3, "varchar", criteres.types());
-        tableau(connexion, requete, 4, "uuid", criteres.projets());
+        lierTableau(connexion, requete, 3, "varchar", criteres.types());
+        lierTableau(connexion, requete, 4, "uuid", criteres.projets());
         Set<String> technologies = minuscules(criteres.technologies());
         if (technologies.isEmpty()) {
             requete.setString(5, null);
-            tableau(connexion, requete, 6, "varchar", null);
-            tableau(connexion, requete, 7, "varchar", null);
+            lierTableau(connexion, requete, 6, "varchar", null);
+            lierTableau(connexion, requete, 7, "varchar", null);
         } else {
             requete.setString(5, String.join(" or ", technologies.stream()
                     .map(tech -> "\"" + tech.replace("\"", " ") + "\"").toList()));
@@ -254,12 +254,12 @@ public class RechercheVeille {
                 termes.addAll(SignalQueries.technologyTerms(tech));
                 SignalQueries.ecosystemsOf(tech).forEach(ecosysteme -> ecosystemes.add(ecosysteme.toLowerCase(Locale.ROOT)));
             }
-            tableau(connexion, requete, 6, "varchar", termes);
-            tableau(connexion, requete, 7, "varchar", ecosystemes);
+            lierTableau(connexion, requete, 6, "varchar", termes);
+            lierTableau(connexion, requete, 7, "varchar", ecosystemes);
         }
-        tableau(connexion, requete, 8, "varchar", criteres.gravites());
-        tableau(connexion, requete, 9, "varchar", criteres.paquets());
-        tableau(connexion, requete, 10, "varchar", criteres.sources());
+        lierTableau(connexion, requete, 8, "varchar", criteres.gravites());
+        lierTableau(connexion, requete, 9, "varchar", criteres.paquets());
+        lierTableau(connexion, requete, 10, "varchar", criteres.sources());
         return 11;
     }
 
@@ -310,7 +310,8 @@ public class RechercheVeille {
         return lien != null && LIEN_HTTP.matcher(lien.strip()).matches() ? lien.strip() : null;
     }
 
-    private static void tableau(Connection connexion, PreparedStatement requete, int indice, String type, Collection<?> valeurs)
+    private static void lierTableau(Connection connexion, PreparedStatement requete, int indice, String type,
+            Collection<?> valeurs)
             throws SQLException {
         if (valeurs == null || valeurs.isEmpty()) {
             requete.setNull(indice, Types.ARRAY);

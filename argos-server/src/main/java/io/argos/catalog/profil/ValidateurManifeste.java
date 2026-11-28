@@ -106,15 +106,15 @@ public final class ValidateurManifeste {
     }
 
     /** Valeurs d'une liste : identifiant valide et unique, libellé. */
-    private static void verifierValeurs(List<String> erreurs, ListeObjets liste) {
+    private static void verifierValeurs(List<String> erreurs, ListeObjets listeObjets) {
         Set<String> valeurs = new HashSet<>();
-        for (ValeurListe valeur : liste.valeurs()) {
+        for (ValeurListe valeur : listeObjets.valeurs()) {
             if (valeur == null || !identifiantValide(valeur.identifiant())) {
-                erreurs.add("valeur sans identifiant valide dans la liste " + liste.typeObjet());
+                erreurs.add("valeur sans identifiant valide dans la listeObjets " + listeObjets.typeObjet());
                 continue;
             }
             if (!valeurs.add(valeur.identifiant())) {
-                erreurs.add("valeur en double dans la liste " + liste.typeObjet() + " : " + valeur.identifiant());
+                erreurs.add("valeur en double dans la listeObjets " + listeObjets.typeObjet() + " : " + valeur.identifiant());
             }
             exigerTexte(erreurs, "libellé de la valeur " + valeur.identifiant(), valeur.libelle());
         }
