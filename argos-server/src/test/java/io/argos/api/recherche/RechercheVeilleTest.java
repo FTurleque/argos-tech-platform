@@ -326,17 +326,15 @@ class RechercheVeilleTest {
         Api.enTantQue("oscar").queryParam("horizon", "abc").get("/api/v1/recherche").then().statusCode(STATUT_HORIZON_NON_ENTIER);
     }
 
-    /** Entrées non fiables : filtres refusés, saisie jamais interprétée comme SQL, liens non http écartés. */
+    /**
+     * Entrées non fiables : filtre refusé avec son attribut, projet non UUID et vue sans nom refusés, saisie jamais
+     * interprétée comme SQL, liens non http écartés. Chaque filtre refusé est vérifié par {@code TraductionCriteresTest}.
+     */
     @Test
     void entreesNonFiables() {
         Api.enTantQue("oscar").queryParam("type", "INCONNU").get("/api/v1/recherche").then().statusCode(400)
                 .body("code", equalTo("CRITERE_INVALIDE")).body("attribut", equalTo("types"));
-        Api.enTantQue("oscar").queryParam("gravite", "EXTREME").get("/api/v1/recherche").then().statusCode(400);
-        Api.enTantQue("oscar").queryParam("horizon", 0).get("/api/v1/recherche").then().statusCode(400);
         Api.enTantQue("oscar").queryParam("projet", "pas-un-uuid").get("/api/v1/recherche").then().statusCode(400);
-        Api.enTantQue("oscar").queryParam("profil", "inconnu").get("/api/v1/recherche").then().statusCode(400);
-        Api.enTantQue("oscar").queryParam("q", "x".repeat(501)).get("/api/v1/recherche").then().statusCode(400);
-        Api.enTantQue("oscar").queryParam("taille", 1000).get("/api/v1/recherche").then().statusCode(400);
         Api.enTantQue("oscar").contentType(ContentType.JSON).body(Map.of("nom", " ", "criteres", Map.of()))
                 .post("/api/v1/vues").then().statusCode(400);
 

@@ -150,7 +150,7 @@ Scénarios RAD-01-S1 à RAD-06-S1 du changement archivé ; RAD-07-S1 à RAD-07-S
 
 | Exigence | Scénarios | Conception / diagramme | Tâche | Test ou preuve |
 |---|---|---|---|---|
-| RAD-01 | RAD-01-S1, RAD-01-S2 | Composants | 1.1 | `RadarStandardsTest.rad01S1StandardComplet`, `rad01S2JustificationManquante` |
+| RAD-01 | RAD-01-S1, RAD-01-S2 | Composants | 1.1 | `RadarStandardsTest.rad01S1StandardComplet`, `SaisieStandardTest.rad01S2JustificationManquante` |
 | RAD-02 | RAD-02-S1, RAD-02-S2 | Composants | 1.2 | `RadarStandardsTest.rad02S1Lecteur`, `rlsDuReferentiel`, `rad02S2SuggestionDeLIa` |
 | RAD-03 | RAD-03-S1 | DC-1 | 2.1 | `RadarStandardsTest.rad03S1Horizon30Jours`, `contratConnecteurEndoflife` |
 | RAD-04 | RAD-04-S1 | DC-1 | 2.2 | `RadarStandardsTest.rad04S1RappelAJ30`, `rappelsParametrablesParEspace` |
@@ -158,7 +158,7 @@ Scénarios RAD-01-S1 à RAD-06-S1 du changement archivé ; RAD-07-S1 à RAD-07-S
 | RAD-06 | RAD-06-S1 | Composants | 1.3 | `RadarStandardsTest.rad06S1PassageEnHold` |
 | RAD-08 | RAD-08-S1 à S4 | `alimenter-inventaire-et-completer-ihm` design.md D4, DC-2 ; arc42 §6.9 | 2.1 | `impact/SuggestionsRadarTest` (`rad08S1VersionRecommandeeEnFinDeSupport` à `rad08S4VersionEncoreSupportee`, `uneVersionDejaEnHoldNEstPasSoumise`) |
 | RAD-09 | RAD-09-S1, RAD-09-S2 | `alimenter-inventaire-et-completer-ihm` design.md D6 | 4.2 | `argos-ui/tests/vues/radar.spec.ts` (Vitest) |
-| RAD-07 | RAD-07-S1 à S4 | `isoler-erreurs-aux-frontieres` design.md D2, D4, DC-3 ; `rendre-ingestion-asynchrone` design.md D5, DC-5 | 1.2, 3.1, 3.3 ; 5.1 | `RadarStandardsTest.rad07S1CleMalEncodee`, `rad07S2AnnonceEnPanneApresLEnregistrement`, `rad07S3AnnonceEnErreurImprevueJournaliseeEtComptee`, `rad07S4AnnonceSansAttente` ; boucles du radar : `espaceEnErreurImprevueDansLaTacheQuotidienne`, `produitEnErreurImprevueDansLaSynchronisationDesCycles` |
+| RAD-07 | RAD-07-S1 à S4 | `isoler-erreurs-aux-frontieres` design.md D2, D4, DC-3 ; `rendre-ingestion-asynchrone` design.md D5, DC-5 | 1.2, 3.1, 3.3 ; 5.1 | `SaisieStandardTest.rad07S1CleMalEncodee`, `RadarStandardsTest.rad07S2AnnonceEnPanneApresLEnregistrement`, `rad07S3AnnonceEnErreurImprevueJournaliseeEtComptee`, `rad07S4AnnonceSansAttente` ; boucles du radar : `espaceEnErreurImprevueDansLaTacheQuotidienne`, `produitEnErreurImprevueDansLaSynchronisationDesCycles` |
 | RAD-10 | RAD-10-S1, S2 | `2026-11-27-accelerer-requetes-chaudes` D8 | 5.1 | `RequetesConstantesTest.rad08RadarEnNombreFixeDeRequetes` ; `RadarStandardsTest`, `ParcoursRadarTest` |
 
 Tests dans `argos-server/src/test/java/io/argos/chain/` ; parcours de bout en bout : `ParcoursRadarTest`.

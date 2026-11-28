@@ -31,7 +31,9 @@
     <cyclonedx-plugin.version>2.9.3</cyclonedx-plugin.version>
     <!-- Lancement du script de vérification des licences dans le même profil. Licence Apache-2.0. -->
     <exec-plugin.version>3.7.0</exec-plugin.version>
-    <skipITs>true</skipITs>
+    <!-- Tests d'intégration sur l'artefact empaqueté (*IT, @QuarkusIntegrationTest, AUD-TST-12) : exécutés par
+         maven-failsafe-plugin en phase integration-test de « mvn verify » ; -DskipITs les écarte. -->
+    <skipITs>false</skipITs>
     <!-- Garde du JDK de build (maven-enforcer, licence Apache-2.0) : Java 17 ou plus par défaut ; le profil
          « integration-continue » resserre la plage sur le JDK de l'image d'exécution (eclipse-temurin:17-jre). -->
     <enforcer-plugin.version>3.7.0</enforcer-plugin.version>
@@ -241,6 +243,26 @@
         </configuration>
       </plugin>
       <plugin>
+        <artifactId>maven-failsafe-plugin</artifactId>
+        <version>${surefire-plugin.version}</version>
+        <executions>
+          <execution>
+            <goals>
+              <goal>integration-test</goal>
+              <goal>verify</goal>
+            </goals>
+          </execution>
+        </executions>
+        <configuration>
+          <systemPropertyVariables>
+            <java.util.logging.manager>org.jboss.logmanager.LogManager</java.util.logging.manager>
+            <maven.home>${maven.home}</maven.home>
+            <!-- Le jar est lancé sous le profil de test, contre le PostgreSQL et le Keycloak des Dev Services. -->
+            <quarkus.test.integration-test-profile>test</quarkus.test.integration-test-profile>
+          </systemPropertyVariables>
+        </configuration>
+      </plugin>
+      <plugin>
         <artifactId>maven-enforcer-plugin</artifactId>
         <version>${enforcer-plugin.version}</version>
         <executions>
@@ -329,6 +351,27 @@
       <properties>
         <argos.jdk.plage>[17,18)</argos.jdk.plage>
       </properties>
+    </profile>
+    <!-- Tests sans Docker (AUD-TST-03) : les classes @QuarkusTest et @QuarkusIntegrationTest, nommées dans
+         src/test/tests-docker.txt (liste tenue à jour par ListeTestsDockerTest), sont exclues avant leur découverte :
+         Quarkus ne construit aucune application et aucun Dev Service ne démarre. Seuls les tests unitaires et
+         d'architecture s'exécutent, sans PostgreSQL ni Keycloak. Commande : mvn -f argos-server/pom.xml -P sans-docker test
+         Le seuil de couverture JaCoCo (phase verify) suppose la suite complète : il ne s'applique pas ici. -->
+    <profile>
+      <id>sans-docker</id>
+      <properties>
+        <skipITs>true</skipITs>
+      </properties>
+      <build>
+        <plugins>
+          <plugin>
+            <artifactId>maven-surefire-plugin</artifactId>
+            <configuration>
+              <excludesFile>${project.basedir}/src/test/tests-docker.txt</excludesFile>
+            </configuration>
+          </plugin>
+        </plugins>
+      </build>
     </profile>
     <!-- Avis de licence des dépendances livrées (décisions F3 révisée par G1, G2 et G3 du porteur du
          projet, 2026-11-19 ; ADR-0021 points 4 et 6). Le build de l'image Docker (Dockerfile, étage

@@ -2,10 +2,7 @@ package io.argos.api.preference;
 
 import static io.restassured.RestAssured.given;
 import static org.hamcrest.Matchers.contains;
-import static org.hamcrest.Matchers.containsInAnyOrder;
-import static org.hamcrest.Matchers.containsString;
 import static org.hamcrest.Matchers.equalTo;
-import static org.hamcrest.Matchers.nullValue;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 
 import java.sql.Connection;
@@ -34,8 +31,10 @@ import io.restassured.http.ContentType;
 import io.restassured.specification.RequestSpecification;
 
 /**
- * Préférences de l'utilisateur courant (AFF-01, AFF-03, AFF-04, PRF-01), avec des jetons réels :
- * la clé des préférences est l'identifiant du compte Argos relié au sujet OIDC.
+ * Préférences de l'utilisateur courant (AFF-03, PRF-01), avec des jetons réels et la base : la clé des préférences
+ * est l'identifiant du compte Argos relié au sujet OIDC ; authentification exigée, isolement par la RLS, profil par
+ * défaut posé à la création du compte. Les règles de choix (AFF-01, AFF-04-S1, PRF-01-S1 à S3) sont vérifiées hors du
+ * conteneur par {@code PreferencesResourceUnitaireTest}.
  *
  * <p>Les préférences d'ines et de jules sont effacées avant chaque test (base partagée).
  */
@@ -80,100 +79,6 @@ class PreferencesResourceTest {
         ines().contentType(ContentType.JSON).body("{\"profilsActifs\":" + json + "}")
             .when().put("/api/v1/preferences/profils")
             .then().statusCode(statut);
-    }
-
-    @Test
-    void aff04S1SansChoixLaMiseEnPageClassiqueSApplique() {
-        ines()
-            .when().get("/api/v1/preferences")
-            .then()
-            .statusCode(200)
-            .body("miseEnPage", equalTo("classique"))
-            .body("miseEnPageChoisie", nullValue())
-            .body("miseEnPageIndisponible", equalTo(false))
-            .body("message", nullValue());
-    }
-
-    @Test
-    void aff01S1ChoixDUneMiseEnPagePubliee() {
-        choisirMiseEnPage("classique", 200);
-        ines()
-            .contentType(ContentType.JSON).body("{\"miseEnPage\":\"gazette\"}")
-            .when().put("/api/v1/preferences/mise-en-page")
-            .then()
-            .statusCode(200)
-            .body("miseEnPage", equalTo("gazette"))
-            .body("miseEnPageChoisie", equalTo("gazette"));
-        // AFF-03 : la préférence est lue sur le serveur, quel que soit le client qui la demande.
-        ines().when().get("/api/v1/preferences").then().statusCode(200).body("miseEnPage", equalTo("gazette"));
-        assertEquals("gazette", baseDeTest.string("SELECT mise_en_page FROM workspace_preference_utilisateur WHERE compte_id = '"
-                + ines + "'"), "clé des préférences : identifiant du compte Argos");
-    }
-
-    @Test
-    void aff01S2MiseEnPageAbsenteDuCatalogue() {
-        choisirMiseEnPage("journal", 200);
-        ines()
-            .contentType(ContentType.JSON).body("{\"miseEnPage\":\"psychedelique\"}")
-            .when().put("/api/v1/preferences/mise-en-page")
-            .then()
-            .statusCode(400)
-            .body("code", equalTo("MISE_EN_PAGE_INCONNUE"))
-            .body("message", containsString("n'existe pas"));
-        ines().when().get("/api/v1/preferences").then().body("miseEnPage", equalTo("journal"));
-    }
-
-    @Test
-    void uneDemandeSansMiseEnPageEstRefusee() {
-        ines().contentType(ContentType.JSON).body("{}")
-            .when().put("/api/v1/preferences/mise-en-page")
-            .then().statusCode(400).body("code", equalTo("MISE_EN_PAGE_INCONNUE"));
-    }
-
-    @Test
-    void prf01S1CumulDeDeuxProfils() {
-        remplacerProfils("[\"developpeur\"]", 200);
-        ines()
-            .contentType(ContentType.JSON).body("{\"profilsActifs\":[\"developpeur\",\"expert-metier\"]}")
-            .when().put("/api/v1/preferences/profils")
-            .then()
-            .statusCode(200)
-            .body("profilsActifs", containsInAnyOrder("developpeur", "expert-metier"))
-            .body("profilsParDefaut", equalTo(false));
-    }
-
-    @Test
-    void prf01S2DesactivationDuDernierProfil() {
-        remplacerProfils("[\"expert-metier\"]", 200);
-        ines()
-            .contentType(ContentType.JSON).body("{\"profilsActifs\":[]}")
-            .when().put("/api/v1/preferences/profils")
-            .then()
-            .statusCode(400)
-            .body("code", equalTo("AU_MOINS_UN_PROFIL"))
-            .body("message", containsString("Au moins un profil"));
-        ines().when().get("/api/v1/preferences").then().body("profilsActifs", contains("expert-metier"));
-    }
-
-    @Test
-    void prf01S3ProfilAbsentDuCatalogue() {
-        remplacerProfils("[\"developpeur\"]", 200);
-        ines()
-            .contentType(ContentType.JSON).body("{\"profilsActifs\":[\"developpeur\",\"astrologue\"]}")
-            .when().put("/api/v1/preferences/profils")
-            .then()
-            .statusCode(400)
-            .body("code", equalTo("PROFIL_INCONNU"))
-            .body("message", containsString("n'existe pas"));
-        ines().when().get("/api/v1/preferences").then().body("profilsActifs", contains("developpeur"));
-    }
-
-    @Test
-    void sansChoixLesProfilsParDefautSAppliquent() {
-        ines().when().get("/api/v1/preferences")
-            .then().statusCode(200)
-            .body("profilsActifs", contains("developpeur"))
-            .body("profilsParDefaut", equalTo(true));
     }
 
     @Test

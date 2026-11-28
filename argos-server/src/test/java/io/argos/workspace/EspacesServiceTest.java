@@ -1,7 +1,6 @@
 package io.argos.workspace;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
@@ -14,7 +13,6 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
 import io.argos.commun.AccesRefuse;
-import io.argos.commun.DonneeInvalide;
 import io.argos.commun.Introuvable;
 import io.argos.commun.MotifRefus;
 import io.argos.commun.RegleViolee;
@@ -30,7 +28,6 @@ import io.quarkus.test.junit.QuarkusTest;
 @QuarkusTest
 class EspacesServiceTest {
 
-    private static final int LONGUEUR_MAX_NOM = 120;
     private static final String EMAIL_BOB = "bob@argos.test";
     private static final String EMAIL_CARLA = "carla@argos.test";
 
@@ -51,11 +48,9 @@ class EspacesServiceTest {
         carla = compte("carla");
     }
 
+    /** Nom rogné et créateur administrateur ; les noms refusés sont vérifiés par {@code EspacesServiceUnitaireTest}. */
     @Test
-    void nomDEspaceVideBlancOuTropLongRefuse() {
-        for (String nom : new String[] {null, "", "   ", "n".repeat(LONGUEUR_MAX_NOM + 1)}) {
-            assertThrows(DonneeInvalide.class, () -> espaces.creer(alice, nom), String.valueOf(nom));
-        }
+    void nomDEspaceRogneEtCreateurAdministrateur() {
         EspacesService.EspaceDeCompte espace = espaces.creer(alice, "  Espace rogné  ");
         assertEquals("Espace rogné", espace.nom());
         assertEquals(Role.ADMINISTRATEUR, espace.role());
@@ -78,11 +73,10 @@ class EspacesServiceTest {
     }
 
     @Test
-    void administrateurConfirmeGardeSonRoleEtRoleObligatoire() {
+    void administrateurConfirmeGardeSonRole() {
         UUID espace = espaces.creer(alice, "Rôle maintenu").id();
 
         assertEquals(Role.ADMINISTRATEUR, espaces.changerRole(alice, espace, alice.id(), Role.ADMINISTRATEUR).role());
-        assertThrows(DonneeInvalide.class, () -> espaces.changerRole(alice, espace, alice.id(), null));
     }
 
     @Test
@@ -119,14 +113,11 @@ class EspacesServiceTest {
         assertTrue(espaces.mesEspaces(bob).stream().noneMatch(vue -> vue.id().equals(espace)));
     }
 
+    /** Adresse normalisée ; les adresses et rôles refusés sont vérifiés par {@code EspacesServiceUnitaireTest}. */
     @Test
-    void invitationAdresseInvalideOuSansRoleRefusee() {
-        UUID espace = espaces.creer(alice, "Invitations invalides").id();
+    void invitationAdresseNormalisee() {
+        UUID espace = espaces.creer(alice, "Invitations normalisées").id();
 
-        for (String adresse : new String[] {null, "", "sans-arobase", "deux@@argos.test", "a@b"}) {
-            assertThrows(DonneeInvalide.class, () -> espaces.inviter(alice, espace, adresse, Role.LECTEUR), String.valueOf(adresse));
-        }
-        assertThrows(DonneeInvalide.class, () -> espaces.inviter(alice, espace, EMAIL_BOB, null));
         EspacesService.Invitation normalisee = espaces.inviter(alice, espace, "  Bob@Argos.TEST ", Role.LECTEUR);
         assertEquals(EMAIL_BOB, normalisee.email());
         assertEquals("EN_ATTENTE", normalisee.etat());
@@ -175,13 +166,6 @@ class EspacesServiceTest {
 
         assertEquals("DEJA_MEMBRE", assertThrows(RegleViolee.class, () -> espaces.accepter(bob, EMAIL_BOB, seconde)).code());
         assertEquals(Role.LECTEUR, espaces.exiger(bob, espace, Role.LECTEUR));
-    }
-
-    @Test
-    void ordreDesRoles() {
-        assertTrue(Role.ADMINISTRATEUR.auMoins(Role.CONTRIBUTEUR));
-        assertTrue(Role.CONTRIBUTEUR.auMoins(Role.CONTRIBUTEUR));
-        assertFalse(Role.LECTEUR.auMoins(Role.CONTRIBUTEUR));
     }
 
     private void rejoindre(Compte membre, String email, UUID espace, Role role) {

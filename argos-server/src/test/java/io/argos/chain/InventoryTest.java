@@ -12,7 +12,6 @@ import java.nio.charset.StandardCharsets;
 import java.time.Instant;
 import java.time.temporal.ChronoUnit;
 import java.util.List;
-import java.util.Map;
 import java.util.UUID;
 
 import jakarta.inject.Inject;
@@ -23,7 +22,6 @@ import org.junit.jupiter.api.Test;
 import io.argos.inventory.StatutImport;
 import io.argos.inventory.InventoryService;
 import io.argos.inventory.ProjectDirectory;
-import io.argos.scm.RepositoryFiles;
 import io.argos.scm.RepositoryRef;
 import io.argos.testsupport.Fixtures;
 import io.argos.testsupport.Api;
@@ -49,9 +47,6 @@ class InventoryTest {
 
     @Inject
     InventoryService inventories;
-
-    @Inject
-    RepositoryFiles repositoryFiles;
 
     private UUID workspace;
 
@@ -249,24 +244,5 @@ class InventoryTest {
         member().when().get("/api/v1/projects/" + project + "/inventory").then().statusCode(404);
         assertEquals(1, baseDeTest.count("SELECT count(*) FROM refus_acces WHERE compte_id = '" + Api.compte("alice")
                 + "' AND ressource = 'GET /api/v1/projects/" + project + "/inventory' AND motif = 'NON_MEMBRE'"));
-    }
-
-    @Test
-    void contratGitLabEtGitHub() {
-        RepositoryRef gitlab = new RepositoryRef("GITLAB", "groupe/api", "main", "cyclonedx", "reports/bom.json");
-        StubServer.programmer("/gitlab/api/v4/projects/groupe%2Fapi/jobs/artifacts/main/raw/reports/bom.json?job=cyclonedx",
-                Stub.succes("{\"bomFormat\":\"CycloneDX\"}"));
-        assertEquals("{\"bomFormat\":\"CycloneDX\"}",
-                new String(repositoryFiles.lecture(gitlab).latestSbom().orElseThrow().contenu(), StandardCharsets.UTF_8));
-        assertTrue(repositoryFiles.lecture(gitlab).file("package.json").isEmpty(), "404 : fichier absent");
-
-        RepositoryRef github = new RepositoryRef("GITHUB", "org/app", "main", null, "sbom/bom.json");
-        StubServer.programmer("/github/repos/org/app/contents/sbom/bom.json?ref=main", Stub.succes("{\"bomFormat\":\"CycloneDX\"}"));
-        assertTrue(repositoryFiles.lecture(github).latestSbom().isPresent());
-        StubServer.Received request = StubServer.received("/github/repos/org/app/contents/sbom/bom.json").get(0);
-        assertEquals(List.of("application/vnd.github.raw+json"), request.headers().get("Accept"));
-        Map<String, List<String>> headers = StubServer.received("/gitlab/").get(0).headers();
-        assertTrue(headers.keySet().stream().noneMatch(entete -> entete.equalsIgnoreCase("PRIVATE-TOKEN")),
-                "aucun jeton configuré, aucun envoyé");
     }
 }

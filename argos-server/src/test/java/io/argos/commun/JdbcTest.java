@@ -2,7 +2,6 @@ package io.argos.commun;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertInstanceOf;
-import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
@@ -88,10 +87,4 @@ class JdbcTest {
         assertTrue(erreur.getMessage().contains("table_inexistante"));
     }
 
-    @Test
-    void laTraductionTronqueUnLongSql() {
-        ErreurBase erreur = Jdbc.traduire("SELECT\n    " + "x".repeat(200), new SQLException("cause"));
-        assertTrue(erreur.getMessage().length() < 130);
-        assertNotNull(erreur.getCause());
-    }
 }

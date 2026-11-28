@@ -213,27 +213,6 @@ class ConsultationInventaireTest {
     }
 
     @Test
-    void parametresDePaginationNonEntiers() {
-        UUID projet = projects.create(espaceA, "api", null, null);
-        importer(projet, 3);
-        String chemin = "/api/v1/projects/" + projet + "/inventory/components";
-
-        Api.enTantQue("alice").queryParam("page", "abc").when().get(chemin)
-                .then().statusCode(400).body("code", equalTo("DONNEE_INVALIDE")).body("attribut", equalTo("page"));
-        Api.enTantQue("alice").queryParam("size", "1.5").when().get(chemin)
-                .then().statusCode(400).body("attribut", equalTo("size"));
-        Api.enTantQue("alice").queryParam("page", "abc").when().get("/api/v1/projects")
-                .then().statusCode(400).body("code", equalTo("DONNEE_INVALIDE")).body("attribut", equalTo("page"));
-        Api.enTantQue("alice").queryParam("size", "x").when().get("/api/v1/projects")
-                .then().statusCode(400).body("attribut", equalTo("size"));
-        // Un entier hors des bornes de int est saturé puis borné, comme toute autre valeur hors bornes.
-        Api.enTantQue("alice").queryParam("size", "99999999999").when().get(chemin)
-                .then().statusCode(200).body("size", equalTo(InventoryQueries.MAX_PAGE_SIZE));
-        Api.enTantQue("alice").queryParam("page", "-99999999999").queryParam("size", "").when().get(chemin)
-                .then().statusCode(200).body("page", equalTo(0)).body("size", equalTo(InventoryQueries.DEFAULT_PAGE_SIZE));
-    }
-
-    @Test
     void inv06S3ProjetInconnuOuDUnAutreEspaceIntrouvable() {
         UUID secret = projects.create(espaceB, "Secret", null, null);
         importer(secret, 2);

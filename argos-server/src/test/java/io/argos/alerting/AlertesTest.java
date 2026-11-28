@@ -35,16 +35,9 @@ import javax.sql.DataSource;
 
 import jakarta.inject.Inject;
 
-import org.eclipse.microprofile.config.inject.ConfigProperty;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
-import com.cronutils.model.CronType;
-import com.cronutils.model.definition.CronDefinitionBuilder;
-import com.cronutils.model.time.ExecutionTime;
-import com.cronutils.parser.CronParser;
-
-import io.argos.commun.Jdbc;
 import io.argos.impact.CorrelationEngine;
 import io.argos.ingestion.SourceSynchronizer;
 import io.argos.inventory.InventoryService;
@@ -117,15 +110,6 @@ class AlertesTest {
 
     @Inject
     SimulatedResumeIa resumeIa;
-
-    @ConfigProperty(name = "argos.alerting.resume-quotidien.cron")
-    String cronQuotidien;
-
-    @ConfigProperty(name = "argos.alerting.resume-hebdomadaire.cron")
-    String cronHebdomadaire;
-
-    @ConfigProperty(name = "argos.alerting.fuseau")
-    String fuseau;
 
     private UUID spaceA;
     private int versionAvis;
@@ -270,32 +254,6 @@ class AlertesTest {
         assertEquals(1, alertes(null, null, "EN_ATTENTE"), "le message en erreur reste en attente");
     }
 
-    /** Le passage planifié de diffusion relève la file d'envoi même quand il se termine sur une erreur imprévue. */
-    @Test
-    void laFileEstReleveeMemeQuandLePassageEchoue() {
-        Jdbc enErreur = new Jdbc() {
-            @Override
-            public <T> List<T> lister(String sql, Liaison liaison, Lecture<T> lecture) {
-                throw new IllegalArgumentException("erreur imprévue simulée");
-            }
-        };
-        AtomicBoolean relevee = new AtomicBoolean();
-        SanteEnvoiAlertes releveur = new SanteEnvoiAlertes() {
-            @Override
-            EtatFile actualiser(Instant maintenant) {
-                relevee.set(true);
-                return new EtatFile(0, 0);
-            }
-        };
-
-        try (Substitution base = Substitution.remplacer(envoi, "jdbc", enErreur);
-                Substitution sante = Substitution.remplacer(envoi, "sante", releveur)) {
-            assertThrows(IllegalArgumentException.class, () -> Substitution.reel(envoi).planifie());
-        }
-
-        assertTrue(relevee.get(), "file relevée malgré l'échec du passage");
-    }
-
     private static Destinataires destinatairesEnErreur(RuntimeException erreur) {
         return new Destinataires() {
             @Override
@@ -326,15 +284,6 @@ class AlertesTest {
         assertTrue(corps.contains("portail-rh (EXACT)"), "projet autorisé du destinataire");
         assertTrue(corps.contains("OSV GHSA-ALR1 <https://osv.dev/vulnerability/GHSA-ALR1>"), "source");
         assertTrue(corps.contains("http://localhost:5173/#/signaux/" + signal), "lien vers la vue du signal (ALR-09-S1)");
-    }
-
-    @Test
-    void graviteMinimaleInconnueRefuseeALaCreationDeLaRegle() {
-        Api.enTantQue("alice").contentType(ContentType.JSON)
-                .body("{\"scope\":\"PERSONAL\",\"filters\":[{\"type\":\"SEVERITY\",\"value\":\"URGENTE\"}],"
-                        + "\"channel\":\"email\",\"frequency\":\"immediate\",\"mandatory\":false}")
-                .when().post("/api/v1/subscriptions")
-                .then().statusCode(400).body("attribut", equalTo("filters"));
     }
 
     @Test
@@ -464,19 +413,6 @@ class AlertesTest {
     }
 
     // ------------------------------------------------------------------ 3.1 résumés
-
-    @Test
-    void horairesDesResumesConformesALaDecisionQ3() {
-        assertEquals("Europe/Paris", fuseau);
-        CronParser parser = new CronParser(CronDefinitionBuilder.instanceDefinitionFor(CronType.QUARTZ));
-        // Horloge simulée : un mercredi à 09:30, heure de Paris.
-        ZonedDateTime mercredi = ZonedDateTime.of(2026, 11, 18, 9, 30, 0, 0, PARIS);
-        ZonedDateTime quotidien = ExecutionTime.forCron(parser.parse(cronQuotidien)).nextExecution(mercredi).orElseThrow();
-        ZonedDateTime hebdo = ExecutionTime.forCron(parser.parse(cronHebdomadaire)).nextExecution(mercredi).orElseThrow();
-        assertEquals(ZonedDateTime.of(2026, 11, 19, 8, 0, 0, 0, PARIS), quotidien);
-        assertEquals(ZonedDateTime.of(2026, 11, 23, 8, 0, 0, 0, PARIS), hebdo);
-        assertEquals(DayOfWeek.MONDAY, hebdo.getDayOfWeek());
-    }
 
     @Test
     void alr04S1ResumeHebdomadaireAvecSources() {

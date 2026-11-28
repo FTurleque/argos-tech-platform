@@ -9,6 +9,9 @@
   --ko: #b3261e;
   --border: #dde3ea;
   --teal-soft: #e6f2ef;
+  /* Contour de focus : contraste d'au moins 3:1 avec le blanc des cartes comme avec la sarcelle des boutons
+     (WCAG 1.4.11, RGAA 3.3). */
+  --focus: #0b1622;
   font-family: 'Segoe UI', system-ui, -apple-system, Roboto, sans-serif;
   color: var(--text);
   background: var(--bg);
@@ -20,15 +23,15 @@ body { margin: 0; }
 .shell { min-height: 100vh; display: flex; flex-direction: column; }
 
 .topbar {
-  display: flex; align-items: center; justify-content: space-between;
+  display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 0.5rem 1rem;
   padding: 0.75rem 1.5rem; background: var(--navy); color: #fff;
 }
 .brand { display: flex; align-items: baseline; gap: 0.75rem; }
 .brand-name { font-weight: 700; font-size: 1.25rem; letter-spacing: 0.08em; }
-.nav { display: flex; gap: 1rem; }
+.nav { display: flex; flex-wrap: wrap; gap: 0.5rem 1rem; }
 .nav a { color: #fff; text-decoration: none; opacity: 0.85; }
 .nav a.router-link-exact-active { opacity: 1; text-decoration: underline; }
-.session { display: flex; align-items: center; gap: 0.75rem; }
+.session { display: flex; flex-wrap: wrap; align-items: center; gap: 0.75rem; }
 .session a, .session .muted { color: #fff; }
 .badge {
   font-size: 0.75rem; padding: 0.2rem 0.6rem; border-radius: 999px;
@@ -37,10 +40,17 @@ body { margin: 0; }
 
 .content { width: 100%; max-width: 860px; margin: 0 auto; padding: 1.5rem; display: grid; gap: 1rem; }
 
-.card { background: var(--card); border: 1px solid var(--border); border-radius: 10px; padding: 1.25rem 1.5rem; }
+.card {
+  background: var(--card); border: 1px solid var(--border); border-radius: 10px; padding: 1.25rem 1.5rem;
+  /* Identifiants, PURL et adresses longs passent à la ligne : aucun défilement horizontal à 320 px (RGAA 10.11). */
+  min-width: 0; overflow-wrap: anywhere;
+}
 .card h1, .card h2 { margin: 0 0 0.5rem; color: var(--navy); }
 .card h1 { font-size: 1.35rem; }
 .card h2 { font-size: 1.1rem; }
+
+/* Un champ ne dépasse jamais son conteneur : une liste aux options longues reste lisible à 320 px (RGAA 10.11). */
+input, select, textarea { max-width: 100%; }
 
 .muted { color: var(--muted); font-size: 0.9rem; }
 /* Message d'état (rôle status implicite) affiché comme un paragraphe. */
@@ -59,8 +69,10 @@ button {
   padding: 0.45rem 0.9rem; background: var(--teal); color: #fff;
 }
 button.secondary { background: transparent; color: var(--teal); }
-button:focus-visible { outline: 2px solid var(--navy); outline-offset: 2px; }
-.nav a:focus-visible { outline: 2px solid #fff; outline-offset: 2px; }
+/* Focus visible de tout élément interactif de la page (RGAA 10.7) ; la barre de navigation, sur fond marine, a le sien. */
+a:focus-visible, button:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-visible,
+[tabindex]:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
+.nav a:focus-visible, .session a:focus-visible, .topbar button:focus-visible { outline: 2px solid #fff; outline-offset: 2px; }
 
 /* Texte réservé aux technologies d'assistance (annonces des résultats). */
 .sr-only {

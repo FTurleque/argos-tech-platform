@@ -17,7 +17,7 @@
 | Acteur | Interaction | Statut |
 |---|---|---|
 | Utilisateur | choisit sa mise en page sur le web ou le desktop | [EXISTANT] — `#/affichage`, `PreferencesResourceTest`, E2E `e2e/tests/affichage.spec.ts` et `e2e/desktop/affichage.spec.ts` |
-| Administrateur plateforme | publie ou retire une mise en page du catalogue | [EXISTANT] — par configuration (`argos.catalogue.mises-en-page.retirees`), `MiseEnPageRetireeTest` |
+| Administrateur plateforme | publie ou retire une mise en page du catalogue | [EXISTANT] — par configuration (`argos.catalogue.mises-en-page.retirees`), `PreferencesResourceUnitaireTest` |
 
 ## Périmètre et exclusions
 
@@ -50,7 +50,7 @@ Utilisateur authentifié ; mise en page publiée au catalogue.
 |---|---|---|---|
 | Choix de mise en page | `PUT /api/v1/preferences/mise-en-page` `{"miseEnPage": "gazette"}` | doit être publié au catalogue, sinon refus 400 `MISE_EN_PAGE_INCONNUE` (AFF-01) | [EXISTANT] — `PreferencesResource`, `PreferencesResourceTest` |
 | Préférence | `GET /api/v1/preferences` : mise en page appliquée, mise en page choisie, indicateur et message de retrait | enregistrée côté serveur, table `workspace_preference_utilisateur` (AFF-03) | [EXISTANT] — `PreferencesRepository`, migration `V7__preferences_utilisateur.sql`, clé : compte Argos |
-| Catalogue | `GET /api/v1/catalogue/mises-en-page` : mises en page publiées, défaut signalé | une mise en page retirée (`argos.catalogue.mises-en-page.retirees`) n'est plus listée ni choisissable | [EXISTANT] — `CatalogueMisesEnPage`, `CatalogueResourceTest`, `MiseEnPageRetireeTest` |
+| Catalogue | `GET /api/v1/catalogue/mises-en-page` : mises en page publiées, défaut signalé | une mise en page retirée (`argos.catalogue.mises-en-page.retirees`) n'est plus listée ni choisissable | [EXISTANT] — `CatalogueMisesEnPage`, `CatalogueResourceTest`, `PreferencesResourceUnitaireTest` |
 
 ## Règles métier
 
@@ -124,5 +124,5 @@ Aucun écart avec ADR-0022, ADR-0023 et le dossier v2.4 §A.3. Écart avec les m
 | AFF-01 | AFF-01-S1, AFF-01-S2 | DC-1, DF-AFF-1 | 2.1, 2.2 | `argos-server/src/test/java/io/argos/api/preference/PreferencesResourceTest.java`, `OpenApiContractTest.java` — passent |
 | AFF-02 | AFF-02-S1, AFF-02-S2 | DC-2 | 2.3, 2.4 | `argos-ui/tests/architecture.test.mjs`, `argos-ui/tests/mises-en-page.test.mjs` passent ; banc `e2e/accessibilite/mises-en-page.spec.ts` passe ; `argos-ui/tests/veille-affichee.test.mjs` passe ; E2E `e2e/tests/veille.spec.ts` « 2.4 » et « 3.9, AFF-02-S2 (PRF-02-S4) » passent (2026-11-17) |
 | AFF-03 | AFF-03-S1 | DC-1, DF-AFF-1 | 2.5, 5.2 | `PreferencesResourceTest.java` ; E2E web `e2e/tests/affichage.spec.ts` ; E2E web puis desktop `e2e/desktop/affichage.spec.ts` (« fantaisie » choisie sur le web, appliquée par l'application Electron ; « gazette » choisie sur le web, « Ma veille » en gazette sur le desktop) — passent |
-| AFF-04 | AFF-04-S1, AFF-04-S2 | DF-AFF-1 | 2.2 | `PreferencesResourceTest.java`, `MiseEnPageRetireeTest.java`, `argos-ui/tests/resolution.test.mjs` — passent |
+| AFF-04 | AFF-04-S1, AFF-04-S2 | DF-AFF-1 | 2.2 | `PreferencesResourceTest.java`, `PreferencesResourceUnitaireTest.java`, `argos-ui/tests/resolution.test.mjs` — passent |
 | AFF-05 | AFF-05-S1 | — | 1.4, 2.6 | [rapport d'audit](../architecture/quality/audit-accessibilite-mises-en-page.md) ; `argos-ui/tests/contrastes.test.mjs`, `e2e/accessibilite/mises-en-page.spec.ts` passent |

@@ -59,8 +59,16 @@ public final class Fixtures {
     public record ReponseHttp(int status, Map<String, String> entetes, String corps) {
     }
 
-    /** Lit une réponse HTTP enregistrée (fins de ligne CRLF ou LF). */
+    /** Lit une réponse HTTP enregistrée (fins de ligne CRLF ou LF), dates relatives calculées depuis l'instant présent. */
     public static ReponseHttp lireReponse(String path) {
+        return lireReponse(path, Instant.now());
+    }
+
+    /**
+     * Lit une réponse HTTP enregistrée (fins de ligne CRLF ou LF) ; {@code ${maintenant+N}} y vaut l'instant donné plus
+     * N secondes, en secondes depuis l'époque Unix.
+     */
+    public static ReponseHttp lireReponse(String path, Instant instant) {
         String brut = resource(path);
         int separateurCrlf = brut.indexOf("\r\n\r\n");
         int separateurLf = brut.indexOf("\n\n");
@@ -81,7 +89,7 @@ public final class Fixtures {
             throw new IllegalArgumentException("ligne de statut invalide : " + path);
         }
         Map<String, String> entetes = new LinkedHashMap<>();
-        long maintenant = Instant.now().getEpochSecond();
+        long maintenant = instant.getEpochSecond();
         for (int numeroLigne = 1; numeroLigne < lignes.length; numeroLigne++) {
             int deuxPoints = lignes[numeroLigne].indexOf(':');
             if (deuxPoints <= 0) {

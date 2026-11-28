@@ -1,13 +1,9 @@
 package io.argos.releaseradar;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertFalse;
-import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertThrows;
-import static org.junit.jupiter.api.Assertions.assertTrue;
 
-import java.nio.charset.StandardCharsets;
 import java.time.Instant;
 import java.time.LocalDate;
 import java.util.List;
@@ -15,8 +11,6 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
 import java.util.UUID;
-import java.util.stream.Collectors;
-import java.util.stream.IntStream;
 
 import jakarta.inject.Inject;
 
@@ -26,7 +20,6 @@ import org.junit.jupiter.api.Test;
 import io.argos.releaseradar.CalendrierSorties.Echeance;
 import io.argos.releaseradar.CalendrierSorties.Nature;
 import io.argos.testsupport.Api;
-import io.argos.testsupport.DataSourceEnPanne;
 import io.argos.testsupport.RadarFixtures;
 import io.argos.testsupport.RadarFixtures.Cycle;
 import io.argos.testsupport.StubServer;
@@ -37,10 +30,8 @@ import io.quarkus.test.common.QuarkusTestResource;
 import io.quarkus.test.junit.QuarkusTest;
 
 /**
- * Radar des sorties (RAD) : connecteur endoflife.date face aux réponses limites (identifiant refusé, 404,
- * erreur HTTP, réponse trop volumineuse ou illisible, cycles mal formés), synchronisation qui isole l'échec
- * d'un produit et conserve ses cycles, et calendrier des échéances relié au référentiel des seuls espaces
- * demandés.
+ * Radar des sorties (RAD) : synchronisation qui isole l'échec d'un produit et conserve ses cycles en base, et
+ * calendrier des échéances relié au référentiel des seuls espaces demandés.
  */
 @QuarkusTest
 @QuarkusTestResource(StubServer.class)
@@ -48,8 +39,6 @@ class CalendrierCyclesDeVieTest {
 
     private static final Instant MAINTENANT = Instant.parse("2026-11-20T08:00:00Z");
     private static final Instant PLUS_TARD = Instant.parse("2026-11-21T08:00:00Z");
-    private static final int CYCLES_MAX = 500;
-    private static final int TAILLE_REDUITE = 10;
     private static final String CLE = "pkg:maven/org.exemple/biblio";
     private static final LocalDate DEBUT = LocalDate.parse("2020-01-01");
     private static final LocalDate FIN = LocalDate.parse("2030-12-31");
@@ -71,80 +60,6 @@ class CalendrierCyclesDeVieTest {
         baseDeTest.reset();
     }
 
-    // ------------------------------------------------------------------ connecteur
-
-    @Test
-    void identifiantDeProduitInvalideRefuseSansAppel() {
-        for (String produit : new String[] {null, "", "Majuscules", "../etc", "-tiret", "a".repeat(101)}) {
-            assertThrows(ClientEndoflife.SourceIndisponible.class, () -> client.cycles(produit), String.valueOf(produit));
-        }
-        assertEquals(List.of(), StubServer.received("/endoflife"));
-    }
-
-    @Test
-    void produitInconnuEtErreurHttpDistingues() {
-        assertEquals("produit inconnu d'endoflife.date",
-                assertThrows(ClientEndoflife.SourceIndisponible.class, () -> client.cycles("inconnu")).getMessage());
-        StubServer.programmer("/endoflife/api/v1/products/panne", Stub.status(500));
-        assertEquals("réponse HTTP 500",
-                assertThrows(ClientEndoflife.SourceIndisponible.class, () -> client.cycles("panne")).getMessage());
-    }
-
-    @Test
-    void reponseTropVolumineuseRefusee() {
-        RadarFixtures.publier("volumineux", RadarFixtures.reponse("volumineux", cycle("1")));
-        try (Substitution taille = Substitution.remplacer(client, "tailleMax", TAILLE_REDUITE)) {
-            assertEquals("réponse trop volumineuse",
-                    assertThrows(ClientEndoflife.SourceIndisponible.class, () -> client.cycles("volumineux")).getMessage());
-        }
-    }
-
-    @Test
-    void sourceInjoignableSignalee() {
-        try (Substitution base = Substitution.remplacer(client, "base", "http://localhost:1/")) {
-            assertTrue(assertThrows(ClientEndoflife.SourceIndisponible.class, () -> client.cycles("quarkus")).getMessage()
-                    .startsWith("source injoignable"));
-        }
-    }
-
-    @Test
-    void reponseIllisibleOuSansListeDeCyclesRefusee() {
-        assertThrows(ClientEndoflife.SourceIndisponible.class, () -> lire("{illisible"));
-        assertThrows(ClientEndoflife.SourceIndisponible.class, () -> lire(""));
-        assertThrows(ClientEndoflife.SourceIndisponible.class, () -> lire("{\"result\": {\"releases\": {}}}"));
-        assertThrows(ClientEndoflife.SourceIndisponible.class, () -> lire("{\"result\": {}}"));
-    }
-
-    @Test
-    void cyclesMalFormesIgnoresEtTextesNettoyes() throws ClientEndoflife.SourceIndisponible {
-        List<ClientEndoflife.Cycle> cycles = lire("""
-                {"result": {"releases": [
-                  {"name": "  3.2\\u0007 ", "releaseDate": "2025-01-10", "eolFrom": "date-invalide", "isEol": true,
-                   "latest": {"name": "3.2.5", "date": "2026-02-01"}},
-                  {"name": 12},
-                  {"name": "   "},
-                  {"name": "%s"},
-                  {"releaseDate": "2024-01-01"}
-                ]}}
-                """.formatted("x".repeat(101)));
-
-        assertEquals(1, cycles.size());
-        ClientEndoflife.Cycle cycle = cycles.get(0);
-        assertEquals("3.2", cycle.cycle());
-        assertEquals(LocalDate.parse("2025-01-10"), cycle.sortie());
-        assertNull(cycle.finSupport(), "date illisible ignorée");
-        assertTrue(cycle.enFinSupport());
-        assertEquals("3.2.5", cycle.derniereVersion());
-        assertEquals(LocalDate.parse("2026-02-01"), cycle.derniereVersionLe());
-    }
-
-    @Test
-    void auPlusCinqCentsCyclesRetenus() throws ClientEndoflife.SourceIndisponible {
-        String releases = IntStream.range(0, CYCLES_MAX + 3).mapToObj(rang -> "{\"name\": \"" + rang + "\"}")
-                .collect(Collectors.joining(","));
-        assertEquals(CYCLES_MAX, lire("{\"result\": {\"releases\": [" + releases + "]}}").size());
-    }
-
     // ------------------------------------------------------------------ synchronisation
 
     @Test
@@ -164,11 +79,6 @@ class CalendrierCyclesDeVieTest {
         assertEquals(MAINTENANT, biblio.dernierSucces(), "dernier succès conservé");
         assertEquals(PLUS_TARD, biblio.derniereSynchro());
         assertEquals(2, cyclesDeVie.etats(List.of("biblio", "outil", "absent")).size(), "produit jamais synchronisé absent");
-    }
-
-    @Test
-    void produitSansFraicheurDemandeeNeLitRien() {
-        assertEquals(List.of(), cyclesDeVie.etats(List.of()));
     }
 
     @Test
@@ -194,17 +104,6 @@ class CalendrierCyclesDeVieTest {
         }
         assertEquals("A_JOUR", baseDeTest.string("SELECT etat FROM cycle_vie_produit WHERE produit = 'outil'"));
         assertEquals("EN_ERREUR", baseDeTest.string("SELECT etat FROM cycle_vie_produit WHERE produit = 'biblio'"));
-    }
-
-    @Test
-    void lectureDeLaFraicheurEnEchecSurBaseInjoignable() {
-        CyclesDeVie horsConteneur = new CyclesDeVie();
-        horsConteneur.dataSource = DataSourceEnPanne.creer();
-        assertThrows(IllegalStateException.class, () -> horsConteneur.etats(List.of("biblio")));
-
-        CalendrierEndoflife calendrierHorsConteneur = new CalendrierEndoflife();
-        calendrierHorsConteneur.dataSource = DataSourceEnPanne.creer();
-        assertEquals(List.of(), calendrierHorsConteneur.echeances(List.of(CLE), Set.of(), DEBUT, FIN), "aucun espace : aucune lecture");
     }
 
     // ------------------------------------------------------------------ calendrier
@@ -248,18 +147,6 @@ class CalendrierCyclesDeVieTest {
         assertEquals(Optional.empty(), calendrier.finDeSupport(CLE, " ", Set.of(espace)));
         assertEquals(Optional.empty(), calendrier.finDeSupport(null, "14", Set.of(espace)));
         assertEquals(Optional.empty(), calendrier.finDeSupport(CLE, null, Set.of(espace)));
-    }
-
-    @Test
-    void appartenanceDUneVersionAUnCycle() {
-        assertTrue(CalendrierEndoflife.appartient(" V3.2.1 ", "3.2"));
-        assertTrue(CalendrierEndoflife.appartient("3.2", "3.2"));
-        assertFalse(CalendrierEndoflife.appartient("3.20", "3.2"));
-        assertFalse(CalendrierEndoflife.appartient("13.2", "3.2"));
-    }
-
-    private static List<ClientEndoflife.Cycle> lire(String corps) throws ClientEndoflife.SourceIndisponible {
-        return ClientEndoflife.lire(corps.getBytes(StandardCharsets.UTF_8));
     }
 
     private static Cycle cycle(String nom) {

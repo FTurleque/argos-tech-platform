@@ -15,6 +15,8 @@ import java.util.Optional;
 
 import org.junit.jupiter.api.Test;
 
+import io.argos.testsupport.Fixtures;
+
 /**
  * Règles locales du connecteur de forges, sans appel réseau : détection d'un quota épuisé (429, 403 signalé par
  * en-tête ou par message) et date de reprise bornée ; validation d'un dépôt GitHub ; reconnaissance des formats
@@ -115,6 +117,9 @@ class QuotasEtFormatsForgeTest {
         assertEquals(SbomDocument.Format.CYCLONEDX_XML,
                 format("<?xml version=\"1.0\"?><bom xmlns=\"http://cyclonedx.org/schema/bom/1.6\"/>"));
         assertEquals(SbomDocument.Format.SPDX_TAG_VALUE, format("\nSPDXVersion: SPDX-2.3\nDataLicense: CC0-1.0"));
+        // Documents servis par les forges : graphe de dépendances GitHub (SPDX JSON) et CycloneDX XML.
+        assertEquals(SbomDocument.Format.SPDX_JSON, format(Fixtures.resource("scm/github/dependency-graph-sbom.json")));
+        assertEquals(SbomDocument.Format.CYCLONEDX_XML, format(Fixtures.resource("scm/github/bom.cdx.xml")));
     }
 
     @Test

@@ -1,45 +1,67 @@
 // Tests de bout en bout d'ARGOS (e2e/README.md). La base PostgreSQL jetable est démarrée par
-// scripts/lancer.mjs (e2e/compose.yaml) ; Playwright démarre le serveur (quarkus:dev, Keycloak des
-// Dev Services sur 8180 avec le royaume de test) et le portail web (Vite, port 5173), ou réutilise
-// ceux qui tournent déjà. Le projet « desktop » pilote le client Electron argos-desktop
+// scripts/lancer.mjs (e2e/compose.yaml) ; Playwright démarre les sources simulées, puis le serveur
+// (quarkus:dev, Keycloak des Dev Services sur 8180 avec le royaume de test) et le portail web (Vite, port
+// 5173), ou l'image construite (ARGOS_E2E_IMAGE, e2e/compose.image.yaml), qui sert les deux. Un port déjà
+// occupé fait échouer le lancement, sauf demande explicite de réutilisation (ARGOS_E2E_REUTILISER=1,
+// support/pile.mjs). Le projet « desktop » pilote le client Electron argos-desktop
 // (support/electron.ts) contre la même pile ; le projet « mcp » rejoue au niveau du protocole un
 // assistant configuré par un .mcp.json (support/mcp.ts).
 import { defineConfig, devices } from '@playwright/test'
 import { URL_API, URL_IHM } from './support/environnement'
 import { identificationBaseE2E } from './support/base-e2e.mjs'
+import { cheminDocker } from './support/docker.mjs'
 import { ligneServeurMaven } from './support/maven.mjs'
+import { argumentsCompose, ENVIRONNEMENT_SERVEUR, IMAGE, PORT_SOURCES, REUTILISER } from './support/pile.mjs'
 
 const DEUX_MINUTES = 120_000
+const CINQ_MINUTES = 5 * 60_000
 
-// Tâches planifiées qui joindraient une source externe : désactivées (aucun appel à Internet).
-const SANS_COLLECTE_EXTERNE = {
-  ARGOS_REGLEMENTAIRE_COLLECTE_CRON: 'off',
-  ARGOS_ARTISTE_COLLECTE_CRON: 'off',
-  ARGOS_RADAR_CRON: 'off',
-  ARGOS_ACTIVITE_CADENCE: 'off',
-  ARGOS_VEILLE_WEB_CADENCE: 'off',
+const SOURCES = `http://localhost:${PORT_SOURCES}`
+
+/** Image construite (e2e/compose.image.yaml), au premier plan : Playwright l'arrête à la fin des tests. */
+function serveurImage() {
+  const ligne = [cheminDocker(), ...argumentsCompose(), 'up', '--no-log-prefix', 'argos']
+    .map((argument) => `"${argument}"`).join(' ')
+  return {
+    command: ligne,
+    url: `${URL_API}/q/health/ready`,
+    timeout: CINQ_MINUTES,
+    reuseExistingServer: false,
+    stdout: 'ignore' as const,
+    stderr: 'pipe' as const,
+    env: { ...ENVIRONNEMENT_SERVEUR },
+  }
 }
 
-// Chaîne automatisée (automatiser-chaine-veille, tâche 4.3 ; [PROPOSITION] PI-1) : la synchronisation des sources
-// d'avis (J1) et l'import des inventaires (J3) restent actifs, rapprochés à 5 secondes, et n'interrogent que les
-// sources et forges simulées de support/sources-simulees.mjs ; jetons de forge fictifs.
-const PORT_SOURCES = Number(process.env.ARGOS_E2E_PORT_SOURCES ?? 8099)
-const SOURCES = `http://localhost:${PORT_SOURCES}`
-const CHAINE_SIMULEE = {
-  ARGOS_INGESTION_PLANIFICATION_CADENCE: '5s',
-  ARGOS_INVENTORY_IMPORT_CRON: '*/5 * * * * ?',
-  ARGOS_SOURCES_OSV_EXPORT_URL: `${SOURCES}/osv-export`,
-  ARGOS_SOURCES_OSV_API_URL: `${SOURCES}/osv-api`,
-  ARGOS_SOURCES_OSV_ECOSYSTEMS: 'Maven',
-  ARGOS_SOURCES_NVD_URL: `${SOURCES}/nvd`,
-  ARGOS_SOURCES_KEV_URL: `${SOURCES}/kev.json`,
-  ARGOS_SOURCES_EPSS_URL: `${SOURCES}/epss`,
-  ARGOS_SOURCES_CERTFR_FEED_URL: `${SOURCES}/certfr/feed/`,
-  ARGOS_SOURCES_CERTFR_BASE_URL: `${SOURCES}/certfr/`,
-  ARGOS_SCM_GITLAB_URL: `${SOURCES}/gitlab`,
-  ARGOS_SCM_GITHUB_URL: `${SOURCES}/github`,
-  ARGOS_GITLAB_TOKEN: 'jeton-fictif-e2e',
-  ARGOS_GITHUB_TOKEN: 'jeton-fictif-e2e',
+/** Serveur de développement : Maven par son chemin absolu (support/maven.mjs), jamais par le PATH. */
+function serveurDeveloppement() {
+  return {
+    command: ligneServeurMaven(['-B', '-q', '-f', '../argos-server/pom.xml', 'quarkus:dev',
+      '-Dquarkus.console.enabled=false']),
+    url: `${URL_API}/q/health/ready`,
+    timeout: CINQ_MINUTES,
+    reuseExistingServer: REUTILISER,
+    stdout: 'ignore' as const,
+    stderr: 'pipe' as const,
+    env: {
+      ...ENVIRONNEMENT_SERVEUR,
+      _DEV_QUARKUS_DATASOURCE_JDBC_URL: 'jdbc:postgresql://localhost:55432/argos',
+      ...identificationBaseE2E(),
+      QUARKUS_HTTP_PORT: new URL(URL_API).port,
+    },
+  }
+}
+
+/** Portail web servi par Vite pour l'API de la pile. */
+function portailVite() {
+  return {
+    command: 'npm --prefix ../argos-ui run dev -- --port 5173 --strictPort',
+    url: URL_IHM,
+    timeout: DEUX_MINUTES,
+    reuseExistingServer: REUTILISER,
+    stdout: 'ignore' as const,
+    env: { VITE_ARGOS_API_URL: URL_API },
+  }
 }
 
 export default defineConfig({
@@ -87,30 +109,6 @@ export default defineConfig({
       stdout: 'ignore',
       env: { ARGOS_E2E_PORT_SOURCES: String(PORT_SOURCES) },
     },
-    {
-      // Maven par son chemin absolu (support/maven.mjs), jamais par le PATH.
-      command: ligneServeurMaven(['-B', '-q', '-f', '../argos-server/pom.xml', 'quarkus:dev',
-        '-Dquarkus.console.enabled=false']),
-      url: `${URL_API}/q/health/ready`,
-      timeout: 5 * 60_000,
-      reuseExistingServer: true,
-      stdout: 'ignore',
-      stderr: 'pipe',
-      env: {
-        ...SANS_COLLECTE_EXTERNE,
-        ...CHAINE_SIMULEE,
-        _DEV_QUARKUS_DATASOURCE_JDBC_URL: 'jdbc:postgresql://localhost:55432/argos',
-        ...identificationBaseE2E(),
-        QUARKUS_HTTP_PORT: new URL(URL_API).port,
-      },
-    },
-    {
-      command: 'npm --prefix ../argos-ui run dev -- --port 5173 --strictPort',
-      url: URL_IHM,
-      timeout: DEUX_MINUTES,
-      reuseExistingServer: true,
-      stdout: 'ignore',
-      env: { VITE_ARGOS_API_URL: URL_API },
-    },
+    ...(IMAGE ? [serveurImage()] : [serveurDeveloppement(), portailVite()]),
   ],
 })

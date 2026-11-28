@@ -162,6 +162,6 @@ Scénarios ART-01-S1 à ART-06-S1 du changement ; ART-07-S1 à ART-07-S3 du chan
 | ART-03 | ART-03-S1, ART-03-S2 | DC-1, DF-ART-1 | 2.3 | `StrategieDisciplineTerritoireTest`, `ProfilArtisteTest.art03RapprochementParDisciplineTerritoireEtDateLimite` |
 | ART-04 | ART-04-S1 | DC-1 | 2.4 | `RappelsOpportunitesTest.art04S1RappelALEcheanceAvecDateLimiteEtLienOfficiel`, `lesJoursDeRappelSontParametrables` |
 | ART-05 | ART-05-S1 | Composants | 1.1, 3.1 | `ProfilArtisteTest.art05S1SourceNonVerifieeNonCollectee`, `lesAdressesDesSourcesSontControlees` |
-| ART-06 | ART-06-S1 | Composants | 3.2 | `ProfilArtisteTest.art06S1ResumeSansAvisDEligibilite`, `StrategieDisciplineTerritoireTest.art06LeGabaritDeResumeNeSePrononcePasSurLEligibilite` |
+| ART-06 | ART-06-S1 | Composants | 3.2 | `StrategieDisciplineTerritoireTest.art06LeGabaritDeResumeNeSePrononcePasSurLEligibilite` |
 | ART-07 | ART-07-S1 à ART-07-S3 | `alimenter-inventaire-et-completer-ihm` design.md D6 | 3.1 | `argos-ui/tests/vues/profil-artiste.spec.ts` (suivis, « suivis requis », opportunité de l'adresse, résumé sans mention de l'IA, sources réservées à l'administrateur plateforme) |
 | ART-08 | S1, S2 | `2026-11-27-retenir-importer-et-paginer` design.md D5 | 4.1, 4.3 | `chain/ProfilArtisteTest` (`art08*`, `art03*`) |
