@@ -1,0 +1,143 @@
+[
+ {
+  "numero": 1,
+  "titre": "Sécurité et exploitation",
+  "pourquoi": "Le delta a ouvert une délégation confuse (n'importe quel compte lit des dépôts privés avec les jetons du serveur) et un risque d'arrêt brutal à l'amorçage OSV (archives dans un /tmp en mémoire). Ce lot est indépendant du sprint 2 : les deux peuvent être menés en parallèle.",
+  "sortie": "Le rattachement d'un dépôt n'est accepté que pour un propriétaire GitHub/GitLab inscrit sur une liste blanche réglée par l'administrateur, vérifié par un test qui tente un dépôt hors liste ; l'amorçage OSV écrit ses archives sous un répertoire disque configurable hors du tmpfs (java.io.tmpdir ou réglage dédié), et le tmpfs /tmp de compose.yaml a une taille fixée ; les imports SBOM et manifestes ont une limite de débit et un plafond de composants, testés ; les contrôles de santé publics ne disent que UP/DOWN, le détail restant réservé à l'administrateur ; npm ci du Dockerfile tourne avec --ignore-scripts ; les sauvegardes sont chiffrées.",
+  "constats": [
+   "AUD-SEC-34",
+   "AUD-PER-30",
+   "AUD-SEC-35",
+   "AUD-SEC-36",
+   "AUD-DEP-32",
+   "AUD-SEC-07"
+  ],
+  "charge": [
+   2.25,
+   8
+  ],
+  "partiels": [
+   "AUD-SEC-07"
+  ]
+ },
+ {
+  "numero": 2,
+  "titre": "Chaîne de publication du client desktop",
+  "pourquoi": "La publication sur étiquette construit un installeur figé sur localhost:8080, sans tests ni contrôle d'origine, puis la mise à jour automatique le distribue à tous les postes sans vérification d'authenticité. Mesure conservatoire : ne poser aucune étiquette desktop-v* avant la fin de ce sprint.",
+  "sortie": "Le workflow de publication rejoue la CI (tests desktop, npm audit) et n'accepte qu'une étiquette posée sur un commit de main ; l'installeur publié lit l'adresse du serveur et l'émetteur à l'exécution (ou les reçoit à l'emballage) et un test vérifie qu'aucune adresse localhost n'y est figée ; les installeurs sont signés et la mise à jour automatique vérifie la signature (publisherName), ou est désactivée tant qu'ils ne le sont pas ; le job de construction n'a plus contents: write ni id-token: write ; argos-desktop passe tsc en mode strict ; la version de Keycloak de l'e2e est suivie par Renovate. La suite serveur passe sur un poste Windows avec core.autocrlf=true (fins de ligne fixées par .gitattributes).",
+  "constats": [
+   "AUD-DEP-29",
+   "AUD-DEP-30",
+   "AUD-SEC-33",
+   "AUD-DEP-15",
+   "AUD-QUA-27",
+   "AUD-DEP-31",
+   "AUD-TST-32"
+  ],
+  "charge": [
+   4.75,
+   15
+  ],
+  "partiels": [
+   "AUD-DEP-15"
+  ]
+ },
+ {
+  "numero": 3,
+  "titre": "Frontières d'erreur et file d'enrichissement",
+  "pourquoi": "Le resserrement des captures a été corrigé pour les PURL, mais la règle s'appuie sur IllegalStateException et six boucles planifiées y échappent ; la file d'enrichissement peut être bloquée par cinq signaux en erreur et son débit fixe retarde de plusieurs jours l'enrichissement après un amorçage.",
+  "sortie": "Le JDBC hors noyau est migré vers l'utilitaire commun et ses traductions de SQLException lèvent une erreur de la hiérarchie du domaine (ErreurBase) ; les frontières capturent cette hiérarchie et non IllegalStateException ; chaque boucle planifiée a un test d'erreur imprévue (règle 6 d'arc42 §8.5) ; un signal en erreur persistante est reporté puis abandonné, testé ; la file d'enrichissement ignore les signaux sans CVE, traite les avis récents avant l'arriéré (test d'ordre) et ne dépasse pas 5 requêtes NVD par 30 s sans clé (test du limiteur) ; la corrélation ne s'exécute plus dans le fil d'ingestion ; le traitement de synchronisation est rafraîchi pendant les téléchargements et ses transitions exigent l'état RUNNING ; une erreur n'est journalisée qu'une fois avec sa pile et aucune traduction ne perd sa cause.",
+  "constats": [
+   "AUD-QUA-06",
+   "AUD-QUA-26",
+   "AUD-QUA-25",
+   "AUD-QUA-24",
+   "AUD-PER-31",
+   "AUD-PER-02",
+   "AUD-PER-32",
+   "AUD-QUA-28",
+   "AUD-QUA-29"
+  ],
+  "charge": [
+   6.0,
+   19
+  ],
+  "partiels": [
+   "AUD-QUA-06",
+   "AUD-PER-02"
+  ]
+ },
+ {
+  "numero": 4,
+  "titre": "Données, isolation et contrats",
+  "pourquoi": "Il reste des listes non bornées, des purges sur colonnes non indexées, des tables exclues de la conservation, une matrice d'autorisations qui ne prouve pas l'isolation entre espaces, et des types IHM non confrontés à l'OpenAPI.",
+  "sortie": "Toutes les listes de l'API, les abonnements PROJECT et les lectures d'impacts par projet sont paginés ou bornés, et « Ma veille » annonce un total exact ; chaque colonne filtrée par une purge est indexée ; signal_version, alerte et les impacts résolus ont une rétention écrite et appliquée ; la matrice des rôles prouve l'isolation entre deux espaces pour chaque opération sur objet (y compris MCP) ; les types de requête et de réponse de l'IHM sont générés depuis /q/openapi ou vérifiés contre lui, et chaque point d'entrée du profil artiste a un client ; les lectures SQL étrangères passent par un service de lecture ou une vue (ADR-0037).",
+  "constats": [
+   "AUD-PER-10",
+   "AUD-PER-33",
+   "AUD-PER-37",
+   "AUD-PER-34",
+   "AUD-PER-35",
+   "AUD-SEC-37",
+   "AUD-ARC-12",
+   "AUD-ARC-15",
+   "AUD-ARC-06"
+  ],
+  "charge": [
+   6.0,
+   19
+  ],
+  "partiels": [
+   "AUD-PER-10",
+   "AUD-ARC-12",
+   "AUD-ARC-15",
+   "AUD-ARC-06"
+  ]
+ },
+ {
+  "numero": 5,
+  "titre": "Décisions et cohérence des modules",
+  "pourquoi": "Plusieurs ADR appliqués restent « Proposé », les package-info ne décrivent plus la table des dépendances, et deux changements OpenSpec actifs sont déjà fusionnés. La structure du code (recherche dans signal, langue par concept, seuils PMD) a été réglée par la PR #80.",
+  "sortie": "Les ADR 0034, 0035 et 0038 à 0041 ont le statut Accepté ; les changements OpenSpec fusionnés sont archivés ; chaque module de premier niveau a un package-info qui concorde avec la table ModuleBoundariesTest, vérifié par un test.",
+  "constats": [
+   "AUD-ARC-14",
+   "AUD-DEP-33",
+   "AUD-ARC-25"
+  ],
+  "charge": [
+   0.75,
+   3
+  ],
+  "partiels": [
+   "AUD-ARC-14"
+  ]
+ },
+ {
+  "numero": 6,
+  "titre": "Documentation alignée",
+  "pourquoi": "La documentation a été réalignée au sprint 12, mais des écarts subsistent : sources citant un dossier d'audit non versionné, preuve de test supprimée, arc42 §8 et §9 en retard, versions des README dépassées, diagrammes d'archives qui ne se rendent pas.",
+  "sortie": "Le dossier docs/audit est versionné et les lignes « Source » des spécifications pointent vers un fichier existant ; verifier-docs contrôle les ancres de méthode de test et échoue sur une méthode inexistante ; arc42 §8.7 et §9.1 listent toutes les migrations et tous les ADR ; les README des sous-projets ne citent pas de version que Renovate a dépassée (ou renvoient au pom et aux lockfiles) ; tous les blocs Mermaid du dépôt, archives comprises, se rendent ; le registre des spécifications concorde avec les tasks.md. Le guide et un README d'argos-desktop décrivent la configuration réelle du client (adresse du serveur et émetteur) ; la section Licence du README renvoie à ADR-0025 ; les ADR acceptés n'ont plus de clause conditionnelle caduque.",
+  "constats": [
+   "AUD-DOC-29",
+   "AUD-DOC-27",
+   "AUD-DOC-04",
+   "AUD-DOC-01",
+   "AUD-DOC-08",
+   "AUD-DOC-07",
+   "AUD-DOC-24",
+   "AUD-DOC-25",
+   "AUD-DOC-26",
+   "AUD-DOC-28"
+  ],
+  "charge": [
+   2.5,
+   10
+  ],
+  "partiels": [
+   "AUD-DOC-04",
+   "AUD-DOC-01",
+   "AUD-DOC-08",
+   "AUD-DOC-07"
+  ]
+ }
+]

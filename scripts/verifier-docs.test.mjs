@@ -17,9 +17,13 @@ test('les motifs, chemins générés, noms sans extension et dossiers hors dép�
   const ligne = [
     '`docs/specifications/<capability-path>.md`', '`argos-server/target/site/jacoco/index.html`',
     '`openspec/changes/*/tasks.md`', '`e2e/chaine-front`', '`io.argos.mcp`', '`ARGOS_DB_URL`',
-    '`npm --prefix e2e test`', '`docs/audit/2026-11-21/findings.md`', '`src/main.js`',
+    '`npm --prefix e2e test`', '`src/main.js`',
   ].join(' ');
   assert.deepEqual(cheminsCites(ligne), []);
+});
+
+test('un audit daté cité en code est relevé comme tout fichier du dépôt', () => {
+  assert.deepEqual(cheminsCites('voir `docs/audit/2026-11-21/findings.md`'), ['docs/audit/2026-11-21/findings.md']);
 });
 
 test('seuls les README des dossiers de premier niveau hors docs, openspec et dossiers cachés sont retenus', () => {

@@ -27,16 +27,17 @@ const FICHIERS_RACINE = ['README.md'];
 const HORS_SOUS_PROJETS = new Set(['docs', 'openspec', 'node_modules']);
 // Chemins cités entre accents graves : seuls ceux qui commencent par un dossier du dépôt et désignent un fichier (nom
 // avec extension) ou un dossier (« / » final) sont contrôlés ; un chemin généré (sortie de build, rapports), un motif
-// (joker, gabarit) ou un nom de dépôt de forge (`e2e/chaine-front`) ne l'est pas. Le plan d'audit de docs/audit/ est
-// conservé hors du dépôt par le porteur du projet : ses citations ne sont pas contrôlées.
+// (joker, gabarit) ou un nom de dépôt de forge (`e2e/chaine-front`) ne l'est pas.
 const DOSSIERS_CITES = new Set(['docs', 'openspec', 'argos-server', 'argos-ui', 'argos-desktop', 'e2e', 'scripts',
   'deploiement', '.github', '.archgate']);
 const CHEMIN_GENERE = /(^|\/)(target|node_modules|release|resultats|dist|test-results|playwright-report)(\/|$)/;
 const CHEMIN_MOTIF = /[<>*{}$|\s]|\.\.\./;
-const CHEMINS_HORS_DEPOT = ['docs/audit/'];
+// Les audits datés et les changements archivés décrivent le dépôt à leur date : leurs liens et chemins cités ne
+// suivent pas les renommages ultérieurs, ils ne sont donc pas parcourus.
 const EXCLUS = [
   join('openspec', 'schemas'),
   join('openspec', 'changes', 'archive'),
+  join('docs', 'audit'),
 ];
 const TYPES_MERMAID = [
   'flowchart', 'graph', 'sequenceDiagram', 'classDiagram', 'stateDiagram-v2',
@@ -163,7 +164,6 @@ export function cheminsCites(ligne) {
     const premier = brut.split('/')[0];
     if (!brut.includes('/') || !DOSSIERS_CITES.has(premier)) continue;
     if (CHEMIN_MOTIF.test(brut) || CHEMIN_GENERE.test(brut)) continue;
-    if (CHEMINS_HORS_DEPOT.some((prefixe) => brut.startsWith(prefixe))) continue;
     const dossier = brut.endsWith('/');
     if (!dossier && !/\.[A-Za-z0-9]+$/.test(brut.split('/').pop())) continue;
     chemins.push(dossier ? brut.slice(0, -1) : brut);

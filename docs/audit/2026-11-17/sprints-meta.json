@@ -1,0 +1,170 @@
+[
+ {
+  "numero": 1,
+  "titre": "Remettre les gates en marche",
+  "pourquoi": "Aucun test n'est exécuté automatiquement, l'image est construite avec -DskipTests et un build incrémental a lancé 0 test sans le signaler : sans gate fiable, aucune correction des sprints suivants n'est vérifiable. Ce sprint ne touche presque pas au code applicatif.",
+  "sortie": "Chaque push lance, sur JDK 17, mvn -B clean verify, npm test et vue-tsc (IHM et desktop), le contrôle documentaire et npm audit ; la couverture JaCoCo est publiée avec un seuil qui fait échouer le build ; la modification d'une migration déjà fusionnée fait échouer la CI ; un paquet io.argos non déclaré fait échouer ModuleBoundariesTest ; toutes les images (production et tests) sont épinglées et Renovate ouvre les mises à jour.",
+  "constats": [
+   "AUD-TST-01",
+   "AUD-TST-19",
+   "AUD-DEP-20",
+   "AUD-TST-02",
+   "AUD-ARC-07",
+   "AUD-DEP-06",
+   "AUD-DEP-05"
+  ],
+  "charge": [
+   2.5,
+   9
+  ]
+ },
+ {
+  "numero": 2,
+  "titre": "Exploitation sûre : sauvegarde, déploiement, SSRF",
+  "pourquoi": "Le NAS est la seule cible réelle : une sauvegarde qui échoue en silence et un compose qui ne transmet pas la configuration SMTP sont une perte de données et des fonctions mortes en production. Les fichiers d'exploitation (compose.yaml, Dockerfile, script de sauvegarde) sont traités ici en un seul lot. Le contournement SSRF par rebinding, à fenêtre étroite, est corrigé avant l'ouverture au public.",
+  "sortie": "Un pg_dump en échec fait sortir le script en erreur sans rotation ; une restauration a été rejouée de bout en bout sur une base vierge ; un test compare les ${ARGOS_*} lus par application.properties à compose.yaml et .env.example et échoue sur tout écart ; les conteneurs argos et ollama ont un healthcheck et la JVM s'arrête sur OutOfMemoryError ; un test avec un résolveur DNS qui change de réponse prouve que la veille web se connecte à l'adresse validée.",
+  "constats": [
+   "AUD-QUA-02",
+   "AUD-SEC-07",
+   "AUD-DEP-03",
+   "AUD-DEP-01",
+   "AUD-SEC-06",
+   "AUD-DEP-08",
+   "AUD-PER-12",
+   "AUD-SEC-01"
+  ],
+  "charge": [
+   2.75,
+   10
+  ]
+ },
+ {
+  "numero": 3,
+  "titre": "Observabilité et socle d'exécution",
+  "pourquoi": "Les sprints 7 et 8 déplacent l'ingestion hors des requêtes et réécrivent les requêtes chaudes : sans métriques ni journaux structurés, une régression de débit ou une tâche bloquée ne se verrait pas. L'observabilité passe donc avant les corrections de fond, même sans dépendance formelle.",
+  "sortie": "Le serveur expose des métriques (/q/metrics) et des journaux JSON en production, avec un contrôle de santé par tâche planifiée ; une recherche de Instant.now() et LocalDate.now() dans src/main ne trouve plus que le producteur du bean Clock ; les exécuteurs sont gérés par CDI ; les en-têtes de sécurité HTTP sont posés et vérifiés par un test.",
+  "constats": [
+   "AUD-DEP-07",
+   "AUD-QUA-10",
+   "AUD-TST-06",
+   "AUD-QUA-11",
+   "AUD-SEC-05"
+  ],
+  "charge": [
+   2.0,
+   7
+  ]
+ },
+ {
+  "numero": 4,
+  "titre": "Décisions écrites et noyau commun",
+  "pourquoi": "Plusieurs mécanismes partagés (contexte RLS, transactions, accès JDBC, propriété des tables) sont recopiés ou implicites. Les décisions doivent être écrites en ADR avant que les modules consommateurs soient migrés vers un mécanisme unique.",
+  "sortie": "Les ADR en vigueur ont un statut à jour ; un module transverse unique porte le contexte RLS, le modèle transactionnel et l'utilitaire JDBC, et aucune autre classe ne pose SET LOCAL ROLE ni setAutoCommit ; la propriété de chaque table est documentée et les lectures croisées sont vérifiées par un test.",
+  "constats": [
+   "AUD-ARC-14",
+   "AUD-ARC-05",
+   "AUD-ARC-04",
+   "AUD-QUA-06",
+   "AUD-ARC-06",
+   "AUD-QUA-04",
+   "AUD-QUA-08"
+  ],
+  "charge": [
+   4.75,
+   15
+  ]
+ },
+ {
+  "numero": 5,
+  "titre": "Authentification de bout en bout",
+  "pourquoi": "L'IHM et le desktop n'envoient aucun jeton alors que toutes les routes, IHM statique comprise, exigent OIDC : en image Docker, même index.html reçoit 401. Les tests de main.js et preload.js sont écrits d'abord, pour protéger la configuration Electron pendant que le flux PKCE la modifie.",
+  "sortie": "Un utilisateur se connecte depuis le portail web et le desktop par Keycloak (code + PKCE) et toutes les vues fonctionnent avec son jeton ; client.ts n'a plus qu'une fonction d'appel ; un test parcourt chaque point d'entrée REST pour chaque rôle ; main.js et preload.js sont couverts par des tests.",
+  "constats": [
+   "AUD-TST-10",
+   "AUD-ARC-12",
+   "AUD-ARC-02",
+   "AUD-TST-05",
+   "AUD-SEC-04",
+   "AUD-SEC-09"
+  ],
+  "charge": [
+   3.75,
+   12
+  ]
+ },
+ {
+  "numero": 6,
+  "titre": "Alimenter l'inventaire et couvrir les modules",
+  "pourquoi": "La création de projet et l'import d'inventaire n'existent que dans les tests : corrélation, radar et alertes d'impact n'ont jamais de données en production. Le profil artiste, lui, n'a pas d'IHM. Les vues ont besoin de l'authentification du sprint 5 ; les tests ciblés, du seuil de couverture du sprint 1.",
+  "sortie": "Un utilisateur crée un projet et importe un SBOM ou des manifestes par l'API et l'IHM ; les vues artiste (suivis, opportunités) existent ; scm atteint le seuil de couverture ; les listes d'exploitation sont paginées.",
+  "constats": [
+   "AUD-QUA-01",
+   "AUD-ARC-15",
+   "AUD-TST-04",
+   "AUD-TST-08",
+   "AUD-TST-09",
+   "AUD-PER-09",
+   "AUD-PER-10"
+  ],
+  "charge": [
+   4.75,
+   15
+  ]
+ },
+ {
+  "numero": 7,
+  "titre": "Ingestion asynchrone",
+  "pourquoi": "La synchronisation des avis, l'enrichissement NVD/EPSS, la corrélation et les alertes s'exécutent dans le fil de la requête ou de l'ingestion, avec une transaction ouverte pendant des appels HTTP. Le rattrapage des enrichissements perdus (retryMissing, quelques lignes) ouvre le sprint.",
+  "sortie": "POST /ops/sources/{id}/synchronizations répond 202 et la synchronisation tourne en tâche de fond ; retryMissing est planifiée ; EnrichmentSource.lookup et AdvisoryFeed.fetch ne sont appelés depuis aucune méthode @Transactional ni bloc QuarkusTransaction (vérifié par un test ArchUnit) ; tous les clients HTTP lisent les réponses avec un plafond de taille.",
+  "constats": [
+   "AUD-PER-02",
+   "AUD-PER-01",
+   "AUD-ARC-09",
+   "AUD-ARC-10",
+   "AUD-PER-11",
+   "AUD-PER-13"
+  ],
+  "charge": [
+   3.75,
+   12
+  ]
+ },
+ {
+  "numero": 8,
+  "titre": "Requêtes et volumétrie",
+  "pourquoi": "Corrélation, alertes, radar, fil de veille et opportunités font des requêtes en N+1 ou relisent des tables entières, et plusieurs tables grossissent sans fin. Le mécanisme de rétention vient en premier : la purge des opportunités s'y branche.",
+  "sortie": "Corrélation, alertes, radar et fil de veille s'exécutent en un nombre de requêtes indépendant du nombre de signaux ou de membres ; la recherche et GET /opportunites ne matérialisent que la page demandée ; chaque table de journal ou d'historique, opportunités comprises, a une purge planifiée avec une durée de rétention configurée.",
+  "constats": [
+   "AUD-SEC-03",
+   "AUD-PER-18",
+   "AUD-PER-04",
+   "AUD-PER-03",
+   "AUD-PER-06",
+   "AUD-PER-05",
+   "AUD-PER-07"
+  ],
+  "charge": [
+   5.5,
+   17
+  ]
+ },
+ {
+  "numero": 9,
+  "titre": "Structure, documentation et distribution",
+  "pourquoi": "Les chantiers de fond (pyramide de tests, documentation d'architecture, distribution du desktop) ne valent qu'une fois la structure stabilisée par les sprints 4 à 8 : les documenter avant serait à refaire.",
+  "sortie": "La majorité des tests serveur s'exécutent sans Docker ; l'artefact empaqueté a ses tests d'intégration ; arc42 §5 correspond au graphe réel ; le desktop est signé et se met à jour ; un inventaire des licences est produit à chaque build.",
+  "constats": [
+   "AUD-TST-03",
+   "AUD-TST-12",
+   "AUD-ARC-03",
+   "AUD-ARC-11",
+   "AUD-QUA-09",
+   "AUD-DEP-15",
+   "AUD-DEP-19"
+  ],
+  "charge": [
+   6.0,
+   18
+  ]
+ }
+]
