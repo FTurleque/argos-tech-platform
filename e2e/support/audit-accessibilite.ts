@@ -42,9 +42,8 @@ export async function verifierClavier(page: Page, selecteur: string): Promise<vo
     .filter((element) => (element as HTMLElement).offsetParent !== null)
     .map((element) => (element.getAttribute('aria-label') ?? element.textContent ?? '').replace(/\s+/g, ' ').trim().slice(0, 50)))
   expect(attendus.length, `éléments focalisables de ${selecteur}`).toBeGreaterThan(0)
-  for (const commande of await zone.getByRole('button').all()) {
-    await expect(commande).toHaveAccessibleName(/\S/)
-  }
+  const commandes = await zone.getByRole('button').all()
+  await Promise.all(commandes.map((commande) => expect(commande).toHaveAccessibleName(/\S/)))
   // Point de départ de la tabulation en haut du document : un repère focalisable placé en tête, focalisé puis retiré
   // (après un simple blur, Chromium reprendrait la tabulation après l'élément qui avait le focus).
   await page.evaluate(() => {
