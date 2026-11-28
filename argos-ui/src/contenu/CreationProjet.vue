@@ -101,6 +101,11 @@ onBeforeUnmount(() => annulation.abort())
 <style scoped>
 .creation-projet form { display: grid; gap: 0.75rem; margin-bottom: 0.5rem; }
 .champs { display: grid; grid-template-columns: max-content minmax(0, 1fr); gap: 0.4rem 0.75rem; align-items: center; }
-fieldset { border: 1px solid var(--border); border-radius: 8px; }
+/* Un fieldset garde par défaut la largeur de son contenu : min-width le laisse suivre la carte. */
+fieldset { border: 1px solid var(--border); border-radius: 8px; min-width: 0; }
+/* Écran étroit : libellé au-dessus de son champ, sans défilement horizontal à 320 px (RGAA 10.11). */
+@media (max-width: 40rem) {
+  .champs { grid-template-columns: minmax(0, 1fr); }
+}
 button[type='submit'] { justify-self: start; }
 </style>

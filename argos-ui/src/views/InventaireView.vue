@@ -327,10 +327,10 @@ onBeforeUnmount(() => {
 
 <style scoped>
 .inventaire-choix { display: flex; flex-wrap: wrap; align-items: center; gap: 0.5rem; margin-bottom: 1rem; }
-.inventaire-choix input, .inventaire-choix select { min-width: 22rem; max-width: 100%; }
+.inventaire-choix input, .inventaire-choix select { min-width: min(22rem, 100%); max-width: 100%; }
 .erreur-saisie { flex-basis: 100%; margin: 0; color: var(--ko); }
 .aide { flex-basis: 100%; margin: 0; }
-.inventaire-resume { display: grid; grid-template-columns: max-content 1fr; gap: 0.25rem 1rem; }
+.inventaire-resume { display: grid; grid-template-columns: minmax(0, max-content) minmax(0, 1fr); gap: 0.25rem 1rem; }
 .inventaire-resume dt { font-weight: 600; }
 .inventaire-resume dd { margin: 0; overflow-wrap: anywhere; }
 [data-tableau-depots] { width: 100%; border-collapse: collapse; font-size: 0.9rem; }

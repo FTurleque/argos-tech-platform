@@ -2,7 +2,7 @@
 // auprès du Keycloak de test, retour sur la vue demandée, adresse nettoyée, jetons hors du stockage,
 // jeton porteur, déconnexion, compte non créé faute d'invitation, session expirée.
 import type { Page, Request } from '@playwright/test'
-import { URL_API } from '../support/environnement'
+import { URL_API, URL_IHM } from '../support/environnement'
 import { expect, saisirIdentifiants, seConnecterDepuis, test } from '../support/fixtures'
 
 function appelsApi(page: Page): Request[] {
@@ -38,7 +38,7 @@ test('ACC-07-S2, ACC-08-S1, ACC-09-S1/S2 : connexion réelle, retour sur la vue,
 
   // Retour sur la vue demandée, sans code ni state dans l'adresse.
   await expect(page.getByRole('heading', { name: 'Recherche', exact: true })).toBeVisible()
-  await expect(page).toHaveURL(/^http:\/\/localhost:5173\/#\/recherche$/)
+  await expect(page).toHaveURL(`${URL_IHM}/#/recherche`)
   expect(page.url()).not.toMatch(/[?&](code|state|session_state|iss)=/)
   await expect(page.getByRole('button', { name: 'Se déconnecter' })).toBeVisible()
 
@@ -86,7 +86,7 @@ test('ACC-08-S4 : la déconnexion ferme la session de l’IHM et celle du fourni
 
   await page.getByRole('button', { name: 'Se déconnecter' }).click()
   // Fin de session du fournisseur, puis retour sur le portail.
-  await page.waitForURL(/^http:\/\/localhost:5173\//)
+  await page.waitForURL((adresse) => adresse.origin === new URL(URL_IHM).origin)
   await expect(page.getByRole('link', { name: 'Se connecter' })).toBeVisible()
 
   // Une vue protégée ouverte ensuite affiche l'écran de connexion.

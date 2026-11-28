@@ -180,12 +180,19 @@ jobs:
       - name: Navigateur Chromium
         working-directory: e2e
         run: node node_modules/@playwright/test/cli.js install --with-deps chromium
-      # Écran virtuel (xvfb) pour le client desktop ; la pile démarre l'image (e2e/compose.image.yaml).
+      # Bureau du client desktop : gestionnaire de fenêtres (réduction, masquage) et serveur de notifications, dans une
+      # session D-Bus, sur un écran virtuel (xvfb). Paquets Ubuntu sous licence permissive (twm : X11, dunst :
+      # BSD-3-Clause), outils de l'exécuteur, non livrés.
+      - name: Bureau virtuel du client desktop
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends twm dunst dbus-x11 libnotify4
+      # La pile démarre l'image (e2e/compose.image.yaml).
       - name: Campagne de bout en bout
         working-directory: e2e
         env:
           ARGOS_E2E_IMAGE: argos:e2e
-        run: xvfb-run -a npm test
+        run: xvfb-run -a dbus-run-session -- sh -c 'twm & dunst & npm test'
       - name: Audit d'accessibilité des mises en page (banc d'essai)
         working-directory: e2e
         run: npm run test:accessibilite
