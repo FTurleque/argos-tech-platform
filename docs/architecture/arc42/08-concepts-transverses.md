@@ -330,7 +330,7 @@ Le workflow GitHub Actions [`.github/workflows/integration-continue.yml`](../../
 | IHM | `npm ci`, `npm test`, `npm run typecheck` (vue-tsc), `npm run build`, `npm audit` dans `argos-ui` |
 | Desktop | `npm ci`, `npm run check` (syntaxe, vérification de types `tsc --checkJs`, tests), `npm audit` dans `argos-desktop` |
 | Outils | `node --test scripts/*.test.mjs "e2e/performance/*.test.mjs"`, `node scripts/verifier-docs.mjs`, `node scripts/verifier-nommage.mjs`, `node scripts/verifier-configuration.mjs` ; `npm ci`, `npm run typecheck` (`tsc --strict`) et `npm audit` dans `e2e` |
-| E2E | image construite (`docker build`), puis campagne Playwright sur cette image (`ARGOS_E2E_IMAGE`, client desktop sur un bureau virtuel : `xvfb`, `twm`, `dunst`) et audit d'accessibilité du banc des mises en page |
+| E2E | image construite (`docker build`), puis campagne Playwright sur cette image (`ARGOS_E2E_IMAGE`, client desktop sur un bureau virtuel : `xvfb`, `fluxbox`, `dunst`) et audit d'accessibilité du banc des mises en page |
 | Migrations | garde de la règle d'ADR-0032 (§8.7) : seuls des ajouts sous `db/migration` |
 | Licences | `mvn -B -f argos-server/pom.xml -P licences validate`, seulement quand `argos-server/pom.xml` ou `scripts/verifier-licences-serveur.mjs` change |
 
