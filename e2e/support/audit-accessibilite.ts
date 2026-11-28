@@ -13,6 +13,8 @@ const CONTOUR_MIN = 2
 /** Largeur d'écran de la règle de redistribution (WCAG 1.4.10). */
 const LARGEUR_ETROITE = 320
 const HAUTEUR_ETROITE = 800
+/** Longueur du nom d'un élément focalisable : celle du nom que rapporte `etatFocus` (support/mesures.ts). */
+const LONGUEUR_NOM_MAX = 50
 /** Tabulations au plus avant d'atteindre la zone, depuis le haut de la page. */
 const TABULATIONS_MAX = 120
 
@@ -38,9 +40,10 @@ export async function verifierContrastes(page: Page, selecteur: string, textesMi
  */
 export async function verifierClavier(page: Page, selecteur: string): Promise<void> {
   const zone = page.locator(selecteur)
-  const attendus = await zone.locator(FOCALISABLES).evaluateAll((elements) => elements
+  const attendus = await zone.locator(FOCALISABLES).evaluateAll((elements, longueurMax) => elements
     .filter((element) => (element as HTMLElement).offsetParent !== null)
-    .map((element) => (element.getAttribute('aria-label') ?? element.textContent ?? '').replace(/\s+/g, ' ').trim().slice(0, 50)))
+    .map((element) => (element.getAttribute('aria-label') ?? element.textContent ?? '').replace(/\s+/g, ' ').trim()
+      .slice(0, longueurMax)), LONGUEUR_NOM_MAX)
   expect(attendus.length, `éléments focalisables de ${selecteur}`).toBeGreaterThan(0)
   const commandes = await zone.getByRole('button').all()
   await Promise.all(commandes.map((commande) => expect(commande).toHaveAccessibleName(/\S/)))
