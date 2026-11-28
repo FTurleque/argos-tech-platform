@@ -20,7 +20,7 @@ RUN node ../scripts/verifier-licences-npm.mjs --paquet . --sortie /src/THIRD-PAR
 
 # 2. Serveur : l'IHM est copiée dans les ressources statiques de Quarkus.
 #    Les tests demandent Docker (base jetable) : ils se lancent hors de l'image avec « mvn verify ».
-FROM maven:3.9-eclipse-temurin-17 AS server
+FROM maven:3.10-eclipse-temurin-17 AS server
 WORKDIR /src/argos-server
 # Node.js, pour le contrôle des licences : binaire de l'étage « ui » (image officielle node:22-slim,
 # licence MIT), si bien que la version de Node n'est écrite qu'une fois.
