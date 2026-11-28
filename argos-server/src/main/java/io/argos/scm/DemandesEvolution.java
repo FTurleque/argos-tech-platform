@@ -165,8 +165,8 @@ public class DemandesEvolution {
 
     /** État normalisé en minuscules ; une demande GitHub fusionnée vaut {@code merged} ; une valeur inattendue, {@code inconnu}. */
     private static String etatLu(JsonNode noeud, boolean github) {
-        String lu = github && noeud.path("merged").asBoolean(false) ? "merged" : noeud.path("state").asText("");
-        String normalise = lu.toLowerCase(Locale.ROOT);
+        String valeurLue = github && noeud.path("merged").asBoolean(false) ? "merged" : noeud.path("state").asText("");
+        String normalise = valeurLue.toLowerCase(Locale.ROOT);
         return ETAT_ADMIS.matcher(normalise).matches() ? normalise : "inconnu";
     }
 
