@@ -219,13 +219,13 @@ public class InventoryResource {
     }
 
     private Caller authorize(UUID projectId) {
-        return access.memberOfProject(() -> inventories.workspaceOf(projectId));
+        return access.memberOfProject(() -> inventories.espaceDe(projectId));
     }
 
     /** Contributeur ou administrateur de l'espace du projet ; 404 sans refus journalisé pour un projet inconnu. */
     private Caller autoriserImport(UUID projectId) {
         access.authenticated();
-        return access.contributor(inventories.workspaceOf(projectId).orElseThrow(NotFoundException::new));
+        return access.contributor(inventories.espaceDe(projectId).orElseThrow(NotFoundException::new));
     }
 
     /** Manifestes de la demande, par chemin, contenus encodés en UTF-8. */

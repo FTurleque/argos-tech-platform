@@ -208,7 +208,7 @@ class ProjetMultiDepotsTest {
                 .body("items.find { it.purl == 'pkg:npm/b@2.0.0' }.repositories.repository", contains("org/back"));
         assertTrue(ouverts(projet, "alice").isEmpty(), "l'impact du composant retiré n'est plus parmi les impacts ouverts");
         // Intégration avec le volet C (COR-11-S1) : l'impact reste enregistré, résolu par le système.
-        assertEquals(1, impacts.forProject(projet, Api.compte("alice"), Set.of(queries.workspaceOf(projet).orElseThrow()),
+        assertEquals(1, impacts.forProject(projet, Api.compte("alice"), Set.of(queries.espaceDe(projet).orElseThrow()),
                 Set.of(io.argos.impact.EtatImpact.RESOLU)).size());
         Api.enTantQue("alice").when().get("/api/v1/projects/" + projet + "/inventory/summary")
                 .then().statusCode(200)
@@ -285,7 +285,7 @@ class ProjetMultiDepotsTest {
 
     private List<ImpactQueries.ImpactView> ouverts(UUID projet, String utilisateur) {
         UUID compte = Api.compte(utilisateur);
-        UUID espace = queries.workspaceOf(projet).orElseThrow();
+        UUID espace = queries.espaceDe(projet).orElseThrow();
         return impacts.forProject(projet, compte, Set.of(espace));
     }
 }

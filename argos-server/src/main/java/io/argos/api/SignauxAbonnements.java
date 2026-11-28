@@ -113,7 +113,7 @@ public class SignauxAbonnements {
         } catch (IllegalArgumentException illisible) {
             return List.of();
         }
-        return impacts.forProject(id, caller.accountId(), caller.memberWorkspaces()).stream()
+        return impacts.forProject(id, caller.accountId(), caller.espacesMembre()).stream()
                 .map(ImpactQueries.ImpactView::signalId).distinct().toList();
     }
 }

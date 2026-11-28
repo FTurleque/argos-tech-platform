@@ -4,7 +4,6 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
-import java.util.Set;
 import java.util.UUID;
 
 import jakarta.inject.Inject;
@@ -12,7 +11,7 @@ import jakarta.inject.Inject;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
-import io.argos.impact.RechercheVeille;
+import io.argos.signal.recherche.RechercheVeille;
 import io.argos.testsupport.Api;
 import io.argos.testsupport.TestDb;
 import io.quarkus.test.junit.QuarkusTest;
@@ -37,12 +36,11 @@ class RechercheBorneeTest {
     RechercheVeille recherche;
 
     private UUID compte;
-    private Set<UUID> espaces;
 
     @BeforeEach
     void preparer() {
         baseDeTest.reset();
-        espaces = Set.of(Api.nouvelEspace("alice", "Recherche bornée"));
+        Api.nouvelEspace("alice", "Recherche bornée");
         compte = Api.compte("alice");
     }
 
@@ -65,8 +63,8 @@ class RechercheBorneeTest {
     }
 
     private RechercheVeille.Resultats chercher(String mots) {
-        return recherche.rechercher(new RechercheVeille.Criteres(mots, null, null, null, null, null, null, null), compte,
-                espaces, 0, TAILLE_PAGE);
+        return recherche.rechercher(new RechercheVeille.Criteres(mots, null, null, null, null, null, null, null), compte, 0,
+                TAILLE_PAGE);
     }
 
     /** RCH-07-S1 : plus de 1 000 correspondances, total plafonné, pertinence calculée sur les 1 000 plus récents. */

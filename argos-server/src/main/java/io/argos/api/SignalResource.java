@@ -22,6 +22,7 @@ import org.eclipse.microprofile.openapi.annotations.responses.APIResponse;
 import org.eclipse.microprofile.openapi.annotations.tags.Tag;
 
 import io.argos.api.security.Access;
+import io.argos.commun.Pagination;
 import io.argos.commun.securite.Caller;
 import io.argos.impact.EtatImpact;
 import io.argos.impact.ImpactQueries;
@@ -89,8 +90,8 @@ public class SignalResource {
         Caller caller = access.authenticated();
         Set<EtatImpact> etats = etats(etat);
         signals.find(id).orElseThrow(NotFoundException::new);
-        return impacts.forSignal(id, caller.accountId(), caller.memberWorkspaces(), etats,
-                ParametresPagination.entier(page, "page", 0), ParametresPagination.entier(size, "size", 50));
+        return impacts.forSignal(id, caller.accountId(), caller.espacesMembre(), etats,
+                ParametresPagination.entier(page, "page", 0), ParametresPagination.entier(size, "size", Pagination.TAILLE_DEFAUT));
     }
 
     /** États demandés ; aucun : ouverts et confirmés ; une valeur inconnue est refusée (400). */

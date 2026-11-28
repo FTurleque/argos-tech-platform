@@ -31,6 +31,30 @@ public final class OsvNormalizer {
     }
 
     public static NormalizedAdvisory normalize(RawAdvisory raw) {
+        JsonNode root = racine(raw);
+        String id = text(root, "id");
+        if (id == null || id.isBlank()) {
+            throw new AdvisoryRejectedException("identifiant externe absent");
+        }
+        Instant modified = instant(root, "modified", true);
+        Instant published = instant(root, "published", false);
+        List<Affected> affected = affectes(root);
+        // Avis retiré (champ OSV « withdrawn ») : le signal et son historique sont conservés, mais il
+        // ne déclare plus aucun paquet affecté ; la corrélation retire donc les impacts qu'il portait.
+        Instant withdrawnAt = null;
+        JsonNode withdrawn = root.path("withdrawn");
+        if (!withdrawn.isMissingNode() && !withdrawn.isNull()) {
+            affected = List.of();
+            withdrawnAt = dateDeRetrait(root);
+        }
+        String summary = text(root, "summary");
+        String details = text(root, "details");
+        return new NormalizedAdvisory(id, summary, details, severity(root), published, modified,
+                aliases(root), List.copyOf(affected), withdrawnAt, raw.content(), sha256(raw.content()));
+    }
+
+    /** Racine JSON de l'avis, qui doit être un objet. */
+    private static JsonNode racine(RawAdvisory raw) {
         JsonNode root;
         try {
             root = MAPPER.readTree(raw.content());
@@ -40,20 +64,22 @@ public final class OsvNormalizer {
         if (root == null || !root.isObject()) {
             throw new AdvisoryRejectedException("l'avis n'est pas un objet JSON");
         }
-        String id = text(root, "id");
-        if (id == null || id.isBlank()) {
-            throw new AdvisoryRejectedException("identifiant externe absent");
-        }
-        Instant modified = instant(root, "modified", true);
-        Instant published = instant(root, "published", false);
+        return root;
+    }
 
+    /** Alias textuels non vides de l'avis. */
+    private static List<String> aliases(JsonNode root) {
         List<String> aliases = new ArrayList<>();
         root.path("aliases").forEach(alias -> {
             if (alias.isTextual() && !alias.asText().isBlank()) {
                 aliases.add(alias.asText());
             }
         });
+        return List.copyOf(aliases);
+    }
 
+    /** Paquets affectés ; le champ {@code affected}, s'il est présent, est un tableau. */
+    private static List<Affected> affectes(JsonNode root) {
         JsonNode affectedNode = root.path("affected");
         if (!affectedNode.isMissingNode() && !affectedNode.isArray()) {
             throw new AdvisoryRejectedException("champ affected non conforme");
@@ -62,19 +88,7 @@ public final class OsvNormalizer {
         for (JsonNode affectedEntry : affectedNode) {
             affected.add(affected(affectedEntry));
         }
-        // Avis retiré (champ OSV « withdrawn ») : le signal et son historique sont conservés, mais il
-        // ne déclare plus aucun paquet affecté ; la corrélation retire donc les impacts qu'il portait.
-        Instant withdrawnAt = null;
-        JsonNode withdrawn = root.path("withdrawn");
-        if (!withdrawn.isMissingNode() && !withdrawn.isNull()) {
-            affected.clear();
-            withdrawnAt = dateDeRetrait(root);
-        }
-
-        String summary = text(root, "summary");
-        String details = text(root, "details");
-        return new NormalizedAdvisory(id, summary, details, severity(root), published, modified,
-                List.copyOf(aliases), List.copyOf(affected), withdrawnAt, raw.content(), sha256(raw.content()));
+        return affected;
     }
 
     private static Affected affected(JsonNode entry) {

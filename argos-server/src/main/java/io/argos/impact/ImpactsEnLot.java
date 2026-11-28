@@ -32,7 +32,7 @@ final class ImpactsEnLot {
     }
 
     /** Correspondance vérifiée entre un signal et un composant, avec la ligne d'impact qu'elle doit produire. */
-    record Ligne(Triplet triplet, UUID signalVersionId, UUID workspaceId, MatchRules.Level level, Boolean transitive,
+    record Ligne(Triplet triplet, UUID signalVersionId, UUID espaceId, MatchRules.Level level, Boolean transitive,
             String inventoryOrigin, Instant inventoryDate, String provenance, String packageKey, String version) {
     }
 
@@ -160,7 +160,7 @@ final class ImpactsEnLot {
                     requete.setArray(3, uuids(connexion, lignes, ligne -> ligne.triplet().projectId()));
                     requete.setArray(4, uuids(connexion, lignes, ligne -> ligne.triplet().componentId()));
                     requete.setArray(5, uuids(connexion, lignes, Ligne::signalVersionId));
-                    requete.setArray(6, uuids(connexion, lignes, Ligne::workspaceId));
+                    requete.setArray(6, uuids(connexion, lignes, Ligne::espaceId));
                     requete.setArray(7, textes(connexion, lignes, ligne -> ligne.level().name()));
                     requete.setArray(8, textes(connexion, lignes,
                             ligne -> ligne.transitive() == null ? null : ligne.transitive().toString()));
@@ -216,7 +216,7 @@ final class ImpactsEnLot {
     static Ligne ligne(UUID signalId, UUID signalVersionId, InventoryQueries.ComponentMatch component,
             MatchRules.Level level, String provenance) {
         return new Ligne(new Triplet(signalId, component.projectId(), component.componentId()), signalVersionId,
-                component.workspaceId(), level, component.transitive(), component.inventoryOrigin(),
+                component.espaceId(), level, component.transitive(), component.inventoryOrigin(),
                 component.inventoryDate(), provenance, component.packageKey(), component.version());
     }
 

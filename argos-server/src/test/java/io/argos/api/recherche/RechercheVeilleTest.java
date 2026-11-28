@@ -21,7 +21,8 @@ import jakarta.inject.Inject;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
-import io.argos.impact.RechercheVeille;
+import io.argos.impact.ProjetsConcernes;
+import io.argos.signal.recherche.RechercheVeille;
 import io.argos.testsupport.Api;
 import io.argos.testsupport.JeuRecherche;
 import io.argos.testsupport.TestDb;
@@ -54,6 +55,9 @@ class RechercheVeilleTest {
 
     @Inject
     RechercheVeille recherche;
+
+    @Inject
+    ProjetsConcernes projetsConcernes;
 
     @Inject
     ContexteBase base;
@@ -213,8 +217,9 @@ class RechercheVeilleTest {
         jeu.impact(signal, portail);
         UUID actualiteMarc = jeu.actualite(jeu.sourceEspace(espaceMarc, marc), "Portail interne", "Texte.", null, ilYA(1));
 
-        RechercheVeille.Resultats resultats = recherche.rechercher(new RechercheVeille.Criteres("Portail or publique", null, null,
-                null, null, null, null, null), oscar, Set.of(espaceOscar, espaceMarc), 0, 20);
+        RechercheVeille.Resultats resultats = projetsConcernes.completer(recherche.rechercher(new RechercheVeille.Criteres(
+                "Portail or publique", null, null, null, null, null, null, null), oscar, 0, 20), oscar,
+                Set.of(espaceOscar, espaceMarc));
         assertEquals(List.of(signal), resultats.elements().stream().map(RechercheVeille.Element::id).toList());
         assertEquals(List.of(), resultats.elements().get(0).projets(), "projet d'un autre espace cité");
 

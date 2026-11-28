@@ -45,6 +45,10 @@
     <jacoco-plugin.version>0.8.15</jacoco-plugin.version>
     <argos.couverture.lignes>0.85</argos.couverture.lignes>
     <argos.couverture.branches>0.70</argos.couverture.branches>
+    <!-- Seuils de longueur et de complexité des méthodes (AUD-QUA-18, décision du porteur du projet, 2026-11-27) :
+         maven-pmd-plugin (licence Apache-2.0) et PMD (licence BSD), outillage de build non livré ; règles dans
+         pmd-regles.xml. -->
+    <pmd-plugin.version>3.28.0</pmd-plugin.version>
   </properties>
 
   <dependencyManagement>
@@ -241,6 +245,30 @@
             <java.util.logging.manager>org.jboss.logmanager.LogManager</java.util.logging.manager>
           </systemPropertyVariables>
         </configuration>
+      </plugin>
+      <!-- AUD-QUA-18 : au plus 60 instructions par méthode, complexité cyclomatique inférieure à 15 (pmd-regles.xml).
+           Toute méthode de production au-delà fait échouer « mvn verify ». -->
+      <plugin>
+        <artifactId>maven-pmd-plugin</artifactId>
+        <version>${pmd-plugin.version}</version>
+        <configuration>
+          <rulesets>
+            <ruleset>${project.basedir}/pmd-regles.xml</ruleset>
+          </rulesets>
+          <includeTests>false</includeTests>
+          <printFailingErrors>true</printFailingErrors>
+          <linkXRef>false</linkXRef>
+          <targetJdk>${maven.compiler.release}</targetJdk>
+        </configuration>
+        <executions>
+          <execution>
+            <id>seuils-methodes</id>
+            <phase>verify</phase>
+            <goals>
+              <goal>check</goal>
+            </goals>
+          </execution>
+        </executions>
       </plugin>
       <plugin>
         <artifactId>maven-failsafe-plugin</artifactId>
