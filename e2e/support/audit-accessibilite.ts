@@ -45,7 +45,15 @@ export async function verifierClavier(page: Page, selecteur: string): Promise<vo
   for (const commande of await zone.getByRole('button').all()) {
     await expect(commande).toHaveAccessibleName(/\S/)
   }
-  await page.evaluate(() => (document.activeElement as HTMLElement | null)?.blur())
+  // Point de départ de la tabulation en haut du document : un repère focalisable placé en tête, focalisé puis retiré
+  // (après un simple blur, Chromium reprendrait la tabulation après l'élément qui avait le focus).
+  await page.evaluate(() => {
+    const repere = document.createElement('div')
+    repere.tabIndex = -1
+    document.body.prepend(repere)
+    repere.focus()
+    repere.remove()
+  })
   const parcourus: string[] = []
   for (let tabulation = 0; tabulation < TABULATIONS_MAX + attendus.length; tabulation++) {
     await page.keyboard.press('Tab')
@@ -68,8 +76,23 @@ export async function verifierRedistribution(page: Page, selecteur: string): Pro
   await page.setViewportSize({ width: LARGEUR_ETROITE, height: HAUTEUR_ETROITE })
   try {
     await expect(page.locator(selecteur)).toBeVisible()
-    const debord = await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth)
-    expect(debord, 'défilement horizontal à 320 px').toBeLessThanOrEqual(0)
+    const { debord, depassants } = await page.evaluate(() => {
+      const largeur = document.documentElement.clientWidth
+      // Éléments les plus profonds dont le bord droit dépasse la fenêtre : ils nomment la cause d'un débordement.
+      const depasse = [...document.body.querySelectorAll('*')]
+        .filter((element) => element.getBoundingClientRect().right > largeur + 1)
+      const feuilles = depasse.filter((element) => !depasse.some((autre) => autre !== element && element.contains(autre)))
+      return {
+        debord: document.documentElement.scrollWidth - largeur,
+        depassants: feuilles.slice(0, 5).map((element) => {
+          const nom = element.getAttribute('id') ?? element.getAttribute('name') ?? element.textContent?.trim().slice(0, 30)
+          const parent = element.parentElement
+          return `${element.tagName.toLowerCase()} « ${nom ?? ''} » dans ${parent?.tagName.toLowerCase()}.${parent?.className ?? ''}`
+            + ` (bord droit ${Math.round(element.getBoundingClientRect().right)} px)`
+        }),
+      }
+    })
+    expect(debord, `défilement horizontal à 320 px ; éléments en cause : ${depassants.join(', ')}`).toBeLessThanOrEqual(0)
     await page.screenshot({ path: test.info().outputPath('etroit.png'), fullPage: true })
   } finally {
     if (tailleInitiale) await page.setViewportSize(tailleInitiale)
