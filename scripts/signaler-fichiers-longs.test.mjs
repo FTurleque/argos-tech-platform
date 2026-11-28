@@ -4,7 +4,9 @@ import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { test } from 'node:test';
-import { compterLignes, fichiersJava, fichiersLongs, lireOptions, SEUIL_PAR_DEFAUT, SOURCES_PAR_DEFAUT } from './signaler-fichiers-longs.mjs';
+import {
+  compterLignes, fichiersJava, fichiersLongs, lireOptions, SEUIL_PAR_DEFAUT, SOURCES_PAR_DEFAUT,
+} from './signaler-fichiers-longs.mjs';
 
 test('compterLignes : saut final compris ou non, texte vide', () => {
   assert.equal(compterLignes(''), 0);
