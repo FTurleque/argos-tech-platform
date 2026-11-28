@@ -304,7 +304,7 @@ public class DictionnaireMetier {
         }
         String valeur = regle.valeur() == null ? "" : regle.valeur().strip().replaceAll("\\s+", " ");
         if (valeur.isEmpty() || valeur.length() > VALEUR_MAX || valeur.chars().anyMatch(Character::isISOControl)) {
-            throw new DonneeInvalide("DONNEE_INVALIDE", "Chaque règle a une valeur de 1 à 200 caractères.", "regles");
+            throw new DonneeInvalide("DONNEE_INVALIDE", "Chaque règle a une valeur de 1 à " + VALEUR_MAX + " caractères.", "regles");
         }
         if (regle.type() == TypeRegle.NOR || regle.type() == TypeRegle.NATURE) {
             valeur = valeur.toUpperCase(Locale.ROOT);

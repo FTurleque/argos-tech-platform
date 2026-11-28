@@ -71,7 +71,7 @@ public final class ArchiveTar {
     /** Traite l'entrée dont l'en-tête vient d'être lu : métadonnées retenues, fichier XML remis ou contenu sauté. */
     private void lireEntree(InputStream flux, byte[] entete, Parcours parcours, BiConsumer<String, byte[]> consommateur)
             throws IOException {
-        long taille = compter(entete, parcours);
+        long taille = tailleControlee(entete, parcours);
         char type = (char) entete[POSITION_TYPE];
         String nom = parcours.nomLong != null ? parcours.nomLong : nom(entete);
         parcours.nomLong = null;
@@ -88,8 +88,8 @@ public final class ArchiveTar {
         }
     }
 
-    /** Taille de l'entrée, après contrôle des bornes : nombre d'entrées, taille lisible, volume total. */
-    private long compter(byte[] entete, Parcours parcours) {
+    /** Taille de l'entrée, comptée dans le parcours après contrôle des bornes : nombre d'entrées, taille lisible, volume total. */
+    private long tailleControlee(byte[] entete, Parcours parcours) {
         if (++parcours.entrees > entreesMax) {
             throw new ArchiveInvalide("archive : plus de " + entreesMax + " entrées", null);
         }

@@ -138,7 +138,7 @@ public class SourcesProfil {
     private static String libelle(String saisi, URI adresse) {
         String libelle = saisi == null || saisi.isBlank() ? adresse.getHost() : saisi.strip();
         if (libelle.length() > LIBELLE_MAX) {
-            throw new DonneeInvalide("DONNEE_INVALIDE", "Libellé limité à 200 caractères.", "libelle");
+            throw new DonneeInvalide("DONNEE_INVALIDE", "Libellé limité à " + LIBELLE_MAX + " caractères.", "libelle");
         }
         return libelle;
     }

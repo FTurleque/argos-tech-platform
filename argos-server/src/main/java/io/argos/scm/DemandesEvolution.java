@@ -34,8 +34,8 @@ public class DemandesEvolution {
 
     /** Longueur maximale d'une adresse de demande. */
     private static final int ADRESSE_MAX = 500;
-    private static final int SUCCES = 200;
-    private static final int NON_TROUVE = 404;
+    private static final int HTTP_OK = 200;
+    private static final int HTTP_NON_TROUVE = 404;
     private static final Pattern DEPOT_GITLAB = Pattern.compile("[\\w.-]+(/[\\w.-]+)+");
     private static final Pattern ETAT_ADMIS = Pattern.compile("[a-z_]{1,16}");
     private static final Pattern GITHUB = Pattern.compile("/([\\w.-]+/[\\w.-]+)/(issues|pull)/(\\d{1,9})/?");
@@ -139,10 +139,10 @@ public class DemandesEvolution {
         boolean github = demande.forge() == Forge.GITHUB;
         ForgeHttp.Reponse reponse = http.get(uri, github ? githubToken : gitlabToken, github,
                 github ? "application/vnd.github+json" : null, TAILLE_MAX);
-        if (reponse.status() == NON_TROUVE) {
+        if (reponse.status() == HTTP_NON_TROUVE) {
             return Optional.empty();
         }
-        if (reponse.status() != SUCCES) {
+        if (reponse.status() != HTTP_OK) {
             throw new ScmException("HTTP " + reponse.status() + " de " + uri.getHost(), null);
         }
         try {
@@ -165,9 +165,9 @@ public class DemandesEvolution {
 
     /** État normalisé en minuscules ; une demande GitHub fusionnée vaut {@code merged} ; une valeur inattendue, {@code inconnu}. */
     private static String etatLu(JsonNode noeud, boolean github) {
-        String etat = github && noeud.path("merged").asBoolean(false) ? "merged" : noeud.path("state").asText("");
-        etat = etat.toLowerCase(Locale.ROOT);
-        return ETAT_ADMIS.matcher(etat).matches() ? etat : "inconnu";
+        String lu = github && noeud.path("merged").asBoolean(false) ? "merged" : noeud.path("state").asText("");
+        String normalise = lu.toLowerCase(Locale.ROOT);
+        return ETAT_ADMIS.matcher(normalise).matches() ? normalise : "inconnu";
     }
 
     private static boolean memeOrigine(URI uri, URI attendue) {
