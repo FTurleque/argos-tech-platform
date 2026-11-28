@@ -10,7 +10,7 @@ flowchart LR
 
     subgraph ARGOS["«Software System» ARGOS"]
         WEB["«Container»\nVue.js 3 SPA\nInterface utilisateur"]
-        DESK["«Container»\nClient desktop Electron\nemballe la SPA (ADR-0022, proposé)"]
+        DESK["«Container»\nClient desktop Electron\nemballe la SPA (ADR-0022)"]
         BACK["«Container»\nQuarkus Backend\nAPI, métier, ingestion, MCP, IA"]
         DB["«database»\nPostgreSQL\nMétier, audit, recherche"]
     end
@@ -38,21 +38,21 @@ flowchart LR
 - aucune logique métier critique dans l’IHM ;
 - session OIDC (exigences ACC-07 à ACC-10 de la capacité [`comptes-acces`](../../specifications/comptes-acces.md), livrées ; ADR-0033, Accepté) : code d’autorisation + PKCE S256 auprès de Keycloak, jetons en mémoire seulement, jeton porteur joint aux appels de `/api/v1` sauf l’identité du serveur ; toute vue sauf l’état du serveur exige une session.
 
-### Client desktop Electron (proposé, ADR-0022)
+### Client desktop Electron (ADR-0022)
 
 - même build Vue.js 3 que la SPA, servi par un protocole interne (`app://argos`) ;
 - notifications natives et icône de zone de notification ;
 - ni base de données ni serveur embarqué : client de l’API REST uniquement ;
 - alertes du poste (capacité [`notifications-poste`](../../specifications/notifications-poste.md)) : la couche contenu de l’IHM lit les alertes `DESKTOP` en attente et confirme leur remise ; le processus principal affiche la notification (titre, gravité, nombre de projets), tient le compteur d’alertes ouvertes de la zone de notification et les réglages du poste (notifications du poste, démarrage avec la session désactivé par défaut) ; il n’appelle pas l’API ;
 - fenêtre fermée, l’application reste dans la zone de notification ; quittée, plus rien ne tourne (aucun service en arrière-plan) ;
-- connexion OIDC ([PROPOSITION], ADR-0033) : l’autorisation s’ouvre dans le navigateur du système ; le processus principal écoute le retour sur `127.0.0.1` (port éphémère, RFC 8252) et le rend à l’IHM, qui échange le code ; la CSP n’ajoute que l’origine du fournisseur d’identité configuré.
+- connexion OIDC (ADR-0033, Accepté) : l’autorisation s’ouvre dans le navigateur du système ; le processus principal écoute le retour sur `127.0.0.1` (port éphémère, RFC 8252) et le rend à l’IHM, qui échange le code ; la CSP n’ajoute que l’origine du fournisseur d’identité configuré.
 
 ### Quarkus Backend
 
 - **Java 17 minimum** ;
 - API REST/OpenAPI ;
 - règles métier, ingestion, corrélation, alerting, AI Gateway et serveur MCP ;
-- monolithe modulaire proposé ;
+- monolithe modulaire (ADR-0001) ;
 - aucune dépendance du domaine aux SDK externes.
 
 ### PostgreSQL
@@ -284,11 +284,11 @@ Le socle `argos-server/` matérialise chaque composant de §5.2 par un paquet Ja
 | `catalog` | `workspace` (`LectureMembres`) |
 | `aigateway` | `audit` |
 | `workspace`, `ingestion`, `scm`, `audit` | aucun module |
-| `observabilite`, `horloge`, `execution`, `commun` (techniques, transverses) | aucun module métier ; tout module peut en dépendre ; `commun` ne dépend d'aucun module |
+| `observabilite`, `horloge`, `execution`, `conservation`, `commun` (techniques, transverses) | aucun module métier ; tout module peut en dépendre ; `commun` ne dépend d'aucun module |
 
-Les modules techniques transverses (table `TRANSVERSES` de `ModuleBoundariesTest`) ne portent aucun code métier et ne dépendent d'aucun module métier ; ils peuvent dépendre les uns des autres. `observabilite` tient la corrélation des journaux, le filtre des jetons, l'observation des tâches planifiées, leur contrôle de santé (ADR-0036, §8.6) et les erreurs imprévues retenues aux frontières (§8.5) ; `horloge` produit le `Clock` commun (§8.16) ; `execution` fournit l'exécuteur borné possédé par un bean CDI (§8.5), qui propage la corrélation d'`observabilite`.
+Les modules techniques transverses (table `TRANSVERSES` de `ModuleBoundariesTest`) ne portent aucun code métier et ne dépendent d'aucun module métier ; ils peuvent dépendre les uns des autres. `observabilite` tient la corrélation des journaux, le filtre des jetons, l'observation des tâches planifiées, leur contrôle de santé (ADR-0036, §8.6) et les erreurs imprévues retenues aux frontières (§8.5) ; `horloge` produit le `Clock` commun (§8.16) ; `execution` fournit l'exécuteur borné possédé par un bean CDI (§8.5), qui propage la corrélation d'`observabilite` ; `conservation` porte le contrat des règles de conservation et la purge quotidienne qui les applique (§8.5, ADR-0041), sans nommer aucune table.
 
-Les paquets `ingestion`, `signal`, `vulnintel`, `scm`, `inventory`, `impact`, `workspace`, `audit` et `api` portent la chaîne sécurité du POC (changement `formaliser-chaine-securite-poc`) ainsi que les comptes, les espaces et les rôles (changement `gerer-comptes-et-acces`) ; `catalog`, `workspace.preference` et `api` portent le catalogue des profils et des mises en page et les préférences utilisateur (§5.4.1) ; `mcp` porte le serveur MCP (changement `exposer-serveur-mcp`), qui lit le référentiel des standards, le calendrier des sorties et les fiches réglementaires par les points d'extension `catalog.standard`, `releaseradar` et `regintel` ; `ingestion.web`, `signal.web` et `impact` portent la veille RSS/Atom et les pages surveillées (changement `collecter-veille-rss-web`, ADR-0028) ; `alerting` porte les alertes et les résumés (changement `diffuser-alertes-et-digests`) ; `impact` (`RechercheVeille`), `api.recherche` et `workspace.vue` portent la recherche plein texte, ses filtres et les vues enregistrées, et l'outil MCP `search_signals` emploie la même requête (changement `rechercher-et-filtrer`) ; `catalog.standard`, `releaseradar`, `impact` (`RadarProjets`, `SuggestionsRadar`) et `alerting` (`RappelsRadar`) portent le référentiel des standards, le radar des sorties et les suggestions de l'IA (changements `construire-radar-et-standards` et `alimenter-inventaire-et-completer-ihm`, §8.15) ; `impact` lit le référentiel de `catalog` pour la dette de version et les annonces ; `aigateway` porte la passerelle IA (changement `encadrer-appels-ia`), appelée par `alerting`, `signal.web`, `impact` et `regintel` par son seul contrat, l'adaptateur Ollama et les quotas restant internes (règle `seuleLaPasserelleConnaitLeFournisseur`) ; `projectintel`, `scm` et `api` portent l'activité des projets (changement `mesurer-activite-projets`) ; `catalog.profil`, `workspace.suivi`, `ingestion.culture`, `signal.opportunite`, `impact` et `alerting` (`RappelsOpportunites`) portent le profil de veille `artiste` (changement `ajouter-profil-artiste`, §5.4.2) ; `ingestion.legi`, `catalog.dictionnaire`, `regintel`, `scm` (`DemandesEvolution`), `alerting` (`RappelsReglementaires`) et `api.reglementaire` portent la veille réglementaire (changement `suivre-veille-reglementaire`, §5.4.3) ; les autres paquets ne contiennent aucun code métier.
+Les paquets `ingestion`, `signal`, `vulnintel`, `scm`, `inventory`, `impact`, `workspace`, `audit` et `api` portent la chaîne sécurité du POC (changement `formaliser-chaine-securite-poc`) ainsi que les comptes, les espaces et les rôles (changement `gerer-comptes-et-acces`) ; `catalog`, `workspace.preference` et `api` portent le catalogue des profils et des mises en page et les préférences utilisateur (§5.4.1) ; `mcp` porte le serveur MCP (changement `exposer-serveur-mcp`), qui lit le référentiel des standards, le calendrier des sorties et les fiches réglementaires par les points d'extension `catalog.standard`, `releaseradar` et `regintel` ; `ingestion.web`, `signal.web` et `impact` portent la veille RSS/Atom et les pages surveillées (changement `collecter-veille-rss-web`, ADR-0028) ; `alerting` porte les alertes et les résumés (changement `diffuser-alertes-et-digests`) ; `signal.recherche` (`RechercheVeille`) porte la recherche plein texte et ses filtres, `impact` (`ProjetsConcernes`) complète chaque élément trouvé des projets visibles qu'il concerne, `api.recherche` et `workspace.vue` portent le point d'accès et les vues enregistrées, et l'outil MCP `search_signals` emploie la même requête (changement `rechercher-et-filtrer`) ; `catalog.standard`, `releaseradar`, `impact` (`RadarProjets`, `SuggestionsRadar`) et `alerting` (`RappelsRadar`) portent le référentiel des standards, le radar des sorties et les suggestions de l'IA (changements `construire-radar-et-standards` et `alimenter-inventaire-et-completer-ihm`, §8.15) ; `impact` lit le référentiel de `catalog` pour la dette de version et les annonces ; `aigateway` porte la passerelle IA (changement `encadrer-appels-ia`), appelée par `alerting`, `signal.web`, `impact` et `regintel` par son seul contrat, l'adaptateur Ollama et les quotas restant internes (règle `seuleLaPasserelleConnaitLeFournisseur`) ; `projectintel`, `scm` et `api` portent l'activité des projets (changement `mesurer-activite-projets`) ; `catalog.profil`, `workspace.suivi`, `ingestion.culture`, `signal.opportunite`, `impact` et `alerting` (`RappelsOpportunites`) portent le profil de veille `artiste` (changement `ajouter-profil-artiste`, §5.4.2) ; `ingestion.legi`, `catalog.dictionnaire`, `regintel`, `scm` (`DemandesEvolution`), `alerting` (`RappelsReglementaires`) et `api.reglementaire` portent la veille réglementaire (changement `suivre-veille-reglementaire`, §5.4.3) ; les autres paquets ne contiennent aucun code métier.
 
 ## 5.7 Modèle métier conceptuel (D-05)
 

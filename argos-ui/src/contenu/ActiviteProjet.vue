@@ -136,7 +136,7 @@ onBeforeUnmount(() => annulation.abort())
 </template>
 
 <style scoped>
-.compteurs { display: grid; grid-template-columns: max-content 1fr; gap: 0.25rem 1rem; }
+.compteurs { display: grid; grid-template-columns: minmax(0, max-content) minmax(0, 1fr); gap: 0.25rem 1rem; }
 .compteurs dt { font-weight: 600; }
 .compteurs dd { margin: 0; }
 .jalons { padding-left: 1.2rem; overflow-wrap: anywhere; }

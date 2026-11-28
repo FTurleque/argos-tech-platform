@@ -3,6 +3,7 @@ package io.argos.api;
 import java.util.List;
 
 import jakarta.inject.Inject;
+import jakarta.ws.rs.BeanParam;
 import jakarta.ws.rs.GET;
 import jakarta.ws.rs.NotFoundException;
 import jakarta.ws.rs.POST;
@@ -18,6 +19,8 @@ import org.eclipse.microprofile.openapi.annotations.tags.Tag;
 import org.jboss.resteasy.reactive.ResponseStatus;
 
 import io.argos.api.security.Access;
+import io.argos.commun.Page;
+import io.argos.commun.Pagination;
 import io.argos.signal.SourceOperations;
 
 /** Indicateurs d'exploitation des sources d'avis (COL-07-S1, COL-08), réservés au rôle d'exploitation. */
@@ -44,20 +47,28 @@ public class SourceOperationsResource {
 
     @GET
     @Path("/{id}/rejected")
-    @Operation(summary = "Avis mis à l'écart par la source, avec leur motif")
-    public List<SourceOperations.RejectedAdvisory> rejected(@PathParam("id") String id) {
+    @Operation(summary = "Avis mis à l'écart par la source, avec leur motif, du plus récent au plus ancien (liste paginée)")
+    @APIResponse(responseCode = "200", description = "Page d'avis mis à l'écart")
+    @APIResponse(responseCode = "400", description = "Paramètre page ou size non entier")
+    public Page<SourceOperations.RejectedAdvisory> rejected(@PathParam("id") String id,
+            @BeanParam DemandePage demande) {
+        Pagination pagination = demande.pagination();
         access.operator();
         requireSource(id);
-        return operations.rejected(id);
+        return operations.rejected(id, pagination);
     }
 
     @GET
     @Path("/{id}/events")
-    @Operation(summary = "Événements d'exploitation datés de la source")
-    public List<SourceOperations.OperationEvent> events(@PathParam("id") String id) {
+    @Operation(summary = "Événements d'exploitation datés de la source, du plus récent au plus ancien (liste paginée)")
+    @APIResponse(responseCode = "200", description = "Page d'événements d'exploitation")
+    @APIResponse(responseCode = "400", description = "Paramètre page ou size non entier")
+    public Page<SourceOperations.OperationEvent> events(@PathParam("id") String id,
+            @BeanParam DemandePage demande) {
+        Pagination pagination = demande.pagination();
         access.operator();
         requireSource(id);
-        return operations.events(id);
+        return operations.events(id, pagination);
     }
 
     @POST

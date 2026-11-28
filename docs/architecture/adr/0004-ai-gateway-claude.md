@@ -1,3 +1,10 @@
+---
+id: ADR-0004
+title: "Encapsuler Claude derrière un AI Gateway"
+domain: architecture
+rules: false
+---
+
 # ADR-0004 — Encapsuler Claude derrière un AI Gateway
 
 - **Statut** : Remplacé par [ADR-0029](0029-passerelle-ia-ollama-local.md)

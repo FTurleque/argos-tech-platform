@@ -5,8 +5,9 @@
 | Préfixe d'exigences | `ALR` |
 | Spec de référence | [`/openspec/specs/alertes-digests/spec.md`](/openspec/specs/alertes-digests/spec.md) |
 | Changements archivés | [`2026-11-16-diffuser-alertes-et-digests`](/openspec/changes/archive/2026-11-16-diffuser-alertes-et-digests/proposal.md) |
-| Changements archivés, suite | [`durcir-autorisations-et-debits`](/openspec/changes/archive/2026-11-25-durcir-autorisations-et-debits/proposal.md) (ALR-08) |
-| Changement en cours | [`automatiser-chaine-veille`](/openspec/changes/archive/2026-11-20-automatiser-chaine-veille/specs/alertes-digests/spec.md) — proposé ; ALR-07 implémenté et intégré le 2026-11-19 (volets A, B et C réunis) ; [`alimenter-inventaire-et-completer-ihm`](/openspec/changes/alimenter-inventaire-et-completer-ihm/proposal.md) (ALR-09) — implémenté, non archivé |
+| Changements archivés, suite | [`durcir-autorisations-et-debits`](/openspec/changes/archive/2026-11-25-durcir-autorisations-et-debits/proposal.md) (ALR-08) ; [`2026-11-26-alimenter-inventaire-et-completer-ihm`](/openspec/changes/archive/2026-11-26-alimenter-inventaire-et-completer-ihm/proposal.md) (ALR-09) |
+| Changement du lot 18 | [`2026-11-20-automatiser-chaine-veille`](/openspec/changes/archive/2026-11-20-automatiser-chaine-veille/specs/alertes-digests/spec.md) (ALR-07) — archivé |
+| Changement du sprint 10 | [`2026-11-27-accelerer-requetes-chaudes`](/openspec/changes/archive/2026-11-27-accelerer-requetes-chaudes/proposal.md) (ALR-10) — archivé |
 | Statut de la capacité | livrée ; implémentation et tests dans `argos-server` |
 | Composants (arc42 §5) | `alerting`, `workspace`, `impact-engine` |
 
@@ -73,8 +74,9 @@ Configuration par variables d'environnement (aucun secret versionné) :
 | Résumé IA demandé avec un délai borné ; alerte envoyée sans lui s'il est indisponible, refusé ou au-delà du plafond, avec mention dans le message | ALR-05 | baseline v2.3 §6 ; QS-10 | [EXISTANT] |
 | Diffusion par e-mail (relais SMTP du Synology) et vers le client desktop ; nouvelles tentatives bornées puis état « en échec » | ALR-06 | ADR-0022 (Proposé) ; [DÉCISION] du 2026-11-16 (Q-1) | [EXISTANT] |
 | Aucune alerte immédiate ni mention dans un résumé pour un impact `écarté` ou `résolu` ; un impact rouvert redevient éligible ; un abonnement suspendu ne produit aucune notification (ABO-07) | ALR-07 | décisions J5 et J7 du porteur du projet, 2026-11-19 | [PROPOSITION] — changement [`automatiser-chaine-veille`](/openspec/changes/archive/2026-11-20-automatiser-chaine-veille/specs/alertes-digests/spec.md) |
-| Chaque lien d'une alerte, d'un résumé ou d'un rappel est l'adresse publique de la plateforme suivie d'un gabarit de l'historique « hash » de l'IHM vers une vue existante : `/#/signaux/{id}` (signal), `/#/espaces/{id}/radar` (radar de l'espace), `/#/profils/artiste/opportunites/{id}` (opportunité) ; aucun lien ne vise un chemin que l'IHM ne sert pas | ALR-09 | AUD-ARC-22 ; ALR-06 ; ADR-0038 | [PROPOSITION] — [`alimenter-inventaire-et-completer-ihm`](/openspec/changes/alimenter-inventaire-et-completer-ihm/proposal.md) ; vérifiée par `LiensIhmTest`, `AlertesTest`, `argos-ui/tests/liens-alertes.test.mjs` |
+| Chaque lien d'une alerte, d'un résumé ou d'un rappel est l'adresse publique de la plateforme suivie d'un gabarit de l'historique « hash » de l'IHM vers une vue existante : `/#/signaux/{id}` (signal), `/#/espaces/{id}/radar` (radar de l'espace), `/#/profils/artiste/opportunites/{id}` (opportunité) ; aucun lien ne vise un chemin que l'IHM ne sert pas | ALR-09 | AUD-ARC-22 ; ALR-06 ; ADR-0038 | [PROPOSITION] — [`alimenter-inventaire-et-completer-ihm`](/openspec/changes/archive/2026-11-26-alimenter-inventaire-et-completer-ihm/proposal.md) ; vérifiée par `LiensIhmTest`, `AlertesTest`, `argos-ui/tests/liens-alertes.test.mjs` |
 | E-mail (alerte, résumé, rappel) seulement vers l'adresse que le fournisseur d'identité déclare vérifiée, enregistrée normalisée à la création du compte et tenue à jour à chaque connexion ; sans adresse vérifiée connue, aucun e-mail et l'élément reste visible dans Argos et sur le poste | ALR-08 | AUD-SEC-04 ; ALR-06 ; ADR-0027 (Accepté) ; décision du porteur, 2026-11-24 (comptes existants) | [PROPOSITION] — `durcir-autorisations-et-debits` |
+| L'évaluation des règles d'un signal lit en une transaction les membres des espaces touchés et leurs espaces, les impacts actifs du signal, leurs abonnements actifs et leurs alertes immédiates existantes (lecture technique filtrée par appartenance : chaque destinataire ne voit que les impacts de ses espaces), puis écrit alertes et éléments de résumé par lot : un nombre de requêtes indépendant du nombre de membres et de canaux ; les alertes créées restent en attente et la tâche planifiée d'envoi les diffuse | ALR-10 | AUD-PER-04 ; décision du porteur du projet, 2026-11-26 | [PROPOSITION] — `2026-11-27-accelerer-requetes-chaudes` |
 
 ## Droits d'accès et restrictions
 
@@ -115,7 +117,7 @@ Seuls les impacts établis qui satisfont une règle immédiate déclenchent une 
 
 ## Critères d'acceptation
 
-Scénarios ALR-01-S1 à ALR-06-S2 du changement ; QS-10 (résilience sans IA) ; ALR-09-S1 à ALR-09-S3 du changement [`alimenter-inventaire-et-completer-ihm`](/openspec/changes/alimenter-inventaire-et-completer-ihm/specs/alertes-digests/spec.md) [PROPOSITION].
+Scénarios ALR-01-S1 à ALR-06-S2 du changement ; QS-10 (résilience sans IA) ; ALR-09-S1 à ALR-09-S3 du changement [`alimenter-inventaire-et-completer-ihm`](/openspec/changes/archive/2026-11-26-alimenter-inventaire-et-completer-ihm/specs/alertes-digests/spec.md) [PROPOSITION].
 
 ## Interprétations introduites par un changement
 
@@ -166,5 +168,6 @@ Interprétations du changement `diffuser-alertes-et-digests`, à faire valider [
 | ALR-07 | ALR-07-S1, ALR-07-S2 | `automatiser-chaine-veille` : D5, DC-5 | 3.4 (de ce changement) | `alerting/AlertesImpactsTraitesTest` — vérifié le 2026-11-19 (intégration) |
 | ALR-08 | ALR-08-S1 à ALR-08-S4 | `durcir-autorisations-et-debits` D2 | 2.1, 2.2 | `AdresseVerifieeTest` (adresse non vérifiée, vérifiée, modifiée, migration puis reconnexion) |
 | ALR-09 | ALR-09-S1 à ALR-09-S3 | `alimenter-inventaire-et-completer-ihm` D5 | 4.1 à 4.3 | `LiensIhmTest` (`alr09S1LienDUnSignal`, `alr09S2LiensDuRadarEtDesOpportunites`), `AlertesTest`, `argos-ui/tests/liens-alertes.test.mjs` (ALR-09-S3), `argos-ui/tests/vues/signal.spec.ts` |
+| ALR-10 | ALR-10-S1 à ALR-10-S3 | `2026-11-27-accelerer-requetes-chaudes` D4, D5, DC-2 | 3.1 | `RequetesConstantesTest.alr09S1EvaluationEnNombreFixeDeRequetes` (S1) ; `AlertesTest`, `AlertesImpactsTraitesTest` (S2, S3 : passage de la tâche d'envoi, projet d'un espace étranger absent) |
 
 Tests : `argos-server/src/test/java/io/argos/alerting/`. Matrice détaillée : [`tasks.md`](/openspec/changes/archive/2026-11-16-diffuser-alertes-et-digests/tasks.md#matrice-de-traçabilité).

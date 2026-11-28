@@ -1,3 +1,10 @@
+---
+id: ADR-0001
+title: "Adopter un monolithe modulaire pour la première version"
+domain: architecture
+rules: false
+---
+
 # ADR-0001 — Adopter un monolithe modulaire pour la première version
 
 - **Statut** : Accepté

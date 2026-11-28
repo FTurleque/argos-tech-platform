@@ -4,9 +4,9 @@
 
 ARGOS doit rester simple à exploiter au démarrage tout en préservant la capacité d’ajouter des sources, des analyses et des modes de restitution.
 
-La stratégie proposée repose sur un **monolithe modulaire Quarkus** avec des frontières métier explicites et des adapters pour les systèmes externes. La stack applicative est désormais fixée par ADR-0019 : **Java 17 minimum, Quarkus, Vue.js 3 et PostgreSQL**.
+La stratégie repose sur un **monolithe modulaire Quarkus** avec des frontières métier explicites et des adapters pour les systèmes externes (ADR-0001, ADR-0037). La stack applicative est fixée par ADR-0019 : **Java 17 minimum, Quarkus, Vue.js 3 et PostgreSQL**.
 
-Le POC peut démarrer localement sous Docker Compose sans attendre la VM d’entreprise ; le POC partagé et le MVP migrent ensuite sur la VM interne.
+Argos se déploie sous Docker Compose, sur un PC comme sur le serveur Synology du porteur (ADR-0026), avec Keycloak auto-hébergé (ADR-0027) et un modèle d’IA local facultatif (ADR-0029).
 
 ## 4.2 Principes
 
@@ -16,7 +16,7 @@ Commencer avec un seul déploiement backend Quarkus, mais des modules métier s�
 
 ### P2 — Modèle canonique interne
 
-Aucune logique métier ne doit dépendre directement des payloads GitHub, GitLab, RSS ou changedetection.io.
+Aucune logique métier ne doit dépendre directement des payloads GitHub, GitLab, RSS/Atom ou des pages surveillées.
 
 Les adapters traduisent les événements externes vers des concepts internes stables :
 
@@ -52,19 +52,19 @@ Chaque utilisateur hérite du **socle d’équipe** et peut ajouter une **veille
 |---|---|---|---|
 | JDK | Java 17 minimum | Accepté | ADR-0019 |
 | Backend/API | Quarkus | Accepté | ADR-0019 + POC |
-| Architecture code | monolithe modulaire | Décision proposée | ADR-0001 |
+| Architecture code | monolithe modulaire, noyau `commun` | Accepté | ADR-0001, ADR-0037 |
 | Base principale | PostgreSQL | Accepté | ADR-0002 + ADR-0019 |
-| Migrations | Flyway ou Liquibase | Hypothèse à valider | POC build + migration |
-| Recherche | PostgreSQL FTS en première intention | Décision proposée | ADR-0015 |
-| Similarité | pgvector si cas d’usage démontré | Décision proposée | ADR-0015 |
+| Migrations | Flyway, migrations SQL appliquées au démarrage | Accepté | ADR-0032 |
+| Recherche | PostgreSQL FTS en première intention | Accepté | ADR-0015 |
+| Similarité | pgvector si cas d’usage démontré | Accepté (différé) | ADR-0015 |
 | API | REST + OpenAPI | Accepté dans la stack cible | ADR-0019 |
 | Frontend | Vue.js 3 en SPA | Accepté | ADR-0019 |
-| MCP | Quarkus MCP Server / Quarkiverse, Streamable HTTP | Décision proposée | ADR-0014 + POC |
+| MCP | serveur MCP en lecture seule, Streamable HTTP | Accepté | ADR-0014 |
 | IA | modèle local Ollama via la passerelle IA | Décision acceptée | ADR-0029 (remplace ADR-0004) |
 | RSS | collecteur RSS/Atom intégré au serveur | Décision acceptée | ADR-0028 (remplace ADR-0006 pour la veille RSS/Atom et web) |
 | Web watch | pages surveillées par le collecteur intégré au serveur | Décision acceptée | ADR-0028 |
 | Automatisation | n8n périphérique uniquement | Décision proposée | ADR-0007 |
-| IAM | OIDC vers IdP entreprise | Décision proposée | ADR-0008 |
+| IAM | OIDC, Keycloak auto-hébergé ; autorisation fine dans ARGOS | Accepté | ADR-0008, ADR-0027 |
 | Diagrammes | Mermaid | Imposé | ADR-0005 |
 
 ## 4.4 Mécanismes par objectif qualité
@@ -76,7 +76,7 @@ Chaque utilisateur hérite du **socle d’équipe** et peut ajouter une **veille
 | Maintenabilité | modules métier, ports/adapters, modèle canonique, ADR, tests de contrats, ArchUnit |
 | Fiabilité | idempotence, retry borné, statut de traitement, DLQ logique ou table d’échec |
 | Coût | préfiltrage déterministe, déduplication, cache, batch IA, quotas par workspace |
-| Observabilité | OpenTelemetry/Micrometer, logs structurés, métriques, traces, corrélation par event ID |
+| Observabilité | journaux JSON avec identifiant de corrélation, métriques Prometheus, contrôles de santé (ADR-0036) |
 
 ## 4.5 Style de décomposition
 
@@ -110,15 +110,16 @@ flowchart LR
 - [ADR-0007 — n8n périphérique](../adr/0007-n8n-peripherique.md)
 - [ADR-0008 — IAM OIDC](../adr/0008-iam-oidc.md)
 - [ADR-0014 — MCP lecture seule](../adr/0014-mcp-readonly-streamable-http.md)
-- [ADR-0017 — Déploiement POC/MVP](../adr/0017-deploiement-vm-conteneurs.md)
+- [ADR-0017 — Déploiement POC/MVP](../adr/0017-deploiement-vm-conteneurs.md) (cible VM remplacée par ADR-0026)
+- [ADR-0026 — Hébergement sur le serveur Synology du porteur](../adr/0026-hebergement-synology.md)
+- [ADR-0027 — Keycloak auto-hébergé](../adr/0027-keycloak-idp-auto-heberge.md)
 - [ADR-0019 — Stack Java 17+/Quarkus/Vue.js 3/PostgreSQL](../adr/0019-stack-java17-quarkus-vue3-postgresql.md)
 
 ## 4.7 Questions ouvertes
 
 - Un broker (Kafka/RabbitMQ/etc.) est-il nécessaire au-delà du POC ?
-- Flyway ou Liquibase est-il préférable dans le contexte interne ?
-- L’entreprise impose-t-elle des composants de monitoring, secrets management ou IAM existants ?
-- Quel mécanisme de notifications Teams/e-mail est disponible ?
+- Quels canaux de notification ajouter à l’e-mail et au client desktop ?
+- Quelle pile de collecte des métriques et des journaux pour un hébergement en ligne ?
 
 ## 4.8 Preuves nécessaires
 
@@ -126,5 +127,5 @@ flowchart LR
 - structure de packages/modules ;
 - tests d’architecture ;
 - Docker Compose local ;
-- manifests de déploiement VM ;
+- `compose.yaml`, `Dockerfile` et guide de déploiement ;
 - résultats de POC.

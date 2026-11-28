@@ -11,7 +11,6 @@ import static org.hamcrest.Matchers.contains;
 import static org.hamcrest.Matchers.containsString;
 import static org.hamcrest.Matchers.equalTo;
 import static org.hamcrest.Matchers.hasItem;
-import static org.hamcrest.Matchers.hasItems;
 import static org.hamcrest.Matchers.hasSize;
 import static org.hamcrest.Matchers.not;
 import static org.hamcrest.Matchers.nullValue;
@@ -231,7 +230,11 @@ class ProfilArtisteTest {
 
     // ------------------------------------------------------------------ ART-03
 
-    /** ART-03-S1 et S2 : seules les opportunités ouvertes de la discipline et du territoire suivis sont restituées. */
+    /**
+     * ART-03-S1 et S2 : seules les opportunités ouvertes de la discipline et du territoire suivis sont restituées, dans
+     * l'ordre des dates limites et paginées (PERF-03-S5), avec leur résumé (ART-06-S1). Le gabarit du résumé est vérifié
+     * par {@code StrategieDisciplineTerritoireTest}, le nettoyage des champs par {@code LecteurDataCultureTest}.
+     */
     @Test
     void art03RapprochementParDisciplineTerritoireEtDateLimite() {
         StubServer.programmer(JEU, Stub.succes(reponse(
@@ -260,7 +263,47 @@ class ProfilArtisteTest {
                 .body("items[0].explication", containsString("dans 20 jours"))
                 .body("items[1].territoires", contains("france"))
                 .body("items[2].dateAConfirmer", equalTo(true))
-                .body("items.titre", not(hasItem("Appel clos")));
+                .body("items.titre", not(hasItem("Appel clos")))
+                .body("page", equalTo(0)).body("size", equalTo(50)).body("total", equalTo(3));
+
+        // PERF-03-S5 : la liste est paginée au format commun.
+        Api.enTantQue("hugo").queryParam("page", 1).queryParam("size", 1)
+                .when().get("/api/v1/profils/artiste/opportunites").then().statusCode(200)
+                .body("items.titre", contains("Aide nationale"))
+                .body("page", equalTo(1)).body("size", equalTo(1)).body("total", equalTo(3));
+        Api.enTantQue("hugo").queryParam("size", "abc").when().get("/api/v1/profils/artiste/opportunites").then()
+                .statusCode(400).body("code", equalTo("DONNEE_INVALIDE")).body("attribut", equalTo("size"));
+        // ART-06-S1 : chaque opportunité restituée porte son résumé, qui ne se prononce pas sur l'éligibilité.
+        Api.enTantQue("hugo").when().get("/api/v1/profils/artiste/opportunites").then().statusCode(200)
+                .body("items.resume.mention", hasItem(containsString("éligibilité")));
+        Api.enTantQue("hugo").when().get("/api/v1/profils/artiste/opportunites/" + UUID.randomUUID() + "/resume")
+                .then().statusCode(404);
+    }
+
+    // ------------------------------------------------------------------ ART-08
+
+    /** ART-08-S1 et S2 : une opportunité sans date limite n'est restituée que pendant l'âge maximal (90 jours). */
+    @Test
+    void art08OpportuniteSansDateLimiteRestitueePendantLAgeMaximal() {
+        StubServer.programmer(JEU, Stub.succes(reponse(
+                enregistrement("AAP-RECENTE", "Résidence récente sans date", "Arts visuels", "Occitanie", null),
+                enregistrement("AAP-ANCIENNE", "Résidence ancienne sans date", "Arts visuels", "Occitanie", null))));
+        String source = declarer("DATA_CULTURE", StubServer.base() + JEU, "appels-residences", List.of(), List.of());
+        verifier(source);
+        ArtisteFixtures.collecter();
+        baseDeTest.exec("UPDATE opportunite SET recu_le = now() - interval '120 days' WHERE titre = 'Résidence ancienne sans date'");
+        baseDeTest.exec("UPDATE opportunite SET recu_le = now() - interval '10 days' WHERE titre = 'Résidence récente sans date'");
+        ArtisteFixtures.collecter();
+
+        activer("hugo", "developpeur", "artiste");
+        suivre("hugo", List.of("arts-visuels"), List.of("occitanie"));
+
+        Api.enTantQue("hugo").when().get("/api/v1/profils/artiste/opportunites").then().statusCode(200)
+                .body("items.titre", contains("Résidence récente sans date"))
+                .body("items[0].dateAConfirmer", equalTo(true))
+                .body("total", equalTo(1));
+        assertEquals(1, baseDeTest.count("SELECT count(*) FROM opportunite WHERE titre = 'Résidence ancienne sans date'"
+                + " AND recu_le < now() - interval '100 days'"), "une nouvelle collecte ne rajeunit pas la première collecte");
     }
 
     // ------------------------------------------------------------------ ART-05
@@ -330,36 +373,4 @@ class ProfilArtisteTest {
                 .body("find { it.sourceId == '" + locale + "' }.erreur", containsString("ADRESSE_INTERDITE"));
     }
 
-    // ------------------------------------------------------------------ ART-06
-
-    /** ART-06-S1 : le résumé présente les critères tels qu'énoncés, renvoie au texte officiel et ne juge pas l'éligibilité. */
-    @Test
-    void art06S1ResumeSansAvisDEligibilite() {
-        StubServer.programmer(JEU, Stub.succes(reponse("""
-                {"identifiant": "AAP-X", "titre": "<img src=x onerror=alert(1)>Résidence", "organisme": "Région",
-                 "criteres": "<p>Être artiste professionnel ; <script>vol()</script>projet en Occitanie.</p>",
-                 "lien": "javascript:alert(1)", "discipline": "Arts visuels", "region": "Occitanie",
-                 "date_limite": "%s"}""".formatted(aujourdhui.plusDays(5)),
-                enregistrement("AAP-Y", "Résidence officielle", "Arts visuels", "Occitanie", aujourdhui.plusDays(6)))));
-        verifier(declarer("DATA_CULTURE", StubServer.base() + JEU, "appels-residences", List.of(), List.of()));
-        ArtisteFixtures.collecter();
-        activer("hugo", "developpeur", "artiste");
-        suivre("hugo", List.of("arts-visuels"), List.of("occitanie"));
-        String residence = baseDeTest.string("SELECT id FROM opportunite WHERE titre = 'Résidence'");
-        String residenceOfficielle = baseDeTest.string("SELECT id FROM opportunite WHERE titre = 'Résidence officielle'");
-
-        Api.enTantQue("hugo").when().get("/api/v1/profils/artiste/opportunites/" + residence + "/resume").then().statusCode(200)
-                .body("criteres", equalTo("Être artiste professionnel ; projet en Occitanie."))
-                .body("texteOfficiel", nullValue())
-                .body("mention", containsString("ne se prononce pas sur votre éligibilité"))
-                .body("keySet()", not(hasItem("eligible")));
-        Api.enTantQue("hugo").when().get("/api/v1/profils/artiste/opportunites/" + residenceOfficielle + "/resume").then().statusCode(200)
-                .body("criteres", equalTo("Artistes professionnels résidant en France."))
-                .body("texteOfficiel", equalTo("https://www.culture.gouv.fr/AAP-Y"))
-                .body("keySet()", hasItems("titre", "organisme", "criteres", "dateLimite", "texteOfficiel", "mention"));
-        Api.enTantQue("hugo").when().get("/api/v1/profils/artiste/opportunites").then().statusCode(200)
-                .body("items.resume.mention", hasItem(containsString("éligibilité")));
-        Api.enTantQue("hugo").when().get("/api/v1/profils/artiste/opportunites/" + UUID.randomUUID() + "/resume")
-                .then().statusCode(404);
-    }
 }

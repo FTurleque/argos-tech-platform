@@ -55,7 +55,7 @@ test('2.5 (AFF-03-S1) : « fantaisie » choisie sur le web, le client desktop s�
     await fenetre.getByRole('navigation', { name: 'Navigation principale' }).getByRole('link', { name: 'Ma veille' }).click()
     await expect(fenetre.getByRole('heading', { name: 'Ma veille', level: 1 })).toBeVisible()
     // Précondition du jeu de données : la veille d'alice n'est pas vide, sinon la mise en page n'aurait rien à afficher.
-    expect(veille.elements.length, 'veille d’alice non vide').toBeGreaterThan(0)
+    expect(veille.items.length, 'veille d’alice non vide').toBeGreaterThan(0)
     await expect(fenetre.locator('[data-mise-en-page]')).toHaveCount(1)
     await expect(fenetre.locator('[data-mise-en-page="fantaisie"]')).toBeVisible()
 
@@ -89,7 +89,7 @@ test('5.2 : developpeur + expert-metier, « gazette » choisie sur le web, retro
     expect(reponse.profilsActifs).toEqual(DEUX_PROFILS)
     await expect(fenetre.getByText('Profils actifs : Développeur, Expert métier')).toBeVisible()
     const affiches = await titres(fenetre)
-    expect(affiches).toEqual(reponse.elements.map((element) => element.titre))
+    expect(affiches).toEqual(reponse.items.map((element) => element.titre))
     expect([...affiches].sort()).toEqual([...UNION_JULES].sort())
     expect(new Set(affiches).size, 'aucun doublon').toBe(affiches.length)
     // Rubriques des deux profils ; l'avis du seul abonnement n'en porte pas ; mention IA conservée.

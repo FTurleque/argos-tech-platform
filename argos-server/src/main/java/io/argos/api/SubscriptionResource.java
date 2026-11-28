@@ -4,6 +4,8 @@ import java.util.List;
 import java.util.Locale;
 import java.util.UUID;
 
+import com.fasterxml.jackson.annotation.JsonProperty;
+
 import jakarta.inject.Inject;
 import jakarta.ws.rs.Consumes;
 import jakarta.ws.rs.DELETE;
@@ -37,7 +39,8 @@ import io.argos.workspace.subscription.SubscriptionService;
 public class SubscriptionResource {
 
     /** Corps de création ; le propriétaire PERSONAL est toujours l'appelant. */
-    public record CreateSubscription(String scope, UUID teamWorkspaceId, List<SubscriptionRequest.Filter> filters,
+    public record CreateSubscription(String scope, @JsonProperty("teamWorkspaceId") UUID espaceEquipeId,
+            List<SubscriptionRequest.Filter> filters,
             String channel, String frequency, Boolean mandatory) {
     }
 
@@ -54,11 +57,11 @@ public class SubscriptionResource {
         Caller caller = access.authenticated();
         CreateSubscription payload = body == null ? new CreateSubscription(null, null, null, null, null, null) : body;
         boolean team = payload.scope() != null && "TEAM".equals(payload.scope().strip().toUpperCase(Locale.ROOT));
-        if (team && payload.teamWorkspaceId() != null && !caller.adminOf(payload.teamWorkspaceId())) {
+        if (team && payload.espaceEquipeId() != null && !caller.adminOf(payload.espaceEquipeId())) {
             // Création d'un abonnement TEAM réservée à l'administrateur de l'espace (ABO-06).
             throw access.forbidden();
         }
-        SubscriptionRequest request = new SubscriptionRequest(payload.scope(), team ? payload.teamWorkspaceId() : null,
+        SubscriptionRequest request = new SubscriptionRequest(payload.scope(), team ? payload.espaceEquipeId() : null,
                 team ? null : caller.accountId(), payload.filters(), payload.channel(), payload.frequency(), payload.mandatory());
         return Response.status(Response.Status.CREATED).entity(subscriptions.create(request, caller.accountId())).build();
     }
@@ -68,7 +71,7 @@ public class SubscriptionResource {
             + "abonnements PERSONAL ; chacun porte son état (state : ACTIVE ou SUSPENDED)")
     public List<SubscriptionService.Subscription> mine() {
         Caller caller = access.authenticated();
-        return subscriptions.listFor(caller.accountId(), caller.memberWorkspaces());
+        return subscriptions.listFor(caller.accountId(), caller.espacesMembre());
     }
 
     @POST
@@ -115,7 +118,7 @@ public class SubscriptionResource {
     @Operation(summary = "Quitte un abonnement : refusé pour un abonnement TEAM obligatoire ; suspend un abonnement PERSONAL")
     public Response leave(@PathParam("id") UUID id) {
         Caller caller = access.authenticated();
-        return switch (subscriptions.leave(id, caller.accountId(), caller.memberWorkspaces())) {
+        return switch (subscriptions.leave(id, caller.accountId(), caller.espacesMembre())) {
             case LEFT -> Response.noContent().build();
             case MANDATORY -> Response.status(Response.Status.CONFLICT)
                     .entity(new Erreur("ABONNEMENT_OBLIGATOIRE", "abonnement TEAM obligatoire : il ne peut pas être quitté", "mandatory")).build();
@@ -139,10 +142,10 @@ public class SubscriptionResource {
             }
             return caller;
         }
-        if (!caller.memberOf(subscription.ownerWorkspaceId())) {
+        if (!caller.memberOf(subscription.espaceProprietaireId())) {
             throw access.outOfScope();
         }
-        if (!caller.adminOf(subscription.ownerWorkspaceId())) {
+        if (!caller.adminOf(subscription.espaceProprietaireId())) {
             throw access.forbidden();
         }
         return caller;

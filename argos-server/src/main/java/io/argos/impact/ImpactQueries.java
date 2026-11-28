@@ -24,6 +24,7 @@ import com.fasterxml.jackson.annotation.JsonInclude;
 import io.argos.commun.ContexteBase;
 import io.argos.commun.Conversions;
 import io.argos.commun.Jdbc;
+import io.argos.commun.Pagination;
 
 /**
  * Consultation des impacts, limitée aux espaces autorisés de l'appelant (COR-08, ADR-0016) :
@@ -46,7 +47,8 @@ public class ImpactQueries {
      * absents des listes. {@code componentId} est nul si le composant a quitté l'inventaire.
      */
     public record ImpactView(UUID id, UUID signalId, String signalSource, String signalExternalId, String signalTitle,
-            UUID signalVersionId, UUID projectId, String projectName, UUID workspaceId, UUID componentId,
+            UUID signalVersionId, UUID projectId, String projectName, @JsonProperty("workspaceId") UUID espaceId,
+            UUID componentId,
             String componentPurl, String componentVersion, Boolean transitive, MatchRules.Level level, String method,
             String inventoryOrigin, Instant inventoryDate, String provenance, Instant createdAt, Instant updatedAt,
             String etat, @JsonInclude(JsonInclude.Include.NON_NULL) List<TransitionView> historique,
@@ -55,7 +57,7 @@ public class ImpactQueries {
         /** Même impact, avec son historique. */
         public ImpactView avecHistorique(List<TransitionView> transitions) {
             return new ImpactView(id, signalId, signalSource, signalExternalId, signalTitle, signalVersionId, projectId,
-                    projectName, workspaceId, componentId, componentPurl, componentVersion, transitive, level, method,
+                    projectName, espaceId, componentId, componentPurl, componentVersion, transitive, level, method,
                     inventoryOrigin, inventoryDate, provenance, createdAt, updatedAt, etat, List.copyOf(transitions),
                     transitionsPossibles);
         }
@@ -63,7 +65,7 @@ public class ImpactQueries {
         /** Même impact, avec les transitions que l'appelant peut demander (vide pour un lecteur). */
         public ImpactView avecTransitionsPossibles(List<String> possibles) {
             return new ImpactView(id, signalId, signalSource, signalExternalId, signalTitle, signalVersionId, projectId,
-                    projectName, workspaceId, componentId, componentPurl, componentVersion, transitive, level, method,
+                    projectName, espaceId, componentId, componentPurl, componentVersion, transitive, level, method,
                     inventoryOrigin, inventoryDate, provenance, createdAt, updatedAt, etat, historique,
                     List.copyOf(possibles));
         }
@@ -95,16 +97,36 @@ public class ImpactQueries {
     private static final int TAILLE_PAGE_MAX = 200;
     private static final int TAILLE_PAGE_MIN = 1;
 
-    private static final String SELECT = """
+    private static final String COLONNES = """
             SELECT i.id, i.signal_id, s.source, s.external_id, s.title, i.signal_version_id, i.project_id, p.name,
                    i.workspace_id, i.component_id, coalesce(c.purl, i.component_purl),
                    CASE WHEN c.id IS NULL THEN i.component_version ELSE c.version END, i.transitive, i.level, i.method,
                    i.inventory_origin, i.inventory_date, i.provenance::text, i.created_at, i.updated_at, i.state
-            FROM project_impact i
+            """;
+
+    private static final String JOINTURES = """
             JOIN signal s ON s.id = i.signal_id
             JOIN project p ON p.id = i.project_id
             LEFT JOIN component c ON c.id = i.component_id
             """;
+
+    private static final String SELECT = COLONNES + "FROM project_impact i\n" + JOINTURES;
+
+    /**
+     * Impacts actifs les plus récents, lus espace par espace : chaque branche suit l'index partiel
+     * {@code project_impact_actifs_recents} (migration V27) et s'arrête à la limite, sans lire les impacts des autres
+     * espaces ni les impacts résolus ou écartés ; la fusion garde les plus récents de tous les espaces. Le prédicat
+     * d'état reprend celui de l'index, littéral, pour que le planificateur puisse l'employer.
+     */
+    private static final String RECENTS = COLONNES + """
+            FROM (SELECT recent.id, recent.updated_at
+                  FROM unnest(?::uuid[]) espace(id)
+                  CROSS JOIN LATERAL (SELECT r.id, r.updated_at FROM project_impact r
+                                      WHERE r.workspace_id = espace.id AND r.state IN ('OUVERT', 'CONFIRME')
+                                      ORDER BY r.updated_at DESC, r.id LIMIT ?) recent
+                  ORDER BY recent.updated_at DESC, recent.id LIMIT ?) recents
+            JOIN project_impact i ON i.id = recents.id
+            """ + JOINTURES + "ORDER BY i.updated_at DESC, i.id";
 
     @Inject
     DataSource dataSource;
@@ -114,13 +136,13 @@ public class ImpactQueries {
 
     /** Impacts actifs (ouverts et confirmés) d'un signal dans les espaces donnés (liste paginée). */
     @Transactional
-    public Page forSignal(UUID signalId, UUID accountId, Set<UUID> workspaces, int page, int size) {
-        return forSignal(signalId, accountId, workspaces, EtatImpact.ACTIFS, page, size);
+    public Page forSignal(UUID signalId, UUID accountId, Set<UUID> espaces, int page, int size) {
+        return forSignal(signalId, accountId, espaces, EtatImpact.ACTIFS, page, size);
     }
 
     /** Impacts d'un signal aux états donnés, dans les espaces donnés (liste paginée, COR-12-S2). */
     @Transactional
-    public Page forSignal(UUID signalId, UUID accountId, Set<UUID> workspaces, Set<EtatImpact> etats, int page,
+    public Page forSignal(UUID signalId, UUID accountId, Set<UUID> espaces, Set<EtatImpact> etats, int page,
             int size) {
         int boundedPage = Math.max(page, 0);
         int boundedSize = Math.min(Math.max(size, TAILLE_PAGE_MIN), TAILLE_PAGE_MAX);
@@ -130,14 +152,14 @@ public class ImpactQueries {
                     "SELECT count(*) FROM project_impact WHERE signal_id = ? AND workspace_id = ANY (?) AND state = ANY (?)",
                     requete -> {
                         requete.setObject(1, signalId);
-                        requete.setArray(2, uuids(connexion, workspaces));
+                        requete.setArray(2, uuids(connexion, espaces));
                         requete.setArray(3, etats(connexion, etats));
                     }, resultat -> resultat.getLong(1)).orElse(0L);
             List<ImpactView> items = Jdbc.lister(connexion, SELECT
                     + " WHERE i.signal_id = ? AND i.workspace_id = ANY (?) AND i.state = ANY (?)"
                     + " ORDER BY i.created_at, i.id LIMIT ? OFFSET ?", requete -> {
                         requete.setObject(1, signalId);
-                        requete.setArray(2, uuids(connexion, workspaces));
+                        requete.setArray(2, uuids(connexion, espaces));
                         requete.setArray(3, etats(connexion, etats));
                         requete.setInt(4, boundedSize);
                         requete.setLong(5, (long) boundedPage * boundedSize);
@@ -150,13 +172,13 @@ public class ImpactQueries {
 
     /** Impact, quel que soit son état, avec son historique, s'il appartient à l'un des espaces donnés. */
     @Transactional
-    public Optional<ImpactView> find(UUID impactId, UUID accountId, Set<UUID> workspaces) {
+    public Optional<ImpactView> find(UUID impactId, UUID accountId, Set<UUID> espaces) {
         try (Connection connexion = dataSource.getConnection()) {
             ContexteBase.appliquer(connexion, ContexteBase.Contexte.duCompte(accountId));
             Optional<ImpactView> vue = Jdbc.unique(connexion, SELECT + " WHERE i.id = ? AND i.workspace_id = ANY (?)",
                     requete -> {
                         requete.setObject(1, impactId);
-                        requete.setArray(2, uuids(connexion, workspaces));
+                        requete.setArray(2, uuids(connexion, espaces));
                     }, ImpactQueries::view);
             if (vue.isEmpty()) {
                 return Optional.empty();
@@ -172,8 +194,8 @@ public class ImpactQueries {
      * un impact écarté ou résolu n'est jamais alerté, ALR-07).
      */
     @Transactional
-    public List<ImpactView> forSignals(Collection<UUID> signalIds, UUID accountId, Set<UUID> workspaces) {
-        if (signalIds.isEmpty() || workspaces.isEmpty()) {
+    public List<ImpactView> forSignals(Collection<UUID> signalIds, UUID accountId, Set<UUID> espaces) {
+        if (signalIds.isEmpty() || espaces.isEmpty()) {
             return new ArrayList<>();
         }
         try (Connection connexion = dataSource.getConnection()) {
@@ -182,7 +204,7 @@ public class ImpactQueries {
                     + " WHERE i.signal_id = ANY (?) AND i.workspace_id = ANY (?) AND i.state = ANY (?)"
                     + " ORDER BY i.created_at, i.id", requete -> {
                         requete.setArray(1, connexion.createArrayOf("uuid", signalIds.toArray()));
-                        requete.setArray(2, uuids(connexion, workspaces));
+                        requete.setArray(2, uuids(connexion, espaces));
                         requete.setArray(3, etats(connexion, EtatImpact.ACTIFS));
                     }, ImpactQueries::view);
         } catch (SQLException erreur) {
@@ -190,16 +212,67 @@ public class ImpactQueries {
         }
     }
 
+    /**
+     * Impacts actifs d'un signal dans les espaces donnés, lus une fois pour tous les destinataires de ses alertes
+     * (ALR-10, décision du porteur du projet du 2026-11-26). Lecture technique, hors rôle applicatif : l'appelant
+     * restreint ensuite chaque destinataire aux impacts des espaces dont il est membre (même règle que la politique
+     * {@code project_impact_lecture}) ; un impact écarté ou résolu n'est jamais alerté (ALR-07).
+     */
+    @Transactional
+    public List<ImpactView> actifsDuSignal(UUID signalId, Set<UUID> espaces) {
+        if (espaces.isEmpty()) {
+            return new ArrayList<>();
+        }
+        return jdbc.lister(SELECT + " WHERE i.signal_id = ? AND i.workspace_id = ANY (?) AND i.state IN ('OUVERT', 'CONFIRME')"
+                + " ORDER BY i.created_at, i.id", requete -> {
+                    requete.setObject(1, signalId);
+                    requete.setArray(2, requete.getConnection().createArrayOf("uuid", espaces.toArray()));
+                }, ImpactQueries::view);
+    }
+
+    /**
+     * Page des impacts d'un projet aux états donnés (COR-12-S2, ADR-0040), triés par date de création puis identifiant ;
+     * page vide si le projet n'appartient à aucun des espaces donnés.
+     */
+    @Transactional
+    public Page forProject(UUID projectId, UUID accountId, Set<UUID> espaces, Set<EtatImpact> etats,
+            Pagination pagination) {
+        if (espaces.isEmpty()) {
+            return new Page(List.of(), pagination.page(), pagination.taille(), 0);
+        }
+        try (Connection connexion = dataSource.getConnection()) {
+            ContexteBase.appliquer(connexion, ContexteBase.Contexte.duCompte(accountId));
+            Jdbc.Liaison filtre = requete -> {
+                requete.setObject(1, projectId);
+                requete.setArray(2, uuids(connexion, espaces));
+                requete.setArray(3, etats(connexion, etats));
+            };
+            long total = Jdbc.unique(connexion, "SELECT count(*) FROM project_impact"
+                    + " WHERE project_id = ? AND workspace_id = ANY (?) AND state = ANY (?)", filtre,
+                    resultat -> resultat.getLong(1)).orElse(0L);
+            List<ImpactView> items = Jdbc.lister(connexion, SELECT
+                    + " WHERE i.project_id = ? AND i.workspace_id = ANY (?) AND i.state = ANY (?)"
+                    + " ORDER BY i.created_at, i.id LIMIT ? OFFSET ?", requete -> {
+                        filtre.lier(requete);
+                        requete.setInt(4, pagination.taille());
+                        requete.setLong(5, pagination.decalage());
+                    }, ImpactQueries::view);
+            return new Page(items, pagination.page(), pagination.taille(), total);
+        } catch (SQLException erreur) {
+            throw new IllegalStateException("lecture des impacts impossible", erreur);
+        }
+    }
+
     /** Impacts actifs d'un projet, vides si le projet n'appartient à aucun des espaces donnés. */
     @Transactional
-    public List<ImpactView> forProject(UUID projectId, UUID accountId, Set<UUID> workspaces) {
-        return forProject(projectId, accountId, workspaces, EtatImpact.ACTIFS);
+    public List<ImpactView> forProject(UUID projectId, UUID accountId, Set<UUID> espaces) {
+        return forProject(projectId, accountId, espaces, EtatImpact.ACTIFS);
     }
 
     /** Impacts d'un projet aux états donnés (COR-12-S2), vides si le projet n'appartient à aucun des espaces donnés. */
     @Transactional
-    public List<ImpactView> forProject(UUID projectId, UUID accountId, Set<UUID> workspaces, Set<EtatImpact> etats) {
-        if (workspaces.isEmpty()) {
+    public List<ImpactView> forProject(UUID projectId, UUID accountId, Set<UUID> espaces, Set<EtatImpact> etats) {
+        if (espaces.isEmpty()) {
             return new ArrayList<>();
         }
         try (Connection connexion = dataSource.getConnection()) {
@@ -208,7 +281,7 @@ public class ImpactQueries {
                     + " WHERE i.project_id = ? AND i.workspace_id = ANY (?) AND i.state = ANY (?)"
                     + " ORDER BY i.created_at, i.id", requete -> {
                         requete.setObject(1, projectId);
-                        requete.setArray(2, uuids(connexion, workspaces));
+                        requete.setArray(2, uuids(connexion, espaces));
                         requete.setArray(3, etats(connexion, etats));
                     }, ImpactQueries::view);
         } catch (SQLException erreur) {
@@ -216,21 +289,20 @@ public class ImpactQueries {
         }
     }
 
-    /** Impacts actifs les plus récents des espaces donnés (serveur MCP, {@code get_security_alerts}). */
+    /** Impacts actifs les plus récents des espaces donnés (« Ma veille », serveur MCP {@code get_security_alerts}). */
     @Transactional
-    public List<ImpactView> forWorkspaces(UUID accountId, Set<UUID> workspaces, int limit) {
-        if (workspaces.isEmpty()) {
+    public List<ImpactView> pourEspaces(UUID accountId, Set<UUID> espaces, int limit) {
+        if (espaces.isEmpty()) {
             return new ArrayList<>();
         }
         try (Connection connexion = dataSource.getConnection()) {
             ContexteBase.appliquer(connexion, ContexteBase.Contexte.duCompte(accountId));
-            return Jdbc.lister(connexion, SELECT
-                    + " WHERE i.workspace_id = ANY (?) AND i.state = ANY (?) ORDER BY i.updated_at DESC, i.id LIMIT ?",
-                    requete -> {
-                        requete.setArray(1, uuids(connexion, workspaces));
-                        requete.setArray(2, etats(connexion, EtatImpact.ACTIFS));
-                        requete.setInt(3, Math.min(Math.max(limit, TAILLE_PAGE_MIN), TAILLE_PAGE_MAX));
-                    }, ImpactQueries::view);
+            int limite = Math.min(Math.max(limit, TAILLE_PAGE_MIN), TAILLE_PAGE_MAX);
+            return Jdbc.lister(connexion, RECENTS, requete -> {
+                requete.setArray(1, uuids(connexion, espaces));
+                requete.setInt(2, limite);
+                requete.setInt(3, limite);
+            }, ImpactQueries::view);
         } catch (SQLException erreur) {
             throw new IllegalStateException("lecture des impacts impossible", erreur);
         }
@@ -241,7 +313,7 @@ public class ImpactQueries {
      * jamais restitué à l'appelant.
      */
     @Transactional
-    public Optional<UUID> workspaceOf(UUID impactId) {
+    public Optional<UUID> espaceDe(UUID impactId) {
         return jdbc.unique("SELECT workspace_id FROM project_impact WHERE id = ?", Jdbc.parametres(impactId),
                 resultat -> resultat.getObject(1, UUID.class));
     }

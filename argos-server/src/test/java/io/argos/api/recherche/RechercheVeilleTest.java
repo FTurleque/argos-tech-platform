@@ -21,7 +21,8 @@ import jakarta.inject.Inject;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
-import io.argos.impact.RechercheVeille;
+import io.argos.impact.ProjetsConcernes;
+import io.argos.signal.recherche.RechercheVeille;
 import io.argos.testsupport.Api;
 import io.argos.testsupport.JeuRecherche;
 import io.argos.testsupport.TestDb;
@@ -54,6 +55,9 @@ class RechercheVeilleTest {
 
     @Inject
     RechercheVeille recherche;
+
+    @Inject
+    ProjetsConcernes projetsConcernes;
 
     @Inject
     ContexteBase base;
@@ -213,16 +217,17 @@ class RechercheVeilleTest {
         jeu.impact(signal, portail);
         UUID actualiteMarc = jeu.actualite(jeu.sourceEspace(espaceMarc, marc), "Portail interne", "Texte.", null, ilYA(1));
 
-        RechercheVeille.Resultats resultats = recherche.rechercher(new RechercheVeille.Criteres("Portail or publique", null, null,
-                null, null, null, null, null), oscar, Set.of(espaceOscar, espaceMarc), 0, 20);
+        RechercheVeille.Resultats resultats = projetsConcernes.completer(recherche.rechercher(new RechercheVeille.Criteres(
+                "Portail or publique", null, null, null, null, null, null, null), oscar, 0, 20), oscar,
+                Set.of(espaceOscar, espaceMarc));
         assertEquals(List.of(signal), resultats.elements().stream().map(RechercheVeille.Element::id).toList());
         assertEquals(List.of(), resultats.elements().get(0).projets(), "projet d'un autre espace cité");
 
         List<UUID> selection = base.executer(new Contexte(oscar, null, null), connexion -> {
             List<UUID> trouves = new ArrayList<>();
             try (PreparedStatement requete = connexion.prepareStatement("""
-                    SELECT current_user, id FROM argos_rechercher_veille(argos_requete_recherche('Portail'), NULL, NULL,
-                        NULL, NULL, NULL, NULL, NULL, NULL, NULL)
+                    SELECT current_user, id FROM argos_selectionner_veille(argos_requete_recherche('Portail'), NULL, NULL,
+                        NULL, NULL, NULL, NULL, NULL, NULL, NULL, 1001)
                     """); ResultSet resultat = requete.executeQuery()) {
                 while (resultat.next()) {
                     assertEquals("argos_app", resultat.getString(1));
@@ -237,7 +242,7 @@ class RechercheVeilleTest {
         // Sans compte courant, la sélection ne renvoie rien.
         long sansContexte = base.executer(SANS_CONTEXTE, connexion -> {
             try (PreparedStatement requete = connexion.prepareStatement("""
-                    SELECT count(*) FROM argos_rechercher_veille(NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL)
+                    SELECT count(*) FROM argos_selectionner_veille(NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, 1001)
                     """); ResultSet resultat = requete.executeQuery()) {
                 resultat.next();
                 return resultat.getLong(1);
@@ -326,17 +331,15 @@ class RechercheVeilleTest {
         Api.enTantQue("oscar").queryParam("horizon", "abc").get("/api/v1/recherche").then().statusCode(STATUT_HORIZON_NON_ENTIER);
     }
 
-    /** Entrées non fiables : filtres refusés, saisie jamais interprétée comme SQL, liens non http écartés. */
+    /**
+     * Entrées non fiables : filtre refusé avec son attribut, projet non UUID et vue sans nom refusés, saisie jamais
+     * interprétée comme SQL, liens non http écartés. Chaque filtre refusé est vérifié par {@code TraductionCriteresTest}.
+     */
     @Test
     void entreesNonFiables() {
         Api.enTantQue("oscar").queryParam("type", "INCONNU").get("/api/v1/recherche").then().statusCode(400)
                 .body("code", equalTo("CRITERE_INVALIDE")).body("attribut", equalTo("types"));
-        Api.enTantQue("oscar").queryParam("gravite", "EXTREME").get("/api/v1/recherche").then().statusCode(400);
-        Api.enTantQue("oscar").queryParam("horizon", 0).get("/api/v1/recherche").then().statusCode(400);
         Api.enTantQue("oscar").queryParam("projet", "pas-un-uuid").get("/api/v1/recherche").then().statusCode(400);
-        Api.enTantQue("oscar").queryParam("profil", "inconnu").get("/api/v1/recherche").then().statusCode(400);
-        Api.enTantQue("oscar").queryParam("q", "x".repeat(501)).get("/api/v1/recherche").then().statusCode(400);
-        Api.enTantQue("oscar").queryParam("taille", 1000).get("/api/v1/recherche").then().statusCode(400);
         Api.enTantQue("oscar").contentType(ContentType.JSON).body(Map.of("nom", " ", "criteres", Map.of()))
                 .post("/api/v1/vues").then().statusCode(400);
 

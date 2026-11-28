@@ -2,7 +2,7 @@
 
 Cette section indexe les ADR. Elle ne recopie pas leur contenu.
 
-> **Baseline active : v2.4 — 27 septembre 2026.** Les ADR-0001 à ADR-0009 conservent leur historique. Les décisions issues de la v2.3 occupent ADR-0010 à ADR-0018. La v2.4 ajoute ADR-0019 pour la stack applicative.
+> ADR-0001 à ADR-0009 forment la baseline initiale, ADR-0010 à ADR-0018 viennent de la baseline v2.3 et ADR-0019 de la v2.4 ; ADR-0020 et les suivants sont pris pendant la réalisation. Les baselines restent des documents de cadrage datés ; les ADR acceptés qui les précisent ou les remplacent font foi.
 
 ## 9.1 Index
 
@@ -47,6 +47,8 @@ Cette section indexe les ADR. Elle ne recopie pas leur contenu.
 | ADR-0037 | Porter les mécanismes techniques partagés par un noyau commun du serveur | Accepté | 2026-11-25 | — (précise ADR-0001, ADR-0016) |
 | ADR-0038 | Configuration de l'IHM lue à l'exécution dans la réponse publique du serveur | Proposé | 2026-11-25 | — (complète ADR-0033) |
 | ADR-0039 | Exécuter hors requête les traitements longs, propager les événements selon trois styles et encadrer les appels sortants | Proposé | 2026-11-26 | — (précise ADR-0031, ADR-0037) |
+| ADR-0040 | Paginer les listes de l'API au format unique `page`, `size`, `{items, page, size, total}` | Proposé | 2026-11-26 | — (précise arc42 §8.10) |
+| ADR-0041 | Conserver les données journalisées pour une durée bornée par des règles déclarées par module | Proposé | 2026-11-26 | — (précise ADR-0031, ADR-0037) |
 
 ## 9.2 Règles de gouvernance
 

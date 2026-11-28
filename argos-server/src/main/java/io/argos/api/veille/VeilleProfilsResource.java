@@ -15,6 +15,7 @@ import java.util.UUID;
 
 import jakarta.annotation.PostConstruct;
 import jakarta.inject.Inject;
+import jakarta.ws.rs.BeanParam;
 import jakarta.ws.rs.GET;
 import jakarta.ws.rs.Path;
 import jakarta.ws.rs.Produces;
@@ -28,9 +29,12 @@ import org.eclipse.microprofile.openapi.annotations.responses.APIResponse;
 import org.eclipse.microprofile.openapi.annotations.tags.Tag;
 
 import io.argos.api.Erreur;
+import io.argos.api.DemandePage;
 import io.argos.api.SignauxAbonnements;
 import io.argos.api.preference.ResolutionPreferences;
 import io.argos.api.security.Access;
+import io.argos.commun.Page;
+import io.argos.commun.Pagination;
 import io.argos.commun.securite.LimiteDebitAtteinte;
 import io.argos.commun.securite.LimiteurDebit;
 import io.argos.commun.securite.Caller;
@@ -65,6 +69,9 @@ import io.quarkus.security.Authenticated;
  * union, dans la limite de ses droits (décision Q-3 de {@code profils-veille}, ABO-04) : un même avis est restitué
  * une fois, avec ses rubriques de profil et les abonnements qui l'ont retenu ; un avis que seul un abonnement
  * retient n'a pas de rubrique. Les projets concernés restent limités aux espaces de l'appelant.
+ *
+ * <p>La veille est restituée par pages au format commun des listes (PRF-09, ADR-0040) : l'union est composée entière,
+ * triée ({@link #ORDRE}), puis la page demandée en est extraite ; {@code total} est la taille de l'union.
  */
 @Path("/api/v1/me/veille")
 @Tag(name = "Veille")
@@ -110,9 +117,23 @@ public class VeilleProfilsResource {
             String mentionSource) {
     }
 
+    /**
+     * Page de la veille (PRF-09, ADR-0040) : éléments de la page, numéro de page, taille appliquée, nombre d'éléments
+     * de l'union et profils actifs de l'appelant.
+     */
     @Schema(name = "VeilleProfils")
-    public record Veille(List<String> profilsActifs, List<ElementVue> elements) {
+    public record Veille(List<ElementVue> items, int page, int size, long total, List<String> profilsActifs) {
+
+        Veille(Page<ElementVue> page, List<String> profilsActifs) {
+            this(page.items(), page.page(), page.size(), page.total(), profilsActifs);
+        }
     }
+
+    /** Ordre de la veille : date la plus récente d'abord, sans date en dernier, puis type et identifiant (texte). */
+    static final Comparator<ElementVue> ORDRE = Comparator
+            .comparing(ElementVue::date, Comparator.nullsLast(Comparator.reverseOrder()))
+            .thenComparing(ElementVue::type)
+            .thenComparing(element -> element.id().toString());
 
     @Inject
     Access access;
@@ -154,9 +175,13 @@ public class VeilleProfilsResource {
     @GET
     @Operation(summary = "Veille de l'appelant : union sans doublon des éléments de ses profils actifs et de ses"
             + " abonnements PERSONAL, avec rubriques et garde-fous")
+    @APIResponse(responseCode = "200", description = "Page de la veille, triée par date décroissante, puis type et identifiant")
+    @APIResponse(responseCode = "400", description = "Paramètre page ou size non entier (DONNEE_INVALIDE)",
+            content = @Content(schema = @Schema(implementation = Erreur.class)))
     @APIResponse(responseCode = "429", description = "Limite de débit du compte atteinte, en-tête Retry-After",
             content = @Content(schema = @Schema(implementation = Erreur.class)))
-    public Veille veille() {
+    public Veille veille(@BeanParam DemandePage demande) {
+        Pagination pagination = demande.pagination();
         Caller caller = access.authenticated();
         if (!limiteur.admettre(caller.accountId())) {
             throw new LimiteDebitAtteinte();
@@ -191,9 +216,9 @@ public class VeilleProfilsResource {
                             retenu.gardeFous(), element.mentionValidation(), element.projets(), retenu.abonnements(),
                             element.mentionIa(), element.mentionSource());
                 })
-                .sorted(Comparator.comparing(ElementVue::date, Comparator.nullsLast(Comparator.reverseOrder())))
+                .sorted(ORDRE)
                 .toList();
-        return new Veille(actifs.stream().map(ManifesteProfil::identifiant).toList(), elements);
+        return new Veille(Page.extraire(elements, pagination), actifs.stream().map(ManifesteProfil::identifiant).toList());
     }
 
     /**
@@ -204,7 +229,7 @@ public class VeilleProfilsResource {
      */
     private List<UnionProfils.CandidatAbonnement<ElementVue>> avisDesAbonnementsPersonnels(Caller caller) {
         List<SubscriptionService.Subscription> personnels = subscriptions
-                .activeFor(caller.accountId(), caller.memberWorkspaces()).stream()
+                .activeFor(caller.accountId(), caller.espacesMembre()).stream()
                 .filter(abonnement -> "PERSONAL".equals(abonnement.scope())
                         && caller.accountId().equals(abonnement.ownerUserId()))
                 .toList();
@@ -214,8 +239,8 @@ public class VeilleProfilsResource {
         SignauxAbonnements.Correspondances retenus = signauxAbonnements.pour(personnels, caller);
         Map<UUID, List<ProjetVue>> projets = new LinkedHashMap<>();
         for (ImpactQueries.ImpactView impact : impacts.forSignals(retenus.signaux().keySet(), caller.accountId(),
-                caller.memberWorkspaces())) {
-            if (caller.memberOf(impact.workspaceId())) {
+                caller.espacesMembre())) {
+            if (caller.memberOf(impact.espaceId())) {
                 projets.computeIfAbsent(impact.signalId(), cle -> new ArrayList<>())
                         .add(new ProjetVue(impact.projectId(), impact.projectName(), impact.level()));
             }
@@ -238,9 +263,9 @@ public class VeilleProfilsResource {
     /** Avis de sécurité qui impactent un projet des espaces de l'appelant, avec ces seuls projets. */
     private List<UnionProfils.Candidat<ElementVue>> avis(Caller caller) {
         Map<UUID, List<ImpactQueries.ImpactView>> parSignal = new LinkedHashMap<>();
-        for (ImpactQueries.ImpactView impact : impacts.forWorkspaces(caller.accountId(), caller.memberWorkspaces(),
+        for (ImpactQueries.ImpactView impact : impacts.pourEspaces(caller.accountId(), caller.espacesMembre(),
                 LIMITE_IMPACTS)) {
-            if (caller.memberOf(impact.workspaceId())) {
+            if (caller.memberOf(impact.espaceId())) {
                 parSignal.computeIfAbsent(impact.signalId(), cle -> new ArrayList<>()).add(impact);
             }
         }
@@ -268,7 +293,7 @@ public class VeilleProfilsResource {
     /** Fiches réglementaires validées des espaces de l'appelant (lecture sous la RLS). */
     private List<UnionProfils.Candidat<ElementVue>> fichesValidees(Caller caller) {
         List<UnionProfils.Candidat<ElementVue>> candidats = new ArrayList<>();
-        for (FichesReglementaires.Fiche fiche : fiches.fiches(caller.accountId(), caller.memberWorkspaces(),
+        for (FichesReglementaires.Fiche fiche : fiches.fiches(caller.accountId(), caller.espacesMembre(),
                 Optional.empty())) {
             // Garde-fou de la source (ADR-0018) : une fiche non validée n'est jamais candidate, quel que soit le profil.
             if (fiche.etat() != FichesReglementaires.Etat.VALIDEE || !caller.memberOf(fiche.espaceId())) {

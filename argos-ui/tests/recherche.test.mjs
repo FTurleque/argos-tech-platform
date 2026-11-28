@@ -105,6 +105,8 @@ test('annonce des résultats pour les technologies d’assistance', () => {
   assert.equal(annonceResultats(1, 0, 20), '1 résultat.')
   assert.equal(annonceResultats(12, 0, 20), '12 résultats.')
   assert.equal(annonceResultats(45, 1, 20), '45 résultats, page 2 sur 3.')
+  // RCH-07 : total plafonné à 1 000.
+  assert.equal(annonceResultats(1000, 0, 20, true), `Plus de ${(1000).toLocaleString('fr-FR')} résultats, page 1 sur 50.`)
 })
 
 test('vue enregistrée : corps NouvelleVue et aller-retour des critères', () => {

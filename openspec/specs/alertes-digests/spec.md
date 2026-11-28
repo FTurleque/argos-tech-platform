@@ -120,3 +120,43 @@ Source : AUD-SEC-04 (/docs/audit/2026-11-21/findings.md) ; ALR-06 ; ADR-0027 (Ac
 - **WHEN** la mise à jour est déployée puis qu'une alerte au canal e-mail doit lui être diffusée avant sa prochaine connexion
 - **THEN** aucun e-mail n'est envoyé
 - **AND** après sa reconnexion avec un jeton qui déclare son adresse vérifiée, les e-mails suivants partent à cette adresse
+
+### Requirement: ALR-09 Liens des alertes vers des vues de l'IHM
+Le système DOIT (MUST) construire chaque lien d'une alerte, d'un résumé ou d'un rappel à partir de l'adresse publique de la plateforme, au format d'adresse de l'IHM, vers une vue existante : le signal, le radar de l'espace ou l'opportunité concernés ; un lien NE DOIT PAS (MUST NOT) viser un chemin que l'IHM ne sert pas.
+Source : AUD-ARC-22 ; ALR-06 ; ADR-0038. Statut : [PROPOSITION].
+
+#### Scenario: ALR-09-S1 Lien d'un signal
+- **GIVEN** l'adresse publique `https://argos.example` et une alerte sur le signal S
+- **WHEN** l'alerte est produite
+- **THEN** le lien de son élément vaut `https://argos.example/#/signaux/S`
+- **AND** ouvert dans l'IHM, il affiche la vue du signal S après connexion
+
+#### Scenario: ALR-09-S2 Liens du radar et des opportunités
+- **GIVEN** la même adresse publique
+- **WHEN** un rappel du radar de l'espace E ou un rappel d'opportunité O est produit
+- **THEN** le lien vaut `https://argos.example/#/espaces/E/radar` ou `https://argos.example/#/profils/artiste/opportunites/O`
+
+#### Scenario: ALR-09-S3 Gabarits couverts par l'IHM
+- **GIVEN** les gabarits de lien produits par le serveur
+- **WHEN** la suite de tests de l'IHM s'exécute
+- **THEN** chaque gabarit correspond à une route déclarée de l'IHM, sinon la suite échoue
+
+### Requirement: ALR-10 Évaluation des alertes en un nombre fixe de requêtes
+Le système DOIT (MUST) évaluer les règles d'alerte des impacts publiés d'un signal en un nombre de requêtes indépendant du nombre de membres des espaces touchés et de leurs canaux, et DOIT (MUST) laisser la diffusion des alertes créées à la tâche planifiée d'envoi, sans changer les alertes ni les résumés produits (ALR-01 à ALR-08).
+Source : AUD-PER-04 ; critère de sortie du sprint 10 ; décision du porteur du projet (2026-11-26, lecture technique filtrée par appartenance). Statut : [PROPOSITION].
+
+#### Scenario: ALR-10-S1 Nombre de requêtes constant
+- **GIVEN** deux espaces touchés par un signal, l'un de 2 membres, l'autre de 11 membres, chacun avec des abonnements immédiats et périodiques sur deux canaux
+- **WHEN** les règles sont évaluées pour chaque espace
+- **THEN** les deux évaluations exécutent le même nombre de requêtes
+
+#### Scenario: ALR-10-S2 Diffusion par la tâche d'envoi
+- **GIVEN** une alerte immédiate créée par l'évaluation d'un signal
+- **WHEN** l'évaluation se termine
+- **THEN** l'alerte est enregistrée en attente d'envoi
+- **AND** elle est diffusée au passage suivant de la tâche planifiée d'envoi
+
+#### Scenario: ALR-10-S3 Contenu limité aux espaces du destinataire
+- **GIVEN** un signal qui touche un projet d'un espace A et un projet d'un espace B, et un destinataire membre de A seulement
+- **WHEN** son alerte est créée
+- **THEN** elle ne cite que le projet de l'espace A

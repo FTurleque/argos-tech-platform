@@ -76,9 +76,29 @@ public class CalendrierEndoflife implements CalendrierSorties {
         if (cle == null || version == null || version.isBlank()) {
             return Optional.empty();
         }
-        Map<String, Set<String>> produitsParCle = produits(List.of(cle), espaces);
-        Set<String> produits = produitsParCle.getOrDefault(cle, Set.of());
-        Map<String, List<LigneCycle>> cycles = cycles(produits);
+        return finsDeSupport(List.of(cle), espaces).pour(cle, version);
+    }
+
+    @Override
+    public FinsDeSupport finsDeSupport(Collection<String> cles, Set<UUID> espaces) {
+        Map<String, Set<String>> produitsParCle = produits(cles, espaces);
+        Map<String, List<LigneCycle>> cycles = cycles(produitsParCle.values().stream().flatMap(Set::stream).toList());
+        return (cle, version) -> finDeSupport(cle, version, produitsParCle.getOrDefault(cle, Set.of()), cycles);
+    }
+
+    /** Fin de support du cycle le plus long auquel appartient la version, parmi les cycles des produits donnés. */
+    private static Optional<Echeance> finDeSupport(String cle, String version, Set<String> produits,
+            Map<String, List<LigneCycle>> cycles) {
+        if (cle == null || version == null || version.isBlank()) {
+            return Optional.empty();
+        }
+        return cycleLePlusLong(version, produits, cycles).filter(ligne -> ligne.finSupport() != null)
+                .map(ligne -> new Echeance(cle, ligne.cycle(), Nature.FIN_DE_SUPPORT, ligne.finSupport(), SOURCE, null));
+    }
+
+    /** Cycle le plus long auquel appartient la version, parmi les cycles des produits donnés. */
+    private static Optional<LigneCycle> cycleLePlusLong(String version, Set<String> produits,
+            Map<String, List<LigneCycle>> cycles) {
         LigneCycle meilleur = null;
         for (String produit : produits) {
             for (LigneCycle ligne : cycles.getOrDefault(produit, List.of())) {
@@ -87,10 +107,7 @@ public class CalendrierEndoflife implements CalendrierSorties {
                 }
             }
         }
-        if (meilleur == null || meilleur.finSupport() == null) {
-            return Optional.empty();
-        }
-        return Optional.of(new Echeance(cle, meilleur.cycle(), Nature.FIN_DE_SUPPORT, meilleur.finSupport(), SOURCE, null));
+        return Optional.ofNullable(meilleur);
     }
 
     /** Vrai si la version appartient au cycle : égale, ou prolongée par « . » ou « - ». */

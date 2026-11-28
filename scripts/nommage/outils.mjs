@@ -14,6 +14,19 @@ export const MOTS_AVANT_PARENTHESE = new Set([
 ]);
 export const NOM_EN_FIN = new RegExp(String.raw`(${IDENT})\s*$`);
 
+/**
+ * Une langue par concept (AUD-QUA-09 ; décision du porteur du projet, 2026-11-27) : terme étranger → terme du projet.
+ * Le terme étranger reste admis hors des identifiants déclarés : nom du module (paquet `io.argos.workspace`), tables
+ * et colonnes SQL, propriétés JSON du contrat de l'API (chaînes et clés, que l'analyse ignore).
+ */
+export const TERMES_IMPOSES = Object.freeze({ workspace: 'espace' });
+
+/** Terme étranger contenu dans `nom` (casse ignorée), ou chaîne vide. */
+export function termeEtranger(nom) {
+  const minuscules = nom.toLowerCase();
+  return Object.keys(TERMES_IMPOSES).find((terme) => minuscules.includes(terme)) ?? '';
+}
+
 /** Vrai si `nom` est un identifiant d'une ou deux lettres interdit par la règle. */
 export function estCourt(nom) {
   if (!/^[A-Za-z][A-Za-z\d]?$/.test(nom)) return false;

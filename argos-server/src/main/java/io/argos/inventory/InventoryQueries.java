@@ -12,12 +12,16 @@ import java.util.ArrayList;
 import java.util.Collection;
 import java.util.HashMap;
 import java.util.LinkedHashMap;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.Set;
 import java.util.UUID;
 
 import javax.sql.DataSource;
+
+import com.fasterxml.jackson.annotation.JsonProperty;
 
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.inject.Inject;
@@ -29,6 +33,9 @@ import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 
 import io.argos.commun.ContexteBase;
+import io.argos.commun.Jdbc;
+import io.argos.commun.Page;
+import io.argos.commun.Pagination;
 
 /**
  * Consultation des inventaires (INV-02, INV-03) et recherche des composants par clé de paquet
@@ -56,7 +63,7 @@ public class InventoryQueries {
      * du 2026-11-18).
      */
     public record InventoryView(UUID projectId, String origin, Instant sourceDate, Long ageDays, boolean obsolete,
-            String specVersion, Instant importedAt, List<ComponentView> components, int ignoredCount,
+            String specVersion, Instant importedAt, Page<ComponentView> components, int ignoredCount,
             List<ParsedInventory.IgnoredComponent> ignoredComponents) {
     }
 
@@ -90,7 +97,8 @@ public class InventoryQueries {
     }
 
     /** Projet listé pour un compte : identifiant, espace (identifiant et nom) et nom du projet. */
-    public record ProjectItem(UUID id, UUID workspaceId, String workspaceName, String name) {
+    public record ProjectItem(UUID id, @JsonProperty("workspaceId") UUID espaceId,
+            @JsonProperty("workspaceName") String nomEspace, String name) {
     }
 
     /** Page des projets lisibles par un compte (arc42 §8.10). {@code total} : nombre de projets lisibles. */
@@ -124,7 +132,7 @@ public class InventoryQueries {
     }
 
     /** Composant candidat à la corrélation, avec le projet, l'espace et l'inventaire d'origine. */
-    public record ComponentMatch(UUID componentId, UUID projectId, UUID workspaceId, String packageKey, String purl,
+    public record ComponentMatch(UUID componentId, UUID projectId, UUID espaceId, String packageKey, String purl,
             String version, Boolean transitive, String inventoryOrigin, Instant inventoryDate, boolean inventoryObsolete) {
     }
 
@@ -138,7 +146,36 @@ public class InventoryQueries {
     Duration sbomMaxAge;
 
     @Transactional
-    public Optional<InventoryView> inventory(UUID projectId, UUID accountId) {
+    public Optional<InventoryView> inventory(UUID projectId, UUID accountId, Pagination pagination) {
+        return inventaire(projectId, accountId, pagination.taille(), pagination.decalage());
+    }
+
+    /**
+     * Clés de paquet distinctes des composants d'un projet ; vide pour un projet hors des espaces du compte (RLS).
+     * Lecture interne du serveur MCP, qui n'en restitue que les échéances.
+     */
+    @Transactional
+    public Set<String> clesDePaquets(UUID projectId, UUID accountId) {
+        try (Connection connexion = dataSource.getConnection()) {
+            ContexteBase.appliquer(connexion, ContexteBase.Contexte.duCompte(accountId));
+            return new LinkedHashSet<>(Jdbc.lister(connexion,
+                    "SELECT DISTINCT package_key FROM component WHERE project_id = ? ORDER BY package_key",
+                    Jdbc.parametres(projectId), lignes -> lignes.getString(1)));
+        } catch (SQLException erreur) {
+            throw new IllegalStateException("lecture des clés de paquet impossible", erreur);
+        }
+    }
+
+    /**
+     * Inventaire d'un projet avec ses {@code limite} premiers composants, triés par clé de paquet, version puis
+     * identifiant ; {@code components.total} compte tous les composants (contexte d'un projet du serveur MCP).
+     */
+    @Transactional
+    public Optional<InventoryView> premiersComposants(UUID projectId, UUID accountId, int limite) {
+        return inventaire(projectId, accountId, limite, 0);
+    }
+
+    private Optional<InventoryView> inventaire(UUID projectId, UUID accountId, int taille, long decalage) {
         try (Connection connexion = dataSource.getConnection()) {
             ContexteBase.appliquer(connexion, ContexteBase.Contexte.duCompte(accountId));
             Optional<LigneInventaire> ligne = ligne(connexion, projectId);
@@ -147,7 +184,8 @@ public class InventoryQueries {
             }
             LigneInventaire entete = ligne.get();
             return Optional.of(new InventoryView(projectId, entete.origin(), entete.sourceDate(), entete.ageDays(),
-                    entete.obsolete(), entete.specVersion(), entete.importedAt(), components(connexion, projectId), entete.ignoredCount(),
+                    entete.obsolete(), entete.specVersion(), entete.importedAt(), components(connexion, projectId, taille, decalage),
+                    entete.ignoredCount(),
                     entete.ignoredComponents()));
         } catch (SQLException erreur) {
             throw new IllegalStateException("lecture de l'inventaire impossible", erreur);
@@ -302,25 +340,24 @@ public class InventoryQueries {
         }
     }
 
+    /**
+     * Page des imports refusés ou en erreur d'un projet, du plus récent au plus ancien (INV-05, ADR-0040) ; page vide
+     * pour un projet hors des espaces du compte (RLS).
+     */
     @Transactional
-    public List<ImportFailure> failures(UUID projectId, UUID accountId) {
-        List<ImportFailure> failures = new ArrayList<>();
-        String sql = "SELECT id, reason, source_ref, received_at FROM inventory_import_failure WHERE project_id = ? ORDER BY received_at";
+    public Page<ImportFailure> failures(UUID projectId, UUID accountId, Pagination pagination) {
         try (Connection connexion = dataSource.getConnection()) {
             ContexteBase.appliquer(connexion, ContexteBase.Contexte.duCompte(accountId));
-            try (PreparedStatement requete = connexion.prepareStatement(sql)) {
-                requete.setObject(1, projectId);
-                try (ResultSet lignes = requete.executeQuery()) {
-                    while (lignes.next()) {
-                        failures.add(new ImportFailure(lignes.getObject(1, UUID.class), lignes.getString(2), lignes.getString(3),
-                                instant(lignes, 4)));
-                    }
-                }
-            }
+            long total = count(connexion, "SELECT count(*) FROM inventory_import_failure WHERE project_id = ?", projectId);
+            List<ImportFailure> failures = Jdbc.lister(connexion, "SELECT id, reason, source_ref, received_at"
+                    + " FROM inventory_import_failure WHERE project_id = ? ORDER BY received_at DESC, id DESC LIMIT ? OFFSET ?",
+                    Jdbc.parametres(projectId, pagination.taille(), pagination.decalage()),
+                    lignes -> new ImportFailure(lignes.getObject(1, UUID.class), lignes.getString(2), lignes.getString(3),
+                            instant(lignes, 4)));
+            return Page.depuis(failures, pagination, total);
         } catch (SQLException erreur) {
             throw new IllegalStateException("lecture des imports refusés impossible", erreur);
         }
-        return failures;
     }
 
     /**
@@ -332,6 +369,17 @@ public class InventoryQueries {
      */
     @Transactional
     public List<ComponentMatch> componentsMatching(Collection<String> packageKeys, Optional<UUID> projectId) {
+        return componentsMatching(packageKeys, projectId, Optional.empty());
+    }
+
+    /**
+     * Composants dont la clé de paquet figure parmi celles données, éventuellement limités à un projet et à un espace :
+     * le filtre d'espace s'applique en base (radar, RAD-10), jamais après lecture des composants de tous les espaces.
+     * Origine et date retenues comme pour {@link #componentsMatching(Collection, Optional)}.
+     */
+    @Transactional
+    public List<ComponentMatch> componentsMatching(Collection<String> packageKeys, Optional<UUID> projectId,
+            Optional<UUID> espaceId) {
         if (packageKeys.isEmpty()) {
             return new ArrayList<>();
         }
@@ -342,6 +390,7 @@ public class InventoryQueries {
                 LEFT JOIN component_occurrence o ON o.component_id = c.id
                 LEFT JOIN repository_inventory ri ON ri.repository_id = o.repository_id
                 WHERE c.package_key = ANY (?) AND (?::uuid IS NULL OR c.project_id = ?::uuid)
+                  AND (?::uuid IS NULL OR p.workspace_id = ?::uuid)
                 ORDER BY c.project_id, c.package_key, c.version, c.id
                 """;
         Map<UUID, ComponentMatch> meilleures = new LinkedHashMap<>();
@@ -349,6 +398,8 @@ public class InventoryQueries {
             requete.setArray(1, connexion.createArrayOf("varchar", packageKeys.toArray()));
             requete.setObject(2, projectId.orElse(null));
             requete.setObject(3, projectId.orElse(null));
+            requete.setObject(4, espaceId.orElse(null));
+            requete.setObject(5, espaceId.orElse(null));
             try (ResultSet lignes = requete.executeQuery()) {
                 while (lignes.next()) {
                     String origin = lignes.getString(8);
@@ -422,15 +473,8 @@ public class InventoryQueries {
      */
     @Transactional
     public Optional<UUID> importCourant(UUID projectId) {
-        try (Connection connexion = dataSource.getConnection();
-                PreparedStatement requete = connexion.prepareStatement("SELECT import_id FROM inventory WHERE project_id = ?")) {
-            requete.setObject(1, projectId);
-            try (ResultSet lignes = requete.executeQuery()) {
-                return lignes.next() ? Optional.of(lignes.getObject(1, UUID.class)) : Optional.empty();
-            }
-        } catch (SQLException erreur) {
-            throw new IllegalStateException("lecture de l'inventaire impossible", erreur);
-        }
+        return identifiantDuProjet("SELECT import_id FROM inventory WHERE project_id = ?", projectId,
+                "lecture de l'inventaire impossible");
     }
 
     /** Dépôts de chacun des composants donnés, le principal d'abord, lus sous le contexte de la connexion. */
@@ -477,15 +521,16 @@ public class InventoryQueries {
 
     /** Espace du projet, s'il existe. */
     @Transactional
-    public Optional<UUID> workspaceOf(UUID projectId) {
-        try (Connection connexion = dataSource.getConnection();
-                PreparedStatement requete = connexion.prepareStatement("SELECT workspace_id FROM project WHERE id = ?")) {
-            requete.setObject(1, projectId);
-            try (ResultSet lignes = requete.executeQuery()) {
-                return lignes.next() ? Optional.of(lignes.getObject(1, UUID.class)) : Optional.empty();
-            }
+    public Optional<UUID> espaceDe(UUID projectId) {
+        return identifiantDuProjet("SELECT workspace_id FROM project WHERE id = ?", projectId, "lecture du projet impossible");
+    }
+
+    /** Identifiant lu par une requête dont le seul paramètre est le projet, vide si aucune ligne ne correspond. */
+    private Optional<UUID> identifiantDuProjet(String sql, UUID projectId, String echec) {
+        try (Connection connexion = dataSource.getConnection()) {
+            return Jdbc.unique(connexion, sql, Jdbc.parametres(projectId), lignes -> lignes.getObject(1, UUID.class));
         } catch (SQLException erreur) {
-            throw new IllegalStateException("lecture du projet impossible", erreur);
+            throw new IllegalStateException(echec, erreur);
         }
     }
 
@@ -498,19 +543,16 @@ public class InventoryQueries {
         return "SBOM".equals(origin) && (sourceDate == null || sourceDate.plus(sbomMaxAge).isBefore(horloge.instant()));
     }
 
-    private static List<ComponentView> components(Connection connexion, UUID projectId) throws SQLException {
-        List<ComponentView> components = new ArrayList<>();
-        try (PreparedStatement requete = connexion.prepareStatement(
-                "SELECT id, purl, package_key, version, transitive FROM component WHERE project_id = ? ORDER BY package_key, version")) {
-            requete.setObject(1, projectId);
-            try (ResultSet lignes = requete.executeQuery()) {
-                while (lignes.next()) {
-                    components.add(new ComponentView(lignes.getObject(1, UUID.class), lignes.getString(2), lignes.getString(3),
-                            lignes.getString(4), (Boolean) lignes.getObject(5)));
-                }
-            }
-        }
-        return components;
+    /** Page des composants d'un projet, triés par clé de paquet, version puis identifiant (tri stable). */
+    private static Page<ComponentView> components(Connection connexion, UUID projectId, int taille, long decalage)
+            throws SQLException {
+        long total = count(connexion, "SELECT count(*) FROM component WHERE project_id = ?", projectId);
+        List<ComponentView> components = Jdbc.lister(connexion, "SELECT id, purl, package_key, version, transitive FROM component"
+                + " WHERE project_id = ? ORDER BY package_key, version NULLS LAST, id LIMIT ? OFFSET ?",
+                Jdbc.parametres(projectId, taille, decalage),
+                lignes -> new ComponentView(lignes.getObject(1, UUID.class), lignes.getString(2), lignes.getString(3),
+                        lignes.getString(4), (Boolean) lignes.getObject(5)));
+        return new Page<>(components, Math.toIntExact(decalage / Math.max(taille, 1)), taille, total);
     }
 
     private static int boundedSize(int size) {

@@ -16,6 +16,8 @@ import {
   parametres,
   rapportMarkdown,
   resumerOperation,
+  UTILISATEUR_PETIT_ESPACE,
+  espacesDuJeu,
   verdictGlobal,
   verifierHoteLocal,
 } from './mesure.mjs'
@@ -92,6 +94,25 @@ test('opérations : consultations REST et huit outils MCP moins explain_change, 
   assert.ok(OPERATIONS_EXCLUES.some((exclue) => exclue.id.includes('explain_change') && /IA/.test(exclue.motif)))
   assert.ok(OPERATIONS_EXCLUES.some((exclue) => exclue.id.includes('synchronizations')))
   assert.ok(OPERATIONS_EXCLUES.every((exclue) => exclue.motif.length > 0))
+  const petitEspace = rest.find((operation) => operation.id === 'GET /api/v1/me/veille (petit espace)')
+  assert.equal(petitEspace?.utilisateur, UTILISATEUR_PETIT_ESPACE, 'Ma veille mesurée pour le membre du petit espace')
+})
+
+test('jeu de données : espaces et impacts par état lus en base, décrits par le rapport (PERF-02-S4)', () => {
+  const espaces = espacesDuJeu('Espace performance|OUVERT|18000\nEspace performance|CONFIRME|2000\n'
+    + 'Espace volumineux|RESOLU|475000\nEspace volumineux|ECARTE|25000\nPetit espace|OUVERT|150\n')
+  assert.deepEqual(espaces.map((espace) => espace.nom), ['Espace performance', 'Espace volumineux', 'Petit espace'])
+  assert.deepEqual(espaces[1].etats, { RESOLU: 475000, ECARTE: 25000 })
+  const resultats = [resumerOperation({ id: 'GET /api/v1/me/veille', type: 'REST', libelle: 'Ma veille' }, [5])]
+  const markdown = rapportMarkdown({
+    date: '2026-11-26T10:00:00.000Z', revision: 'abc1234',
+    environnement: { description: 'pile de test locale', systeme: 'win32', node: 'v24' },
+    jeuDeDonnees: { description: 'trois espaces', espaces },
+    parametres: { appelsParOperation: 200, concurrence: 4, echauffement: 20 },
+    resultats, exclues: OPERATIONS_EXCLUES, verdict: verdictGlobal(resultats),
+  })
+  assert.ok(markdown.includes('| Espace volumineux | 0 | 0 | 475000 | 25000 |'))
+  assert.ok(markdown.includes('| Petit espace | 150 | 0 | 0 | 0 |'))
 })
 
 test('paramètres : valeurs par défaut (P-9), surcharge par l’environnement, valeur invalide refusée', () => {

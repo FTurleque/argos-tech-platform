@@ -41,7 +41,10 @@ export interface ResultatsRecherche {
   elements: ElementRecherche[]
   page: number
   taille: number
+  /** Nombre de résultats, plafonné à 1 000 (RCH-07). */
   total: number
+  /** Vrai quand plus de 1 000 éléments correspondent : `total` vaut alors le plafond. */
+  totalPlafonne: boolean
   message: string | null
 }
 

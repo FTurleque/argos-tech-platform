@@ -121,7 +121,7 @@ sequenceDiagram
     participant Db as PostgreSQL (RLS)
     participant Forge as scm-connector → forge
     Client->>Api: PUT /api/v1/reglementaire/fiches/{id}/demande-evolution
-    Api->>Api: authentifié ; limite de débit (10/min)
+    Api->>Api: authentifié, limite de débit (10/min)
     Api->>Reg: associerDemande(compte, id, adresse)
     Reg->>Reg: adresse reconnue ? sinon 400 DEMANDE_INVALIDE
     Reg->>Db: lecture de la fiche sous le contexte de l'appelant

@@ -18,7 +18,7 @@ import {
   UNION_JULES,
 } from '../support/ecrans'
 import { expect, seConnecterDepuis, test } from '../support/fixtures'
-import { etatFocus, mesurerContrastes } from '../support/mesures'
+import { etatFocus, MISE_EN_PAGE, mesurerContrastes } from '../support/mesures'
 
 const choisirMiseEnPage = (page: Page, id: string) => choisirMiseEnPageDe(page, 'jules', id)
 
@@ -60,7 +60,7 @@ test('3.4, 3.9 (PRF-02, PRF-02-S3) : deux profils actifs et un abonnement person
   await ouvrirMaVeille(page, 'classique')
   const reponse = await veilleDe('jules')
   expect(reponse.profilsActifs).toEqual(DEUX_PROFILS)
-  const attendus = reponse.elements.map((element) => element.titre)
+  const attendus = reponse.items.map((element) => element.titre)
   expect([...attendus].sort()).toEqual([...UNION_JULES].sort())
   expect(new Set(attendus).size, 'aucun doublon dans la réponse du serveur').toBe(attendus.length)
   await expect(page.getByText('Profils actifs : Développeur, Expert métier')).toBeVisible()
@@ -68,7 +68,7 @@ test('3.4, 3.9 (PRF-02, PRF-02-S3) : deux profils actifs et un abonnement person
   expect(await titres(page)).toEqual(attendus)
 
   // Avis du profil developpeur, retenu aussi par l'abonnement personnel : une occurrence, rubrique et deux origines.
-  const commun = reponse.elements.find((element) => element.titre === VEILLE.avisCommun)!
+  const commun = reponse.items.find((element) => element.titre === VEILLE.avisCommun)!
   expect(commun.profils).toEqual(['developpeur'])
   expect(commun.abonnements).toHaveLength(1)
   const avisCommun = article(page, VEILLE.avisCommun)
@@ -112,8 +112,8 @@ test('3.9, AFF-02-S2 (PRF-02-S4) : un utilisateur d’un autre espace ne voit ri
   await expect(page.locator('[data-mise-en-page="classique"]')).toBeVisible()
 
   const reponse = await veilleDe('karim')
-  expect(reponse.elements.map((element) => element.titre).sort()).toEqual([VEILLE.avisAbonne, VEILLE.avisEspaceB].sort())
-  expect(await titres(page)).toEqual(reponse.elements.map((element) => element.titre))
+  expect(reponse.items.map((element) => element.titre).sort()).toEqual([VEILLE.avisAbonne, VEILLE.avisEspaceB].sort())
+  expect(await titres(page)).toEqual(reponse.items.map((element) => element.titre))
   await expect(article(page, VEILLE.avisAbonne).locator('[data-champ="projet"]')).toHaveText([VEILLE.projetB])
   const texte = await page.locator('body').innerText()
   for (const absent of [VEILLE.avisCommun, VEILLE.ficheIa, VEILLE.ficheExpert, VEILLE.ficheEnAttente, VEILLE.projetA]) {
@@ -131,7 +131,7 @@ test('3.9, AFF-02-S2 (PRF-02-S4) : un utilisateur d’un autre espace ne voit ri
 test('2.4 (AFF-02-S1, AFF-02-S2) : la même veille réelle dans les quatre mises en page', async ({ page }) => {
   await fixerPreferences('jules', DEUX_PROFILS, 'classique')
   const reponse = await veilleDe('jules')
-  const liens = reponse.elements.map((element) => element.lien).filter((lien): lien is string => !!lien)
+  const liens = reponse.items.map((element) => element.lien).filter((lien): lien is string => !!lien)
   expect(liens.length, 'liens officiels des fiches').toBe(2)
 
   await seConnecterDepuis(page, '/affichage', 'jules')
@@ -141,7 +141,7 @@ test('2.4 (AFF-02-S1, AFF-02-S2) : la même veille réelle dans les quatre mises
     // Changement de mise en page dans l'IHM (classique, puis journal, fantaisie, gazette), puis « Ma veille ».
     await choisirMiseEnPage(page, id)
     await ouvrirMaVeille(page, id)
-    expect(await titres(page), id).toEqual(reponse.elements.map((element) => element.titre))
+    expect(await titres(page), id).toEqual(reponse.items.map((element) => element.titre))
     parMiseEnPage[id] = await faits(page)
     // AFF-01 : la veille réelle n'est jamais annoncée comme un exemple.
     await expect(miseEnPage(page).locator('[data-exemple]')).toHaveCount(0)
@@ -178,7 +178,7 @@ test('5.2 (partie web) : « gazette » choisie sur le web, « Ma veille » affic
 
   const reponse = await veilleDe('jules')
   expect(reponse.profilsActifs).toEqual(DEUX_PROFILS)
-  expect(await titres(page)).toEqual(reponse.elements.map((element) => element.titre))
+  expect(await titres(page)).toEqual(reponse.items.map((element) => element.titre))
   expect([...(await titres(page))].sort()).toEqual([...UNION_JULES].sort())
   await expect(article(page, VEILLE.avisCommun).locator('[data-champ="rubrique"]')).toHaveText(['Sécurité'])
   await expect(article(page, VEILLE.ficheIa).locator('[data-champ="rubrique"]')).toHaveText(['Réglementation'])
@@ -195,7 +195,7 @@ for (const id of MISES_EN_PAGE) {
     await page.evaluate(() => document.fonts.ready)
 
     // RGAA 3.2 : contraste de chaque texte rendu sur son fond effectif.
-    const mesures = await page.evaluate(mesurerContrastes)
+    const mesures = await page.evaluate(mesurerContrastes, MISE_EN_PAGE)
     expect(mesures.length).toBeGreaterThan(20)
     const ecarts = mesures.filter((mesure) => mesure.rapport < mesure.seuil)
     expect(ecarts, JSON.stringify(ecarts, null, 1)).toEqual([])
@@ -208,8 +208,8 @@ for (const id of MISES_EN_PAGE) {
     let contrasteFocus = Infinity
     for (let tabulation = 0; tabulation < 80; tabulation++) {
       await page.keyboard.press('Tab')
-      const focus = await page.evaluate(etatFocus)
-      if (!focus?.dansMiseEnPage) {
+      const focus = await page.evaluate(etatFocus, MISE_EN_PAGE)
+      if (!focus?.dansZone) {
         if (parcourus.length > 0) break
         continue
       }
@@ -226,8 +226,8 @@ for (const id of MISES_EN_PAGE) {
     const reponse = await veilleDe('jules')
     await expect(racine).toHaveRole('region')
     await expect(racine).toHaveAccessibleName(/.+/)
-    await expect(racine.getByRole('article')).toHaveCount(reponse.elements.length)
-    for (const element of reponse.elements) {
+    await expect(racine.getByRole('article')).toHaveCount(reponse.items.length)
+    for (const element of reponse.items) {
       await expect(racine.getByRole('article', { name: element.titre, exact: true })).toHaveCount(1)
       await expect(racine.getByRole('heading', { name: element.titre, exact: true })).toHaveCount(1)
     }

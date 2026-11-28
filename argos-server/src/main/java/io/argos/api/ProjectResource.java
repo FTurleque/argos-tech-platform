@@ -6,6 +6,7 @@ import java.util.Optional;
 import java.util.UUID;
 
 import jakarta.inject.Inject;
+import jakarta.ws.rs.BeanParam;
 import jakarta.ws.rs.Consumes;
 import jakarta.ws.rs.DELETE;
 import jakarta.ws.rs.GET;
@@ -26,6 +27,7 @@ import org.eclipse.microprofile.openapi.annotations.tags.Tag;
 import org.jboss.resteasy.reactive.RestResponse;
 
 import io.argos.api.security.Access;
+import io.argos.commun.Pagination;
 import io.argos.commun.securite.Caller;
 import io.argos.impact.ImpactQueries;
 import io.argos.inventory.DepotProjet;
@@ -79,17 +81,20 @@ public class ProjectResource {
 
     @GET
     @Path("/{projectId}/impacts")
-    @Operation(summary = "Impacts du projet filtrés par état de traitement (COR-12-S2), triés par date de création")
-    @APIResponse(responseCode = "200", description = "Impacts du projet aux états demandés ; par défaut OUVERT et CONFIRME")
-    @APIResponse(responseCode = "400", description = "État inconnu (DONNEE_INVALIDE)")
+    @Operation(summary = "Impacts du projet filtrés par état de traitement (COR-12-S2), triés par date de création puis"
+            + " identifiant (liste paginée)")
+    @APIResponse(responseCode = "200", description = "Page d'impacts du projet aux états demandés ; par défaut OUVERT et CONFIRME")
+    @APIResponse(responseCode = "400", description = "État inconnu, ou paramètre page ou size non entier (DONNEE_INVALIDE)")
     @APIResponse(responseCode = "401", description = "Non authentifié")
     @APIResponse(responseCode = "404", description = "Projet inconnu ou d'un espace dont l'appelant n'est pas membre (refus journalisé)")
-    public List<ImpactQueries.ImpactView> impacts(@PathParam("projectId") UUID projectId,
+    public ImpactQueries.Page impacts(@PathParam("projectId") UUID projectId,
             @Parameter(description = "États de traitement retenus, paramètre répétable (OUVERT, CONFIRME, ECARTE, RESOLU) ;"
                     + " absent : OUVERT et CONFIRME ; une valeur inconnue donne 400")
-            @QueryParam("etat") List<String> etat) {
-        Caller caller = access.memberOfProject(() -> inventories.workspaceOf(projectId));
-        return impacts.forProject(projectId, caller.accountId(), caller.memberWorkspaces(), SignalResource.etats(etat));
+            @QueryParam("etat") List<String> etat,
+            @BeanParam DemandePage demande) {
+        Pagination pagination = demande.pagination();
+        Caller caller = access.memberOfProject(() -> inventories.espaceDe(projectId));
+        return impacts.forProject(projectId, caller.accountId(), caller.espacesMembre(), SignalResource.etats(etat), pagination);
     }
 
     @POST
@@ -145,6 +150,6 @@ public class ProjectResource {
     /** Espace du projet ; 404 sans refus journalisé pour un projet inconnu, comme {@code Access.memberOfProject}. */
     private UUID espaceDuProjet(UUID projectId) {
         access.authenticated();
-        return inventories.workspaceOf(projectId).orElseThrow(NotFoundException::new);
+        return inventories.espaceDe(projectId).orElseThrow(NotFoundException::new);
     }
 }

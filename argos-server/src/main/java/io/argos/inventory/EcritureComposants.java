@@ -1,0 +1,131 @@
+package io.argos.inventory;
+
+import java.sql.Array;
+import java.sql.Connection;
+import java.sql.PreparedStatement;
+import java.sql.SQLException;
+import java.util.ArrayList;
+import java.util.LinkedHashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.Optional;
+import java.util.UUID;
+
+import io.argos.commun.Jdbc;
+
+/**
+ * Écriture par lot des composants et des occurrences d'un emplacement (INV-14, AUD-PER-20) : trois instructions,
+ * quel que soit le nombre de composants, les valeurs étant passées en tableaux ({@code unnest}). Un composant déjà
+ * présent garde son identifiant et n'est réécrit que si son PURL change.
+ *
+ * <p>Les composants lus sont d'abord dédoublonnés par paquet et version : une instruction {@code ON CONFLICT} ne peut
+ * pas toucher deux fois la même ligne. Un composant présent en direct et en transitif est direct ; transitif s'il est
+ * transitif au moins une fois et jamais direct ; inconnu sinon.
+ */
+final class EcritureComposants {
+
+    private static final String INSERTION_COMPOSANTS = """
+            INSERT INTO component(id, project_id, package_key, purl, version, transitive, import_id)
+            SELECT u.id, ?, u.cle, u.purl, u.version, u.transitive, ?
+            FROM unnest(?::uuid[], ?::text[], ?::text[], ?::text[], ?::boolean[]) AS u(id, cle, purl, version, transitive)
+            ON CONFLICT (project_id, package_key, (coalesce(version, ''))) DO NOTHING
+            """;
+
+    private static final String MISE_A_JOUR_PURL = """
+            UPDATE component c SET purl = u.purl, import_id = ?
+            FROM unnest(?::text[], ?::text[], ?::text[]) AS u(cle, purl, version)
+            WHERE c.project_id = ? AND c.package_key = u.cle AND coalesce(c.version, '') = coalesce(u.version, '')
+              AND c.purl IS DISTINCT FROM u.purl
+            """;
+
+    private static final String INSERTION_OCCURRENCES = """
+            INSERT INTO component_occurrence(component_id, repository_id, project_id, transitive, import_id)
+            SELECT c.id, ?, ?, u.transitive, ?
+            FROM unnest(?::text[], ?::text[], ?::boolean[]) AS u(cle, version, transitive)
+            JOIN component c ON c.project_id = ? AND c.package_key = u.cle AND coalesce(c.version, '') = coalesce(u.version, '')
+            ON CONFLICT (component_id, (coalesce(repository_id, '00000000-0000-0000-0000-000000000000'::uuid)))
+            DO UPDATE SET transitive = CASE
+                WHEN component_occurrence.transitive = false OR excluded.transitive = false THEN false
+                ELSE coalesce(component_occurrence.transitive, excluded.transitive) END
+            """;
+
+    private static final char SEPARATEUR_CLE = '\u0000';
+
+    private EcritureComposants() {
+    }
+
+    /**
+     * Écrit les composants de l'emplacement et leurs occurrences ; les occurrences précédentes de l'emplacement sont
+     * déjà supprimées par l'appelant.
+     */
+    static void ecrire(Connection connexion, UUID projectId, UUID repositoryId, List<ParsedInventory.Item> lus, UUID importId)
+            throws SQLException {
+        List<ParsedInventory.Item> composants = dedoublonner(lus);
+        if (composants.isEmpty()) {
+            return;
+        }
+        Tableaux tableaux = Tableaux.depuis(connexion, composants);
+        executer(connexion, INSERTION_COMPOSANTS, projectId, importId, tableaux.identifiants(), tableaux.cles(), tableaux.purls(),
+                tableaux.versions(), tableaux.transitifs());
+        executer(connexion, MISE_A_JOUR_PURL, importId, tableaux.cles(), tableaux.purls(), tableaux.versions(), projectId);
+        executer(connexion, INSERTION_OCCURRENCES, repositoryId, projectId, importId, tableaux.cles(), tableaux.versions(),
+                tableaux.transitifs(), projectId);
+    }
+
+    /** Exécute une écriture avec les valeurs données, dans l'ordre des paramètres. */
+    private static void executer(Connection connexion, String sql, Object... valeurs) throws SQLException {
+        try (PreparedStatement requete = connexion.prepareStatement(sql)) {
+            Jdbc.parametres(valeurs).lier(requete);
+            requete.executeUpdate();
+        }
+    }
+
+    /** Un composant par paquet et version (version absente et vide confondues), dans l'ordre de première lecture. */
+    static List<ParsedInventory.Item> dedoublonner(List<ParsedInventory.Item> lus) {
+        Map<String, ParsedInventory.Item> uniques = new LinkedHashMap<>();
+        for (ParsedInventory.Item composantLu : lus) {
+            String cle = composantLu.packageKey() + SEPARATEUR_CLE + (composantLu.version() == null ? "" : composantLu.version());
+            uniques.merge(cle, composantLu, (premier, doublon) -> new ParsedInventory.Item(premier.packageKey(), premier.purl(),
+                    premier.version(), fusionnerTransitif(premier.transitive(), doublon.transitive()).orElse(null)));
+        }
+        return new ArrayList<>(uniques.values());
+    }
+
+    /**
+     * Direct ({@code false}) dès qu'une occurrence est directe ; transitif ({@code true}) si une occurrence l'est ;
+     * vide si la transitivité des deux occurrences est inconnue.
+     */
+    static Optional<Boolean> fusionnerTransitif(Boolean premier, Boolean second) {
+        if (Boolean.FALSE.equals(premier) || Boolean.FALSE.equals(second)) {
+            return Optional.of(Boolean.FALSE);
+        }
+        if (Boolean.TRUE.equals(premier) || Boolean.TRUE.equals(second)) {
+            return Optional.of(Boolean.TRUE);
+        }
+        return Optional.empty();
+    }
+
+    /** Colonnes des composants à écrire, en tableaux SQL de même longueur. */
+    private record Tableaux(Array identifiants, Array cles, Array purls, Array versions, Array transitifs) {
+
+        static Tableaux depuis(Connection connexion, List<ParsedInventory.Item> composants) throws SQLException {
+            int nombre = composants.size();
+            UUID[] identifiants = new UUID[nombre];
+            String[] cles = new String[nombre];
+            String[] purls = new String[nombre];
+            String[] versions = new String[nombre];
+            Boolean[] transitifs = new Boolean[nombre];
+            for (int rang = 0; rang < nombre; rang++) {
+                ParsedInventory.Item composant = composants.get(rang);
+                identifiants[rang] = UUID.randomUUID();
+                cles[rang] = composant.packageKey();
+                purls[rang] = composant.purl();
+                versions[rang] = composant.version();
+                transitifs[rang] = composant.transitive();
+            }
+            return new Tableaux(connexion.createArrayOf("uuid", identifiants), connexion.createArrayOf("text", cles),
+                    connexion.createArrayOf("text", purls), connexion.createArrayOf("text", versions),
+                    connexion.createArrayOf("bool", transitifs));
+        }
+    }
+}

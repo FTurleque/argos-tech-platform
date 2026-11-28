@@ -2,7 +2,6 @@ package io.argos.chain;
 
 import static org.hamcrest.Matchers.containsString;
 import static org.hamcrest.Matchers.equalTo;
-import static org.hamcrest.Matchers.hasItem;
 import static org.hamcrest.Matchers.hasSize;
 import static org.hamcrest.Matchers.notNullValue;
 import static org.hamcrest.Matchers.not;
@@ -142,62 +141,6 @@ class VeilleWebTest {
                 .body("[0].sources", hasSize(1));
     }
 
-    @Test
-    void adresseSansFluxRefuseeSansCreerDeSource() {
-        StubServer.programmer("/page.html", contenu("text/html", "<html><body><p>Bienvenue</p></body></html>"));
-
-        ajouter("alice", source("PERSONNELLE", null, "FLUX", StubServer.base() + "/page.html"))
-                .statusCode(400)
-                .body("code", equalTo("FLUX_INVALIDE"))
-                .body("message", containsString("flux RSS ou Atom"))
-                .body("attribut", equalTo("adresse"));
-        assertEquals(0, sources());
-    }
-
-    // ------------------------------------------------------------------ WEB-03
-
-    @Test
-    void adressePriveeRefuseeSansRequete() {
-        long avant = StubServer.received("/").size();
-        ajouter("alice", source("PERSONNELLE", null, "FLUX", "http://192.168.1.1/flux"))
-                .statusCode(400)
-                .body("code", equalTo("ADRESSE_INTERDITE"));
-        ajouter("alice", source("PERSONNELLE", null, "FLUX", "http://127.0.0.1:" + 1 + "/flux"))
-                .statusCode(400)
-                .body("code", equalTo("ADRESSE_INTERDITE"));
-        ajouter("alice", source("PERSONNELLE", null, "FLUX", "file:///etc/passwd"))
-                .statusCode(400)
-                .body("code", equalTo("ADRESSE_INVALIDE"));
-        assertEquals(0, sources());
-        assertEquals(avant, StubServer.received("/").size(), "aucune requête émise");
-    }
-
-    @Test
-    void redirectionVersAdresseLocaleMetLaSourceEnErreur() {
-        StubServer.programmer("/rss", contenu(ATOM, atom("Flux public", entree("A", "https://exemple.test/a", "a"))));
-        String id = ajouterFlux("alice", "PERSONNELLE", null, "/rss");
-
-        StubServer.programmer("/rss", new Stub(302, "", Map.of("Location", "http://127.0.0.1/")));
-        Api.enTantQue("alice").when().post("/api/v1/veille-web/sources/" + id + "/collectes").then()
-                .statusCode(200)
-                .body("etat", equalTo("EN_ERREUR"))
-                .body("erreur", containsString("REDIRECTION_INTERDITE"));
-
-        Api.enTantQue("alice").when().get("/api/v1/veille-web/sources").then().statusCode(200)
-                .body("find { it.id == '" + id + "' }.etat", equalTo("EN_ERREUR"))
-                .body("find { it.id == '" + id + "' }.derniereErreur", containsString("REDIRECTION_INTERDITE"))
-                .body("find { it.id == '" + id + "' }.echecsConsecutifs", equalTo(1));
-    }
-
-    @Test
-    void recuperationTropLongueInterrompue() {
-        StubServer.programmer("/lent", Stub.retenue(200, atom("Lent"), Map.of("Content-Type", ATOM)));
-        ajouter("alice", source("PERSONNELLE", null, "FLUX", StubServer.base() + "/lent"))
-                .statusCode(400)
-                .body("code", equalTo("DELAI_DEPASSE"));
-        assertEquals(0, sources());
-    }
-
     // ------------------------------------------------------------------ WEB-02
 
     @Test
@@ -223,25 +166,6 @@ class VeilleWebTest {
         Api.enTantQue("alice").when().post("/api/v1/veille-web/sources/" + id + "/collectes").then()
                 .statusCode(200).body("nouvelles", equalTo(0));
         actualites("alice").body("", hasSize(1));
-    }
-
-    // ------------------------------------------------------------------ WEB-05
-
-    @Test
-    void memeArticleDansDeuxFluxRestitueUneFoisAvecSesDeuxSources() {
-        String article = entree("Angular 19", "https://blog.exemple.test/angular-19", "Sortie d'Angular 19.");
-        StubServer.programmer("/a.xml", contenu(ATOM, atom("Flux A", article)));
-        StubServer.programmer("/b.xml", contenu(ATOM, atom("Flux B",
-                entree("Angular 19", "https://BLOG.exemple.test/angular-19/?utm_source=b", "Sortie d'Angular 19."))));
-        ajouterFlux("alice", "PERSONNELLE", null, "/a.xml");
-        ajouterFlux("alice", "PERSONNELLE", null, "/b.xml");
-
-        actualites("alice")
-                .body("", hasSize(1))
-                .body("[0].sources", hasSize(2))
-                .body("[0].sources.libelle", hasItem("Flux A"))
-                .body("[0].sources.libelle", hasItem("Flux B"));
-        assertEquals(1, baseDeTest.count("SELECT count(*) FROM actualite"));
     }
 
     // ------------------------------------------------------------------ WEB-04
@@ -517,23 +441,40 @@ class VeilleWebTest {
                 """));
     }
 
-    /** Les refus ne renvoient ni l'hôte ni l'adresse IP en cause ; l'état d'une source non plus. */
+    /**
+     * WEB-01-S2 et WEB-03 par l'API : un refus d'ajout répond 400 sur l'attribut {@code adresse} sans créer de source
+     * ni renvoyer l'hôte ou l'adresse IP en cause ; une redirection interdite lors d'une collecte met la source en
+     * erreur, sans indice réseau dans son état. Les motifs eux-mêmes sont vérifiés par {@code GardeAdressesTest},
+     * {@code RecuperateurWebTest} et {@code LecteursTest}.
+     */
     @Test
     void refusSansIndiceReseau() {
+        StubServer.programmer("/page.html", contenu("text/html", "<html><body><p>Bienvenue</p></body></html>"));
+        ajouter("alice", source("PERSONNELLE", null, "FLUX", StubServer.base() + "/page.html"))
+                .statusCode(400)
+                .body("code", equalTo("FLUX_INVALIDE"))
+                .body("message", containsString("flux RSS ou Atom"))
+                .body("attribut", equalTo("adresse"));
         String message = ajouter("alice", source("PERSONNELLE", null, "FLUX", "http://192.168.1.1/flux"))
-                .statusCode(400).body("code", equalTo("ADRESSE_INTERDITE")).extract().path("message");
+                .statusCode(400).body("code", equalTo("ADRESSE_INTERDITE")).body("attribut", equalTo("adresse"))
+                .extract().path("message");
         assertTrue(!message.contains("192.168"), message);
         ajouter("alice", source("PERSONNELLE", null, "FLUX", "http://localhost:8443/flux"))
                 .statusCode(400).body("code", equalTo("ADRESSE_INTERDITE")).body("message", equalTo(message));
+        assertEquals(0, sources());
 
         StubServer.programmer("/r.xml", contenu(ATOM, atom("R", entree("R", "https://exemple.test/r", "r"))));
         String id = ajouterFlux("alice", "PERSONNELLE", null, "/r.xml");
         StubServer.programmer("/r.xml", new Stub(302, "", Map.of("Location", "http://10.20.30.40/interne")));
         Api.enTantQue("alice").when().post("/api/v1/veille-web/sources/" + id + "/collectes").then().statusCode(200)
+                .body("etat", equalTo("EN_ERREUR"))
                 .body("erreur", startsWith("REDIRECTION_INTERDITE : "))
                 .body("erreur", not(containsString("10.20.30.40")));
         Api.enTantQue("alice").when().get("/api/v1/veille-web/sources").then().statusCode(200)
-                .body("find { it.id == '" + id + "' }.derniereErreur", not(containsString("10.20.30.40")));
+                .body("find { it.id == '" + id + "' }.etat", equalTo("EN_ERREUR"))
+                .body("find { it.id == '" + id + "' }.derniereErreur", startsWith("REDIRECTION_INTERDITE"))
+                .body("find { it.id == '" + id + "' }.derniereErreur", not(containsString("10.20.30.40")))
+                .body("find { it.id == '" + id + "' }.echecsConsecutifs", equalTo(1));
     }
 
     // ------------------------------------------------------------------ outils

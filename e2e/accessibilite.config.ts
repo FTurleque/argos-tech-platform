@@ -3,6 +3,7 @@
 // locale et ouvre le banc d'essai argos-ui/banc/index.html, qui affiche chaque mise en page sur le jeu
 // d'exemple. Lancement : npm --prefix e2e run test:accessibilite
 import { defineConfig, devices } from '@playwright/test'
+import { REUTILISER } from './support/pile.mjs'
 
 export const URL_BANC = process.env.ARGOS_E2E_URL_BANC ?? 'http://127.0.0.1:5174'
 
@@ -26,7 +27,7 @@ export default defineConfig({
     command: 'npm --prefix ../argos-ui run dev -- --host 127.0.0.1 --port 5174 --strictPort',
     url: `${URL_BANC}/banc/index.html`,
     timeout: 120_000,
-    reuseExistingServer: true,
+    reuseExistingServer: REUTILISER,
     stdout: 'ignore',
     stderr: 'pipe',
   },

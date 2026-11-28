@@ -122,7 +122,7 @@ public class ActiviteResource {
     @APIResponse(responseCode = "429", description = "Limite de débit du compte atteinte")
     public Collecte collecter(@PathParam("projectId") UUID projectId) {
         access.authenticated();
-        Caller caller = access.contributor(projets.workspaceOf(projectId).orElseThrow(NotFoundException::new));
+        Caller caller = access.contributor(projets.espaceDe(projectId).orElseThrow(NotFoundException::new));
         if (!limiteurCollecte.admettre(caller.accountId())) {
             throw new LimiteDebitAtteinte();
         }
@@ -130,6 +130,6 @@ public class ActiviteResource {
     }
 
     private Caller autoriser(UUID projectId) {
-        return access.memberOfProject(() -> projets.workspaceOf(projectId));
+        return access.memberOfProject(() -> projets.espaceDe(projectId));
     }
 }

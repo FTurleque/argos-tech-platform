@@ -1,3 +1,10 @@
+---
+id: ADR-0020
+title: "Spécifier les exigences avec OpenSpec et le schéma `detailed-uml`"
+domain: architecture
+rules: false
+---
+
 # ADR-0020 — Spécifier les exigences avec OpenSpec et le schéma `detailed-uml`
 
 - **Statut** : Accepté

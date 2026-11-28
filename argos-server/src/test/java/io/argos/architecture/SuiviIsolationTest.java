@@ -30,7 +30,7 @@ class SuiviIsolationTest {
     }
 
     @Test
-    void lesSuivisNEmpruntentAWorkspaceQueLeContexteRls() {
+    void lesSuivisNEmpruntentAuModuleDesEspacesQueLeContexteRls() {
         noClasses().that().resideInAPackage("io.argos.workspace.suivi..")
                 .should().dependOnClassesThat(DescribedPredicate.describe(
                         "workspace hors suivi et ContexteBase",

@@ -70,6 +70,8 @@ class ModuleBoundariesTest {
             Map.entry("observabilite", Set.of()),
             Map.entry("horloge", Set.of()),
             Map.entry("execution", Set.of()),
+            // Conservation bornée des données journalisées (ADR-0041) : contrat implémenté par chaque module, purge unique.
+            Map.entry("conservation", Set.of()),
             // Noyau commun (ADR-0037) : contexte RLS, transaction, JDBC, erreurs du domaine, appelant et limiteur.
             Map.entry("commun", Set.of()));
 
@@ -77,7 +79,7 @@ class ModuleBoundariesTest {
      * Modules techniques sans dépendance métier, dont tout module peut dépendre (arc42 §5, socle technique) ; ils
      * peuvent dépendre les uns des autres ({@code execution} propage la corrélation d'{@code observabilite}).
      */
-    static final Set<String> TRANSVERSES = Set.of("observabilite", "horloge", "execution", "commun");
+    static final Set<String> TRANSVERSES = Set.of("observabilite", "horloge", "execution", "conservation", "commun");
 
     private static JavaClasses classes;
 

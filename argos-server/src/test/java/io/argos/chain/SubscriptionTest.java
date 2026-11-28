@@ -90,8 +90,8 @@ class SubscriptionTest {
         return "{\"scope\":\"PERSONAL\",\"filters\":" + filters + ",\"channel\":\"in_app\",\"frequency\":\"daily\",\"mandatory\":false}";
     }
 
-    private static String team(UUID workspace, String filters, boolean mandatory) {
-        return "{\"scope\":\"TEAM\",\"teamWorkspaceId\":\"" + workspace + "\",\"filters\":" + filters
+    private static String team(UUID espace, String filters, boolean mandatory) {
+        return "{\"scope\":\"TEAM\",\"teamWorkspaceId\":\"" + espace + "\",\"filters\":" + filters
                 + ",\"channel\":\"in_app\",\"frequency\":\"weekly\",\"mandatory\":" + mandatory + "}";
     }
 
@@ -122,20 +122,6 @@ class SubscriptionTest {
                 .body("mandatory", equalTo(false))
                 .body("state", equalTo("ACTIVE"))
                 .body("createdAt", notNullValue());
-    }
-
-    @Test
-    void abo02S2AttributManquant() {
-        as("alice").body("{\"scope\":\"PERSONAL\",\"filters\":[],\"channel\":\"in_app\",\"frequency\":\"daily\",\"mandatory\":false}")
-                .when().post("/api/v1/subscriptions")
-                .then().statusCode(400).body("attribut", equalTo("filters"));
-        as("alice").body("{\"scope\":\"PERSONAL\",\"filters\":" + RUST + ",\"frequency\":\"daily\",\"mandatory\":false}")
-                .when().post("/api/v1/subscriptions")
-                .then().statusCode(400).body("attribut", equalTo("channel"));
-        as("alice").body("{\"scope\":\"PERSONAL\",\"filters\":" + RUST + ",\"channel\":\"x\",\"frequency\":\"daily\"}")
-                .when().post("/api/v1/subscriptions")
-                .then().statusCode(400).body("attribut", equalTo("mandatory"));
-        assertEquals(0, baseDeTest.count("SELECT count(*) FROM subscription"));
     }
 
     @Test

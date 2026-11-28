@@ -2,56 +2,55 @@
 
 ## 3.1 Frontière du système
 
-ARGOS est considéré comme un **Software System** autonome qui consomme des sources externes, conserve un modèle interne normalisé et restitue de l’information aux utilisateurs.
+ARGOS est un **Software System** autonome qui consomme des sources externes, conserve un modèle interne normalisé et restitue de l’information aux utilisateurs, par le portail web, le client desktop, les e-mails et un serveur MCP.
 
 ### Dans la frontière ARGOS
 
-- collecte et orchestration d’ingestion ;
+- collecte et orchestration d’ingestion, collecteur RSS/Atom et pages surveillées compris ([ADR-0028](../adr/0028-collecteur-veille-web-integre.md)) ;
 - normalisation et déduplication ;
 - modèle métier ;
 - corrélation technologie ↔ projet ;
 - recherche ;
 - calcul de métriques factuelles ;
-- AI Gateway ;
-- tableaux de bord ;
-- alertes/digests ;
+- passerelle IA ;
+- portail web et client desktop ;
+- alertes et résumés ;
+- serveur MCP en lecture seule ;
 - contrôle d’accès et audit applicatif.
 
 ### Hors frontière ARGOS
 
-- GitHub/GitLab ;
-- FreshRSS ;
-- changedetection.io ;
-- fournisseurs RSS/Atom ;
-- sources CVE/sécurité ;
-- Claude/Anthropic ;
-- fournisseur d’identité d’entreprise ;
-- services de notification externes ;
-- éventuellement n8n.
-
-> **Hypothèse à valider :** FreshRSS et changedetection.io sont représentés comme systèmes séparés afin d’éviter de coupler ARGOS à leur stockage ou code interne.
+- Keycloak, fournisseur d’identité auto-hébergé ([ADR-0027](../adr/0027-keycloak-idp-auto-heberge.md)), déployé à côté d’Argos par le profil `idp-local` ou existant ;
+- Ollama, modèle d’IA local facultatif ([ADR-0029](../adr/0029-passerelle-ia-ollama-local.md)) ;
+- GitHub et GitLab ;
+- sources d’avis de sécurité, calendrier des fins de support, archives JORF ;
+- sites qui publient les flux et les pages surveillés ;
+- relais SMTP ;
+- assistants IA des développeurs, clients du serveur MCP.
 
 ## 3.2 Acteurs
 
 | Acteur | Interaction principale | État |
 |---|---|---|
-| Utilisateur technique | consulte veille, impacts, projets et recherche | Hypothèse à valider |
-| Responsable projet | consulte synthèses, jalons, risques et activité | Hypothèse à valider |
-| Administrateur | gère workspaces, sources, droits et intégrations | Hypothèse à valider |
-| Exploitant | supervise, restaure et diagnostique la plateforme | Hypothèse à valider |
+| Utilisateur | consulte veille, impacts, projets et recherche ; gère ses abonnements et sa veille personnelle | [EXISTANT] |
+| Administrateur d’espace | gère membres, rôles, projets et sources de son espace | [EXISTANT] |
+| Expert métier | qualifie et valide les fiches réglementaires de ses domaines | [EXISTANT] |
+| Administrateur plateforme | déclare les sources partagées, lit les métriques, lance les synchronisations | [EXISTANT] |
+| Exploitant (le porteur) | déploie, sauvegarde, restaure et diagnostique la plateforme | [EXISTANT] |
 
 ## 3.3 Systèmes externes
 
-| Système | Rôle | Interface pressentie | État |
+| Système | Rôle | Interface | État |
 |---|---|---|---|
-| FreshRSS | agrégation RSS/Atom | API HTTP | Hypothèse à valider |
-| changedetection.io | surveillance de changements Web | API HTTP / webhook si disponible | Hypothèse à valider |
-| GitHub | activité projets et dépôts | REST/GraphQL + webhooks | Hypothèse à valider |
-| GitLab | activité projets et dépôts | REST/GraphQL selon besoin + webhooks | Hypothèse à valider |
-| Sources CVE | vulnérabilités | API/feed | Non déterminé |
-| Claude / Anthropic | analyses/synthèses structurées | HTTPS API | Hypothèse à valider |
-| IdP entreprise | authentification fédérée | OIDC ou SAML | Non déterminé |
-| Notification | mail/Teams/Slack/etc. | webhook/API/SMTP | Non déterminé |
+| Keycloak | authentification des utilisateurs, émission des jetons | OIDC, code d’autorisation + PKCE S256 ; flux d’appareil pour les clients MCP | [EXISTANT] (ADR-0027) |
+| Ollama | résumés et explications | API HTTP sur le réseau du projet | [EXISTANT], facultatif (ADR-0029) |
+| GitHub, GitLab | SBOM, manifestes et activité des dépôts | API REST en lecture seule, jetons facultatifs ; aucun webhook | [EXISTANT] |
+| OSV, NVD, CISA KEV, FIRST EPSS, CERT-FR | avis de sécurité et enrichissement | API HTTP et archives | [EXISTANT] (ADR-0010) |
+| endoflife.date | calendrier des fins de support | API HTTP | [EXISTANT] |
+| DILA (archives JORF) | textes officiels | archives HTTPS, Licence Ouverte | [EXISTANT] (ADR-0030) |
+| Sites publiés (RSS/Atom, pages) | veille web | HTTP(S), adresses contrôlées à chaque collecte | [EXISTANT] (ADR-0028) |
+| Relais SMTP | e-mails d’alertes et de résumés | SMTP avec STARTTLS | [EXISTANT] |
+| Assistant IA d’un développeur | interrogation en lecture seule | MCP Streamable HTTP sur `POST /mcp` | [EXISTANT] (ADR-0014) |
 
 ## 3.4 C4 — System Context
 
@@ -60,82 +59,81 @@ ARGOS est considéré comme un **Software System** autonome qui consomme des sou
 ```mermaid
 flowchart LR
     USER["«Person»\nUtilisateur ARGOS\nConsulte veille, projets et impacts"]
-    ADMIN["«Person»\nAdministrateur ARGOS\nConfigure sources et accès"]
-    OPS["«Person»\nExploitant\nSupervise la plateforme"]
+    ADMIN["«Person»\nAdministrateur\nConfigure espaces, sources et accès"]
+    OPS["«Person»\nExploitant\nDéploie et sauvegarde la plateforme"]
+    DEV["«Person»\nDéveloppeur\nInterroge Argos depuis son IDE"]
 
     ARGOS["«Software System»\nARGOS\nTechnology & Project Intelligence Platform"]
 
-    RSS["«Software System»\nFreshRSS\nAgrège RSS / Atom"]
-    CHANGE["«Software System»\nchangedetection.io\nDétecte les changements Web"]
-    GITHUB["«Software System»\nGitHub\nDépôts et activité projet"]
-    GITLAB["«Software System»\nGitLab\nDépôts et activité projet"]
-    CVE["«Software System»\nSource vulnérabilités\nPublie des avis de sécurité"]
-    CLAUDE["«Software System»\nClaude / Anthropic\nAnalyse et synthèse"]
-    IDP["«Software System»\nIdP entreprise\nAuthentifie les utilisateurs"]
-    NOTIF["«Software System»\nCanal de notification\nDiffuse alertes et digests"]
+    IDP["«Software System»\nKeycloak\nAuthentifie les utilisateurs"]
+    LLM["«Software System»\nOllama\nModèle d'IA local, facultatif"]
+    FORGE["«Software System»\nGitHub / GitLab\nDépôts, SBOM et activité"]
+    AVIS["«Software System»\nSources d'avis de sécurité\nOSV, NVD, KEV, EPSS, CERT-FR"]
+    EOL["«Software System»\nendoflife.date\nFins de support"]
+    JORF["«Software System»\nDILA\nArchives JORF"]
+    WEB["«Software System»\nSites publiés\nFlux RSS/Atom et pages"]
+    SMTP["«Software System»\nRelais SMTP\nDiffuse les e-mails"]
+    IA["«Software System»\nAssistant IA\nClient MCP"]
 
-    USER -->|consulte et recherche via HTTPS| ARGOS
+    USER -->|consulte via HTTPS, portail ou desktop| ARGOS
     ADMIN -->|configure via HTTPS| ARGOS
-    OPS -->|observe et exploite| ARGOS
+    OPS -->|déploie et observe| ARGOS
+    DEV -->|utilise| IA
+    IA -->|appelle les outils en lecture seule via MCP| ARGOS
 
-    ARGOS -->|lit les flux normalisés via HTTP API| RSS
-    ARGOS -->|lit les changements via HTTP API| CHANGE
-    GITHUB -->|notifie par webhook HTTPS| ARGOS
-    ARGOS -->|synchronise via API HTTPS| GITHUB
-    GITLAB -->|notifie par webhook HTTPS| ARGOS
-    ARGOS -->|synchronise via API HTTPS| GITLAB
-    ARGOS -->|collecte les avis via API/feed| CVE
-    ARGOS -->|soumet un contexte contrôlé via HTTPS| CLAUDE
-    CLAUDE -->|retourne une réponse structurée| ARGOS
-    ARGOS -->|délègue l’authentification via OIDC/SAML| IDP
-    ARGOS -->|publie alertes/digests| NOTIF
+    USER -->|se connecte via OIDC| IDP
+    ARGOS -->|valide les jetons via OIDC| IDP
+    ARGOS -->|soumet un contexte filtré via HTTP| LLM
+    ARGOS -->|lit SBOM et activité via API REST| FORGE
+    ARGOS -->|collecte les avis via HTTPS| AVIS
+    ARGOS -->|lit le calendrier via HTTPS| EOL
+    ARGOS -->|télécharge les archives via HTTPS| JORF
+    ARGOS -->|récupère flux et pages via HTTP ou HTTPS| WEB
+    ARGOS -->|envoie alertes et résumés via SMTP| SMTP
 ```
 
 ## 3.5 Interfaces
 
 ### Interfaces entrantes
 
-- interface Web utilisateur ;
-- API applicative ;
-- endpoints webhook GitHub/GitLab ;
-- callbacks d’authentification OIDC/SAML.
+- portail web et client desktop (IHM servie par le serveur, API REST `/api/v1`) ;
+- serveur MCP `POST /mcp` ;
+- santé `/q/health` et métriques `/q/metrics`.
 
 ### Interfaces sortantes
 
-- APIs GitHub/GitLab ;
-- API FreshRSS ;
-- API changedetection.io ;
-- sources sécurité ;
-- API Claude ;
-- services de notification.
+- Keycloak (validation des jetons) ;
+- Ollama (passerelle IA) ;
+- API GitHub et GitLab ;
+- sources d’avis, endoflife.date, archives JORF, sites publiés ;
+- relais SMTP.
 
 ## 3.6 Données échangées
 
-| Flux | Données principales | Sensibilité pressentie |
+| Flux | Données principales | Sensibilité |
 |---|---|---|
-| RSS/Web → ARGOS | titres, liens, contenu, dates | Public à Internal |
-| GitHub/GitLab → ARGOS | issues, PR/MR, pipelines, releases, utilisateurs | Internal à Confidential |
-| ARGOS → Claude | extraits de contenu, contexte projet sélectionné | dépend de la classification |
-| ARGOS → utilisateurs | veille, impacts, métriques, synthèses | Internal |
+| Sources publiques → ARGOS | avis, calendriers, textes officiels, titres, liens, contenu | Public |
+| GitHub/GitLab → ARGOS | SBOM, manifestes, compteurs d’activité sans identité | Internal |
+| ARGOS → Ollama | entrées classées PUBLIC ou INTERNAL, secrets refusés, données personnelles masquées | Public à Internal |
+| ARGOS → utilisateurs | veille, impacts, métriques, synthèses, filtrés par espace (RLS) | Internal |
+| ARGOS → relais SMTP | alertes et résumés, liens vers le portail | Internal |
 
 ## 3.7 Questions ouvertes
 
-- Les deux SCM doivent-ils être supportés au MVP ?
-- Les dépôts privés peuvent-ils être analysés par Claude ?
-- Quels événements webhook seront activés ?
-- Quelle source CVE est autorisée ?
-- Quels canaux de notification sont requis ?
+- Quels canaux de notification au-delà de l’e-mail et du client desktop ?
+- Quelles sources d’avis supplémentaires pour un hébergement en ligne ?
 
 ## 3.8 Risques associés
 
-- dépendance aux limites/rate limits des APIs externes ;
-- fuite de données si le contexte envoyé au LLM n’est pas filtré ;
-- webhooks falsifiés si signatures/secrets mal validés ;
+- dépendance aux limites d’API des forges et des sources ;
+- contenu externe hostile (injection d’instructions, falsification de requête côté serveur) ;
+- indisponibilité de Keycloak, qui bloque toute connexion ;
 - couplage excessif à un fournisseur si le modèle canonique est insuffisant.
+
+Registre : [`../risks/register.md`](../risks/register.md).
 
 ## 3.9 Fichiers source concernés
 
-- `README.md`
-- futurs adapters/connectors ;
-- future spécification OpenAPI ;
-- futurs manifests d’authentification et de déploiement.
+- `argos-server/src/main/resources/application.properties` (adresses des sources) ;
+- `compose.yaml` (Keycloak, Ollama) ;
+- `argos-ui/src/api/openapi.json` (contrat REST).

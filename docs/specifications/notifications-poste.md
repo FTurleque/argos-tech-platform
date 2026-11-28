@@ -3,9 +3,9 @@
 | Élément | Valeur |
 |---|---|
 | Préfixe d'exigences | `NOT` |
-| Spec de référence | `/openspec/specs/notifications-poste/spec.md` — absente tant qu'aucun changement n'est archivé |
-| Changements en cours | [`notifier-sur-le-poste`](/openspec/changes/archive/2026-11-20-notifier-sur-le-poste/proposal.md) (implémenté, non archivé) |
-| Statut de la capacité | implémentée dans `argos-desktop` et `argos-ui` ; tests unitaires et d'intégration simulée (chaîne pont → canaux → poste avec doublures Electron, boucle de lecture sur horloge simulée) ; parcours E2E de l'application Electron réelle connectée à la pile locale (`e2e/desktop/notifications.spec.ts`), clic sur la notification, refus du système et coupure du serveur simulés ; bulle et refus réels par Windows à vérifier à la main (tâche 1.2 non cochée) |
+| Spec de référence | [`/openspec/specs/notifications-poste/spec.md`](/openspec/specs/notifications-poste/spec.md) |
+| Changements archivés | [`2026-11-20-notifier-sur-le-poste`](/openspec/changes/archive/2026-11-20-notifier-sur-le-poste/proposal.md) (NOT-01 à NOT-06) |
+| Statut de la capacité | livrée, implémentée dans `argos-desktop` et `argos-ui` ; tests unitaires et d'intégration simulée (chaîne pont → canaux → poste avec doublures Electron, boucle de lecture sur horloge simulée) ; parcours E2E de l'application Electron réelle connectée à la pile locale (`e2e/desktop/notifications.spec.ts`), clic sur la notification, refus du système et coupure du serveur simulés ; bulle et refus réels par Windows à vérifier à la main (tâche 1.2 non cochée) |
 | Composants (arc42 §5) | `argos-desktop`, IHM `argos-ui` (couche contenu), `alerting` |
 
 ## Objectif

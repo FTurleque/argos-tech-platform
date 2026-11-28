@@ -61,11 +61,26 @@ export interface ElementVeilleProfils {
   mentionSource?: string | null
 }
 
-/** Réponse de `GET /api/v1/me/veille` (schéma `VeilleProfils`). */
+/**
+ * Page de `GET /api/v1/me/veille` (schéma `VeilleProfils`, PRF-09, ADR-0040) : éléments de la page, numéro de page
+ * à partir de 0, taille appliquée, nombre d'éléments de la veille et profils actifs.
+ */
 export interface VeilleProfils {
+  items: ElementVeilleProfils[]
+  page: number
+  size: number
+  total: number
   profilsActifs: string[]
-  elements: ElementVeilleProfils[]
 }
+
+/** Point d'accès de la veille de l'appelant. */
+const CHEMIN_VEILLE = '/api/v1/me/veille'
+
+/**
+ * Taille d'une page de « Ma veille », envoyée à chaque lecture : taille par défaut des listes de l'API (ADR-0040,
+ * décision du porteur du 2026-11-27) ; la taille appliquée revient dans `size`.
+ */
+export const TAILLE_PAGE_VEILLE = 50
 
 /** Profil publié au catalogue (schéma `ProfilCatalogue`). */
 export interface ProfilCatalogue {
@@ -98,9 +113,10 @@ export interface Abonnement {
   createdAt: string
 }
 
-/** Veille de l'appelant : union de ses profils actifs et de ses abonnements PERSONAL, sous ses droits. */
-export function lireVeille(signal?: AbortSignal): Promise<VeilleProfils> {
-  return appelerApi<VeilleProfils>('/api/v1/me/veille', { signal, delaiMs: 15_000 })
+/** Page de la veille de l'appelant : union de ses profils actifs et de ses abonnements PERSONAL, sous ses droits. */
+export function lireVeille(page = 0, signal?: AbortSignal): Promise<VeilleProfils> {
+  const parametres = new URLSearchParams({ page: String(page), size: String(TAILLE_PAGE_VEILLE) })
+  return appelerApi<VeilleProfils>(`${CHEMIN_VEILLE}?${parametres}`, { signal, delaiMs: 15_000 })
 }
 
 /** Profils de veille publiés au catalogue. */

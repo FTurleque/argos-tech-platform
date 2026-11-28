@@ -20,7 +20,7 @@ import org.eclipse.microprofile.openapi.annotations.tags.Tag;
 import io.argos.api.Erreur;
 import io.argos.api.security.Access;
 import io.argos.commun.securite.Caller;
-import io.argos.impact.RechercheVeille;
+import io.argos.signal.recherche.RechercheVeille;
 import io.argos.commun.DonneeInvalide;
 
 /**

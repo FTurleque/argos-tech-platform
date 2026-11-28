@@ -11,8 +11,6 @@ import java.util.List;
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.inject.Inject;
 
-import org.eclipse.microprofile.config.inject.ConfigProperty;
-
 import io.argos.ingestion.AdvisoryFeed;
 import io.argos.ingestion.FeedEntry;
 import io.argos.ingestion.HttpSourceClient;
@@ -35,25 +33,12 @@ public class OsvAdvisoryFeed implements AdvisoryFeed {
     public static final String SOURCE_ID = "OSV";
 
     private final HttpSourceClient http;
-    private final String exportUrl;
-    private final String apiUrl;
-    private final List<String> ecosystems;
-    private final int seuilArchive;
-    private final long archiveTailleMax;
+    private final ParametresOsv parametres;
 
     @Inject
-    public OsvAdvisoryFeed(HttpSourceClient http,
-            @ConfigProperty(name = "argos.sources.osv.export-url") String exportUrl,
-            @ConfigProperty(name = "argos.sources.osv.api-url") String apiUrl,
-            @ConfigProperty(name = "argos.sources.osv.ecosystems") List<String> ecosystems,
-            @ConfigProperty(name = "argos.sources.osv.seuil-archive") int seuilArchive,
-            @ConfigProperty(name = "argos.sources.osv.archive-taille-max-octets") long archiveTailleMax) {
+    public OsvAdvisoryFeed(HttpSourceClient http, ParametresOsv parametres) {
         this.http = http;
-        this.exportUrl = trimSlash(exportUrl);
-        this.apiUrl = trimSlash(apiUrl);
-        this.ecosystems = List.copyOf(ecosystems);
-        this.seuilArchive = seuilArchive;
-        this.archiveTailleMax = archiveTailleMax;
+        this.parametres = parametres;
     }
 
     @Override
@@ -64,7 +49,7 @@ public class OsvAdvisoryFeed implements AdvisoryFeed {
     @Override
     public List<FeedEntry> changesSince(String position) {
         List<FeedEntry> entries = new ArrayList<>();
-        for (String ecosystem : ecosystems) {
+        for (String ecosystem : parametres.ecosystemes()) {
             entries.addAll(index(ecosystem, position));
         }
         entries.sort(FeedEntry.ORDER);
@@ -73,13 +58,13 @@ public class OsvAdvisoryFeed implements AdvisoryFeed {
 
     @Override
     public Lecture lire(String position) {
-        LectureOsv lecture = new LectureOsv(this, archiveTailleMax);
+        LectureOsv lecture = new LectureOsv(this, parametres.archiveTailleMax());
         boolean prete = false;
         try {
-            for (String ecosystem : ecosystems) {
+            for (String ecosystem : parametres.ecosystemes()) {
                 List<FeedEntry> entrees = index(ecosystem, position);
-                if (entrees.size() > seuilArchive) {
-                    lecture.archiver(ecosystem, URI.create(exportUrl + "/" + encode(ecosystem) + "/all.zip"), entrees);
+                if (entrees.size() > parametres.seuilArchive()) {
+                    lecture.archiver(ecosystem, URI.create(parametres.exportUrl() + "/" + encode(ecosystem) + "/all.zip"), entrees);
                 }
                 lecture.ajouter(entrees);
             }
@@ -95,7 +80,8 @@ public class OsvAdvisoryFeed implements AdvisoryFeed {
 
     @Override
     public RawAdvisory fetch(FeedEntry entry) {
-        return new RawAdvisory(entry.externalId(), http.telecharger(URI.create(apiUrl + "/v1/vulns/" + encode(entry.externalId()))));
+        URI avis = URI.create(parametres.apiUrl() + "/v1/vulns/" + encode(entry.externalId()));
+        return new RawAdvisory(entry.externalId(), http.telecharger(avis));
     }
 
     @Override
@@ -110,7 +96,7 @@ public class OsvAdvisoryFeed implements AdvisoryFeed {
     /** Avis de l'index de l'écosystème postérieurs à la position, lus ligne à ligne. */
     private List<FeedEntry> index(String ecosystem, String position) {
         List<FeedEntry> entries = new ArrayList<>();
-        http.lignes(URI.create(exportUrl + "/" + encode(ecosystem) + "/modified_id.csv"), line -> {
+        http.lignes(URI.create(parametres.exportUrl() + "/" + encode(ecosystem) + "/modified_id.csv"), line -> {
             if (!line.isBlank()) {
                 FeedEntry entry = entree(ecosystem, line);
                 if (entry.isAfter(position)) {
@@ -137,9 +123,5 @@ public class OsvAdvisoryFeed implements AdvisoryFeed {
 
     private static String encode(String value) {
         return URLEncoder.encode(value, StandardCharsets.UTF_8).replace("+", "%20");
-    }
-
-    private static String trimSlash(String url) {
-        return url.endsWith("/") ? url.substring(0, url.length() - 1) : url;
     }
 }

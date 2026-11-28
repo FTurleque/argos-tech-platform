@@ -135,3 +135,24 @@ test('en mode développement, l’IHM vient du serveur de développement et le p
   assert.equal(naviguer(fenetre, `${DEV_URL}/projets`), false);
   assert.equal(naviguer(fenetre, `${ORIGIN}/index.html`), true);
 });
+
+test('AUD-DEP-15 : application empaquetée sous Windows ou Linux, la mise à jour est recherchée au démarrage', async (contexte) => {
+  for (const plateforme of ['win32', 'linux']) {
+    const dossierRessources = creerRessources(contexte);
+    const journal = await chargerMain({ empaquetee: true, dossierRessources, plateforme });
+    assert.equal(journal.miseAJour.recherches, 1, plateforme);
+    assert.equal(journal.miseAJour.autoDownload, true);
+    assert.equal(journal.miseAJour.autoInstallOnAppQuit, true);
+  }
+});
+
+test('AUD-DEP-15 : application empaquetée sous macOS, electron-updater n’est pas chargé', async (contexte) => {
+  const dossierRessources = creerRessources(contexte);
+  const journal = await chargerMain({ empaquetee: true, dossierRessources, plateforme: 'darwin' });
+  assert.equal(journal.miseAJour, undefined);
+});
+
+test('AUD-DEP-15 : lancée depuis les sources, l’application ne charge pas electron-updater', async () => {
+  const journal = await chargerMain();
+  assert.equal(journal.miseAJour, undefined);
+});

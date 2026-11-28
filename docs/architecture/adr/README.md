@@ -60,6 +60,7 @@ Les ADR enregistrent les décisions architecturales importantes d’ARGOS.
 ### Clients
 
 - [ADR-0022 — Client desktop Electron réutilisant l'IHM Vue.js 3](0022-client-desktop-electron.md) — **Accepté**
+- [ADR-0042 — Distribuer le client desktop par GitHub Releases, mis à jour par electron-updater, sans certificat payant](0042-distribution-et-mise-a-jour-du-client-desktop.md) — **Accepté** ; précise ADR-0022
 
 ### Personnalisation
 
@@ -100,6 +101,8 @@ Les ADR enregistrent les décisions architecturales importantes d’ARGOS.
 
 - [ADR-0037 — Porter les mécanismes techniques partagés par un noyau commun du serveur](0037-noyau-commun-du-serveur.md) — **Accepté** ; précise ADR-0001 et ADR-0016
 - [ADR-0039 — Exécuter hors requête les traitements longs, propager les événements selon trois styles et encadrer les appels sortants](0039-traitements-de-fond-evenements-et-appels-sortants.md) — Proposé ; précise ADR-0031 et ADR-0037
+- [ADR-0040 — Paginer les listes de l'API au format unique `page`, `size`, `{items, page, size, total}`](0040-pagination-des-listes-de-l-api.md) — Proposé ; précise arc42 §8.10
+- [ADR-0041 — Conserver les données journalisées pour une durée bornée par des règles déclarées par module](0041-conservation-des-donnees-journalisees.md) — Proposé ; précise ADR-0031 et ADR-0037
 
 ### Outillage de développement
 
@@ -107,4 +110,23 @@ Les ADR enregistrent les décisions architecturales importantes d’ARGOS.
 
 ADR-0007 et ADR-0012 restent **Proposés** : aucune dépendance à n8n ni à Dependency-Track dans le code livré.
 
-Utiliser [`template.md`](template.md) pour toute nouvelle décision.
+Utiliser [`template.md`](template.md) pour toute nouvelle décision, précédé de l'en-tête décrit ci-dessous.
+
+## Outillage Archgate
+
+Les agents Archgate (développeur, relecteur) et la CLI `archgate` lisent ce dossier : `.archgate/config.json` le désigne (`paths.adrs`) ; `.archgate/adrs/` ne contient qu'un README, car la CLI repère le projet à ce dossier. Chaque ADR commence par un en-tête YAML, que la CLI exige :
+
+```yaml
+---
+id: ADR-0042
+title: "Titre de la décision, sans le numéro"
+domain: architecture
+rules: false
+---
+```
+
+- `id` et `title` reprennent le numéro et le titre de la ligne `# ADR-NNNN — …` ;
+- `domain: architecture` pour tous les ADR (aucun domaine propre déclaré dans `.archgate/config.json`) ;
+- `rules: false` tant qu'aucun fichier `.rules.ts` ne vérifie la décision.
+
+Le statut reste porté par la ligne **Statut** du document ; l'en-tête ne le reprend pas. `archgate adr list` liste tous les ADR du dossier ; `archgate check` signale `README.md` et `template.md` comme non analysés, ce qui est attendu.

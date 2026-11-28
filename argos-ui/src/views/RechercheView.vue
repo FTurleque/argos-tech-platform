@@ -115,7 +115,7 @@ async function afficher(
     resultats.value = reponse
     source.value = nouvelle
     projets.value = projetsConnus(projets.value, reponse.elements.flatMap((element) => element.projets))
-    annonce.value = annonceResultats(reponse.total, reponse.page, reponse.taille)
+    annonce.value = annonceResultats(reponse.total, reponse.page, reponse.taille, reponse.totalPlafonne)
   } catch (echec) {
     if (signal.aborted || estAnnule(echec)) return
     resultats.value = null
@@ -377,7 +377,7 @@ onMounted(chargerVues)
       {{ resultats.message ?? 'Aucun élément ne correspond à votre recherche.' }}
     </p>
     <template v-else>
-      <p class="muted">{{ annonceResultats(resultats.total, resultats.page, resultats.taille) }}</p>
+      <p class="muted">{{ annonceResultats(resultats.total, resultats.page, resultats.taille, resultats.totalPlafonne) }}</p>
       <ol class="resultats" :start="resultats.page * resultats.taille + 1">
         <li v-for="element in resultats.elements" :key="`${element.type}-${element.id}`" class="resultat">
           <h3>

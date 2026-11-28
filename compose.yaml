@@ -3,7 +3,8 @@
 #
 #   docker compose up -d postgres     # développement : base seule, pour « mvn quarkus:dev »
 #   docker compose up -d --build      # Argos complet : http://localhost:8080
-#   docker compose --profile ia up -d # Argos avec le modèle local Ollama (facultatif, ADR-0029 proposé)
+#                                     (fournisseur d'identité requis : profil « idp-local » ou Keycloak existant)
+#   docker compose --profile ia up -d # Argos avec le modèle local Ollama (facultatif, ADR-0029)
 #   docker compose exec ollama ollama pull qwen2.5:1.5b   # une fois : télécharge le modèle par défaut
 #
 # Réglages dans un fichier .env à côté de ce fichier (modèle : .env.example). Les quatre mots de passe de base
@@ -220,6 +221,7 @@ services:
       ARGOS_RESUME_HEBDOMADAIRE_CRON: ${ARGOS_RESUME_HEBDOMADAIRE_CRON:-0 0 8 ? * MON}
       ARGOS_RADAR_CRON: ${ARGOS_RADAR_CRON:-0 0 6 * * ?}
       ARGOS_ACTIVITE_PURGE_CRON: ${ARGOS_ACTIVITE_PURGE_CRON:-0 30 4 * * ?}
+      ARGOS_CONSERVATION_CRON: ${ARGOS_CONSERVATION_CRON:-0 45 4 * * ?}
       ARGOS_ARTISTE_COLLECTE_CRON: ${ARGOS_ARTISTE_COLLECTE_CRON:-0 0 5 * * ?}
       ARGOS_ARTISTE_RAPPELS_CRON: ${ARGOS_ARTISTE_RAPPELS_CRON:-0 0 7 * * ?}
       ARGOS_REGLEMENTAIRE_COLLECTE_CRON: ${ARGOS_REGLEMENTAIRE_COLLECTE_CRON:-0 30 6 * * ?}
@@ -256,7 +258,7 @@ services:
   # modèle plus gros dépasse vite la mémoire du NAS (ADR-0029) et demande de relever ARGOS_OLLAMA_MEM_LIMIT.
   ollama:
     <<: *durcissement
-    image: ollama/ollama:${ARGOS_OLLAMA_VERSION:-0.40.17}
+    image: ollama/ollama:${ARGOS_OLLAMA_VERSION:-0.40.18}
     profiles: ["ia"]
     restart: unless-stopped
     # Utilisateur root de l'image, sans capacité (EXP-16) : il n'écrit que dans son volume, qui lui appartient,

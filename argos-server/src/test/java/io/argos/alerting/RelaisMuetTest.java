@@ -113,6 +113,8 @@ class RelaisMuetTest {
         Instant instantDepart = Instant.now();
         synchronizer.synchronize("OSV");
         asynchrone.attendre();
+        // Première tentative au passage de la tâche d'envoi qui suit l'émission (ALR-10-S2).
+        envoi.traiterEnAttente(instantDepart);
 
         assertEquals("EN_ATTENTE|1", baseDeTest.string("SELECT etat || '|' || tentatives FROM alerte"));
         UUID id = baseDeTest.uuid("SELECT id FROM alerte");

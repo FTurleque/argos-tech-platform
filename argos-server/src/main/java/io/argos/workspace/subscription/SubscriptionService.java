@@ -7,13 +7,17 @@ import java.sql.SQLException;
 import java.time.Instant;
 import java.time.OffsetDateTime;
 import java.util.ArrayList;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Locale;
+import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
 import java.util.UUID;
 
 import javax.sql.DataSource;
+
+import com.fasterxml.jackson.annotation.JsonProperty;
 
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.inject.Inject;
@@ -55,7 +59,8 @@ public class SubscriptionService {
     };
 
     /** Abonnement enregistré. */
-    public record Subscription(UUID id, String scope, UUID ownerWorkspaceId, UUID ownerUserId,
+    public record Subscription(UUID id, String scope, @JsonProperty("ownerWorkspaceId") UUID espaceProprietaireId,
+            UUID ownerUserId,
             List<SubscriptionRequest.Filter> filters, String channel, String frequency, boolean mandatory, String state,
             Instant createdAt) {
     }
@@ -81,7 +86,7 @@ public class SubscriptionService {
             try (PreparedStatement statement = connection.prepareStatement(sql)) {
                 statement.setObject(1, id);
                 statement.setString(2, validated.scope());
-                statement.setObject(3, "TEAM".equals(validated.scope()) ? request.ownerWorkspaceId() : null);
+                statement.setObject(3, "TEAM".equals(validated.scope()) ? request.espaceProprietaireId() : null);
                 statement.setObject(4, "PERSONAL".equals(validated.scope()) ? request.ownerUserId() : null);
                 statement.setString(5, MAPPER.writeValueAsString(validated.filters()));
                 statement.setString(6, validated.channel());
@@ -112,7 +117,7 @@ public class SubscriptionService {
      * {@code PERSONAL} (ABO-04).
      */
     @Transactional
-    public List<Subscription> activeFor(UUID userId, Set<UUID> memberWorkspaces) {
+    public List<Subscription> activeFor(UUID userId, Set<UUID> espacesMembre) {
         String sql = "SELECT " + COLUMNS + """
                  FROM subscription s WHERE s.state = 'ACTIVE' AND (
                     (s.scope = 'PERSONAL' AND s.owner_user_id = ?)
@@ -121,7 +126,59 @@ public class SubscriptionService {
                                                         WHERE o.subscription_id = s.id AND o.user_id = ?))))
                 ORDER BY s.created_at, s.id
                 """;
-        return query(userId, sql, userId, memberWorkspaces, userId);
+        return query(userId, sql, userId, espacesMembre, userId);
+    }
+
+    /**
+     * Abonnements actifs de plusieurs comptes en une requête (évaluation des alertes, ALR-10) : pour chaque compte, les
+     * mêmes que {@link #activeFor} avec ses espaces donnés. Lecture technique, hors rôle applicatif : elle sert
+     * seulement à savoir quelles règles appliquer ; les espaces de chaque compte viennent de ses appartenances, lues
+     * par l'appelant dans la même évaluation.
+     *
+     * @param espacesParCompte espaces dont chaque compte est membre
+     * @return abonnements actifs de chaque compte, dans l'ordre de création ; un compte sans abonnement est absent
+     */
+    @Transactional
+    public Map<UUID, List<Subscription>> activesDesComptes(Map<UUID, Set<UUID>> espacesParCompte) {
+        Map<UUID, List<Subscription>> parCompte = new LinkedHashMap<>();
+        if (espacesParCompte.isEmpty()) {
+            return parCompte;
+        }
+        List<UUID> comptes = new ArrayList<>();
+        List<UUID> espaces = new ArrayList<>();
+        espacesParCompte.forEach((compte, espacesDuCompte) -> espacesDuCompte.forEach(espace -> {
+            comptes.add(compte);
+            espaces.add(espace);
+        }));
+        String sql = """
+                WITH membres AS (SELECT * FROM unnest(?::uuid[], ?::uuid[]) AS m(compte_id, espace_id)),
+                     destinataires AS (SELECT * FROM unnest(?::uuid[]) AS d(compte_id))
+                SELECT d.compte_id, """ + COLUMNS + """
+                 FROM destinataires d JOIN subscription s ON s.state = 'ACTIVE' AND (
+                    (s.scope = 'PERSONAL' AND s.owner_user_id = d.compte_id)
+                    OR (s.scope = 'TEAM'
+                        AND EXISTS (SELECT 1 FROM membres m WHERE m.compte_id = d.compte_id AND m.espace_id = s.owner_workspace_id)
+                        AND (s.mandatory OR NOT EXISTS (SELECT 1 FROM subscription_opt_out o
+                                                        WHERE o.subscription_id = s.id AND o.user_id = d.compte_id))))
+                ORDER BY d.compte_id, s.created_at, s.id
+                """;
+        try (Connection connection = dataSource.getConnection();
+                PreparedStatement statement = connection.prepareStatement(sql)) {
+            statement.setArray(1, connection.createArrayOf("uuid", comptes.toArray()));
+            statement.setArray(2, connection.createArrayOf("uuid", espaces.toArray()));
+            statement.setArray(3, connection.createArrayOf("uuid", espacesParCompte.keySet().toArray()));
+            try (ResultSet rows = statement.executeQuery()) {
+                while (rows.next()) {
+                    parCompte.computeIfAbsent(rows.getObject(1, UUID.class), compte -> new ArrayList<>())
+                            .add(subscription(rows, 2));
+                }
+            }
+        } catch (SQLException error) {
+            throw new IllegalStateException("lecture des abonnements impossible", error);
+        } catch (JsonProcessingException error) {
+            throw new IllegalStateException("filtres d'abonnement illisibles", error);
+        }
+        return parCompte;
     }
 
     /**
@@ -130,7 +187,7 @@ public class SubscriptionService {
      * facultatifs qu'il a quittés. Chacun porte son état ; seuls les actifs s'appliquent ({@link #activeFor}).
      */
     @Transactional
-    public List<Subscription> listFor(UUID userId, Set<UUID> memberWorkspaces) {
+    public List<Subscription> listFor(UUID userId, Set<UUID> espacesMembre) {
         String sql = "SELECT " + COLUMNS + """
                  FROM subscription s WHERE (
                     (s.scope = 'PERSONAL' AND s.owner_user_id = ?)
@@ -139,7 +196,7 @@ public class SubscriptionService {
                                                         WHERE o.subscription_id = s.id AND o.user_id = ?))))
                 ORDER BY s.created_at, s.id
                 """;
-        return query(userId, sql, userId, memberWorkspaces, userId);
+        return query(userId, sql, userId, espacesMembre, userId);
     }
 
     /**
@@ -198,7 +255,7 @@ public class SubscriptionService {
      * {@code automatiser-chaine-veille}).
      */
     @Transactional
-    public LeaveOutcome leave(UUID subscriptionId, UUID userId, Set<UUID> memberWorkspaces) {
+    public LeaveOutcome leave(UUID subscriptionId, UUID userId, Set<UUID> espacesMembre) {
         Optional<Subscription> found = find(subscriptionId, userId)
                 .filter(candidate -> "PERSONAL".equals(candidate.scope()) || "ACTIVE".equals(candidate.state()));
         if (found.isEmpty()) {
@@ -213,7 +270,7 @@ public class SubscriptionService {
         }
         try (Connection connection = dataSource.getConnection()) {
             ContexteBase.appliquer(connection, ContexteBase.Contexte.duCompte(userId));
-            if (!memberWorkspaces.contains(subscription.ownerWorkspaceId())) {
+            if (!espacesMembre.contains(subscription.espaceProprietaireId())) {
                 return LeaveOutcome.NOT_FOUND;
             }
             if (subscription.mandatory()) {
@@ -233,54 +290,18 @@ public class SubscriptionService {
         }
     }
 
+    private static final String PORTEE_EQUIPE = "TEAM";
+    private static final String PORTEE_PERSONNELLE = "PERSONAL";
+    private static final String FILTRE_GRAVITE = "SEVERITY";
+
     private record Validated(String scope, List<SubscriptionRequest.Filter> filters, String channel, String frequency) {
     }
 
     /** Contrôle des attributs obligatoires, dans l'ordre de la spec (ABO-02). */
     static Validated validate(SubscriptionRequest request) {
-        if (request == null) {
-            throw new SubscriptionRejectedException("scope", "demande vide : portée manquante");
-        }
-        if (blank(request.scope())) {
-            throw new SubscriptionRejectedException("scope", "attribut manquant : portée (scope)");
-        }
-        String scope = request.scope().strip().toUpperCase(Locale.ROOT);
-        if (!scope.equals("TEAM") && !scope.equals("PERSONAL")) {
-            throw new SubscriptionRejectedException("scope", "portée invalide : TEAM ou PERSONAL attendu");
-        }
-        if (scope.equals("TEAM") && request.ownerWorkspaceId() == null) {
-            throw new SubscriptionRejectedException("ownerWorkspaceId", "attribut manquant : équipe propriétaire");
-        }
-        if (scope.equals("TEAM") && request.ownerUserId() != null) {
-            throw new SubscriptionRejectedException("ownerUserId", "un abonnement TEAM n'a pas d'utilisateur propriétaire");
-        }
-        if (scope.equals("PERSONAL") && request.ownerUserId() == null) {
-            throw new SubscriptionRejectedException("ownerUserId", "attribut manquant : utilisateur propriétaire");
-        }
-        if (scope.equals("PERSONAL") && request.ownerWorkspaceId() != null) {
-            throw new SubscriptionRejectedException("ownerWorkspaceId", "un abonnement PERSONAL n'a pas d'équipe propriétaire");
-        }
-        if (request.filters() == null || request.filters().isEmpty()) {
-            throw new SubscriptionRejectedException("filters", "attribut manquant : filtres");
-        }
-        List<SubscriptionRequest.Filter> filters = new ArrayList<>();
-        for (SubscriptionRequest.Filter filter : request.filters()) {
-            if (filter == null || blank(filter.type()) || blank(filter.value())) {
-                throw new SubscriptionRejectedException("filters", "filtre incomplet : type et valeur attendus");
-            }
-            String type = filter.type().strip().toUpperCase(Locale.ROOT);
-            if (!FILTER_TYPES.contains(type)) {
-                throw new SubscriptionRejectedException("filters", "type de filtre inconnu : " + filter.type());
-            }
-            String value = filter.value().strip();
-            if (type.equals("SEVERITY")) {
-                value = value.toUpperCase(Locale.ROOT);
-                if (!SEVERITIES.contains(value)) {
-                    throw new SubscriptionRejectedException("filters", "gravité inconnue : " + filter.value());
-                }
-            }
-            filters.add(new SubscriptionRequest.Filter(type, value));
-        }
+        String scope = portee(request);
+        validerProprietaire(scope, request);
+        List<SubscriptionRequest.Filter> filters = filtres(request.filters());
         if (blank(request.channel())) {
             throw new SubscriptionRejectedException("channel", "attribut manquant : canal");
         }
@@ -290,13 +311,81 @@ public class SubscriptionService {
         if (request.mandatory() == null) {
             throw new SubscriptionRejectedException("mandatory", "attribut manquant : caractère obligatoire ou facultatif");
         }
-        return new Validated(scope, List.copyOf(filters), request.channel().strip().toUpperCase(Locale.ROOT),
+        return new Validated(scope, filters, request.channel().strip().toUpperCase(Locale.ROOT),
                 request.frequency().strip().toUpperCase(Locale.ROOT));
+    }
+
+    /** Portée normalisée de la demande : {@code TEAM} ou {@code PERSONAL}. */
+    private static String portee(SubscriptionRequest request) {
+        if (request == null) {
+            throw new SubscriptionRejectedException("scope", "demande vide : portée manquante");
+        }
+        if (blank(request.scope())) {
+            throw new SubscriptionRejectedException("scope", "attribut manquant : portée (scope)");
+        }
+        String scope = request.scope().strip().toUpperCase(Locale.ROOT);
+        if (!scope.equals(PORTEE_EQUIPE) && !scope.equals(PORTEE_PERSONNELLE)) {
+            throw new SubscriptionRejectedException("scope", "portée invalide : TEAM ou PERSONAL attendu");
+        }
+        return scope;
+    }
+
+    /** Un abonnement d'équipe a une équipe et aucun utilisateur propriétaires ; un abonnement personnel, l'inverse. */
+    private static void validerProprietaire(String scope, SubscriptionRequest request) {
+        boolean equipe = scope.equals(PORTEE_EQUIPE);
+        if (equipe && request.espaceProprietaireId() == null) {
+            throw new SubscriptionRejectedException("ownerWorkspaceId", "attribut manquant : équipe propriétaire");
+        }
+        if (equipe && request.ownerUserId() != null) {
+            throw new SubscriptionRejectedException("ownerUserId", "un abonnement TEAM n'a pas d'utilisateur propriétaire");
+        }
+        if (!equipe && request.ownerUserId() == null) {
+            throw new SubscriptionRejectedException("ownerUserId", "attribut manquant : utilisateur propriétaire");
+        }
+        if (!equipe && request.espaceProprietaireId() != null) {
+            throw new SubscriptionRejectedException("ownerWorkspaceId", "un abonnement PERSONAL n'a pas d'équipe propriétaire");
+        }
+    }
+
+    /** Filtres validés et normalisés ; au moins un filtre est exigé. */
+    private static List<SubscriptionRequest.Filter> filtres(List<SubscriptionRequest.Filter> recus) {
+        if (recus == null || recus.isEmpty()) {
+            throw new SubscriptionRejectedException("filters", "attribut manquant : filtres");
+        }
+        return recus.stream().map(SubscriptionService::filtre).toList();
+    }
+
+    /** Filtre complet, de type connu, gravité reconnue pour un filtre {@code SEVERITY}. */
+    private static SubscriptionRequest.Filter filtre(SubscriptionRequest.Filter filter) {
+        if (filter == null || blank(filter.type()) || blank(filter.value())) {
+            throw new SubscriptionRejectedException("filters", "filtre incomplet : type et valeur attendus");
+        }
+        String type = filter.type().strip().toUpperCase(Locale.ROOT);
+        if (!FILTER_TYPES.contains(type)) {
+            throw new SubscriptionRejectedException("filters", "type de filtre inconnu : " + filter.type());
+        }
+        String value = filter.value().strip();
+        if (type.equals(FILTRE_GRAVITE)) {
+            value = value.toUpperCase(Locale.ROOT);
+            if (!SEVERITIES.contains(value)) {
+                throw new SubscriptionRejectedException("filters", "gravité inconnue : " + filter.value());
+            }
+        }
+        return new SubscriptionRequest.Filter(type, value);
     }
 
     private static final String COLUMNS = """
             s.id, s.scope, s.owner_workspace_id, s.owner_user_id, s.filters::text, s.channel, s.frequency, s.mandatory,
             s.state, s.created_at""".replace("s.", "");
+
+    /** Abonnement lu à partir de la colonne {@code premiere} (colonnes {@link #COLUMNS}). */
+    private static Subscription subscription(ResultSet rows, int premiere) throws SQLException, JsonProcessingException {
+        return new Subscription(rows.getObject(premiere, UUID.class), rows.getString(premiere + 1),
+                rows.getObject(premiere + 2, UUID.class), rows.getObject(premiere + 3, UUID.class),
+                MAPPER.readValue(rows.getString(premiere + 4), FILTERS), rows.getString(premiere + 5),
+                rows.getString(premiere + 6), rows.getBoolean(premiere + 7), rows.getString(premiere + 8),
+                rows.getObject(premiere + 9, OffsetDateTime.class).toInstant());
+    }
 
     private List<Subscription> query(UUID accountId, String sql, Object... params) {
         List<Subscription> result = new ArrayList<>();
@@ -312,10 +401,7 @@ public class SubscriptionService {
             }
             try (ResultSet rows = statement.executeQuery()) {
                 while (rows.next()) {
-                    result.add(new Subscription(rows.getObject(1, UUID.class), rows.getString(2), rows.getObject(3, UUID.class),
-                            rows.getObject(4, UUID.class), MAPPER.readValue(rows.getString(5), FILTERS), rows.getString(6),
-                            rows.getString(7), rows.getBoolean(8), rows.getString(9),
-                            rows.getObject(10, OffsetDateTime.class).toInstant()));
+                    result.add(subscription(rows, 1));
                 }
             }
             }

@@ -1,3 +1,10 @@
+---
+id: ADR-0028
+title: "Collecter les flux RSS/Atom et les pages surveillées dans le serveur Argos"
+domain: architecture
+rules: false
+---
+
 # ADR-0028 — Collecter les flux RSS/Atom et les pages surveillées dans le serveur Argos
 
 - **Statut** : Accepté
@@ -41,7 +48,7 @@
 
 ## Décision
 
-**Proposition : option B.** Le serveur Argos collecte lui-même les flux et les pages surveillées :
+**Option B retenue.** Le serveur Argos collecte lui-même les flux et les pages surveillées :
 
 - `source-ingestion` (`io.argos.ingestion.web`) vérifie les adresses (`GardeAdresses`), récupère le contenu (`RecuperateurWeb`) et le lit avec **ROME** 2.1.0 (Apache-2.0 ; dépendances jdom2 sous licence JDOM, de type Apache/BSD, et slf4j-api MIT) pour les flux et **jsoup** 1.22.1 (MIT) pour les pages et le nettoyage du texte ; la planification utilise l'extension **quarkus-scheduler** (Apache-2.0) ;
 - une adresse est refusée si son port n'est pas autorisé (80 et 443 par défaut, `argos.veille-web.ports-autorises`) ou si l'une des adresses IP de son hôte, après résolution DNS, appartient à une plage refusée (liste en arc42 §8.3 : réseaux privés, bouclage, lien local, partage d'adresses, multidiffusion, documentation, réservées, et IPv4 refusée embarquée dans une adresse IPv6 compatible, mappée, NAT64 ou 6to4 ; Teredo, 100::/64 et 64:ff9b::/32 hors du préfixe NAT64 bien connu) ; un hôte introuvable reçoit le même refus ; le contrôle est refait à chaque collecte et à chaque redirection, suivie une à une (5 au plus) ; chaque récupération est bornée en durée (10 s, lecture du contenu comprise) et en taille (2 Mio) ; les DOCTYPE des flux sont refusés ; les messages de refus ne nomment ni hôte ni adresse IP, le détail va au journal applicatif ;
@@ -76,8 +83,8 @@
 
 ## Traçabilité
 
-- **Exigences** : WEB-01 à WEB-06 (`openspec/changes/collecter-veille-rss-web/specs/veille-rss-web/spec.md`) ; WEB-07 ([`2026-11-25-epingler-adresse-veille-web`](/openspec/changes/archive/2026-11-25-epingler-adresse-veille-web/proposal.md))
+- **Exigences** : WEB-01 à WEB-06 ([spec principale](/openspec/specs/veille-rss-web/spec.md) ; changement [`2026-11-16-collecter-veille-rss-web`](/openspec/changes/archive/2026-11-16-collecter-veille-rss-web/proposal.md)) ; WEB-07 ([`2026-11-25-epingler-adresse-veille-web`](/openspec/changes/archive/2026-11-25-epingler-adresse-veille-web/proposal.md))
 - **Scénarios qualité** : aucun scénario du registre `docs/architecture/quality/scenarios.md` ne porte sur la SSRF ni sur le contenu externe ; risques R-11 et R-12 (`docs/architecture/risks/register.md`)
-- **Diagrammes** : DC-1 (`openspec/changes/collecter-veille-rss-web/design.md`), DF-WEB-1 (`docs/specifications/veille-rss-web.md`)
+- **Diagrammes** : DC-1 ([`design.md`](/openspec/changes/archive/2026-11-16-collecter-veille-rss-web/design.md) du changement archivé), DF-WEB-1 (`docs/specifications/veille-rss-web.md`)
 - **Tickets/PR** : Non déterminé
 - **Fichiers source** : `argos-server/src/main/java/io/argos/ingestion/web/`, `argos-server/src/main/java/io/argos/signal/web/`, `argos-server/src/main/resources/db/migration/V10__veille_rss_web.sql`

@@ -68,8 +68,8 @@ Source : dossier v2.4 §8.2 (type STANDARD). Statut : [EXIGENCE].
 - **THEN** les utilisateurs des deux projets reçoivent l'annonce avec la justification
 
 ### Requirement: RAD-07 Enregistrement d'un standard sans erreur différée
-Le système DOIT (MUST) refuser par une erreur de saisie (400) une clé de technologie mal encodée, sans rien modifier, et NE DOIT PAS (MUST NOT) répondre en erreur à une modification du référentiel déjà enregistrée lorsque son annonce (RAD-06) échoue sur une panne d'accès aux données ; cet échec est journalisé avec sa cause.
-Source : AUD-QUA-20 ; RAD-01-S2 ; RAD-06 ; arc42 §8.5. Statut : [PROPOSITION].
+Le système DOIT (MUST) refuser par une erreur de saisie (400) une clé de technologie mal encodée, sans rien modifier, et DOIT (MUST) confirmer une modification enregistrée du référentiel sans attendre son annonce (RAD-06) ; un échec de l'annonce NE DOIT PAS (MUST NOT) changer la réponse et est journalisé avec sa cause.
+Source : AUD-QUA-20 ; AUD-ARC-09 ; RAD-01-S2 ; RAD-06 ; arc42 §8.5 ; ADR-0039 (Proposé). Statut : [PROPOSITION].
 
 #### Scenario: RAD-07-S1 Clé mal encodée
 - **GIVEN** un administrateur de l'espace
@@ -86,5 +86,65 @@ Source : AUD-QUA-20 ; RAD-01-S2 ; RAD-06 ; arc42 §8.5. Statut : [PROPOSITION].
 #### Scenario: RAD-07-S3 Erreur imprévue de l'annonce
 - **GIVEN** une bibliothèque utilisée par un projet de l'espace, et l'annonce du changement de standard qui échoue sur une erreur imprévue
 - **WHEN** l'administrateur la passe en HOLD avec une justification
-- **THEN** l'erreur est journalisée avec sa cause et la requête répond en erreur serveur, sans détail interne
-- **AND** l'entrée et sa ligne d'historique restent persistées
+- **THEN** la modification est confirmée à l'administrateur avec l'entrée enregistrée
+- **AND** l'erreur est journalisée avec sa cause et comptée parmi les échecs de traitement asynchrone exposés à l'exploitant
+
+#### Scenario: RAD-07-S4 Annonce sans attente
+- **GIVEN** une bibliothèque utilisée par un projet de l'espace, et l'annonce du changement de standard qui tarde
+- **WHEN** l'administrateur la passe en HOLD avec une justification
+- **THEN** la modification est confirmée sans attendre la fin de l'annonce
+- **AND** les utilisateurs du projet reçoivent ensuite l'annonce (RAD-06-S1)
+
+### Requirement: RAD-08 Suggestions de l'IA produites après la synchronisation des cycles de vie
+Le système DOIT (MUST), après chaque synchronisation des cycles de vie, demander à la passerelle IA une suggestion de passage à `HOLD` pour chaque standard d'espace dont la version recommandée a atteint sa fin de support, et l'enregistrer en attente sans modifier le référentiel ; il NE DOIT PAS (MUST NOT) dupliquer une suggestion encore en attente.
+Source : AUD-QUA-17 ; RAD-02-S2 ; ADR-0029 ; décision du porteur du projet, 2026-11-26. Statut : [PROPOSITION].
+
+#### Scenario: RAD-08-S1 Version recommandée en fin de support
+- **GIVEN** l'espace E recommande PostgreSQL 14 dans son référentiel et le cycle de vie de PostgreSQL 14 est échu
+- **WHEN** la tâche des suggestions s'exécute avec la passerelle IA disponible
+- **THEN** une suggestion `HOLD` en attente, avec la justification produite par l'IA et son origine, apparaît dans les suggestions de E
+- **AND** le statut de PostgreSQL dans le référentiel de E est inchangé
+
+#### Scenario: RAD-08-S2 Suggestion déjà en attente
+- **GIVEN** une suggestion en attente pour PostgreSQL dans E
+- **WHEN** la tâche s'exécute à nouveau
+- **THEN** aucune nouvelle suggestion n'est enregistrée pour PostgreSQL dans E
+
+#### Scenario: RAD-08-S3 Passerelle IA indisponible ou sortie refusée
+- **GIVEN** une version recommandée échue et la passerelle IA indisponible, ou une sortie de l'IA refusée par la validation
+- **WHEN** la tâche s'exécute
+- **THEN** aucune suggestion n'est enregistrée, l'absence est journalisée et les autres espaces sont traités
+
+#### Scenario: RAD-08-S4 Version encore supportée
+- **GIVEN** une version recommandée dont le cycle de vie n'est pas échu
+- **WHEN** la tâche s'exécute
+- **THEN** aucune demande n'est adressée à l'IA pour ce standard
+
+### Requirement: RAD-09 Vue radar de l'espace
+Le système DOIT (MUST) offrir dans l'IHM, à tout membre d'un espace, une vue radar de cet espace : échéances par horizon, dettes de version, référentiel et suggestions en attente, la décision sur une suggestion étant proposée au seul administrateur de l'espace.
+Source : AUD-QUA-17 ; AUD-ARC-22 ; RAD-02, RAD-03 ; ADR-0016 (Accepté). Statut : [PROPOSITION].
+
+#### Scenario: RAD-09-S1 Consultation par un membre
+- **GIVEN** un lecteur de l'espace E
+- **WHEN** il ouvre la vue radar de E
+- **THEN** il voit les échéances à 30 jours, les dettes de version, le référentiel et les suggestions en attente, sans commande de décision
+
+#### Scenario: RAD-09-S2 Décision par l'administrateur
+- **GIVEN** l'administrateur de E et une suggestion en attente
+- **WHEN** il l'accepte depuis la vue radar
+- **THEN** la suggestion quitte la liste des suggestions en attente et le référentiel affiche le statut suggéré
+
+### Requirement: RAD-10 Radar en un nombre fixe de requêtes par espace
+Le système DOIT (MUST) calculer les dettes de version et les échéances de rappel d'un espace en un nombre de requêtes indépendant du nombre de composants de ses projets, des composants des autres espaces et du nombre de jours de rappel, sans changer les dettes ni les rappels produits (RAD-04, RAD-05).
+Source : AUD-PER-05 ; critère de sortie du sprint 10. Statut : [PROPOSITION].
+
+#### Scenario: RAD-10-S1 Composants d'autres espaces ignorés en base
+- **GIVEN** deux espaces qui suivent la même technologie, l'un avec 3 composants concernés, l'autre avec 30
+- **WHEN** les dettes de version du premier espace sont calculées
+- **THEN** seuls ses 3 composants sont lus
+- **AND** le calcul exécute le même nombre de requêtes que pour l'espace de 30 composants concernés
+
+#### Scenario: RAD-10-S2 Rappels sur plusieurs jours
+- **GIVEN** un espace avec des rappels à 30, 7 et 1 jour
+- **WHEN** les rappels du jour sont calculés
+- **THEN** les échéances des trois jours sont trouvées en une seule lecture du calendrier et des composants de l'espace

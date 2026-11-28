@@ -35,25 +35,25 @@ Un préfixe n'est jamais réattribué ; un identifiant d'exigence retiré n'est 
 
 | Capacité | Préfixe | Fiche | Spec de référence | Changement | Statut |
 |---|---|---|---|---|---|
-| `collecte-avis-securite` | `COL` | [fiche](collecte-avis-securite.md) | [spec](/openspec/specs/collecte-avis-securite/spec.md) | `formaliser-chaine-securite-poc` ; `automatiser-chaine-veille` (COL-09, COL-10) ; `2026-11-25-isoler-erreurs-aux-frontieres` (archivé, COL-11) ; `rendre-ingestion-asynchrone` (COL-04 modifiée, COL-12) | proposée |
-| `inventaire-sbom` | `INV` | [fiche](inventaire-sbom.md) | [spec](/openspec/specs/inventaire-sbom/spec.md) | `formaliser-chaine-securite-poc` ; `automatiser-chaine-veille` (INV-07 à INV-10) ; `2026-11-25-isoler-erreurs-aux-frontieres` (archivé, INV-11) ; `alimenter-inventaire-et-completer-ihm` (INV-12, INV-13) | proposée |
-| `correlation-impact` | `COR` | [fiche](correlation-impact.md) | absente | `formaliser-chaine-securite-poc` ; `automatiser-chaine-veille` (COR-09 à COR-12) | proposée |
-| `abonnements-veille` | `ABO` | [fiche](abonnements-veille.md) | absente | `formaliser-chaine-securite-poc` ; `automatiser-chaine-veille` (ABO-07, ABO-08) | proposée |
-| `performance-api-mcp` | `PERF` | [fiche](performance-api-mcp.md) | absente | `automatiser-chaine-veille` | proposée |
+| `collecte-avis-securite` | `COL` | [fiche](collecte-avis-securite.md) | [spec](/openspec/specs/collecte-avis-securite/spec.md) | `2026-11-20-formaliser-chaine-securite-poc` (archivé, COL-01 à COL-08) ; `2026-11-20-automatiser-chaine-veille` (archivé, COL-09, COL-10) ; `2026-11-25-isoler-erreurs-aux-frontieres` (archivé, COL-11) ; `2026-11-26-rendre-ingestion-asynchrone` (archivé, COL-04 modifiée, COL-12) | livrée |
+| `inventaire-sbom` | `INV` | [fiche](inventaire-sbom.md) | [spec](/openspec/specs/inventaire-sbom/spec.md) | `2026-11-20-formaliser-chaine-securite-poc` (archivé, INV-01 à INV-06) ; `2026-11-20-automatiser-chaine-veille` (archivé, INV-07 à INV-10) ; `2026-11-25-isoler-erreurs-aux-frontieres` (archivé, INV-11) ; `2026-11-26-alimenter-inventaire-et-completer-ihm` (archivé, INV-12, INV-13) ; `2026-11-27-retenir-importer-et-paginer` (archivé, INV-14, INV-09 modifiée) | livrée |
+| `correlation-impact` | `COR` | [fiche](correlation-impact.md) | [spec](/openspec/specs/correlation-impact/spec.md) | `2026-11-20-formaliser-chaine-securite-poc` (archivé, COR-01 à COR-08) ; `2026-11-20-automatiser-chaine-veille` (archivé, COR-09 à COR-12) ; `2026-11-27-accelerer-requetes-chaudes` (archivé, COR-07 modifiée, COR-13) | livrée |
+| `abonnements-veille` | `ABO` | [fiche](abonnements-veille.md) | [spec](/openspec/specs/abonnements-veille/spec.md) | `2026-11-20-formaliser-chaine-securite-poc` (archivé, ABO-01 à ABO-06) ; `2026-11-20-automatiser-chaine-veille` (archivé, ABO-07, ABO-08) | livrée |
+| `performance-api-mcp` | `PERF` | [fiche](performance-api-mcp.md) | [spec](/openspec/specs/performance-api-mcp/spec.md) | `2026-11-20-automatiser-chaine-veille` (archivé, PERF-01, PERF-02) ; `2026-11-27-retenir-importer-et-paginer` (archivé, PERF-03) ; `2026-11-27-accelerer-requetes-chaudes` (archivé, PERF-02 modifiée) | livrée |
 | `affichage-personnalise` | `AFF` | [fiche](affichage-personnalise.md) | [spec](/openspec/specs/affichage-personnalise/spec.md) | `2026-11-19-personnaliser-profils-et-affichage` (archivé) | livrée |
-| `profils-veille` | `PRF` | [fiche](profils-veille.md) | [spec](/openspec/specs/profils-veille/spec.md) | `2026-11-19-personnaliser-profils-et-affichage` (archivé) ; `optimiser-ma-veille` (PRF-07) ; `durcir-autorisations-et-debits` (PRF-08) | livrée, dont PRF-07 et PRF-08 |
-| `comptes-acces` | `ACC` | [fiche](comptes-acces.md) | [spec](/openspec/specs/comptes-acces/spec.md) | `2026-11-17-gerer-comptes-et-acces` (archivé) ; `2026-11-18-connecter-ihm-oidc` (archivé, ACC-07 à ACC-10) ; `rendre-portail-deployable` (ACC-11 à ACC-13) ; `durcir-autorisations-et-debits` (ACC-14) | livrée, dont ACC-11 à ACC-14 |
-| `alertes-digests` | `ALR` | [fiche](alertes-digests.md) | [spec](/openspec/specs/alertes-digests/spec.md) | `2026-11-16-diffuser-alertes-et-digests` (archivé) ; `automatiser-chaine-veille` (ALR-07, proposé) ; `durcir-autorisations-et-debits` (ALR-08) ; `alimenter-inventaire-et-completer-ihm` (ALR-09) | livrée, dont ALR-08 ; ALR-09 implémentée, non archivée |
-| `notifications-poste` | `NOT` | [fiche](notifications-poste.md) | absente | `notifier-sur-le-poste` | implémentée, non archivée |
-| `serveur-mcp` | `MCP` | [fiche](serveur-mcp.md) | [spec](/openspec/specs/serveur-mcp/spec.md) | `exposer-serveur-mcp` ; `2026-11-25-isoler-erreurs-aux-frontieres` (archivé, MCP-08) | proposée |
+| `profils-veille` | `PRF` | [fiche](profils-veille.md) | [spec](/openspec/specs/profils-veille/spec.md) | `2026-11-19-personnaliser-profils-et-affichage` (archivé) ; `2026-11-20-optimiser-ma-veille` (archivé, PRF-07) ; `2026-11-25-durcir-autorisations-et-debits` (archivé, PRF-08) ; `2026-11-27-accelerer-requetes-chaudes` (archivé, PRF-07 modifiée, PRF-09) | livrée |
+| `comptes-acces` | `ACC` | [fiche](comptes-acces.md) | [spec](/openspec/specs/comptes-acces/spec.md) | `2026-11-17-gerer-comptes-et-acces` (archivé) ; `2026-11-18-connecter-ihm-oidc` (archivé, ACC-07 à ACC-10) ; `2026-11-25-rendre-portail-deployable` (archivé, ACC-11 à ACC-13) ; `2026-11-25-durcir-autorisations-et-debits` (archivé, ACC-14) ; `2026-11-27-retenir-importer-et-paginer` (archivé, ACC-15) | livrée |
+| `alertes-digests` | `ALR` | [fiche](alertes-digests.md) | [spec](/openspec/specs/alertes-digests/spec.md) | `2026-11-16-diffuser-alertes-et-digests` (archivé) ; `2026-11-20-automatiser-chaine-veille` (archivé, ALR-07) ; `2026-11-25-durcir-autorisations-et-debits` (archivé, ALR-08) ; `2026-11-26-alimenter-inventaire-et-completer-ihm` (archivé, ALR-09) ; `2026-11-27-accelerer-requetes-chaudes` (archivé, ALR-10) | livrée |
+| `notifications-poste` | `NOT` | [fiche](notifications-poste.md) | [spec](/openspec/specs/notifications-poste/spec.md) | `2026-11-20-notifier-sur-le-poste` (archivé) | livrée |
+| `serveur-mcp` | `MCP` | [fiche](serveur-mcp.md) | [spec](/openspec/specs/serveur-mcp/spec.md) | `2026-11-20-exposer-serveur-mcp` (archivé, MCP-01 à MCP-07) ; `2026-11-25-isoler-erreurs-aux-frontieres` (archivé, MCP-08) | livrée |
 | `passerelle-ia` | `IAG` | [fiche](passerelle-ia.md) | [spec](/openspec/specs/passerelle-ia/spec.md) | `2026-11-17-encadrer-appels-ia` (archivé) | livrée |
-| `veille-reglementaire` | `REG` | [fiche](veille-reglementaire.md) | [spec](/openspec/specs/veille-reglementaire/spec.md) | `2026-11-17-suivre-veille-reglementaire` (archivé) ; `durcir-autorisations-et-debits` (REG-09) | livrée, dont REG-09 |
-| `radar-standards` | `RAD` | [fiche](radar-standards.md) | [spec](/openspec/specs/radar-standards/spec.md) | `2026-11-16-construire-radar-et-standards` (archivé) ; `2026-11-25-isoler-erreurs-aux-frontieres` (archivé, RAD-07) ; `rendre-ingestion-asynchrone` (RAD-07 modifiée) ; `alimenter-inventaire-et-completer-ihm` (RAD-08, RAD-09) | livrée ; RAD-08 et RAD-09 implémentées, non archivées |
+| `veille-reglementaire` | `REG` | [fiche](veille-reglementaire.md) | [spec](/openspec/specs/veille-reglementaire/spec.md) | `2026-11-17-suivre-veille-reglementaire` (archivé) ; `2026-11-25-durcir-autorisations-et-debits` (archivé, REG-09) | livrée |
+| `radar-standards` | `RAD` | [fiche](radar-standards.md) | [spec](/openspec/specs/radar-standards/spec.md) | `2026-11-16-construire-radar-et-standards` (archivé) ; `2026-11-25-isoler-erreurs-aux-frontieres` (archivé, RAD-07) ; `2026-11-26-rendre-ingestion-asynchrone` (archivé, RAD-07 modifiée) ; `2026-11-26-alimenter-inventaire-et-completer-ihm` (archivé, RAD-08, RAD-09) ; `2026-11-27-accelerer-requetes-chaudes` (archivé, RAD-10) | livrée |
 | `veille-rss-web` | `WEB` | [fiche](veille-rss-web.md) | [spec](/openspec/specs/veille-rss-web/spec.md) | `2026-11-16-collecter-veille-rss-web` (archivé) ; `2026-11-25-epingler-adresse-veille-web` (archivé, WEB-07) | livrée |
-| `recherche-veille` | `RCH` | [fiche](recherche-veille.md) | [spec](/openspec/specs/recherche-veille/spec.md) | `2026-11-18-rechercher-et-filtrer` (archivé) ; `durcir-autorisations-et-debits` (RCH-06) | livrée, dont RCH-06 |
-| `activite-projets` | `PIN` | [fiche](activite-projets.md) | [spec](/openspec/specs/activite-projets/spec.md) | `2026-11-17-mesurer-activite-projets` (archivé) ; `alimenter-inventaire-et-completer-ihm` (PIN-06) | livrée ; PIN-06 implémentée, non archivée |
-| `profil-artiste` | `ART` | [fiche](profil-artiste.md) | [spec](/openspec/specs/profil-artiste/spec.md) | `2026-11-17-ajouter-profil-artiste` (archivé) ; `alimenter-inventaire-et-completer-ihm` (ART-07) | livrée ; ART-07 implémentée, non archivée |
-| `exploitation-plateforme` | `EXP` | [fiche](exploitation-plateforme.md) | [spec](/openspec/specs/exploitation-plateforme/spec.md) | `2026-11-24-fiabiliser-sauvegarde-et-roles-base` (archivé, EXP-01 à EXP-06) ; `completer-configuration-conteneurs` ; `2026-11-25-instrumenter-observabilite` (archivé, EXP-13 à EXP-15) ; `durcir-conteneurs-de-service` | livrée (EXP-01 à EXP-06, EXP-13 à EXP-15) ; suite implémentée ou proposée, non archivée |
+| `recherche-veille` | `RCH` | [fiche](recherche-veille.md) | [spec](/openspec/specs/recherche-veille/spec.md) | `2026-11-18-rechercher-et-filtrer` (archivé) ; `2026-11-25-durcir-autorisations-et-debits` (archivé, RCH-06) ; `2026-11-27-accelerer-requetes-chaudes` (archivé, RCH-07) | livrée |
+| `activite-projets` | `PIN` | [fiche](activite-projets.md) | [spec](/openspec/specs/activite-projets/spec.md) | `2026-11-17-mesurer-activite-projets` (archivé) ; `2026-11-26-alimenter-inventaire-et-completer-ihm` (archivé, PIN-06) | livrée |
+| `profil-artiste` | `ART` | [fiche](profil-artiste.md) | [spec](/openspec/specs/profil-artiste/spec.md) | `2026-11-17-ajouter-profil-artiste` (archivé) ; `2026-11-26-alimenter-inventaire-et-completer-ihm` (archivé, ART-07) ; `2026-11-27-retenir-importer-et-paginer` (archivé, ART-08) | livrée |
+| `exploitation-plateforme` | `EXP` | [fiche](exploitation-plateforme.md) | [spec](/openspec/specs/exploitation-plateforme/spec.md) | `2026-11-24-fiabiliser-sauvegarde-et-roles-base` (archivé, EXP-01 à EXP-06) ; `completer-configuration-conteneurs` (actif, non archivé, EXP-07 à EXP-12) ; `2026-11-25-instrumenter-observabilite` (archivé, EXP-13 à EXP-15) ; `durcir-conteneurs-de-service` (actif, non archivé, EXP-16) ; `2026-11-27-retenir-importer-et-paginer` (archivé, EXP-17) | livrée pour EXP-01 à EXP-06, EXP-13 à EXP-15 et EXP-17 ; EXP-07 à EXP-12 et EXP-16 portées par deux changements actifs |
 
 ## Inventaire des diagrammes métier
 
@@ -99,19 +99,20 @@ Les diagrammes d'architecture (D-01 à D-22) sont inventoriés dans [`/docs/arch
 
 ## Bilan de couverture
 
-État au 2026-11-20.
+État au 2026-11-27.
 
 ### Inventaire OpenSpec
 
 | Élément | Nombre | Détail |
 |---|---:|---|
-| Specs de référence | 11 | `comptes-acces`, `recherche-veille`, `affichage-personnalise`, `profils-veille`, `alertes-digests`, `veille-rss-web`, `radar-standards`, `passerelle-ia`, `activite-projets`, `profil-artiste`, `veille-reglementaire` ; le code des changements actifs est présent dans `argos-server`, `argos-ui` et `argos-desktop` |
-| Changements actifs | 5 | `formaliser-chaine-securite-poc`, `notifier-sur-le-poste`, `exposer-serveur-mcp`, `automatiser-chaine-veille`, `optimiser-ma-veille` (schéma `detailed-uml`) |
-| Changements archivés | 11 | `2026-11-16-diffuser-alertes-et-digests`, `2026-11-16-collecter-veille-rss-web`, `2026-11-16-construire-radar-et-standards`, `2026-11-17-encadrer-appels-ia`, `2026-11-17-mesurer-activite-projets`, `2026-11-17-ajouter-profil-artiste`, `2026-11-17-suivre-veille-reglementaire`, `2026-11-17-gerer-comptes-et-acces`, `2026-11-18-connecter-ihm-oidc`, `2026-11-18-rechercher-et-filtrer`, `2026-11-19-personnaliser-profils-et-affichage` |
+| Specs de référence | 19 | `abonnements-veille`, `activite-projets`, `affichage-personnalise`, `alertes-digests`, `collecte-avis-securite`, `comptes-acces`, `correlation-impact`, `exploitation-plateforme`, `inventaire-sbom`, `notifications-poste`, `passerelle-ia`, `performance-api-mcp`, `profil-artiste`, `profils-veille`, `radar-standards`, `recherche-veille`, `serveur-mcp`, `veille-reglementaire`, `veille-rss-web` |
+| Exigences des specs de référence | 165 | décompte d'`openspec list --specs` |
+| Changements actifs | 2 | `completer-configuration-conteneurs` (11 tâches sur 12, EXP-07 à EXP-12), `durcir-conteneurs-de-service` (13 tâches sur 14, EXP-16) ; capacité `exploitation-plateforme` |
+| Changements archivés | 32 | `2026-11-16-collecter-veille-rss-web`, `2026-11-16-construire-radar-et-standards`, `2026-11-16-diffuser-alertes-et-digests`, `2026-11-17-ajouter-profil-artiste`, `2026-11-17-encadrer-appels-ia`, `2026-11-17-gerer-comptes-et-acces`, `2026-11-17-mesurer-activite-projets`, `2026-11-17-suivre-veille-reglementaire`, `2026-11-18-connecter-ihm-oidc`, `2026-11-18-rechercher-et-filtrer`, `2026-11-19-personnaliser-profils-et-affichage`, `2026-11-20-automatiser-chaine-veille`, `2026-11-20-exposer-serveur-mcp`, `2026-11-20-formaliser-chaine-securite-poc`, `2026-11-20-notifier-sur-le-poste`, `2026-11-20-optimiser-ma-veille`, `2026-11-24-fiabiliser-sauvegarde-et-roles-base`, `2026-11-24-mettre-en-place-integration-continue`, `2026-11-24-verifier-types-et-frontieres-modules`, `2026-11-25-durcir-autorisations-et-debits`, `2026-11-25-epingler-adresse-veille-web`, `2026-11-25-injecter-horloge-et-executeurs`, `2026-11-25-instrumenter-observabilite`, `2026-11-25-isoler-erreurs-aux-frontieres`, `2026-11-25-rendre-portail-deployable`, `2026-11-26-alimenter-inventaire-et-completer-ihm`, `2026-11-26-ecrire-decisions-architecture-socle`, `2026-11-26-extraire-noyau-commun`, `2026-11-26-rendre-ingestion-asynchrone`, `2026-11-26-typer-echanges-entre-modules`, `2026-11-27-accelerer-requetes-chaudes`, `2026-11-27-retenir-importer-et-paginer` |
 
 Tous les changements utilisent le schéma `detailed-uml` : aucun changement d'un autre schéma n'est à migrer.
 
-### Couverture du lot 1 (`formaliser-chaine-securite-poc`)
+### Couverture du lot 1 ([`formaliser-chaine-securite-poc`](/openspec/changes/archive/2026-11-20-formaliser-chaine-securite-poc/proposal.md), archivé)
 
 | Capacité | Exigences | Scénarios | Diagrammes métier | Questions ouvertes | Tests écrits |
 |---|---:|---:|---:|---:|---:|
@@ -123,7 +124,7 @@ Tous les changements utilisent le schéma `detailed-uml` : aucun changement d'un
 
 « Questions ouvertes » : Q-COL-1, Q-COL-2, Q-INV-1, Q-INV-2, Q-COR-2 et Q-ABO-1 sont levées par les décisions J1 à J7 du porteur du projet (2026-11-19), reprises par le changement `automatiser-chaine-veille` (voir « Couverture du lot 18 »).
 
-Toutes les exigences sont au statut [PROPOSITION] : elles dérivent d'ADR « Proposé » ou de baselines « à valider » ; la formulation d'INV-06 dérive des décisions F1, F5 et G5 du porteur du projet (2026-11-19). Les tests écrits sont ceux d'`argos-server/src/test/java/io/argos/chain/` (hors `ProfilsDeVeilleTest`) et `architecture/SubscriptionIsolationTest.java`, exécutés par `mvn -B -f argos-server/pom.xml verify` avec des jetons réels du Keycloak des Dev Services et la RLS appliquée sous le rôle `argos_app`. Matrice détaillée : [`tasks.md` du changement](/openspec/changes/archive/2026-11-20-formaliser-chaine-securite-poc/tasks.md#matrice-de-traçabilité).
+Le changement est archivé (2026-11-20) et ses exigences figurent dans les specs de référence. Toutes les exigences sont au statut [PROPOSITION] : elles dérivent d'ADR « Proposé » ou de baselines « à valider » ; la formulation d'INV-06 dérive des décisions F1, F5 et G5 du porteur du projet (2026-11-19). Les tests écrits sont ceux d'`argos-server/src/test/java/io/argos/chain/` (hors `ProfilsDeVeilleTest`) et `architecture/SubscriptionIsolationTest.java`, exécutés par `mvn -B -f argos-server/pom.xml verify` avec des jetons réels du Keycloak des Dev Services et la RLS appliquée sous le rôle `argos_app`. Matrice détaillée : [`tasks.md` du changement](/openspec/changes/archive/2026-11-20-formaliser-chaine-securite-poc/tasks.md#matrice-de-traçabilité).
 
 ### Couverture de [`personnaliser-profils-et-affichage`](/openspec/changes/archive/2026-11-19-personnaliser-profils-et-affichage/proposal.md) (archivé)
 
@@ -141,7 +142,7 @@ Les exigences AFF-01 à AFF-05 et PRF-01 à PRF-06 sont au statut [EXIGENCE] dan
 |---|---|---|---|---|---|---|
 | [`gerer-comptes-et-acces`](/openspec/changes/archive/2026-11-17-gerer-comptes-et-acces/proposal.md) (archivé) | `comptes-acces` | 6 | 11 | 1 | 0 | 37 |
 | [`diffuser-alertes-et-digests`](/openspec/changes/archive/2026-11-16-diffuser-alertes-et-digests/proposal.md) (archivé) | `alertes-digests` | 6 | 9 | 1 | 2 | 26 |
-| [`notifier-sur-le-poste`](/openspec/changes/archive/2026-11-20-notifier-sur-le-poste/proposal.md) | `notifications-poste` | 6 | 7 | 1 | 0 | 56 |
+| [`notifier-sur-le-poste`](/openspec/changes/archive/2026-11-20-notifier-sur-le-poste/proposal.md) (archivé) | `notifications-poste` | 6 | 7 | 1 | 0 | 56 |
 | **Total** | | **18** | **27** | **3** | **2** | **119** |
 
 Dans ce tableau, « Tests écrits » compte les méthodes de test qui passent : `comptes-acces` (11 scénarios couverts, dont la couverture RLS du schéma par `CouvertureRlsTest`), `alertes-digests` (9 scénarios couverts, classes `AlertesTest`, `EchecSmtpTest`, `RelaisMuetTest` et `RegleAlerteTest`) et `notifications-poste` (7 scénarios couverts par des tests unitaires et d'intégration simulée : `argos-desktop/test/`, `argos-ui/tests/alertes-poste.test.mjs` et `argos-ui/tests/reprise-poste.test.mjs`, et 4 parcours E2E de l'application Electron réelle, `e2e/desktop/notifications.spec.ts`).
@@ -150,7 +151,7 @@ Dans ce tableau, « Tests écrits » compte les méthodes de test qui passent : 
 
 | Changement | Capacité | Exigences | Scénarios | Diagrammes métier | Questions ouvertes | Tests écrits |
 |---|---|---|---|---|---|---|
-| [`exposer-serveur-mcp`](/openspec/changes/archive/2026-11-20-exposer-serveur-mcp/proposal.md) | `serveur-mcp` | 7 | 9 | 1 | 0 | 9 |
+| [`exposer-serveur-mcp`](/openspec/changes/archive/2026-11-20-exposer-serveur-mcp/proposal.md) (archivé) | `serveur-mcp` | 7 | 9 | 1 | 0 | 9 |
 | [`encadrer-appels-ia`](/openspec/changes/archive/2026-11-17-encadrer-appels-ia/proposal.md) (archivé) | `passerelle-ia` | 5 | 6 | 1 | 0 | 6 |
 | [`suivre-veille-reglementaire`](/openspec/changes/archive/2026-11-17-suivre-veille-reglementaire/proposal.md) (archivé) | `veille-reglementaire` | 8 | 13 | 1 | 0 | 13 |
 | **Total** | | **20** | **28** | **3** | **0** | **28** |
@@ -194,7 +195,7 @@ Les exigences ACC-07 à ACC-10 sont au statut [EXIGENCE] dans la spec de référ
 
 | Changement | Capacité | Exigences | Scénarios | Diagrammes métier | Questions ouvertes | Tests écrits |
 |---|---|---|---|---|---|---|
-| [`automatiser-chaine-veille`](/openspec/changes/archive/2026-11-20-automatiser-chaine-veille/proposal.md) | `collecte-avis-securite` (COL-09, COL-10) | 2 | 9 | 0 (DF-COL-1, DF-COL-2 mis à jour) | 0 | 9 |
+| [`automatiser-chaine-veille`](/openspec/changes/archive/2026-11-20-automatiser-chaine-veille/proposal.md) (archivé) | `collecte-avis-securite` (COL-09, COL-10) | 2 | 9 | 0 (DF-COL-1, DF-COL-2 mis à jour) | 0 | 9 |
 | | `inventaire-sbom` (INV-07 à INV-10) | 4 | 14 | 1 (DF-INV-4 ; DF-INV-1 mis à jour) | 0 | 14 |
 | | `correlation-impact` (COR-09 à COR-12) | 4 | 15 | 1 (DF-COR-4) | 0 | 15 |
 | | `abonnements-veille` (ABO-07, ABO-08) | 2 | 7 | 1 (DF-ABO-3) | 0 | 7 |
@@ -202,16 +203,16 @@ Les exigences ACC-07 à ACC-10 sont au statut [EXIGENCE] dans la spec de référ
 | | `performance-api-mcp` (PERF-01, PERF-02) | 2 | 6 | 1 (DF-PERF-1) | 2 | 5 |
 | **Total** | | **15** | **53** | **4** | **2** | **52** |
 
-Exigences au statut [PROPOSITION], issues des décisions J1 à J8 du porteur du projet (2026-11-19). Volets A (collecte et abonnements), B (inventaire) et C (impacts et performance) implémentés puis intégrés le 2026-11-19 (branche `lot18/integration`, migrations V18 à V20) ; vérifications d'intégration faites : `mvn verify` (649 tests), tests de l'IHM, parcours E2E `e2e/tests/chaine-automatisee.spec.ts` (sources et forges simulées) et deux exécutions complètes de `npm --prefix e2e test`. « Tests écrits » compte les scénarios couverts par au moins un test qui passe ; PERF-01-S1 n'est pas atteint : `GET /api/v1/me/veille` reste hors cible (p95 = 533,8 ms sur la branche intégrée, [rapport](../architecture/quality/mesure-performance-api-mcp.md), [PROPOSITION] P-18). Tâche 3.1 décochée : la contrainte INV-C3 n'est pas créée ([PROPOSITION] P-13, à valider). « Questions ouvertes » : Q-PERF-1 et Q-PERF-2 (volume et concurrence de la campagne). Matrice détaillée : [`tasks.md` du changement](/openspec/changes/archive/2026-11-20-automatiser-chaine-veille/tasks.md#matrice-de-traçabilité).
+Exigences au statut [PROPOSITION], issues des décisions J1 à J8 du porteur du projet (2026-11-19) ; changement archivé le 2026-11-20. Volets A (collecte et abonnements), B (inventaire) et C (impacts et performance) implémentés puis intégrés le 2026-11-19 (branche `lot18/integration`, migrations V18 à V20) ; vérifications d'intégration faites : `mvn verify` (649 tests), tests de l'IHM, parcours E2E `e2e/tests/chaine-automatisee.spec.ts` (sources et forges simulées) et deux exécutions complètes de `npm --prefix e2e test`. « Tests écrits » compte les scénarios couverts par au moins un test qui passe ; PERF-01-S1 n'est pas atteint : `GET /api/v1/me/veille` reste hors cible (p95 = 533,8 ms sur la branche intégrée, [rapport](../architecture/quality/mesure-performance-api-mcp.md), [PROPOSITION] P-18). Tâche 3.1 décochée : la contrainte INV-C3 n'est pas créée ([PROPOSITION] P-13, à valider). « Questions ouvertes » : Q-PERF-1 et Q-PERF-2 (volume et concurrence de la campagne). Matrice détaillée : [`tasks.md` du changement](/openspec/changes/archive/2026-11-20-automatiser-chaine-veille/tasks.md#matrice-de-traçabilité).
 
 ### Couverture du lot 19
 
 | Changement | Capacité | Exigences | Scénarios | Diagrammes métier | Questions ouvertes | Tests écrits |
 |---|---|---|---|---|---|---|
-| [`optimiser-ma-veille`](/openspec/changes/archive/2026-11-20-optimiser-ma-veille/proposal.md) | `profils-veille` (PRF-07) | 1 | 2 | 0 | 0 | 2 |
+| [`optimiser-ma-veille`](/openspec/changes/archive/2026-11-20-optimiser-ma-veille/proposal.md) (archivé) | `profils-veille` (PRF-07) | 1 | 2 | 0 | 0 | 2 |
 | **Total** | | **1** | **2** | **0** | **0** | **2** |
 
-Exigence au statut [PROPOSITION], issue de la décision K2 du porteur du projet (2026-11-19), avec le jeu de référence de la décision K3. Implémentée le 2026-11-20 (branche `lot19/optimisation`, migration V21) : lecture groupée des signaux de « Ma veille » et index des impacts récents. « Tests écrits » compte les scénarios couverts par au moins un test qui passe : PRF-07-S1 par `LectureGroupeeSignauxTest` (absence de lecture d'un signal par avis) et par une mesure de diagnostic du 2026-11-20 (p95 = 60,1 à 82,7 ms, jeu K3), PRF-07-S2 par `VeilleLectureGroupeeTest`. La campagne de référence du 2026-11-20 (révision `7e5e36d`) le confirme : p95 = 85 ms, seize opérations sur seize dans la cible. Matrice détaillée : [`tasks.md` du changement](/openspec/changes/archive/2026-11-20-optimiser-ma-veille/tasks.md#matrice-de-traçabilité).
+Exigence au statut [PROPOSITION], issue de la décision K2 du porteur du projet (2026-11-19), avec le jeu de référence de la décision K3 ; changement archivé le 2026-11-20. Implémentée le 2026-11-20 (branche `lot19/optimisation`, migration V21) : lecture groupée des signaux de « Ma veille » et index des impacts récents. « Tests écrits » compte les scénarios couverts par au moins un test qui passe : PRF-07-S1 par `LectureGroupeeSignauxTest` (absence de lecture d'un signal par avis) et par une mesure de diagnostic du 2026-11-20 (p95 = 60,1 à 82,7 ms, jeu K3), PRF-07-S2 par `VeilleLectureGroupeeTest`. La campagne de référence du 2026-11-20 (révision `7e5e36d`) le confirme : p95 = 85 ms, seize opérations sur seize dans la cible. Matrice détaillée : [`tasks.md` du changement](/openspec/changes/archive/2026-11-20-optimiser-ma-veille/tasks.md#matrice-de-traçabilité).
 
 ### Couverture du sprint 4 de l'audit du 2026-11-21
 
@@ -230,24 +231,51 @@ Exigences au statut [PROPOSITION], implémentées le 2026-11-24, changements arc
 
 | Changement | Capacité | Exigences | Scénarios | Diagrammes métier | Questions ouvertes | Tests écrits |
 |---|---|---|---|---|---|---|
-| [`alimenter-inventaire-et-completer-ihm`](/openspec/changes/alimenter-inventaire-et-completer-ihm/proposal.md) | `inventaire-sbom` (INV-12, INV-13) | 2 | 12 | 0 | 0 | 12 |
+| [`2026-11-26-alimenter-inventaire-et-completer-ihm`](/openspec/changes/archive/2026-11-26-alimenter-inventaire-et-completer-ihm/proposal.md) | `inventaire-sbom` (INV-12, INV-13) | 2 | 12 | 0 | 0 | 12 |
 | | `radar-standards` (RAD-08, RAD-09) | 2 | 6 | 0 | 0 | 6 |
 | | `activite-projets` (PIN-06) | 1 | 3 | 0 | 1 | 3 |
 | | `profil-artiste` (ART-07) | 1 | 3 | 0 | 0 | 3 |
 | | `alertes-digests` (ALR-09) | 1 | 3 | 0 | 0 | 3 |
 | **Total** | | **7** | **27** | **0** | **1** | **27** |
 
-Exigences au statut [PROPOSITION], issues des décisions du porteur du projet du 2026-11-26 (droits, producteur planifié des suggestions, test de contrat, Vitest) ; changement implémenté, non archivé. « Tests écrits » compte les scénarios couverts par au moins un test : `api/inventaire/AdministrationProjetsTest`, `ImportManuelTest`, `impact/SuggestionsRadarTest`, `projectintel/CollecteImmediateTest`, `alerting/LiensIhmTest` et `AlertesTest` côté serveur ; tests Vitest d'`argos-ui/tests/vues/` (inventaire, radar, profil artiste, signal) et `argos-ui/tests/liens-alertes.test.mjs` côté IHM ; PIN-06-S2 n'est couvert que pour un projet sans dépôt. Le client de l'IHM est vérifié contre l'instantané `argos-ui/src/api/openapi.json` (`argos-ui/tests/contrat-api.test.mjs`), lui-même comparé au schéma servi (`ContratClientIhmTest`) ; `MethodesAtteintesEnProductionTest` refuse toute méthode publique de `src/main` atteinte seulement par les tests. Diagrammes : séquences d'arc42 §6.8 (import manuel, D-21) et §6.9 (suggestions de l'IA, D-22). « Questions ouvertes » : Q-1 du changement (rôle minimal de la collecte immédiate, contributeur appliqué) ; Q-2 (seuil de couverture par module) ne porte sur aucune capacité. Matrice détaillée : [`tasks.md` du changement](/openspec/changes/alimenter-inventaire-et-completer-ihm/tasks.md#matrice-de-traçabilité).
+Exigences au statut [PROPOSITION], issues des décisions du porteur du projet du 2026-11-26 (droits, producteur planifié des suggestions, test de contrat, Vitest) ; changement archivé le 2026-11-26. « Tests écrits » compte les scénarios couverts par au moins un test : `api/inventaire/AdministrationProjetsTest`, `ImportManuelTest`, `impact/SuggestionsRadarTest`, `projectintel/CollecteImmediateTest`, `alerting/LiensIhmTest` et `AlertesTest` côté serveur ; tests Vitest d'`argos-ui/tests/vues/` (inventaire, radar, profil artiste, signal) et `argos-ui/tests/liens-alertes.test.mjs` côté IHM ; PIN-06-S2 n'est couvert que pour un projet sans dépôt. Le client de l'IHM est vérifié contre l'instantané `argos-ui/src/api/openapi.json` (`argos-ui/tests/contrat-api.test.mjs`), lui-même comparé au schéma servi (`ContratClientIhmTest`) ; `MethodesAtteintesEnProductionTest` refuse toute méthode publique de `src/main` atteinte seulement par les tests. Diagrammes : séquences d'arc42 §6.8 (import manuel, D-21) et §6.9 (suggestions de l'IA, D-22). « Questions ouvertes » : Q-1 du changement (rôle minimal de la collecte immédiate, contributeur appliqué) ; Q-2 (seuil de couverture par module) ne porte sur aucune capacité. Matrice détaillée : [`tasks.md` du changement](/openspec/changes/archive/2026-11-26-alimenter-inventaire-et-completer-ihm/tasks.md#matrice-de-traçabilité).
 
 ### Couverture du sprint 8 de l'audit du 2026-11-21
 
 | Changement | Capacité | Exigences | Scénarios | Diagrammes métier | Questions ouvertes | Tests écrits |
 |---|---|---|---|---|---|---|
-| [`rendre-ingestion-asynchrone`](/openspec/changes/rendre-ingestion-asynchrone/proposal.md) | `collecte-avis-securite` (COL-04 modifiée, COL-12) | 2 | 7 | 0 (DF-COL-1 mis à jour) | 2 | 7 |
+| [`2026-11-26-rendre-ingestion-asynchrone`](/openspec/changes/archive/2026-11-26-rendre-ingestion-asynchrone/proposal.md) | `collecte-avis-securite` (COL-04 modifiée, COL-12) | 2 | 7 | 0 (DF-COL-1 mis à jour) | 2 | 7 |
 | | `radar-standards` (RAD-07 modifiée) | 1 | 4 | 0 | 0 | 4 |
 | **Total** | | **3** | **11** | **0** | **2** | **11** |
 
-Exigences au statut [PROPOSITION], implémentées le 2026-11-26, changement non archivé. « Tests écrits » compte les méthodes de test qui couvrent un scénario : `chain/EnrichmentTest` (COL-04-S1 à S4), `chain/LancementSynchronisationTest` (COL-12-S1 à S3), `chain/RadarStandardsTest` (RAD-07-S1 à S4). Questions ouvertes : Q-1 (clé d'API NVD) et Q-2 (seuil de l'archive OSV) du changement. Décisions du porteur du projet du 2026-11-26 : observateurs asynchrones pour la chaîne radar et l'évaluation des alertes, suppression de l'événement `AlerteEmise`, réponse 409 pour une synchronisation en cours, ADR-0039 au statut Proposé.
+Exigences au statut [PROPOSITION], implémentées et archivées le 2026-11-26. « Tests écrits » compte les méthodes de test qui couvrent un scénario : `chain/EnrichmentTest` (COL-04-S1 à S4), `chain/LancementSynchronisationTest` (COL-12-S1 à S3), `chain/RadarStandardsTest` (RAD-07-S1 à S4). Questions ouvertes : Q-1 (clé d'API NVD) et Q-2 (seuil de l'archive OSV) du changement. Décisions du porteur du projet du 2026-11-26 : observateurs asynchrones pour la chaîne radar et l'évaluation des alertes, suppression de l'événement `AlerteEmise`, réponse 409 pour une synchronisation en cours, ADR-0039 au statut Proposé.
+
+### Couverture du sprint 9 de l'audit du 2026-11-21
+
+| Changement | Capacité | Exigences | Scénarios | Diagrammes métier | Questions ouvertes | Tests écrits |
+|---|---|---|---|---|---|---|
+| [`2026-11-27-retenir-importer-et-paginer`](/openspec/changes/archive/2026-11-27-retenir-importer-et-paginer/proposal.md) | `exploitation-plateforme` (EXP-17) | 1 | 5 | 0 | 1 | 5 |
+| | `comptes-acces` (ACC-15) | 1 | 2 | 0 | 0 | 2 |
+| | `inventaire-sbom` (INV-14, INV-09 modifiée) | 2 | 8 | 0 | 0 | 5 |
+| | `performance-api-mcp` (PERF-03) | 1 | 5 | 0 | 0 | 5 |
+| | `profil-artiste` (ART-08) | 1 | 2 | 0 | 0 | 2 |
+| **Total** | | **6** | **22** | **0** | **1** | **19** |
+
+Exigences au statut [PROPOSITION], implémentées le 2026-11-26 et archivées le 2026-11-27. « Tests écrits » compte les scénarios couverts par au moins un test : `conservation/ConservationTest` et `PurgesConservationTest` (EXP-17-S1 à S5), `architecture/ConservationCompleteTest` (tables classées), `audit/JournalRefusTest` (ACC-15-S1, S2), `chain/ImportPlanifieTest` (INV-14-S1 à S4, INV-09-S3), `api/ListesPagineesTest` et `commun/PaginationTest` (PERF-03-S1 à S5), `chain/ProfilArtisteTest` (ART-08-S1, S2) ; INV-09-S1, S2 et S4 sont inchangés. Question ouverte : Q-9 de la fiche `exploitation-plateforme` (durées de conservation par défaut). Décisions du porteur du projet du 2026-11-26 : format de pagination commun, listes bornées par `limite` et recherche gardant leur format, ADR-0040 et ADR-0041 au statut Proposé. Matrice détaillée : [`tasks.md` du changement](/openspec/changes/archive/2026-11-27-retenir-importer-et-paginer/tasks.md#matrice-de-traçabilité).
+
+### Couverture du sprint 10 de l'audit du 2026-11-21
+
+| Changement | Capacité | Exigences | Scénarios | Diagrammes métier | Questions ouvertes | Tests écrits |
+|---|---|---|---|---|---|---|
+| [`2026-11-27-accelerer-requetes-chaudes`](/openspec/changes/archive/2026-11-27-accelerer-requetes-chaudes/proposal.md) | `correlation-impact` (COR-07 modifiée, COR-13) | 2 | 5 | 0 | 1 | 5 |
+| | `alertes-digests` (ALR-10) | 1 | 3 | 0 | 0 | 3 |
+| | `profils-veille` (PRF-07 modifiée, PRF-09) | 2 | 7 | 0 | 0 | 5 |
+| | `radar-standards` (RAD-10) | 1 | 2 | 0 | 0 | 2 |
+| | `recherche-veille` (RCH-07) | 1 | 2 | 0 | 0 | 2 |
+| | `performance-api-mcp` (PERF-02 modifiée) | 1 | 4 | 0 | 0 | 3 |
+| **Total** | | **8** | **23** | **0** | **1** | **20** |
+
+Exigences au statut [PROPOSITION], implémentées les 2026-11-26 et 2026-11-27, archivées le 2026-11-27. « Tests écrits » compte les scénarios couverts par au moins un test : `CorrelationTest` et `RequetesConstantesTest` (COR-07, COR-13), `RequetesConstantesTest` et `AlertesTest` (ALR-10), `VeilleLectureGroupeeTest` (PRF-07-S2), `VeillePagineeTest` et `argos-ui/tests/vues/veille.spec.ts` (PRF-09), `RequetesConstantesTest` (RAD-10), `RechercheBorneeTest` (RCH-07), `e2e/performance/mesure.test.mjs` (PERF-02-S1 à S3) ; PRF-07-S1, PRF-07-S3 et PERF-02-S4 sont prouvés par la campagne de performance du 2026-11-27 (17 opérations dans la cible). Question ouverte : Q-1 du changement (taille d'un lot de corrélation). Décisions du porteur du projet des 2026-11-26 et 2026-11-27 : lecture technique des alertes filtrée par appartenance, total de recherche plafonné à 1 000, « Ma veille » paginée par 50 avec IHM paginée. Matrice détaillée : [`tasks.md` du changement](/openspec/changes/archive/2026-11-27-accelerer-requetes-chaudes/tasks.md#matrice-de-traçabilité).
 
 ### Capacités restant à spécifier
 
@@ -282,4 +310,4 @@ Le script contrôle les liens internes, les blocs Mermaid et les identifiants d'
 | [`rendre-portail-deployable`](/openspec/changes/archive/2026-11-25-rendre-portail-deployable/proposal.md) | `comptes-acces` | ACC-11 à ACC-13 | 12 | DC-1, DC-2 (arc42 §7.3, D-20) | tous les scénarios sauf ACC-11-S1 et ACC-11-S2, dont la recette est consignée dans [`recette-poste.md`](../deploiement/recette-poste.md) (R-7) |
 | [`durcir-autorisations-et-debits`](/openspec/changes/archive/2026-11-25-durcir-autorisations-et-debits/proposal.md) | `veille-reglementaire`, `alertes-digests`, `recherche-veille`, `profils-veille`, `comptes-acces` | REG-09, ALR-08, RCH-06, PRF-08, ACC-14 | 16 | DF-REG-2, DF-ACC-3 | tous les scénarios ; test matriciel point d'entrée × rôle (`MatriceRolesTest`, AUD-TST-05) |
 
-Ces exigences sont au statut [PROPOSITION] dans leurs fiches.
+Ces exigences sont au statut [PROPOSITION] dans leurs fiches ; les deux changements sont archivés (2026-11-25) et leurs exigences figurent dans les specs de référence.

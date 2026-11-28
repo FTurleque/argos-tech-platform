@@ -18,12 +18,14 @@ import java.util.UUID;
 import jakarta.inject.Inject;
 
 import io.argos.alerting.Gravite;
+import io.argos.commun.Pagination;
 import io.argos.commun.securite.Caller;
 import io.argos.catalog.PackageKey;
 import io.argos.catalog.standard.ReferentielStandards;
 import io.argos.impact.ImpactQueries;
 import io.argos.impact.MatchRules;
-import io.argos.impact.RechercheVeille;
+import io.argos.impact.ProjetsConcernes;
+import io.argos.signal.recherche.RechercheVeille;
 import io.argos.inventory.InventoryQueries;
 import io.argos.releaseradar.CalendrierSorties;
 import io.argos.signal.AffectedPackage;
@@ -158,6 +160,9 @@ public class OutilsSecurite {
     @Inject
     RechercheVeille recherche;
 
+    @Inject
+    ProjetsConcernes projetsConcernes;
+
     @Tool(name = "check_dependency", structuredContent = true,
             annotations = @Tool.Annotations(title = "Vérifier une dépendance", readOnlyHint = true, destructiveHint = false,
                     idempotentHint = true, openWorldHint = false),
@@ -181,7 +186,7 @@ public class OutilsSecurite {
             signaux.find(id).flatMap(signal -> correspondance(signal, cle, version).map(trouvee -> faille(signal, trouvee)))
                     .ifPresent(failles::add);
         }
-        List<StandardEspace> standards = referentiel.standards(cle, appelant.memberWorkspaces()).stream()
+        List<StandardEspace> standards = referentiel.standards(cle, appelant.espacesMembre()).stream()
                 .filter(standard -> appelant.memberOf(standard.espaceId()))
                 .map(standard -> new StandardEspace(standard.espaceId(), standard.statut().name(), standard.versionRecommandee(),
                         standard.justification()))
@@ -189,7 +194,7 @@ public class OutilsSecurite {
         List<String> recommandees = standards.stream().map(StandardEspace::versionRecommandee)
                 .filter(valeur -> valeur != null && !valeur.isBlank()).distinct().toList();
         String recommandee = recommandees.size() == 1 ? recommandees.get(0) : null;
-        Optional<CalendrierSorties.Echeance> fin = calendrier.finDeSupport(cle, version, appelant.memberWorkspaces());
+        Optional<CalendrierSorties.Echeance> fin = calendrier.finDeSupport(cle, version, appelant.espacesMembre());
         boolean connue = !signauxDuPaquet.isEmpty() || !standards.isEmpty() || fin.isPresent();
         return new VerificationDependance(cle, version, connue, constat(connue, failles, standards, recommandees), failles,
                 standards, recommandee, fin.map(echeance -> new FinDeSupport(echeance.date().toString(), echeance.source())).orElse(null));
@@ -345,8 +350,10 @@ public class OutilsSecurite {
     private Signaux rechercherSignaux(Caller appelant, CriteresSignaux criteres) {
         criteres.projets().forEach(id -> exigerProjetVisible(appelant, id, inventaires));
         List<SignalResume> resultats = new ArrayList<>();
-        for (RechercheVeille.Element element : recherche.rechercher(criteres.recherche(), appelant.accountId(),
-                appelant.memberWorkspaces(), 0, criteres.limite()).elements()) {
+        RechercheVeille.Resultats trouves = projetsConcernes.completer(
+                recherche.rechercher(criteres.recherche(), appelant.accountId(), 0, criteres.limite()),
+                appelant.accountId(), appelant.espacesMembre());
+        for (RechercheVeille.Element element : trouves.elements()) {
             signaux.find(element.id()).ifPresent(signal -> resultats.add(resume(signal, element)));
         }
         return new Signaux(resultats.size(), resultats);
@@ -377,10 +384,10 @@ public class OutilsSecurite {
             List<ImpactQueries.ImpactView> vues;
             if (id.isPresent()) {
                 exigerProjetVisible(appelant, id.get(), inventaires);
-                vues = impacts.forProject(id.get(), appelant.accountId(), appelant.memberWorkspaces()).stream()
+                vues = impacts.forProject(id.get(), appelant.accountId(), appelant.espacesMembre()).stream()
                         .limit(nombreMax).toList();
             } else {
-                vues = impacts.forWorkspaces(appelant.accountId(), appelant.memberWorkspaces(), nombreMax);
+                vues = impacts.pourEspaces(appelant.accountId(), appelant.espacesMembre(), nombreMax);
             }
             List<Alerte> alertes = vues.stream().map(this::alerte).toList();
             return new Alertes(alertes.size(), alertes);
@@ -388,7 +395,7 @@ public class OutilsSecurite {
     }
 
     private Alerte alerte(ImpactQueries.ImpactView impact) {
-        return new Alerte(impact.id(), impact.projectId(), impact.projectName(), impact.workspaceId(), impact.componentPurl(),
+        return new Alerte(impact.id(), impact.projectId(), impact.projectName(), impact.espaceId(), impact.componentPurl(),
                 impact.componentVersion(), impact.transitive(), impact.level(), impact.method(), impact.signalId(),
                 impact.signalSource(), impact.signalExternalId(), enrichissements.exploited(impact.signalId()),
                 texte(impact.createdAt()), balisage.baliser(impact.signalSource(), impact.signalTitle()));
@@ -410,7 +417,8 @@ public class OutilsSecurite {
                     .map(version -> new VersionSignal(version.versionNo(), texte(version.sourceModifiedAt()),
                             texte(version.collectedAt()), version.contentHash()))
                     .toList();
-            ImpactQueries.Page page = impacts.forSignal(id, appelant.accountId(), appelant.memberWorkspaces(), 0, 50);
+            ImpactQueries.Page page = impacts.forSignal(id, appelant.accountId(), appelant.espacesMembre(), 0,
+                    Pagination.TAILLE_DEFAUT);
             List<ProjetConcerne> projets = page.items().stream()
                     .map(impact -> new ProjetConcerne(impact.projectId(), impact.projectName(), impact.componentPurl(),
                             impact.level())).toList();
@@ -441,7 +449,7 @@ public class OutilsSecurite {
      * espace, « introuvable » s'il n'existe pas. Aucune information sur le projet n'est renvoyée.
      */
     static void exigerProjetVisible(Caller appelant, UUID projet, InventoryQueries inventaires) {
-        Optional<UUID> espace = inventaires.workspaceOf(projet);
+        Optional<UUID> espace = inventaires.espaceDe(projet);
         if (espace.isEmpty()) {
             throw new Introuvable("projet inconnu");
         }

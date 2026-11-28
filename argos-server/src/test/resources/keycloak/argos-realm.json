@@ -39,15 +39,17 @@
       "protocol": "openid-connect",
       "redirectUris": [
         "http://localhost:5173/*",
+        "http://localhost:8090/*",
         "http://127.0.0.1/argos/retour"
       ],
       "webOrigins": [
         "http://localhost:5173",
+        "http://localhost:8090",
         "app://argos"
       ],
       "attributes": {
         "pkce.code.challenge.method": "S256",
-        "post.logout.redirect.uris": "http://localhost:5173/*"
+        "post.logout.redirect.uris": "http://localhost:5173/*##http://localhost:8090/*"
       },
       "protocolMappers": [
         {

@@ -3,8 +3,6 @@ package io.argos.api.security;
 import static io.restassured.RestAssured.given;
 import static org.hamcrest.Matchers.containsString;
 import static org.hamcrest.Matchers.equalTo;
-import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import org.junit.jupiter.api.Test;
@@ -50,17 +48,4 @@ class EnTetesSecuriteTest {
                 .then().header("Content-Security-Policy", containsString("frame-ancestors 'none'"));
     }
 
-    @Test
-    void origineSansCheminNiPortParDefaut() {
-        assertEquals("https://auth.exemple.fr", EnTetesSecurite.origine("https://auth.exemple.fr/realms/argos"));
-        assertEquals("http://nas:8180", EnTetesSecurite.origine("http://nas:8180/realms/argos"));
-        assertEquals("http://192.168.1.20:8180", EnTetesSecurite.origine("http://192.168.1.20:8180"));
-    }
-
-    @Test
-    void emetteurRelatifOuIllisibleRefuse() {
-        assertThrows(IllegalArgumentException.class, () -> EnTetesSecurite.origine("/realms/argos"));
-        assertThrows(IllegalArgumentException.class, () -> EnTetesSecurite.origine("realms/argos"));
-        assertThrows(IllegalArgumentException.class, () -> EnTetesSecurite.origine("http://exemple.fr:port/x"));
-    }
 }

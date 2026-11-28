@@ -18,7 +18,8 @@ import io.argos.api.ParametresPagination;
 import io.argos.commun.securite.Caller;
 import io.argos.catalog.profil.CatalogueProfils;
 import io.argos.catalog.profil.ManifesteProfil;
-import io.argos.impact.RechercheVeille;
+import io.argos.impact.ProjetsConcernes;
+import io.argos.signal.recherche.RechercheVeille;
 import io.argos.inventory.InventoryQueries;
 import io.argos.commun.AccesRefuse;
 import io.argos.commun.DonneeInvalide;
@@ -50,6 +51,9 @@ public class TraductionCriteres {
     @Inject
     RechercheVeille recherche;
 
+    @Inject
+    ProjetsConcernes projetsConcernes;
+
     /**
      * Recherche commune au point d'accès {@code /api/v1/recherche} et au rappel d'une vue enregistrée. Les critères,
      * dont le contrôle des projets filtrés, sont validés avant la lecture de {@code page} et {@code taille} (décision
@@ -64,7 +68,8 @@ public class TraductionCriteres {
         if (numero < 0 || nombre < 1 || nombre > 100) {
             throw invalide("taille", "page ≥ 0 et taille comprise entre 1 et 100.");
         }
-        return recherche.rechercher(criteresVeille, appelant.accountId(), appelant.memberWorkspaces(), numero, nombre);
+        return projetsConcernes.completer(recherche.rechercher(criteresVeille, appelant.accountId(), numero, nombre),
+                appelant.accountId(), appelant.espacesMembre());
     }
 
     /**
@@ -175,7 +180,7 @@ public class TraductionCriteres {
     }
 
     private void exigerProjetVisible(Caller appelant, UUID projet) {
-        Optional<UUID> espace = inventaires.workspaceOf(projet);
+        Optional<UUID> espace = inventaires.espaceDe(projet);
         if (espace.isEmpty()) {
             throw new Introuvable("Ressource introuvable.");
         }

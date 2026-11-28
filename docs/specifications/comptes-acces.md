@@ -5,7 +5,7 @@
 | Préfixe d'exigences | `ACC` |
 | Spec de référence | [`/openspec/specs/comptes-acces/spec.md`](/openspec/specs/comptes-acces/spec.md) |
 | Changements archivés | [`2026-11-17-gerer-comptes-et-acces`](/openspec/changes/archive/2026-11-17-gerer-comptes-et-acces/proposal.md) (ACC-01 à ACC-06) ; [`2026-11-18-connecter-ihm-oidc`](/openspec/changes/archive/2026-11-18-connecter-ihm-oidc/proposal.md) (ACC-07 à ACC-10) |
-| Changements archivés, suite | [`rendre-portail-deployable`](/openspec/changes/archive/2026-11-25-rendre-portail-deployable/proposal.md) (ACC-11 à ACC-13) ; [`durcir-autorisations-et-debits`](/openspec/changes/archive/2026-11-25-durcir-autorisations-et-debits/proposal.md) (ACC-14) |
+| Changements archivés, suite | [`rendre-portail-deployable`](/openspec/changes/archive/2026-11-25-rendre-portail-deployable/proposal.md) (ACC-11 à ACC-13) ; [`durcir-autorisations-et-debits`](/openspec/changes/archive/2026-11-25-durcir-autorisations-et-debits/proposal.md) (ACC-14) ; [`2026-11-27-retenir-importer-et-paginer`](/openspec/changes/archive/2026-11-27-retenir-importer-et-paginer/proposal.md) (ACC-15) |
 | Statut de la capacité | livrée |
 | Composants (arc42 §5) | `API & Security`, `workspace`, `audit` ; `Vue.js 3 SPA` et `Client desktop Electron` (ACC-07 à ACC-10) |
 
@@ -79,6 +79,7 @@ API : `/api/v1/moi`, `/api/v1/espaces`, `/api/v1/espaces/{espaceId}/membres`, `/
 | Seules les ressources statiques de l'IHM sont servies sans session ; API et routes techniques hors identité et santé refusées ; CSP nommant l'émetteur, `frame-ancestors 'none'`, `nosniff`, `Referrer-Policy` | ACC-12 | AUD-SEC-05, AUD-TST-25 ; ADR-0033 (Accepté) | [PROPOSITION] — `rendre-portail-deployable` |
 | Royaume livré : force brute (5 échecs, 60 s, 15 min), mot de passe de 12 caractères sans identifiant ni e-mail et avec historique de 3, TLS exigé hors réseau privé, adresses sans joker | ACC-13 | AUD-SEC-29, AUD-DEP-25 ; ADR-0027 (Accepté) ; décision du porteur, 2026-11-24 | [PROPOSITION] — `rendre-portail-deployable` |
 | L'écoute de bouclage du desktop ne se ferme que sur le retour dont le state est celui de l'URL d'autorisation validée (comparaison en temps constant) ; tout autre retour reçoit 400, sans rien reprendre de la requête, et laisse l'écoute ouverte | ACC-14 | AUD-SEC-23 ; ACC-10 ; ADR-0033 point 4 (Accepté) | [PROPOSITION] — `durcir-autorisations-et-debits` |
+| Au plus `argos.audit.refus.par-minute` refus (30 par défaut) sont écrits au journal par minute glissante et par auteur (compte, ou sujet OIDC sans compte) ; au-delà, le refus est appliqué sans être écrit et il est compté (`argos_refus_non_journalises_total`) | ACC-15 | AUD-SEC-03 | [PROPOSITION — `2026-11-27-retenir-importer-et-paginer`] |
 
 ## Droits d'accès et restrictions
 
@@ -194,7 +195,7 @@ Scénarios ACC-07-S1 à ACC-10-S4 : tests `node:test` d'`argos-ui/tests/` et d'`
 - ACC-10-S1 et ACC-10-S2 : le parcours de bout en bout du client desktop simule le navigateur du système par une page Chromium. L'ouverture du navigateur réellement installé par `shell.openExternal` et le retour de la fenêtre ARGOS au premier plan restent à constater manuellement, selon la procédure du [`tasks.md` archivé](/openspec/changes/archive/2026-11-18-connecter-ihm-oidc/tasks.md) ; cette vérification manuelle n'est pas consignée [QUESTION].
 - ADR-0022 point 6 prévoit de conserver les jetons du desktop par `safeStorage` ; `connecter-ihm-oidc` les garde en mémoire seulement (ADR-0033, Accepté). ADR-0022 n'est pas modifié.
 - Parcours réel d'invitation : Argos n'envoie aucun e-mail et ne crée aucun compte Keycloak ; tant que l'inscription libre est désactivée dans Keycloak, l'administrateur Keycloak crée le compte de la personne invitée (e-mail vérifié) avant sa première connexion.
-- La tâche 3.3 du changement cite QS-02, qui porte sur la confidentialité des appels LLM et non sur le cloisonnement ; QS-02 est exécuté au niveau des tests de la passerelle IA (`argos-server/src/test/java/io/argos/aigateway/PasserelleIaTest.java#iag02S1DonneeConfidentielleRefuseeSansEnvoiEtJournalisee`, `argos-server/src/test/java/io/argos/chain/ParcoursIaTest.java#iag02S1DonneeConfidentielleRefuseeEtJournalisee` : refus, aucun envoi au fournisseur simulé, refus journalisé dans `ia_appel` avec son espace, 0 violation). Aucun scénario du registre qualité ne couvre l'accès inter-espaces.
+- La tâche 3.3 du changement cite QS-02, qui porte sur la confidentialité des appels LLM et non sur le cloisonnement ; QS-02 est exécuté au niveau des tests de la passerelle IA (`argos-server/src/test/java/io/argos/aigateway/PasserelleIaUnitaireTest.java#iag02S1DonneeConfidentielleRefuseeSansEnvoiEtJournalisee`, `argos-server/src/test/java/io/argos/chain/ParcoursIaTest.java#iag02S1DonneeConfidentielleRefuseeEtJournalisee` : refus, aucun envoi au fournisseur simulé, refus journalisé dans `ia_appel` avec son espace, 0 violation). Aucun scénario du registre qualité ne couvre l'accès inter-espaces.
 
 - ACC-01 énonce que seuls l'état de santé et l'identité du serveur restent publics ; les ressources statiques de l'IHM servie (`/`, `/index.html`, `/assets/*`, `/licences-polices.txt`) sont publiques pour que la page se charge avant la connexion. ACC-12 les précise sans modifier ACC-01 (Q-7).
 - ACC-13-S3 : le test du royaume livré fait varier l'adresse source vue par Keycloak (en-tête `X-Forwarded-For` derrière `--proxy-headers=xforwarded`) : une adresse publique est refusée (« HTTPS required »), une adresse du réseau privé est acceptée en http.
@@ -231,5 +232,6 @@ Scénarios ACC-07-S1 à ACC-10-S4 : tests `node:test` d'`argos-ui/tests/` et d'`
 | ACC-12 | ACC-12-S1 à ACC-12-S4 | `rendre-portail-deployable` D3, D4 | 4.1, 4.2 | `CheminsPublicsTest`, `EnTetesSecuriteTest` ; recette R-7 |
 | ACC-13 | ACC-13-S1 à ACC-13-S4 | `rendre-portail-deployable` D5 | 3.1 à 3.3 | `RoyaumeLivreTest` ; `scripts/verifier-royaume.test.mjs` |
 | ACC-14 | ACC-14-S1, ACC-14-S2 | `durcir-autorisations-et-debits` D4 ; DF-ACC-3 | 4.1, 4.2 | `argos-desktop/test/connexion.test.js` |
+| ACC-15 | S1, S2 | `2026-11-27-retenir-importer-et-paginer` design.md D7 | 3.1 | `audit/JournalRefusTest` |
 
 Tests dans [`argos-server/src/test/java/io/argos/api/comptes/`](/argos-server/src/test/java/io/argos/api/comptes/) ; parcours de bout en bout : `ParcoursComptesEtAccesTest`. Les numéros de tâche des lignes ACC-07 à ACC-10 renvoient au [`tasks.md` de `connecter-ihm-oidc`](/openspec/changes/archive/2026-11-18-connecter-ihm-oidc/tasks.md#matrice-de-traçabilité).

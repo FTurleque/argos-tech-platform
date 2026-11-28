@@ -3,9 +3,9 @@
 | Élément | Valeur |
 |---|---|
 | Préfixe d'exigences | `ABO` |
-| Spec de référence | `/openspec/specs/abonnements-veille/spec.md` — absente : capacité non livrée |
-| Changement en cours | [`formaliser-chaine-securite-poc`](/openspec/changes/archive/2026-11-20-formaliser-chaine-securite-poc/specs/abonnements-veille/spec.md) — proposé, non archivé ; [`automatiser-chaine-veille`](/openspec/changes/archive/2026-11-20-automatiser-chaine-veille/specs/abonnements-veille/spec.md) — proposé, non archivé ; ABO-07 et ABO-08 implémentés par le volet A (2026-11-19) |
-| Statut de la capacité | **proposée**, implémentée dans `argos-server` (changement non archivé) : paquet `io.argos.workspace.subscription`, autorisations dans `io.argos.api` |
+| Spec de référence | [`/openspec/specs/abonnements-veille/spec.md`](/openspec/specs/abonnements-veille/spec.md) |
+| Changements archivés | [`2026-11-20-formaliser-chaine-securite-poc`](/openspec/changes/archive/2026-11-20-formaliser-chaine-securite-poc/specs/abonnements-veille/spec.md) (ABO-01 à ABO-06) ; [`2026-11-20-automatiser-chaine-veille`](/openspec/changes/archive/2026-11-20-automatiser-chaine-veille/specs/abonnements-veille/spec.md) (ABO-07, ABO-08) |
+| Statut de la capacité | **livrée**, implémentée dans `argos-server` : paquet `io.argos.workspace.subscription`, autorisations dans `io.argos.api` |
 | Composants (arc42 §5) | `workspace`, `API & Security`, `alerting` (canal et fréquence) |
 
 Tout le contenu de cette fiche porte le statut [PROPOSITION] (changement `formaliser-chaine-securite-poc`) sauf mention contraire.

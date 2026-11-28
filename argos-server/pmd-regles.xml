@@ -1,0 +1,24 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- Seuils de longueur et de complexité des méthodes du serveur (AUD-QUA-18 ; décision du porteur du projet,
+     2026-11-27) : au plus 60 instructions (NCSS) par méthode, complexité cyclomatique inférieure à 15. Vérifiés par
+     maven-pmd-plugin en phase verify (mvn verify) ; toute méthode au-delà fait échouer le build. -->
+<ruleset name="argos-seuils-methodes"
+         xmlns="http://pmd.sourceforge.net/ruleset/2.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://pmd.sourceforge.net/ruleset/2.0.0 https://pmd.sourceforge.io/ruleset_2_0_0.xsd">
+  <description>Longueur et complexité des méthodes du serveur ARGOS.</description>
+
+  <rule ref="category/java/design.xml/NcssCount">
+    <properties>
+      <property name="methodReportLevel" value="61"/>
+      <property name="classReportLevel" value="100000"/>
+    </properties>
+  </rule>
+
+  <rule ref="category/java/design.xml/CyclomaticComplexity">
+    <properties>
+      <property name="methodReportLevel" value="15"/>
+      <property name="classReportLevel" value="100000"/>
+    </properties>
+  </rule>
+</ruleset>

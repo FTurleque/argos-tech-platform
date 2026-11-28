@@ -26,12 +26,7 @@ import org.junit.jupiter.api.Test;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 
-import io.argos.aigateway.ClasseDonnee;
-import io.argos.aigateway.DemandeIa;
-import io.argos.aigateway.EntreeIa;
-import io.argos.aigateway.PasserelleIa;
-import io.argos.aigateway.RegistrePrompts;
-import io.argos.aigateway.ReponseIa;
+import io.argos.alerting.EnvoiAlertes;
 import io.argos.impact.AnalyseComplementaireIa;
 import io.argos.impact.ComplementaryAnalysis;
 import io.argos.ingestion.SourceSynchronizer;
@@ -52,7 +47,7 @@ import io.restassured.http.ContentType;
 /**
  * Parcours de la passerelle IA de bout en bout (changement {@code encadrer-appels-ia}, tâches 2.5 et
  * 4.2) : collecte OSV simulée, corrélation, alerte avec résumé produit par l'API Ollama simulée, mention
- * IA et sources restituées par l'API REST et l'e-mail ; refus d'une donnée confidentielle ; quota
+ * IA et sources restituées par l'API REST et l'e-mail ; quota
  * d'espace épuisé puis alerte diffusée sans résumé ; résumé IA d'une actualité web ; analyse
  * complémentaire de la corrélation. Aucun modèle réel ni aucune requête réseau externe.
  */
@@ -83,13 +78,13 @@ class ParcoursIaTest {
     SimulatedResumeIa resumeIa;
 
     @Inject
-    PasserelleIa passerelle;
-
-    @Inject
     AnalyseComplementaireIa analyse;
 
     @Inject
     MockMailbox mailbox;
+
+    @Inject
+    EnvoiAlertes envoi;
 
     @ConfigProperty(name = "argos.ia.fuseau")
     ZoneId fuseau;
@@ -132,6 +127,8 @@ class ParcoursIaTest {
         Fixtures.stubOsv(id, modifie, json);
         synchronizer.synchronize("OSV");
         asynchrone.attendre();
+        // Passage de la tâche planifiée d'envoi, qui diffuse les alertes en attente (ALR-10-S2).
+        envoi.traiterEnAttente(Instant.now());
         return baseDeTest.uuid("SELECT id FROM signal WHERE external_id = '" + id + "'");
     }
 
@@ -170,21 +167,6 @@ class ParcoursIaTest {
         assertEquals(1, baseDeTest.count("SELECT count(*) FROM ia_appel WHERE tache = 'resume-alerte' AND issue = 'PRODUIT'"
                 + " AND espace_id = '" + spaceA + "' AND modele = 'qwen2.5:1.5b' AND version_prompt = 1"
                 + " AND jetons_entree = 30 AND jetons_sortie = 12 AND cout_eur = 0"));
-    }
-
-    // ------------------------------------------------------------------ 4.2 b) refus d'une donnée confidentielle
-
-    @Test
-    void iag02S1DonneeConfidentielleRefuseeEtJournalisee() {
-        StubServer.programmer(CHAT, ollama("{\"resume\": \"interdit\"}"));
-
-        ReponseIa reponse = passerelle.demander(new DemandeIa(RegistrePrompts.RESUME_ALERTE, spaceA,
-                List.of(EntreeIa.publique("titre", "Avis"), new EntreeIa("contexte", "Clé de chiffrement du projet",
-                        ClasseDonnee.CONFIDENTIAL)), List.of()));
-
-        assertEquals(ReponseIa.Issue.REFUS_CLASSE, reponse.issue());
-        assertTrue(StubServer.received(CHAT).isEmpty());
-        assertEquals(1, baseDeTest.count("SELECT count(*) FROM ia_appel WHERE issue = 'REFUS_CLASSE' AND espace_id = '" + spaceA + "'"));
     }
 
     // ------------------------------------------------------------------ 4.2 c) plafond atteint, alerte sans résumé

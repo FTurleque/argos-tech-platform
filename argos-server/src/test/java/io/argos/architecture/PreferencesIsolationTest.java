@@ -41,7 +41,7 @@ class PreferencesIsolationTest {
     }
 
     @Test
-    void lesPreferencesNeDependentPasDuResteDeWorkspace() {
+    void lesPreferencesNeDependentPasDuResteDuModuleDesEspaces() {
         noClasses().that().resideInAPackage(PREFERENCES)
                 .should().dependOnClassesThat(DescribedPredicate.describe(
                         "workspace hors préférences",

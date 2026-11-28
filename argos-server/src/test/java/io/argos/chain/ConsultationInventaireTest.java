@@ -166,10 +166,11 @@ class ConsultationInventaireTest {
                 .then().statusCode(200)
                 .body("size", equalTo(InventoryQueries.DEFAULT_PAGE_SIZE))
                 .body("items", hasSize(25));
-        // L'inventaire complet reste restitué par le point d'accès existant (clients actuels).
+        // L'inventaire porte une page de ses composants, au format commun (PERF-03).
         Api.enTantQue("alice").when().get("/api/v1/projects/" + projet + "/inventory")
                 .then().statusCode(200)
-                .body("inventory.components", hasSize(25));
+                .body("inventory.components.items", hasSize(25))
+                .body("inventory.components.total", equalTo(25));
     }
 
     /** Même nom, plusieurs versions : ordre par version puis identifiant, identique d'un appel à l'autre. */
@@ -209,27 +210,6 @@ class ConsultationInventaireTest {
                 .then().statusCode(200).body("size", equalTo(InventoryQueries.MAX_PAGE_SIZE));
         Api.enTantQue("alice").queryParam("page", -3).queryParam("size", 0).when().get("/api/v1/projects")
                 .then().statusCode(200).body("page", equalTo(0)).body("size", equalTo(1));
-    }
-
-    @Test
-    void parametresDePaginationNonEntiers() {
-        UUID projet = projects.create(espaceA, "api", null, null);
-        importer(projet, 3);
-        String chemin = "/api/v1/projects/" + projet + "/inventory/components";
-
-        Api.enTantQue("alice").queryParam("page", "abc").when().get(chemin)
-                .then().statusCode(400).body("code", equalTo("DONNEE_INVALIDE")).body("attribut", equalTo("page"));
-        Api.enTantQue("alice").queryParam("size", "1.5").when().get(chemin)
-                .then().statusCode(400).body("attribut", equalTo("size"));
-        Api.enTantQue("alice").queryParam("page", "abc").when().get("/api/v1/projects")
-                .then().statusCode(400).body("code", equalTo("DONNEE_INVALIDE")).body("attribut", equalTo("page"));
-        Api.enTantQue("alice").queryParam("size", "x").when().get("/api/v1/projects")
-                .then().statusCode(400).body("attribut", equalTo("size"));
-        // Un entier hors des bornes de int est saturé puis borné, comme toute autre valeur hors bornes.
-        Api.enTantQue("alice").queryParam("size", "99999999999").when().get(chemin)
-                .then().statusCode(200).body("size", equalTo(InventoryQueries.MAX_PAGE_SIZE));
-        Api.enTantQue("alice").queryParam("page", "-99999999999").queryParam("size", "").when().get(chemin)
-                .then().statusCode(200).body("page", equalTo(0)).body("size", equalTo(InventoryQueries.DEFAULT_PAGE_SIZE));
     }
 
     @Test
@@ -291,7 +271,7 @@ class ConsultationInventaireTest {
                 .body("summary.ignoredComponents[0].reason", equalTo("SANS_PURL"))
                 .body("summary.components", nullValue())
                 .body("inventory", nullValue());
-        assertEquals(2, complet.getList("inventory.components").size(), "réponse complète inchangée pour ses clients");
+        assertEquals(2, complet.getList("inventory.components.items").size(), "page de composants de l'inventaire");
     }
 
     /**

@@ -1,3 +1,10 @@
+---
+id: ADR-0012
+title: "Garder OWASP Dependency-Track optionnel au POC"
+domain: architecture
+rules: false
+---
+
 # ADR-0012 — Garder OWASP Dependency-Track optionnel au POC
 
 - **Statut** : Proposé

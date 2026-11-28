@@ -23,7 +23,7 @@ concurrency:
 env:
   # Les installations npm se font avec --ignore-scripts : aucun script d'installation des paquets ne s'exécute.
   # Les tests du desktop remplacent le module electron par un double (test/electron-factice.js) : le binaire
-  # d'Electron n'est pas nécessaire ; ses déclarations de types restent dans le paquet npm.
+  # d'Electron n'est nécessaire qu'au job e2e, qui le télécharge ; ses déclarations de types restent dans le paquet npm.
   # Version majeure de Node.js de l'image (Dockerfile, étage « ui » : node:22-slim).
   NODE_VERSION: '22'
   # Niveau de npm audit qui fait échouer le build (décision du porteur du projet, 2026-11-24).
@@ -45,7 +45,8 @@ jobs:
         run: java -version
       # Profil integration-continue : maven-enforcer refuse un JDK hors de [17,18) (JRE 17 de l'image).
       # Toujours « clean » : aucun résultat d'un build incrémental n'est réutilisé.
-      - name: Tests, couverture et seuil JaCoCo
+      # Phase verify : seuil JaCoCo et seuils de longueur et de complexité des méthodes (PMD, AUD-QUA-18).
+      - name: Tests, couverture, seuil JaCoCo et seuils des méthodes
         run: mvn -B -f argos-server/pom.xml -P integration-continue clean verify
       - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
         with:
@@ -87,6 +88,9 @@ jobs:
       - run: npm test
       - run: npm run typecheck
       - run: npm run build
+      # AUD-DEP-19 : licences des dépendances npm livrées (vue, vue-router, polices…) et textes de licence présents.
+      - name: Licences des dépendances livrées
+        run: node ../scripts/verifier-licences-npm.mjs --paquet .
       - name: npm audit
         run: npm audit --audit-level="$NPM_AUDIT_NIVEAU"
 
@@ -107,6 +111,9 @@ jobs:
           cache-dependency-path: argos-desktop/package-lock.json
       - run: npm ci --ignore-scripts
       - run: npm run check
+      # AUD-DEP-19 : licences des dépendances d'exécution du desktop (electron-updater…) et textes de licence présents.
+      - name: Licences des dépendances livrées
+        run: node ../scripts/verifier-licences-npm.mjs --paquet .
       - name: npm audit
         run: npm audit --audit-level="$NPM_AUDIT_NIVEAU"
 
@@ -123,11 +130,23 @@ jobs:
           cache-dependency-path: e2e/package-lock.json
       - name: Tests des scripts et de la campagne de performance
         run: node --test scripts/*.test.mjs "e2e/performance/*.test.mjs"
-      - name: Contrôle documentaire
-        run: node scripts/verifier-docs.mjs
+      # Rendu des diagrammes Mermaid (AUD-DOC-06) : Mermaid CLI 12.2.0 (licence MIT, outil de la CI seulement, non livré),
+      # installé sans script d'installation, avec le Google Chrome de
+      # l'image de l'exécuteur ; scripts/mermaid-puppeteer.json le lance sans bac à sable.
+      - name: Mermaid CLI
+        run: npm install -g --ignore-scripts @mermaid-js/mermaid-cli@12.2.0
+      - name: Contrôle documentaire (liens, chemins cités, rendu Mermaid, identifiants)
+        env:
+          PUPPETEER_EXECUTABLE_PATH: /usr/bin/google-chrome
+        run: node scripts/verifier-docs.mjs --rendu
       - name: Contrôle de nommage
         run: node scripts/verifier-nommage.mjs
-      # EXP-07 : variables lues par le serveur, transmises par compose.yaml et décrites par .env.example.
+      # AUD-QUA-18 : les seuils des méthodes sont bloquants (PMD, job serveur) ; un fichier de plus de 300 lignes est
+      # signalé sans bloquer.
+      - name: Fichiers Java longs (signalement)
+        run: node scripts/signaler-fichiers-longs.mjs
+      # EXP-07 : variables lues par le serveur, transmises par compose.yaml et décrites par .env.example ;
+      # variables ARGOS_* de production citées par le guide de déploiement.
       - name: Parité de la configuration de déploiement
         run: node scripts/verifier-configuration.mjs
       # ACC-13-S4 : force brute, politique de mot de passe, TLS et adresses sans joker du royaume livré.
@@ -142,6 +161,62 @@ jobs:
       - name: npm audit (e2e)
         working-directory: e2e
         run: npm audit --audit-level="$NPM_AUDIT_NIVEAU"
+
+  e2e:
+    # AUD-TST-20, AUD-TST-23 : campagne de bout en bout (portail web, client desktop, MCP, chaîne automatisée et audit
+    # d'accessibilité des écrans) contre l'image construite par le Dockerfile, puis audit du banc des mises en page.
+    name: E2E et accessibilité sur l'image construite
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+          cache-dependency-path: |
+            e2e/package-lock.json
+            argos-ui/package-lock.json
+            argos-desktop/package-lock.json
+      - name: Image ARGOS
+        run: docker build -t argos:e2e .
+      - name: Dépendances de e2e, de l'IHM et du desktop
+        run: |
+          npm --prefix e2e ci --ignore-scripts
+          npm --prefix argos-ui ci --ignore-scripts
+          npm --prefix argos-desktop ci --ignore-scripts
+      # Seul le script d'installation du paquet electron s'exécute : il télécharge le binaire piloté par le projet
+      # « desktop » (support/electron.ts).
+      - name: Binaire Electron
+        run: node argos-desktop/node_modules/electron/install.js
+      # Playwright installé par npm ci (version du package-lock), lancé par Node sans npx.
+      - name: Navigateur Chromium
+        working-directory: e2e
+        run: node node_modules/@playwright/test/cli.js install --with-deps chromium
+      # Bureau du client desktop : gestionnaire de fenêtres (réduction, masquage) et serveur de notifications, dans une
+      # session D-Bus, sur un écran virtuel (xvfb). Electron lit la réduction dans l'état EWMH de la fenêtre : le
+      # gestionnaire doit le tenir. Paquets Ubuntu sous licence permissive (fluxbox : MIT, dunst : BSD-3-Clause), outils
+      # de l'exécuteur, non livrés.
+      - name: Bureau virtuel du client desktop
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends fluxbox dunst dbus-x11 libnotify4
+      # La pile démarre l'image (e2e/compose.image.yaml).
+      - name: Campagne de bout en bout
+        working-directory: e2e
+        env:
+          ARGOS_E2E_IMAGE: argos:e2e
+        run: xvfb-run -a dbus-run-session -- sh -c 'fluxbox & dunst & npm test'
+      - name: Audit d'accessibilité des mises en page (banc d'essai)
+        working-directory: e2e
+        run: npm run test:accessibilite
+      - name: Rapports Playwright
+        if: ${{ failure() }}
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: rapports-e2e
+          path: e2e/test-results/
+          if-no-files-found: ignore
 
   changements:
     name: Migrations fusionnées et fichiers modifiés

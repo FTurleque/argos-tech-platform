@@ -8,18 +8,23 @@ Le nom **ARGOS** assume une double référence : **Argos Panoptès**, gardien au
 
 ## Statut
 
-**Phase : conception / cadrage POC — socle applicatif initialisé.**
+**Phase : POC fonctionnel, porté à titre personnel et ouvert à tous les publics ([ADR-0025](docs/architecture/adr/0025-produit-ouvert-projet-personnel.md)).**
 
-Le dépôt contient la documentation d’architecture, les spécifications OpenSpec et un **socle applicatif sans fonctionnalité métier** : serveur Quarkus, IHM Vue.js 3, client desktop Electron et base PostgreSQL locale. La baseline active est **v2.4**.
+Le dépôt contient l'application et sa documentation :
+
+- un serveur Quarkus (monolithe modulaire, API REST et serveur MCP en lecture seule), une IHM Vue.js 3 servie par le serveur et un client desktop Electron qui l'emballe ;
+- les capacités spécifiées dans OpenSpec : 19 spécifications principales dans `openspec/specs/`, dont la collecte des avis de sécurité, l'inventaire SBOM, la corrélation, les abonnements, alertes et résumés, la veille RSS et web, la veille réglementaire, le radar des standards, la recherche, les comptes et accès, le serveur MCP et l'exploitation ; l'état de chaque capacité est tenu dans le [registre des spécifications](docs/specifications/README.md) ;
+- un déploiement Docker Compose pour le PC et le serveur Synology du porteur ([ADR-0026](docs/architecture/adr/0026-hebergement-synology.md)), avec Keycloak auto-hébergé ([ADR-0027](docs/architecture/adr/0027-keycloak-idp-auto-heberge.md)) et un modèle d'IA local facultatif ([ADR-0029](docs/architecture/adr/0029-passerelle-ia-ollama-local.md)).
 
 ## Stack retenue
 
-- **Java 17 minimum** ;
-- **Quarkus** pour le backend et les API ;
+- **Java 17 minimum** et **Quarkus** pour le serveur et les API ;
 - **Vue.js 3** pour l’IHM ;
-- **PostgreSQL** comme stockage principal ;
-- **Docker Compose** sur le PC et sur le serveur Synology du porteur (ADR-0026) ; hébergement en ligne plus tard ;
-- **Electron** pour le client desktop, qui réutilise l’IHM Vue.js 3 (proposé).
+- **PostgreSQL** comme stockage principal, schéma versionné par Flyway ([ADR-0032](docs/architecture/adr/0032-migrations-flyway.md)) ;
+- **Keycloak** comme fournisseur d'identité OIDC ;
+- **Electron** pour le client desktop, qui réutilise l’IHM Vue.js 3 ;
+- **Ollama** comme modèle d'IA local, derrière la passerelle IA, facultatif ;
+- **Docker Compose** sur le PC et sur le serveur Synology du porteur.
 
 Voir [ADR-0019](docs/architecture/adr/0019-stack-java17-quarkus-vue3-postgresql.md) et [ADR-0022](docs/architecture/adr/0022-client-desktop-electron.md).
 
@@ -29,27 +34,31 @@ Voir [ADR-0019](docs/architecture/adr/0019-stack-java17-quarkus-vue3-postgresql.
 
 | Dossier | Contenu |
 |---|---|
-| [`argos-server/`](argos-server/) | Monolithe modulaire Quarkus (Java 17) : un paquet par module d’arc42 §5, frontières vérifiées par ArchUnit, Flyway, OpenAPI, santé |
+| [`argos-server/`](argos-server/README.md) | Monolithe modulaire Quarkus (Java 17) : un paquet par module d’arc42 §5, frontières vérifiées par ArchUnit, Flyway, OpenAPI, santé |
 | [`argos-ui/`](argos-ui/) | IHM Vue.js 3 + Vite + TypeScript, partagée par le portail web et le desktop |
 | [`argos-desktop/`](argos-desktop/) | Client desktop Electron : emballe `argos-ui`, notifications système, icône de zone de notification |
-| [`e2e/`](e2e/README.md) | Tests de bout en bout du portail web (Playwright) |
-| [`compose.yaml`](compose.yaml) | PostgreSQL 18 et Argos complet, sur le PC comme sur le Synology |
+| [`e2e/`](e2e/README.md) | Tests de bout en bout (Playwright) du portail web, du client desktop et du serveur MCP, et campagne de performance |
+| [`compose.yaml`](compose.yaml) | PostgreSQL 18 et Argos ; Keycloak avec le profil `idp-local`, Ollama avec le profil `ia` ; sur le PC comme sur le Synology |
 | [`Dockerfile`](Dockerfile) | image unique IHM + API (x86-64) |
-| [`docs/deploiement/`](docs/deploiement/synology-et-pc.md) | guide de déploiement Synology DS1522+ et PC, sauvegardes |
+| [`deploiement/`](deploiement/) | image Keycloak optimisée et royaume livré (`deploiement/keycloak/`), création des comptes et des bases PostgreSQL (`deploiement/postgres/`) |
+| [`scripts/`](scripts/) | sauvegarde et restauration des bases, contrôles exécutés par l'intégration continue |
+| [`docs/`](docs/deploiement/synology-et-pc.md) | guide de déploiement (`docs/deploiement/`), architecture (`docs/architecture/`), fiches fonctionnelles (`docs/specifications/`) |
+| [`openspec/`](openspec/config.yaml) | spécifications principales et changements OpenSpec |
 
 ## Démarrage local
 
-Prérequis : JDK 17 ou plus, Maven 3.9, Node.js 22.12 ou plus, Docker.
+Prérequis : JDK 17 ou plus, Maven 3.9, Node.js 22.18 ou plus (`^22.18.0 || >=23.6.0`), Docker démarré. Docker sert à la base de données et au Keycloak de développement que `mvn quarkus:dev` démarre lui-même (Dev Services), ainsi qu'aux tests du serveur.
 
 ```bash
 # 1. Base de données : .env copié de .env.example, avec les quatre mots de passe de base
 docker compose up -d postgres
 
 # 2. Serveur (http://localhost:8080, OpenAPI sur /q/openapi, santé sur /q/health)
-#    Mots de passe du rôle de connexion et du propriétaire (migrations) lus dans l'environnement :
+#    Mots de passe du rôle de connexion et du propriétaire (migrations), ceux du .env, lus dans l'environnement :
 #    export ARGOS_DB_PASSWORD=… ARGOS_DB_OWNER_PASSWORD=…   (PowerShell : $env:ARGOS_DB_PASSWORD = '…')
+#    quarkus:dev démarre aussi Keycloak sur http://localhost:8180 avec le royaume de test.
 cd argos-server
-mvn quarkus:dev          # tests : mvn verify (Docker requis : base jetable)
+mvn quarkus:dev          # tests : mvn verify (Docker requis : base et Keycloak jetables)
 
 # 3a. Portail web (http://localhost:5173)
 cd argos-ui
@@ -62,12 +71,14 @@ cd argos-desktop
 npm install
 npm run start            # construit l'IHM puis ouvre le desktop
 npm run dev              # variante : recharge à chaud, avec « npm run dev » lancé dans argos-ui
-npm run dist             # installeurs (Windows NSIS, Linux AppImage) dans argos-desktop/release/
+npm run dist             # installeurs (Windows NSIS, Linux AppImage) dans argos-desktop/release/ (publication : ADR-0042)
 ```
 
-L’URL du serveur se règle avec `VITE_ARGOS_API_URL` (voir `argos-ui/.env.example`).
+**Connexion en développement.** Le royaume de test ([`argos-server/src/test/resources/keycloak/argos-realm.json`](argos-server/src/test/resources/keycloak/argos-realm.json)) déclare des comptes dont le mot de passe est égal à l'identifiant : `alice` est l'administratrice plateforme (`alice@argos.test`) ; `bob`, `carla` et les autres n'entrent dans un espace qu'après une invitation. « Se connecter » dans le portail ou le desktop ouvre la page de Keycloak.
 
-Tests de bout en bout du portail web (Playwright, Keycloak et PostgreSQL de test) : `npm --prefix e2e ci` puis `npm --prefix e2e test` ; voir [`e2e/README.md`](e2e/README.md).
+L’URL du serveur se règle avec `VITE_ARGOS_API_URL` (voir `argos-ui/.env.example`) ; l'émetteur OIDC est lu dans la réponse publique du serveur. Le client desktop vise par défaut `http://localhost:8080` et `http://localhost:8180/realms/argos` ([Client desktop](docs/deploiement/synology-et-pc.md#client-desktop)).
+
+Tests de bout en bout (Playwright : portail web, client desktop, serveur MCP, avec Keycloak et PostgreSQL de test) : `npm --prefix e2e ci` puis `npm --prefix e2e test` ; voir [`e2e/README.md`](e2e/README.md).
 
 Liste des dépendances tierces du serveur, de leurs licences et de leurs avis NOTICE (commande dédiée, hors `mvn verify`) : voir [`argos-server/README.md`](argos-server/README.md#licences-des-dépendances).
 
@@ -80,13 +91,16 @@ mvn -B -f argos-server/pom.xml clean verify                 # tests du serveur, 
 node scripts/verifier-couverture-modules.mjs                # seuils de couverture par module (après mvn verify)
 npm --prefix argos-ui test && npm --prefix argos-ui run typecheck && npm --prefix argos-ui run build
 npm --prefix argos-desktop run check                        # syntaxe, types (tsc --checkJs) et tests
+node scripts/verifier-licences-npm.mjs --paquet argos-ui --paquet argos-desktop   # licences npm livrées (après npm ci)
 npm --prefix e2e ci && npm --prefix e2e run typecheck       # types des parcours E2E (tsc --strict)
 node --test scripts/*.test.mjs "e2e/performance/*.test.mjs"
-node scripts/verifier-docs.mjs                              # liens, Mermaid, identifiants d'exigences
+node scripts/verifier-docs.mjs --rendu                      # liens, chemins cités, rendu Mermaid (mmdc), identifiants
 node scripts/verifier-nommage.mjs                           # aucun identifiant d'une ou deux lettres
-node scripts/verifier-configuration.mjs                     # variables : application.properties, compose.yaml, .env.example
+node scripts/verifier-configuration.mjs                     # variables : application.properties, compose.yaml, .env.example, guide
 npm --prefix argos-ui audit --audit-level=high              # de même pour argos-desktop et e2e
 ```
+
+`node scripts/verifier-docs.mjs --rendu` contrôle aussi les README des sous-projets et rend chaque diagramme avec Mermaid CLI (`npm install -g @mermaid-js/mermaid-cli@12.2.0`, version de l'intégration continue) ; sans mmdc, il échoue.
 
 Le build du serveur se lance toujours avec `clean` : un build incrémental peut réutiliser des classes compilées par un autre JDK ou ne lancer aucun test. L'IDE doit compiler hors de `target/` (dossier de sortie propre à l'IDE), pour que ses classes ne se mêlent pas à celles de Maven. L'intégration continue impose un JDK 17 (profil `integration-continue`, `mvn -P integration-continue clean verify` pour reproduire la contrainte) ; en local, Java 17 ou plus est accepté. Le rapport de couverture JaCoCo est écrit dans `argos-server/target/site/jacoco/index.html`.
 
@@ -94,12 +108,16 @@ Le build du serveur se lance toujours avec `clean` : un build incrémental peut 
 
 ### Argos complet sous Docker (PC ou Synology)
 
+Argos exige un fournisseur d'identité : sur une machine sans Keycloak, le profil `idp-local` en fournit un.
+
 ```bash
 cp .env.example .env
-docker compose up -d --build   # http://localhost:8080
+# .env : les quatre mots de passe de base, puis COMPOSE_PROFILES=idp-local, ARGOS_OIDC_URL,
+# ARGOS_OIDC_ISSUER_PUBLIC, ARGOS_ADMIN_EMAIL, ARGOS_ADMIN_MOT_DE_PASSE_INITIAL et ARGOS_KEYCLOAK_ADMIN_MOT_DE_PASSE
+docker compose up -d --build   # http://localhost:8080, Keycloak sur http://localhost:8180
 ```
 
-Détails, accès distant et sauvegardes : [guide de déploiement](docs/deploiement/synology-et-pc.md).
+Valeurs, première connexion, ajout d'utilisateurs, accès depuis un autre poste, client desktop et sauvegardes : [guide de déploiement](docs/deploiement/synology-et-pc.md).
 
 ## Mission
 
@@ -110,24 +128,11 @@ ARGOS doit permettre de :
 - maintenir un inventaire projet par SBOM CycloneDX ;
 - corréler déterministiquement les signaux avec les projets ;
 - fournir un radar des versions et standards internes ;
-- surveiller les évolutions réglementaires utiles aux MKP ;
-- utiliser Claude derrière un **AI Gateway** pour synthétiser et expliquer, sans faire de l’IA la source de vérité ;
+- surveiller les évolutions réglementaires, publiées après validation par un expert métier ([ADR-0030](docs/architecture/adr/0030-veille-reglementaire-expert-metier.md)) ;
+- résumer et expliquer par un modèle d'IA local derrière une passerelle, facultatif, sans faire de l’IA la source de vérité ;
 - exposer un serveur **MCP en lecture seule** aux IDE ;
 - produire tableaux de bord, alertes et synthèses ;
 - permettre à chaque utilisateur de compléter le socle de veille de son équipe par une **veille personnelle** sans élargir ses droits d’accès.
-
-## POC v2.4
-
-Le POC est estimé à **20–24 jours-homme de travail effectif**, soit environ un mois concentré. Une démonstration peut être réalisée localement avec Docker Compose sans attendre la VM.
-
-En contexte entreprise, VM, proxy/SSO, RSSI/DPO, pilotes et urgences opérationnelles peuvent porter la durée à **6–10 semaines calendaires**. Le go/no-go intervient à l’issue du POC, pas à une date artificiellement fixe.
-
-## IA : développement et runtime
-
-Deux sujets sont séparés :
-
-- pour le **développement intensif**, le projet ne doit pas être dimensionné sur un plan Claude Pro seul ; une capacité supérieure ou des crédits d’usage doivent être prévus et mesurés ;
-- pour le **runtime ARGOS**, Claude API/Console est facturée séparément et tous les appels passent par l’AI Gateway avec quotas et plafond.
 
 ## Principes d’architecture
 
@@ -145,22 +150,9 @@ Deux sujets sont séparés :
 
 Le dossier principal se trouve dans [`docs/architecture/`](docs/architecture/README.md).
 
-Il combine arc42, C4, Mermaid, ADR, scénarios qualité, registre des risques et baseline POC.
+Il combine arc42, C4, Mermaid, ADR, scénarios qualité, registre des risques et baselines de cadrage.
 
-Les exigences fonctionnelles sont spécifiées avec OpenSpec (`openspec/`, schéma `detailed-uml`) ; les fiches par capacité et le suivi de couverture se trouvent dans [`docs/specifications/`](docs/specifications/README.md).
-
-## Prochaines étapes
-
-1. ~~initialiser Maven/Quarkus en Java 17~~ (socle `argos-server/`) ;
-2. ~~initialiser Vue.js 3~~ (`argos-ui/`) ;
-3. ~~créer PostgreSQL + migrations~~ (socle Flyway ; outil de migration à confirmer par ADR, arc42 §9.3) ;
-4. ~~créer Docker Compose local~~ (`compose.yaml`) ;
-5. ~~mettre en place les frontières de modules et tests d’architecture~~ (`ModuleBoundariesTest`) ;
-6. connecter OSV et importer une première SBOM ;
-7. produire la première corrélation et alerte ;
-8. prototyper le MCP lecture seule ;
-9. engager en parallèle VM/proxy/SSO/RSSI/DPO ;
-10. mesurer les KPI et coûts avant le MVP.
+Les exigences fonctionnelles sont spécifiées avec OpenSpec (`openspec/`, schéma `detailed-uml`) ; les fiches par capacité et le suivi de couverture se trouvent dans [`docs/specifications/`](docs/specifications/README.md). Les changements en cours se listent par `openspec list` ; les vérifications qui exigent un environnement réel sont tenues dans la [recette sur le poste installé](docs/deploiement/recette-poste.md).
 
 ## Licence
 

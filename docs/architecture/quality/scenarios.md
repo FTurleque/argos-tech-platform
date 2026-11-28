@@ -9,11 +9,11 @@ Ce registre complète arc42 section 10. Les seuils sont **Hypothèses à valider
 | QS-03 | Défaillance | API GitHub/GitLab retourne 429/5xx | prod | retry borné, curseur stable | 0 perte | chaos/intégration | Backend |
 | QS-04 | Défaillance | même webhook reçu plusieurs fois | prod | un seul effet métier | 0 duplication logique | test idempotence | Backend |
 | QS-05 | Changement | ajout d’une nouvelle source | dev | nouvel adapter sans couplage domaine | cœur métier inchangé sauf nouveau concept justifié | revue architecture | Architecte |
-| QS-06 | Performance | chargement dashboard projet | charge nominale | données pré-calculées rendues sans LLM bloquant | API p95 < 500 ms ; mesuré le 2026-11-19 : 15 opérations API et MCP sur 16 dans la cible, `GET /api/v1/me/veille` hors cible (p95 = 533,8 ms, branche intégrée) ([rapport](mesure-performance-api-mcp.md)) | campagne `npm --prefix e2e run test:performance` (PERF-01, PERF-02) | Backend |
+| QS-06 | Performance | chargement dashboard projet | charge nominale | données pré-calculées rendues sans LLM bloquant | API p95 < 500 ms ; mesuré le 2026-11-27 : 17 opérations API et MCP sur 17 dans la cible, `GET /api/v1/me/veille` p95 = 185,5 ms ([rapport](mesure-performance-api-mcp.md)) | campagne `npm --prefix e2e run test:performance` (PERF-01, PERF-02) | Backend |
 | QS-07 | Exploitation | redémarrage brutal du backend | prod | reprise des jobs/curseurs | 0 perte ; état READY après recovery | test reprise | Ops |
 | QS-08 | Coût | hausse x10 du volume d’items | prod | budgets/quotas empêchent emballement LLM | budget workspace respecté | métriques coût | Produit/FinOps |
 | QS-09 | Confidentialité | log d’une erreur adapter contenant un token | prod | secret masqué | 0 secret exploitable dans logs | scanner logs | Sécurité/Ops |
-| QS-10 | Résilience | Claude indisponible | prod | ingestion continue ; analyse différée ou mode dégradé | aucune perte d’item | test panne fournisseur | Backend |
+| QS-10 | Résilience | modèle d’IA local indisponible | prod | ingestion continue ; analyse différée ou mode dégradé | aucune perte d’item | test panne fournisseur | Backend |
 | QS-11 | Données | suppression d’un workspace | prod | données supprimées/archivées selon politique et embeddings associés traités | 100 % conforme politique | test rétention | DPO/Backend |
 | QS-12 | Sécurité | webhook avec signature invalide | prod | rejet avant traitement métier | 100 % rejetés | test sécurité | Sécurité |
 | QS-13 | Recherche | requête plein texte standard | prod | résultats pertinents et paginés | cible Q-05 : API p95 < 500 ms ; mesuré le 2026-11-16 : p95 = 250 ms sur 120 000 éléments visibles ([rapport](mesure-qs13-recherche.md)) | benchmark `MesurePerformanceRechercheTest` | Backend |

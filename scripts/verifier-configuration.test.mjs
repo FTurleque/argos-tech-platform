@@ -4,7 +4,8 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import {
-  clesServices, ecartsDepot, ecartsDurcissement, ecartsOptionsKeycloak, ecartsParite, optionsConstructionKeycloak,
+  clesServices, ecartsDepot, ecartsDurcissement, ecartsGuide, ecartsOptionsKeycloak, ecartsParite,
+  optionsConstructionKeycloak, variablesGuide,
   variablesInterpolees, variablesProduction, variablesService,
 } from './verifier-configuration.mjs';
 
@@ -170,4 +171,27 @@ test('EXP-16-S3 : une option de construction absente ou divergente à l\'exécut
 
 test('EXP-07, EXP-16 : application.properties, compose.yaml et .env.example du dépôt sont sans écart', () => {
   assert.deepEqual(ecartsDepot(), []);
+});
+
+const GUIDE = [
+  '| `ARGOS_DB_URL` | adresse JDBC |',
+  '| `ARGOS_SMTP_HOST` / `ARGOS_DB_NAME` | relais SMTP, nom de la base |',
+  '| `ARGOS_DB_ADMIN_PASSWORD` | obligatoire |',
+  'ARGOS_MEM_LIMIT=1g',
+].join('\n');
+
+test('le guide cite une variable seulement entre accents graves', () => {
+  assert.deepEqual([...variablesGuide(GUIDE)].sort(),
+    ['ARGOS_DB_ADMIN_PASSWORD', 'ARGOS_DB_NAME', 'ARGOS_DB_URL', 'ARGOS_SMTP_HOST']);
+});
+
+test('une variable de production absente du guide est nommée avec le guide', () => {
+  assert.deepEqual(ecartsGuide({ proprietes: PROPRIETES, compose: COMPOSE, guide: GUIDE }), [
+    'ARGOS_MEM_LIMIT : interpolée par compose.yaml, absente de docs/deploiement/synology-et-pc.md',
+  ]);
+});
+
+test('un guide qui cite toutes les variables de production ne produit aucun écart', () => {
+  const complet = `${GUIDE}\n| \`ARGOS_MEM_LIMIT\` | mémoire |`;
+  assert.deepEqual(ecartsGuide({ proprietes: PROPRIETES, compose: COMPOSE, guide: complet }), []);
 });

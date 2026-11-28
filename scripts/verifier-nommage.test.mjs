@@ -284,3 +284,18 @@ test('le dépôt respecte la règle de nommage', () => {
   const resultat = spawnSync(process.execPath, [SCRIPT], { encoding: 'utf8' });
   assert.equal(resultat.status, 0, resultat.stderr + resultat.stdout);
 });
+
+test('AUD-QUA-09 : un identifiant déclaré qui dit « workspace » est refusé, quelle que soit la casse', () => {
+  const source = 'class A {\n  UUID workspaceId;\n  void lire(Set<UUID> espaces, String nom) {}\n  Set<UUID> memberWorkspaces() {}\n}';
+  assert.deepEqual(analyserSource(source, 'java'), [
+    { ligne: 2, nom: 'workspaceId', terme: 'workspace' },
+    { ligne: 4, nom: 'memberWorkspaces', terme: 'workspace' },
+  ]);
+});
+
+test('AUD-QUA-09 : chaînes, SQL, paquets et propriétés JSON gardent « workspace »', () => {
+  const java = 'package io.argos.workspace;\nimport io.argos.workspace.Role;\nclass B {\n'
+    + '  @JsonProperty("workspaceId") UUID espaceId;\n  String sql = "SELECT workspace_id FROM project";\n}';
+  assert.deepEqual(analyserSource(java, 'java'), []);
+  assert.deepEqual(analyserSource('interface Projet { workspaceId: string | null }', 'ts'), []);
+});

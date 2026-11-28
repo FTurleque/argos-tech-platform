@@ -3,9 +3,10 @@
 | Élément | Valeur |
 |---|---|
 | Préfixe d'exigences | `COR` |
-| Spec de référence | `/openspec/specs/correlation-impact/spec.md` — absente : capacité non livrée |
-| Changement en cours | [`formaliser-chaine-securite-poc`](/openspec/changes/archive/2026-11-20-formaliser-chaine-securite-poc/specs/correlation-impact/spec.md) — proposé, non archivé ; [`automatiser-chaine-veille`](/openspec/changes/archive/2026-11-20-automatiser-chaine-veille/specs/correlation-impact/spec.md) — proposé ; COR-09 à COR-12 implémentés et intégrés le 2026-11-19 (volets A, B et C réunis) |
-| Statut de la capacité | **proposée**, implémentée dans `argos-server` (changement non archivé) : paquet `io.argos.impact` |
+| Spec de référence | [`/openspec/specs/correlation-impact/spec.md`](/openspec/specs/correlation-impact/spec.md) |
+| Changements archivés | [`2026-11-20-formaliser-chaine-securite-poc`](/openspec/changes/archive/2026-11-20-formaliser-chaine-securite-poc/specs/correlation-impact/spec.md) (COR-01 à COR-08) ; [`2026-11-20-automatiser-chaine-veille`](/openspec/changes/archive/2026-11-20-automatiser-chaine-veille/specs/correlation-impact/spec.md) (COR-09 à COR-12) |
+| Changement du sprint 10 | [`2026-11-27-accelerer-requetes-chaudes`](/openspec/changes/archive/2026-11-27-accelerer-requetes-chaudes/proposal.md) (COR-07 modifiée, COR-13) — archivé |
+| Statut de la capacité | **livrée**, implémentée dans `argos-server` : paquet `io.argos.impact` |
 | Composants (arc42 §5) | `impact-engine`, `inventory`, `vuln-intel`, `workspace`, `ai-gateway` (facultatif), `audit` |
 
 Tout le contenu de cette fiche porte le statut [PROPOSITION] (changement `formaliser-chaine-securite-poc`) sauf mention contraire.
@@ -60,6 +61,8 @@ Désigner automatiquement, et seulement eux, les projets concernés par un signa
 | Transitions permises (DF-COR-4), faites par un membre `CONTRIBUTEUR` ou `ADMINISTRATEUR` de l'espace du projet ; motif obligatoire pour écarter ; `LECTEUR` refusé (403), autre espace refusé (404), refus journalisés | COR-10 | décision J5 (RBAC existant) ; rôles et motif : proposition P-5 du changement | [PROPOSITION] — `automatiser-chaine-veille` |
 | Résolution automatique (auteur « système ») d'un impact `ouvert` ou `confirmé` qui n'est plus vérifié : composant retiré ou mis à jour hors plage (J4) ; avis modifié ou retiré (P-3) ; un impact `écarté` n'est jamais modifié par le système ; un impact `résolu` par le système et de nouveau vérifié repasse `ouvert`, un impact `résolu` par un utilisateur autorisé reste résolu (P-6, J5) ; un impact n'est plus supprimé | COR-11 | décisions J4 et J5 du porteur du projet, 2026-11-19 ; propositions P-3, P-6 | [PROPOSITION] — `automatiser-chaine-veille` |
 | Historique complet des transitions restitué avec l'impact ; listes filtrables par état, `ouvert` et `confirmé` par défaut | COR-12 | décision J5 ; arc42 §10.2 Q-01 | [PROPOSITION] — `automatiser-chaine-veille` |
+| Un impact existant n'est réécrit que si l'une de ses valeurs change (version de l'avis, niveau, méthode, transitivité, origine et date d'inventaire, provenance) ou s'il est redevenu actif depuis sa dernière écriture ; sinon il garde sa date de mise à jour | COR-07 | AUD-PER-25 | [PROPOSITION] — `2026-11-27-accelerer-requetes-chaudes` |
+| La corrélation d'un projet traite ses signaux par lots (`argos.correlation.taille-lot`, 500 par défaut), une transaction par lot, chaque lot en un nombre fixe d'instructions SQL quel que soit le nombre de signaux et de composants ; l'analyse complémentaire n'est demandée que pour les signaux dont un impact est publié | COR-13 | AUD-PER-03 ; critère de sortie du sprint 10 | [PROPOSITION] — `2026-11-27-accelerer-requetes-chaudes` |
 
 ## Droits d'accès et restrictions
 
@@ -240,7 +243,7 @@ Interprétations validées par le porteur du projet le 2026-11-16 [DÉCISION].
 - INV-C3 (un impact sans composant est `résolu` ou `écarté`) est un invariant au repos, vérifié par le contrôle d'intégrité (`GET /api/v1/ops/impacts/integrity`, champ `withoutComponent`), et non une contrainte `CHECK` : l'import qui retire un composant est validé avant que la recorrélation du projet ne résolve l'impact (événement `InventoryReplaced` après validation), et une contrainte ferait échouer cet import. Entre les deux, l'impact reste `ouvert` sans composant [PROPOSITION P-13]. Une transition utilisateur vers `ouvert` ou `confirmé` d'un impact sans composant est refusée (409) et n'est pas proposée ([PROPOSITION] PI-3, `chain/EtatTraitementImpactTest#invC3ImpactSansComposantNeRedevientPasActif`).
 - La recorrélation d'un projet parcourt aussi les signaux qui portent un impact ouvert ou confirmé sur lui (D4), pour résoudre un impact dont le composant a disparu : extension minimale de `CorrelationEngine#correlateProject` faite par le volet C ; le marqueur de reprise reste au volet B.
 - Un impact résolu dont le composant revient dans l'inventaire à la même version retrouve ce composant et repasse `ouvert` (`DE_NOUVEAU_VERIFIE`) ; un impact écarté le retrouve et reste écarté. Aucun doublon n'est créé (INV-C4) [PROPOSITION P-14].
-- Les listes d'impacts (signal, projet, espaces, veille, outils MCP) ne restituent par défaut que les impacts `ouvert` et `confirmé`, ce qui conserve le comportement antérieur (les impacts sans objet étaient supprimés) ; un impact écarté ou résolu reste consultable par son identifiant et par le filtre `etat` de `GET /api/v1/signals/{id}/impacts`. La recherche (`argos_rechercher_veille`, V11) rattache encore un avis à un projet par tout impact, quel que soit son état [PROPOSITION P-15].
+- Les listes d'impacts (signal, projet, espaces, veille, outils MCP) ne restituent par défaut que les impacts `ouvert` et `confirmé`, ce qui conserve le comportement antérieur (les impacts sans objet étaient supprimés) ; un impact écarté ou résolu reste consultable par son identifiant et par le filtre `etat` de `GET /api/v1/signals/{id}/impacts`. La recherche (`argos_selectionner_veille`, V28) rattache encore un avis à un projet par tout impact, quel que soit son état [PROPOSITION P-15].
 
 ## Questions ouvertes
 
@@ -254,3 +257,7 @@ Interprétations validées par le porteur du projet le 2026-11-16 [DÉCISION].
 ## Traçabilité
 
 Voir la matrice du changement : [`tasks.md`](/openspec/changes/archive/2026-11-20-formaliser-chaine-securite-poc/tasks.md#matrice-de-traçabilité). Les scénarios COR-01-S1 à COR-08-S2 sont vérifiés par `argos-server/src/test/java/io/argos/chain/MatchRulesTest.java` et `CorrelationTest.java` (RLS vérifiée sur le chemin applicatif, sous le rôle non super-utilisateur `argos_app`). Le jeu de référence annoté (`argos-server/src/test/resources/fixtures/jeu-reference-correlation/`) et la mesure de précision et de rappel par niveau sont exécutés par `JeuReferenceCorrelationTest` ([rapport de mesure](../architecture/quality/mesure-correlation-jeu-reference.md)) ; la tâche 4.7 reste ouverte tant que la mesure ne porte pas sur les inventaires des projets pilotes ou qu'une [DÉCISION] du porteur n'accepte pas un jeu composé. COR-09 à COR-12 : matrice du changement [`automatiser-chaine-veille`](/openspec/changes/archive/2026-11-20-automatiser-chaine-veille/tasks.md#matrice-de-traçabilité) ; vérifiés le 2026-11-19 sur la branche intégrée par `chain/EtatTraitementImpactTest` (jetons réels, RLS sous `argos_app`, contrat OpenAPI), `chain/CorrelationTest` (COR-11-S1 à S5) et `argos-ui/tests/traitement-impact.test.mjs`.
+
+
+| COR-07 | COR-07-S1 à S3 | `2026-11-27-accelerer-requetes-chaudes` D2 | 2.1 | `CorrelationTest.cor07S1CorrelationRejoueeSansDoublon`, `cor07S3NouvelleVersionDeLAvis` |
+| COR-13 | COR-13-S1, S2 | `2026-11-27-accelerer-requetes-chaudes` D3, DC-1 | 2.2, 2.3 | `RequetesConstantesTest.cor13S1CorrelationEnNombreFixeDInstructions` ; tests de corrélation existants (`CorrelationTest`, `EtatTraitementImpactTest`, `JeuReferenceCorrelationTest`, `RecorrelationImportTest`) |

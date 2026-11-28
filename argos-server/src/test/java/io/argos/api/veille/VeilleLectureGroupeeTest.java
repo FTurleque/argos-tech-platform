@@ -201,11 +201,11 @@ class VeilleLectureGroupeeTest {
         List<Attendu> attendus = attendus();
         assertEquals(AVIS, attendus.size(), "jeu de données : un avis par signal impactant l'espace");
 
-        assertEquals(attendus.stream().map(Attendu::identifiant).toList(), veille.getList("elements.identifiant"),
+        assertEquals(attendus.stream().map(Attendu::identifiant).toList(), veille.getList("items.identifiant"),
                 "mêmes avis, du plus récent au plus ancien ; l'avis sans impact dans l'espace est absent");
         for (int position = 0; position < attendus.size(); position++) {
             Attendu attendu = attendus.get(position);
-            String element = "elements[" + position + "].";
+            String element = "items[" + position + "].";
             assertEquals("AVIS_SECURITE", veille.getString(element + "type"));
             assertEquals("OSV", veille.getString(element + "source"));
             assertEquals(attendu.gravite(), veille.getString(element + "gravite"), attendu.identifiant());
@@ -227,7 +227,7 @@ class VeilleLectureGroupeeTest {
         }
         assertFalse(veille.prettify().contains(id("lg-projet-etranger").toString()), "aucun projet d'un autre espace");
         assertEquals(List.of("p1", "p2"),
-                veille.getList("elements.find { it.identifiant == 'GHSA-LG-2' }.projets.projet", String.class).stream()
+                veille.getList("items.find { it.identifiant == 'GHSA-LG-2' }.projets.projet", String.class).stream()
                         .map(nom -> nom.substring("Projet ".length())).sorted().toList(),
                 "l'impact écarté de l'avis 2 sur p3 n'est pas restitué");
     }

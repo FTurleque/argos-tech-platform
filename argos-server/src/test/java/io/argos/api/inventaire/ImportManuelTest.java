@@ -81,7 +81,7 @@ class ImportManuelTest {
                 .then().statusCode(200).body("status", equalTo("REJECTED")).body("reason", not(emptyString()));
 
         Api.enTantQue("hugo").when().get(chemin("/components")).then().statusCode(200).body("total", equalTo(1));
-        Api.enTantQue("hugo").when().get(chemin("/failures")).then().statusCode(200).body("$", hasSize(1));
+        Api.enTantQue("hugo").when().get(chemin("/failures")).then().statusCode(200).body("items", hasSize(1));
     }
 
     @Test

@@ -1,3 +1,10 @@
+---
+id: ADR-0024
+title: "Décrire chaque profil de veille comme un pack déclaratif, cumulable par utilisateur"
+domain: architecture
+rules: false
+---
+
 # ADR-0024 — Décrire chaque profil de veille comme un pack déclaratif, cumulable par utilisateur
 
 - **Statut** : Accepté
@@ -60,7 +67,7 @@ Argos est désormais un produit ouvert à tous les publics, porté à titre pers
 
 ## Décision
 
-Option A, **proposée**.
+**Option A retenue.**
 
 1. Un **profil de veille** est un pack déclaratif enregistré dans le module `catalog`. Le catalogue liste les profils disponibles.
 2. Un utilisateur active **au moins un** profil, et peut en cumuler plusieurs. Ses profils actifs sont une préférence gérée par le module `workspace`. Une équipe peut proposer des profils par défaut à ses membres.

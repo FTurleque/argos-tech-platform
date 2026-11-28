@@ -4,8 +4,7 @@
 |---|---|
 | Préfixe d'exigences | `PIN` |
 | Spec de référence | [`/openspec/specs/activite-projets/spec.md`](/openspec/specs/activite-projets/spec.md) |
-| Changements archivés | [`2026-11-17-mesurer-activite-projets`](/openspec/changes/archive/2026-11-17-mesurer-activite-projets/proposal.md) |
-| Changement en cours | [`alimenter-inventaire-et-completer-ihm`](/openspec/changes/alimenter-inventaire-et-completer-ihm/proposal.md) (PIN-06) — implémenté, non archivé |
+| Changements archivés | [`2026-11-17-mesurer-activite-projets`](/openspec/changes/archive/2026-11-17-mesurer-activite-projets/proposal.md) ; [`2026-11-26-alimenter-inventaire-et-completer-ihm`](/openspec/changes/archive/2026-11-26-alimenter-inventaire-et-completer-ihm/proposal.md) (PIN-06) |
 | Statut de la capacité | livrée ; section « Activité » de la vue d'inventaire d'`argos-ui` ; aucun adaptateur de la synthèse vers la passerelle IA |
 | Composants (arc42 §5) | `project-intel`, `scm-connector`, `ai-gateway`, `API & Security`, IHM `argos-ui` |
 
@@ -42,13 +41,13 @@ Exclus :
 
 ## Préconditions et déclencheurs
 
-Projet relié à un dépôt GitHub (`owner/repo`) ou GitLab (chemin ou identifiant). Jeton facultatif par forge (`ARGOS_GITHUB_TOKEN`, `ARGOS_GITLAB_TOKEN`), en lecture seule : GitLab `read_api`, GitHub jeton à granularité fine en lecture seule [PROPOSITION]. La collecte est déclenchée par le planificateur (`argos.activite.cadence`, 1 h) pour chaque projet dont la collecte est échue (une fois par 24 h) [PROPOSITION]. Un contributeur ou un administrateur de l'espace du projet déclenche aussi la collecte immédiate d'un projet, quelle que soit son échéance (PIN-06 du changement [`alimenter-inventaire-et-completer-ihm`](/openspec/changes/alimenter-inventaire-et-completer-ihm/proposal.md), [PROPOSITION]).
+Projet relié à un dépôt GitHub (`owner/repo`) ou GitLab (chemin ou identifiant). Jeton facultatif par forge (`ARGOS_GITHUB_TOKEN`, `ARGOS_GITLAB_TOKEN`), en lecture seule : GitLab `read_api`, GitHub jeton à granularité fine en lecture seule [PROPOSITION]. La collecte est déclenchée par le planificateur (`argos.activite.cadence`, 1 h) pour chaque projet dont la collecte est échue (une fois par 24 h) [PROPOSITION]. Un contributeur ou un administrateur de l'espace du projet déclenche aussi la collecte immédiate d'un projet, quelle que soit son échéance (PIN-06 du changement [`alimenter-inventaire-et-completer-ihm`](/openspec/changes/archive/2026-11-26-alimenter-inventaire-et-completer-ihm/proposal.md), [PROPOSITION]).
 
 ## Entrées, sorties et validations
 
 | Entrée / sortie | Contenu | Validation ou contrainte | Statut |
 |---|---|---|---|
-| Activité du dépôt | dates de création, de fermeture, de fusion et de publication ; issue des pipelines ; jalons (titre, état, échéance, tickets fermés et total) | lue dans des structures sans champ d'identité ; titres de jalons nettoyés des caractères de contrôle et tronqués à 200 caractères ; réponses de 5 Mio au plus, 10 pages de 100 éléments par liste et 50 jalons au plus (collecte marquée incomplète au-delà) | [EXISTANT] — `AgregationEtIdentiteTest`, `ActiviteProjetsTest.contratGitlab` |
+| Activité du dépôt | dates de création, de fermeture, de fusion et de publication ; issue des pipelines ; jalons (titre, état, échéance, tickets fermés et total) | lue dans des structures sans champ d'identité ; titres de jalons nettoyés des caractères de contrôle et tronqués à 200 caractères ; réponses de 5 Mio au plus, 10 pages de 100 éléments par liste et 50 jalons au plus (collecte marquée incomplète au-delà) | [EXISTANT] — `AgregationEtIdentiteTest`, `scm/RepositoryActivityTest#contratGitlab` |
 | Compteurs | somme des compteurs quotidiens sur la période demandée | `jours` de 1 à 397, 30 par défaut ; sinon 400 `PERIODE_INVALIDE` | [EXISTANT] — `ActiviteProjetsTest.pin01S1ProjetReliéGithubIndicateursSur30Jours` |
 | Avancement d'un jalon | « 27 sur 30 (90 %) » | dénominateur strictement positif ; pourcentage arrondi à l'entier inférieur [PROPOSITION] | [EXISTANT] — `AvancementTest` |
 | Fraîcheur | état de la collecte, date de dernière mise à jour, prochaine collecte, complétude, premier jour couvert, motif | motif sans jeton | [EXISTANT] — `ActiviteProjetsTest.pin05S1QuotaEpuiseCollecteReporteeEtAgeAffiche` |
@@ -64,7 +63,7 @@ Projet relié à un dépôt GitHub (`owner/repo`) ou GitLab (chemin ou identifia
 | Aucune mesure individuelle : agrégation par jour avant stockage, aucune colonne ni aucun champ d'identité | PIN-03 | risque R-09 ; décision D1 | [EXISTANT] — `ActiviteProjetsTest.pin03S1AucunIndicateurParPersonne`, `AgregationEtIdentiteTest.pin03S1AucuneIdentiteDansLesStructuresDeLActivite` |
 | Synthèse marquée « produite par l'IA », renvoyant aux indicateurs | PIN-04 | IAG-05 | [EXISTANT] — avec une synthèse simulée ; aucune implémentation réelle |
 | Lecture seule (`GET` uniquement, aucune redirection suivie) ; quota épuisé : collecte reportée après la réinitialisation annoncée, âge des données affiché | PIN-05 | risque R-14 | [EXISTANT] — `ActiviteProjetsTest.pin05S1QuotaEpuiseCollecteReporteeEtAgeAffiche`, `contratGithubLectureSeuleSansRedirectionNiJeton` |
-| Collecte immédiate de l'activité d'un projet par un contributeur ou un administrateur de son espace, par l'API et l'IHM, avec les règles de lecture seule et de quotas de la collecte planifiée ; lecteur : 403, non-membre : 404, refus journalisés | PIN-06 | AUD-QUA-17 ; PIN-05 | [PROPOSITION] — [`alimenter-inventaire-et-completer-ihm`](/openspec/changes/alimenter-inventaire-et-completer-ihm/proposal.md) ; `CollecteImmediateTest` |
+| Collecte immédiate de l'activité d'un projet par un contributeur ou un administrateur de son espace, par l'API et l'IHM, avec les règles de lecture seule et de quotas de la collecte planifiée ; lecteur : 403, non-membre : 404, refus journalisés | PIN-06 | AUD-QUA-17 ; PIN-05 | [PROPOSITION] — [`alimenter-inventaire-et-completer-ihm`](/openspec/changes/archive/2026-11-26-alimenter-inventaire-et-completer-ihm/proposal.md) ; `CollecteImmediateTest` |
 | Historique conservé 13 mois puis supprimé chaque jour | — | décision du 2026-11-16 (Q-2) | [EXISTANT] — `ActiviteProjetsTest.purgeDeLHistoriqueAuDelaDeTreizeMois` |
 
 Un quota épuisé est reconnu à une réponse 429, ou 403 avec `x-ratelimit-remaining: 0` ; la reprise vient de `Retry-After`, de `x-ratelimit-reset` (GitHub) ou de `RateLimit-Reset` (GitLab), bornée à 24 heures, 1 heure par défaut. Les projets suivants de la même forge sont reportés à la même date sans appel [PROPOSITION].
@@ -103,7 +102,7 @@ Un pourcentage n'apparaît qu'avec son dénominateur, et jamais pour une personn
 
 ## Critères d'acceptation
 
-Scénarios PIN-01-S1 à PIN-05-S1 du changement ; parcours de bout en bout `ParcoursActiviteTest`. Scénarios PIN-06-S1 à PIN-06-S3 du changement [`alimenter-inventaire-et-completer-ihm`](/openspec/changes/alimenter-inventaire-et-completer-ihm/specs/activite-projets/spec.md) [PROPOSITION].
+Scénarios PIN-01-S1 à PIN-05-S1 du changement ; parcours de bout en bout `ParcoursActiviteTest`. Scénarios PIN-06-S1 à PIN-06-S3 du changement [`alimenter-inventaire-et-completer-ihm`](/openspec/changes/archive/2026-11-26-alimenter-inventaire-et-completer-ihm/specs/activite-projets/spec.md) [PROPOSITION].
 
 ## Interprétations introduites par un changement
 

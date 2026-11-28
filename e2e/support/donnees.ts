@@ -235,7 +235,16 @@ export interface ElementVeille {
   mentionValidation: string | null
 }
 
-export async function veilleDe(utilisateur: string): Promise<{ profilsActifs: string[]; elements: ElementVeille[] }> {
+/** Page de `GET /api/v1/me/veille` (PRF-09) : les jeux des parcours tiennent dans la première page. */
+export interface PageVeille {
+  profilsActifs: string[]
+  items: ElementVeille[]
+  page: number
+  size: number
+  total: number
+}
+
+export async function veilleDe(utilisateur: string): Promise<PageVeille> {
   return api(utilisateur, '/api/v1/me/veille')
 }
 
@@ -425,10 +434,18 @@ export interface ImpactChaine {
   level: string
 }
 
-/** Impacts du projet de la chaîne aux états donnés (GET /api/v1/projects/{id}/impacts, COR-12-S2). */
+/** Taille de page demandée pour les impacts de la chaîne : la plus grande des listes de l'API (ADR-0040). */
+const TAILLE_PAGE_IMPACTS = 200
+
+/**
+ * Impacts du projet de la chaîne aux états donnés (GET /api/v1/projects/{id}/impacts, COR-12-S2), lus dans une page
+ * de {@link TAILLE_PAGE_IMPACTS} : le jeu de la chaîne tient dans la première page (PERF-03).
+ */
 export async function impactsChaine(etats: string[] = []): Promise<ImpactChaine[]> {
-  const requete = etats.map((etat) => `etat=${encodeURIComponent(etat)}`).join('&')
-  return api<ImpactChaine[]>(COMPTE_CHAINE, `/api/v1/projects/${CHAINE.projet}/impacts${requete ? `?${requete}` : ''}`)
+  const parametres = new URLSearchParams(etats.map((etat) => ['etat', etat]))
+  parametres.set('size', String(TAILLE_PAGE_IMPACTS))
+  const page = await api<{ items: ImpactChaine[] }>(COMPTE_CHAINE, `/api/v1/projects/${CHAINE.projet}/impacts?${parametres}`)
+  return page.items
 }
 
 /** Alertes DESKTOP de gina : identifiant, état et identifiants externes des signaux cités. */

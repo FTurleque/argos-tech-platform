@@ -22,6 +22,11 @@ import jakarta.transaction.Transactional;
 
 import org.eclipse.microprofile.config.inject.ConfigProperty;
 
+import io.argos.commun.Conversions;
+import io.argos.commun.Jdbc;
+import io.argos.commun.Page;
+import io.argos.commun.Pagination;
+
 /**
  * Persistance de l'état de collecte : curseurs, traitements de synchronisation, tentatives,
  * état des sources, zone d'échec et événements d'exploitation (COL-05 à COL-08, DC-3).
@@ -47,6 +52,9 @@ public class SyncStore {
 
     @Inject
     DataSource dataSource;
+
+    @Inject
+    Jdbc jdbc;
 
     /** Durée sans activité après laquelle un traitement {@code RUNNING} est considéré comme interrompu. */
     @ConfigProperty(name = "argos.ingestion.running-expiry", defaultValue = "PT30M")
@@ -232,43 +240,31 @@ public class SyncStore {
         return states;
     }
 
+    /** Page des avis mis à l'écart d'une source, du plus récent au plus ancien (COL-08, ADR-0040). */
     @Transactional
-    public List<Failure> failures(String sourceId) {
-        List<Failure> failures = new ArrayList<>();
-        String sql = """
+    public Page<Failure> failures(String sourceId, Pagination pagination) {
+        long total = jdbc.unique("SELECT count(*) FROM ingestion_failure WHERE source_id = ?", Jdbc.parametres(sourceId),
+                resultat -> resultat.getLong(1)).orElse(0L);
+        List<Failure> failures = jdbc.lister("""
                 SELECT id, source_id, external_id, reason, received_at FROM ingestion_failure
-                WHERE source_id = ? ORDER BY received_at
-                """;
-        try (Connection connection = dataSource.getConnection(); PreparedStatement statement = connection.prepareStatement(sql)) {
-            statement.setString(1, sourceId);
-            try (ResultSet resultSet = statement.executeQuery()) {
-                while (resultSet.next()) {
-                    failures.add(new Failure(resultSet.getObject(1, UUID.class), resultSet.getString(2), resultSet.getString(3),
-                            resultSet.getString(4), instant(resultSet, 5)));
-                }
-            }
-        } catch (SQLException error) {
-            throw new IllegalStateException("lecture de la zone d'échec impossible", error);
-        }
-        return failures;
+                WHERE source_id = ? ORDER BY received_at DESC, id DESC LIMIT ? OFFSET ?
+                """, Jdbc.parametres(sourceId, pagination.taille(), pagination.decalage()),
+                resultat -> new Failure(resultat.getObject(1, UUID.class), resultat.getString(2), resultat.getString(3),
+                        resultat.getString(4), Conversions.instant(resultat, 5)));
+        return Page.depuis(failures, pagination, total);
     }
 
+    /** Page des événements d'exploitation d'une source, du plus récent au plus ancien (COL-07, ADR-0040). */
     @Transactional
-    public List<OpsEvent> events(String sourceId) {
-        List<OpsEvent> events = new ArrayList<>();
-        String sql = "SELECT id, kind, source_id, detail, occurred_at FROM ops_event WHERE source_id = ? ORDER BY occurred_at";
-        try (Connection connection = dataSource.getConnection(); PreparedStatement statement = connection.prepareStatement(sql)) {
-            statement.setString(1, sourceId);
-            try (ResultSet resultSet = statement.executeQuery()) {
-                while (resultSet.next()) {
-                    events.add(new OpsEvent(resultSet.getObject(1, UUID.class), resultSet.getString(2), resultSet.getString(3),
-                            resultSet.getString(4), instant(resultSet, 5)));
-                }
-            }
-        } catch (SQLException error) {
-            throw new IllegalStateException("lecture des événements d'exploitation impossible", error);
-        }
-        return events;
+    public Page<OpsEvent> events(String sourceId, Pagination pagination) {
+        long total = jdbc.unique("SELECT count(*) FROM ops_event WHERE source_id = ?", Jdbc.parametres(sourceId),
+                resultat -> resultat.getLong(1)).orElse(0L);
+        List<OpsEvent> events = jdbc.lister("SELECT id, kind, source_id, detail, occurred_at FROM ops_event WHERE source_id = ?"
+                + " ORDER BY occurred_at DESC, id DESC LIMIT ? OFFSET ?",
+                Jdbc.parametres(sourceId, pagination.taille(), pagination.decalage()),
+                resultat -> new OpsEvent(resultat.getObject(1, UUID.class), resultat.getString(2), resultat.getString(3),
+                        resultat.getString(4), Conversions.instant(resultat, 5)));
+        return Page.depuis(events, pagination, total);
     }
 
     private void event(String kind, String sourceId, String detail) {

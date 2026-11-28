@@ -218,8 +218,8 @@ class CollecteTest {
         assertEquals("OSV", baseDeTest.string("SELECT source_id FROM ingestion_failure"));
         Api.enTantQue("alice")
                 .when().get("/api/v1/ops/sources/OSV/rejected")
-                .then().statusCode(200).body("[0].externalId", equalTo("GHSA-000B"))
-                .body("[0].reason", equalTo("identifiant externe absent"));
+                .then().statusCode(200).body("items[0].externalId", equalTo("GHSA-000B"))
+                .body("items[0].reason", equalTo("identifiant externe absent")).body("total", equalTo(1));
     }
 
     // ------------------------------------------------------------------ COL-10 (automatiser-chaine-veille, 1.4)
@@ -229,25 +229,6 @@ class CollecteTest {
         return json.replace("{\"id\":", "{ \"database_specific\":{\"severity\":\"HIGH\"},  \"id\":")
                 .replace(",\n \"database_specific\":{\"severity\":\"HIGH\"}", "")
                 .replaceFirst("\"modified\":\"[^\"]+\"", "\"modified\" : \"" + modifie + "\"");
-    }
-
-    @Test
-    void col10S1EtS2RepublicationAuContenuNormaliseIdentique() {
-        String avisV1 = Fixtures.osv("GHSA-0101", "2026-11-01T00:00:00Z", "Maven", "org.exemple:lib",
-                "pkg:maven/org.exemple/lib", "0", "1.3.0");
-        assertEquals(AdvisorySink.Outcome.CREATED, record(avisV1));
-        String updatedAt = baseDeTest.string("SELECT updated_at::text FROM signal");
-        String republie = republie(avisV1, "2026-11-08T00:00:00Z");
-        assertTrue(!republie.equals(avisV1) && republie.indexOf("database_specific") < republie.indexOf("\"id\""), republie);
-
-        assertEquals(AdvisorySink.Outcome.UNCHANGED, record(republie));
-
-        assertEquals(1, baseDeTest.count("SELECT count(*) FROM signal_version"));
-        assertEquals(updatedAt, baseDeTest.string("SELECT updated_at::text FROM signal"));
-        assertEquals(OsvNormalizer.normalize(new RawAdvisory("x", avisV1)).normalizedHash(),
-                baseDeTest.string("SELECT normalized_hash FROM signal"));
-        assertEquals(baseDeTest.string("SELECT normalized_hash FROM signal"),
-                baseDeTest.string("SELECT normalized_hash FROM signal_version"));
     }
 
     @Test

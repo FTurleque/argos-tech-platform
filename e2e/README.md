@@ -16,14 +16,27 @@ npm --prefix e2e run typecheck                 # vérification de types seule (t
 `npm --prefix e2e test` vérifie d'abord les types (`npm run typecheck`, voir « Vérification de types »), puis exécute `scripts/lancer.mjs` :
 
 1. démarre la base PostgreSQL de `compose.yaml` (port 55432, données en mémoire) ;
-2. lance `playwright test`, qui démarre ou réutilise :
+2. lance `playwright test`, qui démarre :
+   - les sources et forges simulées par `node support/sources-simulees.mjs` sur le port 8099 (`ARGOS_E2E_PORT_SOURCES`) ;
    - le serveur par `mvn quarkus:dev` sur le port 8090, base de test, Keycloak des Dev Services sur le port 8180 avec le royaume de test `argos-server/src/test/resources/keycloak/argos-realm.json` ;
    - le portail web par Vite sur le port 5173, `VITE_ARGOS_API_URL=http://localhost:8090` ;
-   - les sources et forges simulées par `node support/sources-simulees.mjs` sur le port 8099 (`ARGOS_E2E_PORT_SOURCES`) ;
    puis exécute les projets `preparation` (données), `portail-web` (parcours du portail), `construction-desktop` et `desktop` (parcours Electron), et `mcp` (client MCP du protocole, voir « Serveur MCP ») ;
 3. arrête et efface la base à la fin. `ARGOS_E2E_GARDER_BASE=1` la conserve pour examen.
 
 Un seul projet : `npm --prefix e2e test -- --project=desktop` (ses dépendances `preparation` et `construction-desktop` s’exécutent aussi).
+
+Un port de la pile déjà occupé fait échouer le lancement : Playwright ne teste jamais à son insu un serveur ou un Vite lancé par ailleurs. `ARGOS_E2E_REUTILISER=1` réutilise le serveur et le Vite qui tournent déjà, pour une mise au point (`support/pile.mjs`).
+
+### Sur l’image construite
+
+`ARGOS_E2E_IMAGE=<étiquette>` rejoue la campagne contre l’image du `Dockerfile` au lieu de `quarkus:dev` et de Vite ; c’est ainsi que l’intégration continue l’exécute (job « E2E et accessibilité sur l’image construite ») :
+
+```bash
+docker build -t argos:e2e .
+ARGOS_E2E_IMAGE=argos:e2e npm --prefix e2e test
+```
+
+`scripts/lancer.mjs` démarre alors, avec la base, un Keycloak de test (image `quay.io/keycloak/keycloak`, royaume des tests du serveur, port 8180) décrit par `compose.image.yaml` ; Playwright démarre ensuite l’image, en profil de production, après les sources simulées. Le serveur sert le portail web et l’API sur le port 8090 ; les tâches planifiées sont celles du mode `quarkus:dev` (collectes externes désactivées, chaîne sur les sources simulées). L’image partage le réseau de l’hôte pour joindre la base, Keycloak et les sources simulées sous les adresses que voient le navigateur et le client desktop : ce mode demande Docker sous Linux. Le client desktop s’y exécute sur un bureau virtuel : écran `xvfb`, gestionnaire de fenêtres `fluxbox`, qui tient l’état EWMH lu par Electron (réduction et masquage de la fenêtre) et serveur de notifications `dunst`, dans une session D-Bus (`xvfb-run -a dbus-run-session -- sh -c 'fluxbox & dunst & npm --prefix e2e test'`).
 
 Docker est appelé par un chemin absolu, pris parmi ses emplacements d’installation habituels (`e2e/support/docker.mjs`) : le `PATH` n’est pas consulté. `ARGOS_E2E_DOCKER` indique un autre emplacement.
 
@@ -74,6 +87,10 @@ Le parcours le programme par `PUT /__etat` (avis publiés et SBOM servies par ch
 Le projet `mcp` rejoue au niveau du protocole ce que fait un assistant comme Claude Code configuré par un `.mcp.json`, sans aucun modèle d'IA ni appel à un fournisseur : `support/mcp.ts` lit le fichier, développe `${VAR}` et `${VAR:-défaut}` (le jeton vient de `ARGOS_MCP_TOKEN`, l'adresse par défaut `http://localhost:8090/mcp`, remplacée par `ARGOS_E2E_URL_API` si la pile est déplacée), obtient le jeton par le flux d'appareil (RFC 8628) et envoie les requêtes JSON-RPC sur `POST /mcp` avec `fetch` (en-têtes `MCP-Protocol-Version`, `Mcp-Method`, `Mcp-Name`, champs `_meta`, réponse JSON ou `text/event-stream`). Le navigateur ne sert qu'à l'approbation du code d'appareil sur la page de Keycloak, sous la garde réseau des parcours. Les réponses de la découverte, d'`initialize` et de `check_dependency` sont gardées dans le dossier de sortie du test (`test-results/`) ; celles d'une exécution de référence sont consignées dans `resultats/mcp/`. L'identifiant de session et l'identifiant d'espace, propres à chaque exécution, y sont remplacés par `<session>` et `<espace>`.
 
 Ce que le parcours ne couvre pas : le raisonnement et la réponse rédigée d'un assistant réel. Procédure manuelle avec Claude Code : fiche [`serveur-mcp`](../docs/specifications/serveur-mcp.md#procédure-manuelle-avec-claude-code).
+
+## Audit d'accessibilité des écrans
+
+`tests/accessibilite-ecrans.spec.ts` (projet `portail-web`) audite, sur la pile réelle et le jeu de données des parcours, les écrans de gestion : la vue d’inventaire (`alice`), les actions de « Mes abonnements » avec la confirmation de suppression (`jules`) et le traitement des impacts d’un avis, détail, actions et formulaire de transition compris (`ines`). Pour chaque zone (`support/audit-accessibilite.ts`) : contraste de chaque texte rendu (RGAA 3.2), parcours au clavier de chaque élément focalisable dans l’ordre du document avec un contour de focus visible, épais d’au moins 2 px et contrasté (RGAA 3.3, 10.7, 12.8), nom accessible de chaque bouton, lecture à 320 px sans défilement horizontal (RGAA 10.11). Les actions sont ouvertes puis annulées : aucune donnée n’est modifiée.
 
 ## Audit d'accessibilité des mises en page
 

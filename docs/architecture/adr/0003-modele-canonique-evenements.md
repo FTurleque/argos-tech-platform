@@ -1,3 +1,10 @@
+---
+id: ADR-0003
+title: "Introduire un modèle canonique d’événements"
+domain: architecture
+rules: false
+---
+
 # ADR-0003 — Introduire un modèle canonique d’événements
 
 - **Statut** : Accepté

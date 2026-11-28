@@ -49,6 +49,9 @@ const OPPORTUNITES = {
   suivisRequis: false,
   message: null,
   items: [opportunite(AUTRE_ID, 'Concours de composition'), opportunite(OPPORTUNITE_ID, 'Résidence d’écriture')],
+  page: 0,
+  size: 50,
+  total: 2,
 }
 
 function lectures(suivis: unknown, opportunites: unknown): TableApi {
@@ -60,7 +63,7 @@ function lectures(suivis: unknown, opportunites: unknown): TableApi {
   }
 }
 
-const SUIVIS_REQUIS = { suivisRequis: true, message: MESSAGE_SUIVIS, items: [] }
+const SUIVIS_REQUIS = { suivisRequis: true, message: MESSAGE_SUIVIS, items: [], page: 0, size: 50, total: 0 }
 const SUIVIS_COMPLETS = { ...SANS_SUIVI, disciplines: ['musique'], territoires: ['bretagne'], complets: true }
 const ADMIN_PLATEFORME = { id: 'moi', nomAffiche: null, email: null, adminPlateforme: true, creeLe: '2026-01-01T00:00:00Z' }
 
@@ -141,6 +144,20 @@ describe('ProfilArtisteView : suivis', () => {
     const { wrapper } = await monter('/profils/artiste')
     expect(texte(wrapper, '[data-erreur="suivis"]')).toContain('Activez le profil artiste pour choisir vos suivis.')
     expect(texte(wrapper, '[data-erreur="opportunites"]')).toBe('Activez le profil artiste.')
+  })
+})
+
+describe('ProfilArtisteView : opportunités paginées', () => {
+  test('signale une première page partielle avec le total des opportunités ouvertes', async () => {
+    simulerApi(lectures(SUIVIS_COMPLETS, { ...OPPORTUNITES, total: 120 }))
+    const { wrapper } = await monter('/profils/artiste')
+    expect(texte(wrapper, '[data-page-partielle]')).toContain('2 opportunités affichées sur 120')
+  })
+
+  test('sans page partielle, aucune mention du total', async () => {
+    simulerApi(lectures(SUIVIS_COMPLETS, OPPORTUNITES))
+    const { wrapper } = await monter('/profils/artiste')
+    expect(wrapper.find('[data-page-partielle]').exists()).toBe(false)
   })
 })
 

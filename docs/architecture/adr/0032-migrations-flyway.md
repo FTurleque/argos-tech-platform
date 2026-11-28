@@ -1,3 +1,10 @@
+---
+id: ADR-0032
+title: "Versionner le schéma PostgreSQL par des migrations SQL Flyway appliquées au démarrage"
+domain: architecture
+rules: false
+---
+
 # ADR-0032 — Versionner le schéma PostgreSQL par des migrations SQL Flyway appliquées au démarrage
 
 - **Statut** : Accepté
@@ -50,7 +57,7 @@
 
 ## Décision
 
-Proposition : **option A**. Le schéma est versionné par des migrations SQL Flyway, dans `argos-server/src/main/resources/db/migration/`, appliquées au démarrage du serveur :
+**Option A retenue.** Le schéma est versionné par des migrations SQL Flyway, dans `argos-server/src/main/resources/db/migration/`, appliquées au démarrage du serveur :
 
 - un fichier `V<n>__<sujet>.sql` par évolution, jamais modifié après sa fusion ; une correction passe par une nouvelle migration ;
 - un numéro attribué à chaque changement avant son développement ;

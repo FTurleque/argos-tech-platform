@@ -1,3 +1,10 @@
+---
+id: ADR-0031
+title: "Planifier les traitements périodiques avec quarkus-scheduler dans le serveur"
+domain: architecture
+rules: false
+---
+
 # ADR-0031 — Planifier les traitements périodiques avec quarkus-scheduler dans le serveur
 
 - **Statut** : Accepté
@@ -63,7 +70,7 @@
 
 ## Décision
 
-Proposition : **option A**. Les traitements périodiques s'exécutent dans le serveur par `quarkus-scheduler` ; chaque tâche :
+**Option A retenue.** Les traitements périodiques s'exécutent dans le serveur par `quarkus-scheduler` ; chaque tâche :
 
 - porte une identité stable et une cadence ou une expression `cron` lue dans la configuration ;
 - déclare `concurrentExecution = SKIP` ;
