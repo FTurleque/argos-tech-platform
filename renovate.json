@@ -53,6 +53,11 @@
       "enabled": false
     },
     {
+      "description": "Quarkus reste sur la 3.40 LTS (support jusqu'au 30/09/2027) : Quarkus 4 exige Java 21, la stack retient Java 17 (ADR-0019).",
+      "matchPackageNames": ["/^io\\.quarkus\\.platform:/", "/^io\\.quarkus:/"],
+      "allowedVersions": "<4.0.0"
+    },
+    {
       "description": "@types/node décrit les API de la version de Node.js exécutée (22, workflow et image) : sa majeure la suit.",
       "matchPackageNames": ["@types/node"],
       "allowedVersions": "<23.0.0"
