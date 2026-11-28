@@ -12,6 +12,11 @@ RUN npm ci --no-audit --no-fund
 COPY argos-ui/ ./
 ENV VITE_ARGOS_API_URL=
 RUN npm run build
+# Licences des dépendances npm livrées (AUD-DEP-19, ADR-0021 points 4 et 6) : le build échoue sur une licence non
+# admise ; l'avis (vue, vue-router, polices… avec leurs textes) rejoint /opt/argos/licenses.
+COPY scripts/verifier-licences-npm.mjs ../scripts/
+COPY argos-server/licenses ../argos-server/licenses
+RUN node ../scripts/verifier-licences-npm.mjs --paquet . --sortie /src/THIRD-PARTY-npm.txt
 
 # 2. Serveur : l'IHM est copiée dans les ressources statiques de Quarkus.
 #    Les tests demandent Docker (base jetable) : ils se lancent hors de l'image avec « mvn verify ».
@@ -40,14 +45,16 @@ RUN mvn -B package -DskipTests
 #    Le code de l'application (quarkus-app) et /opt/argos/licenses appartiennent à root : l'utilisateur
 #    d'exécution les lit sans pouvoir les modifier (EXP-12). /opt/argos/licenses : avis NOTICE du serveur,
 #    liste générée des dépendances tierces, de leurs licences, des titulaires des droits et des adresses du
-#    code source EPL-2.0 (THIRD-PARTY.txt), et textes des licences retenues (Apache-2.0, MIT, MIT-0,
-#    BSD-2-Clause, BSD-3-Clause, EPL-2.0, JDOM), dossier en 0755 et avis en 0444.
+#    code source EPL-2.0 (THIRD-PARTY.txt), textes des licences retenues (Apache-2.0, MIT, MIT-0,
+#    BSD-2-Clause, BSD-3-Clause, EPL-2.0, JDOM) et avis des dépendances npm de l'IHM avec leurs textes
+#    (THIRD-PARTY-npm.txt), dossier en 0755 et avis en 0444.
 FROM eclipse-temurin:17-jre
 WORKDIR /opt/argos
 RUN useradd --system --uid 1001 --no-create-home argos && mkdir -m 0755 licenses
 COPY --from=server /src/argos-server/target/quarkus-app/ ./
 COPY --chmod=0444 argos-server/NOTICE ./licenses/
 COPY --from=server --chmod=0444 /src/argos-server/target/THIRD-PARTY.txt /src/argos-server/target/licenses/ ./licenses/
+COPY --from=ui --chmod=0444 /src/THIRD-PARTY-npm.txt ./licenses/
 USER 1001
 EXPOSE 8080
 # Tas à 60 % du plafond mémoire du conteneur, le reste pour la pile, le métaspace et les tampons ; arrêt du

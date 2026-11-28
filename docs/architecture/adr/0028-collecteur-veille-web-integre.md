@@ -83,8 +83,8 @@ rules: false
 
 ## Traçabilité
 
-- **Exigences** : WEB-01 à WEB-06 (`openspec/changes/collecter-veille-rss-web/specs/veille-rss-web/spec.md`) ; WEB-07 ([`2026-11-25-epingler-adresse-veille-web`](/openspec/changes/archive/2026-11-25-epingler-adresse-veille-web/proposal.md))
+- **Exigences** : WEB-01 à WEB-06 ([spec principale](/openspec/specs/veille-rss-web/spec.md) ; changement [`2026-11-16-collecter-veille-rss-web`](/openspec/changes/archive/2026-11-16-collecter-veille-rss-web/proposal.md)) ; WEB-07 ([`2026-11-25-epingler-adresse-veille-web`](/openspec/changes/archive/2026-11-25-epingler-adresse-veille-web/proposal.md))
 - **Scénarios qualité** : aucun scénario du registre `docs/architecture/quality/scenarios.md` ne porte sur la SSRF ni sur le contenu externe ; risques R-11 et R-12 (`docs/architecture/risks/register.md`)
-- **Diagrammes** : DC-1 (`openspec/changes/collecter-veille-rss-web/design.md`), DF-WEB-1 (`docs/specifications/veille-rss-web.md`)
+- **Diagrammes** : DC-1 ([`design.md`](/openspec/changes/archive/2026-11-16-collecter-veille-rss-web/design.md) du changement archivé), DF-WEB-1 (`docs/specifications/veille-rss-web.md`)
 - **Tickets/PR** : Non déterminé
 - **Fichiers source** : `argos-server/src/main/java/io/argos/ingestion/web/`, `argos-server/src/main/java/io/argos/signal/web/`, `argos-server/src/main/resources/db/migration/V10__veille_rss_web.sql`

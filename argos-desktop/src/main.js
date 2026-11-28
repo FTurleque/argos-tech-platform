@@ -1,7 +1,7 @@
 'use strict';
 // Client desktop ARGOS (ADR-0022) : emballe l'IHM argos-ui sans y ajouter de logique métier.
 // Apports propres au desktop : icône et compteur dans la zone de notification, notifications
-// système des alertes, réglages du poste (changement notifier-sur-le-poste).
+// système des alertes, réglages du poste (changement notifier-sur-le-poste), mise à jour automatique (mise-a-jour.js).
 // Fermer la fenêtre la masque seulement, pour que les alertes continuent d'arriver ; quitter
 // l'application arrête tout : aucun service ne tourne en arrière-plan (Q-1).
 
@@ -19,6 +19,7 @@ const canaux = require('./canaux');
 const { creerConnexion } = require('./connexion');
 const { resoudreReglages } = require('./reglages-emballes');
 const { optionsFenetre, gestionnaireNavigation, gestionnaireOuverture, gestionnairePermissions } = require('./fenetre');
+const { creerMiseAJour } = require('./mise-a-jour');
 const http = require('node:http');
 
 const APP_ID = 'io.argos.desktop';
@@ -207,6 +208,19 @@ canaux.enregistrerCanaux(ipcMain, {
   vueReglages,
 });
 
+// Mise à jour par GitHub Releases (electron-updater, chargé seulement dans une application empaquetée).
+const miseAJour = creerMiseAJour({
+  estEmpaquete: app.isPackaged,
+  plateforme: process.platform,
+  env: process.env,
+  chargerMiseAJour: () => require('electron-updater').autoUpdater,
+  notifier: ({ title, body }) => {
+    if (!Notification.isSupported()) return;
+    new Notification({ title, body, icon: path.join(ASSETS, 'icon.png') }).show();
+  },
+  journal: console,
+});
+
 app.on('second-instance', showMainWindow);
 app.on('before-quit', () => { quitting = true; connexion.fermer(); });
 // La fenêtre se masque au lieu de se fermer : l'application reste dans la zone de notification.
@@ -224,4 +238,5 @@ app.whenReady().then(() => {
   createWindow();
   createTray();
   app.on('activate', showMainWindow);
+  miseAJour.demarrer();
 });

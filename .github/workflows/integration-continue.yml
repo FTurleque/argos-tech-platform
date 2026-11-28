@@ -88,6 +88,9 @@ jobs:
       - run: npm test
       - run: npm run typecheck
       - run: npm run build
+      # AUD-DEP-19 : licences des dépendances npm livrées (vue, vue-router, polices…) et textes de licence présents.
+      - name: Licences des dépendances livrées
+        run: node ../scripts/verifier-licences-npm.mjs --paquet .
       - name: npm audit
         run: npm audit --audit-level="$NPM_AUDIT_NIVEAU"
 
@@ -108,6 +111,9 @@ jobs:
           cache-dependency-path: argos-desktop/package-lock.json
       - run: npm ci --ignore-scripts
       - run: npm run check
+      # AUD-DEP-19 : licences des dépendances d'exécution du desktop (electron-updater…) et textes de licence présents.
+      - name: Licences des dépendances livrées
+        run: node ../scripts/verifier-licences-npm.mjs --paquet .
       - name: npm audit
         run: npm audit --audit-level="$NPM_AUDIT_NIVEAU"
 
@@ -124,8 +130,15 @@ jobs:
           cache-dependency-path: e2e/package-lock.json
       - name: Tests des scripts et de la campagne de performance
         run: node --test scripts/*.test.mjs "e2e/performance/*.test.mjs"
-      - name: Contrôle documentaire
-        run: node scripts/verifier-docs.mjs
+      # Rendu des diagrammes Mermaid (AUD-DOC-06) : Mermaid CLI 12.2.0 (licence MIT, outil de la CI seulement, non livré),
+      # installé sans script d'installation, avec le Google Chrome de
+      # l'image de l'exécuteur ; scripts/mermaid-puppeteer.json le lance sans bac à sable.
+      - name: Mermaid CLI
+        run: npm install -g --ignore-scripts @mermaid-js/mermaid-cli@12.2.0
+      - name: Contrôle documentaire (liens, chemins cités, rendu Mermaid, identifiants)
+        env:
+          PUPPETEER_EXECUTABLE_PATH: /usr/bin/google-chrome
+        run: node scripts/verifier-docs.mjs --rendu
       - name: Contrôle de nommage
         run: node scripts/verifier-nommage.mjs
       # AUD-QUA-18 : les seuils des méthodes sont bloquants (PMD, job serveur) ; un fichier de plus de 300 lignes est

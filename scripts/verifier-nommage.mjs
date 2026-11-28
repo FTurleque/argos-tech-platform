@@ -48,6 +48,8 @@ export const LISTE_BLANCHE = [
     raison: 'doublure de l\'API Electron : méthode on() d\'ipcRenderer et de Notification' },
   { fichier: 'argos-desktop/test/electron-principal-factice.js', nom: 'on',
     raison: 'doublure de l\'API Electron : méthode on() d\'app, de BrowserWindow, de webContents et de Tray' },
+  { fichier: 'argos-desktop/test/mise-a-jour.test.js', nom: 'on',
+    raison: 'doublure de l\'autoUpdater d\'electron-updater : méthode on()' },
   { fichier: 'argos-desktop/test/poste.test.js', nom: 'on',
     raison: 'doublure de l\'API Electron : méthode on() de Notification' },
   { fichier: 'argos-ui/tests/vues/reglages-poste.spec.ts', nom: 'vi',

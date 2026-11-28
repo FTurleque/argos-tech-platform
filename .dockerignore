@@ -1,8 +1,9 @@
-# Seuls argos-ui, argos-server et le script de contrôle des licences entrent dans l'image.
+# Seuls argos-ui, argos-server et les scripts de contrôle des licences entrent dans l'image.
 *
 !argos-ui/
 !argos-server/
 !scripts/verifier-licences-serveur.mjs
+!scripts/verifier-licences-npm.mjs
 argos-ui/node_modules/
 argos-ui/dist/
 argos-server/target/
