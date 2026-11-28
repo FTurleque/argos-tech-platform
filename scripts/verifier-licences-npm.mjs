@@ -173,9 +173,14 @@ function lireOptions(arguments_) {
   return options;
 }
 
+/** Ligne du rapport, écrite sur la sortie standard. */
+function ecrire(ligne) {
+  process.stdout.write(`${ligne}\n`);
+}
+
 /** Affiche le bilan d'un paquet (sortie standard, erreurs sur la sortie d'erreur) ; rend le nombre de refus. */
 function signalerBilan({ dossier, dependances, refusees, sansTexte }) {
-  console.log(`${dossier} : ${dependances.length} dépendances livrées.`);
+  ecrire(`${dossier} : ${dependances.length} dépendances livrées.`);
   for (const { nom, version, licence } of refusees) {
     console.error(`ERREUR ${nom} ${version} : licence non admise (${licence === undefined ? 'absente' : JSON.stringify(licence)})`);
   }
@@ -200,7 +205,7 @@ function principal(arguments_) {
   if (options.sortie && refus === 0) {
     mkdirSync(dirname(options.sortie), { recursive: true });
     writeFileSync(options.sortie, avis(bilans.flatMap((bilan) => bilan.dependances)), 'utf8');
-    console.log(`Avis écrit : ${options.sortie}`);
+    ecrire(`Avis écrit : ${options.sortie}`);
   }
   return refus === 0 ? 0 : CODE_REFUS;
 }

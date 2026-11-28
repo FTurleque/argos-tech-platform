@@ -20,8 +20,12 @@ function creerMiseAJourFactice(recherche = () => Promise.resolve(undefined)) {
 }
 
 function creerJournal() {
-  return { erreurs: [], infos: [], error(...valeurs) { this.erreurs.push(valeurs.join(' ')); },
-    info(...valeurs) { this.infos.push(valeurs.join(' ')); } };
+  return {
+    erreurs: [],
+    infos: [],
+    consignerErreur(...valeurs) { this.erreurs.push(valeurs.join(' ')); },
+    consignerInformation(...valeurs) { this.infos.push(valeurs.join(' ')); },
+  };
 }
 
 function creer({ estEmpaquete = true, plateforme = 'win32', env = {}, miseAJour = creerMiseAJourFactice() } = {}) {

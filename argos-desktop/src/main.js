@@ -218,7 +218,10 @@ const miseAJour = creerMiseAJour({
     if (!Notification.isSupported()) return;
     new Notification({ title, body, icon: path.join(ASSETS, 'icon.png') }).show();
   },
-  journal: console,
+  journal: {
+    consignerErreur: (...valeurs) => console.error(...valeurs),
+    consignerInformation: (...valeurs) => console.info(...valeurs),
+  },
 });
 
 app.on('second-instance', showMainWindow);
