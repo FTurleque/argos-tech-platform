@@ -31,7 +31,8 @@ function messageErreur(erreur) {
  * @param {Record<string, string | undefined>} dependances.env variables d'environnement
  * @param {() => any} dependances.chargerMiseAJour renvoie l'autoUpdater d'electron-updater (chargé à la demande)
  * @param {(texte: {title: string, body: string}) => void} dependances.notifier notification du poste
- * @param {{error: (...valeurs: unknown[]) => void, info: (...valeurs: unknown[]) => void}} dependances.journal
+ * @param {{consignerErreur: (...valeurs: unknown[]) => void, consignerInformation: (...valeurs: unknown[]) => void}}
+ *   dependances.journal journal du processus principal
  */
 function creerMiseAJour({ estEmpaquete, plateforme, env, chargerMiseAJour, notifier, journal }) {
   const active = estEmpaquete && PLATEFORMES_MISES_A_JOUR.has(plateforme)
@@ -46,19 +47,19 @@ function creerMiseAJour({ estEmpaquete, plateforme, env, chargerMiseAJour, notif
         miseAJour = chargerMiseAJour();
       } catch (erreur) {
         // Module absent ou incompatible : ARGOS démarre sans mise à jour automatique.
-        journal.error('Mise à jour d’ARGOS indisponible :', messageErreur(erreur));
+        journal.consignerErreur('Mise à jour d’ARGOS indisponible :', messageErreur(erreur));
         return false;
       }
       miseAJour.autoDownload = true;
       miseAJour.autoInstallOnAppQuit = true;
-      miseAJour.on('error', (erreur) => journal.error('Mise à jour d’ARGOS impossible :', messageErreur(erreur)));
+      miseAJour.on('error', (erreur) => journal.consignerErreur('Mise à jour d’ARGOS impossible :', messageErreur(erreur)));
       miseAJour.on('update-downloaded', (information) => {
-        journal.info(`Mise à jour d’ARGOS ${information.version} téléchargée.`);
+        journal.consignerInformation(`Mise à jour d’ARGOS ${information.version} téléchargée.`);
         notifier(texteVersionPrete(information.version));
       });
       // Une erreur levée dès l'appel comme une promesse rejetée est journalisée sans interrompre ARGOS.
       Promise.resolve().then(() => miseAJour.checkForUpdates()).catch((erreur) => {
-        journal.error('Recherche de mise à jour d’ARGOS impossible :', messageErreur(erreur));
+        journal.consignerErreur('Recherche de mise à jour d’ARGOS impossible :', messageErreur(erreur));
       });
       return true;
     },

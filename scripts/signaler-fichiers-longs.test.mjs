@@ -4,7 +4,7 @@ import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { test } from 'node:test';
-import { compterLignes, fichiersJava, fichiersLongs } from './signaler-fichiers-longs.mjs';
+import { compterLignes, fichiersJava, fichiersLongs, lireOptions, SEUIL_PAR_DEFAUT, SOURCES_PAR_DEFAUT } from './signaler-fichiers-longs.mjs';
 
 test('compterLignes : saut final compris ou non, texte vide', () => {
   assert.equal(compterLignes(''), 0);
@@ -28,4 +28,11 @@ test('fichiersJava : parcours récursif, fichiers .java seulement', () => {
   } finally {
     rmSync(dossier, { recursive: true, force: true });
   }
+});
+
+test('lireOptions : valeurs par défaut, options reconnues, refus nommé', () => {
+  assert.deepEqual(lireOptions([]), { options: { seuil: SEUIL_PAR_DEFAUT, racine: SOURCES_PAR_DEFAUT } });
+  assert.deepEqual(lireOptions(['--seuil', '120', '--racine', 'src']), { options: { seuil: 120, racine: 'src' } });
+  assert.deepEqual(lireOptions(['--seuil', 'beaucoup']), { refus: 'option inexploitable : --seuil beaucoup' });
+  assert.deepEqual(lireOptions(['--inconnue']), { refus: 'option inexploitable : --inconnue' });
 });

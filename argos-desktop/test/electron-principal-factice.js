@@ -118,28 +118,39 @@ function creerElectronPrincipal({ empaquetee, lireFichier }) {
 }
 
 /** Remplace temporairement les variables de réglage, les arguments et, si demandée, la plateforme du processus. */
-function preparerProcessus({ environnement, dev, dossierRessources, plateforme }) {
-  const sauvegarde = {
+function preparerProcessus(reglages) {
+  const sauvegarde = sauvegarderProcessus();
+  appliquerReglages(reglages);
+  return () => restaurerProcessus(sauvegarde);
+}
+
+/** État du processus que les réglages modifient : variables, arguments, dossier des ressources, plateforme. */
+function sauvegarderProcessus() {
+  return {
     variables: Object.fromEntries(VARIABLES_REGLAGES.map((nom) => [nom, process.env[nom]])),
     argv: process.argv,
     ressources: Object.getOwnPropertyDescriptor(process, 'resourcesPath'),
     plateforme: Object.getOwnPropertyDescriptor(process, 'platform'),
   };
+}
+
+function appliquerReglages({ environnement, dev, dossierRessources, plateforme }) {
   if (plateforme) Object.defineProperty(process, 'platform', { value: plateforme, configurable: true });
   for (const nom of VARIABLES_REGLAGES) delete process.env[nom];
   Object.assign(process.env, environnement);
   process.argv = dev ? [...process.argv, '--dev'] : process.argv.filter((argument) => argument !== '--dev');
   if (dossierRessources) Object.defineProperty(process, 'resourcesPath', { value: dossierRessources, configurable: true });
-  return () => {
-    for (const [nom, valeur] of Object.entries(sauvegarde.variables)) {
-      if (valeur === undefined) delete process.env[nom];
-      else process.env[nom] = valeur;
-    }
-    process.argv = sauvegarde.argv;
-    if (sauvegarde.ressources) Object.defineProperty(process, 'resourcesPath', sauvegarde.ressources);
-    else delete process.resourcesPath;
-    if (sauvegarde.plateforme) Object.defineProperty(process, 'platform', sauvegarde.plateforme);
-  };
+}
+
+function restaurerProcessus(sauvegarde) {
+  for (const [nom, valeur] of Object.entries(sauvegarde.variables)) {
+    if (valeur === undefined) delete process.env[nom];
+    else process.env[nom] = valeur;
+  }
+  process.argv = sauvegarde.argv;
+  if (sauvegarde.ressources) Object.defineProperty(process, 'resourcesPath', sauvegarde.ressources);
+  else delete process.resourcesPath;
+  if (sauvegarde.plateforme) Object.defineProperty(process, 'platform', sauvegarde.plateforme);
 }
 
 /** autoUpdater factice d'electron-updater : recherches et réglages inscrits dans le journal. */

@@ -38,32 +38,36 @@ export function fichiersLongs(fichiers, lire, seuil) {
     .sort((premier, second) => second.lignes - premier.lignes);
 }
 
-function lireOptions(arguments_) {
+/** Ligne du rapport, écrite sur la sortie standard que lit GitHub Actions. */
+function ecrire(ligne) {
+  process.stdout.write(`${ligne}\n`);
+}
+
+/** Options de la ligne de commande : { options } si elles sont exploitables, { refus } (message) sinon. */
+export function lireOptions(arguments_) {
   const options = { seuil: SEUIL_PAR_DEFAUT, racine: SOURCES_PAR_DEFAUT };
   for (let rang = 0; rang < arguments_.length; rang += 2) {
     const [nom, valeur] = [arguments_[rang], arguments_[rang + 1]];
     if (nom === '--seuil' && /^\d+$/.test(valeur ?? '')) options.seuil = Number(valeur);
     else if (nom === '--racine' && valeur) options.racine = valeur;
-    else throw new Error(`option inexploitable : ${nom ?? ''} ${valeur ?? ''}`.trim());
+    else return { refus: `option inexploitable : ${nom ?? ''} ${valeur ?? ''}`.trim() };
   }
-  return options;
+  return { options };
 }
 
 function principal(arguments_) {
-  let options;
-  try {
-    options = lireOptions(arguments_);
-  } catch (erreur) {
-    console.error(erreur.message);
+  const { options, refus } = lireOptions(arguments_);
+  if (refus) {
+    console.error(refus);
     return CODE_OPTION_INVALIDE;
   }
   const dossier = resolve(RACINE_DEPOT, options.racine);
   const longs = fichiersLongs(fichiersJava(dossier), (fichier) => readFileSync(fichier, 'utf8'), options.seuil);
   for (const { fichier, lignes } of longs) {
     const chemin = relative(RACINE_DEPOT, fichier).split(sep).join('/');
-    console.log(`::warning file=${chemin}::${lignes} lignes (au-delà de ${options.seuil}) : fichier à scinder`);
+    ecrire(`::warning file=${chemin}::${lignes} lignes (au-delà de ${options.seuil}) : fichier à scinder`);
   }
-  console.log(`${longs.length} fichier(s) Java de plus de ${options.seuil} lignes (signalés, non bloquants).`);
+  ecrire(`${longs.length} fichier(s) Java de plus de ${options.seuil} lignes (signalés, non bloquants).`);
   return 0;
 }
 
