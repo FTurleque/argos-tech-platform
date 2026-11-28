@@ -109,6 +109,13 @@ function fichiersSuivis() {
   return resultat.stdout.split('\0').filter((fichier) => EXTENSIONS.test(fichier) && !EXCLUS.test(fichier));
 }
 
+/** Motif d'une violation : terme étranger à la langue du concept, ou identifiant trop court. */
+function motifViolation(nom, terme) {
+  if (terme) return `« ${terme} » dans un identifiant : le projet dit « ${TERMES_IMPOSES[terme]} »`;
+  const pluriel = nom.length > 1 ? 's' : '';
+  return `identifiant de ${nom.length} lettre${pluriel} déclaré`;
+}
+
 function principal(arguments_) {
   const fichiers = arguments_.length > 0
     ? arguments_.map((fichier) => relative(RACINE, resolve(fichier)).split(sep).join('/'))
@@ -129,10 +136,7 @@ function principal(arguments_) {
     console.error(`ERREUR liste blanche : ${fichier}:${nom} ne correspond plus à aucune déclaration`);
   }
   for (const { fichier, ligne, nom, terme } of violations) {
-    const motif = terme
-      ? `« ${terme} » dans un identifiant : le projet dit « ${TERMES_IMPOSES[terme]} »`
-      : `identifiant de ${nom.length} lettre${nom.length > 1 ? 's' : ''} déclaré`;
-    console.error(`ERREUR ${fichier}:${ligne}:${nom} — ${motif}`);
+    console.error(`ERREUR ${fichier}:${ligne}:${nom} — ${motifViolation(nom, terme)}`);
   }
   console.log(`${analyses} fichiers analysés, ${violations.length} violation(s), ${LISTE_BLANCHE.length} exception(s) en liste blanche.`);
   return violations.length + inutiles.length === 0 ? 0 : 1;
