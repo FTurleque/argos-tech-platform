@@ -21,6 +21,8 @@ import java.util.UUID;
 
 import javax.sql.DataSource;
 
+import com.fasterxml.jackson.annotation.JsonProperty;
+
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.inject.Inject;
 import jakarta.transaction.Transactional;
@@ -95,7 +97,8 @@ public class InventoryQueries {
     }
 
     /** Projet listé pour un compte : identifiant, espace (identifiant et nom) et nom du projet. */
-    public record ProjectItem(UUID id, UUID workspaceId, String workspaceName, String name) {
+    public record ProjectItem(UUID id, @JsonProperty("workspaceId") UUID espaceId,
+            @JsonProperty("workspaceName") String nomEspace, String name) {
     }
 
     /** Page des projets lisibles par un compte (arc42 §8.10). {@code total} : nombre de projets lisibles. */
@@ -129,7 +132,7 @@ public class InventoryQueries {
     }
 
     /** Composant candidat à la corrélation, avec le projet, l'espace et l'inventaire d'origine. */
-    public record ComponentMatch(UUID componentId, UUID projectId, UUID workspaceId, String packageKey, String purl,
+    public record ComponentMatch(UUID componentId, UUID projectId, UUID espaceId, String packageKey, String purl,
             String version, Boolean transitive, String inventoryOrigin, Instant inventoryDate, boolean inventoryObsolete) {
     }
 
@@ -376,7 +379,7 @@ public class InventoryQueries {
      */
     @Transactional
     public List<ComponentMatch> componentsMatching(Collection<String> packageKeys, Optional<UUID> projectId,
-            Optional<UUID> workspaceId) {
+            Optional<UUID> espaceId) {
         if (packageKeys.isEmpty()) {
             return new ArrayList<>();
         }
@@ -395,8 +398,8 @@ public class InventoryQueries {
             requete.setArray(1, connexion.createArrayOf("varchar", packageKeys.toArray()));
             requete.setObject(2, projectId.orElse(null));
             requete.setObject(3, projectId.orElse(null));
-            requete.setObject(4, workspaceId.orElse(null));
-            requete.setObject(5, workspaceId.orElse(null));
+            requete.setObject(4, espaceId.orElse(null));
+            requete.setObject(5, espaceId.orElse(null));
             try (ResultSet lignes = requete.executeQuery()) {
                 while (lignes.next()) {
                     String origin = lignes.getString(8);
@@ -518,7 +521,7 @@ public class InventoryQueries {
 
     /** Espace du projet, s'il existe. */
     @Transactional
-    public Optional<UUID> workspaceOf(UUID projectId) {
+    public Optional<UUID> espaceDe(UUID projectId) {
         return identifiantDuProjet("SELECT workspace_id FROM project WHERE id = ?", projectId, "lecture du projet impossible");
     }
 

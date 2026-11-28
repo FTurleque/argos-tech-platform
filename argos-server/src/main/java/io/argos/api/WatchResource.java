@@ -59,7 +59,7 @@ public class WatchResource {
     @Operation(summary = "Veille de l'appelant : socle TEAM hérité et abonnements PERSONAL")
     public List<WatchItem> watch() {
         Caller caller = access.authenticated();
-        Set<UUID> scope = caller.memberWorkspaces();
+        Set<UUID> scope = caller.espacesMembre();
         SignauxAbonnements.Correspondances retenus = signauxAbonnements.pour(
                 subscriptions.activeFor(caller.accountId(), scope), caller);
 

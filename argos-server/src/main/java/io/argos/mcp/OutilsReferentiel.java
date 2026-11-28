@@ -68,7 +68,7 @@ public class OutilsReferentiel {
             @ToolArg(name = "name", description = "Nom du paquet (Maven : groupe:artefact) ou PURL sans version.") String nom) {
         return garde.appeler("get_technology_standard", parametres("ecosystem", ecosysteme, "name", nom), appelant -> {
             String cle = Parametres.cle(ecosysteme, nom);
-            List<OutilsSecurite.StandardEspace> standards = referentiel.standards(cle, appelant.memberWorkspaces()).stream()
+            List<OutilsSecurite.StandardEspace> standards = referentiel.standards(cle, appelant.espacesMembre()).stream()
                     .filter(standard -> appelant.memberOf(standard.espaceId()))
                     .map(standard -> new OutilsSecurite.StandardEspace(standard.espaceId(), standard.statut().name(),
                             standard.versionRecommandee(), standard.justification()))
@@ -96,13 +96,13 @@ public class OutilsReferentiel {
                         cles.add(cle.get());
                     } else {
                         ProjetsVisibles.duCompte(appelant.accountId(), inventaires)
-                                .filter(projet -> appelant.memberOf(projet.workspaceId()))
+                                .filter(projet -> appelant.memberOf(projet.espaceId()))
                                 .forEach(projet -> cles.addAll(inventaires.clesDePaquets(projet.id(), appelant.accountId())));
                     }
                     LocalDate aujourdhui = LectureHeure.jour(horloge);
                     LocalDate jusqua = aujourdhui.plusDays(jours);
                     List<Echeance> echeances = cles.isEmpty() ? List.of()
-                            : calendrier.echeances(cles, appelant.memberWorkspaces(), aujourdhui, jusqua).stream()
+                            : calendrier.echeances(cles, appelant.espacesMembre(), aujourdhui, jusqua).stream()
                                     .map(echeance -> new Echeance(echeance.cle(), echeance.version(), echeance.nature().name(),
                                             echeance.date().toString(), echeance.source(),
                                             balisage.baliser(echeance.source(), echeance.note())))

@@ -140,7 +140,7 @@ class CloisonnementMcpTest {
     @Test
     void rlsSousLeRoleApplicatif() {
         UUID lina = Api.compte("lina");
-        assertTrue(impacts.forWorkspaces(lina, Set.of(espaceB), 50).isEmpty());
+        assertTrue(impacts.pourEspaces(lina, Set.of(espaceB), 50).isEmpty());
         assertTrue(impacts.forProject(projetP, lina, Set.of(espaceB)).isEmpty());
         assertFalse(ProjetsVisibles.duCompte(lina, inventaireQueries).anyMatch(projet -> projet.id().equals(projetP)));
         assertTrue(inventaireQueries.inventory(projetP, lina, Pagination.PREMIERE).isEmpty());
@@ -148,7 +148,7 @@ class CloisonnementMcpTest {
         assertTrue(inventaireQueries.summary(projetP, lina).isEmpty());
 
         UUID marc = Api.compte("marc");
-        assertEquals(1, impacts.forWorkspaces(marc, Set.of(espaceB), 50).size());
+        assertEquals(1, impacts.pourEspaces(marc, Set.of(espaceB), 50).size());
         assertTrue(ProjetsVisibles.duCompte(marc, inventaireQueries).anyMatch(projet -> projet.id().equals(projetP)));
         assertEquals(1, inventaireQueries.summary(projetP, marc).orElseThrow().componentCount());
         assertFalse(espaceA.equals(espaceB));

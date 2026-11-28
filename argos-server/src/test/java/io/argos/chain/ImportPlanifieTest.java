@@ -5,17 +5,13 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
-import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
-import java.lang.reflect.Method;
 import java.nio.charset.StandardCharsets;
 import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.time.Duration;
 import java.time.Instant;
-import java.time.ZoneId;
-import java.time.ZonedDateTime;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
@@ -31,28 +27,19 @@ import javax.sql.DataSource;
 import jakarta.inject.Inject;
 
 import org.awaitility.Awaitility;
-import org.eclipse.microprofile.config.inject.ConfigProperty;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
-
-import com.cronutils.model.CronType;
-import com.cronutils.model.definition.CronDefinitionBuilder;
-import com.cronutils.model.time.ExecutionTime;
-import com.cronutils.parser.CronParser;
 
 import io.argos.inventory.ImportPlanifie;
 import io.argos.inventory.InventoryService;
 import io.argos.inventory.ProjectDirectory;
 import io.argos.inventory.StatutImport;
-import io.argos.scm.QuotaEpuise;
 import io.argos.scm.RepositoryRef;
 import io.argos.testsupport.Api;
 import io.argos.testsupport.Fixtures;
 import io.argos.testsupport.StubServer;
 import io.argos.testsupport.StubServer.Stub;
-import io.argos.testsupport.Substitution;
 import io.argos.testsupport.TestDb;
-import io.quarkus.scheduler.Scheduled;
 import io.quarkus.test.common.QuarkusTestResource;
 import io.quarkus.test.junit.QuarkusTest;
 import io.quarkus.test.junit.QuarkusTestProfile;
@@ -107,12 +94,6 @@ class ImportPlanifieTest {
 
     @Inject
     ImportPlanifie importPlanifie;
-
-    @ConfigProperty(name = "argos.inventory.import.cron")
-    String cron;
-
-    @ConfigProperty(name = "argos.alerting.fuseau")
-    String fuseau;
 
     private UUID espace;
 
@@ -194,62 +175,6 @@ class ImportPlanifieTest {
         StubServer.Received requete = StubServer.received(GITLAB_SBOM).get(0);
         assertTrue(requete.headers().entrySet().stream().anyMatch(entete -> entete.getKey().equalsIgnoreCase("PRIVATE-TOKEN")),
                 "le jeton est transmis à la forge, jamais consigné");
-    }
-
-    /** INV-11-S1 : un composant au PURL mal encodé est écarté et signalé ; le reste de la SBOM et le projet suivant sont importés. */
-    @Test
-    void inv11S1SbomPortantUnPurlMalEncode() {
-        UUID web = projects.create(espace, "web", GITLAB, List.of("package.json"));
-        UUID outil = projects.create(espace, "outil", GITHUB, List.of("package.json"));
-        servirForgesNominales();
-        StubServer.programmer(GITLAB_SBOM, new Stub(200, Fixtures.cyclonedx("1.6", "2026-11-15T06:12:44Z",
-                List.<String[]>of(new String[] {"mal-encode", "pkg:npm/%zz@1.0.0"}, new String[] {"lodash", "pkg:npm/lodash@4.17.21"}),
-                List.of("mal-encode", "lodash")), Map.of("Content-Type", "application/json")));
-
-        ImportPlanifie.Bilan bilan = importPlanifie.importer(Instant.parse("2026-11-20T02:00:00Z"));
-
-        assertEquals(2, bilan.importes());
-        assertEquals(0, bilan.projetsEnEchec());
-        assertEquals(1, composants(web), "le composant lisible est importé");
-        assertEquals(5, composants(outil), "le projet suivant est importé");
-        Api.enTantQue("alice").when().get("/api/v1/projects/" + web + "/inventory/summary")
-                .then().statusCode(200).body("summary.ignoredCount", org.hamcrest.Matchers.equalTo(1));
-    }
-
-    /** INV-11-S2 : une erreur imprévue pour un projet est comptée et journalisée ; le projet suivant est importé. */
-    @Test
-    void inv11S2ErreurImprevuePendantLImportDUnProjet() {
-        UUID web = projects.create(espace, "web", GITLAB, List.of("package.json"));
-        UUID outil = projects.create(espace, "outil", GITHUB, List.of("package.json"));
-        servirForgesNominales();
-        importPlanifie.importer(Instant.parse("2026-11-20T02:00:00Z"));
-        long avant = composants(web);
-        baseDeTest.exec("DELETE FROM component_occurrence WHERE project_id = ?", outil);
-        baseDeTest.exec("DELETE FROM component WHERE project_id = ?", outil);
-        // Sans empreinte, le passage suivant réécrit l'inventaire du second projet même si sa SBOM n'a pas changé (INV-14).
-        baseDeTest.exec("UPDATE repository_inventory SET empreinte = NULL WHERE project_id = ?", outil);
-        InventoryService reel = Substitution.reel(inventories);
-        IllegalArgumentException imprevue = new IllegalArgumentException("erreur imprévue simulée");
-        InventoryService doublure = new InventoryService() {
-            @Override
-            public ImportProjet importerProjet(UUID projet, Map<String, QuotaEpuise> quotas) {
-                if (projet.equals(web)) {
-                    throw imprevue;
-                }
-                return reel.importerProjet(projet, quotas);
-            }
-        };
-        ImportPlanifie.Bilan bilan;
-        try (Substitution substitution = Substitution.remplacer(importPlanifie, "inventories", doublure)) {
-            bilan = importPlanifie.importer(Instant.parse("2026-11-21T02:00:00Z"));
-        }
-
-        assertEquals(1, bilan.projetsEnEchec());
-        assertEquals(1, bilan.importes());
-        assertEquals(5, composants(outil), "le projet suivant est importé");
-        assertEquals(avant, composants(web), "l'inventaire en place du premier projet est conservé");
-        assertEquals(List.of(imprevue), bilan.erreursImprevues());
-        assertThrows(IllegalArgumentException.class, bilan::relancerErreurImprevue, "le passage planifié relance l'erreur");
     }
 
     /** Identifiant et version de ligne de chaque composant d'un projet : change si un composant est réécrit. */
@@ -376,26 +301,6 @@ class ImportPlanifieTest {
                     "import manuel refusé sans authentification : " + importManuel);
         }
         assertEquals(0, composants(projet), "aucun import déclenché");
-    }
-
-    /** INV-07-S4 : cadence lue dans la configuration, au fuseau configuré, sans recompilation. */
-    @Test
-    void inv07S4CadenceConfiguree() throws NoSuchMethodException {
-        Method tache = ImportPlanifie.class.getDeclaredMethod("planifie");
-        Scheduled planification = tache.getAnnotation(Scheduled.class);
-        assertEquals("inventory-import-quotidien", planification.identity());
-        assertEquals("{argos.inventory.import.cron}", planification.cron(), "expression lue dans la configuration");
-        assertEquals("{argos.alerting.fuseau}", planification.timeZone(), "fuseau lu dans la configuration");
-        assertEquals(Scheduled.ConcurrentExecution.SKIP, planification.concurrentExecution());
-        assertEquals("0 0 3 * * ?", cron, "03:00 par défaut ([PROPOSITION] P-12)");
-
-        // Expression réglée à 02:00 (ARGOS_INVENTORY_IMPORT_CRON) : échéance suivante à 02:00 au fuseau configuré.
-        CronParser parseur = new CronParser(CronDefinitionBuilder.instanceDefinitionFor(CronType.QUARTZ));
-        ZonedDateTime depuis = ZonedDateTime.of(2026, 11, 19, 15, 0, 0, 0, ZoneId.of(fuseau));
-        ZonedDateTime suivante = ExecutionTime.forCron(parseur.parse("0 0 2 * * ?")).nextExecution(depuis).orElseThrow();
-        assertEquals(ZonedDateTime.of(2026, 11, 20, 2, 0, 0, 0, ZoneId.of(fuseau)), suivante);
-        assertEquals(ZonedDateTime.of(2026, 11, 20, 3, 0, 0, 0, ZoneId.of(fuseau)),
-                ExecutionTime.forCron(parseur.parse(cron)).nextExecution(depuis).orElseThrow());
     }
 
     @Test

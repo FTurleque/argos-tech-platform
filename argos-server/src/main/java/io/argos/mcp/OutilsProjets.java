@@ -68,7 +68,7 @@ public class OutilsProjets {
                 return new ContexteProjets(projetDemande.size(), projetDemande);
             }
             List<ContexteProjet> projets = ProjetsVisibles.duCompte(appelant.accountId(), inventaires)
-                    .filter(visible -> appelant.memberOf(visible.workspaceId())).limit(PROJETS_MAX)
+                    .filter(visible -> appelant.memberOf(visible.espaceId())).limit(PROJETS_MAX)
                     .map(visible -> resume(appelant, visible)).toList();
             return new ContexteProjets(projets.size(), projets);
         });
@@ -80,7 +80,7 @@ public class OutilsProjets {
                 COMPOSANTS_MAX);
         List<InventoryQueries.ComponentView> composants = inventaire.map(vue -> vue.components().items()).orElse(List.of());
         long total = inventaire.map(vue -> vue.components().total()).orElse(0L);
-        return new ContexteProjet(projet.id(), projet.name(), projet.workspaceId(),
+        return new ContexteProjet(projet.id(), projet.name(), projet.espaceId(),
                 inventaire.map(vue -> new Inventaire(vue.origin(), texte(vue.sourceDate()), vue.ageDays(), vue.obsolete(),
                         Math.toIntExact(total))).orElse(null),
                 alertesParNiveau(appelant, projet),
@@ -92,14 +92,14 @@ public class OutilsProjets {
     /** Contexte d'un projet sans ses composants : synthèse de l'inventaire, sans lecture des composants (G5). */
     private ContexteProjet resume(Caller appelant, InventoryQueries.ProjectItem projet) {
         Optional<InventoryQueries.InventorySummary> synthese = inventaires.summary(projet.id(), appelant.accountId());
-        return new ContexteProjet(projet.id(), projet.name(), projet.workspaceId(),
+        return new ContexteProjet(projet.id(), projet.name(), projet.espaceId(),
                 synthese.map(bilan -> new Inventaire(bilan.origin(), texte(bilan.sourceDate()), bilan.ageDays(), bilan.obsolete(),
                         Math.toIntExact(bilan.componentCount()))).orElse(null),
                 alertesParNiveau(appelant, projet), List.of(), false);
     }
 
     private Map<String, Long> alertesParNiveau(Caller appelant, InventoryQueries.ProjectItem projet) {
-        return impacts.forProject(projet.id(), appelant.accountId(), appelant.memberWorkspaces()).stream()
+        return impacts.forProject(projet.id(), appelant.accountId(), appelant.espacesMembre()).stream()
                 .collect(Collectors.groupingBy(impact -> impact.level().name(), TreeMap::new, Collectors.counting()));
     }
 }

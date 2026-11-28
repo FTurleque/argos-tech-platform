@@ -93,8 +93,8 @@ public class ProjectResource {
             @QueryParam("etat") List<String> etat,
             @BeanParam DemandePage demande) {
         Pagination pagination = demande.pagination();
-        Caller caller = access.memberOfProject(() -> inventories.workspaceOf(projectId));
-        return impacts.forProject(projectId, caller.accountId(), caller.memberWorkspaces(), SignalResource.etats(etat), pagination);
+        Caller caller = access.memberOfProject(() -> inventories.espaceDe(projectId));
+        return impacts.forProject(projectId, caller.accountId(), caller.espacesMembre(), SignalResource.etats(etat), pagination);
     }
 
     @POST
@@ -150,6 +150,6 @@ public class ProjectResource {
     /** Espace du projet ; 404 sans refus journalisé pour un projet inconnu, comme {@code Access.memberOfProject}. */
     private UUID espaceDuProjet(UUID projectId) {
         access.authenticated();
-        return inventories.workspaceOf(projectId).orElseThrow(NotFoundException::new);
+        return inventories.espaceDe(projectId).orElseThrow(NotFoundException::new);
     }
 }

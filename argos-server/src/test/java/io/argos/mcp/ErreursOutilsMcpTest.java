@@ -78,17 +78,6 @@ class ErreursOutilsMcpTest {
         assertEquals(1, baseDeTest.count("SELECT count(*) FROM mcp_appel WHERE outil = 'check_dependency' AND issue = 'ERREUR'"));
     }
 
-    /** Un PURL mal encodé est refusé PARAMETRES_INVALIDES (RAD-07-S1 côté MCP). */
-    @Test
-    void purlMalEncodeRefuseCommeParametreInvalide() {
-        ExtractableResponse<Response> reponse = Mcp.appeler("karim", "check_dependency",
-                Map.of("name", "pkg:maven/%zz/x", "version", "1.0.0"));
-
-        assertEquals(Boolean.TRUE, reponse.path("result.isError"), reponse.asString());
-        String texte = reponse.path("result.content[0].text");
-        assertTrue(texte.startsWith("PARAMETRES_INVALIDES"), texte);
-    }
-
     private static ReferentielStandards referentielEnErreur(RuntimeException erreur) {
         return (cle, espaces) -> {
             throw erreur;

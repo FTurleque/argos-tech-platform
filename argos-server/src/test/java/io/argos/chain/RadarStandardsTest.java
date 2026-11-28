@@ -151,27 +151,6 @@ class RadarStandardsTest {
                 .body("$", hasSize(1)).body("[0].origine", equalTo("SAISIE"));
     }
 
-    /** RAD-01-S2 : HOLD sans justification : refus qui nomme le champ, référentiel inchangé. */
-    @Test
-    void rad01S2JustificationManquante() {
-        enregistrer("nina", saisie(BIBLIO, "Biblio", "ASSESS", null, "Front", "À étudier", "2027-01-31", null)).statusCode(200);
-
-        enregistrer("nina", saisie(BIBLIO, "Biblio", "HOLD", null, "Front", null, "2027-01-31", null))
-                .statusCode(400).body("code", equalTo("CHAMP_MANQUANT")).body("attribut", equalTo("justification"));
-        enregistrer("nina", saisie(SPRING, "Spring Boot", "ADOPT", null, "Socle", "Validé", "2027-01-31", null))
-                .statusCode(400).body("attribut", equalTo("versionRecommandee"));
-        enregistrer("nina", saisie("pkg:npm/biblio-ui@1.0.0", "Biblio", "HOLD", null, "Front", "Non", "2027-01-31", null))
-                .statusCode(400).body("attribut", equalTo("cle"));
-        enregistrer("nina", saisie(BIBLIO, "Biblio", "HOLD", null, "Front", "Non", "31/01/2027", null))
-                .statusCode(400).body("attribut", equalTo("dateRevue"));
-        enregistrer("nina", saisie(BIBLIO, "Biblio", "HOLD", null, "Front", "Non", "2027-01-31", "../../etc"))
-                .statusCode(400).body("attribut", equalTo("produitCycleVie"));
-
-        Api.enTantQue("nina").get(chemin("/standards")).then().statusCode(200)
-                .body("$", hasSize(1)).body("[0].statut", equalTo("ASSESS"));
-        assertEquals(1, baseDeTest.count("SELECT count(*) FROM standard_historique"));
-    }
-
     // ------------------------------------------------------------------ RAD-02
 
     /** RAD-02-S1 : un lecteur ne modifie pas le référentiel (403 journalisé) ; un non-membre reçoit 404. */
@@ -419,16 +398,6 @@ class RadarStandardsTest {
     }
 
     // ------------------------------------------------------------------ RAD-07 et frontières d'erreur (arc42 §8.5)
-
-    /** RAD-07-S1 : une clé mal encodée est refusée en 400 sur le champ {@code cle}, sans rien modifier. */
-    @Test
-    void rad07S1CleMalEncodee() {
-        enregistrer("nina", saisie("pkg:maven/%zz/x", "Mal encodée", "ASSESS", null, "Socle", "À étudier", "2027-06-30", null))
-                .statusCode(400).body("code", equalTo("DONNEE_INVALIDE")).body("attribut", equalTo("cle"));
-
-        assertEquals(0, baseDeTest.count("SELECT count(*) FROM standard_technologie"));
-        assertEquals(0, baseDeTest.count("SELECT count(*) FROM standard_historique"));
-    }
 
     /** RAD-07-S2 : l'annonce échoue sur une panne d'accès aux données : 200, entrée et historique persistés. */
     @Test

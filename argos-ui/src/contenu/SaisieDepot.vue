@@ -43,4 +43,8 @@ function champ(nom: string): string {
 <style scoped>
 .saisie-depot { display: grid; grid-template-columns: max-content minmax(0, 1fr); gap: 0.4rem 0.75rem; align-items: center; }
 .saisie-depot input, .saisie-depot select, .saisie-depot textarea { max-width: 100%; font: inherit; }
+/* Écran étroit : libellé au-dessus de son champ, sans défilement horizontal à 320 px (RGAA 10.11). */
+@media (max-width: 40rem) {
+  .saisie-depot { grid-template-columns: minmax(0, 1fr); }
+}
 </style>

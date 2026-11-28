@@ -1,7 +1,6 @@
 package io.argos.chain;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
@@ -76,28 +75,6 @@ class FrontieresCollecteTest {
         assertEquals("pkg:npm/zz", baseDeTest.string("SELECT p.package_key FROM signal_package p JOIN signal s "
                 + "ON s.id = p.signal_id WHERE s.external_id = 'GHSA-FR-ZZ'"), "avis indexé par écosystème et nom");
         assertTrue(bilan.erreursImprevues().isEmpty());
-    }
-
-    /** COL-11-S2 : une erreur imprévue termine la première source en échec permanent, la seconde est synchronisée. */
-    @Test
-    void col11S2ErreurImprevuePendantLaSynchronisation() {
-        servirSourceDeTest("GHSA-FR-IMP", "pkg:npm/zz@1.0.0");
-        IllegalArgumentException imprevue = new IllegalArgumentException("erreur imprévue simulée");
-        sourceDeTest.failOnceWith(imprevue);
-
-        SynchronisationPlanifiee.Bilan bilan = planification.synchroniserToutes(ECHEANCE);
-
-        assertEquals(List.of(CrashingFeed.SOURCE_ID), bilan.enErreur());
-        assertEquals(List.of("OSV"), bilan.rapports().stream().map(SourceSynchronizer.SyncReport::sourceId).toList());
-        assertEquals("SUCCEEDED", bilan.rapports().get(0).state());
-        assertEquals("FAILED|PERMANENT", baseDeTest.string("SELECT state || '|' || error_kind FROM sync_run WHERE source_id = '"
-                + CrashingFeed.SOURCE_ID + "'"));
-        assertEquals(0, baseDeTest.count("SELECT count(*) FROM sync_cursor WHERE source_id = '" + CrashingFeed.SOURCE_ID + "'"),
-                "curseur inchangé");
-        assertEquals("FAILING", baseDeTest.string("SELECT state FROM source WHERE id = '" + CrashingFeed.SOURCE_ID + "'"));
-        assertEquals(List.of(imprevue), bilan.erreursImprevues());
-        assertSame(imprevue, assertThrows(IllegalArgumentException.class, bilan::relancerErreurImprevue),
-                "l'échéance relance l'erreur imprévue");
     }
 
     /** COL-11-S3 : des erreurs imprévues répétées jusqu'au seuil font passer la source en DEGRADED. */

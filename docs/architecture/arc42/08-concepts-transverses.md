@@ -309,7 +309,10 @@ Recherche de veille (changement `rechercher-et-filtrer`, ADR-0015) : recherche p
 - intégration PostgreSQL ;
 - matrice des rôles : chaque opération d'OpenAPI appelée par chaque rôle, codes attendus versionnés (`MatriceRolesTest`, §8.1) ;
 - contract tests adapters et MCP ;
-- E2E critiques : parcours du portail web dans Chromium (Playwright, `e2e/`) contre le serveur de développement, le Keycloak de test des Dev Services et une base PostgreSQL jetable, sans requête hors du poste ([guide](../../../e2e/README.md)) ;
+- E2E critiques : parcours du portail web, du client desktop et du serveur MCP (Playwright, `e2e/`) contre l'image construite par le `Dockerfile` (intégration continue) ou le serveur de développement (poste), un Keycloak de test et une base PostgreSQL jetable, sans requête hors du poste ; un port déjà occupé fait échouer le lancement ([guide](../../../e2e/README.md)) ;
+- accessibilité : banc des quatre mises en page et écrans réels (vue d'inventaire, actions sur les abonnements, traitement des impacts) audités en contrastes, clavier, focus, noms accessibles et redistribution à 320 px (AUD-TST-23) ;
+- artefact empaqueté : `@QuarkusIntegrationTest` (`*IT`, maven-failsafe-plugin, phase `integration-test`) lancé sur le jar construit par `mvn package`, contre les Dev Services (AUD-TST-12) ;
+- tests sans Docker (AUD-TST-03) : la logique se teste hors du conteneur (serveur HTTP simulé à instance `testsupport.ServeurHttpSimule`, doublures écrites à la main, horloge fixe) ; la majorité des méthodes de test du serveur s'exécute par `mvn -P sans-docker test`, qui exclut les classes nommées dans `src/test/tests-docker.txt` (liste tenue à jour par `ListeTestsDockerTest`) ;
 - sécurité ;
 - résilience : un test par frontière d'erreur (§8.5) ;
 - tests IA avec jeu de référence ;
@@ -323,10 +326,11 @@ Le workflow GitHub Actions [`.github/workflows/integration-continue.yml`](../../
 
 | Tâche | Contrôles |
 |---|---|
-| Serveur | Temurin 17, `mvn -B -f argos-server/pom.xml -P integration-continue clean verify` : tests unitaires, d'intégration (Docker de l'exécuteur) et d'architecture, couverture et seuil JaCoCo ; puis `node scripts/verifier-couverture-modules.mjs` : seuils de couverture par module |
+| Serveur | Temurin 17, `mvn -B -f argos-server/pom.xml -P integration-continue clean verify` : tests unitaires, d'intégration (Docker de l'exécuteur), d'architecture et de l'artefact empaqueté, couverture et seuil JaCoCo ; puis `node scripts/verifier-couverture-modules.mjs` : seuils de couverture par module |
 | IHM | `npm ci`, `npm test`, `npm run typecheck` (vue-tsc), `npm run build`, `npm audit` dans `argos-ui` |
 | Desktop | `npm ci`, `npm run check` (syntaxe, vérification de types `tsc --checkJs`, tests), `npm audit` dans `argos-desktop` |
 | Outils | `node --test scripts/*.test.mjs "e2e/performance/*.test.mjs"`, `node scripts/verifier-docs.mjs`, `node scripts/verifier-nommage.mjs`, `node scripts/verifier-configuration.mjs` ; `npm ci`, `npm run typecheck` (`tsc --strict`) et `npm audit` dans `e2e` |
+| E2E | image construite (`docker build`), puis campagne Playwright sur cette image (`ARGOS_E2E_IMAGE`, client desktop sur un bureau virtuel : `xvfb`, `fluxbox`, `dunst`) et audit d'accessibilité du banc des mises en page |
 | Migrations | garde de la règle d'ADR-0032 (§8.7) : seuls des ajouts sous `db/migration` |
 | Licences | `mvn -B -f argos-server/pom.xml -P licences validate`, seulement quand `argos-server/pom.xml` ou `scripts/verifier-licences-serveur.mjs` change |
 
@@ -336,7 +340,8 @@ Le workflow GitHub Actions [`.github/workflows/integration-continue.yml`](../../
 - **`npm audit`** : une vulnérabilité de niveau `high` ou `critical` dans `argos-ui`, `argos-desktop` ou `e2e` fait échouer le build ([DÉCISION] du porteur du projet, 2026-11-24) ; les niveaux inférieurs restent visibles dans le journal.
 - **Veille des dépendances** : Renovate ([`renovate.json`](../../../renovate.json), préréglage `config:recommended`) ouvre des pull requests de mise à jour Maven, npm (`argos-ui`, `argos-desktop`, `e2e`), d'image du `Dockerfile` et de `compose.yaml` (valeurs par défaut des variables d'image comprises, par exemple `ARGOS_KEYCLOAK_VERSION`) et d'action du workflow, ces dernières regroupées en une seule ; une version n'est proposée que trois jours après sa publication. Les versions majeures des images `node`, `maven` et `eclipse-temurin` ne sont pas proposées : elles suivent Java 17 et Node.js 22 du workflow ([ADR-0019](../adr/0019-stack-java17-quarkus-vue3-postgresql.md)) et se décident avec lui ; `jacoco-maven-plugin` suit l'agent JaCoCo du BOM Quarkus et change avec Quarkus. Chaque pull request passe par le workflow et une relecture ; aucune n'est fusionnée automatiquement.
 - **Protection de `main`** : le statut du workflow est rendu obligatoire par un réglage du dépôt GitHub, effectué par le porteur du projet.
-- **Hors du workflow** : campagne E2E Playwright, campagne d'accessibilité et campagne de performance, qui demandent une pile complète (Keycloak, Electron, navigateur).
+- **Hors du workflow** : campagne de performance, qui mesure des temps de réponse sur une pile stable (§10).
+- **Binaire Electron** : la tâche E2E exécute le seul script d'installation du paquet `electron` (téléchargement du binaire piloté par le projet `desktop`).
 
 ## 8.12 Déploiement
 
@@ -418,6 +423,10 @@ La tâche est portée par `alerting` parce que les règles de modules (§5.6) in
 Nommage (décisions du porteur du projet, 2026-11-20) : aucun identifiant d'une ou deux lettres n'est déclaré dans le code Java, TypeScript, JavaScript et Vue. Seuls sont admis `id` et les paramètres de type générique (`T`, `K`, `V`, `E`, `R`…). La règle couvre les types (classes, records, interfaces, énumérations, types TypeScript), les méthodes et les fonctions, les noms locaux des imports, les variables locales, les champs, les paramètres de méthode, de lambda et de callback, les variables de catch et de boucle. Le nom dit ce que l'élément contient ou fait (`connexion`, `requete`, `resultat`, `erreur`, `signal`, `ligne`, `depuis`, `calculer`, `enTantQue`, `ImpactLu`…), en français quand le fichier est en français ; une variable de catch inutilisée s'appelle `ignoree` ou nomme sa cause.
 
 Un nom court qui relève d'un contrat externe garde son nom : propriété JSON de l'API (composants `de` de `TransitionView` et `le` de `EvenementHistorique`), signature d'une API tierce reproduite par une doublure de test (`on()` d'Electron). Ces exceptions sont inscrites, avec leur raison, dans la liste blanche en tête de `scripts/verifier-nommage.mjs`, qui reste minimale : une entrée devenue inutile fait échouer le contrôle. Les clés et propriétés d'objets et d'interfaces, les colonnes SQL et les clés de configuration ne sont pas des déclarations d'identifiants et ne sont pas contrôlées.
+
+Une langue par concept ([DÉCISION] du porteur du projet, 2026-11-27, AUD-QUA-09) : l'espace de travail se dit « espace » dans tout identifiant déclaré (`espaceId`, `espacesMembre`, `pourEspaces`…). « workspace » reste seulement là où le nom est fixé hors du code : nom du module `io.argos.workspace` (noms de modules de §5), tables et colonnes SQL (`workspace_id`, migrations immuables, ADR-0032) et propriétés JSON publiées de l'API (`workspaceId`, `workspaceName`, `ownerWorkspaceId`, `teamWorkspaceId`), que portent des annotations `@JsonProperty`. `node scripts/verifier-nommage.mjs` refuse tout identifiant déclaré qui contient « workspace » (table `TERMES_IMPOSES` de `scripts/nommage/outils.mjs`).
+
+Longueur et complexité ([DÉCISION] du porteur du projet, 2026-11-27, AUD-QUA-18) : une méthode de production compte au plus 60 instructions et sa complexité cyclomatique reste inférieure à 15, vérifiées par PMD en phase `verify` (`argos-server/pmd-regles.xml`) ; un fichier Java de plus de 300 lignes est signalé par l'intégration continue (`scripts/signaler-fichiers-longs.mjs`) sans bloquer.
 
 Typage : les trois projets TypeScript ou JavaScript sont vérifiés par le compilateur TypeScript, sans émission. `argos-ui` passe par `vue-tsc` en mode `strict` ; `e2e/` par `tsc` en mode `strict` (`e2e/tsconfig.json`), les modules JavaScript qu'il importe ayant une déclaration `.d.mts` ; `argos-desktop`, écrit en JavaScript CommonJS annoté en JSDoc, par `tsc` avec `allowJs` et `checkJs` (`argos-desktop/tsconfig.json`), en mode non strict ([DÉCISION] du porteur du projet, 2026-11-24 : strictness progressive), ce qui vérifie les annotations JSDoc elles-mêmes (type d'une fonction importée écrit `ReturnType<typeof import('./module').fonction>`, formes d'objets décrites par `@typedef`). Une erreur de type se corrige à la source ; `// @ts-ignore` n'est pas employé. Contrôles : `npm --prefix e2e run typecheck`, inclus dans `npm --prefix e2e test`, et `npm --prefix argos-desktop run check`, qui enchaîne syntaxe, types et tests ; tous deux exécutés par l'intégration continue (§8.11).
 

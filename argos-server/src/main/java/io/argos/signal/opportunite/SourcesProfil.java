@@ -62,6 +62,9 @@ public class SourcesProfil {
             conditions_url, conditions_verifiees_par, conditions_verifiees_le, etat, derniere_erreur,
             derniere_collecte_le, cree_le""";
 
+    /** Longueur maximale du libellé d'une source. */
+    private static final int LIBELLE_MAX = 200;
+
     @Inject
     Jdbc jdbc;
 
@@ -73,32 +76,7 @@ public class SourcesProfil {
 
     /** Déclare une source ; son état est {@code CONDITIONS_A_VERIFIER} jusqu'à l'enregistrement de ses conditions. */
     public SourceProfil declarer(Declaration declaration, UUID compteId) {
-        if (declaration == null) {
-            throw new DonneeInvalide("DONNEE_INVALIDE", "Déclaration vide.", "adresse");
-        }
-        ManifesteProfil profil = catalogue.trouver(declaration.profil())
-                .orElseThrow(() -> new DonneeInvalide("PROFIL_INCONNU", "Profil absent du catalogue.", "profil"));
-        String type = declaration.type() == null ? "" : declaration.type().strip().toUpperCase(Locale.ROOT);
-        if (!SourceProfil.DATA_CULTURE.equals(type) && !SourceProfil.FLUX.equals(type)) {
-            throw new DonneeInvalide("DONNEE_INVALIDE", "Type attendu : DATA_CULTURE ou FLUX.", "type");
-        }
-        URI adresse = analyser(declaration.adresse());
-        if (SourceProfil.DATA_CULTURE.equals(type) && !hoteDataCulture(adresse)) {
-            throw new DonneeInvalide("HOTE_NON_ADMIS",
-                    "Une source DATA_CULTURE doit désigner l'un des hôtes admis : " + hotesDataCulture + ".", "adresse");
-        }
-        String libelle = declaration.libelle() == null || declaration.libelle().isBlank() ? adresse.getHost()
-                : declaration.libelle().strip();
-        if (libelle.length() > 200) {
-            throw new DonneeInvalide("DONNEE_INVALIDE", "Libellé limité à 200 caractères.", "libelle");
-        }
-        String rubrique = declaration.rubrique() == null ? "" : declaration.rubrique().strip();
-        if (profil.rubriques().stream().map(Rubrique::identifiant).noneMatch(rubrique::equals)) {
-            throw new DonneeInvalide("RUBRIQUE_INCONNUE", "Rubriques du profil : "
-                    + profil.rubriques().stream().map(Rubrique::identifiant).toList() + ".", "rubrique");
-        }
-        List<String> disciplines = dansListe(profil, "discipline", declaration.disciplines(), "disciplines");
-        List<String> territoires = dansListe(profil, "territoire", declaration.territoires(), "territoires");
+        SourceValidee source = valider(declaration);
         UUID id = UUID.randomUUID();
         try {
             jdbc.modifier("""
@@ -106,13 +84,13 @@ public class SourcesProfil {
                     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
                     """, requete -> {
                         requete.setObject(1, id);
-                        requete.setString(2, profil.identifiant());
-                        requete.setString(3, type);
-                        requete.setString(4, adresse.toString());
-                        requete.setString(5, libelle);
-                        requete.setString(6, rubrique);
-                        requete.setArray(7, requete.getConnection().createArrayOf("varchar", disciplines.toArray()));
-                        requete.setArray(8, requete.getConnection().createArrayOf("varchar", territoires.toArray()));
+                        requete.setString(2, source.profil().identifiant());
+                        requete.setString(3, source.type());
+                        requete.setString(4, source.adresse().toString());
+                        requete.setString(5, source.libelle());
+                        requete.setString(6, source.rubrique());
+                        requete.setArray(7, requete.getConnection().createArrayOf("varchar", source.disciplines().toArray()));
+                        requete.setArray(8, requete.getConnection().createArrayOf("varchar", source.territoires().toArray()));
                         requete.setObject(9, compteId);
                     });
         } catch (ErreurBase erreur) {
@@ -122,6 +100,57 @@ public class SourcesProfil {
             throw erreur;
         }
         return trouver(id).orElseThrow();
+    }
+
+    /** Déclaration validée, prête à l'enregistrement. */
+    private record SourceValidee(ManifesteProfil profil, String type, URI adresse, String libelle, String rubrique,
+            List<String> disciplines, List<String> territoires) {
+    }
+
+    /** Profil du catalogue, type et hôte admis, libellé borné, rubrique et objets suivis des listes du profil. */
+    private SourceValidee valider(Declaration declaration) {
+        if (declaration == null) {
+            throw new DonneeInvalide("DONNEE_INVALIDE", "Déclaration vide.", "adresse");
+        }
+        ManifesteProfil profil = catalogue.trouver(declaration.profil())
+                .orElseThrow(() -> new DonneeInvalide("PROFIL_INCONNU", "Profil absent du catalogue.", "profil"));
+        String type = typeDeclare(declaration.type());
+        URI adresse = analyser(declaration.adresse());
+        if (SourceProfil.DATA_CULTURE.equals(type) && !hoteDataCulture(adresse)) {
+            throw new DonneeInvalide("HOTE_NON_ADMIS",
+                    "Une source DATA_CULTURE doit désigner l'un des hôtes admis : " + hotesDataCulture + ".", "adresse");
+        }
+        return new SourceValidee(profil, type, adresse, libelle(declaration.libelle(), adresse),
+                rubrique(profil, declaration.rubrique()),
+                dansListe(profil, "discipline", declaration.disciplines(), "disciplines"),
+                dansListe(profil, "territoire", declaration.territoires(), "territoires"));
+    }
+
+    private static String typeDeclare(String type) {
+        String normalise = type == null ? "" : type.strip().toUpperCase(Locale.ROOT);
+        if (!SourceProfil.DATA_CULTURE.equals(normalise) && !SourceProfil.FLUX.equals(normalise)) {
+            throw new DonneeInvalide("DONNEE_INVALIDE", "Type attendu : DATA_CULTURE ou FLUX.", "type");
+        }
+        return normalise;
+    }
+
+    /** Libellé saisi, ou à défaut l'hôte de l'adresse ; au plus {@value #LIBELLE_MAX} caractères. */
+    private static String libelle(String saisi, URI adresse) {
+        String libelle = saisi == null || saisi.isBlank() ? adresse.getHost() : saisi.strip();
+        if (libelle.length() > LIBELLE_MAX) {
+            throw new DonneeInvalide("DONNEE_INVALIDE", "Libellé limité à " + LIBELLE_MAX + " caractères.", "libelle");
+        }
+        return libelle;
+    }
+
+    /** Rubrique saisie, qui doit être une rubrique du profil. */
+    private static String rubrique(ManifesteProfil profil, String saisie) {
+        String rubrique = saisie == null ? "" : saisie.strip();
+        if (profil.rubriques().stream().map(Rubrique::identifiant).noneMatch(rubrique::equals)) {
+            throw new DonneeInvalide("RUBRIQUE_INCONNUE", "Rubriques du profil : "
+                    + profil.rubriques().stream().map(Rubrique::identifiant).toList() + ".", "rubrique");
+        }
+        return rubrique;
     }
 
     /**

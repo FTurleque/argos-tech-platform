@@ -1,32 +1,18 @@
 package io.argos.testsupport;
 
-import java.io.IOException;
-import java.io.OutputStream;
-import java.net.InetSocketAddress;
-import java.nio.charset.StandardCharsets;
 import java.time.Instant;
-import java.util.ArrayDeque;
-import java.util.ArrayList;
-import java.util.Collections;
-import java.util.Deque;
+import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
-import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.CountDownLatch;
-import java.util.concurrent.Executors;
-
-import com.sun.net.httpserver.HttpExchange;
-import com.sun.net.httpserver.HttpServer;
 
 import io.quarkus.test.common.QuarkusTestResourceLifecycleManager;
 
 /**
  * Serveur HTTP local qui simule toutes les sources externes (OSV, NVD, KEV, EPSS, CERT-FR,
- * GitLab, GitHub, endoflife.date) et l'API Ollama de la passerelle IA : aucun test n'appelle de
- * service externe ni de modèle réel. Les réponses sont programmées par
- * chemin (avec ou sans requête) ; la dernière réponse d'une file reste active. Une réponse « retenue » simule un
- * serveur qui tarde : elle n'est envoyée qu'à la libération ({@link #liberer()}) ou à la réinitialisation, sans
- * sommeil ; un client qui borne son attente abandonne de lui-même.
+ * GitLab, GitHub, endoflife.date) et l'API Ollama de la passerelle IA pour les tests {@code @QuarkusTest} : aucun test
+ * n'appelle de service externe ni de modèle réel. Ressource de test Quarkus qui tient une instance de
+ * {@link ServeurHttpSimule}, partagée par l'application de test démarrée, et en injecte les adresses dans la
+ * configuration. Un test unitaire, sans Quarkus, démarre sa propre instance de {@link ServeurHttpSimule}.
  */
 public class StubServer implements QuarkusTestResourceLifecycleManager {
 
@@ -43,11 +29,11 @@ public class StubServer implements QuarkusTestResourceLifecycleManager {
 
         /** Réponse binaire (archive), servie telle quelle. */
         public static Stub octets(byte[] corps) {
-            return new Stub(200, "", Map.of(), false, corps);
+            return new Stub(SUCCES, "", Map.of(), false, corps);
         }
 
         public static Stub succes(String body) {
-            return new Stub(200, body, Map.of());
+            return new Stub(SUCCES, body, Map.of());
         }
 
         public static Stub status(int status) {
@@ -58,28 +44,24 @@ public class StubServer implements QuarkusTestResourceLifecycleManager {
         public static Stub retenue(int status, String body, Map<String, String> headers) {
             return new Stub(status, body, headers, true, null);
         }
+
+        ServeurHttpSimule.Stub simule() {
+            return new ServeurHttpSimule.Stub(status, body, headers, retenue, octets);
+        }
     }
 
     /** Requête reçue, avec sa méthode HTTP et son corps (vide pour un GET). */
     public record Received(String pathAndQuery, Map<String, List<String>> headers, Instant instant, String method, String body) {
     }
 
-    private static final Map<String, Deque<Stub>> ROUTES = new ConcurrentHashMap<>();
-    private static final List<Received> RECEIVED = Collections.synchronizedList(new ArrayList<>());
-    private static HttpServer server;
-    private static volatile CountDownLatch liberation = new CountDownLatch(1);
+    private static final int SUCCES = 200;
+
+    private static ServeurHttpSimule serveur;
 
     @Override
     public Map<String, String> start() {
-        try {
-            server = HttpServer.create(new InetSocketAddress("localhost", 0), 0);
-        } catch (IOException exception) {
-            throw new IllegalStateException(exception);
-        }
-        server.createContext("/", StubServer::repondre);
-        server.setExecutor(Executors.newCachedThreadPool());
-        server.start();
-        String base = "http://localhost:" + server.getAddress().getPort();
+        serveur = ServeurHttpSimule.demarrer();
+        String base = serveur.base();
         return Map.ofEntries(
                 Map.entry("argos.sources.osv.export-url", base + "/osv-export"),
                 Map.entry("argos.sources.osv.api-url", base + "/osv-api"),
@@ -94,7 +76,7 @@ public class StubServer implements QuarkusTestResourceLifecycleManager {
                 Map.entry("argos.sources.http-timeout", "PT1S"),
                 // Veille web : seule l'adresse exacte du serveur simulé est exemptée du refus des
                 // adresses locales ; toute autre adresse locale reste refusée (WEB-03).
-                Map.entry("argos.veille-web.exceptions", "localhost:" + server.getAddress().getPort()),
+                Map.entry("argos.veille-web.exceptions", "localhost:" + serveur.port()),
                 Map.entry("argos.veille-web.delai", "PT1S"),
                 // Calendrier endoflife.date : réponses enregistrées servies sous /endoflife.
                 Map.entry("argos.radar.endoflife.url", base + "/endoflife"),
@@ -109,73 +91,33 @@ public class StubServer implements QuarkusTestResourceLifecycleManager {
 
     @Override
     public void stop() {
-        liberer();
-        if (server != null) {
-            server.stop(0);
+        if (serveur != null) {
+            serveur.close();
         }
     }
 
     /** Adresse de base du serveur simulé, par exemple {@code http://localhost:41234}. */
     public static String base() {
-        return "http://localhost:" + server.getAddress().getPort();
+        return serveur.base();
     }
 
     public static void reset() {
-        ROUTES.clear();
-        RECEIVED.clear();
-        liberer();
+        serveur.reset();
     }
 
     /** Envoie les réponses retenues en cours ; les suivantes seront retenues à leur tour. */
     public static void liberer() {
-        CountDownLatch courante = liberation;
-        liberation = new CountDownLatch(1);
-        courante.countDown();
+        serveur.liberer();
     }
 
     /** Programme les réponses successives d'un chemin (ex. {@code /epss?cve=CVE-1}). */
     public static void programmer(String pathAndQuery, Stub... responses) {
-        Deque<Stub> queue = new ArrayDeque<>(List.of(responses));
-        ROUTES.put(pathAndQuery, queue);
+        serveur.programmer(pathAndQuery, Arrays.stream(responses).map(Stub::simule).toArray(ServeurHttpSimule.Stub[]::new));
     }
 
     public static List<Received> received(String prefix) {
-        synchronized (RECEIVED) {
-            return RECEIVED.stream().filter(request -> request.pathAndQuery().startsWith(prefix)).toList();
-        }
-    }
-
-    /** Enregistre la requête reçue puis envoie la réponse programmée pour son chemin (404 sinon). */
-    private static void repondre(HttpExchange exchange) throws IOException {
-        String path = exchange.getRequestURI().getRawPath();
-        String query = exchange.getRequestURI().getRawQuery();
-        String full = query == null ? path : path + "?" + query;
-        String corps = new String(exchange.getRequestBody().readAllBytes(), StandardCharsets.UTF_8);
-        RECEIVED.add(new Received(full, Map.copyOf(exchange.getRequestHeaders()), Instant.now(), exchange.getRequestMethod(), corps));
-        Deque<Stub> queue = ROUTES.getOrDefault(full, ROUTES.get(path));
-        Stub stub;
-        if (queue == null) {
-            stub = Stub.status(404);
-        } else {
-            synchronized (queue) {
-                stub = queue.size() > 1 ? queue.poll() : queue.peek();
-            }
-        }
-        if (stub.retenue()) {
-            try {
-                liberation.await();
-            } catch (InterruptedException interrupted) {
-                Thread.currentThread().interrupt();
-            }
-        }
-        stub.headers().forEach((name, value) -> exchange.getResponseHeaders().add(name, value));
-        byte[] body = stub.octets() != null ? stub.octets() : stub.body().getBytes(StandardCharsets.UTF_8);
-        exchange.sendResponseHeaders(stub.status(), body.length == 0 ? -1 : body.length);
-        if (body.length > 0) {
-            try (OutputStream out = exchange.getResponseBody()) {
-                out.write(body);
-            }
-        }
-        exchange.close();
+        return serveur.received(prefix).stream()
+                .map(recue -> new Received(recue.pathAndQuery(), recue.headers(), recue.instant(), recue.method(), recue.body()))
+                .toList();
     }
 }

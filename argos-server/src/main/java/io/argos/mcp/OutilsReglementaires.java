@@ -68,7 +68,7 @@ public class OutilsReglementaires {
             Optional<String> domaineRetenu = domaine == null || domaine.isBlank() ? Optional.empty()
                     : Optional.of(Parametres.obligatoire("domain", domaine));
             int nombreMax = Parametres.borne("limit", limite, 20, 1, 100);
-            List<FicheReglementaire> validees = fiches.fiches(appelant.accountId(), appelant.memberWorkspaces(), domaineRetenu).stream()
+            List<FicheReglementaire> validees = fiches.fiches(appelant.accountId(), appelant.espacesMembre(), domaineRetenu).stream()
                     // Garde-fou VALIDATION_HUMAINE : aucune fiche non validée n'est diffusée (MCP-07-S1).
                     .filter(fiche -> fiche.etat() == FichesReglementaires.Etat.VALIDEE)
                     .filter(fiche -> appelant.memberOf(fiche.espaceId()))

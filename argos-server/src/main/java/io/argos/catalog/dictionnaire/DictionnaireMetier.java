@@ -48,6 +48,8 @@ public class DictionnaireMetier {
 
     /** Nombre maximal de règles par domaine et de domaines par espace. */
     public static final int REGLES_MAX = 200;
+    /** Longueur maximale de la valeur d'une règle. */
+    private static final int VALEUR_MAX = 200;
     public static final int DOMAINES_MAX = 100;
     public static final int EXPERTS_MAX = 50;
 
@@ -286,27 +288,32 @@ public class DictionnaireMetier {
         }
         Set<Regle> valides = new LinkedHashSet<>();
         for (Regle regle : regles) {
-            if (regle == null || regle.type() == null) {
-                throw new DonneeInvalide("DONNEE_INVALIDE", "Chaque règle a un type : NATURE, MINISTERE, NOR, CODE ou MOT_CLE.",
-                        "regles");
-            }
-            String valeur = regle.valeur() == null ? "" : regle.valeur().strip().replaceAll("\\s+", " ");
-            if (valeur.isEmpty() || valeur.length() > 200 || valeur.chars().anyMatch(Character::isISOControl)) {
-                throw new DonneeInvalide("DONNEE_INVALIDE", "Chaque règle a une valeur de 1 à 200 caractères.", "regles");
-            }
-            if (regle.type() == TypeRegle.NOR) {
-                valeur = valeur.toUpperCase(Locale.ROOT);
-                if (!valeur.matches("[A-Z]{1,4}[A-Z0-9]{0,8}")) {
-                    throw new DonneeInvalide("DONNEE_INVALIDE", "Un préfixe NOR commence par des lettres (par exemple TFPF).",
-                            "regles");
-                }
-            }
-            if (regle.type() == TypeRegle.NATURE) {
-                valeur = valeur.toUpperCase(Locale.ROOT);
-            }
-            valides.add(new Regle(regle.type(), valeur));
+            valides.add(regleValidee(regle));
         }
         return valides;
+    }
+
+    /**
+     * Règle typée, valeur de 1 à {@value #VALEUR_MAX} caractères sans caractère de contrôle, espaces réduits ; un
+     * préfixe NOR et une nature passent en majuscules, le préfixe NOR commence par des lettres.
+     */
+    private static Regle regleValidee(Regle regle) {
+        if (regle == null || regle.type() == null) {
+            throw new DonneeInvalide("DONNEE_INVALIDE", "Chaque règle a un type : NATURE, MINISTERE, NOR, CODE ou MOT_CLE.",
+                    "regles");
+        }
+        String valeur = regle.valeur() == null ? "" : regle.valeur().strip().replaceAll("\\s+", " ");
+        if (valeur.isEmpty() || valeur.length() > VALEUR_MAX || valeur.chars().anyMatch(Character::isISOControl)) {
+            throw new DonneeInvalide("DONNEE_INVALIDE", "Chaque règle a une valeur de 1 à " + VALEUR_MAX + " caractères.", "regles");
+        }
+        if (regle.type() == TypeRegle.NOR || regle.type() == TypeRegle.NATURE) {
+            valeur = valeur.toUpperCase(Locale.ROOT);
+        }
+        if (regle.type() == TypeRegle.NOR && !valeur.matches("[A-Z]{1,4}[A-Z0-9]{0,8}")) {
+            throw new DonneeInvalide("DONNEE_INVALIDE", "Un préfixe NOR commence par des lettres (par exemple TFPF).",
+                    "regles");
+        }
+        return new Regle(regle.type(), valeur);
     }
 
     private static int compter(Connection connexion, UUID espace) throws SQLException {

@@ -140,6 +140,19 @@ class ParseursInventaireTest {
         assertEquals(ParsedInventory.IgnoredComponent.SANS_PURL, inventaire.ignoredComponents().get(2).reason());
     }
 
+    /** INV-11-S1 : un composant au PURL mal encodé est écarté et signalé ; le reste de la SBOM est lu. */
+    @Test
+    void inv11S1PurlMalEncodeEcarteLeResteLu() {
+        ParsedInventory inventaire = lire(bom("1.6", """
+                {"name": "mal-encode", "purl": "pkg:npm/%zz@1.0.0"},
+                {"name": "lodash", "purl": "pkg:npm/lodash@4.17.21"}
+                """));
+
+        assertEquals(List.of("pkg:npm/lodash@4.17.21"), inventaire.components().stream().map(ParsedInventory.Item::purl).toList());
+        assertEquals(1, inventaire.ignoredCount());
+        assertEquals(ParsedInventory.IgnoredComponent.PURL_INVALIDE, inventaire.ignoredComponents().get(0).reason());
+    }
+
     @Test
     void auDelaDuMaximumSignaleSeulLeNombreEstConserve() {
         String composants = java.util.stream.IntStream.range(0, TROP_DE_COMPOSANTS)

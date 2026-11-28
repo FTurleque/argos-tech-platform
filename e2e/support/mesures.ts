@@ -1,8 +1,13 @@
 // Mesures d'accessibilité exécutées dans la page (page.evaluate) : contraste de chaque texte rendu d'une
-// mise en page sur son fond effectif (RGAA 3.2, WCAG 1.4.3) et état de l'élément qui a le focus, avec le
-// contraste de son contour (RGAA 3.3, 10.7, WCAG 1.4.11, 2.4.7). Partagées par le banc d'essai
-// (accessibilite/mises-en-page.spec.ts) et par les parcours sur la veille réelle (tests/veille.spec.ts).
-// Chaque fonction est autonome : elle est sérialisée et exécutée dans le navigateur.
+// zone sur son fond effectif (RGAA 3.2, WCAG 1.4.3) et état de l'élément qui a le focus, avec le
+// contraste de son contour (RGAA 3.3, 10.7, WCAG 1.4.11, 2.4.7). La zone est désignée par un sélecteur CSS
+// (MISE_EN_PAGE pour la mise en page de la veille). Partagées par le banc d'essai
+// (accessibilite/mises-en-page.spec.ts), les parcours sur la veille réelle (tests/veille.spec.ts) et l'audit des
+// écrans (support/audit-accessibilite.ts). Chaque fonction est autonome : elle est sérialisée et exécutée dans le
+// navigateur.
+
+/** Sélecteur de la mise en page de la veille. */
+export const MISE_EN_PAGE = '[data-mise-en-page]'
 
 /** Mesure de contraste d'un texte rendu. */
 export interface MesureContraste {
@@ -12,8 +17,8 @@ export interface MesureContraste {
   decoratif: boolean
 }
 
-/** Écarts de contraste de tout texte visible de la mise en page, sur son fond effectif. */
-export function mesurerContrastes(): MesureContraste[] {
+/** Contraste de tout texte visible de la zone désignée par `selecteur`, sur son fond effectif. */
+export function mesurerContrastes(selecteur: string): MesureContraste[] {
   type Rgba = [number, number, number, number]
   const lire = (couleur: string): Rgba => {
     const correspondance = couleur.match(/rgba?\(([^)]+)\)/)
@@ -47,7 +52,8 @@ export function mesurerContrastes(): MesureContraste[] {
     }
     return couches.reduceRight<Rgba>((dessous, dessus) => fusion(dessus, dessous), [255, 255, 255, 1])
   }
-  const racine = document.querySelector('[data-mise-en-page]')!
+  const racine = document.querySelector(selecteur)
+  if (!racine) throw new Error(`zone introuvable : ${selecteur}`)
   const mesures: { texte: string; rapport: number; seuil: number; decoratif: boolean }[] = []
   const marcheur = document.createTreeWalker(racine, NodeFilter.SHOW_TEXT)
   for (let noeud = marcheur.nextNode(); noeud; noeud = marcheur.nextNode()) {
@@ -71,11 +77,13 @@ export function mesurerContrastes(): MesureContraste[] {
   return mesures
 }
 
-/** Élément qui a le focus : position par rapport à la mise en page, lien visé et contour de focus. */
+/** Élément qui a le focus : position par rapport à la zone, lien visé, nom et contour de focus. */
 export interface EtatFocus {
-  /** Vrai si l'élément est dans la mise en page (`[data-mise-en-page]`). */
-  dansMiseEnPage: boolean
+  /** Vrai si l'élément est dans la zone désignée. */
+  dansZone: boolean
   href: string | null
+  /** Texte de l'élément ou son attribut aria-label, pour nommer l'élément dans les messages. */
+  nom: string
   style: string
   largeur: number
   /** Contraste du contour de focus sur le fond effectif de l'élément. */
@@ -83,7 +91,7 @@ export interface EtatFocus {
 }
 
 /** État de l'élément qui a le focus, ou null si le focus est sur le corps du document. */
-export function etatFocus(): EtatFocus | null {
+export function etatFocus(selecteur: string): EtatFocus | null {
   const element = document.activeElement as HTMLElement | null
   if (!element || element === document.body) return null
   const style = getComputedStyle(element)
@@ -116,8 +124,9 @@ export function etatFocus(): EtatFocus | null {
   }
   const [clair, sombre] = [lum(contour), lum(fond)].sort((gauche, droite) => droite - gauche)
   return {
-    dansMiseEnPage: !!element.closest('[data-mise-en-page]'),
+    dansZone: !!element.closest(selecteur),
     href: element.getAttribute('href'),
+    nom: (element.getAttribute('aria-label') ?? element.textContent ?? '').replace(/\s+/g, ' ').trim().slice(0, 50),
     style: style.outlineStyle,
     largeur: parseFloat(style.outlineWidth),
     contraste: (clair + 0.05) / (sombre + 0.05),

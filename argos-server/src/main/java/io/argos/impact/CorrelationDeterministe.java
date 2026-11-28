@@ -217,7 +217,7 @@ class CorrelationDeterministe {
             bilan.reopened++;
         }
         if (aPublier(impact, rouvert, existants.get(triplet), correspondance)) {
-            bilan.items.add(new ImpactsRecorded.Item(impact.id(), composant.projectId(), composant.workspaceId(),
+            bilan.items.add(new ImpactsRecorded.Item(impact.id(), composant.projectId(), composant.espaceId(),
                     correspondance.level(), composant.packageKey()));
         }
     }
@@ -253,7 +253,8 @@ class CorrelationDeterministe {
         Set<String> presents = ImpactsEnLot.paquetsPresents(connexion, aVerifier);
         List<TransitionSysteme> transitions = new ArrayList<>();
         for (Perime perime : perimes) {
-            MotifSysteme motif = motif(perime, signaux.get(perime.signalId()), bilans.get(perime.signalId()), presents);
+            MotifSysteme motif = motif(perime, signaux.get(perime.signalId()), bilans.get(perime.signalId()).stillAffected,
+                    presents);
             transitions.add(new TransitionSysteme(perime.id(), perime.etat(), EtatImpact.RESOLU, motif));
         }
         Set<UUID> resolus = TraitementImpacts.systemeParLot(connexion, transitions, maintenant);
@@ -264,7 +265,16 @@ class CorrelationDeterministe {
         }
     }
 
-    private static MotifSysteme motif(Perime perime, SignalQueries.SignalView signal, Bilan bilan, Set<String> presents) {
+    /**
+     * Motif de la résolution par le système d'un impact qui n'est plus vérifié (COR-11) : avis retiré, avis modifié
+     * (l'impact garde son composant), version hors plage (le paquet reste présent sans composant affecté) ou composant
+     * retiré.
+     *
+     * @param paquetsAffectes paquets (projet et clé) dont un composant reste affecté par le signal
+     * @param presents        paquets (projet et clé) encore présents dans l'inventaire de leur projet
+     */
+    static MotifSysteme motif(Perime perime, SignalQueries.SignalView signal, Set<String> paquetsAffectes,
+            Set<String> presents) {
         String paquet = ImpactsEnLot.clePaquet(perime.projectId(), perime.packageKey());
         if (signal.affected().isEmpty()) {
             // Avis retiré par sa source (OSV « withdrawn ») : il ne déclare plus aucun paquet affecté.
@@ -273,7 +283,7 @@ class CorrelationDeterministe {
         if (perime.componentId() != null) {
             return MotifSysteme.AVIS_MODIFIE;
         }
-        if (!bilan.stillAffected.contains(paquet) && presents.contains(paquet)) {
+        if (!paquetsAffectes.contains(paquet) && presents.contains(paquet)) {
             return MotifSysteme.VERSION_HORS_PLAGE;
         }
         return MotifSysteme.COMPOSANT_RETIRE;

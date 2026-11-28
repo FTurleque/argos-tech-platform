@@ -23,6 +23,8 @@ class CatalogueMisesEnPageTest {
         CatalogueMisesEnPage catalogue = new CatalogueMisesEnPage(new ObjectMapper(), Optional.empty());
         assertEquals(List.of("classique", "journal", "fantaisie", "gazette"),
                 catalogue.publiees().stream().map(MiseEnPage::identifiant).toList());
+        assertEquals("classique", CatalogueMisesEnPage.PAR_DEFAUT);
+        assertTrue(catalogue.estPubliee(CatalogueMisesEnPage.PAR_DEFAUT), "AFF-01 : la mise en page par défaut est publiée");
     }
 
     @Test

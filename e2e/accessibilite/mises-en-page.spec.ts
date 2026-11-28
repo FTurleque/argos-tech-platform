@@ -4,7 +4,7 @@
 // Aucune requête ne quitte le poste : toute requête vers un autre hôte que 127.0.0.1 fait échouer le test,
 // ce qui prouve aussi qu'aucune police n'est chargée depuis un service externe.
 import { expect, test, type Page } from '@playwright/test'
-import { etatFocus, mesurerContrastes } from '../support/mesures'
+import { etatFocus, MISE_EN_PAGE, mesurerContrastes } from '../support/mesures'
 
 const MISES_EN_PAGE = ['classique', 'journal', 'fantaisie', 'gazette'] as const
 const POLICES: Record<(typeof MISES_EN_PAGE)[number], string[]> = {
@@ -45,7 +45,7 @@ for (const id of MISES_EN_PAGE) {
 
     test('RGAA 3.2 : contraste de chaque texte rendu (4,5:1, ou 3:1 au-delà de 24 px ou 18,66 px gras)', async ({ page }) => {
       await ouvrir(page, id)
-      const mesures = await page.evaluate(mesurerContrastes)
+      const mesures = await page.evaluate(mesurerContrastes, MISE_EN_PAGE)
       expect(mesures.length).toBeGreaterThan(30)
       const ecarts = mesures.filter((mesure) => mesure.rapport < mesure.seuil)
       expect(ecarts, JSON.stringify(ecarts, null, 1)).toEqual([])
@@ -63,9 +63,9 @@ for (const id of MISES_EN_PAGE) {
       const parcourus: string[] = []
       for (let tabulation = 0; tabulation < liens.length + 1; tabulation++) {
         await page.keyboard.press('Tab')
-        const etat = await page.evaluate(etatFocus)
+        const etat = await page.evaluate(etatFocus, MISE_EN_PAGE)
         // Contraste du contour de focus sur le fond effectif de l'élément (WCAG 1.4.11, RGAA 3.3).
-        const focus = etat?.dansMiseEnPage ? etat : null
+        const focus = etat?.dansZone ? etat : null
         if (!focus) break
         parcourus.push(focus.href ?? '')
         expect(focus.style, 'contour de focus').not.toBe('none')

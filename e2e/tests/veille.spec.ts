@@ -18,7 +18,7 @@ import {
   UNION_JULES,
 } from '../support/ecrans'
 import { expect, seConnecterDepuis, test } from '../support/fixtures'
-import { etatFocus, mesurerContrastes } from '../support/mesures'
+import { etatFocus, MISE_EN_PAGE, mesurerContrastes } from '../support/mesures'
 
 const choisirMiseEnPage = (page: Page, id: string) => choisirMiseEnPageDe(page, 'jules', id)
 
@@ -195,7 +195,7 @@ for (const id of MISES_EN_PAGE) {
     await page.evaluate(() => document.fonts.ready)
 
     // RGAA 3.2 : contraste de chaque texte rendu sur son fond effectif.
-    const mesures = await page.evaluate(mesurerContrastes)
+    const mesures = await page.evaluate(mesurerContrastes, MISE_EN_PAGE)
     expect(mesures.length).toBeGreaterThan(20)
     const ecarts = mesures.filter((mesure) => mesure.rapport < mesure.seuil)
     expect(ecarts, JSON.stringify(ecarts, null, 1)).toEqual([])
@@ -208,8 +208,8 @@ for (const id of MISES_EN_PAGE) {
     let contrasteFocus = Infinity
     for (let tabulation = 0; tabulation < 80; tabulation++) {
       await page.keyboard.press('Tab')
-      const focus = await page.evaluate(etatFocus)
-      if (!focus?.dansMiseEnPage) {
+      const focus = await page.evaluate(etatFocus, MISE_EN_PAGE)
+      if (!focus?.dansZone) {
         if (parcourus.length > 0) break
         continue
       }

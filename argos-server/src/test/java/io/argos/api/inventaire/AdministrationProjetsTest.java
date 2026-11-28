@@ -26,7 +26,8 @@ import io.argos.testsupport.TestDb;
 
 /**
  * Administration des projets et de leurs dépôts par l'API (INV-12 ; décision du porteur du projet, 2026-11-26) :
- * création, rattachement, détachement réservés à l'administrateur de l'espace ; refus journalisés ; saisies invalides.
+ * création, rattachement, détachement réservés à l'administrateur de l'espace ; refus journalisés. Les saisies invalides
+ * (INV-12-S6) sont vérifiées par {@code SaisieProjetTest}.
  */
 @QuarkusTest
 class AdministrationProjetsTest {
@@ -136,24 +137,6 @@ class AdministrationProjetsTest {
         assertEquals(3, refus("jules", "NON_MEMBRE"));
         given().contentType(ContentType.JSON).body(Map.of("espaceId", espace.toString(), "nom", "x"))
                 .when().post(PROJETS).then().statusCode(401);
-    }
-
-    @Test
-    void inv12S6SaisieInvalide() {
-        creerInvalide(Map.of("espaceId", espace.toString(), "nom", "  "), "nom");
-        creerInvalide(Map.of("nom", "sans espace"), "espaceId");
-        creerInvalide(Map.of("espaceId", espace.toString(), "nom", "p", "depot", depot("BITBUCKET", "org/app")), "forge");
-        creerInvalide(Map.of("espaceId", espace.toString(), "nom", "p", "depot", Map.of("forge", "GITHUB")), "depot");
-        creerInvalide(Map.of("espaceId", espace.toString(), "nom", "a".repeat(201)), "nom");
-        creerInvalide(Map.of("espaceId", espace.toString(), "nom", "p", "depot", depot("GITHUB", "sans-proprietaire")), "depot");
-        creerInvalide(Map.of("espaceId", espace.toString(), "nom", "p", "depot", depot("GITHUB", "../..")), "depot");
-
-        assertEquals(0, baseDeTest.count("SELECT count(*) FROM project"));
-    }
-
-    private void creerInvalide(Map<String, Object> corps, String attribut) {
-        Api.enTantQue("alice").contentType(ContentType.JSON).body(corps).when().post(PROJETS)
-                .then().statusCode(400).body("code", equalTo("DONNEE_INVALIDE")).body("attribut", equalTo(attribut));
     }
 
     /** Refus journalisés pour le compte de l'utilisateur, avec le motif donné. */

@@ -174,10 +174,22 @@ public class SourcesWeb {
                 Jdbc.sansParametre(), resultat -> resultat.getLong(1)).orElse(0L);
     }
 
+    /** Demande validée : portée et espace cohérents, type connu (flux par défaut), libellé nettoyé. */
     static Demande valider(Demande demande) {
         if (demande == null) {
             throw new DonneeInvalide("DONNEE_INVALIDE", "Demande vide.", "adresse");
         }
+        String portee = portee(demande);
+        String type = demande.type() == null ? SourceWeb.FLUX : demande.type().strip().toUpperCase(Locale.ROOT);
+        if (!type.equals(SourceWeb.FLUX) && !type.equals(SourceWeb.PAGE)) {
+            throw new DonneeInvalide("DONNEE_INVALIDE", "Type attendu : FLUX ou PAGE.", "type");
+        }
+        String libelle = demande.libelle() == null || demande.libelle().isBlank() ? null : demande.libelle().strip();
+        return new Demande(portee, demande.espaceId(), type, demande.adresse(), libelle);
+    }
+
+    /** Portée normalisée : une source d'espace désigne son espace, une source personnelle n'en a pas. */
+    private static String portee(Demande demande) {
         String portee = demande.portee() == null ? "" : demande.portee().strip().toUpperCase(Locale.ROOT);
         if (!portee.equals(SourceWeb.ESPACE) && !portee.equals(SourceWeb.PERSONNELLE)) {
             throw new DonneeInvalide("DONNEE_INVALIDE", "Portée attendue : ESPACE ou PERSONNELLE.", "portee");
@@ -188,12 +200,7 @@ public class SourcesWeb {
         if (portee.equals(SourceWeb.PERSONNELLE) && demande.espaceId() != null) {
             throw new DonneeInvalide("DONNEE_INVALIDE", "Une source personnelle n'a pas d'espace.", "espaceId");
         }
-        String type = demande.type() == null ? SourceWeb.FLUX : demande.type().strip().toUpperCase(Locale.ROOT);
-        if (!type.equals(SourceWeb.FLUX) && !type.equals(SourceWeb.PAGE)) {
-            throw new DonneeInvalide("DONNEE_INVALIDE", "Type attendu : FLUX ou PAGE.", "type");
-        }
-        String libelle = demande.libelle() == null || demande.libelle().isBlank() ? null : demande.libelle().strip();
-        return new Demande(portee, demande.espaceId(), type, demande.adresse(), libelle);
+        return portee;
     }
 
     /**

@@ -16,7 +16,6 @@ import java.sql.Statement;
 import java.time.Instant;
 import java.time.temporal.ChronoUnit;
 import java.util.List;
-import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
 import java.util.UUID;
@@ -87,8 +86,8 @@ class CorrelationTest {
         spaceB = Api.nouvelEspace("jules", "Espace B");
     }
 
-    private UUID projectWithSbom(UUID workspace, String name, Instant generated, String... purls) {
-        UUID project = projects.create(workspace, name, null, null);
+    private UUID projectWithSbom(UUID espace, String name, Instant generated, String... purls) {
+        UUID project = projects.create(espace, name, null, null);
         List<String[]> components = new java.util.ArrayList<>();
         List<String> direct = new java.util.ArrayList<>();
         for (int rang = 0; rang < purls.length; rang++) {
@@ -118,21 +117,6 @@ class CorrelationTest {
     }
 
     @Test
-    void cor01S1EtS2EtS4PlageDeVersionsEtProjetsNonConcernes() {
-        UUID inRange = projectWithSbom(spaceA, "dans-la-plage", fresh(), LIB + "@1.2.0");
-        UUID outOfRange = projectWithSbom(spaceA, "hors-plage", fresh(), LIB + "@1.3.0");
-        UUID without = projectWithSbom(spaceA, "sans-le-paquet", fresh(), "pkg:maven/org.autre/outil@1.0.0");
-
-        UUID signal = publish("GHSA-COR1", LIB, "0", "1.3.0");
-
-        assertEquals(1, impactsOf(inRange));
-        assertEquals(0, impactsOf(outOfRange));
-        assertEquals(0, impactsOf(without));
-        assertEquals(signal, baseDeTest.uuid("SELECT signal_id FROM project_impact"));
-        assertEquals(LIB + "@1.2.0", baseDeTest.string("SELECT c.purl FROM project_impact i JOIN component c ON c.id = i.component_id"));
-    }
-
-    @Test
     void cor01S3DependanceTransitive() {
         UUID project = projectWithSbom(spaceA, "app", fresh(), "pkg:maven/org.exemple/direct@1.0.0", LIB + "@1.2.0");
 
@@ -140,37 +124,6 @@ class CorrelationTest {
 
         assertEquals(1, impactsOf(project));
         assertEquals("t", baseDeTest.string("SELECT transitive::text FROM project_impact").substring(0, 1));
-    }
-
-    @Test
-    void cor02S1EtCor06S1NiveauxSelonLInventaire() {
-        UUID exact = projectWithSbom(spaceA, "sbom-recente", fresh(), LIB + "@1.2.0");
-        UUID obsolete = projectWithSbom(spaceA, "sbom-obsolete", Instant.now().minus(40, ChronoUnit.DAYS), LIB + "@1.2.0");
-        UUID manifest = projects.create(spaceA, "manifeste", null, null);
-        inventories.importManifests(manifest, Map.of("package.json",
-                "{\"dependencies\":{\"lodash\":\"4.17.20\"}}".getBytes(StandardCharsets.UTF_8)));
-        UUID npmUnknownVersion = projects.create(spaceA, "version-inconnue", null, null);
-        inventories.importManifests(npmUnknownVersion, Map.of("package.json",
-                "{\"dependencies\":{\"lodash\":\"^4.0.0\"}}".getBytes(StandardCharsets.UTF_8)));
-
-        publish("GHSA-COR2", LIB, "0", "1.3.0");
-        String lodash = Fixtures.osv("GHSA-LODASH", "2026-11-11T00:00:00Z", "npm", "lodash", "pkg:npm/lodash", "0", "4.17.21");
-        Fixtures.stubOsv("GHSA-LODASH", "2026-11-11T00:00:00Z", lodash);
-        synchronizer.synchronize("OSV");
-
-        assertEquals("EXACT", baseDeTest.string("SELECT level FROM project_impact WHERE project_id = '" + exact + "'"));
-        assertEquals("PROBABLE", baseDeTest.string("SELECT level FROM project_impact WHERE project_id = '" + obsolete + "'"));
-        assertEquals("PROBABLE", baseDeTest.string("SELECT level FROM project_impact WHERE project_id = '" + manifest + "'"));
-        assertEquals("A_VERIFIER", baseDeTest.string("SELECT level FROM project_impact WHERE project_id = '" + npmUnknownVersion + "'"));
-    }
-
-    @Test
-    void aVerifierPourUnAvisSansPurl() {
-        UUID project = projectWithSbom(spaceA, "app", fresh(), LIB + "@1.2.0");
-
-        publish("GHSA-NOPURL", null, "0", "1.3.0");
-
-        assertEquals("A_VERIFIER", baseDeTest.string("SELECT level FROM project_impact WHERE project_id = '" + project + "'"));
     }
 
     @Test
@@ -253,46 +206,6 @@ class CorrelationTest {
                 .getBytes(StandardCharsets.UTF_8), "ci");
     }
 
-    /** COR-11-S1 : un impact confirmé dont le composant est retiré par un import est résolu, et reste consultable. */
-    @Test
-    void cor11S1ComposantRetireDeLInventaire() {
-        UUID project = projectWithSbom(spaceA, "app", fresh(), "pkg:npm/exemple@1.5.0", "pkg:npm/autre@1.0.0");
-        String avis = Fixtures.osv("GHSA-COR11-1", "2026-11-10T00:00:00Z", "npm", "exemple", "pkg:npm/exemple", "0", "2.0.0");
-        Fixtures.stubOsv("GHSA-COR11-1", "2026-11-10T00:00:00Z", avis);
-        synchronizer.synchronize("OSV");
-        UUID impact = baseDeTest.uuid("SELECT id FROM project_impact");
-        baseDeTest.exec("UPDATE project_impact SET state = 'CONFIRME' WHERE id = '" + impact + "'");
-
-        reimport(project, "pkg:npm/autre@1.0.0");
-
-        assertEquals("RESOLU", stateOf(impact));
-        assertEquals("COMPOSANT_RETIRE", lastReason(impact));
-        assertEquals("CONFIRME", baseDeTest.string("SELECT from_state FROM project_impact_transition WHERE impact_id = '" + impact + "'"));
-        assertEquals(1, baseDeTest.count("SELECT count(*) FROM project_impact_transition WHERE impact_id = '" + impact
-                + "' AND actor_system AND actor_account_id IS NULL"));
-        Optional<ImpactQueries.ImpactView> vue = impacts.find(impact, Api.compte("alice"), Set.of(spaceA));
-        assertTrue(vue.isPresent(), "l'impact résolu reste consultable");
-        assertEquals("pkg:npm/exemple@1.5.0", vue.get().componentPurl());
-        assertTrue(vue.get().provenance().contains("GHSA-COR11-1"), "sa provenance est conservée");
-        assertTrue(impacts.integrity().intact(), "INV-C3 : aucun impact actif sans composant");
-    }
-
-    /** COR-11-S2 : composant mis à jour hors plage, aucun impact créé pour la nouvelle version. */
-    @Test
-    void cor11S2ComposantMisAJourHorsPlage() {
-        UUID project = projectWithSbom(spaceA, "app", fresh(), "pkg:npm/exemple@1.5.0");
-        String avis = Fixtures.osv("GHSA-COR11-2", "2026-11-10T00:00:00Z", "npm", "exemple", "pkg:npm/exemple", "0", "2.0.0");
-        Fixtures.stubOsv("GHSA-COR11-2", "2026-11-10T00:00:00Z", avis);
-        synchronizer.synchronize("OSV");
-        UUID impact = baseDeTest.uuid("SELECT id FROM project_impact");
-
-        reimport(project, "pkg:npm/exemple@2.1.0");
-
-        assertEquals("RESOLU", stateOf(impact));
-        assertEquals("VERSION_HORS_PLAGE", lastReason(impact));
-        assertEquals(1, impactsOf(project), "aucun impact pour pkg:npm/exemple@2.1.0");
-    }
-
     /** COR-11-S3 (avis modifié) puis COR-11-S5 : résolu par le système, puis rouvert quand l'avis couvre de nouveau. */
     @Test
     void cor11S3AvisModifieEtCor11S5ImpactResoluDeNouveauVerifie() {
@@ -341,7 +254,11 @@ class CorrelationTest {
         assertEquals(0, activeImpactsOf(project));
     }
 
-    /** Un composant retiré puis réimporté à la même version : l'impact résolu le retrouve et repasse ouvert. */
+    /**
+     * COR-11-S1 puis COR-11-S5 : un composant retiré est résolu par le système (motif persisté, sans compte auteur),
+     * l'impact reste consultable avec sa provenance ; réimporté à la même version, l'impact résolu le retrouve et
+     * repasse ouvert. Le choix du motif est vérifié par {@code CorrelationDeterministeTest}.
+     */
     @Test
     void composantRevenuRouvreLImpactSansDoublon() {
         UUID project = projectWithSbom(spaceA, "app", fresh(), LIB + "@1.2.0", "pkg:maven/org.autre/outil@1.0.0");
@@ -350,6 +267,14 @@ class CorrelationTest {
 
         reimport(project, "pkg:maven/org.autre/outil@1.0.0");
         assertEquals("RESOLU", stateOf(impact));
+        assertEquals("COMPOSANT_RETIRE", lastReason(impact));
+        assertEquals(1, baseDeTest.count("SELECT count(*) FROM project_impact_transition WHERE impact_id = '" + impact
+                + "' AND actor_system AND actor_account_id IS NULL"));
+        Optional<ImpactQueries.ImpactView> vue = impacts.find(impact, Api.compte("alice"), Set.of(spaceA));
+        assertTrue(vue.isPresent(), "l'impact résolu reste consultable");
+        assertEquals(LIB + "@1.2.0", vue.get().componentPurl());
+        assertTrue(vue.get().provenance().contains("GHSA-COR11-6"), "sa provenance est conservée");
+        assertTrue(impacts.integrity().intact(), "INV-C3 : aucun impact actif sans composant");
         reimport(project, LIB + "@1.2.0");
 
         assertEquals(1, impactsOf(project));

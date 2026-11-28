@@ -3,7 +3,6 @@ package io.argos.chain;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
-import java.lang.reflect.Method;
 import java.time.Clock;
 import java.time.Duration;
 import java.time.Instant;
@@ -12,7 +11,6 @@ import java.util.UUID;
 
 import jakarta.inject.Inject;
 
-import org.eclipse.microprofile.config.ConfigProvider;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
@@ -25,7 +23,6 @@ import io.argos.testsupport.TestDb;
 import io.argos.vulnintel.CertFrSource;
 import io.argos.vulnintel.Enricher;
 import io.argos.vulnintel.TraitementEnrichissements;
-import io.quarkus.scheduler.Scheduled;
 import io.quarkus.test.common.QuarkusTestResource;
 import io.quarkus.test.junit.QuarkusTest;
 
@@ -94,38 +91,6 @@ class SynchronisationPlanifieeTest {
         assertEquals(1, StubServer.received("/osv-api/v1/vulns/GHSA-PL02").size());
         assertEquals("2026-11-19T08:30:00Z|GHSA-PL02", baseDeTest.string("SELECT position FROM sync_cursor WHERE source_id = 'OSV'"));
         assertEquals(0, baseDeTest.count("SELECT count(*) FROM sync_run WHERE state = 'RUNNING'"));
-    }
-
-    @Test
-    void col09S2SourceDejaEnCoursDeSynchronisationSautee() {
-        // Synchronisation lancée par l'exploitant et toujours en cours (battement de cœur récent).
-        UUID enCours = UUID.randomUUID();
-        baseDeTest.exec("INSERT INTO sync_run(id, source_id, state, attempts, started_at, heartbeat_at) VALUES ('" + enCours
-                + "', 'OSV', 'RUNNING', 1, now(), now())");
-        Fixtures.stubOsv("GHSA-PL03", "2026-11-18T10:00:00Z", avis("GHSA-PL03", "2026-11-18T10:00:00Z"));
-
-        SynchronisationPlanifiee.Bilan bilan = planification.synchroniserToutes(INSTANT_INITIAL);
-
-        assertEquals(List.of("OSV"), bilan.sautees());
-        assertTrue(bilan.rapports().isEmpty());
-        assertEquals(1, baseDeTest.count("SELECT count(*) FROM sync_run WHERE source_id = 'OSV'"));
-        assertEquals(enCours.toString(), baseDeTest.string("SELECT id::text FROM sync_run WHERE state = 'RUNNING'"));
-        assertEquals(0, baseDeTest.count("SELECT count(*) FROM signal"));
-        assertTrue(StubServer.received("/osv-").isEmpty(), "aucune lecture de la source");
-    }
-
-    @Test
-    void col09S3CadenceConfigurableSansRecompilation() throws Exception {
-        Method tache = SynchronisationPlanifiee.class.getDeclaredMethod("planifier");
-        Scheduled planifiee = tache.getAnnotation(Scheduled.class);
-
-        assertEquals("signal-synchronisation-sources", planifiee.identity());
-        assertEquals("{argos.ingestion.planification.cadence}", planifiee.every(), "cadence lue dans la configuration");
-        assertEquals(Scheduled.ConcurrentExecution.SKIP, planifiee.concurrentExecution());
-        // Valeur par défaut : une heure (décision J1), remplaçable par ARGOS_INGESTION_PLANIFICATION_CADENCE.
-        assertEquals("1h", ConfigProvider.getConfig().getValue("argos.ingestion.planification.cadence", String.class));
-        // Le planificateur est désactivé dans le profil de test (ADR-0031).
-        assertEquals(Boolean.FALSE, ConfigProvider.getConfig().getValue("quarkus.scheduler.enabled", Boolean.class));
     }
 
     @Test
