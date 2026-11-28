@@ -68,27 +68,43 @@ export function dependancesLivrees(verrou) {
   const vus = new Map();
   const aVisiter = Object.keys(racine.dependencies ?? {}).map((nom) => ({ depuis: '', nom, facultative: false }));
   while (aVisiter.length > 0) {
-    const { depuis, nom, facultative } = aVisiter.pop();
-    const emplacement = resoudre(paquets, depuis, nom);
-    if (!emplacement) {
-      if (facultative) continue;
-      throw new EntreeInvalide(`dépendance ${nom} introuvable dans le package-lock (depuis « ${depuis || 'racine'} »)`);
-    }
+    const demande = aVisiter.pop();
+    const emplacement = emplacementLivre(paquets, demande, vus);
+    if (!emplacement) continue;
     const description = paquets[emplacement];
-    // Une dépendance facultative ou pair que seul le développement installe (outil de build) n'est pas livrée.
-    if (vus.has(emplacement) || (facultative && (description.dev || description.devOptional))) continue;
-    vus.set(emplacement, { nom, version: description.version, licence: description.license, emplacement });
-    for (const suivante of Object.keys(description.dependencies ?? {})) {
-      aVisiter.push({ depuis: emplacement, nom: suivante, facultative: false });
-    }
-    // Dépendances facultatives et pairs : livrées quand npm les a installées (présentes dans le verrou).
-    const facultatives = { ...description.optionalDependencies, ...description.peerDependencies };
-    for (const suivante of Object.keys(facultatives)) {
-      aVisiter.push({ depuis: emplacement, nom: suivante, facultative: true });
-    }
+    vus.set(emplacement, { nom: demande.nom, version: description.version, licence: description.license, emplacement });
+    aVisiter.push(...demandesSuivantes(emplacement, description));
   }
   return [...vus.values()].sort((premier, second) => premier.nom.localeCompare(second.nom)
     || premier.version.localeCompare(second.version));
+}
+
+/**
+ * Emplacement à retenir pour une dépendance demandée, ou undefined quand elle est déjà vue, facultative et absente du
+ * verrou, ou facultative et installée pour le seul développement (outil de build). Une dépendance obligatoire absente
+ * du verrou est une entrée invalide.
+ */
+function emplacementLivre(paquets, { depuis, nom, facultative }, vus) {
+  const emplacement = resoudre(paquets, depuis, nom);
+  if (!emplacement) {
+    if (facultative) return undefined;
+    throw new EntreeInvalide(`dépendance ${nom} introuvable dans le package-lock (depuis « ${depuis || 'racine'} »)`);
+  }
+  if (vus.has(emplacement)) return undefined;
+  const { dev, devOptional } = paquets[emplacement];
+  return facultative && (dev || devOptional) ? undefined : emplacement;
+}
+
+/**
+ * Dépendances demandées par un paquet retenu : obligatoires, puis facultatives et pairs (livrées quand npm les a
+ * installées, c'est-à-dire présentes dans le verrou).
+ */
+function demandesSuivantes(emplacement, description) {
+  const obligatoires = Object.keys(description.dependencies ?? {})
+    .map((nom) => ({ depuis: emplacement, nom, facultative: false }));
+  const facultatives = Object.keys({ ...description.optionalDependencies, ...description.peerDependencies })
+    .map((nom) => ({ depuis: emplacement, nom, facultative: true }));
+  return [...obligatoires, ...facultatives];
 }
 
 /**
@@ -157,6 +173,18 @@ function lireOptions(arguments_) {
   return options;
 }
 
+/** Affiche le bilan d'un paquet (sortie standard, erreurs sur la sortie d'erreur) ; rend le nombre de refus. */
+function signalerBilan({ dossier, dependances, refusees, sansTexte }) {
+  console.log(`${dossier} : ${dependances.length} dépendances livrées.`);
+  for (const { nom, version, licence } of refusees) {
+    console.error(`ERREUR ${nom} ${version} : licence non admise (${licence === undefined ? 'absente' : JSON.stringify(licence)})`);
+  }
+  for (const { nom, version } of sansTexte) {
+    console.error(`ERREUR ${nom} ${version} : aucun texte de licence dans le paquet installé (npm ci exécuté ?)`);
+  }
+  return refusees.length + sansTexte.length;
+}
+
 function principal(arguments_) {
   let bilans;
   let options;
@@ -168,17 +196,7 @@ function principal(arguments_) {
     console.error(`Entrée inexploitable : ${erreur.message}`);
     return CODE_ENTREE_INVALIDE;
   }
-  let refus = 0;
-  for (const { dossier, dependances, refusees, sansTexte } of bilans) {
-    console.log(`${dossier} : ${dependances.length} dépendances livrées.`);
-    for (const { nom, version, licence } of refusees) {
-      console.error(`ERREUR ${nom} ${version} : licence non admise (${licence === undefined ? 'absente' : JSON.stringify(licence)})`);
-    }
-    for (const { nom, version } of sansTexte) {
-      console.error(`ERREUR ${nom} ${version} : aucun texte de licence dans le paquet installé (npm ci exécuté ?)`);
-    }
-    refus += refusees.length + sansTexte.length;
-  }
+  const refus = bilans.reduce((total, bilan) => total + signalerBilan(bilan), 0);
   if (options.sortie && refus === 0) {
     mkdirSync(dirname(options.sortie), { recursive: true });
     writeFileSync(options.sortie, avis(bilans.flatMap((bilan) => bilan.dependances)), 'utf8');
