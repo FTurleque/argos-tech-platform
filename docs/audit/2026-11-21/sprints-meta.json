@@ -1,0 +1,281 @@
+[
+ {
+  "numero": 1,
+  "titre": "Remettre les gates en marche",
+  "pourquoi": "Aucun test n'est exécuté automatiquement, l'image est construite avec -DskipTests et 313 commits (253 hors fusions) ont été intégrés depuis le 17/11 sans gate : aucune correction des sprints suivants n'est vérifiable. Ce sprint ne touche presque pas au code applicatif.",
+  "sortie": "Chaque push lance, sur JDK 17, mvn -B clean verify (654 tests à b142695, environ 11 min), npm test et vue-tsc pour l'IHM, npm test, check:syntax et une vérification de types pour le desktop, la vérification de types de e2e/, le contrôle documentaire et npm audit ; les tests du script de licences tournent quand pom.xml change ; JaCoCo est publié avec un seuil qui fait échouer le build (référence : 85,8 % des lignes, 72,0 % des branches) ; modifier une migration fusionnée fait échouer la CI ; un paquet io.argos non déclaré fait échouer ModuleBoundariesTest et les 7 dépendances autorisées inutilisées sont retirées de la table ou motivées ; mesurer-p95.mjs lance Maven par chemin absolu, sans shell: true ; Renovate ou Dependabot ouvre les mises à jour des dépendances et des tags d'images.",
+  "constats": [
+   "AUD-TST-01",
+   "AUD-TST-19",
+   "AUD-DEP-20",
+   "AUD-DEP-22",
+   "AUD-TST-02",
+   "AUD-ARC-07",
+   "AUD-DEP-05",
+   "AUD-QUA-19",
+   "AUD-TST-26",
+   "AUD-SEC-24"
+  ],
+  "charge": [
+   3.25,
+   12
+  ],
+  "partiels": [
+   "AUD-DEP-20"
+  ]
+ },
+ {
+  "numero": 2,
+  "titre": "Sauvegarde, restauration et base",
+  "pourquoi": "Le NAS est la seule cible réelle : la sauvegarde échoue en silence, n'emporte pas la base keycloak dont dépendent les comptes, et Keycloak partage le compte superutilisateur d'Argos. Ce lot touche le script de sauvegarde et les rôles PostgreSQL, rien d'autre.",
+  "sortie": "Un pg_dump en échec fait sortir le script en erreur sans rotation ; les bases argos et keycloak sont sauvegardées en 0600 ; une restauration des deux bases a été rejouée sur une instance vierge et un utilisateur s'y reconnecte avec ses espaces ; Argos et Keycloak se connectent avec des rôles distincts, non superutilisateurs, propriétaires de leur seule base ; aucun mot de passe par défaut ne subsiste dans compose.yaml.",
+  "constats": [
+   "AUD-QUA-02",
+   "AUD-SEC-07",
+   "AUD-DEP-24",
+   "AUD-SEC-30",
+   "AUD-DEP-03",
+   "AUD-SEC-06"
+  ],
+  "charge": [
+   2.25,
+   8
+  ],
+  "partiels": []
+ },
+ {
+  "numero": 3,
+  "titre": "Déploiement et conteneurs",
+  "pourquoi": "compose.yaml ne transmet pas 28 des 37 variables lues en production, le profil idp-local n'a pas de garde sur ses variables obligatoires, et les conteneurs n'ont ni healthcheck ni durcissement. Le rebinding DNS, à fenêtre étroite, est corrigé ici, avant l'ouverture au public.",
+  "sortie": "Un test compare les ${ARGOS_*} lus par application.properties à compose.yaml et .env.example et échoue sur tout écart ; le profil idp-local refuse de démarrer si une variable obligatoire manque ; argos, ollama et keycloak ont un healthcheck et une rotation des journaux, la JVM s'arrête sur OutOfMemoryError ; un profil NAS documenté laisse au moins 3 Go au DSM avec les profils ia et idp-local actifs, et les pools (quarkus.datasource.jdbc.max-size, KC_DB_POOL_MAX_SIZE) restent sous le max_connections réglé de PostgreSQL ; quarkus-app appartient à root, le service tourne en read_only avec cap_drop: [ALL] et no-new-privileges ; un test avec un résolveur DNS qui change de réponse prouve que la veille web se connecte à l'adresse validée.",
+  "constats": [
+   "AUD-DEP-01",
+   "AUD-DEP-27",
+   "AUD-DEP-08",
+   "AUD-PER-12",
+   "AUD-PER-28",
+   "AUD-SEC-25",
+   "AUD-SEC-01"
+  ],
+  "charge": [
+   2.5,
+   9
+  ],
+  "partiels": []
+ },
+ {
+  "numero": 4,
+  "titre": "Observabilité et frontières d'erreur",
+  "pourquoi": "Le lot 23 a resserré les captures d'exception sans tests : une erreur imprévue bloque désormais des collectes entières et le MCP renvoie des erreurs de protocole. Les sprints 8 à 10 déplacent la chaîne d'ingestion : sans métriques ni journaux structurés, une régression ne se verrait pas.",
+  "sortie": "Chaque boucle par source, par projet et par espace isole les erreurs imprévues : PUT /standards avec la clé pkg:maven/%zz/x répond 400, un avis et une SBOM portant ce PURL n'arrêtent que la source ou le projet fautif, vérifié par un test par frontière ; la garde MCP journalise et répond INDISPONIBLE pour toute erreur ; les journaux d'erreur passent la cause, pile comprise ; le serveur expose /q/metrics et des journaux JSON avec un contrôle de santé par tâche planifiée ; une recherche de (Instant|LocalDate|LocalDateTime|OffsetDateTime|ZonedDateTime).now( dans src/main ne trouve que le producteur du Clock ; aucun Thread.sleep ni attente sur l'horloge réelle dans src/test ; les exécuteurs sont gérés par CDI.",
+  "constats": [
+   "AUD-DEP-07",
+   "AUD-QUA-20",
+   "AUD-QUA-23",
+   "AUD-QUA-10",
+   "AUD-TST-06",
+   "AUD-QUA-11"
+  ],
+  "charge": [
+   3.0,
+   10
+  ],
+  "partiels": []
+ },
+ {
+  "numero": 5,
+  "titre": "Décisions écrites et noyau commun",
+  "pourquoi": "Les mécanismes partagés restent recopiés (4 contextes RLS, 6 transactions manuelles dont une qui ne restaure pas l'autocommit, 272 prepareStatement) et 14 ADR appliqués sont encore « Proposé ». Les décisions doivent être écrites avant de migrer les consommateurs vers un mécanisme unique.",
+  "sortie": "Les ADR appliqués ont le statut Accepté ; un module transverse unique porte le contexte RLS, le modèle transactionnel et l'utilitaire JDBC, et aucune autre classe ne pose SET LOCAL ROLE ni setAutoCommit ; la propriété de chaque table est documentée et les lectures croisées sont vérifiées par un test. Le niveau d'impact circule sous l'énumération MatchRules.Level de bout en bout, les statuts d'import et de corrélation sont des énumérations sans branche default silencieuse, et la clé « fréquence:canal » n'est plus découpée par split.",
+  "constats": [
+   "AUD-ARC-14",
+   "AUD-ARC-05",
+   "AUD-ARC-04",
+   "AUD-QUA-06",
+   "AUD-ARC-06",
+   "AUD-QUA-04",
+   "AUD-QUA-08"
+  ],
+  "charge": [
+   4.75,
+   15
+  ],
+  "partiels": [
+   "AUD-ARC-14",
+   "AUD-QUA-08"
+  ]
+ },
+ {
+  "numero": 6,
+  "titre": "Portail déployable et autorisations",
+  "pourquoi": "L'IHM servie par l'image se charge désormais, mais la connexion n'aboutit que sur le poste hôte, au port 8088 : émetteur figé au build, redirections du royaume limitées à localhost:8088, royaume sans protection contre la force brute, IHM qui détient des jetons sans CSP. Les autorisations n'ont toujours pas de test matriciel.",
+  "sortie": "Avec les valeurs par défaut, un utilisateur se connecte au portail servi par l'image depuis l'hôte ; en réglant seulement ARGOS_BIND, ARGOS_PUBLIC_URL et l'émetteur selon le guide, il se connecte depuis un autre poste (aucune occurrence de localhost:8180 dans le bundle, contrôlé par un test) ; un test vérifie 200 sur / et /assets/* sans jeton et 401 sur /api/v1/* ; CSP (nommant l'émetteur configuré), frame-ancestors et nosniff sont posés sur l'IHM servie et testés ; le royaume livré a une politique de mot de passe, la protection contre la force brute et sslRequired external ou all avant toute exposition hors 127.0.0.1 ; un test parcourt chaque point d'entrée REST pour chaque rôle, dont PUT …/demande-evolution refusé sans requête vers la forge ; l'écoute de bouclage du desktop ne se ferme que sur le state attendu ; recherche et /me/veille ont une limite de débit ; les alertes ne partent que vers une adresse vérifiée.",
+  "constats": [
+   "AUD-DEP-21",
+   "AUD-DEP-25",
+   "AUD-SEC-05",
+   "AUD-SEC-29",
+   "AUD-TST-25",
+   "AUD-TST-05",
+   "AUD-SEC-22",
+   "AUD-SEC-04",
+   "AUD-SEC-09",
+   "AUD-SEC-23"
+  ],
+  "charge": [
+   3.25,
+   12
+  ],
+  "partiels": [
+   "AUD-DEP-21"
+  ]
+ },
+ {
+  "numero": 7,
+  "titre": "Alimenter l'inventaire et compléter l'IHM",
+  "pourquoi": "Aucun point d'entrée ne crée de projet ni ne rattache de dépôt, des fonctions ne sont atteintes que par les tests, le profil artiste n'a pas d'IHM et les liens des alertes visent des routes que l'IHM n'a pas.",
+  "sortie": "Un utilisateur crée un projet, lui rattache un dépôt et importe une SBOM par l'API et l'IHM ; les vues artiste existent ; chaque lien produit par les alertes ouvre une vue existante de l'IHM (test) ; aucune méthode publique de src/main n'est atteinte seulement par les tests ; appelerApi, les vues et main.js ont des tests ; le client de l'IHM est généré depuis /q/openapi ou vérifié par un test de contrat ; workspace, inventory, vulnintel, releaseradar et audit ont chacun une classe de test dédiée et chaque module, scm compris (51,8 % à b142695), atteint le seuil JaCoCo ; le nettoyage entre tests est dérivé du schéma, sans liste TRUNCATE codée en dur.",
+  "constats": [
+   "AUD-QUA-01",
+   "AUD-QUA-17",
+   "AUD-ARC-15",
+   "AUD-ARC-22",
+   "AUD-TST-10",
+   "AUD-ARC-12",
+   "AUD-TST-09",
+   "AUD-TST-04",
+   "AUD-TST-08"
+  ],
+  "charge": [
+   6.0,
+   19
+  ],
+  "partiels": [
+   "AUD-QUA-01",
+   "AUD-TST-10",
+   "AUD-ARC-12",
+   "AUD-TST-09",
+   "AUD-TST-04"
+  ]
+ },
+ {
+  "numero": 8,
+  "titre": "Ingestion asynchrone",
+  "pourquoi": "La collecte est planifiée, mais le lancement manuel reste synchrone, deux fils peuvent synchroniser la même source pendant une attente de reprise, et l'enrichissement tourne dans le fil d'ingestion sans rattrapage.",
+  "sortie": "POST /ops/sources/{id}/synchronizations répond 202 et réutilise la tâche de fond ; un run en attente de reprise reste exclusif (test de concurrence) ; l'amorçage OSV passe par l'archive de l'écosystème ; retryMissing est planifiée ; aucun appel à EnrichmentSource.lookup ni AdvisoryFeed.fetch dans une transaction (test ArchUnit) ; tous les clients HTTP partagent une configuration et un plafond de taille ; AlerteEmise est observée ou supprimée. La chaîne StandardModifie → RadarProjets → AnnonceStandard → RappelsRadar ne s'exécute plus dans la requête PUT /standards (observateur transactionnel ou asynchrone, testé) ; la collecte d'activité lit les échéances en une requête et borne le parallélisme des appels de forge.",
+  "constats": [
+   "AUD-PER-02",
+   "AUD-PER-01",
+   "AUD-PER-27",
+   "AUD-ARC-09",
+   "AUD-ARC-19",
+   "AUD-ARC-10",
+   "AUD-PER-11",
+   "AUD-PER-13"
+  ],
+  "charge": [
+   4.25,
+   14
+  ],
+  "partiels": [
+   "AUD-PER-01"
+  ]
+ },
+ {
+  "numero": 9,
+  "titre": "Rétention, import et pagination",
+  "pourquoi": "Les tables de journal et d'échec grossissent sans fin, l'import nocturne réécrit et recorrèle tout et la corrélation réécrit chaque impact chaque nuit, ce qui fausse aussi l'ordre « récents ». Le mécanisme de rétention vient en premier.",
+  "sortie": "Chaque table de journal, d'échec ou d'historique, opportunités comprises, a une purge planifiée avec une rétention configurée ; l'import nocturne ne réécrit ni ne recorrèle un inventaire inchangé et insère par lot ; la corrélation ne modifie updated_at que si l'impact change ; les index manquants sont créés ; toutes les listes renvoyées par l'API sont paginées.",
+  "constats": [
+   "AUD-SEC-03",
+   "AUD-PER-18",
+   "AUD-PER-19",
+   "AUD-PER-20",
+   "AUD-PER-25",
+   "AUD-PER-09",
+   "AUD-PER-10"
+  ],
+  "charge": [
+   2.5,
+   9
+  ],
+  "partiels": []
+ },
+ {
+  "numero": 10,
+  "titre": "Requêtes chaudes",
+  "pourquoi": "Corrélation, alertes et radar font des requêtes en N+1 ; « Ma veille » est dans la cible mesurée mais sans abonnements dans le jeu de mesure, et l'index V21 ne porte pas l'espace.",
+  "sortie": "Corrélation, alertes et radar s'exécutent en un nombre de requêtes indépendant du nombre de signaux ou de membres ; la campagne de performance inclut des abonnements et plusieurs espaces de tailles différentes, et GET /me/veille reste sous 500 ms au p95, y compris pour un appelant de moins de 200 impacts actifs dans une table project_impact d'au moins 500 000 lignes majoritairement résolues ; la recherche ne matérialise que la page demandée ; aucun index redondant sur project_impact.",
+  "constats": [
+   "AUD-PER-04",
+   "AUD-PER-03",
+   "AUD-PER-06",
+   "AUD-PER-26",
+   "AUD-PER-29",
+   "AUD-PER-05",
+   "AUD-PER-07"
+  ],
+  "charge": [
+   6.25,
+   19
+  ],
+  "partiels": [
+   "AUD-PER-06"
+  ]
+ },
+ {
+  "numero": 11,
+  "titre": "Structure et distribution",
+  "pourquoi": "Les chantiers de fond (pyramide de tests, campagnes E2E contre l'image, taille des méthodes, distribution du desktop) ne valent qu'une fois la structure stabilisée par les sprints 5 à 10.",
+  "sortie": "La majorité des tests serveur s'exécutent sans Docker ; les campagnes E2E et d'accessibilité (étendue aux écrans livrés depuis le 17/11) tournent en CI contre l'image construite ; un seuil de longueur et de complexité des méthodes est vérifié en CI ; le desktop est signé et se met à jour ; les avis MIT de vue et vue-router sont livrés ou motivés. La recherche plein texte réside dans le module que désigne le package-info ; une langue par concept (espace ou workspace) est fixée et vérifiée par le contrôle de nommage ; au moins un @QuarkusIntegrationTest tourne contre l'artefact empaqueté.",
+  "constats": [
+   "AUD-TST-03",
+   "AUD-TST-12",
+   "AUD-TST-20",
+   "AUD-TST-23",
+   "AUD-ARC-11",
+   "AUD-QUA-09",
+   "AUD-QUA-18",
+   "AUD-DEP-15",
+   "AUD-DEP-19"
+  ],
+  "charge": [
+   8.75,
+   26
+  ],
+  "partiels": [
+   "AUD-QUA-09",
+   "AUD-QUA-18",
+   "AUD-DEP-19"
+  ]
+ },
+ {
+  "numero": 12,
+  "titre": "Documentation alignée sur le code livré",
+  "pourquoi": "Les points d'entrée décrivent encore le cadrage de septembre, le registre des spécifications ignore l'archivage du 20/11 et le guide de déploiement ne mène pas à une installation qui fonctionne hors du poste. La documentation passe en dernier pour décrire l'état produit par les sprints 1 à 11 — avec un correctif immédiat du guide recommandé hors sprint (AUD-DOC-03).",
+  "sortie": "En suivant uniquement le guide de déploiement, on installe Argos et Keycloak sur une machine vierge puis on se connecte au portail et au desktop depuis un autre poste : procédure rejouée et datée ; chaque variable ARGOS_* lue en production figure dans le guide, vérifié par script ; README, docs/architecture/README.md, openspec/config.yaml, arc42 et le registre des spécifications décrivent le code et l'état OpenSpec au HEAD ; un seul registre des risques ; les ADR acceptés sont rédigés en « Décision » ; verifier-docs --rendu passe, couvre les README des sous-projets et tourne en CI ; .archgate/ est supprimé ou documenté.",
+  "constats": [
+   "AUD-DOC-03",
+   "AUD-DOC-04",
+   "AUD-DOC-01",
+   "AUD-DOC-02",
+   "AUD-DOC-19",
+   "AUD-DOC-05",
+   "AUD-DOC-06",
+   "AUD-DOC-07",
+   "AUD-DOC-08",
+   "AUD-DOC-10",
+   "AUD-DOC-11",
+   "AUD-DOC-20",
+   "AUD-DOC-23"
+  ],
+  "charge": [
+   4.75,
+   17
+  ],
+  "partiels": [
+   "AUD-DOC-03",
+   "AUD-DOC-04"
+  ]
+ }
+]

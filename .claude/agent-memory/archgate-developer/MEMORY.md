@@ -1,0 +1,6 @@
+- [Cycle des lots](feedback_cycle_lots.md) — pousser + ouvrir la PR sans redemander après revérification, puis lancer le lot suivant ; fusion sur accord
+- [Décisions au porteur](feedback_decisions.md) — soumettre les décisions en attente par questions à choix, puis les appliquer et les consigner
+- [Ordre d'archivage](project_ordre_archivage.md) — automatiser-chaine-veille s'archive après formaliser-chaine-securite-poc
+- [Nommage](feedback_nommage.md) — aucun nom d'une ou deux lettres (c, ps, rs, e…) ; noms explicites, complexité du code touché traitée
+- [Superviseur](feedback_superviseur.md) — corriger ses remontées : captures précises, pas de null JS interne, BigDecimal pour les montants
+- [Installation poste](project_installation_poste.md) — pile Docker idp-local sur 8088, desktop installé, recette R-1 à R-5

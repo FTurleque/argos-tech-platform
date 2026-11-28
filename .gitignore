@@ -20,3 +20,6 @@ sauvegardes/
 
 # Worktrees des sessions Claude Code
 /.claude/worktrees/
+
+# Fichiers de projet IntelliJ IDEA
+/.idea/
