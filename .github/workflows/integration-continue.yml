@@ -87,6 +87,9 @@ jobs:
       - run: npm test
       - run: npm run typecheck
       - run: npm run build
+      # AUD-DEP-19 : licences des dépendances npm livrées (vue, vue-router, polices…) et textes de licence présents.
+      - name: Licences des dépendances livrées
+        run: node ../scripts/verifier-licences-npm.mjs --paquet .
       - name: npm audit
         run: npm audit --audit-level="$NPM_AUDIT_NIVEAU"
 
@@ -107,6 +110,9 @@ jobs:
           cache-dependency-path: argos-desktop/package-lock.json
       - run: npm ci --ignore-scripts
       - run: npm run check
+      # AUD-DEP-19 : licences des dépendances d'exécution du desktop (electron-updater…) et textes de licence présents.
+      - name: Licences des dépendances livrées
+        run: node ../scripts/verifier-licences-npm.mjs --paquet .
       - name: npm audit
         run: npm audit --audit-level="$NPM_AUDIT_NIVEAU"
 
