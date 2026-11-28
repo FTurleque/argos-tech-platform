@@ -117,13 +117,15 @@ function creerElectronPrincipal({ empaquetee, lireFichier }) {
   return { electron, journal };
 }
 
-/** Remplace temporairement les variables de réglage et les arguments du processus. */
-function preparerProcessus({ environnement, dev, dossierRessources }) {
+/** Remplace temporairement les variables de réglage, les arguments et, si demandée, la plateforme du processus. */
+function preparerProcessus({ environnement, dev, dossierRessources, plateforme }) {
   const sauvegarde = {
     variables: Object.fromEntries(VARIABLES_REGLAGES.map((nom) => [nom, process.env[nom]])),
     argv: process.argv,
     ressources: Object.getOwnPropertyDescriptor(process, 'resourcesPath'),
+    plateforme: Object.getOwnPropertyDescriptor(process, 'platform'),
   };
+  if (plateforme) Object.defineProperty(process, 'platform', { value: plateforme, configurable: true });
   for (const nom of VARIABLES_REGLAGES) delete process.env[nom];
   Object.assign(process.env, environnement);
   process.argv = dev ? [...process.argv, '--dev'] : process.argv.filter((argument) => argument !== '--dev');
@@ -136,26 +138,51 @@ function preparerProcessus({ environnement, dev, dossierRessources }) {
     process.argv = sauvegarde.argv;
     if (sauvegarde.ressources) Object.defineProperty(process, 'resourcesPath', sauvegarde.ressources);
     else delete process.resourcesPath;
+    if (sauvegarde.plateforme) Object.defineProperty(process, 'platform', sauvegarde.plateforme);
   };
 }
 
-/** Exécute main.js avec `electron` et `../package.json` remplacés. */
-function executerMain(electron, packageLivre) {
+/** autoUpdater factice d'electron-updater : recherches et réglages inscrits dans le journal. */
+function creerMiseAJourFactice(journal) {
+  journal.miseAJour = { recherches: 0, ecouteurs: {}, autoDownload: false, autoInstallOnAppQuit: false };
+  const miseAJour = journal.miseAJour;
+  return {
+    set autoDownload(valeur) { miseAJour.autoDownload = valeur; },
+    set autoInstallOnAppQuit(valeur) { miseAJour.autoInstallOnAppQuit = valeur; },
+    on(evenement, ecouteur) { miseAJour.ecouteurs[evenement] = ecouteur; },
+    checkForUpdates() {
+      miseAJour.recherches += 1;
+      return Promise.resolve(undefined);
+    },
+  };
+}
+
+/**
+ * Exécute main.js avec `electron`, `electron-updater` et `../package.json` remplacés ; le remplacement reste actif
+ * jusqu'à l'appel de la fonction renvoyée, car electron-updater n'est chargé qu'au démarrage de l'application.
+ */
+function executerMain(electron, packageLivre, journal) {
   const chargementOrigine = Module._load;
   Module._load = function chargerDepuisMain(request, parent, ...reste) {
     if (parent && parent.filename === MAIN) {
       if (request === 'electron') return electron;
+      if (request === 'electron-updater') return { autoUpdater: creerMiseAJourFactice(journal) };
       if (request === '../package.json') return packageLivre;
     }
     return chargementOrigine.call(this, request, parent, ...reste);
   };
+  const retablir = () => {
+    Module._load = chargementOrigine;
+    delete require.cache[MAIN];
+  };
   try {
     delete require.cache[MAIN];
     require(MAIN);
-  } finally {
-    Module._load = chargementOrigine;
-    delete require.cache[MAIN];
+  } catch (erreur) {
+    retablir();
+    throw erreur;
   }
+  return retablir;
 }
 
 /**
@@ -163,7 +190,7 @@ function executerMain(electron, packageLivre) {
  * le journal des appels.
  * @param {{
  *   environnement?: Record<string, string>, emballes?: {apiUrl?: string, oidcUrl?: string}, dev?: boolean,
- *   empaquetee?: boolean, dossierRessources?: string, lireFichier?: (url: string) => unknown,
+ *   empaquetee?: boolean, dossierRessources?: string, lireFichier?: (url: string) => unknown, plateforme?: string,
  * }} [options]
  */
 async function chargerMain(options = {}) {
@@ -175,12 +202,15 @@ async function chargerMain(options = {}) {
     environnement: options.environnement ?? {},
     dev: options.dev ?? false,
     dossierRessources: options.dossierRessources,
+    plateforme: options.plateforme,
   });
+  let retablirChargement = () => {};
   try {
-    executerMain(electron, { ...PACKAGE_LIVRE, argos: options.emballes });
+    retablirChargement = executerMain(electron, { ...PACKAGE_LIVRE, argos: options.emballes }, journal);
     await journal.pret;
     await new Promise((resoudre) => setImmediate(resoudre));
   } finally {
+    retablirChargement();
     restaurer();
   }
   return journal;

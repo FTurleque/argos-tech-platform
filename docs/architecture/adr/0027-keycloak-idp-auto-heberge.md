@@ -79,7 +79,7 @@ rules: false
 
 ## Traçabilité
 
-- **Exigences** : ACC-01, ACC-02 (`openspec/changes/gerer-comptes-et-acces/specs/comptes-acces/spec.md`)
+- **Exigences** : ACC-01, ACC-02 ([spec principale](/openspec/specs/comptes-acces/spec.md) ; changement [`2026-11-17-gerer-comptes-et-acces`](/openspec/changes/archive/2026-11-17-gerer-comptes-et-acces/proposal.md))
 - **Scénarios qualité** : aucun scénario du registre `docs/architecture/quality/scenarios.md` ne porte sur l'authentification ; risque R-18
 - **Diagrammes** : DF-ACC-1 (`docs/specifications/comptes-acces.md`)
 - **Tickets/PR** : Non déterminé
